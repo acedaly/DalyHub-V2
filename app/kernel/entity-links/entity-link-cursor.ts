@@ -78,8 +78,13 @@ function toBase64Url(value: string): string {
     .replace(/=+$/, "");
 }
 
-/** Decode a base64url string produced by {@link toBase64Url}, reversing the
- * UTF-8 byte encoding so Unicode round-trips exactly. */
+/**
+ * Decode a base64url string produced by {@link toBase64Url}, reversing the UTF-8
+ * byte encoding so Unicode round-trips exactly. The `TextDecoder` is FATAL: an
+ * invalid UTF-8 byte sequence throws a `TypeError` (which the caller maps to
+ * `InvalidEntityLinkCursorError`) rather than silently substituting U+FFFD
+ * replacement characters — a tampered cursor must be rejected, not repaired.
+ */
 function fromBase64Url(value: string): string {
   const normalised = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalised.padEnd(
@@ -88,7 +93,7 @@ function fromBase64Url(value: string): string {
   );
   const binary = atob(padded);
   const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
 
 /** Encode a scope + ordering position into an opaque, versioned cursor string. */

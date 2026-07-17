@@ -207,12 +207,21 @@ const fromMeeting = await entityLinks.listForEntity(meeting.id); // direction: "
 const fromTask = await entityLinks.listForEntity(task.id);       // direction: "incoming"
 ```
 
+Both endpoints must exist, be active, and belong to the bound workspace. This is
+enforced **atomically**: the `INSERT` writes only when both endpoints are active
+(`INSERT ... SELECT ... WHERE EXISTS (source active) AND EXISTS (target active)`),
+so an endpoint soft-deleted between validation and the write cannot slip a link
+past the requirement. A missing, soft-deleted, or cross-workspace endpoint fails
+identically (`EntityLinkEndpointNotFoundError`), disclosing nothing.
+
 `listForEntity` returns each link as an `EntityLinkView` (`link`, `direction`,
 and the active `counterpart` entity) fetched via a single joined query (no N+1),
 is bounded and cursor-paginated, and accepts optional `direction`
 (`outgoing`/`incoming`/`both`) and `type` filters. Its cursor is a **dedicated,
 versioned** format bound to the workspace, anchor entity, direction and type
-filter — a cursor from another scope is rejected.
+filter — a cursor from another scope is rejected. The cursor is UTF-8-safe
+(Unicode ids paginate correctly) and decoded with a **fatal** UTF-8 decoder, so a
+tampered/malformed cursor is rejected rather than silently repaired.
 
 ### Direction semantics
 
@@ -227,7 +236,10 @@ endpoints or treats a reversed link as identical.
   does not touch either endpoint entity.
 - **`restore(id)`** clears `deleted_at` (idempotent → `restored`/`already_active`)
   and requires **both endpoints to currently exist and be active**, else it fails
-  safely.
+  safely. The endpoint check is folded into the restore `UPDATE` itself
+  (`... AND EXISTS (source active) AND EXISTS (target active)`), so it cannot be
+  raced by a concurrent endpoint soft-delete; the same applies to the
+  create-after-unlink restore path.
 - **Soft-deleting an endpoint entity does NOT delete its link rows.** Instead,
   link queries hide a link whenever *either* endpoint is soft-deleted; restoring
   the endpoint reveals still-active links again **with the original id**. A link

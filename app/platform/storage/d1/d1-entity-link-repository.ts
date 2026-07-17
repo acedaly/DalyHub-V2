@@ -127,7 +127,11 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       validateCreateEntityLinkInput(input);
 
     // 3-4. Both endpoints must exist, be active, and be in the bound workspace.
-    // A cross-workspace or nonexistent endpoint fails identically here.
+    // This pre-check gives a clear, ordered endpoint-not-found for the common
+    // cases (including the already-exists no-op path below). It is NOT relied on
+    // alone: the INSERT and the restore UPDATE re-assert the same condition in
+    // the SAME statement, so an endpoint soft-deleted between this check and the
+    // write cannot slip a link past the active-endpoint requirement.
     await this.#requireEndpointsActive(sourceEntityId, targetEntityId);
 
     // 5. An existing exact relationship (any lifecycle state) reuses its row/id.
@@ -147,12 +151,25 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     const now = toStorageTimestamp(this.#clock());
     const id = validateEntityLinkId(this.#newId());
     try {
+      // ATOMIC endpoint enforcement: the row is inserted only when BOTH endpoints
+      // still exist, are active, and belong to the bound workspace, checked in
+      // the same statement via `WHERE EXISTS (...) AND EXISTS (...)`. If either
+      // endpoint was soft-deleted since the pre-check, the SELECT yields no row,
+      // nothing is inserted, and RETURNING comes back empty.
       const row = await this.#db
         .prepare(
           `INSERT INTO entity_links
              (id, workspace_id, source_entity_id, target_entity_id, type,
               created_at, updated_at, deleted_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+           SELECT ?, ?, ?, ?, ?, ?, ?, NULL
+           WHERE EXISTS (
+                   SELECT 1 FROM entities
+                   WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+                 )
+             AND EXISTS (
+                   SELECT 1 FROM entities
+                   WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+                 )
            RETURNING ${LINK_COLUMNS}`,
         )
         .bind(
@@ -163,16 +180,23 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
           type,
           now,
           now,
+          this.#workspaceId,
+          sourceEntityId,
+          this.#workspaceId,
+          targetEntityId,
         )
         .first<EntityLinkRow>();
-      if (!row) {
-        throw new EntityLinkStorageError();
+      if (row) {
+        return {
+          link: rowToEntityLink(row),
+          outcome: "created",
+          created: true,
+        };
       }
-      return {
-        link: rowToEntityLink(row),
-        outcome: "created",
-        created: true,
-      };
+      // Nothing was inserted and no UNIQUE violation was thrown, so an endpoint
+      // is no longer active (a concurrent soft-delete raced the pre-check). Fail
+      // safely and indistinguishably from a nonexistent/cross-workspace endpoint.
+      throw new EntityLinkEndpointNotFoundError();
     } catch (cause) {
       if (cause instanceof EntityLinkError) {
         throw cause;
@@ -318,39 +342,28 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       };
     }
 
-    // Restoring a relationship requires BOTH endpoints to currently exist and be
-    // active in the bound workspace; otherwise restoration fails safely.
-    await this.#requireEndpointsActive(
-      existing.source_entity_id,
-      existing.target_entity_id,
-    );
-
+    // The active-endpoint requirement is enforced ATOMICALLY inside the restore
+    // UPDATE (not via a separate pre-check that could go stale): the row is
+    // re-activated only when both of ITS endpoints are still active.
     const now = toStorageTimestamp(this.#clock());
-    const row = await this.#clearDeletedAt(linkId, now);
+    const row = await this.#clearDeletedAtIfEndpointsActive(linkId, now);
     if (row) {
       return { link: rowToEntityLink(row), outcome: "restored", changed: true };
     }
 
-    // The conditional UPDATE matched no unlinked row: a concurrent restore (or
-    // create-restore) won the race and the link is already active. Report the
-    // idempotent outcome rather than erroring.
-    const current = await this.#findById(linkId);
-    if (current && current.deleted_at === null) {
-      return {
-        link: rowToEntityLink(current),
-        outcome: "already_active",
-        changed: false,
-      };
-    }
-    // The row vanished (there is no hard-delete, so this is not expected) — fail
-    // safely as not-found rather than surfacing a storage error.
-    throw new EntityLinkNotFoundError();
+    // The conditional UPDATE matched no row. Re-read and classify safely.
+    return this.#classifyFailedRestore(linkId, (link) => ({
+      link,
+      outcome: "already_active",
+      changed: false,
+    }));
   }
 
   /**
-   * Reconcile an existing exact relationship: an active row is an idempotent
-   * `already_exists`; an unlinked row is restored IN PLACE (same id) to
-   * `restored`. Endpoints have already been confirmed active by the caller.
+   * Reconcile an existing exact relationship for `create`: an active row is an
+   * idempotent `already_exists`; an unlinked row is restored IN PLACE (same id)
+   * to `restored`, but ONLY when both of its endpoints are still active — the
+   * restore UPDATE enforces that in the same statement.
    */
   async #reconcileExisting(
     existing: EntityLinkRow,
@@ -363,7 +376,7 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       };
     }
     const now = toStorageTimestamp(this.#clock());
-    const row = await this.#clearDeletedAt(existing.id, now);
+    const row = await this.#clearDeletedAtIfEndpointsActive(existing.id, now);
     if (row) {
       return {
         link: rowToEntityLink(row),
@@ -372,27 +385,49 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       };
     }
 
-    // A concurrent create/restore already re-activated the row. Re-read and
-    // return the idempotent `already_exists` rather than erroring.
-    const current = await this.#findById(existing.id);
+    // The conditional restore matched no row. Re-read and classify safely.
+    return this.#classifyFailedRestore(existing.id, (link) => ({
+      link,
+      outcome: "already_exists",
+      created: false,
+    }));
+  }
+
+  /**
+   * Determine why a conditional restore UPDATE affected no row and return a safe
+   * outcome. Called only after an `UPDATE ... deleted_at IS NOT NULL AND
+   * <endpoints active>` matched nothing, so exactly one of these holds:
+   *   - the link is now active (a concurrent restore won the race) → the caller's
+   *     idempotent already-active outcome, built by `onAlreadyActive`;
+   *   - the link is still unlinked → an endpoint is missing/soft-deleted/cross-
+   *     workspace, so restoration fails safely as `EntityLinkEndpointNotFoundError`;
+   *   - the row is gone (not expected — there is no hard-delete) → a typed
+   *     `EntityLinkConflictError`, never a generic invariant failure.
+   */
+  async #classifyFailedRestore<T>(
+    id: string,
+    onAlreadyActive: (link: EntityLinkRecord) => T,
+  ): Promise<T> {
+    const current = await this.#findById(id);
     if (current && current.deleted_at === null) {
-      return {
-        link: rowToEntityLink(current),
-        outcome: "already_exists",
-        created: false,
-      };
+      return onAlreadyActive(rowToEntityLink(current));
     }
-    // Unreconcilable: the row is gone or still unlinked with no rows returned —
-    // there is no safe result to synthesise.
+    if (current) {
+      // Still unlinked → the endpoint-active EXISTS clauses failed.
+      throw new EntityLinkEndpointNotFoundError();
+    }
     throw new EntityLinkConflictError();
   }
 
   /**
-   * Clear `deleted_at` on an unlinked link in the bound workspace, returning the
-   * refreshed row, or null when no unlinked row matched (already active / gone).
-   * The `deleted_at IS NOT NULL` guard makes concurrent restores race-safe.
+   * Clear `deleted_at` on an unlinked link in the bound workspace, but ONLY when
+   * both of the link's endpoints currently exist, are active, and are in the same
+   * workspace — enforced atomically via correlated `EXISTS` sub-selects in the
+   * same UPDATE. Returns the refreshed row, or null when nothing matched (already
+   * active, an endpoint inactive, or the row is gone). The `deleted_at IS NOT
+   * NULL` guard also makes concurrent restores race-safe.
    */
-  async #clearDeletedAt(
+  async #clearDeletedAtIfEndpointsActive(
     id: string,
     now: string,
   ): Promise<EntityLinkRow | null> {
@@ -402,6 +437,18 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
           `UPDATE entity_links
              SET deleted_at = NULL, updated_at = ?
            WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL
+             AND EXISTS (
+                   SELECT 1 FROM entities
+                   WHERE workspace_id = entity_links.workspace_id
+                     AND id = entity_links.source_entity_id
+                     AND deleted_at IS NULL
+                 )
+             AND EXISTS (
+                   SELECT 1 FROM entities
+                   WHERE workspace_id = entity_links.workspace_id
+                     AND id = entity_links.target_entity_id
+                     AND deleted_at IS NULL
+                 )
            RETURNING ${LINK_COLUMNS}`,
         )
         .bind(now, id, this.#workspaceId),

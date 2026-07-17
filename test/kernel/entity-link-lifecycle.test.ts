@@ -145,6 +145,27 @@ describe("EntityLink lifecycle & endpoint-deletion behaviour", () => {
         EntityLinkNotFoundError,
       );
     });
+
+    it("create-after-unlink cannot re-activate a relationship when an endpoint is inactive", async () => {
+      const { b, link } = await linkedPair();
+      await linksA.unlink(link.id);
+      await entitiesA.softDelete(b.id);
+
+      // Re-creating the same relationship must fail safely (endpoint-not-found)
+      // and must NOT resurrect the row — the endpoint check is enforced in the
+      // restore statement, not merely a stale pre-check.
+      await expect(
+        linksA.create({
+          sourceEntityId: link.sourceEntityId,
+          targetEntityId: link.targetEntityId,
+          type: link.type,
+        }),
+      ).rejects.toBeInstanceOf(EntityLinkEndpointNotFoundError);
+
+      const stored = await linksA.getById(link.id, { includeUnlinked: true });
+      expect(stored?.deletedAt).not.toBeNull();
+      expect(await countLinkRows()).toBe(1);
+    });
   });
 
   describe("endpoint soft-delete hides but preserves the relationship (central contract)", () => {

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { resetTables, seedEntity } from "./support";
+import { countLinkRows, resetTables, seedEntity } from "./support";
 
 // FND-04: prove the DATABASE — not just application code — enforces referential
 // integrity for entity_links via direct SQL. These bypass the repository on
@@ -225,5 +225,104 @@ describe("entity_links database integrity (direct SQL)", () => {
       .bind(WS_A)
       .all<{ id: string }>();
     expect(results.map((r) => r.id)).toEqual(["a1", "a2"]);
+  });
+});
+
+// The repository folds the active-endpoint requirement INTO the create/restore
+// statements (not just a pre-check), so a soft-delete racing between validation
+// and the write cannot slip a link past it. These tests run the exact atomic
+// statements directly to prove the SQL itself enforces active endpoints — the
+// composite FK only guarantees an endpoint EXISTS, not that it is active.
+describe("entity_links atomic active-endpoint enforcement (direct SQL)", () => {
+  const ATOMIC_INSERT = `INSERT INTO entity_links
+       (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+     SELECT ?, ?, ?, ?, 'task.relates_to', ?, ?, NULL
+     WHERE EXISTS (
+             SELECT 1 FROM entities
+             WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+           )
+       AND EXISTS (
+             SELECT 1 FROM entities
+             WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+           )`;
+
+  const ATOMIC_RESTORE = `UPDATE entity_links
+       SET deleted_at = NULL, updated_at = ?
+     WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL
+       AND EXISTS (
+             SELECT 1 FROM entities
+             WHERE workspace_id = entity_links.workspace_id
+               AND id = entity_links.source_entity_id
+               AND deleted_at IS NULL
+           )
+       AND EXISTS (
+             SELECT 1 FROM entities
+             WHERE workspace_id = entity_links.workspace_id
+               AND id = entity_links.target_entity_id
+               AND deleted_at IS NULL
+           )`;
+
+  beforeEach(async () => {
+    await resetTables([WS_A]);
+    await seedEntity(WS_A, "act1"); // active
+    await seedEntity(WS_A, "act2"); // active
+    await seedEntity(WS_A, "gone", { deletedAt: AT }); // soft-deleted
+  });
+
+  it("atomic insert writes nothing when the source is soft-deleted", async () => {
+    await env.DB.prepare(ATOMIC_INSERT)
+      .bind("l", WS_A, "gone", "act1", AT, AT, WS_A, "gone", WS_A, "act1")
+      .run();
+    expect(await countLinkRows()).toBe(0);
+  });
+
+  it("atomic insert writes nothing when the target is soft-deleted", async () => {
+    await env.DB.prepare(ATOMIC_INSERT)
+      .bind("l", WS_A, "act1", "gone", AT, AT, WS_A, "act1", WS_A, "gone")
+      .run();
+    expect(await countLinkRows()).toBe(0);
+  });
+
+  it("atomic insert writes the row when both endpoints are active", async () => {
+    await env.DB.prepare(ATOMIC_INSERT)
+      .bind("l", WS_A, "act1", "act2", AT, AT, WS_A, "act1", WS_A, "act2")
+      .run();
+    expect(await countLinkRows()).toBe(1);
+  });
+
+  it("conditional restore re-activates nothing when an endpoint is soft-deleted", async () => {
+    // An UNLINKED link whose target then became inactive.
+    await env.DB.prepare(
+      `INSERT INTO entity_links
+         (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+       VALUES ('l1', ?, 'act1', 'gone', 'task.relates_to', ?, ?, ?)`,
+    )
+      .bind(WS_A, AT, AT, AT)
+      .run();
+
+    await env.DB.prepare(ATOMIC_RESTORE).bind(AT, "l1", WS_A).run();
+
+    const row = await env.DB.prepare(
+      "SELECT deleted_at FROM entity_links WHERE id = 'l1'",
+    ).first<{ deleted_at: string | null }>();
+    // Still unlinked — the endpoint-active EXISTS clause blocked the restore.
+    expect(row?.deleted_at).not.toBeNull();
+  });
+
+  it("conditional restore re-activates the row when both endpoints are active", async () => {
+    await env.DB.prepare(
+      `INSERT INTO entity_links
+         (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+       VALUES ('l1', ?, 'act1', 'act2', 'task.relates_to', ?, ?, ?)`,
+    )
+      .bind(WS_A, AT, AT, AT)
+      .run();
+
+    await env.DB.prepare(ATOMIC_RESTORE).bind(AT, "l1", WS_A).run();
+
+    const row = await env.DB.prepare(
+      "SELECT deleted_at FROM entity_links WHERE id = 'l1'",
+    ).first<{ deleted_at: string | null }>();
+    expect(row?.deleted_at).toBeNull();
   });
 });

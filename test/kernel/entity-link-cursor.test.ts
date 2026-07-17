@@ -67,6 +67,35 @@ describe("EntityLink cursor (pure)", () => {
     }
   });
 
+  it("rejects malformed UTF-8 bytes instead of substituting U+FFFD", () => {
+    // Build base64url whose bytes would be a VALID 7-element JSON cursor if the
+    // invalid byte were leniently replaced by U+FFFD (so JSON.parse alone would
+    // NOT catch it). A fatal UTF-8 decoder must reject it outright.
+    const enc = new TextEncoder();
+    const prefix = enc.encode('[1,"');
+    const suffix = enc.encode(
+      '","anchor","outgoing",null,"2026-07-17T00:00:01.000Z","lnk_0001"]',
+    );
+    // 0xFF is never valid in UTF-8; it sits inside the workspaceId string.
+    const bytes = new Uint8Array([...prefix, 0xff, ...suffix]);
+    let binary = "";
+    for (const b of bytes) binary += String.fromCharCode(b);
+    const cursor = btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    // Sanity check the construction: leniently decoded it IS syntactically valid
+    // JSON of the right shape (proving only the fatal decoder rejects it).
+    const lenient = new TextDecoder("utf-8").decode(bytes);
+    const parsed = JSON.parse(lenient);
+    expect(Array.isArray(parsed) && parsed.length === 7).toBe(true);
+
+    expect(() => decodeEntityLinkCursor(cursor)).toThrow(
+      InvalidEntityLinkCursorError,
+    );
+  });
+
   it("rejects malformed base64, non-JSON, and wrong-arity payloads", () => {
     expect(() => decodeEntityLinkCursor("")).toThrow(
       InvalidEntityLinkCursorError,
