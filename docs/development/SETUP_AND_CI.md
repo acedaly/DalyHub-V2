@@ -1,0 +1,88 @@
+# SETUP_AND_CI.md — Local Setup & Continuous Integration
+
+> How to get the DalyHub V2 app running locally and what CI checks every change.
+> Platform rationale: [ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain).
+
+---
+
+## Prerequisites
+
+- **Node.js 22+** (see [`.nvmrc`](../../.nvmrc)).
+- **pnpm via Corepack** — no separate pnpm install needed; Corepack ships with
+  Node and activates the version pinned in `package.json` (`packageManager`).
+
+## First-time setup
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+```
+
+`pnpm install` runs a `postinstall` step (`wrangler types`) that generates
+`worker-configuration.d.ts` (git-ignored) so type-checking works immediately.
+No manual repair should be needed.
+
+## Everyday commands
+
+| Command               | What it does                                                        |
+| --------------------- | ------------------------------------------------------------------- |
+| `pnpm dev`            | Start the dev server (React Router + Workers runtime via Vite)      |
+| `pnpm build`          | Production build (`build/client` + `build/server`)                  |
+| `pnpm preview`        | Serve the built app locally in the Workers runtime (`vite preview`) |
+| `pnpm lint`           | ESLint (flat config)                                                |
+| `pnpm format`         | Apply Prettier formatting                                           |
+| `pnpm format:check`   | Verify formatting without writing                                   |
+| `pnpm typecheck`      | `wrangler types` + React Router typegen + `tsc -b`                  |
+| `pnpm test`           | Unit/component tests (Vitest + React Testing Library)               |
+| `pnpm test:e2e`       | Playwright Chromium smoke test (builds + previews automatically)    |
+| `pnpm verify`         | The full local quality suite, in order (see below)                  |
+| `pnpm cf-typegen`     | Regenerate Cloudflare `Env` types after editing `wrangler.jsonc`    |
+| `pnpm deploy:dry-run` | Validate the deploy config/bundle without credentials               |
+| `pnpm deploy`         | Build and deploy to Cloudflare Workers (needs credentials)          |
+
+## `pnpm verify`
+
+`pnpm verify` runs the complete local quality suite in a deterministic order —
+the same meaningful checks CI runs:
+
+```
+format:check → lint → typecheck → test → build → test:e2e
+```
+
+A fresh contributor can run `corepack enable && pnpm install --frozen-lockfile
+&& pnpm verify` and expect it to pass with no undocumented manual steps.
+
+### Playwright browsers
+
+`pnpm test:e2e` needs a Chromium build matching the installed Playwright
+version. Locally, install it once with:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+CI installs it explicitly (`playwright install --with-deps chromium`) so runs
+are self-contained.
+
+## Continuous Integration
+
+CI is defined in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
+and runs on pull requests and pushes to `main`. It:
+
+1. checks out cleanly and installs with a **frozen lockfile**;
+2. runs, as separate failing-on-error steps: **format check → lint → typecheck
+   → unit/component tests → production build → Playwright smoke test**;
+3. caches the pnpm store (via `actions/setup-node`), and installs the Chromium
+   browser explicitly for the smoke test.
+
+Operational properties:
+
+- **Concurrency:** superseded runs on the same ref are cancelled.
+- **Least privilege:** the workflow declares `permissions: contents: read`.
+- **No Cloudflare credentials** are required or used — CI never deploys.
+- **Timeouts:** the job is bounded (15 minutes) so a hang fails rather than runs
+  forever.
+- On failure, the Playwright HTML report is uploaded as an artifact (traces and
+  screenshots are retained only on failure).
+
+Deployment is documented separately in [`DEPLOYMENT.md`](DEPLOYMENT.md).

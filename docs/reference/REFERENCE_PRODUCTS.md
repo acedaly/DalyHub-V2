@@ -96,7 +96,21 @@
 | **Zod** (or similar) | Runtime validation | `colinhacks/zod` | 🟢 MIT | Validate boundaries/imports ([security](../../AGENTS.md#17-security-requirements)). |
 | **A Markdown sanitiser** (e.g. rehype-sanitize / DOMPurify) | XSS-safe rendering | various | 🟢 MIT (verify) | Mandatory for the [Markdown pipeline](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy). |
 
-> **Platform note.** The Cloudflare Developer Platform (Workers, D1, KV, R2) is the proposed runtime/storage direction (see [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md#platform-proposed-direction)); its SDKs/tooling are evaluated the same way. Todoist and Notion are **import/sync sources** ([X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar)), not dependencies to reuse code from.
+> **Platform note.** The application platform and toolchain are now settled in [ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain) (Cloudflare Workers + React Router v8 + Vite + Wrangler; see the verified scaffold findings below). Cloudflare **storage** services (D1, KV, R2, Durable Objects) remain a proposed, deferred direction (see [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md#platform)); their SDKs/tooling are evaluated the same way when adopted. Todoist and Notion are **import/sync sources** ([X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar)), not dependencies to reuse code from.
+
+---
+
+## Verified scaffolds / starters
+
+### Cloudflare `create-cloudflare` React Router starter — 🟢 reusable (MIT)
+- **Why chosen.** The official, first-party way to scaffold a full-stack React Router app that runs on Cloudflare Workers. Used as the reference scaffold for [FND-01](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold) / [ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain).
+- **What DalyHub should learn.** The canonical wiring of React Router v8 (framework mode, SSR) + the Cloudflare Vite plugin + Wrangler, including the Workers entry adapter (`workers/app.ts`), `entry.server.tsx` streaming render, and the split `tsconfig` project references.
+- **Relevant modules.** Whole-app foundation; every later module builds on this scaffold.
+- **Repository / licence.** Generated via `npm create cloudflare@latest -- --framework=react-router` (C3). Template and the React Router project it derives from are **MIT** — verified against the generated `node_modules/react-router/LICENSE.md` and package metadata on **2026-07-17**. Reusable (permissive); provenance recorded in [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) and inline comments in the adapted files.
+- **Reusable code.** Config and entry files adapted directly (with provenance comments): `vite.config.ts`, `react-router.config.ts`, `workers/app.ts`, `app/entry.server.tsx`, `app/root.tsx`, and the `tsconfig.*` project references.
+- **Reusable interaction patterns.** N/A (toolchain, not UX).
+- **Risks.** The template ships extras not needed for a restrained foundation — **Tailwind CSS**, a demo "welcome" page with branding/logos, and Google Fonts links. All were removed to avoid pre-empting the design system (DS-01) and to keep the dependency footprint minimal. The C3 generator is interactive and can overwrite a directory; we generated into a throwaway temp dir and integrated files selectively, never running it over this repo.
+- **Research notes (2026-07-17).** Verified current versions on npm: `react-router` 8.2.0 latest (template pins 8.0.0), `@cloudflare/vite-plugin` 1.45.1, `wrangler` 4.112.0, `vite` 8.1.5, `react` 19.2.7, `typescript` 5.9.3 (template pin; TS 7.0.2 exists but tooling targets 5.x — not adopted). `vite preview` serves the built app in the Workers runtime locally, which the Playwright smoke test relies on. All bundled/dev dependencies are permissive (MIT / Apache-2.0 / ISC); no copyleft in the tree.
 
 ---
 

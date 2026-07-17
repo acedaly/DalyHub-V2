@@ -1,0 +1,96 @@
+# Third-Party Notices
+
+DalyHub is proprietary (all rights reserved — see the repository's licensing
+posture in [`docs/governance/OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md)).
+It incorporates third-party open-source software under the terms below. This
+file collects notices that the applicable licences require us to preserve. It
+is maintained per [`AGENTS.md §11`](AGENTS.md#11-licensing--provenance-requirements).
+
+All licences recorded here were verified against the installed versions on
+**2026-07-17**. Exact resolved versions are pinned in `pnpm-lock.yaml`.
+
+---
+
+## Project scaffold
+
+The application skeleton and toolchain configuration were bootstrapped from the
+official **Cloudflare `create-cloudflare` (C3) React Router template**, generated
+with `npm create cloudflare@latest -- --framework=react-router` on 2026-07-17.
+Files adapted from that template carry inline provenance comments (see
+`app/entry.server.tsx`, `app/root.tsx`, `workers/app.ts`). The template and the
+React Router project it derives from are licensed under the MIT License.
+
+```
+MIT License
+
+Copyright (c) React Training LLC 2015-2019
+Copyright (c) Remix Software Inc. 2020-2021
+Copyright (c) Shopify Inc. 2022-2023
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## Bundled runtime dependencies
+
+These packages ship in the deployed Worker bundle. All are permissively
+licensed (allowed by default per the Open Source Policy).
+
+| Package        | Version | Licence |
+| -------------- | ------- | ------- |
+| `react`        | 19.2.7  | MIT     |
+| `react-dom`    | 19.2.7  | MIT     |
+| `react-router` | 8.0.0   | MIT     |
+| `isbot`        | 5.2.1   | MIT     |
+
+---
+
+## Toolchain (development) dependencies
+
+Build, test, and quality tooling. Not shipped in the runtime bundle, but their
+licences are recorded for completeness.
+
+| Package                     | Version         | Licence            |
+| --------------------------- | --------------- | ------------------ |
+| `@react-router/dev`         | 8.0.0           | MIT                |
+| `@cloudflare/vite-plugin`   | 1.45.1          | MIT                |
+| `wrangler`                  | 4.112.0         | MIT OR Apache-2.0  |
+| `vite`                      | 8.1.5           | MIT                |
+| `typescript`                | 5.9.3           | Apache-2.0         |
+| `typescript-eslint`         | 8.64.0          | MIT                |
+| `eslint`                    | 10.7.0          | MIT                |
+| `@eslint/js`                | 10.0.1          | MIT                |
+| `eslint-plugin-react-hooks` | 7.1.1           | MIT                |
+| `eslint-plugin-jsx-a11y`    | 6.10.2          | MIT                |
+| `eslint-config-prettier`    | 10.1.8          | MIT                |
+| `prettier`                  | 3.9.5           | MIT                |
+| `vitest`                    | 4.1.10          | MIT                |
+| `@vitejs/plugin-react`      | 6.0.3           | MIT                |
+| `@testing-library/react`    | 16.3.2          | MIT                |
+| `@testing-library/jest-dom` | 6.9.1           | MIT                |
+| `happy-dom`                 | 20.10.6         | MIT                |
+| `@playwright/test`          | 1.61.1          | Apache-2.0         |
+| `globals`                   | 17.7.0          | MIT                |
+| `@types/*`                  | (various)       | MIT                |
+
+Apache-2.0 dependencies (`typescript`, `@playwright/test`, and `wrangler` under
+its Apache-2.0 option) are used unmodified; none ships a supplemental `NOTICE`
+file requiring additional reproduction. No copyleft or no-licence code is
+included.

@@ -1,0 +1,16 @@
+# Generated / build output
+build/
+.react-router/
+coverage/
+playwright-report/
+test-results/
+worker-configuration.d.ts
+
+# Lockfile
+pnpm-lock.yaml
+
+# Docs are prose; leave line-wrapping to the author.
+docs/
+AGENTS.md
+README.md
+THIRD_PARTY_NOTICES.md

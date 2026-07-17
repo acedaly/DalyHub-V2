@@ -41,6 +41,36 @@ AGENTS.md  →  ROADMAP_V2.md  →  a small implementation prompt
 
 A typical task is as short as: *"Implement the next unchecked ROADMAP_V2 item according to AGENTS.md."* The feature lifecycle behind that prompt is in [`IMPLEMENTATION_WORKFLOW.md`](docs/product/IMPLEMENTATION_WORKFLOW.md).
 
+## Running the app
+
+The application is a React Router v8 (framework mode) app on **Cloudflare
+Workers**, built with Vite and the Cloudflare Vite plugin, managed with pnpm via
+Corepack and Wrangler ([ADR-008](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain)).
+
+**Prerequisites:** Node.js 22+ (see [`.nvmrc`](.nvmrc)). pnpm comes via Corepack.
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev            # http://localhost:5173 — foundation page + /health
+pnpm verify         # full local quality suite: format, lint, types, tests, build, e2e
+```
+
+| Command             | What it does                                              |
+| ------------------- | -------------------------------------------------------- |
+| `pnpm dev`          | Dev server in the Workers runtime                        |
+| `pnpm build`        | Production build                                         |
+| `pnpm lint`         | ESLint                                                   |
+| `pnpm format`       | Apply Prettier · `format:check` verifies                 |
+| `pnpm typecheck`    | Cloudflare types + React Router typegen + `tsc`          |
+| `pnpm test`         | Unit/component tests (Vitest + RTL)                      |
+| `pnpm test:e2e`     | Playwright Chromium smoke test                           |
+| `pnpm verify`       | All of the above, in a deterministic order               |
+| `pnpm deploy`       | Build and deploy to Cloudflare Workers (needs creds)     |
+
+Full details: [`docs/development/SETUP_AND_CI.md`](docs/development/SETUP_AND_CI.md)
+and [`docs/development/DEPLOYMENT.md`](docs/development/DEPLOYMENT.md).
+
 ## Documentation
 
 | Area | Document |
@@ -51,8 +81,9 @@ A typical task is as short as: *"Implement the next unchecked ROADMAP_V2 item ac
 | Design | [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) |
 | Architecture | [`ARCHITECTURE_OVERVIEW.md`](docs/architecture/ARCHITECTURE_OVERVIEW.md) · [`ARCHITECTURE_DECISIONS.md`](docs/decisions/ARCHITECTURE_DECISIONS.md) |
 | Governance & Reference | [`OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md) · [`REFERENCE_PRODUCTS.md`](docs/reference/REFERENCE_PRODUCTS.md) |
+| Development | [`SETUP_AND_CI.md`](docs/development/SETUP_AND_CI.md) · [`DEPLOYMENT.md`](docs/development/DEPLOYMENT.md) |
 | Index | [`docs/README.md`](docs/README.md) |
 
 ## Status
 
-DalyHub V2 is at its **foundation** stage: the product operating system (this documentation) is established, and implementation proceeds through [Phase 0 — Foundation](docs/roadmap/ROADMAP_V2.md#phase-0--foundation-fnd) of the roadmap. Progress is tracked by the status markers in [`ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md).
+DalyHub V2 is at its **foundation** stage: the product operating system (this documentation) is established, and implementation has begun with [Phase 0 — Foundation](docs/roadmap/ROADMAP_V2.md#phase-0--foundation-fnd). The repository & toolchain scaffold ([FND-01](docs/roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold)) is in progress: the app, tests, and CI run green locally and in GitHub Actions, with a real Cloudflare deployment the remaining external step. Progress is tracked by the status markers in [`ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md).

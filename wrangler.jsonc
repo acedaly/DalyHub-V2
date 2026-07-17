@@ -1,0 +1,22 @@
+/**
+ * Wrangler configuration for the DalyHub V2 Cloudflare Worker.
+ * Reference: https://developers.cloudflare.com/workers/wrangler/configuration/
+ *
+ * This file contains no secrets. Secrets and per-environment values are supplied
+ * at deploy time via `wrangler secret` / dashboard bindings, never committed here.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dalyhub-v2",
+  "compatibility_date": "2026-07-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./workers/app.ts",
+  "observability": {
+    "enabled": true,
+  },
+  "upload_source_maps": true,
+  // Non-secret, safe-to-expose runtime values only. Override per environment at deploy time.
+  "vars": {
+    "ENVIRONMENT": "development",
+  },
+}
