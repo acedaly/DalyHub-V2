@@ -71,6 +71,7 @@ licences are recorded for completeness.
 | --------------------------- | --------------- | ------------------ |
 | `@react-router/dev`         | 8.0.0           | MIT                |
 | `@cloudflare/vite-plugin`   | 1.45.1          | MIT                |
+| `@cloudflare/vitest-pool-workers` | 0.18.6    | MIT                |
 | `wrangler`                  | 4.112.0         | MIT OR Apache-2.0  |
 | `vite`                      | 8.1.5           | MIT                |
 | `typescript`                | 5.9.3           | Apache-2.0         |

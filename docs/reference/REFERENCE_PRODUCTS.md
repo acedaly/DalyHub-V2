@@ -114,6 +114,36 @@
 
 ---
 
+## Storage & data kernel evaluation (FND-02)
+
+> The build-vs-reuse evaluation behind [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage). Licences verified against installed/target versions on **2026-07-17**.
+
+### Cloudflare D1 — 🟢 platform service (relational store)
+- **Why chosen.** Cloudflare-native serverless SQLite: relational persistence with no separate database server to run or pay for, matching the single-user, Workers-based platform ([ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain)). Runs fully locally via Miniflare/Wrangler with no credentials.
+- **What DalyHub uses.** The `entities` base table and all kernel persistence. Bound as `DB` in `wrangler.jsonc`.
+- **Licence / provenance.** A Cloudflare platform service consumed through `wrangler` (MIT OR Apache-2.0) and `miniflare` (MIT) — no source is vendored. Nothing copyleft enters the tree.
+- **Risks.** SQLite/D1 constraints (limited `ALTER`, no stored procedures, per-database size/write limits); mitigated by keeping the kernel small and the storage behind a repository contract so the store can be swapped.
+
+### D1 migrations — 🟢 platform tooling
+- **Why chosen.** First-party, git-tracked, sequential SQL migrations (`migrations/NNNN_*.sql`) applied by Wrangler (`wrangler d1 migrations apply`) and by the Workers Vitest integration in tests. Plain SQL stays portable, inspectable and recoverable.
+- **What DalyHub uses.** `migrations/0001_create_entities.sql`; local scripts `db:migrations:list:local`, `db:migrate:local`.
+- **Risks.** No automatic down-migrations — forward-only discipline is documented in [`DATA_KERNEL.md`](../development/DATA_KERNEL.md).
+
+### Cloudflare Workers Vitest integration (`@cloudflare/vitest-pool-workers`) — 🟢 reusable (MIT)
+- **Why chosen.** The official way to run Vitest **inside the real Workers runtime** with an isolated local D1, so the kernel is integration-tested against real D1 (not a mock) with the committed migration applied. "Drive the real thing" ([testing philosophy](../../AGENTS.md#14-testing-philosophy)) at unit-test cost.
+- **What DalyHub uses.** `vitest.workers.config.ts` (the `cloudflareTest()` plugin + `readD1Migrations`), applying migrations in a setup file to `env.DB`.
+- **Repository / licence.** `cloudflare/workers-sdk` — **MIT**, verified against installed **0.18.6** on **2026-07-17**. Dev-only dependency; bundles the same `wrangler@4.112.0` and `miniflare` already used, plus `esbuild`/`zod` — all permissive. Peer `vitest ^4.1.0` matches the pinned `vitest@4.1.10`.
+- **Risks.** Vitest-4 line is recent and its config API changed from earlier majors (`defineWorkersConfig` → `cloudflareTest()` plugin); pinned exactly and covered by the running suite. Storage isolation is per **file** in this line, so tests reset rows in `beforeEach`.
+
+### ORM / query-builder candidates — rejected for FND-02 (build our own thin repository)
+- **Drizzle ORM** (`drizzle-orm`, 🟢 Apache-2.0) — type-safe schema + queries with good D1 support. **Rejected for now:** adds a dependency and abstraction the tiny single-table schema does not need; reconsider only via a new ADR if query complexity grows.
+- **Kysely** (🟢 MIT) — typed query builder, lighter than an ORM. **Rejected:** still more machinery than prepared statements over one table.
+- **Prisma** (🟡 Apache-2.0; heavier, engine-based) — **Rejected:** heavyweight for Workers/D1 and closest to the V1 stack we are leaving; the V1 Prisma schema is explicitly **not** reused.
+
+**Decision (Depend / Adapt / Build).** **Depend** on Cloudflare D1 + Wrangler migrations + `@cloudflare/vitest-pool-workers` (dev); **Build** a small DalyHub-owned typed repository over prepared D1 statements; **Reject** ORMs/query-builders for FND-02. See [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

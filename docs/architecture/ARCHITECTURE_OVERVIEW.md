@@ -45,7 +45,7 @@ The kernel is deliberately small and rarely changes. Each concept below maps to 
 
 | Kernel concept | What it provides | ADR | Roadmap |
 |---|---|---|---|
-| **Entities** | Uniform record substrate (id, type, workspace, timestamps, soft-delete) | [ADR-001](../decisions/ARCHITECTURE_DECISIONS.md#adr-001-area-hierarchy) | [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage) |
+| **Entities** | Uniform record substrate (id, type, workspace, timestamps, soft-delete) + D1 storage | [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage) | [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage) |
 | **Workspaces** | Top-level isolation & security boundary | [ADR-003](../decisions/ARCHITECTURE_DECISIONS.md#adr-003-workspace-isolation) | [FND-03](../roadmap/ROADMAP_V2.md#-fnd-03--workspace-isolation) |
 | **EntityLinks** | Typed, bidirectional links between any entities | [ADR-002](../decisions/ARCHITECTURE_DECISIONS.md#adr-002-entitylinks) | [FND-04](../roadmap/ROADMAP_V2.md#-fnd-04--entitylinks) |
 | **Activity** | Append-only uniform event stream | [ADR-005](../decisions/ARCHITECTURE_DECISIONS.md#adr-005-shared-activity-model) | [FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model) |
@@ -68,6 +68,17 @@ Any mutation ──appends──> Activity         (rendered as Timeline / Activ
 ```
 
 Supporting entities (Note, Meeting, Person, Asset, Diary, Review) are full entities that connect to the spine through **EntityLinks** rather than being children of it. This keeps the spine clean while letting everything relate to everything (see [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md#how-these-fit-together-the-shape-of-a-day)).
+
+### Entity storage: the kernel contract and its D1 adapter
+
+The entity substrate ([FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage) / [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage)) is built as a **storage-independent contract with a swappable adapter**:
+
+- **Kernel contract** (`app/kernel/entities`) — the typed `EntityRecord`, input types, domain errors, and the `EntityRepository` interface (`create`, `getById`, `update`, `list`, `softDelete`, `restore`). It speaks only in domain terms (camelCase, `Date`s, typed errors) and imports **no** D1 or Cloudflare types. Every operation requires a `workspaceId`.
+- **D1 adapter** (`app/platform/storage/d1`) — the only place SQL, snake_case rows, and SQLite timestamp strings exist. It implements the contract over prepared, parameterised D1 statements and converts rows to domain records at the boundary. Modules depend on the contract, never on the adapter.
+
+The **base `entities` table** holds only the shared record header — `id`, `workspace_id`, `type`, `title`, `created_at`, `updated_at`, `deleted_at` — with soft-delete (`deleted_at`) excluded from ordinary reads/lists, deterministic `(created_at, id)` cursor pagination, and application-generated UTC ISO-8601 timestamps. **Domain-specific fields (status, dates, progress, body, …) are NOT added here; they arrive in later roadmap items as domain tables or deliberately designed extensions**, never as an unstructured JSON blob on the base table.
+
+Two boundaries are deliberately *not* yet closed in FND-02: `workspace_id` is carried and required on every operation, but **complete cross-workspace isolation as a security boundary is [FND-03](../roadmap/ROADMAP_V2.md#-fnd-03--workspace-isolation)'s job**; and EntityLinks/Activity/the spine tables ([FND-04](../roadmap/ROADMAP_V2.md#-fnd-04--entitylinks)/[FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model)/[FND-07](../roadmap/ROADMAP_V2.md#-fnd-07--area--goal--project--task-hierarchy)) build on this substrate later.
 
 ---
 
@@ -98,11 +109,11 @@ The Design System sits between modules and the kernel: reusable, kernel-aware UI
 
 > **Application platform & toolchain: settled.** The compute runtime, framework, and toolchain are now an accepted decision — see [ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain), implemented by [FND-01](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold).
 >
-> **Storage: still proposed.** The specific storage/service choices below (D1, KV, R2, Durable Objects) remain a *proposed direction*, not settled fact. They are deferred to later roadmap items (from [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage)) and must be confirmed via their own ADR before anything relies on them.
+> **Relational storage: settled for the entity kernel.** **Cloudflare D1 (SQLite) is the accepted initial relational store** for the data kernel — see [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage), implemented by [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage). The other storage services below (KV, R2, Durable Objects) remain a *proposed direction*, deferred to later roadmap items and to be confirmed via their own ADR before anything relies on them.
 
 - **Client (settled — ADR-008):** React 19 + TypeScript (strict), rendered through **React Router v8 in framework mode** (SSR by default), built with **Vite** and the official **Cloudflare Vite plugin**. The Design System (Phase 1) will build on accessible primitives and utility styling; see [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md) and [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) for candidate libraries (command palette, editor, drag-and-drop, dates).
 - **Compute runtime (settled — ADR-008):** **Cloudflare Workers**, developed and deployed with **Wrangler**; server code runs in the Workers runtime locally via the Vite plugin so local behaviour matches production.
-- **Storage (proposed, deferred):** Cloudflare Developer Platform storage — D1 (SQLite) for relational entity/link/activity data, KV for fast config/cache, R2 for [Asset](../roadmap/ROADMAP_V2.md#phase-8--assets-asset) files, Durable Objects where strong coordination is needed. **None of these is introduced yet**; each is a later, separately-accepted decision.
+- **Storage:** **Cloudflare D1 (SQLite) is accepted for the relational entity kernel** ([ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage) / [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage)): entities persist in D1 through a DalyHub-owned typed repository over prepared statements, with schema managed by committed SQL migrations and no ORM. The remaining services — KV for fast config/cache, R2 for [Asset](../roadmap/ROADMAP_V2.md#phase-8--assets-asset) files, Durable Objects where strong coordination is needed — remain **proposed and deferred**; each is a later, separately-accepted decision.
 - **Markdown & editor:** a Markdown-native editor feeding the shared sanitising renderer ([ADR-006](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy)).
 - **Auth:** single-user first (the owner), designed so multi-user isn't precluded; workspace scoping already provides the isolation seam.
 - **Background work:** for reminders (renewals, stay-in-touch), review cadences, and import/sync — scheduled/queued jobs on the platform.
