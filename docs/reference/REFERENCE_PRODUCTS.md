@@ -144,6 +144,19 @@
 
 ---
 
+## Workspace isolation evaluation (FND-03)
+
+> The build-vs-reuse evaluation behind [ADR-010](../decisions/ARCHITECTURE_DECISIONS.md#adr-010-server-side-workspace-context). **No new runtime or dev dependency was added** — FND-03 is a security-boundary and data-model change implemented entirely with existing TypeScript, D1 and test tooling. The candidates considered and rejected:
+
+- **A branded-type / validation library (e.g. Zod, `newtype-ts`) for `WorkspaceId`.** Considered for the validated, branded id. **Rejected — build:** a branded string type plus a ~20-line `parseWorkspaceId` validator is smaller and clearer than a dependency, and matches the existing hand-rolled entity validation (no Zod in the kernel yet). Zod remains a candidate for larger boundary/import validation later ([security](../../AGENTS.md#17-security-requirements)), not for a single id.
+- **`AsyncLocalStorage` (Node/Workers built-in) for implicit request context.** Considered for threading `WorkspaceContext`. **Rejected — do not use:** ADR-010 requires context to be passed *explicitly*; ALS is an ambient hidden dependency that obscures the very boundary the feature makes explicit, complicates tests, and is a Workers-runtime footgun. No dependency, and deliberately not the built-in.
+- **A cursor signing/encryption library (e.g. a JWT/HMAC helper).** Considered for tamper-proof pagination cursors. **Rejected — unnecessary:** workspace ids are scope identifiers, not secrets, so cursors are treated as untrusted input, validated by shape + version + scope, with every value still bound in SQL. Versioned scope-binding gives the correctness guarantee without key management. Revisit only if a demonstrated security need appears.
+- **An ORM/query-builder for the FK rebuild.** Already rejected for FND-02 (above); FND-03's table rebuild is plain, inspectable SQLite migration SQL (`migrations/0002_*`), consistent with ADR-009.
+
+**Decision (Depend / Adapt / Build).** **Build** the workspace kernel, resolver, composition boundary and scoped repository with existing tooling; **add no dependency**; the foreign key and migration are plain committed D1 SQL. See [ADR-010](../decisions/ARCHITECTURE_DECISIONS.md#adr-010-server-side-workspace-context).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

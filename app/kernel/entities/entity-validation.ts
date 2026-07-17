@@ -136,9 +136,10 @@ export function validateTitle(value: unknown): string {
   return trimmed;
 }
 
-/** A create input whose fields have all been validated and normalised. */
+/** A create input whose fields have all been validated and normalised. The
+ * workspace is supplied by the repository's bound context, not by the caller
+ * (FND-03), so it is not part of the create input. */
 export type ValidatedCreateInput = {
-  readonly workspaceId: string;
   readonly type: EntityType;
   readonly title: string;
 };
@@ -148,7 +149,6 @@ export function validateCreateInput(
   input: CreateEntityInput,
 ): ValidatedCreateInput {
   return {
-    workspaceId: validateWorkspaceId(input.workspaceId),
     type: validateEntityType(input.type),
     title: validateTitle(input.title),
   };

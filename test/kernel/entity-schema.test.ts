@@ -75,12 +75,33 @@ describe("migration 0001 — entities schema", () => {
 
   it("enforces the not-empty title CHECK constraint at the database", async () => {
     // The kernel validates first, but the DB is the backstop. A blank title is
-    // rejected by the CHECK constraint even if inserted directly.
+    // rejected by the CHECK constraint even if inserted directly. The workspace
+    // must exist first (FK), so the CHECK — not the FK — is what rejects this.
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO workspaces (id, created_at, updated_at)
+       VALUES ('ws_check', '2026-07-17T00:00:00.000Z', '2026-07-17T00:00:00.000Z')`,
+    ).run();
     await expect(
       env.DB.prepare(
         `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at)
-         VALUES ('x', 'ws', 'task', '   ', '2026-07-17T00:00:00.000Z', '2026-07-17T00:00:00.000Z')`,
+         VALUES ('x', 'ws_check', 'task', '   ', '2026-07-17T00:00:00.000Z', '2026-07-17T00:00:00.000Z')`,
       ).run(),
     ).rejects.toThrow();
+  });
+
+  it("still has exactly the four access-path indexes after the 0002 rebuild", async () => {
+    // Migration 0002 rebuilds `entities`; the indexes must be recreated, not
+    // lost. (Also asserted in migration-0002.test.ts against a fresh rebuild.)
+    const { results } = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'entities' AND name NOT LIKE 'sqlite_%'",
+    ).all<{ name: string }>();
+    expect(results.map((r) => r.name).sort()).toEqual(
+      [
+        "entities_active_workspace_created_idx",
+        "entities_active_workspace_type_created_idx",
+        "entities_workspace_created_idx",
+        "entities_workspace_type_created_idx",
+      ].sort(),
+    );
   });
 });

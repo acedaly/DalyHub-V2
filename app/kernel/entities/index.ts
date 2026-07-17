@@ -14,7 +14,7 @@ export type {
   CreateEntityInput,
   UpdateEntityInput,
   GetEntityOptions,
-  ListEntitiesInput,
+  ScopedListEntitiesInput,
   EntityPage,
   LifecycleOutcome,
   LifecycleResult,

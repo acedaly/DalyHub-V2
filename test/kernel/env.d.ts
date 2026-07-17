@@ -11,6 +11,11 @@ declare global {
   namespace Cloudflare {
     interface Env {
       TEST_MIGRATIONS: D1Migration[];
+      // A second, deliberately UN-migrated local D1 (see
+      // vitest.workers.config.ts) used only by the FND-03 migration test to
+      // apply migrations 0001 → 0002 sequentially over seeded data. Not a real
+      // Worker binding.
+      MIGRATION_TEST_DB: D1Database;
     }
   }
 }

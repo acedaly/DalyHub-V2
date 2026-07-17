@@ -49,11 +49,15 @@ export type EntityRecord<TType extends EntityType = EntityType> = {
 };
 
 /**
- * Input to create an entity. Lifecycle fields (`id`, timestamps, `deletedAt`)
- * are generated inside the repository, never supplied by callers.
+ * Input to create an entity through a workspace-scoped repository.
+ *
+ * There is deliberately NO `workspaceId` field (FND-03 / ADR-010): the workspace
+ * is supplied internally by the repository's bound `WorkspaceContext`, so module
+ * code cannot select or override the scope, and a stray `workspaceId` property is
+ * a type error rather than a silently-honoured override. Lifecycle fields (`id`,
+ * timestamps, `deletedAt`) are generated inside the repository.
  */
 export type CreateEntityInput<TType extends EntityType = EntityType> = {
-  readonly workspaceId: string;
   readonly type: TType;
   readonly title: string;
 };
@@ -77,9 +81,12 @@ export type GetEntityOptions = {
   readonly includeDeleted?: boolean;
 };
 
-/** Input to list entities in a workspace using bounded cursor pagination. */
-export type ListEntitiesInput<TType extends EntityType = EntityType> = {
-  readonly workspaceId: string;
+/**
+ * Input to list entities within the repository's bound workspace, using bounded
+ * cursor pagination. There is NO `workspaceId` field — scope comes from the
+ * repository's `WorkspaceContext` (FND-03 / ADR-010).
+ */
+export type ScopedListEntitiesInput<TType extends EntityType = EntityType> = {
   /** Optional filter to a single entity type. */
   readonly type?: TType;
   /**

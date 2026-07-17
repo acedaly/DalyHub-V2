@@ -153,19 +153,20 @@ describe("validateOptionalType", () => {
 });
 
 describe("validateCreateInput", () => {
-  it("validates and normalises all fields together", () => {
+  it("validates and normalises the caller-supplied fields (no workspace)", () => {
+    // FND-03: the create input carries no workspace — scope comes from the
+    // repository's bound context, not the caller.
     expect(
       validateCreateInput({
-        workspaceId: "ws_1",
         type: "task",
         title: "  Buy milk  ",
       }),
-    ).toEqual({ workspaceId: "ws_1", type: "task", title: "Buy milk" });
+    ).toEqual({ type: "task", title: "Buy milk" });
   });
 
   it("fails if any single field is invalid", () => {
-    expect(() =>
-      validateCreateInput({ workspaceId: "ws_1", type: "task", title: "  " }),
-    ).toThrow(EntityValidationError);
+    expect(() => validateCreateInput({ type: "task", title: "  " })).toThrow(
+      EntityValidationError,
+    );
   });
 });

@@ -18,6 +18,14 @@
   // Non-secret, safe-to-expose runtime values only. Override per environment at deploy time.
   "vars": {
     "ENVIRONMENT": "development",
+    // FND-03: the server-side workspace scope resolved at the composition
+    // boundary (ADR-010). This is trusted server-side CONFIGURATION, not a
+    // secret and NOT a request value — it can never be selected via a header,
+    // cookie, query string, route param, form field or JSON body. The value
+    // below is a clearly non-production LOCAL placeholder; a real deployment
+    // provisions a workspace and sets its `crypto.randomUUID()` id here (see
+    // docs/development/DATA_KERNEL.md). No personal or production id is committed.
+    "DEFAULT_WORKSPACE_ID": "local-dev-workspace",
   },
   // D1 (SQLite) is the data kernel's initial relational store (ADR-009 / FND-02).
   // Local development and the Workers Vitest integration use Miniflare's local

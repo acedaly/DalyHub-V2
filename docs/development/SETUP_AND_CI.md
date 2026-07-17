@@ -80,10 +80,16 @@ and runs on pull requests and pushes to `main`. It:
 3. caches the pnpm store (via `actions/setup-node`), and installs the Chromium
    browser explicitly for the smoke test.
 
-The kernel integration step runs the FND-02 data-kernel suite inside the real
-Workers runtime with an isolated local D1 (Miniflare); it applies the committed
-migration to a fresh test database and uses **no** Cloudflare credentials or
-remote database. See [`DATA_KERNEL.md`](DATA_KERNEL.md).
+The kernel integration step runs the data-kernel suite inside the real Workers
+runtime with an isolated local D1 (Miniflare); it applies the committed
+migrations to a fresh test database and uses **no** Cloudflare credentials or
+remote database. It covers the FND-02 entity kernel **and** FND-03 workspace
+isolation — including the sequential `0001 → 0002` migration over seeded data,
+database-level foreign-key enforcement, the server-side context resolver, and
+cross-workspace isolation of the scoped repository. No test skips for a missing
+workspace or binding: the second (un-migrated) local D1 and the
+`DEFAULT_WORKSPACE_ID` test value are provided by the pool config. See
+[`DATA_KERNEL.md`](DATA_KERNEL.md).
 
 Operational properties:
 

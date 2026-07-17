@@ -3,8 +3,8 @@
 > How to run migrations, test, and inspect the data kernel locally, and how a
 > real Cloudflare D1 database is eventually provisioned.
 >
-> Decision & rationale: [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage).
-> Roadmap item: [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage).
+> Decision & rationale: [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage) (storage) · [ADR-010](../decisions/ARCHITECTURE_DECISIONS.md#adr-010-server-side-workspace-context) (workspace context).
+> Roadmap items: [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage) (entities) · [FND-03](../roadmap/ROADMAP_V2.md#-fnd-03--workspace-isolation) (workspace isolation).
 > Architecture: [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md#entity-storage-the-kernel-contract-and-its-d1-adapter).
 
 ---
@@ -16,16 +16,21 @@ on. It is split into a storage-independent contract and a D1 adapter:
 
 | Layer | Location | Responsibility |
 | ----- | -------- | -------------- |
-| Kernel contract | `app/kernel/entities/` | Typed `EntityRecord`, inputs, domain errors, the `EntityRepository` interface, validation and cursor logic. No D1/Cloudflare types. |
-| D1 adapter | `app/platform/storage/d1/` | Implements the contract over prepared, parameterised D1 statements; converts rows ⇄ domain records. The only place SQL lives. |
+| Entity contract | `app/kernel/entities/` | Typed `EntityRecord`, inputs, domain errors, the workspace-bound `EntityRepository` interface, validation and cursor logic. No D1/Cloudflare types. |
+| Workspace kernel | `app/kernel/workspaces/` | Branded `WorkspaceId`, `WorkspaceRecord`, `WorkspaceContext`, the `WorkspaceContextResolver` interface and the low-level `WorkspaceRepository` contract. No D1/Cloudflare types. |
+| D1 adapter | `app/platform/storage/d1/` | Implements the contracts over prepared, parameterised D1 statements; converts rows ⇄ domain records. The only place SQL lives. |
+| Composition | `app/platform/workspaces/` | The server-side `environment → resolver → WorkspaceContext → scoped repository` boundary (`resolveWorkspaceScope`). |
 | Schema | `migrations/` | Committed, sequential D1 SQL migrations. |
 
-Modules depend on the **contract** (`~/kernel/entities`) and construct a
-repository with `createEntityRepository(env.DB)` from
-`~/platform/storage/d1` — never on D1 directly.
+Modules depend on the **contract** (`~/kernel/entities`) and receive a
+**workspace-scoped** repository from the composition boundary
+(`resolveWorkspaceScope(env)` in `~/platform/workspaces`) — never on D1 directly,
+and never by constructing scope themselves.
 
 The base `entities` table carries only the shared record header (`id`,
-`workspace_id`, `type`, `title`, `created_at`, `updated_at`, `deleted_at`).
+`workspace_id`, `type`, `title`, `created_at`, `updated_at`, `deleted_at`), and
+its `workspace_id` has an enforced foreign key to the `workspaces` table
+([FND-03](../roadmap/ROADMAP_V2.md#-fnd-03--workspace-isolation)).
 **Domain-specific fields belong to future domain tables, not here.**
 
 ## Local development needs no Cloudflare account
@@ -44,6 +49,90 @@ pnpm run db:migrate:local           # apply pending migrations to the local D1
 
 Both wrap `wrangler d1 migrations … DB --local` and touch **only** local
 storage. There is intentionally **no** one-command production reset script.
+
+Migration `0002_create_workspaces_and_enforce_scope.sql` ([FND-03](../roadmap/ROADMAP_V2.md#-fnd-03--workspace-isolation))
+creates the `workspaces` table, back-fills a workspace for every distinct
+existing `entities.workspace_id`, and rebuilds `entities` with a foreign key to
+`workspaces (id)` using `ON DELETE RESTRICT`. It preserves all existing entity
+rows unchanged. The Workers Vitest integration applies it automatically; apply
+it to your local database with `pnpm run db:migrate:local`.
+
+## Workspace isolation (FND-03)
+
+Workspace is DalyHub's top-level isolation and security boundary
+([ADR-003](../decisions/ARCHITECTURE_DECISIONS.md#adr-003-workspace-isolation) /
+[ADR-010](../decisions/ARCHITECTURE_DECISIONS.md#adr-010-server-side-workspace-context)).
+Modules never choose a workspace: they receive a repository already bound to a
+`WorkspaceContext` resolved server-side.
+
+### Setting `DEFAULT_WORKSPACE_ID`
+
+The single-user context resolver reads a trusted `DEFAULT_WORKSPACE_ID` binding
+(a Worker `var`, **not** a secret and **never** a request value). A clearly
+non-production local default (`local-dev-workspace`) is set in `wrangler.jsonc`
+and mirrored in `.dev.vars.example`. A real deployment provisions a workspace
+and sets its `crypto.randomUUID()` id here — no production id is committed.
+
+### Creating a local workspace
+
+The resolver **fails closed** if the configured workspace does not exist, and it
+never auto-creates one. On a fresh local database (no entities yet) there is no
+workspace, so create the one your `DEFAULT_WORKSPACE_ID` points at once:
+
+```bash
+pnpm exec wrangler d1 execute DB --local --command \
+  "INSERT INTO workspaces (id, created_at, updated_at) \
+   VALUES ('local-dev-workspace', '2026-07-17T00:00:00.000Z', '2026-07-17T00:00:00.000Z')"
+```
+
+(Programmatically, the low-level `createWorkspaceRepository(env.DB).create({ id })`
+does the same — it is a bootstrap concern, not a module-facing API.)
+
+### Verifying foreign keys
+
+```bash
+# The FK is declared with ON DELETE RESTRICT.
+pnpm exec wrangler d1 execute DB --local --command "PRAGMA foreign_key_list(entities)"
+
+# Foreign keys are enforced by the runtime (returns 1).
+pnpm exec wrangler d1 execute DB --local --command "PRAGMA foreign_keys"
+
+# An entity referencing a non-existent workspace is rejected by the database.
+pnpm exec wrangler d1 execute DB --local --command \
+  "INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at) \
+   VALUES ('x', 'no-such-workspace', 'task', 't', '2026-07-17T00:00:00.000Z', '2026-07-17T00:00:00.000Z')"
+# → fails: FOREIGN KEY constraint failed
+```
+
+### Using workspace-scoped repositories
+
+Server code obtains a scoped repository through the composition boundary:
+
+```ts
+import { resolveWorkspaceScope } from "~/platform/workspaces";
+
+// environment → resolver → WorkspaceContext → workspace-scoped EntityRepository
+const { context, entities } = await resolveWorkspaceScope(env);
+
+await entities.create({ type: "task", title: "Buy milk" }); // scoped automatically
+await entities.list(); // only this workspace's entities
+```
+
+Note the entity methods take **no `workspaceId`** — the scope comes from
+`context`. `resolveWorkspaceScope` throws a typed workspace error if the
+configured workspace is missing, invalid or does not exist.
+
+### Why modules must never accept workspace scope from user input
+
+Workspace scope is a **security boundary**, so it is resolved only from trusted
+server-side state. The resolver's `resolve()` deliberately **takes no request
+argument**: a header, cookie, query string, route parameter, form field or JSON
+body can never select or override the workspace. If module code accepted a
+`workspaceId` from a request, a client could read or write another workspace's
+data — the classic broken-access-control flaw. Binding scope at repository
+construction makes cross-workspace access *unrepresentable* in module code
+rather than merely discouraged. See
+[ADR-010](../decisions/ARCHITECTURE_DECISIONS.md#adr-010-server-side-workspace-context).
 
 ## Running the kernel tests
 

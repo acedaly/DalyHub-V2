@@ -1,11 +1,14 @@
 /**
- * FND-02 Data kernel — D1 implementation of the entity repository.
+ * FND-02/FND-03 Data kernel — D1 implementation of the entity repository.
  *
- * Implements the storage-independent `EntityRepository` contract over Cloudflare
- * D1 (SQLite) using prepared, parameterised statements only. No caller-supplied
- * value is ever interpolated into SQL — every value is bound (see AGENTS.md §17).
- * D1 specifics (rows, SQL, timestamp strings) stay inside this file and
- * `database.ts`; nothing D1-shaped escapes through the public interface.
+ * Implements the storage-independent, WORKSPACE-BOUND `EntityRepository`
+ * contract over Cloudflare D1 (SQLite) using prepared, parameterised statements
+ * only. The repository is constructed with a single `WorkspaceContext`; every
+ * statement constrains `workspace_id = ?` with that context's id, and no
+ * module-facing method accepts a `workspaceId` (FND-03 / ADR-010). No
+ * caller-supplied value is ever interpolated into SQL — every value is bound
+ * (see AGENTS.md §17). D1 specifics (rows, SQL, timestamp strings) stay inside
+ * this file and `database.ts`; nothing D1-shaped escapes the public interface.
  */
 
 import {
@@ -17,7 +20,7 @@ import {
   type EntityType,
   type GetEntityOptions,
   type LifecycleResult,
-  type ListEntitiesInput,
+  type ScopedListEntitiesInput,
   type UpdateEntityInput,
   type Clock,
   type EntityRepository,
@@ -25,15 +28,19 @@ import {
   systemClock,
   secureIdGenerator,
 } from "~/kernel/entities";
-import { decodeCursor, encodeCursor } from "~/kernel/entities/entity-cursor";
+import {
+  decodeCursorForScope,
+  encodeCursor,
+  type CursorScope,
+} from "~/kernel/entities/entity-cursor";
 import {
   validateCreateInput,
   validateEntityId,
   validateLimit,
   validateOptionalType,
   validateUpdateInput,
-  validateWorkspaceId,
 } from "~/kernel/entities/entity-validation";
+import type { WorkspaceContext } from "~/kernel/workspaces";
 
 import { rowToEntity, toStorageTimestamp, type EntityRow } from "./database";
 
@@ -51,11 +58,17 @@ const SELECT_COLUMNS =
 
 export class D1EntityRepository implements EntityRepository {
   readonly #db: D1Database;
+  readonly #workspaceId: string;
   readonly #clock: Clock;
   readonly #newId: IdGenerator;
 
-  constructor(db: D1Database, options: D1EntityRepositoryOptions = {}) {
+  constructor(
+    db: D1Database,
+    context: WorkspaceContext,
+    options: D1EntityRepositoryOptions = {},
+  ) {
     this.#db = db;
+    this.#workspaceId = context.workspaceId;
     this.#clock = options.clock ?? systemClock;
     this.#newId = options.idGenerator ?? secureIdGenerator;
   }
@@ -63,7 +76,7 @@ export class D1EntityRepository implements EntityRepository {
   async create<TType extends EntityType>(
     input: CreateEntityInput<TType>,
   ): Promise<EntityRecord<TType>> {
-    const { workspaceId, type, title } = validateCreateInput(input);
+    const { type, title } = validateCreateInput(input);
     const now = toStorageTimestamp(this.#clock());
     const id = this.#newId();
 
@@ -75,18 +88,16 @@ export class D1EntityRepository implements EntityRepository {
            VALUES (?, ?, ?, ?, ?, ?, NULL)
            RETURNING ${SELECT_COLUMNS}`,
         )
-        .bind(id, workspaceId, type, title, now, now),
+        .bind(id, this.#workspaceId, type, title, now, now),
     );
 
     return rowToEntity(row) as EntityRecord<TType>;
   }
 
   async getById(
-    workspaceId: string,
     id: string,
     options: GetEntityOptions = {},
   ): Promise<EntityRecord | null> {
-    const ws = validateWorkspaceId(workspaceId);
     const entityId = validateEntityId(id);
 
     const deletedClause = options.includeDeleted
@@ -98,23 +109,19 @@ export class D1EntityRepository implements EntityRepository {
           `SELECT ${SELECT_COLUMNS} FROM entities
            WHERE id = ? AND workspace_id = ?${deletedClause}`,
         )
-        .bind(entityId, ws),
+        .bind(entityId, this.#workspaceId),
     );
 
     return row ? rowToEntity(row) : null;
   }
 
-  async update(
-    workspaceId: string,
-    id: string,
-    input: UpdateEntityInput,
-  ): Promise<EntityRecord> {
-    const ws = validateWorkspaceId(workspaceId);
+  async update(id: string, input: UpdateEntityInput): Promise<EntityRecord> {
     const entityId = validateEntityId(id);
     const { title } = validateUpdateInput(input);
     const now = toStorageTimestamp(this.#clock());
 
-    // Only live entities are updatable; identity/creation columns are untouched.
+    // Only live entities in this workspace are updatable; identity/creation
+    // columns are untouched. A row in another workspace never matches.
     const row = await this.#first(
       this.#db
         .prepare(
@@ -123,7 +130,7 @@ export class D1EntityRepository implements EntityRepository {
            WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
            RETURNING ${SELECT_COLUMNS}`,
         )
-        .bind(title, now, entityId, ws),
+        .bind(title, now, entityId, this.#workspaceId),
     );
 
     if (!row) {
@@ -133,16 +140,24 @@ export class D1EntityRepository implements EntityRepository {
   }
 
   async list<TType extends EntityType = EntityType>(
-    input: ListEntitiesInput<TType>,
+    input: ScopedListEntitiesInput<TType> = {},
   ): Promise<EntityPage<TType>> {
-    const ws = validateWorkspaceId(input.workspaceId);
     const type = validateOptionalType(input.type);
     const limit = validateLimit(input.limit);
+    const includeDeleted = input.includeDeleted === true;
+
+    // The scope this page is bound to. A cursor is only accepted if it was
+    // issued for exactly this workspace + type filter + deleted-mode.
+    const scope: CursorScope = {
+      workspaceId: this.#workspaceId,
+      type: type ?? null,
+      includeDeleted,
+    };
 
     const conditions: string[] = ["workspace_id = ?"];
-    const params: unknown[] = [ws];
+    const params: unknown[] = [this.#workspaceId];
 
-    if (!input.includeDeleted) {
+    if (!includeDeleted) {
       conditions.push("deleted_at IS NULL");
     }
     if (type !== undefined) {
@@ -150,7 +165,7 @@ export class D1EntityRepository implements EntityRepository {
       params.push(type);
     }
     if (input.cursor !== undefined) {
-      const position = decodeCursor(input.cursor);
+      const position = decodeCursorForScope(input.cursor, scope);
       // Deterministic keyset pagination on the (created_at, id) tuple.
       conditions.push("(created_at > ? OR (created_at = ? AND id > ?))");
       params.push(position.createdAt, position.createdAt, position.id);
@@ -177,17 +192,16 @@ export class D1EntityRepository implements EntityRepository {
     const last = pageRows.at(-1);
     const nextCursor =
       hasMore && last
-        ? encodeCursor({ createdAt: last.created_at, id: last.id })
+        ? encodeCursor(scope, { createdAt: last.created_at, id: last.id })
         : null;
 
     return { items, nextCursor, hasMore };
   }
 
-  async softDelete(workspaceId: string, id: string): Promise<LifecycleResult> {
-    const ws = validateWorkspaceId(workspaceId);
+  async softDelete(id: string): Promise<LifecycleResult> {
     const entityId = validateEntityId(id);
 
-    const existing = await this.#findAny(ws, entityId);
+    const existing = await this.#findAny(entityId);
     if (!existing) {
       throw new EntityNotFoundError();
     }
@@ -209,17 +223,16 @@ export class D1EntityRepository implements EntityRepository {
            WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
            RETURNING ${SELECT_COLUMNS}`,
         )
-        .bind(now, now, entityId, ws),
+        .bind(now, now, entityId, this.#workspaceId),
     );
 
     return { entity: rowToEntity(row), outcome: "deleted", changed: true };
   }
 
-  async restore(workspaceId: string, id: string): Promise<LifecycleResult> {
-    const ws = validateWorkspaceId(workspaceId);
+  async restore(id: string): Promise<LifecycleResult> {
     const entityId = validateEntityId(id);
 
-    const existing = await this.#findAny(ws, entityId);
+    const existing = await this.#findAny(entityId);
     if (!existing) {
       throw new EntityNotFoundError();
     }
@@ -241,21 +254,21 @@ export class D1EntityRepository implements EntityRepository {
            WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL
            RETURNING ${SELECT_COLUMNS}`,
         )
-        .bind(now, entityId, ws),
+        .bind(now, entityId, this.#workspaceId),
     );
 
     return { entity: rowToEntity(row), outcome: "restored", changed: true };
   }
 
-  /** Find a row by id within a workspace regardless of soft-delete state. */
-  async #findAny(workspaceId: string, id: string): Promise<EntityRow | null> {
+  /** Find a row by id within the bound workspace regardless of delete state. */
+  async #findAny(id: string): Promise<EntityRow | null> {
     return this.#first(
       this.#db
         .prepare(
           `SELECT ${SELECT_COLUMNS} FROM entities
            WHERE id = ? AND workspace_id = ?`,
         )
-        .bind(id, workspaceId),
+        .bind(id, this.#workspaceId),
     );
   }
 

@@ -1,7 +1,16 @@
 import { env } from "cloudflare:test";
 
-import { createEntityRepository } from "~/platform/storage/d1";
+import {
+  createEntityRepository,
+  createWorkspaceRepository,
+} from "~/platform/storage/d1";
 import type { Clock, IdGenerator } from "~/kernel/entities";
+import {
+  createWorkspaceContext,
+  parseWorkspaceId,
+  type WorkspaceContext,
+  type WorkspaceId,
+} from "~/kernel/workspaces";
 
 /**
  * A deterministic, injectable clock for repository tests. Time only moves when
@@ -35,12 +44,31 @@ export function sequentialIds(prefix = "id"): IdGenerator {
   return () => `${prefix}_${String(++n).padStart(4, "0")}`;
 }
 
-/** Construct a D1-backed repository over the isolated test database. */
-export function makeRepository(options?: {
+/** Build a `WorkspaceContext` for a test workspace id. */
+export function makeContext(workspaceId: string): WorkspaceContext {
+  return createWorkspaceContext(parseWorkspaceId(workspaceId));
+}
+
+/**
+ * Construct a workspace-scoped D1-backed entity repository over the isolated
+ * test database (FND-03: repositories are bound to a `WorkspaceContext`).
+ */
+export function makeRepository(
+  context: WorkspaceContext,
+  options?: {
+    clock?: Clock;
+    idGenerator?: IdGenerator;
+  },
+) {
+  return createEntityRepository(env.DB, context, options);
+}
+
+/** Construct the low-level workspace repository over the isolated test database. */
+export function makeWorkspaceRepository(options?: {
   clock?: Clock;
-  idGenerator?: IdGenerator;
+  idGenerator?: () => WorkspaceId;
 }) {
-  return createEntityRepository(env.DB, options);
+  return createWorkspaceRepository(env.DB, options);
 }
 
 /** Count all rows in `entities` (including deleted) directly, for write-safety assertions. */
@@ -51,14 +79,40 @@ export async function countRows(): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** Count all workspace rows directly. */
+export async function countWorkspaces(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM workspaces",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
 /**
- * Clear all rows from the local test `entities` table.
- *
- * The Workers Vitest pool isolates storage PER FILE (not per test), so a
- * `beforeEach` reset gives every test a deterministic empty table while keeping
- * the migrated schema in place. Scoped strictly to the local/isolated test
- * database — never any real data.
+ * Insert a workspace row directly, so entities can reference it (the FK requires
+ * the workspace to exist). Idempotent via `INSERT OR IGNORE`.
  */
-export async function resetEntities(): Promise<void> {
+export async function ensureWorkspace(
+  id: string,
+  at = "2026-07-17T00:00:00.000Z",
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO workspaces (id, created_at, updated_at)
+     VALUES (?, ?, ?)`,
+  )
+    .bind(id, at, at)
+    .run();
+}
+
+/**
+ * Reset the local test tables to a deterministic empty state, then re-create the
+ * given workspace rows. Entities are cleared BEFORE workspaces because the
+ * foreign key is `ON DELETE RESTRICT` — a workspace that still owns entities
+ * cannot be removed. Scoped strictly to the local/isolated test database.
+ */
+export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM entities").run();
+  await env.DB.prepare("DELETE FROM workspaces").run();
+  for (const id of workspaceIds) {
+    await ensureWorkspace(id);
+  }
 }

@@ -29,10 +29,17 @@ export default defineConfig({
           compatibilityDate: "2026-07-17",
           compatibilityFlags: ["nodejs_compat"],
           // Isolated, local-only D1 keyed by the binding name — never a remote
-          // or production database.
-          d1Databases: ["DB"],
-          // The parsed migrations, injected so the setup file can apply them.
-          bindings: { TEST_MIGRATIONS: migrations },
+          // or production database. `DB` is migrated by the setup file;
+          // `MIGRATION_TEST_DB` is left EMPTY so the FND-03 migration test can
+          // apply migrations 0001 → 0002 sequentially over seeded data.
+          d1Databases: ["DB", "MIGRATION_TEST_DB"],
+          bindings: {
+            // The parsed migrations, injected so the setup file can apply them.
+            TEST_MIGRATIONS: migrations,
+            // A clearly non-production configured workspace scope for tests that
+            // exercise the composition boundary (FND-03 / ADR-010).
+            DEFAULT_WORKSPACE_ID: "test-default-workspace",
+          },
         },
       };
     }),

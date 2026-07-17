@@ -8,3 +8,11 @@
 # Environment label surfaced by the /health endpoint. One of:
 # development | preview | staging | production
 ENVIRONMENT="development"
+
+# FND-03 workspace isolation (ADR-010): the server-side workspace scope resolved
+# at the composition boundary. This is trusted server-side CONFIGURATION, not a
+# secret, and never comes from a request. Use a clearly non-production local
+# value; a real deployment sets the provisioned workspace's crypto.randomUUID()
+# id (see docs/development/DATA_KERNEL.md). Create the matching local workspace
+# row before the resolver will succeed locally.
+DEFAULT_WORKSPACE_ID="local-dev-workspace"
