@@ -1,0 +1,10 @@
+# Example local Worker variables for `wrangler dev`.
+#
+# Copy this file to `.dev.vars` (which is git-ignored) and fill in values as
+# needed. `.dev.vars` must NEVER be committed. Only non-secret local overrides
+# belong here today; real secrets are set with `wrangler secret put` against a
+# deployed environment, never stored in the repository.
+
+# Environment label surfaced by the /health endpoint. One of:
+# development | preview | staging | production
+ENVIRONMENT="development"

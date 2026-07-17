@@ -36,6 +36,9 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | **Governance & Reference** | |
 | [`governance/OPEN_SOURCE_POLICY.md`](governance/OPEN_SOURCE_POLICY.md) | When/how to reuse open source; licensing and provenance. |
 | [`reference/REFERENCE_PRODUCTS.md`](reference/REFERENCE_PRODUCTS.md) | Products we study and candidate libraries, with licences. |
+| **Development** | |
+| [`development/SETUP_AND_CI.md`](development/SETUP_AND_CI.md) | Local setup, everyday commands, and the CI pipeline. |
+| [`development/DEPLOYMENT.md`](development/DEPLOYMENT.md) | Deploying to Cloudflare Workers and the required setup/secrets. |
 
 ---
 
@@ -61,9 +64,16 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   └── ARCHITECTURE_DECISIONS.md   (ADRs)
     ├── governance/
     │   └── OPEN_SOURCE_POLICY.md
-    └── reference/
-        └── REFERENCE_PRODUCTS.md
+    ├── reference/
+    │   └── REFERENCE_PRODUCTS.md
+    └── development/
+        ├── SETUP_AND_CI.md
+        └── DEPLOYMENT.md
 ```
+
+> Beyond `docs/`, the repository root now also carries the application itself
+> (`app/`, `workers/`, config files) plus `THIRD_PARTY_NOTICES.md`, from
+> [FND-01](roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold).
 
 ---
 

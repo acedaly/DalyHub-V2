@@ -94,12 +94,15 @@ The Design System sits between modules and the kernel: reusable, kernel-aware UI
 
 ---
 
-## Platform (proposed direction)
+## Platform
 
-> **Flagged as proposed.** These are the current recommended platform choices, informed by the tools already in the project's orbit (Cloudflare, plus Todoist/Notion as import sources). Confirm and record any change via a new ADR before relying on specifics.
+> **Application platform & toolchain: settled.** The compute runtime, framework, and toolchain are now an accepted decision — see [ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain), implemented by [FND-01](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold).
+>
+> **Storage: still proposed.** The specific storage/service choices below (D1, KV, R2, Durable Objects) remain a *proposed direction*, not settled fact. They are deferred to later roadmap items (from [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage)) and must be confirmed via their own ADR before anything relies on them.
 
-- **Client:** a modern typed web stack (React + TypeScript recommended), Design System built on accessible primitives and utility styling. See [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md) and [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) for candidate libraries (command palette, editor, drag-and-drop, dates).
-- **Edge/runtime & storage:** Cloudflare Developer Platform — Workers for compute, D1 (SQLite) for relational entity/link/activity data, KV for fast config/cache, R2 for [Asset](../roadmap/ROADMAP_V2.md#phase-8--assets-asset) files, Durable Objects where strong coordination is needed.
+- **Client (settled — ADR-008):** React 19 + TypeScript (strict), rendered through **React Router v8 in framework mode** (SSR by default), built with **Vite** and the official **Cloudflare Vite plugin**. The Design System (Phase 1) will build on accessible primitives and utility styling; see [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md) and [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) for candidate libraries (command palette, editor, drag-and-drop, dates).
+- **Compute runtime (settled — ADR-008):** **Cloudflare Workers**, developed and deployed with **Wrangler**; server code runs in the Workers runtime locally via the Vite plugin so local behaviour matches production.
+- **Storage (proposed, deferred):** Cloudflare Developer Platform storage — D1 (SQLite) for relational entity/link/activity data, KV for fast config/cache, R2 for [Asset](../roadmap/ROADMAP_V2.md#phase-8--assets-asset) files, Durable Objects where strong coordination is needed. **None of these is introduced yet**; each is a later, separately-accepted decision.
 - **Markdown & editor:** a Markdown-native editor feeding the shared sanitising renderer ([ADR-006](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy)).
 - **Auth:** single-user first (the owner), designed so multi-user isn't precluded; workspace scoping already provides the isolation seam.
 - **Background work:** for reminders (renewals, stay-in-touch), review cadences, and import/sync — scheduled/queued jobs on the platform.

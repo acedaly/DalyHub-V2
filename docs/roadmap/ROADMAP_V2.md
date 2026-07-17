@@ -36,11 +36,12 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 *The kernel. Nothing else can exist without it. All `P0`.*
 
-### ☐ FND-01 — Repository & toolchain scaffold
+### ◐ FND-01 — Repository & toolchain scaffold
 - **Purpose.** Establish the app skeleton: language/framework, build, lint, format, typecheck, test runner, CI, and the deployment target per [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md).
 - **Dependencies.** None.
 - **Expected outcome.** `install`, `build`, `lint`, `test` all run green in CI; a trivial page deploys to the target environment.
 - **Priority.** P0.
+- **Status: ◐ In progress.** The application platform and toolchain are chosen and accepted ([ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain)): React Router v8 (framework mode) + React 19 + TypeScript on Cloudflare Workers, built with Vite + the Cloudflare Vite plugin, managed with pnpm/Corepack and Wrangler. A restrained foundation page renders through the Workers runtime locally and a `/health` endpoint returns JSON. `format`, `lint`, `typecheck`, unit/component tests (Vitest + RTL), production build, and a Playwright Chromium smoke test all pass locally and in GitHub Actions CI. Wrangler configuration is validated and the build passes a credential-free `deploy --dry-run`. **The only remaining item is an actual deployment to Cloudflare Workers**, which needs a Cloudflare account, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, and an approved target (see [`docs/development/DEPLOYMENT.md`](../development/DEPLOYMENT.md)). Marked `☑ Done` only once that deployment is verified.
 
 ### ☐ FND-02 — Data kernel: entities & storage
 - **Purpose.** Implement the core entity substrate (a uniform record: id, type, workspace, timestamps, soft-delete) and the storage layer. Backs every entity type.
@@ -471,7 +472,7 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 When you complete, split, add, or defer an item, note it here (newest first) so the roadmap's evolution is legible.
 
-- *(none yet — this is the initial V2 roadmap.)*
+- **2026-07-17 — FND-01 → ◐ In progress.** Application platform & toolchain scaffolded and accepted via [ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain). Full local quality suite (`pnpm verify`) and CI are green; deployment to Cloudflare Workers is the only remaining external verification item before `☑ Done`.
 
 ---
 
