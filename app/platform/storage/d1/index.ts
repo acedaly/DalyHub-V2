@@ -13,6 +13,7 @@
  */
 
 import type { EntityRepository } from "~/kernel/entities";
+import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type {
   WorkspaceContext,
   WorkspaceRepository,
@@ -23,13 +24,19 @@ import {
   type D1EntityRepositoryOptions,
 } from "./d1-entity-repository";
 import {
+  D1EntityLinkRepository,
+  type D1EntityLinkRepositoryOptions,
+} from "./d1-entity-link-repository";
+import {
   D1WorkspaceRepository,
   type D1WorkspaceRepositoryOptions,
 } from "./d1-workspace-repository";
 
 export { D1EntityRepository, type D1EntityRepositoryOptions };
+export { D1EntityLinkRepository, type D1EntityLinkRepositoryOptions };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export type { EntityRow } from "./database";
+export type { EntityLinkRow } from "./entity-link-database";
 export type { WorkspaceRow } from "./workspace-database";
 
 /**
@@ -44,6 +51,20 @@ export function createEntityRepository(
   options?: D1EntityRepositoryOptions,
 ): EntityRepository {
   return new D1EntityRepository(db, context, options);
+}
+
+/**
+ * Factory for a workspace-scoped D1-backed EntityLink repository. Like the entity
+ * repository, the returned link repository operates only within `context`'s
+ * workspace; there is no way to construct one without a context (FND-04 /
+ * ADR-011). Both endpoints of every link are constrained to the bound workspace.
+ */
+export function createEntityLinkRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1EntityLinkRepositoryOptions,
+): EntityLinkRepository {
+  return new D1EntityLinkRepository(db, context, options);
 }
 
 /**

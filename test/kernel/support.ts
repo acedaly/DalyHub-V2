@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 
 import {
+  createEntityLinkRepository,
   createEntityRepository,
   createWorkspaceRepository,
 } from "~/platform/storage/d1";
@@ -63,12 +64,59 @@ export function makeRepository(
   return createEntityRepository(env.DB, context, options);
 }
 
+/**
+ * Construct a workspace-scoped D1-backed EntityLink repository over the isolated
+ * test database (FND-04: link repositories are bound to a `WorkspaceContext`).
+ */
+export function makeLinkRepository(
+  context: WorkspaceContext,
+  options?: {
+    clock?: Clock;
+    idGenerator?: IdGenerator;
+  },
+) {
+  return createEntityLinkRepository(env.DB, context, options);
+}
+
 /** Construct the low-level workspace repository over the isolated test database. */
 export function makeWorkspaceRepository(options?: {
   clock?: Clock;
   idGenerator?: () => WorkspaceId;
 }) {
   return createWorkspaceRepository(env.DB, options);
+}
+
+/** Count all rows in `entity_links` (including unlinked) directly. */
+export async function countLinkRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM entity_links",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * Insert an entity row directly under a workspace, returning its id. Lets link
+ * tests seed active endpoints deterministically without going through the entity
+ * repository. The workspace must already exist (FK).
+ */
+export async function seedEntity(
+  workspaceId: string,
+  id: string,
+  {
+    type = "task",
+    title = id,
+    at = "2026-07-17T00:00:00.000Z",
+    deletedAt = null as string | null,
+  } = {},
+): Promise<string> {
+  await env.DB.prepare(
+    `INSERT INTO entities
+       (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, workspaceId, type, title, at, at, deletedAt)
+    .run();
+  return id;
 }
 
 /** Count all rows in `entities` (including deleted) directly, for write-safety assertions. */
@@ -110,6 +158,9 @@ export async function ensureWorkspace(
  * cannot be removed. Scoped strictly to the local/isolated test database.
  */
 export async function resetTables(workspaceIds: string[] = []): Promise<void> {
+  // Order matters under ON DELETE RESTRICT: links reference entities, and
+  // entities reference workspaces, so clear children before parents.
+  await env.DB.prepare("DELETE FROM entity_links").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

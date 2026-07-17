@@ -88,8 +88,10 @@ beforeAll(async () => {
     ),
   );
 
-  // 3. Now apply the rest of the migration chain (0002).
-  await applyD1Migrations(DB, env.TEST_MIGRATIONS);
+  // 3. Now apply migration 0002 (only). This file asserts the 0001 → 0002 state
+  //    faithfully; the later 0003 (entity_links + the entities parent unique key)
+  //    is covered by its own sequential migration test.
+  await applyD1Migrations(DB, env.TEST_MIGRATIONS.slice(0, 2));
 });
 
 describe("migration 0001 → 0002 (existing-data preservation)", () => {

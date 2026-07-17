@@ -157,6 +157,20 @@
 
 ---
 
+## EntityLinks evaluation (FND-04)
+
+> The build-vs-reuse evaluation behind [ADR-011](../decisions/ARCHITECTURE_DECISIONS.md#adr-011-entitylink-persistence-and-lifecycle). **No new runtime or dev dependency was added** — FND-04 is a kernel data-model change implemented entirely with existing TypeScript, D1 and Workers/Vitest test tooling. The candidates considered and rejected:
+
+- **A graph database or graph library (e.g. an in-app adjacency/graph package).** Considered for storing "links between anything". **Rejected — build on D1:** the relationships DalyHub needs are typed, directed, workspace-scoped rows with referential integrity — exactly what a relational table with composite foreign keys gives, using the store already accepted in [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage). A graph engine would add an operational component and a second store for no benefit at this scale; graph traversal is not an FND-04 requirement.
+- **An ORM/query-builder for the link table and its joins.** Already rejected for FND-02/FND-03; the `listForEntity` join and the create/unlink/restore statements are small, inspectable prepared SQL, consistent with ADR-009. **Rejected — build.**
+- **A branded-type / validation library for `EntityLinkType`.** Considered, as for `WorkspaceId`. **Rejected — build:** a branded string plus a small `parseEntityLinkType` validator (reusing the entity kernel's dotted-identifier shape) is smaller and clearer than a dependency, with no validation framework in the kernel yet.
+- **A UUID package for link ids.** **Rejected — use the platform:** the Workers-native `crypto.randomUUID()` already backs entity/workspace ids; no `uuid` dependency is warranted.
+- **A cursor signing/encryption library.** **Rejected — unnecessary** (same reasoning as FND-03): the link cursor is a dedicated, versioned, scope-bound format treated as untrusted input, with every value bound in SQL. Workspace/entity ids are scope identifiers, not secrets.
+
+**Decision (Depend / Adapt / Build).** **Build** the EntityLink kernel, D1 adapter, migration and scoped repository with existing tooling; **add no dependency**; the parent unique key, composite foreign keys and indexes are plain committed D1 SQL. See [ADR-011](../decisions/ARCHITECTURE_DECISIONS.md#adr-011-entitylink-persistence-and-lifecycle).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

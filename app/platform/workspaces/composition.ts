@@ -16,11 +16,13 @@
  */
 
 import type { EntityRepository } from "~/kernel/entities";
+import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type {
   WorkspaceContext,
   WorkspaceContextResolver,
 } from "~/kernel/workspaces";
 import {
+  createEntityLinkRepository,
   createEntityRepository,
   createWorkspaceRepository,
 } from "~/platform/storage/d1";
@@ -36,10 +38,17 @@ export interface WorkspaceScopeEnv {
   readonly DEFAULT_WORKSPACE_ID?: string;
 }
 
-/** A resolved workspace scope: the context plus its scoped entity repository. */
+/**
+ * A resolved workspace scope: the context plus every workspace-scoped
+ * repository, all bound to the SAME `WorkspaceContext`. Both the entity and the
+ * EntityLink repositories are exposed here (FND-04 / ADR-011) so module code
+ * obtains them through this single seam rather than constructing scope itself.
+ * There is deliberately no unscoped link repository in the module-facing surface.
+ */
 export interface WorkspaceScope {
   readonly context: WorkspaceContext;
   readonly entities: EntityRepository;
+  readonly entityLinks: EntityLinkRepository;
 }
 
 /**
@@ -58,14 +67,16 @@ export function createWorkspaceContextResolver(
 
 /**
  * Resolve the active workspace scope for a request/environment: derive the
- * `WorkspaceContext` from trusted configuration and return it together with an
- * entity repository already bound to it. Fails closed (throws a typed workspace
- * error) if the workspace cannot be resolved.
+ * `WorkspaceContext` from trusted configuration and return it together with the
+ * entity and EntityLink repositories, both already bound to that SAME context.
+ * Fails closed (throws a typed workspace error) if the workspace cannot be
+ * resolved.
  */
 export async function resolveWorkspaceScope(
   env: WorkspaceScopeEnv,
 ): Promise<WorkspaceScope> {
   const context = await createWorkspaceContextResolver(env).resolve();
   const entities = createEntityRepository(env.DB, context);
-  return { context, entities };
+  const entityLinks = createEntityLinkRepository(env.DB, context);
+  return { context, entities, entityLinks };
 }

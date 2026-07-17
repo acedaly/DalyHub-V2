@@ -17,6 +17,7 @@ on. It is split into a storage-independent contract and a D1 adapter:
 | Layer | Location | Responsibility |
 | ----- | -------- | -------------- |
 | Entity contract | `app/kernel/entities/` | Typed `EntityRecord`, inputs, domain errors, the workspace-bound `EntityRepository` interface, validation and cursor logic. No D1/Cloudflare types. |
+| EntityLink contract | `app/kernel/entity-links/` | Branded `EntityLinkType`, `EntityLinkRecord`/`EntityLinkView`, inputs, domain errors, the workspace-bound `EntityLinkRepository` interface, validation and a dedicated cursor. No D1/Cloudflare types. ([FND-04](../roadmap/ROADMAP_V2.md#-fnd-04--entitylinks)) |
 | Workspace kernel | `app/kernel/workspaces/` | Branded `WorkspaceId`, `WorkspaceRecord`, `WorkspaceContext`, the `WorkspaceContextResolver` interface and the low-level `WorkspaceRepository` contract. No D1/Cloudflare types. |
 | D1 adapter | `app/platform/storage/d1/` | Implements the contracts over prepared, parameterised D1 statements; converts rows ⇄ domain records. The only place SQL lives. |
 | Composition | `app/platform/workspaces/` | The server-side `environment → resolver → WorkspaceContext → scoped repository` boundary (`resolveWorkspaceScope`). |
@@ -54,8 +55,16 @@ Migration `0002_create_workspaces_and_enforce_scope.sql` ([FND-03](../roadmap/RO
 creates the `workspaces` table, back-fills a workspace for every distinct
 existing `entities.workspace_id`, and rebuilds `entities` with a foreign key to
 `workspaces (id)` using `ON DELETE RESTRICT`. It preserves all existing entity
-rows unchanged. The Workers Vitest integration applies it automatically; apply
-it to your local database with `pnpm run db:migrate:local`.
+rows unchanged.
+
+Migration `0003_create_entity_links.sql` ([FND-04](../roadmap/ROADMAP_V2.md#-fnd-04--entitylinks))
+adds the parent `UNIQUE (workspace_id, id)` key on `entities` and creates the
+`entity_links` table (with its composite foreign keys, self-link `CHECK`,
+identity uniqueness index and access-path indexes). It is additive — it does not
+rebuild or alter existing `entities` rows.
+
+The Workers Vitest integration applies all migrations automatically; apply them
+to your local database with `pnpm run db:migrate:local`.
 
 ## Workspace isolation (FND-03)
 
@@ -133,6 +142,119 @@ data — the classic broken-access-control flaw. Binding scope at repository
 construction makes cross-workspace access *unrepresentable* in module code
 rather than merely discouraged. See
 [ADR-010](../decisions/ARCHITECTURE_DECISIONS.md#adr-010-server-side-workspace-context).
+
+## EntityLinks (FND-04)
+
+**EntityLinks** are the kernel primitive for typed, bidirectional relationships
+between any two entities ([ADR-011](../decisions/ARCHITECTURE_DECISIONS.md#adr-011-entitylink-persistence-and-lifecycle),
+implementing [ADR-002](../decisions/ARCHITECTURE_DECISIONS.md#adr-002-entitylinks)).
+A link is a **relationship record, not an entity**: it has no title, entity type,
+search entry, module or page.
+
+### The `entity_links` schema (migration 0003)
+
+```
+entity_links (
+  id, workspace_id, source_entity_id, target_entity_id, type,
+  created_at, updated_at, deleted_at
+)  STRICT
+```
+
+- **One directed row per relationship.** The row stores `source_entity_id`,
+  `target_entity_id` and `type`; the same row is *outgoing* from the source and
+  *incoming* from the target. Endpoint ids are **never reordered**.
+- **Same-workspace endpoints enforced by the database.** A parent
+  `UNIQUE (workspace_id, id)` key on `entities` backs two composite foreign keys
+  — `(workspace_id, source_entity_id) → entities (workspace_id, id)` and
+  `(workspace_id, target_entity_id) → entities (workspace_id, id)` — both
+  `ON DELETE RESTRICT`. A cross-workspace endpoint is impossible at the database
+  level, and a referenced entity/workspace cannot be hard-deleted.
+- **A `CHECK` forbids self-links**, and a `UNIQUE (workspace_id, source, target,
+  type)` index gives each directed relationship one stable identity (this is the
+  duplicate backstop and the exact-relationship lookup path).
+
+### Creating a workspace-scoped link repository
+
+The composition boundary returns the link repository alongside the entity one,
+both bound to the same `WorkspaceContext`:
+
+```ts
+import { resolveWorkspaceScope } from "~/platform/workspaces";
+
+// environment → resolver → WorkspaceContext → { entities, entityLinks }
+const { entities, entityLinks } = await resolveWorkspaceScope(env);
+```
+
+Like `entities`, `entityLinks` methods take **no `workspaceId`** — scope comes
+from the bound context, and both endpoints of every link are constrained to it.
+
+### Creating links, and querying from either endpoint
+
+```ts
+const meeting = await entities.create({ type: "meeting", title: "Kickoff" });
+const task = await entities.create({ type: "task", title: "Send recap" });
+
+// Create the directed relationship: meeting --produced_task--> task.
+const { link, outcome } = await entityLinks.create({
+  sourceEntityId: meeting.id,
+  targetEntityId: task.id,
+  type: "meeting.produced_task", // a validated, branded EntityLinkType
+});
+// outcome: "created" | "already_exists" | "restored" (idempotent by identity)
+
+// From the meeting the link is OUTGOING; from the task it is INCOMING — same row.
+const fromMeeting = await entityLinks.listForEntity(meeting.id); // direction: "outgoing"
+const fromTask = await entityLinks.listForEntity(task.id);       // direction: "incoming"
+```
+
+`listForEntity` returns each link as an `EntityLinkView` (`link`, `direction`,
+and the active `counterpart` entity) fetched via a single joined query (no N+1),
+is bounded and cursor-paginated, and accepts optional `direction`
+(`outgoing`/`incoming`/`both`) and `type` filters. Its cursor is a **dedicated,
+versioned** format bound to the workspace, anchor entity, direction and type
+filter — a cursor from another scope is rejected.
+
+### Direction semantics
+
+Direction is meaningful: `(A → B, type)` and `(B → A, type)` are **different**
+relationships and are stored as different rows. The kernel never reorders
+endpoints or treats a reversed link as identical.
+
+### Unlink / restore, and endpoint soft-delete behaviour
+
+- **`unlink(id)`** is reversible soft deletion (sets `deleted_at`, advances
+  `updated_at`, preserves the id; idempotent → `unlinked`/`already_unlinked`). It
+  does not touch either endpoint entity.
+- **`restore(id)`** clears `deleted_at` (idempotent → `restored`/`already_active`)
+  and requires **both endpoints to currently exist and be active**, else it fails
+  safely.
+- **Soft-deleting an endpoint entity does NOT delete its link rows.** Instead,
+  link queries hide a link whenever *either* endpoint is soft-deleted; restoring
+  the endpoint reveals still-active links again **with the original id**. A link
+  explicitly unlinked before/during entity deletion **stays unlinked** after the
+  entity is restored. This is what makes entity delete/restore lossless — see the
+  "Why soft-hide over destructive cascade" reasoning in
+  [ADR-011](../decisions/ARCHITECTURE_DECISIONS.md#adr-011-entitylink-persistence-and-lifecycle).
+  `re-create` of an unlinked relationship restores the same row (never a new id).
+
+### Adding future link types
+
+A link type is a **validated, branded identifier** (lowercase dotted segments,
+e.g. `person.attended_meeting`), stored verbatim — **not** a database enum and
+**not** a hard-coded list. A new module introduces a new link type simply by
+passing it to `create()`; no schema migration is needed. FND-06 (Module
+Registry) will later connect link-type registration to modules for governance.
+
+### Why modules must not create bespoke relationship tables without an ADR
+
+Cross-entity relationships are a **kernel primitive** precisely so a link made in
+one module is visible in every other with no extra work, with referential
+integrity and lifecycle handled centrally. A per-module foreign-key column or
+join table re-fragments this, bypasses the workspace-boundary and endpoint-safety
+guarantees, and duplicates lifecycle logic — it is exactly what
+[ADR-002](../decisions/ARCHITECTURE_DECISIONS.md#adr-002-entitylinks)/[ADR-011](../decisions/ARCHITECTURE_DECISIONS.md#adr-011-entitylink-persistence-and-lifecycle)
+reject. If a relationship genuinely cannot be modelled as an EntityLink, that is
+an architectural change and needs a new ADR, not a quiet bespoke table.
 
 ## Running the kernel tests
 
