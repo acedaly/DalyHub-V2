@@ -1,0 +1,86 @@
+import { env } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
+
+// Scenario 1: the real committed migration creates the expected schema in a
+// fresh local D1. These tests run against the actual migrated database, not a
+// hand-written or mocked schema.
+
+interface TableInfoRow {
+  name: string;
+  type: string;
+  notnull: number;
+  pk: number;
+}
+
+describe("migration 0001 — entities schema", () => {
+  it("creates the entities table", async () => {
+    const row = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'entities'",
+    ).first<{ name: string }>();
+    expect(row?.name).toBe("entities");
+  });
+
+  it("defines exactly the shared base columns", async () => {
+    const { results } = await env.DB.prepare(
+      "PRAGMA table_info(entities)",
+    ).all<TableInfoRow>();
+    const columns = results.map((c) => c.name).sort();
+    expect(columns).toEqual(
+      [
+        "created_at",
+        "deleted_at",
+        "id",
+        "title",
+        "type",
+        "updated_at",
+        "workspace_id",
+      ].sort(),
+    );
+  });
+
+  it("makes id the primary key and only deleted_at nullable", async () => {
+    const { results } = await env.DB.prepare(
+      "PRAGMA table_info(entities)",
+    ).all<TableInfoRow>();
+    const byName = new Map(results.map((c) => [c.name, c]));
+
+    expect(byName.get("id")?.pk).toBe(1);
+    for (const notNull of [
+      "id",
+      "workspace_id",
+      "type",
+      "title",
+      "created_at",
+      "updated_at",
+    ]) {
+      expect(byName.get(notNull)?.notnull).toBe(1);
+    }
+    expect(byName.get("deleted_at")?.notnull).toBe(0);
+  });
+
+  it("creates the expected access-path indexes", async () => {
+    const { results } = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'entities' AND name NOT LIKE 'sqlite_%'",
+    ).all<{ name: string }>();
+    const indexes = results.map((r) => r.name).sort();
+    expect(indexes).toEqual(
+      [
+        "entities_active_workspace_created_idx",
+        "entities_active_workspace_type_created_idx",
+        "entities_workspace_created_idx",
+        "entities_workspace_type_created_idx",
+      ].sort(),
+    );
+  });
+
+  it("enforces the not-empty title CHECK constraint at the database", async () => {
+    // The kernel validates first, but the DB is the backstop. A blank title is
+    // rejected by the CHECK constraint even if inserted directly.
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at)
+         VALUES ('x', 'ws', 'task', '   ', '2026-07-17T00:00:00.000Z', '2026-07-17T00:00:00.000Z')`,
+      ).run(),
+    ).rejects.toThrow();
+  });
+});

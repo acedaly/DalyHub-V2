@@ -33,8 +33,12 @@ No manual repair should be needed.
 | `pnpm format`         | Apply Prettier formatting                                           |
 | `pnpm format:check`   | Verify formatting without writing                                   |
 | `pnpm typecheck`      | `wrangler types` + React Router typegen + `tsc -b`                  |
-| `pnpm test`           | Unit/component tests (Vitest + React Testing Library)               |
+| `pnpm test`           | All tests: `test:unit` then `test:kernel`                           |
+| `pnpm test:unit`      | DOM component/health tests (Vitest + React Testing Library)         |
+| `pnpm test:kernel`    | Data-kernel unit + real D1 integration tests (Workers runtime)      |
 | `pnpm test:e2e`       | Playwright Chromium smoke test (builds + previews automatically)    |
+| `pnpm db:migrate:local` | Apply D1 migrations to the local database (no credentials)        |
+| `pnpm db:migrations:list:local` | List applied/pending local D1 migrations                  |
 | `pnpm verify`         | The full local quality suite, in order (see below)                  |
 | `pnpm cf-typegen`     | Regenerate Cloudflare `Env` types after editing `wrangler.jsonc`    |
 | `pnpm deploy:dry-run` | Validate the deploy config/bundle without credentials               |
@@ -71,9 +75,15 @@ and runs on pull requests and pushes to `main`. It:
 
 1. checks out cleanly and installs with a **frozen lockfile**;
 2. runs, as separate failing-on-error steps: **format check → lint → typecheck
-   → unit/component tests → production build → Playwright smoke test**;
+   → unit/component tests → kernel integration tests (real Workers runtime + D1)
+   → production build → Playwright smoke test**;
 3. caches the pnpm store (via `actions/setup-node`), and installs the Chromium
    browser explicitly for the smoke test.
+
+The kernel integration step runs the FND-02 data-kernel suite inside the real
+Workers runtime with an isolated local D1 (Miniflare); it applies the committed
+migration to a fresh test database and uses **no** Cloudflare credentials or
+remote database. See [`DATA_KERNEL.md`](DATA_KERNEL.md).
 
 Operational properties:
 

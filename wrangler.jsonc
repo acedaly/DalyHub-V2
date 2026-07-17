@@ -19,4 +19,20 @@
   "vars": {
     "ENVIRONMENT": "development",
   },
+  // D1 (SQLite) is the data kernel's initial relational store (ADR-009 / FND-02).
+  // Local development and the Workers Vitest integration use Miniflare's local
+  // SQLite keyed by the binding name and do NOT need Cloudflare credentials or a
+  // remote database. `database_id` below is an explicit, non-functional
+  // PLACEHOLDER — no remote D1 database has been provisioned yet. Replace it with
+  // the real id from `wrangler d1 create dalyhub-v2` when a remote database is
+  // provisioned (see docs/development/DATA_KERNEL.md). Migrations live in
+  // ./migrations and are applied with `pnpm run db:migrate:local`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dalyhub-v2",
+      "database_id": "local-development-placeholder-not-provisioned",
+      "migrations_dir": "migrations",
+    },
+  ],
 }

@@ -15,13 +15,17 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "wrangler types && react-router typegen && tsc -b",
-    "test": "vitest run",
+    "test": "pnpm run test:unit && pnpm run test:kernel",
+    "test:unit": "vitest run",
+    "test:kernel": "vitest run --config ./vitest.workers.config.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run test:e2e",
     "deploy": "pnpm run build && wrangler deploy",
     "deploy:dry-run": "pnpm run build && wrangler deploy --dry-run --config build/server/wrangler.json",
     "cf-typegen": "wrangler types",
+    "db:migrations:list:local": "wrangler d1 migrations list DB --local",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "postinstall": "wrangler types"
   },
   "dependencies": {
@@ -32,6 +36,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.45.1",
+    "@cloudflare/vitest-pool-workers": "0.18.6",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.61.1",
     "@react-router/dev": "8.0.0",

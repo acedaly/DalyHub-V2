@@ -46,7 +46,14 @@ jobs:
         run: pnpm run typecheck
 
       - name: Unit & component tests
-        run: pnpm run test
+        run: pnpm run test:unit
+
+      - name: Kernel integration tests (Workers runtime + D1)
+        # Runs the FND-02 data-kernel suite inside the real Workers runtime with
+        # an isolated, local D1 (Miniflare). The committed migration is applied
+        # to a fresh test database — D1 is not mocked. No Cloudflare credentials
+        # or remote database are used.
+        run: pnpm run test:kernel
 
       - name: Production build
         run: pnpm run build

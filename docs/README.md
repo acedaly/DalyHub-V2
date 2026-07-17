@@ -39,6 +39,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | **Development** | |
 | [`development/SETUP_AND_CI.md`](development/SETUP_AND_CI.md) | Local setup, everyday commands, and the CI pipeline. |
 | [`development/DEPLOYMENT.md`](development/DEPLOYMENT.md) | Deploying to Cloudflare Workers and the required setup/secrets. |
+| [`development/DATA_KERNEL.md`](development/DATA_KERNEL.md) | The entity kernel & D1: migrations, kernel tests, inspecting local D1, remote provisioning. |
 
 ---
 
@@ -68,12 +69,15 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   └── REFERENCE_PRODUCTS.md
     └── development/
         ├── SETUP_AND_CI.md
-        └── DEPLOYMENT.md
+        ├── DEPLOYMENT.md
+        └── DATA_KERNEL.md
 ```
 
 > Beyond `docs/`, the repository root now also carries the application itself
 > (`app/`, `workers/`, config files) plus `THIRD_PARTY_NOTICES.md`, from
 > [FND-01](roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold).
+> [FND-02](roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage) adds the
+> data kernel (`app/kernel/`, `app/platform/storage/`) and `migrations/`.
 
 ---
 
