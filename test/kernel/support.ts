@@ -1,10 +1,13 @@
 import { env } from "cloudflare:test";
 
 import {
+  createActivityRepository,
   createEntityLinkRepository,
   createEntityRepository,
   createWorkspaceRepository,
+  type AtomicMutationFault,
 } from "~/platform/storage/d1";
+import type { ActivityActorContext } from "~/kernel/activity";
 import type { Clock, IdGenerator } from "~/kernel/entities";
 import {
   createWorkspaceContext,
@@ -12,6 +15,15 @@ import {
   type WorkspaceContext,
   type WorkspaceId,
 } from "~/kernel/workspaces";
+
+/** Options accepted by the mutation-repository test factories. */
+export interface RepositoryTestOptions {
+  clock?: Clock;
+  idGenerator?: IdGenerator;
+  actorContext?: ActivityActorContext;
+  activityIdGenerator?: IdGenerator;
+  activityFault?: AtomicMutationFault;
+}
 
 /**
  * A deterministic, injectable clock for repository tests. Time only moves when
@@ -56,10 +68,7 @@ export function makeContext(workspaceId: string): WorkspaceContext {
  */
 export function makeRepository(
   context: WorkspaceContext,
-  options?: {
-    clock?: Clock;
-    idGenerator?: IdGenerator;
-  },
+  options?: RepositoryTestOptions,
 ) {
   return createEntityRepository(env.DB, context, options);
 }
@@ -70,12 +79,17 @@ export function makeRepository(
  */
 export function makeLinkRepository(
   context: WorkspaceContext,
-  options?: {
-    clock?: Clock;
-    idGenerator?: IdGenerator;
-  },
+  options?: RepositoryTestOptions,
 ) {
   return createEntityLinkRepository(env.DB, context, options);
+}
+
+/**
+ * Construct a workspace-scoped, read-only D1-backed Activity repository over the
+ * isolated test database (FND-05: bound to a `WorkspaceContext`).
+ */
+export function makeActivityRepository(context: WorkspaceContext) {
+  return createActivityRepository(env.DB, context);
 }
 
 /** Construct the low-level workspace repository over the isolated test database. */
@@ -127,6 +141,32 @@ export async function countRows(): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** Count all rows in `activities` directly. */
+export async function countActivities(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM activities",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count all rows in `activity_subjects` directly. */
+export async function countActivitySubjects(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM activity_subjects",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count `activities` rows of a given event type directly. */
+export async function countActivitiesOfType(type: string): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM activities WHERE type = ?",
+  )
+    .bind(type)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
 /** Count all workspace rows directly. */
 export async function countWorkspaces(): Promise<number> {
   const row = await env.DB.prepare(
@@ -158,12 +198,48 @@ export async function ensureWorkspace(
  * cannot be removed. Scoped strictly to the local/isolated test database.
  */
 export async function resetTables(workspaceIds: string[] = []): Promise<void> {
-  // Order matters under ON DELETE RESTRICT: links reference entities, and
-  // entities reference workspaces, so clear children before parents.
+  // Order matters under ON DELETE RESTRICT: activity_subjects references both
+  // activities and entities; activities and entity_links reference entities;
+  // entities reference workspaces. Clear children strictly before parents.
+  await env.DB.prepare("DELETE FROM activity_subjects").run();
+  await env.DB.prepare("DELETE FROM activities").run();
   await env.DB.prepare("DELETE FROM entity_links").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {
     await ensureWorkspace(id);
   }
+}
+
+/**
+ * Wrap a `D1Database` so every `prepare` call is counted. Lets a test assert that
+ * listing a page of Activity events issues a BOUNDED number of queries regardless
+ * of page size — i.e. there is no N+1 subject lookup. Only `prepare` is proxied
+ * (the sole entry point the repositories use to build statements).
+ */
+export function countingDb(db: D1Database): {
+  db: D1Database;
+  prepareCount: () => number;
+  reset: () => void;
+} {
+  let count = 0;
+  const proxy = new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          count += 1;
+          return target.prepare(query);
+        };
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as D1Database;
+  return {
+    db: proxy,
+    prepareCount: () => count,
+    reset: () => {
+      count = 0;
+    },
+  };
 }

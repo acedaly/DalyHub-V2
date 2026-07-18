@@ -12,6 +12,7 @@
  * records), deliberately named as such and not a module-facing contract.
  */
 
+import type { ActivityRepository } from "~/kernel/activity";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type {
@@ -19,6 +20,7 @@ import type {
   WorkspaceRepository,
 } from "~/kernel/workspaces";
 
+import { D1ActivityRepository } from "./d1-activity-repository";
 import {
   D1EntityRepository,
   type D1EntityRepositoryOptions,
@@ -34,9 +36,17 @@ import {
 
 export { D1EntityRepository, type D1EntityRepositoryOptions };
 export { D1EntityLinkRepository, type D1EntityLinkRepositoryOptions };
+export { D1ActivityRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
+export { D1ActivityRecorder } from "./d1-activity-recorder";
+export {
+  recordAtomicMutation,
+  type AtomicMutationFault,
+  type AtomicMutationResult,
+} from "./d1-atomic-mutation";
 export type { EntityRow } from "./database";
 export type { EntityLinkRow } from "./entity-link-database";
+export type { ActivityRow, ActivitySubjectRow } from "./activity-database";
 export type { WorkspaceRow } from "./workspace-database";
 
 /**
@@ -65,6 +75,20 @@ export function createEntityLinkRepository(
   options?: D1EntityLinkRepositoryOptions,
 ): EntityLinkRepository {
   return new D1EntityLinkRepository(db, context, options);
+}
+
+/**
+ * Factory for a workspace-scoped, READ-ONLY D1-backed Activity repository. The
+ * returned repository operates only within `context`'s workspace; there is no way
+ * to construct one without a context (FND-05 / ADR-012). It exposes reads only —
+ * Activity is appended solely as the atomic side effect of a domain mutation, by
+ * the entity and EntityLink repositories.
+ */
+export function createActivityRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): ActivityRepository {
+  return new D1ActivityRepository(db, context);
 }
 
 /**

@@ -92,6 +92,41 @@ describe("resolveWorkspaceScope (composition boundary)", () => {
     );
   });
 
+  it("exposes a read-only, correctly-bound Activity repository that shares the actor context (FND-05)", async () => {
+    const id = "test-default-workspace";
+    await makeWorkspaceRepository().create({ id: parseWorkspaceId(id) });
+
+    const { entities, entityLinks, activity } = await resolveWorkspaceScope({
+      DB: env.DB,
+      DEFAULT_WORKSPACE_ID: id,
+    });
+    expect(activity).toBeDefined();
+    expect(entityLinks).toBeDefined();
+
+    // A mutation through the composed entity repository records an Activity event
+    // readable through the composed (same-workspace) Activity repository, carrying
+    // the trusted system actor established at the boundary.
+    const created = await entities.create({ type: "task", title: "scoped" });
+    const feed = await activity.listForWorkspace();
+    expect(feed.items).toHaveLength(1);
+    expect(feed.items[0]!.type).toBe("entity.created");
+    expect(feed.items[0]!.actor).toEqual({ type: "system", id: null });
+    expect(feed.items[0]!.subjects).toEqual([
+      { entityId: created.id, role: "subject" },
+    ]);
+
+    // The Activity contract is read-only: it exposes no mutation methods.
+    expect(
+      (activity as unknown as Record<string, unknown>).append,
+    ).toBeUndefined();
+    expect(
+      (activity as unknown as Record<string, unknown>).create,
+    ).toBeUndefined();
+    expect(
+      (activity as unknown as Record<string, unknown>).delete,
+    ).toBeUndefined();
+  });
+
   it("exposes a resolver whose resolve() takes no request argument", async () => {
     const resolver = createWorkspaceContextResolver({
       DB: env.DB,

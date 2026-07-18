@@ -15,6 +15,11 @@
  * explicitly (ADR-010: no global mutable state, no AsyncLocalStorage).
  */
 
+import {
+  createSystemActorContext,
+  type ActivityActorContext,
+  type ActivityRepository,
+} from "~/kernel/activity";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type {
@@ -22,6 +27,7 @@ import type {
   WorkspaceContextResolver,
 } from "~/kernel/workspaces";
 import {
+  createActivityRepository,
   createEntityLinkRepository,
   createEntityRepository,
   createWorkspaceRepository,
@@ -39,16 +45,18 @@ export interface WorkspaceScopeEnv {
 }
 
 /**
- * A resolved workspace scope: the context plus every workspace-scoped
- * repository, all bound to the SAME `WorkspaceContext`. Both the entity and the
- * EntityLink repositories are exposed here (FND-04 / ADR-011) so module code
- * obtains them through this single seam rather than constructing scope itself.
- * There is deliberately no unscoped link repository in the module-facing surface.
+ * A resolved workspace scope: the context plus every workspace-scoped repository,
+ * all bound to the SAME `WorkspaceContext`. The entity, EntityLink and Activity
+ * repositories are exposed here so module code obtains them through this single
+ * seam rather than constructing scope itself. The `activity` repository is
+ * READ-ONLY (FND-05 / ADR-012): events are appended only as the atomic side effect
+ * of entity/link mutations, using the trusted actor established below.
  */
 export interface WorkspaceScope {
   readonly context: WorkspaceContext;
   readonly entities: EntityRepository;
   readonly entityLinks: EntityLinkRepository;
+  readonly activity: ActivityRepository;
 }
 
 /**
@@ -68,15 +76,30 @@ export function createWorkspaceContextResolver(
 /**
  * Resolve the active workspace scope for a request/environment: derive the
  * `WorkspaceContext` from trusted configuration and return it together with the
- * entity and EntityLink repositories, both already bound to that SAME context.
- * Fails closed (throws a typed workspace error) if the workspace cannot be
- * resolved.
+ * entity, EntityLink and (read-only) Activity repositories, all bound to that SAME
+ * context. The intended dependency flow (ADR-012) is realised here:
+ *
+ *     environment
+ *       → WorkspaceContext
+ *       → trusted Activity actor context   (a `system` actor today; FND-09 swaps
+ *                                            in an authenticated `user` actor)
+ *       → EntityRepository                 (records Activity with that actor)
+ *       → EntityLinkRepository             (records Activity with that actor)
+ *       → ActivityRepository               (reads)
+ *
+ * The actor context is constructed ONCE, server-side, and threaded into both
+ * mutation repositories — module calls cannot spoof it through a parameter. Fails
+ * closed (throws a typed workspace error) if the workspace cannot be resolved.
  */
 export async function resolveWorkspaceScope(
   env: WorkspaceScopeEnv,
 ): Promise<WorkspaceScope> {
   const context = await createWorkspaceContextResolver(env).resolve();
-  const entities = createEntityRepository(env.DB, context);
-  const entityLinks = createEntityLinkRepository(env.DB, context);
-  return { context, entities, entityLinks };
+  const actorContext: ActivityActorContext = createSystemActorContext();
+  const entities = createEntityRepository(env.DB, context, { actorContext });
+  const entityLinks = createEntityLinkRepository(env.DB, context, {
+    actorContext,
+  });
+  const activity = createActivityRepository(env.DB, context);
+  return { context, entities, entityLinks, activity };
 }

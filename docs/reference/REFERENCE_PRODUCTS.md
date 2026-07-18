@@ -171,6 +171,21 @@
 
 ---
 
+## Shared Activity model evaluation (FND-05)
+
+> The build-vs-reuse evaluation behind [ADR-012](../decisions/ARCHITECTURE_DECISIONS.md#adr-012-activity-persistence-and-atomic-mutation-recording). **No new runtime or dev dependency was added** — FND-05 is a kernel data-model + atomic-recording change implemented entirely with existing TypeScript, D1 and Workers/Vitest test tooling. The candidates considered and rejected:
+
+- **An event-sourcing framework / event store (e.g. an off-the-shelf event-sourced aggregate library).** Considered for "an append-only event stream". **Rejected — build on D1:** DalyHub is deliberately **not** event-sourced — domain tables remain the source of truth and Activity is a history/audit stream derived atomically from meaningful mutations ([ADR-012](../decisions/ARCHITECTURE_DECISIONS.md#adr-012-activity-persistence-and-atomic-mutation-recording)). An event-sourcing framework would impose aggregates, projections and replay the product does not want, and add a heavy dependency for what is two STRICT tables plus a small recording seam.
+- **A message broker / queue / event bus (Kafka, Cloudflare Queues, a pub/sub library).** Considered for "publishing events". **Rejected — out of scope & wrong shape:** FND-05 records history transactionally with the domain mutation; there is no cross-service delivery, fan-out or async processing requirement. A broker would add an operational component and break the atomic "one mutation → one event, or neither" guarantee that a single `D1Database.batch()` provides.
+- **An ORM/query-builder for the activities/subjects tables and the Timeline join.** Already rejected for FND-02/03/04; the feed/Timeline queries, the subject `IN (...)` fetch and the guarded insert statements are small, inspectable prepared SQL, consistent with [ADR-009](../decisions/ARCHITECTURE_DECISIONS.md#adr-009-data-kernel-storage). **Rejected — build.**
+- **A JSON-schema / validation library for the payload (e.g. Zod/Ajv).** Considered for recursive payload validation. **Rejected — build:** a small recursive validator + shared serialiser (rejecting unsupported/cyclic/non-finite values, bounding depth and encoded byte size) is smaller and clearer than a dependency, and the kernel deliberately carries no validation framework yet.
+- **A UUID package for activity ids.** **Rejected — use the platform:** the Workers-native `crypto.randomUUID()` already backs entity/link/workspace ids; injectable in tests for deterministic ids.
+- **A cursor signing/encryption library.** **Rejected — unnecessary** (same reasoning as FND-03/04): the Activity cursor is a dedicated, versioned, scope-bound format treated as untrusted input, with every value bound in SQL. No cursor field is a secret.
+
+**Decision (Depend / Adapt / Build).** **Build** the Activity kernel, D1 read adapter, atomic recording seam, migration and scoped read repository with existing tooling; **add no dependency**. Atomicity uses the platform's own `D1Database.batch()` (transactional, verified against the official docs and proven in real D1 integration tests), not a bespoke or third-party transaction coordinator. See [ADR-012](../decisions/ARCHITECTURE_DECISIONS.md#adr-012-activity-persistence-and-atomic-mutation-recording).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

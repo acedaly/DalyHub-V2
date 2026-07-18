@@ -18,8 +18,9 @@ on. It is split into a storage-independent contract and a D1 adapter:
 | ----- | -------- | -------------- |
 | Entity contract | `app/kernel/entities/` | Typed `EntityRecord`, inputs, domain errors, the workspace-bound `EntityRepository` interface, validation and cursor logic. No D1/Cloudflare types. |
 | EntityLink contract | `app/kernel/entity-links/` | Branded `EntityLinkType`, `EntityLinkRecord`/`EntityLinkView`, inputs, domain errors, the workspace-bound `EntityLinkRepository` interface, validation and a dedicated cursor. No D1/Cloudflare types. ([FND-04](../roadmap/ROADMAP_V2.md#-fnd-04--entitylinks)) |
+| Activity contract | `app/kernel/activity/` | Branded `ActivityType`, `ActivityRecord`, `ActivityActor`/`ActivitySubject`, payload rules + shared JSON serialiser, domain errors, a dedicated cursor, the **read-only** `ActivityRepository`, and the storage-independent recording seam (actor context + `buildActivityWriteModel`). No D1/Cloudflare types or JSON strings. ([FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model)) |
 | Workspace kernel | `app/kernel/workspaces/` | Branded `WorkspaceId`, `WorkspaceRecord`, `WorkspaceContext`, the `WorkspaceContextResolver` interface and the low-level `WorkspaceRepository` contract. No D1/Cloudflare types. |
-| D1 adapter | `app/platform/storage/d1/` | Implements the contracts over prepared, parameterised D1 statements; converts rows ⇄ domain records. The only place SQL lives. |
+| D1 adapter | `app/platform/storage/d1/` | Implements the contracts over prepared, parameterised D1 statements; converts rows ⇄ domain records; hosts the atomic recording seam (`d1-activity-recorder`, `d1-atomic-mutation`). The only place SQL lives. |
 | Composition | `app/platform/workspaces/` | The server-side `environment → resolver → WorkspaceContext → scoped repository` boundary (`resolveWorkspaceScope`). |
 | Schema | `migrations/` | Committed, sequential D1 SQL migrations. |
 
@@ -62,6 +63,13 @@ adds the parent `UNIQUE (workspace_id, id)` key on `entities` and creates the
 `entity_links` table (with its composite foreign keys, self-link `CHECK`,
 identity uniqueness index and access-path indexes). It is additive — it does not
 rebuild or alter existing `entities` rows.
+
+Migration `0004_create_activities.sql` ([FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model))
+creates the STRICT `activities` and `activity_subjects` tables (with the parent
+`UNIQUE (workspace_id, id)` key on `activities`, composite foreign keys, and
+access-path indexes). It is purely additive — it does **not** touch `entities` or
+`entity_links`, and there is **no backfill**: the Activity stream begins when
+FND-05 is deployed, and no history is fabricated for records created before 0004.
 
 The Workers Vitest integration applies all migrations automatically; apply them
 to your local database with `pnpm run db:migrate:local`.
@@ -267,6 +275,130 @@ guarantees, and duplicates lifecycle logic — it is exactly what
 [ADR-002](../decisions/ARCHITECTURE_DECISIONS.md#adr-002-entitylinks)/[ADR-011](../decisions/ARCHITECTURE_DECISIONS.md#adr-011-entitylink-persistence-and-lifecycle)
 reject. If a relationship genuinely cannot be modelled as an EntityLink, that is
 an architectural change and needs a new ADR, not a quiet bespoke table.
+
+## Activity (FND-05)
+
+**Activity** is the single, append-only, workspace-scoped history/audit stream
+every module writes to ([FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model) /
+[ADR-012](../decisions/ARCHITECTURE_DECISIONS.md#adr-012-activity-persistence-and-atomic-mutation-recording),
+implementing [ADR-005](../decisions/ARCHITECTURE_DECISIONS.md#adr-005-shared-activity-model)).
+It is the source of the record Timeline, the workspace Activity Feed and the
+audit trail. **Per-module history/event/timeline tables are prohibited** — there
+is one stream.
+
+### The `activities` and `activity_subjects` schema (migration 0004)
+
+```sql
+-- The event header (STRICT). No updated_at/deleted_at/title/status —
+-- an event is an immutable fact, not an entity.
+activities(
+  id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json
+)
+  workspace_id → workspaces(id)                     ON DELETE RESTRICT
+  UNIQUE (workspace_id, id)                          -- parent key for subjects
+
+-- Which entities the event relates to, and in what role (STRICT).
+activity_subjects(workspace_id, activity_id, entity_id, role)
+  PRIMARY KEY (workspace_id, activity_id, entity_id) -- no duplicate subjects
+  (workspace_id, activity_id) → activities(workspace_id, id)  ON DELETE RESTRICT
+  (workspace_id, entity_id)   → entities(workspace_id, id)    ON DELETE RESTRICT
+```
+
+An event relates to **one or many** entities via `activity_subjects`, never a
+single embedded entity id — which is why a single EntityLink event (with a
+`source` and a `target` subject) appears in both endpoints' timelines while
+remaining one event. `ON DELETE RESTRICT` on the entity FK preserves a
+**soft-deleted entity's Timeline** (soft-delete never removes the entity row).
+
+### Conventions
+
+- **Event type** — a validated, branded, lowercase dotted identifier stored
+  verbatim (`entity.created`, `entity.updated`, `entity.deleted`,
+  `entity.restored`, `entity_link.created`, `entity_link.unlinked`,
+  `entity_link.restored`). No database enum, no display label in the kernel; new
+  modules add types without a migration.
+- **Actor** — a trusted, server-derived `{ type, id }` established at the
+  composition boundary (`resolveWorkspaceScope`) and threaded into the mutation
+  repositories, never accepted through a module parameter. `type` is a validated
+  open identifier (`system`, `user`, `ai`, `import`, `integration`, …); `id` is
+  nullable. Today the boundary supplies `{ type: "system", id: null }`; FND-09
+  swaps in an authenticated `user` actor with no schema change.
+- **Subject role** — a validated open identifier (`subject`, `source`, `target`).
+- **Payload** — a JSON **object**, recursively validated (rejecting functions,
+  symbols, `undefined`, `bigint`, cyclic structures and non-finite numbers),
+  bounded in nesting depth and encoded byte size, serialised once by the shared
+  helper and re-validated on read. It explains the event only — never a full
+  entity snapshot, never a replacement for a domain table.
+
+### Built-in event types
+
+| Mutation | Type | Subjects | Payload (shape) |
+| --- | --- | --- | --- |
+| Entity create | `entity.created` | entity → `subject` | `{ entityType, title }` |
+| Entity update | `entity.updated` | entity → `subject` | `{ changes: { title: { before, after } } }` |
+| Entity soft-delete | `entity.deleted` | entity → `subject` | `{ entityType, title }` |
+| Entity restore | `entity.restored` | entity → `subject` | `{ entityType, title }` |
+| Link create | `entity_link.created` | source → `source`, target → `target` | `{ linkId, linkType, sourceEntityId, targetEntityId }` |
+| Link unlink | `entity_link.unlinked` | source, target | `{ linkId, linkType, sourceEntityId, targetEntityId }` |
+| Link restore / create-after-unlink | `entity_link.restored` | source, target | `{ linkId, linkType, sourceEntityId, targetEntityId }` |
+
+Only **successful, meaningful** mutations emit events. Idempotent no-ops
+(`already_deleted`, `already_active`, `already_exists`, `already_unlinked`) and
+failed mutations emit nothing.
+
+### Atomic mutation recording (how future repositories must record Activity)
+
+A domain mutation and its Activity append are ONE `D1Database.batch()` (a single
+transaction that rolls back entirely on any failure). The pattern, encoded in
+`d1-activity-recorder.ts` + `d1-atomic-mutation.ts`:
+
+1. Build the domain statement **first**, using `RETURNING`, with a `WHERE` that
+   matches only when a real change is needed.
+2. Append it, then the event insert guarded `WHERE changes() > 0`, then one
+   subject insert per subject guarded `WHERE EXISTS` the event.
+3. `db.batch([...])`; inspect the domain statement's `meta.changes` — the event
+   is appended **iff a row actually changed**.
+
+Never `await repo.update(); await activity.append();` — that can persist the
+domain change while losing its event. Always route through the atomic seam. The
+mutation timestamp and the event's `occurred_at` come from the **same** clock
+call. Entity `update` uses a bounded optimistic retry so a concurrent change
+cannot record a stale before/after.
+
+### Reading Activity: workspace feed & entity Timeline
+
+The module-facing `ActivityRepository` (from `resolveWorkspaceScope().activity`)
+is **read-only**:
+
+```ts
+const { activity } = await resolveWorkspaceScope(env);
+await activity.listForWorkspace({ type?, limit?, cursor? });   // Activity Feed
+await activity.listForEntity(entityId, { type?, limit?, cursor? }); // Timeline
+await activity.getById(id);
+```
+
+Both listings are workspace-isolated, ordered **newest-first** by
+`(occurredAt, id)`, bounded, cursor-paginated, and return each event with **all**
+its subjects via a single `IN (...)` query (no N+1). `listForEntity` requires the
+anchor entity to exist in the workspace but allows it to be **soft-deleted** — a
+deleted entity's Timeline stays queryable. A cross-workspace anchor is
+indistinguishable from a nonexistent one.
+
+### Cursor behaviour
+
+Activity uses its **own** versioned cursor (never the entity or link cursor),
+bound to `(version, workspaceId, scope-kind, entityId?, type-filter, occurredAt,
+activityId)`. A workspace cursor is rejected on an entity Timeline (and vice
+versa), an entity-A cursor is rejected for entity B, and a filtered cursor is
+rejected under another filter. Contents are untrusted (base64url over UTF-8,
+fatal decoding), validated on decode; every value reaching SQL is bound.
+
+### No per-module history tables; no backfill
+
+There is exactly one Activity stream. Do not add entity-specific history tables,
+EntityLink logs, module audit tables or per-feature timeline stores — record
+Activity through the atomic seam instead. And do **not** fabricate history for
+records created before migration 0004: the stream begins at deployment.
 
 ## Running the kernel tests
 

@@ -1,5 +1,5 @@
 /**
- * FND-04 EntityLinks — D1 implementation of the link repository.
+ * FND-04/FND-05 EntityLinks — D1 implementation of the link repository.
  *
  * Implements the storage-independent, WORKSPACE-BOUND `EntityLinkRepository`
  * contract over Cloudflare D1 (SQLite) using prepared, parameterised statements
@@ -7,11 +7,28 @@
  * statement constrains `workspace_id = ?` with that context's id, both endpoints
  * of every link are checked in the bound workspace, and no module-facing method
  * accepts a `workspaceId` (ADR-010/ADR-011). No caller-supplied value is ever
- * interpolated into SQL — every value is bound (AGENTS.md §17). D1 specifics
- * (rows, SQL, timestamp strings) stay inside this file, `database.ts` and
- * `entity-link-database.ts`; nothing D1-shaped escapes the public interface.
+ * interpolated into SQL — every value is bound (AGENTS.md §17).
+ *
+ * FND-05 (ADR-012): every SUCCESSFUL, MEANINGFUL link mutation appends exactly one
+ * uniform Activity event, atomically with the domain mutation, and BOTH endpoints
+ * are Activity subjects (`source` and `target`) — so a single link event appears
+ * in both endpoints' timelines while remaining one event. Idempotent no-ops
+ * (`already_exists`, `already_unlinked`, `already_active`) append nothing; under
+ * concurrency only the caller whose statement actually changed the row appends an
+ * event (the append is guarded on the domain statement's `changes()`). The trusted
+ * actor is bound at construction, never accepted through a method parameter.
+ *
+ * D1 specifics stay inside this file, `database.ts` and `entity-link-database.ts`.
  */
 
+import {
+  ActivityError,
+  buildActivityWriteModel,
+  createSystemActorContext,
+  secureIdGenerator as activitySecureIdGenerator,
+  type ActivityActorContext,
+  type NewActivityEvent,
+} from "~/kernel/activity";
 import {
   EntityLinkConflictError,
   EntityLinkEndpointNotFoundError,
@@ -48,6 +65,11 @@ import type { EntityLinkDirectionFilter } from "~/kernel/entity-links";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
 import { toStorageTimestamp } from "./database";
+import { D1ActivityRecorder } from "./d1-activity-recorder";
+import {
+  recordAtomicMutation,
+  type AtomicMutationFault,
+} from "./d1-atomic-mutation";
 import {
   rowToEntityLink,
   viewRowToEntityLinkView,
@@ -57,21 +79,46 @@ import {
 
 /** Optional dependencies for the repository, injectable for deterministic tests. */
 export interface D1EntityLinkRepositoryOptions {
-  /** Clock used for lifecycle timestamps. Defaults to the system clock. */
+  /** Clock used for lifecycle AND Activity timestamps (one call per mutation). */
   readonly clock?: Clock;
   /** Id generator for new links. Defaults to a secure UUID generator. */
   readonly idGenerator?: IdGenerator;
+  /**
+   * Trusted actor context recorded on every Activity event this repository
+   * appends. Established at the composition boundary; defaults to the `system`
+   * actor. Never sourced from a method parameter (ADR-012).
+   */
+  readonly actorContext?: ActivityActorContext;
+  /** Id generator for Activity events. Defaults to a secure UUID generator. */
+  readonly activityIdGenerator?: IdGenerator;
+  /**
+   * TEST-ONLY deterministic Activity-append failure injection, used to prove the
+   * domain mutation is rolled back when the append fails. Never set in production.
+   */
+  readonly activityFault?: AtomicMutationFault;
 }
 
 /** The link columns selected for every direct read, matching {@link EntityLinkRow}. */
 const LINK_COLUMNS =
   "id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at";
 
-/**
- * Projection for the OUTGOING branch of a listing: the anchor is the link's
- * source, so the counterpart `e` is the target. `'outgoing'` is a fixed literal
- * chosen by the code, never caller input.
- */
+/** Built-in EntityLink Activity event types (ADR-012). */
+const LINK_CREATED = "entity_link.created";
+const LINK_UNLINKED = "entity_link.unlinked";
+const LINK_RESTORED = "entity_link.restored";
+
+/** The roles the two endpoints play in a link event. */
+const ROLE_SOURCE = "source";
+const ROLE_TARGET = "target";
+
+/** The stable identity of a link, used to build a link Activity event. */
+interface LinkIdentity {
+  readonly id: string;
+  readonly sourceEntityId: string;
+  readonly targetEntityId: string;
+  readonly type: string;
+}
+
 const OUTGOING_PROJECTION = `
   l.id AS link_id,
   l.workspace_id AS link_workspace_id,
@@ -90,8 +137,6 @@ const OUTGOING_PROJECTION = `
   e.updated_at AS cp_updated_at,
   e.deleted_at AS cp_deleted_at`;
 
-/** Projection for the INCOMING branch: the anchor is the target, so the
- * counterpart `e` is the source. */
 const INCOMING_PROJECTION = OUTGOING_PROJECTION.replace(
   "'outgoing' AS direction",
   "'incoming' AS direction",
@@ -109,6 +154,10 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
   readonly #workspaceId: string;
   readonly #clock: Clock;
   readonly #newId: IdGenerator;
+  readonly #actor: ActivityActorContext;
+  readonly #newActivityId: IdGenerator;
+  readonly #recorder: D1ActivityRecorder;
+  readonly #activityFault?: AtomicMutationFault;
 
   constructor(
     db: D1Database,
@@ -119,6 +168,11 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     this.#workspaceId = context.workspaceId;
     this.#clock = options.clock ?? systemClock;
     this.#newId = options.idGenerator ?? secureIdGenerator;
+    this.#actor = options.actorContext ?? createSystemActorContext();
+    this.#newActivityId =
+      options.activityIdGenerator ?? activitySecureIdGenerator;
+    this.#recorder = new D1ActivityRecorder(db);
+    this.#activityFault = options.activityFault;
   }
 
   async create(input: CreateEntityLinkInput): Promise<CreateEntityLinkResult> {
@@ -127,11 +181,8 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       validateCreateEntityLinkInput(input);
 
     // 3-4. Both endpoints must exist, be active, and be in the bound workspace.
-    // This pre-check gives a clear, ordered endpoint-not-found for the common
-    // cases (including the already-exists no-op path below). It is NOT relied on
-    // alone: the INSERT and the restore UPDATE re-assert the same condition in
-    // the SAME statement, so an endpoint soft-deleted between this check and the
-    // write cannot slip a link past the active-endpoint requirement.
+    // Re-asserted atomically in the INSERT (below), so a concurrent soft-delete
+    // cannot slip a link past the active-endpoint requirement.
     await this.#requireEndpointsActive(sourceEntityId, targetEntityId);
 
     // 5. An existing exact relationship (any lifecycle state) reuses its row/id.
@@ -144,65 +195,82 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       return this.#reconcileExisting(existing);
     }
 
-    // 6. Otherwise insert a new relationship row. Validate the GENERATED id at
-    // the boundary too: the id generator is injectable and could return an
-    // invalid value, so it is checked before any write — an invalid id throws
-    // `EntityLinkValidationError` and nothing is inserted.
-    const now = toStorageTimestamp(this.#clock());
+    // 6. Otherwise insert a new relationship row, atomically appending the
+    // `entity_link.created` event with BOTH endpoints as subjects. The generated
+    // id is validated at the boundary; an invalid id throws before any write.
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
     const id = validateEntityLinkId(this.#newId());
+    const identity: LinkIdentity = {
+      id,
+      sourceEntityId,
+      targetEntityId,
+      type,
+    };
+
+    const domainStatement = this.#db
+      .prepare(
+        `INSERT INTO entity_links
+           (id, workspace_id, source_entity_id, target_entity_id, type,
+            created_at, updated_at, deleted_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, NULL
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+               )
+           AND EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+               )
+         RETURNING ${LINK_COLUMNS}`,
+      )
+      .bind(
+        id,
+        this.#workspaceId,
+        sourceEntityId,
+        targetEntityId,
+        type,
+        nowTs,
+        nowTs,
+        this.#workspaceId,
+        sourceEntityId,
+        this.#workspaceId,
+        targetEntityId,
+      );
+
     try {
-      // ATOMIC endpoint enforcement: the row is inserted only when BOTH endpoints
-      // still exist, are active, and belong to the bound workspace, checked in
-      // the same statement via `WHERE EXISTS (...) AND EXISTS (...)`. If either
-      // endpoint was soft-deleted since the pre-check, the SELECT yields no row,
-      // nothing is inserted, and RETURNING comes back empty.
-      const row = await this.#db
-        .prepare(
-          `INSERT INTO entity_links
-             (id, workspace_id, source_entity_id, target_entity_id, type,
-              created_at, updated_at, deleted_at)
-           SELECT ?, ?, ?, ?, ?, ?, ?, NULL
-           WHERE EXISTS (
-                   SELECT 1 FROM entities
-                   WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-                 )
-             AND EXISTS (
-                   SELECT 1 FROM entities
-                   WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-                 )
-           RETURNING ${LINK_COLUMNS}`,
-        )
-        .bind(
-          id,
-          this.#workspaceId,
-          sourceEntityId,
-          targetEntityId,
-          type,
-          now,
-          now,
-          this.#workspaceId,
-          sourceEntityId,
-          this.#workspaceId,
-          targetEntityId,
-        )
-        .first<EntityLinkRow>();
-      if (row) {
+      const model = buildActivityWriteModel(
+        this.#linkEvent(LINK_CREATED, identity),
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      const { changed, row } = await recordAtomicMutation<EntityLinkRow>({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        domainStatement,
+        recorder: this.#recorder,
+        model,
+        fault: this.#activityFault,
+      });
+      if (changed && row) {
         return {
           link: rowToEntityLink(row),
           outcome: "created",
           created: true,
         };
       }
-      // Nothing was inserted and no UNIQUE violation was thrown, so an endpoint
-      // is no longer active (a concurrent soft-delete raced the pre-check). Fail
-      // safely and indistinguishably from a nonexistent/cross-workspace endpoint.
+      // Nothing inserted and no UNIQUE violation: an endpoint is no longer active
+      // (a concurrent soft-delete raced the pre-check). Fail safely and
+      // indistinguishably from a nonexistent/cross-workspace endpoint.
       throw new EntityLinkEndpointNotFoundError();
     } catch (cause) {
-      if (cause instanceof EntityLinkError) {
+      if (cause instanceof EntityLinkError || cause instanceof ActivityError) {
         throw cause;
       }
       // A concurrent create won the race: the uniqueness index is the final
-      // backstop. Re-read and reconcile so duplicates cannot produce two rows.
+      // backstop, so the whole batch (link + event) rolled back. Re-read and
+      // reconcile so duplicates cannot produce two rows or two events.
       if (isUniqueConstraintViolation(cause)) {
         const raced = await this.#findExact(
           sourceEntityId,
@@ -246,7 +314,6 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     const type = validateOptionalLinkType(input.type);
     const limit = validateLinkLimit(input.limit);
 
-    // The anchor entity must exist and be active in the bound workspace.
     await this.#requireAnchorActive(anchorId);
 
     const scope: EntityLinkCursorScope = {
@@ -290,37 +357,52 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
   async unlink(id: string): Promise<EntityLinkLifecycleResult> {
     const linkId = validateEntityLinkId(id);
 
-    // Attempt the transition atomically: only an ACTIVE row in this workspace is
-    // affected. Doing the conditional UPDATE first (rather than read-then-write)
-    // makes concurrent/retried unlinks safe — SQLite serialises the writes.
-    const now = toStorageTimestamp(this.#clock());
-    const updated = await this.#first(
-      this.#db
-        .prepare(
-          `UPDATE entity_links
-             SET deleted_at = ?, updated_at = ?
-           WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
-           RETURNING ${LINK_COLUMNS}`,
-        )
-        .bind(now, now, linkId, this.#workspaceId),
-    );
-    if (updated) {
-      return {
-        link: rowToEntityLink(updated),
-        outcome: "unlinked",
-        changed: true,
-      };
-    }
-
-    // No active row matched. Re-read to distinguish "unknown id / other
-    // workspace" (not found) from "already unlinked" — the latter includes the
-    // loser of a concurrent unlink race, kept idempotent rather than erroring.
+    // Read first so the `entity_link.unlinked` event carries the link's endpoints
+    // (its subjects) and identity. Unknown id / other workspace → not found.
     const existing = await this.#findById(linkId);
     if (!existing) {
       throw new EntityLinkNotFoundError();
     }
+    if (existing.deleted_at !== null) {
+      // Idempotent no-op: already unlinked → NO event, no timestamp churn.
+      return {
+        link: rowToEntityLink(existing),
+        outcome: "already_unlinked",
+        changed: false,
+      };
+    }
+
+    // Attempt the transition atomically: only an ACTIVE row is affected. The
+    // conditional UPDATE plus SQLite's serialised writes make concurrent/retried
+    // unlinks safe — only the winner changes a row and appends an event.
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const domainStatement = this.#db
+      .prepare(
+        `UPDATE entity_links
+           SET deleted_at = ?, updated_at = ?
+         WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
+         RETURNING ${LINK_COLUMNS}`,
+      )
+      .bind(nowTs, nowTs, linkId, this.#workspaceId);
+
+    const { changed, row } = await this.#recordLinkMutation(
+      domainStatement,
+      this.#linkEvent(LINK_UNLINKED, existing),
+      now,
+    );
+    if (changed && row) {
+      return { link: rowToEntityLink(row), outcome: "unlinked", changed: true };
+    }
+
+    // A concurrent unlink won: no row changed here, so no event. Re-read and keep
+    // it idempotent.
+    const current = await this.#findById(linkId);
+    if (!current) {
+      throw new EntityLinkNotFoundError();
+    }
     return {
-      link: rowToEntityLink(existing),
+      link: rowToEntityLink(current),
       outcome: "already_unlinked",
       changed: false,
     };
@@ -334,7 +416,7 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       throw new EntityLinkNotFoundError();
     }
     if (existing.deleted_at === null) {
-      // Idempotent: already active, nothing to restore, no endpoint requirement.
+      // Idempotent no-op: already active → NO event, no endpoint requirement.
       return {
         link: rowToEntityLink(existing),
         outcome: "already_active",
@@ -343,10 +425,9 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     }
 
     // The active-endpoint requirement is enforced ATOMICALLY inside the restore
-    // UPDATE (not via a separate pre-check that could go stale): the row is
-    // re-activated only when both of ITS endpoints are still active.
-    const now = toStorageTimestamp(this.#clock());
-    const row = await this.#clearDeletedAtIfEndpointsActive(linkId, now);
+    // UPDATE, and the `entity_link.restored` event is appended in the same batch.
+    const now = this.#clock();
+    const row = await this.#restoreWithActivity(existing, now);
     if (row) {
       return { link: rowToEntityLink(row), outcome: "restored", changed: true };
     }
@@ -361,9 +442,9 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
 
   /**
    * Reconcile an existing exact relationship for `create`: an active row is an
-   * idempotent `already_exists`; an unlinked row is restored IN PLACE (same id)
-   * to `restored`, but ONLY when both of its endpoints are still active — the
-   * restore UPDATE enforces that in the same statement.
+   * idempotent `already_exists` (NO event); an unlinked row is restored IN PLACE
+   * (same id) to `restored` — appending `entity_link.restored` in the same atomic
+   * batch — but ONLY when both endpoints are still active.
    */
   async #reconcileExisting(
     existing: EntityLinkRow,
@@ -375,8 +456,8 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         created: false,
       };
     }
-    const now = toStorageTimestamp(this.#clock());
-    const row = await this.#clearDeletedAtIfEndpointsActive(existing.id, now);
+    const now = this.#clock();
+    const row = await this.#restoreWithActivity(existing, now);
     if (row) {
       return {
         link: rowToEntityLink(row),
@@ -394,15 +475,53 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
   }
 
   /**
+   * Restore an unlinked link IN PLACE (same id) when both endpoints are still
+   * active, appending `entity_link.restored` atomically. The endpoint-active
+   * requirement and the `deleted_at IS NOT NULL` race guard live in the SAME
+   * UPDATE; the event is appended only when that UPDATE actually re-activates the
+   * row (`changes() > 0`). Returns the refreshed row, or null when nothing matched
+   * (already active, an endpoint inactive, or the row vanished).
+   */
+  async #restoreWithActivity(
+    existing: EntityLinkRow,
+    now: Date,
+  ): Promise<EntityLinkRow | null> {
+    const nowTs = toStorageTimestamp(now);
+    const domainStatement = this.#db
+      .prepare(
+        `UPDATE entity_links
+           SET deleted_at = NULL, updated_at = ?
+         WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL
+           AND EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = entity_links.workspace_id
+                   AND id = entity_links.source_entity_id
+                   AND deleted_at IS NULL
+               )
+           AND EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = entity_links.workspace_id
+                   AND id = entity_links.target_entity_id
+                   AND deleted_at IS NULL
+               )
+         RETURNING ${LINK_COLUMNS}`,
+      )
+      .bind(nowTs, existing.id, this.#workspaceId);
+
+    const { changed, row } = await this.#recordLinkMutation(
+      domainStatement,
+      this.#linkEvent(LINK_RESTORED, existing),
+      now,
+    );
+    return changed ? row : null;
+  }
+
+  /**
    * Determine why a conditional restore UPDATE affected no row and return a safe
-   * outcome. Called only after an `UPDATE ... deleted_at IS NOT NULL AND
-   * <endpoints active>` matched nothing, so exactly one of these holds:
-   *   - the link is now active (a concurrent restore won the race) → the caller's
-   *     idempotent already-active outcome, built by `onAlreadyActive`;
-   *   - the link is still unlinked → an endpoint is missing/soft-deleted/cross-
-   *     workspace, so restoration fails safely as `EntityLinkEndpointNotFoundError`;
-   *   - the row is gone (not expected — there is no hard-delete) → a typed
-   *     `EntityLinkConflictError`, never a generic invariant failure.
+   * outcome — the link is now active (a concurrent restore won → the caller's
+   * idempotent already-active outcome), still unlinked (an endpoint is
+   * missing/inactive → `EntityLinkEndpointNotFoundError`), or gone (not expected —
+   * a typed `EntityLinkConflictError`).
    */
   async #classifyFailedRestore<T>(
     id: string,
@@ -413,46 +532,9 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       return onAlreadyActive(rowToEntityLink(current));
     }
     if (current) {
-      // Still unlinked → the endpoint-active EXISTS clauses failed.
       throw new EntityLinkEndpointNotFoundError();
     }
     throw new EntityLinkConflictError();
-  }
-
-  /**
-   * Clear `deleted_at` on an unlinked link in the bound workspace, but ONLY when
-   * both of the link's endpoints currently exist, are active, and are in the same
-   * workspace — enforced atomically via correlated `EXISTS` sub-selects in the
-   * same UPDATE. Returns the refreshed row, or null when nothing matched (already
-   * active, an endpoint inactive, or the row is gone). The `deleted_at IS NOT
-   * NULL` guard also makes concurrent restores race-safe.
-   */
-  async #clearDeletedAtIfEndpointsActive(
-    id: string,
-    now: string,
-  ): Promise<EntityLinkRow | null> {
-    return this.#first(
-      this.#db
-        .prepare(
-          `UPDATE entity_links
-             SET deleted_at = NULL, updated_at = ?
-           WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL
-             AND EXISTS (
-                   SELECT 1 FROM entities
-                   WHERE workspace_id = entity_links.workspace_id
-                     AND id = entity_links.source_entity_id
-                     AND deleted_at IS NULL
-                 )
-             AND EXISTS (
-                   SELECT 1 FROM entities
-                   WHERE workspace_id = entity_links.workspace_id
-                     AND id = entity_links.target_entity_id
-                     AND deleted_at IS NULL
-                 )
-           RETURNING ${LINK_COLUMNS}`,
-        )
-        .bind(now, id, this.#workspaceId),
-    );
   }
 
   /** Build the (possibly UNION ALL) listing query for the requested direction. */
@@ -505,8 +587,6 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
   ): { sql: string; params: unknown[] } {
     const outgoing = kind === "outgoing";
     const projection = outgoing ? OUTGOING_PROJECTION : INCOMING_PROJECTION;
-    // The anchor is compared against the source (outgoing) or target (incoming);
-    // the counterpart entity `e` is joined on the opposite endpoint.
     const anchorColumn = outgoing ? "source_entity_id" : "target_entity_id";
     const counterpartColumn = outgoing
       ? "target_entity_id"
@@ -535,6 +615,65 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         ON e.workspace_id = l.workspace_id AND e.id = l.${counterpartColumn}
       WHERE ${conditions.join(" AND ")}`;
     return { sql, params };
+  }
+
+  /** Build a link Activity event from a link's stable identity, with both
+   * endpoints as subjects (`source` and `target`). */
+  #linkEvent(
+    type: string,
+    link: LinkIdentity | EntityLinkRow,
+  ): NewActivityEvent {
+    const sourceEntityId =
+      "sourceEntityId" in link ? link.sourceEntityId : link.source_entity_id;
+    const targetEntityId =
+      "targetEntityId" in link ? link.targetEntityId : link.target_entity_id;
+    return {
+      type,
+      subjects: [
+        { entityId: sourceEntityId, role: ROLE_SOURCE },
+        { entityId: targetEntityId, role: ROLE_TARGET },
+      ],
+      payload: {
+        linkId: link.id,
+        linkType: link.type,
+        sourceEntityId,
+        targetEntityId,
+      },
+    };
+  }
+
+  /**
+   * Run a link domain mutation and its Activity append atomically. Kernel errors
+   * propagate as-is; a raw D1 failure (including a forced rollback) is mapped to
+   * `EntityLinkStorageError`. Used for unlink/restore; `create` handles its own
+   * try/catch so it can detect the UNIQUE-constraint race and reconcile.
+   */
+  async #recordLinkMutation(
+    domainStatement: D1PreparedStatement,
+    event: NewActivityEvent,
+    now: Date,
+  ): Promise<{ changed: boolean; row: EntityLinkRow | null }> {
+    try {
+      const model = buildActivityWriteModel(
+        event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      return await recordAtomicMutation<EntityLinkRow>({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        domainStatement,
+        recorder: this.#recorder,
+        model,
+        fault: this.#activityFault,
+      });
+    } catch (cause) {
+      if (cause instanceof EntityLinkError || cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new EntityLinkStorageError(undefined, { cause });
+    }
   }
 
   /** Find an exact relationship by identity tuple within the bound workspace,

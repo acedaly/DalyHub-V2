@@ -1,17 +1,36 @@
 /**
- * FND-02/FND-03 Data kernel — D1 implementation of the entity repository.
+ * FND-02/FND-03/FND-05 Data kernel — D1 implementation of the entity repository.
  *
- * Implements the storage-independent, WORKSPACE-BOUND `EntityRepository`
- * contract over Cloudflare D1 (SQLite) using prepared, parameterised statements
- * only. The repository is constructed with a single `WorkspaceContext`; every
- * statement constrains `workspace_id = ?` with that context's id, and no
- * module-facing method accepts a `workspaceId` (FND-03 / ADR-010). No
- * caller-supplied value is ever interpolated into SQL — every value is bound
- * (see AGENTS.md §17). D1 specifics (rows, SQL, timestamp strings) stay inside
- * this file and `database.ts`; nothing D1-shaped escapes the public interface.
+ * Implements the storage-independent, WORKSPACE-BOUND `EntityRepository` contract
+ * over Cloudflare D1 (SQLite) using prepared, parameterised statements only. The
+ * repository is constructed with a single `WorkspaceContext`; every statement
+ * constrains `workspace_id = ?` with that context's id, and no module-facing
+ * method accepts a `workspaceId` (FND-03 / ADR-010). No caller-supplied value is
+ * ever interpolated into SQL — every value is bound (AGENTS.md §17).
+ *
+ * FND-05 (ADR-012): every SUCCESSFUL, MEANINGFUL entity mutation appends exactly
+ * one uniform Activity event, and the domain mutation and its Activity append are
+ * ONE atomic D1 batch. A failed mutation writes no event; an idempotent no-op
+ * (already-deleted / already-active) writes no event; and under concurrency only
+ * the caller whose statement actually changed the row appends an event — the
+ * append is guarded on the domain statement's `changes()` (see `D1ActivityRecorder`
+ * and `recordAtomicMutation`). The trusted actor is bound at construction and is
+ * never accepted through a method parameter.
+ *
+ * D1 specifics (rows, SQL, timestamp strings) stay inside this file and
+ * `database.ts`; nothing D1-shaped escapes the public interface.
  */
 
 import {
+  ActivityError,
+  buildActivityWriteModel,
+  createSystemActorContext,
+  secureIdGenerator as activitySecureIdGenerator,
+  type ActivityActorContext,
+  type NewActivityEvent,
+} from "~/kernel/activity";
+import {
+  EntityError,
   EntityNotFoundError,
   EntityStorageError,
   type CreateEntityInput,
@@ -43,24 +62,59 @@ import {
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
 import { rowToEntity, toStorageTimestamp, type EntityRow } from "./database";
+import { D1ActivityRecorder } from "./d1-activity-recorder";
+import {
+  recordAtomicMutation,
+  type AtomicMutationFault,
+} from "./d1-atomic-mutation";
 
 /** Optional dependencies for the repository, injectable for deterministic tests. */
 export interface D1EntityRepositoryOptions {
-  /** Clock used for lifecycle timestamps. Defaults to the system clock. */
+  /** Clock used for lifecycle AND Activity timestamps (one call per mutation). */
   readonly clock?: Clock;
   /** Id generator for new entities. Defaults to a secure UUID generator. */
   readonly idGenerator?: IdGenerator;
+  /**
+   * Trusted actor context recorded on every Activity event this repository
+   * appends. Established at the composition boundary; defaults to the `system`
+   * actor. Never sourced from a method parameter (ADR-012).
+   */
+  readonly actorContext?: ActivityActorContext;
+  /** Id generator for Activity events. Defaults to a secure UUID generator. */
+  readonly activityIdGenerator?: IdGenerator;
+  /**
+   * TEST-ONLY deterministic Activity-append failure injection, used to prove the
+   * domain mutation is rolled back when the append fails. Never set in production.
+   */
+  readonly activityFault?: AtomicMutationFault;
 }
 
 /** The columns selected for every read, matching {@link EntityRow}. */
 const SELECT_COLUMNS =
   "id, workspace_id, type, title, created_at, updated_at, deleted_at";
 
+/** Built-in entity Activity event types (ADR-012). */
+const ENTITY_CREATED = "entity.created";
+const ENTITY_UPDATED = "entity.updated";
+const ENTITY_DELETED = "entity.deleted";
+const ENTITY_RESTORED = "entity.restored";
+
+/** The role an entity plays in its own lifecycle event. */
+const SUBJECT_ROLE = "subject";
+
+/** Bounded optimistic-retry budget for `update`, so a concurrent title change
+ * cannot cause a stale before/after payload. */
+const MAX_UPDATE_ATTEMPTS = 5;
+
 export class D1EntityRepository implements EntityRepository {
   readonly #db: D1Database;
   readonly #workspaceId: string;
   readonly #clock: Clock;
   readonly #newId: IdGenerator;
+  readonly #actor: ActivityActorContext;
+  readonly #newActivityId: IdGenerator;
+  readonly #recorder: D1ActivityRecorder;
+  readonly #activityFault?: AtomicMutationFault;
 
   constructor(
     db: D1Database,
@@ -71,26 +125,41 @@ export class D1EntityRepository implements EntityRepository {
     this.#workspaceId = context.workspaceId;
     this.#clock = options.clock ?? systemClock;
     this.#newId = options.idGenerator ?? secureIdGenerator;
+    this.#actor = options.actorContext ?? createSystemActorContext();
+    this.#newActivityId =
+      options.activityIdGenerator ?? activitySecureIdGenerator;
+    this.#recorder = new D1ActivityRecorder(db);
+    this.#activityFault = options.activityFault;
   }
 
   async create<TType extends EntityType>(
     input: CreateEntityInput<TType>,
   ): Promise<EntityRecord<TType>> {
     const { type, title } = validateCreateInput(input);
-    const now = toStorageTimestamp(this.#clock());
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
     const id = this.#newId();
 
-    const row = await this.#firstOrThrow(
-      this.#db
-        .prepare(
-          `INSERT INTO entities
-             (id, workspace_id, type, title, created_at, updated_at, deleted_at)
-           VALUES (?, ?, ?, ?, ?, ?, NULL)
-           RETURNING ${SELECT_COLUMNS}`,
-        )
-        .bind(id, this.#workspaceId, type, title, now, now),
-    );
+    const domainStatement = this.#db
+      .prepare(
+        `INSERT INTO entities
+           (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, NULL)
+         RETURNING ${SELECT_COLUMNS}`,
+      )
+      .bind(id, this.#workspaceId, type, title, nowTs, nowTs);
 
+    const event: NewActivityEvent = {
+      type: ENTITY_CREATED,
+      subjects: [{ entityId: id, role: SUBJECT_ROLE }],
+      payload: { entityType: type, title },
+    };
+
+    const { row } = await this.#recordMutation(domainStatement, event, now);
+    if (!row) {
+      // A create we expected to insert a row produced none — storage invariant.
+      throw new EntityStorageError();
+    }
     return rowToEntity(row) as EntityRecord<TType>;
   }
 
@@ -117,26 +186,58 @@ export class D1EntityRepository implements EntityRepository {
 
   async update(id: string, input: UpdateEntityInput): Promise<EntityRecord> {
     const entityId = validateEntityId(id);
-    const { title } = validateUpdateInput(input);
-    const now = toStorageTimestamp(this.#clock());
+    const { title: after } = validateUpdateInput(input);
 
-    // Only live entities in this workspace are updatable; identity/creation
-    // columns are untouched. A row in another workspace never matches.
-    const row = await this.#first(
-      this.#db
+    // Read the live row for the accurate `before` title. Only live entities are
+    // updatable; a row in another workspace never matches.
+    let existing = await this.#findLive(entityId);
+    if (!existing) {
+      throw new EntityNotFoundError();
+    }
+
+    // Optimistic concurrency: the UPDATE is guarded on the `before` title, so a
+    // concurrent change invalidates the attempt (0 rows changed → no event) and
+    // we re-read a fresh `before`. Bounded retries prevent recording stale data.
+    for (let attempt = 0; attempt < MAX_UPDATE_ATTEMPTS; attempt++) {
+      const before = existing.title;
+      const now = this.#clock();
+      const nowTs = toStorageTimestamp(now);
+
+      const domainStatement = this.#db
         .prepare(
           `UPDATE entities
              SET title = ?, updated_at = ?
-           WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
+           WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL AND title = ?
            RETURNING ${SELECT_COLUMNS}`,
         )
-        .bind(title, now, entityId, this.#workspaceId),
-    );
+        .bind(after, nowTs, entityId, this.#workspaceId, before);
 
-    if (!row) {
-      throw new EntityNotFoundError();
+      const event: NewActivityEvent = {
+        type: ENTITY_UPDATED,
+        subjects: [{ entityId, role: SUBJECT_ROLE }],
+        payload: { changes: { title: { before, after } } },
+      };
+
+      const { changed, row } = await this.#recordMutation(
+        domainStatement,
+        event,
+        now,
+      );
+      if (changed && row) {
+        return rowToEntity(row);
+      }
+
+      // The optimistic guard matched nothing: re-read. Gone/soft-deleted → the
+      // entity is no longer updatable; otherwise retry with the fresh `before`.
+      const refreshed = await this.#findLive(entityId);
+      if (!refreshed) {
+        throw new EntityNotFoundError();
+      }
+      existing = refreshed;
     }
-    return rowToEntity(row);
+
+    // Persistent contention exhausted the retry budget — surface as storage.
+    throw new EntityStorageError();
   }
 
   async list<TType extends EntityType = EntityType>(
@@ -146,8 +247,6 @@ export class D1EntityRepository implements EntityRepository {
     const limit = validateLimit(input.limit);
     const includeDeleted = input.includeDeleted === true;
 
-    // The scope this page is bound to. A cursor is only accepted if it was
-    // issued for exactly this workspace + type filter + deleted-mode.
     const scope: CursorScope = {
       workspaceId: this.#workspaceId,
       type: type ?? null,
@@ -166,12 +265,10 @@ export class D1EntityRepository implements EntityRepository {
     }
     if (input.cursor !== undefined) {
       const position = decodeCursorForScope(input.cursor, scope);
-      // Deterministic keyset pagination on the (created_at, id) tuple.
       conditions.push("(created_at > ? OR (created_at = ? AND id > ?))");
       params.push(position.createdAt, position.createdAt, position.id);
     }
 
-    // Fetch one more than requested to detect whether a further page exists.
     const fetchLimit = limit + 1;
     params.push(fetchLimit);
 
@@ -206,7 +303,7 @@ export class D1EntityRepository implements EntityRepository {
       throw new EntityNotFoundError();
     }
     if (existing.deleted_at !== null) {
-      // Idempotent: already deleted, no timestamp churn.
+      // Idempotent no-op: already deleted → NO Activity event, no timestamp churn.
       return {
         entity: rowToEntity(existing),
         outcome: "already_deleted",
@@ -214,19 +311,43 @@ export class D1EntityRepository implements EntityRepository {
       };
     }
 
-    const now = toStorageTimestamp(this.#clock());
-    const row = await this.#firstOrThrow(
-      this.#db
-        .prepare(
-          `UPDATE entities
-             SET deleted_at = ?, updated_at = ?
-           WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
-           RETURNING ${SELECT_COLUMNS}`,
-        )
-        .bind(now, now, entityId, this.#workspaceId),
-    );
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const domainStatement = this.#db
+      .prepare(
+        `UPDATE entities
+           SET deleted_at = ?, updated_at = ?
+         WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
+         RETURNING ${SELECT_COLUMNS}`,
+      )
+      .bind(nowTs, nowTs, entityId, this.#workspaceId);
 
-    return { entity: rowToEntity(row), outcome: "deleted", changed: true };
+    const event: NewActivityEvent = {
+      type: ENTITY_DELETED,
+      subjects: [{ entityId, role: SUBJECT_ROLE }],
+      payload: { entityType: existing.type, title: existing.title },
+    };
+
+    const { changed, row } = await this.#recordMutation(
+      domainStatement,
+      event,
+      now,
+    );
+    if (changed && row) {
+      return { entity: rowToEntity(row), outcome: "deleted", changed: true };
+    }
+
+    // A concurrent delete won the race: no row changed here, so no event was
+    // appended. Re-read and return the idempotent no-op.
+    const current = await this.#findAny(entityId);
+    if (current && current.deleted_at !== null) {
+      return {
+        entity: rowToEntity(current),
+        outcome: "already_deleted",
+        changed: false,
+      };
+    }
+    throw new EntityStorageError();
   }
 
   async restore(id: string): Promise<LifecycleResult> {
@@ -237,7 +358,7 @@ export class D1EntityRepository implements EntityRepository {
       throw new EntityNotFoundError();
     }
     if (existing.deleted_at === null) {
-      // Idempotent: already active, no timestamp churn.
+      // Idempotent no-op: already active → NO Activity event, no timestamp churn.
       return {
         entity: rowToEntity(existing),
         outcome: "already_active",
@@ -245,19 +366,77 @@ export class D1EntityRepository implements EntityRepository {
       };
     }
 
-    const now = toStorageTimestamp(this.#clock());
-    const row = await this.#firstOrThrow(
-      this.#db
-        .prepare(
-          `UPDATE entities
-             SET deleted_at = NULL, updated_at = ?
-           WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL
-           RETURNING ${SELECT_COLUMNS}`,
-        )
-        .bind(now, entityId, this.#workspaceId),
-    );
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const domainStatement = this.#db
+      .prepare(
+        `UPDATE entities
+           SET deleted_at = NULL, updated_at = ?
+         WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL
+         RETURNING ${SELECT_COLUMNS}`,
+      )
+      .bind(nowTs, entityId, this.#workspaceId);
 
-    return { entity: rowToEntity(row), outcome: "restored", changed: true };
+    const event: NewActivityEvent = {
+      type: ENTITY_RESTORED,
+      subjects: [{ entityId, role: SUBJECT_ROLE }],
+      payload: { entityType: existing.type, title: existing.title },
+    };
+
+    const { changed, row } = await this.#recordMutation(
+      domainStatement,
+      event,
+      now,
+    );
+    if (changed && row) {
+      return { entity: rowToEntity(row), outcome: "restored", changed: true };
+    }
+
+    // A concurrent restore won the race: no row changed here, so no event. Re-read.
+    const current = await this.#findAny(entityId);
+    if (current && current.deleted_at === null) {
+      return {
+        entity: rowToEntity(current),
+        outcome: "already_active",
+        changed: false,
+      };
+    }
+    throw new EntityStorageError();
+  }
+
+  /**
+   * Run a domain mutation and its Activity append atomically. Builds the validated
+   * write model (throwing a typed Activity error BEFORE any storage access on
+   * invalid input), then executes the one batch. Kernel errors propagate as-is; a
+   * raw D1 failure (including a forced rollback) is mapped to `EntityStorageError`
+   * so no database detail escapes.
+   */
+  async #recordMutation(
+    domainStatement: D1PreparedStatement,
+    event: NewActivityEvent,
+    now: Date,
+  ): Promise<{ changed: boolean; row: EntityRow | null }> {
+    try {
+      const model = buildActivityWriteModel(
+        event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      return await recordAtomicMutation<EntityRow>({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        domainStatement,
+        recorder: this.#recorder,
+        model,
+        fault: this.#activityFault,
+      });
+    } catch (cause) {
+      if (cause instanceof EntityError || cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new EntityStorageError(undefined, { cause });
+    }
   }
 
   /** Find a row by id within the bound workspace regardless of delete state. */
@@ -272,6 +451,18 @@ export class D1EntityRepository implements EntityRepository {
     );
   }
 
+  /** Find a LIVE row by id within the bound workspace. */
+  async #findLive(id: string): Promise<EntityRow | null> {
+    return this.#first(
+      this.#db
+        .prepare(
+          `SELECT ${SELECT_COLUMNS} FROM entities
+           WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL`,
+        )
+        .bind(id, this.#workspaceId),
+    );
+  }
+
   /** Run a statement returning at most one row, mapping D1 failures. */
   async #first(statement: D1PreparedStatement): Promise<EntityRow | null> {
     try {
@@ -279,17 +470,6 @@ export class D1EntityRepository implements EntityRepository {
     } catch (cause) {
       throw new EntityStorageError(undefined, { cause });
     }
-  }
-
-  /** Like {@link #first} but throws when no row is returned (invariant guard). */
-  async #firstOrThrow(statement: D1PreparedStatement): Promise<EntityRow> {
-    const row = await this.#first(statement);
-    if (!row) {
-      // A RETURNING statement we expected to affect exactly one row produced
-      // none — treat as a storage-level invariant violation, not a domain case.
-      throw new EntityStorageError();
-    }
-    return row;
   }
 
   /** Run a statement returning many rows, mapping D1 failures. */
