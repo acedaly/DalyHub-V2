@@ -26,23 +26,21 @@
     // provisions a workspace and sets its `crypto.randomUUID()` id here (see
     // docs/development/DATA_KERNEL.md). No personal or production id is committed.
     "DEFAULT_WORKSPACE_ID": "local-dev-workspace",
-    // FND-09 authentication (ADR-016). These are trusted server-side
-    // CONFIGURATION, never request values. The committed defaults are
-    // production-SAFE and FAIL CLOSED: the mode is Cloudflare Access and the
-    // Access team domain / AUD / owner are EMPTY placeholders — with these
-    // unchanged the Worker rejects every protected request (503) rather than
-    // ever letting anyone in. A real deployment sets the real values via
-    // `wrangler secret` / dashboard bindings (never committed here). Local
-    // development enables the fixed development identity through `.dev.vars`
-    // (AUTH_MODE=development + ENVIRONMENT=development); it is gated so it can
-    // never activate under a non-development ENVIRONMENT. No personal email,
-    // real team domain or AUD tag is committed. See docs/development/APP_SHELL_AUTH.md.
+    // FND-09 authentication (ADR-016). `AUTH_MODE` is the only committed auth
+    // value: it is a non-secret default pinning the secure Cloudflare Access mode
+    // in production. It FAILS CLOSED — with no Access team domain / AUD / owner
+    // configured, the Worker rejects every protected request (503) rather than
+    // letting anyone in. Those three values, being private operational config,
+    // are supplied ONLY at deploy time via `wrangler secret` / dashboard bindings
+    // and are deliberately NOT declared as `vars` here: a committed (even empty)
+    // `var` of the same name would OVERRIDE the deploy-time secret and clobber it.
+    // The auth configuration reads them as optional (`AuthConfigEnv`), so they
+    // need not appear in the generated `Env` type. Local development supplies
+    // `AUTH_MODE=development` + `DEV_AUTH_*` through `.dev.vars`, gated so
+    // development auth can never activate under a non-development ENVIRONMENT.
+    // No personal email, real team domain or AUD tag is committed. See
+    // docs/development/APP_SHELL_AUTH.md.
     "AUTH_MODE": "cloudflare-access",
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": "",
-    "OWNER_EMAIL": "",
-    "DEV_AUTH_SUBJECT": "",
-    "DEV_AUTH_EMAIL": "",
   },
   // D1 (SQLite) is the data kernel's initial relational store (ADR-009 / FND-02).
   // Local development and the Workers Vitest integration use Miniflare's local

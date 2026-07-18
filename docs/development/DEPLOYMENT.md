@@ -69,14 +69,17 @@ dashboard bindings — **never** committed to `wrangler.jsonc` with real values)
 
 | Value                | Purpose                                                        |
 | -------------------- | -------------------------------------------------------------- |
-| `AUTH_MODE`          | `cloudflare-access` in production (the committed default).     |
-| `ACCESS_TEAM_DOMAIN` | `https://<team>.cloudflareaccess.com` — the token issuer/JWKS. |
-| `ACCESS_AUD`         | The Access application Audience (AUD) tag.                     |
-| `OWNER_EMAIL`        | The single owner; enforced independently of the Access policy. |
+| `AUTH_MODE`          | `cloudflare-access` in production (the committed non-secret default). |
+| `ACCESS_TEAM_DOMAIN` | `https://<team>.cloudflareaccess.com` — the token issuer/JWKS. Secret/binding. |
+| `ACCESS_AUD`         | The Access application Audience (AUD) tag. Secret/binding. |
+| `OWNER_EMAIL`        | The single owner; enforced independently of the Access policy. Secret/binding. |
 
-The committed defaults are **fail-closed** (Cloudflare Access mode with empty
-team domain/AUD/owner), so an unconfigured deployment rejects every protected
-request rather than exposing data.
+`AUTH_MODE` is the only auth value committed (as a `var`); it **fails closed** —
+with no team domain/AUD/owner configured, the Worker rejects every protected
+request rather than exposing data. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and
+`OWNER_EMAIL` are supplied only via `wrangler secret` / dashboard bindings and
+are **not** declared as `vars` in `wrangler.jsonc`, so a committed empty `var`
+can never override (clobber) the deploy-time secret.
 
 ### workers.dev / custom-domain origin bypass (must-do before going live)
 

@@ -50,11 +50,14 @@ committed with real values.
 | `DEFAULT_WORKSPACE_ID` | The configured workspace scope (FND-03). |
 | `DEV_AUTH_SUBJECT`, `DEV_AUTH_EMAIL` | Fixed development identity (development mode only). |
 
-The committed `wrangler.jsonc` defaults are **production-safe and fail closed**:
-Cloudflare Access mode with empty team domain / AUD / owner, so an
-unconfigured deployment rejects every protected request rather than letting
-anyone in. Real values are supplied at deploy time (`wrangler secret` /
-dashboard bindings), never committed.
+The only committed auth value is `AUTH_MODE="cloudflare-access"` (a non-secret
+default pinning the secure mode), and it **fails closed**: with no team domain /
+AUD / owner configured, the Worker rejects every protected request rather than
+letting anyone in. Those three values are supplied ONLY at deploy time
+(`wrangler secret` / dashboard bindings) and are deliberately **not** declared as
+`vars` in `wrangler.jsonc` — a committed (even empty) `var` of the same name
+would override the deploy-time secret and clobber it. The auth configuration
+reads them as optional, so they need not appear in the generated `Env` type.
 
 ## JWT claim requirements & owner enforcement
 
