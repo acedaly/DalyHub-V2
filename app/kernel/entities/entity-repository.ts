@@ -74,10 +74,13 @@ export interface EntityRepository {
 
   /**
    * Update the shared, mutable fields of a live entity in the bound workspace
-   * (for now: `title`). Advances `updatedAt`. Identity and creation fields are
-   * never changed. Throws `EntityNotFoundError` if no live entity with that id
-   * exists in this workspace (including an entity that lives in another
-   * workspace, or a soft-deleted one).
+   * (for now: `title`). Advances `updatedAt` when a field actually changes.
+   * Submitting the entity's already-stored title is an idempotent no-op: the
+   * record is returned unchanged, `updatedAt` is not advanced, and no Activity
+   * event is appended (a mutation that changes nothing is not meaningful history).
+   * Identity and creation fields are never changed. Throws `EntityNotFoundError`
+   * if no live entity with that id exists in this workspace (including an entity
+   * that lives in another workspace, or a soft-deleted one).
    */
   update(id: string, input: UpdateEntityInput): Promise<EntityRecord>;
 

@@ -67,6 +67,20 @@ describe("Entity mutation Activity events", () => {
     expect(event.occurredAt).toEqual(updated.updatedAt);
   });
 
+  it("a same-title update is a no-op: no event, no updatedAt churn", async () => {
+    const created = await entities.create({ type: "task", title: "Same" });
+    clock.advance(5000);
+    // Submitting the already-stored title (even with surrounding whitespace that
+    // trims to the same value) changes nothing meaningful.
+    const result = await entities.update(created.id, { title: "  Same  " });
+
+    expect(result.title).toBe("Same");
+    expect(result.updatedAt).toEqual(created.updatedAt); // not advanced
+    expect(await countActivitiesOfType("entity.updated")).toBe(0);
+    // Only the create event exists.
+    expect(await countActivities()).toBe(1);
+  });
+
   it("soft-delete appends one entity.deleted; repeated delete appends nothing", async () => {
     const created = await entities.create({ type: "note", title: "N" });
     await entities.softDelete(created.id);

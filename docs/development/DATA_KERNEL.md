@@ -344,7 +344,10 @@ remaining one event. `ON DELETE RESTRICT` on the entity FK preserves a
 
 Only **successful, meaningful** mutations emit events. Idempotent no-ops
 (`already_deleted`, `already_active`, `already_exists`, `already_unlinked`) and
-failed mutations emit nothing.
+failed mutations emit nothing. A `title` update that submits the already-stored
+title is likewise a no-op — it does not advance `updated_at` and appends no
+`entity.updated` event (an event with identical `before`/`after` would be
+misleading history).
 
 ### Atomic mutation recording (how future repositories must record Activity)
 

@@ -200,6 +200,15 @@ export class D1EntityRepository implements EntityRepository {
     // we re-read a fresh `before`. Bounded retries prevent recording stale data.
     for (let attempt = 0; attempt < MAX_UPDATE_ATTEMPTS; attempt++) {
       const before = existing.title;
+      // A submitted title identical to the stored one changes nothing meaningful:
+      // this is an idempotent no-op, so return the record unchanged WITHOUT
+      // advancing `updatedAt` or appending a misleading `entity.updated` event
+      // whose before/after are identical (ADR-012: no-ops write no Activity). The
+      // check is re-evaluated each attempt, so a concurrent update that lands on
+      // the same title also resolves to a no-op instead of a spurious event.
+      if (before === after) {
+        return rowToEntity(existing);
+      }
       const now = this.#clock();
       const nowTs = toStorageTimestamp(now);
 
