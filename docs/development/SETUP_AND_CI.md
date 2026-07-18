@@ -42,7 +42,8 @@ No manual repair should be needed.
 | `pnpm verify`         | The full local quality suite, in order (see below)                  |
 | `pnpm cf-typegen`     | Regenerate Cloudflare `Env` types after editing `wrangler.jsonc`    |
 | `pnpm deploy:dry-run` | Validate the deploy config/bundle without credentials               |
-| `pnpm deploy`         | Build and deploy to Cloudflare Workers (needs credentials)          |
+| `pnpm deploy:production:preflight` | Check production config is fully supplied (no upload)  |
+| `pnpm deploy:production` | Guarded live production deploy (needs credentials + real config)  |
 
 ## `pnpm verify`
 

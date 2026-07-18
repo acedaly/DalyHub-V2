@@ -66,7 +66,8 @@ pnpm verify         # full local quality suite: format, lint, types, tests, buil
 | `pnpm test`         | Unit/component tests (Vitest + RTL)                      |
 | `pnpm test:e2e`     | Playwright Chromium smoke test                           |
 | `pnpm verify`       | All of the above, in a deterministic order               |
-| `pnpm deploy`       | Build and deploy to Cloudflare Workers (needs creds)     |
+| `pnpm deploy:dry-run`   | Build + `wrangler deploy --dry-run` (no creds, CI-safe)  |
+| `pnpm deploy:production` | Guarded live production deploy (needs creds + real config) |
 
 Full details: [`docs/development/SETUP_AND_CI.md`](docs/development/SETUP_AND_CI.md)
 and [`docs/development/DEPLOYMENT.md`](docs/development/DEPLOYMENT.md).

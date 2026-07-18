@@ -10,39 +10,49 @@
  * Router primitives.
  *
  * It resolves the flat, validated route list into a parent→children tree using
- * each route's `parentId`. It passes every route's `lazy` reference through
- * UNCHANGED and NEVER invokes it, so composing (or querying) route structure
- * never eagerly loads a module's page component.
+ * each route's `parentId`. It passes every route's declarative `file` reference
+ * through UNCHANGED, so composing (or querying) route structure is pure data
+ * assembly that never eagerly loads a module's page component.
  */
 
+// Value import via a RELATIVE path (not the `~` barrel): this adapter is on the
+// build-time `app/routes.ts` composition path, whose bare config loader cannot
+// resolve `~` for VALUE imports. `module-errors` is pure (no storage kernel), so
+// it stays bundlable. Types below are erased, so a `~` type-only import is safe.
+import { RouteParentError } from "../../kernel/modules/module-errors";
 import type {
   ModuleId,
   RegisteredRoute,
   RouteMeta,
-  RouteModuleLoader,
+  RouteModuleFile,
 } from "~/kernel/modules";
 
 /**
  * A resolved route node: a module-owned route plus its nested children. This is
- * the minimal shape FND-09 needs to emit `route()`/`index()` calls with nesting;
- * `lazy` is carried through untouched for FND-09 to wire as the route module.
+ * the framework-agnostic shape the React Router adapter maps onto
+ * `route()`/`index()` calls with nesting; `file` is carried through untouched for
+ * the adapter to resolve into a build-time route-module reference.
  */
 export type RouteTreeNode = {
   readonly id: string;
   readonly moduleId: ModuleId;
   readonly path?: string;
   readonly index?: boolean;
-  readonly lazy: RouteModuleLoader;
+  readonly file: RouteModuleFile;
   readonly meta?: RouteMeta;
   readonly children: readonly RouteTreeNode[];
 };
 
 /**
- * Build the module route tree from the registry's flat, deterministic route
- * list. Root routes (no `parentId`) become top-level nodes; every other route
- * nests under its parent. The registry has already validated that every parent
- * resolves, is owned by the same module, and that no paths conflict — so this is
- * a straightforward, bounded assembly that preserves the registry's order.
+ * Build the module route tree from a flat, deterministic route list. Root routes
+ * (no `parentId`) become top-level nodes; every other route nests under its
+ * parent. Callers pass routes that the shared authoritative validator
+ * (`validateModuleRoutes`) has already checked, so parents resolve, are
+ * same-module and are acyclic. This builder nonetheless treats an unresolved
+ * parent as an EXPLICIT error rather than silently dropping the route — a route
+ * with a `parentId` that names no node in this list can never be composed, and
+ * skipping it would hide a real composition fault. It is the last line of
+ * defence even when called incorrectly.
  */
 export function buildModuleRouteTree(
   routes: readonly RegisteredRoute[],
@@ -59,7 +69,7 @@ export function buildModuleRouteTree(
         moduleId: route.moduleId,
         ...(route.path === undefined ? {} : { path: route.path }),
         ...(route.index === undefined ? {} : { index: route.index }),
-        lazy: route.lazy,
+        file: route.file,
         ...(route.meta === undefined ? {} : { meta: route.meta }),
         children: [],
       };
@@ -87,8 +97,10 @@ export function buildModuleRouteTree(
   for (const [parentId, children] of childrenByParent) {
     const parent = nodeById.get(parentId);
     if (parent === undefined) {
-      // Unreachable after registry validation; skip defensively rather than throw.
-      continue;
+      // An unresolved parent means these children can never be composed. Fail
+      // loudly (naming the first orphaned child) instead of silently dropping
+      // them — this guards against being called with an unvalidated list.
+      throw new RouteParentError(children[0].id, parentId, "unresolved");
     }
     (parent as { children: readonly RouteTreeNode[] }).children =
       Object.freeze(children);

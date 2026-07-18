@@ -112,8 +112,23 @@ describe("module discovery", () => {
       expect(registry.getActivityType("project.completed")?.moduleId).toBe(
         "projects",
       );
-      // No routes, commands, settings or search providers are introduced.
-      expect(registry.listRoutes()).toEqual([]);
+      // FND-09 adds one navigable placeholder route per spine module, composed
+      // automatically from the manifests (no central route list). Commands,
+      // settings and search providers remain out of scope.
+      expect(
+        registry
+          .listRoutes()
+          .map((r) => ({ id: r.id, moduleId: r.moduleId, file: r.file })),
+      ).toEqual([
+        { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
+        { id: "goals.index", moduleId: "goals", file: "routes/index.tsx" },
+        {
+          id: "projects.index",
+          moduleId: "projects",
+          file: "routes/index.tsx",
+        },
+        { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
+      ]);
       expect(registry.listCommands()).toEqual([]);
       expect(registry.listSettings()).toEqual([]);
       expect(registry.listSearchProviders()).toEqual([]);

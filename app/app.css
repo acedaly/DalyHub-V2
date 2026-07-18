@@ -1,11 +1,17 @@
 /*
- * Restrained base styles for the FND-01 foundation scaffold.
+ * Restrained base styles + FND-09 shell/theme infrastructure.
  *
- * This is deliberately minimal. It is NOT the DalyHub design system — design
- * tokens, theming, and shared components are separate, later roadmap items
- * (see DS-01 in docs/roadmap/ROADMAP_V2.md). The only goal here is a calm,
- * legible, accessible foundation page that works at any viewport size and in
- * both colour schemes.
+ * This is deliberately minimal. It is NOT the DalyHub design system — the design
+ * tokens, spacing/typography scales, elevation, motion and component variants are
+ * DS-01's job (see docs/roadmap/ROADMAP_V2.md). FND-09 introduces ONLY the few
+ * CSS custom properties and styles the shell needs to be calm, legible and
+ * accessible in light/dark/system themes at every viewport. DS-01 is expected to
+ * replace these provisional values with the real token architecture.
+ *
+ * Theme mechanism (ADR-016 §5.11): the root layout sets `data-theme` on <html>
+ * from the persisted cookie during SSR. `light`/`dark` force a scheme; `system`
+ * follows `prefers-color-scheme`. Because the server renders the correct value,
+ * there is no light-to-dark flash and no client-side theme script.
  */
 
 :root {
@@ -15,17 +21,37 @@
   --color-muted: #565656;
   --color-accent: #2952cc;
   --color-border: #e2e2e2;
-  color-scheme: light dark;
+  --color-surface: #f6f7f9;
+  color-scheme: light;
+}
+
+/* Dark palette, shared by an explicit dark choice and by `system` under a dark
+ * OS. Kept as provisional values only — DS-01 owns the real token maps. */
+:root[data-theme="dark"] {
+  --color-bg: #0f1115;
+  --color-fg: #f2f3f5;
+  --color-muted: #a8adb7;
+  --color-accent: #8aa4ff;
+  --color-border: #2a2e37;
+  --color-surface: #171a21;
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-theme="system"],
+  :root:not([data-theme]) {
     --color-bg: #0f1115;
     --color-fg: #f2f3f5;
     --color-muted: #a8adb7;
     --color-accent: #8aa4ff;
     --color-border: #2a2e37;
+    --color-surface: #171a21;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme="system"] {
+  color-scheme: light dark;
 }
 
 *,
@@ -117,5 +143,199 @@ pre {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* FND-09 application shell (provisional; DS-01 replaces the visual language). */
+/* -------------------------------------------------------------------------- */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Skip link: off-screen until focused, then visible and in normal flow. */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  z-index: 10;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-radius: 4px;
+  text-decoration: none;
+  transition: top 120ms ease;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem clamp(1rem, 4vw, 2rem);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-title {
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.app-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.primary-nav ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-link {
+  display: inline-block;
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--color-fg);
+}
+
+.nav-link:hover {
+  background: var(--color-border);
+}
+
+/* Active nav is conveyed by aria-current (semantic), reinforced visually. */
+.nav-link--active,
+.nav-link[aria-current="page"] {
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 0 var(--color-accent);
+}
+
+.nav-toggle {
+  display: none;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.theme-control .theme-fieldset {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.theme-control legend {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  padding: 0;
+  margin-right: 0.35rem;
+}
+
+.theme-option {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.theme-option[aria-pressed="true"] {
+  font-weight: 700;
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.user-email {
+  color: var(--color-muted);
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-link {
+  color: var(--color-accent);
+}
+
+.app-main {
+  flex: 1;
+  padding: clamp(1.5rem, 5vw, 3rem) clamp(1rem, 4vw, 2rem);
+  max-width: var(--page-max-width);
+  margin-inline: auto;
+  width: 100%;
+}
+
+.app-main :focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.home-modules {
+  padding-left: 1.25rem;
+}
+
+.module-placeholder .muted {
+  color: var(--color-muted);
+}
+
+.module-placeholder .lead {
+  font-size: 1.125rem;
+}
+
+/* Narrow viewports: collapse navigation behind the toggle. The header wraps, so
+ * the page never scrolls horizontally, even at 320px. */
+@media (max-width: 640px) {
+  .nav-toggle {
+    display: inline-block;
+  }
+
+  .primary-nav {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .primary-nav[data-open="false"] {
+    display: none;
+  }
+
+  .primary-nav ul {
+    flex-direction: column;
   }
 }

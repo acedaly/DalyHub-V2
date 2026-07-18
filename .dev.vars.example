@@ -1,9 +1,18 @@
-# Example local Worker variables for `wrangler dev`.
+# Example LOCAL Worker variables for `wrangler dev`.
 #
 # Copy this file to `.dev.vars` (which is git-ignored) and fill in values as
 # needed. `.dev.vars` must NEVER be committed. Only non-secret local overrides
-# belong here today; real secrets are set with `wrangler secret put` against a
-# deployed environment, never stored in the repository.
+# belong here.
+#
+# These values are for LOCAL DEVELOPMENT ONLY. Production does NOT read this file
+# and does NOT use these placeholders: a live production deploy runs
+# `pnpm run deploy:production`, which uses the named `env.production` Wrangler
+# environment and requires the real provisioned values to be supplied at deploy
+# time via environment variables (CLOUDFLARE_D1_DATABASE_ID,
+# PRODUCTION_DEFAULT_WORKSPACE_ID, PRODUCTION_ACCESS_TEAM_DOMAIN,
+# PRODUCTION_ACCESS_AUD, PRODUCTION_OWNER_EMAIL) plus `wrangler secret` for the
+# Access secrets — never stored in the repository. See
+# docs/development/DEPLOYMENT.md.
 
 # Environment label surfaced by the /health endpoint. One of:
 # development | preview | staging | production
@@ -16,3 +25,20 @@ ENVIRONMENT="development"
 # id (see docs/development/DATA_KERNEL.md). Create the matching local workspace
 # row before the resolver will succeed locally.
 DEFAULT_WORKSPACE_ID="local-dev-workspace"
+
+# FND-09 authentication (ADR-016). Locally we use the explicit DEVELOPMENT
+# authenticator: a fixed, non-personal identity, enabled ONLY when AUTH_MODE is
+# "development" AND ENVIRONMENT is "development"/"test". It is never activated by
+# a request. These placeholders are safe, non-personal values — never a real
+# owner email.
+AUTH_MODE="development"
+DEV_AUTH_SUBJECT="local-development-user"
+DEV_AUTH_EMAIL="owner@example.invalid"
+
+# CLOUDFLARE ACCESS (production) — leave these OUT of local development. They are
+# supplied at deploy time via `wrangler secret` / dashboard bindings, NEVER
+# committed. Shown here only to document the shape; do NOT fill in real values.
+#   AUTH_MODE="cloudflare-access"
+#   ACCESS_TEAM_DOMAIN="https://<your-team>.cloudflareaccess.com"
+#   ACCESS_AUD="<your-access-application-audience-tag>"
+#   OWNER_EMAIL="<the-owner-email>"

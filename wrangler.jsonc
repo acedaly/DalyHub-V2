@@ -2,8 +2,20 @@
  * Wrangler configuration for the DalyHub V2 Cloudflare Worker.
  * Reference: https://developers.cloudflare.com/workers/wrangler/configuration/
  *
- * This file contains no secrets. Secrets and per-environment values are supplied
- * at deploy time via `wrangler secret` / dashboard bindings, never committed here.
+ * This file contains no secrets and no real production identifiers. The
+ * TOP-LEVEL configuration is the LOCAL / development environment: it uses
+ * clearly non-production placeholder values and is what `wrangler dev`, the
+ * Workers-runtime tests and the credential-free `deploy:dry-run` use.
+ *
+ * The named `env.production` environment carries only the non-secret production
+ * SWITCHES (`ENVIRONMENT=production`, `AUTH_MODE=cloudflare-access`) plus a
+ * deliberately non-functional PLACEHOLDER D1 id. Every real production value —
+ * the provisioned D1 database id, the provisioned workspace id, the Access team
+ * domain / AUD / owner email — is supplied at deploy time (env vars + `wrangler
+ * secret`), never committed. A production deploy runs through
+ * `scripts/deploy-production.mjs`, which FAILS before any upload if those real
+ * values have not been supplied, so production can never silently ship a local
+ * placeholder. See docs/development/DEPLOYMENT.md.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -15,26 +27,46 @@
     "enabled": true,
   },
   "upload_source_maps": true,
-  // Non-secret, safe-to-expose runtime values only. Override per environment at deploy time.
+  // LOCAL / development values only (non-secret, safe to expose). The named
+  // `env.production` environment below overrides the ones that must differ in
+  // production. Bindings and `vars` are NOT inherited by named environments, so
+  // production redeclares the ones it needs explicitly.
   "vars": {
     "ENVIRONMENT": "development",
     // FND-03: the server-side workspace scope resolved at the composition
     // boundary (ADR-010). This is trusted server-side CONFIGURATION, not a
     // secret and NOT a request value — it can never be selected via a header,
     // cookie, query string, route param, form field or JSON body. The value
-    // below is a clearly non-production LOCAL placeholder; a real deployment
-    // provisions a workspace and sets its `crypto.randomUUID()` id here (see
-    // docs/development/DATA_KERNEL.md). No personal or production id is committed.
+    // below is a clearly non-production LOCAL placeholder; production supplies
+    // the real provisioned workspace id at deploy time (see
+    // docs/development/DEPLOYMENT.md and docs/development/DATA_KERNEL.md). No
+    // personal or production id is committed.
     "DEFAULT_WORKSPACE_ID": "local-dev-workspace",
+    // FND-09 authentication (ADR-016). `AUTH_MODE` is the only committed auth
+    // value: it is a non-secret default pinning the secure Cloudflare Access mode
+    // in production. It FAILS CLOSED — with no Access team domain / AUD / owner
+    // configured, the Worker rejects every protected request (503) rather than
+    // letting anyone in. Those three values, being private operational config,
+    // are supplied ONLY at deploy time via `wrangler secret` / dashboard bindings
+    // and are deliberately NOT declared as `vars` here: a committed (even empty)
+    // `var` of the same name would OVERRIDE the deploy-time secret and clobber it.
+    // The auth configuration reads them as optional (`AuthConfigEnv`), so they
+    // need not appear in the generated `Env` type. Local development supplies
+    // `AUTH_MODE=development` + `DEV_AUTH_*` through `.dev.vars`, gated so
+    // development auth can never activate under a non-development ENVIRONMENT.
+    // No personal email, real team domain or AUD tag is committed. See
+    // docs/development/APP_SHELL_AUTH.md.
+    "AUTH_MODE": "cloudflare-access",
   },
   // D1 (SQLite) is the data kernel's initial relational store (ADR-009 / FND-02).
   // Local development and the Workers Vitest integration use Miniflare's local
   // SQLite keyed by the binding name and do NOT need Cloudflare credentials or a
-  // remote database. `database_id` below is an explicit, non-functional
-  // PLACEHOLDER — no remote D1 database has been provisioned yet. Replace it with
-  // the real id from `wrangler d1 create dalyhub-v2` when a remote database is
-  // provisioned (see docs/development/DATA_KERNEL.md). Migrations live in
-  // ./migrations and are applied with `pnpm run db:migrate:local`.
+  // remote database. `database_id` below is an explicit, non-functional LOCAL
+  // PLACEHOLDER — no remote D1 database is used for local work. Production uses the
+  // real provisioned id supplied at deploy time (see `env.production` and
+  // docs/development/DATA_KERNEL.md). Migrations live in ./migrations and are
+  // applied with `pnpm run db:migrate:local` locally; production migrations are
+  // documented in docs/development/DEPLOYMENT.md.
   "d1_databases": [
     {
       "binding": "DB",
@@ -43,4 +75,37 @@
       "migrations_dir": "migrations",
     },
   ],
+  // Named production environment (selected at build/deploy time with
+  // `CLOUDFLARE_ENV=production`, driven by `pnpm run deploy:production`). It
+  // commits ONLY the non-secret production switches and a placeholder D1 id.
+  // `scripts/deploy-production.mjs` injects the real provisioned D1 id and
+  // workspace id from the environment and refuses to upload while a placeholder
+  // remains, so no real private value is committed and no placeholder is ever
+  // silently shipped.
+  "env": {
+    "production": {
+      "vars": {
+        // Production is ALWAYS production: this gates off development auth (the
+        // development authenticator requires ENVIRONMENT development/test) and
+        // forces the `Secure` theme cookie.
+        "ENVIRONMENT": "production",
+        // Production ALWAYS uses the secure Cloudflare Access authenticator.
+        // Never "development": development auth cannot activate in production.
+        "AUTH_MODE": "cloudflare-access",
+        // DEFAULT_WORKSPACE_ID is intentionally omitted here — the real
+        // provisioned workspace id is injected at deploy time, never committed.
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "dalyhub-v2",
+          // Placeholder ONLY. `scripts/deploy-production.mjs` replaces this with
+          // the real provisioned id (`CLOUDFLARE_D1_DATABASE_ID`) in the generated
+          // deploy config and fails before upload if it is still a placeholder.
+          "database_id": "PLACEHOLDER_SET_REAL_PRODUCTION_D1_DATABASE_ID",
+          "migrations_dir": "migrations",
+        },
+      ],
+    },
+  },
 }

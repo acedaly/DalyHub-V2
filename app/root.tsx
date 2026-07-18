@@ -1,8 +1,10 @@
 // Adapted from the Cloudflare create-cloudflare (C3) React Router template
 // (https://developers.cloudflare.com/workers/framework-guides/web-apps/react-router/)
 // @ react-router 8.0.0, MIT, retrieved 2026-07-17.
-// Changes: removed the template's Google Fonts <link>s and Tailwind class names
-// (styling is plain CSS for FND-01; the design system is a later roadmap item).
+// Changes: FND-09 reads the persisted theme preference from the request cookie in
+// the root loader and applies it to <html data-theme> during SSR, so the page is
+// rendered with the correct theme on the first byte (no light-to-dark flash and no
+// client cookie reading). Styling stays plain CSS; the design system is DS-01.
 import {
   isRouteErrorResponse,
   Links,
@@ -10,14 +12,29 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import {
+  readThemePreference,
+  type ThemePreference,
+} from "./shared/shell/theme";
 import "./app.css";
 
+export function loader({ request }: Route.LoaderArgs) {
+  // The theme preference is not secret: it is safe to read here (this loader runs
+  // for authenticated pages) purely from the request cookie.
+  return { theme: readThemePreference(request.headers.get("Cookie")) };
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
+  // `useRouteLoaderData` returns undefined during an error render before the root
+  // loader resolved; fall back to `system` so the document still renders safely.
+  const data = useRouteLoaderData<typeof loader>("root");
+  const theme: ThemePreference = data?.theme ?? "system";
   return (
-    <html lang="en">
+    <html lang="en" data-theme={theme}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

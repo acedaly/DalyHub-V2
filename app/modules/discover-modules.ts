@@ -12,8 +12,9 @@
  *
  * `eager: true` eagerly imports each small, declarative, side-effect-free
  * manifest. The heavy module UI a manifest references stays LAZY: route
- * components are lazy import thunks stored inside each definition and are never
- * loaded merely to build the registry.
+ * components are referenced by a plain, declarative `file` string (ADR-016
+ * §5.10) — never imported to build the registry. React Router resolves those
+ * files at build time and code-splits each route module.
  *
  * The pure collection/validation lives in the kernel (`collectModuleDefinitions`,
  * `createModuleRegistry`); only the Vite-specific glob is here, keeping the

@@ -132,7 +132,7 @@ describe("registry behaviour", () => {
 
     it("is unaffected by mutating the source manifest after construction", () => {
       const routes: ModuleDefinition["routes"] = [
-        { id: "notes.a", path: "a", lazy: () => Promise.resolve({}) },
+        { id: "notes.a", path: "a", file: "routes/index.tsx" },
       ];
       const definition: ModuleDefinition = {
         id: "notes",
@@ -153,7 +153,7 @@ describe("registry behaviour", () => {
       (routes as unknown as { push: (v: unknown) => void }).push({
         id: "notes.b",
         path: "b",
-        lazy: () => Promise.resolve({}),
+        file: "routes/index.tsx",
       });
 
       expect(registry.getModule("notes")?.name).toBe("Notes");

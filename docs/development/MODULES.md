@@ -78,18 +78,22 @@ export default defineModule({
   description: "An example module for the docs.",
   order: 10,
 
+  // Route descriptors are declarative `file` references (ADR-016 §5.10). In a
+  // real module these live in `app/modules/widgets/routes.manifest.ts` (pure
+  // data, type-only imports) so `app/routes.ts` can compose them at build time;
+  // `module.ts` imports that array. Shown inline here for illustration.
   routes: [
     {
       id: "widgets.list",
       path: "widgets",
-      lazy: () => import("./routes/widget-list"), // referenced, never loaded to build the registry
+      file: "routes/widget-list.tsx", // module-relative; resolved to app/modules/widgets/... and code-split by React Router
       meta: { navLabel: "Widgets", navGroup: "make", navOrder: 1 },
     },
     {
       id: "widgets.detail",
       path: ":widgetId",
       parentId: "widgets.list",
-      lazy: () => import("./routes/widget-detail"),
+      file: "routes/widget-detail.tsx",
     },
   ],
 
@@ -159,10 +163,14 @@ registry construction; ownership (the declaring `moduleId`) is attached
 automatically, so you never repeat the module id on each entry.
 
 - **`routes`** — module-owned routes. Each has a stable namespaced `id`, either a
-  `path` **or** `index: true`, an optional `parentId` (same-module), a **lazy**
-  route-module reference (`lazy: () => import(...)`) that is stored and never
-  invoked to build the registry, and optional `meta` (`navLabel`, `navGroup`,
-  `navOrder`) for future shell discovery.
+  `path` **or** `index: true`, an optional `parentId` (same-module), a declarative
+  module-relative **`file`** reference (e.g. `file: "routes/index.tsx"`) that is
+  stored as plain data and never imported to build the registry, and optional
+  `meta` (`navLabel`, `navGroup`, `navOrder`) the shell uses to derive
+  navigation. The `file` is validated (`validateRouteFile`) to be relative,
+  traversal-free and inside the owning module; the platform React Router adapter
+  resolves it to `app/modules/<module-id>/<file>`, which React Router code-splits.
+  See the FND-09 refinement note below and [ADR-016 §5.10](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing).
 - **`entityTypes`** — entity types this module owns. Each has the stable `type`
   (validated by the FND-02 entity-type contract), a `singular` label and an
   optional `plural`.
@@ -326,10 +334,14 @@ sibling).
 2. Add `app/modules/<module-id>/module.ts` that `export default defineModule({ … })`.
 3. Give it a stable slug `id` and a human `name`; declare only the capabilities
    you need. Namespace every capability id under the module.
-4. Reference route modules **lazily** (`lazy: () => import("./routes/…")`); give
-   command/search handlers an explicit-context signature.
-5. Run `pnpm run typecheck` and `pnpm run test` — discovery, validation and the
-   import-boundary check run automatically. No central file needs editing.
+4. Declare route descriptors in `app/modules/<module-id>/routes.manifest.ts` as a
+   default-exported array (pure data, `import type` only) and import it into
+   `module.ts`; reference each route module by a declarative module-relative
+   **`file`** (e.g. `file: "routes/index.tsx"`) and add the route file itself.
+   Give command/search handlers an explicit-context signature.
+5. Run `pnpm run typecheck` and `pnpm run test` — discovery, validation, route
+   composition and the import-boundary check run automatically. No central file
+   (including `app/routes.ts`) needs editing.
 
 ---
 
@@ -349,6 +361,26 @@ dynamic/third-party/remote module loading. Those arrive in later roadmap items.
 > `SpineRepository`, not in these manifests (see
 > [`SPINE_MODEL.md`](SPINE_MODEL.md) and
 > [ADR-014](../decisions/ARCHITECTURE_DECISIONS.md#adr-014-spine-hierarchy-completion-and-rollup-semantics)).
+
+> **Update (FND-09).** The shell that consumes the registry is now built (routing,
+> navigation, authentication, theme — see
+> [`APP_SHELL_AUTH.md`](APP_SHELL_AUTH.md) and
+> [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)).
+> The route-module reference changed from FND-06's lazy `() => import(...)` thunk
+> to a declarative, module-relative **`file`** string, because React Router v8
+> framework mode composes routes from build-time file references (ADR-016 §5.10).
+> A route descriptor now lives in `app/modules/<id>/routes.manifest.ts` (pure
+> data), is imported by `module.ts`, and is globbed by `app/routes.ts`. Both the
+> runtime registry and the build-time `app/routes.ts` composition run the **same
+> pure authoritative route validator** (`validateModuleRoutes` in the module
+> kernel): the build-time path does not cast folder names and raw descriptors into
+> registered routes, it validates them, so the real build fails loudly on an
+> invalid module folder/descriptor, a route id outside the module namespace, a
+> duplicate id, a duplicate/conflicting path, or a missing/cross-module/cyclic/
+> index parent — there is no second, drifting validator. Primary navigation is
+> derived from route `meta`. The four spine modules each add one navigable
+> placeholder route (`/areas`, `/goals`, `/projects`, `/tasks`); their product
+> functionality is still later work.
 
 ---
 

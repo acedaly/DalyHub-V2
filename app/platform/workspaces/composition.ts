@@ -100,7 +100,22 @@ export async function resolveWorkspaceScope(
   env: WorkspaceScopeEnv,
 ): Promise<WorkspaceScope> {
   const context = await createWorkspaceContextResolver(env).resolve();
-  const actorContext: ActivityActorContext = createSystemActorContext();
+  return bindWorkspaceRepositories(env, context, createSystemActorContext());
+}
+
+/**
+ * Bind every workspace-scoped repository to the SAME trusted `WorkspaceContext`
+ * and the SAME trusted Activity actor context. This is the single place the actor
+ * is threaded into the mutation repositories, so module code can never supply or
+ * override it (ADR-012, ADR-016 §5.6). FND-09's authenticated composition reuses
+ * this with a `user` actor; the default request composition uses the `system`
+ * actor.
+ */
+export function bindWorkspaceRepositories(
+  env: WorkspaceScopeEnv,
+  context: WorkspaceContext,
+  actorContext: ActivityActorContext,
+): WorkspaceScope {
   const entities = createEntityRepository(env.DB, context, { actorContext });
   const entityLinks = createEntityLinkRepository(env.DB, context, {
     actorContext,

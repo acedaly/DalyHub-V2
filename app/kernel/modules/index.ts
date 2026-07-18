@@ -28,7 +28,7 @@ export type {
 
 export type {
   ModuleRuntimeContext,
-  RouteModuleLoader,
+  RouteModuleFile,
   RouteMeta,
   RouteContribution,
   EntityTypeContribution,
@@ -72,6 +72,8 @@ export {
   QUALIFIED_ID_MAX_LENGTH,
   QUALIFIED_ID_LOCAL_PATTERN,
   ROUTE_PATH_MAX_LENGTH,
+  ROUTE_FILE_MAX_LENGTH,
+  ROUTE_FILE_EXTENSIONS,
   LABEL_MAX_LENGTH,
   DESCRIPTION_MAX_LENGTH,
   MAX_COMMAND_KEYWORDS,
@@ -81,9 +83,16 @@ export {
   isModuleId,
   validateQualifiedId,
   validateRoutePath,
+  validateRouteFile,
 } from "./module-validation";
 
 export { type ModuleRegistry, createModuleRegistry } from "./module-registry";
+
+export {
+  type ModuleRouteSource,
+  validateModuleRoutes,
+  validateRouteGraph,
+} from "./route-composition";
 
 export {
   type DiscoveredManifestModule,

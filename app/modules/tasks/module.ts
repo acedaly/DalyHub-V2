@@ -5,8 +5,9 @@
  * type, the two structural links a Task owns (`task.belongs_to_area` and
  * `task.belongs_to_project`, both directed child → parent), and the Task
  * completion Activity types. Hierarchy correctness lives in the SpineRepository
- * (ADR-014 §4.1); this manifest only declares discoverable metadata. No routes,
- * commands, settings or search providers — those are out of scope for FND-07.
+ * (ADR-014 §4.1); this manifest only declares discoverable metadata. FND-09 adds
+ * the single navigable placeholder route the shell composes; the Tasks product
+ * experience arrives in its own roadmap phase.
  */
 
 import { defineModule } from "~/kernel/modules";
@@ -20,11 +21,14 @@ import {
   TASK_REOPENED,
 } from "~/kernel/spine";
 
+import routes from "./routes.manifest";
+
 export default defineModule({
   id: "tasks",
   name: "Tasks",
   description: "Atomic units of action under an Area or a Project.",
   order: 40,
+  routes,
   entityTypes: [{ type: TASK, singular: "Task", plural: "Tasks" }],
   entityLinkTypes: [
     {

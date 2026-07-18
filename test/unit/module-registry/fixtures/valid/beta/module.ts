@@ -11,7 +11,7 @@ export default defineModule({
     {
       id: "beta.home",
       index: true,
-      lazy: () => Promise.resolve({ default: () => null }),
+      file: "routes/index.tsx",
       meta: { navLabel: "Beta" },
     },
   ],

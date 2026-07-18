@@ -11,8 +11,7 @@ import { workspaceContextFromId } from "~/kernel/workspaces";
  * the runtime seam.
  */
 describe("lazy behaviour", () => {
-  it("does not load route modules, run commands or execute searches during construction", () => {
-    let routeLoads = 0;
+  it("stores routes as declarative data and never runs commands or searches during construction", () => {
     let commandRuns = 0;
     let searchRuns = 0;
 
@@ -24,10 +23,7 @@ describe("lazy behaviour", () => {
           {
             id: "notes.home",
             index: true,
-            lazy: () => {
-              routeLoads += 1;
-              return Promise.resolve({ default: () => null });
-            },
+            file: "routes/index.tsx",
           },
         ],
         commands: [
@@ -52,16 +48,18 @@ describe("lazy behaviour", () => {
       }),
     ]);
 
-    // Merely reading the registry never triggers runtime behaviour.
+    // Merely reading the registry never triggers runtime behaviour. Route
+    // modules are referenced by a plain `file` string (ADR-016 §5.10), so there
+    // is nothing to load — the reference is carried through as data and React
+    // Router code-splits and loads it only when the route is matched.
+    expect(registry.getRoute("notes.home")?.file).toBe("routes/index.tsx");
     registry.listRoutes();
-    registry.getRoute("notes.home");
     registry.listCommands();
     registry.getCommand("notes.capture");
     registry.listSearchProviders();
     registry.getSearchProvider("notes.search");
     registry.listModules();
 
-    expect(routeLoads).toBe(0);
     expect(commandRuns).toBe(0);
     expect(searchRuns).toBe(0);
   });

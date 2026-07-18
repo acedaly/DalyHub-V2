@@ -252,6 +252,36 @@
 
 ---
 
+## App shell / auth evaluation (FND-09)
+
+> The build-vs-reuse evaluation behind [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing). FND-09 adds **one** runtime dependency (`jose`) for JWT verification — a security-critical, commodity primitive we must not hand-roll ([OSS policy](../governance/OPEN_SOURCE_POLICY.md)). Everything else (the shell, routing, navigation, theme, request boundary) is built on the existing stack. Findings verified against installed/official sources on **2026-07-18**.
+
+### Dated documentation findings (verified 2026-07-18)
+
+- **React Router v8 framework route configuration** (reactrouter.com; corroborated against the installed `@react-router/dev@8.0.0` type declarations). `app/routes.ts` default-exports `RouteConfig` (`RouteConfigEntry[] | Promise<RouteConfigEntry[]>` — it may be async and use `import.meta.glob`). Helpers: `route(path, file, options?, children?)`, `index(file, options?)`, `layout(file, options?, children?)`, `prefix(prefixPath, routes)`, `relative(dir)`. Each entry requires a **build-time `file`** (relative to the app directory); there is **no** runtime `lazy`/import-thunk field. This is the primary source of the ADR-013 route-contract refinement (ADR-016 §5.10).
+- **React Router v8 route modules & loader/action context** (installed `react-router@8.0.0` declarations). Route modules export `default`, `loader`, `action`, `ErrorBoundary`, `HydrateFallback`, `meta`, `links`, `headers`, `handle`, `shouldRevalidate`; per-route generated types come from `./+types/<name>`. Loaders/actions receive `context` typed as `Readonly<RouterContextProvider>`; values are read with `context.get(routerContext)` where `routerContext = createContext<T>()`. Route `middleware` (`MiddlewareFunction`) is present un-prefixed.
+- **Load-context injection & Cloudflare Vite plugin** (installed declarations; developers.cloudflare.com Workers/React Router guide). `createRequestHandler(build, mode)` returns `(request, loadContext?: RouterContextProvider) => Promise<Response>`. The Worker entry (`workers/app.ts`) receives `(request, env, ctx)`; DalyHub authenticates there and passes a `RouterContextProvider` carrying the validated session into the handler, so loaders read it via `context.get(...)`. Bindings (`env`) reach loaders via the `cloudflare:workers` module.
+- **Cloudflare Access JWT validation** (developers.cloudflare.com, retrieved 2026-07-18). Header `Cf-Access-Jwt-Assertion`; JWKS at `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`; `iss = https://<team>.cloudflareaccess.com`; `aud` is the Application Audience (AUD) tag; algorithm RS256; identity tokens carry `sub`/`email`/`identity_nonce`, whereas service tokens carry `common_name` with an empty `sub`; logout at `/cdn-cgi/access/logout`.
+- **`jose` Workers/Web-Crypto compatibility** (github.com/panva/jose + npm, retrieved 2026-07-18). Latest **6.2.3**, **MIT**, zero runtime dependencies, tree-shakeable ESM, targets WebCrypto + Fetch (Workers-compatible), no telemetry. `createRemoteJWKSet(url, options?)` has a bounded cache (`cooldownDuration` 30s, `cacheMaxAge` 10m, `timeoutDuration` 5s); `jwtVerify(token, keyOrJWKS, { issuer, audience, algorithms })` verifies signature + `exp`/`nbf` and, when supplied, `iss`/`aud`. Tests use `generateKeyPair`/`SignJWT`/`createLocalJWKSet` for a network-free, non-weakened verification path.
+
+### Reuse evaluation checklist — `jose` 6.2.3
+
+- [x] Problem is a commodity worth reusing (JWT/JWS signature verification + JWKS — a security-critical primitive we must not hand-roll)
+- [x] Checked REFERENCE_PRODUCTS.md and the official Cloudflare guidance (which uses `jose`)
+- [x] Licence read for the exact version: **MIT** → category: **Allowed**
+- [x] Transitive dependency tree licence-checked — **zero runtime dependencies**
+- [x] Maintenance health acceptable — actively maintained, widely adopted (panva)
+- [x] No known unresolved critical security issues / CVEs for the pinned version
+- [x] Footprint acceptable — tree-shakeable ESM; server-only (absent from the client bundle, enforced by an architecture test)
+- [x] Fits our stack (ESM, WebCrypto/Fetch, Workers-compatible, TypeScript types) and our security bar (RS256 pinned, issuer/audience/time/owner enforced)
+- [x] No privacy-violating telemetry / phone-home
+- [x] Provenance recorded — exact version pinned in `pnpm-lock.yaml`; MIT notice added to `THIRD_PARTY_NOTICES.md`; adapted-snippet provenance in the verifier source
+- [x] REFERENCE_PRODUCTS.md updated with findings (this section)
+
+**Decision (Depend / Adapt / Build).** **Depend** on `jose@6.2.3` for Cloudflare Access JWT verification; **Adapt** (not copy) Cloudflare's official "Validate JWTs in Workers" `createRemoteJWKSet` + `jwtVerify` shape with recorded provenance; **Build** the DalyHub-owned pieces (the storage-independent auth kernel contract/errors/validation, the owner-enforcing Access authenticator, the development authenticator, the Worker request boundary, registry-driven route/navigation composition, the cookie-backed theme, and the security-header policy) on the existing stack; **Reject** Auth.js/Lucia/Passport/Clerk/Supabase/Firebase, a second router, a global-state library, a UI framework and an icon package. See [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

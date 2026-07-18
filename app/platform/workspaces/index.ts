@@ -10,10 +10,13 @@
 
 export {
   resolveWorkspaceScope,
+  bindWorkspaceRepositories,
   createWorkspaceContextResolver,
   type WorkspaceScope,
   type WorkspaceScopeEnv,
 } from "./composition";
+
+export { resolveAuthenticatedWorkspaceScope } from "./authenticated-composition";
 
 export {
   createConfiguredWorkspaceContextResolver,

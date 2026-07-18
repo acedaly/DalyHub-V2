@@ -43,13 +43,24 @@ export type ModuleRuntimeContext = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * A lazy reference to a module's route module (its page component and, later,
- * its loader/action). It is a THUNK returning a dynamic import, so constructing
- * the registry never loads a page component — the reference is stored, never
- * called (ADR-013 §8). FND-09 invokes it when it composes real React Router
- * routes.
+ * A module-relative reference to a route module's source file (e.g.
+ * `routes/index.tsx`), resolved by the platform adapter to
+ * `app/modules/<module-id>/<file>` (ADR-013 §8, refined by ADR-016 §5.10).
+ *
+ * FND-06 originally modelled this as a lazy `() => import(...)` THUNK. FND-09's
+ * compatibility spike proved that React Router 8 framework mode composes its
+ * route tree from BUILD-TIME file references (`app/routes.ts` returns
+ * `RouteConfigEntry`s whose `file` the toolchain uses for per-route type
+ * generation, SSR and production code splitting) and offers no way to register a
+ * runtime import thunk. A thunk therefore cannot drive framework-mode routing, so
+ * the contract is a declarative file string instead. This is STILL fully lazy:
+ * the string is plain data, so constructing the registry never loads a page
+ * component, and React Router code-splits each referenced module. The string is
+ * constrained (module-relative, no traversal, no absolute path) by
+ * `validateRouteFile` (`module-validation.ts`) so it can never reference another
+ * module or escape the owning module directory. See ADR-016 §5.10.
  */
-export type RouteModuleLoader = () => Promise<unknown>;
+export type RouteModuleFile = string;
 
 /** Optional metadata a route can expose for later shell discovery (FND-09). */
 export type RouteMeta = {
@@ -62,10 +73,10 @@ export type RouteMeta = {
 };
 
 /**
- * A module-owned route contribution — the minimum a module declares so FND-09
- * can later compose it into the application's React Router route tree. It is
- * purely declarative: the page component is referenced lazily via `lazy` and is
- * never loaded to build the registry.
+ * A module-owned route contribution — the minimum a module declares so the app
+ * shell composes it into the application's React Router route tree. It is purely
+ * declarative: the page component is referenced by a module-relative `file`
+ * string and is never loaded to build the registry (React Router code-splits it).
  */
 export type RouteContribution = {
   /**
@@ -90,8 +101,14 @@ export type RouteContribution = {
    * registered route; by default a parent must be owned by the same module.
    */
   readonly parentId?: string;
-  /** Lazy reference to the route module. Stored, never invoked by the registry. */
-  readonly lazy: RouteModuleLoader;
+  /**
+   * Module-relative path to the route module's source file (e.g.
+   * `routes/index.tsx`). The platform adapter resolves it to
+   * `app/modules/<module-id>/<file>` and it can never traverse out of the owning
+   * module (see `validateRouteFile`). Plain data — never imported to build the
+   * registry; React Router loads and code-splits it at run time (ADR-016 §5.10).
+   */
+  readonly file: RouteModuleFile;
   /** Optional metadata for future navigation/shell discovery. */
   readonly meta?: RouteMeta;
 };

@@ -59,6 +59,7 @@ licensed (allowed by default per the Open Source Policy).
 | `react-dom`    | 19.2.7  | MIT     |
 | `react-router` | 8.0.0   | MIT     |
 | `isbot`        | 5.2.1   | MIT     |
+| `jose`         | 6.2.3   | MIT     |
 
 ---
 
@@ -123,3 +124,27 @@ are permissive and allowed by default; no copyleft, no-licence, telemetry or
 network-calling package is present. Exact resolved versions are pinned in
 `pnpm-lock.yaml`. All are used unmodified; the MIT text reproduced above applies
 (each package carries its own copyright holders in its own `LICENSE`).
+
+---
+
+## Authentication dependencies (FND-09)
+
+Cloudflare Access JWT validation ([FND-09](docs/roadmap/ROADMAP_V2.md) /
+[ADR-016](docs/decisions/ARCHITECTURE_DECISIONS.md)) uses `jose` for JWKS-backed
+verification. It is a server-only runtime dependency: it is imported solely by
+the Worker request boundary and never reaches the client bundle (enforced by an
+architecture test). Licence verified against the exact installed version on
+**2026-07-18**.
+
+| Package | Version | Licence |
+| ------- | ------- | ------- |
+| `jose`  | 6.2.3   | MIT     |
+
+`jose` has **zero runtime dependencies**, ships tree-shakeable ESM, targets the
+WebCrypto and Fetch APIs (Cloudflare Workers–compatible with no Node-only
+assumption), and declares no telemetry. The exact resolved version is pinned in
+`pnpm-lock.yaml`. It is used unmodified; the MIT text above applies. The
+Cloudflare Access verifier's `createRemoteJWKSet` + `jwtVerify` shape is adapted
+(not copied verbatim) from Cloudflare's official "Validate JWTs in Workers"
+example, with provenance recorded in the source file
+(`app/platform/auth/cloudflare-access-authenticator.ts`).

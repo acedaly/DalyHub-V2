@@ -11,6 +11,9 @@ importers:
       isbot:
         specifier: 5.2.1
         version: 5.2.1
+      jose:
+        specifier: 6.2.3
+        version: 6.2.3
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -1712,6 +1715,9 @@ packages:
 
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
+
+  jose@6.2.3:
+    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -4231,6 +4237,8 @@ snapshots:
   isbot@5.2.1: {}
 
   isexe@2.0.0: {}
+
+  jose@6.2.3: {}
 
   js-tokens@4.0.0: {}
 

@@ -35,14 +35,14 @@ describe("module definition validation", () => {
         {
           id: "projects.list",
           path: "projects",
-          lazy: () => Promise.resolve({}),
+          file: "routes/index.tsx",
           meta: { navLabel: "Projects", navGroup: "work", navOrder: 1 },
         },
         {
           id: "projects.detail",
           path: "projects/:projectId",
           parentId: "projects.list",
-          lazy: () => Promise.resolve({}),
+          file: "routes/index.tsx",
         },
       ],
       entityTypes: [
@@ -181,9 +181,7 @@ describe("module definition validation", () => {
           defineModule({
             id: "notes",
             name: "Notes",
-            routes: [
-              { id: "notes.x", lazy: () => Promise.resolve({}) } as never,
-            ],
+            routes: [{ id: "notes.x", file: "routes/index.tsx" } as never],
           }),
         ]),
       ).toThrow(ModuleDefinitionError);
@@ -199,7 +197,7 @@ describe("module definition validation", () => {
               {
                 id: "notes.x",
                 path: "notes?q=1",
-                lazy: () => Promise.resolve({}),
+                file: "routes/index.tsx",
               },
             ],
           }),
@@ -217,12 +215,77 @@ describe("module definition validation", () => {
               {
                 id: "notes.x",
                 path: "notes/../secrets",
-                lazy: () => Promise.resolve({}),
+                file: "routes/index.tsx",
               },
             ],
           }),
         ]),
       ).toThrow(ModuleDefinitionError);
+    });
+
+    it("rejects a route without a file reference", () => {
+      expect(() =>
+        createModuleRegistry([
+          defineModule({
+            id: "notes",
+            name: "Notes",
+            routes: [{ id: "notes.x", path: "x" } as never],
+          }),
+        ]),
+      ).toThrow(ModuleDefinitionError);
+    });
+
+    it("rejects an absolute route file reference", () => {
+      expect(() =>
+        createModuleRegistry([
+          defineModule({
+            id: "notes",
+            name: "Notes",
+            routes: [{ id: "notes.x", path: "x", file: "/etc/passwd.ts" }],
+          }),
+        ]),
+      ).toThrow(ModuleDefinitionError);
+    });
+
+    it("rejects a route file reference that traverses outside the module", () => {
+      expect(() =>
+        createModuleRegistry([
+          defineModule({
+            id: "notes",
+            name: "Notes",
+            routes: [
+              { id: "notes.x", path: "x", file: "../areas/routes/index.tsx" },
+            ],
+          }),
+        ]),
+      ).toThrow(ModuleDefinitionError);
+    });
+
+    it("rejects a route file reference without a compilable extension", () => {
+      expect(() =>
+        createModuleRegistry([
+          defineModule({
+            id: "notes",
+            name: "Notes",
+            routes: [{ id: "notes.x", path: "x", file: "routes/index.md" }],
+          }),
+        ]),
+      ).toThrow(ModuleDefinitionError);
+    });
+
+    it("accepts a nested, module-relative route file reference", () => {
+      const registry = createModuleRegistry([
+        defineModule({
+          id: "notes",
+          name: "Notes",
+          routes: [
+            { id: "notes.x", path: "x", file: "routes/nested/detail.tsx" },
+          ],
+        }),
+      ]);
+      expect(registry.getRoute("notes.x")?.file).toBe(
+        "routes/nested/detail.tsx",
+      );
     });
 
     it("rejects a non-function command handler", () => {

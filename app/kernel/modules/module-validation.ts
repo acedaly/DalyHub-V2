@@ -1,38 +1,30 @@
 /**
- * FND-06 Module Registry kernel — boundary validation.
+ * FND-06 Module Registry kernel — module-id, route, command and setting
+ * validation (the storage-kernel-free core).
  *
- * Pure, storage-independent validation of every module manifest and its
- * capability descriptors. The registry validates BEFORE it exposes anything, so
- * an incompletely or ambiguously composed application never serves requests
- * (ADR-013 §16). Validators return a NORMALISED, freshly-constructed descriptor
- * (a defensive copy built from primitive reads of the source) or throw a typed
- * `ModuleRegistryError`. Building new objects here means a later mutation of the
- * source manifest cannot reach into the registry (ADR-013 §4.4).
+ * Pure, storage-independent validation of module identity and the capability
+ * descriptors that need NO storage-kernel validator: the module-id slug,
+ * module-namespaced capability ids, safe route paths and file references, command
+ * descriptors, and setting-default type-matching. The registry validates BEFORE
+ * it exposes anything, so an incompletely or ambiguously composed application
+ * never serves requests (ADR-013 §16). Validators return a NORMALISED,
+ * freshly-constructed descriptor (a defensive copy built from primitive reads of
+ * the source) or throw a typed `ModuleRegistryError`. Building new objects here
+ * means a later mutation of the source manifest cannot reach into the registry
+ * (ADR-013 §4.4).
  *
- * Identifier validation is REUSED, not duplicated: entity types go through the
- * FND-02 `validateEntityType`, link types through the FND-04 `parseEntityLinkType`,
- * and Activity types through the FND-05 `parseActivityType`. This module adds only
- * the module-specific rules: the module-id slug, module-namespaced capability ids,
- * safe route paths, setting-default type-matching, and kernel-reserved Activity
- * types.
+ * This file deliberately imports NO storage kernel (`~/kernel/entities` …). The
+ * entity/link/activity/search validators that REUSE those kernel identifier
+ * validators live in `entity-contribution-validation.ts`, so this route/id core
+ * can be bundled by the React Router bare config loader (which cannot resolve the
+ * `~` alias) when the real `app/routes.ts` composes routes at build time.
  */
 
-import { validateEntityType } from "~/kernel/entities";
-import { parseEntityLinkType } from "~/kernel/entity-links";
-import { parseActivityType } from "~/kernel/activity";
-
-import {
-  ModuleDefinitionError,
-  ReservedActivityTypeError,
-} from "./module-errors";
+import { ModuleDefinitionError } from "./module-errors";
 import type {
-  ActivityTypeContribution,
   CommandContribution,
   CommandShortcut,
-  EntityLinkTypeContribution,
-  EntityTypeContribution,
   RouteContribution,
-  SearchProviderContribution,
   SettingContribution,
   SettingEnumOption,
 } from "./module-capabilities";
@@ -65,6 +57,25 @@ export const QUALIFIED_ID_LOCAL_PATTERN =
 
 /** Maximum length of a route path, in characters. */
 export const ROUTE_PATH_MAX_LENGTH = 256;
+
+/** Maximum length of a module-relative route module file reference, in characters. */
+export const ROUTE_FILE_MAX_LENGTH = 256;
+
+/** Route module file extensions the toolchain can compile (ADR-016 §5.10). */
+export const ROUTE_FILE_EXTENSIONS: readonly string[] = [
+  ".tsx",
+  ".ts",
+  ".jsx",
+  ".js",
+];
+
+/**
+ * A single segment of a module-relative route file path: a safe filename token
+ * (letters, digits, `_`, `-`, `.`). `.` and `..` segments are rejected
+ * separately by the file validator so a reference can never traverse out of its
+ * owning module directory.
+ */
+const ROUTE_FILE_SEGMENT_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 /** Maximum length of a display label (name, label, singular/plural, option label). */
 export const LABEL_MAX_LENGTH = 200;
@@ -149,9 +160,11 @@ export function isModuleId(value: unknown): value is ModuleId {
 
 /**
  * Validate and normalise a required display label: non-empty after trimming and
- * within the documented length. Returns the trimmed value.
+ * within the documented length. Returns the trimmed value. Exported so the
+ * entity/link/activity contribution validators (split into their own module to
+ * keep this route/id core free of storage-kernel imports) can reuse it.
  */
-function validateLabel(
+export function validateLabel(
   value: unknown,
   field: string,
   moduleId: string,
@@ -174,7 +187,7 @@ function validateLabel(
 }
 
 /** Validate an optional description, returning undefined when absent. */
-function validateOptionalDescription(
+export function validateOptionalDescription(
   value: unknown,
   field: string,
   moduleId: string,
@@ -346,18 +359,108 @@ export function validateRoutePath(
   return value;
 }
 
-/** Wrap a reused kernel identifier validator's failure as a registry error. */
-function runIdentifierValidator<T>(
-  validate: () => T,
-  field: string,
+/**
+ * Validate a module-relative route module file reference (ADR-016 §5.10): a
+ * string, non-empty, bounded, relative (no leading slash, no drive letter, no
+ * backslash), free of whitespace/query/hash, with no empty or `.`/`..` traversal
+ * segment and a compilable route-module extension. Because the platform adapter
+ * resolves it against `app/modules/<module-id>/`, these rules guarantee the
+ * reference stays INSIDE the owning module directory — it can never point at an
+ * absolute filesystem path, another module's file, or anything outside the app.
+ */
+export function validateRouteFile(
+  value: unknown,
   moduleId: string,
-): T {
-  try {
-    return validate();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "is invalid";
-    throw new ModuleDefinitionError(field, message, moduleId);
+  field: string,
+): string {
+  if (typeof value !== "string") {
+    throw new ModuleDefinitionError(field, "must be a string", moduleId);
   }
+  if (value.length === 0) {
+    throw new ModuleDefinitionError(field, "must not be empty", moduleId);
+  }
+  if (value.length > ROUTE_FILE_MAX_LENGTH) {
+    throw new ModuleDefinitionError(
+      field,
+      `must be at most ${ROUTE_FILE_MAX_LENGTH} characters`,
+      moduleId,
+    );
+  }
+  if (/\s/.test(value)) {
+    throw new ModuleDefinitionError(
+      field,
+      "must not contain whitespace",
+      moduleId,
+    );
+  }
+  if (value.includes("?") || value.includes("#")) {
+    throw new ModuleDefinitionError(
+      field,
+      "must not contain a query string or hash",
+      moduleId,
+    );
+  }
+  if (value.includes("\\")) {
+    throw new ModuleDefinitionError(
+      field,
+      "must not contain a backslash",
+      moduleId,
+    );
+  }
+  if (value.startsWith("/")) {
+    throw new ModuleDefinitionError(
+      field,
+      "must be module-relative (no absolute path)",
+      moduleId,
+    );
+  }
+  // Reject a Windows drive-letter absolute path (e.g. `C:/…`) explicitly; the
+  // `:` also fails the segment charset below, but the message is clearer here.
+  if (/^[A-Za-z]:/.test(value)) {
+    throw new ModuleDefinitionError(
+      field,
+      "must be module-relative (no absolute path)",
+      moduleId,
+    );
+  }
+  if (value.endsWith("/")) {
+    throw new ModuleDefinitionError(
+      field,
+      "must reference a file (no trailing slash)",
+      moduleId,
+    );
+  }
+  for (const segment of value.split("/")) {
+    if (segment.length === 0) {
+      throw new ModuleDefinitionError(
+        field,
+        "must not contain an empty path segment",
+        moduleId,
+      );
+    }
+    if (segment === "." || segment === "..") {
+      throw new ModuleDefinitionError(
+        field,
+        "must not contain a path traversal segment",
+        moduleId,
+      );
+    }
+    if (!ROUTE_FILE_SEGMENT_PATTERN.test(segment)) {
+      throw new ModuleDefinitionError(
+        field,
+        `has an invalid file path segment "${segment}"`,
+        moduleId,
+      );
+    }
+  }
+  if (!ROUTE_FILE_EXTENSIONS.some((extension) => value.endsWith(extension))) {
+    throw new ModuleDefinitionError(
+      field,
+      `must reference a ${ROUTE_FILE_EXTENSIONS.join("/")} route module`,
+      moduleId,
+    );
+  }
+  return value;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -417,13 +520,7 @@ export function validateRouteContribution(
     );
   }
 
-  if (typeof contribution.lazy !== "function") {
-    throw new ModuleDefinitionError(
-      `${field}.lazy`,
-      "must be a function returning the route module (a lazy import)",
-      moduleId,
-    );
-  }
+  const file = validateRouteFile(contribution.file, moduleId, `${field}.file`);
 
   let meta: RouteContribution["meta"];
   if (contribution.meta !== undefined) {
@@ -455,126 +552,8 @@ export function validateRouteContribution(
     id,
     ...(isIndex ? { index: true as const } : { path: path as string }),
     ...(parentId === undefined ? {} : { parentId }),
-    lazy: contribution.lazy,
+    file,
     ...(meta === undefined ? {} : { meta }),
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Entity-type contribution                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** Validate one entity-type contribution, returning a normalised defensive copy. */
-export function validateEntityTypeContribution(
-  contribution: EntityTypeContribution,
-  moduleId: string,
-  index: number,
-): EntityTypeContribution {
-  const field = `entityTypes[${index}]`;
-  const type = runIdentifierValidator(
-    () => validateEntityType(contribution.type),
-    `${field}.type`,
-    moduleId,
-  );
-  const singular = validateLabel(
-    contribution.singular,
-    `${field}.singular`,
-    moduleId,
-  );
-  const plural =
-    contribution.plural === undefined
-      ? undefined
-      : validateLabel(contribution.plural, `${field}.plural`, moduleId);
-  return {
-    type,
-    singular,
-    ...(plural === undefined ? {} : { plural }),
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* EntityLink-type contribution                                               */
-/* -------------------------------------------------------------------------- */
-
-/** Validate one link-type contribution, returning a normalised defensive copy. */
-export function validateEntityLinkTypeContribution(
-  contribution: EntityLinkTypeContribution,
-  moduleId: string,
-  index: number,
-): EntityLinkTypeContribution {
-  const field = `entityLinkTypes[${index}]`;
-  const type = runIdentifierValidator(
-    () => parseEntityLinkType(contribution.type),
-    `${field}.type`,
-    moduleId,
-  );
-  const sourceLabel = validateLabel(
-    contribution.sourceLabel,
-    `${field}.sourceLabel`,
-    moduleId,
-  );
-  const targetLabel =
-    contribution.targetLabel === undefined
-      ? undefined
-      : validateLabel(
-          contribution.targetLabel,
-          `${field}.targetLabel`,
-          moduleId,
-        );
-  const sourceEntityType =
-    contribution.sourceEntityType === undefined
-      ? undefined
-      : runIdentifierValidator(
-          () => validateEntityType(contribution.sourceEntityType),
-          `${field}.sourceEntityType`,
-          moduleId,
-        );
-  const targetEntityType =
-    contribution.targetEntityType === undefined
-      ? undefined
-      : runIdentifierValidator(
-          () => validateEntityType(contribution.targetEntityType),
-          `${field}.targetEntityType`,
-          moduleId,
-        );
-  return {
-    type,
-    sourceLabel,
-    ...(targetLabel === undefined ? {} : { targetLabel }),
-    ...(sourceEntityType === undefined ? {} : { sourceEntityType }),
-    ...(targetEntityType === undefined ? {} : { targetEntityType }),
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Activity-type contribution                                                 */
-/* -------------------------------------------------------------------------- */
-
-/** Validate one Activity-type contribution, returning a normalised defensive copy. */
-export function validateActivityTypeContribution(
-  contribution: ActivityTypeContribution,
-  moduleId: string,
-  index: number,
-): ActivityTypeContribution {
-  const field = `activityTypes[${index}]`;
-  const type = runIdentifierValidator(
-    () => parseActivityType(contribution.type),
-    `${field}.type`,
-    moduleId,
-  );
-  if (RESERVED_ACTIVITY_TYPES.has(type)) {
-    throw new ReservedActivityTypeError(moduleId, type);
-  }
-  const label = validateLabel(contribution.label, `${field}.label`, moduleId);
-  const description = validateOptionalDescription(
-    contribution.description,
-    `${field}.description`,
-    moduleId,
-  );
-  return {
-    type,
-    label,
-    ...(description === undefined ? {} : { description }),
   };
 }
 
@@ -691,51 +670,6 @@ export function validateCommandContribution(
     ...(keywords === undefined ? {} : { keywords }),
     ...(shortcut === undefined ? {} : { shortcut }),
     run: contribution.run,
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Search-provider contribution                                               */
-/* -------------------------------------------------------------------------- */
-
-/** Validate one search-provider contribution, returning a normalised defensive copy. */
-export function validateSearchProviderContribution(
-  contribution: SearchProviderContribution,
-  moduleId: string,
-  index: number,
-): SearchProviderContribution {
-  const field = `searchProviders[${index}]`;
-  const id = validateQualifiedId(contribution.id, moduleId, `${field}.id`);
-  const label = validateLabel(contribution.label, `${field}.label`, moduleId);
-  let entityTypes: readonly string[] | undefined;
-  if (contribution.entityTypes !== undefined) {
-    if (!Array.isArray(contribution.entityTypes)) {
-      throw new ModuleDefinitionError(
-        `${field}.entityTypes`,
-        "must be an array",
-        moduleId,
-      );
-    }
-    entityTypes = contribution.entityTypes.map((entityType, i) =>
-      runIdentifierValidator(
-        () => validateEntityType(entityType),
-        `${field}.entityTypes[${i}]`,
-        moduleId,
-      ),
-    );
-  }
-  if (typeof contribution.search !== "function") {
-    throw new ModuleDefinitionError(
-      `${field}.search`,
-      "must be a function (the search executor)",
-      moduleId,
-    );
-  }
-  return {
-    id,
-    label,
-    ...(entityTypes === undefined ? {} : { entityTypes }),
-    search: contribution.search,
   };
 }
 

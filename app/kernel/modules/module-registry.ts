@@ -23,21 +23,22 @@ import {
   DuplicateContributionError,
   DuplicateModuleError,
   ModuleDefinitionError,
-  RoutePathConflictError,
-  RouteParentError,
   type ContributionKind,
 } from "./module-errors";
 import {
-  validateActivityTypeContribution,
   validateCommandContribution,
-  validateEntityLinkTypeContribution,
-  validateEntityTypeContribution,
   validateOptionalOrder,
-  validateRouteContribution,
-  validateSearchProviderContribution,
   validateSettingContribution,
   parseModuleId,
 } from "./module-validation";
+import {
+  validateActivityTypeContribution,
+  validateEntityLinkTypeContribution,
+  validateEntityTypeContribution,
+  validateSearchProviderContribution,
+} from "./entity-contribution-validation";
+import { validateModuleRoutes } from "./route-composition";
+import type { RouteContribution } from "./module-capabilities";
 import type {
   ModuleDefinition,
   ModuleId,
@@ -115,7 +116,13 @@ type ValidatedModule = {
   readonly name: string;
   readonly description: string | null;
   readonly order: number | null;
-  readonly routes: readonly RegisteredRoute[];
+  /**
+   * The module's RAW route descriptors, carried through unchanged. Routes are
+   * validated centrally after sorting by the shared authoritative validator
+   * (`validateModuleRoutes`), so the runtime registry and the build-time React
+   * Router composition apply exactly the same route rules.
+   */
+  readonly rawRoutes: readonly RouteContribution[] | undefined;
   readonly entityTypes: readonly RegisteredEntityType[];
   readonly entityLinkTypes: readonly RegisteredEntityLinkType[];
   readonly activityTypes: readonly RegisteredActivityType[];
@@ -174,7 +181,9 @@ function validateDefinition(definition: ModuleDefinition): ValidatedModule {
     name,
     description,
     order,
-    routes: own(definition.routes, id, validateRouteContribution),
+    // Routes are validated centrally (post-sort) by `validateModuleRoutes`, the
+    // single authoritative route validator shared with build-time composition.
+    rawRoutes: definition.routes,
     entityTypes: own(
       definition.entityTypes,
       id,
@@ -252,8 +261,28 @@ export function createModuleRegistry(
   // 3. Sort modules deterministically (independent of discovery order).
   const sorted = [...validated].sort(compareModules);
 
-  // 4. Flatten in sorted order and detect id collisions across ALL modules.
-  const routeMap = new Map<string, RegisteredRoute>();
+  // 4a. Routes: validate through the SHARED authoritative validator (the same
+  //     one build-time React Router composition uses). It validates every
+  //     descriptor, rejects duplicate route ids, and validates the whole route
+  //     graph (parents, cycles, path conflicts) in this deterministic order.
+  const allRoutes = validateModuleRoutes(
+    sorted.map((module) => ({ moduleId: module.id, routes: module.rawRoutes })),
+  );
+  const routeMap = new Map<string, RegisteredRoute>(
+    allRoutes.map((route) => [route.id, route]),
+  );
+  const routesByModule = new Map<string, RegisteredRoute[]>();
+  for (const route of allRoutes) {
+    const list = routesByModule.get(route.moduleId);
+    if (list === undefined) {
+      routesByModule.set(route.moduleId, [route]);
+    } else {
+      list.push(route);
+    }
+  }
+
+  // 4b. Flatten the other contributions in sorted order and detect id collisions
+  //     across ALL modules.
   const entityTypeMap = new Map<string, RegisteredEntityType>();
   const linkTypeMap = new Map<string, RegisteredEntityLinkType>();
   const activityTypeMap = new Map<string, RegisteredActivityType>();
@@ -261,7 +290,6 @@ export function createModuleRegistry(
   const searchProviderMap = new Map<string, RegisteredSearchProvider>();
   const settingMap = new Map<string, RegisteredSetting>();
 
-  const allRoutes: RegisteredRoute[] = [];
   const allEntityTypes: RegisteredEntityType[] = [];
   const allLinkTypes: RegisteredEntityLinkType[] = [];
   const allActivityTypes: RegisteredActivityType[] = [];
@@ -270,10 +298,6 @@ export function createModuleRegistry(
   const allSettings: RegisteredSetting[] = [];
 
   for (const module of sorted) {
-    for (const route of module.routes) {
-      indexUnique(routeMap, route.id, route, "route");
-      allRoutes.push(route);
-    }
     for (const entityType of module.entityTypes) {
       indexUnique(entityTypeMap, entityType.type, entityType, "entity_type");
       allEntityTypes.push(entityType);
@@ -305,8 +329,8 @@ export function createModuleRegistry(
     }
   }
 
-  // 5. Resolve route parents and detect route-path conflicts.
-  validateRouteGraph(allRoutes, routeMap);
+  // 5. (Route parents and path conflicts were validated in step 4a by the shared
+  //    authoritative validator.)
 
   // 6. Build frozen per-module snapshots and the module lookup.
   const moduleMap = new Map<string, RegisteredModule>();
@@ -316,7 +340,7 @@ export function createModuleRegistry(
       name: module.name,
       description: module.description,
       order: module.order,
-      routes: Object.freeze([...module.routes]),
+      routes: Object.freeze([...(routesByModule.get(module.id) ?? [])]),
       entityTypes: Object.freeze([...module.entityTypes]),
       entityLinkTypes: Object.freeze([...module.entityLinkTypes]),
       activityTypes: Object.freeze([...module.activityTypes]),
@@ -359,88 +383,4 @@ export function createModuleRegistry(
     getSetting: (key) => settingMap.get(key) ?? null,
   };
   return Object.freeze(registry);
-}
-
-/**
- * Validate the route graph: every `parentId` resolves to a known route, a route
- * is never its own parent, a parent is owned by the same module (the only
- * safely-supported case in FND-06), and no two routes conflict on the same path
- * (or two index routes) under the same effective parent.
- */
-function validateRouteGraph(
-  routes: readonly RegisteredRoute[],
-  routeMap: ReadonlyMap<string, RegisteredRoute>,
-): void {
-  for (const route of routes) {
-    if (route.parentId === undefined) {
-      continue;
-    }
-    if (route.parentId === route.id) {
-      throw new RouteParentError(route.id, route.parentId, "self");
-    }
-    const parent = routeMap.get(route.parentId);
-    if (parent === undefined) {
-      throw new RouteParentError(route.id, route.parentId, "unresolved");
-    }
-    if (parent.moduleId !== route.moduleId) {
-      throw new RouteParentError(route.id, route.parentId, "cross_module");
-    }
-  }
-
-  // Every parent chain must terminate at a root. A cycle (e.g. A→B→A) passes the
-  // per-route checks above — each reference resolves, is same-module and is not a
-  // self-reference — yet leaves the routes un-composable: `buildModuleRouteTree`
-  // would give every route a parent and produce no root, silently dropping them.
-  // Reject any cycle with a typed error. All parents are known to resolve here,
-  // so walking the chain is bounded by the route count.
-  for (const route of routes) {
-    if (route.parentId === undefined) {
-      continue;
-    }
-    const seen = new Set<string>([route.id]);
-    let current: string | undefined = route.parentId;
-    while (current !== undefined) {
-      if (seen.has(current)) {
-        throw new RouteParentError(route.id, route.parentId, "cycle");
-      }
-      seen.add(current);
-      current = routeMap.get(current)?.parentId;
-    }
-  }
-
-  // Path conflicts are checked within each effective parent scope.
-  const pathsByParent = new Map<string, Map<string, string>>();
-  const indexByParent = new Map<string, string>();
-  for (const route of routes) {
-    const parentKey = route.parentId ?? " root";
-    if (route.index === true) {
-      const existing = indexByParent.get(parentKey);
-      if (existing !== undefined) {
-        throw new RoutePathConflictError(
-          "(index)",
-          route.parentId ?? null,
-          existing,
-          route.id,
-        );
-      }
-      indexByParent.set(parentKey, route.id);
-      continue;
-    }
-    const path = route.path as string;
-    let paths = pathsByParent.get(parentKey);
-    if (paths === undefined) {
-      paths = new Map<string, string>();
-      pathsByParent.set(parentKey, paths);
-    }
-    const existing = paths.get(path);
-    if (existing !== undefined) {
-      throw new RoutePathConflictError(
-        path,
-        route.parentId ?? null,
-        existing,
-        route.id,
-      );
-    }
-    paths.set(path, route.id);
-  }
 }

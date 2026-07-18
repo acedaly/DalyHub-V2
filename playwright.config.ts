@@ -1,14 +1,34 @@
+import { existsSync } from "node:fs";
+
 import { defineConfig, devices } from "@playwright/test";
 
+// Use the environment's pre-installed Chromium when present (this managed
+// sandbox ships one at /opt/pw-browsers/chromium); in CI and elsewhere fall back
+// to the browser Playwright installs itself. Conditional so the config works in
+// both places without a hardcoded path that only exists here.
+const LOCAL_CHROMIUM = "/opt/pw-browsers/chromium";
+const chromiumExecutablePath = existsSync(LOCAL_CHROMIUM)
+  ? LOCAL_CHROMIUM
+  : undefined;
+
 /**
- * Deliberately minimal, deterministic E2E setup (see ADR-008 and the FND-01
- * roadmap item): a single Chromium project, no external services, no
- * production URL, no retries that could mask flakiness. The app is built once
- * and served locally through `vite preview`, which runs the server code in the
- * Cloudflare Workers runtime — the same runtime used in production.
+ * Deliberately minimal, deterministic E2E setup (see ADR-008, ADR-016 and the
+ * FND-01/FND-09 roadmap items). Two local servers, no external services, no
+ * production URL, no retries that could mask flakiness. Both run server code in
+ * the Cloudflare Workers runtime (via `@cloudflare/vite-plugin`), the same runtime
+ * used in production:
+ *
+ *   - The DEV server (`react-router dev`, port 4173) reads `.dev.vars` and runs
+ *     the explicit development authenticator, so the browser journey can sign in
+ *     as the fixed non-personal development identity. This is the `baseURL`.
+ *   - The PRODUCTION-MODE server (`vite preview` of the real build, port 4174)
+ *     ignores `.dev.vars` and runs Cloudflare Access mode with empty config, so an
+ *     unauthenticated request fails closed — proving the production behaviour
+ *     without automating a live Cloudflare login.
  */
-const PORT = 4173;
-const baseURL = `http://localhost:${PORT}`;
+const DEV_PORT = 4173;
+const PROD_PORT = 4174;
+const baseURL = `http://localhost:${DEV_PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -26,12 +46,35 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command:
-      "pnpm run build && pnpm exec vite preview --port 4173 --strictPort",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  metadata: { productionModeBaseURL: `http://localhost:${PROD_PORT}` },
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(chromiumExecutablePath
+          ? { launchOptions: { executablePath: chromiumExecutablePath } }
+          : {}),
+      },
+    },
+  ],
+  webServer: [
+    {
+      // Development-auth server for the authenticated browser journey.
+      command: `node ./e2e/setup-dev-auth.mjs && pnpm exec react-router dev --port ${DEV_PORT}`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      // Production-mode server (real build) for the unauthenticated fail-closed
+      // check. The build copies `.dev.vars` into `build/server/`; we strip it so
+      // preview runs Cloudflare Access mode with empty config and rejects
+      // protected routes (no development-auth override leaks in).
+      command: `pnpm run build && node ./e2e/strip-dev-vars.mjs && pnpm exec vite preview --port ${PROD_PORT} --strictPort`,
+      url: `http://localhost:${PROD_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

@@ -321,8 +321,12 @@ remaining one event. `ON DELETE RESTRICT` on the entity FK preserves a
   composition boundary (`resolveWorkspaceScope`) and threaded into the mutation
   repositories, never accepted through a module parameter. `type` is a validated
   open identifier (`system`, `user`, `ai`, `import`, `integration`, …); `id` is
-  nullable. Today the boundary supplies `{ type: "system", id: null }`; FND-09
-  swaps in an authenticated `user` actor with no schema change.
+  nullable. The default `resolveWorkspaceScope(env)` supplies the `system` actor
+  `{ type: "system", id: null }`; FND-09's `resolveAuthenticatedWorkspaceScope(env,
+  session)` supplies an authenticated `{ type: "user", id: session.user.subject }`
+  actor (the validated Access JWT `sub`, never the email) — same seam, no schema
+  change. See [`APP_SHELL_AUTH.md`](APP_SHELL_AUTH.md) and
+  [ADR-016 §5.6](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing).
 - **Subject role** — a validated open identifier (`subject`, `source`, `target`).
 - **Payload** — a JSON **object**, recursively validated (rejecting functions,
   symbols, `undefined`, `bigint`, cyclic structures and non-finite numbers),
