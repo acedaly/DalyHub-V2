@@ -40,6 +40,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/SETUP_AND_CI.md`](development/SETUP_AND_CI.md) | Local setup, everyday commands, and the CI pipeline. |
 | [`development/DEPLOYMENT.md`](development/DEPLOYMENT.md) | Deploying to Cloudflare Workers and the required setup/secrets. |
 | [`development/DATA_KERNEL.md`](development/DATA_KERNEL.md) | The entity kernel & D1: migrations, kernel tests, inspecting local D1, remote provisioning. |
+| [`development/MODULES.md`](development/MODULES.md) | Building a module: the manifest convention, contribution types, discovery, id/namespacing rules, collisions, and the cross-module import rule. |
 
 ---
 
@@ -70,7 +71,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     └── development/
         ├── SETUP_AND_CI.md
         ├── DEPLOYMENT.md
-        └── DATA_KERNEL.md
+        ├── DATA_KERNEL.md
+        └── MODULES.md
 ```
 
 > Beyond `docs/`, the repository root now also carries the application itself

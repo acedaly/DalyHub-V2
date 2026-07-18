@@ -115,22 +115,36 @@ Every meaningful entity and EntityLink mutation appends one uniform event to a s
 - **Atomic mutation & event recording.** A domain mutation and its Activity append are ONE `D1Database.batch()` (a single transaction that rolls back entirely on any failure). The domain statement is first and `RETURNING`; the event insert is guarded `WHERE changes() > 0` and each subject insert `WHERE EXISTS` the event — so the append happens **iff the domain statement actually changed a row**. Failed mutations, idempotent no-ops and losing concurrent racers append nothing; an Activity-insert failure rolls back the domain change. The `changes()`-across-a-batch and per-statement `meta.changes` behaviour is proven against real D1.
 - **Workspace & entity query scopes.** `listForWorkspace` is the whole-workspace feed; `listForEntity` is one entity's Timeline (the events it is a subject of, anchor active *or* soft-deleted). Both are workspace-isolated, newest-first by `(occurredAt, id)`, bounded and cursor-paginated with a dedicated versioned cursor bound to workspace + scope-kind + anchor + type filter, and free of N+1 subject lookups. A cross-workspace entity is indistinguishable from a nonexistent one.
 - **Composition boundary.** `resolveWorkspaceScope` now returns `entities`, `entityLinks` and a read-only `activity`, all bound to the same `WorkspaceContext`, and constructs one trusted actor context used by both mutation repositories.
-- **Future UI & governance.** The Timeline and Activity Feed **UI** are later Design System work; FND-05 builds the model only. Custom event types and their registration are future [FND-06](../roadmap/ROADMAP_V2.md#-fnd-06--module-registry) Module Registry work — the kernel already accepts them as validated identifiers.
+- **Future UI & governance.** The Timeline and Activity Feed **UI** are later Design System work; FND-05 builds the model only. Custom event types and their registration are governed by the [Module Registry](#module-registry-self-registering-module-capabilities) below — the kernel accepts them as validated identifiers, and a module now declares which custom Activity types it owns.
+
+### Module registry: self-registering module capabilities
+
+Modules self-register their capabilities through the **Module Registry** ([FND-06](../roadmap/ROADMAP_V2.md#-fnd-06--module-registry) / [ADR-013](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery), implementing [ADR-007](../decisions/ARCHITECTURE_DECISIONS.md#adr-007-module-registry)). Adding a module means adding a directory and a manifest — never editing a central switch statement. FND-06 builds the registry and its discovery mechanism only; the shell that consumes them is [FND-09](../roadmap/ROADMAP_V2.md#-fnd-09--app-shell-routing--auth).
+
+- **The module kernel.** A storage-independent contract (`app/kernel/modules`) defines the branded `ModuleId`, the declarative `ModuleDefinition` (a small identity header plus readonly capability collections), the capability contracts (routes, entity types, EntityLink types, Activity event types, commands, search providers, settings), the `defineModule` authoring helper, boundary validation, typed registry errors, the pure discovery collector, and the immutable `ModuleRegistry` with `createModuleRegistry`. It imports **no** Vite, React Router, Cloudflare or D1 types.
+- **Declarative, side-effect-free manifests.** Each module exposes one `module.ts` that default-exports `defineModule({ … })`. A manifest is plain data: evaluating it touches no D1, workspace, request, network or global state, imports no heavy UI, and runs no command/search. `defineModule` is a typed identity function with no hidden registration — there is no mutable global service locator.
+- **Automatic build-time discovery.** A constrained Vite `import.meta.glob("./*/module.ts", { eager: true })` (`app/modules/discover-modules.ts`) discovers every manifest under `app/modules/<module-id>/`. Vite transforms it into static imports at build time, so discovery is deterministic and works under Vite, React Router and Workers with no Node filesystem access in the deployed Worker. The Vite glob lives in the app layer; the pure `collectModuleDefinitions`/`createModuleRegistry` live in the kernel.
+- **Immutable, validated-once registry.** `createModuleRegistry` validates every manifest and descriptor, fails fast on any collision (duplicate module id, route id, route path, entity type, link type, Activity type, command id, search-provider id, setting key, invalid/self/cross-module route parent, kernel-reserved Activity type, invalid setting default, malformed discovery export), builds lookup maps once, and returns a **frozen** registry. Ordering is deterministic and independent of filesystem enumeration; unknown lookups return `null`; there is no registration after construction, and no source-manifest/returned-array/nested-object mutation can change registry state.
+- **Governance, not enums.** The registry reuses the FND-02/04/05 identifier validators (`validateEntityType`, `parseEntityLinkType`, `parseActivityType`) rather than duplicating them — no database enum, no migration, and the D1 repositories are **not** coupled to a registry singleton. Registry membership is not yet a precondition for low-level persistence. Command/route/search/setting ids are namespaced under their module; the kernel lifecycle Activity types are reserved.
+- **Static declaration vs runtime execution.** Command and search handlers carry an explicit `ModuleRuntimeContext` seam and are never invoked to build the registry; route contributions reference their page module lazily and are never loaded during construction. FND-09 supplies the authenticated, workspace-scoped runtime context. A platform adapter (`app/platform/modules/route-contribution-adapter.ts`) resolves route contributions into a nesting tree for FND-09 without eagerly loading page components.
+- **Module development guide.** [`docs/development/MODULES.md`](../development/MODULES.md) documents the manifest convention, every contribution type, discovery, id/namespacing rules, collision behaviour, kernel-reserved types, and how to add a module.
 
 ---
 
 ## Modules (userland)
 
-A module is a self-contained feature area (Today, Projects, Notes, …). Each one, via the [Module Registry](../decisions/ARCHITECTURE_DECISIONS.md#adr-007-module-registry), declares:
+A module is a self-contained feature area (Today, Projects, Notes, …). Each one, via the [Module Registry](#module-registry-self-registering-module-capabilities) ([ADR-013](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery)), declares in its manifest:
 
-- **Routes** — the surfaces it owns in the shell.
+- **Routes** — the surfaces it owns in the shell (lazily referenced page modules).
 - **Entity types** — the records it manages (built on the kernel entity substrate).
+- **EntityLink types** — the relationships it supports (built on the kernel link primitive).
+- **Activity event types** — the custom history/audit events it emits (kernel lifecycle types are reserved).
 - **Commands** — actions exposed to the [Command Palette](../design/DESIGN_SYSTEM.md#command-palette).
 - **Search providers** — how its records appear in [global Search](../design/DESIGN_SYSTEM.md#search).
 - **Settings** — its configuration, rendered through the shared [Settings](../design/DESIGN_SYSTEM.md#settings) pattern.
 
 **Module rules:**
-- A module never imports another module's internals. Cross-module relationships go through **EntityLinks**.
+- A module never imports another module's internals — enforced by a repository import-boundary test ([`MODULES.md`](../development/MODULES.md)). Cross-module relationships go through **EntityLinks**.
 - A module builds its UI from the **shared Design System** — no bespoke duplicates ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke)).
 - A module is independently implementable, matching the [ROADMAP](../roadmap/ROADMAP_V2.md) structure — one item, one PR.
 

@@ -1,0 +1,18 @@
+/**
+ * Test fixture manifest — NOT a product module.
+ */
+import { defineModule } from "~/kernel/modules";
+
+export default defineModule({
+  id: "beta",
+  name: "Beta",
+  order: 1,
+  routes: [
+    {
+      id: "beta.home",
+      index: true,
+      lazy: () => Promise.resolve({ default: () => null }),
+      meta: { navLabel: "Beta" },
+    },
+  ],
+});

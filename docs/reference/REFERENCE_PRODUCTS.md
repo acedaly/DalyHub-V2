@@ -186,6 +186,21 @@
 
 ---
 
+## Module registry evaluation (FND-06)
+
+> The build-vs-reuse evaluation behind [ADR-013](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery). **No new runtime or dev dependency was added** — the registry, validation, deterministic lookup and discovery are implemented entirely with existing TypeScript and the toolchain's own Vite `import.meta.glob`. Patterns studied and candidates rejected:
+
+- **VS Code extension registry / contribution points — 🔴 study-only pattern.** DalyHub borrows the *shape* of "modules declare typed contribution points that the shell discovers" — routes, commands, settings as declarative contributions — but **not** the runtime plugin host, activation events, or extension marketplace. DalyHub modules are trusted compiled-in code, discovered at build time; there is no dynamic/remote loading ([ADR-013 §4.1](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery)).
+- **Obsidian / editor plugin systems — 🔴 study-only.** Reinforce the "capabilities via manifest" idea, but they load third-party code at runtime, which DalyHub explicitly rejects for a single-owner product holding private data.
+- **A dependency-injection / plugin framework (e.g. an IoC container, `awilix`, `tsyringe`).** Considered for wiring module capabilities. **Rejected — build:** the registry is a validate-once, freeze, index-by-id computation over trusted manifests; a DI container adds ceremony and a dependency for what a small kernel function does more clearly, and would invite a mutable service locator the ADR forbids.
+- **A schema-validation library (Zod/Ajv) for manifests.** **Rejected — build & reuse:** module-id/route-path/setting-default validation is small and specific, and identifier validation is **reused** from the existing FND-02/04/05 kernels rather than re-specified — consistent with the kernel carrying no validation framework yet.
+- **A file-based route generator or a custom Vite plugin for discovery.** Considered for turning manifests into routes. **Rejected — use the toolchain's own `import.meta.glob`:** it is a constrained, deterministic, build-time transform already provided by Vite (proven under Vite in unit tests and in the production build), needing no bespoke plugin. Route *composition* into React Router is left to a thin platform adapter for FND-09.
+- **A cross-module import-boundary linter/framework (dependency-cruiser, custom ESLint rule).** Considered to enforce "no module imports another module's internals". **Rejected — a small repository test suffices:** a focused test resolves import specifiers against the `app/modules` tree, enforcing the boundary without a heavy analysis tool ([ADR-013 §18](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery)).
+
+**Decision (Depend / Adapt / Build).** **Build** the module kernel (definition/capability contracts, validation, typed errors, immutable registry, pure discovery collector), the app-layer Vite glob discovery, and the platform route-contribution adapter with existing tooling; **add no dependency**. See [ADR-013](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:
