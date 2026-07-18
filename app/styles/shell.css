@@ -1,0 +1,197 @@
+/*
+ * DS-01 — the authenticated application shell, restyled onto design tokens.
+ *
+ * This replaces FND-09's provisional shell CSS. The MARKUP and behaviour are
+ * unchanged (skip link, header, registry-driven nav, theme control, user menu,
+ * responsive collapse); only the visual language is now the DS-01 token system.
+ * Active navigation is still conveyed semantically (aria-current) and reinforced
+ * — never carried by colour alone.
+ */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--dh-color-bg);
+}
+
+/* Skip link: off-screen until focused, then visible and in normal flow. */
+.skip-link {
+  position: absolute;
+  left: var(--dh-space-2);
+  top: -3rem;
+  z-index: var(--dh-z-sticky);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+  border-radius: var(--dh-radius-sm);
+  text-decoration: none;
+  transition: top var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.skip-link:focus {
+  top: var(--dh-space-2);
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-3) var(--dh-space-4);
+  padding: var(--dh-space-3) var(--dh-gutter);
+  min-height: var(--dh-shell-header-height);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.app-title {
+  font-weight: var(--dh-font-weight-bold);
+  font-size: var(--dh-font-size-lg);
+  letter-spacing: var(--dh-letter-spacing-tight);
+}
+
+.app-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3) var(--dh-space-4);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.primary-nav ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1) var(--dh-space-3);
+  margin: 0;
+  padding: 0;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dh-control-height-md);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  text-decoration: none;
+  color: var(--dh-color-text);
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.nav-link:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+/* Active nav is conveyed by aria-current (semantic), reinforced visually with a
+ * weight change AND an underline bar — not colour alone. */
+.nav-link--active,
+.nav-link[aria-current="page"] {
+  font-weight: var(--dh-font-weight-semibold);
+  box-shadow: inset 0 -2px 0 0 var(--dh-color-accent);
+}
+
+.nav-toggle {
+  display: none;
+  min-height: var(--dh-control-height-md);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.theme-control .theme-fieldset {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.theme-control legend {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  padding: 0;
+  margin-right: var(--dh-space-1);
+}
+
+.theme-option {
+  min-height: var(--dh-control-height-sm);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.theme-option:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.theme-option[aria-pressed="true"] {
+  font-weight: var(--dh-font-weight-semibold);
+  border-color: var(--dh-color-accent);
+  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+}
+
+.user-email {
+  color: var(--dh-color-text-muted);
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-link {
+  color: var(--dh-color-accent-text);
+}
+
+.app-main {
+  flex: 1;
+  padding: clamp(var(--dh-space-6), 5vw, var(--dh-space-12)) var(--dh-gutter);
+  max-width: var(--dh-width-content);
+  margin-inline: auto;
+  width: 100%;
+}
+
+/* Narrow viewports: collapse navigation behind the toggle. The header wraps, so
+ * the page never scrolls horizontally, even at 320px. */
+@media (max-width: 40rem) {
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .primary-nav {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .primary-nav[data-open="false"] {
+    display: none;
+  }
+
+  .primary-nav ul {
+    flex-direction: column;
+  }
+}

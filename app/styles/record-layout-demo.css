@@ -1,0 +1,72 @@
+/*
+ * DS-02 — demo-fixture scaffolding (development only).
+ *
+ * This styles ONLY the demonstration harness (page rhythm, block separators and
+ * the state-toggle controls) — never the Record Layout itself, which is styled
+ * by record-layout.css. It uses DS-01 tokens so even the fixture stays on-system.
+ * It is imported solely by the dev-only demo route, so it never reaches the
+ * production bundle.
+ */
+
+.demo-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-10);
+  min-width: 0;
+}
+
+.demo-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.demo-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+  padding-top: var(--dh-space-6);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  min-width: 0;
+}
+
+.demo-block__title {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-muted);
+}
+
+.demo-prose {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  line-height: var(--dh-line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin-top: var(--dh-space-3);
+}
+
+.demo-toggle {
+  min-height: var(--dh-control-height-sm);
+  padding: 0 var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  cursor: pointer;
+}
+
+.demo-toggle[aria-pressed="true"] {
+  border-color: var(--dh-color-accent);
+  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+  font-weight: var(--dh-font-weight-semibold);
+}

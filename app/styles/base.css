@@ -1,0 +1,141 @@
+/*
+ * DS-01 — base document styles, expressed entirely in design tokens.
+ *
+ * The minimal, un-opinionated foundation every page sits on: box-sizing, the
+ * body type/colour, the focus ring, reduced-motion behaviour, and the small set
+ * of generic content classes the shell pages use (`.page`, `.home`,
+ * `.module-placeholder`, `.markdown-content`). No raw hex/px/duration appears
+ * here — only `var(--dh-*)` tokens from tokens.css.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--dh-color-bg);
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-sans);
+  font-size: var(--dh-font-size-base);
+  line-height: var(--dh-line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Always-visible, high-contrast focus ring for keyboard users (WCAG 2.2 AA;
+ * AGENTS.md §15). The token pair meets the 3:1 non-text contrast requirement in
+ * both themes. */
+:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--dh-radius-xs);
+}
+
+/* Honour the user's reduced-motion preference: motion never carries meaning that
+ * is lost when it is disabled (AGENTS.md §15, DESIGN_SYSTEM.md → Motion). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: var(--dh-duration-instant) !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: var(--dh-duration-instant) !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Generic content surfaces (error page, home, module placeholders).          */
+/* -------------------------------------------------------------------------- */
+
+.page {
+  max-width: var(--dh-width-narrow);
+  margin-inline: auto;
+  padding: clamp(var(--dh-space-6), 5vw, var(--dh-space-16)) var(--dh-gutter);
+}
+
+.page h1,
+.home h1,
+.module-placeholder h1 {
+  font-size: var(--dh-font-size-2xl);
+  line-height: var(--dh-line-height-tight);
+  letter-spacing: var(--dh-letter-spacing-tight);
+  margin: 0 0 var(--dh-space-2);
+}
+
+.page h2,
+.home h2 {
+  font-size: var(--dh-font-size-lg);
+  line-height: var(--dh-line-height-snug);
+  margin: var(--dh-space-6) 0 var(--dh-space-2);
+}
+
+.lead {
+  font-size: var(--dh-font-size-md);
+  color: var(--dh-color-text-secondary);
+  margin: 0 0 var(--dh-space-4);
+}
+
+.muted {
+  color: var(--dh-color-text-muted);
+}
+
+.page a,
+.home a {
+  color: var(--dh-color-accent-text);
+}
+
+.page ul,
+.home ul {
+  padding-left: var(--dh-space-5);
+  margin: 0 0 var(--dh-space-4);
+}
+
+.page li,
+.home li {
+  margin-bottom: var(--dh-space-1);
+}
+
+.page hr {
+  border: none;
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  margin: var(--dh-space-8) 0;
+}
+
+pre {
+  overflow-x: auto;
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-sm);
+}
+
+.home-modules {
+  padding-left: var(--dh-space-5);
+}
+
+/* The shared Markdown sink (FND-08) inherits the token typography; DS-01 gives
+ * it a readable measure and restrained rhythm without changing its behaviour. */
+.markdown-content {
+  max-width: var(--dh-width-prose);
+  line-height: var(--dh-line-height-relaxed);
+}
+
+.markdown-content a {
+  color: var(--dh-color-accent-text);
+}
+
+.markdown-content code {
+  font-family: var(--dh-font-mono);
+  font-size: 0.9em;
+}

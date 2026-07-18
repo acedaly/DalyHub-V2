@@ -154,6 +154,8 @@ A module is a self-contained feature area (Today, Projects, Notes, …). Each on
 
 The Design System sits between modules and the kernel: reusable, kernel-aware UI (a Card knows how to render any entity; the Drawer opens any record; Timeline renders the Activity model). Its patterns and rules are specified in [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) and built in [ROADMAP Phase 1 (`DS-*`)](../roadmap/ROADMAP_V2.md#phase-1--shared-design-system-ds). Modules consume it; they do not fork it.
 
+The foundation is now built ([ADR-017](../decisions/ARCHITECTURE_DECISIONS.md#adr-017-design-tokens-and-the-shared-record-layout)): the **design token system** ([DS-01](../roadmap/ROADMAP_V2.md#-ds-01--design-tokens--theming), [`app/styles/tokens.css`](../../app/styles/tokens.css) + [`app/shared/tokens`](../../app/shared/tokens)) is the authoritative, semantic, light/dark source of every visual value that CSS and components consume; and the entity-agnostic **Shared Record Layout** ([DS-02](../roadmap/ROADMAP_V2.md#-ds-02--shared-record-layout-header--summary--tabs), [`app/shared/record-layout`](../../app/shared/record-layout)) is the one header/summary/tabs/content scaffold every record view composes on those tokens. No UI framework was introduced (plain CSS custom properties + container queries). The Drawer, Cards and Timeline/Activity-Feed components remain later `DS-*` items.
+
 ---
 
 ## Platform

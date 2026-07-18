@@ -22,6 +22,57 @@ Before the components, the shared foundations they're built on. These are define
 
 ---
 
+## Design tokens (DS-01)
+
+The foundations above are made concrete by the **design token system** ([DS-01](../roadmap/ROADMAP_V2.md#-ds-01--design-tokens--theming)). Tokens are the single source of truth for every design *value*; application code — CSS and components — consumes tokens and never hard-codes a raw hex, pixel or duration where a token exists ([AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke)).
+
+- **Authoritative source:** [`app/styles/tokens.css`](../../app/styles/tokens.css) defines every token as a CSS custom property. A typed, greppable registry over the same names lives in [`app/shared/tokens`](../../app/shared/tokens) (`cssVar`/`colorVar` helpers, the breakpoint scale, and the colour maps as data used by the contrast and parity tests).
+- **Consumed once, correct everywhere:** components style themselves in CSS classes that read `var(--dh-*)`. Because the same semantic name carries a different value per theme, a component styled once is correct in light and dark.
+
+### Naming rules
+
+Every token is `--dh-<group>-<role>[-<variant>]`, kebab-case, and **semantic** — named for what it is *for*, not what it looks like.
+
+- ✅ `--dh-color-danger-surface`, `--dh-space-4`, `--dh-radius-md`, `--dh-duration-fast`
+- ❌ `--dh-red-500`, `--dh-16px`, `--dh-blue` — component- or value-specific names are forbidden; they defeat theming and meaning.
+
+Colour tokens are split by **role** so opposite theme requirements don't collide: `--dh-color-accent` is a *fill* (paired with `--dh-color-on-accent` text), while `--dh-color-accent-text` is a *foreground* (links, active indicators) that must contrast on the page background. Feedback colours come as a triple — solid (`--dh-color-danger`), surface tint (`--dh-color-danger-surface`), and text-on-surface (`--dh-color-danger-text`).
+
+### Taxonomy
+
+| Group | Tokens (examples) | Notes |
+|---|---|---|
+| **Colour — surfaces/text** | `bg`, `surface`, `surface-raised`, `surface-sunken`, `text`, `text-secondary`, `text-muted`, `on-accent`, `border`, `border-strong`, `divider` | semantic surfaces & text; light/dark mapped |
+| **Colour — brand/interactive** | `accent`, `accent-hover`, `accent-active`, `accent-text`, `accent-surface`, `secondary`, `secondary-hover`, `hover-surface`, `active-surface`, `disabled-surface`, `disabled-text`, `disabled-border` | fills vs foreground kept distinct |
+| **Colour — feedback** | `success{,-surface,-text}`, `warning{,-surface,-text}`, `danger{,-surface,-text}`, `info{,-surface,-text}` | never colour-only — always paired with a label/icon |
+| **Colour — focus/selection/overlay** | `focus-ring`, `selection-bg`, `selection-text`, `overlay` | focus ring meets 3:1 in both themes |
+| **Typography** | `--dh-font-sans/-mono`, `--dh-font-size-2xs…3xl`, `--dh-line-height-*`, `--dh-font-weight-*`, `--dh-letter-spacing-*` | one restrained, dense ramp (base 15px) with heading/body/label/metadata/code roles |
+| **Spacing** | `--dh-space-0…16` (+ `-px`) | 4px base scale |
+| **Sizing** | `--dh-control-height-sm/md/lg`, `--dh-touch-target-min` (44px), `--dh-width-narrow/prose/content/wide`, `--dh-shell-*`, `--dh-gutter` | control heights & content widths |
+| **Shape** | `--dh-border-width-thin/thick`, `--dh-radius-xs…xl/full` | radius scale + border widths |
+| **Elevation** | `--dh-shadow-sm/md/lg`, `--dh-shadow-focus` | shadows are theme-mapped (softer in light, deeper in dark) |
+| **Motion** | `--dh-duration-instant/fast/base/slow`, `--dh-ease-standard/emphasized/exit` | quick, purposeful; zeroed under reduced-motion |
+| **Layout** | `--dh-breakpoint-sm…2xl`, `--dh-z-base…tooltip` | breakpoints (also in TS) & z-index layers |
+
+### Theme mapping
+
+Light and dark are two maps over **the same semantic names**; only colour and elevation tokens change between them. The mechanism (from [ADR-016 §5.11](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing), whose values DS-01 now supplies) is a `data-theme` attribute the server renders on `<html>` from the persisted cookie, so the first byte is already correct — **no flash, no client theme script**:
+
+- `light` → forces the light map.
+- `dark` → forces the dark map.
+- `system` (default) → follows `prefers-color-scheme`.
+
+`prefers-reduced-motion: reduce` collapses every transition/animation to `--dh-duration-instant`; meaning is never carried by motion alone.
+
+### Consumption & extension rules
+
+1. **Use tokens, not literals.** Any colour/space/size/radius/shadow/duration in application CSS or components must be a `var(--dh-*)`. A test scans `app/` and fails if a `var(--dh-*)` references an undefined token.
+2. **Extend by adding a token first**, then consuming it. Never widen a component with a one-off literal.
+3. **A new colour token must be given a value in the light map and BOTH dark blocks** — the two dark blocks are kept in parity by a test, and required tokens/contrast are enforced by tests (4.5:1 text, 3:1 UI).
+4. **Prefer a semantic token over a raw palette value.** There is no exposed raw palette; semantics are the API.
+
+---
+
 ## The pattern catalogue
 
 Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. Patterns compose — the [Record Layout](#record-header) is built from many of the others.
@@ -133,6 +184,56 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Anatomy.** A short, warm explanation of what belongs here · the primary action to create the first one · optional example/illustration.
 **Behaviour.** Distinguishes *empty* (no data yet — teach + invite) from *filtered-empty* (no matches — offer to clear filters). Contextual to the module.
 **Rules.** No dead-end empty states. Every one teaches the next step (see [UX philosophy](../../AGENTS.md#6-ux-philosophy)).
+
+---
+
+## Shared Record Layout (DS-02)
+
+The [Record Header](#record-header), [Summary Panel](#summary-panel) and [Tabs](#tabs) patterns above are realised by ONE reusable, entity-agnostic scaffold: the **Shared Record Layout** ([DS-02](../roadmap/ROADMAP_V2.md#-ds-02--shared-record-layout-header--summary--tabs)), in [`app/shared/record-layout`](../../app/shared/record-layout). Every record view (Area, Goal, Project, Task, Person, Note, …) composes it — there are no bespoke record scaffolds. It builds entirely on [DS-01 tokens](#design-tokens-ds-01); it owns structure and accessibility, not values.
+
+### Anatomy
+
+```
+<article aria-labelledby=title>          ← labelled landmark, titled by its heading
+  RecordHeader
+    ├ breadcrumb (parent context, aria "Breadcrumb")
+    ├ type label + entity icon (icon decorative; label names it)
+    ├ title  (the record heading — h1 by default, configurable level)
+    ├ status pill  (tone + always a text label — never colour-only)
+    ├ metadata chips
+    └ actions  (secondary… + one primary; link when href, else button)
+  RecordSummary        (optional)  ← description + key/value <dl>, or a clear empty state
+  RecordTabs           (optional)  ← tablist + panels; the active panel IS the content region
+    └ RecordContent    ← predictable padding/width + loading / empty / error slots
+```
+
+When no tabs are supplied, the content region is the layout's `children` wrapped in a padded container. `RecordContent` is independently reusable and can appear inside any tab panel.
+
+### Supported configuration
+
+- **Header:** `title` (required) · `titleId`/`headingLevel` · `typeLabel` · `icon` · `status {label, tone}` · `breadcrumb[]` · `metadata[]` · `primaryAction` · `secondaryActions[]`. Every region is optional except the title and is omitted entirely when absent.
+- **Actions** (`RecordAction`): `label` (also the accessible name unless `ariaLabel` overrides) · `href` (renders a link) or `onSelect` (renders a button) · `variant` (`primary`/`secondary`) · `disabled`.
+- **Summary** (`RecordSummaryProps`): `description` · `metadata[]` · `emptyLabel`. Requested-but-empty shows a calm empty state.
+- **Tabs** (`RecordTab`): `id` · `label` · `content` · `disabled` (visible, not selectable) · `hidden` (omitted) · `badge` (decorative). Controlled (`activeTabId` + `onTabChange`) or uncontrolled (`defaultTabId`); wire `onTabChange` to a URL param for deep-linking.
+- **Content** (`RecordContentProps`): `isLoading` · `isEmpty` · `error` · `loadingSlot`/`emptySlot`/`errorSlot` overrides · `label`. Precedence: error → loading → empty → children.
+
+### Responsive behaviour
+
+The layout is a **container-query context** (`container-type: inline-size`), so it adapts to the width of its container — the main region today, a [Drawer](#drawer) in DS-03 tomorrow — not the viewport. With `min-width: 0`, wrapping metadata, `overflow-wrap: anywhere` on titles/descriptions and a horizontally-scrollable tab strip, there is **no horizontal page overflow from 320px up**. On a narrow container, header actions take the full width beneath the title and grow to a comfortable target rather than disappearing.
+
+### Accessibility
+
+- **Landmarks & outline:** the record is an `article` labelled by its heading; the heading level is configurable so the surrounding page keeps a correct outline.
+- **Tabs:** the WAI-ARIA Tabs pattern — `role="tablist"`/`tab`/`tabpanel`, roving `tabindex`, `ArrowLeft/Right`/`Home`/`End` navigation that skips disabled tabs, and panels linked with `aria-labelledby`. The active tab is signalled by `aria-selected` **and** weight + an underline bar — **never colour alone**.
+- **Actions** always carry an accessible name; icon/terse labels use `ariaLabel`. **Focus** is visible on every control via the DS-01 focus ring. The loading region sets `aria-busy`; the error slot is a `role="alert"`. Motion (the skeleton shimmer) honours reduced-motion.
+
+### Correct vs incorrect usage
+
+- ✅ Compose a record from `RecordLayout`, passing plain typed data; put depth in `tabs`, essentials in `summary`.
+- ✅ Convey status with a `tone` **and** its label; give every action a real name.
+- ❌ Build a bespoke header/tab strip for a module, or restyle the layout with one-off CSS instead of extending tokens.
+- ❌ Encode meaning in colour alone (a red pill with no label), or use `RecordContent` error text without a recovery.
+- ❌ Bake entity-specific logic into the layout — it stays entity-agnostic; entity behaviour lives in the module.
 
 ---
 

@@ -1,0 +1,512 @@
+/*
+ * DS-02 — the Shared Record Layout, styled entirely on DS-01 tokens.
+ *
+ * The layout is a container-query context, so it adapts to the WIDTH OF ITS
+ * CONTAINER (the main region today; a Drawer in DS-03 later) rather than the
+ * viewport. Combined with `min-width: 0`, wrapping metadata and a scrollable tab
+ * strip, this guarantees no horizontal page overflow from 320px up. No raw
+ * colour/size/duration values appear here — only `var(--dh-*)` tokens.
+ */
+
+.record-layout {
+  container-type: inline-size;
+  container-name: record;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+  min-width: 0;
+  max-width: var(--dh-width-content);
+  color: var(--dh-color-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Header                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.record-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+.record-breadcrumb ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-1) var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.record-breadcrumb li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1) var(--dh-space-2);
+}
+
+/* Separator between crumbs, drawn with a decorative pseudo-element. */
+.record-breadcrumb li + li::before {
+  content: "/";
+  color: var(--dh-color-border-strong);
+}
+
+.record-breadcrumb a {
+  color: var(--dh-color-text-secondary);
+  text-decoration: none;
+}
+
+.record-breadcrumb a:hover {
+  color: var(--dh-color-accent-text);
+  text-decoration: underline;
+}
+
+.record-breadcrumb [aria-current="page"] {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.record-header__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--dh-space-3) var(--dh-space-4);
+  min-width: 0;
+}
+
+.record-header__identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+  flex: 1 1 20rem;
+}
+
+.record-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  letter-spacing: var(--dh-letter-spacing-wider);
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.record-type__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--dh-color-accent-text);
+}
+
+.record-header__titlerow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  min-width: 0;
+}
+
+.record-title {
+  margin: 0;
+  font-size: var(--dh-font-size-xl);
+  line-height: var(--dh-line-height-tight);
+  letter-spacing: var(--dh-letter-spacing-tight);
+  font-weight: var(--dh-font-weight-bold);
+  /* Long titles wrap and break rather than force the page wider. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Status pill — tone sets the colour, the label always carries the meaning. */
+.record-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-px) var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  white-space: nowrap;
+}
+
+.record-status__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-text-muted);
+  flex: none;
+}
+
+.record-status[data-tone="accent"] {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  border-color: var(--dh-color-accent-surface);
+}
+.record-status[data-tone="accent"] .record-status__dot {
+  background: var(--dh-color-accent);
+}
+
+.record-status[data-tone="success"] {
+  background: var(--dh-color-success-surface);
+  color: var(--dh-color-success-text);
+  border-color: var(--dh-color-success-surface);
+}
+.record-status[data-tone="success"] .record-status__dot {
+  background: var(--dh-color-success);
+}
+
+.record-status[data-tone="warning"] {
+  background: var(--dh-color-warning-surface);
+  color: var(--dh-color-warning-text);
+  border-color: var(--dh-color-warning-surface);
+}
+.record-status[data-tone="warning"] .record-status__dot {
+  background: var(--dh-color-warning);
+}
+
+.record-status[data-tone="danger"] {
+  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-danger-text);
+  border-color: var(--dh-color-danger-surface);
+}
+.record-status[data-tone="danger"] .record-status__dot {
+  background: var(--dh-color-danger);
+}
+
+.record-status[data-tone="info"] {
+  background: var(--dh-color-info-surface);
+  color: var(--dh-color-info-text);
+  border-color: var(--dh-color-info-surface);
+}
+.record-status[data-tone="info"] .record-status__dot {
+  background: var(--dh-color-info);
+}
+
+/* Actions: wrap onto their own line on narrow containers rather than disappear. */
+.record-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  flex: 0 1 auto;
+}
+
+.record-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  border: var(--dh-border-width-thin) solid transparent;
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-tight);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    border-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.record-action--primary {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+}
+.record-action--primary:hover {
+  background: var(--dh-color-accent-hover);
+}
+.record-action--primary:active {
+  background: var(--dh-color-accent-active);
+}
+
+.record-action--secondary {
+  background: var(--dh-color-secondary);
+  color: var(--dh-color-text);
+  border-color: var(--dh-color-border);
+}
+.record-action--secondary:hover {
+  background: var(--dh-color-secondary-hover);
+}
+
+.record-action:disabled,
+.record-action[aria-disabled="true"] {
+  background: var(--dh-color-disabled-surface);
+  color: var(--dh-color-disabled-text);
+  border-color: var(--dh-color-disabled-border);
+  cursor: not-allowed;
+}
+
+/* Header metadata chips. */
+.record-header__meta {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2) var(--dh-space-4);
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.record-meta-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--dh-space-1);
+  font-size: var(--dh-font-size-sm);
+  min-width: 0;
+}
+
+.record-meta-chip__label {
+  color: var(--dh-color-text-muted);
+}
+
+.record-meta-chip__value {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Summary                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.record-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  min-width: 0;
+}
+
+.record-summary__description {
+  color: var(--dh-color-text-secondary);
+  line-height: var(--dh-line-height-relaxed);
+  max-width: var(--dh-width-prose);
+  overflow-wrap: anywhere;
+}
+
+.record-summary__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--dh-space-3) var(--dh-space-5);
+  margin: 0;
+}
+
+.record-summary__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+  min-width: 0;
+}
+
+.record-summary__meta-item dt {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+}
+
+.record-summary__meta-item dd {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs                                                                       */
+/* -------------------------------------------------------------------------- */
+
+.record-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+  min-width: 0;
+}
+
+.record-tabs__list {
+  display: flex;
+  gap: var(--dh-space-1);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  /* Overflow horizontally on narrow screens instead of widening the page. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+  min-width: 0;
+}
+
+.record-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  flex: none;
+  min-height: var(--dh-control-height-lg);
+  padding: 0 var(--dh-space-3);
+  border: none;
+  border-bottom: var(--dh-border-width-thick) solid transparent;
+  margin-bottom: calc(-1 * var(--dh-border-width-thin));
+  background: none;
+  color: var(--dh-color-text-secondary);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.record-tab:hover {
+  color: var(--dh-color-text);
+}
+
+/* Active tab: weight change + underline bar carry the state without colour. */
+.record-tab[data-active="true"] {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-semibold);
+  border-bottom-color: var(--dh-color-accent);
+}
+
+.record-tab[data-disabled="true"] {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.record-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  padding: 0 var(--dh-space-1);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-sunken);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.record-tabs__panel {
+  min-width: 0;
+}
+
+.record-tabs__panel:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--dh-radius-xs);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Content region                                                             */
+/* -------------------------------------------------------------------------- */
+
+.record-layout__content,
+.record-content {
+  min-width: 0;
+}
+
+.record-content__error {
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-danger-surface);
+  border-left: var(--dh-border-width-thick) solid var(--dh-color-danger);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-danger-text);
+}
+
+.record-content__error-message {
+  margin: 0;
+}
+
+.record-content__empty {
+  padding: var(--dh-space-8) var(--dh-space-4);
+  text-align: center;
+  border: var(--dh-border-width-thin) dashed var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+}
+
+.record-content__loading {
+  padding: var(--dh-space-1) 0;
+}
+
+/* Skeleton: opacity/shape only; the shimmer animation is disabled under
+ * reduced-motion via the DS-01 base rule. */
+.record-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.record-skeleton__line {
+  height: 0.75rem;
+  border-radius: var(--dh-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--dh-color-surface-sunken) 0%,
+    var(--dh-color-hover-surface) 50%,
+    var(--dh-color-surface-sunken) 100%
+  );
+  background-size: 200% 100%;
+  animation: record-skeleton-shimmer var(--dh-duration-slow) linear infinite
+    alternate;
+}
+
+.record-skeleton__line--title {
+  height: 1.25rem;
+  width: 40%;
+}
+
+.record-skeleton__line--short {
+  width: 60%;
+}
+
+@keyframes record-skeleton-shimmer {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: -100% 0%;
+  }
+}
+
+/* Visually-hidden but screen-reader-available text (e.g. "Loading…"). */
+.record-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Container-driven adaptation                                                */
+/* -------------------------------------------------------------------------- */
+
+/* On a narrow container, actions take the full width under the title and the
+ * primary action grows to a comfortable touch target — nothing disappears. */
+@container record (max-width: 34rem) {
+  .record-header__actions {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+
+  .record-action {
+    flex: 1 1 auto;
+  }
+}

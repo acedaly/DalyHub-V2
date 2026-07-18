@@ -1,0 +1,360 @@
+/*
+ * DS-01 — DalyHub design tokens (the authoritative token layer).
+ *
+ * This file is the single source of truth for every design VALUE in DalyHub:
+ * colour, typography, spacing, sizing, shape, elevation, motion, z-index and
+ * layout. Application code — CSS and components — consumes ONLY these tokens and
+ * never hard-codes a raw hex, pixel or duration where a token exists
+ * (AGENTS.md §9.8, DESIGN_SYSTEM.md → Foundations).
+ *
+ * Naming: every token is `--dh-<group>-<role>[-<variant>]`, all kebab-case, all
+ * SEMANTIC (what it is FOR, e.g. `--dh-color-danger-surface`) rather than what it
+ * looks like (never `--dh-red-500`). The same semantic names carry different
+ * values across themes, so a component styled once is correct in every theme.
+ *
+ * Theming (ADR-016 §5.11 mechanism, DS-01 values): the root layout renders
+ * `<html data-theme>` from the persisted cookie during SSR, so the correct theme
+ * is present on the first byte — no light-to-dark flash and no client script.
+ *   - `light`  → forces the light map.
+ *   - `dark`   → forces the dark map.
+ *   - `system` (default) → follows `prefers-color-scheme`.
+ * Only the COLOUR tokens change between themes; every other token (type, space,
+ * shape, motion, layout) is theme-independent and defined once on `:root`.
+ *
+ * Extension rules: add a token here first, then consume it. Prefer adding a
+ * semantic token over widening a component's local values. When a new colour
+ * token is added it MUST be given a value in the light map AND both dark blocks
+ * (see the parity test in test/unit/tokens). Contrast for text/control pairs is
+ * verified in test/unit/tokens/contrast.test.ts — keep AA (4.5:1 text, 3:1 UI).
+ *
+ * The breakpoint values below are also exposed as `--dh-breakpoint-*` for
+ * reference and container queries; media queries cannot read custom properties,
+ * so the same numeric values are mirrored in app/shared/tokens/tokens.ts and
+ * used literally in `@media`/`@container` rules (kept in sync by a test).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------------- */
+  /* Typography                                                             */
+  /* ---------------------------------------------------------------------- */
+  --dh-font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --dh-font-mono:
+    ui-monospace, "SF Mono", "SFMono-Regular", "Menlo", "Consolas",
+    "Liberation Mono", monospace;
+
+  /* Type scale — a restrained, information-dense ramp (base = 0.9375rem/15px). */
+  --dh-font-size-2xs: 0.6875rem; /* 11px — dense metadata */
+  --dh-font-size-xs: 0.75rem; /* 12px — labels, chips */
+  --dh-font-size-sm: 0.8125rem; /* 13px — secondary text */
+  --dh-font-size-base: 0.9375rem; /* 15px — body */
+  --dh-font-size-md: 1rem; /* 16px — emphasised body */
+  --dh-font-size-lg: 1.125rem; /* 18px — small headings */
+  --dh-font-size-xl: 1.375rem; /* 22px — record titles */
+  --dh-font-size-2xl: 1.75rem; /* 28px — page headings */
+  --dh-font-size-3xl: 2.25rem; /* 36px — display */
+
+  /* Line heights. */
+  --dh-line-height-tight: 1.2;
+  --dh-line-height-snug: 1.35;
+  --dh-line-height-normal: 1.5;
+  --dh-line-height-relaxed: 1.65;
+
+  /* Weights. */
+  --dh-font-weight-regular: 400;
+  --dh-font-weight-medium: 500;
+  --dh-font-weight-semibold: 600;
+  --dh-font-weight-bold: 700;
+
+  /* Letter spacing. */
+  --dh-letter-spacing-tight: -0.01em;
+  --dh-letter-spacing-normal: 0em;
+  --dh-letter-spacing-wide: 0.02em;
+  --dh-letter-spacing-wider: 0.06em; /* uppercase labels */
+
+  /* ---------------------------------------------------------------------- */
+  /* Spacing scale (4px base)                                               */
+  /* ---------------------------------------------------------------------- */
+  --dh-space-0: 0;
+  --dh-space-px: 1px;
+  --dh-space-1: 0.25rem; /* 4 */
+  --dh-space-2: 0.5rem; /* 8 */
+  --dh-space-3: 0.75rem; /* 12 */
+  --dh-space-4: 1rem; /* 16 */
+  --dh-space-5: 1.25rem; /* 20 */
+  --dh-space-6: 1.5rem; /* 24 */
+  --dh-space-8: 2rem; /* 32 */
+  --dh-space-10: 2.5rem; /* 40 */
+  --dh-space-12: 3rem; /* 48 */
+  --dh-space-16: 4rem; /* 64 */
+
+  /* ---------------------------------------------------------------------- */
+  /* Sizing                                                                 */
+  /* ---------------------------------------------------------------------- */
+  --dh-control-height-sm: 1.75rem; /* 28 */
+  --dh-control-height-md: 2.25rem; /* 36 */
+  --dh-control-height-lg: 2.75rem; /* 44 — also the touch-target minimum */
+  --dh-touch-target-min: 2.75rem; /* 44px — WCAG 2.2 target size */
+
+  --dh-width-prose: 68ch; /* readable long-form measure */
+  --dh-width-narrow: 42rem; /* single-column pages */
+  --dh-width-content: 72rem; /* dense record content */
+  --dh-width-wide: 90rem; /* multi-pane shells */
+
+  --dh-shell-header-height: 3.5rem;
+  --dh-shell-nav-width: 15rem;
+
+  /* Responsive gutter: grows with the viewport, bounded at both ends. */
+  --dh-gutter: clamp(1rem, 4vw, 2rem);
+
+  /* ---------------------------------------------------------------------- */
+  /* Shape & border                                                         */
+  /* ---------------------------------------------------------------------- */
+  --dh-border-width-thin: 1px;
+  --dh-border-width-thick: 2px;
+
+  --dh-radius-xs: 3px;
+  --dh-radius-sm: 5px;
+  --dh-radius-md: 8px;
+  --dh-radius-lg: 12px;
+  --dh-radius-xl: 16px;
+  --dh-radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------- */
+  /* Motion                                                                 */
+  /* ---------------------------------------------------------------------- */
+  --dh-duration-instant: 0ms;
+  --dh-duration-fast: 120ms;
+  --dh-duration-base: 180ms;
+  --dh-duration-slow: 240ms;
+
+  --dh-ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+  --dh-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --dh-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---------------------------------------------------------------------- */
+  /* Layout — breakpoints (reference/container queries) & z-index layers    */
+  /* ---------------------------------------------------------------------- */
+  --dh-breakpoint-sm: 30rem; /* 480 */
+  --dh-breakpoint-md: 48rem; /* 768 */
+  --dh-breakpoint-lg: 64rem; /* 1024 */
+  --dh-breakpoint-xl: 80rem; /* 1280 */
+  --dh-breakpoint-2xl: 96rem; /* 1536 */
+
+  --dh-z-base: 0;
+  --dh-z-raised: 10;
+  --dh-z-sticky: 100;
+  --dh-z-dropdown: 1000;
+  --dh-z-overlay: 1100;
+  --dh-z-drawer: 1200;
+  --dh-z-modal: 1300;
+  --dh-z-toast: 1400;
+  --dh-z-tooltip: 1500;
+
+  /* ---------------------------------------------------------------------- */
+  /* Elevation (shadows/overlays) — light theme                             */
+  /* ---------------------------------------------------------------------- */
+  --dh-shadow-sm: 0 1px 2px rgba(16, 18, 22, 0.06);
+  --dh-shadow-md: 0 2px 8px rgba(16, 18, 22, 0.1);
+  --dh-shadow-lg: 0 12px 32px rgba(16, 18, 22, 0.16);
+  --dh-shadow-focus: 0 0 0 3px var(--dh-color-focus-ring);
+
+  /* ---------------------------------------------------------------------- */
+  /* Colour — LIGHT map (the default theme)                                 */
+  /* ---------------------------------------------------------------------- */
+
+  /* Backgrounds & surfaces. */
+  --dh-color-bg: #ffffff;
+  --dh-color-surface: #f5f6f8;
+  --dh-color-surface-raised: #ffffff;
+  --dh-color-surface-sunken: #eceef2;
+
+  /* Text. */
+  --dh-color-text: #1a1d23;
+  --dh-color-text-secondary: #454b57;
+  --dh-color-text-muted: #5b6270;
+  --dh-color-on-accent: #ffffff;
+
+  /* Borders & dividers. */
+  --dh-color-border: #dfe2e8;
+  --dh-color-border-strong: #c3c8d2;
+  --dh-color-divider: #e8eaef;
+
+  /* Accent / brand. */
+  --dh-color-accent: #2952cc;
+  --dh-color-accent-hover: #2247b0;
+  --dh-color-accent-active: #1c3c96;
+  --dh-color-accent-text: #2450c8;
+  --dh-color-accent-surface: #eef3ff;
+
+  /* Secondary (neutral) action. */
+  --dh-color-secondary: #eef0f4;
+  --dh-color-secondary-hover: #e2e5eb;
+
+  /* Feedback — solid / surface tint / text-on-surface. */
+  --dh-color-success: #1f7a44;
+  --dh-color-success-surface: #e6f4ec;
+  --dh-color-success-text: #196236;
+  --dh-color-warning: #a76a00;
+  --dh-color-warning-surface: #fbf0dc;
+  --dh-color-warning-text: #855400;
+  --dh-color-danger: #c33025;
+  --dh-color-danger-surface: #fbe9e7;
+  --dh-color-danger-text: #a5271e;
+  --dh-color-info: #1f6fb2;
+  --dh-color-info-surface: #e6f1fa;
+  --dh-color-info-text: #185a91;
+
+  /* Interactive states. */
+  --dh-color-hover-surface: #f0f1f4;
+  --dh-color-active-surface: #e6e8ed;
+  --dh-color-disabled-surface: #f0f1f4;
+  --dh-color-disabled-text: #9aa0ac;
+  --dh-color-disabled-border: #e0e2e8;
+
+  /* Focus & selection. */
+  --dh-color-focus-ring: #2952cc;
+  --dh-color-selection-bg: #cddcff;
+  --dh-color-selection-text: #10213f;
+
+  /* Overlay / scrim. */
+  --dh-color-overlay: rgba(16, 18, 22, 0.5);
+}
+
+/*
+ * Colour — DARK map.
+ *
+ * Applied when the theme is EXPLICITLY dark, and (below) when the theme is
+ * `system`/unset and the OS prefers dark. The two blocks are kept byte-identical
+ * by a parity test; if you change one, change the other. Only colour and
+ * elevation tokens are remapped — every structural token is inherited from
+ * `:root`.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --dh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --dh-shadow-md: 0 2px 10px rgba(0, 0, 0, 0.55);
+  --dh-shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.6);
+
+  --dh-color-bg: #0f1115;
+  --dh-color-surface: #171a21;
+  --dh-color-surface-raised: #1e222b;
+  --dh-color-surface-sunken: #0b0d11;
+
+  --dh-color-text: #f2f3f5;
+  --dh-color-text-secondary: #c4c9d2;
+  --dh-color-text-muted: #9299a6;
+  --dh-color-on-accent: #ffffff;
+
+  --dh-color-border: #2b2f39;
+  --dh-color-border-strong: #3c414d;
+  --dh-color-divider: #23272f;
+
+  --dh-color-accent: #3b62d9;
+  --dh-color-accent-hover: #4a70e6;
+  --dh-color-accent-active: #5a7dee;
+  --dh-color-accent-text: #8fa8ff;
+  --dh-color-accent-surface: #1a2138;
+
+  --dh-color-secondary: #232833;
+  --dh-color-secondary-hover: #2c313d;
+
+  --dh-color-success: #2f9c5c;
+  --dh-color-success-surface: #10241a;
+  --dh-color-success-text: #5cd18e;
+  --dh-color-warning: #cf9134;
+  --dh-color-warning-surface: #241a0d;
+  --dh-color-warning-text: #e6b35c;
+  --dh-color-danger: #e05548;
+  --dh-color-danger-surface: #2a1210;
+  --dh-color-danger-text: #f5988e;
+  --dh-color-info: #3a8fce;
+  --dh-color-info-surface: #0e1e2b;
+  --dh-color-info-text: #6fb8e6;
+
+  --dh-color-hover-surface: #1d212a;
+  --dh-color-active-surface: #252a34;
+  --dh-color-disabled-surface: #191d25;
+  --dh-color-disabled-text: #626875;
+  --dh-color-disabled-border: #262b34;
+
+  --dh-color-focus-ring: #8fa8ff;
+  --dh-color-selection-bg: #2a3f6b;
+  --dh-color-selection-text: #eaf0ff;
+
+  --dh-color-overlay: rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"],
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --dh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --dh-shadow-md: 0 2px 10px rgba(0, 0, 0, 0.55);
+    --dh-shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.6);
+
+    --dh-color-bg: #0f1115;
+    --dh-color-surface: #171a21;
+    --dh-color-surface-raised: #1e222b;
+    --dh-color-surface-sunken: #0b0d11;
+
+    --dh-color-text: #f2f3f5;
+    --dh-color-text-secondary: #c4c9d2;
+    --dh-color-text-muted: #9299a6;
+    --dh-color-on-accent: #ffffff;
+
+    --dh-color-border: #2b2f39;
+    --dh-color-border-strong: #3c414d;
+    --dh-color-divider: #23272f;
+
+    --dh-color-accent: #3b62d9;
+    --dh-color-accent-hover: #4a70e6;
+    --dh-color-accent-active: #5a7dee;
+    --dh-color-accent-text: #8fa8ff;
+    --dh-color-accent-surface: #1a2138;
+
+    --dh-color-secondary: #232833;
+    --dh-color-secondary-hover: #2c313d;
+
+    --dh-color-success: #2f9c5c;
+    --dh-color-success-surface: #10241a;
+    --dh-color-success-text: #5cd18e;
+    --dh-color-warning: #cf9134;
+    --dh-color-warning-surface: #241a0d;
+    --dh-color-warning-text: #e6b35c;
+    --dh-color-danger: #e05548;
+    --dh-color-danger-surface: #2a1210;
+    --dh-color-danger-text: #f5988e;
+    --dh-color-info: #3a8fce;
+    --dh-color-info-surface: #0e1e2b;
+    --dh-color-info-text: #6fb8e6;
+
+    --dh-color-hover-surface: #1d212a;
+    --dh-color-active-surface: #252a34;
+    --dh-color-disabled-surface: #191d25;
+    --dh-color-disabled-text: #626875;
+    --dh-color-disabled-border: #262b34;
+
+    --dh-color-focus-ring: #8fa8ff;
+    --dh-color-selection-bg: #2a3f6b;
+    --dh-color-selection-text: #eaf0ff;
+
+    --dh-color-overlay: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* `system` participates in both schemes so form controls and scrollbars follow
+ * the resolved OS preference. */
+:root[data-theme="system"] {
+  color-scheme: light dark;
+}
+
+/* Text selection uses the semantic selection tokens in every theme. */
+::selection {
+  background: var(--dh-color-selection-bg);
+  color: var(--dh-color-selection-text);
+}
