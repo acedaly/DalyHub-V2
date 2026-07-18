@@ -136,6 +136,16 @@ describe("FilterBar — edit, remove, clear", () => {
     expect(within(chips).queryByText("run")).toBeNull();
   });
 
+  it("restores focus to the chip's edit button after the editor closes", () => {
+    render(<Harness initial={initial} />);
+    const editButton = screen.getByRole("button", { name: /Edit filter/ });
+    fireEvent.click(editButton);
+    const dialog = screen.getByRole("dialog", { name: "Edit filter" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    // Focus returns to the triggering chip, not the removed dialog/body.
+    expect(document.activeElement).toBe(editButton);
+  });
+
   it("removes a clause", () => {
     render(<Harness initial={initial} />);
     fireEvent.click(screen.getByRole("button", { name: /Remove filter/ }));

@@ -106,7 +106,10 @@ export function FilterBar({
     setEditor({ mode: "add" });
   };
 
-  const openEdit = (clause: FilterClause) => {
+  const openEdit = (clause: FilterClause, trigger: HTMLElement) => {
+    // Capture the chip's edit button so focus returns to it after the editor
+    // closes (Update/Cancel/Escape/outside-click), keeping the flow keyboard-complete.
+    triggerRef.current = trigger;
     setEditor({ mode: "edit", clause });
   };
 
@@ -219,7 +222,7 @@ export function FilterBar({
                 <FilterChip
                   description={describeClause(fields, clause)}
                   accessibleName={clauseAccessibleName(fields, clause)}
-                  onEdit={() => openEdit(clause)}
+                  onEdit={(event) => openEdit(clause, event.currentTarget)}
                   onRemove={() => removeClause(clause.id)}
                 />
               </li>

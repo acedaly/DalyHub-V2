@@ -7,12 +7,14 @@
  * is never conveyed by colour alone — the text says everything.
  */
 
+import type { MouseEvent } from "react";
+
 import type { ClauseDescription } from "./display";
 
 interface FilterChipProps {
   readonly description: ClauseDescription;
   readonly accessibleName: string;
-  readonly onEdit: () => void;
+  readonly onEdit: (event: MouseEvent<HTMLButtonElement>) => void;
   readonly onRemove: () => void;
 }
 

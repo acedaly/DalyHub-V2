@@ -272,12 +272,18 @@ export function ReorderableCardCollection<T>({
       }
     };
     const onUp = () => drop(id);
+    // Named handler so cleanup removes it too — an anonymous `pointercancel`
+    // listener would survive a normal pointer-up (it never fires to trigger its
+    // `once`), and this effect re-runs on every move, so stale cancel callbacks
+    // would accumulate and a later cancel could end the wrong (current) drag.
+    const onCancel = () => cancel(id);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", () => cancel(id), { once: true });
+    window.addEventListener("pointercancel", onCancel);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
     };
   }, [
     drag,
