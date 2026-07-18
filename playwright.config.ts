@@ -1,4 +1,15 @@
+import { existsSync } from "node:fs";
+
 import { defineConfig, devices } from "@playwright/test";
+
+// Use the environment's pre-installed Chromium when present (this managed
+// sandbox ships one at /opt/pw-browsers/chromium); in CI and elsewhere fall back
+// to the browser Playwright installs itself. Conditional so the config works in
+// both places without a hardcoded path that only exists here.
+const LOCAL_CHROMIUM = "/opt/pw-browsers/chromium";
+const chromiumExecutablePath = existsSync(LOCAL_CHROMIUM)
+  ? LOCAL_CHROMIUM
+  : undefined;
 
 /**
  * Deliberately minimal, deterministic E2E setup (see ADR-008, ADR-016 and the
@@ -41,9 +52,9 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        // Use the environment's pre-installed Chromium (symlink to the real
-        // binary) rather than downloading one.
-        launchOptions: { executablePath: "/opt/pw-browsers/chromium" },
+        ...(chromiumExecutablePath
+          ? { launchOptions: { executablePath: chromiumExecutablePath } }
+          : {}),
       },
     },
   ],

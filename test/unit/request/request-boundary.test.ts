@@ -48,9 +48,8 @@ const PROD_ENV = {
 
 describe("authenticated request boundary", () => {
   it("serves /health without authentication and never authenticates it", async () => {
-    const handler = vi.fn(
-      (_request: Request): Promise<Response> =>
-        Promise.resolve(new Response("health")),
+    const handler = vi.fn((_request: Request): Promise<Response> =>
+      Promise.resolve(new Response("health")),
     );
     const factory = vi.fn(() => fixedAuthenticator(OWNER_SESSION));
 
