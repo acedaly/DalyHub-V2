@@ -142,6 +142,9 @@ const STRUCTURAL_LINK_LIST = SPINE_LINK_TYPES.map((t) => `'${t}'`).join(", ");
 /** Bounded optimistic-retry budget for `rename`, mirroring the entity repository. */
 const MAX_RENAME_ATTEMPTS = 5;
 
+/** Bounded optimistic-retry budget for `complete`/`reopen` under contention. */
+const MAX_COMPLETION_ATTEMPTS = 5;
+
 /** A single domain statement plus the optional Activity event it should append. */
 interface SpineStep {
   readonly statement: D1PreparedStatement;
@@ -662,17 +665,20 @@ export class D1SpineRepository implements SpineRepository {
     const entityId = validateSpineId(id);
     const after = validateSpineTitle(title);
 
-    const record = await this.getById(entityId);
-    if (!record) {
+    let current = await this.getById(entityId);
+    if (!current) {
       throw new SpineNotFoundError();
     }
 
-    let before = record.title;
     for (let attempt = 0; attempt < MAX_RENAME_ATTEMPTS; attempt++) {
       // A same-title update after normalisation is a no-op (ADR-014 §13): return
-      // the record unchanged, no `updatedAt` churn, no `entity.updated` event.
+      // the CURRENT persisted record unchanged, no `updatedAt` churn, no
+      // `entity.updated` event. Under a concurrent identical rename, the loser
+      // refreshes `current` to the PERSISTED record below, so it returns the live
+      // title written by the winner — never a stale pre-loop snapshot.
+      const before = current.title;
       if (before === after) {
-        return record;
+        return current;
       }
       const now = this.#clock();
       const nowTs = toStorageTimestamp(now);
@@ -702,18 +708,19 @@ export class D1SpineRepository implements SpineRepository {
       if (result?.changed && result.row) {
         return composeSpineRecord(
           result.row,
-          record.kind,
-          record.completedAt,
-          record.parent,
+          current.kind,
+          current.completedAt,
+          current.parent,
         );
       }
 
-      // The optimistic guard matched nothing: re-read a fresh `before`, or fail.
+      // The optimistic guard matched nothing: re-read the fresh, persisted record
+      // and retry (or, next iteration, return it if it already holds `after`).
       const refreshed = await this.#readJoined(entityId, false);
       if (!refreshed) {
         throw new SpineNotFoundError();
       }
-      before = refreshed.title;
+      current = rowToSpineRecord(refreshed);
     }
     throw new SpineStorageError();
   }
@@ -732,17 +739,27 @@ export class D1SpineRepository implements SpineRepository {
 
   /**
    * Set or clear a record's completion atomically: update `spine_records`, advance
-   * the entity's `updated_at` (only when the completion actually changed), and
-   * append the kind's `*.completed`/`*.reopened` event — all on one clock, in one
-   * batch. Idempotent: an already-completed complete (or already-open reopen) is a
-   * no-op that appends nothing.
+   * the entity's `updated_at`, and append the kind's `*.completed`/`*.reopened`
+   * event — all on one clock, in one batch.
+   *
+   * Concurrency (ADR-014 §14):
+   *   - The `spine_records` mutation is GATED on the entity still being active in
+   *     this workspace, so a delete racing a complete/reopen cannot change
+   *     completion state without also advancing `updated_at` and appending the
+   *     event. If the gate matches nothing, the whole logical mutation is a no-op.
+   *   - The `updated_at` bump and the event are guarded on the spine update's
+   *     `changes()`, so a losing racer causes no churn and appends nothing.
+   *   - Reopening guards on the EXACT observed `completed_at`, so
+   *     `previousCompletedAt` is accurate even under concurrent complete/reopen
+   *     interleavings; a mismatch retries against the fresh state.
+   * Idempotent: an already-completed complete (or already-open reopen) is a no-op.
    */
   async #setCompletion(
     id: string,
     complete: boolean,
   ): Promise<CompletionResult> {
     const entityId = validateSpineId(id);
-    const record = await this.getById(entityId);
+    let record = await this.getById(entityId);
     if (!record) {
       throw new SpineNotFoundError();
     }
@@ -754,17 +771,6 @@ export class D1SpineRepository implements SpineRepository {
       return { record, outcome: "already_open", changed: false };
     }
 
-    const alreadyInTargetState = complete
-      ? record.completedAt !== null
-      : record.completedAt === null;
-    if (alreadyInTargetState) {
-      return {
-        record,
-        outcome: complete ? "already_completed" : "already_open",
-        changed: false,
-      };
-    }
-
     const eventType = complete
       ? completedActivityTypeFor(record.kind)
       : reopenedActivityTypeFor(record.kind);
@@ -772,91 +778,111 @@ export class D1SpineRepository implements SpineRepository {
       throw new SpineWrongKindError();
     }
 
-    const now = this.#clock();
-    const nowTs = toStorageTimestamp(now);
-
-    const spineStmt = complete
-      ? this.#db
-          .prepare(
-            `UPDATE spine_records SET completed_at = ?
-             WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL
-             RETURNING entity_id`,
-          )
-          .bind(nowTs, this.#workspaceId, entityId)
-      : this.#db
-          .prepare(
-            `UPDATE spine_records SET completed_at = NULL
-             WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NOT NULL
-             RETURNING entity_id`,
-          )
-          .bind(this.#workspaceId, entityId);
-
-    // Advance updated_at ONLY when the completion actually changed (guarded on the
-    // spine update's changes()), so a no-op or losing race causes no churn.
-    const entityStmt = this.#db
-      .prepare(
-        `UPDATE entities SET updated_at = ?
-         WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL AND changes() > 0
-         RETURNING ${ENTITY_RETURNING}`,
-      )
-      .bind(nowTs, this.#workspaceId, entityId);
-
-    let payload: ActivityPayload;
-    if (complete) {
-      payload = { completedAt: nowTs };
-    } else {
-      payload = {
-        previousCompletedAt:
-          record.completedAt === null
-            ? null
-            : toStorageTimestamp(record.completedAt),
-      };
-    }
-
-    const results = await this.#runBatch(
-      [
-        { statement: spineStmt },
-        {
-          statement: entityStmt,
-          event: {
-            type: eventType,
-            subjects: [{ entityId, role: SUBJECT_ROLE }],
-            payload,
-          },
-        },
-      ],
-      now,
-    );
-
-    const spineChanged = results[0]?.changed === true;
-    const entityRow = results[1]?.row;
-    if (spineChanged && entityRow) {
-      return {
-        record: composeSpineRecord(
-          entityRow,
-          record.kind,
-          complete ? now : null,
-          record.parent,
-        ),
-        outcome: complete ? "completed" : "reopened",
-        changed: true,
-      };
-    }
-
-    // A concurrent call won the race: nothing changed here, so no event. Re-read
-    // and report the idempotent outcome.
-    const current = await this.getById(entityId);
-    if (current) {
-      const nowInState = complete
-        ? current.completedAt !== null
-        : current.completedAt === null;
-      if (nowInState) {
+    for (let attempt = 0; attempt < MAX_COMPLETION_ATTEMPTS; attempt++) {
+      const alreadyInTargetState = complete
+        ? record.completedAt !== null
+        : record.completedAt === null;
+      if (alreadyInTargetState) {
         return {
-          record: current,
+          record,
           outcome: complete ? "already_completed" : "already_open",
           changed: false,
         };
       }
+
+      const now = this.#clock();
+      const nowTs = toStorageTimestamp(now);
+
+      let spineStmt: D1PreparedStatement;
+      let payload: ActivityPayload;
+      if (complete) {
+        spineStmt = this.#db
+          .prepare(
+            `UPDATE spine_records SET completed_at = ?
+             WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL
+               AND EXISTS (SELECT 1 FROM entities
+                           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+             RETURNING entity_id`,
+          )
+          .bind(
+            nowTs,
+            this.#workspaceId,
+            entityId,
+            this.#workspaceId,
+            entityId,
+          );
+        payload = { completedAt: nowTs };
+      } else {
+        // `record.completedAt` is non-null here (we are past the already-open guard).
+        const observed = toStorageTimestamp(record.completedAt!);
+        spineStmt = this.#db
+          .prepare(
+            `UPDATE spine_records SET completed_at = NULL
+             WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?
+               AND EXISTS (SELECT 1 FROM entities
+                           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+             RETURNING entity_id`,
+          )
+          .bind(
+            this.#workspaceId,
+            entityId,
+            observed,
+            this.#workspaceId,
+            entityId,
+          );
+        payload = { previousCompletedAt: observed };
+      }
+
+      // Advance updated_at ONLY when the completion actually changed (guarded on the
+      // spine update's changes()), so a no-op or losing race causes no churn.
+      const entityStmt = this.#db
+        .prepare(
+          `UPDATE entities SET updated_at = ?
+           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL AND changes() > 0
+           RETURNING ${ENTITY_RETURNING}`,
+        )
+        .bind(nowTs, this.#workspaceId, entityId);
+
+      const results = await this.#runBatch(
+        [
+          { statement: spineStmt },
+          {
+            statement: entityStmt,
+            event: {
+              type: eventType,
+              subjects: [{ entityId, role: SUBJECT_ROLE }],
+              payload,
+            },
+          },
+        ],
+        now,
+      );
+
+      const spineChanged = results[0]?.changed === true;
+      const entityRow = results[1]?.row;
+      if (spineChanged && entityRow) {
+        return {
+          record: composeSpineRecord(
+            entityRow,
+            record.kind,
+            complete ? now : null,
+            record.parent,
+          ),
+          outcome: complete ? "completed" : "reopened",
+          changed: true,
+        };
+      }
+
+      // Nothing changed: re-read the active record and either report an idempotent
+      // outcome next iteration, retry against the fresh state (reopen guarding on a
+      // new `completed_at`), or fail if the record is no longer active.
+      const refreshed = await this.getById(entityId);
+      if (!refreshed) {
+        // A concurrent soft-delete won: completion state is unchanged (gated), and
+        // an inactive record cannot be completed or reopened.
+        throw new SpineNotFoundError();
+      }
+      record = refreshed;
     }
     throw new SpineConflictError();
   }
@@ -897,22 +923,44 @@ export class D1SpineRepository implements SpineRepository {
       throw new CorruptSpineRecordError();
     }
 
-    const oldLinkId = await this.#activeParentLinkId(entityId);
+    const oldParentId = record.parent.id;
+    const oldParentKind = record.parent.kind;
+    const oldLinkType = this.#linkTypeForParent(record.kind, oldParentKind);
+    // The STABLE id of the (child → old-parent) relationship, for the unlink
+    // event only. The relationship's link id is preserved across unlink/restore,
+    // so this id accurately names the exact link the conditional UPDATE targets.
+    const oldLinkId = await this.#findDestLink(
+      entityId,
+      oldParentId,
+      oldLinkType,
+    );
     if (oldLinkId === null) {
-      throw new SpineConflictError();
+      // record.parent claimed an active parent link but none exists — a race we
+      // cannot classify. Reconcile safely (never having touched anything).
+      return this.#reconcileMove(entityId, parentId, parentKind);
     }
     const destLink = await this.#findDestLink(entityId, parentId, linkType);
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
 
-    // 1. Unlink the current parent — but ONLY if the destination parent is active.
-    //    Gating the removal on the destination keeps the record from ever losing
-    //    its parent when the destination is unavailable (nothing changes; we throw).
+    // 1. Unlink the current parent, BOUND to the exact (source, target, type)
+    //    relationship we observed — not merely a separately-read link id — so a
+    //    concurrent move that already changed the parent cannot be unlinked by a
+    //    stale id. Gated on BOTH the child being active AND the destination parent
+    //    being active: a move racing a child deletion therefore never strips the
+    //    deleted child's retained parent link, and the removal never commits
+    //    unless the destination (established below in the same batch, under the
+    //    identical active gates) can be created/restored too.
     const unlinkStmt = this.#db
       .prepare(
         `UPDATE entity_links SET deleted_at = ?, updated_at = ?
-         WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
+         WHERE workspace_id = ? AND source_entity_id = ? AND target_entity_id = ?
+           AND type = ? AND deleted_at IS NULL
+           AND EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+               )
            AND EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
@@ -922,8 +970,12 @@ export class D1SpineRepository implements SpineRepository {
       .bind(
         nowTs,
         nowTs,
-        oldLinkId,
         this.#workspaceId,
+        entityId,
+        oldParentId,
+        oldLinkType,
+        this.#workspaceId,
+        entityId,
         this.#workspaceId,
         parentId,
         parentKind,
@@ -999,7 +1051,10 @@ export class D1SpineRepository implements SpineRepository {
         );
     }
 
-    const oldParentId = record.parent.id;
+    // The unlink event is built from the ACTUAL relationship the conditional
+    // UPDATE targets — the observed (child, old parent, old link type) and its
+    // stable link id — never a re-derived guess. It is appended only when that
+    // exact link is unlinked (guarded on the unlink's changes()).
     const steps: SpineStep[] = [
       {
         statement: unlinkStmt,
@@ -1008,9 +1063,7 @@ export class D1SpineRepository implements SpineRepository {
           oldLinkId,
           entityId,
           oldParentId,
-          record.parent.kind === AREA
-            ? this.#linkTypeForParent(record.kind, "area")
-            : this.#linkTypeForParent(record.kind, record.parent.kind),
+          oldLinkType,
         ),
       },
       {
@@ -1039,16 +1092,20 @@ export class D1SpineRepository implements SpineRepository {
       throw new SpineStorageError(undefined, { cause });
     }
 
-    if (results[0]?.changed) {
+    // The unlink and the destination establishment share identical active gates,
+    // and the destination INSERT fails (rolling the batch back) on any uniqueness
+    // conflict — so a committed unlink is always paired with a committed
+    // destination link. Require both to have changed before reporting success.
+    if (results[0]?.changed && results[1]?.changed) {
       const moved = await this.getById(entityId);
       if (moved) {
         return { record: moved, outcome: "moved", changed: true };
       }
       throw new SpineConflictError();
     }
-    // The unlink was gated out: the destination parent is unavailable, or a
-    // concurrent move already changed the parent. Reconcile without ever having
-    // dropped the original parent.
+    // Nothing moved: the destination parent is unavailable, the child was deleted
+    // concurrently, or a concurrent move already changed the parent. Reconcile —
+    // the original parent link was never dropped (the unlink is gated).
     return this.#reconcileMove(entityId, parentId, parentKind);
   }
 
@@ -1059,8 +1116,13 @@ export class D1SpineRepository implements SpineRepository {
     parentKind: SpineParentKind,
   ): Promise<MoveResult> {
     const current = await this.getById(entityId);
+    if (current === null) {
+      // The child is no longer active (e.g. a concurrent soft-delete won). Its
+      // retained parent link was never touched — the unlink is gated on the child
+      // being active — so no move applied and the hierarchy is intact.
+      throw new SpineNotFoundError();
+    }
     if (
-      current &&
       current.parent !== null &&
       current.parent.id === parentId &&
       current.parent.kind === parentKind
@@ -1370,25 +1432,7 @@ export class D1SpineRepository implements SpineRepository {
     );
   }
 
-  /** The id of the record's single active structural parent link, or null. */
-  async #activeParentLinkId(entityId: string): Promise<string | null> {
-    try {
-      const row = await this.#db
-        .prepare(
-          `SELECT id FROM entity_links
-           WHERE workspace_id = ? AND source_entity_id = ?
-             AND deleted_at IS NULL AND type IN (${STRUCTURAL_LINK_LIST})
-           LIMIT 1`,
-        )
-        .bind(this.#workspaceId, entityId)
-        .first<{ id: string }>();
-      return row?.id ?? null;
-    } catch (cause) {
-      throw new SpineStorageError(undefined, { cause });
-    }
-  }
-
-  /** The id of an existing (any-state) destination structural link, or null. */
+  /** The id of an existing (any-state) structural link for (child → parent, type), or null. */
   async #findDestLink(
     entityId: string,
     parentId: string,

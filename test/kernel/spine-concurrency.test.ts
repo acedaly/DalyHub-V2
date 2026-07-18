@@ -38,6 +38,16 @@ async function activeParentCount(childId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** The stored `spine_records.completed_at` for an entity (regardless of delete state). */
+async function storedCompletedAt(entityId: string): Promise<string | null> {
+  const row = await env.DB.prepare(
+    "SELECT completed_at FROM spine_records WHERE workspace_id = ? AND entity_id = ?",
+  )
+    .bind(WS, entityId)
+    .first<{ completed_at: string | null }>();
+  return row?.completed_at ?? null;
+}
+
 beforeEach(async () => {
   await resetTables([WS]);
 });
@@ -80,6 +90,48 @@ describe("concurrent completion / reopening", () => {
     ]);
     expect(await countActivitiesOfType("task.reopened")).toBe(1);
     expect((await spine.getById(task.id))?.completedAt).toBeNull();
+  });
+
+  it("completion racing a soft-delete never changes completion state without its event", async () => {
+    const spine = repo();
+    const area = await spine.createArea({ title: "A" });
+    const task = await spine.createTask({
+      title: "T",
+      parent: { kind: "area", id: area.id },
+    });
+
+    await Promise.allSettled([
+      spine.complete(task.id),
+      spine.softDelete(task.id),
+    ]);
+
+    // Invariant: completed_at is set IFF exactly one task.completed event exists —
+    // the spine mutation, the updated_at bump and the event are all-or-nothing.
+    const completed = (await storedCompletedAt(task.id)) !== null;
+    const events = await countActivitiesOfType("task.completed");
+    expect(events).toBeLessThanOrEqual(1);
+    expect(completed).toBe(events === 1);
+  });
+
+  it("reopening racing a soft-delete never changes completion state without its event", async () => {
+    const spine = repo();
+    const area = await spine.createArea({ title: "A" });
+    const task = await spine.createTask({
+      title: "T",
+      parent: { kind: "area", id: area.id },
+    });
+    await spine.complete(task.id);
+
+    await Promise.allSettled([
+      spine.reopen(task.id),
+      spine.softDelete(task.id),
+    ]);
+
+    // Invariant: completed_at is cleared IFF exactly one task.reopened event exists.
+    const stillCompleted = (await storedCompletedAt(task.id)) !== null;
+    const reopenedEvents = await countActivitiesOfType("task.reopened");
+    expect(reopenedEvents).toBeLessThanOrEqual(1);
+    expect(stillCompleted).toBe(reopenedEvents === 0);
   });
 });
 
@@ -167,5 +219,55 @@ describe("concurrent structural mutations never break the invariants", () => {
     const parent = await spine.getParent(task.id);
     expect(parent?.deletedAt ?? null).toBeNull();
     expect([areaA.id, areaB.id]).toContain(parent?.id);
+  });
+
+  it("a move racing a child deletion leaves the child's retained parent link intact", async () => {
+    const spine = repo();
+    const area = await spine.createArea({ title: "A" });
+    const project = await spine.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await spine.createTask({
+      title: "T",
+      parent: { kind: "area", id: area.id },
+    });
+
+    const [moveResult] = await Promise.allSettled([
+      spine.move(task.id, { kind: "project", id: project.id }),
+      spine.softDelete(task.id),
+    ]);
+
+    // The child is NEVER orphaned: it always retains exactly one structural parent
+    // link (active), whether it ended active or soft-deleted.
+    expect(await activeParentCount(task.id)).toBe(1);
+
+    const child = await spine.getById(task.id, { includeDeleted: true });
+    if (moveResult.status === "rejected") {
+      // The delete won: the move never touched the original retained parent (A).
+      expect(child?.parent).toEqual({ kind: "area", id: area.id });
+    } else {
+      // The move won (child was active): it now belongs to the project.
+      expect(child?.parent).toEqual({ kind: "project", id: project.id });
+    }
+  });
+});
+
+describe("concurrent identical rename", () => {
+  it("both callers receive the persisted title and only one entity.updated is written", async () => {
+    const spine = repo();
+    const area = await spine.createArea({ title: "Old" });
+
+    const [a, b] = await Promise.all([
+      spine.rename(area.id, "New"),
+      spine.rename(area.id, "New"),
+    ]);
+
+    // Both callers observe the persisted title, not a stale pre-loop snapshot.
+    expect(a.title).toBe("New");
+    expect(b.title).toBe("New");
+    expect((await spine.getById(area.id))?.title).toBe("New");
+    // Exactly one real change → exactly one Activity event.
+    expect(await countActivitiesOfType("entity.updated")).toBe(1);
   });
 });

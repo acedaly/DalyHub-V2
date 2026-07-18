@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -11,6 +12,7 @@ import {
   FakeClock,
   countActivitiesOfType,
   ensureWorkspace,
+  makeActivityRepository,
   makeContext,
   makeSpineRepository,
   resetTables,
@@ -155,6 +157,73 @@ describe("move / reparent", () => {
     await expect(
       spine.move(task.id, { kind: "area", id: area.id }),
     ).rejects.toThrow(SpineNotFoundError);
+  });
+
+  it("records exact source/target/link payloads for the unlink and destination events", async () => {
+    const spine = repo();
+    const area = await spine.createArea({ title: "A" });
+    const project = await spine.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await spine.createTask({
+      title: "T",
+      parent: { kind: "area", id: area.id },
+    });
+    await spine.move(task.id, { kind: "project", id: project.id });
+
+    const timeline = await makeActivityRepository(
+      makeContext(WS),
+    ).listForEntity(task.id);
+
+    const unlinked = timeline.items.find(
+      (e) => e.type === "entity_link.unlinked",
+    );
+    expect(unlinked?.payload.sourceEntityId).toBe(task.id);
+    expect(unlinked?.payload.targetEntityId).toBe(area.id);
+    expect(unlinked?.payload.linkType).toBe("task.belongs_to_area");
+    // The event's linkId is the stable id of the exact (task → area) relationship.
+    const oldLink = await env.DB.prepare(
+      `SELECT id FROM entity_links
+       WHERE workspace_id = ? AND source_entity_id = ? AND target_entity_id = ? AND type = ?`,
+    )
+      .bind(WS, task.id, area.id, "task.belongs_to_area")
+      .first<{ id: string }>();
+    expect(unlinked?.payload.linkId).toBe(oldLink?.id);
+
+    const created = timeline.items.find(
+      (e) =>
+        e.type === "entity_link.created" &&
+        e.payload.targetEntityId === project.id,
+    );
+    expect(created?.payload.sourceEntityId).toBe(task.id);
+    expect(created?.payload.linkType).toBe("task.belongs_to_project");
+  });
+
+  it("rolls back the old-parent unlink when the destination is unavailable (no partial unlink, no event)", async () => {
+    const spine = repo();
+    const area = await spine.createArea({ title: "A" });
+    const areaB = await spine.createArea({ title: "B" });
+    const task = await spine.createTask({
+      title: "T",
+      parent: { kind: "area", id: area.id },
+    });
+    await spine.softDelete(areaB.id);
+
+    await expect(
+      spine.move(task.id, { kind: "area", id: areaB.id }),
+    ).rejects.toThrow(SpineParentUnavailableError);
+
+    // The original (task → A) link is still ACTIVE — the unlink never committed.
+    const link = await env.DB.prepare(
+      `SELECT deleted_at FROM entity_links
+       WHERE workspace_id = ? AND source_entity_id = ? AND target_entity_id = ? AND type = ?`,
+    )
+      .bind(WS, task.id, area.id, "task.belongs_to_area")
+      .first<{ deleted_at: string | null }>();
+    expect(link?.deleted_at).toBeNull();
+    // And no unlink event was appended.
+    expect(await countActivitiesOfType("entity_link.unlinked")).toBe(0);
   });
 });
 
