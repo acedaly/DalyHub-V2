@@ -277,7 +277,7 @@ The rendered stack is a **pure function of the URL**, so refresh, a copied link 
 ### Stack model
 
 - Opening pushes **one** history entry; re-opening the current top is a no-op (never a duplicate level).
-- Each nested drawer gets its own history entry; levels are keyed by deterministic stack depth, so opening a higher drawer **never remounts** the ones beneath it — their selected tab, scroll position and local state survive.
+- Each nested drawer gets its own history entry; levels are keyed by **stack depth _and_ record key**, so opening a higher drawer **never remounts** the ones beneath it (their selected tab, scroll position and local state survive), while **replacing** the record at a depth (same depth, new key) **does** remount that level — so record-local state and mount-only initial focus never leak from a replaced record into its replacement.
 - Only the **top** drawer is interactive; lower levels are `inert`. Stack order maps to z-index via DS-01 tokens.
 - A generous depth cap replaces further pushes with a top-replace to bound pathological loops without limiting normal use.
 
