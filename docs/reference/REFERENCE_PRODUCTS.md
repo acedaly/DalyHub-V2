@@ -88,13 +88,13 @@
 | **Radix UI / primitives** | Accessible unstyled UI primitives (dialog, popover, tabs) | `radix-ui/primitives` | 🟢 MIT | Backbone for accessible [Design System](../design/DESIGN_SYSTEM.md) components. |
 | **shadcn/ui** | Copy-in component patterns over Radix + utility CSS | `shadcn-ui/ui` | 🟢 MIT | Components are *copied in* (provenance comment + record the source). |
 | **Tiptap / ProseMirror** | Rich Markdown editor | `ueberdosis/tiptap`, `ProseMirror/*` | 🟢 MIT | Core for the [Markdown editor](../roadmap/ROADMAP_V2.md#-notes-01--note-record--markdown-editor). Check which extensions/versions. |
-| **remark / rehype / react-markdown** | Markdown parse + safe render | `remarkjs/*`, `rehypejs/*` | 🟢 MIT | Feeds the sanitising renderer ([ADR-006](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy)); pair with a sanitiser. |
+| **remark / rehype** (`unified`) | Markdown parse + safe render | `remarkjs/*`, `rehypejs/*` | 🟢 MIT | **Adopted** for the Markdown pipeline ([FND-08](../roadmap/ROADMAP_V2.md#-fnd-08--markdown-pipeline) / [ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)) — see the [FND-08 evaluation](#markdown-pipeline-evaluation-fnd-08). `react-markdown` was evaluated and **not** adopted. |
 | **dnd-kit** | Accessible drag-and-drop | `clauderic/dnd-kit` | 🟢 MIT | For reordering/scheduling with keyboard equivalents ([DS-04](../design/DESIGN_SYSTEM.md#cards)). |
 | **TanStack Query / Table / Virtual** | Data fetching, tables, list virtualisation | `TanStack/*` | 🟢 MIT | Virtualisation for [Timeline/Activity/Search](../../AGENTS.md#16-performance-expectations). |
 | **date-fns** | Date math | `date-fns/date-fns` | 🟢 MIT | Lightweight, tree-shakeable date utilities. |
 | **Lucide** | Icon set | `lucide-icons/lucide` | 🟢 ISC | Consistent iconography ([Foundations](../design/DESIGN_SYSTEM.md#foundations)). |
 | **Zod** (or similar) | Runtime validation | `colinhacks/zod` | 🟢 MIT | Validate boundaries/imports ([security](../../AGENTS.md#17-security-requirements)). |
-| **A Markdown sanitiser** (e.g. rehype-sanitize / DOMPurify) | XSS-safe rendering | various | 🟢 MIT (verify) | Mandatory for the [Markdown pipeline](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy). |
+| **rehype-sanitize** (`hast-util-sanitize`) | XSS-safe rendering | `rehypejs/rehype-sanitize` | 🟢 MIT | **Adopted** (tree-based, no DOM/JSDOM — Workers-safe) for [FND-08](../roadmap/ROADMAP_V2.md#-fnd-08--markdown-pipeline); DOMPurify+JSDOM was **rejected** (needs a DOM). See the [FND-08 evaluation](#markdown-pipeline-evaluation-fnd-08). |
 
 > **Platform note.** The application platform and toolchain are now settled in [ADR-008](../decisions/ARCHITECTURE_DECISIONS.md#adr-008-initial-application-platform-and-toolchain) (Cloudflare Workers + React Router v8 + Vite + Wrangler; see the verified scaffold findings below). Cloudflare **storage** services (D1, KV, R2, Durable Objects) remain a proposed, deferred direction (see [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md#platform)); their SDKs/tooling are evaluated the same way when adopted. Todoist and Notion are **import/sync sources** ([X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar)), not dependencies to reuse code from.
 
@@ -212,6 +212,43 @@
 - **A UUID package / cursor signing library.** **Rejected — reuse the platform** (same reasoning as FND-02–06): Workers-native `crypto.randomUUID()` for ids, and a dedicated versioned, scope-bound cursor treated as untrusted input with every value bound in SQL.
 
 **Decision (Depend / Adapt / Build).** **Build** the spine kernel (identifiers, record/rollup contracts, validation, cursor, repository interface), the D1 adapter, migration `0005`, the reserved-type guards and the four module manifests with existing tooling; **add no dependency**. Atomicity uses the platform's own `D1Database.batch()` and the shared `D1ActivityRecorder`. See [ADR-014](../decisions/ARCHITECTURE_DECISIONS.md#adr-014-spine-hierarchy-completion-and-rollup-semantics).
+
+---
+
+## Markdown pipeline evaluation (FND-08)
+
+> The build-vs-reuse evaluation behind [ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline) (concretising [ADR-006](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy)). Unlike FND-02–07, this item **adds runtime dependencies** — Markdown parsing and sanitisation are commodity, security-critical problems we must *not* hand-roll ([OSS policy](../governance/OPEN_SOURCE_POLICY.md)). Licences verified against the exact installed versions on **2026-07-18**.
+
+### Selected stack — `unified` (`remark`/`rehype`) — 🟢 reusable (MIT)
+- **Why chosen.** The mature, standard, actively-maintained AST-based Markdown/HTML ecosystem. It parses to mdast, converts to hast and sanitises the **tree** (not text), which is exactly the "sanitise after parsing" defence ADR-015 requires — and it runs with **no DOM/JSDOM**, so it works in the Cloudflare Workers runtime.
+- **What DalyHub uses.** A minimal string-producing pipeline: `remark-parse` → `remark-gfm` → (strip footnotes) → `remark-rehype` (`allowDangerousHtml: false`) → DalyHub image/link transform → `rehype-sanitize` (one frozen allowlist schema) → `rehype-stringify`. Wrapped behind the kernel `MarkdownRenderer` contract so no library type leaks to callers.
+- **Exact versions & licences (verified 2026-07-18, all MIT).** `unified` 11.0.5, `remark-parse` 11.0.0, `remark-gfm` 4.0.1, `remark-rehype` 11.1.2, `rehype-sanitize` 6.0.0, `rehype-stringify` 10.0.1. Dev-only types: `@types/hast` 3.0.5 (MIT).
+- **Transitive tree.** The full closure is the `unified`/`remark`/`rehype`/`micromark`/`mdast-util`/`hast-util`/`unist-util`/`vfile` family (~90 small single-purpose packages), **all MIT** except `@ungap/structured-clone` (**ISC**) — every one permissive/allowed-by-default, no copyleft, no `no-licence` package. Verified by enumerating installed `node_modules` package metadata on 2026-07-18.
+- **Workers/browser compatibility.** Pure ESM, no Node-only or DOM API requirement, no native modules, no telemetry/phone-home, no filesystem/network at runtime. Proven by a real **Workers-runtime** integration test importing the production pipeline (`test/kernel/markdown-render.test.ts`, `markdown-security.test.ts`), the production build, and the Wrangler dry-run.
+- **Footprint & bundle.** The stack is imported only by `app/platform/markdown`; because no route imports it yet, it is **tree-shaken out of both the client and server bundles** (the FND-01 foundation route is unaffected). Later modules (Notes/Diary/descriptions) should lazy-load the renderer so the parser enters only the routes that need it.
+- **Risks.** A larger transitive tree than DalyHub's other foundations (many tiny packages) — mitigated by their shared, well-maintained `unified`-collective governance and by keeping the stack behind one contract so it can be patched or swapped centrally. Security patches are not optional; the tree is pinned in `pnpm-lock.yaml`.
+
+### Rejected candidates
+- **`react-markdown` (🟢 MIT).** Renders straight to a React element tree (no HTML string). Reasonable, but it pairs with the same remark/rehype/sanitiser stack while pulling React into the render path and encouraging per-call plugin arrays; it also ties rendering to React (not usable on an export/non-React path). **Rejected** to avoid shipping *both* a string stack and `react-markdown`, and to keep one branded sink with non-optional sanitisation.
+- **`DOMPurify` (+ `jsdom`) (🟢 MIT).** The popular sanitiser, but **DOM-based**: server-side it needs a real DOM/JSDOM, a poor fit and unnecessary weight inside Workers. `rehype-sanitize` (`hast-util-sanitize`) sanitises the hast tree with no DOM. **Rejected.**
+- **Rich-text editors — Tiptap / ProseMirror / CodeMirror / Lexical / Milkdown / Monaco (mostly 🟢 MIT).** Authoring tools, not a render/storage foundation; they add large runtime weight. **Rejected for FND-08** — a future editor ([NOTES-01](../roadmap/ROADMAP_V2.md#-notes-01--note-record--markdown-editor)) must still save Markdown source.
+- **Syntax highlighters — `highlight.js` / Prism / Shiki (🟢 MIT).** Deliberately excluded; code renders as escaped, inert text with no language class. Highlighting is later UI work layered onto safe output. **Rejected.**
+
+### Reuse evaluation — `unified` Markdown/sanitiser stack
+- [x] Problem is a commodity worth reusing (Markdown parsing + XSS-safe sanitisation — not a DalyHub differentiator)
+- [x] Checked REFERENCE_PRODUCTS.md for existing notes (the building-blocks table already flagged remark/rehype + a sanitiser as the ADR-006 direction)
+- [x] Licence read for the exact versions: **MIT** (all six runtime packages + `@types/hast`) → category: **Allowed**
+- [x] Licence is Allowed
+- [x] Transitive dependency tree licence-checked — **all MIT except one ISC**; no copyleft/prohibited pulled in
+- [x] Maintenance health acceptable — `unified` collective, widely adopted, actively released
+- [x] No known unresolved critical security issues / CVEs for the pinned versions
+- [x] Footprint acceptable — small single-purpose packages; tree-shaken out of bundles until a module imports the renderer
+- [x] Fits our stack (ESM, Workers-compatible, TypeScript types) and our security bar (tree-based sanitisation)
+- [x] No privacy-violating telemetry / phone-home
+- [x] Provenance recorded — exact versions pinned in `pnpm-lock.yaml`; MIT notices added to `THIRD_PARTY_NOTICES.md`
+- [x] REFERENCE_PRODUCTS.md updated with findings (this section)
+
+**Decision (Depend / Adapt / Build).** **Depend** on the minimal `unified` stack (`unified`, `remark-parse`, `remark-gfm`, `remark-rehype`, `rehype-sanitize`, `rehype-stringify`); **Build** the DalyHub-owned pieces (the branded `MarkdownSource`/`SanitizedMarkdownHtml` contract and validation, the URL policy, the frozen sanitisation schema, the image/link/footnote transforms, and the one React sink); **Reject** `react-markdown`, DOMPurify+JSDOM, editors and syntax highlighters. See [ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline).
 
 ---
 

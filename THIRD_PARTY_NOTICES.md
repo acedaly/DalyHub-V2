@@ -95,3 +95,31 @@ Apache-2.0 dependencies (`typescript`, `@playwright/test`, and `wrangler` under
 its Apache-2.0 option) are used unmodified; none ships a supplemental `NOTICE`
 file requiring additional reproduction. No copyleft or no-licence code is
 included.
+
+---
+
+## Markdown pipeline dependencies (FND-08)
+
+The shared Markdown pipeline ([FND-08](docs/roadmap/ROADMAP_V2.md) /
+[ADR-015](docs/decisions/ARCHITECTURE_DECISIONS.md)) depends on the `unified`
+(`remark`/`rehype`) ecosystem. These are runtime dependencies: they enter the
+bundle when a module renders Markdown (until then they are tree-shaken out).
+Licences verified against the exact installed versions on **2026-07-18**.
+
+| Package            | Version | Licence |
+| ------------------ | ------- | ------- |
+| `unified`          | 11.0.5  | MIT     |
+| `remark-parse`     | 11.0.0  | MIT     |
+| `remark-gfm`       | 4.0.1   | MIT     |
+| `remark-rehype`    | 11.1.2  | MIT     |
+| `rehype-sanitize`  | 6.0.0   | MIT     |
+| `rehype-stringify` | 10.0.1  | MIT     |
+| `@types/hast` (dev)| 3.0.5   | MIT     |
+
+Their transitive closure — the `micromark`, `mdast-util-*`, `hast-util-*`,
+`unist-util-*` and `vfile` single-purpose packages — is **MIT** throughout,
+with the sole exception of `@ungap/structured-clone` (**ISC**). Both MIT and ISC
+are permissive and allowed by default; no copyleft, no-licence, telemetry or
+network-calling package is present. Exact resolved versions are pinned in
+`pnpm-lock.yaml`. All are used unmodified; the MIT text reproduced above applies
+(each package carries its own copyright holders in its own `LICENSE`).
