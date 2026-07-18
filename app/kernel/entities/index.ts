@@ -38,6 +38,7 @@ export {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
   ENTITY_TYPE_PATTERN,
+  validateEntityType,
 } from "./entity-validation";
 
 export type { CursorPosition } from "./entity-cursor";
