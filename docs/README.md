@@ -30,6 +30,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of independently-implementable work items. |
 | **Design** | |
 | [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md) | The shared interaction language every module reuses. |
+| [`design/PRODUCT_EXPERIENCE.md`](design/PRODUCT_EXPERIENCE.md) | The product-wide experience contract: the 2026-07 UX review, scores, ranked improvements, philosophies, hierarchy/composition rules, and reference screens. |
 | **Architecture** | |
 | [`architecture/ARCHITECTURE_OVERVIEW.md`](architecture/ARCHITECTURE_OVERVIEW.md) | How the kernel, modules, and platform fit together technically. |
 | [`decisions/ARCHITECTURE_DECISIONS.md`](decisions/ARCHITECTURE_DECISIONS.md) | The ADRs — why the system is built the way it is. |
@@ -62,7 +63,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     ├── roadmap/
     │   └── ROADMAP_V2.md
     ├── design/
-    │   └── DESIGN_SYSTEM.md
+    │   ├── DESIGN_SYSTEM.md
+    │   └── PRODUCT_EXPERIENCE.md
     ├── architecture/
     │   └── ARCHITECTURE_OVERVIEW.md
     ├── decisions/
