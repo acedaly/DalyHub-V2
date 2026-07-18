@@ -1,0 +1,130 @@
+/*
+ * DS-04 + DS-07 — development-only styles for the Cards & Filters fixture route.
+ *
+ * Scoped to the fixture (`.cf-demo`); NOT part of the shared design system and not
+ * shipped to production (the route is excluded from the production build). Uses
+ * DS-01 tokens only.
+ */
+
+.cf-demo {
+  max-width: var(--dh-width-content);
+  margin-inline: auto;
+  padding: var(--dh-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+  min-width: 0;
+}
+
+.cf-demo__header h1 {
+  margin: 0 0 var(--dh-space-1);
+  font-size: var(--dh-font-size-2xl);
+  line-height: var(--dh-line-height-tight);
+}
+
+.cf-demo__lead {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  max-width: var(--dh-width-prose);
+}
+
+.cf-demo__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: center;
+  padding: var(--dh-space-3);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+}
+
+.cf-demo__group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.cf-demo__group legend {
+  float: none;
+  padding: 0;
+  margin-inline-end: var(--dh-space-1);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+}
+
+.cf-demo__group label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  text-transform: capitalize;
+}
+
+.cf-demo__selected {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.cf-demo__action-log {
+  margin: 0;
+  min-height: var(--dh-space-5);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-accent-text);
+}
+
+.cf-demo__collection {
+  min-width: 0;
+}
+
+.cf-demo__board {
+  display: flex;
+  gap: var(--dh-space-4);
+  overflow-x: auto;
+  padding-bottom: var(--dh-space-2);
+}
+
+.cf-demo__board-column {
+  flex: 0 0 16rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.cf-demo__board-heading {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+}
+
+.cf-demo__drawer-prose {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  line-height: var(--dh-line-height-relaxed);
+}
+
+.cf-demo__filler {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding-top: var(--dh-space-4);
+}
+
+@media (max-width: 30rem) {
+  .cf-demo__board-column {
+    flex-basis: 14rem;
+  }
+}

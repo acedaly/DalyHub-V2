@@ -1,0 +1,464 @@
+/*
+ * DS-04 — the Shared Card, expressed entirely in DS-01 tokens.
+ *
+ * One card, three presentations (list/board/grid) and two densities
+ * (comfortable/compact). Structure/behaviour live in the components; this file
+ * owns spacing, colour, shape, elevation and motion — never a raw hex/px/duration
+ * where a token exists (AGENTS.md §9.8). No horizontal overflow from 320px up;
+ * touch targets meet the 44px token; quick actions are reachable by keyboard,
+ * pointer and touch and are never hover-only in a way that hides them from touch.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Collections                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-card-collection {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.dh-card-collection__item {
+  min-width: 0;
+}
+
+.dh-card-collection--list,
+.dh-card-collection--board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-card-collection--list.dh-card-collection--comfortable,
+.dh-card-collection--board.dh-card-collection--comfortable {
+  gap: var(--dh-space-3);
+}
+
+.dh-card-collection--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--dh-space-3);
+}
+
+.dh-card-collection__item[data-grabbed="true"] {
+  opacity: 0.85;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Card shell                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.dh-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-2);
+  min-width: 0;
+  padding: var(--dh-space-3) var(--dh-space-4);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-shadow-sm);
+  transition:
+    border-color var(--dh-duration-fast) var(--dh-ease-standard),
+    box-shadow var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-card--compact {
+  padding: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--dh-space-1);
+}
+
+.dh-card:hover {
+  border-color: var(--dh-color-border-strong);
+  box-shadow: var(--dh-shadow-md);
+}
+
+/* Selected state: a clear border/background cue AND the native checked checkbox —
+ * never colour alone. */
+.dh-card[data-selected="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-surface);
+}
+
+/* Optional entity accent: a restrained left rule keyed to the tone. */
+.dh-card[data-accent="accent"] {
+  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-accent);
+}
+.dh-card[data-accent="success"] {
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-success);
+}
+.dh-card[data-accent="warning"] {
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-warning);
+}
+.dh-card[data-accent="danger"] {
+  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-danger);
+}
+.dh-card[data-accent="info"] {
+  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-info);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Handle + selection columns                                                  */
+/* -------------------------------------------------------------------------- */
+
+.dh-card__handle-slot,
+.dh-card__select {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-height: var(--dh-space-6);
+}
+
+.dh-card__reorder-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-space-6);
+  min-height: var(--dh-space-6);
+  padding: var(--dh-space-1);
+  color: var(--dh-color-text-muted);
+  background: transparent;
+  border: var(--dh-border-width-thin) solid transparent;
+  border-radius: var(--dh-radius-sm);
+  cursor: grab;
+  touch-action: none;
+}
+
+.dh-card__reorder-handle:hover:not(:disabled) {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+.dh-card__reorder-handle[data-grabbed="true"] {
+  background: var(--dh-color-accent-surface);
+  border-color: var(--dh-color-accent);
+  color: var(--dh-color-accent-text);
+  cursor: grabbing;
+}
+
+.dh-card__reorder-handle:disabled {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.dh-card__select-input {
+  width: var(--dh-space-5);
+  height: var(--dh-space-5);
+  accent-color: var(--dh-color-accent);
+  cursor: pointer;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Body                                                                        */
+/* -------------------------------------------------------------------------- */
+
+.dh-card__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-card__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-2);
+  flex-wrap: wrap;
+}
+
+.dh-card__type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-card__icon {
+  display: inline-flex;
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-card__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--dh-space-2);
+  min-height: var(--dh-space-5);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  white-space: nowrap;
+}
+
+.dh-card__status[data-tone="accent"] {
+  color: var(--dh-color-accent-text);
+  background: var(--dh-color-accent-surface);
+  border-color: transparent;
+}
+.dh-card__status[data-tone="success"] {
+  color: var(--dh-color-success-text);
+  background: var(--dh-color-success-surface);
+  border-color: transparent;
+}
+.dh-card__status[data-tone="warning"] {
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-color: transparent;
+}
+.dh-card__status[data-tone="danger"] {
+  color: var(--dh-color-danger-text);
+  background: var(--dh-color-danger-surface);
+  border-color: transparent;
+}
+.dh-card__status[data-tone="info"] {
+  color: var(--dh-color-info-text);
+  background: var(--dh-color-info-surface);
+  border-color: transparent;
+}
+
+.dh-card__title {
+  margin: 0;
+  font-size: var(--dh-font-size-md);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.dh-card--compact .dh-card__title {
+  font-size: var(--dh-font-size-base);
+}
+
+.dh-card__open {
+  color: var(--dh-color-text);
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-card__open:not(.dh-card__open--static):hover .dh-card__title-text {
+  text-decoration: underline;
+}
+
+.dh-card__open--static {
+  cursor: default;
+}
+
+.dh-card__subtitle {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.dh-card__context {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-card__context-link {
+  color: var(--dh-color-accent-text);
+}
+
+.dh-card--compact .dh-card__subtitle,
+.dh-card--compact .dh-card__context {
+  font-size: var(--dh-font-size-xs);
+}
+
+/* Progress */
+.dh-card__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin-top: var(--dh-space-1);
+}
+
+.dh-card__progress-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--dh-space-2);
+  background: var(--dh-color-surface-sunken);
+  border-radius: var(--dh-radius-full);
+  overflow: hidden;
+}
+
+.dh-card__progress-fill {
+  height: 100%;
+  background: var(--dh-color-accent);
+  border-radius: inherit;
+  transition: inline-size var(--dh-duration-base) var(--dh-ease-standard);
+}
+
+.dh-card__progress-text {
+  flex: 0 0 auto;
+  font-size: var(--dh-font-size-2xs);
+  color: var(--dh-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Metadata */
+.dh-card__metadata {
+  list-style: none;
+  margin: var(--dh-space-1) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1) var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-card__meta {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-card__meta-label {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-card__date {
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+}
+.dh-card__date[data-tone="warning"] {
+  color: var(--dh-color-warning-text);
+}
+.dh-card__date[data-tone="danger"] {
+  color: var(--dh-color-danger-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Actions                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-card__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  /* On pointer/hover devices the actions reveal on hover/focus; they are always
+   * in the DOM and keyboard/AT reachable. On touch they are always visible. */
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dh-card__actions {
+    opacity: 0;
+    transition: opacity var(--dh-duration-fast) var(--dh-ease-standard);
+  }
+  .dh-card:hover .dh-card__actions,
+  .dh-card:focus-within .dh-card__actions {
+    opacity: 1;
+  }
+}
+
+.dh-card__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  min-height: var(--dh-control-height-sm);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dh-card__action:hover:not(:disabled) {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-card__action:disabled,
+.dh-card__action[aria-busy="true"] {
+  color: var(--dh-color-disabled-text);
+  background: var(--dh-color-disabled-surface);
+  border-color: var(--dh-color-disabled-border);
+  cursor: not-allowed;
+}
+
+.dh-card__action--overflow {
+  padding: var(--dh-space-1);
+}
+
+.dh-card__action-icon {
+  display: inline-flex;
+}
+
+.dh-card__action-shortcut {
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-2xs);
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Touch: comfortable targets, no hover dependency                             */
+/* -------------------------------------------------------------------------- */
+
+@media (hover: none) {
+  .dh-card__reorder-handle,
+  .dh-card__action {
+    min-height: var(--dh-touch-target-min);
+    min-width: var(--dh-touch-target-min);
+  }
+  .dh-card__select-input {
+    width: var(--dh-space-6);
+    height: var(--dh-space-6);
+  }
+}
+
+/* Board/grid cards stack their actions under the body so nothing is clipped in a
+ * narrow column. */
+.dh-card--board,
+.dh-card--grid {
+  flex-wrap: wrap;
+}
+
+.dh-card--board .dh-card__actions,
+.dh-card--grid .dh-card__actions {
+  flex-basis: 100%;
+  justify-content: flex-start;
+  margin-top: var(--dh-space-1);
+}
+
+/* Narrow viewports (e.g. 320px): every card wraps its action row beneath the
+ * body so the handle/selection/body/actions never overflow the document. */
+@media (max-width: 30rem) {
+  .dh-card {
+    flex-wrap: wrap;
+  }
+  .dh-card__actions {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    margin-top: var(--dh-space-1);
+  }
+}

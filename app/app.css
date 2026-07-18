@@ -11,6 +11,8 @@
  *   3. shell.css         — the authenticated application shell.
  *   4. record-layout.css — the DS-02 Shared Record Layout.
  *   5. drawer.css        — the DS-03 Shared Drawer.
+ *   6. card.css          — the DS-04 Shared Card.
+ *   7. filters.css       — the DS-07 Shared Filters.
  *
  * Theme mechanism (ADR-016 §5.11): the root layout sets `data-theme` on <html>
  * from the persisted cookie during SSR. `light`/`dark` force a scheme; `system`
@@ -24,3 +26,5 @@
 @import "./styles/shell.css";
 @import "./styles/record-layout.css";
 @import "./styles/drawer.css";
+@import "./styles/card.css";
+@import "./styles/filters.css";

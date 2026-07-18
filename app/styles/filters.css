@@ -1,0 +1,391 @@
+/*
+ * DS-07 — the Shared Filters system, expressed entirely in DS-01 tokens.
+ *
+ * The Filter Bar, chips, add/edit popover, native value controls, saved-view
+ * controls and the filtered-empty state. Responsive to 320px (controls wrap,
+ * chips scroll without page overflow); touch targets meet the token minimum;
+ * state is never colour-only (text always accompanies tone). No raw
+ * hex/px/duration where a token exists (AGENTS.md §9.8).
+ */
+
+.dh-filter-bar {
+  min-width: 0;
+}
+
+.dh-filter-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-filter-bar__add {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.dh-filter-bar__chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dh-filter-bar__end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin-inline-start: auto;
+  min-width: 0;
+}
+
+.dh-filter-bar__count {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-3);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  border-radius: var(--dh-radius-sm);
+  border: var(--dh-border-width-thin) solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dh-filter-btn--secondary {
+  background: var(--dh-color-secondary);
+  color: var(--dh-color-text);
+  border-color: var(--dh-color-border);
+}
+.dh-filter-btn--secondary:hover {
+  background: var(--dh-color-secondary-hover);
+}
+
+.dh-filter-btn--primary {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+}
+.dh-filter-btn--primary:hover {
+  background: var(--dh-color-accent-hover);
+}
+.dh-filter-btn--primary[aria-disabled="true"] {
+  background: var(--dh-color-disabled-surface);
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.dh-filter-btn--ghost {
+  background: transparent;
+  color: var(--dh-color-text-secondary);
+}
+.dh-filter-btn--ghost:hover {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* AND/OR mode                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-filter-mode {
+  display: inline-flex;
+  gap: var(--dh-space-1);
+  margin: 0;
+  padding: var(--dh-space-1);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-filter-mode__option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  padding: 0 var(--dh-space-1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Chips                                                                       */
+/* -------------------------------------------------------------------------- */
+
+.dh-filter-chip {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface);
+  overflow: hidden;
+}
+
+.dh-filter-chip__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  min-height: var(--dh-control-height-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text);
+  min-width: 0;
+}
+.dh-filter-chip__edit:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-filter-chip__field {
+  font-weight: var(--dh-font-weight-semibold);
+}
+.dh-filter-chip__op {
+  color: var(--dh-color-text-muted);
+}
+.dh-filter-chip__value {
+  color: var(--dh-color-accent-text);
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 18rem;
+  white-space: nowrap;
+}
+
+.dh-filter-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-control-height-sm);
+  padding: 0 var(--dh-space-1);
+  background: transparent;
+  border: none;
+  border-inline-start: var(--dh-border-width-thin) solid var(--dh-color-border);
+  color: var(--dh-color-text-muted);
+  cursor: pointer;
+}
+.dh-filter-chip__remove:hover {
+  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-danger-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Add/edit popover                                                            */
+/* -------------------------------------------------------------------------- */
+
+.dh-filter-popover {
+  position: absolute;
+  z-index: var(--dh-z-dropdown);
+  inset-block-start: calc(100% + var(--dh-space-1));
+  inset-inline-start: 0;
+  inline-size: min(22rem, calc(100vw - var(--dh-space-6)));
+  padding: var(--dh-space-3);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-shadow-lg);
+}
+
+.dh-filter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-filter-editor__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-filter-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.dh-filter-editor__label,
+.dh-filter-value__label {
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-filter-editor__select,
+.dh-filter-value__input {
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  max-width: 100%;
+}
+
+.dh-filter-value {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.dh-filter-value--range {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.dh-filter-value--list {
+  gap: var(--dh-space-1);
+}
+
+.dh-filter-value__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.dh-filter-value__check {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-filter-editor__error {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-danger-text);
+}
+
+.dh-filter-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--dh-space-2);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Saved views                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-filter-views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-filter-views__select select {
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  max-width: 12rem;
+}
+
+.dh-filter-views__modified {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-warning-text);
+}
+.dh-filter-views__modified::before {
+  content: "●";
+  font-size: 0.6em;
+}
+
+.dh-filter-views__save {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+}
+
+.dh-filter-views__save input {
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  max-width: 10rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Filtered-empty / empty state                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-filter-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-8) var(--dh-space-4);
+  border: var(--dh-border-width-thin) dashed var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-filter-empty__title {
+  margin: 0;
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+.dh-filter-empty__description {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Narrow viewports                                                            */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 30rem) {
+  .dh-filter-bar__end {
+    margin-inline-start: 0;
+    inline-size: 100%;
+  }
+  .dh-filter-chip__value {
+    max-width: 10rem;
+  }
+}
+
+@media (hover: none) {
+  .dh-filter-chip__edit,
+  .dh-filter-chip__remove {
+    min-height: var(--dh-touch-target-min);
+  }
+}
