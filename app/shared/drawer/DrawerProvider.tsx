@@ -6,7 +6,8 @@
  *     param), so the rendered stack is a deterministic function of the address —
  *     deep-linkable, shareable, refresh-proof and Back/Forward-correct;
  *   - exposes an imperative controller (`useDrawer`) whose every mutation is a real
- *     navigation (open pushes a history entry; close is Back-aware);
+ *     navigation (open pushes a tagged history entry; close uses Back only for a
+ *     level this provider actually pushed, else removes the top parameter in place);
  *   - renders the underlying page (`children`) and, when open, the drawer stack as
  *     a sibling so the stack can make the page — and the whole app shell — inert.
  *
@@ -24,6 +25,7 @@ import type { DrawerContextValue } from "./drawer-context";
 import { DrawerStack } from "./DrawerStack";
 import {
   DEFAULT_DRAWER_PARAM,
+  DRAWER_PUSH_STATE_KEY,
   MAX_DRAWER_DEPTH,
   readDrawerStack,
   withAllDrawersRemoved,
@@ -33,6 +35,33 @@ import {
 } from "./drawer-url";
 import type { DrawerController, DrawerEntry, DrawerKey } from "./types";
 import type { DrawerRenderResult } from "./types";
+
+/**
+ * Read the provider's push token off a history entry's state, if present. Only a
+ * string stored by this provider under {@link DRAWER_PUSH_STATE_KEY} counts.
+ */
+function readPushToken(state: unknown): string | undefined {
+  if (state !== null && typeof state === "object") {
+    const value = (state as Record<string, unknown>)[DRAWER_PUSH_STATE_KEY];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+/** A per-instance-unique id, so push tokens never collide across provider
+ * instances (e.g. a fresh instance after a refresh vs. tokens the browser
+ * preserved in older history entries). */
+function createInstanceId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return `dh-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
 
 export interface DrawerProviderProps {
   /** The underlying page content the drawers open over. */
@@ -50,28 +79,38 @@ export interface DrawerProviderProps {
   readonly maxDepth?: number;
 }
 
-/** True when the browser has an in-app history entry to return to. */
-function canNavigateBack(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  const state = window.history.state as { idx?: number } | null;
-  return (state?.idx ?? 0) > 0;
-}
-
 export function DrawerProvider({
   children,
   renderDrawer,
   param = DEFAULT_DRAWER_PARAM,
   maxDepth = MAX_DRAWER_DEPTH,
 }: DrawerProviderProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
 
   // The opener control per depth, captured synchronously at open time so focus
   // can return to it on close.
   const openers = useRef<(HTMLElement | null)[]>([]);
+
+  // Session-scoped record of which history entries THIS provider instance pushed
+  // via `openDrawer()`. A monotonic token tags each pushed entry's `history.state`
+  // and is recorded here; on close, a token present in both the current entry's
+  // state AND this set proves the level is ours to close with Back. The set is
+  // empty after a refresh/remount, so a refreshed or deep-linked entry — whose
+  // `history.state` token the browser preserved but this instance never issued —
+  // correctly closes by removing the top parameter instead (ADR-018 §18.2).
+  const pushTokenCounter = useRef(0);
+  const providerPushTokens = useRef<Set<string>>(new Set());
+  const instanceIdRef = useRef<string>("");
+  if (instanceIdRef.current === "") {
+    instanceIdRef.current = createInstanceId();
+  }
+
+  // The current entry's history state, kept in a ref so the navigation callbacks
+  // read the latest value without being re-created on every location change.
+  const locationStateRef = useRef(location.state);
+  locationStateRef.current = location.state;
 
   const stack = useMemo(
     () => readDrawerStack(searchParams, param),
@@ -95,11 +134,38 @@ export function DrawerProvider({
     }
   }, []);
 
+  // Navigate to the current pathname with a new search string, changing ONLY the
+  // search. Pathname and hash are carried explicitly because `setSearchParams`
+  // (which navigates to `"?" + params`) drops the hash. `state` is passed through
+  // so a push can tag the entry and a replace can preserve the existing tag.
+  const navigateWithSearch = useCallback(
+    (
+      nextParams: URLSearchParams,
+      options: { replace: boolean; state: unknown },
+    ) => {
+      const search = nextParams.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: search ? `?${search}` : "",
+          hash: location.hash,
+        },
+        {
+          replace: options.replace,
+          preventScrollReset: true,
+          state: options.state,
+        },
+      );
+    },
+    [navigate, location.pathname, location.hash],
+  );
+
   const openDrawer = useCallback(
     (key: DrawerKey) => {
       const current = readDrawerStack(searchParams, param);
       if (current[current.length - 1] === key) {
-        // Re-opening the current top is a no-op — never duplicate a level.
+        // Re-opening the current top is a no-op — never duplicate a level, and
+        // never mint navigation metadata for a navigation that doesn't happen.
         return;
       }
       if (current.length >= maxDepth) {
@@ -109,28 +175,37 @@ export function DrawerProvider({
           );
         }
         captureOpener(current.length - 1);
-        setSearchParams((prev) => withTopDrawerReplaced(prev, key, param), {
+        // At the cap this is a replace, not a new push: preserve the current
+        // entry's marker so its close behaviour is unchanged.
+        navigateWithSearch(withTopDrawerReplaced(searchParams, key, param), {
           replace: true,
-          preventScrollReset: true,
+          state: locationStateRef.current,
         });
         return;
       }
       captureOpener(current.length);
-      setSearchParams((prev) => withDrawerPushed(prev, key, param), {
-        preventScrollReset: true,
+      // Push a new level and tag the resulting history entry as provider-created,
+      // so close() can safely use Back for it (and Forward can restore it).
+      const token = `${instanceIdRef.current}:${(pushTokenCounter.current += 1)}`;
+      providerPushTokens.current.add(token);
+      navigateWithSearch(withDrawerPushed(searchParams, key, param), {
+        replace: false,
+        state: { [DRAWER_PUSH_STATE_KEY]: token },
       });
     },
-    [searchParams, setSearchParams, param, maxDepth, captureOpener],
+    [searchParams, param, maxDepth, captureOpener, navigateWithSearch],
   );
 
   const replaceDrawer = useCallback(
     (key: DrawerKey) => {
-      setSearchParams((prev) => withTopDrawerReplaced(prev, key, param), {
+      // Swap the top key within the SAME history entry, preserving its marker —
+      // a replace must not be treated as a separately pushed level.
+      navigateWithSearch(withTopDrawerReplaced(searchParams, key, param), {
         replace: true,
-        preventScrollReset: true,
+        state: locationStateRef.current,
       });
     },
-    [setSearchParams, param],
+    [searchParams, param, navigateWithSearch],
   );
 
   const closeDrawer = useCallback(() => {
@@ -138,31 +213,38 @@ export function DrawerProvider({
     if (current.length === 0) {
       return;
     }
-    // Prefer real Back so Forward can restore the drawer; but a direct deep link
-    // has no in-app history to return to, so fall back to dropping the top param
-    // in place (a replace, to avoid stranding a forward entry).
-    if (canNavigateBack()) {
+    const token = readPushToken(locationStateRef.current);
+    const openedByProvider =
+      token !== undefined && providerPushTokens.current.has(token);
+    if (openedByProvider) {
+      // This exact level was created by our own openDrawer push, so the previous
+      // history entry is precisely the state before it opened: Back closes only
+      // this level and keeps Forward able to restore it.
       navigate(-1);
     } else {
-      setSearchParams((prev) => withTopDrawerRemoved(prev, param), {
+      // Deep-linked, refreshed, or otherwise not pushed by us: there is no trusted
+      // previous entry, so remove ONLY the top drawer parameter in place (a
+      // replace), preserving the pathname, hash and unrelated query parameters.
+      navigateWithSearch(withTopDrawerRemoved(searchParams, param), {
         replace: true,
-        preventScrollReset: true,
+        state: locationStateRef.current,
       });
     }
-  }, [searchParams, setSearchParams, navigate, param]);
+  }, [searchParams, param, navigate, navigateWithSearch]);
 
   const closeAll = useCallback(() => {
-    setSearchParams((prev) => withAllDrawersRemoved(prev, param), {
-      preventScrollReset: true,
+    navigateWithSearch(withAllDrawersRemoved(searchParams, param), {
+      replace: false,
+      state: null,
     });
-  }, [setSearchParams, param]);
+  }, [searchParams, param, navigateWithSearch]);
 
   const buildHref = useCallback(
     (nextParams: URLSearchParams) => {
       const query = nextParams.toString();
-      return query ? `${location.pathname}?${query}` : location.pathname;
+      return `${location.pathname}${query ? `?${query}` : ""}${location.hash}`;
     },
-    [location.pathname],
+    [location.pathname, location.hash],
   );
 
   const buildOpenHref = useCallback(

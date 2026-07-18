@@ -24,6 +24,17 @@
 export const DEFAULT_DRAWER_PARAM = "drawer";
 
 /**
+ * `history.state` key under which the provider tags a history entry it created via
+ * `openDrawer()`. Paired with a provider-owned, session-scoped token set, it lets
+ * `closeDrawer()` tell a level it genuinely pushed (→ Back, so Forward can restore)
+ * from a deep-linked/refreshed level (→ remove the top parameter in place). Reading
+ * a bare `history.state.idx` is NOT sufficient: it only proves an earlier entry
+ * exists, not that the entry preceding this drawer belongs to the same page
+ * (ADR-018 §18.2).
+ */
+export const DRAWER_PUSH_STATE_KEY = "__dhDrawerPush";
+
+/**
  * A generous stack-depth ceiling. Normal use never approaches it; it exists only
  * to stop a pathological open-loop from growing history and DOM without bound.
  * When reached, opening replaces the top level instead of pushing a new one.

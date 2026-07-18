@@ -180,6 +180,30 @@ test.describe("DS-03 Drawer — desktop", () => {
     await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
   });
 
+  test("closing a deep-linked drawer reached with prior history stays on the route", async ({
+    page,
+  }) => {
+    // Establish real browser history on a DIFFERENT fixture route first.
+    await page.goto("/design/record-layout");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Record Layout" }),
+    ).toBeVisible();
+
+    // Arrive at the drawer fixture through a drawer deep link (copied-link style),
+    // so the drawer level was NOT opened by DalyHub's own openDrawer().
+    await page.goto(`${FIXTURE}?drawer=project:website-relaunch`);
+    await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
+    const drawer = page.getByRole("dialog", { name: "Website relaunch" });
+    await expect(drawer).toBeVisible();
+
+    // Closing must remove ONLY the top drawer parameter and keep the current route
+    // — it must never navigate back to /design/record-layout.
+    await drawer.getByRole("button", { name: "Close" }).click();
+    await expect(page).toHaveURL(/\/design\/drawer$/);
+    await expect(page.getByRole("dialog")).toBeHidden();
+    expect(page.url()).not.toContain("record-layout");
+  });
+
   test("works in dark theme", async ({ page }) => {
     await gotoFixture(page);
     await page.getByRole("button", { name: "Dark" }).click();
