@@ -16,6 +16,7 @@ export default function ProjectsRoute() {
   return (
     <ModulePlaceholder
       name="Projects"
+      entityType="project"
       summary="Projects are the finite bodies of work you run under an Area or a Goal."
     />
   );

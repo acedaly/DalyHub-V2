@@ -69,6 +69,8 @@ body {
 
 /* -------------------------------------------------------------------------- */
 /* Generic content surfaces (error page, home, module placeholders).          */
+/* The PX-02 pane uses `.dh-pane-body` (shell.css) for padded document content; */
+/* `.page` remains for genuine standalone document pages (e.g. the error page). */
 /* -------------------------------------------------------------------------- */
 
 .page {
@@ -77,9 +79,7 @@ body {
   padding: clamp(var(--dh-space-6), 5vw, var(--dh-space-16)) var(--dh-gutter);
 }
 
-.page h1,
-.home h1,
-.module-placeholder h1 {
+.page h1 {
   font-size: var(--dh-font-size-2xl);
   line-height: var(--dh-line-height-tight);
   letter-spacing: var(--dh-letter-spacing-tight);
@@ -87,7 +87,7 @@ body {
 }
 
 .page h2,
-.home h2 {
+.dh-pane-body h2 {
   font-size: var(--dh-font-size-lg);
   line-height: var(--dh-line-height-snug);
   margin: var(--dh-space-6) 0 var(--dh-space-2);
@@ -104,18 +104,18 @@ body {
 }
 
 .page a,
-.home a {
+.dh-pane-body a {
   color: var(--dh-color-accent-text);
 }
 
 .page ul,
-.home ul {
+.dh-pane-body ul {
   padding-left: var(--dh-space-5);
   margin: 0 0 var(--dh-space-4);
 }
 
 .page li,
-.home li {
+.dh-pane-body li {
   margin-bottom: var(--dh-space-1);
 }
 

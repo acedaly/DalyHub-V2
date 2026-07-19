@@ -1,0 +1,48 @@
+/*
+ * PX-02 — the Shared Collection Layout (design tokens only).
+ *
+ * A pane-filling collection: a sticky header + filter bar that pin while the content
+ * scrolls beneath (the pane owns the scroll; PRODUCT_EXPERIENCE #11), an optional
+ * bottom-anchored selection bar, and responsive spacing.
+ */
+
+.dh-collection {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Header + filter bar pin together at the top of the pane's scroll container. */
+.dh-collection__sticky {
+  position: sticky;
+  top: 0;
+  z-index: var(--dh-z-sticky);
+  background: var(--dh-color-bg);
+}
+
+.dh-collection__filters {
+  padding: var(--dh-space-3) var(--dh-gutter);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-collection__content {
+  flex: 1;
+  padding: var(--dh-space-5) var(--dh-gutter) var(--dh-space-8);
+}
+
+/* The bottom-anchored selection / bulk-action bar sticks to the pane bottom. */
+.dh-collection__selection {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--dh-z-sticky);
+  padding: var(--dh-space-3) var(--dh-gutter);
+  padding-block-end: max(var(--dh-space-3), env(safe-area-inset-bottom));
+  background: var(--dh-color-surface);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
+}
+
+@media (max-width: 48rem) {
+  .dh-collection__content {
+    padding-block: var(--dh-space-4) var(--dh-space-6);
+  }
+}

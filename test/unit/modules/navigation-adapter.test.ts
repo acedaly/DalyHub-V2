@@ -113,4 +113,46 @@ describe("navigation adapter", () => {
     ]);
     expect(Object.isFrozen(nav)).toBe(true);
   });
+
+  it("attaches the module's entity type when a resolver supplies one (PX-02)", () => {
+    const registry = createModuleRegistry([
+      defineModule({
+        id: "projects",
+        name: "Projects",
+        entityTypes: [
+          { type: "project", singular: "Project", plural: "Projects" },
+        ],
+        routes: [
+          {
+            id: "projects.list",
+            path: "projects",
+            file: "routes/index.tsx",
+            meta: { navLabel: "Projects" },
+          },
+        ],
+      }),
+      defineModule({
+        id: "settings",
+        name: "Settings",
+        routes: [
+          {
+            id: "settings.index",
+            path: "settings",
+            file: "routes/index.tsx",
+            meta: { navLabel: "Settings" },
+          },
+        ],
+      }),
+    ]);
+    const nav = buildNavigationModel(
+      registry.listRoutes(),
+      (moduleId) => registry.getModule(moduleId)?.entityTypes[0]?.type,
+    );
+    const projects = nav.find((item) => item.id === "projects.list");
+    const settings = nav.find((item) => item.id === "settings.index");
+    // The icon is DERIVED from the module's own entity-type manifest.
+    expect(projects?.entityType).toBe("project");
+    // A module with no entity type carries none (the shell falls back to a glyph).
+    expect(settings?.entityType).toBeUndefined();
+  });
 });

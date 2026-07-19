@@ -17,8 +17,8 @@ Before the components, the shared foundations they're built on. These are define
 - **Typography.** One type scale, generous line height, clear hierarchy. Density with air.
 - **Spacing.** A single spacing scale (e.g. 4px base). Consistent rhythm across every surface.
 - **Motion.** Purposeful and quick (see [Motion](#motion--feedback-timing)). Communicates causality; never decoration. Honours `prefers-reduced-motion`.
-- **Iconography.** One icon set, consistent weight and size. Icons support labels; they don't replace them.
-- **Entity identity.** Each entity type (Area, Goal, Project, Task, Note, Meeting, Person, Asset, Diary) has a consistent icon and accent so it's recognisable at a glance anywhere it appears.
+- **Iconography.** One icon set, consistent weight and size. Icons support labels; they don't replace them. Realised by the in-house outline set in [`app/shared/icons`](../../app/shared/icons) (24×24, `currentColor`, 1.75px) — see [Entity Identity (PX-02)](#entity-identity-px-02).
+- **Entity identity.** Each entity type (Area, Goal, Project, Task, Note, Meeting, Person, Asset, Diary, Review) has a consistent icon and accent so it's recognisable at a glance anywhere it appears. Realised by the one **Entity Identity** system ([PX-02](#entity-identity-px-02), [`app/shared/entity`](../../app/shared/entity)).
 
 ---
 
@@ -448,6 +448,97 @@ Active filters survive refresh and copied links; Back/Forward restores prior sta
 - ❌ Build a per-module filter bar or hard-code Task/Project/Goal logic in the model; hold filter state only in component state; encode the whole state as one opaque JSON blob; expose nonsensical operator/value combinations; persist saved views to D1 here.
 
 **Extension rules.** Add a value type/operator or a bar affordance to the **one** shared system (and document it here), never a per-module fork. Real product filter usages and server-side/saved-view persistence arrive with later items (Today, Projects, X-02) — this ships the system plus a development fixture only.
+
+---
+
+## Application Frame (PX-02)
+
+The shared patterns above are composed by ONE application frame ([PX-02](../roadmap/ROADMAP_V2.md#-px-02--product-frame), [`app/shared/shell`](../../app/shared/shell)), accepted in [ADR-020](../decisions/ARCHITECTURE_DECISIONS.md#adr-020-the-application-frame-sidebar-shell-pane-collection-layout-and-entity-identity). It replaces FND-09's website-like top bar with a premium application silhouette and is the frame **every future module inherits** — it must feel like Linear/Craft/Raycast/Things, not a website. The frame implements the composition contract in [`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md) (which governs feel; this document governs each part's anatomy). It builds entirely on [DS-01 tokens](#design-tokens-ds-01), reuses DS-02…04/DS-07 unchanged, and adds **no runtime dependency**.
+
+### The frame
+
+```
+┌──────────────┬───────────────────────────────────────────────┐
+│  ◆ Workspace │  Pane Header (sticky): H1 · count · [view] [+] │
+│              │  FilterBar (sticky, when a collection)         │
+│  ⌘K Search   ├───────────────────────────────────────────────┤
+│  ⌘ Command   │                                               │
+│              │   pane content (the document scrolls)          │
+│  ⬢ Areas     │                                               │
+│  ◎ Goals     │                                               │
+│  ▚ Projects  │                                               │
+│  ⦿ Tasks     │                                               │
+│  … (spacer)  │                                               │
+│  (A) Owner ▾ │                                               │
+└──────────────┴───────────────────────────────────────────────┘
+sidebar: --dh-color-surface, --dh-shell-nav-width, icon+label rows,
+active = accent-surface tint + semibold + aria-current (never colour alone).
+Pane: --dh-color-bg. Grid: var(--dh-shell-nav-width) 1fr.
+```
+
+- **Layout.** `AppShell` is a grid `grid-template-columns: var(--dh-shell-nav-width) 1fr`. The **document** is the scroll container and the sidebar is `position: sticky` — this preserves the [DS-03 Drawer](#shared-drawer-ds-03)'s body-scroll-lock and `ScrollRestoration` (which act on the window) while sticky Pane Headers and FilterBars still pin to the viewport (ADR-020 §20.2). There is exactly one frame; no surface builds its own.
+- **Landmarks.** The sidebar brand is the single `banner`; primary navigation is a labelled `navigation`; the pane is `main` (the skip-link target); the Pane Header is a plain container (not a second banner). Keyboard-complete, skip link preserved, focus never lost.
+
+### Sidebar
+
+**Purpose.** The one element that never changes between surfaces — product identity, global Search, the Command Palette affordance, primary navigation, and the user menu.
+**Anatomy.** Brand (mark + workspace name) · Search entry (`/`) + Command Palette entry (`⌘K`) · primary navigation (icon + label rows, never text-only) · spacer · [User Menu](#user-menu-px-02). Built to absorb future **badge counts, favourites and workspaces** without a redesign.
+**Behaviour.** Navigation is registry-driven (no central list); each row's icon is the module's [entity identity](#entity-identity-px-02) glyph, derived from the module's own `entityTypes` manifest. Active state is `aria-current` + weight + an accent-surface tint. The Search/Command entries are real, labelled, keyboard-reachable affordances; their surfaces are wired by DS-08/DS-09.
+**Mobile.** Below `md` the rail collapses to an **animated overlay sheet** that reuses the DS-03 Drawer's focus-trap, background-inertness and scroll-lock machinery (no second focus-trap): slide-in + scrim, Escape/outside-click close, focus restored to the toggle, safe-area aware, no content jump.
+
+### Pane Header
+
+**Purpose.** The header that belongs to the current screen, not the frame.
+**Anatomy.** Page title (a real heading, configurable level) · optional subtitle/count · optional view-switcher slot · one primary-action slot. Optionally an entity-identity glyph beside the title.
+**Rules.** It **never** contains theme controls, an email address or logout (those live in the User Menu). Exactly one primary action per pane. It pins (sticky) when hosted by a [Collection Layout](#collection-layout-px-02).
+
+### User Menu (PX-02)
+
+**Purpose.** Keep settings furniture off the desk.
+**Anatomy.** An avatar/initials trigger opening a small panel: name · email · the [theme control](#design-tokens-ds-01) · Settings · Sign out.
+**Behaviour.** An accessible disclosure (not a modal): `aria-expanded`/`aria-haspopup`, Escape closes and restores focus to the trigger, outside-click closes. The theme control is the **existing** implementation, only relocated — the cookie, `data-theme` SSR mechanism and persistence are unchanged.
+
+### Entity Identity (PX-02)
+
+**Purpose.** One icon and one accent per entity type, recognisable at a glance everywhere (Foundations requirement).
+**Anatomy.** [`app/shared/entity`](../../app/shared/entity) exposes a frozen `ENTITY_IDENTITY` map (`type → { label, pluralLabel, Icon, accentVar }`), `getEntityIdentity`, and an `EntityIcon` component; icons come from the in-house set in [`app/shared/icons`](../../app/shared/icons).
+
+| Entity | Icon (idiom) | Accent token |
+|---|---|---|
+| Area | stacked layers | `--dh-entity-area-accent` |
+| Goal | target | `--dh-entity-goal-accent` |
+| Project | columns | `--dh-entity-project-accent` |
+| Task | checked circle | `--dh-entity-task-accent` |
+| Note | document | `--dh-entity-note-accent` |
+| Meeting | people | `--dh-entity-meeting-accent` |
+| Person | person | `--dh-entity-person-accent` |
+| Asset | package | `--dh-entity-asset-accent` |
+| Diary | open book | `--dh-entity-diary-accent` |
+| Review | cycle | `--dh-entity-review-accent` |
+
+**Rules.** Every accent has a light **and** dark value (parity + ≥3:1 contrast, both tested). Accents are used at **identity sites only** (icon, card edge, chip) — never as text colour ([PRODUCT_EXPERIENCE Part III §5](PRODUCT_EXPERIENCE.md)). Icons are decorative (`aria-hidden`); a text label always names the entity. Cards, Record Headers, the sidebar, empty states and (later) Search/Command Palette all consume this one map — never a hand-picked icon at a call site.
+
+### Collection Layout (PX-02)
+
+**Purpose.** The product's commonest screen — "a filtered collection of Cards with a Filter bar, opening records in a Drawer" — as a named, entity-agnostic scaffold. This is to screens what the [Record Layout](#shared-record-layout-ds-02) is to records.
+**Anatomy.** [`app/shared/collection-layout`](../../app/shared/collection-layout) composes a [Pane Header](#pane-header) · a [FilterBar](#shared-filters-ds-07) slot · a content slot (a [Card](#shared-cards-ds-04) collection) · a selection/bulk slot · and built-in **Loading** ([Skeleton](#loading-states-px-02)), **Empty**, **Filtered-empty** and **Error** states.
+**Behaviour.** State precedence is error → loading → filtered-empty → empty → children, so a surface can **never** render a blank region ([PRODUCT_EXPERIENCE Part IV §5](PRODUCT_EXPERIENCE.md)). The header + filter bar pin (sticky) while the content scrolls; the selection bar is bottom-anchored.
+**Rules.** No business logic, no repositories, no entity assumptions — every collection surface (Today, Projects, Areas, Goals, Notes, People) is configuration. Filters bind to the URL via DS-07; cards open the DS-03 Drawer.
+
+### Empty State (PX-02)
+
+The [Empty States](#empty-states) pattern is realised by ONE `EmptyState` ([`app/shared/empty-state`](../../app/shared/empty-state)): icon (usually an entity glyph) · title · one-sentence body · primary/secondary actions · illustration slot. It replaces the previously-forked record/filter empty renderings; the *filtered-empty* variant is just this component with a "clear filters" recovery. Calm and centred in its content region — never full-screen theatre.
+
+### Loading States (PX-02)
+
+The [Loading](#loading) pattern gains a shared **Skeleton** system ([`app/shared/skeleton`](../../app/shared/skeleton)): a `Skeleton` primitive plus `CardSkeleton` (density-aware), `CollectionSkeleton` and `PaneSkeleton` that **mirror the final layout**. Skeletons are decorative (`aria-hidden`); the loading region owns `aria-busy`. The shimmer honours reduced motion — it collapses to a static tint with no information lost.
+
+### Correct vs incorrect usage
+
+- ✅ A new module ships: a registry-driven sidebar row (its entity icon derived from its manifest) + a `CollectionLayout` pane + `Card`s opening the Drawer + a URL-bound `FilterBar` + wired empty/loading/error slots — and **no new visual language**.
+- ✅ Identity, theme and sign-out live in the User Menu; the Pane Header carries only the title, one primary action and view controls.
+- ❌ A module page with its own header bar, its own shell/provider, a bespoke empty/loading state, or a hand-picked icon instead of the entity-identity map.
+- ❌ Theme controls, an email address or logout in a Pane Header; a second focus-trap for the mobile nav; an internal pane scroll that breaks the Drawer's scroll contract.
 
 ---
 

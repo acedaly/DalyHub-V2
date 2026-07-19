@@ -1,0 +1,55 @@
+/*
+ * PX-02 — the shared Empty State (design tokens only).
+ *
+ * Calm and centred in its content region — one glyph, one heading, one sentence, up
+ * to two actions. Never full-screen theatre (PRODUCT_EXPERIENCE Part V).
+ */
+
+.dh-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--dh-space-3);
+  max-width: var(--dh-width-narrow);
+  margin-inline: auto;
+  padding: var(--dh-space-12) var(--dh-gutter);
+}
+
+.dh-empty-state__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  font-size: 1.5rem;
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface);
+  border-radius: var(--dh-radius-full);
+}
+
+.dh-empty-state__illustration {
+  max-width: 100%;
+}
+
+.dh-empty-state__title {
+  margin: 0;
+  font-size: var(--dh-font-size-lg);
+  line-height: var(--dh-line-height-snug);
+  color: var(--dh-color-text);
+}
+
+.dh-empty-state__body {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  max-width: 42ch;
+}
+
+.dh-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  justify-content: center;
+  margin-top: var(--dh-space-2);
+}
