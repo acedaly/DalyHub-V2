@@ -128,6 +128,39 @@ never treated as server authority; a persistent mutation still calls an authoris
 server action. The shared infrastructure never parses an opaque Drawer key: the
 owning surface (e.g. Today) decides when a `task:<id>` action is relevant.
 
+The registration re-runs whenever the actions array reference changes, so the
+registry always holds the latest closures (`target`/`run`) — a surface that
+re-renders with a fresh selection is never activated against a stale one. This does
+not loop: registration writes the (separate) list context that only the palette
+subscribes to, not the stable registry context the surface holds. Memoise the array
+(as Today does) when its content is unchanged, to avoid needless re-registration.
+
+### Disabled vs unavailable
+
+A contextual action carries an optional `disabled` flag. **Disabled ≠ unavailable**:
+an unavailable action is simply omitted from the registration; a *disabled* action is
+still shown — so the surface stays legible — but cannot be used. The disabled state
+travels the whole pipeline (`AppAction` → `appActionToPaletteCommand` →
+`PaletteCommand` → ranked command → `PaletteOption` → rendering); it is never derived
+from CSS or looked up only at render time. Registered catalogue commands are never
+disabled.
+
+A disabled palette option:
+
+- renders as a **non-interactive** element (no `button`/`link`, no click/hover-to-activate)
+  with `aria-disabled="true"` and a visible **“Unavailable”** text cue — never
+  colour/opacity alone;
+- is **skipped by keyboard selection** (see below), so `Enter` and
+  `aria-activedescendant` never target it;
+- is refused by the controller's `activate()` guard — the authoritative safety
+  boundary — so even a click/Enter that reached it would not navigate, run, enter a
+  pending state, be added to recents, or close the palette;
+- is not re-invokable through **Retry**: if an action becomes disabled (or is removed)
+  after it failed, Retry clears the stale banner instead of re-running it;
+- yields a keyboard `ShortcutBinding` with `enabled: false` via
+  `appActionToShortcutBinding`, so the one shared dispatcher never fires it — the same
+  meaning of “disabled” as the Card and Record Header adapters.
+
 ## One shared action, four surfaces
 
 `AppAction` is one identity with one execution path. Adapters project it into the
@@ -165,6 +198,18 @@ auto-repeat, resolves collisions by precedence (one event → one action), and
 
 Modules extend the vocabulary; they never reassign a reserved shortcut (the kernel
 refuses it).
+
+### Selection policy: skip-disabled
+
+Movement within the list (`↑`/`↓`, Home/End, and their wrapping) **skips disabled
+options** — the active option is always one `Enter` can run, and
+`aria-activedescendant` is absent when no enabled option exists (e.g. an all-disabled
+result set). The active index is *resolved during render* (the raw intent is clamped
+to the nearest enabled option) rather than corrected in an effect, so there is no
+extra render and no race with a just-typed `Enter`. Pointer hover likewise never
+lands the active state on a disabled option. This is the WAI-ARIA-permitted
+“skip-disabled” combobox policy; the alternative (focusable-but-inert disabled
+options) was not chosen.
 
 ## Search reuse
 

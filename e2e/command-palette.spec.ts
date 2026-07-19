@@ -300,6 +300,40 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
     ).toBeVisible();
   });
 
+  test("shows a disabled contextual action but never lets it run", async ({
+    page,
+  }) => {
+    const input = await openFixturePalette(page);
+    await input.fill("archive");
+    // The disabled action is visible, marked unavailable, and non-interactive.
+    const disabled = page.getByRole("option", {
+      name: /Archive the current record/,
+    });
+    await expect(disabled).toBeVisible();
+    await expect(disabled).toHaveAttribute("aria-disabled", "true");
+    await expect(disabled.getByText("Unavailable")).toBeVisible();
+    await expect(disabled.getByRole("button")).toHaveCount(0);
+    await expect(disabled.getByRole("link")).toHaveCount(0);
+
+    // A normal pointer click is refused by actionability (aria-disabled reads as
+    // not-enabled); force the click anyway to prove the handler still never runs.
+    await disabled.click({ force: true });
+    // Enter is routed to the active option, which skip-disabled never lands here.
+    await input.press("Enter");
+    // No execution feedback (success or otherwise) ever appears.
+    await expect(page.getByText("This should never run.")).toHaveCount(0);
+    await expect(page.getByText(/Disabled action ran/)).toHaveCount(0);
+    await expect(page.getByText("Running…")).toHaveCount(0);
+
+    // An enabled contextual action in the same palette still works.
+    await input.fill("tidy");
+    await expect(option(page, /Tidy the current view/)).toBeVisible();
+    await input.press("Enter");
+    await expect(
+      page.getByText(/Tidied \(in memory only\)/i).first(),
+    ).toBeVisible();
+  });
+
   test("shows the Card and Record Header adapter proof", async ({ page }) => {
     await page.goto("/design/command-palette");
     await page.waitForLoadState("networkidle");

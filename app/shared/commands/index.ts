@@ -18,6 +18,7 @@ export {
 } from "./CommandContextProvider";
 export {
   appActionToPaletteCommand,
+  appActionToShortcutBinding,
   toCardAction,
   toRecordAction,
   type AppAction,

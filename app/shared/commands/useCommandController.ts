@@ -26,16 +26,17 @@ import { isExecutableQuery } from "~/shared/search/model";
 import { appActionToPaletteCommand, type AppAction } from "./action";
 import {
   catalogueEntryToPaletteCommand,
-  clampIndex,
-  firstIndex,
+  clampActiveIndex,
+  firstEnabledIndex,
   groupCommands,
   INITIAL_EXECUTION_STATE,
   beginExecution,
   buildPaletteView,
-  lastIndex,
+  lastEnabledIndex,
   MAX_RECENT_COMMANDS,
-  nextIndex,
-  previousIndex,
+  nextEnabledIndex,
+  optionEnabledMask,
+  previousEnabledIndex,
   rankCommands,
   resetExecution,
   sanitiseOutcome,
@@ -124,7 +125,9 @@ export function useCommandController(
 
   const [query, setQueryState] = useState("");
   const hasQuery = query.trim().length > 0;
-  const [activeIndex, setActiveIndexState] = useState(0);
+  // The user's raw selection intent; the exposed `activeIndex` is derived from it
+  // by clamping to an enabled option during render (see below).
+  const [activeIndexState, setActiveIndexState] = useState(0);
 
   /* ----------------------------- Catalogue ------------------------------ */
   const [catalogue, setCatalogue] = useState<CommandCatalogue | null>(null);
@@ -194,16 +197,25 @@ export function useCommandController(
     [commandGroups, searchGroups],
   );
 
-  // Keep the active index valid as the option list changes.
-  useEffect(() => {
-    setActiveIndexState((current) => {
-      if (view.count === 0) {
-        return -1;
-      }
-      const clamped = clampIndex(current, view.count);
-      return clamped < 0 ? 0 : clamped;
-    });
-  }, [view.count]);
+  // The enabled mask drives SKIP-DISABLED selection: a disabled contextual action
+  // is shown but never becomes the active option (ADR-024 §24.12) — so Enter and
+  // `aria-activedescendant` always refer to an activatable option.
+  const enabledMask = useMemo(
+    () => optionEnabledMask(view.options),
+    [view.options],
+  );
+
+  // Resolve the active index DURING RENDER rather than correcting it in an effect:
+  // `activeIndexState` is the user's intent, and the exposed `activeIndex` clamps it
+  // to an enabled option (or -1 when the list is empty/wholly disabled). Deriving it
+  // avoids a set-state-in-effect that would both add a render and race a just-typed
+  // Enter. Movement and hover read this resolved value through refs so the callbacks
+  // stay stable.
+  const activeIndex = clampActiveIndex(activeIndexState, enabledMask);
+  const activeIndexRef = useRef(activeIndex);
+  activeIndexRef.current = activeIndex;
+  const enabledMaskRef = useRef(enabledMask);
+  enabledMaskRef.current = enabledMask;
 
   const activeOption =
     activeIndex >= 0 && activeIndex < view.options.length
@@ -231,24 +243,37 @@ export function useCommandController(
   }, [searchClear]);
 
   /* ---------------------------- Selection ------------------------------- */
+  // Pointer hover sets the active option — but never onto a disabled one, so the
+  // active descendant stays activatable regardless of the input device.
   const setActiveIndex = useCallback((index: number) => {
-    setActiveIndexState(index);
+    const mask = enabledMaskRef.current;
+    if (index >= 0 && index < mask.length && mask[index]) {
+      setActiveIndexState(index);
+    }
   }, []);
+  // Movement reads the RESOLVED active index (not the raw intent) so it always
+  // steps from an enabled option and skips disabled ones on the way.
   const moveDown = useCallback(
-    () => setActiveIndexState((i) => nextIndex(i, view.count)),
-    [view.count],
+    () =>
+      setActiveIndexState(
+        nextEnabledIndex(activeIndexRef.current, enabledMaskRef.current),
+      ),
+    [],
   );
   const moveUp = useCallback(
-    () => setActiveIndexState((i) => previousIndex(i, view.count)),
-    [view.count],
+    () =>
+      setActiveIndexState(
+        previousEnabledIndex(activeIndexRef.current, enabledMaskRef.current),
+      ),
+    [],
   );
   const moveHome = useCallback(
-    () => setActiveIndexState(firstIndex(view.count)),
-    [view.count],
+    () => setActiveIndexState(firstEnabledIndex(enabledMaskRef.current)),
+    [],
   );
   const moveEnd = useCallback(
-    () => setActiveIndexState(lastIndex(view.count)),
-    [view.count],
+    () => setActiveIndexState(lastEnabledIndex(enabledMaskRef.current)),
+    [],
   );
 
   /* ---------------------------- Execution ------------------------------- */
@@ -400,13 +425,20 @@ export function useCommandController(
     const action = contextualActions.find(
       (a) => a.id === commandId && a.kind === "run",
     );
+    // A contextual action may have been removed or DISABLED since it failed (the
+    // surrounding UI state changed). It must never be re-invoked through Retry —
+    // clear the stale banner instead of leaving a dead Retry button behind.
     if (
-      action !== undefined &&
-      action.kind === "run" &&
-      action.disabled !== true
+      action === undefined ||
+      action.kind !== "run" ||
+      action.disabled === true
     ) {
-      runOutcome(action.id, async () => action.run());
+      setExecution((state) =>
+        state.phase === "idle" ? state : resetExecution(state),
+      );
+      return;
     }
+    runOutcome(action.id, async () => action.run());
   }, [catalogue, contextualActions, executeFn, runOutcome]);
 
   return {

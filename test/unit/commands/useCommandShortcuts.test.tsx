@@ -1,7 +1,12 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useCommandShortcuts, type ShortcutBinding } from "~/shared/commands";
+import {
+  appActionToShortcutBinding,
+  useCommandShortcuts,
+  type AppAction,
+  type ShortcutBinding,
+} from "~/shared/commands";
 
 function Harness({
   bindings,
@@ -143,6 +148,36 @@ describe("useCommandShortcuts dispatcher", () => {
     press({ key: "g", metaKey: true });
     expect(disabled).not.toHaveBeenCalled();
     expect(enabled).toHaveBeenCalledTimes(1);
+  });
+
+  it("never fires a disabled AppAction's shortcut, but fires an enabled one", () => {
+    const shortcut = { key: "j", modifiers: ["mod"] as const };
+    const disabledTrigger = vi.fn();
+    const enabledTrigger = vi.fn();
+    const disabledAction: AppAction = {
+      id: "a.off",
+      title: "Off",
+      kind: "run",
+      run: () => ({ ok: true }),
+      shortcut,
+      disabled: true,
+    };
+    const enabledAction: AppAction = {
+      id: "a.on",
+      title: "On",
+      kind: "run",
+      run: () => ({ ok: true }),
+      shortcut,
+    };
+    const bindings = [
+      appActionToShortcutBinding(disabledAction, disabledTrigger),
+      appActionToShortcutBinding(enabledAction, enabledTrigger),
+    ].filter((b): b is ShortcutBinding => b !== null);
+    render(<Harness bindings={bindings} />);
+    press({ key: "j", metaKey: true });
+    // The disabled action is skipped; the enabled lower-precedence one still wins.
+    expect(disabledTrigger).not.toHaveBeenCalled();
+    expect(enabledTrigger).toHaveBeenCalledTimes(1);
   });
 
   it("cleans up its listener on unmount", () => {

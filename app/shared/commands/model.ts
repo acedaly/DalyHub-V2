@@ -85,3 +85,15 @@ export {
   firstIndex,
   lastIndex,
 } from "~/shared/search/model";
+
+// Enabled-aware (skip-disabled) selection layered on top of the flat index space,
+// so keyboard movement never lands on a disabled contextual action.
+export {
+  isOptionEnabled,
+  optionEnabledMask,
+  firstEnabledIndex,
+  lastEnabledIndex,
+  nextEnabledIndex,
+  previousEnabledIndex,
+  clampActiveIndex,
+} from "./selection";

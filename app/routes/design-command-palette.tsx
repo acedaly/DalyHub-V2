@@ -232,6 +232,21 @@ function useDemoContextualActions(
           return { ok: true, message: "Tidied (in memory only)." };
         },
       },
+      {
+        // A contextual action that is SHOWN but not activatable (disabled ≠
+        // omitted). It must never navigate, execute, become pending, be retried
+        // or fire a shortcut — from pointer OR keyboard.
+        id: "demo.ctx.disabled",
+        title: "Archive the current record",
+        subtitle: "Disabled: not available for this record",
+        keywords: ["archive", "disabled", "unavailable"],
+        kind: "run",
+        disabled: true,
+        run: () => {
+          onFeedback("Disabled action ran — this must never appear.");
+          return { ok: true, message: "This should never run." };
+        },
+      },
     ];
     if (extra) {
       actions.push({

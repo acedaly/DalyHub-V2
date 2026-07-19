@@ -193,7 +193,8 @@
 }
 
 .dh-command__optionbtn,
-.dh-command__optionlink {
+.dh-command__optionlink,
+.dh-command__optionstatic {
   display: flex;
   align-items: center;
   gap: var(--dh-space-3);
@@ -210,6 +211,11 @@
   font-family: var(--dh-font-sans);
 }
 
+/* The disabled option is a non-interactive row (no button/link semantics). */
+.dh-command__optionstatic {
+  cursor: not-allowed;
+}
+
 .dh-command__option[data-active="true"] {
   background: var(--dh-color-accent-surface);
   outline: var(--dh-border-width-thin) solid var(--dh-color-accent);
@@ -221,11 +227,21 @@
 }
 
 .dh-command__option[data-disabled="true"] {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
-.dh-command__option[data-disabled="true"] .dh-command__optionbtn {
-  cursor: not-allowed;
+/* A visible text badge — the disabled meaning never relies on colour/opacity. */
+.dh-command__optionunavailable {
+  flex: 0 0 auto;
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .dh-command__optionicon {

@@ -263,7 +263,7 @@ describe("CommandPalette", () => {
     await optionByTitle("Tidy view");
   });
 
-  it("does not activate a disabled contextual action and marks it aria-disabled", async () => {
+  it("renders a disabled contextual action as non-interactive and never runs it", async () => {
     const run = vi.fn(() => ({ ok: true as const }));
     renderPalette({
       contextual: [
@@ -281,12 +281,126 @@ describe("CommandPalette", () => {
     });
     fireEvent.change(input, { target: { value: "blocked" } });
     const option = await optionByTitle("Blocked action");
+    // aria-disabled, a visible non-colour cue, and NO button/link affordance.
     expect(option).toHaveAttribute("aria-disabled", "true");
-    // Enter over the disabled option is a no-op.
+    expect(option).not.toHaveAttribute("aria-selected", "true");
+    expect(within(option).getByText("Unavailable")).toBeInTheDocument();
+    expect(within(option).queryByRole("button")).toBeNull();
+    expect(within(option).queryByRole("link")).toBeNull();
+    // Enter routes to the active option — which skip-disabled never lands here.
     fireEvent.keyDown(input, { key: "Enter" });
-    // A direct click is blocked by the disabled button too.
-    fireEvent.click(within(option).getByRole("button"));
+    // A direct pointer click on the row does nothing either.
+    fireEvent.click(option);
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it("skips a disabled option during keyboard navigation and lands on an enabled one", async () => {
+    const disabledRun = vi.fn(() => ({ ok: true as const }));
+    const enabledRun = vi.fn(() => ({ ok: true as const }));
+    const { onClose } = renderPalette({
+      contextual: [
+        {
+          id: "ctx.off",
+          title: "Zzz disabled first",
+          kind: "run",
+          run: disabledRun,
+          disabled: true,
+        },
+        {
+          id: "ctx.on",
+          title: "Zzz enabled next",
+          kind: "run",
+          run: enabledRun,
+        },
+      ],
+    });
+    const input = screen.getByRole("combobox", {
+      name: "Search commands and records",
+    });
+    fireEvent.change(input, { target: { value: "zzz" } });
+    await optionByTitle("Zzz enabled next");
+    // ArrowDown from the top must skip the disabled option and reach the enabled
+    // one; Enter then runs only the enabled action.
+    fireEvent.keyDown(input, { key: "Home" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(enabledRun).toHaveBeenCalledTimes(1));
+    expect(disabledRun).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("Retry does not rerun a contextual action that became disabled, and clears the banner", async () => {
+    const run = vi.fn(() => ({
+      ok: false as const,
+      reason: "failed" as const,
+      message: "Failed once.",
+    }));
+    function Case({ disabled }: { readonly disabled: boolean }) {
+      return (
+        <MemoryRouter initialEntries={["/projects"]}>
+          <CommandContextProvider>
+            <Ctx
+              actions={[
+                {
+                  id: "ctx.r",
+                  title: "Rerunnable action",
+                  kind: "run",
+                  run,
+                  disabled,
+                },
+              ]}
+            />
+            <CommandPalette
+              onClose={vi.fn()}
+              opener={null}
+              catalogue={async () => CATALOGUE}
+              debounceMs={0}
+              search={emptySearch}
+            />
+          </CommandContextProvider>
+        </MemoryRouter>
+      );
+    }
+    const { rerender } = render(<Case disabled={false} />);
+    const input = screen.getByRole("combobox", {
+      name: "Search commands and records",
+    });
+    fireEvent.change(input, { target: { value: "rerunnable" } });
+    await optionByTitle("Rerunnable action");
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(screen.getByText("Failed once.")).toBeInTheDocument(),
+    );
+    expect(run).toHaveBeenCalledTimes(1);
+
+    // The surface state changes: the action is now disabled.
+    rerender(<Case disabled />);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    // Retry must NOT re-invoke the now-disabled action, and the stale banner clears.
+    expect(run).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.queryByText("Failed once.")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("exposes no active descendant when every option is disabled", async () => {
+    renderPalette({
+      contextual: [
+        {
+          id: "ctx.only",
+          title: "Solo disabled",
+          kind: "run",
+          run: () => ({ ok: true }),
+          disabled: true,
+        },
+      ],
+    });
+    const input = screen.getByRole("combobox", {
+      name: "Search commands and records",
+    });
+    fireEvent.change(input, { target: { value: "solo" } });
+    await optionByTitle("Solo disabled");
+    // The disabled-only list leaves nothing selectable.
+    expect(input).not.toHaveAttribute("aria-activedescendant");
   });
 
   it("navigates ArrowDown/Enter to open a record result in the Drawer target", async () => {

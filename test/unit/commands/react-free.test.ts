@@ -26,6 +26,7 @@ const PURE_FILES = [
   "ranking.ts",
   "grouping.ts",
   "merge.ts",
+  "selection.ts",
   "shortcut.ts",
   "execution.ts",
   "model.ts",

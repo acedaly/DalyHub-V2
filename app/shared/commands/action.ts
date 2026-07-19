@@ -25,6 +25,7 @@ import type {
   PaletteCommand,
   SearchResultTarget,
 } from "./types";
+import type { ShortcutBinding } from "./useCommandShortcuts";
 
 /** How an action is carried out. */
 export type AppActionActivation =
@@ -67,6 +68,29 @@ export function appActionToPaletteCommand(action: AppAction): PaletteCommand {
     keywords: action.keywords ?? [],
     ...(action.shortcut === undefined ? {} : { shortcut: action.shortcut }),
     ...(action.disabled ? { disabled: true } : {}),
+  };
+}
+
+/**
+ * Project a shared action into a keyboard {@link ShortcutBinding} for the shared
+ * dispatcher — the SAME identity that becomes a Card action, a Record action and a
+ * palette command (ADR-024 §24.12/§24.14). Returns `null` when the action declares
+ * no shortcut. A DISABLED action still yields a binding but with `enabled: false`,
+ * so the one shared dispatcher never invokes it — disabled means the same thing
+ * across every surface, keyboard included. Collision/precedence are the
+ * dispatcher's concern and are unchanged.
+ */
+export function appActionToShortcutBinding(
+  action: AppAction,
+  onTrigger: () => void,
+): ShortcutBinding | null {
+  if (action.shortcut === undefined) {
+    return null;
+  }
+  return {
+    shortcut: action.shortcut,
+    onTrigger,
+    enabled: action.disabled !== true,
   };
 }
 

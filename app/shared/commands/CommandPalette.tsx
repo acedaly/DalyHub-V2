@@ -476,49 +476,67 @@ function CommandOption({
 }) {
   const { command, titleMatches } = option.ranked;
   const disabled = command.disabled === true;
+  // A disabled option is never the active option (skip-disabled selection), so it
+  // must not read as selected even if a stale `active` slips through.
+  const showActive = active && !disabled;
   const shortcut =
     command.shortcut !== undefined
       ? formatShortcut(command.shortcut, platform)
       : null;
+
+  const body = (
+    <>
+      <span className="dh-command__optionbody">
+        <span className="dh-command__optiontitle">
+          <Highlight text={command.title} ranges={titleMatches} />
+        </span>
+        {command.subtitle !== undefined ? (
+          <span className="dh-command__optionsubtitle">{command.subtitle}</span>
+        ) : null}
+      </span>
+      {/* A visible, non-colour "Unavailable" cue (never opacity/colour alone). */}
+      {disabled ? (
+        <span className="dh-command__optionunavailable">Unavailable</span>
+      ) : null}
+      {command.moduleLabel !== undefined ? (
+        <span className="dh-command__optiontype">{command.moduleLabel}</span>
+      ) : null}
+      {shortcut !== null ? (
+        <kbd className="dh-command__optionshortcut" aria-hidden="true">
+          {shortcut}
+        </kbd>
+      ) : null}
+    </>
+  );
+
   return (
     <div
       id={domId}
       role="option"
-      aria-selected={active}
+      aria-selected={showActive}
       aria-disabled={disabled || undefined}
       aria-busy={pending || undefined}
       className="dh-command__option"
-      data-active={active || undefined}
+      data-active={showActive || undefined}
       data-disabled={disabled || undefined}
       data-pending={pending || undefined}
     >
-      <button
-        type="button"
-        className="dh-command__optionbtn"
-        tabIndex={-1}
-        disabled={disabled}
-        onClick={() => onActivate(option)}
-        onMouseMove={() => onHover(option.index)}
-      >
-        <span className="dh-command__optionbody">
-          <span className="dh-command__optiontitle">
-            <Highlight text={command.title} ranges={titleMatches} />
-          </span>
-          {command.subtitle !== undefined ? (
-            <span className="dh-command__optionsubtitle">
-              {command.subtitle}
-            </span>
-          ) : null}
-        </span>
-        {command.moduleLabel !== undefined ? (
-          <span className="dh-command__optiontype">{command.moduleLabel}</span>
-        ) : null}
-        {shortcut !== null ? (
-          <kbd className="dh-command__optionshortcut" aria-hidden="true">
-            {shortcut}
-          </kbd>
-        ) : null}
-      </button>
+      {disabled ? (
+        // Non-interactive: no button/link, no click, no hover-to-activate — the
+        // controller guard is the authoritative boundary, this removes the
+        // affordance so pointer/keyboard cannot reach a handler at all.
+        <span className="dh-command__optionstatic">{body}</span>
+      ) : (
+        <button
+          type="button"
+          className="dh-command__optionbtn"
+          tabIndex={-1}
+          onClick={() => onActivate(option)}
+          onMouseMove={() => onHover(option.index)}
+        >
+          {body}
+        </button>
+      )}
     </div>
   );
 }
