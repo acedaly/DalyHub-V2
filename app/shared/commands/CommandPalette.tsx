@@ -475,6 +475,7 @@ function CommandOption({
   readonly onHover: (index: number) => void;
 }) {
   const { command, titleMatches } = option.ranked;
+  const disabled = command.disabled === true;
   const shortcut =
     command.shortcut !== undefined
       ? formatShortcut(command.shortcut, platform)
@@ -484,15 +485,18 @@ function CommandOption({
       id={domId}
       role="option"
       aria-selected={active}
+      aria-disabled={disabled || undefined}
       aria-busy={pending || undefined}
       className="dh-command__option"
       data-active={active || undefined}
+      data-disabled={disabled || undefined}
       data-pending={pending || undefined}
     >
       <button
         type="button"
         className="dh-command__optionbtn"
         tabIndex={-1}
+        disabled={disabled}
         onClick={() => onActivate(option)}
         onMouseMove={() => onHover(option.index)}
       >

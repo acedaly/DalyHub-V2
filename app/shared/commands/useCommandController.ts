@@ -347,6 +347,11 @@ export function useCommandController(
         if (action === undefined) {
           return;
         }
+        // A disabled contextual action is shown but not activatable — mirror the
+        // Card/Header adapters so Enter or a click cannot invoke its handler.
+        if (action.disabled === true) {
+          return;
+        }
         if (action.kind === "navigate") {
           rememberRecent(action.id);
           navigateToTarget(action.target);
@@ -395,7 +400,11 @@ export function useCommandController(
     const action = contextualActions.find(
       (a) => a.id === commandId && a.kind === "run",
     );
-    if (action !== undefined && action.kind === "run") {
+    if (
+      action !== undefined &&
+      action.kind === "run" &&
+      action.disabled !== true
+    ) {
       runOutcome(action.id, async () => action.run());
     }
   }, [catalogue, contextualActions, executeFn, runOutcome]);

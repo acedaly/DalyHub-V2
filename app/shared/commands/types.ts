@@ -97,6 +97,13 @@ export type PaletteCommand = {
   readonly moduleId?: string;
   /** Owning module display label (registered commands only). */
   readonly moduleLabel?: string;
+  /**
+   * Whether the command is currently unavailable. A disabled command still renders
+   * (so the surface stays legible) but cannot be activated — the palette skips it
+   * on Enter/click and marks it `aria-disabled`, mirroring the Card/Header adapters.
+   * Only contextual actions carry this; registered commands are never disabled.
+   */
+  readonly disabled?: boolean;
 };
 
 /** A palette command with its match tier and title highlight ranges. */

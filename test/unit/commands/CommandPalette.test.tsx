@@ -263,6 +263,32 @@ describe("CommandPalette", () => {
     await optionByTitle("Tidy view");
   });
 
+  it("does not activate a disabled contextual action and marks it aria-disabled", async () => {
+    const run = vi.fn(() => ({ ok: true as const }));
+    renderPalette({
+      contextual: [
+        {
+          id: "ctx.d",
+          title: "Blocked action",
+          kind: "run",
+          run,
+          disabled: true,
+        },
+      ],
+    });
+    const input = screen.getByRole("combobox", {
+      name: "Search commands and records",
+    });
+    fireEvent.change(input, { target: { value: "blocked" } });
+    const option = await optionByTitle("Blocked action");
+    expect(option).toHaveAttribute("aria-disabled", "true");
+    // Enter over the disabled option is a no-op.
+    fireEvent.keyDown(input, { key: "Enter" });
+    // A direct click is blocked by the disabled button too.
+    fireEvent.click(within(option).getByRole("button"));
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it("navigates ArrowDown/Enter to open a record result in the Drawer target", async () => {
     const { onClose } = renderPalette({ search: healthySearch });
     const input = screen.getByRole("combobox", {

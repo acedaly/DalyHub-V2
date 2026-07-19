@@ -220,6 +220,14 @@
   opacity: 0.7;
 }
 
+.dh-command__option[data-disabled="true"] {
+  opacity: 0.5;
+}
+
+.dh-command__option[data-disabled="true"] .dh-command__optionbtn {
+  cursor: not-allowed;
+}
+
 .dh-command__optionicon {
   display: inline-flex;
   flex: 0 0 auto;

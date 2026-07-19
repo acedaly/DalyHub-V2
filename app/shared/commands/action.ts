@@ -66,6 +66,7 @@ export function appActionToPaletteCommand(action: AppAction): PaletteCommand {
     ...(action.subtitle === undefined ? {} : { subtitle: action.subtitle }),
     keywords: action.keywords ?? [],
     ...(action.shortcut === undefined ? {} : { shortcut: action.shortcut }),
+    ...(action.disabled ? { disabled: true } : {}),
   };
 }
 

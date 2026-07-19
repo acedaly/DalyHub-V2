@@ -1,5 +1,5 @@
 import { render, act } from "@testing-library/react";
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -71,6 +71,38 @@ describe("CommandContextProvider", () => {
     expect(observed.map((a) => a.id)).toEqual(["x"]);
     act(() => setActions([action("y")]));
     expect(observed.map((a) => a.id)).toEqual(["y"]);
+  });
+
+  it("re-registers the latest closures when only the behaviour (run/target) changes", () => {
+    // The presentation fields (id/title/subtitle/kind/disabled) stay identical,
+    // but the `run` closure changes to close over fresh state. The registry must
+    // hold the latest object so the palette never activates a stale closure.
+    type RunFn = () => { ok: true };
+    let setRun: Dispatch<SetStateAction<RunFn>> = () => {};
+    function DynamicSurface() {
+      const [run, set] = useState<RunFn>(() => okRun);
+      setRun = set;
+      // A freshly-built array each render, same presentation fields, new closure.
+      useRegisterContextualActions([{ id: "x", title: "X", kind: "run", run }]);
+      return null;
+    }
+    render(
+      <CommandContextProvider>
+        <Observer />
+        <DynamicSurface />
+      </CommandContextProvider>,
+    );
+    const firstRun = observed.find((a) => a.id === "x");
+    expect(firstRun && firstRun.kind === "run" ? firstRun.run : null).toBe(
+      okRun,
+    );
+
+    const nextRun = () => ({ ok: true as const });
+    act(() => setRun(() => nextRun));
+    const secondRun = observed.find((a) => a.id === "x");
+    expect(secondRun && secondRun.kind === "run" ? secondRun.run : null).toBe(
+      nextRun,
+    );
   });
 
   it("returns an empty list with no provider", () => {
