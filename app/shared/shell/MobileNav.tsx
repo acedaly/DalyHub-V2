@@ -42,6 +42,8 @@ export type MobileNavProps = {
   readonly onClose: () => void;
   /** Open global Search (also closes the sheet). */
   readonly onOpenSearch?: (opener: HTMLElement) => void;
+  /** Open the Command Palette (also closes the sheet). */
+  readonly onOpenCommand?: (opener: HTMLElement) => void;
 };
 
 export function MobileNav({
@@ -52,6 +54,7 @@ export function MobileNav({
   opener,
   onClose,
   onOpenSearch,
+  onOpenCommand,
 }: MobileNavProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -102,6 +105,7 @@ export function MobileNav({
           onNavigate={onClose}
           onClose={onClose}
           onOpenSearch={onOpenSearch}
+          onOpenCommand={onOpenCommand}
           closeButtonRef={closeButtonRef}
         />
       </div>

@@ -71,7 +71,8 @@ describe("module definition validation", () => {
           subtitle: "Start a finite body of work",
           keywords: ["new", "project"],
           shortcut: { key: "p", modifiers: ["mod", "shift"] },
-          run: () => {},
+          kind: "execute",
+          run: () => ({ ok: true }),
         },
       ],
       searchProviders: [
@@ -169,7 +170,14 @@ describe("module definition validation", () => {
           defineModule({
             id: "notes",
             name: "Notes",
-            commands: [{ id: "projects.create", title: "X", run: () => {} }],
+            commands: [
+              {
+                id: "projects.create",
+                title: "X",
+                kind: "execute",
+                run: () => ({ ok: true }),
+              },
+            ],
           }),
         ]),
       ).toThrow(ModuleDefinitionError);
@@ -294,7 +302,9 @@ describe("module definition validation", () => {
           defineModule({
             id: "notes",
             name: "Notes",
-            commands: [{ id: "notes.x", title: "X", run: 5 as never }],
+            commands: [
+              { id: "notes.x", title: "X", kind: "execute", run: 5 as never },
+            ],
           }),
         ]),
       ).toThrow(ModuleDefinitionError);

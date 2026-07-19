@@ -10,19 +10,18 @@
  * renders Today's row with the generic navigation glyph — the shell's documented
  * fallback (PrimaryNavigation) — composed exactly as intended, with no shell change.
  *
- * It contributes the single navigable route (`routes.manifest.ts`) and — now that
- * DS-08 supplies the runtime search seam — a fixture-backed SEARCH PROVIDER
- * (`search.ts`). The provider is a real, registry-discovered contribution over the
- * Today fixtures that opens results in the existing DS-03 Drawer; when Today swaps
- * to real repositories, only the executor changes, not this contract. COMMAND
- * registration remains deferred to DS-09: a Today command such as Quick Capture
- * still has no honest `run` handler while there is no persistence seam in
- * `ModuleRuntimeContext` (TODAY-01 is otherwise fixture-only — no repositories, D1,
- * APIs, AI or persistence).
+ * It contributes the single navigable route (`routes.manifest.ts`), a fixture-backed
+ * SEARCH PROVIDER (`search.ts`, DS-08) and — now that DS-09 supplies the palette and
+ * the discriminated command contract — two honest NAVIGATION COMMANDS (`commands.ts`):
+ * "Go to Today" and "Focus Quick Capture". They are declarative (they open a route),
+ * so they need no `run` handler and persist nothing; the palette navigates to them
+ * directly (ADR-024 §24.15). Today remains fixture-only — no repositories, D1, APIs,
+ * AI or persistence — so it registers no EXECUTABLE (server-mutating) command.
  */
 
 import { defineModule } from "~/kernel/modules";
 
+import { todayCommands } from "./commands";
 import routes from "./routes.manifest";
 import { todaySearchProvider } from "./search";
 
@@ -32,5 +31,6 @@ export default defineModule({
   description: "The calm daily home — what deserves attention right now.",
   order: 5,
   routes,
+  commands: todayCommands,
   searchProviders: [todaySearchProvider],
 });

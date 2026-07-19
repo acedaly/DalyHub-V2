@@ -197,19 +197,64 @@ export type CommandShortcut = {
 };
 
 /**
- * The runtime handler for a command. It receives its dependencies EXPLICITLY via
- * the runtime context and returns nothing meaningful to the registry. It is
- * never called to construct the registry (ADR-013 §12).
+ * The trusted runtime context an EXECUTABLE command's handler receives when it is
+ * explicitly invoked at the authenticated server boundary (DS-09, ADR-024). It
+ * extends {@link ModuleRuntimeContext} with a cancellation `signal`, exactly as
+ * {@link SearchRuntimeContext} does for search providers: the execution boundary
+ * enforces a bounded deadline and aborts the signal when it elapses (or when the
+ * caller cancels). A well-behaved handler observes `signal.aborted` and stops
+ * early; even one that ignores it cannot hold the boundary open past the deadline.
+ * `AbortSignal` is a standard web primitive — this stays React-free, D1-free and
+ * Cloudflare-free.
  */
-export type CommandHandler = (
-  context: ModuleRuntimeContext,
-) => void | Promise<void>;
+export type CommandRuntimeContext = ModuleRuntimeContext & {
+  /** Aborted when the command's execution deadline elapses or it is cancelled. */
+  readonly signal: AbortSignal;
+};
 
 /**
- * A command contribution for the future Command Palette. All fields except
- * `run` are declarative metadata; `run` is the explicit runtime seam.
+ * The typed, safe result an executable command returns. A handler NEVER throws a
+ * raw error, returns SQL, a stack trace or an infrastructure code across this
+ * boundary: it returns one of these display-ready shapes (ADR-024). On success it
+ * may carry a short message and an optional post-success navigation `target`
+ * (validated like any other navigation target); on failure it names a recovery
+ * class and a bounded, display-ready message. Message and target bounds are
+ * enforced by the shared execution model / the server boundary, not here.
  */
-export type CommandContribution = {
+export type CommandExecutionOutcome =
+  | {
+      readonly ok: true;
+      /** Optional, bounded, display-ready confirmation. */
+      readonly message?: string;
+      /** Optional validated navigation to run after the command succeeds. */
+      readonly target?: SearchResultTarget;
+    }
+  | {
+      readonly ok: false;
+      /**
+       * The recovery class. `unavailable` — the command cannot run right now;
+       * `conflict` — the world changed under it; `failed` — it tried and could not
+       * complete. A timeout is reported honestly as `failed` (the side effect may
+       * or may not have completed — see ADR-024), never as "cancelled".
+       */
+      readonly reason: "unavailable" | "conflict" | "failed";
+      /** A bounded, display-ready explanation. Never a raw error or stack trace. */
+      readonly message: string;
+    };
+
+/**
+ * The runtime handler for an EXECUTABLE command. It receives its dependencies
+ * EXPLICITLY via the {@link CommandRuntimeContext} (workspace scope + cancellation
+ * signal) and returns a typed {@link CommandExecutionOutcome}. It is never called
+ * to construct the registry (ADR-013 §12); it runs only through the authenticated
+ * command-execution boundary (ADR-024).
+ */
+export type CommandHandler = (
+  context: CommandRuntimeContext,
+) => CommandExecutionOutcome | Promise<CommandExecutionOutcome>;
+
+/** Fields common to every command kind — the serialisable palette metadata. */
+type CommandContributionBase = {
   /** Stable, globally-unique id, namespaced under the module (e.g. `notes.capture`). */
   readonly id: string;
   /** Palette title. */
@@ -220,9 +265,43 @@ export type CommandContribution = {
   readonly keywords?: readonly string[];
   /** Optional declarative keyboard-shortcut metadata. */
   readonly shortcut?: CommandShortcut;
+};
+
+/**
+ * A NAVIGATION command: a trusted, declarative command that opens an app route or
+ * a DS-03 Drawer target. It carries NO handler — it is pure serialisable metadata,
+ * and it reuses the validated DS-08 {@link SearchResultTarget} contract rather than
+ * inventing a second navigation-target type (ADR-024). The palette executes it on
+ * the client by navigating; it never crosses the server execution boundary.
+ */
+export type NavigationCommandContribution = CommandContributionBase & {
+  /** Discriminant: this command navigates. */
+  readonly kind: "navigate";
+  /** The validated, module-owned navigation target (reused from DS-08). */
+  readonly target: SearchResultTarget;
+};
+
+/**
+ * An EXECUTABLE command: one that must run through the authenticated server
+ * boundary via its `run` handler. The registry STORES the handler but never
+ * invokes it; the handler is never shipped to the browser (only this command's
+ * metadata, minus `run`, is serialised into the palette catalogue — ADR-024).
+ */
+export type ExecutableCommandContribution = CommandContributionBase & {
+  /** Discriminant: this command executes server-side. */
+  readonly kind: "execute";
   /** The explicit runtime handler. Stored, never invoked by the registry. */
   readonly run: CommandHandler;
 };
+
+/**
+ * A command contribution for the Command Palette. A command is EITHER a
+ * declarative navigation OR a server-executed action — never both, never neither
+ * (the `kind` discriminant is validated at registry construction, ADR-024). All
+ * fields except `run` are serialisable metadata safe to ship to the browser.
+ */
+export type CommandContribution =
+  NavigationCommandContribution | ExecutableCommandContribution;
 
 /* -------------------------------------------------------------------------- */
 /* Search providers                                                           */

@@ -44,6 +44,14 @@
 - **Reusable patterns.** `⌘K` everything, quick actions, snappy transitions, opinionated speed.
 - **Risks.** Linear is a team issue tracker; DalyHub is a personal life OS. Borrow the *interaction model*, not the team-workflow features.
 
+### Raycast — 🔴 study-only (closed source)
+- **Why chosen.** The reference for a command-first launcher: a single input that unifies navigation, search and executable actions, with context-aware suggestions and a curated keyboard vocabulary.
+- **What DalyHub should learn.** One surface that merges commands and search without confusing them; context-aware ranking (surface-relevant actions first); calm inline feedback for a running action; a restrained suggested/recent set on an empty query.
+- **Relevant modules.** [Command Palette](../design/DESIGN_SYSTEM.md#command-palette) (DS-09), Quick Actions, all keyboard workflows.
+- **Repository / licence.** Closed source. Interaction inspiration only.
+- **Reusable patterns.** Command/search/action in one list; context-aware suggestions; deterministic keyboard model; honest pending/success/failure states.
+- **Risks.** Raycast is an extensible macOS launcher with arbitrary extensions and scripts; DalyHub commands are intentionally curated, registry-declared and free of remote plugins or user scripting. Borrow the *interaction model*, not the extension marketplace.
+
 ### Things 3 — 🔴 study-only (closed source)
 - **Why chosen.** Exemplary personal task UX: calm, focused, beautifully restrained "Today" experience.
 - **What DalyHub should learn.** The [Today/Execution](../roadmap/ROADMAP_V2.md#-today-01--execution-workspace) surface; Areas→Projects→Tasks structure (a direct cousin of our spine); gentle, non-nagging tone.
@@ -84,7 +92,7 @@
 
 | Building block | Solves | Repo (typical) | Licence (verify!) | Notes / risks |
 |---|---|---|---|---|
-| **cmdk** | [Command Palette](../design/DESIGN_SYSTEM.md#command-palette) primitive | `pacocoursey/cmdk` | 🟢 MIT | Accessible, composable command menu. Strong fit for `DS-09`. |
+| **cmdk** | [Command Palette](../design/DESIGN_SYSTEM.md#command-palette) primitive | `pacocoursey/cmdk` | 🟢 MIT | Accessible, composable command menu. **Reviewed & rejected for DS-09** (see the Command Palette evaluation): DS-08's native combobox + the DS-03 modal hooks already meet the bar, and cmdk owns no execution/catalogue/contextual model — build, add no dependency. |
 | **Radix UI / primitives** | Accessible unstyled UI primitives (dialog, popover, tabs) | `radix-ui/primitives` | 🟢 MIT | Backbone for accessible [Design System](../design/DESIGN_SYSTEM.md) components. |
 | **shadcn/ui** | Copy-in component patterns over Radix + utility CSS | `shadcn-ui/ui` | 🟢 MIT | Components are *copied in* (provenance comment + record the source). |
 | **Tiptap / ProseMirror** | Rich Markdown editor | `ueberdosis/tiptap`, `ProseMirror/*` | 🟢 MIT | Core for the [Markdown editor](../roadmap/ROADMAP_V2.md#-notes-01--note-record--markdown-editor). Check which extensions/versions. |
@@ -307,6 +315,22 @@ Candidates considered for a shared forms system: **form/validation** — React H
 | **Compact search indexing / virtualisation** | FlexSearch/Lunr (🟢 varies), TanStack Virtual (🟢 MIT) | Unwarranted for a single-user app whose bounded result set (≤50) renders a handful of nodes; an index would be premature | **Reject** — bounded result counts make an index or virtualiser unnecessary. |
 
 **Decision (Depend / Adapt / Build).** **Build** the DalyHub-owned Search system (the React-free model incl. the in-house fuzzy matcher, the runtime orchestrator, the browser controller and the combobox surface); **reuse** the DS-03 modal hooks, the PX-02 entity identity, and the DS-03 Drawer; **add no dependency**, no persistence and no migration. No third-party code was copied, so `THIRD_PARTY_NOTICES` is unchanged. See [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation).
+
+---
+
+## Command Palette evaluation (DS-09)
+
+> The build-vs-reuse evaluation behind [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action). **No new runtime or dev dependency was added.** DS-08 already built the in-house fuzzy matcher, the native combobox and the safe navigation the palette reuses, so the marginal cost of a new dependency buys nothing the tokens-only, kernel-clean, Workers-safe stack does not already have — and none of the candidates own a command *execution* boundary, a serialisable catalogue or a contextual-action model. Candidates reviewed (re-verify the licence for the exact version before ever adopting):
+
+| Capability | Candidates (typical licence) | Runtime/bundle impact | Decision |
+|---|---|---|---|
+| **Command-menu component** | cmdk `pacocoursey/cmdk` (🟢 MIT) | A React command-menu primitive (list, item, groups, `command-score`) — but it owns no execution boundary, catalogue transport or contextual model, imposes its own composition, and adds a runtime dependency and a second focus/portal system | **Reject & build** — DS-08's native combobox + the DS-03 modal hooks already meet the a11y bar; the palette adds the command model DS-09 needs. Only the well-known subsequence-scoring *idea* (already in DS-08) is reused; no code copied. |
+| **Command / keybinding architecture** | VS Code contribution points + keybindings, Linear/Raycast command menus (🔴 study-only) | Study only — closed or too large | **Study** — informed the discriminated `navigate`/`execute` kinds, registry-declared commands, a reserved keyboard vocabulary, and context-aware ranking. Nothing vendored. |
+| **Fuzzy matching, keyboard-selection, highlighting, safe navigation** | (see DS-08) | — | **Reuse** DS-08's React-free model (`~/shared/search/model`) — one matcher, one selection-maths, one navigation helper. No second copy. |
+| **Modal / focus management** | (see DS-03) | — | **Reuse** the DS-03 `useDrawerFocus`/`useBodyScrollLock`/`useInertBackground` hooks (ADR-020 §20.9) — no second focus trap. |
+| **Headless combobox / listbox** | Downshift (🟢 MIT), React-Aria (🟢 Apache-2.0), Ariakit (🟢 MIT) | Each imposes an API and a runtime dependency for behaviour DS-08 already ships natively | **Reject** — no large UI framework; the native combobox stays. |
+
+**Decision (Depend / Adapt / Build).** **Build** the DalyHub-owned Command Palette + shared action system (the React-free model, the trusted catalogue boundary, the authenticated execution route, the provider/hooks/surface and the Card/Header adapters); **reuse** DS-08 Search (model, controller, transport, navigation, highlighting) and the DS-03 modal hooks; **refine** the FND-06 command contract into a discriminated union and relocate the navigation-target validator into the kernel; **add no dependency**, no persistence and no migration. No third-party code was copied, so `THIRD_PARTY_NOTICES` is unchanged. See [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action).
 
 ---
 

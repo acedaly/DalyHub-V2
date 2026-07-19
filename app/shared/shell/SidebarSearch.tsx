@@ -20,8 +20,11 @@ export type SidebarSearchProps = {
    * restore focus to it on close. Absent until DS-08 wires it.
    */
   readonly onOpenSearch?: (opener: HTMLElement) => void;
-  /** Opens the Command Palette (DS-09). Absent until DS-09 wires it. */
-  readonly onOpenCommand?: () => void;
+  /**
+   * Opens the Command Palette (DS-09). Receives the triggering button so the
+   * palette can restore focus to it on close.
+   */
+  readonly onOpenCommand?: (opener: HTMLElement) => void;
 };
 
 export function SidebarSearch({
@@ -50,7 +53,11 @@ export function SidebarSearch({
       <button
         type="button"
         className="dh-sidebar__search-entry"
-        onClick={onOpenCommand}
+        onClick={
+          onOpenCommand
+            ? (event) => onOpenCommand(event.currentTarget)
+            : undefined
+        }
       >
         <span className="dh-sidebar__search-icon" aria-hidden="true">
           <CommandIcon />

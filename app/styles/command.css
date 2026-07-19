@@ -1,0 +1,352 @@
+/*
+ * DS-09 Command Palette — the global command surface.
+ *
+ * A spotlight-style modal anchored near the top of the viewport, sharing the DS-08
+ * Search geometry so the two mutually-exclusive surfaces feel like one system.
+ * Tokens only (AGENTS.md §9.8): colour, spacing, shape, elevation, motion and
+ * z-index come from DS-01. It sits at `--dh-z-modal` (1300), ABOVE `--dh-z-drawer`
+ * (1200), so it renders over an open Drawer (inert behind it). Motion respects
+ * `prefers-reduced-motion`. Every interactive target meets `--dh-touch-target-min`
+ * (44px). Themed via the shared `data-theme` mechanism; no literal colours.
+ */
+
+.dh-command {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dh-z-modal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--dh-space-8) var(--dh-space-4);
+}
+
+.dh-command__scrim {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: var(--dh-color-overlay);
+  cursor: default;
+  animation: dh-command-fade var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-command__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 40rem;
+  max-height: min(34rem, calc(100vh - var(--dh-space-16)));
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  box-shadow: var(--dh-shadow-lg);
+  overflow: hidden;
+  animation: dh-command-rise var(--dh-duration-base) var(--dh-ease-emphasized);
+}
+
+.dh-command__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-4) 0;
+}
+
+.dh-command__title {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dh-command__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-touch-target-min);
+  min-height: 2rem;
+  padding: 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-command__close:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-command__inputrow {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-command__inputicon {
+  display: inline-flex;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-command__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--dh-touch-target-min);
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-lg);
+  font-family: var(--dh-font-sans);
+}
+
+.dh-command__input::placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-command__input:focus {
+  outline: none;
+}
+
+.dh-command__feedback {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  margin: 0;
+  padding: var(--dh-space-2) var(--dh-space-4);
+  font-size: var(--dh-font-size-xs);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-command__feedback[data-tone="pending"] {
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-command__feedback[data-tone="success"] {
+  color: var(--dh-color-success-text);
+  background: var(--dh-color-success-surface);
+}
+
+.dh-command__feedback[data-tone="error"] {
+  color: var(--dh-color-danger-text);
+  background: var(--dh-color-danger-surface);
+}
+
+.dh-command__feedback-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dh-command__results {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--dh-space-2);
+}
+
+.dh-command__idle,
+.dh-command__partial {
+  margin: 0;
+  padding: var(--dh-space-4);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-command__partial {
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-radius: var(--dh-radius-sm);
+  margin-bottom: var(--dh-space-2);
+}
+
+.dh-command__group {
+  margin-bottom: var(--dh-space-2);
+}
+
+.dh-command__grouptitle {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: var(--dh-space-2) var(--dh-space-3);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-command__groupcount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-command__option {
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-command__optionbtn,
+.dh-command__optionlink {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  width: 100%;
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--dh-radius-md);
+  cursor: pointer;
+  font-family: var(--dh-font-sans);
+}
+
+.dh-command__option[data-active="true"] {
+  background: var(--dh-color-accent-surface);
+  outline: var(--dh-border-width-thin) solid var(--dh-color-accent);
+  outline-offset: calc(-1 * var(--dh-border-width-thin));
+}
+
+.dh-command__option[data-pending="true"] {
+  opacity: 0.7;
+}
+
+.dh-command__optionicon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.dh-command__optionbody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: var(--dh-space-px);
+}
+
+.dh-command__optiontitle {
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dh-command__optionsubtitle {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dh-command__optiontype {
+  flex: 0 0 auto;
+  padding-left: var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dh-command__optionshortcut {
+  flex: 0 0 auto;
+  padding: 0 var(--dh-space-1);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-xs);
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-2xs);
+}
+
+.dh-command__mark,
+.dh-command .dh-search__mark {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--dh-radius-xs);
+  padding: 0 0.1em;
+}
+
+.dh-command__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-2) var(--dh-space-4);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-2xs);
+}
+
+.dh-command__hint {
+  white-space: nowrap;
+}
+
+.dh-command__retry {
+  min-height: 2rem;
+  padding: 0 var(--dh-space-3);
+  color: var(--dh-color-on-accent);
+  background: var(--dh-color-accent);
+  border: 0;
+  border-radius: var(--dh-radius-sm);
+  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--dh-font-size-2xs);
+  cursor: pointer;
+}
+
+.dh-command__retry:hover {
+  background: var(--dh-color-accent-hover);
+}
+
+@keyframes dh-command-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dh-command-rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--dh-space-3)));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 30rem) {
+  .dh-command {
+    padding: var(--dh-space-4) var(--dh-space-3);
+  }
+
+  .dh-command__panel {
+    max-height: calc(100vh - var(--dh-space-8));
+  }
+
+  .dh-command__hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-command__scrim,
+  .dh-command__panel {
+    animation-duration: var(--dh-duration-instant);
+  }
+}

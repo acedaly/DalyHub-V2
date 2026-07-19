@@ -30,8 +30,10 @@ describe("lazy behaviour", () => {
           {
             id: "notes.capture",
             title: "Capture",
+            kind: "execute",
             run: () => {
               commandRuns += 1;
+              return { ok: true };
             },
           },
         ],
@@ -76,9 +78,11 @@ describe("lazy behaviour", () => {
           {
             id: "notes.capture",
             title: "Capture",
+            kind: "execute",
             run: (context) => {
               commandRuns += 1;
               receivedWorkspace = context.workspace.workspaceId;
+              return { ok: true };
             },
           },
         ],
@@ -89,7 +93,12 @@ describe("lazy behaviour", () => {
     expect(command).not.toBeNull();
     expect(commandRuns).toBe(0);
 
-    await command?.run({ workspace: workspaceContextFromId("test-workspace") });
+    if (command?.kind === "execute") {
+      await command.run({
+        workspace: workspaceContextFromId("test-workspace"),
+        signal: new AbortController().signal,
+      });
+    }
     expect(commandRuns).toBe(1);
     expect(receivedWorkspace).toBe("test-workspace");
   });

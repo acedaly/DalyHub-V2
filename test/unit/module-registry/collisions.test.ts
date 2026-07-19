@@ -295,8 +295,18 @@ describe("registry collision detection", () => {
           id: "notes",
           name: "Notes",
           commands: [
-            { id: "notes.go", title: "Go", run: () => {} },
-            { id: "notes.go", title: "Go again", run: () => {} },
+            {
+              id: "notes.go",
+              title: "Go",
+              kind: "navigate",
+              target: { kind: "route", to: "/notes" },
+            },
+            {
+              id: "notes.go",
+              title: "Go again",
+              kind: "navigate",
+              target: { kind: "route", to: "/notes/again" },
+            },
           ],
         }),
       ]),

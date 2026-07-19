@@ -22,7 +22,7 @@
  * composition.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
@@ -30,10 +30,16 @@ import type { CardProps } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
+// Import the specific modules (not the `~/shared/commands` barrel) so the Today
+// route chunk does not eagerly pull the palette controller / DS-08 Search UI.
+import { toCardAction, type AppAction } from "~/shared/commands/action";
+import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 
+import { TODAY_CAPTURE_PARAM, TODAY_CAPTURE_VALUE } from "./commands";
 import { UPCOMING_KIND } from "./fixtures";
 import type {
   ActiveProject,
+  FocusTask,
   RecentNote,
   TimelineEntry,
   TodayData,
@@ -85,8 +91,8 @@ function TodaySection({
 }
 
 export function TodayDashboard({ data, date }: TodayDashboardProps) {
-  const [searchParams] = useSearchParams();
-  const { openDrawer } = useDrawer();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { openDrawer, topKey } = useDrawer();
   const captureRef = useRef<HTMLTextAreaElement>(null);
 
   const [doneIds, setDoneIds] = useState<ReadonlySet<string>>(new Set());
@@ -109,18 +115,103 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
     onOpen: () => openDrawer(key),
   });
 
-  const toggleDone = (id: string) =>
-    setDoneIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleDone = useCallback(
+    (id: string) =>
+      setDoneIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    [],
+  );
 
-  const focusCapture = () => {
+  const focusCapture = useCallback(() => {
     captureRef.current?.focus();
     captureRef.current?.scrollIntoView({ block: "center" });
-  };
+  }, []);
+
+  // "Focus Quick Capture" navigates to /today?capture=1; on arrival we focus the
+  // existing textarea and then clean the param (replace, no Back-button trap),
+  // preserving any other params and WITHOUT clearing the draft or claiming a save.
+  useEffect(() => {
+    if (searchParams.get(TODAY_CAPTURE_PARAM) !== TODAY_CAPTURE_VALUE) {
+      return;
+    }
+    focusCapture();
+    const next = new URLSearchParams(searchParams);
+    next.delete(TODAY_CAPTURE_PARAM);
+    setSearchParams(next, { replace: true, preventScrollReset: true });
+  }, [searchParams, setSearchParams, focusCapture]);
+
+  // ONE shared action drives the pane-header button, the palette "Current context"
+  // entry and the keyboard path — one identity, one execution path (ADR-024 §24.14).
+  const focusCaptureAction = useMemo<AppAction>(
+    () => ({
+      id: "today.action.focus_capture",
+      title: "Focus Quick Capture",
+      subtitle: "Jump to the capture field on Today",
+      keywords: ["capture", "quick", "add", "new", "inbox"],
+      kind: "run",
+      run: () => {
+        focusCapture();
+        return { ok: true };
+      },
+    }),
+    [focusCapture],
+  );
+
+  // Run any shared action's client callback (the SAME path the palette uses).
+  const activateAction = useCallback((action: AppAction) => {
+    if (action.kind === "run") {
+      void action.run();
+    }
+  }, []);
+
+  // A task's Complete/Reopen as ONE shared action instance — reused by the Card
+  // quick action and, when that task's Drawer is open, by the palette (below). It
+  // is an IN-MEMORY UI demonstration only: it toggles session state and says so —
+  // it never persists a Task or claims one was saved (ADR-024 §24.15).
+  const taskToggleAction = useCallback(
+    (task: FocusTask): AppAction => {
+      const done = doneIds.has(task.id);
+      return {
+        id: `today.action.task.${task.id}.toggle`,
+        title: done ? "Reopen" : "Complete",
+        subtitle: task.title,
+        keywords: ["task", "done", "complete", "reopen"],
+        kind: "run",
+        run: () => {
+          toggleDone(task.id);
+          return {
+            ok: true,
+            message: done
+              ? "Reopened for this session (not saved)."
+              : "Marked done for this session (not saved).",
+          };
+        },
+      };
+    },
+    [doneIds, toggleDone],
+  );
+
+  // Context-aware palette: "Focus Quick Capture" is always relevant on Today, and a
+  // task-specific action appears ONLY while that task's Drawer is open — the Today
+  // surface owns the opaque `task:<id>` parsing; the shared infrastructure never
+  // learns what it means (ADR-024 §24.16). Closing the Drawer removes it.
+  const contextualActions = useMemo<readonly AppAction[]>(() => {
+    const actions: AppAction[] = [focusCaptureAction];
+    if (topKey?.startsWith("task:")) {
+      const id = topKey.slice("task:".length);
+      const task = data.focus.find((t) => t.id === id);
+      if (task !== undefined) {
+        actions.push(taskToggleAction(task));
+      }
+    }
+    return actions;
+  }, [focusCaptureAction, topKey, data.focus, taskToggleAction]);
+
+  useRegisterContextualActions(contextualActions);
 
   const onCapture = (event: React.FormEvent) => {
     event.preventDefault();
@@ -147,12 +238,10 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
       accent: "accent",
       context: { label: task.context },
       status: done ? { label: "Done", tone: "success" } : undefined,
+      // The Card quick action is the SAME shared action the palette runs when the
+      // task's Drawer is open — one identity, one execution path (ADR-024 §24.14).
       quickActions: [
-        {
-          id: "complete",
-          label: done ? "Reopen" : "Complete",
-          onSelect: () => toggleDone(task.id),
-        },
+        toCardAction(taskToggleAction(task), { onActivate: activateAction }),
       ],
       density: "compact",
       presentation: "list",
@@ -219,7 +308,7 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
         <button
           type="button"
           className="dh-today__primary"
-          onClick={focusCapture}
+          onClick={() => activateAction(focusCaptureAction)}
         >
           Quick capture
         </button>

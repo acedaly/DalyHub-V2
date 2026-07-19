@@ -106,11 +106,21 @@ change.
    fixtures and adds no persistence; when Today swaps to real product repositories,
    **only the executor changes** — the shared provider contract does not. See
    [`SHARED_SEARCH.md`](SHARED_SEARCH.md) and [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation).
-3. **Commands.** Command registration (PRODUCT_EXPERIENCE Part IV §6) is still
-   deferred: a Quick Capture command has no honest `run` handler while
-   `ModuleRuntimeContext` exposes no persistence seam, and TODAY-01 is fixture-only.
-   It is registered with the surface that first gives it a real action (TODAY-05 /
-   DS-09), not stubbed here.
+3. **Commands (DS-09).** Today now registers two honest, registry-discovered
+   NAVIGATION commands ([`app/modules/today/commands.ts`](../../app/modules/today/commands.ts)):
+   **Go to Today** (opens `/today`) and **Focus Quick Capture** (opens
+   `/today?capture=1`; Today reads the bounded `capture` param, focuses the existing
+   textarea, and cleans the param without a Back-button trap, without clearing the
+   draft and without claiming a save). Because they are declarative navigations they
+   need no `run` handler and persist nothing. Today registers no EXECUTABLE
+   (server-mutating) command — it remains fixture-only. In addition, the Pane-Header
+   Quick Capture button and the palette command share ONE `AppAction`, and the
+   fixture-backed Complete/Reopen quick action is adapted through the shared action
+   so the Card action, the keyboard path and (while a task's Drawer is open) the
+   palette contextual action share one execution path — it stays an **in-memory**
+   demonstration and says so; nothing is persisted. See
+   [`COMMAND_PALETTE.md`](COMMAND_PALETTE.md) and
+   [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action).
 
 ## Tests
 

@@ -35,8 +35,12 @@ export type {
   EntityLinkTypeContribution,
   ActivityTypeContribution,
   CommandShortcut,
+  CommandRuntimeContext,
+  CommandExecutionOutcome,
   CommandHandler,
   CommandContribution,
+  NavigationCommandContribution,
+  ExecutableCommandContribution,
   SearchQuery,
   SearchResultItem,
   SearchResultTarget,
@@ -87,6 +91,13 @@ export {
   validateRoutePath,
   validateRouteFile,
 } from "./module-validation";
+
+export {
+  MAX_NAVIGATION_PATH_LENGTH,
+  MAX_NAVIGATION_DRAWER_KEY_LENGTH,
+  isSafeInAppPath,
+  validateNavigationTarget,
+} from "./navigation-target";
 
 export { type ModuleRegistry, createModuleRegistry } from "./module-registry";
 

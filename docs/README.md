@@ -48,6 +48,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/ACTIVITY_TIMELINE.md`](development/ACTIVITY_TIMELINE.md) | The Shared Timeline & Activity Feed (DS-05): one renderer for both scopes, the presentation view-model boundary, registering event descriptors, the unknown-type fallback, wiring a route, DS-07 filtering & DS-03 drawer reuse, ordering/grouping/dates, virtualisation, accessibility, and the development demonstration. |
 | [`development/SHARED_FORMS.md`](development/SHARED_FORMS.md) | The Shared Forms & field controls (DS-06): the React-free model boundary, the field contract & anatomy, layered validation, the declared explicit-save and autosave models, navigation safety, the Markdown source control, timezone-safe dates, the entity-link picker over the FND-04 repository, accessibility, and the development demonstration. |
 | [`development/SHARED_SEARCH.md`](development/SHARED_SEARCH.md) | The Shared Search system (DS-08): the model/orchestrator/UI layers, the registry-driven provider contract and the `SearchResultTarget` navigation refinement, deterministic ranking & grouping, bounds & safety, incremental search (debounce/abort/stale), Drawer opening, accessibility & modal reuse, the server composition, the Today fixture provider, and the development demonstration. |
+| [`development/COMMAND_PALETTE.md`](development/COMMAND_PALETTE.md) | The Command Palette & Quick Actions system (DS-09): the refined discriminated command contract, the model/server/runtime layers, the trusted catalogue transport & browser decoder, the authenticated execution boundary, contextual actions, the shared `AppAction` and Card/Header adapters, the keyboard vocabulary & dispatcher, DS-08 Search reuse, and the development demonstration. |
 
 ---
 
@@ -85,7 +86,9 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
         ├── MARKDOWN_PIPELINE.md
         ├── APP_SHELL_AUTH.md
         ├── ACTIVITY_TIMELINE.md
-        └── SHARED_FORMS.md
+        ├── SHARED_FORMS.md
+        ├── SHARED_SEARCH.md
+        └── COMMAND_PALETTE.md
 ```
 
 > Beyond `docs/`, the repository root now also carries the application itself

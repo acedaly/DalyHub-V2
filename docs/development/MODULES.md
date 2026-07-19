@@ -114,15 +114,28 @@ export default defineModule({
   ],
 
   commands: [
+    // A NAVIGATION command (DS-09): a validated declarative target, no handler.
+    {
+      id: "widgets.open",
+      title: "Go to Widgets",
+      keywords: ["widgets"],
+      kind: "navigate",
+      target: { kind: "route", to: "/widgets" }, // reuses DS-08 SearchResultTarget
+    },
+    // An EXECUTABLE command (DS-09): runs once through the authenticated server
+    // boundary and returns a typed, safe outcome — never `void`, never a raw error.
     {
       id: "widgets.create",
       title: "Create widget",
       keywords: ["new", "widget"],
       shortcut: { key: "w", modifiers: ["mod"] },
-      run: (context) => {
-        // Receives an explicit runtime context (workspace scope, later more).
+      kind: "execute",
+      run: async ({ workspace, signal }) => {
+        // Explicit runtime context (workspace scope + a cancellation signal).
         // Never captures a global DB/workspace. Not called to build the registry.
-        void context.workspace.workspaceId;
+        void workspace.workspaceId;
+        void signal.aborted;
+        return { ok: true, message: "Widget created." };
       },
     },
   ],
@@ -196,9 +209,17 @@ automatically, so you never repeat the module id on each entry.
   governance FND-05 deferred to here). Each has the stable `type` (FND-05
   contract), a `label` and optional `description`. Labels live in the registry,
   never in the `activities` table.
-- **`commands`** — Command Palette commands. Each has a namespaced `id`, a
-  `title`, optional `subtitle`/`keywords`/`shortcut`, and a `run` handler that
-  receives an explicit runtime context (see [Static vs runtime](#static-declaration-vs-runtime-execution)).
+- **`commands`** — Command Palette commands, consumed by DS-09
+  ([`ModuleRegistry.listCommands()`](../../app/shared/commands); [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action)).
+  Each has a namespaced `id`, a `title`, optional `subtitle`/`keywords`/`shortcut`,
+  and a `kind`: a `navigate` command carries a validated `target` (reusing DS-08's
+  `SearchResultTarget`) and runs on the client; an `execute` command carries a
+  `run` handler that receives an explicit `CommandRuntimeContext` (workspace scope +
+  a cancellation signal) and returns a typed `CommandExecutionOutcome` — it runs
+  once through the authenticated server boundary (see [Static vs runtime](#static-declaration-vs-runtime-execution)
+  and [`COMMAND_PALETTE.md`](COMMAND_PALETTE.md)). A command may not reassign a
+  reserved global shortcut (`Mod+K`, `/`). Register commands **from day one** so the
+  palette lights up for free.
 - **`searchProviders`** — global-search providers, consumed by DS-08 Shared Search
   ([`ModuleRegistry.listSearchProviders()`](../../app/shared/search); [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation)).
   Each has a namespaced `id`, a `label`, optional `entityTypes`, and a `search`
@@ -412,8 +433,17 @@ dynamic/third-party/remote module loading. Those arrive in later roadmap items.
 > the PX-02 frame and DS-04/DS-07 — no placeholder. It is a **view** over the shared
 > model, so it declares **no** entity type (a module may not own an entity type
 > another module already owns); its nav row therefore uses the shell's documented
-> generic-glyph fallback. Command/search registration is deferred until a runtime
-> seam gives a Today command a real `run` (see [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md)).
+> generic-glyph fallback. Its DS-08 search provider and (DS-09) navigation commands
+> are now registered (see [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md)).
+
+> **Update (DS-08 / DS-09).** The registry's search and command seams now have real
+> consumers. DS-08 built [Shared Search](SHARED_SEARCH.md) over
+> `listSearchProviders()`; DS-09 built the [Command Palette](COMMAND_PALETTE.md) over
+> `listCommands()` and refined the command contract into a discriminated
+> `navigate`/`execute` union with a typed outcome and a cancellation-bearing runtime
+> context ([ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action)).
+> The command-palette UI, its catalogue transport and its authenticated execution
+> boundary are built; only the registry contract lives in the kernel.
 
 ---
 

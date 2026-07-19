@@ -19,16 +19,17 @@
  * `children` (the route Outlet), so it never imports a module route component.
  */
 
-import {
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
+// Import the specific modules (not the `~/shared/commands` barrel) so the shell
+// does NOT eagerly pull the palette controller / DS-08 Search UI into the initial
+// bundle — the palette itself stays lazy-loaded (ADR-024 §24.13).
+import { CommandContextProvider } from "~/shared/commands/CommandContextProvider";
+import {
+  useCommandShortcuts,
+  type ShortcutBinding,
+} from "~/shared/commands/useCommandShortcuts";
 
 import { MobileNav } from "./MobileNav";
 import { MenuIcon } from "~/shared/icons";
@@ -39,25 +40,13 @@ import type { ThemePreference } from "./theme";
 const RAIL_NAV_ID = "primary-navigation";
 
 /**
- * The full Search surface (DS-08) is lazy-loaded by module path so the complete
- * search UI, controller and model stay OUT of the initial application bundle and
- * out of every route chunk — the chunk loads only when Search is first opened.
+ * The full Search surface (DS-08) and Command Palette (DS-09) are lazy-loaded by
+ * module path so their UI, controllers and models stay OUT of the initial
+ * application bundle and out of every route chunk — each chunk loads only when its
+ * surface is first opened.
  */
 const SearchSurface = lazy(() => import("~/shared/search/SearchSurface"));
-
-/** True when a keydown should be ignored by the global `/` Search shortcut. */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-  const tag = target.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    target.isContentEditable
-  );
-}
+const CommandPalette = lazy(() => import("~/shared/commands/CommandPalette"));
 
 export type AppShellProps = {
   /** The current workspace's display name (server-derived, safe text). */
@@ -81,16 +70,20 @@ export function AppShell({
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
-  // The element focus returns to when Search closes — whatever opened it (the
-  // sidebar Search button, or the element focused when `/` was pressed).
+  // The element focus returns to when each surface closes — whatever opened it.
   const searchOpenerRef = useRef<HTMLElement | null>(null);
-  // Mirror of `searchOpen` for the document keydown listener, so a repeated `/`
-  // press while Search is already open is a no-op (it never re-captures a new
-  // opener or re-triggers the surface).
+  const commandOpenerRef = useRef<HTMLElement | null>(null);
+  // Mirrors for the shortcut dispatcher, so a repeat while open is a no-op/toggle
+  // without re-capturing a new opener.
   const searchOpenRef = useRef(false);
   searchOpenRef.current = searchOpen;
+  const commandOpenRef = useRef(false);
+  commandOpenRef.current = commandOpen;
 
+  // Search and the Command Palette are MUTUALLY EXCLUSIVE: opening one closes the
+  // other cleanly, so the two modal surfaces never overlap (ADR-024 §24.12).
   const openSearch = useCallback((opener?: HTMLElement) => {
     if (searchOpenRef.current) {
       return; // already open — do not re-capture the opener or re-open
@@ -101,91 +94,123 @@ export function AppShell({
         ? null
         : (document.activeElement as HTMLElement | null));
     setNavOpen(false);
+    setCommandOpen(false);
     setSearchOpen(true);
   }, []);
-
   const closeSearch = useCallback(() => setSearchOpen(false), []);
 
-  // The Product Frame allocates `/` to focus Search anywhere in the app
-  // (PRODUCT_EXPERIENCE) — it never claims the `⌘K` command-palette shortcut.
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (
-        event.key !== "/" ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        event.defaultPrevented ||
-        isTypingTarget(event.target)
-      ) {
-        return;
-      }
-      event.preventDefault();
-      openSearch();
+  const openCommand = useCallback((opener?: HTMLElement) => {
+    if (commandOpenRef.current) {
+      return;
     }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [openSearch]);
+    commandOpenerRef.current =
+      opener ??
+      (typeof document === "undefined"
+        ? null
+        : (document.activeElement as HTMLElement | null));
+    setNavOpen(false);
+    setSearchOpen(false);
+    setCommandOpen(true);
+  }, []);
+  const closeCommand = useCallback(() => setCommandOpen(false), []);
+  // Documented Mod+K policy: pressing it again while the palette is open CLOSES it.
+  const toggleCommand = useCallback(() => {
+    if (commandOpenRef.current) {
+      setCommandOpen(false);
+      return;
+    }
+    openCommand();
+  }, [openCommand]);
+
+  // ONE shared dispatcher owns the reserved global shortcuts (ADR-024 §24.13):
+  // `Mod+K` toggles the Command Palette (permitted even while typing) and `/`
+  // focuses Search (ignored while typing, preserving DS-08 behaviour). There is no
+  // per-command document listener.
+  const shortcuts = useMemo<ShortcutBinding[]>(
+    () => [
+      {
+        shortcut: { key: "k", modifiers: ["mod"] },
+        onTrigger: toggleCommand,
+        allowInInput: true,
+      },
+      { shortcut: { key: "/" }, onTrigger: () => openSearch() },
+    ],
+    [toggleCommand, openSearch],
+  );
+  useCommandShortcuts(shortcuts);
 
   return (
-    <div className="dh-app">
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
+    <CommandContextProvider>
+      <div className="dh-app">
+        <a className="skip-link" href="#main-content">
+          Skip to main content
+        </a>
 
-      <Sidebar
-        workspaceName={workspaceName}
-        email={email}
-        theme={theme}
-        navigation={navigation}
-        navId={RAIL_NAV_ID}
-        variant="rail"
-        onOpenSearch={openSearch}
-      />
-
-      <div className="dh-main-col">
-        <div className="dh-mobilebar">
-          <button
-            type="button"
-            className="dh-mobilebar__toggle"
-            ref={toggleRef}
-            aria-expanded={navOpen}
-            aria-controls="primary-navigation-mobile"
-            onClick={() => setNavOpen(true)}
-          >
-            <span className="dh-mobilebar__toggle-icon" aria-hidden="true">
-              <MenuIcon />
-            </span>
-            <span className="dh-visually-hidden">Open navigation</span>
-          </button>
-          <span className="dh-mobilebar__brand">{workspaceName}</span>
-        </div>
-
-        <main id="main-content" className="dh-pane" tabIndex={-1}>
-          {children}
-        </main>
-      </div>
-
-      {navOpen ? (
-        <MobileNav
+        <Sidebar
           workspaceName={workspaceName}
           email={email}
           theme={theme}
           navigation={navigation}
-          opener={toggleRef.current}
-          onClose={() => setNavOpen(false)}
+          navId={RAIL_NAV_ID}
+          variant="rail"
           onOpenSearch={openSearch}
+          onOpenCommand={openCommand}
         />
-      ) : null}
 
-      {searchOpen ? (
-        <Suspense fallback={null}>
-          <SearchSurface
-            onClose={closeSearch}
-            opener={searchOpenerRef.current}
+        <div className="dh-main-col">
+          <div className="dh-mobilebar">
+            <button
+              type="button"
+              className="dh-mobilebar__toggle"
+              ref={toggleRef}
+              aria-expanded={navOpen}
+              aria-controls="primary-navigation-mobile"
+              onClick={() => setNavOpen(true)}
+            >
+              <span className="dh-mobilebar__toggle-icon" aria-hidden="true">
+                <MenuIcon />
+              </span>
+              <span className="dh-visually-hidden">Open navigation</span>
+            </button>
+            <span className="dh-mobilebar__brand">{workspaceName}</span>
+          </div>
+
+          <main id="main-content" className="dh-pane" tabIndex={-1}>
+            {children}
+          </main>
+        </div>
+
+        {navOpen ? (
+          <MobileNav
+            workspaceName={workspaceName}
+            email={email}
+            theme={theme}
+            navigation={navigation}
+            opener={toggleRef.current}
+            onClose={() => setNavOpen(false)}
+            onOpenSearch={openSearch}
+            onOpenCommand={openCommand}
           />
-        </Suspense>
-      ) : null}
-    </div>
+        ) : null}
+
+        {searchOpen ? (
+          <Suspense fallback={null}>
+            <SearchSurface
+              onClose={closeSearch}
+              opener={searchOpenerRef.current}
+            />
+          </Suspense>
+        ) : null}
+
+        {commandOpen ? (
+          <Suspense fallback={null}>
+            <CommandPalette
+              onClose={closeCommand}
+              opener={commandOpenerRef.current}
+            />
+          </Suspense>
+        ) : null}
+      </div>
+    </CommandContextProvider>
   );
 }

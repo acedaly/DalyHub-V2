@@ -45,6 +45,8 @@ export type SidebarProps = {
   readonly closeButtonRef?: RefObject<HTMLButtonElement | null>;
   /** Opens global Search (DS-08) from the Search affordance. */
   readonly onOpenSearch?: (opener: HTMLElement) => void;
+  /** Opens the Command Palette (DS-09) from the Command Palette affordance. */
+  readonly onOpenCommand?: (opener: HTMLElement) => void;
 };
 
 export function Sidebar({
@@ -58,6 +60,7 @@ export function Sidebar({
   onClose,
   closeButtonRef,
   onOpenSearch,
+  onOpenCommand,
 }: SidebarProps) {
   return (
     <div className={`dh-sidebar dh-sidebar--${variant}`}>
@@ -76,7 +79,10 @@ export function Sidebar({
       ) : null}
 
       <SidebarBrand workspaceName={workspaceName} />
-      <SidebarSearch onOpenSearch={onOpenSearch} />
+      <SidebarSearch
+        onOpenSearch={onOpenSearch}
+        onOpenCommand={onOpenCommand}
+      />
       <PrimaryNavigation
         id={navId}
         items={navigation}

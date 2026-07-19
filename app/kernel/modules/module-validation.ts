@@ -24,11 +24,14 @@ import { ModuleDefinitionError } from "./module-errors";
 import type {
   CommandContribution,
   CommandShortcut,
+  ExecutableCommandContribution,
+  NavigationCommandContribution,
   RouteContribution,
   SettingContribution,
   SettingEnumOption,
 } from "./module-capabilities";
 import type { ModuleId } from "./module-definition";
+import { validateNavigationTarget } from "./navigation-target";
 
 /** Maximum length of a module id, in characters. */
 export const MODULE_ID_MAX_LENGTH = 64;
@@ -113,6 +116,37 @@ const SHORTCUT_MODIFIERS: ReadonlySet<string> = new Set([
   "ctrl",
   "meta",
 ]);
+
+/**
+ * Global keyboard shortcuts reserved by the app shell that a module command may
+ * NOT claim (DS-09, ADR-024): `Mod+K` opens the Command Palette and a bare `/`
+ * focuses Search. A command that declares one is a hard registry-construction
+ * error, so a module can never silently reassign the product's reserved keyboard
+ * vocabulary. Each reserved shortcut is expressed in the canonical comparison
+ * form: a lowercased key plus a sorted list of modifiers.
+ */
+const RESERVED_COMMAND_SHORTCUTS: readonly {
+  readonly key: string;
+  readonly modifiers: readonly string[];
+}[] = [
+  { key: "k", modifiers: ["mod"] },
+  { key: "/", modifiers: [] },
+];
+
+/** True when a validated shortcut matches a reserved global shortcut. */
+function isReservedShortcut(shortcut: CommandShortcut): boolean {
+  const key = shortcut.key.toLowerCase();
+  const modifiers = [...(shortcut.modifiers ?? [])].sort();
+  return RESERVED_COMMAND_SHORTCUTS.some((reserved) => {
+    if (
+      reserved.key !== key ||
+      reserved.modifiers.length !== modifiers.length
+    ) {
+      return false;
+    }
+    return reserved.modifiers.every((modifier, i) => modifier === modifiers[i]);
+  });
+}
 
 /**
  * A single path segment: a splat (`*`), a named param (`:name`) or a static
@@ -627,13 +661,30 @@ function validateOptionalShortcut(
     }
     modifiers = [...shortcut.modifiers];
   }
-  return {
+  const normalised: CommandShortcut = {
     key: shortcut.key,
     ...(modifiers === undefined ? {} : { modifiers }),
   };
+  if (isReservedShortcut(normalised)) {
+    throw new ModuleDefinitionError(
+      field,
+      "reassigns a reserved global shortcut (Mod+K opens the Command Palette, / focuses Search); a module may add shortcuts but never reassign a reserved one",
+      moduleId,
+    );
+  }
+  return normalised;
 }
 
-/** Validate one command contribution, returning a normalised defensive copy. */
+/**
+ * Validate one command contribution, returning a normalised defensive copy.
+ *
+ * A command is a discriminated union (DS-09, ADR-024): a `navigate` command
+ * carries a validated {@link SearchResultTarget} and no handler; an `execute`
+ * command carries a handler and no target. A command that is BOTH (declares a
+ * target on an executable, or a handler on a navigation) or NEITHER (an
+ * unrecognised `kind`) is a hard error, so the browser can never receive an
+ * ambiguous command and the registry never stores one.
+ */
 export function validateCommandContribution(
   contribution: CommandContribution,
   moduleId: string,
@@ -656,21 +707,69 @@ export function validateCommandContribution(
     `${field}.shortcut`,
     moduleId,
   );
-  if (typeof contribution.run !== "function") {
-    throw new ModuleDefinitionError(
-      `${field}.run`,
-      "must be a function (the command handler)",
-      moduleId,
-    );
-  }
-  return {
+  const base = {
     id,
     title,
     ...(subtitle === undefined ? {} : { subtitle }),
     ...(keywords === undefined ? {} : { keywords }),
     ...(shortcut === undefined ? {} : { shortcut }),
-    run: contribution.run,
   };
+
+  const kind = (contribution as { readonly kind?: unknown }).kind;
+  const hasRun = (contribution as { readonly run?: unknown }).run !== undefined;
+  const hasTarget =
+    (contribution as { readonly target?: unknown }).target !== undefined;
+
+  if (kind === "navigate") {
+    if (hasRun) {
+      throw new ModuleDefinitionError(
+        field,
+        "a navigation command must not declare a `run` handler",
+        moduleId,
+      );
+    }
+    const target = validateNavigationTarget(
+      (contribution as NavigationCommandContribution).target,
+    );
+    if (target === null) {
+      throw new ModuleDefinitionError(
+        `${field}.target`,
+        "must be a valid navigation target — a drawer key or an app-relative route (never an external URL or unsafe scheme)",
+        moduleId,
+      );
+    }
+    return { ...base, kind: "navigate", target };
+  }
+
+  if (kind === "execute") {
+    if (hasTarget) {
+      throw new ModuleDefinitionError(
+        field,
+        "an executable command must not declare a navigation `target`",
+        moduleId,
+      );
+    }
+    if (
+      typeof (contribution as ExecutableCommandContribution).run !== "function"
+    ) {
+      throw new ModuleDefinitionError(
+        `${field}.run`,
+        "must be a function (the command handler)",
+        moduleId,
+      );
+    }
+    return {
+      ...base,
+      kind: "execute",
+      run: (contribution as ExecutableCommandContribution).run,
+    };
+  }
+
+  throw new ModuleDefinitionError(
+    `${field}.kind`,
+    'must be "navigate" (a declarative target) or "execute" (a server handler)',
+    moduleId,
+  );
 }
 
 /* -------------------------------------------------------------------------- */

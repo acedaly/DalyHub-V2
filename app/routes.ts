@@ -53,6 +53,7 @@ const devFixtureRoutes =
         route("design/activity-feed", "routes/design-activity-feed.tsx"),
         route("design/forms", "routes/design-forms.tsx"),
         route("design/search", "routes/design-search.tsx"),
+        route("design/command-palette", "routes/design-command-palette.tsx"),
       ];
 
 export default [
@@ -61,6 +62,11 @@ export default [
   // DS-08 global Search endpoint — a JSON resource route behind the Worker auth
   // boundary. It renders no shell, so it stays OUTSIDE the app-shell layout.
   route("search", "routes/search.ts"),
+  // DS-09 Command Palette endpoints — a JSON catalogue (GET) and the authenticated
+  // command-execution boundary (POST /commands/:commandId). Resource routes; they
+  // render no shell, so they stay OUTSIDE the app-shell layout.
+  route("commands", "routes/commands.ts"),
+  route("commands/:commandId", "routes/command-execute.ts"),
   layout("routes/app-shell.tsx", { id: "app-shell" }, [
     index("routes/home.tsx"),
     ...moduleRoutes,

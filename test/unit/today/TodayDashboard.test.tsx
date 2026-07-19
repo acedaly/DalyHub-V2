@@ -163,3 +163,63 @@ describe("TODAY-01 TodayDashboard", () => {
     expect(screen.queryByText("Reminder")).not.toBeInTheDocument();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* DS-09 — shared action / contextual command integration                     */
+/* -------------------------------------------------------------------------- */
+
+import {
+  CommandContextProvider,
+  useContextualActions,
+  type AppAction,
+} from "~/shared/commands";
+
+let observedContextual: readonly AppAction[] = [];
+function ContextualObserver() {
+  observedContextual = useContextualActions();
+  return null;
+}
+
+function renderTodayWithCommands(entries: readonly string[] = ["/today"]) {
+  return render(
+    <MemoryRouter initialEntries={[...entries]}>
+      <CommandContextProvider>
+        <ContextualObserver />
+        <DrawerProvider renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE)}>
+          <TodayDashboard data={TODAY_FIXTURE} date="Sunday 19 July 2026" />
+        </DrawerProvider>
+      </CommandContextProvider>
+    </MemoryRouter>,
+  );
+}
+
+describe("TODAY-01 / DS-09 command integration", () => {
+  it("registers a Focus Quick Capture contextual action on Today", () => {
+    renderTodayWithCommands();
+    expect(
+      observedContextual.some((a) => a.id === "today.action.focus_capture"),
+    ).toBe(true);
+  });
+
+  it("adds a task-specific contextual action only while a task Drawer is open", () => {
+    renderTodayWithCommands(["/today?drawer=task:t-px02"]);
+    expect(
+      observedContextual.some((a) => a.id.startsWith("today.action.task.")),
+    ).toBe(true);
+  });
+
+  it("has no task-specific contextual action without a task Drawer", () => {
+    renderTodayWithCommands(["/today"]);
+    expect(
+      observedContextual.some((a) => a.id.startsWith("today.action.task.")),
+    ).toBe(false);
+  });
+
+  it("keeps the Card Complete action (shared action) labelled Complete", () => {
+    renderTodayWithCommands();
+    const focus = screen.getByRole("region", { name: /Today's focus/ });
+    expect(
+      within(focus).getAllByRole("button", { name: "Complete" }).length,
+    ).toBeGreaterThan(0);
+  });
+});

@@ -14,5 +14,12 @@ export default defineModule({
   entityTypes: [
     { type: "alpha_thing", singular: "Alpha thing", plural: "Alpha things" },
   ],
-  commands: [{ id: "alpha.create", title: "Create alpha", run: () => {} }],
+  commands: [
+    {
+      id: "alpha.create",
+      title: "Create alpha",
+      kind: "execute",
+      run: () => ({ ok: true }),
+    },
+  ],
 });

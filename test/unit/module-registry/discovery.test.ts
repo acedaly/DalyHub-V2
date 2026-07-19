@@ -116,8 +116,8 @@ describe("module discovery", () => {
         "projects",
       );
       // FND-09 adds one navigable placeholder route per spine module, composed
-      // automatically from the manifests (no central route list). Commands,
-      // settings and search providers remain out of scope.
+      // automatically from the manifests (no central route list). Settings remain
+      // out of scope; DS-09 adds Today's two navigation commands.
       expect(
         registry
           .listRoutes()
@@ -133,7 +133,15 @@ describe("module discovery", () => {
         },
         { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
       ]);
-      expect(registry.listCommands()).toEqual([]);
+      // DS-09: Today registers two registry-discovered navigation commands.
+      expect(registry.listCommands().map((c) => c.id)).toEqual([
+        "today.open",
+        "today.focus_quick_capture",
+      ]);
+      expect(registry.listCommands().every((c) => c.kind === "navigate")).toBe(
+        true,
+      );
+      expect(registry.getCommand("today.open")?.moduleId).toBe("today");
       expect(registry.listSettings()).toEqual([]);
       // TODAY-01's fixture-backed search provider (DS-08) is the first
       // registry-discovered search contribution; ownership is retained.

@@ -35,15 +35,32 @@ describe("registry behaviour", () => {
         id: "second",
         name: "Second",
         order: 2,
-        commands: [{ id: "second.a", title: "A", run: () => {} }],
+        commands: [
+          {
+            id: "second.a",
+            title: "A",
+            kind: "execute",
+            run: () => ({ ok: true }),
+          },
+        ],
       }),
       defineModule({
         id: "first",
         name: "First",
         order: 1,
         commands: [
-          { id: "first.b", title: "B", run: () => {} },
-          { id: "first.a", title: "A", run: () => {} },
+          {
+            id: "first.b",
+            title: "B",
+            kind: "execute",
+            run: () => ({ ok: true }),
+          },
+          {
+            id: "first.a",
+            title: "A",
+            kind: "navigate",
+            target: { kind: "route", to: "/first" },
+          },
         ],
       }),
     ]);
@@ -60,7 +77,14 @@ describe("registry behaviour", () => {
         id: "notes",
         name: "Notes",
         entityTypes: [{ type: "note", singular: "Note" }],
-        commands: [{ id: "notes.capture", title: "Capture", run: () => {} }],
+        commands: [
+          {
+            id: "notes.capture",
+            title: "Capture",
+            kind: "execute",
+            run: () => ({ ok: true }),
+          },
+        ],
       }),
     ]);
     expect(registry.getEntityType("note")?.moduleId).toBe("notes");
