@@ -43,6 +43,8 @@ export type SidebarProps = {
   readonly onClose?: () => void;
   /** Ref for the Close control, so the overlay can focus it on open. */
   readonly closeButtonRef?: RefObject<HTMLButtonElement | null>;
+  /** Opens global Search (DS-08) from the Search affordance. */
+  readonly onOpenSearch?: (opener: HTMLElement) => void;
 };
 
 export function Sidebar({
@@ -55,6 +57,7 @@ export function Sidebar({
   onNavigate,
   onClose,
   closeButtonRef,
+  onOpenSearch,
 }: SidebarProps) {
   return (
     <div className={`dh-sidebar dh-sidebar--${variant}`}>
@@ -73,7 +76,7 @@ export function Sidebar({
       ) : null}
 
       <SidebarBrand workspaceName={workspaceName} />
-      <SidebarSearch />
+      <SidebarSearch onOpenSearch={onOpenSearch} />
       <PrimaryNavigation
         id={navId}
         items={navigation}

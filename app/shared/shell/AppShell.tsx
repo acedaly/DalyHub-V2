@@ -19,7 +19,14 @@
  * `children` (the route Outlet), so it never imports a module route component.
  */
 
-import { useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
@@ -30,6 +37,27 @@ import type { ThemePreference } from "./theme";
 
 /** The DOM id of the persistent rail's primary navigation. */
 const RAIL_NAV_ID = "primary-navigation";
+
+/**
+ * The full Search surface (DS-08) is lazy-loaded by module path so the complete
+ * search UI, controller and model stay OUT of the initial application bundle and
+ * out of every route chunk — the chunk loads only when Search is first opened.
+ */
+const SearchSurface = lazy(() => import("~/shared/search/SearchSurface"));
+
+/** True when a keydown should be ignored by the global `/` Search shortcut. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tag = target.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    target.isContentEditable
+  );
+}
 
 export type AppShellProps = {
   /** The current workspace's display name (server-derived, safe text). */
@@ -52,7 +80,52 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  // The element focus returns to when Search closes — whatever opened it (the
+  // sidebar Search button, or the element focused when `/` was pressed).
+  const searchOpenerRef = useRef<HTMLElement | null>(null);
+  // Mirror of `searchOpen` for the document keydown listener, so a repeated `/`
+  // press while Search is already open is a no-op (it never re-captures a new
+  // opener or re-triggers the surface).
+  const searchOpenRef = useRef(false);
+  searchOpenRef.current = searchOpen;
+
+  const openSearch = useCallback((opener?: HTMLElement) => {
+    if (searchOpenRef.current) {
+      return; // already open — do not re-capture the opener or re-open
+    }
+    searchOpenerRef.current =
+      opener ??
+      (typeof document === "undefined"
+        ? null
+        : (document.activeElement as HTMLElement | null));
+    setNavOpen(false);
+    setSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  // The Product Frame allocates `/` to focus Search anywhere in the app
+  // (PRODUCT_EXPERIENCE) — it never claims the `⌘K` command-palette shortcut.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        event.key !== "/" ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.defaultPrevented ||
+        isTypingTarget(event.target)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      openSearch();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [openSearch]);
 
   return (
     <div className="dh-app">
@@ -67,6 +140,7 @@ export function AppShell({
         navigation={navigation}
         navId={RAIL_NAV_ID}
         variant="rail"
+        onOpenSearch={openSearch}
       />
 
       <div className="dh-main-col">
@@ -100,7 +174,17 @@ export function AppShell({
           navigation={navigation}
           opener={toggleRef.current}
           onClose={() => setNavOpen(false)}
+          onOpenSearch={openSearch}
         />
+      ) : null}
+
+      {searchOpen ? (
+        <Suspense fallback={null}>
+          <SearchSurface
+            onClose={closeSearch}
+            opener={searchOpenerRef.current}
+          />
+        </Suspense>
       ) : null}
     </div>
   );

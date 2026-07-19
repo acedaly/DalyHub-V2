@@ -40,6 +40,8 @@ export type MobileNavProps = {
   readonly opener: HTMLElement | null;
   /** Close the sheet. */
   readonly onClose: () => void;
+  /** Open global Search (also closes the sheet). */
+  readonly onOpenSearch?: (opener: HTMLElement) => void;
 };
 
 export function MobileNav({
@@ -49,6 +51,7 @@ export function MobileNav({
   navigation,
   opener,
   onClose,
+  onOpenSearch,
 }: MobileNavProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -98,6 +101,7 @@ export function MobileNav({
           variant="overlay"
           onNavigate={onClose}
           onClose={onClose}
+          onOpenSearch={onOpenSearch}
           closeButtonRef={closeButtonRef}
         />
       </div>

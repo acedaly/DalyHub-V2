@@ -1,0 +1,305 @@
+/*
+ * DS-08 Shared Search — the global Search surface.
+ *
+ * A spotlight-style modal anchored near the top of the viewport. Tokens only
+ * (AGENTS.md §9.8): colour, spacing, shape, elevation, motion and z-index all come
+ * from DS-01. The overlay sits at `--dh-z-modal` (1300), ABOVE `--dh-z-drawer`
+ * (1200): opening Search over an already-open Drawer renders Search on top (with
+ * the Drawer inert behind it), and selecting a result CLOSES Search before its
+ * Drawer opens, so the two surfaces never fight for the foreground. Motion respects
+ * `prefers-reduced-motion`. Every interactive target meets `--dh-touch-target-min`
+ * (44px). Themed via the shared `data-theme` mechanism.
+ */
+
+.dh-search {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dh-z-modal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--dh-space-8) var(--dh-space-4);
+}
+
+.dh-search__scrim {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: var(--dh-color-overlay);
+  cursor: default;
+  animation: dh-search-fade var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-search__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 40rem;
+  max-height: min(32rem, calc(100vh - var(--dh-space-16)));
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  box-shadow: var(--dh-shadow-lg);
+  overflow: hidden;
+  animation: dh-search-rise var(--dh-duration-base) var(--dh-ease-emphasized);
+}
+
+.dh-search__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-4) 0;
+}
+
+.dh-search__title {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dh-search__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-touch-target-min);
+  min-height: 2rem;
+  padding: 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-search__close:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-search__inputrow {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-search__inputicon {
+  display: inline-flex;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-search__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--dh-touch-target-min);
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-lg);
+  font-family: var(--dh-font-sans);
+}
+
+.dh-search__input::placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-search__input:focus {
+  outline: none;
+}
+
+.dh-search__results {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--dh-space-2);
+}
+
+.dh-search__idle,
+.dh-search__partial {
+  margin: 0;
+  padding: var(--dh-space-4);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-search__partial {
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-radius: var(--dh-radius-sm);
+  margin-bottom: var(--dh-space-2);
+}
+
+.dh-search__group {
+  margin-bottom: var(--dh-space-2);
+}
+
+.dh-search__grouptitle {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: var(--dh-space-2) var(--dh-space-3);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-search__groupicon {
+  display: inline-flex;
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-search__groupcount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-search__option {
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-search__optionlink {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-search__option[data-active="true"] {
+  background: var(--dh-color-accent-surface);
+  outline: var(--dh-border-width-thin) solid var(--dh-color-accent);
+  outline-offset: calc(-1 * var(--dh-border-width-thin));
+}
+
+.dh-search__optionicon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.dh-search__optionbody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--dh-space-px);
+}
+
+.dh-search__optiontitle {
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dh-search__optionsubtitle {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dh-search__optiontype {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding-left: var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dh-search__mark {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--dh-radius-xs);
+  padding: 0 0.1em;
+}
+
+.dh-search__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-2) var(--dh-space-4);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-2xs);
+}
+
+.dh-search__hint {
+  white-space: nowrap;
+}
+
+.dh-search__retry {
+  min-height: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-4);
+  color: var(--dh-color-on-accent);
+  background: var(--dh-color-accent);
+  border: 0;
+  border-radius: var(--dh-radius-sm);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+}
+
+.dh-search__retry:hover {
+  background: var(--dh-color-accent-hover);
+}
+
+@keyframes dh-search-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dh-search-rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--dh-space-3)));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 30rem) {
+  .dh-search {
+    padding: var(--dh-space-4) var(--dh-space-3);
+  }
+
+  .dh-search__panel {
+    max-height: calc(100vh - var(--dh-space-8));
+  }
+
+  .dh-search__hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-search__scrim,
+  .dh-search__panel {
+    animation-duration: var(--dh-duration-instant);
+  }
+}

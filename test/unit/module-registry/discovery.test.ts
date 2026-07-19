@@ -135,7 +135,13 @@ describe("module discovery", () => {
       ]);
       expect(registry.listCommands()).toEqual([]);
       expect(registry.listSettings()).toEqual([]);
-      expect(registry.listSearchProviders()).toEqual([]);
+      // TODAY-01's fixture-backed search provider (DS-08) is the first
+      // registry-discovered search contribution; ownership is retained.
+      const searchProviders = registry.listSearchProviders();
+      expect(searchProviders.map((provider) => provider.id)).toEqual([
+        "today.search",
+      ]);
+      expect(searchProviders[0]?.moduleId).toBe("today");
     });
   });
 });

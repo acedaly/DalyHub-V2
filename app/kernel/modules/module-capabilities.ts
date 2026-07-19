@@ -237,32 +237,90 @@ export type SearchQuery = {
 };
 
 /**
- * A single typed search result. `navigateTo` is an opaque navigation descriptor
- * (e.g. an in-app path) the future global-search UI can route to; FND-06 does not
- * interpret it.
+ * How a search result opens, described by the owning module so the shared Search
+ * surface can route to it WITHOUT understanding product-specific paths or ids
+ * (DS-08, ADR-023). Search never parses a result to discover how it opens; it
+ * dispatches on `kind`, validates the target at the trusted boundary, and rejects
+ * unsafe schemes (`javascript:`, protocol-relative `//…`, external absolute URLs).
+ *
+ * This replaces FND-06's opaque `navigateTo` string, which forced a consumer to
+ * parse an arbitrary path to guess whether it was a drawer key or a route — the
+ * exact central-switch coupling ADR-013 forbids. A discriminated union keeps the
+ * mapping module-owned and the surface entity-agnostic.
+ */
+export type SearchResultTarget =
+  | {
+      /** Open the record in the shared DS-03 Drawer. */
+      readonly kind: "drawer";
+      /**
+       * The opaque, module-owned Drawer key (e.g. `task:t-1`). Search never parses
+       * it; the module's own `renderDrawer` resolves it (ADR-018 §18.1).
+       */
+      readonly drawerKey: string;
+      /**
+       * Optional in-app path of the route whose `DrawerProvider` can render this
+       * key. When the surface is on another route, Search navigates here (with the
+       * drawer key appended) so the Drawer opens over the record's home surface.
+       * Must be an app-relative path (`/today`) — never an absolute or external URL.
+       */
+      readonly canonicalPath?: string;
+    }
+  | {
+      /** Navigate to an in-app route. */
+      readonly kind: "route";
+      /** App-relative destination path (`/projects/alpha`); never external. */
+      readonly to: string;
+    };
+
+/**
+ * A single typed search result a provider returns. The module describes HOW the
+ * result opens via a typed `target` (validated at the Search boundary); it never
+ * hands Search an arbitrary string to parse (ADR-023).
  */
 export type SearchResultItem = {
-  /** Stable id of the result item. */
+  /** Stable id of the result item, unique within the contributing provider. */
   readonly id: string;
   /** Human-readable title. */
   readonly title: string;
-  /** Optional secondary text. */
+  /** Optional secondary text (a concise subtitle or preview). */
   readonly subtitle?: string;
-  /** Navigation target/descriptor for the result. */
-  readonly navigateTo: string;
+  /** How this result opens — a validated, module-owned navigation target. */
+  readonly target: SearchResultTarget;
   /** Optional entity type the result corresponds to. */
   readonly entityType?: EntityType;
+  /**
+   * Optional provider-supplied relevance, expected in `[0, 1]`. The shared Search
+   * ranker treats it only as a bounded tie-breaker after its own title/preview
+   * ranking, and normalises it — a provider's raw score range never dominates
+   * global ranking (DS-08). Non-finite or out-of-range values are ignored.
+   */
+  readonly score?: number;
+};
+
+/**
+ * The runtime context a search provider receives: the workspace-scoped
+ * {@link ModuleRuntimeContext} plus an `AbortSignal` the runtime uses to CANCEL a
+ * provider (on a per-provider deadline, or when the caller/client cancels the
+ * search). A well-behaved provider observes `signal.aborted` and stops early, but
+ * even one that ignores it cannot block outcome assembly past the deadline — the
+ * runtime stops waiting on it (DS-08, ADR-023). This is React-free, D1-free and
+ * Cloudflare-free: `AbortSignal` is a standard web primitive.
+ */
+export type SearchRuntimeContext = ModuleRuntimeContext & {
+  /** Aborted when the provider's deadline elapses or the search is cancelled. */
+  readonly signal: AbortSignal;
 };
 
 /**
  * The runtime execution function for a search provider. It receives the
  * normalised query and its dependencies EXPLICITLY via the workspace-scoped
- * runtime context; it is never run to construct the registry, and it never
- * searches across workspaces (ADR-013 §13).
+ * {@link SearchRuntimeContext} (which also carries a cancellation `signal`); it is
+ * never run to construct the registry, and it never searches across workspaces
+ * (ADR-013 §13).
  */
 export type SearchExecutor = (
   query: SearchQuery,
-  context: ModuleRuntimeContext,
+  context: SearchRuntimeContext,
 ) => Promise<readonly SearchResultItem[]>;
 
 /** A search-provider contribution for future global search. */

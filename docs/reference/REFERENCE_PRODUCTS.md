@@ -295,6 +295,21 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Shared Search evaluation (DS-08)
+
+> The build-vs-reuse evaluation behind [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation). **No new runtime or dev dependency was added.** For each capability a small, in-house implementation over the existing stack was smaller, dependency-free and Workers-safe, consistent with the ADR-018/019/020/022 zero-dependency precedent. Candidates reviewed (re-verify the licence for the exact version before ever adopting):
+
+| Capability | Candidates (typical licence) | Runtime/bundle impact | Decision |
+|---|---|---|---|
+| **Fuzzy matching & scoring** | Fuse.js (🟢 Apache-2.0), fzf/fzy scoring (fzy 🟢 MIT, algorithm), fuzzysort (🟢 MIT), match-sorter (🟢 MIT), cmdk `command-score` (🟢 MIT) | A general fuzzy engine (Fuse.js indexing, weights, options) is far more than short-title matching needs and adds a runtime dependency; match ranges/scoring vary per library | **Build** — a ~90-line subsequence matcher with consecutive-run/word-boundary bonuses and code-point match ranges. Only the well-known *idea* of subsequence scoring was reused; no code copied, so no attribution required. |
+| **Accessible combobox / listbox & keyboard navigation** | Downshift (🟢 MIT), React-Aria/React-Spectrum (🟢 Apache-2.0), cmdk (🟢 MIT), Radix (🟢 MIT) | Each imposes an API shape and a runtime dependency; DS-06 already set the precedent that a focused native combobox meets the WCAG 2.2 AA bar | **Build** — a native `role="combobox"` + `role="listbox"` with `aria-activedescendant`, reusing the DS-03/PX-02 focus/inert/scroll-lock hooks (no second focus trap). Door stays open behind the same API. |
+| **Modal / focus management** | (see DS-03) | — | **Reuse** the DS-03 `useDrawerFocus`/`useBodyScrollLock`/`useInertBackground` hooks (ADR-020 §20.9). |
+| **Compact search indexing / virtualisation** | FlexSearch/Lunr (🟢 varies), TanStack Virtual (🟢 MIT) | Unwarranted for a single-user app whose bounded result set (≤50) renders a handful of nodes; an index would be premature | **Reject** — bounded result counts make an index or virtualiser unnecessary. |
+
+**Decision (Depend / Adapt / Build).** **Build** the DalyHub-owned Search system (the React-free model incl. the in-house fuzzy matcher, the runtime orchestrator, the browser controller and the combobox surface); **reuse** the DS-03 modal hooks, the PX-02 entity identity, and the DS-03 Drawer; **add no dependency**, no persistence and no migration. No third-party code was copied, so `THIRD_PARTY_NOTICES` is unchanged. See [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

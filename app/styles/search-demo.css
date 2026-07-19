@@ -1,0 +1,64 @@
+/*
+ * DS-08 — styles for the development-only `/design/search` fixture.
+ *
+ * Imported ONLY by `routes/design-search.tsx`, which the `NODE_ENV` guard in
+ * `app/routes.ts` excludes from production — so neither this stylesheet nor the
+ * fixture ships in the production bundle. Tokens only.
+ */
+
+.dh-design-search {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--dh-space-8) var(--dh-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-design-search h1 {
+  margin: 0;
+  font-size: var(--dh-font-size-2xl);
+  color: var(--dh-color-text);
+}
+
+.dh-design-search p {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  line-height: var(--dh-line-height-relaxed);
+}
+
+.dh-design-search__hint {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-design-search__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+}
+
+.dh-design-search__actions button {
+  min-height: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-4);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+}
+
+.dh-design-search__actions button:hover {
+  border-color: var(--dh-color-border-strong);
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-design-search code,
+.dh-design-search kbd {
+  font-family: var(--dh-font-mono);
+  font-size: 0.9em;
+  padding: 0 var(--dh-space-1);
+  background: var(--dh-color-surface-sunken);
+  border-radius: var(--dh-radius-xs);
+}

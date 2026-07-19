@@ -110,7 +110,7 @@ describe("lazy behaviour", () => {
                 {
                   id: "n1",
                   title: `match for ${query.text}`,
-                  navigateTo: "/notes/n1",
+                  target: { kind: "route", to: "/notes/n1" },
                 },
               ];
             },
@@ -124,7 +124,10 @@ describe("lazy behaviour", () => {
 
     const results = await provider?.search(
       { text: "hello", limit: 10 },
-      { workspace: workspaceContextFromId("test-workspace") },
+      {
+        workspace: workspaceContextFromId("test-workspace"),
+        signal: new AbortController().signal,
+      },
     );
     expect(searchRuns).toBe(1);
     expect(results?.[0]?.title).toBe("match for hello");

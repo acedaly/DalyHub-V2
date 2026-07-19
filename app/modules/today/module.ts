@@ -10,18 +10,21 @@
  * renders Today's row with the generic navigation glyph — the shell's documented
  * fallback (PrimaryNavigation) — composed exactly as intended, with no shell change.
  *
- * It contributes only the single navigable route (`routes.manifest.ts`). Command
- * and search-provider registration (PRODUCT_EXPERIENCE Part IV §6) is deferred until
- * the runtime seams they need exist: a Today command such as Quick Capture has no
- * honest `run` handler while there is no persistence or navigation seam in
- * `ModuleRuntimeContext` (TODAY-01 is deliberately fixture-only — no repositories,
- * D1, APIs, AI or persistence). It is registered with the surface that first gives
- * it a real action (TODAY-05 keyboard workflow / DS-08/DS-09), not stubbed here.
+ * It contributes the single navigable route (`routes.manifest.ts`) and — now that
+ * DS-08 supplies the runtime search seam — a fixture-backed SEARCH PROVIDER
+ * (`search.ts`). The provider is a real, registry-discovered contribution over the
+ * Today fixtures that opens results in the existing DS-03 Drawer; when Today swaps
+ * to real repositories, only the executor changes, not this contract. COMMAND
+ * registration remains deferred to DS-09: a Today command such as Quick Capture
+ * still has no honest `run` handler while there is no persistence seam in
+ * `ModuleRuntimeContext` (TODAY-01 is otherwise fixture-only — no repositories, D1,
+ * APIs, AI or persistence).
  */
 
 import { defineModule } from "~/kernel/modules";
 
 import routes from "./routes.manifest";
+import { todaySearchProvider } from "./search";
 
 export default defineModule({
   id: "today",
@@ -29,4 +32,5 @@ export default defineModule({
   description: "The calm daily home — what deserves attention right now.",
   order: 5,
   routes,
+  searchProviders: [todaySearchProvider],
 });

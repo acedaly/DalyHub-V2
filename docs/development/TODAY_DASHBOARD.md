@@ -96,11 +96,21 @@ change.
    TODAY items (TODAY-04 Planning / TODAY-05 Keyboard). TODAY-01 ships the calm
    morning dashboard the brief specifies and demonstrates completion optimistically
    on focus tasks.
-2. **Commands/search.** Command and search-provider registration
-   (PRODUCT_EXPERIENCE Part IV §6) is deferred: a Quick Capture command has no
-   honest `run` handler while `ModuleRuntimeContext` exposes no persistence or
-   navigation seam, and TODAY-01 is fixture-only. It is registered with the surface
-   that first gives it a real action (TODAY-05 / DS-08/DS-09), not stubbed here.
+2. **Search provider (added by DS-08).** The Today module now registers a real,
+   registry-discovered, **fixture-backed** search provider
+   ([`app/modules/today/search.ts`](../../app/modules/today/search.ts)) over the
+   TODAY-01 fixtures (focus tasks, upcoming meetings/reminders/deadlines, projects,
+   notes). It returns the existing Today Drawer keys (`task:<id>`, `upcoming:<id>`,
+   `project:<id>`, `note:<id>`) with `canonicalPath: "/today"`, so a Shared Search
+   result opens the current DS-03 Record Layout in the Drawer. It duplicates no
+   fixtures and adds no persistence; when Today swaps to real product repositories,
+   **only the executor changes** — the shared provider contract does not. See
+   [`SHARED_SEARCH.md`](SHARED_SEARCH.md) and [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation).
+3. **Commands.** Command registration (PRODUCT_EXPERIENCE Part IV §6) is still
+   deferred: a Quick Capture command has no honest `run` handler while
+   `ModuleRuntimeContext` exposes no persistence seam, and TODAY-01 is fixture-only.
+   It is registered with the surface that first gives it a real action (TODAY-05 /
+   DS-09), not stubbed here.
 
 ## Tests
 

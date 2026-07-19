@@ -52,11 +52,15 @@ const devFixtureRoutes =
         ),
         route("design/activity-feed", "routes/design-activity-feed.tsx"),
         route("design/forms", "routes/design-forms.tsx"),
+        route("design/search", "routes/design-search.tsx"),
       ];
 
 export default [
   route("health", "routes/health.ts"),
   route("preferences/theme", "routes/theme-action.ts"),
+  // DS-08 global Search endpoint — a JSON resource route behind the Worker auth
+  // boundary. It renders no shell, so it stays OUTSIDE the app-shell layout.
+  route("search", "routes/search.ts"),
   layout("routes/app-shell.tsx", { id: "app-shell" }, [
     index("routes/home.tsx"),
     ...moduleRoutes,

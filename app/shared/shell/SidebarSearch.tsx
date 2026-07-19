@@ -15,8 +15,11 @@
 import { CommandIcon, SearchIcon } from "~/shared/icons";
 
 export type SidebarSearchProps = {
-  /** Opens global Search (DS-08). Absent until DS-08 wires it. */
-  readonly onOpenSearch?: () => void;
+  /**
+   * Opens global Search (DS-08). Receives the triggering button so Search can
+   * restore focus to it on close. Absent until DS-08 wires it.
+   */
+  readonly onOpenSearch?: (opener: HTMLElement) => void;
   /** Opens the Command Palette (DS-09). Absent until DS-09 wires it. */
   readonly onOpenCommand?: () => void;
 };
@@ -30,7 +33,11 @@ export function SidebarSearch({
       <button
         type="button"
         className="dh-sidebar__search-entry"
-        onClick={onOpenSearch}
+        onClick={
+          onOpenSearch
+            ? (event) => onOpenSearch(event.currentTarget)
+            : undefined
+        }
       >
         <span className="dh-sidebar__search-icon" aria-hidden="true">
           <SearchIcon />
