@@ -43,7 +43,11 @@ export type TaggedResult = {
 
 /** A result after ranking — carries a normalised score and match ranges. */
 export type RankedSearchResult = {
-  /** Stable global identity: `${moduleId}::${itemId}`. */
+  /**
+   * Stable global identity: `${moduleId}::${providerId}::${itemId}`. The
+   * provider-local `itemId` is unique only within its provider, so the provider is
+   * part of the identity (two providers in one module may share an `itemId`).
+   */
   readonly id: string;
   readonly providerId: string;
   readonly moduleId: string;

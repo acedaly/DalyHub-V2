@@ -138,7 +138,7 @@ describe("validateResultItem", () => {
   it("validates a good item and namespaces identity", () => {
     const result = validateResultItem(item(), "today", "today.search");
     expect(result).not.toBeNull();
-    expect(resultIdentity(result!)).toBe("today::1");
+    expect(resultIdentity(result!)).toBe("today::today.search::1");
   });
 
   it("drops empty titles, malformed ids and unsafe targets", () => {
@@ -219,9 +219,13 @@ describe("rankResults", () => {
       tagged({ itemId: "token", title: "Report fx summary" }),
     ];
     const ranked = rankResults("fx", results);
-    expect(
-      ranked.map((r) => (r.providerId ? r.id.split("::")[1] : "")),
-    ).toEqual(["exact", "prefix", "token", "fuzzy", "subtitle"]);
+    expect(ranked.map((r) => r.id.split("::")[2])).toEqual([
+      "exact",
+      "prefix",
+      "token",
+      "fuzzy",
+      "subtitle",
+    ]);
   });
 
   it("is deterministic and stable for equal tiers (title then id)", () => {
@@ -230,7 +234,10 @@ describe("rankResults", () => {
       tagged({ itemId: "a", title: "Alpha" }),
     ];
     const ranked = rankResults("alpha", results);
-    expect(ranked.map((r) => r.id)).toEqual(["today::a", "today::b"]);
+    expect(ranked.map((r) => r.id)).toEqual([
+      "today::today.search::a",
+      "today::today.search::b",
+    ]);
   });
 
   it("uses a normalised provider score only as a tie-breaker", () => {
@@ -239,7 +246,7 @@ describe("rankResults", () => {
       tagged({ itemId: "high", title: "Match", providerScore: 0.9 }),
     ];
     const ranked = rankResults("match", results);
-    expect(ranked[0]!.id).toBe("today::high");
+    expect(ranked[0]!.id).toBe("today::today.search::high");
   });
 
   it("produces title match ranges for highlighting", () => {
@@ -381,5 +388,94 @@ describe("entity type validation reuses the FND-02 contract", () => {
       expect(result).not.toBeNull(); // the result survives...
       expect(result?.entityType).toBeUndefined(); // ...only the field is dropped
     }
+  });
+});
+
+describe("global result identity includes the provider", () => {
+  it("dedupes same provider + same itemId, but keeps same-module different-provider ids", () => {
+    const records: TaggedResult[] = [
+      tagged({
+        itemId: "1",
+        providerId: "projects.records",
+        moduleId: "projects",
+        title: "Records one",
+      }),
+      tagged({
+        itemId: "1",
+        providerId: "projects.records",
+        moduleId: "projects",
+        title: "Records dup",
+      }),
+      tagged({
+        itemId: "1",
+        providerId: "projects.archived",
+        moduleId: "projects",
+        title: "Archived one",
+      }),
+    ];
+    const unique = dedupeTagged(records);
+    // The exact duplicate (same provider + itemId) is dropped; the different
+    // provider survives even though the module and itemId match.
+    expect(unique).toHaveLength(2);
+    expect(unique.map(resultIdentity)).toEqual([
+      "projects::projects.records::1",
+      "projects::projects.archived::1",
+    ]);
+  });
+
+  it("keeps results from different modules with the same provider-local id", () => {
+    const records: TaggedResult[] = [
+      tagged({
+        itemId: "1",
+        providerId: "projects.records",
+        moduleId: "projects",
+      }),
+      tagged({ itemId: "1", providerId: "tasks.records", moduleId: "tasks" }),
+    ];
+    expect(dedupeTagged(records)).toHaveLength(2);
+  });
+
+  it("ranks two otherwise-equal results from different providers deterministically by full identity", () => {
+    const results: TaggedResult[] = [
+      tagged({
+        itemId: "1",
+        providerId: "projects.archived",
+        moduleId: "projects",
+        title: "Same",
+      }),
+      tagged({
+        itemId: "1",
+        providerId: "projects.records",
+        moduleId: "projects",
+        title: "Same",
+      }),
+    ];
+    const ranked = rankResults("same", results);
+    expect(ranked.map((r) => r.id)).toEqual([
+      "projects::projects.archived::1",
+      "projects::projects.records::1",
+    ]);
+  });
+
+  it("assembles two same-module different-provider results as distinct grouped results", () => {
+    const outcome = assembleOutcome("same", [
+      {
+        providerId: "projects.records",
+        moduleId: "projects",
+        moduleLabel: "Projects",
+        ok: true,
+        items: [item({ id: "1", title: "Same", entityType: "project" })],
+      },
+      {
+        providerId: "projects.archived",
+        moduleId: "projects",
+        moduleLabel: "Projects",
+        ok: true,
+        items: [item({ id: "1", title: "Same", entityType: "project" })],
+      },
+    ]);
+    const ids = outcome.groups.flatMap((g) => g.results.map((r) => r.id));
+    expect(new Set(ids).size).toBe(2); // no collapse
+    expect(outcome.totalCount).toBe(2);
   });
 });

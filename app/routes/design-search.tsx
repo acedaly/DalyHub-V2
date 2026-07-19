@@ -182,7 +182,29 @@ const failingProvider: RegisteredSearchProvider = {
   },
 };
 
-type Scenario = "healthy" | "partial" | "error";
+type Scenario = "healthy" | "partial" | "error" | "stale";
+
+/**
+ * A provider whose results resolve instantly EXCEPT for a query containing
+ * `hold`, which never resolves — a controlled route delay used to demonstrate
+ * (and e2e-test) the stale-selection contract deterministically, without sleeps.
+ */
+function holdableProvider(
+  moduleId: string,
+  label: string,
+  entityType: EntityType,
+): RegisteredSearchProvider {
+  const base = providerFor(moduleId, label, entityType);
+  return {
+    ...base,
+    search: async (query, context) => {
+      if (query.text.toLowerCase().includes("hold")) {
+        return new Promise<readonly SearchResultItem[]>(() => {});
+      }
+      return base.search(query, context);
+    },
+  };
+}
 
 function providersFor(scenario: Scenario): readonly RegisteredSearchProvider[] {
   // The tasks provider returns one duplicate id to prove deduplication.
@@ -198,6 +220,12 @@ function providersFor(scenario: Scenario): readonly RegisteredSearchProvider[] {
   ];
   if (scenario === "healthy") return healthy;
   if (scenario === "partial") return [...healthy, failingProvider];
+  if (scenario === "stale") {
+    return [
+      holdableProvider("tasks", "Tasks", "task"),
+      holdableProvider("projects", "Projects", "project"),
+    ];
+  }
   return [
     failingProvider,
     { ...failingProvider, id: "b.search", moduleId: parseModuleId("b") },
@@ -210,8 +238,16 @@ const DEMO_CONTEXT: ModuleRuntimeContext = {
 
 function makeSearch(scenario: Scenario): SearchFn {
   const providers = providersFor(scenario);
+  // A large timeout for the stale demo so the "hold" query stays loading (the
+  // per-provider deadline never fires during the demonstration).
+  const timeoutMs = scenario === "stale" ? 60_000 : undefined;
   return async (query) =>
-    executeSearch({ providers, context: DEMO_CONTEXT, rawQuery: query });
+    executeSearch({
+      providers,
+      context: DEMO_CONTEXT,
+      rawQuery: query,
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -287,7 +323,15 @@ export default function DesignSearchRoute() {
           <button type="button" onClick={open("error")}>
             Open Search (complete failure)
           </button>
+          <button type="button" onClick={open("stale")}>
+            Open Search (stale-selection demo)
+          </button>
         </div>
+        <p className="dh-design-search__hint">
+          In the stale-selection demo, a query containing <code>hold</code>{" "}
+          never resolves — showing that the previous results stay visible but
+          become non-actionable while a new query loads.
+        </p>
         <p className="dh-design-search__hint">
           The real Product Frame Search (sidebar <kbd>/</kbd>) uses the live{" "}
           <code>/search</code> endpoint and the registry-discovered Today

@@ -106,18 +106,33 @@ export function validateResultItem(
   };
 }
 
-/** The stable global identity of a result: `${moduleId}::${itemId}`. */
+/**
+ * The stable global identity of a result: `${moduleId}::${providerId}::${itemId}`.
+ *
+ * A provider-local `itemId` is unique only WITHIN its contributing provider
+ * (ADR-013), so the identity MUST include the provider — otherwise two providers
+ * in the *same* module that each return `id: "1"` would collide and one valid
+ * result would be dropped, and the UI's option ids / `indexById` would be
+ * ambiguous. `providerId` is globally unique (namespaced under its module), so it
+ * alone disambiguates; `moduleId` is kept as the leading, human-legible segment.
+ */
 export function resultIdentity(result: {
   readonly moduleId: string;
+  readonly providerId: string;
   readonly itemId: string;
 }): string {
-  return `${result.moduleId}::${result.itemId}`;
+  return `${result.moduleId}::${result.providerId}::${result.itemId}`;
 }
 
 /**
  * Drop duplicate identities, keeping the first occurrence (deterministic given the
- * deterministic registry provider order). Two different modules never collide
- * because identity is namespaced by module.
+ * deterministic registry provider order). Deduplication is by the full
+ * `moduleId::providerId::itemId` identity ONLY:
+ *   - same provider + same `itemId` → duplicate (one kept);
+ *   - same module, DIFFERENT providers, same `itemId` → distinct (both kept);
+ *   - different modules → distinct (both kept).
+ * It never dedupes on title, subtitle, Drawer key, route or entity type — provider-
+ * local identity does not establish cross-provider record equivalence.
  */
 export function dedupeTagged(results: readonly TaggedResult[]): TaggedResult[] {
   const seen = new Set<string>();

@@ -133,6 +133,11 @@ export default function SearchSurface({
 
   const handleInputKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
+      // Only the CURRENT result set is navigable/activatable. While a new query
+      // loads, prior results may be visible but are stale and inert.
+      if (!controller.resultsAreCurrent) {
+        return;
+      }
       switch (event.key) {
         case "ArrowDown":
           event.preventDefault();
@@ -394,6 +399,7 @@ function SearchResults({
                     index={index}
                     domId={optionId(index)}
                     active={index === activeIndex}
+                    interactive={controller.resultsAreCurrent}
                     onClick={onRowClick}
                     onHover={onRowHover}
                     currentLocation={currentLocation}
@@ -413,6 +419,8 @@ type SearchOptionProps = {
   readonly index: number;
   readonly domId: string;
   readonly active: boolean;
+  /** When false (a stale set while loading) the row is inert — no link, no click. */
+  readonly interactive: boolean;
   readonly onClick: (
     event: MouseEvent<HTMLAnchorElement>,
     result: RankedSearchResult,
@@ -429,6 +437,7 @@ function SearchOption({
   index,
   domId,
   active,
+  interactive,
   onClick,
   onHover,
   currentLocation,
@@ -442,45 +451,58 @@ function SearchOption({
       : null;
   const typeLabel = identity?.label ?? result.entityType;
 
+  const body = (
+    <>
+      <span className="dh-search__optionicon" aria-hidden="true">
+        {identity !== null ? (
+          <EntityIcon type={identity.type} />
+        ) : (
+          <InboxIcon />
+        )}
+      </span>
+      <span className="dh-search__optionbody">
+        <span className="dh-search__optiontitle">
+          <Highlight text={result.title} ranges={result.titleMatches} />
+        </span>
+        {result.subtitle !== undefined ? (
+          <span className="dh-search__optionsubtitle">
+            <Highlight text={result.subtitle} ranges={result.subtitleMatches} />
+          </span>
+        ) : null}
+      </span>
+      {typeLabel !== undefined ? (
+        <span className="dh-search__optiontype">{typeLabel}</span>
+      ) : null}
+    </>
+  );
+
   return (
     <div
       id={domId}
       role="option"
-      aria-selected={active}
+      aria-selected={interactive ? active : false}
       className="dh-search__option"
-      data-active={active || undefined}
+      data-active={(interactive && active) || undefined}
     >
-      <a
-        className="dh-search__optionlink"
-        href={href}
-        tabIndex={-1}
-        onClick={(event) => onClick(event, result)}
-        onMouseMove={() => onHover(index)}
-      >
-        <span className="dh-search__optionicon" aria-hidden="true">
-          {identity !== null ? (
-            <EntityIcon type={identity.type} />
-          ) : (
-            <InboxIcon />
-          )}
+      {interactive ? (
+        // A real link: plain click opens in-app; modified/middle-click follows the
+        // href (new tab). Only CURRENT results are links.
+        <a
+          className="dh-search__optionlink"
+          href={href}
+          tabIndex={-1}
+          onClick={(event) => onClick(event, result)}
+          onMouseMove={() => onHover(index)}
+        >
+          {body}
+        </a>
+      ) : (
+        // Stale results (a new query is loading) render as inert text — no href,
+        // so neither a plain click nor a modified-click can open them.
+        <span className="dh-search__optionlink" aria-disabled="true">
+          {body}
         </span>
-        <span className="dh-search__optionbody">
-          <span className="dh-search__optiontitle">
-            <Highlight text={result.title} ranges={result.titleMatches} />
-          </span>
-          {result.subtitle !== undefined ? (
-            <span className="dh-search__optionsubtitle">
-              <Highlight
-                text={result.subtitle}
-                ranges={result.subtitleMatches}
-              />
-            </span>
-          ) : null}
-        </span>
-        {typeLabel !== undefined ? (
-          <span className="dh-search__optiontype">{typeLabel}</span>
-        ) : null}
-      </a>
+      )}
     </div>
   );
 }

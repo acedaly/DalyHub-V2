@@ -299,3 +299,84 @@ describe("SearchSurface — modal-root inertness and scrim", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe("SearchSurface — provider identity and stale-result inertness", () => {
+  it("renders two same-module different-provider results as two distinct options", async () => {
+    const twoProviders: SearchFn = async (q) =>
+      assembleOutcome(q, [
+        {
+          providerId: "projects.records",
+          moduleId: "projects",
+          moduleLabel: "Projects",
+          ok: true,
+          items: [
+            {
+              id: "1",
+              title: `${q} record`,
+              entityType: "project",
+              target: { kind: "route", to: "/records/1" },
+            },
+          ],
+        },
+        {
+          providerId: "projects.archived",
+          moduleId: "projects",
+          moduleLabel: "Projects",
+          ok: true,
+          items: [
+            {
+              id: "1",
+              title: `${q} archived`,
+              entityType: "project",
+              target: { kind: "route", to: "/archived/1" },
+            },
+          ],
+        },
+      ]);
+    renderSurface(twoProviders);
+    typeQuery("Alpha");
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(2));
+    const options = screen.getAllByRole("option");
+    const ids = options.map((o) => o.id);
+    expect(new Set(ids).size).toBe(2); // distinct DOM option ids
+    const hrefs = screen
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"));
+    expect(new Set(hrefs).size).toBe(2); // each opens its own target
+  });
+
+  it("makes stale results during loading inert (no keyboard/pointer activation, no activedescendant)", async () => {
+    let calls = 0;
+    const pending = new Promise<SearchOutcome>(() => {}); // never resolves
+    const search: SearchFn = (q) => {
+      calls += 1;
+      return calls === 1 ? Promise.resolve(healthyOutcome(q)) : pending;
+    };
+    const { onClose } = renderSurface(search);
+    const input = screen.getByRole("combobox");
+    typeQuery("Finish");
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(3));
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    await waitFor(() =>
+      expect(input.getAttribute("aria-activedescendant")).toBeTruthy(),
+    );
+
+    // Type a new query — the surface enters loading with the prior results still
+    // visible, but they must become inert.
+    typeQuery("Report");
+    await waitFor(() =>
+      expect(input.getAttribute("aria-activedescendant")).toBeFalsy(),
+    );
+    const staleOptions = screen.getAllByRole("option");
+    expect(staleOptions.length).toBeGreaterThan(0);
+    expect(
+      staleOptions.every((o) => o.getAttribute("aria-selected") === "false"),
+    ).toBe(true);
+    // No links while stale → neither plain nor modified click can open them.
+    expect(screen.queryAllByRole("link")).toHaveLength(0);
+    // Enter does nothing: no navigation, surface stays open.
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByTestId("location").textContent).toBe("/home");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

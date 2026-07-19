@@ -204,7 +204,10 @@ automatically, so you never repeat the module id on each entry.
   Each has a namespaced `id`, a `label`, optional `entityTypes`, and a `search`
   function taking a normalised query and a `SearchRuntimeContext` (the workspace
   scope plus a cancellation `signal`, aborted on the per-provider deadline) and
-  returning typed result items. A result item declares **how it opens** via a
+  returning typed result items. A result item's `id` need only be unique **within
+  its own provider** — Shared Search forms the global identity as
+  `moduleId::providerId::itemId`, so two providers in one module may reuse an `id`.
+  A result item declares **how it opens** via a
   validated
   `SearchResultTarget` (`{ kind: "drawer"; drawerKey; canonicalPath? }` or
   `{ kind: "route"; to }`) — Shared Search never parses a product route or id, and

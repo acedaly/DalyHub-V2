@@ -113,6 +113,21 @@ Results **group primarily by entity type**; a result with no entity type falls
 back to its owning module. Groups appear in **first-seen order** over the ranked
 list, so the most relevant group leads without a hard-coded entity order.
 
+A result's global identity is **`moduleId::providerId::itemId`**. A provider-local
+`itemId` is unique only *within its provider*, so the provider is part of the
+identity — two providers in one module may return the same `itemId` and both
+survive. Deduplication is by the full identity only (same provider + same `itemId`
+→ one kept); it never dedupes on title, subtitle, Drawer key, route or entity
+type, because provider-local identity does not establish cross-provider record
+equivalence.
+
+**Active-selection lifecycle.** Every meaningful query change clears the active
+selection immediately. While a new query loads, the prior results may stay visible
+but are not current: no active option, no `aria-activedescendant`, and the rows
+render as inert text (not links), so neither Enter nor a plain/modified click can
+open a stale result. New results arrive with no default selection; Arrow keys
+begin selection explicitly.
+
 Highlighting comes from **match ranges** (code-point indices) rendered as `<mark>`
 from plain text segments — there is no `dangerouslySetInnerHTML` and no provider
 HTML.

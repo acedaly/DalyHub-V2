@@ -342,3 +342,146 @@ describe("useSearchController — immediate stale invalidation", () => {
     }
   });
 });
+
+describe("useSearchController — stale active selection", () => {
+  it("clears the active selection immediately when the query changes and re-arms only when new results are current", async () => {
+    vi.useFakeTimers();
+    try {
+      const b = deferred<SearchOutcome>();
+      let calls = 0;
+      const search: SearchFn = (q) => {
+        calls += 1;
+        return calls === 1
+          ? Promise.resolve(outcomeWith(q, "Alpha"))
+          : b.promise;
+      };
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 100 }),
+      );
+
+      // Query A resolves; select its result with ArrowDown.
+      act(() => result.current.setQuery("alpha"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      act(() => result.current.moveDown());
+      expect(result.current.activeIndex).toBe(0);
+      expect(result.current.activeResult?.title).toBe("Alpha");
+      expect(result.current.resultsAreCurrent).toBe(true);
+
+      // Type B — before B's debounce fires the selection is cleared and the
+      // stale results are no longer current (not activatable).
+      act(() => result.current.setQuery("bravo"));
+      expect(result.current.activeIndex).toBe(-1);
+      expect(result.current.activeResult).toBeNull();
+      expect(result.current.resultsAreCurrent).toBe(false);
+
+      // B resolves — new results arrive with NO preselection.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      await act(async () => {
+        b.resolve(outcomeWith("bravo", "Bravo"));
+        await Promise.resolve();
+      });
+      expect(result.current.resultsAreCurrent).toBe(true);
+      expect(result.current.activeResult).toBeNull();
+      // ArrowDown now begins at B's first result.
+      act(() => result.current.moveDown());
+      expect(result.current.activeResult?.title).toBe("Bravo");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the selection on clear and on retry", async () => {
+    vi.useFakeTimers();
+    try {
+      const search: SearchFn = async (q) => outcomeWith(q, "Alpha");
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 0 }),
+      );
+      act(() => result.current.setQuery("alpha"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      act(() => result.current.moveDown());
+      expect(result.current.activeResult).not.toBeNull();
+
+      act(() => result.current.retry());
+      expect(result.current.activeIndex).toBe(-1); // retry clears selection
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(result.current.activeResult).toBeNull();
+
+      act(() => result.current.moveDown());
+      expect(result.current.activeResult).not.toBeNull();
+      act(() => result.current.clear());
+      expect(result.current.activeIndex).toBe(-1);
+      expect(result.current.phase).toBe("idle");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never exposes an out-of-range active result when the count shrinks", async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const search: SearchFn = async (q) => {
+        calls += 1;
+        return calls === 1
+          ? assembleOutcome(q, [
+              {
+                providerId: "t.search",
+                moduleId: "t",
+                moduleLabel: "T",
+                ok: true,
+                items: [
+                  {
+                    id: "1",
+                    title: `${q} one`,
+                    entityType: "task",
+                    target: { kind: "route", to: "/1" },
+                  },
+                  {
+                    id: "2",
+                    title: `${q} two`,
+                    entityType: "task",
+                    target: { kind: "route", to: "/2" },
+                  },
+                  {
+                    id: "3",
+                    title: `${q} three`,
+                    entityType: "task",
+                    target: { kind: "route", to: "/3" },
+                  },
+                ],
+              },
+            ])
+          : outcomeWith(q, "Only one");
+      };
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 0 }),
+      );
+      act(() => result.current.setQuery("aaa"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      act(() => result.current.moveEnd()); // select the 3rd (index 2)
+      expect(result.current.activeIndex).toBe(2);
+
+      // A shorter result set arrives (1 item) — no stale index 2 leaks.
+      act(() => result.current.setQuery("bbb"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(result.current.flatResults).toHaveLength(1);
+      expect(result.current.activeIndex).toBe(-1);
+      expect(result.current.activeResult).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

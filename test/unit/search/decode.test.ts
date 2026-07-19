@@ -146,3 +146,74 @@ describe("decodeSearchOutcome", () => {
     expect(decoded!.status).toBe("partial");
   });
 });
+
+describe("decodeSearchOutcome — provider-scoped identities", () => {
+  it("preserves two same-module results from different providers (distinct global ids)", () => {
+    const outcome = {
+      query: "same",
+      status: "ok",
+      groups: [
+        {
+          id: "entity:project",
+          kind: "entity",
+          label: "project",
+          results: [
+            {
+              id: "projects::projects.records::1",
+              providerId: "projects.records",
+              moduleId: "projects",
+              title: "Records",
+              target: { kind: "route", to: "/r/1" },
+            },
+            {
+              id: "projects::projects.archived::1",
+              providerId: "projects.archived",
+              moduleId: "projects",
+              title: "Archived",
+              target: { kind: "route", to: "/a/1" },
+            },
+          ],
+        },
+      ],
+      providers: [],
+    };
+    const decoded = decodeSearchOutcome(outcome);
+    expect(decoded!.totalCount).toBe(2);
+    const ids = decoded!.groups[0]!.results.map((r) => r.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("drops a result whose global id exceeds the bound", () => {
+    const outcome = {
+      query: "x",
+      status: "ok",
+      groups: [
+        {
+          id: "entity:task",
+          kind: "entity",
+          label: "task",
+          results: [
+            {
+              id: "m::m.search::" + "x".repeat(2000),
+              providerId: "m.search",
+              moduleId: "m",
+              title: "Too long",
+              target: { kind: "route", to: "/x" },
+            },
+            {
+              id: "m::m.search::ok",
+              providerId: "m.search",
+              moduleId: "m",
+              title: "Fine",
+              target: { kind: "route", to: "/x" },
+            },
+          ],
+        },
+      ],
+      providers: [],
+    };
+    const decoded = decodeSearchOutcome(outcome);
+    expect(decoded!.totalCount).toBe(1);
+    expect(decoded!.groups[0]?.results[0]?.title).toBe("Fine");
+  });
+});

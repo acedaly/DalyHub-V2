@@ -36,7 +36,7 @@ import type {
 const STATUSES: ReadonlySet<string> = new Set(["ok", "partial", "error"]);
 const MAX_GROUPS = 64;
 const MAX_RANGES = 64;
-const MAX_ID_LENGTH = MAX_RESULT_ID_LENGTH * 2 + 8; // "moduleId::itemId"
+const MAX_ID_LENGTH = MAX_RESULT_ID_LENGTH * 3 + 8; // "moduleId::providerId::itemId"
 const MAX_LABEL_LENGTH = 256;
 
 function boundedString(value: unknown, max: number): string | null {

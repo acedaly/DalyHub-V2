@@ -64,8 +64,11 @@ function reducer(state: State, action: Action): State {
     case "idle":
       return { ...state, phase: "idle", outcome: null, activeIndex: -1 };
     case "loading":
-      // Keep the previous outcome visible while loading.
-      return { ...state, phase: "loading" };
+      // Keep the previous outcome visible while loading, but CLEAR the active
+      // selection: those results are stale relative to the new input and must not
+      // stay actionable (pressing Enter during the debounce must not open a result
+      // from the previous query).
+      return { ...state, phase: "loading", activeIndex: -1 };
     case "resolved":
       return {
         ...state,
@@ -93,6 +96,12 @@ export type SearchController = {
   readonly isEmpty: boolean;
   readonly isPartial: boolean;
   readonly hasResults: boolean;
+  /**
+   * True only when the displayed results correspond to the CURRENT input (phase
+   * `ready`). While a new query loads, prior results may stay visible but are NOT
+   * current — the surface must not activate them (keyboard or pointer).
+   */
+  readonly resultsAreCurrent: boolean;
   setQuery(next: string): void;
   clear(): void;
   retry(): void;
@@ -255,8 +264,16 @@ export function useSearchController(
     [],
   );
 
+  // Results are "current" only in the ready phase and only when the displayed
+  // outcome corresponds to the current normalised input. While loading, prior
+  // results may be visible but are stale — never activatable.
+  const resultsAreCurrent =
+    state.phase === "ready" &&
+    outcome !== null &&
+    outcome.query === normaliseQuery(state.query);
+
   const activeResult =
-    state.activeIndex >= 0 && state.activeIndex < count
+    resultsAreCurrent && state.activeIndex >= 0 && state.activeIndex < count
       ? flatResults[state.activeIndex]
       : null;
 
@@ -266,8 +283,9 @@ export function useSearchController(
     outcome,
     groups,
     flatResults,
-    activeIndex: state.activeIndex,
+    activeIndex: resultsAreCurrent ? state.activeIndex : -1,
     activeResult,
+    resultsAreCurrent,
     isEmpty: state.phase === "ready" && count === 0,
     isPartial: outcome?.status === "partial",
     hasResults: count > 0,

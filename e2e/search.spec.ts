@@ -274,3 +274,39 @@ test.describe("DS-08 Shared Search — coexists with an open Drawer", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 });
+
+test.describe("DS-08 Shared Search — stale selection is not activatable", () => {
+  test("Enter during a loading query does not open a stale result", async ({
+    page,
+  }) => {
+    await page.goto("/design/search");
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: /stale-selection demo/i }).click();
+    const input = page.getByRole("combobox", { name: "Search everything" });
+    await input.fill("relaunch");
+    await expect(page.getByRole("listbox")).toBeVisible();
+
+    // Select a result with the keyboard.
+    await input.press("ArrowDown");
+    await expect(
+      page.locator('[role="option"][aria-selected="true"]'),
+    ).toHaveCount(1);
+
+    // Type a query that never resolves (controlled delay) — the surface stays
+    // loading with the prior results visible but inert.
+    await input.fill("hold");
+    await expect(input).not.toHaveAttribute("aria-activedescendant", /.+/);
+    // No active option and no links while stale.
+    await expect(
+      page.locator('[role="option"][aria-selected="true"]'),
+    ).toHaveCount(0);
+
+    // Enter must NOT navigate or open a Drawer: Search stays open (its combobox
+    // is still present) and no `drawer=` param appears. (Activating a result would
+    // instead close Search and add the drawer key to the URL.)
+    await input.press("Enter");
+    await expect(page).toHaveURL(/\/design\/search$/);
+    await expect(input).toBeVisible();
+    expect(page.url()).not.toContain("drawer=");
+  });
+});
