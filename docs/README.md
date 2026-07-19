@@ -45,6 +45,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/SPINE_MODEL.md`](development/SPINE_MODEL.md) | The Area→Goal→Project→Task spine: kinds, permitted hierarchy, structural links, exactly-one-parent, completion vs. deletion, derived rollups, move/reparent, reserved mutation paths, and Activity events. |
 | [`development/MARKDOWN_PIPELINE.md`](development/MARKDOWN_PIPELINE.md) | The shared Markdown pipeline: source-of-truth & size limits, supported/unsupported profile, raw-HTML policy, sanitisation allowlist, URL & remote-image policy, code/task-list behaviour, the public API, the one React sink, Workers compatibility, and how Notes/Diary/descriptions consume it. |
 | [`development/APP_SHELL_AUTH.md`](development/APP_SHELL_AUTH.md) | The app shell & authentication: the request/auth flow, Cloudflare Access JWT validation, owner enforcement, session/identity types, authenticated workspace & Activity actor, development-auth mode, local setup, logout, the public `/health` boundary, registry-driven routing & navigation, theme behaviour, security headers, and the workers.dev/custom-domain deployment requirements. |
+| [`development/ACTIVITY_TIMELINE.md`](development/ACTIVITY_TIMELINE.md) | The Shared Timeline & Activity Feed (DS-05): one renderer for both scopes, the presentation view-model boundary, registering event descriptors, the unknown-type fallback, wiring a route, DS-07 filtering & DS-03 drawer reuse, ordering/grouping/dates, virtualisation, accessibility, and the development demonstration. |
 
 ---
 
