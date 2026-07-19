@@ -130,8 +130,8 @@ describe("SearchSurface", () => {
   it("searches on input and groups results by entity type", async () => {
     renderSurface(healthySearch);
     typeQuery("Finish");
-    await waitFor(() => expect(screen.getByRole("listbox")).toBeVisible());
-    expect(screen.getAllByRole("option").length).toBe(3);
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(3));
+    expect(screen.getByRole("listbox")).toBeVisible();
     expect(screen.getByText("Tasks")).toBeVisible();
     expect(screen.getByText("Projects")).toBeVisible();
   });
@@ -252,5 +252,50 @@ describe("SearchSurface", () => {
     await waitFor(() =>
       expect(screen.getByRole("status").textContent).toMatch(/results/i),
     );
+  });
+});
+
+describe("SearchSurface — modal-root inertness and scrim", () => {
+  function renderWithBackground(search: SearchFn) {
+    const onClose = vi.fn();
+    const view = render(
+      <MemoryRouter initialEntries={["/home"]}>
+        <button data-testid="bg">Background</button>
+        <SearchSurface
+          search={search}
+          onClose={onClose}
+          opener={null}
+          debounceMs={0}
+        />
+      </MemoryRouter>,
+    );
+    return { onClose, view };
+  }
+
+  it("makes background siblings inert but keeps the scrim interactive", async () => {
+    const { view } = renderWithBackground(healthySearch);
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveFocus());
+    // The modal ROOT is the exclusion boundary: a sibling is inert...
+    expect(screen.getByTestId("bg")).toHaveAttribute("inert");
+    // ...but the scrim (a CHILD of the root) is NOT inert, so it stays clickable.
+    const scrim = view.container.querySelector(".dh-search__scrim");
+    expect(scrim).not.toBeNull();
+    expect(scrim).not.toHaveAttribute("inert");
+  });
+
+  it("closes when the scrim is clicked", async () => {
+    const { onClose, view } = renderWithBackground(healthySearch);
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveFocus());
+    const scrim = view.container.querySelector(".dh-search__scrim");
+    fireEvent.click(scrim as Element);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not close when clicking inside the panel", async () => {
+    const { onClose } = renderWithBackground(healthySearch);
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveFocus());
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

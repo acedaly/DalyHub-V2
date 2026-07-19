@@ -60,8 +60,11 @@ export default defineConfig({
   ],
   webServer: [
     {
-      // Development-auth server for the authenticated browser journey.
-      command: `node ./e2e/setup-dev-auth.mjs && pnpm exec react-router dev --port ${DEV_PORT}`,
+      // Development-auth server for the authenticated browser journey. The local
+      // D1 is migrated and the configured workspace seeded first, so the
+      // authenticated /search route (DS-08) can resolve it through the real
+      // composition boundary.
+      command: `node ./e2e/setup-dev-auth.mjs && node ./e2e/setup-local-db.mjs && pnpm exec react-router dev --port ${DEV_PORT}`,
       url: baseURL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

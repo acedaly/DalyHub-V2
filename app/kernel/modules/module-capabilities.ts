@@ -298,14 +298,29 @@ export type SearchResultItem = {
 };
 
 /**
+ * The runtime context a search provider receives: the workspace-scoped
+ * {@link ModuleRuntimeContext} plus an `AbortSignal` the runtime uses to CANCEL a
+ * provider (on a per-provider deadline, or when the caller/client cancels the
+ * search). A well-behaved provider observes `signal.aborted` and stops early, but
+ * even one that ignores it cannot block outcome assembly past the deadline — the
+ * runtime stops waiting on it (DS-08, ADR-023). This is React-free, D1-free and
+ * Cloudflare-free: `AbortSignal` is a standard web primitive.
+ */
+export type SearchRuntimeContext = ModuleRuntimeContext & {
+  /** Aborted when the provider's deadline elapses or the search is cancelled. */
+  readonly signal: AbortSignal;
+};
+
+/**
  * The runtime execution function for a search provider. It receives the
  * normalised query and its dependencies EXPLICITLY via the workspace-scoped
- * runtime context; it is never run to construct the registry, and it never
- * searches across workspaces (ADR-013 §13).
+ * {@link SearchRuntimeContext} (which also carries a cancellation `signal`); it is
+ * never run to construct the registry, and it never searches across workspaces
+ * (ADR-013 §13).
  */
 export type SearchExecutor = (
   query: SearchQuery,
-  context: ModuleRuntimeContext,
+  context: SearchRuntimeContext,
 ) => Promise<readonly SearchResultItem[]>;
 
 /** A search-provider contribution for future global search. */

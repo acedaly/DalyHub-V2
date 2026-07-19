@@ -10,8 +10,10 @@
  * time), so it is safe in the model, the Worker and the browser.
  */
 
+import type { EntityType } from "~/kernel/entities";
 import type { SearchResultTarget } from "~/kernel/modules";
 
+export type { EntityType } from "~/kernel/entities";
 export type { SearchResultItem, SearchResultTarget } from "~/kernel/modules";
 
 /**
@@ -33,7 +35,7 @@ export type TaggedResult = {
   readonly moduleId: string;
   readonly title: string;
   readonly subtitle?: string;
-  readonly entityType?: string;
+  readonly entityType?: EntityType;
   readonly target: SearchResultTarget;
   /** Optional provider relevance already clamped to `[0, 1]`, or undefined. */
   readonly providerScore?: number;
@@ -47,7 +49,7 @@ export type RankedSearchResult = {
   readonly moduleId: string;
   readonly title: string;
   readonly subtitle?: string;
-  readonly entityType?: string;
+  readonly entityType?: EntityType;
   readonly target: SearchResultTarget;
   /** Normalised relevance in `[0, 1]` — informational; ordering is deterministic. */
   readonly score: number;
@@ -75,7 +77,7 @@ export type SearchResultGroup = {
    * identity system; the model stays React-free.
    */
   readonly label: string;
-  readonly entityType?: string;
+  readonly entityType?: EntityType;
   readonly moduleId?: string;
   readonly results: readonly RankedSearchResult[];
 };

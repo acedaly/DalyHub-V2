@@ -238,3 +238,173 @@ describe("registry-driven provider discovery", () => {
     expect(finish?.moduleId).toBe("today");
   });
 });
+
+describe("executeSearch — provider deadlines and cancellation", () => {
+  function drawer(id: string, title: string): SearchResultItem {
+    return {
+      id,
+      title,
+      target: { kind: "drawer", drawerKey: `k:${id}`, canonicalPath: "/x" },
+      entityType: "task",
+    };
+  }
+
+  it("bounds a hung provider by the deadline; healthy results still return (partial)", async () => {
+    vi.useFakeTimers();
+    try {
+      const hung = provider("hung", () => new Promise<never>(() => {}));
+      const healthy = provider("ok", async () => [drawer("t1", "Alpha")]);
+      const promise = executeSearch({
+        providers: [hung, healthy],
+        context,
+        rawQuery: "alpha",
+        timeoutMs: 1000,
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      const outcome = await promise;
+      expect(outcome.status).toBe("partial");
+      expect(outcome.totalCount).toBe(1);
+      expect(outcome.providers.find((p) => p.moduleId === "hung")?.ok).toBe(
+        false,
+      );
+      expect(outcome.providers.find((p) => p.moduleId === "ok")?.ok).toBe(true);
+      // No internal detail leaks for the timed-out provider.
+      expect(JSON.stringify(outcome)).not.toMatch(/timeout|abort/i);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("aborts the timed-out provider's signal", async () => {
+    vi.useFakeTimers();
+    try {
+      let seen: AbortSignal | undefined;
+      const hung = provider("hung", (_q, ctx) => {
+        seen = ctx.signal;
+        return new Promise<never>(() => {});
+      });
+      const promise = executeSearch({
+        providers: [hung],
+        context,
+        rawQuery: "alpha",
+        timeoutMs: 500,
+      });
+      await vi.advanceTimersByTimeAsync(500);
+      await promise;
+      expect(seen?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns a retryable error when every provider hangs", async () => {
+    vi.useFakeTimers();
+    try {
+      const promise = executeSearch({
+        providers: [
+          provider("a", () => new Promise<never>(() => {})),
+          provider("b", () => new Promise<never>(() => {})),
+        ],
+        context,
+        rawQuery: "alpha",
+        timeoutMs: 300,
+      });
+      await vi.advanceTimersByTimeAsync(300);
+      const outcome = await promise;
+      expect(outcome.status).toBe("error");
+      expect(outcome.totalCount).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a provider resolving just before the deadline succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      const slow = provider(
+        "slow",
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve([drawer("s1", "Alpha")]), 400),
+          ),
+      );
+      const promise = executeSearch({
+        providers: [slow],
+        context,
+        rawQuery: "alpha",
+        timeoutMs: 1000,
+      });
+      await vi.advanceTimersByTimeAsync(400);
+      const outcome = await promise;
+      expect(outcome.status).toBe("ok");
+      expect(outcome.totalCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a provider resolving AFTER the deadline cannot mutate the completed outcome", async () => {
+    vi.useFakeTimers();
+    try {
+      let release: (v: readonly SearchResultItem[]) => void = () => {};
+      const late = provider(
+        "late",
+        () => new Promise<readonly SearchResultItem[]>((r) => (release = r)),
+      );
+      const healthy = provider("ok", async () => [drawer("t1", "Alpha")]);
+      const promise = executeSearch({
+        providers: [late, healthy],
+        context,
+        rawQuery: "alpha",
+        timeoutMs: 200,
+      });
+      await vi.advanceTimersByTimeAsync(200);
+      const outcome = await promise;
+      expect(outcome.status).toBe("partial");
+      expect(outcome.totalCount).toBe(1);
+      // The abandoned provider resolves late — must be consumed with no effect.
+      expect(() => release([drawer("late1", "Alpha late")])).not.toThrow();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(outcome.totalCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a synchronous throw and a normal rejection isolated under the deadline", async () => {
+    const outcome = await executeSearch({
+      providers: [
+        provider("sync", () => {
+          throw new Error("sync boom");
+        }),
+        provider("reject", async () => {
+          throw new Error("async boom");
+        }),
+        provider("ok", async () => [drawer("t1", "Alpha")]),
+      ],
+      context,
+      rawQuery: "alpha",
+      timeoutMs: 1000,
+    });
+    expect(outcome.status).toBe("partial");
+    expect(outcome.totalCount).toBe(1);
+  });
+
+  it("delivers a cancellation signal to every provider and forwards outer abort", async () => {
+    const outer = new AbortController();
+    const signals: AbortSignal[] = [];
+    const outcome = await executeSearch({
+      providers: [
+        provider("a", async (_q, ctx) => {
+          signals.push(ctx.signal);
+          return [drawer("a1", "Alpha")];
+        }),
+      ],
+      context,
+      rawQuery: "alpha",
+      signal: outer.signal,
+    });
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(outcome.status).toBe("ok");
+  });
+});

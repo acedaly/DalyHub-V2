@@ -347,3 +347,39 @@ describe("selection maths", () => {
     expect(lastIndex(0)).toBe(-1);
   });
 });
+
+describe("entity type validation reuses the FND-02 contract", () => {
+  // Import the authoritative kernel validator so this test cannot drift.
+  it("accepts every kernel-valid entity type (dotted/underscored)", async () => {
+    const { validateEntityType } = await import("~/kernel/entities");
+    for (const type of ["task", "meeting.follow_up", "project.sub_project"]) {
+      // Sanity: the value really is valid under the kernel contract.
+      expect(() => validateEntityType(type)).not.toThrow();
+      const result = validateResultItem(
+        item({ entityType: type as never }),
+        "m",
+        "m.search",
+      );
+      expect(result?.entityType).toBe(type);
+    }
+  });
+
+  it("drops (degrades) values the kernel contract rejects — never crashes", async () => {
+    const { validateEntityType } = await import("~/kernel/entities");
+    for (const type of [
+      "NotValid",
+      "meeting-follow-up",
+      "meeting..follow_up",
+    ]) {
+      // Sanity: the value really is invalid under the kernel contract.
+      expect(() => validateEntityType(type)).toThrow();
+      const result = validateResultItem(
+        item({ entityType: type as never }),
+        "m",
+        "m.search",
+      );
+      expect(result).not.toBeNull(); // the result survives...
+      expect(result?.entityType).toBeUndefined(); // ...only the field is dropped
+    }
+  });
+});

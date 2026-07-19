@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { env } from "cloudflare:test";
 import {
   parseWorkspaceId,
   type WorkspaceRepository,
 } from "~/kernel/workspaces";
-import { createConfiguredWorkspaceContextResolver } from "~/platform/workspaces";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import type { AuthenticatedSession } from "~/kernel/auth";
 import {
   parseModuleId,
   type ModuleRuntimeContext,
@@ -14,6 +16,14 @@ import {
 import { executeSearch } from "~/shared/search/orchestrator";
 
 import { makeWorkspaceRepository, resetTables } from "./support";
+
+function sessionFor(): AuthenticatedSession {
+  return {
+    user: { subject: "owner-subject", email: "owner@example.com" },
+    issuedAt: new Date(0),
+    expiresAt: new Date(Date.parse("2999-01-01")),
+  };
+}
 
 /**
  * DS-08 — the server composition boundary in the REAL Workers runtime.
@@ -25,7 +35,8 @@ import { makeWorkspaceRepository, resetTables } from "./support";
  * parameter.
  */
 
-const CONFIGURED = "search-boundary-workspace";
+// Matches vitest.workers.config.ts DEFAULT_WORKSPACE_ID (env.DEFAULT_WORKSPACE_ID).
+const CONFIGURED = "test-default-workspace";
 
 function recordingProvider(
   onContext: (context: ModuleRuntimeContext) => void,
@@ -57,22 +68,21 @@ describe("search orchestration over the real workspace boundary", () => {
     repository = makeWorkspaceRepository();
   });
 
-  it("delivers the trusted, server-resolved workspace to the provider", async () => {
+  it("delivers the exact server-resolved workspace to the provider (route resolver)", async () => {
     await repository.create({ id: parseWorkspaceId(CONFIGURED) });
-    const workspace = await createConfiguredWorkspaceContextResolver({
-      configuredWorkspaceId: CONFIGURED,
-      repository,
-    }).resolve();
+    // The SAME resolver the /search route uses — resolves + verifies in D1.
+    const scope = await resolveAuthenticatedWorkspaceScope(env, sessionFor());
 
     let delivered: string | undefined;
     const outcome = await executeSearch({
       providers: [
         recordingProvider((c) => (delivered = c.workspace.workspaceId)),
       ],
-      context: { workspace },
+      context: { workspace: scope.context },
       rawQuery: "alpha",
     });
 
+    expect(scope.context.workspaceId).toBe(CONFIGURED);
     expect(delivered).toBe(CONFIGURED);
     expect(outcome.status).toBe("ok");
     expect(outcome.totalCount).toBe(1);
@@ -81,10 +91,8 @@ describe("search orchestration over the real workspace boundary", () => {
   it("fails closed if the configured workspace is absent (no fabricated scope)", async () => {
     // The configured workspace was never created — resolution must reject, so
     // search never runs against an unverified scope.
-    const resolver = createConfiguredWorkspaceContextResolver({
-      configuredWorkspaceId: "ghost-scope",
-      repository,
-    });
-    await expect(resolver.resolve()).rejects.toThrow();
+    await expect(
+      resolveAuthenticatedWorkspaceScope(env, sessionFor()),
+    ).rejects.toThrow();
   });
 });

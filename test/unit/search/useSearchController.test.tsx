@@ -180,3 +180,165 @@ describe("useSearchController", () => {
     });
   });
 });
+
+describe("useSearchController — immediate stale invalidation", () => {
+  it("an older in-flight request cannot update results after the query changes (non-zero debounce)", async () => {
+    vi.useFakeTimers();
+    try {
+      const a = deferred<SearchOutcome>();
+      const b = deferred<SearchOutcome>();
+      const calls: string[] = [];
+      const search: SearchFn = (q) => {
+        calls.push(q);
+        return calls.length === 1 ? a.promise : b.promise;
+      };
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 100 }),
+      );
+
+      // (1) query A starts, (2) A remains unresolved after its debounce fires.
+      act(() => result.current.setQuery("a"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(calls).toEqual(["a"]);
+
+      // (3) user types B — B's debounce has NOT fired yet.
+      act(() => result.current.setQuery("ab"));
+
+      // (5) A resolves now — (6) it must NOT update the visible results.
+      await act(async () => {
+        a.resolve(outcomeWith("a", "Alpha"));
+        await Promise.resolve();
+      });
+      expect(result.current.hasResults).toBe(false);
+
+      // (7) B's debounce fires, (8) B resolves, (9) only B appears.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(calls).toEqual(["a", "ab"]);
+      await act(async () => {
+        b.resolve(outcomeWith("ab", "Beta"));
+        await Promise.resolve();
+      });
+      expect(result.current.flatResults[0]?.title).toBe("Beta");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("aborts the active request's signal immediately when the query changes", async () => {
+    vi.useFakeTimers();
+    try {
+      let signalA: AbortSignal | undefined;
+      const search: SearchFn = (_q, signal) => {
+        if (signalA === undefined) {
+          signalA = signal;
+        }
+        return new Promise<SearchOutcome>(() => {});
+      };
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 50 }),
+      );
+      act(() => result.current.setQuery("a"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(signalA?.aborted).toBe(false);
+      // Changing the query aborts the in-flight request synchronously.
+      act(() => result.current.setQuery("ab"));
+      expect(signalA?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clearing before the debounced request starts cancels it", async () => {
+    vi.useFakeTimers();
+    try {
+      const search = vi.fn<SearchFn>(async (q) => outcomeWith(q, "X"));
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 100 }),
+      );
+      act(() => result.current.setQuery("ab"));
+      // Clear before the 100ms debounce fires.
+      act(() => result.current.clear());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(search).not.toHaveBeenCalled();
+      expect(result.current.phase).toBe("idle");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rapid A -> B -> C typing with A in flight resolves only C", async () => {
+    vi.useFakeTimers();
+    try {
+      const a = deferred<SearchOutcome>();
+      const c = deferred<SearchOutcome>();
+      const calls: string[] = [];
+      const search: SearchFn = (q) => {
+        calls.push(q);
+        return q === "a" ? a.promise : c.promise;
+      };
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 100 }),
+      );
+      act(() => result.current.setQuery("a"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(calls).toEqual(["a"]); // A in flight
+      // Type B then C before either debounce fires — B never dispatches.
+      act(() => result.current.setQuery("ab"));
+      act(() => result.current.setQuery("abc"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(calls).toEqual(["a", "abc"]);
+      await act(async () => {
+        a.resolve(outcomeWith("a", "Alpha"));
+        c.resolve(outcomeWith("abc", "Gamma"));
+        await Promise.resolve();
+      });
+      expect(result.current.flatResults[0]?.title).toBe("Gamma");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retry invalidates any pending request", async () => {
+    vi.useFakeTimers();
+    try {
+      const first = deferred<SearchOutcome>();
+      const calls: string[] = [];
+      const search: SearchFn = (q) => {
+        calls.push(q);
+        return calls.length === 1
+          ? first.promise
+          : Promise.resolve(outcomeWith(q, "Retry"));
+      };
+      const { result } = renderHook(() =>
+        useSearchController({ search, debounceMs: 50 }),
+      );
+      act(() => result.current.setQuery("alpha"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(calls).toHaveLength(1); // first request in flight
+      // Retry starts a fresh request immediately and invalidates the first.
+      act(() => result.current.retry());
+      await act(async () => {
+        first.resolve(outcomeWith("alpha", "Stale"));
+        await Promise.resolve();
+      });
+      expect(calls).toHaveLength(2);
+      expect(result.current.flatResults[0]?.title).toBe("Retry");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

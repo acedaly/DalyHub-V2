@@ -118,114 +118,132 @@ export function useSearchController(
   const [state, dispatch] = useReducer(reducer, INITIAL);
 
   const mountedRef = useRef(true);
-  const seqRef = useRef(0);
-  const latestSeqRef = useRef(0);
+  // One authoritative generation. Every meaningful input change reserves a new
+  // generation (and aborts the in-flight request) IMMEDIATELY — not when the
+  // debounce fires — so a request for a stale query can never update state after
+  // the input has moved on. Only the request whose captured generation still
+  // equals `generationRef` may resolve.
+  const generationRef = useRef(0);
+  const currentQueryRef = useRef(""); // normalised query of the current generation
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const searchRef = useRef<SearchFn>(search);
   searchRef.current = search;
 
-  const cancelPending = useCallback(() => {
+  const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+  }, []);
+
+  // Abort any in-flight request and advance the generation. Returns the new
+  // generation the next request must carry.
+  const invalidateInFlight = useCallback((): number => {
     if (abortRef.current !== null) {
       abortRef.current.abort();
       abortRef.current = null;
     }
+    generationRef.current += 1;
+    return generationRef.current;
   }, []);
 
-  const run = useCallback(
-    (rawQuery: string) => {
-      const normalised = normaliseQuery(rawQuery);
-      if (!isExecutableQuery(normalised)) {
-        cancelPending();
-        latestSeqRef.current = seqRef.current + 1;
-        seqRef.current = latestSeqRef.current;
-        dispatch({ type: "idle" });
-        return;
-      }
+  // Dispatch the request for an already-reserved generation. Assumes the phase is
+  // already `loading` (set at reservation) and the query is executable.
+  const run = useCallback((normalised: string, generation: number) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-      if (abortRef.current !== null) {
-        abortRef.current.abort();
-      }
-      const controller = new AbortController();
-      abortRef.current = controller;
+    searchRef.current(normalised, controller.signal).then(
+      (outcome) => {
+        if (!mountedRef.current || generation !== generationRef.current) {
+          return; // stale generation or unmounted — never replace newer results
+        }
+        dispatch({ type: "resolved", outcome });
+      },
+      () => {
+        if (controller.signal.aborted) {
+          return; // superseded/cleared — an aborted request is never an error
+        }
+        if (!mountedRef.current || generation !== generationRef.current) {
+          return;
+        }
+        dispatch({ type: "error" });
+      },
+    );
+  }, []);
 
-      seqRef.current += 1;
-      const seq = seqRef.current;
-      latestSeqRef.current = seq;
-
-      dispatch({ type: "loading" });
-
-      searchRef.current(normalised, controller.signal).then(
-        (outcome) => {
-          if (!mountedRef.current || seq !== latestSeqRef.current) {
-            return; // stale or unmounted — never replace newer results
-          }
-          dispatch({ type: "resolved", outcome });
-        },
-        () => {
-          if (controller.signal.aborted) {
-            return; // superseded/cleared — not an error
-          }
-          if (!mountedRef.current || seq !== latestSeqRef.current) {
-            return;
-          }
-          dispatch({ type: "error" });
-        },
-      );
-    },
-    [cancelPending],
-  );
+  const goIdle = useCallback(() => {
+    clearTimer();
+    invalidateInFlight();
+    currentQueryRef.current = "";
+    dispatch({ type: "idle" });
+  }, [clearTimer, invalidateInFlight]);
 
   const setQuery = useCallback(
     (next: string) => {
       dispatch({ type: "setQuery", query: next });
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-      }
+
       const normalised = normaliseQuery(next);
       if (!isExecutableQuery(normalised)) {
-        // Empty/invalid: cancel any pending work and return to idle immediately.
-        cancelPending();
-        latestSeqRef.current = seqRef.current + 1;
-        seqRef.current = latestSeqRef.current;
-        dispatch({ type: "idle" });
+        // Empty/invalid: cancel pending work and return to idle immediately.
+        goIdle();
         return;
       }
+
+      // No meaningful change (e.g. trailing whitespace) while the same query is
+      // already reserved/in-flight — keep the existing request/debounce.
+      if (
+        normalised === currentQueryRef.current &&
+        (abortRef.current !== null || timerRef.current !== null)
+      ) {
+        return;
+      }
+
+      // Meaningful change: invalidate the in-flight request NOW, keep prior
+      // results visible as stale-loading, then debounce a fresh request under the
+      // reserved generation.
+      clearTimer();
+      const generation = invalidateInFlight();
+      currentQueryRef.current = normalised;
+      dispatch({ type: "loading" });
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
-        run(next);
+        run(normalised, generation);
       }, debounceMs);
     },
-    [cancelPending, debounceMs, run],
+    [clearTimer, debounceMs, goIdle, invalidateInFlight, run],
   );
 
   const clear = useCallback(() => {
-    cancelPending();
-    latestSeqRef.current = seqRef.current + 1;
-    seqRef.current = latestSeqRef.current;
     dispatch({ type: "setQuery", query: "" });
-    dispatch({ type: "idle" });
-  }, [cancelPending]);
+    goIdle();
+  }, [goIdle]);
 
   const retry = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+    const normalised = normaliseQuery(state.query);
+    if (!isExecutableQuery(normalised)) {
+      goIdle();
+      return;
     }
-    run(state.query);
-  }, [run, state.query]);
+    clearTimer();
+    const generation = invalidateInFlight(); // invalidate any previous request
+    currentQueryRef.current = normalised;
+    dispatch({ type: "loading" });
+    run(normalised, generation);
+  }, [clearTimer, goIdle, invalidateInFlight, run, state.query]);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      cancelPending();
+      clearTimer();
+      if (abortRef.current !== null) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
     };
-  }, [cancelPending]);
+  }, [clearTimer]);
 
   const outcome = state.outcome;
   const groups = useMemo(() => outcome?.groups ?? [], [outcome]);

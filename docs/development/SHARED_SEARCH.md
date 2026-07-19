@@ -77,16 +77,23 @@ in-app paths must be app-relative, and `javascript:`, protocol-relative `//…`,
 external URLs, backslashes and control characters are rejected (the result is
 dropped).
 
-The executor receives the trusted `ModuleRuntimeContext` and never searches across
-workspaces:
+The executor receives a trusted `SearchRuntimeContext` (the workspace scope plus a
+cancellation `signal`) and never searches across workspaces:
 
 ```ts
 const search: SearchExecutor = async (query, context) => {
   // query.text is normalised; query.limit is the per-provider bound.
   // context.workspace is the trusted, server-derived scope.
+  // context.signal is aborted on the deadline or when the search is cancelled;
+  // a repository-backed provider should pass it to its data layer and bail early.
   return matches.slice(0, query.limit);
 };
 ```
+
+Every provider runs under a **bounded deadline** (`DEFAULT_PROVIDER_TIMEOUT_MS`),
+so a hung provider can never stall healthy results: at the deadline the runtime
+aborts the provider's `signal` and treats it as a failure, and any late
+resolution/rejection of the abandoned work is safely consumed.
 
 ---
 
@@ -123,12 +130,21 @@ the bounded query and receives only bounded results — never a workspace datase
 
 ## Incremental search (no arbitrary timeouts)
 
-The controller debounces keystrokes, aborts a superseded request, and stamps each
-request with a **monotonic sequence number** so a slower earlier response can never
-replace a newer one (the abort is best-effort; the sequence guard is
-authoritative). Empty input returns to idle, loading keeps valid prior results, a
-partial failure still shows healthy results, clearing cancels pending work, and
-nothing updates state after unmount.
+The controller has one clear lifecycle: a meaningful query change **immediately**
+advances an authoritative generation and aborts the in-flight request (before the
+debounce fires), then debounces a fresh request under the reserved generation;
+only that generation may update state. So a slower earlier response can never
+display results for a query the input has already moved past (the abort is
+best-effort; the generation guard is authoritative). Empty input returns to idle,
+loading keeps valid prior results as stale content, a partial failure still shows
+healthy results, clearing and retry both invalidate any pending request, aborted
+requests never surface an error, and nothing updates state after unmount.
+
+The browser also treats the endpoint's JSON as **untrusted**: `fetchSearch` runs
+it through `decodeSearchOutcome`, which rebuilds a bounded outcome from validated
+pieces (reusing `validateTarget`, `validateEntityType` and the shared limits).
+Malformed JSON or a structurally-invalid outcome becomes a generic, retryable
+failure rather than a crashed UI.
 
 ---
 
@@ -147,7 +163,12 @@ closes Search. There is **no second Drawer or record viewer**.
 
 The surface reuses the DS-03/PX-02 modal machinery
 (`useDrawerFocus`/`useBodyScrollLock`/`useInertBackground`) — **no second
-focus-trap, scroll-lock or inertness system**. It is a WAI-ARIA combobox
+focus-trap, scroll-lock or inertness system**. `useInertBackground` is anchored to
+the **modal root** (which contains both the scrim and the panel), not the panel, so
+the background app becomes inert while the **scrim stays interactive** (clicking it
+closes Search). Search sits above the Drawer in the z-order, so opening it over an
+open Drawer renders on top; selecting a result closes Search before its Drawer
+opens. It is a WAI-ARIA combobox
 controlling a `listbox`: opening focuses the input, Tab is contained, Escape
 closes and restores focus to the trigger, ↑/↓ wrap, Home/End jump, Enter opens the
 active option, `aria-activedescendant` tracks it, and a polite status region
@@ -159,14 +180,22 @@ light/dark, with reduced motion. Search claims the **`/`** shortcut only — nev
 
 ## Server composition
 
-`GET /search` ([`app/routes/search.ts`](../../app/routes/search.ts)) authenticates
-(the Worker boundary guarantees it), derives the workspace scope from **trusted
-server configuration** (`env.DEFAULT_WORKSPACE_ID`) — never from the client —
-discovers providers via `ModuleRegistry.listSearchProviders()`, runs the
-orchestrator, and returns JSON. Because DS-08's only provider is fixture-backed and
-reads no D1, the scope is built with `workspaceContextFromId` rather than the
-existence-checking resolver; a future repository-backed provider enforces existence
-through its repositories (ADR-010) with no change to this contract.
+`GET /search` ([`app/routes/search.ts`](../../app/routes/search.ts)) is the
+deployed composition boundary — the **same path the kernel tests cover**:
+
+1. `requireAuthenticatedSession(context)` — a missing session is a **401**, never a
+   Search result.
+2. `resolveAuthenticatedWorkspaceScope(env, session)` — the trusted FND-03/FND-09
+   resolver derives the scope from `env.DEFAULT_WORKSPACE_ID` and **verifies it
+   exists in D1**. There is no `workspaceContextFromId` shortcut and no second
+   resolver on the route; the client cannot supply or influence the workspace id.
+3. `discoverModuleRegistry().listSearchProviders()` → `executeSearch(...)` → JSON.
+
+It **fails closed**: a missing/invalid `DEFAULT_WORKSPACE_ID`, a nonexistent
+configured workspace, or a D1 failure all resolve to the calm, retryable Search
+failure — no internal detail leaks and no provider runs. (For dev/e2e, the local
+D1 is migrated and the configured workspace seeded by `e2e/setup-local-db.mjs` so
+the real resolver succeeds there too.)
 
 ---
 

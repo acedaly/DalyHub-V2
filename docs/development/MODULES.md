@@ -134,6 +134,10 @@ export default defineModule({
       entityTypes: ["widget"],
       search: async (query, context) => {
         void context.workspace.workspaceId;
+        // `context.signal` is aborted on the per-provider deadline (or when the
+        // search is cancelled). A repository-backed provider should pass it to its
+        // data layer and stop early; a fixture provider may ignore it.
+        void context.signal;
         // A result declares HOW it opens via a validated `SearchResultTarget`
         // (DS-08/ADR-023): `{ kind: "drawer", drawerKey, canonicalPath? }` to open
         // in the DS-03 Drawer, or `{ kind: "route", to }` to navigate. Shared
@@ -198,8 +202,10 @@ automatically, so you never repeat the module id on each entry.
 - **`searchProviders`** — global-search providers, consumed by DS-08 Shared Search
   ([`ModuleRegistry.listSearchProviders()`](../../app/shared/search); [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation)).
   Each has a namespaced `id`, a `label`, optional `entityTypes`, and a `search`
-  function taking a normalised query and an explicit runtime context and returning
-  typed result items. A result item declares **how it opens** via a validated
+  function taking a normalised query and a `SearchRuntimeContext` (the workspace
+  scope plus a cancellation `signal`, aborted on the per-provider deadline) and
+  returning typed result items. A result item declares **how it opens** via a
+  validated
   `SearchResultTarget` (`{ kind: "drawer"; drawerKey; canonicalPath? }` or
   `{ kind: "route"; to }`) — Shared Search never parses a product route or id, and
   unsafe targets are rejected at the boundary. See [`SHARED_SEARCH.md`](SHARED_SEARCH.md).

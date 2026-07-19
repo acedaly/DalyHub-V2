@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { workspaceContextFromId } from "~/kernel/workspaces";
-import type { ModuleRuntimeContext } from "~/kernel/modules";
+import type { SearchRuntimeContext } from "~/kernel/modules";
 import { todaySearchProvider } from "~/modules/today/search";
 import todayModule from "~/modules/today/module";
 import { TODAY_FIXTURE } from "~/modules/today/fixtures";
 
-const context: ModuleRuntimeContext = {
+const context: SearchRuntimeContext = {
   workspace: workspaceContextFromId("today-search-test"),
+  signal: new AbortController().signal,
 };
 
 async function run(query: string, limit = 20) {

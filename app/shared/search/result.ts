@@ -8,8 +8,9 @@
  * unvalidated result. React-free.
  */
 
+import { type EntityType, validateEntityType } from "~/kernel/entities";
+
 import {
-  MAX_ENTITY_TYPE_LENGTH,
   MAX_RESULT_ID_LENGTH,
   MAX_SUBTITLE_LENGTH,
   MAX_TITLE_LENGTH,
@@ -24,20 +25,19 @@ function clampCodePoints(value: string, max: number): string {
 }
 
 /**
- * A well-formed entity-type slug (the open FND-02 shape): a lowercase letter
- * followed by lowercase letters, digits or hyphens. Mirrors the kernel's entity
- * type contract without importing the React entity-identity module.
+ * Reuse the AUTHORITATIVE FND-02 entity-type contract (`validateEntityType`,
+ * which enforces `ENTITY_TYPE_PATTERN` + length) rather than a Search-owned
+ * grammar — so valid kernel types like `meeting.follow_up` are never silently
+ * dropped and the two definitions cannot drift. It is a pure kernel validator (no
+ * React, no D1), safe in the React-free model. Malformed values degrade to
+ * `undefined` (the field is dropped) rather than throwing.
  */
-const ENTITY_TYPE_SLUG = /^[a-z][a-z0-9-]*$/u;
-
-function normaliseEntityType(value: unknown): string | undefined {
-  if (typeof value !== "string") {
+function normaliseEntityType(value: unknown): EntityType | undefined {
+  try {
+    return validateEntityType(value);
+  } catch {
     return undefined;
   }
-  if (value.length === 0 || value.length > MAX_ENTITY_TYPE_LENGTH) {
-    return undefined;
-  }
-  return ENTITY_TYPE_SLUG.test(value) ? value : undefined;
 }
 
 function normaliseScore(value: unknown): number | undefined {

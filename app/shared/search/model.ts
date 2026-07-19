@@ -40,3 +40,4 @@ export {
   firstIndex,
   lastIndex,
 } from "./selection";
+export { decodeSearchOutcome } from "./decode";

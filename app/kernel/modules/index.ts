@@ -40,6 +40,7 @@ export type {
   SearchQuery,
   SearchResultItem,
   SearchResultTarget,
+  SearchRuntimeContext,
   SearchExecutor,
   SearchProviderContribution,
   SettingValueType,

@@ -3,36 +3,38 @@
  *
  * A resource route (no UI) that runs global search on the server and returns a
  * bounded, grouped, display-ready {@link SearchOutcome} as JSON. It is the trusted
- * composition boundary:
+ * composition boundary and uses the SAME production path the kernel tests cover:
  *
  *   - authentication is guaranteed by the Worker boundary before this runs;
- *     `requireAuthenticatedSession` is defence in depth;
- *   - the workspace scope is derived from TRUSTED server configuration
- *     (`env.DEFAULT_WORKSPACE_ID`) — the client cannot supply or influence a
- *     workspace id (ADR-013 §4.5, ADR-010);
+ *     `requireAuthenticatedSession` re-checks and fails **401** (not a Search
+ *     result) if a session is somehow absent;
+ *   - the workspace scope is resolved through the established FND-03/FND-09
+ *     authenticated composition boundary (`resolveAuthenticatedWorkspaceScope`),
+ *     which derives the scope from TRUSTED server configuration
+ *     (`env.DEFAULT_WORKSPACE_ID`) and VERIFIES the workspace exists in D1 — the
+ *     client cannot supply or influence a workspace id (ADR-010, ADR-013 §4.5,
+ *     ADR-016 §5.6). There is no second resolver and no `workspaceContextFromId`
+ *     shortcut here;
  *   - providers come only from `ModuleRegistry.listSearchProviders()` (registry
  *     discovery), never a manual array;
  *   - the pure orchestrator normalises/bounds the query, isolates provider
- *     failures, validates output and enforces every limit.
+ *     failures (with a bounded per-provider deadline), validates output and
+ *     enforces every limit.
  *
- * Note (ADR-023): DS-08's only provider is TODAY-01's fixture-backed provider,
- * which reads no D1. The scope is therefore built with `workspaceContextFromId`
- * over the trusted configured id, rather than the D1-existence-checking resolver —
- * coupling a fixture feature to a persisted workspace row it never queries would be
- * gratuitous. When a module ships a repository-backed provider, its repositories
- * enforce workspace existence exactly as ADR-010 requires; the shared contract does
- * not change.
+ * It fails **closed**: a missing/invalid `DEFAULT_WORKSPACE_ID`, a nonexistent
+ * configured workspace, or a D1 lookup failure all resolve to the calm, retryable
+ * Search failure outcome — never a crash and never an internal-detail leak. A
+ * missing authenticated session stays a 401.
  *
  * The browser sends only the bounded `q` query and receives only bounded results —
- * never a workspace dataset. The raw query is not logged. Any failure returns a
- * typed, safe, retryable outcome (no internal detail leaks).
+ * never a workspace dataset. The raw query is not logged.
  */
 
 import { env } from "cloudflare:workers";
 
 import { discoverModuleRegistry } from "~/modules/discover-modules";
 import { requireAuthenticatedSession } from "~/platform/request";
-import { workspaceContextFromId } from "~/kernel/workspaces";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { executeSearch } from "~/shared/search/orchestrator";
 import { SEARCH_QUERY_PARAM } from "~/shared/search/client";
 import { failureOutcome } from "~/shared/search/model";
@@ -51,34 +53,29 @@ function json(outcome: SearchOutcome): Response {
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-  // Defence in depth — the Worker boundary already authenticated this request.
-  requireAuthenticatedSession(context);
+  // Authentication is authoritative: a missing session is a 401, NOT a Search
+  // result. `requireAuthenticatedSession` throws a 401 Response, which propagates.
+  const session = requireAuthenticatedSession(context);
 
   const rawQuery =
     new URL(request.url).searchParams.get(SEARCH_QUERY_PARAM) ?? "";
 
   try {
-    const configuredWorkspaceId = env.DEFAULT_WORKSPACE_ID;
-    if (
-      typeof configuredWorkspaceId !== "string" ||
-      configuredWorkspaceId.trim().length === 0
-    ) {
-      // Misconfiguration is a safe, retryable failure — never a crash or leak.
-      return json(failureOutcome("", []));
-    }
-
-    // Trusted, request-free workspace scope. The client cannot choose it.
-    const workspace = workspaceContextFromId(configuredWorkspaceId);
+    // The trusted, request-free, D1-verified workspace scope. The client cannot
+    // choose it; this is the exact FND-09 boundary the kernel tests exercise.
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const registry = discoverModuleRegistry();
 
     const outcome = await executeSearch({
       providers: registry.listSearchProviders(),
-      context: { workspace },
+      context: { workspace: scope.context },
       rawQuery,
     });
     return json(outcome);
   } catch {
-    // Never leak the scope-resolution failure; return a safe, retryable state.
+    // Fail closed: a missing/invalid/nonexistent workspace or a D1 failure become
+    // a safe, retryable Search failure — no internal detail leaks. (Auth failures
+    // already threw a 401 above, outside this try.)
     return json(failureOutcome("", []));
   }
 }

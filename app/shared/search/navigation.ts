@@ -55,15 +55,23 @@ export function buildResultDestination(
     return { pathname, search: query.length > 0 ? `?${query}` : "" };
   }
 
-  const canonicalPath = target.canonicalPath ?? current.pathname;
-  const onCanonicalRoute = canonicalPath === current.pathname;
+  // A canonicalPath may carry its own query string (isSafeInAppPath allows it),
+  // so split it before appending the drawer key — otherwise "/today?view=focus"
+  // would yield a double "?" and the browser would never see the drawer param.
+  const { pathname: canonicalPathname, query: canonicalQuery } =
+    target.canonicalPath !== undefined
+      ? splitPathAndQuery(target.canonicalPath)
+      : { pathname: current.pathname, query: "" };
+  const onCanonicalRoute = canonicalPathname === current.pathname;
+  // On the canonical route, preserve the user's live params; navigating fresh,
+  // seed from the canonicalPath's own query.
   const baseParams = new URLSearchParams(
-    onCanonicalRoute ? current.search : "",
+    onCanonicalRoute ? current.search : canonicalQuery,
   );
   const nextParams = withDrawerPushed(baseParams, target.drawerKey);
   const search = nextParams.toString();
   return {
-    pathname: canonicalPath,
+    pathname: canonicalPathname,
     search: search.length > 0 ? `?${search}` : "",
   };
 }

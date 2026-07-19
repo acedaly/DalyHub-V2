@@ -85,8 +85,16 @@ export function AppShell({
   // The element focus returns to when Search closes — whatever opened it (the
   // sidebar Search button, or the element focused when `/` was pressed).
   const searchOpenerRef = useRef<HTMLElement | null>(null);
+  // Mirror of `searchOpen` for the document keydown listener, so a repeated `/`
+  // press while Search is already open is a no-op (it never re-captures a new
+  // opener or re-triggers the surface).
+  const searchOpenRef = useRef(false);
+  searchOpenRef.current = searchOpen;
 
   const openSearch = useCallback((opener?: HTMLElement) => {
+    if (searchOpenRef.current) {
+      return; // already open — do not re-capture the opener or re-open
+    }
     searchOpenerRef.current =
       opener ??
       (typeof document === "undefined"

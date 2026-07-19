@@ -3,16 +3,18 @@
  *
  * A spotlight-style modal anchored near the top of the viewport. Tokens only
  * (AGENTS.md §9.8): colour, spacing, shape, elevation, motion and z-index all come
- * from DS-01. The overlay sits at `--dh-z-overlay` (1100), BELOW `--dh-z-drawer`
- * (1200), so a result opening in the DS-03 Drawer renders over Search. Motion
- * respects `prefers-reduced-motion`. Every interactive target meets
- * `--dh-touch-target-min` (44px). Themed via the shared `data-theme` mechanism.
+ * from DS-01. The overlay sits at `--dh-z-modal` (1300), ABOVE `--dh-z-drawer`
+ * (1200): opening Search over an already-open Drawer renders Search on top (with
+ * the Drawer inert behind it), and selecting a result CLOSES Search before its
+ * Drawer opens, so the two surfaces never fight for the foreground. Motion respects
+ * `prefers-reduced-motion`. Every interactive target meets `--dh-touch-target-min`
+ * (44px). Themed via the shared `data-theme` mechanism.
  */
 
 .dh-search {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-overlay);
+  z-index: var(--dh-z-modal);
   display: flex;
   flex-direction: column;
   align-items: center;

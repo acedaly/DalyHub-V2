@@ -81,6 +81,11 @@ export default function SearchSurface({
   const navigate = useNavigate();
   const location = useLocation();
 
+  // The modal ROOT is the inertness exclusion boundary — `useInertBackground`
+  // makes every sibling of this node inert. It must be the root (which contains
+  // both the scrim and the panel), NOT the inner panel — otherwise the panel's
+  // sibling scrim would become inert and stop closing Search on click.
+  const modalRootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -96,7 +101,7 @@ export default function SearchSurface({
 
   // Reuse the DS-03 modal primitives — no second implementation (ADR-020 §20.9).
   useBodyScrollLock(true);
-  useInertBackground(panelRef, true);
+  useInertBackground(modalRootRef, true);
   useDrawerFocus({
     containerRef: panelRef,
     active: true,
@@ -192,7 +197,7 @@ export default function SearchSurface({
   const statusMessage = buildStatusMessage(controller);
 
   return (
-    <div className="dh-search" role="presentation">
+    <div className="dh-search" role="presentation" ref={modalRootRef}>
       <div className="dh-search__scrim" onClick={onClose} aria-hidden="true" />
       <div
         className="dh-search__panel"
@@ -340,7 +345,13 @@ function SearchResults({
     );
   }
 
-  // ready or loading-with-prior-results.
+  // Loading with no prior results yet — a calm searching hint, not an empty
+  // listbox (which would read as "no results").
+  if (phase === "loading" && groups.length === 0) {
+    return <p className="dh-search__idle">Searching…</p>;
+  }
+
+  // ready, or loading with prior results kept visible as stale content.
   return (
     <>
       {controller.isPartial ? (

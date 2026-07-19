@@ -31,6 +31,7 @@ const PURE_FILES = [
   "navigation.ts",
   "orchestrator.ts",
   "highlight.ts",
+  "decode.ts",
   "client.ts",
   "model.ts",
 ];

@@ -7,6 +7,7 @@
  * controller turns into a calm, retryable failure state (no raw detail is shown).
  */
 
+import { decodeSearchOutcome } from "./decode";
 import type { SearchOutcome } from "./types";
 
 /** The server search endpoint (a resource route behind the Worker auth boundary). */
@@ -35,5 +36,11 @@ export async function fetchSearch(
   if (!response.ok) {
     throw new Error("search request failed");
   }
-  return (await response.json()) as SearchOutcome;
+  // Treat the response as untrusted: malformed JSON throws, and a structurally
+  // invalid outcome becomes a generic failure the controller handles calmly.
+  const outcome = decodeSearchOutcome(await response.json());
+  if (outcome === null) {
+    throw new Error("invalid search response");
+  }
+  return outcome;
 }

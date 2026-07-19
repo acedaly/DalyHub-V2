@@ -44,3 +44,11 @@ export const MAX_PATH_LENGTH = 2048;
 
 /** Maximum length of a well-formed entity-type slug (mirrors FND-02). */
 export const MAX_ENTITY_TYPE_LENGTH = 64;
+
+/**
+ * Per-provider execution deadline (ms). A provider that has not resolved within
+ * this window is aborted and treated as a failure, so one hung provider can never
+ * block healthy providers or the overall outcome. Conservative for Workers but
+ * fast enough that Search stays responsive; overridable in tests.
+ */
+export const DEFAULT_PROVIDER_TIMEOUT_MS = 2000;

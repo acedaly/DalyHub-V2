@@ -182,3 +182,95 @@ test.describe("DS-08 Shared Search — failure states (design fixture)", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 });
+
+test.describe("DS-08 Shared Search — modal, scrim and deep links", () => {
+  test("makes the background inert and closes when the scrim is clicked", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await openSearch(page);
+    // The modal root is the exclusion boundary: the content column (a sibling of
+    // the Search modal) is inert while Search is open.
+    await expect(page.locator(".dh-main-col")).toHaveAttribute("inert", "");
+    // The scrim itself stays interactive and closes Search.
+    await page.locator(".dh-search__scrim").click();
+    await expect(
+      page.getByRole("combobox", { name: "Search everything" }),
+    ).toHaveCount(0);
+    await expect(page.locator(".dh-main-col")).not.toHaveAttribute("inert", "");
+  });
+
+  test("keeps Tab focus contained within the Search dialog", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await openSearch(page);
+    for (let i = 0; i < 6; i += 1) {
+      await page.keyboard.press("Tab");
+      const contained = await page.evaluate(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        return dialog?.contains(document.activeElement) ?? false;
+      });
+      expect(contained).toBe(true);
+    }
+  });
+
+  test("a result is a real deep link that opens the Drawer on direct navigation", async ({
+    page,
+    context,
+  }) => {
+    await page.goto("/today");
+    const input = await openSearch(page);
+    await input.fill("Finish");
+    await expect(page.getByRole("listbox")).toBeVisible();
+    const link = page.getByRole("option").first().getByRole("link");
+    const href = await link.getAttribute("href");
+    expect(href).toMatch(/\/today\?.*drawer=/);
+
+    // The deep link works standalone — no dependence on Search modal state.
+    const direct = await context.newPage();
+    await direct.goto(href!);
+    await expect(direct.getByRole("dialog")).toBeVisible();
+    await direct.close();
+  });
+
+  test("modified-click opens the result in a new tab", async ({
+    page,
+    context,
+  }) => {
+    await page.goto("/today");
+    const input = await openSearch(page);
+    await input.fill("Finish");
+    await expect(page.getByRole("listbox")).toBeVisible();
+    const link = page.getByRole("option").first().getByRole("link");
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      link.click({ modifiers: ["ControlOrMeta"] }),
+    ]);
+    await newPage.waitForLoadState();
+    await expect(newPage.getByRole("dialog")).toBeVisible();
+    await newPage.close();
+  });
+});
+
+test.describe("DS-08 Shared Search — coexists with an open Drawer", () => {
+  test("opens over an already-open Drawer and restores it on close", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await page.waitForLoadState("networkidle");
+    // Open a record in the DS-03 Drawer first.
+    await page.getByRole("link", { name: "Finish PX-02" }).first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    // Open Search over the Drawer via `/` (focus is on a Drawer control, not a
+    // text field). Search renders on top and is focused.
+    await page.keyboard.press("/");
+    const input = page.getByRole("combobox", { name: "Search everything" });
+    await expect(input).toBeVisible();
+    await expect(input).toBeFocused();
+    // Escape closes only Search; the Drawer remains open underneath.
+    await page.keyboard.press("Escape");
+    await expect(input).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toBeVisible();
+  });
+});
