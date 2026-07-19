@@ -71,6 +71,9 @@ export function useActivityStream(
   // Refs so the load callbacks read fresh values without re-subscribing.
   const cursorRef = useRef<string | null>(null);
   const loadingRef = useRef(false);
+  // Whether any page has resolved. Lets `loadMore` initiate the very first page
+  // when a consumer disabled the automatic initial load (no dead-end).
+  const hasLoadedRef = useRef(false);
   // Bumped on every loader change; async resolutions from a prior loader are
   // ignored so a slow response can never clobber a newer scope.
   const seqRef = useRef(0);
@@ -98,6 +101,7 @@ export function useActivityStream(
           return; // superseded by a newer loader
         }
         cursorRef.current = page.nextCursor;
+        hasLoadedRef.current = true;
         setHasMore(page.hasMore && page.nextCursor !== null);
         setHasLoaded(true);
         if (phase === "initial") {
@@ -143,6 +147,7 @@ export function useActivityStream(
     seqRef.current += 1;
     cursorRef.current = null;
     loadingRef.current = false;
+    hasLoadedRef.current = false;
     setItems([]);
     setError(null);
     setErrorPhase(null);
@@ -159,7 +164,16 @@ export function useActivityStream(
   }, [runLoad, autoLoadInitial]);
 
   const loadMore = useCallback(() => {
-    if (loadingRef.current || cursorRef.current === null) {
+    if (loadingRef.current) {
+      return;
+    }
+    // With the automatic initial load disabled, `loadMore` initiates the first
+    // page; afterwards it advances the cursor. This keeps the hook usable even
+    // when `autoLoadInitial` is false (never a permanently-empty, inert surface).
+    if (cursorRef.current === null) {
+      if (!hasLoadedRef.current) {
+        void runLoad("initial");
+      }
       return;
     }
     void runLoad("more");

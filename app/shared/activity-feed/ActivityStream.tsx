@@ -69,7 +69,6 @@ export interface ActivityStreamProps {
   readonly overscan?: number;
   /** Bounded scroll-region height (any CSS length). Default `"36rem"`. */
   readonly maxHeight?: string;
-  readonly autoLoadInitial?: boolean;
   /** Heading level for day headings (document outline). Default 3. */
   readonly dayHeadingLevel?: 2 | 3 | 4;
 }
@@ -89,13 +88,12 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
     virtualizeThreshold = DEFAULT_VIRTUALIZE_THRESHOLD,
     overscan,
     maxHeight = "36rem",
-    autoLoadInitial,
     dayHeadingLevel = 3,
   } = props;
 
   const formatter = props.formatter ?? defaultActivityDateFormatter;
 
-  const stream = useActivityStream({ loadPage, autoLoadInitial });
+  const stream = useActivityStream({ loadPage });
 
   const isFilterActive =
     filterFields !== undefined &&

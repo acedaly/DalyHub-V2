@@ -67,6 +67,10 @@ export function useActivityWindow(
   const rowRefCallbacks = useRef<Map<string, RowRefCallback>>(new Map());
   const observerRef = useRef<ResizeObserver | null>(null);
   const observedRef = useRef<Map<Element, string>>(new Map());
+  // The element currently registered for each row key, so a row leaving the
+  // window (ref called with null) or swapping elements is unobserved — otherwise
+  // detached rows would accumulate in the observer as the user scrolls.
+  const elementByKeyRef = useRef<Map<string, HTMLElement>>(new Map());
 
   const recordHeight = useCallback((key: string, height: number) => {
     if (!Number.isFinite(height) || height <= 0) {
@@ -95,10 +99,12 @@ export function useActivityWindow(
       }
     });
     observerRef.current = observer;
+    const elementByKey = elementByKeyRef.current;
     return () => {
       observer.disconnect();
       observerRef.current = null;
       observed.clear();
+      elementByKey.clear();
     };
   }, [enabled, recordHeight]);
 
@@ -108,12 +114,22 @@ export function useActivityWindow(
       if (!callback) {
         callback = (element: HTMLElement | null) => {
           const observer = observerRef.current;
+          // Release any element previously registered for this key (the row left
+          // the window, unmounted, or swapped elements) so it stops being
+          // observed and does not linger as a stale measurement target.
+          const previous = elementByKeyRef.current.get(key);
+          if (previous && previous !== element) {
+            observer?.unobserve(previous);
+            observedRef.current.delete(previous);
+            elementByKeyRef.current.delete(key);
+          }
           if (element) {
             recordHeight(key, element.getBoundingClientRect().height);
             if (observer) {
               observer.observe(element);
               observedRef.current.set(element, key);
             }
+            elementByKeyRef.current.set(key, element);
           }
         };
         rowRefCallbacks.current.set(key, callback);
