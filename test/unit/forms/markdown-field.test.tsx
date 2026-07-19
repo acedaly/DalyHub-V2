@@ -35,4 +35,45 @@ describe("MarkdownField", () => {
     );
     expect(screen.getByText("bold")).toBeInTheDocument();
   });
+
+  it("shows a calm empty-preview message for blank source", async () => {
+    render(
+      <MarkdownField label="Description" value="   " onChange={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show preview" }));
+    await waitFor(() =>
+      expect(screen.getByText("Nothing to preview yet.")).toBeInTheDocument(),
+    );
+  });
+
+  it("updates the preview when the source changes", async () => {
+    function H() {
+      const [value, setValue] = useState("# First");
+      return (
+        <div>
+          <MarkdownField
+            label="Description"
+            value={value}
+            onChange={setValue}
+          />
+          <button type="button" onClick={() => setValue("# Second")}>
+            change
+          </button>
+        </div>
+      );
+    }
+    render(<H />);
+    fireEvent.click(screen.getByRole("button", { name: "Show preview" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "First" }),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "change" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Second" }),
+      ).toBeInTheDocument(),
+    );
+  });
 });

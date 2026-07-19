@@ -91,7 +91,7 @@ export function TextField({
               aria-describedby={control.describedBy}
               ref={(node) => controlRef?.(node)}
               onChange={(event) => onChange(event.target.value)}
-              onBlur={onBlur}
+              onBlur={() => onBlur?.()}
             />
           ) : (
             <input
@@ -111,7 +111,7 @@ export function TextField({
               aria-describedby={control.describedBy}
               ref={(node) => controlRef?.(node)}
               onChange={(event) => onChange(event.target.value)}
-              onBlur={onBlur}
+              onBlur={() => onBlur?.()}
             />
           )}
           {lengthReadout ? (

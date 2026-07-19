@@ -71,16 +71,22 @@ export function TagsField({
     extraIds: [hintId],
   });
 
-  const commitDraft = () => {
-    if (readOnly || disabled) return;
+  // Commit the current draft, returning the resulting tag collection (unchanged
+  // when nothing was added). The caller can pass this exact array to the host's
+  // blur validation so a just-added tag is not validated against the stale array.
+  const commitDraft = (): readonly string[] => {
+    if (readOnly || disabled) return value;
     const result = addTag(value, draft, constraints);
     if (result.added) {
       onChange(result.tags);
       setDraft("");
       setAnnounce(`Added ${result.tags[result.tags.length - 1]}.`);
-    } else if (result.reason && result.reason !== "empty") {
+      return result.tags;
+    }
+    if (result.reason && result.reason !== "empty") {
       setAnnounce(REJECTION_MESSAGES[result.reason]);
     }
+    return value;
   };
 
   const remove = (index: number) => {
@@ -166,8 +172,11 @@ export function TagsField({
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
                   onBlur={() => {
-                    commitDraft();
-                    onBlur?.();
+                    // Validate against the EXACT committed collection, so adding
+                    // the first tag and tabbing away can't leave a false
+                    // "required" error against the pre-commit empty array.
+                    const committed = commitDraft();
+                    onBlur?.(committed);
                   }}
                 />
               </li>

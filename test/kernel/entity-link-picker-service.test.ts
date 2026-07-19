@@ -1,26 +1,24 @@
 /**
  * DS-06 — the entity-link picker server service against real D1 (FND-04).
  *
- * Proves the integration path the picker uses: selecting a target creates a REAL
- * EntityLink through the existing FND-04 repository, and that link is queryable
- * through the kernel contract from BOTH directions. Also proves workspace
- * isolation, invalid/inaccessible-target rejection, duplicate-link idempotency,
- * reserved-type refusal, and that NO alternative relationship persistence is
- * introduced (only the `entity_links` table changes).
+ * Proves the integration path the picker uses AND that the server-supplied policy
+ * is the authoritative boundary: a crafted submission that violates the policy
+ * (bad link type, disallowed target type, disallowed direction, single-link limit,
+ * self-link, missing/deleted target, reserved spine type) is rejected with a typed,
+ * safe outcome, while a valid configured relationship creates a REAL EntityLink
+ * queryable from BOTH directions. Also proves workspace isolation, unlink and that
+ * NO alternative relationship persistence is introduced (only `entity_links`).
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
-  EntityLinkEndpointNotFoundError,
-  EntityLinkReservedTypeError,
-} from "~/kernel/entity-links";
-import {
-  createLink,
+  createLinkWithPolicy,
   listActiveLinks,
   searchLinkTargets,
   unlinkLink,
   type EntityLinkPickerDeps,
+  type EntityLinkPickerPolicy,
 } from "~/platform/entity-links";
 
 import {
@@ -38,7 +36,27 @@ const WS_B = "ws-forms-b";
 const CTX_A = makeContext(WS_A);
 const CTX_B = makeContext(WS_B);
 
-describe("DS-06 entity-link picker service (FND-04 integration)", () => {
+const ANCHOR = "p-anchor";
+const NOTE = "n-brief";
+const PERSON = "pe-mel";
+
+/** A permissive-but-typed policy: supporting_note → note, involves_person → person. */
+function policy(
+  overrides: Partial<EntityLinkPickerPolicy> = {},
+): EntityLinkPickerPolicy {
+  return {
+    anchorId: ANCHOR,
+    allowedDirections: ["outgoing"],
+    linkTypes: [
+      { type: "project.supporting_note", allowedTargetTypes: ["note"] },
+      { type: "project.involves_person", allowedTargetTypes: ["person"] },
+    ],
+    multiple: true,
+    ...overrides,
+  };
+}
+
+describe("DS-06 entity-link picker service (FND-04 policy integration)", () => {
   let depsA: EntityLinkPickerDeps;
   let depsB: EntityLinkPickerDeps;
 
@@ -56,136 +74,196 @@ describe("DS-06 entity-link picker service (FND-04 integration)", () => {
         idGenerator: sequentialIds("lb"),
       }),
     };
+    // Spine entity types are reserved on the entity repository, so seed directly.
+    await seedEntity(WS_A, ANCHOR, {
+      type: "project",
+      title: "Website relaunch",
+    });
+    await seedEntity(WS_A, NOTE, { type: "note", title: "Creative brief" });
+    await seedEntity(WS_A, PERSON, { type: "person", title: "Mel Okoye" });
   });
 
-  // Spine entity types (area/goal/project/task) are reserved on the entity
-  // repository, so seed endpoints directly — the picker only ever READS entities
-  // (via `entities.list`) and never creates them, matching the FND-04 link tests.
-  async function seedAnchorAndTargets() {
-    const anchor = {
-      id: await seedEntity(WS_A, "p-anchor", {
-        type: "project",
-        title: "Website relaunch",
-      }),
-    };
-    const note = {
-      id: await seedEntity(WS_A, "n-brief", {
-        type: "note",
-        title: "Creative brief",
-      }),
-    };
-    const person = {
-      id: await seedEntity(WS_A, "pe-mel", {
-        type: "person",
-        title: "Mel Okoye",
-      }),
-    };
-    return { anchor, note, person };
-  }
-
-  it("creates a real EntityLink and it is queryable from both directions", async () => {
-    const { anchor, note } = await seedAnchorAndTargets();
-
-    const result = await createLink(depsA, {
-      anchorId: anchor.id,
-      targetId: note.id,
+  it("creates a real, bidirectionally-queryable link for a valid request", async () => {
+    const result = await createLinkWithPolicy(depsA, policy(), {
+      targetId: NOTE,
       linkType: "project.supporting_note",
       direction: "outgoing",
     });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
     expect(result.created).toBe(true);
-    expect(result.link.sourceEntityId).toBe(anchor.id);
-    expect(result.link.targetEntityId).toBe(note.id);
+    expect(result.link.sourceEntityId).toBe(ANCHOR);
+    expect(result.link.targetEntityId).toBe(NOTE);
 
-    // From the anchor: an outgoing link whose counterpart is the note.
-    const fromAnchor = await listActiveLinks(depsA, { anchorId: anchor.id });
+    const fromAnchor = await listActiveLinks(depsA, { anchorId: ANCHOR });
     expect(fromAnchor).toHaveLength(1);
     expect(fromAnchor[0]!.direction).toBe("outgoing");
-    expect(fromAnchor[0]!.target.id).toBe(note.id);
-    expect(fromAnchor[0]!.target.title).toBe("Creative brief");
-    expect(fromAnchor[0]!.linkType).toBe("project.supporting_note");
+    expect(fromAnchor[0]!.target.id).toBe(NOTE);
 
-    // From the note: the SAME link, presenting as incoming, counterpart anchor.
-    const fromNote = await listActiveLinks(depsA, { anchorId: note.id });
-    expect(fromNote).toHaveLength(1);
+    const fromNote = await listActiveLinks(depsA, { anchorId: NOTE });
     expect(fromNote[0]!.direction).toBe("incoming");
-    expect(fromNote[0]!.target.id).toBe(anchor.id);
+    expect(fromNote[0]!.target.id).toBe(ANCHOR);
     expect(fromNote[0]!.linkId).toBe(fromAnchor[0]!.linkId);
   });
 
-  it("honours incoming direction by reversing the endpoints", async () => {
-    const { anchor, person } = await seedAnchorAndTargets();
-    const result = await createLink(depsA, {
-      anchorId: anchor.id,
-      targetId: person.id,
-      linkType: "project.involves_person",
-      direction: "incoming",
-    });
-    // Incoming from the anchor → the anchor is the TARGET endpoint.
-    expect(result.link.sourceEntityId).toBe(person.id);
-    expect(result.link.targetEntityId).toBe(anchor.id);
+  it("honours an allowed incoming direction by reversing endpoints", async () => {
+    const result = await createLinkWithPolicy(
+      depsA,
+      policy({ allowedDirections: ["incoming"] }),
+      {
+        targetId: PERSON,
+        linkType: "project.involves_person",
+        direction: "incoming",
+      },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.link.sourceEntityId).toBe(PERSON);
+    expect(result.link.targetEntityId).toBe(ANCHOR);
   });
 
-  it("searches accessible targets by title and excludes the anchor", async () => {
-    const { anchor } = await seedAnchorAndTargets();
-    const all = await searchLinkTargets(depsA, {
-      anchorId: anchor.id,
-      query: "",
+  it("rejects a link type the policy does not configure", async () => {
+    const result = await createLinkWithPolicy(depsA, policy(), {
+      targetId: NOTE,
+      linkType: "project.secret_backdoor",
+      direction: "outgoing",
     });
-    expect(all.map((t) => t.id)).not.toContain(anchor.id);
-
-    const byTitle = await searchLinkTargets(depsA, {
-      anchorId: anchor.id,
-      query: "brief",
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "link_type_not_allowed",
     });
-    expect(byTitle.map((t) => t.title)).toEqual(["Creative brief"]);
+    expect(await countLinkRows()).toBe(0);
   });
 
-  it("is idempotent — creating the same link twice makes no duplicate", async () => {
-    const { anchor, note } = await seedAnchorAndTargets();
-    const first = await createLink(depsA, {
-      anchorId: anchor.id,
-      targetId: note.id,
+  it("rejects a target whose entity type is not allowed for the link type", async () => {
+    // person is not an allowed target for supporting_note.
+    const result = await createLinkWithPolicy(depsA, policy(), {
+      targetId: PERSON,
       linkType: "project.supporting_note",
       direction: "outgoing",
     });
-    const second = await createLink(depsA, {
-      anchorId: anchor.id,
-      targetId: note.id,
-      linkType: "project.supporting_note",
-      direction: "outgoing",
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "target_type_not_allowed",
     });
-    expect(first.created).toBe(true);
-    expect(second.created).toBe(false);
-    expect(second.outcome).toBe("already_exists");
-    const links = await listActiveLinks(depsA, { anchorId: anchor.id });
-    expect(links).toHaveLength(1);
+    expect(await countLinkRows()).toBe(0);
   });
 
-  it("rejects a non-existent target (inaccessible cannot be linked)", async () => {
-    const { anchor } = await seedAnchorAndTargets();
-    await expect(
-      createLink(depsA, {
-        anchorId: anchor.id,
-        targetId: "does-not-exist",
+  it("rejects a disallowed direction", async () => {
+    const result = await createLinkWithPolicy(
+      depsA,
+      policy({ allowedDirections: ["outgoing"] }),
+      {
+        targetId: NOTE,
         linkType: "project.supporting_note",
-        direction: "outgoing",
-      }),
-    ).rejects.toBeInstanceOf(EntityLinkEndpointNotFoundError);
+        direction: "incoming",
+      },
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "direction_not_allowed",
+    });
   });
 
-  it("enforces workspace isolation — a cross-workspace anchor is invisible", async () => {
-    const { anchor, note } = await seedAnchorAndTargets();
-    await createLink(depsA, {
-      anchorId: anchor.id,
-      targetId: note.id,
+  it("rejects a malformed direction value", async () => {
+    const result = await createLinkWithPolicy(depsA, policy(), {
+      targetId: NOTE,
+      linkType: "project.supporting_note",
+      direction: "sideways",
+    });
+    expect(result).toMatchObject({ ok: false, reason: "invalid_request" });
+  });
+
+  it("enforces the single-link limit", async () => {
+    const single = policy({ multiple: false });
+    const first = await createLinkWithPolicy(depsA, single, {
+      targetId: NOTE,
       linkType: "project.supporting_note",
       direction: "outgoing",
     });
-    // Workspace B cannot see A's anchor: listing it fails as a missing endpoint.
-    await expect(
-      listActiveLinks(depsB, { anchorId: anchor.id }),
-    ).rejects.toBeInstanceOf(EntityLinkEndpointNotFoundError);
-    // Nor does B's search surface A's entities.
+    expect(first.ok).toBe(true);
+    const second = await createLinkWithPolicy(depsA, single, {
+      targetId: PERSON,
+      linkType: "project.involves_person",
+      direction: "outgoing",
+    });
+    expect(second).toMatchObject({ ok: false, reason: "single_link_limit" });
+    expect(await listActiveLinks(depsA, { anchorId: ANCHOR })).toHaveLength(1);
+  });
+
+  it("rejects a self-link", async () => {
+    const result = await createLinkWithPolicy(depsA, policy(), {
+      targetId: ANCHOR,
+      linkType: "project.supporting_note",
+      direction: "outgoing",
+    });
+    expect(result).toMatchObject({ ok: false, reason: "self_link" });
+  });
+
+  it("rejects a missing target", async () => {
+    const result = await createLinkWithPolicy(depsA, policy(), {
+      targetId: "does-not-exist",
+      linkType: "project.supporting_note",
+      direction: "outgoing",
+    });
+    expect(result).toMatchObject({ ok: false, reason: "target_unavailable" });
+  });
+
+  it("rejects a soft-deleted (inaccessible) target", async () => {
+    await seedEntity(WS_A, "n-deleted", {
+      type: "note",
+      title: "Gone",
+      deletedAt: "2026-07-18T00:00:00.000Z",
+    });
+    const result = await createLinkWithPolicy(depsA, policy(), {
+      targetId: "n-deleted",
+      linkType: "project.supporting_note",
+      direction: "outgoing",
+    });
+    expect(result).toMatchObject({ ok: false, reason: "target_unavailable" });
+  });
+
+  it("refuses a reserved structural (spine) link type even if the policy lists it", async () => {
+    const result = await createLinkWithPolicy(
+      depsA,
+      policy({
+        linkTypes: [
+          { type: "project.belongs_to_area", allowedTargetTypes: ["note"] },
+        ],
+      }),
+      {
+        targetId: NOTE,
+        linkType: "project.belongs_to_area",
+        direction: "outgoing",
+      },
+    );
+    // Guarded by the kernel repository and surfaced as a safe reason.
+    expect(result).toMatchObject({ ok: false, reason: "reserved_type" });
+    expect(await countLinkRows()).toBe(0);
+  });
+
+  it("is idempotent — a duplicate valid create makes no second row", async () => {
+    const p = policy();
+    const req = {
+      targetId: NOTE,
+      linkType: "project.supporting_note",
+      direction: "outgoing",
+    };
+    const first = await createLinkWithPolicy(depsA, p, req);
+    const second = await createLinkWithPolicy(depsA, p, req);
+    expect(first.ok && first.created).toBe(true);
+    expect(second.ok && !second.created).toBe(true);
+    expect(await listActiveLinks(depsA, { anchorId: ANCHOR })).toHaveLength(1);
+  });
+
+  it("enforces workspace isolation — B cannot see or link A's entities", async () => {
+    const result = await createLinkWithPolicy(depsB, policy(), {
+      targetId: NOTE,
+      linkType: "project.supporting_note",
+      direction: "outgoing",
+    });
+    // A's anchor is invisible in workspace B → anchor unavailable.
+    expect(result).toMatchObject({ ok: false, reason: "anchor_unavailable" });
     const bResults = await searchLinkTargets(depsB, {
       anchorId: "whatever",
       query: "brief",
@@ -193,33 +271,26 @@ describe("DS-06 entity-link picker service (FND-04 integration)", () => {
     expect(bResults).toHaveLength(0);
   });
 
-  it("refuses reserved structural (spine) link types", async () => {
-    const { anchor, note } = await seedAnchorAndTargets();
-    await expect(
-      createLink(depsA, {
-        anchorId: anchor.id,
-        targetId: note.id,
-        linkType: "project.belongs_to_area",
-        direction: "outgoing",
-      }),
-    ).rejects.toBeInstanceOf(EntityLinkReservedTypeError);
+  it("searches accessible targets by title and excludes the anchor", async () => {
+    const all = await searchLinkTargets(depsA, { anchorId: ANCHOR, query: "" });
+    expect(all.map((t) => t.id)).not.toContain(ANCHOR);
+    const byTitle = await searchLinkTargets(depsA, {
+      anchorId: ANCHOR,
+      query: "brief",
+    });
+    expect(byTitle.map((t) => t.title)).toEqual(["Creative brief"]);
   });
 
   it("unlinks through the FND-04 repository and touches only entity_links", async () => {
-    const { anchor, note } = await seedAnchorAndTargets();
-    const created = await createLink(depsA, {
-      anchorId: anchor.id,
-      targetId: note.id,
+    const created = await createLinkWithPolicy(depsA, policy(), {
+      targetId: NOTE,
       linkType: "project.supporting_note",
       direction: "outgoing",
     });
+    if (!created.ok) throw new Error("expected ok");
     const result = await unlinkLink(depsA, created.link.id);
     expect(result.changed).toBe(true);
-    expect(await listActiveLinks(depsA, { anchorId: anchor.id })).toHaveLength(
-      0,
-    );
-    // The row is soft-deleted, not a new relationship model: exactly one row
-    // remains in the single entity_links table.
-    expect(await countLinkRows()).toBe(1);
+    expect(await listActiveLinks(depsA, { anchorId: ANCHOR })).toHaveLength(0);
+    expect(await countLinkRows()).toBe(1); // soft-deleted, single table
   });
 });

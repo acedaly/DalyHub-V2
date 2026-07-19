@@ -6,7 +6,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import { TagsField } from "~/shared/forms";
+import { Form, TagsField, required, useForm } from "~/shared/forms";
 
 function Harness({ initial = [] as string[] }) {
   const [tags, setTags] = useState<readonly string[]>(initial);
@@ -53,5 +53,37 @@ describe("TagsField", () => {
     fireEvent.change(input, { target: { value: "DESIGN" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(screen.getAllByText(/design/i)).toHaveLength(1);
+  });
+});
+
+describe("TagsField committed-value blur validation (P2)", () => {
+  function FormHarness() {
+    const form = useForm<{ tags: readonly string[] }>({
+      initialValues: { tags: [] },
+      fields: { tags: { validate: required("Add at least one tag.") } },
+      onSubmit: async () => ({ status: "success" }),
+    });
+    return (
+      <Form onSubmit={form.handleSubmit}>
+        <TagsField label="Tags" required {...form.field("tags")} />
+      </Form>
+    );
+  }
+
+  it("typing the first tag and tabbing away does not leave a false required error", () => {
+    render(<FormHarness />);
+    const input = screen.getByRole("textbox", { name: "Tags" });
+    fireEvent.change(input, { target: { value: "design" } });
+    // Blur commits the draft AND validates the committed collection ["design"].
+    fireEvent.blur(input);
+    expect(screen.getByText("design")).toBeInTheDocument();
+    expect(screen.queryByText("Add at least one tag.")).not.toBeInTheDocument();
+  });
+
+  it("blurring an empty draft still flags a required empty collection", () => {
+    render(<FormHarness />);
+    const input = screen.getByRole("textbox", { name: "Tags" });
+    fireEvent.blur(input);
+    expect(screen.getByText("Add at least one tag.")).toBeInTheDocument();
   });
 });

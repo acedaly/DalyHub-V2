@@ -172,6 +172,9 @@ export function EntityLinkPicker({
 
   const createLink = async (target: EntityLinkTargetOption) => {
     if (!canSearch) return;
+    // Serialise create actions so a double activation (mouse + keyboard, or a
+    // rapid re-click) cannot fire two overlapping link requests.
+    if (pendingTargetId !== null) return;
     setActionError(null);
     setPendingTargetId(target.id);
     try {

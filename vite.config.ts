@@ -42,4 +42,21 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  // Pre-bundle the FND-08 Markdown `unified` stack at dev-server start. The DS-06
+  // Markdown control lazy-imports `~/platform/markdown` only when its preview is
+  // opened (keeping the parser out of the initial production bundle via code
+  // splitting). Without this, that first runtime import makes Vite discover and
+  // optimise the `unified` dependency graph on the fly, triggering a full dev
+  // page reload that would reset the just-opened preview. Declaring the deps here
+  // optimises them up front, so the lazy import resolves without a reload.
+  optimizeDeps: {
+    include: [
+      "unified",
+      "remark-parse",
+      "remark-gfm",
+      "remark-rehype",
+      "rehype-sanitize",
+      "rehype-stringify",
+    ],
+  },
 });

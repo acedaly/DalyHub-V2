@@ -138,7 +138,7 @@ export function MarkdownField({
           spellCheck
           ref={(node) => controlRef?.(node)}
           onChange={(event) => onChange(event.target.value)}
-          onBlur={onBlur}
+          onBlur={() => onBlur?.()}
         />
 
         <div className="dh-markdown-field__toolbar">

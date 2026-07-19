@@ -70,7 +70,15 @@ return (
 );
 ```
 
-Guarantees: validation on blur and submit; submit blocked while invalid; first invalid field focused on failed submit; the complete draft preserved on any failure; server errors authoritative; duplicate submits prevented; Cancel restores the baseline; unsaved navigation intercepted.
+Guarantees: validation on blur and submit; submit blocked while invalid; first invalid field focused on failed submit; the complete draft preserved on any failure; server errors authoritative; duplicate submits prevented; Cancel restores the baseline; dirty comparison honours per-field `isEqual`. A submission commits its own **immutable snapshot** as the baseline, so an edit made while the save is in flight stays dirty and is never silently discarded.
+
+For a form hosted in a DS-03 Drawer, pass the drawer key so the guard intercepts drawer close/replace/Back (same-pathname `drawer`-param navigations), not just pathname changes:
+
+```tsx
+<UnsavedChangesGuard when={form.isDirty && !form.isSubmitting} drawerKey={myDrawerKey} />
+```
+
+The confirm is a real modal (focus-trapped, inert background, Escape = Stay, focus restored to the initiating control on Stay).
 
 ## Autosaving fields
 
@@ -99,18 +107,40 @@ The trigger is documented and deterministic (a restrained debounce and a valid b
 
 The picker UI is entity-agnostic and callback-driven — it never imports D1 or a repository. Wire it to a loader/action that uses the server service:
 
+The picker's client configuration is **presentation only**. Link CREATION is authorised by a **server-supplied policy** — never by the client's submitted type/direction/target:
+
 ```ts
 // server (loader/action)
 import { resolveWorkspaceScope } from "~/platform/workspaces";
-import { searchLinkTargets, listActiveLinks, createLink, unlinkLink } from "~/platform/entity-links";
+import {
+  searchLinkTargets,
+  listActiveLinks,
+  createLinkWithPolicy,
+  unlinkLink,
+  type EntityLinkPickerPolicy,
+} from "~/platform/entity-links";
 
 const scope = await resolveWorkspaceScope(env);
 const deps = { entities: scope.entities, entityLinks: scope.entityLinks };
+
+// The authoritative policy, built from TRUSTED server context:
+const policy: EntityLinkPickerPolicy = {
+  anchorId,
+  allowedDirections: ["outgoing"],
+  linkTypes: [
+    { type: "project.supporting_note", allowedTargetTypes: ["note"] },
+  ],
+  multiple: true,
+};
+
 // search: searchLinkTargets(deps, { anchorId, query, targetTypes })
 // list:   listActiveLinks(deps, { anchorId, direction, linkTypes })
-// create: createLink(deps, { anchorId, targetId, linkType, direction })
+// create: const result = await createLinkWithPolicy(deps, policy, { targetId, linkType, direction })
+//         → result.ok ? … : show result.message (typed, safe — never a raw error)
 // remove: unlinkLink(deps, linkId)
 ```
+
+`createLinkWithPolicy` validates every untrusted attribute against the policy — direction allowed, link type permitted, target type allowed, no self-link, anchor/target accessible, single-selection limit — before delegating to the FND-04 repository (which enforces workspace scope, reserved spine types and duplicate uniqueness). It returns `{ok:true,…}` or `{ok:false, reason, message}` — translate `message` into calm UI text.
 
 ```tsx
 // client

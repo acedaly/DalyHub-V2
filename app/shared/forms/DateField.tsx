@@ -101,7 +101,7 @@ export function DateField({
             aria-describedby={control.describedBy}
             ref={(node) => controlRef?.(node)}
             onChange={(event) => handleChange(event.target.value)}
-            onBlur={onBlur}
+            onBlur={() => onBlur?.()}
           />
           {isDateTime ? (
             <p className="dh-field__hint">Entered and shown in UTC.</p>

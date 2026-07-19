@@ -81,7 +81,7 @@ export function BooleanField({
             }
             onChange(event.target.checked);
           }}
-          onBlur={onBlur}
+          onBlur={() => onBlur?.()}
         />
         <label className="dh-boolean__label" htmlFor={baseId}>
           <span className="dh-boolean__control" aria-hidden="true" />

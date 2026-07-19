@@ -20,8 +20,13 @@ export interface BaseControlProps<TValue> {
   readonly value: TValue;
   /** Called with the next value on edit. */
   readonly onChange: (value: TValue) => void;
-  /** Called when the control loses focus (drives blur validation). */
-  readonly onBlur?: () => void;
+  /**
+   * Called when the control loses focus (drives blur validation). A composite
+   * control that commits a value ON blur (e.g. the tags control) may pass the
+   * exact committed value so validation runs against it rather than the
+   * pre-render state.
+   */
+  readonly onBlur?: (committedValue?: TValue) => void;
   /** The current validation message, or null. */
   readonly error?: string | null;
   /** Optional help text. */

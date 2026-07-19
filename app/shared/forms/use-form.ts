@@ -14,14 +14,26 @@
  *   - EVERY entered value is preserved when validation or persistence fails.
  *   - Server validation is authoritative: server field/form errors are shown even
  *     when client validation passed.
- *   - A successful save resets the dirty baseline; Cancel restores it.
+ *   - A successful save commits exactly the SUBMITTED snapshot as the new
+ *     baseline — never a newer draft typed while the save was in flight — so an
+ *     edit made mid-submission stays dirty and cannot be silently discarded.
+ *   - Cancel restores the baseline; dirty comparison honours per-field `isEqual`.
  *   - Duplicate submits are prevented while one is in flight.
- *   - Stale async validation responses are ignored.
+ *   - Stale async validation responses are ignored, and a pending async validator
+ *     is invalidated (and aborted) the moment its field changes.
+ *   - A reset or unmount abandons any in-flight submission/validation cleanly.
  */
 
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { anyFieldDirty, valuesEqual, type IsEqual } from "./dirty";
+import { valuesEqual, type IsEqual } from "./dirty";
 import {
   INITIAL_SUBMIT_STATE,
   beginSubmit,
@@ -84,7 +96,12 @@ export interface FieldBinding<TValue> {
   readonly value: TValue;
   readonly error: string | null;
   readonly onChange: (value: TValue) => void;
-  readonly onBlur: () => void;
+  /**
+   * Blur handler. A composite control that commits a value ON blur (e.g. the
+   * tags control) may pass the exact committed value so validation runs against
+   * it rather than the pre-render state.
+   */
+  readonly onBlur: (committedValue?: TValue) => void;
   readonly controlRef: (node: FocusableControl | null) => void;
 }
 
@@ -133,11 +150,13 @@ export function useForm<TValues extends Record<string, unknown>>(
   const refCallbacks = useRef(
     new Map<string, (node: FocusableControl | null) => void>(),
   );
-  // Per-field async validation sequence, so a stale response is ignored.
+  // Per-field async validation sequence + abort controller, so a stale response
+  // is both ignored (seq) and cancelled (abort) the moment its field changes.
   const asyncSeq = useRef(new Map<string, number>());
+  const asyncControllers = useRef(new Map<string, AbortController>());
 
-  // A ref mirror of the latest values so blur/async/submit callbacks read the
-  // current draft without being re-created on every keystroke.
+  // A ref mirror of the latest values so blur/async callbacks read the current
+  // draft without being re-created on every keystroke.
   const valuesRef = useRef(values);
   valuesRef.current = values;
 
@@ -145,6 +164,13 @@ export function useForm<TValues extends Record<string, unknown>>(
   onSubmitRef.current = options.onSubmit;
   const unexpectedMessage =
     options.unexpectedErrorMessage ?? DEFAULT_UNEXPECTED_ERROR;
+
+  // A submission "generation": bumped on every submit and every reset. An
+  // in-flight submission only applies its result if its generation is still
+  // current AND the hook is still mounted, so a reset/unmount mid-submit is safe.
+  const submitGen = useRef(0);
+  const submittingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const fieldsConfig = options.fields;
   const getConfig = useCallback(
@@ -155,6 +181,28 @@ export function useForm<TValues extends Record<string, unknown>>(
     [fieldsConfig],
   );
 
+  const equalityFor = useCallback(
+    (name: string): ((a: unknown, b: unknown) => boolean) =>
+      (fieldsConfig?.[name as keyof TValues]?.isEqual as
+        ((a: unknown, b: unknown) => boolean) | undefined) ?? valuesEqual,
+    [fieldsConfig],
+  );
+
+  const abortAllAsync = useCallback(() => {
+    for (const controller of asyncControllers.current.values()) {
+      controller.abort();
+    }
+    asyncControllers.current.clear();
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortAllAsync();
+    };
+  }, [abortAllAsync]);
+
   const fieldOrder: ReadonlyArray<keyof TValues & string> = useMemo(
     () =>
       options.fieldOrder ??
@@ -162,10 +210,15 @@ export function useForm<TValues extends Record<string, unknown>>(
     [options.fieldOrder, options.initialValues],
   );
 
-  const isDirty = useMemo(
-    () => anyFieldDirty(values, baseline),
-    [values, baseline],
-  );
+  // Dirty when ANY field differs from the baseline, honouring each field's
+  // declared `isEqual` comparator (structural equality otherwise).
+  const isDirty = useMemo(() => {
+    const keys = new Set([...Object.keys(values), ...Object.keys(baseline)]);
+    for (const key of keys) {
+      if (!equalityFor(key)(values[key], baseline[key])) return true;
+    }
+    return false;
+  }, [values, baseline, equalityFor]);
   const isSubmitting = submit.status === "submitting";
 
   const setFieldError = useCallback((name: string, message: string | null) => {
@@ -183,25 +236,45 @@ export function useForm<TValues extends Record<string, unknown>>(
       value: TValues[K],
       validator: AsyncValidator<TValues[K]>,
     ) => {
+      // Cancel any prior in-flight validator for this field and take a fresh seq.
+      asyncControllers.current.get(name)?.abort();
       const seq = (asyncSeq.current.get(name) ?? 0) + 1;
       asyncSeq.current.set(name, seq);
       const controller = new AbortController();
+      asyncControllers.current.set(name, controller);
+      const eq = equalityFor(name);
       validator(value, controller.signal)
         .then((outcome) => {
-          if (asyncSeq.current.get(name) !== seq) return; // stale
+          // Apply only if this is still the current request, it wasn't aborted,
+          // the hook is mounted, and the field value still matches what we
+          // validated (guards against any late resolution overwriting a newer
+          // value).
+          if (
+            controller.signal.aborted ||
+            !mountedRef.current ||
+            asyncSeq.current.get(name) !== seq ||
+            !eq(valuesRef.current[name], value)
+          ) {
+            return;
+          }
           if (!outcome.ok) setFieldError(name, outcome.message);
         })
         .catch(() => {
-          // A rejected async validation (including abort) is not surfaced;
-          // server validation on submit stays authoritative.
+          // A rejected/aborted async validation is not surfaced as a field
+          // error; server validation on submit stays authoritative.
         });
     },
-    [setFieldError],
+    [equalityFor, setFieldError],
   );
 
   const setValue = useCallback(
     <K extends keyof TValues & string>(name: K, value: TValues[K]) => {
       setValues((prev) => ({ ...prev, [name]: value }));
+      // A value change invalidates and cancels any pending async validation for
+      // this field, so an old response cannot attach an error to a newer value.
+      asyncControllers.current.get(name)?.abort();
+      asyncControllers.current.delete(name);
+      asyncSeq.current.set(name, (asyncSeq.current.get(name) ?? 0) + 1);
       // Live-clear/refresh an existing error as the user fixes the field; we do
       // NOT introduce a new error on change (validation is on blur/submit).
       setSubmit((prev) => {
@@ -217,9 +290,15 @@ export function useForm<TValues extends Record<string, unknown>>(
   );
 
   const validateFieldOnBlur = useCallback(
-    (name: keyof TValues & string) => {
+    <K extends keyof TValues & string>(
+      name: K,
+      committedValue?: TValues[K],
+    ) => {
       const config = getConfig(name);
-      const value = valuesRef.current[name];
+      // A composite control that commits on blur passes the exact committed
+      // value; otherwise read the current draft.
+      const value =
+        committedValue !== undefined ? committedValue : valuesRef.current[name];
       const outcome = runValidator(config?.validate, value);
       if (!outcome.ok) {
         setFieldError(name, outcome.message);
@@ -256,7 +335,8 @@ export function useForm<TValues extends Record<string, unknown>>(
       value: values[name],
       error: submit.fieldErrors[name] ?? null,
       onChange: (value: TValues[K]) => setValue(name, value),
-      onBlur: () => validateFieldOnBlur(name),
+      onBlur: (committedValue?: TValues[K]) =>
+        validateFieldOnBlur(name, committedValue),
       controlRef: getRefCallback(name),
     }),
     [
@@ -280,15 +360,21 @@ export function useForm<TValues extends Record<string, unknown>>(
   const handleSubmit = useCallback(
     (event?: { preventDefault(): void }) => {
       event?.preventDefault();
-      if (submit.status === "submitting") return; // duplicate-submit guard
+      if (submittingRef.current) return; // duplicate-submit guard (synchronous)
 
-      // 1) Synchronous validation of every field.
+      // Capture ONE immutable submission snapshot. Everything below — sync and
+      // async validation, the onSubmit callback, and the success baseline — uses
+      // this snapshot, never `valuesRef.current`. So an edit made while the
+      // submission is in flight cannot become the committed baseline: the form
+      // stays dirty and the newer draft is preserved.
+      const snapshot = valuesRef.current;
+      const gen = ++submitGen.current;
+      const isCurrent = () => submitGen.current === gen && mountedRef.current;
+
+      // 1) Synchronous validation of every field against the snapshot.
       const syncErrors: Record<string, string> = {};
       for (const name of fieldOrder) {
-        const outcome = runValidator(
-          getConfig(name)?.validate,
-          valuesRef.current[name],
-        );
+        const outcome = runValidator(getConfig(name)?.validate, snapshot[name]);
         if (!outcome.ok) syncErrors[name] = outcome.message;
       }
       if (Object.keys(syncErrors).length > 0) {
@@ -298,6 +384,7 @@ export function useForm<TValues extends Record<string, unknown>>(
       }
 
       // 2) Enter submitting; run async validation then persistence.
+      submittingRef.current = true;
       setSubmit(beginSubmit());
       void (async () => {
         try {
@@ -306,21 +393,21 @@ export function useForm<TValues extends Record<string, unknown>>(
             const validator = getConfig(name)?.validateAsync;
             if (!validator) continue;
             const controller = new AbortController();
-            const outcome = await validator(
-              valuesRef.current[name],
-              controller.signal,
-            );
+            const outcome = await validator(snapshot[name], controller.signal);
             if (!outcome.ok) asyncErrors[name] = outcome.message;
           }
+          if (!isCurrent()) return; // reset/unmount abandoned this submission
           if (Object.keys(asyncErrors).length > 0) {
             setSubmit(submitFailed({ fieldErrors: asyncErrors }));
             focusFirstInvalid(asyncErrors);
             return;
           }
 
-          const outcome = await onSubmitRef.current(valuesRef.current);
+          const outcome = await onSubmitRef.current(snapshot);
+          if (!isCurrent()) return;
           if (!outcome || outcome.status === "success") {
-            setBaseline(valuesRef.current);
+            // Commit exactly what was submitted as the new baseline.
+            setBaseline(snapshot);
             setSubmit(submitSucceeded());
             return;
           }
@@ -336,24 +423,26 @@ export function useForm<TValues extends Record<string, unknown>>(
           );
           focusFirstInvalid(fieldErrors);
         } catch {
-          setSubmit(submitFailed({ formError: unexpectedMessage }));
+          if (isCurrent()) {
+            setSubmit(submitFailed({ formError: unexpectedMessage }));
+          }
+        } finally {
+          if (submitGen.current === gen) submittingRef.current = false;
         }
       })();
     },
-    [
-      submit.status,
-      fieldOrder,
-      getConfig,
-      focusFirstInvalid,
-      unexpectedMessage,
-    ],
+    [fieldOrder, getConfig, focusFirstInvalid, unexpectedMessage],
   );
 
   const reset = useCallback(() => {
+    // Abandon any in-flight submission/validation and restore the baseline.
+    submitGen.current += 1;
+    submittingRef.current = false;
+    abortAllAsync();
+    asyncSeq.current.clear();
     setValues(baseline);
     setSubmit(INITIAL_SUBMIT_STATE);
-    asyncSeq.current.clear();
-  }, [baseline]);
+  }, [baseline, abortAllAsync]);
 
   return {
     values,

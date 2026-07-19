@@ -83,4 +83,5 @@ export {
 export {
   useUnsavedChangesPrompt,
   type UnsavedChangesPrompt,
+  type UnsavedChangesOptions,
 } from "./use-unsaved-changes";
