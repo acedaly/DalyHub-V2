@@ -221,6 +221,20 @@
 
   /* Overlay / scrim. */
   --dh-color-overlay: rgba(16, 18, 22, 0.5);
+
+  /* Entity identity accents (PX-02) — used at IDENTITY sites only (icon, card
+   * edge, chip), never as text colour. One accent per entity type; light values
+   * meet ≥3:1 on the page background, dark values are remapped below. */
+  --dh-entity-area-accent: #0f766e;
+  --dh-entity-goal-accent: #7c3aed;
+  --dh-entity-project-accent: #4f46e5;
+  --dh-entity-task-accent: #15803d;
+  --dh-entity-note-accent: #b45309;
+  --dh-entity-meeting-accent: #be123c;
+  --dh-entity-person-accent: #0e7490;
+  --dh-entity-asset-accent: #475569;
+  --dh-entity-diary-accent: #a21caf;
+  --dh-entity-review-accent: #0369a1;
 }
 
 /*
@@ -286,6 +300,18 @@
   --dh-color-selection-text: #eaf0ff;
 
   --dh-color-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Entity identity accents (PX-02) — dark remap (brighter, ≥3:1 on dark bg). */
+  --dh-entity-area-accent: #2dd4bf;
+  --dh-entity-goal-accent: #a78bfa;
+  --dh-entity-project-accent: #818cf8;
+  --dh-entity-task-accent: #4ade80;
+  --dh-entity-note-accent: #fbbf24;
+  --dh-entity-meeting-accent: #fb7185;
+  --dh-entity-person-accent: #22d3ee;
+  --dh-entity-asset-accent: #94a3b8;
+  --dh-entity-diary-accent: #e879f9;
+  --dh-entity-review-accent: #38bdf8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -344,6 +370,19 @@
     --dh-color-selection-text: #eaf0ff;
 
     --dh-color-overlay: rgba(0, 0, 0, 0.6);
+
+    /* Entity identity accents (PX-02) — dark remap (kept in parity with the
+     * explicit dark block above). */
+    --dh-entity-area-accent: #2dd4bf;
+    --dh-entity-goal-accent: #a78bfa;
+    --dh-entity-project-accent: #818cf8;
+    --dh-entity-task-accent: #4ade80;
+    --dh-entity-note-accent: #fbbf24;
+    --dh-entity-meeting-accent: #fb7185;
+    --dh-entity-person-accent: #22d3ee;
+    --dh-entity-asset-accent: #94a3b8;
+    --dh-entity-diary-accent: #e879f9;
+    --dh-entity-review-accent: #38bdf8;
   }
 }
 

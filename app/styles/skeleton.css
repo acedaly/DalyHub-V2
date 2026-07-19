@@ -1,0 +1,88 @@
+/*
+ * PX-02 — the shared Skeleton system (design tokens only).
+ *
+ * Skeletons mirror the final layout. The shimmer is a slow (240ms tier) sweep that
+ * honours reduced motion — under `prefers-reduced-motion` it collapses to a static
+ * tint with no information lost (the global rule zeroes the animation; this file
+ * also removes the moving gradient explicitly).
+ */
+
+.dh-skeleton {
+  display: block;
+  inline-size: 100%;
+  block-size: 1em;
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-sunken);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--dh-color-surface-raised) 60%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: dh-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.dh-skeleton--circle {
+  border-radius: var(--dh-radius-full);
+}
+
+@keyframes dh-skeleton-shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -180% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-skeleton {
+    background-image: none;
+    animation: none;
+  }
+}
+
+/* Card-shaped ghost (mirrors a DS-04 Card). */
+.dh-card-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+}
+
+.dh-card-skeleton--compact {
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-3);
+}
+
+.dh-card-skeleton__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--dh-space-2);
+}
+
+/* Collection of card ghosts. */
+.dh-collection-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-collection-skeleton--grid,
+.dh-collection-skeleton--board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
+/* Generic pane/document ghost. */
+.dh-pane-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-6) 0;
+}

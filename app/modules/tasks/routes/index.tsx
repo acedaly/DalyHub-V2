@@ -16,6 +16,7 @@ export default function TasksRoute() {
   return (
     <ModulePlaceholder
       name="Tasks"
+      entityType="task"
       summary="Tasks are the atomic units of action you complete under an Area or a Project."
     />
   );

@@ -1,0 +1,104 @@
+/*
+ * PX-02 — development-only styles for the Collection Layout fixture.
+ *
+ * Loaded only by the dev-only `/design/collection-layout` route; never shipped to a
+ * production build. Tokens only. It styles the fixture's demo affordances (view
+ * switcher, demo buttons, state controls); the shared CollectionLayout / EmptyState /
+ * Skeleton styling lives in their own production stylesheets.
+ */
+
+.dh-view-switcher {
+  display: inline-flex;
+  gap: var(--dh-space-px);
+  padding: var(--dh-space-px);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+}
+
+.dh-view-switcher__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--dh-control-height-md);
+  min-block-size: var(--dh-control-height-md);
+  border: none;
+  border-radius: var(--dh-radius-xs);
+  background: transparent;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-md);
+  cursor: pointer;
+}
+
+.dh-view-switcher__option[aria-pressed="true"] {
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  box-shadow: var(--dh-shadow-sm);
+}
+
+.dh-demo-primary,
+.dh-demo-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  cursor: pointer;
+}
+
+.dh-demo-primary {
+  border: none;
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+}
+
+.dh-demo-primary:hover {
+  background: var(--dh-color-accent-hover);
+}
+
+.dh-demo-secondary {
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+}
+
+.dh-demo-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--dh-space-3);
+}
+
+.dh-demo-states {
+  display: flex;
+  gap: var(--dh-space-3);
+  align-items: center;
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  margin: 0;
+}
+
+.dh-demo-states legend {
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-demo-states label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-demo-bulkbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+}

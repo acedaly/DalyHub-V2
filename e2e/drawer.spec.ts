@@ -206,6 +206,8 @@ test.describe("DS-03 Drawer — desktop", () => {
 
   test("works in dark theme", async ({ page }) => {
     await gotoFixture(page);
+    // The theme control now lives in the sidebar user menu (PX-02 #4).
+    await page.getByRole("button", { name: /owner/i }).click();
     await page.getByRole("button", { name: "Dark" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 

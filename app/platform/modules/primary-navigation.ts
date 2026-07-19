@@ -21,8 +21,12 @@ let cachedNavigation: readonly NavigationItem[] | undefined;
 /** The deterministic primary-navigation model, built once and cached. */
 export function getPrimaryNavigation(): readonly NavigationItem[] {
   if (cachedNavigation === undefined) {
+    const registry = discoverModuleRegistry();
+    // The nav icon is derived from each module's OWN entity-type manifest — the
+    // module declares its identity (PX-02), the shell reads it. No central switch.
     cachedNavigation = buildNavigationModel(
-      discoverModuleRegistry().listRoutes(),
+      registry.listRoutes(),
+      (moduleId) => registry.getModule(moduleId)?.entityTypes[0]?.type,
     );
   }
   return cachedNavigation;

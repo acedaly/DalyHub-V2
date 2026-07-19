@@ -16,6 +16,7 @@ export default function GoalsRoute() {
   return (
     <ModulePlaceholder
       name="Goals"
+      entityType="goal"
       summary="Goals are the optional, aspirational outcomes you pursue under an Area."
     />
   );

@@ -32,7 +32,23 @@ export type NavigationItem = {
   readonly order: number;
   /** Optional grouping key the shell may use to cluster entries. */
   readonly group?: string;
+  /**
+   * The owning module's primary entity-type slug (PX-02), if declared, so the
+   * sidebar can render the type's identity icon + accent (app/shared/entity). It
+   * is DERIVED from the module's own `entityTypes` manifest — the module declares
+   * its identity, the shell reads it; there is no central icon switch.
+   */
+  readonly entityType?: string;
 };
+
+/**
+ * Resolve a module's primary entity-type slug (its first declared entity type),
+ * used only to pick the navigation icon. Returns undefined for a module that
+ * declares no entity type — the shell falls back to a generic glyph.
+ */
+export type ModuleEntityTypeResolver = (
+  moduleId: ModuleId,
+) => string | undefined;
 
 /** Routes without an explicit `navOrder` sort after those that declare one. */
 const DEFAULT_NAV_ORDER = Number.MAX_SAFE_INTEGER;
@@ -98,6 +114,7 @@ function resolveHref(
  */
 export function buildNavigationModel(
   routes: readonly RegisteredRoute[],
+  resolveEntityType?: ModuleEntityTypeResolver,
 ): readonly NavigationItem[] {
   const byId = new Map<string, RegisteredRoute>();
   for (const route of routes) {
@@ -116,6 +133,7 @@ export function buildNavigationModel(
       // rather than emit a broken link.
       return;
     }
+    const entityType = resolveEntityType?.(route.moduleId);
     const item: NavigationItem = {
       id: route.id,
       moduleId: route.moduleId,
@@ -125,6 +143,7 @@ export function buildNavigationModel(
       ...(route.meta?.navGroup === undefined
         ? {}
         : { group: route.meta.navGroup }),
+      ...(entityType === undefined ? {} : { entityType }),
     };
     items.push({ item, listIndex });
   });

@@ -14,6 +14,7 @@ const NAVIGATION: readonly NavigationItem[] = [
     label: "Areas",
     href: "/areas",
     order: 10,
+    entityType: "area",
   },
   {
     id: "goals.index",
@@ -21,6 +22,7 @@ const NAVIGATION: readonly NavigationItem[] = [
     label: "Goals",
     href: "/goals",
     order: 20,
+    entityType: "goal",
   },
   {
     id: "projects.index",
@@ -28,6 +30,7 @@ const NAVIGATION: readonly NavigationItem[] = [
     label: "Projects",
     href: "/projects",
     order: 30,
+    entityType: "project",
   },
   {
     id: "tasks.index",
@@ -35,18 +38,24 @@ const NAVIGATION: readonly NavigationItem[] = [
     label: "Tasks",
     href: "/tasks",
     order: 40,
+    entityType: "task",
   },
 ];
 
 function renderShell(initialPath = "/") {
   const Placeholder = () => (
-    <ModulePlaceholder name="Areas" summary="Permanent domains of life." />
+    <ModulePlaceholder
+      name="Areas"
+      entityType="area"
+      summary="Permanent domains of life."
+    />
   );
   const Stub = createRoutesStub([
     {
       path: "/",
       Component: () => (
         <AppShell
+          workspaceName="DalyHub"
           email="owner@example.com"
           theme="system"
           navigation={NAVIGATION}
@@ -63,8 +72,8 @@ function renderShell(initialPath = "/") {
   return render(<Stub initialEntries={[initialPath]} />);
 }
 
-describe("AppShell accessibility & structure", () => {
-  it("uses banner, navigation and main landmarks", () => {
+describe("PX-02 AppShell — frame & landmarks", () => {
+  it("uses banner (sidebar brand), primary navigation and main landmarks", () => {
     renderShell();
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(
@@ -81,21 +90,21 @@ describe("AppShell accessibility & structure", () => {
     expect(skip).toHaveAttribute("href", "#main-content");
   });
 
-  it("shows the authenticated owner email and a logout link to Cloudflare Access", () => {
+  it("renders the workspace brand name", () => {
     renderShell();
-    expect(screen.getByText("owner@example.com")).toBeInTheDocument();
-    const logout = screen.getByRole("link", { name: /log out/i });
-    expect(logout).toHaveAttribute("href", ACCESS_LOGOUT_PATH);
-    expect(logout).toHaveAttribute("href", "/cdn-cgi/access/logout");
+    expect(
+      within(screen.getByRole("banner")).getByText("DalyHub"),
+    ).toBeInTheDocument();
   });
 
-  it("renders registry-driven navigation links with plain text labels", () => {
+  it("renders registry-driven navigation as icon + label rows", () => {
     renderShell();
     const nav = screen.getByRole("navigation", { name: "Primary" });
     for (const label of ["Areas", "Goals", "Projects", "Tasks"]) {
-      expect(
-        within(nav).getByRole("link", { name: label }),
-      ).toBeInTheDocument();
+      const link = within(nav).getByRole("link", { name: label });
+      expect(link).toBeInTheDocument();
+      // Icon + label: the row carries an inline SVG glyph alongside the label.
+      expect(link.querySelector("svg")).not.toBeNull();
     }
   });
 
@@ -108,34 +117,25 @@ describe("AppShell accessibility & structure", () => {
     );
   });
 
-  it("exposes the mobile navigation toggle with an accessible name and expanded state", () => {
+  it("offers Search and Command Palette entries in the sidebar", () => {
     renderShell();
-    const toggle = screen.getByRole("button", { name: "Menu" });
-    expect(toggle).toHaveAttribute("aria-controls", "primary-navigation");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /command palette/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("exposes a mobile navigation toggle with accessible name and expanded state", () => {
+    renderShell();
+    const toggle = screen.getByRole("button", { name: /open navigation/i });
+    expect(toggle).toHaveAttribute(
+      "aria-controls",
+      "primary-navigation-mobile",
+    );
     expect(toggle).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("offers a theme control with an accessible group and pressed state", () => {
-    renderShell();
-    for (const label of ["System", "Light", "Dark"]) {
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
-    }
-    // `system` is the active preference here.
-    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-  });
-
-  it("renders the routed module placeholder content inside the shell main", () => {
+  it("renders the routed module placeholder content inside the pane", () => {
     renderShell();
     const main = screen.getByRole("main");
     expect(
@@ -150,7 +150,57 @@ describe("AppShell accessibility & structure", () => {
       ...screen.getAllByRole("button"),
       ...screen.getAllByRole("link"),
     ]) {
-      expect(control.textContent?.trim().length ?? 0).toBeGreaterThan(0);
+      const name =
+        control.getAttribute("aria-label") ?? control.textContent ?? "";
+      expect(name.trim().length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("PX-02 AppShell — user menu relocation", () => {
+  it("keeps identity, theme and sign-out behind the user menu (not in the header)", () => {
+    renderShell();
+    // The email/theme/logout are NOT in permanent chrome — hidden until opened.
+    expect(screen.queryByText("owner@example.com")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /sign out/i }),
+    ).not.toBeInTheDocument();
+
+    const trigger = screen.getByRole("button", {
+      name: /account|owner|dalyhub/i,
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("opens the user menu to reveal email, theme, settings and sign out", () => {
+    renderShell();
+    const trigger = screen.getByRole("button", { name: /owner|account/i });
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("owner@example.com")).toBeInTheDocument();
+
+    // Theme control relocated here (reused unchanged).
+    for (const label of ["System", "Light", "Dark"]) {
+      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
+    const signOut = screen.getByRole("link", { name: /sign out/i });
+    expect(signOut).toHaveAttribute("href", ACCESS_LOGOUT_PATH);
+    expect(signOut).toHaveAttribute("href", "/cdn-cgi/access/logout");
+  });
+
+  it("closes the user menu on Escape", () => {
+    renderShell();
+    const trigger = screen.getByRole("button", { name: /owner|account/i });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 });

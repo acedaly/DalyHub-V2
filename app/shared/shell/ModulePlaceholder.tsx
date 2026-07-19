@@ -1,35 +1,42 @@
 /**
- * FND-09 module route placeholder.
+ * PX-02 module route placeholder.
  *
- * A calm, restrained placeholder rendered inside the authenticated app shell for
- * each of the four spine modules (Areas, Goals, Projects, Tasks). Its ONLY job is
- * to prove the manifest → registry → route configuration → navigation → route
- * module flow end to end. It deliberately builds none of the product experience
- * (no collections, reads, forms, boards, cards or filters) — each module's real
- * functionality arrives in its own roadmap phase, not FND-09.
- *
- * Presentational and dependency-free so it can be unit tested without the Workers
- * runtime, and visually plain: the design system (DS-01) owns the real visual
- * language.
+ * A calm placeholder rendered inside the application pane for each spine module
+ * (Areas, Goals, Projects, Tasks). It now composes the PX-02 Pane Header — with the
+ * module's entity-identity glyph — so the frame (sidebar + pane + pane header + entity
+ * identity) is demonstrated end to end while each module's real experience is still
+ * a later roadmap item. It builds none of the product experience (no collections,
+ * reads, forms, boards, cards or filters).
  */
+
+import type { EntityType } from "~/shared/entity";
+
+import { PaneHeader } from "./PaneHeader";
 
 export type ModulePlaceholderProps = {
   /** The module's display name (the user's noun, e.g. "Areas"). */
   readonly name: string;
   /** One sentence describing the module's future role. */
   readonly summary: string;
+  /** Optional entity type, to show the module's identity glyph in the header. */
+  readonly entityType?: EntityType;
 };
 
-export function ModulePlaceholder({ name, summary }: ModulePlaceholderProps) {
+export function ModulePlaceholder({
+  name,
+  summary,
+  entityType,
+}: ModulePlaceholderProps) {
   return (
-    <article className="module-placeholder">
-      <h1>{name}</h1>
-      <p className="lead">{summary}</p>
-      <p className="muted">
-        This is a routing placeholder. The {name} experience is built in its own
-        roadmap phase — FND-09 establishes the shell, routing and navigation
-        that will host it.
-      </p>
-    </article>
+    <div className="dh-module-placeholder">
+      <PaneHeader title={name} entityType={entityType} subtitle={summary} />
+      <div className="dh-pane-body">
+        <p className="muted">
+          This is a routing placeholder. The {name} experience is built in its
+          own roadmap phase — PX-02 establishes the application frame (sidebar,
+          pane, pane header and entity identity) that will host it.
+        </p>
+      </div>
+    </div>
   );
 }

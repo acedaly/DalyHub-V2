@@ -17,6 +17,7 @@ export default function AreasRoute() {
   return (
     <ModulePlaceholder
       name="Areas"
+      entityType="area"
       summary="Areas are the permanent domains of your life — the top of the spine."
     />
   );

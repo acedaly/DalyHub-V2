@@ -12,22 +12,21 @@ const MODULE_PAGES = [
   { label: "Tasks", path: "/tasks" },
 ];
 
-test.describe("FND-09 authenticated app shell (development auth)", () => {
+test.describe("PX-02 authenticated app frame (development auth)", () => {
   test("signs in, navigates every module, switches theme and persists it", async ({
     page,
   }) => {
     await page.goto("/");
 
-    // The shell appears with the authenticated development identity.
+    // The sidebar frame appears with the workspace brand (the banner landmark).
     const banner = page.getByRole("banner");
     await expect(banner).toBeVisible();
+    await expect(banner.getByText("DalyHub")).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 1, name: "DalyHub" }),
+      page.getByRole("heading", { level: 1, name: "Home" }),
     ).toBeVisible();
-    // The authenticated identity appears in the shell header.
-    await expect(banner.getByText("owner@example.invalid")).toBeVisible();
 
-    // Registry-driven navigation reaches every module placeholder.
+    // Registry-driven sidebar navigation reaches every module placeholder.
     const nav = page.getByRole("navigation", { name: "Primary" });
     for (const { label, path } of MODULE_PAGES) {
       await nav.getByRole("link", { name: label }).click();
@@ -37,14 +36,21 @@ test.describe("FND-09 authenticated app shell (development auth)", () => {
       ).toBeVisible();
     }
 
-    // Theme switch persists across a full reload (cookie-backed SSR).
+    // Identity, theme and sign-out now live behind the user menu, not the header.
+    await expect(page.getByText("owner@example.invalid")).toBeHidden();
+    const userMenu = page.getByRole("button", { name: /owner/i });
+    await userMenu.click();
+    await expect(page.getByText("owner@example.invalid")).toBeVisible();
+
+    // Theme switch (relocated into the user menu) persists across a full reload.
     await page.getByRole("button", { name: "Dark" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-    // Logout is an ordinary link to the Cloudflare-managed endpoint.
-    await expect(page.getByRole("link", { name: /log out/i })).toHaveAttribute(
+    // Sign out is an ordinary link to the Cloudflare-managed endpoint.
+    await page.getByRole("button", { name: /owner/i }).click();
+    await expect(page.getByRole("link", { name: /sign out/i })).toHaveAttribute(
       "href",
       "/cdn-cgi/access/logout",
     );

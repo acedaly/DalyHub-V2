@@ -1,31 +1,39 @@
 /**
- * FND-09 application shell.
+ * PX-02 application frame.
  *
- * A restrained, responsive, semantic frame: a skip link, a header carrying the
- * application identity, registry-driven primary navigation, the theme control and
- * the authenticated-user summary, and a main content region (AGENTS.md §6, §15).
- * It is keyboard-complete, exposes the mobile navigation toggle's expanded state,
- * and conveys active navigation semantically. It adds no UI framework and no icon
- * library — text labels only until DS-01.
+ * The premium application shell that replaces FND-09's website-like top bar
+ * (PRODUCT_EXPERIENCE #1, #2): a persistent left sidebar owning identity and
+ * navigation, and a full-height content pane with its own scroll. Layout is
+ * `grid-template-columns: var(--dh-shell-nav-width) 1fr` — the sidebar width token
+ * DS-01 already defined and nothing consumed until now.
  *
- * The shell consumes only plain data (email, theme, the derived navigation model)
- * and renders `children` (the route `Outlet`), so it never imports a module route
- * component and stays testable with arbitrary content.
+ * - Desktop/laptop/tablet: the sidebar is a persistent rail; the pane scrolls
+ *   independently so Pane Headers and filter bars can pin (PRODUCT_EXPERIENCE #11).
+ * - Mobile: the rail is hidden; a slim bar exposes a menu toggle that opens the
+ *   sidebar as an animated, focus-trapped overlay sheet (see MobileNav). No content
+ *   jumps — the sheet is viewport-fixed.
+ *
+ * It stays keyboard-complete with a preserved skip link and correct landmarks: the
+ * sidebar brand is the `banner`, primary navigation is a labelled `navigation`, and
+ * the pane is the `main` region. The shell consumes only plain data and renders
+ * `children` (the route Outlet), so it never imports a module route component.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
-import { PrimaryNavigation } from "./PrimaryNavigation";
-import { ThemeControl } from "./ThemeControl";
-import { UserMenu } from "./UserMenu";
+import { MobileNav } from "./MobileNav";
+import { MenuIcon } from "~/shared/icons";
+import { Sidebar } from "./Sidebar";
 import type { ThemePreference } from "./theme";
 
-/** The id the mobile navigation toggle controls. */
-const PRIMARY_NAV_ID = "primary-navigation";
+/** The DOM id of the persistent rail's primary navigation. */
+const RAIL_NAV_ID = "primary-navigation";
 
 export type AppShellProps = {
+  /** The current workspace's display name (server-derived, safe text). */
+  readonly workspaceName?: string;
   /** The authenticated owner's verified email (safe display identity). */
   readonly email: string;
   /** The derived, registry-driven navigation model. */
@@ -37,44 +45,63 @@ export type AppShellProps = {
 };
 
 export function AppShell({
+  workspaceName = "DalyHub",
   email,
   navigation,
   theme,
   children,
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className="app-shell">
+    <div className="dh-app">
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
-      <header className="app-header">
-        <div className="app-brand">
+
+      <Sidebar
+        workspaceName={workspaceName}
+        email={email}
+        theme={theme}
+        navigation={navigation}
+        navId={RAIL_NAV_ID}
+        variant="rail"
+      />
+
+      <div className="dh-main-col">
+        <div className="dh-mobilebar">
           <button
             type="button"
-            className="nav-toggle"
+            className="dh-mobilebar__toggle"
+            ref={toggleRef}
             aria-expanded={navOpen}
-            aria-controls={PRIMARY_NAV_ID}
-            onClick={() => setNavOpen((open) => !open)}
+            aria-controls="primary-navigation-mobile"
+            onClick={() => setNavOpen(true)}
           >
-            Menu
+            <span className="dh-mobilebar__toggle-icon" aria-hidden="true">
+              <MenuIcon />
+            </span>
+            <span className="dh-visually-hidden">Open navigation</span>
           </button>
-          <span className="app-title">DalyHub</span>
+          <span className="dh-mobilebar__brand">{workspaceName}</span>
         </div>
-        <PrimaryNavigation
-          id={PRIMARY_NAV_ID}
-          items={navigation}
-          open={navOpen}
+
+        <main id="main-content" className="dh-pane" tabIndex={-1}>
+          {children}
+        </main>
+      </div>
+
+      {navOpen ? (
+        <MobileNav
+          workspaceName={workspaceName}
+          email={email}
+          theme={theme}
+          navigation={navigation}
+          opener={toggleRef.current}
+          onClose={() => setNavOpen(false)}
         />
-        <div className="app-tools">
-          <ThemeControl current={theme} />
-          <UserMenu email={email} />
-        </div>
-      </header>
-      <main id="main-content" className="app-main" tabIndex={-1}>
-        {children}
-      </main>
+      ) : null}
     </div>
   );
 }

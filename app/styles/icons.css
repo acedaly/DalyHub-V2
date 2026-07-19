@@ -1,0 +1,37 @@
+/*
+ * PX-02 — icon + entity-identity styling (design tokens only).
+ *
+ * `.dh-icon` is the shared outline-icon primitive; `.dh-entity-icon` renders an
+ * entity type's glyph in its accent, optionally inside a calm tinted badge. Accents
+ * are used at identity sites only (PRODUCT_EXPERIENCE Part III §5); the badge tint is
+ * derived from the accent via `color-mix`, so no separate surface token is needed.
+ */
+
+.dh-icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
+.dh-entity-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  line-height: 0;
+}
+
+/* Badge: the glyph on a subtle accent-tinted, accent-bordered square. */
+.dh-entity-icon--badge {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: var(--dh-radius-sm);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border: var(--dh-border-width-thin) solid
+    color-mix(in srgb, currentColor 26%, transparent);
+}
+
+.dh-entity-icon--badge .dh-icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+}

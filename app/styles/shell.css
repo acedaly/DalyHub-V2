@@ -1,18 +1,29 @@
 /*
- * DS-01 — the authenticated application shell, restyled onto design tokens.
+ * PX-02 — the application frame (sidebar + pane), in design tokens only.
  *
- * This replaces FND-09's provisional shell CSS. The MARKUP and behaviour are
- * unchanged (skip link, header, registry-driven nav, theme control, user menu,
- * responsive collapse); only the visual language is now the DS-01 token system.
- * Active navigation is still conveyed semantically (aria-current) and reinforced
- * — never carried by colour alone.
+ * Replaces FND-09/DS-01's website-like top-bar shell with a premium application
+ * silhouette: a persistent left sidebar (`--dh-shell-nav-width`) owning identity and
+ * navigation, and a full-height content pane with its own scroll so Pane Headers and
+ * filter bars can pin (PRODUCT_EXPERIENCE #1, #2, #11). On mobile the rail collapses
+ * to an animated overlay sheet (MobileNav). Active navigation is conveyed
+ * semantically (aria-current) and reinforced with weight + a tint — never colour
+ * alone (AGENTS.md §15).
  */
 
-.app-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+/* -------------------------------------------------------------------------- */
+/* Frame grid                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/* The document is the scroll container (a STICKY sidebar, not an internal pane
+ * scroll), so the DS-03 Drawer's body-scroll lock and ScrollRestoration — which act
+ * on the window/document — keep working unchanged, while sticky pane/collection
+ * headers still pin to the viewport. */
+.dh-app {
+  display: grid;
+  grid-template-columns: var(--dh-shell-nav-width) 1fr;
+  min-height: 100dvh;
   background: var(--dh-color-bg);
+  color: var(--dh-color-text);
 }
 
 /* Skip link: off-screen until focused, then visible and in normal flow. */
@@ -20,7 +31,7 @@
   position: absolute;
   left: var(--dh-space-2);
   top: -3rem;
-  z-index: var(--dh-z-sticky);
+  z-index: var(--dh-z-modal);
   padding: var(--dh-space-2) var(--dh-space-3);
   background: var(--dh-color-accent);
   color: var(--dh-color-on-accent);
@@ -33,165 +44,533 @@
   top: var(--dh-space-2);
 }
 
-.app-header {
+/* -------------------------------------------------------------------------- */
+/* Sidebar                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-sidebar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-3) var(--dh-space-4);
-  padding: var(--dh-space-3) var(--dh-gutter);
-  min-height: var(--dh-shell-header-height);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-border);
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-4) var(--dh-space-3);
   background: var(--dh-color-surface);
+  border-right: var(--dh-border-width-thin) solid var(--dh-color-border);
+  min-width: 0;
 }
 
-.app-brand {
+.dh-sidebar--rail {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+.dh-sidebar__brand {
   display: flex;
   align-items: center;
   gap: var(--dh-space-2);
+  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-3);
 }
 
-.app-title {
+.dh-sidebar__brand-mark {
+  display: inline-flex;
+  color: var(--dh-color-accent);
+  font-size: var(--dh-font-size-2xl);
+  line-height: 0;
+}
+
+.dh-sidebar__brand-name {
   font-weight: var(--dh-font-weight-bold);
   font-size: var(--dh-font-size-lg);
   letter-spacing: var(--dh-letter-spacing-tight);
 }
 
-.app-tools {
+/* Search + Command entries. */
+.dh-sidebar__search {
   display: flex;
-  align-items: center;
-  gap: var(--dh-space-3) var(--dh-space-4);
-  margin-left: auto;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--dh-space-1);
 }
 
-.primary-nav ul {
-  list-style: none;
+.dh-sidebar__search-entry {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-1) var(--dh-space-3);
-  margin: 0;
-  padding: 0;
-}
-
-.nav-link {
-  display: inline-flex;
   align-items: center;
+  gap: var(--dh-space-2);
+  width: 100%;
   min-height: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-3);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-sm);
-  text-decoration: none;
-  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text-secondary);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  text-align: left;
+  cursor: pointer;
   transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 
-.nav-link:hover {
+.dh-sidebar__search-entry:hover {
   background: var(--dh-color-hover-surface);
 }
 
-/* Active nav is conveyed by aria-current (semantic), reinforced visually with a
- * weight change AND an underline bar — not colour alone. */
-.nav-link--active,
-.nav-link[aria-current="page"] {
-  font-weight: var(--dh-font-weight-semibold);
-  box-shadow: inset 0 -2px 0 0 var(--dh-color-accent);
+.dh-sidebar__search-icon {
+  display: inline-flex;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-md);
 }
 
-.nav-toggle {
-  display: none;
-  min-height: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
-  font: inherit;
-  cursor: pointer;
+.dh-sidebar__search-label {
+  flex: 1;
 }
 
-.theme-control .theme-fieldset {
+.dh-sidebar__search-hint {
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-2xs);
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface-sunken);
+  padding: 0 var(--dh-space-1);
+  border-radius: var(--dh-radius-xs);
+}
+
+/* Primary navigation. */
+.dh-nav {
+  margin-top: var(--dh-space-2);
+}
+
+.dh-nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+}
+
+.dh-nav__link {
   display: flex;
   align-items: center;
+  gap: var(--dh-space-3);
+  min-height: var(--dh-control-height-md);
+  padding: var(--dh-space-2) var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+  text-decoration: none;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-nav__link:hover {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+/* Active nav: aria-current (semantic) + weight + accent-surface tint — never
+ * colour alone. */
+.dh-nav__link--active,
+.dh-nav__link[aria-current="page"] {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-nav__icon {
+  display: inline-flex;
+  font-size: var(--dh-font-size-lg);
+  line-height: 0;
+}
+
+.dh-nav__icon-dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: var(--dh-radius-full);
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.dh-nav__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-sidebar__spacer {
+  flex: 1;
+  min-height: var(--dh-space-4);
+}
+
+/* -------------------------------------------------------------------------- */
+/* User menu                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-user-menu {
+  position: relative;
+}
+
+.dh-user-menu__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  width: 100%;
+  min-height: var(--dh-control-height-lg);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid transparent;
+  border-radius: var(--dh-radius-sm);
+  background: transparent;
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-user-menu__trigger:hover,
+.dh-user-menu__trigger[aria-expanded="true"] {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-user-menu__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  flex: none;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-user-menu__trigger-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.dh-user-menu__chevron {
+  display: inline-flex;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-md);
+}
+
+.dh-user-menu__panel {
+  position: absolute;
+  bottom: calc(100% + var(--dh-space-2));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--dh-space-2);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-shadow-lg);
+  z-index: var(--dh-z-dropdown);
+}
+
+.dh-user-menu__identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+  padding: var(--dh-space-2);
+}
+
+.dh-user-menu__name {
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-user-menu__email {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-user-menu__section {
+  padding: var(--dh-space-2);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-user-menu__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+}
+
+.dh-user-menu__link {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-control-height-md);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+  text-decoration: none;
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-user-menu__link:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-user-menu__link-icon {
+  display: inline-flex;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-md);
+}
+
+/* The relocated theme control (reused unchanged; only its placement changed). */
+.dh-user-menu__section .theme-control .theme-fieldset {
+  display: flex;
+  align-items: stretch;
   gap: var(--dh-space-1);
   border: none;
   margin: 0;
   padding: 0;
+  width: 100%;
 }
 
-.theme-control legend {
-  font-size: var(--dh-font-size-xs);
+.dh-user-menu__section .theme-control legend {
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
   color: var(--dh-color-text-muted);
-  padding: 0;
-  margin-right: var(--dh-space-1);
+  padding: 0 0 var(--dh-space-1);
 }
 
-.theme-option {
-  min-height: var(--dh-control-height-sm);
+.dh-user-menu__section .theme-option {
+  flex: 1;
+  min-height: var(--dh-control-height-md);
   padding: var(--dh-space-1) var(--dh-space-2);
   border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--dh-radius-sm);
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--dh-font-size-xs);
   cursor: pointer;
   transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 
-.theme-option:hover {
+.dh-user-menu__section .theme-option:hover {
   background: var(--dh-color-hover-surface);
 }
 
-.theme-option[aria-pressed="true"] {
+.dh-user-menu__section .theme-option[aria-pressed="true"] {
   font-weight: var(--dh-font-weight-semibold);
   border-color: var(--dh-color-accent);
   box-shadow: inset 0 0 0 1px var(--dh-color-accent);
 }
 
-.user-menu {
+/* -------------------------------------------------------------------------- */
+/* Main column & pane                                                          */
+/* -------------------------------------------------------------------------- */
+
+.dh-main-col {
   display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The workspace pane: full-width, left-aligned. No max-width here — width
+ * constraints live in content types (PRODUCT_EXPERIENCE #2). The document scrolls;
+ * sticky headers pin to the viewport. */
+.dh-pane {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A padded body for document-shaped pages (home, placeholders, Settings). */
+.dh-pane-body {
+  padding: var(--dh-space-6) var(--dh-gutter);
+}
+
+/* The mobile bar (menu toggle + brand). Hidden on desktop. */
+.dh-mobilebar {
+  display: none;
   align-items: center;
   gap: var(--dh-space-2);
+  min-height: var(--dh-shell-header-height);
+  padding: var(--dh-space-2) var(--dh-gutter);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+}
+
+.dh-mobilebar__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--dh-touch-target-min);
+  min-block-size: var(--dh-touch-target-min);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-lg);
+  cursor: pointer;
+}
+
+.dh-mobilebar__brand {
+  font-weight: var(--dh-font-weight-bold);
+  font-size: var(--dh-font-size-md);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pane header                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/* The pane header is a structural header; stickiness is applied by the collection
+ * sticky wrapper (collection-layout.css) so the header and filter bar pin together.
+ * Standalone document pages use it non-sticky. */
+.dh-pane-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--dh-space-3) var(--dh-space-4);
+  padding: var(--dh-space-4) var(--dh-gutter);
+  background: var(--dh-color-bg);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-pane-header__lead {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-pane-header__titles {
+  min-width: 0;
+}
+
+.dh-pane-header__title {
+  margin: 0;
+  font-size: var(--dh-font-size-2xl);
+  line-height: var(--dh-line-height-tight);
+  letter-spacing: var(--dh-letter-spacing-tight);
+  overflow-wrap: anywhere;
+}
+
+.dh-pane-header__subtitle {
+  margin: var(--dh-space-1) 0 0;
   font-size: var(--dh-font-size-sm);
-}
-
-.user-email {
   color: var(--dh-color-text-muted);
-  max-width: 16rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.logout-link {
-  color: var(--dh-color-accent-text);
+.dh-pane-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2) var(--dh-space-3);
 }
 
-.app-main {
-  flex: 1;
-  padding: clamp(var(--dh-space-6), 5vw, var(--dh-space-12)) var(--dh-gutter);
-  max-width: var(--dh-width-content);
-  margin-inline: auto;
-  width: 100%;
+.dh-pane-header__views {
+  display: flex;
+  align-items: center;
 }
 
-/* Narrow viewports: collapse navigation behind the toggle. The header wraps, so
- * the page never scrolls horizontally, even at 320px. */
-@media (max-width: 40rem) {
-  .nav-toggle {
-    display: inline-flex;
-    align-items: center;
+/* -------------------------------------------------------------------------- */
+/* Mobile navigation overlay                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-mobilenav {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dh-z-drawer);
+}
+
+.dh-mobilenav__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--dh-color-overlay);
+  animation: dh-mobilenav-scrim var(--dh-duration-base) var(--dh-ease-standard);
+}
+
+.dh-mobilenav__panel {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: min(20rem, 86vw);
+  max-inline-size: 100%;
+  background: var(--dh-color-surface);
+  border-right: var(--dh-border-width-thin) solid var(--dh-color-border);
+  box-shadow: var(--dh-shadow-lg);
+  overflow-y: auto;
+  padding-block-end: env(safe-area-inset-bottom);
+  padding-inline-start: env(safe-area-inset-left);
+  animation: dh-mobilenav-slide var(--dh-duration-base)
+    var(--dh-ease-emphasized);
+}
+
+/* The overlay's sidebar fills the sheet and drops the desktop border. */
+.dh-mobilenav__panel .dh-sidebar--overlay {
+  height: 100%;
+  border-right: none;
+  background: transparent;
+}
+
+.dh-sidebar__close {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--dh-touch-target-min);
+  min-block-size: var(--dh-touch-target-min);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-lg);
+  cursor: pointer;
+}
+
+/* The persistent rail never shows the close control. */
+.dh-sidebar--rail .dh-sidebar__close {
+  display: none;
+}
+
+@keyframes dh-mobilenav-scrim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dh-mobilenav-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive: collapse the rail into the mobile overlay below `md`.           */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  .dh-app {
+    grid-template-columns: 1fr;
   }
 
-  .primary-nav {
-    flex-basis: 100%;
-    order: 3;
-  }
-
-  .primary-nav[data-open="false"] {
+  .dh-sidebar--rail {
     display: none;
   }
 
-  .primary-nav ul {
-    flex-direction: column;
+  .dh-mobilebar {
+    display: flex;
   }
 }
