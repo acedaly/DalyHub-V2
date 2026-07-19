@@ -99,12 +99,21 @@ export function useActivityWindow(
       }
     });
     observerRef.current = observer;
-    const elementByKey = elementByKeyRef.current;
+    // Callback refs run during commit — BEFORE this passive effect — so rows that
+    // mounted before the observer existed are already in `elementByKeyRef` but not
+    // yet observed. Register every currently-held element now (and whenever the
+    // observer is recreated, e.g. virtualisation toggles on).
+    for (const [key, element] of elementByKeyRef.current) {
+      observer.observe(element);
+      observed.set(element, key);
+    }
     return () => {
       observer.disconnect();
       observerRef.current = null;
+      // Drop only the observer's element→key bookkeeping. `elementByKeyRef` is
+      // kept in sync by the ref callbacks (null clears an entry), so it still
+      // reflects the mounted rows and a recreated observer can re-register them.
       observed.clear();
-      elementByKey.clear();
     };
   }, [enabled, recordHeight]);
 

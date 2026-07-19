@@ -184,7 +184,8 @@ pass it straight back into the same listing.
 - Order is **newest-first by `(occurredAt, id)`**, ties broken by descending `id`
   (matching the kernel). The stream re-applies this total order after merging pages,
   so ordering is deterministic even for equal timestamps.
-- Grouping is by **UTC calendar day**; day headings are accessible sticky separators.
+- Grouping is by **UTC calendar day**; day headings are real, sticky `h2`/`h3`/`h4`
+  headings kept in the accessibility tree (correct outline, labelled day group).
 - All date/time text flows through ONE `ActivityDateFormatter`
   (`createActivityDateFormatter({ now? })`), which formats **manually against UTC
   getters** (not `Intl`) so server and client render identical text — no hydration
@@ -208,7 +209,7 @@ rows (pass `virtualization="off"` to disable, e.g. in a small tab).
 ## Accessibility
 
 `role="feed"` with an accessible name and `aria-busy`; articles with
-`aria-posinset`/`aria-setsize`; accessible day separators; a logical heading
+`aria-posinset`/`aria-setsize`; accessible day-group headings; a logical heading
 hierarchy; semantic `<time>`; visible focus on keyboard-accessible entity links;
 a polite live-region announcement of newly-loaded events; non-colour event meaning;
 44px touch targets; correct behaviour at 320px and 200% zoom; reduced-motion

@@ -227,14 +227,24 @@ export interface ResolvedActivityDescriptor {
   readonly isKnown: boolean;
 }
 
-/** Resolve a type to its descriptor (or `null` → the fallback is used). */
+/**
+ * Resolve a type to its descriptor. Precedence (ADR-021 §21.4): a caller-supplied
+ * (module/custom) descriptor wins; otherwise the built-in
+ * `DEFAULT_ACTIVITY_DESCRIPTORS` for the seven kernel lifecycle types apply — so
+ * `entity.created` is known even when `descriptors` is omitted; otherwise the type
+ * is unknown and the safe generic fallback is used. `null` descriptor → fallback.
+ */
 export function resolveActivityDescriptor(
   descriptors: ActivityDescriptorMap | undefined,
   type: string,
 ): ResolvedActivityDescriptor {
-  const descriptor = descriptors?.[type];
-  if (descriptor) {
-    return { descriptor, isKnown: true };
+  const custom = descriptors?.[type];
+  if (custom) {
+    return { descriptor: custom, isKnown: true };
+  }
+  const builtIn = DEFAULT_ACTIVITY_DESCRIPTORS[type];
+  if (builtIn) {
+    return { descriptor: builtIn, isKnown: true };
   }
   return { descriptor: null, isKnown: false };
 }

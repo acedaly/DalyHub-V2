@@ -55,8 +55,10 @@ test.describe("DS-05 — desktop", () => {
     await gotoFixture(page);
     const timeline = page.getByTestId("af-timeline").getByRole("feed");
     await expect(timeline.getByRole("article").first()).toBeVisible();
-    // Day separators group the events.
-    await expect(timeline.getByRole("separator").first()).toBeVisible();
+    // Accessible day-group headings group the events.
+    await expect(
+      timeline.getByRole("heading", { level: 3 }).first(),
+    ).toBeVisible();
     // Semantic timestamps.
     await expect(timeline.locator("time[datetime]").first()).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);

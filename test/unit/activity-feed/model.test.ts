@@ -142,6 +142,51 @@ describe("unknown / newly-registered event types", () => {
   });
 });
 
+describe("built-in descriptor defaults (ADR-021 §21.4)", () => {
+  it("resolves a kernel lifecycle type as known WITHOUT supplying descriptors", () => {
+    const item = toActivityItem(record({ type: "entity.created" }), {
+      resolveEntity,
+    });
+    expect(item.isKnownType).toBe(true);
+    // Uses the built-in "created" lifecycle rendering.
+    expect(item.presentation.segments).toContainEqual({
+      kind: "text",
+      text: " created ",
+    });
+  });
+
+  it("lets a custom descriptor take precedence over the built-in default", () => {
+    const custom = createActivityDescriptorMap({
+      "entity.created": {
+        label: "Made",
+        describe: () => ({
+          segments: [{ kind: "emphasis", text: "custom-made" }],
+        }),
+      } as ActivityTypeDescriptor,
+    });
+    const item = toActivityItem(record({ type: "entity.created" }), {
+      descriptors: custom,
+      resolveEntity,
+    });
+    expect(item.isKnownType).toBe(true);
+    expect(item.presentation.segments).toContainEqual({
+      kind: "emphasis",
+      text: "custom-made",
+    });
+  });
+
+  it("keeps an unknown type unknown and safe (even with a partial custom map)", () => {
+    const custom = createActivityDescriptorMap({
+      "task.completed": { label: "Task completed" } as ActivityTypeDescriptor,
+    });
+    const item = toActivityItem(record({ type: "widget.frobnicated" }), {
+      descriptors: custom,
+      resolveEntity,
+    });
+    expect(item.isKnownType).toBe(false);
+  });
+});
+
 describe("summarizeActivityPayload — never dumps raw JSON", () => {
   it("keeps only primitive top-level entries, skips nested objects/arrays", () => {
     const out = summarizeActivityPayload({

@@ -26,6 +26,7 @@ import {
 } from "~/kernel/activity";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 import {
+  ActivityDayHeading,
   ActivityFeed,
   ActivityStream,
   Timeline,
@@ -156,8 +157,24 @@ describe("Timeline and Activity Feed are the same renderer", () => {
   });
 });
 
+describe("ActivityDayHeading — accessible day-group heading", () => {
+  it("renders a real heading at the requested level, in the a11y tree", () => {
+    const view = render(<ActivityDayHeading label="Today" level={2} />);
+    const heading = view.getByRole("heading", { level: 2, name: "Today" });
+    expect(heading).toBeInTheDocument();
+    expect(heading).not.toHaveAttribute("aria-hidden");
+    view.unmount();
+
+    render(<ActivityDayHeading label="19 July 2026" />);
+    // Defaults to level 3 and remains labelled by its date text.
+    expect(
+      screen.getByRole("heading", { level: 3, name: "19 July 2026" }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("accessible structure", () => {
-  it("exposes a labelled feed, day separators and semantic timestamps", async () => {
+  it("exposes a labelled feed, accessible day headings and semantic timestamps", async () => {
     renderStream({
       loadPage: pageLoaderFor([
         rec({ id: "a", occurredAt: new Date("2026-07-19T10:00:00Z") }),
@@ -168,9 +185,11 @@ describe("accessible structure", () => {
     const feed = await screen.findByRole("feed", { name: "Activity" });
     expect(feed).toBeInTheDocument();
 
-    // Two day separators, each with an accessible label.
-    const separators = within(feed).getAllByRole("separator");
-    expect(separators.length).toBe(2);
+    // Two day-group headings, in the accessibility tree at the default level 3,
+    // each carrying the readable date (single naming source, no aria-hidden).
+    const headings = within(feed).getAllByRole("heading", { level: 3 });
+    expect(headings.length).toBe(2);
+    expect(headings[0]).toHaveTextContent(/2026|Today|Yesterday|July/);
 
     // Semantic <time> with a machine datetime.
     const times = feed.querySelectorAll("time[datetime]");
