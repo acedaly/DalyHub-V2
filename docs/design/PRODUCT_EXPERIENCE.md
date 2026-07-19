@@ -318,6 +318,8 @@ Done today (3)                                     ← collapsed by default
 ```
 Rules: list presentation, reorder handles, section labels are labels not headers of new UIs; completing is optimistic + undo toast; no red except overdue tone on the date text (already a Card `dateLabel` tone).
 
+**Implementation note (2026-07-19 — TODAY-01).** TODAY-01 shipped as the calm, fixture-backed **Today dashboard** the owner's brief specifies — six vertical sections (Today's focus · Upcoming · Continue working · Recent notes · Daily timeline · Quick capture), each a labelled region with a quiet `xs`-muted label, composed inside the PX-02 `CollectionLayout` (Pane Header title "Today", subtitle = the date, one accent primary action "Quick capture") with cards opening the DS-03 Drawer. It composes only shared parts — this contract and every DS-01…04/07/PX-02 contract are unchanged. Two disclosed deviations from the sketch above: the reorderable/inline-completable **task execution list** is folded into the later TODAY items (TODAY-04/05) — TODAY-01 demonstrates completion optimistically on focus tasks; and command/search registration (Part IV §6) is deferred until a runtime seam gives a Today command a real `run` (TODAY-05 / DS-08/09), since TODAY-01 is fixture-only. See [`TODAY_DASHBOARD.md`](../development/TODAY_DASHBOARD.md).
+
 ### Projects (PROJ-01 collection) / Collection View (the generic shape)
 
 ```

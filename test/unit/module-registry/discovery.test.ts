@@ -82,19 +82,22 @@ describe("module discovery", () => {
     // Importing the real discovery module forces Vite (via vitest) to transform
     // the SAME `import.meta.glob("./*/module.ts")` the production build uses,
     // proving the mechanism works under the actual toolchain. FND-07 adds the
-    // four spine module manifests, so it now resolves to exactly those four —
-    // discovered automatically, with NO central module array to edit.
-    it("transforms the production glob and discovers the four spine modules", () => {
+    // four spine module manifests and TODAY-01 adds the Today view module, so it
+    // now resolves to exactly those five — discovered automatically, with NO
+    // central module array to edit.
+    it("transforms the production glob and discovers every module manifest", () => {
       expect(
         discoverModuleDefinitions()
           .map((d) => d.id)
           .sort(),
-      ).toEqual(["areas", "goals", "projects", "tasks"]);
+      ).toEqual(["areas", "goals", "projects", "tasks", "today"]);
     });
 
     it("assembles a valid registry with the spine capability metadata", () => {
       const registry = discoverModuleRegistry();
+      // Today (order 5) sorts ahead of the four spine modules (order 10–40).
       expect(registry.listModules().map((m) => m.id)).toEqual([
+        "today",
         "areas",
         "goals",
         "projects",
@@ -120,6 +123,7 @@ describe("module discovery", () => {
           .listRoutes()
           .map((r) => ({ id: r.id, moduleId: r.moduleId, file: r.file })),
       ).toEqual([
+        { id: "today.index", moduleId: "today", file: "routes/index.tsx" },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
         { id: "goals.index", moduleId: "goals", file: "routes/index.tsx" },
         {

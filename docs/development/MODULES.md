@@ -382,6 +382,15 @@ dynamic/third-party/remote module loading. Those arrive in later roadmap items.
 > placeholder route (`/areas`, `/goals`, `/projects`, `/tasks`); their product
 > functionality is still later work.
 
+> **Update (TODAY-01).** The first **product** module ships:
+> [`today`](TODAY_DASHBOARD.md) contributes one real route (`/today`) at the top of
+> the sidebar (`navOrder 5`) and renders the calm morning dashboard composed from
+> the PX-02 frame and DS-04/DS-07 — no placeholder. It is a **view** over the shared
+> model, so it declares **no** entity type (a module may not own an entity type
+> another module already owns); its nav row therefore uses the shell's documented
+> generic-glyph fallback. Command/search registration is deferred until a runtime
+> seam gives a Today command a real `run` (see [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md)).
+
 ---
 
 ## Related documents
