@@ -1,0 +1,212 @@
+/*
+ * TODAY-01 — the Today dashboard layout (design tokens only).
+ *
+ * Layout and rhythm ONLY — every visual value is a DS-01 `var(--dh-*)` token, and
+ * all real chrome (cards, empty state, pane header, drawer) comes from the shared
+ * components. No new colour, shadow or type treatment; no bespoke visual language
+ * (AGENTS.md §9.8, PRODUCT_EXPERIENCE Part IV §10). This file only spaces the six
+ * sections, the calm section labels, the day timeline and the quick-capture field,
+ * plus the two shared button treatments the surface needs (accent primary + a
+ * restrained secondary) until a shared Button/DS-06 form arrives.
+ */
+
+.dh-today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-8);
+  max-width: var(--dh-width-content);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sections + quiet labels                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-today__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+/* A quiet section label — xs, muted, medium weight (PRODUCT_EXPERIENCE Part V,
+ * "Today"). It is a heading for outline/AT, not a loud UI header. */
+.dh-today__section-label {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-snug);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-today__section-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-today__section-empty {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* A completed focus task reads as done without relying on colour alone. */
+.dh-today__task--done .dh-card__title-text {
+  text-decoration: line-through;
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Daily timeline — a simple chronological list (DS-05 will render the shared  */
+/* Activity Timeline later; this is the day's fixture schedule).               */
+/* -------------------------------------------------------------------------- */
+
+.dh-today__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dh-today__timeline-row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-2) 0;
+  border-left: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding-left: var(--dh-space-4);
+  position: relative;
+}
+
+/* A small marker on the timeline rail — decorative, meaning is in the text. */
+.dh-today__timeline-row::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--dh-border-width-thin) * -1 - 3px);
+  top: calc(var(--dh-space-2) + 0.4em);
+  width: 7px;
+  height: 7px;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-border-strong);
+}
+
+.dh-today__timeline-time {
+  font-size: var(--dh-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-today__timeline-label {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Quick capture                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-today__capture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+}
+
+.dh-today__capture-input {
+  width: 100%;
+  resize: vertical;
+  padding: var(--dh-space-3);
+  font: inherit;
+  font-size: var(--dh-font-size-md);
+  color: var(--dh-color-text);
+  background: var(--dh-color-bg);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-today__capture-input::placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-today__capture-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+}
+
+.dh-today__capture-hint {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-today__capture-notice {
+  margin: 0;
+  min-height: 1em;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared button treatments (tokens only) — one accent primary + a secondary.  */
+/* -------------------------------------------------------------------------- */
+
+.dh-today__primary,
+.dh-today__secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-4);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  border-radius: var(--dh-radius-md);
+  border: var(--dh-border-width-thin) solid transparent;
+  cursor: pointer;
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+/* Touch: keep the whole target comfortable (DESIGN_SYSTEM.md → touch targets). */
+@media (hover: none) {
+  .dh-today__primary,
+  .dh-today__secondary {
+    min-height: var(--dh-touch-target-min);
+  }
+}
+
+.dh-today__primary {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+}
+
+.dh-today__primary:hover {
+  background: var(--dh-color-accent-hover);
+}
+
+.dh-today__primary:active {
+  background: var(--dh-color-accent-active);
+}
+
+.dh-today__secondary {
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  border-color: var(--dh-color-border);
+}
+
+.dh-today__secondary:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-today__secondary:disabled {
+  background: var(--dh-color-disabled-surface);
+  color: var(--dh-color-disabled-text);
+  border-color: var(--dh-color-disabled-border);
+  cursor: not-allowed;
+}
