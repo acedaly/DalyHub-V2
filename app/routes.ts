@@ -31,8 +31,9 @@ const moduleRoutes = composeModuleRouteConfig(
   import.meta.glob("./modules/*/routes.manifest.ts", { eager: true }),
 );
 
-// DS-02/DS-03/DS-04/DS-07 ship development-only demonstration fixtures (the Record
-// Layout, the Shared Drawer, and the Shared Cards & Filters). They are added to the
+// DS-02/DS-03/DS-04/DS-05/DS-07 ship development-only demonstration fixtures (the
+// Record Layout, the Shared Drawer, the Shared Cards & Filters, and the Shared
+// Timeline & Activity Feed). They are added to the
 // route tree ONLY when NOT building for production, so they never reach a deployed
 // Worker (React Router's config runs in Node during `react-router build`, where
 // `NODE_ENV` is `production`). They are not modules and do not appear in
@@ -48,6 +49,7 @@ const devFixtureRoutes =
           "design/collection-layout",
           "routes/design-collection-layout.tsx",
         ),
+        route("design/activity-feed", "routes/design-activity-feed.tsx"),
       ];
 
 export default [

@@ -1,0 +1,268 @@
+/*
+ * DS-05 — the Shared Timeline & Activity Feed, expressed entirely in DS-01 tokens.
+ *
+ * Calm, dense and professional: a clear chronological flow with NO heavy card
+ * border around every event, sticky day headings, safe wrapping of long names and
+ * descriptions, and light/dark parity through the semantic token maps. No raw
+ * hex/px/duration where a token exists (AGENTS.md §9.8); meaning is never carried by
+ * colour alone (every event has a text description and a `<time>`). Motion is
+ * restrained and honours reduced-motion.
+ */
+
+.dh-activity {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+/* The bounded, virtualisable scroll region. */
+.dh-activity__viewport {
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.dh-activity__canvas {
+  position: relative;
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Day headings                                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-activity-day {
+  position: sticky;
+  top: 0;
+  z-index: var(--dh-z-raised);
+  padding: var(--dh-space-2) var(--dh-space-1);
+  background: var(--dh-color-bg);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-activity-day__label {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Event item                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.dh-activity-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  min-width: 0;
+  padding: var(--dh-space-3) var(--dh-space-1);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-activity-item:last-child {
+  border-bottom: none;
+}
+
+.dh-activity-item__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dh-space-6);
+  height: var(--dh-space-6);
+  margin-top: var(--dh-space-px);
+}
+
+.dh-activity-item__dot {
+  width: var(--dh-space-3);
+  height: var(--dh-space-3);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-border-strong);
+}
+
+.dh-activity-item__dot[data-tone="accent"] {
+  background: var(--dh-color-accent);
+}
+.dh-activity-item__dot[data-tone="success"] {
+  background: var(--dh-color-success);
+}
+.dh-activity-item__dot[data-tone="warning"] {
+  background: var(--dh-color-warning);
+}
+.dh-activity-item__dot[data-tone="danger"] {
+  background: var(--dh-color-danger);
+}
+.dh-activity-item__dot[data-tone="info"] {
+  background: var(--dh-color-info);
+}
+
+.dh-activity-item__body {
+  min-width: 0;
+}
+
+.dh-activity-item__description {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-normal);
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-activity-item__actor {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-activity-item__emphasis {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-activity-item__entity {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-activity-item__entity--link {
+  color: var(--dh-color-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  border-radius: var(--dh-radius-xs);
+}
+
+.dh-activity-item__entity--link:hover {
+  text-decoration-thickness: var(--dh-border-width-thick);
+}
+
+.dh-activity-item__entity--link:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: var(--dh-space-px);
+}
+
+.dh-activity-item__entity--unresolved {
+  color: var(--dh-color-text-muted);
+  font-style: italic;
+}
+
+.dh-activity-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1) var(--dh-space-3);
+  margin: var(--dh-space-2) 0 0;
+}
+
+.dh-activity-item__meta-entry {
+  display: inline-flex;
+  gap: var(--dh-space-1);
+  min-width: 0;
+  font-size: var(--dh-font-size-xs);
+}
+
+.dh-activity-item__meta-entry dt {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-activity-item__meta-entry dd {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-activity-item__time {
+  font-size: var(--dh-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-muted);
+  white-space: nowrap;
+}
+
+.dh-activity-item__unknown {
+  grid-column: 2 / -1;
+  justify-self: start;
+  margin-top: var(--dh-space-1);
+  padding: 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-radius: var(--dh-radius-full);
+  line-height: var(--dh-line-height-relaxed);
+}
+
+/* -------------------------------------------------------------------------- */
+/* States & footer                                                             */
+/* -------------------------------------------------------------------------- */
+
+.dh-activity__state {
+  padding: var(--dh-space-4) var(--dh-space-1);
+}
+
+.dh-activity__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-4) var(--dh-space-1);
+}
+
+.dh-activity__end {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-activity__loading-more {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-activity__error-text {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-danger-text);
+}
+
+.dh-activity__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-4);
+  font-family: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-md);
+  cursor: pointer;
+  transition: background var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-activity__btn:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-activity__btn:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: var(--dh-space-px);
+}
+
+.dh-activity__btn--load-more {
+  color: var(--dh-color-on-accent);
+  background: var(--dh-color-accent);
+  border-color: var(--dh-color-accent);
+}
+
+.dh-activity__btn--load-more:hover {
+  background: var(--dh-color-accent-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-activity__btn {
+    transition-duration: var(--dh-duration-instant);
+  }
+}

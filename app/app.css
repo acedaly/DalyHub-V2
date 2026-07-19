@@ -17,7 +17,8 @@
  *   9. drawer.css            — the DS-03 Shared Drawer.
  *  10. card.css              — the DS-04 Shared Card.
  *  11. filters.css           — the DS-07 Shared Filters.
- *  12. today.css             — the TODAY-01 Today dashboard layout (tokens only).
+ *  12. activity-feed.css      — the DS-05 Shared Timeline & Activity Feed.
+ *  13. today.css             — the TODAY-01 Today dashboard layout (tokens only).
  *
  * Theme mechanism (ADR-016 §5.11): the root layout sets `data-theme` on <html>
  * from the persisted cookie during SSR. `light`/`dark` force a scheme; `system`
@@ -37,4 +38,5 @@
 @import "./styles/drawer.css";
 @import "./styles/card.css";
 @import "./styles/filters.css";
+@import "./styles/activity-feed.css";
 @import "./styles/today.css";

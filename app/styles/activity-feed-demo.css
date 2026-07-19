@@ -1,0 +1,90 @@
+/*
+ * DS-05 — development-only styles for the Timeline & Activity Feed fixture route.
+ * Not shipped to production (the route is dev-only). Tokens only.
+ */
+
+.af-demo {
+  max-width: var(--dh-width-content);
+  margin: 0 auto;
+  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-16);
+  min-width: 0;
+}
+
+.af-demo__header {
+  margin-bottom: var(--dh-space-5);
+}
+
+.af-demo__header h1 {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-2xl);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+.af-demo__lead,
+.af-demo__note {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.af-demo__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-4);
+  margin: 0 0 var(--dh-space-6);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+}
+
+.af-demo__controls legend {
+  padding: 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+}
+
+.af-demo__controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.af-demo__section {
+  margin-top: var(--dh-space-8);
+}
+
+.af-demo__section h2 {
+  margin: 0 0 var(--dh-space-1);
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+.af-demo__note {
+  margin-bottom: var(--dh-space-3);
+}
+
+.af-demo__stream {
+  margin-top: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-bg);
+  padding: 0 var(--dh-space-3);
+}
+
+.af-demo__drawer-prose {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-relaxed);
+}
