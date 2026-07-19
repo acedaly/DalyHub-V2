@@ -11,10 +11,12 @@
  * persistence (ADR-016 §5.11). PX-02 only relocates the control; it changes no theme
  * behaviour or persistence.
  *
- * Interaction is an accessible disclosure: a trigger with `aria-expanded` /
- * `aria-haspopup` reveals a panel whose controls are all keyboard-reachable; Escape
- * closes and restores focus to the trigger; an outside click or choosing Settings /
- * Sign out closes it. It is not a modal, so it needs no focus trap.
+ * Interaction is an accessible disclosure (NOT a menu): a trigger with
+ * `aria-expanded` + `aria-controls` reveals a `role="group"` panel whose controls
+ * (the theme form and ordinary links) are all keyboard-reachable; Escape closes and
+ * restores focus to the trigger; an outside click or choosing Settings / Sign out
+ * closes it. It is not a modal, so it needs no focus trap. It deliberately does not
+ * declare `aria-haspopup="menu"`, whose menu keyboard model the panel does not use.
  */
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -58,16 +60,15 @@ export type UserMenuProps = {
   readonly theme: ThemePreference;
   /** Optional display name; derived from the email when absent. */
   readonly name?: string;
-  /** The Settings route href. */
+  /**
+   * The Settings route href. Omitted until Settings ships (SET-01): the menu never
+   * renders a Settings action that would dead-end on the 404 page (AGENTS.md §6 —
+   * no dead ends). SET-01 threads a real href through here to light it up.
+   */
   readonly settingsHref?: string;
 };
 
-export function UserMenu({
-  email,
-  theme,
-  name,
-  settingsHref = "/settings",
-}: UserMenuProps) {
+export function UserMenu({ email, theme, name, settingsHref }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -122,16 +123,18 @@ export function UserMenu({
             <ThemeControl current={theme} />
           </div>
           <div className="dh-user-menu__section dh-user-menu__links">
-            <a
-              className="dh-user-menu__link"
-              href={settingsHref}
-              onClick={() => setOpen(false)}
-            >
-              <span className="dh-user-menu__link-icon" aria-hidden="true">
-                <SettingsIcon />
-              </span>
-              Settings
-            </a>
+            {settingsHref ? (
+              <a
+                className="dh-user-menu__link"
+                href={settingsHref}
+                onClick={() => setOpen(false)}
+              >
+                <span className="dh-user-menu__link-icon" aria-hidden="true">
+                  <SettingsIcon />
+                </span>
+                Settings
+              </a>
+            ) : null}
             <a
               className="dh-user-menu__link"
               href={ACCESS_LOGOUT_PATH}
@@ -150,7 +153,6 @@ export function UserMenu({
         type="button"
         className="dh-user-menu__trigger"
         ref={triggerRef}
-        aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((value) => !value)}

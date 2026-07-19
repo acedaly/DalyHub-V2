@@ -172,7 +172,7 @@ describe("PX-02 AppShell — user menu relocation", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("opens the user menu to reveal email, theme, settings and sign out", () => {
+  it("opens the user menu to reveal email, theme and sign out", () => {
     renderShell();
     const trigger = screen.getByRole("button", { name: /owner|account/i });
     fireEvent.click(trigger);
@@ -189,10 +189,15 @@ describe("PX-02 AppShell — user menu relocation", () => {
       "true",
     );
 
-    expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
     const signOut = screen.getByRole("link", { name: /sign out/i });
     expect(signOut).toHaveAttribute("href", ACCESS_LOGOUT_PATH);
     expect(signOut).toHaveAttribute("href", "/cdn-cgi/access/logout");
+
+    // Settings is NOT wired yet (SET-01) — the frame never renders a dead link
+    // that would land on the 404 page (AGENTS.md §6 — no dead ends).
+    expect(
+      screen.queryByRole("link", { name: /settings/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("closes the user menu on Escape", () => {
