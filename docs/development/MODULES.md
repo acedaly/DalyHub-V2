@@ -390,6 +390,19 @@ sibling).
 
 ---
 
+## Consuming the shared interaction layer (DS-10)
+
+A module never renders its own toast or builds its own edit drawer. For feedback,
+call `useFeedback()` ([`~/shared/feedback`](../../app/shared/feedback)):
+`notifySuccess/notifyInfo/notifyWarning/notifyError`, `notifyUndo` (for any
+reversible action — apply optimistically, then offer Undo) and `runOperation` (for
+any long-running work — AI, imports, exports, sync). For record editing, mount the
+shared **Inspector** (`InspectorProvider` + `renderInspector`) instead of a bespoke
+drawer. Both are documented in [`FEEDBACK_AND_INSPECTOR.md`](FEEDBACK_AND_INSPECTOR.md).
+These are consumed through hooks/providers, not declared as manifest capabilities.
+
+---
+
 ## What FND-06 deliberately does NOT build
 
 The registry exposes the typed seams these will consume, but does not build them:

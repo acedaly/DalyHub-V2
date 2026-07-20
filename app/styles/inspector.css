@@ -1,0 +1,177 @@
+/*
+ * DS-10 Inspector — resizable docked side panel (desktop) / modal sheet (mobile).
+ *
+ * Token-only. Desktop: a non-modal right-anchored panel; the surrounding content
+ * reflows via padding so it is never covered. Mobile: a bottom sheet with a scrim,
+ * reusing the DS-03 modal machinery. Motion is short and disabled under
+ * reduced-motion.
+ */
+
+.dh-inspector-layout {
+  position: relative;
+}
+
+/* Docked: reserve space on the right so content reflows and is never covered. */
+@media (min-width: 48.0625rem) {
+  .dh-inspector-layout[data-inspector-open="true"][data-compact="false"] {
+    padding-right: var(--dh-inspector-width, 25rem);
+  }
+}
+
+.dh-inspector {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--dh-z-drawer);
+  display: flex;
+  flex-direction: column;
+  width: var(--dh-inspector-width, 25rem);
+  max-width: 100vw;
+  background: var(--dh-color-surface-raised);
+  border-left: var(--dh-border-width-thin) solid var(--dh-color-border);
+  box-shadow: var(--dh-shadow-lg);
+  animation: dh-inspector-in var(--dh-duration-base) var(--dh-ease-emphasized);
+}
+
+.dh-inspector__resize {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+}
+.dh-inspector__resize:hover,
+.dh-inspector__resize:focus-visible {
+  background: var(--dh-color-accent);
+  outline: none;
+}
+
+.dh-inspector__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-4);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-inspector__heading {
+  min-width: 0;
+}
+
+.dh-inspector__title {
+  margin: 0;
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.dh-inspector__description {
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-inspector__close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-touch-target-min);
+  min-height: var(--dh-touch-target-min);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+  flex: none;
+}
+.dh-inspector__close:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-inspector__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--dh-space-4);
+}
+
+.dh-inspector__footer {
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  background: var(--dh-color-surface);
+}
+
+.dh-inspector-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dh-z-overlay);
+  border: 0;
+  padding: 0;
+  background: var(--dh-color-overlay);
+  animation: dh-inspector-scrim-in var(--dh-duration-base)
+    var(--dh-ease-standard);
+  cursor: pointer;
+}
+
+/* Mobile: a bottom sheet, above the scrim, modal. */
+.dh-inspector[data-compact="true"] {
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 100%;
+  height: min(85vh, 40rem);
+  z-index: var(--dh-z-modal);
+  border-left: 0;
+  border-top-left-radius: var(--dh-radius-lg);
+  border-top-right-radius: var(--dh-radius-lg);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: dh-inspector-sheet-in var(--dh-duration-base)
+    var(--dh-ease-emphasized);
+}
+
+@keyframes dh-inspector-in {
+  from {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes dh-inspector-sheet-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes dh-inspector-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-inspector,
+  .dh-inspector-scrim {
+    animation: none;
+  }
+}

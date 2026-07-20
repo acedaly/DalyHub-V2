@@ -1,0 +1,244 @@
+/*
+ * DS-10 Feedback platform — notification centre & operations tray.
+ *
+ * Calm, unobtrusive, token-only. Anchored bottom-right on desktop and bottom
+ * full-width on mobile (safe-area aware) so it never covers primary UI. Tone is
+ * carried by an icon + text; the coloured left edge is reinforcement, never the
+ * sole signal. Motion is short and disabled under reduced-motion.
+ */
+
+/* Visually-hidden ARIA live regions (announce once; separate from the toasts). */
+.dh-feedback-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dh-feedback {
+  position: fixed;
+  z-index: var(--dh-z-toast);
+  right: var(--dh-space-4);
+  bottom: var(--dh-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  width: min(24rem, calc(100vw - 2 * var(--dh-space-4)));
+  max-height: calc(100vh - 2 * var(--dh-space-4));
+  overflow-y: auto;
+  /* The container is click-transparent between toasts; each toast opts back in. */
+  pointer-events: none;
+}
+
+.dh-feedback__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: auto;
+}
+
+.dh-feedback__dismiss-all {
+  pointer-events: auto;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-xs);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-feedback__dismiss-all:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-feedback__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-feedback__item-wrap {
+  margin: 0;
+}
+
+.dh-toast {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-3) var(--dh-space-3)
+    var(--dh-space-4);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-left: 3px solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-shadow-lg);
+  animation: dh-toast-in var(--dh-duration-base) var(--dh-ease-emphasized);
+}
+
+.dh-toast[data-kind="success"],
+.dh-toast[data-status="success"] {
+  border-left-color: var(--dh-color-success);
+}
+.dh-toast[data-kind="info"] {
+  border-left-color: var(--dh-color-info);
+}
+.dh-toast[data-kind="warning"] {
+  border-left-color: var(--dh-color-warning);
+}
+.dh-toast[data-kind="error"],
+.dh-toast[data-status="failure"] {
+  border-left-color: var(--dh-color-danger);
+}
+
+.dh-toast__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.dh-toast__icon[data-kind="success"],
+.dh-toast__icon[data-status="success"] {
+  color: var(--dh-color-success);
+}
+.dh-toast__icon[data-kind="info"] {
+  color: var(--dh-color-info);
+}
+.dh-toast__icon[data-kind="warning"] {
+  color: var(--dh-color-warning);
+}
+.dh-toast__icon[data-kind="error"],
+.dh-toast__icon[data-status="failure"] {
+  color: var(--dh-color-danger);
+}
+.dh-toast__icon[data-status="pending"],
+.dh-toast__icon[data-status="running"] {
+  color: var(--dh-color-accent);
+}
+
+.dh-toast__body {
+  min-width: 0;
+}
+
+.dh-toast__title {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.dh-toast__count {
+  margin-left: var(--dh-space-2);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-toast__message {
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  line-height: var(--dh-line-height-normal);
+  overflow-wrap: anywhere;
+}
+
+.dh-toast__status {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-toast__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+}
+
+.dh-toast__action {
+  appearance: none;
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  background: transparent;
+  color: var(--dh-color-accent-text);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dh-toast__action:hover {
+  background: var(--dh-color-hover-surface);
+  border-color: var(--dh-color-accent);
+}
+
+.dh-toast__close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-touch-target-min);
+  min-height: var(--dh-touch-target-min);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+.dh-toast__close:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-toast__spinner {
+  animation: dh-spin 900ms linear infinite;
+}
+
+@keyframes dh-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile: bottom full-width, safe-area aware, above content without covering it. */
+@media (max-width: 48rem) {
+  .dh-feedback {
+    right: var(--dh-space-3);
+    left: var(--dh-space-3);
+    bottom: calc(var(--dh-space-3) + env(safe-area-inset-bottom, 0px));
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-toast {
+    animation: none;
+  }
+  .dh-toast__spinner {
+    animation: none;
+  }
+}

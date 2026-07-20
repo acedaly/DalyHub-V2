@@ -30,7 +30,7 @@ DalyHub's **component layer is already premium-grade** — the token system, Dra
 |---|---:|---|
 | **Overall product experience** | **6 / 10** | Foundations ~9; the assembled shell/product surface ~4. A premium *product* needs the frame to match the components. |
 | **Consistency** | **9 / 10** | One token system, one card, one drawer, one filter language, enforced by tests and import boundaries. The 1-point gap: the shell itself (header nav, theme control) uses one-off patterns no other surface shares, and no icon/entity-identity system exists yet. |
-| **Accessibility** | **9 / 10** | WCAG 2.2 AA is engineered in, not bolted on: tested contrast in both themes, real focus management, inert backgrounds, reduced-motion, 44px touch targets, no colour-only state. Remaining: no live-region feedback system yet (DS-10), no `prefers-contrast` handling, and the mobile nav toggle has no focus containment. |
+| **Accessibility** | **9 / 10** | WCAG 2.2 AA is engineered in, not bolted on: tested contrast in both themes, real focus management, inert backgrounds, reduced-motion, 44px touch targets, no colour-only state, and (DS-10) a live-region feedback system announcing success/error/undo/background-operation results. Remaining: no `prefers-contrast` handling, and the mobile nav toggle's focus containment. |
 | **Information density** | **5 / 10** | The 15px dense type ramp, compact density mode and metadata patterns are *ready* for density, but no dense surface exists; meanwhile the shell spends vertical space (56px header + up-to-48px page padding) and centres content in a narrow column. Density is designed, not yet delivered. |
 | **Mobile readiness** | **6 / 10** | Components are exemplary at 320px (wrapping, touch targets, full-sheet drawer, safe-area insets). The shell is not: the collapsed nav is an unanimated `display:none` block that pushes content, there is no bottom navigation, and no swipe quick-actions (TODAY-06/DS-11 territory). |
 
@@ -118,10 +118,11 @@ Legend — **Difficulty:** S (hours) / M (days) / L (its own roadmap item). **Wh
 - **What.** Reserve now, in this contract (see Part IV): `⌘K` palette · `/` focus search · `g` then `t/p/a/g/n/…` go-to-module chords · `j/k` or `↑/↓` list movement · `x` toggle select · `Enter`/`o` open · `e` primary quick action · `Esc` close/clear · `?` shortcut overlay · `[` toggle sidebar. Modules may add, never reassign.
 - **Difficulty/When/Benefit.** S (this document), enforced in review. Benefit: DS-09 and TODAY-05 implement a settled language instead of negotiating one.
 
-#### 8. Feedback layer needed at first mutation
+#### 8. Feedback layer needed at first mutation — ✅ built (DS-10)
 
 - **Why.** The design system mandates optimistic + undoable mutations with announced feedback (Success/Error Feedback patterns), but the toast/undo layer is inside DS-10, sequenced after DS-06 — while TODAY-01/02 (task completion, reorder) will mutate real data first. Without it, the first real interactions ship silent or with ad-hoc feedback — instant product debt.
 - **What.** A dependency flag, not a redesign: the minimal feedback slice (polite live-region toast, undo affordance, error banner) must exist by TODAY-02's first mutation — either by pulling that slice forward out of DS-10 or by adding it to TODAY-01's acceptance.
+- **Implementation (2026-07-20 — DS-10).** Built as the [Feedback platform](../../app/shared/feedback) ([ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector)): the hidden `useFeedback()` API (`notifySuccess/…`, `notifyUndo`, `runOperation`), calm coalescing notifications with ARIA live-region announcements, platform **Undo** (reverse + commit-on-dismiss), and one background-operation lifecycle. TODAY-02's first mutation now has trustworthy, announced, reversible feedback available with zero per-module work. The shared **Inspector** (#8-Inspector) also lands here.
 - **Difficulty/When/Benefit.** L but a thin slice; pre-launch. Benefit: trust ("it saved, and I can take it back") from the first real action.
 
 #### 9. Mobile navigation done properly

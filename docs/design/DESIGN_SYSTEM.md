@@ -121,10 +121,10 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Rules.** Timeline (one record) and Activity Feed (many records) are the same component at different scopes — do not fork them.
 
 ### Inspector
-**Purpose.** Edit the full detail of a record or a selection — the "properties panel" for power editing.
-**Anatomy.** A structured panel of all editable fields, grouped, using shared [Form](#forms) controls.
-**Behaviour.** Reflects the current selection (including multi-select for bulk edits). Saves optimistically field-by-field.
-**Rules.** The Inspector is for *depth*; the [Summary Panel](#summary-panel) is for *essentials*. Never duplicate field controls between them — share the control.
+**Purpose.** Edit the full detail of a record or a selection — the "properties panel" for power editing. Built as DS-10 ([`app/shared/inspector`](../../app/shared/inspector)); see [Global Interaction Layer](#global-interaction-layer-ds-10).
+**Anatomy.** A structured panel of all editable fields, grouped, using shared [Form](#forms) controls. URL-driven (`?inspector=<key>`, deep-linkable); a surface supplies `renderInspector(entry)` — the [Drawer](#drawer)'s `renderDrawer` contract — so **no module builds its own edit drawer**.
+**Behaviour.** A **non-modal, resizable** right-side panel on desktop (content reflows so it is never covered; the page stays interactive for bulk/multi-select) and a **modal sheet** on mobile, reusing the DS-03 focus/inert/scroll-lock hooks (no second focus-trap). Saves optimistically field-by-field via DS-06 autosave.
+**Rules.** The Inspector is for *depth*; the [Summary Panel](#summary-panel) is for *essentials*. Never duplicate field controls between them — share the control. See [ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector).
 
 ### Settings
 **Purpose.** A consistent surface for configuration, at every scope (app, workspace, module, single record).
@@ -163,10 +163,10 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Rules.** **One control per field type**, product-wide. The entity-link picker is the shared way to create [EntityLinks](../../AGENTS.md#95-entitylinks). Multiple save patterns are known [debt](../product/PRODUCT_DEBT.md) — converge on this.
 
 ### Success Feedback
-**Purpose.** Confirm an action landed, quietly.
+**Purpose.** Confirm an action landed, quietly. Built as the DS-10 [Feedback platform](#global-interaction-layer-ds-10) ([`app/shared/feedback`](../../app/shared/feedback)) — modules call `useFeedback().notifySuccess(...)`/`notifyUndo(...)`, never render a toast themselves.
 **Anatomy.** A brief toast/inline confirmation, ideally carrying an **Undo**.
-**Behaviour.** Non-blocking, auto-dismissing, announced to assistive tech. Optimistic — the UI already reflects the change; the toast confirms and offers reversal.
-**Rules.** Prefer undo over up-front confirmation. Don't celebrate the mundane — feedback is calm, not confetti (see [product feelings](../product/PRODUCT_PRINCIPLES.md#how-users-should-feel)).
+**Behaviour.** Non-blocking, auto-dismissing (success/info linger briefly, warnings longer, errors are sticky), coalescing (repeats with a `dedupeKey` merge — no spam), pause-on-hover, announced to assistive tech via ARIA live regions. Optimistic — the UI already reflects the change; the toast confirms and offers reversal.
+**Rules.** Prefer undo over up-front confirmation. Don't celebrate the mundane — feedback is calm, not confetti (see [product feelings](../product/PRODUCT_PRINCIPLES.md#how-users-should-feel)). One implementation for the whole app; no module owns a notification implementation.
 
 ### Error Feedback
 **Purpose.** Explain what went wrong and how to recover — never dead-end the user.
@@ -537,6 +537,28 @@ Form            <form> wrapper (owns nothing but layout + aria-busy)
 - ❌ Build a bespoke per-entity form or a one-off field control; infer the save mode; import D1/a repository into a shared control; render Markdown through a second parser or a new HTML sink; round-trip a calendar date through `Date`; convey required/invalid/saved state by colour alone; leak a raw server error to the user.
 
 **Extension rules.** Add a field type or affordance to the **one** shared system (and document it here) only when an existing repository requirement makes it clearly necessary — never fork per module, never add a second control for a field type. Keep the public API small; do not export internal state-machine/timing/focus machinery. Real product forms arrive when a module adopts DS-06 (e.g. [NOTES-01](../roadmap/ROADMAP_V2.md#-notes-01--notes-module)); DS-06 ships the system plus a development fixture only. See [`SHARED_FORMS.md`](../development/SHARED_FORMS.md).
+
+---
+
+## Global Interaction Layer (DS-10)
+
+The product-wide interaction layer every module inherits: **notifications, undo, background operations** (one Feedback platform) and the shared **Inspector**. There is **one implementation for the entire application** — no module renders a toast or builds its own edit drawer. Accepted via [ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector). Full guide: [`FEEDBACK_AND_INSPECTOR.md`](../development/FEEDBACK_AND_INSPECTOR.md).
+
+### Feedback platform
+
+- **The hidden API.** Modules call `useFeedback()` ([`app/shared/feedback`](../../app/shared/feedback)) — `notifySuccess/notifyInfo/notifyWarning/notifyError`, `notifyUndo`, `runOperation`, `dismiss`. The queue, timers, live regions and operation tray are completely hidden. `FeedbackProvider` is mounted once at the AppShell boundary.
+- **Calm notifications.** Four tones (icon + text, never colour alone). Repeats with a `dedupeKey` **coalesce** (count bumps) instead of stacking — no toast spam. Auto-dismiss is per-tone (success/info brief, warnings longer, **errors sticky**); the stack is bounded (oldest auto-dismissing entry retired first, never a sticky error); **hover/focus pauses** dismissal.
+- **Undo is a platform capability.** `notifyUndo(title, { onUndo, onExpire? })` raises a success toast with a time-boxed Undo. Choosing Undo runs the reverse handler; letting it expire OR dismissing early runs the commit handler (dismissing an optimistic action commits it). Every reversible action (delete/archive/complete/move/close/dismiss) uses this — never per-module undo.
+- **One background-operation lifecycle.** `runOperation({ label, run, cancellable?, retryable?, successMessage? })` drives pending → running → success | failure with **retry** and **cancellation** (a real `AbortSignal` passed to `run`) — for AI, imports, exports, sync and future integrations.
+- **Accessibility.** Two visually-hidden ARIA live regions (polite for success/info, assertive for warning/error) announce feedback, using bare `aria-live` so they never shadow other `status`/`alert` regions. 44px targets, keyboard-operable actions, reduced-motion honoured, anchored so it never covers primary UI (bottom-right desktop, bottom safe-area mobile).
+
+### Inspector
+
+- **The standard depth-editing surface.** [`app/shared/inspector`](../../app/shared/inspector). A surface mounts `InspectorProvider` and supplies `renderInspector(entry)` (the DS-03 `renderDrawer` contract); open state lives in the URL (`?inspector=<key>`, deep-linkable). No module builds its own edit drawer.
+- **Two presentations.** Desktop: a **non-modal, resizable** right-side `complementary` panel (keyboard + pointer resize, persisted width; content reflows so it is never covered; the page stays interactive for bulk/multi-select). Mobile: a **modal sheet** — focus-trapped, inert background, scroll-locked — **reusing the DS-03 focus/inert/scroll-lock hooks** (no second focus-trap). Focus moves in on open and restores on close in both.
+- **Edits via DS-06.** The Inspector body is built from shared form controls with optimistic field-by-field autosave. Depth here; essentials in the Summary/Drawer — never duplicate the control.
+
+**Extension rules.** Use `useFeedback()` for any feedback — never a bespoke toast/banner or a second overlay system. Use the Inspector (not a new drawer) for any record editing. Keep the public API small; do not export internal timing/queue/focus machinery.
 
 ---
 
