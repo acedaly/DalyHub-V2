@@ -126,6 +126,23 @@ test.describe("DS-10b settings layout — desktop", () => {
     ).toBeHidden();
   });
 
+  test("cancels a dangerous confirmation by clicking outside (the scrim)", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Reset settings" }).click();
+    const dialog = page.getByRole("dialog", { name: "Reset all settings?" });
+    await expect(dialog).toBeVisible();
+    // Click the scrim away from the centred panel. The scrim must stay
+    // interactive (not inerted) for outside-click cancellation to work.
+    await page
+      .getByRole("button", { name: "Dismiss dialog" })
+      .click({ position: { x: 4, y: 4 } });
+    await expect(dialog).toBeHidden();
+    await expect(
+      page.getByRole("group", { name: "Settings reset to defaults" }),
+    ).toBeHidden();
+  });
+
   test("is keyboard operable end to end and restores focus on close", async ({
     page,
   }) => {

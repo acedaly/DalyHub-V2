@@ -118,6 +118,7 @@ function ConfirmationDialogPanel({
     initConfirmation,
   );
 
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -127,8 +128,9 @@ function ConfirmationDialogPanel({
   const pending = state.phase === "pending";
   const confirmEnabled = canConfirm(state, requiredPhrase);
 
-  // Reuse the DS-03 modal machinery — no second focus-trap. Initial focus goes to
-  // the typed-confirmation input when present, otherwise the Cancel button.
+  // Reuse the DS-03 modal machinery — no second focus-trap. Focus is trapped
+  // within the PANEL; initial focus goes to the typed-confirmation input when
+  // present, otherwise the safe Cancel button.
   useDrawerFocus({
     containerRef,
     active: true,
@@ -137,7 +139,11 @@ function ConfirmationDialogPanel({
     opener,
   });
   useBodyScrollLock(true);
-  useInertBackground(containerRef, true);
+  // Inert the background from the dialog ROOT, not the panel: the walk marks the
+  // root's siblings (the underlying page + app shell) inert while leaving the
+  // scrim — a child of the root — interactive, so outside-click cancellation
+  // keeps working. Passing the panel here would inert its sibling scrim.
+  useInertBackground(rootRef, true);
 
   const requestClose = () => {
     if (pending) {
@@ -190,7 +196,7 @@ function ConfirmationDialogPanel({
   const errorId = state.error ? `${baseId}-error` : undefined;
 
   return (
-    <div className="dh-confirm-root">
+    <div className="dh-confirm-root" ref={rootRef}>
       <button
         type="button"
         className="dh-confirm-scrim"
