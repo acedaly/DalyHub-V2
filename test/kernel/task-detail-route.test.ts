@@ -4,6 +4,7 @@ import { RouterContextProvider } from "react-router";
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { setAuthenticatedSession } from "~/platform/request";
 import { action, loader } from "~/modules/today/routes/task-detail";
+import { loader as linkTargetsLoader } from "~/modules/today/routes/task-link-targets";
 
 import {
   FakeClock,
@@ -258,6 +259,39 @@ describe("POST action — links", () => {
       )
     ).json()) as { kind: string; ok: boolean };
     expect(result.ok).toBe(false);
+  });
+});
+
+async function runLinkTargetsLoader(taskId: string): Promise<Response> {
+  return linkTargetsLoader({
+    request: new Request(
+      `https://app.test/today/task/${taskId}/link-targets?q=`,
+    ),
+    context: authedContext(),
+    params: { taskId },
+  } as unknown as Parameters<typeof linkTargetsLoader>[0]) as Promise<Response>;
+}
+
+describe("GET link-targets", () => {
+  it("returns target options for a valid task anchor", async () => {
+    const { task } = await seedTask(CONFIGURED_WORKSPACE);
+    // A second record to be a candidate target.
+    await spine(CONFIGURED_WORKSPACE).createArea({ title: "Health" });
+    const response = await runLinkTargetsLoader(task);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { options: unknown[] };
+    expect(Array.isArray(body.options)).toBe(true);
+  });
+
+  it("refuses a non-task anchor before searching", async () => {
+    const s = spine(CONFIGURED_WORKSPACE);
+    const area = await s.createArea({ title: "Career" });
+    const project = await s.createProject({
+      title: "Ship",
+      parent: { kind: "area", id: area.id },
+    });
+    const response = await runLinkTargetsLoader(project.id);
+    expect(response.status).toBe(404);
   });
 });
 

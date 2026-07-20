@@ -24,11 +24,13 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DrawerProvider } from "~/shared/drawer";
 
+import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate } from "../date";
 import { TODAY_FIXTURE } from "../fixtures";
 import type { FocusTask } from "../fixtures";
 import { TodayDashboard } from "../TodayDashboard";
 import { createTodayDrawerRenderer } from "../TodayDrawer";
+import type { TaskActionData } from "./task-detail";
 import type { Route } from "./+types/index";
 
 export function meta() {
@@ -74,7 +76,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function TodayRoute({ loaderData }: Route.ComponentProps) {
-  const fetcher = useFetcher();
+  const fetcher = useFetcher<TaskActionData>();
+
+  // A failed card completion is never silent: surface it as a calm error (the
+  // optimistic override is reconciled by the ensuing revalidation).
+  useCompletionFailureFeedback(fetcher.data);
 
   // The drawer renderer is bound to this request's data so a focus task's real
   // title names its Drawer dialog; the editable body is TaskDrawerContent.
