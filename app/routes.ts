@@ -54,6 +54,7 @@ const devFixtureRoutes =
         route("design/forms", "routes/design-forms.tsx"),
         route("design/search", "routes/design-search.tsx"),
         route("design/command-palette", "routes/design-command-palette.tsx"),
+        route("design/feedback", "routes/design-feedback.tsx"),
       ];
 
 export default [

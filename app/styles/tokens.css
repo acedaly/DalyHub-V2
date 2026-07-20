@@ -105,6 +105,8 @@
 
   --dh-shell-header-height: 3.5rem;
   --dh-shell-nav-width: 15rem;
+  /* DS-10 Inspector docked width (default; overridden per-instance by resize). */
+  --dh-inspector-width: 25rem;
 
   /* Responsive gutter: grows with the viewport, bounded at both ends. */
   --dh-gutter: clamp(1rem, 4vw, 2rem);

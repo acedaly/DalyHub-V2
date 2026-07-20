@@ -29,6 +29,8 @@ import { CommandContextProvider } from "~/shared/commands/CommandContextProvider
 import { CommandShortcutLayer } from "~/shared/commands/CommandShortcutLayer";
 import type { ShortcutBinding } from "~/shared/commands/useCommandShortcuts";
 
+import { FeedbackProvider } from "~/shared/feedback";
+
 import { MobileNav } from "./MobileNav";
 import { MenuIcon } from "~/shared/icons";
 import { Sidebar } from "./Sidebar";
@@ -138,78 +140,80 @@ export function AppShell({
   );
 
   return (
-    <CommandContextProvider>
-      <CommandShortcutLayer reserved={reservedShortcuts} />
-      <div className="dh-app">
-        <a className="skip-link" href="#main-content">
-          Skip to main content
-        </a>
+    <FeedbackProvider>
+      <CommandContextProvider>
+        <CommandShortcutLayer reserved={reservedShortcuts} />
+        <div className="dh-app">
+          <a className="skip-link" href="#main-content">
+            Skip to main content
+          </a>
 
-        <Sidebar
-          workspaceName={workspaceName}
-          email={email}
-          theme={theme}
-          navigation={navigation}
-          navId={RAIL_NAV_ID}
-          variant="rail"
-          onOpenSearch={openSearch}
-          onOpenCommand={openCommand}
-        />
-
-        <div className="dh-main-col">
-          <div className="dh-mobilebar">
-            <button
-              type="button"
-              className="dh-mobilebar__toggle"
-              ref={toggleRef}
-              aria-expanded={navOpen}
-              aria-controls="primary-navigation-mobile"
-              onClick={() => setNavOpen(true)}
-            >
-              <span className="dh-mobilebar__toggle-icon" aria-hidden="true">
-                <MenuIcon />
-              </span>
-              <span className="dh-visually-hidden">Open navigation</span>
-            </button>
-            <span className="dh-mobilebar__brand">{workspaceName}</span>
-          </div>
-
-          <main id="main-content" className="dh-pane" tabIndex={-1}>
-            {children}
-          </main>
-        </div>
-
-        {navOpen ? (
-          <MobileNav
+          <Sidebar
             workspaceName={workspaceName}
             email={email}
             theme={theme}
             navigation={navigation}
-            opener={toggleRef.current}
-            onClose={() => setNavOpen(false)}
+            navId={RAIL_NAV_ID}
+            variant="rail"
             onOpenSearch={openSearch}
             onOpenCommand={openCommand}
           />
-        ) : null}
 
-        {searchOpen ? (
-          <Suspense fallback={null}>
-            <SearchSurface
-              onClose={closeSearch}
-              opener={searchOpenerRef.current}
-            />
-          </Suspense>
-        ) : null}
+          <div className="dh-main-col">
+            <div className="dh-mobilebar">
+              <button
+                type="button"
+                className="dh-mobilebar__toggle"
+                ref={toggleRef}
+                aria-expanded={navOpen}
+                aria-controls="primary-navigation-mobile"
+                onClick={() => setNavOpen(true)}
+              >
+                <span className="dh-mobilebar__toggle-icon" aria-hidden="true">
+                  <MenuIcon />
+                </span>
+                <span className="dh-visually-hidden">Open navigation</span>
+              </button>
+              <span className="dh-mobilebar__brand">{workspaceName}</span>
+            </div>
 
-        {commandOpen ? (
-          <Suspense fallback={null}>
-            <CommandPalette
-              onClose={closeCommand}
-              opener={commandOpenerRef.current}
+            <main id="main-content" className="dh-pane" tabIndex={-1}>
+              {children}
+            </main>
+          </div>
+
+          {navOpen ? (
+            <MobileNav
+              workspaceName={workspaceName}
+              email={email}
+              theme={theme}
+              navigation={navigation}
+              opener={toggleRef.current}
+              onClose={() => setNavOpen(false)}
+              onOpenSearch={openSearch}
+              onOpenCommand={openCommand}
             />
-          </Suspense>
-        ) : null}
-      </div>
-    </CommandContextProvider>
+          ) : null}
+
+          {searchOpen ? (
+            <Suspense fallback={null}>
+              <SearchSurface
+                onClose={closeSearch}
+                opener={searchOpenerRef.current}
+              />
+            </Suspense>
+          ) : null}
+
+          {commandOpen ? (
+            <Suspense fallback={null}>
+              <CommandPalette
+                onClose={closeCommand}
+                opener={commandOpenerRef.current}
+              />
+            </Suspense>
+          ) : null}
+        </div>
+      </CommandContextProvider>
+    </FeedbackProvider>
   );
 }

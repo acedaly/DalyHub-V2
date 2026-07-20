@@ -334,6 +334,22 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Global interaction layer evaluation (DS-10)
+
+> The build-vs-reuse evaluation behind [ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector). **No new runtime or dev dependency was added.** DS-10 is a client interaction layer (notifications, undo, background operations, Inspector) implemented on the existing stack, reusing the DS-03 modal machinery. Candidates reviewed (re-verify the licence for the exact version before ever adopting):
+
+| Capability | Candidates (typical licence) | Runtime/bundle impact | Decision |
+|---|---|---|---|
+| **Toast / notification system** | Radix UI Toast `@radix-ui/react-toast` (🟢 MIT), Sonner `emilkowalski/sonner` (🟢 MIT), `react-hot-toast` (🟢 MIT), React-Aria/React-Spectrum toast (🟢 Apache-2.0), Ariakit (🟢 MIT) | Each adds a runtime dependency and a **second overlay/portal/z-index system**; none encodes DalyHub's calm queue policy (dedupe-coalescing, sticky errors, bounded stack) or the commit-on-dismiss **Undo** and one-**operation**-lifecycle semantics | **Build** — a ~2-file React-free reducer (queue + operation state machine) plus one provider + a token-only centre. Undo and the background-operation lifecycle are DalyHub policy, not a toast library's job. |
+| **Undo** | (no dedicated library; usually hand-rolled per app) | — | **Build** — `notifyUndo` with a reverse handler + commit-on-expiry/dismiss, layered on the notification queue. One capability, every reversible action. |
+| **Background-task / async-state** | TanStack Query mutations (🟢 MIT), XState (🟢 MIT) | Query is a data-fetching cache (not a user-facing operation tray); XState is a large state-machine runtime for a four-state lifecycle | **Reject** — a small pure reducer (pending/running/success/failure + retry) plus `AbortController` covers it with no dependency; revisit Query if/when server data-fetching caching is needed. |
+| **Inspector / side panel & dialog** | Radix Dialog (🟢 MIT), React-Aria dialog/overlays (🟢 Apache-2.0), Ariakit dialog (🟢 MIT) | Each imposes an API and a runtime dependency and a second focus/portal system | **Reuse DS-03** — the Inspector reuses the existing `useDrawerFocus`/`useBodyScrollLock`/`useInertBackground` hooks (ADR-020 §20.9); no second focus-trap, no dependency. |
+| **Resizable panel** | `react-resizable-panels` (🟢 MIT), Radix (n/a) | A dependency for one accessible split handle | **Build** — a small `separator` hook with pointer + keyboard control and persisted, clamped width. |
+
+**Decision (Depend / Adapt / Build).** **Build** the DalyHub-owned Feedback platform (React-free reducers, provider, notification centre, the hidden `useFeedback` API) and the Inspector (URL contract, provider, responsive panel, resize hook); **reuse** the DS-03 modal hooks and the DS-06 form controls; **add no dependency**, no persistence and no migration. No third-party code was copied, so `THIRD_PARTY_NOTICES` is unchanged. See [ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:
