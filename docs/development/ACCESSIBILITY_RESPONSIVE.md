@@ -144,6 +144,9 @@ fails fast and locally:
    - **`e2e/keyboard.spec.ts`** — the platform keyboard audit: skip link, landmark
      count, chrome reachability with no trap, and focus trap + restoration through
      the shared modal machinery.
+   - **`e2e/touch-targets.spec.ts`** — asserts shared interactive controls meet the
+     **44px** minimum (`--dh-touch-target-min`, WCAG 2.2 §2.5.8), so a control
+     regressing below the documented target size fails the build.
 
 Shared Playwright helpers live in **[`e2e/helpers.ts`](../../e2e/helpers.ts)**:
 `RESPONSIVE_VIEWPORTS` (the canonical matrix), `expectNoHorizontalOverflow`,

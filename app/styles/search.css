@@ -69,7 +69,9 @@
   align-items: center;
   justify-content: center;
   min-width: var(--dh-touch-target-min);
-  min-height: 2rem;
+  /* Meet the 44px touch-target minimum in BOTH dimensions (DS-11), matching the
+   * Command Palette close control — the width token alone left this 44×32. */
+  min-height: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-2);
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-medium);
