@@ -23,6 +23,8 @@ export interface FocusTask {
   readonly title: string;
   /** The owning Area/Project context line (e.g. "DalyHub V2"). */
   readonly context: string;
+  /** Whether the task is complete (TODAY-02: the server's completion truth). */
+  readonly done: boolean;
 }
 
 /** One upcoming, time-anchored item: a meeting, reminder or deadline. */
@@ -97,9 +99,9 @@ function at(hours: number, minutes: number): number {
 
 export const TODAY_FIXTURE: TodayData = {
   focus: [
-    { id: "t-px02", title: "Finish PX-02", context: "DalyHub V2" },
-    { id: "t-pr", title: "Review PR", context: "DalyHub V2" },
-    { id: "t-gym", title: "Gym", context: "Health" },
+    { id: "t-px02", title: "Finish PX-02", context: "DalyHub V2", done: false },
+    { id: "t-pr", title: "Review PR", context: "DalyHub V2", done: false },
+    { id: "t-gym", title: "Gym", context: "Health", done: false },
   ],
   upcoming: [
     {

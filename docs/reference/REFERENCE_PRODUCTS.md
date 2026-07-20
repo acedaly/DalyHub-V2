@@ -365,6 +365,19 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Task Drawer evaluation (TODAY-02)
+
+> The build-vs-reuse evaluation behind [ADR-028](../decisions/ARCHITECTURE_DECISIONS.md#adr-028-task-drawer-persistence-and-composition--the-additive-task-detail-slice). **No new runtime or dev dependency was added** — TODAY-02 is a thin persistence slice (one additive D1 table + a workspace-bound repository) plus **composition** of already-built shared components, implemented entirely with the existing TypeScript, D1, React Router, Vitest and Playwright stack.
+
+- **Products studied (🔴 study-only, already catalogued): Things 3, Linear, Notion.** The task-record interaction was informed by the existing product inspirations — Things' calm task detail and Areas/Projects hierarchy (a direct cousin of the spine), Linear's fast optimistic completion and keyboard-first editing, and Notion's records-as-first-class-objects with real relations. Interaction/UX inspiration only; **no code reuse** (closed source). Nothing new to research — the existing entries covered it.
+- **Reused, not rebuilt (in-house shared layer).** The DS-02 Record Layout, DS-03 Drawer (URL/history/focus), DS-06 forms + validation + the entity-link picker service, DS-05 Timeline, DS-10 Feedback, the FND-02/04/05/07 kernels, the FND-08 Markdown pipeline and the FND-03/09 authenticated workspace boundary are all consumed **unchanged**. The Task Drawer builds no second Drawer/Record Layout/form/Activity/EntityLinks system.
+- **Adapted.** Only DalyHub-owned code: a new `task_details` migration, a `TaskRepository` kernel contract + D1 adapter (mirroring the spine adapter's atomic-batch + guarded-Activity pattern), the task-record composition in the today module, and three module-owned resource routes.
+- **Rejected (same precedent as FND-02–07).** An **ORM/query-builder** for the new table (the upsert + reads are small, inspectable prepared SQL); a **date library** (date-only values are validated/compared as integers, never routed through `Date`, per ADR-022); a **rich-text editor** (the description edits Markdown *source* through the existing FND-08 control — a real editor is later Notes work); a **state-management library** for the Drawer (React Router data hooks + the shared Feedback platform suffice). No candidate buys anything the zero-dependency, Workers-safe stack does not already have.
+- **Licence implications.** None — no dependency added, no third-party code copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Build** the task-detail table, repository, routes and record composition on the existing stack; **reuse** every shared component and kernel; **add no dependency**. See [ADR-028](../decisions/ARCHITECTURE_DECISIONS.md#adr-028-task-drawer-persistence-and-composition--the-additive-task-detail-slice).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

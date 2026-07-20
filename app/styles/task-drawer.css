@@ -1,0 +1,100 @@
+/*
+ * TODAY-02 — the task Drawer content layout.
+ *
+ * Layout and rhythm only; every value is a DS-01 token. The task record composes
+ * the shared DS-02 Record Layout, DS-06 forms and DS-05 Timeline — this file only
+ * spaces the task-specific summary/relationship pieces those shared components host.
+ */
+
+.dh-task-drawer__completion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) 0;
+  cursor: pointer;
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-task-drawer__completion input {
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
+}
+
+.dh-task-drawer__completion input:disabled {
+  cursor: progress;
+}
+
+.dh-task-drawer__details,
+.dh-task-drawer__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-task-drawer__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-task-drawer__section-label {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-task-drawer__muted,
+.dh-task-drawer__description-fallback {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-task-drawer__meta {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) 1fr;
+  gap: var(--dh-space-1) var(--dh-space-4);
+  margin: 0;
+}
+
+.dh-task-drawer__meta dt {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-task-drawer__meta dd {
+  margin: 0;
+}
+
+.dh-task-drawer__relationships {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-task-drawer__relationship {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-touch-target-min);
+  flex-wrap: wrap;
+}
+
+.dh-task-drawer__relationship-kind {
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-task-drawer__relationship-title {
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
+}

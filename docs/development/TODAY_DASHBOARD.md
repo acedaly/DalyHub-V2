@@ -15,14 +15,21 @@ in [`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md).
 
 ```text
 app/modules/today/
-  module.ts            — the module manifest (id "today", order 5, one route,
+  module.ts            — the module manifest (id "today", order 5, routes,
                          no entity type — Today is a view, not an entity)
-  routes.manifest.ts   — the declarative /today route (navLabel "Today", navOrder 5)
-  routes/index.tsx      — the route: loader (formats the date) + DrawerProvider
+  routes.manifest.ts   — the declarative /today route + the TODAY-02 task
+                         resource routes (no nav entry)
+  routes/index.tsx      — the route: loader (real focus tasks + date) + DrawerProvider
+  routes/task-detail.tsx     — TODAY-02: the task loader + mutation action
+  routes/task-activity.tsx   — TODAY-02: the task's DS-05 Timeline page
+  routes/task-link-targets.tsx — TODAY-02: the "related records" target search
   TodayDashboard.tsx   — the pure composition of the six sections
-  TodayDrawer.tsx      — maps a drawer key → a read-only DS-02 Record Layout
-  fixtures.ts          — ALL demo data, behind one clearly-labelled seam
-app/styles/today.css    — layout/rhythm only, every value a DS-01 token
+  TodayDrawer.tsx      — maps a drawer key → a record (task → TaskDrawerContent)
+  task/                — TODAY-02: the task record composition (view-model,
+                         TaskDrawerContent, Details/Links/Activity tabs)
+  fixtures.ts          — demo data for the non-task sections (+ the focus seed shape)
+app/styles/today.css       — TODAY-01 layout/rhythm, every value a DS-01 token
+app/styles/task-drawer.css — TODAY-02 task-record layout, every value a DS-01 token
 ```
 
 ## Composition
@@ -63,11 +70,45 @@ the quick-capture draft).
   drawer state; `TodayDrawer.ts` maps `<kind>:<id>` keys to fixtures and returns
   `null` for an unknown/stale key (the Drawer's graceful not-found panel).
 
-## Deliberately NOT built (fixture-only)
+## The Task Drawer (TODAY-02)
 
-TODAY-01 builds **only component structure over fixtures**: no repositories, D1,
-Workers, APIs, AI/OpenAI, persistence, authentication change, search, command
-palette, diary, task, meeting or reminder implementation.
+TODAY-02 makes a task a **complete, editable, persistent record** opened in the
+shared DS-03 Drawer on `/today`, composed entirely from the shared layer (ADR-028):
+
+- **Persistence.** The FND-07 spine stays authoritative (identity, title,
+  completion, parentage). One additive `task_details` table (migration `0006`) and
+  a workspace-bound `TaskRepository` (`app/kernel/tasks` + the D1 adapter, exposed
+  on `WorkspaceScope.tasks`) own the additive fields — workflow `status`
+  (`todo`/`in_progress`; "done" is derived from spine completion), `priority`,
+  `due`/`scheduled` dates and a Markdown `description` — and read the whole task
+  back as one `TaskView` with **derived, real** project/goal/area relationships.
+  `updateTask` is one atomic batch with a `changes()`-guarded `entity.updated`
+  event (the shared Activity model — no second history table). Completion stays
+  `spine.complete`/`reopen`.
+- **The Drawer body** is the DS-02 Record Layout: Header (title, derived status
+  pill, task identity) · Summary (completion control + due/scheduled/priority +
+  project/goal/area) · tabs **Details** (DS-06 `useForm` edit: title, status,
+  priority, dates, Markdown description; explicit Save/Cancel; server-authoritative
+  validation; `UnsavedChangesGuard` wired to the Drawer key) · **Links**
+  (relationships + the DS-06 entity-link picker for `task.relates_to`) · **Activity**
+  (the DS-05 `Timeline` over `activity.listForEntity`) — Activity last.
+- **Data flow.** `TodayDrawer.tsx` maps a `task:<id>` key to `TaskDrawerContent`,
+  which loads/mutates the task through three module-owned resource routes
+  (`/today/task/:id` loader+action, `/activity`, `/link-targets`) using the trusted
+  `resolveAuthenticatedWorkspaceScope` boundary; a successful mutation revalidates
+  the `/today` loader so Today and the Drawer stay consistent with no hard reload.
+- **Today focus is now real.** The `/today` loader reads open+completed tasks via
+  `tasks.listTasks`; a focus-card completion writes through the same task action.
+  The other five sections remain fixture-backed (the preserved seam).
+
+## Deliberately NOT built
+
+TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks
+module (creation UI, board, planning), a richer workflow status or a Waiting field
+(TODAY-03), search-over-real-tasks (the DS-08 provider stays fixture-backed —
+[DEBT-17](../product/PRODUCT_DEBT.md)), AI, or any second Drawer/Record
+Layout/form/Activity/EntityLinks system. The non-task Today sections remain
+fixture-only: no Notes, Meetings, reminders or Diary implementation.
 
 - **Quick capture** is not connected. Submitting a non-empty draft **keeps** the
   text (nothing is stored, so clearing would silently discard it) and a polite

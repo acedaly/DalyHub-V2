@@ -124,6 +124,23 @@ describe("module discovery", () => {
           .map((r) => ({ id: r.id, moduleId: r.moduleId, file: r.file })),
       ).toEqual([
         { id: "today.index", moduleId: "today", file: "routes/index.tsx" },
+        // TODAY-02 adds three resource routes (no nav entry): the task Drawer's
+        // data endpoint, its Activity Timeline page and its link-target search.
+        {
+          id: "today.task",
+          moduleId: "today",
+          file: "routes/task-detail.tsx",
+        },
+        {
+          id: "today.task.activity",
+          moduleId: "today",
+          file: "routes/task-activity.tsx",
+        },
+        {
+          id: "today.task.link_targets",
+          moduleId: "today",
+          file: "routes/task-link-targets.tsx",
+        },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
         { id: "goals.index", moduleId: "goals", file: "routes/index.tsx" },
         {

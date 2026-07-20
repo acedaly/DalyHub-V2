@@ -16,6 +16,7 @@ import type { ActivityRepository } from "~/kernel/activity";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { SpineRepository } from "~/kernel/spine";
+import type { TaskRepository } from "~/kernel/tasks";
 import type {
   WorkspaceContext,
   WorkspaceRepository,
@@ -35,6 +36,10 @@ import {
   type D1SpineRepositoryOptions,
 } from "./d1-spine-repository";
 import {
+  D1TaskRepository,
+  type D1TaskRepositoryOptions,
+} from "./d1-task-repository";
+import {
   D1WorkspaceRepository,
   type D1WorkspaceRepositoryOptions,
 } from "./d1-workspace-repository";
@@ -46,6 +51,7 @@ export {
   type D1SpineRepositoryOptions,
   type SpineCreateFault,
 } from "./d1-spine-repository";
+export { D1TaskRepository, type D1TaskRepositoryOptions };
 export { D1ActivityRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export { D1ActivityRecorder } from "./d1-activity-recorder";
@@ -100,6 +106,22 @@ export function createSpineRepository(
   options?: D1SpineRepositoryOptions,
 ): SpineRepository {
   return new D1SpineRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed TaskRepository — the TODAY-02
+ * task-detail repository (ADR-028). It COMPOSES the spine (title, completion and
+ * parentage stay the SpineRepository's authority) and owns the additive
+ * `task_details` fields. Like the other mutation repositories it is bound to a
+ * `WorkspaceContext` and a trusted Activity actor; there is no way to construct one
+ * without a context.
+ */
+export function createTaskRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1TaskRepositoryOptions,
+): TaskRepository {
+  return new D1TaskRepository(db, context, options);
 }
 
 /**

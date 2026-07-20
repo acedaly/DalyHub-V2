@@ -23,6 +23,7 @@ import {
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { SpineRepository } from "~/kernel/spine";
+import type { TaskRepository } from "~/kernel/tasks";
 import type {
   WorkspaceContext,
   WorkspaceContextResolver,
@@ -32,6 +33,7 @@ import {
   createEntityLinkRepository,
   createEntityRepository,
   createSpineRepository,
+  createTaskRepository,
   createWorkspaceRepository,
 } from "~/platform/storage/d1";
 
@@ -61,6 +63,12 @@ export interface WorkspaceScope {
   readonly entities: EntityRepository;
   readonly entityLinks: EntityLinkRepository;
   readonly spine: SpineRepository;
+  /**
+   * The TODAY-02 task-detail repository (FND-07 spine + additive fields, ADR-028).
+   * It composes the spine — completion stays `spine.complete`/`reopen` — and owns
+   * the editable task-detail slice the Task Drawer reads and writes.
+   */
+  readonly tasks: TaskRepository;
   readonly activity: ActivityRepository;
 }
 
@@ -121,6 +129,7 @@ export function bindWorkspaceRepositories(
     actorContext,
   });
   const spine = createSpineRepository(env.DB, context, { actorContext });
+  const tasks = createTaskRepository(env.DB, context, { actorContext });
   const activity = createActivityRepository(env.DB, context);
-  return { context, entities, entityLinks, spine, activity };
+  return { context, entities, entityLinks, spine, tasks, activity };
 }

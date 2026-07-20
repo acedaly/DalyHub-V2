@@ -47,10 +47,21 @@ import type {
 } from "./fixtures";
 
 export type TodayDashboardProps = {
-  /** Today's data (fixtures now; workspace-scoped repository reads later). */
+  /**
+   * Today's data. TODAY-02: `focus` is real, workspace-scoped task data (open
+   * tasks) supplied by the route loader; the other sections remain fixture-backed
+   * until their modules connect (the preserved seam).
+   */
   readonly data: TodayData;
   /** The formatted current date, rendered as the pane-header subtitle. */
   readonly date: string;
+  /**
+   * Persist a focus task's completion (TODAY-02). When provided, completing a task
+   * on Today writes through to the same task the Drawer edits, and a revalidation
+   * keeps Today and the Drawer consistent. Absent in fixture/demo rendering, where
+   * completion is an in-memory optimistic demonstration only.
+   */
+  readonly onCompleteTask?: (taskId: string, complete: boolean) => void;
 };
 
 const PROJECT_STATUS: Record<ActiveProject["status"], CardProps["status"]> = {
@@ -90,14 +101,40 @@ function TodaySection({
   );
 }
 
-export function TodayDashboard({ data, date }: TodayDashboardProps) {
+export function TodayDashboard({
+  data,
+  date,
+  onCompleteTask,
+}: TodayDashboardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { openDrawer, topKey } = useDrawer();
   const captureRef = useRef<HTMLTextAreaElement>(null);
 
-  const [doneIds, setDoneIds] = useState<ReadonlySet<string>>(new Set());
+  // Optimistic completion overrides, keyed by task id → intended done state. The
+  // server's `done` is the base truth; an override reflects an in-flight toggle and
+  // is cleared once fresh data arrives (a revalidation reconciles).
+  const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(
+    new Map(),
+  );
   const [draft, setDraft] = useState("");
   const [captureNotice, setCaptureNotice] = useState("");
+
+  // A hydration marker so tests can wait for client interactivity before driving
+  // controlled inputs (React resets a controlled value on hydration, so typing
+  // before then is lost). Mirrors the design fixtures' `data-hydrated` hook.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
+  // Reconcile: once the loader returns fresh focus data, drop optimistic overrides.
+  useEffect(() => {
+    setOverrides((prev) => (prev.size === 0 ? prev : new Map()));
+  }, [data.focus]);
+
+  const isDone = useCallback(
+    (task: FocusTask) =>
+      overrides.has(task.id) ? overrides.get(task.id)! : task.done,
+    [overrides],
+  );
 
   const upcoming = useMemo(
     () => [...data.upcoming].sort((a, b) => a.sortKey - b.sortKey),
@@ -116,14 +153,20 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
   });
 
   const toggleDone = useCallback(
-    (id: string) =>
-      setDoneIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+    (task: FocusTask) => {
+      const willBeDone = !(overrides.has(task.id)
+        ? overrides.get(task.id)!
+        : task.done);
+      setOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(task.id, willBeDone);
         return next;
-      }),
-    [],
+      });
+      // Persist through to the real task (TODAY-02); optimistic UI above shows the
+      // change immediately and a revalidation reconciles with the server result.
+      onCompleteTask?.(task.id, willBeDone);
+    },
+    [overrides, onCompleteTask],
   );
 
   const focusCapture = useCallback(() => {
@@ -174,7 +217,7 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
   // it never persists a Task or claims one was saved (ADR-024 §24.15).
   const taskToggleAction = useCallback(
     (task: FocusTask): AppAction => {
-      const done = doneIds.has(task.id);
+      const done = isDone(task);
       return {
         id: `today.action.task.${task.id}.toggle`,
         title: done ? "Reopen" : "Complete",
@@ -182,17 +225,15 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
         keywords: ["task", "done", "complete", "reopen"],
         kind: "run",
         run: () => {
-          toggleDone(task.id);
+          toggleDone(task);
           return {
             ok: true,
-            message: done
-              ? "Reopened for this session (not saved)."
-              : "Marked done for this session (not saved).",
+            message: done ? "Task reopened." : "Task completed.",
           };
         },
       };
     },
-    [doneIds, toggleDone],
+    [isDone, toggleDone],
   );
 
   // Context-aware palette: "Focus Quick Capture" is always relevant on Today, and a
@@ -229,7 +270,7 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
   };
 
   const taskCard = (task: (typeof data.focus)[number]): CardProps => {
-    const done = doneIds.has(task.id);
+    const done = isDone(task);
     return {
       id: task.id,
       title: task.title,
@@ -314,7 +355,7 @@ export function TodayDashboard({ data, date }: TodayDashboardProps) {
         </button>
       }
     >
-      <div className="dh-today">
+      <div className="dh-today" data-hydrated={hydrated ? "true" : "false"}>
         {/* Section 1 — Today's Focus */}
         <TodaySection
           id="today-focus"

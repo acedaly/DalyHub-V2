@@ -21,6 +21,25 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: { navLabel: "Today", navOrder: 5 },
   },
+  // TODAY-02 task Drawer data endpoints (resource routes, no nav entry): the task
+  // itself (loader + mutation action), its Activity Timeline page, and the
+  // "related records" target search. They are addressed by the Drawer content on
+  // /today, so opening/editing a task never leaves Today.
+  {
+    id: "today.task",
+    path: "today/task/:taskId",
+    file: "routes/task-detail.tsx",
+  },
+  {
+    id: "today.task.activity",
+    path: "today/task/:taskId/activity",
+    file: "routes/task-activity.tsx",
+  },
+  {
+    id: "today.task.link_targets",
+    path: "today/task/:taskId/link-targets",
+    file: "routes/task-link-targets.tsx",
+  },
 ];
 
 export default routes;
