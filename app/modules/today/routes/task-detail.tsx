@@ -146,6 +146,15 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
+  // Every mutation here is addressed by a TASK id. Verify the id resolves to a
+  // task in this workspace BEFORE dispatching, so a project/goal/area id can never
+  // reach `spine.complete`/`reopen` (which also complete Goals/Projects) or become
+  // a `task.relates_to` picker anchor. Non-tasks get the same calm not-found, and
+  // nothing is mutated. (`update` is also self-guarded by `updateTask`.)
+  if (!(await scope.tasks.getTask(taskId))) {
+    return json({ error: "not_found" }, 404);
+  }
+
   switch (intent) {
     case "update":
       return json(await handleUpdate(scope, taskId, form));

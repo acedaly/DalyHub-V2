@@ -93,17 +93,19 @@ test.describe("TODAY-02 — desktop", () => {
       dialog.getByRole("heading", { level: 3, name: "Draft the proposal" }),
     ).toBeVisible();
     const complete = dialog.getByRole("checkbox");
-    // Normalise to a known open state first (another journey's real completion may
-    // have left this task complete — completion is persistent and shared now).
-    if (await complete.isChecked()) {
-      await complete.uncheck();
-      await expect(complete).not.toBeChecked();
-    }
-    // Complete, then reopen — reconciled with the persisted server result.
-    await complete.check();
-    await expect(complete).toBeChecked();
-    await complete.uncheck();
-    await expect(complete).not.toBeChecked();
+    // The control disables briefly while a toggle persists + revalidates, so drive
+    // it via click() and wait for each state to settle (checked + re-enabled). This
+    // is also robust to another journey having left the shared task complete.
+    const setChecked = async (target: boolean) => {
+      await expect(complete).toBeEnabled();
+      if ((await complete.isChecked()) === target) return;
+      await complete.click();
+      await expect(complete).toBeChecked({ checked: target });
+      await expect(complete).toBeEnabled();
+    };
+    await setChecked(false); // normalise to open
+    await setChecked(true); // complete
+    await setChecked(false); // reopen — reconciled with the persisted server result
   });
 
   test("records activity after a mutation", async ({ page }) => {

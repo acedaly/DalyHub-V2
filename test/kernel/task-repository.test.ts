@@ -214,6 +214,32 @@ describe("task updates", () => {
     expect(await countTaskDetailRows()).toBe(0);
   });
 
+  it("writes only changed fields — a title-only update creates no details row", async () => {
+    const { task } = await seedHierarchy(WS);
+    const tasks = taskRepo(WS);
+    const result = await tasks.updateTask(task.id, { title: "Renamed" });
+    expect(result.changed).toBe(true);
+    expect(result.task.title).toBe("Renamed");
+    // No detail field changed, so no `task_details` row is written at all — an
+    // omitted/unchanged column is never touched (concurrent-edit safety).
+    expect(await countTaskDetailRows()).toBe(0);
+  });
+
+  it("a partial detail update leaves the other detail columns untouched", async () => {
+    const { task } = await seedHierarchy(WS);
+    const tasks = taskRepo(WS);
+    await tasks.updateTask(task.id, {
+      priority: "high",
+      description: "keep me",
+    });
+    // Change only the priority; the description column must be left alone.
+    const result = await tasks.updateTask(task.id, { priority: "low" });
+    expect(result.task.priority).toBe("low");
+    expect(result.task.description).toBe("keep me");
+    const reread = (await tasks.getTask(task.id)) as TaskView;
+    expect(reread.description).toBe("keep me");
+  });
+
   it("throws not-found when updating a soft-deleted task", async () => {
     const { task } = await seedHierarchy(WS);
     await spineRepo(WS).softDelete(task.id);

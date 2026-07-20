@@ -261,6 +261,47 @@ describe("POST action — links", () => {
   });
 });
 
+describe("non-task guard", () => {
+  it("refuses to complete a non-task record via the task endpoint (nothing mutates)", async () => {
+    const s = spine(CONFIGURED_WORKSPACE);
+    const area = await s.createArea({ title: "Career" });
+    const project = await s.createProject({
+      title: "Ship V2",
+      parent: { kind: "area", id: area.id },
+    });
+    // A project id reaching the task endpoint with intent=complete must be
+    // rejected BEFORE `spine.complete` (which can complete Projects) is dispatched.
+    const response = await runAction(
+      project.id,
+      formData({ intent: "complete" }),
+    );
+    expect(response.status).toBe(404);
+    // The project was NOT completed.
+    const reread = await s.getById(project.id);
+    expect(reread?.completedAt).toBeNull();
+  });
+
+  it("refuses to attach a relates_to link to a non-task anchor", async () => {
+    const s = spine(CONFIGURED_WORKSPACE);
+    const area = await s.createArea({ title: "Home" });
+    const project = await s.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    const target = await s.createArea({ title: "Target" });
+    const response = await runAction(
+      project.id,
+      formData({
+        intent: "link",
+        targetId: target.id,
+        linkType: "task.relates_to",
+        direction: "outgoing",
+      }),
+    );
+    expect(response.status).toBe(404);
+  });
+});
+
 describe("method guard", () => {
   it("rejects a non-POST action with 405", async () => {
     const { task } = await seedTask(CONFIGURED_WORKSPACE);

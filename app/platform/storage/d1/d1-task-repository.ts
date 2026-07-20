@@ -252,88 +252,121 @@ export class D1TaskRepository implements TaskRepository {
         ? current.description
         : validateTaskDescription(input.description);
 
+    // Only fields that ACTUALLY changed are written; a field the caller did not
+    // change is never touched, so a concurrent partial update to a DIFFERENT field
+    // cannot be clobbered by this update's stale snapshot (the "omitted fields are
+    // left unchanged" contract holds under concurrency).
+    const titleChanged = afterTitle !== current.title;
+    const statusChanged = afterStatus !== current.status;
+    const priorityChanged = afterPriority !== current.priority;
+    const dueChanged = afterDue !== current.dueDate;
+    const scheduledChanged = afterScheduled !== current.scheduledDate;
+    const descriptionChanged =
+      (afterDescription ?? null) !== (current.description ?? null);
+
     const changes: Record<string, JsonValue> = {};
-    if (afterTitle !== current.title) {
+    if (titleChanged) {
       changes["title"] = { before: current.title, after: afterTitle };
     }
-    if (afterStatus !== current.status) {
+    if (statusChanged) {
       changes["status"] = { before: current.status, after: afterStatus };
     }
-    if (afterPriority !== current.priority) {
+    if (priorityChanged) {
       changes["priority"] = { before: current.priority, after: afterPriority };
     }
-    if (afterDue !== current.dueDate) {
+    if (dueChanged) {
       changes["dueDate"] = { before: current.dueDate, after: afterDue };
     }
-    if (afterScheduled !== current.scheduledDate) {
+    if (scheduledChanged) {
       changes["scheduledDate"] = {
         before: current.scheduledDate,
         after: afterScheduled,
       };
     }
     // Never dump description content into the payload — only note that it changed.
-    if ((afterDescription ?? null) !== (current.description ?? null)) {
+    if (descriptionChanged) {
       changes["descriptionChanged"] = true;
     }
 
-    if (Object.keys(changes).length === 0) {
+    const detailChanged =
+      statusChanged ||
+      priorityChanged ||
+      dueChanged ||
+      scheduledChanged ||
+      descriptionChanged;
+
+    if (!titleChanged && !detailChanged) {
       // A no-op update: nothing changes, no `updated_at` churn, no Activity.
       return { task: current, changed: false };
     }
 
-    const afterDetails: TaskDetails = {
-      status: afterStatus,
-      priority: afterPriority,
-      dueDate: afterDue,
-      scheduledDate: afterScheduled,
-      description: afterDescription,
-    };
-
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
 
-    // 1. The guarded domain statement: bump the active task's title + updated_at.
-    const entityStmt = this.#db
-      .prepare(
-        `UPDATE entities SET title = ?, updated_at = ?
-         WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
-         RETURNING ${ENTITY_RETURNING}`,
-      )
-      .bind(afterTitle, nowTs, entityId, this.#workspaceId);
+    // 1. The guarded domain statement: bump the active task's `updated_at`, and set
+    //    the title ONLY when it changed (so an unchanged title is never rewritten
+    //    over a concurrent rename).
+    const entityStmt = titleChanged
+      ? this.#db
+          .prepare(
+            `UPDATE entities SET title = ?, updated_at = ?
+             WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
+             RETURNING ${ENTITY_RETURNING}`,
+          )
+          .bind(afterTitle, nowTs, entityId, this.#workspaceId)
+      : this.#db
+          .prepare(
+            `UPDATE entities SET updated_at = ?
+             WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
+             RETURNING ${ENTITY_RETURNING}`,
+          )
+          .bind(nowTs, entityId, this.#workspaceId);
 
-    // 2. Upsert the additive details, gated on the task still being active — so a
-    //    delete racing this update writes nothing (matching the entity guard).
-    const detailsStmt = this.#db
-      .prepare(
-        `INSERT INTO task_details
-           (workspace_id, entity_id, entity_type, status, priority,
-            due_date, scheduled_date, description, updated_at)
-         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?
-         WHERE EXISTS (
-                 SELECT 1 FROM entities
-                 WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
-                   AND deleted_at IS NULL
-               )
-         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
-           status = excluded.status,
-           priority = excluded.priority,
-           due_date = excluded.due_date,
-           scheduled_date = excluded.scheduled_date,
-           description = excluded.description,
-           updated_at = excluded.updated_at`,
-      )
-      .bind(
-        this.#workspaceId,
-        entityId,
-        afterDetails.status,
-        afterDetails.priority,
-        afterDetails.dueDate,
-        afterDetails.scheduledDate,
-        afterDetails.description,
-        nowTs,
-        this.#workspaceId,
-        entityId,
-      );
+    // 2. Upsert the additive details — but ON CONFLICT update ONLY the columns that
+    //    changed (plus `updated_at`), so an omitted/unchanged column keeps its DB
+    //    value even if a concurrent update changed it. The INSERT (new-row) branch
+    //    supplies every column (unchanged ones = current/defaults), and is gated on
+    //    the task still being active so a racing delete writes nothing. The SET
+    //    fragments are fixed, trusted column literals — never caller data.
+    let detailsStmt: D1PreparedStatement | undefined;
+    if (detailChanged) {
+      const setParts: string[] = [];
+      if (statusChanged) setParts.push("status = excluded.status");
+      if (priorityChanged) setParts.push("priority = excluded.priority");
+      if (dueChanged) setParts.push("due_date = excluded.due_date");
+      if (scheduledChanged)
+        setParts.push("scheduled_date = excluded.scheduled_date");
+      if (descriptionChanged)
+        setParts.push("description = excluded.description");
+      setParts.push("updated_at = excluded.updated_at");
+
+      detailsStmt = this.#db
+        .prepare(
+          `INSERT INTO task_details
+             (workspace_id, entity_id, entity_type, status, priority,
+              due_date, scheduled_date, description, updated_at)
+           SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?
+           WHERE EXISTS (
+                   SELECT 1 FROM entities
+                   WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                     AND deleted_at IS NULL
+                 )
+           ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+             ${setParts.join(",\n             ")}`,
+        )
+        .bind(
+          this.#workspaceId,
+          entityId,
+          afterStatus,
+          afterPriority,
+          afterDue,
+          afterScheduled,
+          afterDescription,
+          nowTs,
+          this.#workspaceId,
+          entityId,
+        );
+    }
 
     const event: NewActivityEvent = {
       type: ENTITY_UPDATED,
@@ -353,17 +386,18 @@ export class D1TaskRepository implements TaskRepository {
       throw new TaskNotFoundError();
     }
 
-    // Relationships and completion are unchanged by an edit — reuse the read view.
+    // Relationships and completion are unchanged by an edit — reuse the read view,
+    // applying the changed fields.
     return {
       task: {
         ...current,
         title: entityRow.title,
         updatedAt: fromStorageTimestamp(entityRow.updated_at),
-        status: afterDetails.status,
-        priority: afterDetails.priority,
-        dueDate: afterDetails.dueDate,
-        scheduledDate: afterDetails.scheduledDate,
-        description: afterDetails.description,
+        status: afterStatus,
+        priority: afterPriority,
+        dueDate: afterDue,
+        scheduledDate: afterScheduled,
+        description: afterDescription,
       },
       changed: true,
     };
@@ -561,7 +595,7 @@ export class D1TaskRepository implements TaskRepository {
   async #runUpdate(
     entityStmt: D1PreparedStatement,
     event: NewActivityEvent,
-    detailsStmt: D1PreparedStatement,
+    detailsStmt: D1PreparedStatement | undefined,
     now: Date,
   ): Promise<EntityRow | null> {
     const model = buildActivityWriteModel(
@@ -573,11 +607,14 @@ export class D1TaskRepository implements TaskRepository {
     const [activityInsert, ...subjectInserts] =
       this.#recorder.buildAppendStatements(this.#workspaceId, model);
 
+    // The details upsert (when a detail field changed) runs LAST in the batch — the
+    // event's `changes() > 0` guard refers to the entity update immediately before
+    // it, so it is unaffected. A title-only update omits the details statement.
     const batch: D1PreparedStatement[] = [
       entityStmt,
       activityInsert!,
       ...subjectInserts,
-      detailsStmt,
+      ...(detailsStmt ? [detailsStmt] : []),
     ];
 
     let results: D1Result<EntityRow>[];
