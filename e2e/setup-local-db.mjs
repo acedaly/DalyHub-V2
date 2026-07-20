@@ -14,10 +14,16 @@
  * remote D1, no production data.
  */
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 // Must match `.dev.vars` (setup-dev-auth.mjs) and wrangler.jsonc.
 const WORKSPACE_ID = "local-dev-workspace";
 const TS = "2026-07-19T00:00:00.000Z";
+const SEED_TASKS = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "seed-tasks.sql",
+);
 
 function wrangler(args) {
   execFileSync("pnpm", ["exec", "wrangler", ...args], {
@@ -36,4 +42,10 @@ wrangler([
   `INSERT OR IGNORE INTO workspaces (id, created_at, updated_at) VALUES ('${WORKSPACE_ID}', '${TS}', '${TS}');`,
 ]);
 
-console.log(`Local D1 migrated and workspace '${WORKSPACE_ID}' seeded.`);
+// TODAY-02: seed a small real spine (areas + focus tasks) so /today shows real
+// task data and the task Drawer opens real records.
+wrangler(["d1", "execute", "DB", "--local", "--file", SEED_TASKS]);
+
+console.log(
+  `Local D1 migrated and workspace '${WORKSPACE_ID}' seeded (with tasks).`,
+);

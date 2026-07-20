@@ -8,10 +8,12 @@
  * frame the route provides.
  */
 
-import { MemoryRouter } from "react-router";
+import type { ReactElement } from "react";
+import { MemoryRouter, RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FeedbackProvider } from "~/shared/feedback";
 import { DrawerProvider } from "~/shared/drawer";
 import type { DrawerEntry } from "~/shared/drawer";
 
@@ -19,13 +21,46 @@ import { TODAY_FIXTURE } from "~/modules/today/fixtures";
 import { TodayDashboard } from "~/modules/today/TodayDashboard";
 import { createTodayDrawerRenderer } from "~/modules/today/TodayDrawer";
 
+// TODAY-02: opening a task Drawer mounts TaskDrawerContent, which fetches the task
+// from its resource route. These behaviour tests are about the dashboard, not the
+// server, so `fetch` is stubbed to a calm not-found — the task Drawer still opens
+// with its accessible name; its body content is covered by the task Drawer tests.
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "not_found" }), { status: 404 }),
+      ),
+    ),
+  );
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+/**
+ * Render the dashboard inside a real DATA router (createMemoryRouter), because the
+ * task Drawer content uses router data hooks (useRevalidator/useFetcher). The
+ * FeedbackProvider supplies the shared feedback API the Drawer's completion uses.
+ */
+function renderInDataRouter(
+  element: ReactElement,
+  initialEntries = ["/today"],
+) {
+  const router = createMemoryRouter([{ path: "*", element }], {
+    initialEntries,
+  });
+  return render(<RouterProvider router={router} />);
+}
+
 function renderToday() {
-  return render(
-    <MemoryRouter>
+  return renderInDataRouter(
+    <FeedbackProvider>
       <DrawerProvider renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE)}>
         <TodayDashboard data={TODAY_FIXTURE} date="Sunday 19 July 2026" />
       </DrawerProvider>
-    </MemoryRouter>,
+    </FeedbackProvider>,
   );
 }
 
@@ -144,13 +179,14 @@ describe("TODAY-01 TodayDashboard", () => {
     expect(screen.getByRole("status").textContent).toBe("");
   });
 
-  it("opens a record in the Drawer when a card is activated", () => {
+  it("opens a task in the Drawer when a card is activated", () => {
     renderToday();
     const focus = screen.getByRole("region", { name: /Today's focus/ });
     fireEvent.click(within(focus).getByRole("link", { name: "Finish PX-02" }));
-    const dialog = screen.getByRole("dialog");
+    // The Drawer opens with the task's title as its accessible name (the editable
+    // record body loads asynchronously — covered by the task Drawer tests).
     expect(
-      within(dialog).getByRole("heading", { level: 3, name: "Finish PX-02" }),
+      screen.getByRole("dialog", { name: "Finish PX-02" }),
     ).toBeInTheDocument();
   });
 
@@ -181,15 +217,16 @@ function ContextualObserver() {
 }
 
 function renderTodayWithCommands(entries: readonly string[] = ["/today"]) {
-  return render(
-    <MemoryRouter initialEntries={[...entries]}>
+  return renderInDataRouter(
+    <FeedbackProvider>
       <CommandContextProvider>
         <ContextualObserver />
         <DrawerProvider renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE)}>
           <TodayDashboard data={TODAY_FIXTURE} date="Sunday 19 July 2026" />
         </DrawerProvider>
       </CommandContextProvider>
-    </MemoryRouter>,
+    </FeedbackProvider>,
+    [...entries],
   );
 }
 

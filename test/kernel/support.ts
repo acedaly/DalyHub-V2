@@ -5,9 +5,11 @@ import {
   createEntityLinkRepository,
   createEntityRepository,
   createSpineRepository,
+  createTaskRepository,
   createWorkspaceRepository,
   type AtomicMutationFault,
   type D1SpineRepositoryOptions,
+  type D1TaskRepositoryOptions,
 } from "~/platform/storage/d1";
 import type { ActivityActorContext } from "~/kernel/activity";
 import type { Clock, IdGenerator } from "~/kernel/entities";
@@ -104,6 +106,26 @@ export function makeSpineRepository(
   options?: D1SpineRepositoryOptions,
 ) {
   return createSpineRepository(env.DB, context, options);
+}
+
+/**
+ * Construct a workspace-scoped D1-backed TaskRepository over the isolated test
+ * database (TODAY-02: the task-detail repository composing the spine, bound to a
+ * `WorkspaceContext`).
+ */
+export function makeTaskRepository(
+  context: WorkspaceContext,
+  options?: D1TaskRepositoryOptions,
+) {
+  return createTaskRepository(env.DB, context, options);
+}
+
+/** Count all rows in `task_details` directly. */
+export async function countTaskDetailRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM task_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 /** Count all rows in `spine_records` directly. */
@@ -227,6 +249,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM activities").run();
   await env.DB.prepare("DELETE FROM entity_links").run();
   await env.DB.prepare("DELETE FROM spine_records").run();
+  await env.DB.prepare("DELETE FROM task_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

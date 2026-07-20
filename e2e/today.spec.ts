@@ -61,6 +61,9 @@ test.describe("TODAY-01 — desktop", () => {
 
   test("quick capture is structured but does not persist", async ({ page }) => {
     await page.goto("/today");
+    // Wait for client hydration before typing: a controlled input's value is reset
+    // by hydration, so filling before then would be discarded.
+    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
     const capture = page.getByRole("button", { name: "Capture", exact: true });
     await expect(capture).toBeDisabled();
     await page

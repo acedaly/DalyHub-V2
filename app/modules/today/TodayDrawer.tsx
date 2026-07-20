@@ -16,6 +16,7 @@ import { RecordContent, RecordLayout } from "~/shared/record-layout";
 
 import { UPCOMING_KIND } from "./fixtures";
 import type { TodayData } from "./fixtures";
+import { TaskDrawerContent } from "./task/TaskDrawerContent";
 
 function splitKey(key: string): { readonly kind: string; readonly id: string } {
   const separator = key.indexOf(":");
@@ -33,32 +34,15 @@ export function createTodayDrawerRenderer(data: TodayData) {
     const { kind, id } = splitKey(entry.key);
 
     if (kind === "task") {
-      const task = data.focus.find((item) => item.id === id);
-      if (!task) return null;
+      if (id.length === 0) return null;
+      // The dialog's accessible name uses the known focus-task title when
+      // available (a shareable/searched task may not be in the focus list) — the
+      // TaskDrawerContent then loads the full record and renders its real heading.
+      const focusTitle = data.focus.find((item) => item.id === id)?.title;
       return {
-        title: task.title,
+        title: focusTitle ?? "Task",
         description: "Task record",
-        children: (
-          <RecordLayout
-            title={task.title}
-            headingLevel={3}
-            typeLabel="Task"
-            icon={<EntityIcon type="task" />}
-            summary={{
-              description: `A focus task for today, in ${task.context}.`,
-              metadata: [
-                { id: "context", label: "Context", value: task.context },
-              ],
-            }}
-          >
-            <RecordContent>
-              <p>
-                Full task detail — links, activity and inline editing — arrives
-                with the Task Drawer (TODAY-02).
-              </p>
-            </RecordContent>
-          </RecordLayout>
-        ),
+        children: <TaskDrawerContent taskId={id} />,
       };
     }
 

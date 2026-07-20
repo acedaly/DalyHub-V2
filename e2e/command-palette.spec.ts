@@ -133,11 +133,9 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await expect(listbox.getByText("Current context")).toBeVisible();
     await expect(option(page, /Complete/).first()).toBeVisible();
     await input.press("Enter");
-    // The contextual (in-memory) action ran — the palette shows honest feedback
-    // and never claims a save.
-    await expect(
-      page.getByText(/for this session \(not saved\)/i).first(),
-    ).toBeVisible();
+    // TODAY-02: the contextual completion action now persists through to the real
+    // task (the SAME shared action the Card and Drawer use) and reports it.
+    await expect(page.getByText(/task completed/i).first()).toBeVisible();
   });
 
   test("activates the same shared action through its Card control", async ({
