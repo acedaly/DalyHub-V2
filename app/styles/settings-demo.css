@@ -1,0 +1,59 @@
+/**
+ * DS-10b — development-only Settings fixture styles (`/design/settings`).
+ *
+ * Presentation for the demo PAGE around the shared Settings layout. It reads only
+ * DS-01 tokens. Not shipped to production (the fixture route is dev-only).
+ */
+
+.settings-demo {
+  max-width: var(--dh-width-content);
+  margin: 0 auto;
+  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-12);
+}
+
+.settings-demo__header {
+  margin-bottom: var(--dh-space-8);
+}
+
+.settings-demo__header h1 {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-2xl);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+.settings-demo__header p {
+  margin: 0;
+  max-width: 46rem;
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-relaxed);
+  color: var(--dh-color-text-secondary);
+}
+
+.settings-demo__narrow-wrap {
+  margin-top: var(--dh-space-12);
+  padding-top: var(--dh-space-8);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.settings-demo__narrow-title {
+  margin: 0 0 var(--dh-space-1);
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+.settings-demo__narrow-note {
+  margin: 0 0 var(--dh-space-4);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.settings-demo__narrow {
+  width: 20rem;
+  max-width: 100%;
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width-thin) dashed var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface-sunken);
+}

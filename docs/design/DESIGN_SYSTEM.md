@@ -131,6 +131,7 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Anatomy.** Grouped sections · label + description + control per setting · immediate or explicitly-saved changes with clear feedback.
 **Behaviour.** Same layout whether you're configuring the app or one Project. Dangerous settings are visually separated and confirmed.
 **Rules.** Settings is always the last [Tab](#tabs)/section. Same setting type → same control. No bespoke settings screens.
+**Realised by** the [Settings layout (DS-10b)](#settings-layout-ds-10b) — the single, entity-agnostic implementation.
 
 ### Filters
 **Purpose.** Narrow any collection (tasks, cards, activity) using a consistent control.
@@ -559,6 +560,66 @@ The product-wide interaction layer every module inherits: **notifications, undo,
 - **Edits via DS-06.** The Inspector body is built from shared form controls with optimistic field-by-field autosave. Depth here; essentials in the Summary/Drawer — never duplicate the control.
 
 **Extension rules.** Use `useFeedback()` for any feedback — never a bespoke toast/banner or a second overlay system. Use the Inspector (not a new drawer) for any record editing. Keep the public API small; do not export internal timing/queue/focus machinery.
+
+---
+
+## Settings layout (DS-10b)
+
+ONE entity-agnostic Settings surface every module composes for **application,
+workspace, module and record-level** settings, and for the final **Settings**
+tab/section of a record Inspector or Drawer ([`app/shared/settings`](../../app/shared/settings)). There is **no bespoke settings screen**. Accepted via [ADR-026](../decisions/ARCHITECTURE_DECISIONS.md#adr-026-shared-settings-layout--composition-primitives-declared-change-behaviour-and-the-dangerous-action-contract). Full guide: [`SETTINGS_LAYOUT.md`](../development/SETTINGS_LAYOUT.md).
+
+### Structure
+
+- **`SettingsLayout`** — the surface root: an accessible `region`, an optional
+  heading + description (omit it when the host supplies the title — a Drawer,
+  the Inspector, or a record tab), and calm rhythm between groups. It is a
+  **container-query** surface: it adapts to its own width, so the same layout is
+  correct in a full route and in a 320px Drawer.
+- **`SettingsGroup`** — a labelled section. `tone="danger"` renders the
+  visually-separated dangerous region (bordered/tinted card + warning glyph);
+  the differentiation is carried by heading text, icon **and** border — never
+  colour alone.
+- **`SettingsRow`** — one setting: label · supporting description · control area ·
+  optional status/help line, side-by-side when there is room and stacked when
+  narrow (no horizontal overflow, no clipped text). It accepts any accessible
+  control — a bare native switch/select (named by the row via
+  `aria-labelledby`/`aria-describedby` through a render-prop), a DS-06 field, a
+  button, or a custom module control — with no double-labelling.
+
+### Change behaviour (declared, not invented)
+
+- **Immediate** (apply on change): `useImmediateSetting` — optimistic value,
+  single-flight with coalesce-to-latest, stale-response rejection,
+  **revert-on-failure**, success/error through the DS-10 Feedback platform. For a
+  toggle/select that applies at once.
+- **Autosave** (quiet, keep-the-draft): DS-06 `useAutosaveField` + inline
+  `SaveStatusIndicator`.
+- **Explicit-save** (dirty draft + Save/Cancel): DS-06 `useForm` — pristine ·
+  dirty · validating · saving · saved · save-failed · retry · reset/revert, with
+  duplicate-submit prevention and first-invalid focus.
+
+DS-10b adds **no** second form engine, validation system, autosave hook,
+dirty-state model, toast system, overlay or focus-trap, and no settings registry.
+
+### Dangerous actions
+
+`DangerousAction` (and the reusable `ConfirmationDialog`) provide the destructive
+pattern: visual separation, clear consequence text, a deliberate confirmation with
+optional **typed confirmation** (an exact phrase, e.g. `DELETE`), disabled/loading
+states, an inline `alert` on failure with **retry**, duplicate-submission
+prevention, cancellation, and shared Feedback for success. The dialog is a WAI-ARIA
+modal **reusing the DS-03 focus/inert/scroll-lock hooks** (no second focus-trap);
+initial focus goes to the typed input or the safe Cancel button (never the
+destructive one), and focus is restored to the trigger on close. It is the
+presentation/interaction contract only — it encodes no product deletion/archive
+rule.
+
+**Extension rules.** Compose these primitives for any settings surface at any
+scope — never a bespoke settings screen. Reuse DS-06 for save behaviour and the
+DS-10 Feedback platform for confirmation; never build a second confirmation modal
+or toast. Keep product rules (what a setting persists, what a destructive action
+does) in the adopting module.
 
 ---
 

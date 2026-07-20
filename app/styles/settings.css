@@ -1,0 +1,518 @@
+/**
+ * DS-10b Settings layout — styles.
+ *
+ * ONE calm settings surface for every scope. It reads ONLY DS-01 tokens (no raw
+ * colours, shadows, spacing, radii or z-index). It adapts to its CONTAINER, not the
+ * viewport (container queries), so the same layout is correct in a 320px Drawer and
+ * a full route. Label/description and control sit side-by-side when there is room
+ * and stack cleanly when narrow, with no horizontal overflow and no clipped text.
+ * Motion is disabled under prefers-reduced-motion.
+ */
+
+/* ---------------------------------------------------------------- surface root */
+
+.dh-settings {
+  container-type: inline-size;
+  display: block;
+  width: 100%;
+  max-width: var(--dh-width-content);
+}
+
+.dh-settings__header {
+  margin-bottom: var(--dh-space-6);
+}
+
+.dh-settings__title {
+  margin: 0;
+  font-size: var(--dh-font-size-xl);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
+  color: var(--dh-color-text);
+}
+
+.dh-settings__description {
+  margin: var(--dh-space-2) 0 0;
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-normal);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-settings__groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-8);
+}
+
+/* ---------------------------------------------------------------- group */
+
+.dh-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-settings-group__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  padding-bottom: var(--dh-space-3);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-settings-group__title {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin: 0;
+  font-size: var(--dh-font-size-md);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
+  color: var(--dh-color-text);
+}
+
+.dh-settings-group__title-icon {
+  flex: none;
+  color: var(--dh-color-danger);
+}
+
+.dh-settings-group__description {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-normal);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-settings-group__rows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Rows within a group are separated by hairlines, calm and consistent. */
+.dh-settings-group__rows > .dh-settings-row + .dh-settings-row {
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+/* The dangerous region: visually separated by a bordered, tinted card — the
+   differentiation is carried by the border, the heading text AND the icon, never
+   colour alone. */
+.dh-settings-group--danger {
+  gap: 0;
+  padding: var(--dh-space-4) var(--dh-space-5) var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-danger);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-danger-surface);
+}
+
+.dh-settings-group--danger .dh-settings-group__header {
+  border-bottom-color: var(--dh-color-danger);
+  margin-bottom: var(--dh-space-2);
+}
+
+.dh-settings-group--danger .dh-settings-group__title {
+  color: var(--dh-color-danger-text);
+}
+
+.dh-settings-group--danger .dh-settings-group__description {
+  color: var(--dh-color-danger-text);
+}
+
+.dh-settings-group--danger
+  .dh-settings-group__rows
+  > .dh-settings-row
+  + .dh-settings-row {
+  border-top-color: var(--dh-color-danger);
+}
+
+/* ---------------------------------------------------------------- row */
+
+.dh-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3) var(--dh-space-5);
+  padding: var(--dh-space-4) 0;
+}
+
+.dh-settings-row--align-start {
+  align-items: flex-start;
+}
+
+.dh-settings-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+  /* Grow but allow wrapping; a floor keeps the control from being crushed. */
+  flex: 1 1 16rem;
+}
+
+.dh-settings-row__label {
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-snug);
+  color: var(--dh-color-text);
+  /* Long labels wrap; never clip. */
+  overflow-wrap: anywhere;
+}
+
+.dh-settings-row__description {
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-normal);
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-settings-row__control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+  /* The control area may shrink but keeps a usable minimum before stacking. */
+  flex: 0 1 auto;
+  align-items: flex-start;
+}
+
+.dh-settings-row--control-only .dh-settings-row__control {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+.dh-settings-row__status {
+  font-size: var(--dh-font-size-xs);
+  line-height: var(--dh-line-height-normal);
+  overflow-wrap: anywhere;
+}
+
+.dh-settings-row__status--neutral {
+  color: var(--dh-color-text-muted);
+}
+.dh-settings-row__status--success {
+  color: var(--dh-color-success-text);
+}
+.dh-settings-row__status--warning {
+  color: var(--dh-color-warning-text);
+}
+.dh-settings-row__status--danger {
+  color: var(--dh-color-danger-text);
+}
+
+/* Narrow containers (e.g. a Drawer or a 320px phone) stack the row cleanly so the
+   control drops below the text and spans the width. */
+@container (max-width: 32rem) {
+  .dh-settings-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--dh-space-2);
+  }
+  .dh-settings-row__control {
+    width: 100%;
+    align-items: stretch;
+  }
+}
+
+/* ---------------------------------------------------------------- shared control skins */
+
+/* A native checkbox presented as a switch, for an immediate toggle in a row. */
+.dh-settings-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  position: relative;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: var(--dh-touch-target-min);
+  margin: 0;
+  padding: 0;
+  border-radius: var(--dh-radius-full);
+  background: transparent;
+  cursor: pointer;
+}
+
+/* The visible track sits inside the 44px hit area. */
+.dh-settings-switch::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  transform: translateY(-50%);
+  height: 1.5rem;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-border-strong);
+  transition: background var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-settings-switch::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.15rem;
+  transform: translateY(-50%);
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-on-accent);
+  box-shadow: var(--dh-shadow-sm);
+  transition: left var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-settings-switch:checked::before {
+  background: var(--dh-color-accent);
+}
+
+.dh-settings-switch:checked::after {
+  left: 1.4rem;
+}
+
+.dh-settings-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-settings-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* A native select skin, for an immediate select in a row. */
+.dh-settings-select {
+  min-height: var(--dh-control-height-md);
+  max-width: 100%;
+  padding: 0 var(--dh-space-3);
+  font-family: inherit;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  cursor: pointer;
+}
+
+.dh-settings-select:focus-visible {
+  outline: none;
+  border-color: var(--dh-color-accent);
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-settings-select:disabled {
+  cursor: not-allowed;
+  color: var(--dh-color-disabled-text);
+  background: var(--dh-color-disabled-surface);
+  border-color: var(--dh-color-disabled-border);
+}
+
+/* The destructive button on a dangerous-action row. */
+.dh-settings-danger-button {
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-4);
+  font-family: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-danger-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-danger);
+  border-radius: var(--dh-radius-md);
+  cursor: pointer;
+  transition: background var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-settings-danger-button:hover:not(:disabled) {
+  background: var(--dh-color-danger-surface);
+}
+
+.dh-settings-danger-button:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-settings-danger-button:disabled {
+  cursor: not-allowed;
+  color: var(--dh-color-disabled-text);
+  border-color: var(--dh-color-disabled-border);
+}
+
+/* ---------------------------------------------------------------- confirmation dialog */
+
+.dh-confirm-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dh-z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--dh-space-4);
+  /* Respect the mobile safe area so the dialog is never under a system bar. */
+  padding: max(var(--dh-space-4), env(safe-area-inset-top))
+    max(var(--dh-space-4), env(safe-area-inset-right))
+    max(var(--dh-space-4), env(safe-area-inset-bottom))
+    max(var(--dh-space-4), env(safe-area-inset-left));
+}
+
+.dh-confirm-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: var(--dh-color-overlay);
+  cursor: default;
+  animation: dh-confirm-scrim-in var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-confirm {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  width: min(28rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-xl);
+  box-shadow: var(--dh-shadow-lg);
+  animation: dh-confirm-in var(--dh-duration-base) var(--dh-ease-emphasized);
+}
+
+.dh-confirm--danger {
+  border-top: var(--dh-border-width-thick) solid var(--dh-color-danger);
+}
+
+.dh-confirm__title {
+  margin: 0;
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
+  color: var(--dh-color-text);
+}
+
+.dh-confirm__body {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-relaxed);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-confirm__typed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-confirm__typed-label {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-confirm__phrase {
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-xs);
+  padding: 0 var(--dh-space-1);
+  border-radius: var(--dh-radius-xs);
+  background: var(--dh-color-surface-sunken);
+  color: var(--dh-color-text);
+}
+
+.dh-confirm__input {
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-3);
+  font-family: inherit;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-confirm__input:focus-visible {
+  outline: none;
+  border-color: var(--dh-color-accent);
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-confirm__error {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-normal);
+  color: var(--dh-color-danger-text);
+}
+
+.dh-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--dh-space-2);
+  margin-top: var(--dh-space-2);
+}
+
+.dh-confirm__button {
+  min-height: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-4);
+  font-family: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  border-radius: var(--dh-radius-md);
+  border: var(--dh-border-width-thin) solid transparent;
+  cursor: pointer;
+}
+
+.dh-confirm__button:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-confirm__button--cancel {
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border-color: var(--dh-color-border);
+}
+
+.dh-confirm__button--cancel:hover:not(:disabled) {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-confirm__button--confirm {
+  color: var(--dh-color-on-accent);
+  background: var(--dh-color-accent);
+}
+
+.dh-confirm__button--danger {
+  color: var(--dh-color-on-accent);
+  background: var(--dh-color-danger);
+}
+
+.dh-confirm__button:disabled {
+  cursor: not-allowed;
+  color: var(--dh-color-disabled-text);
+  background: var(--dh-color-disabled-surface);
+  border-color: var(--dh-color-disabled-border);
+}
+
+@keyframes dh-confirm-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dh-confirm-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-confirm-scrim,
+  .dh-confirm {
+    animation: none;
+  }
+  .dh-settings-switch::before,
+  .dh-settings-switch::after {
+    transition: none;
+  }
+}

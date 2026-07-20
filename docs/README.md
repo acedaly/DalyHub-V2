@@ -50,6 +50,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/SHARED_SEARCH.md`](development/SHARED_SEARCH.md) | The Shared Search system (DS-08): the model/orchestrator/UI layers, the registry-driven provider contract and the `SearchResultTarget` navigation refinement, deterministic ranking & grouping, bounds & safety, incremental search (debounce/abort/stale), Drawer opening, accessibility & modal reuse, the server composition, the Today fixture provider, and the development demonstration. |
 | [`development/COMMAND_PALETTE.md`](development/COMMAND_PALETTE.md) | The Command Palette & Quick Actions system (DS-09): the refined discriminated command contract, the model/server/runtime layers, the trusted catalogue transport & browser decoder, the authenticated execution boundary, contextual actions, the shared `AppAction` and Card/Header adapters, the keyboard vocabulary & dispatcher, DS-08 Search reuse, and the development demonstration. |
 | [`development/FEEDBACK_AND_INSPECTOR.md`](development/FEEDBACK_AND_INSPECTOR.md) | The Global Interaction Layer (DS-10): the Notification framework, the Undo framework, the Operation lifecycle (one Feedback platform + the hidden `useFeedback` API) and the shared Inspector — the model/runtime layers, calm queue/undo/operation semantics, the URL-driven resizable/sheet Inspector reusing the DS-03 modal machinery, accessibility, integration points, and the development demonstration. |
+| [`development/SETTINGS_LAYOUT.md`](development/SETTINGS_LAYOUT.md) | The Shared Settings layout (DS-10b): the structure primitives (`SettingsLayout`/`SettingsGroup`/`SettingsRow`), the two accessible-naming patterns, declared change behaviour (immediate via `useImmediateSetting`, autosave and explicit-save via DS-06), the dangerous-action contract (`DangerousAction`/`ConfirmationDialog` reusing the DS-03 modal machinery, typed confirmation, failure/retry), where Settings fits across routes/Inspectors/records, accessibility, and the development demonstration. |
 
 ---
 
@@ -89,7 +90,9 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
         ├── ACTIVITY_TIMELINE.md
         ├── SHARED_FORMS.md
         ├── SHARED_SEARCH.md
-        └── COMMAND_PALETTE.md
+        ├── COMMAND_PALETTE.md
+        ├── FEEDBACK_AND_INSPECTOR.md
+        └── SETTINGS_LAYOUT.md
 ```
 
 > Beyond `docs/`, the repository root now also carries the application itself
