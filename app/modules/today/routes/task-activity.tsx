@@ -16,6 +16,11 @@
 import { env } from "cloudflare:workers";
 
 import { TASK_COMPLETED, TASK_REOPENED } from "~/kernel/spine";
+import {
+  TASK_WAITING_CHANGED,
+  TASK_WAITING_CLEARED,
+  TASK_WAITING_STARTED,
+} from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -51,6 +56,17 @@ const TASK_DESCRIPTORS: Record<string, ActivityTypeDescriptor> = {
     tone: "success",
   },
   [TASK_REOPENED]: { label: "Reopened task", entityType: "task" },
+  [TASK_WAITING_STARTED]: {
+    label: "Started waiting",
+    entityType: "task",
+    tone: "warning",
+  },
+  [TASK_WAITING_CHANGED]: {
+    label: "Changed what it's waiting on",
+    entityType: "task",
+    tone: "warning",
+  },
+  [TASK_WAITING_CLEARED]: { label: "Stopped waiting", entityType: "task" },
 };
 
 const DESCRIPTORS = createActivityDescriptorMap(

@@ -124,6 +124,12 @@ describe("module discovery", () => {
           .map((r) => ({ id: r.id, moduleId: r.moduleId, file: r.file })),
       ).toEqual([
         { id: "today.index", moduleId: "today", file: "routes/index.tsx" },
+        // TODAY-03 adds the Waiting sub-view (no nav entry — reached from Today).
+        {
+          id: "today.waiting",
+          moduleId: "today",
+          file: "routes/waiting.tsx",
+        },
         // TODAY-02 adds three resource routes (no nav entry): the task Drawer's
         // data endpoint, its Activity Timeline page and its link-target search.
         {
@@ -141,6 +147,12 @@ describe("module discovery", () => {
           moduleId: "today",
           file: "routes/task-link-targets.tsx",
         },
+        // TODAY-03 adds the waiting-target search resource route.
+        {
+          id: "today.task.waiting_targets",
+          moduleId: "today",
+          file: "routes/task-waiting-targets.tsx",
+        },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
         { id: "goals.index", moduleId: "goals", file: "routes/index.tsx" },
         {
@@ -150,10 +162,12 @@ describe("module discovery", () => {
         },
         { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
       ]);
-      // DS-09: Today registers two registry-discovered navigation commands.
+      // DS-09: Today registers registry-discovered navigation commands; TODAY-03
+      // adds "Open Waiting".
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
         "today.focus_quick_capture",
+        "today.open_waiting",
       ]);
       expect(registry.listCommands().every((c) => c.kind === "navigate")).toBe(
         true,

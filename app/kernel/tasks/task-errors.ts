@@ -35,7 +35,10 @@ export type TaskValidationField =
   | "dueDate"
   | "scheduledDate"
   | "description"
-  | "limit";
+  | "limit"
+  | "waitingTarget"
+  | "waitingTargetId"
+  | "waitingNote";
 
 /** A caller-supplied input that failed kernel-boundary validation. */
 export class TaskValidationError extends TaskError {

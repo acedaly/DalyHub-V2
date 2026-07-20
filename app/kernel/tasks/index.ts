@@ -20,13 +20,34 @@ export {
   type TaskRelation,
   type TaskDetails,
   type TaskView,
+  type TaskWaiting,
+  type TaskWaitingSubject,
   type GetTaskOptions,
   type UpdateTaskInput,
   type UpdateTaskResult,
   type ListTasksInput,
   type TaskListItem,
   type TaskListPage,
+  type SetWaitingInput,
+  type SetWaitingResult,
+  type ClearWaitingResult,
+  type ListWaitingTasksInput,
+  type WaitingTaskListItem,
+  type WaitingTaskPage,
 } from "./task";
+
+export {
+  TASK_WAITING_ON,
+  WAITING_TARGET_TYPES,
+  WAITING_NOTE_MAX_LENGTH,
+  RESERVED_TASK_LINK_TYPES,
+  TASK_WAITING_STARTED,
+  TASK_WAITING_CHANGED,
+  TASK_WAITING_CLEARED,
+  isWaitingTargetType,
+  isReservedTaskLinkType,
+  type WaitingTargetType,
+} from "./task-identifiers";
 
 export type { TaskRepository } from "./task-repository";
 
@@ -51,4 +72,7 @@ export {
   validateTaskDate,
   validateTaskDescription,
   validateTaskLimit,
+  validateWaitingNote,
+  validateWaitingTargetId,
+  validateSetWaitingInput,
 } from "./task-validation";

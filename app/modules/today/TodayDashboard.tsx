@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardProps } from "~/shared/card";
@@ -45,6 +45,7 @@ import type {
   TodayData,
   UpcomingItem,
 } from "./fixtures";
+import type { WaitingSummary } from "./task/waiting-view";
 
 export type TodayDashboardProps = {
   /**
@@ -62,6 +63,13 @@ export type TodayDashboardProps = {
    * completion is an in-memory optimistic demonstration only.
    */
   readonly onCompleteTask?: (taskId: string, complete: boolean) => void;
+  /**
+   * The active Waiting summary (TODAY-03): the count of waiting tasks and a small
+   * preview. Rendered as a quiet summary section linking to `/today/waiting`; the
+   * full Waiting collection is not duplicated on Today. Omitted in fixture/demo
+   * rendering (no waiting section shown).
+   */
+  readonly waiting?: WaitingSummary;
 };
 
 const PROJECT_STATUS: Record<ActiveProject["status"], CardProps["status"]> = {
@@ -104,6 +112,7 @@ function TodaySection({
 export function TodayDashboard({
   data,
   date,
+  waiting,
   onCompleteTask,
 }: TodayDashboardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -377,6 +386,55 @@ export function TodayDashboard({
             </p>
           )}
         </TodaySection>
+
+        {/* Waiting summary (TODAY-03) — only when something is waiting, so Today
+            stays calm. A count + preview + link to the full Waiting view; the
+            collection itself is not duplicated here. */}
+        {waiting && waiting.count > 0 ? (
+          <TodaySection
+            id="today-waiting"
+            label="Waiting"
+            count={waiting.count}
+          >
+            <ul
+              className="dh-today__waiting"
+              aria-label="Waiting tasks preview"
+            >
+              {waiting.preview.map((item) => {
+                const key = `task:${item.id}`;
+                return (
+                  <li key={item.id} className="dh-today__waiting-item">
+                    <a
+                      className="dh-today__waiting-link"
+                      href={`?${withDrawerPushed(searchParams, key).toString()}`}
+                      onClick={(event) => {
+                        if (
+                          event.metaKey ||
+                          event.ctrlKey ||
+                          event.shiftKey ||
+                          event.button !== 0
+                        )
+                          return;
+                        event.preventDefault();
+                        openDrawer(key);
+                      }}
+                    >
+                      <span className="dh-today__waiting-title">
+                        {item.title}
+                      </span>
+                      <span className="dh-today__waiting-meta">
+                        Waiting for {item.subjectLabel} · {item.elapsedLabel}
+                      </span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+            <Link className="dh-today__waiting-all" to="/today/waiting">
+              View all waiting ({waiting.count})
+            </Link>
+          </TodaySection>
+        ) : null}
 
         {/* Section 2 — Upcoming */}
         <TodaySection

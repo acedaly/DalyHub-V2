@@ -141,7 +141,9 @@ describe("migration 0003 — entity_links schema", () => {
     ).all<{ name: string }>();
     // Migration 0003 creates the identity index and the four access-path indexes;
     // migration 0005 (FND-07) adds `entity_links_one_active_parent_idx`, the
-    // partial UNIQUE index enforcing at most one active structural parent per child.
+    // partial UNIQUE index enforcing at most one active structural parent per child;
+    // migration 0007 (TODAY-03) adds `entity_links_one_active_waiting_idx`, the
+    // partial UNIQUE index enforcing at most one active `task.waiting_on` per task.
     expect(results.map((r) => r.name).sort()).toEqual(
       [
         "entity_links_identity_idx",
@@ -150,6 +152,7 @@ describe("migration 0003 — entity_links schema", () => {
         "entity_links_active_source_type_idx",
         "entity_links_active_target_type_idx",
         "entity_links_one_active_parent_idx",
+        "entity_links_one_active_waiting_idx",
       ].sort(),
     );
   });

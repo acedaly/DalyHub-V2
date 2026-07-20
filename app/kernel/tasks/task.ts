@@ -29,6 +29,37 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 export type TaskRelationKind = "project" | "goal" | "area";
 
 /**
+ * The subject a task is waiting ON. A waiting state has EXACTLY ONE subject
+ * representation: an entity-backed target (via the `task.waiting_on` EntityLink,
+ * resolved to its CURRENT title so a rename is reflected and a deleted target
+ * degrades gracefully) OR a free-text note (for a party/circumstance with no
+ * DalyHub record). The two are never both present.
+ */
+export type TaskWaitingSubject =
+  | {
+      readonly kind: "entity";
+      /** The linked entity's id, or null when the target was deleted/unlinked. */
+      readonly id: string | null;
+      /** The linked entity's type (e.g. "person"), or null when unavailable. */
+      readonly type: string | null;
+      /** The target's CURRENT title, or null when it is no longer available. */
+      readonly title: string | null;
+    }
+  | { readonly kind: "text"; readonly note: string };
+
+/**
+ * A task's active waiting state: WHAT/WHOM it waits on and WHEN it entered
+ * waiting. `null` on a `TaskView` means the task is not waiting — distinct from a
+ * waiting state whose entity subject is temporarily unresolved (`subject.kind ===
+ * "entity"` with null fields).
+ */
+export type TaskWaiting = {
+  /** The instant the task entered its current waiting state (UTC). */
+  readonly since: Date;
+  readonly subject: TaskWaitingSubject;
+};
+
+/**
  * A resolved, REAL entity relationship (never a copied label): the id and current
  * title of a related project, goal or area, resolved within the bound workspace.
  */
@@ -86,6 +117,8 @@ export type TaskView = {
   readonly goal: TaskRelation | null;
   /** The Area context: the structural Area parent, or the parent Project's Area. */
   readonly area: TaskRelation | null;
+  /** The active waiting state, or null when the task is not waiting (TODAY-03). */
+  readonly waiting: TaskWaiting | null;
 };
 
 /** Options for a single task read. */
@@ -120,6 +153,11 @@ export type ListTasksInput = {
   readonly limit?: number;
   /** Include completed tasks. Default false (Today shows open work first). */
   readonly includeCompleted?: boolean;
+  /**
+   * Exclude tasks that are currently waiting (TODAY-03). Today's focus surfaces
+   * active work, not blocked work — waiting tasks live in the Waiting view.
+   */
+  readonly excludeWaiting?: boolean;
 };
 
 /** A lightweight task summary for a collection surface (Today's focus section). */
@@ -136,9 +174,64 @@ export type TaskListItem = {
   readonly scheduledDate: string | null;
   /** The structural parent (a Project or an Area) as a context line, or null. */
   readonly parent: TaskRelation | null;
+  /** The active waiting state, or null when the task is not waiting (TODAY-03). */
+  readonly waiting: TaskWaiting | null;
 };
 
 /** A bounded page of task summaries. */
 export type TaskListPage = {
   readonly items: readonly TaskListItem[];
+};
+
+/**
+ * The input that activates or changes a task's waiting state. EXACTLY ONE subject
+ * must be supplied: an entity target (by id) OR a free-text note — never both,
+ * never neither. The waiting `since` timestamp is set server-side (never
+ * client-supplied); changing only the subject on an already-waiting task preserves
+ * the original `since`.
+ */
+export type SetWaitingInput =
+  | { readonly target: { readonly kind: "entity"; readonly targetId: string } }
+  | { readonly target: { readonly kind: "text"; readonly note: string } };
+
+/** The outcome of `setWaiting`: the fresh task view and whether anything changed. */
+export type SetWaitingResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
+/** The outcome of `clearWaiting`: the fresh task view and whether it was waiting. */
+export type ClearWaitingResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
+/** Options for the bounded, deterministic Waiting collection query. */
+export type ListWaitingTasksInput = {
+  /** Page size, clamped to a safe maximum; defaults to a safe page size. */
+  readonly limit?: number;
+  /** The owner's current calendar date `YYYY-MM-DD`, for the overdue-first sort. */
+  readonly todayIso?: string;
+};
+
+/** A waiting task as shown in the Waiting collection. */
+export type WaitingTaskListItem = {
+  readonly id: string;
+  readonly workspaceId: WorkspaceId;
+  readonly title: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly status: TaskStatus;
+  readonly priority: TaskPriority | null;
+  readonly dueDate: string | null;
+  readonly scheduledDate: string | null;
+  /** The structural parent (a Project or an Area) as a context line, or null. */
+  readonly parent: TaskRelation | null;
+  /** The active waiting state (always present in this list). */
+  readonly waiting: TaskWaiting;
+};
+
+/** A bounded page of waiting tasks. */
+export type WaitingTaskPage = {
+  readonly items: readonly WaitingTaskListItem[];
 };

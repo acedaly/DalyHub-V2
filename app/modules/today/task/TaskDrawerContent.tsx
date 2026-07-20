@@ -30,6 +30,10 @@ import { TaskDetailsTab, type TaskDetailsValues } from "./TaskDetailsTab";
 import { TaskLinksTab } from "./TaskLinksTab";
 import { TaskTimelineTab } from "./TaskTimelineTab";
 import {
+  TaskWaitingSection,
+  type WaitingActionOutcome,
+} from "./TaskWaitingSection";
+import {
   formatCalendarDate,
   isTaskComplete,
   taskDisplayStatus,
@@ -213,6 +217,82 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
     [postAction, refresh],
   );
 
+  const searchWaitingTargets = useCallback(
+    async (
+      query: string,
+      signal: AbortSignal,
+    ): Promise<readonly EntityLinkTargetOption[]> => {
+      const url = new URL(
+        `${detailUrl}/waiting-targets`,
+        window.location.origin,
+      );
+      url.searchParams.set("q", query);
+      const response = await fetch(url, {
+        signal,
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) return [];
+      const body = (await response.json()) as {
+        readonly options?: readonly EntityLinkTargetOption[];
+      };
+      return body.options ?? [];
+    },
+    [detailUrl],
+  );
+
+  const setWaiting = useCallback(
+    async (
+      payload:
+        | { readonly mode: "entity"; readonly targetId: string }
+        | { readonly mode: "text"; readonly note: string },
+    ): Promise<WaitingActionOutcome> => {
+      const form = new FormData();
+      form.set("intent", "set_waiting");
+      form.set("waitingMode", payload.mode);
+      if (payload.mode === "entity") {
+        form.set("waitingTargetId", payload.targetId);
+      } else {
+        form.set("waitingNote", payload.note);
+      }
+      const result = await postAction(form);
+      if (result.kind === "waiting" && result.status === "success") {
+        notifySuccess("Marked as waiting.");
+        refresh();
+        return { ok: true };
+      }
+      if (result.kind === "waiting" && result.status === "error") {
+        return {
+          ok: false,
+          formError: result.formError,
+          fieldErrors: result.fieldErrors,
+        };
+      }
+      return {
+        ok: false,
+        formError: "That couldn't be saved. Please try again.",
+      };
+    },
+    [postAction, notifySuccess, refresh],
+  );
+
+  const clearWaiting = useCallback(async (): Promise<WaitingActionOutcome> => {
+    const form = new FormData();
+    form.set("intent", "clear_waiting");
+    const result = await postAction(form);
+    if (result.kind === "waiting" && result.status === "success") {
+      notifySuccess("No longer waiting.");
+      refresh();
+      return { ok: true };
+    }
+    if (result.kind === "waiting" && result.status === "error") {
+      return { ok: false, formError: result.formError };
+    }
+    return {
+      ok: false,
+      formError: "That couldn't be saved. Please try again.",
+    };
+  }, [postAction, notifySuccess, refresh]);
+
   if (loadError) {
     return (
       <EmptyState
@@ -247,7 +327,8 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   const task = data.task;
   const completed =
     optimisticComplete !== null ? optimisticComplete : isTaskComplete(task);
-  const status = taskDisplayStatus(completed, task.status);
+  const waitingActive = task.waiting !== null && !completed;
+  const status = taskDisplayStatus(completed, task.status, waitingActive);
 
   const metadata: RecordMetaItem[] = [];
   const dueLabel = formatCalendarDate(task.dueDate);
@@ -288,11 +369,20 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
       status={status}
       summary={{
         description: (
-          <TaskCompletion
-            completed={completed}
-            pending={completionPending}
-            onToggle={toggleCompletion}
-          />
+          <div className="dh-task-drawer__summary-controls">
+            <TaskCompletion
+              completed={completed}
+              pending={completionPending}
+              onToggle={toggleCompletion}
+            />
+            <TaskWaitingSection
+              waiting={task.waiting}
+              completed={completed}
+              searchTargets={searchWaitingTargets}
+              onSetWaiting={setWaiting}
+              onClear={clearWaiting}
+            />
+          </div>
         ),
         metadata,
       }}

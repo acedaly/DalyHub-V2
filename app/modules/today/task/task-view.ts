@@ -18,6 +18,8 @@ import type {
   TaskRelation,
   TaskStatus,
   TaskView,
+  TaskWaiting,
+  TaskWaitingSubject,
 } from "~/kernel/tasks";
 
 /**
@@ -41,6 +43,19 @@ export const TASK_RELATE_TARGET_TYPES = [
   "person",
 ] as const;
 
+/**
+ * The JSON-serialised waiting subject (a discriminated union, mirroring the kernel
+ * {@link TaskWaitingSubject}). Structurally identical — only kept as a distinct
+ * type so the serialised boundary is explicit.
+ */
+export type SerializedTaskWaitingSubject = TaskWaitingSubject;
+
+/** The JSON-serialised waiting state: `since` as an ISO string, subject preserved. */
+export interface SerializedTaskWaiting {
+  readonly since: string;
+  readonly subject: SerializedTaskWaitingSubject;
+}
+
 /** The JSON-serialised task the resource-route loader returns to the browser. */
 export interface SerializedTaskView {
   readonly id: string;
@@ -57,6 +72,14 @@ export interface SerializedTaskView {
   readonly project: TaskRelation | null;
   readonly goal: TaskRelation | null;
   readonly area: TaskRelation | null;
+  readonly waiting: SerializedTaskWaiting | null;
+}
+
+/** Serialise a kernel waiting state (Date → ISO string). */
+export function serializeTaskWaiting(
+  waiting: TaskWaiting,
+): SerializedTaskWaiting {
+  return { since: waiting.since.toISOString(), subject: waiting.subject };
 }
 
 /** Serialise a `TaskView` for a JSON loader response (Dates → ISO strings). */
@@ -76,6 +99,7 @@ export function serializeTaskView(task: TaskView): SerializedTaskView {
     project: task.project,
     goal: task.goal,
     area: task.area,
+    waiting: task.waiting ? serializeTaskWaiting(task.waiting) : null,
   };
 }
 
@@ -115,15 +139,22 @@ export function isTaskComplete(task: {
 }
 
 /**
- * The derived display status (a pill): completion wins, else the open-state
- * workflow position. Meaning is carried by the label, never colour alone.
+ * The derived display status (a pill), by explicit precedence:
+ * completion → waiting → the open-state workflow position. Waiting is a
+ * first-class display state derived from the waiting record (ADR-029) — `status`
+ * itself stays `todo`/`in_progress`, so the two can never contradict. Meaning is
+ * carried by the label, never colour alone.
  */
 export function taskDisplayStatus(
   completed: boolean,
   status: TaskStatus,
+  isWaiting = false,
 ): { readonly label: string; readonly tone: RecordTone } {
   if (completed) {
     return { label: "Completed", tone: "success" };
+  }
+  if (isWaiting) {
+    return { label: "Waiting", tone: "warning" };
   }
   if (status === "in_progress") {
     return { label: "In progress", tone: "info" };
@@ -217,4 +248,80 @@ export function taskDateLabel(
     return formatted === null ? null : { label: `Scheduled ${formatted}` };
   }
   return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Waiting (TODAY-03) display derivations                                     */
+/* -------------------------------------------------------------------------- */
+
+/** Is the task currently waiting AND not completed? Completion hides waiting. */
+export function isTaskWaiting(task: {
+  readonly completedAt: string | null;
+  readonly waiting: SerializedTaskWaiting | null;
+}): boolean {
+  return task.waiting !== null && !isTaskComplete(task);
+}
+
+/**
+ * A human label for the waiting subject: the entity's current title, the free-text
+ * note, or a calm fallback when an entity target is no longer available (deleted or
+ * unlinked). Never dumps an id and never crashes on an unresolved subject.
+ */
+export function waitingSubjectLabel(
+  subject: SerializedTaskWaitingSubject,
+): string {
+  if (subject.kind === "text") {
+    return subject.note;
+  }
+  return subject.title ?? "someone no longer available";
+}
+
+/**
+ * Format the waiting-since instant as a UTC calendar date, e.g. "18 Jul 2026".
+ * Manual formatting (no `Intl`/`Date` locale) keeps it deterministic. Returns null
+ * for an unparseable value.
+ */
+export function formatWaitingSince(sinceIso: string): string | null {
+  const ms = Date.parse(sinceIso);
+  if (Number.isNaN(ms)) {
+    return null;
+  }
+  const d = new Date(ms);
+  const day = d.getUTCDate();
+  const monthName = MONTHS[d.getUTCMonth()];
+  const year = d.getUTCFullYear();
+  if (!monthName) {
+    return null;
+  }
+  return `${day} ${monthName} ${year}`;
+}
+
+/**
+ * Format how long a task has been waiting, given a reference `nowMs`, as a calm
+ * elapsed phrase: "today", "1 day", "5 days", "3 weeks", "2 months". Bounded to
+ * whole units so "since" never becomes noisy. Returns "" for an unparseable value.
+ * Injecting `nowMs` keeps it deterministic (an accepted test clock in tests).
+ */
+export function formatWaitingElapsed(sinceIso: string, nowMs: number): string {
+  const ms = Date.parse(sinceIso);
+  if (Number.isNaN(ms)) {
+    return "";
+  }
+  const dayMs = 86_400_000;
+  const days = Math.max(0, Math.floor((nowMs - ms) / dayMs));
+  if (days === 0) {
+    return "today";
+  }
+  if (days === 1) {
+    return "1 day";
+  }
+  if (days < 21) {
+    return `${days} days`;
+  }
+  if (days < 60) {
+    const weeks = Math.floor(days / 7);
+    return weeks === 1 ? "1 week" : `${weeks} weeks`;
+  }
+  const months = Math.floor(days / 30);
+  return months === 1 ? "1 month" : `${months} months`;
 }

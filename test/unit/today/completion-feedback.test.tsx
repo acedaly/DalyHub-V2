@@ -58,6 +58,7 @@ describe("useCompletionFailureFeedback", () => {
         project: null,
         goal: null,
         area: null,
+        waiting: null,
       },
     });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

@@ -25,9 +25,14 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DrawerProvider } from "~/shared/drawer";
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
-import { formatTodayDate } from "../date";
+import { formatTodayDate, ownerCalendarIso } from "../date";
 import { TODAY_FIXTURE } from "../fixtures";
 import type { FocusTask } from "../fixtures";
+import {
+  toWaitingCardData,
+  toWaitingPreviewItem,
+  type WaitingSummary,
+} from "../task/waiting-view";
 import { TodayDashboard } from "../TodayDashboard";
 import { createTodayDrawerRenderer } from "../TodayDrawer";
 import type { TaskActionData } from "./task-detail";
@@ -46,21 +51,35 @@ export function meta() {
 /** How many open tasks the Today focus section loads. Bounded — never unbounded. */
 const FOCUS_LIMIT = 25;
 
+/** Bounded fetch backing the Today Waiting summary (count + a small preview). */
+const WAITING_SUMMARY_LIMIT = 50;
+
+/** How many waiting items the Today summary previews (the rest live in Waiting). */
+const WAITING_PREVIEW_COUNT = 3;
+
+const EMPTY_WAITING_SUMMARY: WaitingSummary = { count: 0, preview: [] };
+
 export async function loader({ context }: Route.LoaderArgs) {
   // Authentication is guaranteed by the Worker boundary; re-check (401 propagates).
   const session = requireAuthenticatedSession(context);
-  const date = formatTodayDate(new Date());
+  const now = new Date();
+  const date = formatTodayDate(now);
+  const todayIso = ownerCalendarIso(now);
 
   // Real, workspace-scoped focus tasks (open work). A scope/list failure degrades
   // to an empty focus section so Today still renders — never a 500.
   let focus: readonly FocusTask[];
+  let waiting: WaitingSummary;
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     // Include completed tasks so completing on Today keeps the card (Done + Reopen)
-    // and Today/Drawer completion stays consistent; open work sorts first.
+    // and Today/Drawer completion stays consistent; open work sorts first. Waiting
+    // tasks are EXCLUDED from focus — blocked work surfaces in the Waiting view, not
+    // as ordinary active focus (ADR-029).
     const page = await scope.tasks.listTasks({
       limit: FOCUS_LIMIT,
       includeCompleted: true,
+      excludeWaiting: true,
     });
     focus = page.items.map((item) => ({
       id: item.id,
@@ -68,11 +87,35 @@ export async function loader({ context }: Route.LoaderArgs) {
       context: item.parent?.title ?? "",
       done: item.completedAt !== null,
     }));
+
+    const waitingPage = await scope.tasks.listWaitingTasks({
+      limit: WAITING_SUMMARY_LIMIT,
+      todayIso,
+    });
+    waiting = {
+      count: waitingPage.items.length,
+      preview: waitingPage.items.slice(0, WAITING_PREVIEW_COUNT).map((item) =>
+        toWaitingPreviewItem(
+          toWaitingCardData(
+            {
+              ...item,
+              waiting: {
+                since: item.waiting.since.toISOString(),
+                subject: item.waiting.subject,
+              },
+            },
+            now.getTime(),
+            todayIso,
+          ),
+        ),
+      ),
+    };
   } catch {
     focus = [];
+    waiting = EMPTY_WAITING_SUMMARY;
   }
 
-  return { date, data: { ...TODAY_FIXTURE, focus } };
+  return { date, data: { ...TODAY_FIXTURE, focus }, waiting };
 }
 
 export default function TodayRoute({ loaderData }: Route.ComponentProps) {
@@ -107,6 +150,7 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
       <TodayDashboard
         data={loaderData.data}
         date={loaderData.date}
+        waiting={loaderData.waiting}
         onCompleteTask={onCompleteTask}
       />
     </DrawerProvider>

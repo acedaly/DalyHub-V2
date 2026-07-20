@@ -27,6 +27,8 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "./task";
+import { WAITING_NOTE_MAX_LENGTH } from "./task-identifiers";
+import type { SetWaitingInput } from "./task";
 
 /** Default number of task summaries returned by `listTasks` when no limit is given. */
 export const DEFAULT_TASK_PAGE_SIZE = 50;
@@ -189,6 +191,96 @@ export function validateTaskDescription(value: unknown): MarkdownSource | null {
     }
     throw cause;
   }
+}
+
+/**
+ * Validate a free-text waiting subject: required, non-empty after trimming, within
+ * `WAITING_NOTE_MAX_LENGTH` code points. Returns the TRIMMED value, which is what
+ * gets stored — as PLAIN TEXT (rendered escaped, never HTML/Markdown). Control
+ * characters are rejected so a subject stays a single-line label.
+ */
+export function validateWaitingNote(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new TaskValidationError("waitingNote", "must be a string");
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new TaskValidationError(
+      "waitingNote",
+      "enter what or whom this task is waiting on",
+    );
+  }
+  if (codePointLength(trimmed) > WAITING_NOTE_MAX_LENGTH) {
+    throw new TaskValidationError(
+      "waitingNote",
+      `must be at most ${WAITING_NOTE_MAX_LENGTH} characters`,
+    );
+  }
+  // eslint-disable-next-line no-control-regex -- reject C0/C1 control characters.
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(trimmed)) {
+    throw new TaskValidationError(
+      "waitingNote",
+      "must not contain control characters",
+    );
+  }
+  return trimmed;
+}
+
+/**
+ * Validate a waiting-target entity id used to activate an entity-backed waiting
+ * state. Same rules as a task id (non-empty, bounded, not trimmed). The target's
+ * existence, workspace, type and self-reference are checked against storage by the
+ * repository — this only validates the id's SHAPE.
+ */
+export function validateWaitingTargetId(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new TaskValidationError("waitingTargetId", "must be a string");
+  }
+  if (value.length === 0) {
+    throw new TaskValidationError("waitingTargetId", "must not be empty");
+  }
+  if (value.length > ID_MAX_LENGTH) {
+    throw new TaskValidationError(
+      "waitingTargetId",
+      `must be at most ${ID_MAX_LENGTH} characters`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Validate and normalise a {@link SetWaitingInput}: EXACTLY ONE subject — an entity
+ * target id or a free-text note — must be supplied. A malformed shape, or one that
+ * supplies neither/both, is rejected before any storage access. Returns the
+ * normalised discriminated subject the repository writes.
+ */
+export function validateSetWaitingInput(
+  input: SetWaitingInput,
+):
+  | { readonly kind: "entity"; readonly targetId: string }
+  | { readonly kind: "text"; readonly note: string } {
+  const target = (input as { target?: unknown }).target;
+  if (target === null || typeof target !== "object") {
+    throw new TaskValidationError(
+      "waitingTarget",
+      "a waiting subject is required",
+    );
+  }
+  const kind = (target as { kind?: unknown }).kind;
+  if (kind === "entity") {
+    const targetId = validateWaitingTargetId(
+      (target as { targetId?: unknown }).targetId,
+    );
+    return { kind: "entity", targetId };
+  }
+  if (kind === "text") {
+    const note = validateWaitingNote((target as { note?: unknown }).note);
+    return { kind: "text", note };
+  }
+  throw new TaskValidationError(
+    "waitingTarget",
+    "must wait on an entity or a free-text subject",
+  );
 }
 
 /**

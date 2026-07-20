@@ -34,6 +34,7 @@ function view(overrides: Partial<TaskView> = {}): TaskView {
     project: null,
     goal: null,
     area: null,
+    waiting: null,
     ...overrides,
   };
 }

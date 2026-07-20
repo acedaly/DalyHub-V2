@@ -20,13 +20,17 @@ app/modules/today/
   routes.manifest.ts   — the declarative /today route + the TODAY-02 task
                          resource routes (no nav entry)
   routes/index.tsx      — the route: loader (real focus tasks + date) + DrawerProvider
-  routes/task-detail.tsx     — TODAY-02: the task loader + mutation action
+  routes/task-detail.tsx     — TODAY-02/03: the task loader + mutation action
+                               (update/complete/link + waiting intents)
   routes/task-activity.tsx   — TODAY-02: the task's DS-05 Timeline page
   routes/task-link-targets.tsx — TODAY-02: the "related records" target search
-  TodayDashboard.tsx   — the pure composition of the six sections
+  routes/task-waiting-targets.tsx — TODAY-03: the waiting-target entity search
+  routes/waiting.tsx         — TODAY-03: the /today/waiting collection view
+  TodayDashboard.tsx   — the pure composition of the sections (+ Waiting summary)
   TodayDrawer.tsx      — maps a drawer key → a record (task → TaskDrawerContent)
-  task/                — TODAY-02: the task record composition (view-model,
-                         TaskDrawerContent, Details/Links/Activity tabs)
+  task/                — TODAY-02/03: the task record composition (view-model,
+                         TaskDrawerContent, Details/Links/Activity tabs,
+                         TaskWaitingSection, waiting-view)
   fixtures.ts          — demo data for the non-task sections (+ the focus seed shape)
 app/styles/today.css       — TODAY-01 layout/rhythm, every value a DS-01 token
 app/styles/task-drawer.css — TODAY-02 task-record layout, every value a DS-01 token
@@ -101,14 +105,67 @@ shared DS-03 Drawer on `/today`, composed entirely from the shared layer (ADR-02
   `tasks.listTasks`; a focus-card completion writes through the same task action.
   The other five sections remain fixture-backed (the preserved seam).
 
+## Waiting (TODAY-03)
+
+TODAY-03 makes **"waiting for"** a real, persistent workflow — a task blocked on
+someone or something else — composed entirely from the shared layer and composing
+the TODAY-02 task slice (ADR-029). It adds no second store, Drawer, form, timeline
+or link system.
+
+- **Storage.** Migration `0007` adds two additive nullable columns to
+  `task_details`: `waiting_since` (an ISO timestamp — the single authority for "is
+  waiting" and since-when; NULL = not waiting) and `waiting_note` (a free-text
+  subject). An entity-backed subject is a **reserved `task.waiting_on` EntityLink**
+  (Person/Project/Goal/Area/Task), resolved live to its current title like the
+  structural parent — never a copied label. The subject is EXACTLY ONE of a note
+  XOR an entity link. A partial unique index enforces one active `task.waiting_on`
+  per task; a partial index backs the collection query.
+- **Authority.** The `TaskRepository` owns waiting atomically — `setWaiting`,
+  `clearWaiting`, `listWaitingTasks` — each writing the state, replacing/clearing
+  the link and appending exactly one guarded Activity event in ONE
+  `D1Database.batch()`, exactly as the SpineRepository writes structural links.
+  `task.waiting_on` is reserved (`RESERVED_TASK_LINK_TYPES`) so the generic
+  EntityLink repository refuses it and the TaskRepository stays the sole writer.
+- **Semantics.** One active waiting state and one primary subject; changing the
+  subject preserves the original `since`. Completing a task **clears** waiting
+  (auto-clear in the task action, emitting `task.waiting_cleared`); reopening does
+  NOT restore it. A deleted/unlinked target degrades to an unresolved subject.
+  Cross-workspace targets, non-task anchors, the self-target and disallowed types
+  are rejected server-side; no-op and rejected mutations append no Activity.
+- **Display.** Waiting is a derived first-class state — precedence
+  completion → waiting → open-state status — so `status` (`todo`/`in_progress`)
+  and completion can never visibly contradict.
+- **Task Drawer.** A **waiting control** lives in the DS-02 Summary beside
+  completion ([`TaskWaitingSection.tsx`](../../app/modules/today/task/TaskWaitingSection.tsx)):
+  a calm read-only state ("Waiting for X · Since 18 Jul 2026 · 3 days") and an
+  explicit-save editor with two modes — a DS-06 async `SelectField` picker over the
+  waiting-target search, or a free-text `TextField` — with server-authoritative
+  validation. It posts `set_waiting`/`clear_waiting` intents to the existing
+  `/today/task/:id` action.
+- **The Waiting view.** [`/today/waiting`](../../app/modules/today/routes/waiting.tsx)
+  is a real registry route under Today (no separate sidebar module). It composes the
+  PX-02 CollectionLayout + DS-04 Cards and opens tasks in the SAME DS-03 Drawer, so
+  opening a waiting task keeps the owner on `/today/waiting`. Ordering is
+  deterministic: **overdue → longest-waiting → due date → id.** Bounded query.
+- **Today integration.** A quiet **Waiting summary** section (count + a small
+  preview + a link to `/today/waiting`) appears only when something is waiting;
+  waiting tasks are **excluded from the focus** list (blocked work is not ordinary
+  active focus). An "Open Waiting" navigation command is registered.
+- **Activity.** Three new types (`task.waiting_started`, `task.waiting_changed`,
+  `task.waiting_cleared`) are registered on the **tasks** module manifest with DS-05
+  Timeline descriptors. Payloads are structured and safe; free-text content is never
+  logged.
+
 ## Deliberately NOT built
 
 TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks
-module (creation UI, board, planning), a richer workflow status or a Waiting field
-(TODAY-03), search-over-real-tasks (the DS-08 provider stays fixture-backed —
+module (creation UI, board, planning), a richer workflow status,
+search-over-real-tasks (the DS-08 provider stays fixture-backed —
 [DEBT-17](../product/PRODUCT_DEBT.md)), AI, or any second Drawer/Record
 Layout/form/Activity/EntityLinks system. The non-task Today sections remain
-fixture-only: no Notes, Meetings, reminders or Diary implementation.
+fixture-only: no Notes, Meetings, reminders or Diary implementation. TODAY-03 adds
+Waiting (above) but no multi-target waiting, delegation workflow beyond the waiting
+subject, reminders or notifications.
 
 - **Quick capture** is not connected. Submitting a non-empty draft **keeps** the
   text (nothing is stored, so clearing would silently discard it) and a polite

@@ -39,6 +39,7 @@ const TASK: SerializedTaskView = {
   project: { kind: "project", id: "p1", title: "Ship V2" },
   goal: { kind: "goal", id: "g1", title: "Promotion" },
   area: { kind: "area", id: "a1", title: "Career" },
+  waiting: null,
 };
 
 function jsonResponse(data: unknown, status = 200): Response {

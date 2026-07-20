@@ -39,6 +39,7 @@ const DESIGN_FIXTURES = [
 const PRODUCT_ROUTES = [
   "/",
   "/today",
+  "/today/waiting",
   "/areas",
   "/goals",
   "/projects",

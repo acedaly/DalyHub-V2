@@ -30,3 +30,20 @@ export function formatTodayDate(now: Date): string {
     timeZone: OWNER_TIME_ZONE,
   }).format(now);
 }
+
+/**
+ * The owner's current calendar date as `YYYY-MM-DD`, resolved in `OWNER_TIME_ZONE`
+ * — the reference date for date-only comparisons (e.g. overdue detection), so
+ * "overdue" matches the owner's day, not the UTC runtime's. Uses the `en-CA` locale
+ * (which formats as `YYYY-MM-DD`), assembled from parts to stay locale-stable.
+ */
+export function ownerCalendarIso(now: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: OWNER_TIME_ZONE,
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}

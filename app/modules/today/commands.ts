@@ -41,4 +41,12 @@ export const todayCommands: readonly CommandContribution[] = [
     kind: "navigate",
     target: { kind: "route", to: TODAY_CAPTURE_PATH },
   },
+  {
+    id: "today.open_waiting",
+    title: "Open Waiting",
+    subtitle: "Tasks blocked on someone or something else",
+    keywords: ["waiting", "blocked", "delegated", "waiting for", "stuck"],
+    kind: "navigate",
+    target: { kind: "route", to: "/today/waiting" },
+  },
 ];

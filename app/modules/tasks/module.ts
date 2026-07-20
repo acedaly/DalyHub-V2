@@ -20,6 +20,12 @@ import {
   TASK_COMPLETED,
   TASK_REOPENED,
 } from "~/kernel/spine";
+import {
+  TASK_WAITING_CHANGED,
+  TASK_WAITING_CLEARED,
+  TASK_WAITING_ON,
+  TASK_WAITING_STARTED,
+} from "~/kernel/tasks";
 
 import routes from "./routes.manifest";
 
@@ -45,6 +51,15 @@ export default defineModule({
       sourceEntityType: TASK,
       targetEntityType: PROJECT,
     },
+    {
+      // TODAY-03: the reserved link recording the entity a task is waiting on. The
+      // target may be a Person, Project, Goal, Area or Task, so no single
+      // `targetEntityType` metadata applies. Written only by the TaskRepository.
+      type: TASK_WAITING_ON,
+      sourceLabel: "waiting on",
+      targetLabel: "blocking task",
+      sourceEntityType: TASK,
+    },
   ],
   activityTypes: [
     {
@@ -56,6 +71,21 @@ export default defineModule({
       type: TASK_REOPENED,
       label: "Task reopened",
       description: "A completed task was reopened.",
+    },
+    {
+      type: TASK_WAITING_STARTED,
+      label: "Started waiting",
+      description: "A task was marked as waiting on someone or something.",
+    },
+    {
+      type: TASK_WAITING_CHANGED,
+      label: "Changed waiting",
+      description: "A waiting task's subject was changed.",
+    },
+    {
+      type: TASK_WAITING_CLEARED,
+      label: "Stopped waiting",
+      description: "A task's waiting state was cleared.",
     },
   ],
 });

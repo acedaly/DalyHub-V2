@@ -21,6 +21,15 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: { navLabel: "Today", navOrder: 5 },
   },
+  // TODAY-03 Waiting: a real sub-view of Today listing tasks blocked on someone or
+  // something else. It has no sidebar nav entry (no `navLabel`) — it is reached from
+  // the Today Waiting summary and the "Open Waiting" command, staying under Today
+  // rather than cluttering the sidebar with a separate module.
+  {
+    id: "today.waiting",
+    path: "today/waiting",
+    file: "routes/waiting.tsx",
+  },
   // TODAY-02 task Drawer data endpoints (resource routes, no nav entry): the task
   // itself (loader + mutation action), its Activity Timeline page, and the
   // "related records" target search. They are addressed by the Drawer content on
@@ -39,6 +48,12 @@ const routes: readonly RouteContribution[] = [
     id: "today.task.link_targets",
     path: "today/task/:taskId/link-targets",
     file: "routes/task-link-targets.tsx",
+  },
+  // TODAY-03: the waiting-control entity target search (resource route, no nav).
+  {
+    id: "today.task.waiting_targets",
+    path: "today/task/:taskId/waiting-targets",
+    file: "routes/task-waiting-targets.tsx",
   },
 ];
 

@@ -30,6 +30,7 @@ import {
   type NewActivityEvent,
 } from "~/kernel/activity";
 import { RESERVED_SPINE_LINK_TYPES } from "~/kernel/spine";
+import { RESERVED_TASK_LINK_TYPES } from "~/kernel/tasks";
 import {
   EntityLinkConflictError,
   EntityLinkEndpointNotFoundError,
@@ -78,6 +79,19 @@ import {
   type EntityLinkRow,
   type EntityLinkViewRow,
 } from "./entity-link-database";
+
+/**
+ * True when `type` is reserved for a domain repository (the spine's five structural
+ * types, or the task-domain `task.waiting_on`). Reserved types are written only by
+ * their owning repository so a load-bearing invariant (exactly-one-active-parent;
+ * waiting state and link never diverge) cannot be broken through the generic link
+ * repository.
+ */
+function isReservedLinkType(type: string): boolean {
+  return (
+    RESERVED_SPINE_LINK_TYPES.has(type) || RESERVED_TASK_LINK_TYPES.has(type)
+  );
+}
 
 /** Optional dependencies for the repository, injectable for deterministic tests. */
 export interface D1EntityLinkRepositoryOptions {
@@ -183,7 +197,7 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       validateCreateEntityLinkInput(input);
     // The five structural spine link types are reserved for the SpineRepository,
     // which alone enforces the exactly-one-active-parent invariant (ADR-014 §4.7).
-    if (RESERVED_SPINE_LINK_TYPES.has(type)) {
+    if (isReservedLinkType(type)) {
       throw new EntityLinkReservedTypeError();
     }
 
@@ -370,7 +384,7 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     if (!existing) {
       throw new EntityLinkNotFoundError();
     }
-    if (RESERVED_SPINE_LINK_TYPES.has(existing.type)) {
+    if (isReservedLinkType(existing.type)) {
       throw new EntityLinkReservedTypeError();
     }
     if (existing.deleted_at !== null) {
@@ -425,7 +439,7 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     if (!existing) {
       throw new EntityLinkNotFoundError();
     }
-    if (RESERVED_SPINE_LINK_TYPES.has(existing.type)) {
+    if (isReservedLinkType(existing.type)) {
       throw new EntityLinkReservedTypeError();
     }
     if (existing.deleted_at === null) {

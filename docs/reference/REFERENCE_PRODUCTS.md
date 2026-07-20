@@ -378,6 +378,19 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Waiting evaluation (TODAY-03)
+
+> The build-vs-reuse evaluation behind [ADR-029](../decisions/ARCHITECTURE_DECISIONS.md#adr-029-task-waiting--additive-state-a-reserved-entitylink-and-a-derived-first-class-display-state). **No new runtime or dev dependency was added** — TODAY-03 is a thin additive slice (two `task_details` columns + a reserved EntityLink type, one migration) plus **composition** of already-built shared components.
+
+- **Products studied (🔴 study-only, already catalogued): Things 3, Linear.** The waiting model was informed by GTD's "Waiting For" list (delegated/blocked items with who and since when), Things' calm status treatment, and Linear's blocked-state pills and relations. Interaction/UX inspiration only; **no code reuse** (closed source / GTD is a methodology). Nothing new to research — the existing entries covered it.
+- **Reused, not rebuilt (in-house shared layer).** The FND-04 EntityLink kernel + the DS-06 entity-link *picker service* + `SelectField` async combobox, the DS-04 Cards + PX-02 CollectionLayout, the DS-02 Record Layout Summary, the DS-03 Drawer, the FND-05 Activity model + DS-05 Timeline descriptors, the DS-10 Feedback platform and the shared EmptyState/Skeleton are all consumed **unchanged**. Waiting builds no second store, Drawer, form, timeline or link system.
+- **Adapted.** Only DalyHub-owned code: migration `0007` (additive columns + partial indexes), the `TaskRepository` waiting operations (mirroring the spine adapter's atomic-batch + guarded-Activity + in-batch structural-link pattern), a reserved `task.waiting_on` link type, the `TaskWaitingSection` control (shared-primitive composition), the `/today/waiting` view and a waiting-target search route.
+- **Rejected.** A **date-duration library** for the "since" / elapsed label — a small, reliable pure utility (whole-day integer arithmetic with an injected clock for deterministic tests) is sufficient and Workers-safe, per the task's explicit guidance not to add a dependency for duration formatting. An **ORM** (the waiting writes are small prepared SQL); a **second history table** (the shared Activity model provides history).
+- **Licence implications.** None — no dependency added, no third-party code copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Build** the waiting columns, reserved link, repository operations, control, view and routes on the existing stack; **reuse** every shared component and kernel; **add no dependency**. See [ADR-029](../decisions/ARCHITECTURE_DECISIONS.md#adr-029-task-waiting--additive-state-a-reserved-entitylink-and-a-derived-first-class-display-state).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

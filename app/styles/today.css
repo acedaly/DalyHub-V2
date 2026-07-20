@@ -210,3 +210,52 @@
   border-color: var(--dh-color-disabled-border);
   cursor: not-allowed;
 }
+
+/* TODAY-03 — the Waiting summary section on Today. */
+.dh-today__waiting {
+  list-style: none;
+  margin: 0 0 var(--dh-space-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-today__waiting-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+  color: inherit;
+  text-decoration: none;
+  min-height: var(--dh-touch-target-min);
+}
+
+.dh-today__waiting-link:hover {
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-today__waiting-title {
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.dh-today__waiting-meta {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-today__waiting-all {
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+/* TODAY-03 — the "Waiting for" subject cell in a Waiting card. */
+.dh-waiting-card__subject {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  overflow-wrap: anywhere;
+}
