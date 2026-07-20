@@ -7,7 +7,7 @@
 
 import { Fragment } from "react";
 
-import { toHighlightSegments } from "./highlight";
+import { toHighlightSegments } from "./highlight-segments";
 import type { MatchRange } from "./types";
 
 export type HighlightProps = {
