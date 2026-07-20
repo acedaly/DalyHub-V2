@@ -209,11 +209,14 @@ a disabled action yields an `enabled: false` binding and never fires.
 **Executable** command / contextual-run shortcuts are intentionally NOT dispatched
 globally yet: firing one with the palette closed runs it through the authenticated
 boundary and needs a pending/success/failure surface *outside* the palette — the
-DS-10 global feedback surface, which DS-09 excludes. Their palette hints remain;
-global dispatch of executable shortcuts lands with DS-10. Wiring navigation
-shortcuts loads the catalogue in the always-on shell (a deliberate, documented
-departure from the otherwise fully-lazy palette posture — it pulls only the small
-catalogue transport and the pure navigation helper, never the palette UI).
+DS-10 global feedback surface, which DS-09 excludes. Because those shortcuts cannot
+currently run app-wide, the palette **does not advertise them**: a shortcut hint is
+shown only for a `navigate` command/action (whose shortcut is actually dispatched),
+never for an executable command — so no hint promises a control that does nothing.
+Global dispatch (and the hint) for executable shortcuts lands with DS-10. Wiring
+navigation shortcuts loads the catalogue in the always-on shell (a deliberate,
+documented departure from the otherwise fully-lazy palette posture — it pulls only
+the small catalogue transport and the pure navigation helper, never the palette UI).
 
 Modules extend the vocabulary; they never reassign a reserved shortcut (the kernel
 refuses it).

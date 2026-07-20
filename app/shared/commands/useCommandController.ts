@@ -356,6 +356,16 @@ export function useCommandController(
           if (!mountedRef.current) {
             return;
           }
+          // Stale-response guard: a superseded activation (the query changed, or a
+          // newer command started) must NOT settle state OR run its side effects.
+          // `settleExecution` already drops a stale token from the state, but the
+          // recents/navigation below must be gated the same way — otherwise a slow
+          // target-bearing success from command A could close the palette and
+          // navigate away after command B became the active interaction.
+          const live = executionRef.current;
+          if (live.phase !== "pending" || live.token !== started.token) {
+            return;
+          }
           setExecution((state) =>
             settleExecution(state, started.token, outcome),
           );

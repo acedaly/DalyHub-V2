@@ -98,6 +98,41 @@ describe("CommandShortcutLayer", () => {
     await waitFor(() => expect(loc()).toBe("/projects"));
   });
 
+  it("resolves a shortcut collision by precedence (contextual over registered)", async () => {
+    renderLayer({
+      actions: [
+        {
+          id: "ctx.go",
+          title: "Contextual go",
+          kind: "navigate",
+          target: { kind: "route", to: "/projects" },
+          shortcut: { key: "c", modifiers: ["shift"] },
+        },
+      ],
+      catalogue: {
+        commands: [
+          {
+            id: "reg.go",
+            moduleId: "m",
+            moduleLabel: "M",
+            title: "Registered go",
+            keywords: [],
+            kind: "navigate",
+            target: { kind: "route", to: "/today" },
+            shortcut: { key: "c", modifiers: ["shift"] },
+          },
+        ],
+      },
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    press({ key: "c", shiftKey: true });
+    // Contextual precedes registered, so exactly one action fires: the contextual
+    // one (→ /projects), never the colliding registered one (→ /today).
+    await waitFor(() => expect(loc()).toBe("/projects"));
+  });
+
   it("does NOT dispatch an executable command's shortcut (deferred to DS-10)", async () => {
     renderLayer({
       catalogue: {

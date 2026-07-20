@@ -133,18 +133,63 @@ const RESERVED_COMMAND_SHORTCUTS: readonly {
   { key: "/", modifiers: [] },
 ];
 
-/** True when a validated shortcut matches a reserved global shortcut. */
+/** The concrete modifier requirement a shortcut resolves to on one platform. */
+type ModifierState = {
+  readonly meta: boolean;
+  readonly ctrl: boolean;
+  readonly alt: boolean;
+  readonly shift: boolean;
+};
+
+/**
+ * Resolve a shortcut's modifiers to the concrete key-event they require on one
+ * platform. `mod` becomes Meta on macOS and Control elsewhere — exactly how the
+ * runtime dispatcher matches — so two shortcuts that fire on the same key event are
+ * recognised as equal even when written differently (`Mod+K` vs `Meta+K`).
+ */
+function resolveModifiers(
+  modifiers: readonly string[],
+  modIsMeta: boolean,
+): ModifierState {
+  const has = (modifier: string) => modifiers.includes(modifier);
+  const wantMod = has("mod");
+  return {
+    meta: has("meta") || (wantMod && modIsMeta),
+    ctrl: has("ctrl") || (wantMod && !modIsMeta),
+    alt: has("alt"),
+    shift: has("shift"),
+  };
+}
+
+function sameModifiers(a: ModifierState, b: ModifierState): boolean {
+  return (
+    a.meta === b.meta &&
+    a.ctrl === b.ctrl &&
+    a.alt === b.alt &&
+    a.shift === b.shift
+  );
+}
+
+/**
+ * True when a validated shortcut is (an alias of) a reserved global shortcut. The
+ * comparison resolves `mod` per platform and reports a collision on EITHER platform,
+ * so a module cannot slip past reserved `Mod+K` by declaring its runtime alias
+ * `Meta+K` (macOS) or `Ctrl+K` (elsewhere) — which the global dispatcher, installing
+ * the reserved binding first, would otherwise shadow while still advertising it.
+ */
 function isReservedShortcut(shortcut: CommandShortcut): boolean {
   const key = shortcut.key.toLowerCase();
-  const modifiers = [...(shortcut.modifiers ?? [])].sort();
+  const modifiers = shortcut.modifiers ?? [];
   return RESERVED_COMMAND_SHORTCUTS.some((reserved) => {
-    if (
-      reserved.key !== key ||
-      reserved.modifiers.length !== modifiers.length
-    ) {
+    if (reserved.key !== key) {
       return false;
     }
-    return reserved.modifiers.every((modifier, i) => modifier === modifiers[i]);
+    return [true, false].some((modIsMeta) =>
+      sameModifiers(
+        resolveModifiers(modifiers, modIsMeta),
+        resolveModifiers(reserved.modifiers, modIsMeta),
+      ),
+    );
   });
 }
 

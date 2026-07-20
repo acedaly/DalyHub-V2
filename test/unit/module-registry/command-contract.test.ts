@@ -112,10 +112,16 @@ describe("DS-09 command contract validation", () => {
     ).toThrow(ModuleDefinitionError);
   });
 
-  it("refuses a command that reassigns a reserved global shortcut (Mod+K, /)", () => {
+  it("refuses a command that reassigns a reserved global shortcut (Mod+K, /) or a platform alias", () => {
     for (const shortcut of [
       { key: "k", modifiers: ["mod"] as const },
       { key: "/" },
+      // Platform aliases of Mod+K: Meta+K (macOS) and Ctrl+K (elsewhere) resolve to
+      // the same key event as the reserved binding and must also be refused.
+      { key: "k", modifiers: ["meta"] as const },
+      { key: "k", modifiers: ["ctrl"] as const },
+      // Case-insensitive on the key.
+      { key: "K", modifiers: ["meta"] as const },
     ]) {
       expect(() =>
         createModuleRegistry([
@@ -135,6 +141,27 @@ describe("DS-09 command contract validation", () => {
         ]),
       ).toThrow(ModuleDefinitionError);
     }
+  });
+
+  it("still allows a distinct combination that is not a reserved alias (Mod+Shift+K)", () => {
+    expect(() =>
+      createModuleRegistry([
+        defineModule({
+          id: "demo",
+          name: "Demo",
+          commands: [
+            {
+              id: "demo.x",
+              title: "X",
+              // Shift added → not an alias of the reserved Mod+K.
+              shortcut: { key: "k", modifiers: ["mod", "shift"] },
+              kind: "execute",
+              run: () => ({ ok: true }),
+            },
+          ],
+        }),
+      ]),
+    ).not.toThrow();
   });
 
   it("omits the handler from the serialised catalogue", () => {

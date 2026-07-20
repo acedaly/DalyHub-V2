@@ -479,8 +479,12 @@ function CommandOption({
   // A disabled option is never the active option (skip-disabled selection), so it
   // must not read as selected even if a stale `active` slips through.
   const showActive = active && !disabled;
+  // Only advertise a keyboard shortcut when it is actually dispatched globally —
+  // i.e. NAVIGATION commands/actions. Executable-command global shortcuts are
+  // deferred to DS-10 (they need a feedback surface outside the palette), so their
+  // hint is suppressed rather than shown as a control that does nothing.
   const shortcut =
-    command.shortcut !== undefined
+    command.shortcut !== undefined && command.kind === "navigate"
       ? formatShortcut(command.shortcut, platform)
       : null;
 

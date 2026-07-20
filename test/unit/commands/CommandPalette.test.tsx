@@ -382,6 +382,75 @@ describe("CommandPalette", () => {
     );
   });
 
+  it("does not navigate or close for a stale target-bearing success after the query changed", async () => {
+    let resolveExec: (o: { ok: true; target: unknown }) => void = () => {};
+    const execute = vi.fn(
+      () =>
+        new Promise<{ ok: true; target: unknown }>((resolve) => {
+          resolveExec = resolve;
+        }),
+    );
+    const { onClose } = renderPalette({ execute });
+    const input = screen.getByRole("combobox", {
+      name: "Search commands and records",
+    });
+    fireEvent.change(input, { target: { value: "reindex" } });
+    await optionByTitle("Reindex the workspace");
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(screen.getByText("Running…")).toBeInTheDocument(),
+    );
+    // Supersede the pending command by changing the query (resets execution).
+    fireEvent.change(input, { target: { value: "today" } });
+    // The slow command now settles with a target-bearing success — but it is stale.
+    resolveExec({ ok: true, target: { kind: "route", to: "/today" } });
+    await Promise.resolve();
+    await waitFor(() => expect(screen.queryByText("Running…")).toBeNull());
+    // The stale success must NOT close the palette (nor navigate).
+    expect(onClose).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("advertises a shortcut hint for a navigation command but not an executable one", async () => {
+    const catalogue: CommandCatalogue = {
+      commands: [
+        {
+          id: "nav.go",
+          moduleId: "m",
+          moduleLabel: "M",
+          title: "Navigate somewhere",
+          keywords: [],
+          kind: "navigate",
+          target: { kind: "route", to: "/x" },
+          shortcut: { key: "g", modifiers: ["shift"] },
+        },
+        {
+          id: "exec.run",
+          moduleId: "m",
+          moduleLabel: "M",
+          title: "Navigate a job",
+          keywords: [],
+          kind: "execute",
+          shortcut: { key: "r", modifiers: ["shift"] },
+        },
+      ],
+    };
+    renderPalette({ catalogue: async () => catalogue });
+    const input = screen.getByRole("combobox", {
+      name: "Search commands and records",
+    });
+    fireEvent.change(input, { target: { value: "navigate" } });
+    const navOption = await optionByTitle("Navigate somewhere");
+    const execOption = await optionByTitle("Navigate a job");
+    // The navigation command's global shortcut is dispatched → its hint shows.
+    expect(
+      navOption.querySelector(".dh-command__optionshortcut"),
+    ).not.toBeNull();
+    // The executable command's global shortcut is deferred (DS-10) → no hint,
+    // so nothing advertises a control that cannot currently run.
+    expect(execOption.querySelector(".dh-command__optionshortcut")).toBeNull();
+  });
+
   it("exposes no active descendant when every option is disabled", async () => {
     renderPalette({
       contextual: [
