@@ -19,7 +19,9 @@ jobs:
   verify:
     name: Verify (lint, types, tests, build, e2e)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Raised from 15 for the DS-11 accessibility + responsive regression coverage,
+    # which adds axe scans and a 320px→ultra-wide overflow sweep to the E2E run.
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,7 +63,12 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Playwright smoke test
+      - name: Playwright E2E, accessibility & responsive regression
+        # Runs the full Playwright suite, which now includes the DS-11 automated
+        # accessibility gate (axe-core WCAG 2.2 AA scans of every shared surface, in
+        # light and dark, with modal overlays open) and the responsive regression
+        # matrix (no horizontal overflow from 320px through ultra-wide). A genuine
+        # accessibility or layout regression fails the build here.
         run: pnpm run test:e2e
 
       - name: Upload Playwright report on failure

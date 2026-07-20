@@ -41,6 +41,7 @@ export function Card(props: CardProps) {
     icon,
     accent = "neutral",
     title,
+    headingLevel = 3,
     subtitle,
     status,
     metadata,
@@ -76,6 +77,7 @@ export function Card(props: CardProps) {
   };
 
   const openAccessibleName = openAriaLabel ?? title;
+  const TitleHeading = `h${headingLevel}` as const;
 
   const titleContent = <span className="dh-card__title-text">{title}</span>;
 
@@ -176,9 +178,9 @@ export function Card(props: CardProps) {
           ) : null}
         </div>
 
-        <h3 id={titleId} className="dh-card__title">
+        <TitleHeading id={titleId} className="dh-card__title">
           {titleNode}
-        </h3>
+        </TitleHeading>
 
         {subtitle ? <p className="dh-card__subtitle">{subtitle}</p> : null}
 

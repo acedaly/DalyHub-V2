@@ -49,7 +49,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en" data-theme={theme}>
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* `viewport-fit=cover` opts the document into the display's full width
+         * on devices with a display cutout (notch/rounded corners) so the
+         * `env(safe-area-inset-*)` values the shell, Drawer, Inspector and toast
+         * layer already reference resolve to real insets instead of 0 (DS-11). */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
         <Meta />
         <Links />
       </head>

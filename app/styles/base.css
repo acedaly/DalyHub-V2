@@ -52,6 +52,18 @@ body {
   }
 }
 
+/* Forced-colors (Windows High Contrast) compatibility (DS-11). In forced-colors
+ * mode the OS replaces authored colours with its own palette; a custom-property
+ * outline colour is discarded, so the keyboard focus ring is re-pinned to the
+ * system `Highlight` colour to stay visible. Nothing else needs overriding: the
+ * design system conveys state with icon/text + shape (never colour alone) and
+ * gives modal surfaces real borders, both of which survive the forced palette. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}
+
 /* Visually-hidden but screen-reader-available content (labels, live regions,
  * keyboard instructions). Shared by DS-02/03/04/07 and any component that needs
  * an accessible name without visible text. */

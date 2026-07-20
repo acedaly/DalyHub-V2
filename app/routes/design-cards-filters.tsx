@@ -661,7 +661,9 @@ function CollectionSurface() {
             ariaLabel="Records"
             presentation="grid"
             density={density}
-            renderCard={(record) => <Card {...toCardProps(record)} />}
+            renderCard={(record) => (
+              <Card {...toCardProps(record)} headingLevel={2} />
+            )}
           />
         ) : (
           <ReorderableCardCollection
@@ -683,6 +685,7 @@ function CollectionSurface() {
             renderItem={(record, { handleProps }) => (
               <Card
                 {...toCardProps(record)}
+                headingLevel={2}
                 reorderHandle={<CardReorderHandle {...handleProps} />}
               />
             )}

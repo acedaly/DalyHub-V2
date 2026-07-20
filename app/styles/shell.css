@@ -399,7 +399,12 @@
   align-items: center;
   gap: var(--dh-space-2);
   min-height: var(--dh-shell-header-height);
-  padding: var(--dh-space-2) var(--dh-gutter);
+  /* With `viewport-fit=cover` the document runs under the status-bar / notch, so
+   * the top bar pads by the top inset (and the leading inset for a landscape
+   * cutout) to keep the menu toggle and brand out from under the cutout (DS-11). */
+  padding: max(var(--dh-space-2), env(safe-area-inset-top)) var(--dh-gutter)
+    var(--dh-space-2);
+  padding-inline-start: max(var(--dh-gutter), env(safe-area-inset-left));
   border-bottom: var(--dh-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface);
 }

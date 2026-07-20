@@ -97,6 +97,32 @@ its Apache-2.0 option) are used unmodified; none ships a supplemental `NOTICE`
 file requiring additional reproduction. No copyleft or no-licence code is
 included.
 
+### Accessibility test tooling (DS-11) — recorded MPL-2.0 decision
+
+The DS-11 automated accessibility gate uses **axe-core** via
+**`@axe-core/playwright`**. Both are licensed **MPL-2.0** (Mozilla Public License
+2.0), which the [Open Source Policy](docs/governance/OPEN_SOURCE_POLICY.md#licensing-rules)
+classifies as *"allowed with recorded decision"* — permitted when the copyleft
+files stay isolated and unmodified, justified in the PR, and noted here. Licences
+verified against the exact installed versions on **2026-07-20**.
+
+| Package                 | Version | Licence  |
+| ----------------------- | ------- | -------- |
+| `@axe-core/playwright`  | 4.12.1  | MPL-2.0  |
+| `axe-core`              | 4.12.1  | MPL-2.0  |
+
+**Recorded decision.** These are **development/test-only** dependencies: they run
+inside Playwright during `pnpm test:e2e` and in CI, and are **never imported by
+application code nor shipped in the deployed Worker bundle** (they are not runtime
+or client dependencies). They are used **unmodified** — the MPL-2.0 files are
+consumed as an off-the-shelf library with no changes — so the file-level copyleft
+imposes no obligation on DalyHub's own source. `@axe-core/playwright`'s only
+runtime dependency is `axe-core`; its sole peer, `playwright-core`, is already
+present via `@playwright/test` (Apache-2.0). No new copyleft or no-licence code
+enters the transitive tree. axe-core is the de-facto standard, actively-maintained
+accessibility engine (the same engine behind many audit tools); the open-source
+assessment is recorded in [`REFERENCE_PRODUCTS.md`](docs/reference/REFERENCE_PRODUCTS.md).
+
 ---
 
 ## Markdown pipeline dependencies (FND-08)

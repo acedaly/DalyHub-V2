@@ -377,7 +377,7 @@ The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic c
 
 **Reorder model & keyboard equivalent.** DESIGN_SYSTEM requires drag with a keyboard equivalent. `ReorderableCardCollection` (with `CardReorderHandle`) provides both over the browser platform — Pointer Events + keyboard — with **no drag-and-drop dependency**. Pointer users grab the handle and drag; keyboard users focus the handle, press Enter/Space to pick up, Arrow Up/Down to move, Enter/Space to drop, Escape to cancel (restoring order). The handle has an accessible name; position/movement are announced via a live region; reordering **emits intent** (`onReorder(nextIds, detail)`) rather than mutating business data (no hidden database update); non-reorderable cards are pinned and cannot move. The **permutation guarantee** is enforced by capturing the committed collection (id order + pinned set) when the drag begins and cancelling cleanly if *anything* changes before drop — an item added, removed, reordered externally, or flipped between reorderable and pinned — so `onReorder` never emits a deleted id, omits a new one, or violates the current order; focus stays predictable. It works in both densities and does not rely on tiny touch targets. **Reorder is list presentation only** for now: pointer targeting is one-dimensional (vertical), which is correct for a single-column list but not a multi-column grid — a genuine two-dimensional grid reorder is deferred to a later item. `CardCollection` is the plain (non-reorderable) container for list/board/grid; grid and board layouts use it and do **not** offer drag.
 
-**Accessibility.** Semantic card structure (`article` + heading); accessible primary open action with visible focus; native, labelled selection; keyboard-accessible quick actions that are never hover-only; status/date as text (not colour alone); labelled/valued progress; a keyboard-operable, announced reorder handle; logical tab order; no nested-button/link violations.
+**Accessibility.** Semantic card structure (`article` + heading); accessible primary open action with visible focus; native, labelled selection; keyboard-accessible quick actions that are never hover-only; status/date as text (not colour alone); labelled/valued progress; a keyboard-operable, announced reorder handle; logical tab order; no nested-button/link violations. The title heading level is configurable via **`headingLevel`** (2 | 3 | 4, default 3) so cards nest correctly under the surrounding heading — a Collection pane header at `h1` renders its cards at `h2`, a card under an `h2` section at `h3` — keeping the document's heading outline valid with no skipped levels (DS-11).
 
 **Correct vs incorrect usage.**
 
@@ -745,6 +745,32 @@ Accessibility is a **requirement** of every pattern above, not a separate track.
 - **Respect the user.** Honour reduced-motion, colour-scheme, and text scaling; layouts reflow without loss to 200% zoom.
 
 Accessibility acceptance is part of the [Definition of Done](../../AGENTS.md#18-definition-of-done) for any UI work.
+
+---
+
+## Accessibility & Responsive Baseline (DS-11)
+
+[DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline) makes the WCAG 2.2 AA + responsive baseline **permanent and automatically inherited**: it audits every shared surface, hardens the few real gaps, and adds the automated regression gate every future module passes through. It builds no product feature and forks no component — the baseline lives in the shared components, the shell and the tokens, so composing them is enough. Full reference: [`ACCESSIBILITY_RESPONSIVE.md`](../development/ACCESSIBILITY_RESPONSIVE.md); decision: [ADR-027](../decisions/ARCHITECTURE_DECISIONS.md#adr-027-accessibility--responsive-baseline--automated-enforcement-and-the-inherited-platform).
+
+**Keyboard conventions (product-wide).**
+
+| Key | Behaviour |
+| --- | --- |
+| `Tab` / `Shift+Tab` | Logical focus order; the **skip link** is the first stop and jumps to `main`. |
+| `/` · `Mod+K` | Focus **Search** · toggle the **Command Palette**. |
+| `Escape` | Close the topmost modal (Drawer/Search/Palette/Inspector sheet/confirmation), then restore focus to its opener. Top layer only. |
+| `Enter` · `Space` | Activate the focused control / open a focused Card · toggle the focused control. |
+| `Arrow` · `Home`/`End` | Move within a composite widget (tabs, listboxes, Card reorder); jump to first/last where it applies. |
+
+Every interactive control is keyboard-reachable with a visible focus ring — no trap, no unreachable control, no lost or hidden focus, no duplicated tab stop. Any new modal **reuses the DS-03 focus/scroll-lock/inert hooks** (never a second focus-trap).
+
+**Responsive rules.** No horizontal overflow from **320px through ultra-wide** (proven at 320/375/390/768/1024/1440/2560); breakpoints are [tokens](#design-tokens-ds-01); component-internal layout prefers **container queries** so a component is correct in a full route and a narrow Drawer/Inspector alike; touch targets meet 44px; **safe-area insets are honoured** (`viewport-fit=cover` + `env(safe-area-inset-*)`); portrait/landscape/desktop/large-monitor/Retina and touch/mouse/keyboard are all first-class.
+
+**Accessibility standards.** Semantic landmarks (`banner`/`search`/`navigation`/`main`) with all content inside a landmark; one non-skipping heading outline (Pane Header `h1` → section `h2` → [Card](#cards) titles via `headingLevel`); accessible names and described-by; live-region announcements; a visible focus ring re-pinned to the system colour under forced-colors; state never by colour alone; reduced-motion, `prefers-color-scheme`, 200% zoom and `prefers-contrast`/forced-colors all respected; and accessible loading/empty/error/busy/disabled states.
+
+**Testing strategy (three layers).** `eslint-plugin-jsx-a11y` (lint) · role-based component tests + the DS-01 token contrast/parity tests · and the DS-11 Playwright gate run by `pnpm test:e2e` in CI: an **axe-core** WCAG 2.2 AA scan of every surface (light/dark, overlays open), a **no-horizontal-overflow** sweep across the viewport matrix, and a **platform keyboard audit** (skip link, landmarks, focus trap + restoration). Shared helpers live in [`e2e/helpers.ts`](../../e2e/helpers.ts).
+
+**Every future module** inherits this by composing the shell + shared components (Pane Header `h1`, `Card` with the right `headingLevel`, DS-03 hooks for any overlay), uses tokens only, and **adds its `/design/*` fixture or route to `e2e/accessibility.spec.ts` and `e2e/responsive.spec.ts`** so its surface is held to the baseline. See [`ACCESSIBILITY_RESPONSIVE.md → future-module requirements`](../development/ACCESSIBILITY_RESPONSIVE.md#requirements-for-every-future-module).
 
 ---
 

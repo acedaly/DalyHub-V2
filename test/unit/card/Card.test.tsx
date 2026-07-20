@@ -54,6 +54,21 @@ describe("Card — entity-agnostic rendering", () => {
     expect(screen.queryByRole("checkbox")).toBeNull();
     expect(screen.queryByRole("group")).toBeNull();
   });
+
+  it("titles at h3 by default and at the requested level for correct nesting", () => {
+    // Default: the title heading is level 3 (DS-11 baseline; unchanged behaviour).
+    const { unmount } = renderCard({ title: "Default level" });
+    expect(
+      screen.getByRole("heading", { name: "Default level", level: 3 }),
+    ).toBeInTheDocument();
+    unmount();
+
+    // A collection whose pane header is h1 nests its cards at h2 — no skipped level.
+    renderCard({ title: "Under a pane header", headingLevel: 2 });
+    expect(
+      screen.getByRole("heading", { name: "Under a pane header", level: 2 }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("Card — density & presentation (one component)", () => {

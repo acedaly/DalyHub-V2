@@ -36,7 +36,7 @@ No manual repair should be needed.
 | `pnpm test`           | All tests: `test:unit` then `test:kernel`                           |
 | `pnpm test:unit`      | DOM component/health tests (Vitest + React Testing Library)         |
 | `pnpm test:kernel`    | Data-kernel unit + real D1 integration tests (Workers runtime)      |
-| `pnpm test:e2e`       | Playwright Chromium smoke test (builds + previews automatically)    |
+| `pnpm test:e2e`       | Playwright Chromium E2E: smoke + per-component journeys + the DS-11 axe accessibility, responsive-overflow and keyboard regression gate (builds + previews automatically) |
 | `pnpm db:migrate:local` | Apply D1 migrations to the local database (no credentials)        |
 | `pnpm db:migrations:list:local` | List applied/pending local D1 migrations                  |
 | `pnpm verify`         | The full local quality suite, in order (see below)                  |
@@ -77,9 +77,11 @@ and runs on pull requests and pushes to `main`. It:
 1. checks out cleanly and installs with a **frozen lockfile**;
 2. runs, as separate failing-on-error steps: **format check → lint → typecheck
    → unit/component tests → kernel integration tests (real Workers runtime + D1)
-   → production build → Playwright smoke test**;
+   → production build → Playwright E2E, accessibility & responsive regression**
+   (the DS-11 axe WCAG 2.2 AA scans + 320px→ultra-wide overflow sweep + keyboard
+   audit run in the same Playwright step);
 3. caches the pnpm store (via `actions/setup-node`), and installs the Chromium
-   browser explicitly for the smoke test.
+   browser explicitly for the E2E run.
 
 The kernel integration step runs the data-kernel suite inside the real Workers
 runtime with an isolated local D1 (Miniflare); it applies the committed

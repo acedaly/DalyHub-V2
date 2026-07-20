@@ -32,7 +32,11 @@ export function SidebarSearch({
   onOpenCommand,
 }: SidebarSearchProps) {
   return (
-    <div className="dh-sidebar__search" aria-label="Search and commands">
+    <div
+      className="dh-sidebar__search"
+      role="search"
+      aria-label="Search and commands"
+    >
       <button
         type="button"
         className="dh-sidebar__search-entry"

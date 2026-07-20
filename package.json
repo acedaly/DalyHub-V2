@@ -43,6 +43,7 @@
     "unified": "11.0.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
     "@cloudflare/vite-plugin": "1.45.1",
     "@cloudflare/vitest-pool-workers": "0.18.6",
     "@eslint/js": "10.0.1",
@@ -55,6 +56,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.3",
+    "axe-core": "4.12.1",
     "eslint": "10.7.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-jsx-a11y": "6.10.2",

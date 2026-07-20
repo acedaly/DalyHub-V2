@@ -350,6 +350,21 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Accessibility & responsive testing evaluation (DS-11)
+
+> The reuse evaluation behind [ADR-027](../decisions/ARCHITECTURE_DECISIONS.md#adr-027-accessibility--responsive-baseline--automated-enforcement-and-the-inherited-platform). DS-11 adds an **automated accessibility gate** and a **responsive regression sweep** to the existing Playwright suite. The responsive sweep and keyboard audit need no dependency (viewport control + DOM measurement are built into Playwright); the automated a11y engine is the one place a library is warranted.
+
+| Capability | Candidates (typical licence) | Decision |
+|---|---|---|
+| **Automated a11y engine (Playwright)** | `@axe-core/playwright` + `axe-core` (🟡 **MPL-2.0**), `@axe-core/react` (🟡 MPL-2.0, dev-time console), `pa11y` (🟢 MIT, wraps its own runner), Lighthouse a11y (🟢 Apache-2.0, audit-oriented) | **Depend on `@axe-core/playwright`** — axe-core is the de-facto standard rules engine, integrates natively with the existing Playwright/Chromium setup, scopes cleanly to a WCAG 2.2 AA tag set, and reports actionable violations. Dev/test-only; never shipped. |
+| **Contrast checking** | axe `color-contrast` rule; bespoke | **Reuse the DS-01 token contrast unit test** (`test/unit/tokens/contrast.test.ts`) — deterministic and authoritative; the pixel-derived axe rule is disabled to avoid flakiness. |
+| **Responsive / overflow / keyboard** | (Playwright built-ins) | **Build** — a small shared `e2e/helpers.ts` (viewport matrix, no-overflow assertion, hydration-gated navigation, touch-target and axe helpers). No dependency. |
+
+- **Repository / licence.** `dequelabs/axe-core` and `dequelabs/axe-core-npm` (`@axe-core/playwright`) — **MPL-2.0**, verified against installed **4.12.1 / 4.12.1** on **2026-07-20**. MPL-2.0 is *allowed with a recorded decision* ([policy](../governance/OPEN_SOURCE_POLICY.md#licensing-rules)); the recorded decision (dev/test-only, unmodified, isolated) is in [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md). Health: actively maintained, widely adopted, frequent releases; `@axe-core/playwright`'s only dependency is `axe-core`, peer `playwright-core` already present.
+- **Decision (Depend / Adapt / Build).** **Depend** on `@axe-core/playwright` (dev-only); **build** the responsive/keyboard helpers; **reuse** the DS-01 contrast test for colour. See [ADR-027](../decisions/ARCHITECTURE_DECISIONS.md#adr-027-accessibility--responsive-baseline--automated-enforcement-and-the-inherited-platform).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

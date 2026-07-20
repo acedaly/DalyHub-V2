@@ -85,6 +85,16 @@
 - **Desired future state.** If a second adapter is ever added, lift the reserved-mutation check to a shared, storage-independent layer (e.g. a small guarded base or a kernel-level decorator) so no adapter can forget it — without coupling generic persistence to a mutable registry.
 - **Related roadmap item.** [FND-07](../roadmap/ROADMAP_V2.md#-fnd-07--area--goal--project--task-hierarchy) (revisit when a non-D1 adapter is proposed).
 
+### ☐ DEBT-14 — Grouped `role="feed"` interleaves non-article children — P3
+- **Current issue.** The DS-05 Timeline/Activity Feed ([ADR-021](../decisions/ARCHITECTURE_DECISIONS.md#adr-021-the-shared-timeline--activity-feed--one-renderer-one-presentation-view-model-in-house-virtualisation)) renders a grouped, virtualised `role="feed"` whose direct subtree interleaves day-heading elements (and a load-more control) with the `role="article"` events. This is keyboard- and screen-reader navigable (semantic day headings, `aria-posinset`/`aria-setsize` on articles), but does not satisfy the strict ARIA `feed`→`article`-only child requirement, so the DS-11 axe gate disables `aria-required-children` (documented in `e2e/helpers.ts`).
+- **Desired future state.** Revisit the grouped-feed structure so the `role="feed"` owns only articles (e.g. day labels carried inside each day's first article, load-more outside the feed) while preserving virtualisation, grouping and the reading experience — then re-enable `aria-required-children` in the axe gate.
+- **Related roadmap item.** [DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed) (revisit in a DS-05 hardening pass).
+
+### ☐ DEBT-15 — Listbox options wrap a focusable result control — P3
+- **Current issue.** DS-08 Search and DS-09 Command Palette ([ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation)/[ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action)) render each `role="option"` around a real, focusable result control (a `tabindex="-1"` link so a record result stays middle-clickable / open-in-new-tab, or a button). Selection is driven by `aria-activedescendant`, so the inner control is never a tab stop, but axe's `nested-interactive` flags the nested focusable, so the DS-11 axe gate disables that rule (documented in `e2e/helpers.ts`).
+- **Desired future state.** Revisit the option anatomy so the option element itself is the single interactive/link target (preserving middle-click, shareable navigation and keyboard activation) with no nested focusable — then re-enable `nested-interactive` in the axe gate.
+- **Related roadmap item.** [DS-08](../roadmap/ROADMAP_V2.md#-ds-08--shared-search) / [DS-09](../roadmap/ROADMAP_V2.md#-ds-09--command-palette--quick-actions) (revisit in a search/palette hardening pass).
+
 ---
 
 ## Entry template

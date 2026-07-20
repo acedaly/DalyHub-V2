@@ -181,6 +181,9 @@ function CollectionDemo() {
   const toCard = (record: ProjectRecord): CardProps => ({
     id: record.id,
     title: record.title,
+    // The pane header is `h1`; cards sit directly under it, so their titles are
+    // `h2` (no skipped level — DS-11 heading-order baseline).
+    headingLevel: 2,
     typeLabel: "Project",
     icon: <EntityIcon type="project" />,
     accent: "accent",

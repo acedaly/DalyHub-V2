@@ -45,7 +45,16 @@ function focusableWithin(container: HTMLElement): HTMLElement[] {
   ).filter(
     (element) =>
       element.closest("[hidden]") === null &&
-      element.closest("[inert]") === null,
+      element.closest("[inert]") === null &&
+      // Exclude anything explicitly removed from the tab order. The selector
+      // matches native controls (`button`, `a[href]`, `input`…) even when they
+      // carry `tabindex="-1"`, but such elements are deliberately NOT tab stops
+      // (e.g. DS-08/09 listbox options that render an inner `tabindex="-1"`
+      // link/button driven by `aria-activedescendant`). Including them made the
+      // trap's `last` a non-tabbable node, so Tab from the real last control
+      // escaped to `<body>` instead of wrapping. `HTMLElement.tabIndex` reflects
+      // the effective value (0 for a native control with no explicit tabindex).
+      element.tabIndex >= 0,
   );
 }
 

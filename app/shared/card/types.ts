@@ -112,6 +112,13 @@ export interface CardProps {
   readonly accent?: CardTone;
   /** The card title (required). Also the primary open target's accessible name. */
   readonly title: string;
+  /**
+   * The heading level of the card title, so cards nest correctly under the
+   * surrounding heading (a Collection pane header at `h1` → cards at `h2`; a card
+   * under an `h2` section → `h3`). Defaults to `3`. Setting the right level keeps
+   * the document's heading outline valid (WCAG 2.2 — no skipped levels).
+   */
+  readonly headingLevel?: 2 | 3 | 4;
   /** Optional subtitle or short description. */
   readonly subtitle?: ReactNode;
   readonly status?: CardStatus;
