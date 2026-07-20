@@ -111,6 +111,12 @@ feedback.notifyUndo(`Deleted “${record.title}”`, {
 - **Dismissing the toast early** also runs `onExpire` — dismissing an
   optimistically-applied action commits it (the Gmail model).
 - Pause-on-hover freezes the undo window so it is never yanked away mid-read.
+- **Undo notifications never coalesce** (they ignore dedupe), because each carries
+  its own reverse/commit handlers. Commit finalisation is centralised: `onExpire`
+  fires **exactly once** whenever an undo leaves the queue by any path — expiry,
+  manual dismiss, dismiss-all, coalescing replacement of another toast,
+  bounded-stack eviction, or provider unmount — so an evicted or bulk-cleared undo
+  still commits and no handler leaks.
 
 Prefer this over a confirmation dialog ([interaction philosophy](../../AGENTS.md#7-interaction-philosophy)).
 There is no delete-specific or archive-specific undo code anywhere — one method

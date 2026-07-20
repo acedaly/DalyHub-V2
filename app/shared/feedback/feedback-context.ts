@@ -45,8 +45,6 @@ export type UndoOptions = {
   readonly onExpire?: () => void;
   /** Label for the action (defaults to "Undo"). */
   readonly undoLabel?: string;
-  /** Coalesce repeats with the same key. */
-  readonly dedupeKey?: string;
 };
 
 /** Options for a long-running background operation. */

@@ -164,7 +164,6 @@ function UndoPanel({
     onDelete(record.id);
     feedback.notifyUndo(`Deleted “${record.title}”`, {
       onUndo: () => onRestore(record, index),
-      dedupeKey: `delete:${record.id}`,
     });
   };
 

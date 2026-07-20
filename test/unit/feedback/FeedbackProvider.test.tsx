@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MAX_NOTIFICATIONS } from "~/shared/feedback/config";
 import { FeedbackProvider } from "~/shared/feedback/FeedbackProvider";
 import {
   useFeedback,
@@ -194,6 +195,88 @@ describe("DS-10 FeedbackProvider", () => {
       expect(onExpire).toHaveBeenCalledTimes(1);
       expect(onUndo).not.toHaveBeenCalled();
     });
+
+    it("does not coalesce two undos — each keeps and commits its own handler", async () => {
+      renderProvider();
+      const expireA = vi.fn();
+      const expireB = vi.fn();
+      act(() => {
+        api.notifyUndo("Deleted A", { onUndo: vi.fn(), onExpire: expireA });
+        api.notifyUndo("Deleted B", { onUndo: vi.fn(), onExpire: expireB });
+      });
+      // Two distinct toasts (undo notifications never merge).
+      expect(
+        screen.getByRole("group", { name: "Deleted A" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("group", { name: "Deleted B" }),
+      ).toBeInTheDocument();
+      await advance(8000);
+      expect(expireA).toHaveBeenCalledTimes(1);
+      expect(expireB).toHaveBeenCalledTimes(1);
+    });
+
+    it("commits (onExpire) exactly once when an undo is evicted by stack overflow", () => {
+      renderProvider();
+      const onUndo = vi.fn();
+      const onExpire = vi.fn();
+      act(() => {
+        // The undo is raised first (oldest, auto-dismissing). A burst of
+        // newer auto-dismissing notifications then exceeds the bound and evicts it.
+        api.notifyUndo("Deleted “Draft”", { onUndo, onExpire });
+        for (let i = 0; i < MAX_NOTIFICATIONS; i += 1) {
+          api.notifySuccess(`Saved ${i}`);
+        }
+      });
+      // Evicted from the visible stack, but its optimistic action still commits —
+      // exactly once — and is NOT undone.
+      expect(
+        screen.queryByRole("group", { name: "Deleted “Draft”" }),
+      ).not.toBeInTheDocument();
+      expect(onExpire).toHaveBeenCalledTimes(1);
+      expect(onUndo).not.toHaveBeenCalled();
+    });
+
+    it("commits every pending undo exactly once on dismiss-all", () => {
+      renderProvider();
+      const expireA = vi.fn();
+      const expireB = vi.fn();
+      act(() => {
+        api.notifyUndo("Deleted A", { onUndo: vi.fn(), onExpire: expireA });
+        api.notifyUndo("Deleted B", { onUndo: vi.fn(), onExpire: expireB });
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss all" }));
+      expect(expireA).toHaveBeenCalledTimes(1);
+      expect(expireB).toHaveBeenCalledTimes(1);
+    });
+
+    it("commits pending undos on unmount (window torn down)", () => {
+      const { unmount } = renderProvider();
+      const onExpire = vi.fn();
+      act(() => {
+        api.notifyUndo("Deleted “Draft”", { onUndo: vi.fn(), onExpire });
+      });
+      act(() => {
+        unmount();
+      });
+      expect(onExpire).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("handles a rejected async notification action without crashing", async () => {
+    renderProvider();
+    const onSelect = vi.fn().mockRejectedValue(new Error("boom"));
+    act(() => {
+      api.notifyInfo("Actionable", { action: { label: "Do it", onSelect } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Do it" }));
+    });
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    // The rejection is swallowed (no unhandled rejection) and the toast dismisses.
+    expect(
+      screen.queryByRole("group", { name: "Actionable" }),
+    ).not.toBeInTheDocument();
   });
 
   describe("background operations", () => {

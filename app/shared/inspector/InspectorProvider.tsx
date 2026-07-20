@@ -14,7 +14,14 @@
  * here so the surrounding content can reflow (padding) and never be covered.
  */
 
-import { useCallback, useId, useMemo, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { Inspector } from "./Inspector";
@@ -41,6 +48,21 @@ export type InspectorProviderProps = {
   ) => InspectorRenderResult | null;
   /** URL search-param name (default `"inspector"`). */
   readonly param?: string;
+};
+
+/**
+ * Shown for an unknown/stale `?inspector=` key. Rendered THROUGH the `Inspector`
+ * component (not a bespoke panel) so a not-found deep link on a compact viewport
+ * still gets the full modal contract — scrim, focus trap, inert background, scroll
+ * lock and focus management — instead of an `aria-modal` shell with none of them.
+ */
+const NOT_FOUND_RESULT: InspectorRenderResult = {
+  title: "Not found",
+  children: (
+    <p role="note">
+      This item couldn’t be found. It may have been moved or deleted.
+    </p>
+  ),
 };
 
 function isCloseBlocked(result: InspectorRenderResult | null): boolean {
@@ -154,6 +176,27 @@ export function InspectorProvider({
     [openKey, isOpen, openInspector, replaceInspector, closeInspector],
   );
 
+  // Post-close focus safety net. `useDrawerFocus` restores focus to the opener on
+  // close, but a DEEP-LINKED open never captured one (openInspector was not
+  // called), so focus would fall to <body>. Mirror DrawerProvider's net: when the
+  // panel closes and focus has landed on the body, move it to the main content.
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (!wasOpen || isOpen || typeof document === "undefined") {
+      return;
+    }
+    const raf = requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        const main = document.getElementById("main-content");
+        main?.focus?.();
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen]);
+
   return (
     <InspectorContext.Provider value={controller}>
       <div
@@ -170,46 +213,17 @@ export function InspectorProvider({
       >
         <div className="dh-inspector-content">{children}</div>
         {isOpen ? (
-          result ? (
-            <Inspector
-              result={result}
-              titleId={titleId}
-              descriptionId={descriptionId}
-              compact={compact}
-              resize={resize}
-              opener={openerRef.current}
-              onRequestClose={attemptClose}
-            />
-          ) : (
-            <aside
-              className="dh-inspector"
-              data-compact={compact ? "true" : "false"}
-              role={compact ? "dialog" : undefined}
-              aria-modal={compact ? true : undefined}
-              aria-labelledby={titleId}
-            >
-              <header className="dh-inspector__header">
-                <div className="dh-inspector__heading">
-                  <h2 id={titleId} className="dh-inspector__title">
-                    Not found
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  className="dh-inspector__close"
-                  onClick={closeInspector}
-                >
-                  Close
-                </button>
-              </header>
-              <div className="dh-inspector__body">
-                <p role="note">
-                  This item couldn’t be found. It may have been moved or
-                  deleted.
-                </p>
-              </div>
-            </aside>
-          )
+          <Inspector
+            // An unknown/stale key renders the not-found result THROUGH the same
+            // panel, so a not-found deep link keeps the full modal contract.
+            result={result ?? NOT_FOUND_RESULT}
+            titleId={titleId}
+            descriptionId={descriptionId}
+            compact={compact}
+            resize={resize}
+            opener={openerRef.current}
+            onRequestClose={attemptClose}
+          />
         ) : null}
       </div>
     </InspectorContext.Provider>

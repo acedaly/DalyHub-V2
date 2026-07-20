@@ -118,14 +118,13 @@ export function FeedbackProvider({
     setAnnouncement({ text, assertive: record.assertive });
   }, []);
 
-  // Finalise a dismissal: run a pending commit handler (an un-undone Undo commits
-  // on dismissal), then remove from the queue. Stable — safe inside timers.
+  // Remove a notification from the queue. Firing its Undo commit handler (an
+  // un-undone Undo commits on removal) is NOT done here — it is centralised in the
+  // reconciliation effect below, so EVERY removal path (timer expiry, manual
+  // dismiss, dismiss-all, coalescing replacement, bounded-stack eviction) commits
+  // exactly once. Stable — safe to call inside timers. To OPT OUT of the commit
+  // (the Undo path), delete the handler before the record leaves the queue.
   const finalizeDismiss = useCallback((id: NotificationId) => {
-    const commit = commitHandlersRef.current.get(id);
-    if (commit) {
-      commitHandlersRef.current.delete(id);
-      commit();
-    }
     const timer = timersRef.current.get(id);
     if (timer?.timeoutId != null) {
       clearTimeout(timer.timeoutId);
@@ -199,8 +198,12 @@ export function FeedbackProvider({
     (title: string, options: UndoOptions): NotificationId => {
       const duration = options.duration ?? UNDO_WINDOW_MS;
       const id = nextId("fb");
-      // The commit handler fires on expiry or manual dismissal — but not on Undo,
-      // which removes the handler first.
+      // Undo notifications are DELIBERATELY non-coalescing: each represents a
+      // distinct reversible action with its own reverse/commit handlers, so they
+      // must never merge (which would drop one action's handlers and desynchronise
+      // the commit-handler id from the queue id). We therefore never pass a
+      // dedupeKey, guaranteeing the record keeps THIS id — the id its handler is
+      // registered under and its action closure captures.
       if (options.onExpire) {
         commitHandlersRef.current.set(id, options.onExpire);
       }
@@ -208,7 +211,8 @@ export function FeedbackProvider({
         label: options.undoLabel ?? DEFAULT_UNDO_LABEL,
         dismissOnSelect: true,
         onSelect: async () => {
-          // Undo chosen — opt out of the commit handler, then reverse.
+          // Undo chosen — opt out of the commit handler (synchronously, before the
+          // first await and before the record is removed), then reverse.
           commitHandlersRef.current.delete(id);
           await options.onUndo();
         },
@@ -220,7 +224,6 @@ export function FeedbackProvider({
           message: options.message,
           duration,
           action,
-          dedupeKey: options.dedupeKey,
         },
         { id },
       );
@@ -393,11 +396,32 @@ export function FeedbackProvider({
     }
   }, [queue, paused, finalizeDismiss]);
 
-  // Clean up every timer/controller on unmount.
+  // ---- Undo commit finalisation (single source of truth) --------------------
+  //
+  // Whenever an Undo notification leaves the queue for ANY reason WITHOUT the Undo
+  // being chosen — timer expiry, manual dismiss, dismiss-all, coalescing
+  // replacement, or bounded-stack eviction — its optimistic action must commit
+  // exactly once. This one effect is the only place `onExpire` fires: it reconciles
+  // the commit handlers against the live queue, so no removal path can leak a
+  // handler or skip a commit. The Undo path opts out by deleting the handler
+  // BEFORE the record is removed, so the record is gone by the time this runs.
+  useEffect(() => {
+    const present = new Set(queue.notifications.map((n) => n.id));
+    for (const [id, commit] of commitHandlersRef.current) {
+      if (!present.has(id)) {
+        commitHandlersRef.current.delete(id);
+        commit();
+      }
+    }
+  }, [queue]);
+
+  // Clean up every timer/controller on unmount, and commit any still-pending Undo
+  // actions (their window is being torn down, so the optimistic change stands).
   useEffect(() => {
     const timers = timersRef.current;
     const opClears = opClearTimersRef.current;
     const controllers = controllersRef.current;
+    const commits = commitHandlersRef.current;
     return () => {
       for (const timer of timers.values()) {
         if (timer.timeoutId != null) {
@@ -413,6 +437,10 @@ export function FeedbackProvider({
         controller.abort();
       }
       controllers.clear();
+      for (const [id, commit] of commits) {
+        commits.delete(id);
+        commit();
+      }
     };
   }, []);
 
@@ -423,11 +451,8 @@ export function FeedbackProvider({
       }
     }
     timersRef.current.clear();
-    // Honour any pending commit handlers before clearing.
-    for (const [id, commit] of commitHandlersRef.current) {
-      commitHandlersRef.current.delete(id);
-      commit();
-    }
+    // Commit handlers are finalised by the reconciliation effect once the queue
+    // clears — each pending Undo commits exactly once.
     setQueue((prev) => clearNotifications(prev));
   }, []);
 
@@ -437,7 +462,11 @@ export function FeedbackProvider({
       if (!action) {
         return;
       }
-      void Promise.resolve(action.onSelect());
+      // A rejected async action (e.g. an Undo whose reverse fails) must never
+      // become an unhandled rejection or crash the app; the toast still dismisses.
+      Promise.resolve(action.onSelect()).catch(() => {
+        /* the handler owns its own error surfacing */
+      });
       if (action.dismissOnSelect !== false) {
         // The action opted out of the commit handler already (Undo path); a plain
         // action simply removes the toast.
