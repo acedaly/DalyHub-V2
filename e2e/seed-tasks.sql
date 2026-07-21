@@ -73,3 +73,40 @@ WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-waiting');
 DELETE FROM entity_links
 WHERE workspace_id = 'local-dev-workspace' AND type = 'task.waiting_on';
+
+-- PROJ-01: a real Goal and two Projects — one directly under an Area, one advancing
+-- the Goal (so its Area resolves through the Goal) — plus two child tasks under the
+-- area-parented project (one open, one completed → a 1/2 roll-up). Mirrors the ids the
+-- projects journey references; the completion/creation the journey performs is reset
+-- below so every run starts from a known point.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('g-launch', 'local-dev-workspace', 'goal', 'Launch the site', '2026-07-19T02:00:00.000Z', '2026-07-19T02:00:00.000Z', NULL),
+  ('pr-website', 'local-dev-workspace', 'project', 'Website relaunch', '2026-07-19T02:00:01.000Z', '2026-07-19T02:00:05.000Z', NULL),
+  ('pr-launch', 'local-dev-workspace', 'project', 'Launch checklist', '2026-07-19T02:00:02.000Z', '2026-07-19T02:00:04.000Z', NULL),
+  ('pt-design', 'local-dev-workspace', 'task', 'Design the homepage', '2026-07-19T02:01:00.000Z', '2026-07-19T02:01:00.000Z', NULL),
+  ('pt-copy', 'local-dev-workspace', 'task', 'Write the launch copy', '2026-07-19T02:01:01.000Z', '2026-07-19T02:01:01.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'g-launch', 'goal', NULL),
+  ('local-dev-workspace', 'pr-website', 'project', NULL),
+  ('local-dev-workspace', 'pr-launch', 'project', NULL),
+  ('local-dev-workspace', 'pt-design', 'task', NULL),
+  ('local-dev-workspace', 'pt-copy', 'task', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-glaunch-area', 'local-dev-workspace', 'g-launch', 'a-dh', 'goal.belongs_to_area', '2026-07-19T02:00:00.000Z', '2026-07-19T02:00:00.000Z', NULL),
+  ('l-prweb-area', 'local-dev-workspace', 'pr-website', 'a-dh', 'project.belongs_to_area', '2026-07-19T02:00:01.000Z', '2026-07-19T02:00:01.000Z', NULL),
+  ('l-prlaunch-goal', 'local-dev-workspace', 'pr-launch', 'g-launch', 'project.advances_goal', '2026-07-19T02:00:02.000Z', '2026-07-19T02:00:02.000Z', NULL),
+  ('l-ptdesign-proj', 'local-dev-workspace', 'pt-design', 'pr-website', 'task.belongs_to_project', '2026-07-19T02:01:00.000Z', '2026-07-19T02:01:00.000Z', NULL),
+  ('l-ptcopy-proj', 'local-dev-workspace', 'pt-copy', 'pr-website', 'task.belongs_to_project', '2026-07-19T02:01:01.000Z', '2026-07-19T02:01:01.000Z', NULL);
+
+-- Reset the PROJ-01 seed's MUTABLE state so every run starts deterministically: the
+-- Projects and the task `pt-design` are open; `pt-copy` is completed (the 1/2 roll-up).
+UPDATE spine_records SET completed_at = NULL
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('g-launch', 'pr-website', 'pr-launch', 'pt-design');
+UPDATE spine_records SET completed_at = '2026-07-19T03:00:00.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-copy';
+UPDATE entities SET title = 'Website relaunch'
+WHERE workspace_id = 'local-dev-workspace' AND id = 'pr-website';
