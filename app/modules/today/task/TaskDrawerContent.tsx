@@ -11,9 +11,12 @@
  * renders the calm not-found state.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
+import type { AppAction } from "~/shared/commands/action";
+import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
+import { useDrawer } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { useFeedback } from "~/shared/feedback";
@@ -25,7 +28,10 @@ import type {
 import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import { CollectionSkeleton } from "~/shared/skeleton";
 
+import { ownerCalendarIso } from "../date";
 import type { TaskActionData, TaskDetailData } from "../routes/task-detail";
+import { buildFocusedTaskCommands } from "../keyboard/today-commands";
+import { planTargets } from "./planning-view";
 import { TaskDetailsTab, type TaskDetailsValues } from "./TaskDetailsTab";
 import { TaskLinksTab } from "./TaskLinksTab";
 import { TaskTimelineTab } from "./TaskTimelineTab";
@@ -52,6 +58,7 @@ type DetailResponse = TaskDetailData | { readonly error: string };
 export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   const detailUrl = `/today/task/${encodeURIComponent(taskId)}`;
   const revalidator = useRevalidator();
+  const { closeDrawer } = useDrawer();
   const { notifySuccess, notifyError } = useFeedback();
 
   const [data, setData] = useState<DetailResponse | null>(null);
@@ -339,6 +346,76 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
       formError: "That couldn't be saved. Please try again.",
     };
   }, [postAction, notifySuccess, refresh]);
+
+  // The open task's contextual commands (TODAY-05) are owned HERE — the one place
+  // with the task's live state AND the refresh path that keeps the Drawer's own
+  // planning/completion/waiting displays consistent after a keyboard mutation. When a
+  // task Drawer is open the dashboard defers to this registration, so there is no
+  // double registration and no stale Drawer. Availability reflects task state: a
+  // completed task offers only Reopen; an unplanned task offers no Clear plan; only a
+  // waiting task offers Clear waiting. Marking/changing the waiting subject needs
+  // typed input, so it stays on the visible, keyboard-accessible waiting control above
+  // (not a placeholder command). Every command drives the SAME trusted route the
+  // visible controls use (ADR-024 §24.14).
+  const activeTask = data !== null && !("error" in data) ? data.task : null;
+  const activeCompleted = activeTask
+    ? optimisticComplete !== null
+      ? optimisticComplete
+      : isTaskComplete(activeTask)
+    : false;
+  const activeWaiting =
+    activeTask !== null && activeTask.waiting !== null && !activeCompleted;
+  const taskCommands = useMemo<readonly AppAction[]>(() => {
+    if (activeTask === null) {
+      return [];
+    }
+    const targets = planTargets(ownerCalendarIso(new Date()));
+    const commands: AppAction[] = [
+      ...buildFocusedTaskCommands({
+        task: {
+          id: activeTask.id,
+          title: activeTask.title,
+          parent: null,
+          scheduledDate: activeTask.scheduledDate,
+          dueDate: activeTask.dueDate,
+          completed: activeCompleted,
+          completedDate: null,
+        },
+        done: activeCompleted,
+        targets,
+        isOpen: true,
+        onToggleDone: () => void toggleCompletion(!activeCompleted),
+        onOpen: () => {},
+        onClose: () => closeDrawer(),
+        onPlan: (date) =>
+          date === null ? void clearPlan() : void planTask(date),
+      }),
+    ];
+    if (activeWaiting) {
+      commands.push({
+        id: `today.task.${activeTask.id}.clear_waiting`,
+        title: "Clear waiting",
+        subtitle: activeTask.title,
+        keywords: ["waiting", "clear", "unblock", "resume", "no longer"],
+        kind: "run",
+        run: () => {
+          void clearWaiting();
+          return { ok: true };
+        },
+      });
+    }
+    return commands;
+  }, [
+    activeTask,
+    activeCompleted,
+    activeWaiting,
+    toggleCompletion,
+    closeDrawer,
+    clearPlan,
+    planTask,
+    clearWaiting,
+  ]);
+  useRegisterContextualActions(taskCommands);
 
   if (loadError) {
     return (

@@ -13,11 +13,13 @@
  * hint. Precedence is deterministic: reserved first, then contextual, then
  * registered — so one key event still triggers at most one action.
  *
- * EXECUTABLE command / contextual-run shortcuts are intentionally NOT dispatched
- * here yet: firing one with the palette closed would run it through the
- * authenticated boundary and needs a pending/success/failure surface OUTSIDE the
- * palette (the DS-10 global feedback surface, excluded from DS-09). Their palette
- * hints remain; global dispatch of executable shortcuts lands with DS-10.
+ * CONTEXTUAL `run` action shortcuts (e.g. Today's `P` / `Shift+P` / `C`) are ALSO
+ * dispatched here (TODAY-05). This was deferred at DS-09 because firing a run action
+ * with the palette closed needs a pending/success/failure surface OUTSIDE the
+ * palette; DS-10 shipped that (the shared Feedback platform), and a contextual run
+ * action reports its own feedback through it, so dispatching it globally is honest.
+ * REGISTERED `execute` commands (server-run through `POST /commands/:id`) stay
+ * deferred — they need the authenticated-execution surface, which no module uses yet.
  *
  * This layer deliberately loads the catalogue in the always-on shell (a departure
  * from the otherwise fully-lazy palette posture) — the cost of making declared
@@ -101,16 +103,21 @@ export function CommandShortcutLayer({
   const bindings = useMemo<readonly ShortcutBinding[]>(() => {
     const result: ShortcutBinding[] = [...reserved];
 
-    // Contextual navigate actions (higher precedence than registered). A disabled
-    // action yields an `enabled: false` binding, so it never fires (same "disabled"
-    // as every other surface).
+    // Contextual actions (higher precedence than registered). A disabled action
+    // yields an `enabled: false` binding, so it never fires (same "disabled" as every
+    // other surface). Navigation actions navigate; run actions execute their client
+    // callback (which reports its own DS-10 feedback) — TODAY-05.
     for (const action of contextualActions) {
-      if (action.kind !== "navigate" || action.shortcut === undefined) {
+      if (action.shortcut === undefined) {
         continue;
       }
-      const binding = appActionToShortcutBinding(action, () =>
-        navigateToTarget(action.target),
-      );
+      const onTrigger =
+        action.kind === "navigate"
+          ? () => navigateToTarget(action.target)
+          : () => {
+              void action.run();
+            };
+      const binding = appActionToShortcutBinding(action, onTrigger);
       if (binding !== null) {
         result.push(binding);
       }

@@ -358,3 +358,96 @@
   color: var(--dh-color-text);
   background: var(--dh-color-surface-sunken);
 }
+
+/* -- TODAY-05: keyboard workflow -------------------------------------------- */
+
+/* The roving task collection wraps several planning sections into ONE keyboard tab
+   stop (arrow-navigable). It re-establishes the section rhythm the parent gap gave
+   the individual sections, so wrapping them changes spacing for no one. */
+.dh-today__tasklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-8);
+}
+
+/* A visible, non-colour-only focus indication when a "Go to <section>" command moves
+   focus to a section heading (programmatic focus is not always `:focus-visible`). */
+.dh-today__section-label:focus {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--dh-radius-xs);
+}
+
+/* Emphasise the whole roving-focused row, in addition to the focused control's own
+   ring, so the keyboard position is unmistakable. Not colour-only — it is a ring. */
+.dh-today__tasklist .dh-card:focus-within {
+  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
+  border-radius: var(--dh-radius-md);
+}
+
+/* The keyboard-shortcuts reference, hosted in the shared DS-03 Drawer. */
+.dh-keyboard-help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-keyboard-help__intro {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-keyboard-help__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-keyboard-help__group-title {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-keyboard-help__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  margin: 0;
+}
+
+.dh-keyboard-help__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+}
+
+.dh-keyboard-help__keys {
+  flex: 0 0 7rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-1);
+  margin: 0;
+}
+
+.dh-keyboard-help__key {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-sunken);
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text);
+}
+
+.dh-keyboard-help__desc {
+  margin: 0;
+  color: var(--dh-color-text);
+}

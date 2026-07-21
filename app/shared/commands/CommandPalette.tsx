@@ -479,12 +479,16 @@ function CommandOption({
   // A disabled option is never the active option (skip-disabled selection), so it
   // must not read as selected even if a stale `active` slips through.
   const showActive = active && !disabled;
-  // Only advertise a keyboard shortcut when it is actually dispatched globally —
-  // i.e. NAVIGATION commands/actions. Executable-command global shortcuts are
-  // deferred to DS-10 (they need a feedback surface outside the palette), so their
-  // hint is suppressed rather than shown as a control that does nothing.
+  // Only advertise a keyboard shortcut when it is actually dispatched globally, so
+  // no hint promises a control that does nothing: NAVIGATION commands/actions, and —
+  // since TODAY-05 — CONTEXTUAL run actions (their shortcut fires through the shared
+  // dispatcher with DS-10 feedback). REGISTERED executable commands run only through
+  // the authenticated boundary and are still not globally dispatched, so their hint
+  // stays suppressed.
+  const advertised =
+    command.kind === "navigate" || command.source === "contextual";
   const shortcut =
-    command.shortcut !== undefined && command.kind === "navigate"
+    command.shortcut !== undefined && advertised
       ? formatShortcut(command.shortcut, platform)
       : null;
 

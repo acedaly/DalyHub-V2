@@ -56,6 +56,7 @@ export function Card(props: CardProps) {
     openAriaLabel,
     density = "comfortable",
     presentation = "list",
+    rovingTabIndex,
     reorderHandle,
     className,
   } = props;
@@ -88,6 +89,7 @@ export function Card(props: CardProps) {
         className="dh-card__open"
         href={href}
         aria-label={openAriaLabel}
+        tabIndex={rovingTabIndex}
         onClick={handleOpenClick}
       >
         {titleContent}
@@ -99,6 +101,7 @@ export function Card(props: CardProps) {
         type="button"
         className="dh-card__open"
         aria-label={openAriaLabel}
+        tabIndex={rovingTabIndex}
         onClick={handleOpenClick}
       >
         {titleContent}
@@ -147,6 +150,7 @@ export function Card(props: CardProps) {
             type="checkbox"
             checked={selection.selected}
             disabled={selection.disabled}
+            tabIndex={rovingTabIndex}
             aria-label={selection.label ?? `Select ${title}`}
             onChange={(event) =>
               selection.onSelectedChange(event.target.checked)
@@ -250,7 +254,11 @@ export function Card(props: CardProps) {
           aria-label={`Actions for ${openAccessibleName}`}
         >
           {quickActions?.map((action) => (
-            <CardActionButton key={action.id} action={action} />
+            <CardActionButton
+              key={action.id}
+              action={action}
+              tabIndex={rovingTabIndex}
+            />
           ))}
           {overflowAction ? (
             <CardActionButton
@@ -260,6 +268,7 @@ export function Card(props: CardProps) {
                 icon: overflowAction.icon ?? <OverflowGlyph />,
               }}
               className="dh-card__action--overflow"
+              tabIndex={rovingTabIndex}
             />
           ) : null}
         </div>

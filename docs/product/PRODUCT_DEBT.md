@@ -106,6 +106,11 @@
 - **Desired future state.** The Today (and future Tasks) search provider queries real tasks — either by extending the DS-08 runtime context with a scoped read seam or by a Tasks-module search provider — so search and the surface share one source of truth.
 - **Related roadmap item.** [DS-08](../roadmap/ROADMAP_V2.md#-ds-08--shared-search) + a future Tasks module.
 
+### ☐ DEBT-18 — Reserved cross-app keyboard vocabulary not yet implemented — P3
+- **Current issue.** TODAY-05 implemented the Today execution shortcuts (Arrow/Home/End/Enter/Space roving, `P`/`Shift+P`/`C`, `?`, `Escape`) but the broader reserved keyboard vocabulary documented in [`PRODUCT_EXPERIENCE.md` Part IV](../design/PRODUCT_EXPERIENCE.md) — the `g`+letter go-to chords, `j/k` movement aliases, `x` select, `o`/`e` open/primary-action, and `[` sidebar — is still reserved-but-unbuilt at the app level. The keyboard-shortcuts reference is also Today-scoped (a `help:shortcuts` Drawer key), not a global `?` overlay.
+- **Desired future state.** A cross-app pass implements the remaining reserved vocabulary through the SAME one shared dispatcher (never per-surface listeners) and, if wanted, promotes the shortcuts reference to a global overlay reusing the shared modal machinery — extending, never forking, the DS-09 command system.
+- **Related roadmap item.** A future cross-cutting keyboard item (post-[TODAY-05](../roadmap/ROADMAP_V2.md#-today-05--keyboard-workflow)); the vocabulary stays reserved in the interim so nothing else claims those keys.
+
 ---
 
 ## Entry template

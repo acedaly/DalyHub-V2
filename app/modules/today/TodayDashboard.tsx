@@ -34,6 +34,17 @@ import { toCardAction, type AppAction } from "~/shared/commands/action";
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 
 import { TODAY_CAPTURE_PARAM, TODAY_CAPTURE_VALUE } from "./commands";
+import { HELP_DRAWER_KEY } from "./keyboard/KeyboardHelp";
+import {
+  buildFocusedTaskCommands,
+  buildTodayGlobalCommands,
+} from "./keyboard/today-commands";
+import {
+  firstId,
+  flattenOrder,
+  type RovingOrder,
+} from "./keyboard/roving-model";
+import { useTodayRovingFocus } from "./keyboard/useTodayRovingFocus";
 import { UPCOMING_KIND } from "./fixtures";
 import type {
   ActiveProject,
@@ -98,6 +109,30 @@ const PROJECT_STATUS: Record<ActiveProject["status"], CardProps["status"]> = {
 type PlanBucket =
   "overdue" | "today" | "upcoming" | "anytime" | "completedToday";
 
+/** The open (keyboard-navigable) planning buckets, in visual order (TODAY-05). */
+const OPEN_BUCKETS: readonly Exclude<PlanBucket, "completedToday">[] = [
+  "overdue",
+  "today",
+  "upcoming",
+  "anytime",
+];
+
+/** The DOM id of each planning section's heading, so a command can focus it. */
+const SECTION_HEADING_ID: Record<string, string> = {
+  overdue: "today-overdue-label",
+  today: "today-planned-label",
+  upcoming: "today-upcoming-tasks-label",
+  anytime: "today-anytime-label",
+};
+
+/** Human labels for the open planning buckets (for "Go to <section>" commands). */
+const BUCKET_LABEL: Record<string, string> = {
+  overdue: "Overdue",
+  today: "Today",
+  upcoming: "Upcoming",
+  anytime: "Anytime",
+};
+
 /**
  * A labelled Today section: a quiet `xs`-muted heading + optional count over its
  * content. A real `section`/heading keeps the pane's document outline correct and
@@ -117,7 +152,9 @@ function TodaySection({
   const headingId = `${id}-label`;
   return (
     <section className="dh-today__section" aria-labelledby={headingId}>
-      <h2 id={headingId} className="dh-today__section-label">
+      {/* `tabIndex={-1}`: not in the tab order, but a "Go to <section>" command can
+          move focus here (announcing the section) without adding a tab stop. */}
+      <h2 id={headingId} tabIndex={-1} className="dh-today__section-label">
         {label}
         {count !== undefined ? (
           <span className="dh-today__section-count"> {count}</span>
@@ -174,7 +211,7 @@ export function TodayDashboard({
   onPlan,
 }: TodayDashboardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { openDrawer, topKey } = useDrawer();
+  const { openDrawer, closeDrawer, topKey } = useDrawer();
   const { notifySuccess, notifyError } = useFeedback();
   const captureRef = useRef<HTMLTextAreaElement>(null);
   const planFetcher = useFetcher<PlanActionData>();
@@ -287,6 +324,64 @@ export function TodayDashboard({
     [onPlan, planFetcher],
   );
 
+  // The keyboard-navigable open-task collection, in visual order (TODAY-05). Only
+  // the OPEN planning sections are roving members; the collapsed "Completed today"
+  // section keeps natural tab behaviour and is not navigated with the arrow keys.
+  const rovingOrder = useMemo<RovingOrder>(() => {
+    if (!planning) {
+      return [];
+    }
+    return OPEN_BUCKETS.map((bucket) => ({
+      id: bucket,
+      taskIds: planning[bucket].map((item) => item.id),
+    }));
+  }, [planning]);
+
+  const roving = useTodayRovingFocus({
+    order: rovingOrder,
+    onOpen: (id) => openDrawer(`task:${id}`),
+    onToggleSelect: (id) => toggleSelected(id, !selected.has(id)),
+    onEscape: () => {
+      if (selected.size > 0) {
+        clearSelection();
+      }
+    },
+  });
+
+  // Run a focus move AFTER the current synchronous work (e.g. the palette closing and
+  // restoring focus to its opener), so a "focus" command's focus is the one that wins.
+  const focusSoon = useCallback((fn: () => void) => {
+    if (typeof window === "undefined") {
+      fn();
+      return;
+    }
+    window.setTimeout(fn, 0);
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelected(new Set(flattenOrder(rovingOrder)));
+  }, [rovingOrder]);
+
+  const focusTaskList = useCallback(() => {
+    focusSoon(() => roving.focusTask(firstId(rovingOrder)));
+  }, [focusSoon, roving, rovingOrder]);
+
+  const focusSection = useCallback(
+    (bucket: string) => {
+      const headingId = SECTION_HEADING_ID[bucket];
+      focusSoon(() => {
+        const heading = headingId ? document.getElementById(headingId) : null;
+        if (heading) {
+          heading.focus();
+          heading.scrollIntoView({ block: "start" });
+        }
+      });
+    },
+    [focusSoon],
+  );
+
+  const openHelp = useCallback(() => openDrawer(HELP_DRAWER_KEY), [openDrawer]);
+
   const upcoming = useMemo(
     () => [...data.upcoming].sort((a, b) => a.sortKey - b.sortKey),
     [data.upcoming],
@@ -382,68 +477,72 @@ export function TodayDashboard({
     [isDone, toggleDone],
   );
 
-  // Context-aware palette: when a task's Drawer is open, expose its Complete/Reopen
-  // plus "Plan for Today" (P), "Move to Tomorrow" (Shift+P) and "Clear plan" as
-  // shared actions with keyboard shortcuts — architecturally ready for the TODAY-05
-  // palette, driving the SAME paths the cards and bulk bar use (ADR-030).
+  // The full TODAY-05 contextual command set the Today surface registers with the
+  // shared command system: the global keyboard commands (focus the list, jump to a
+  // section, select all, clear selection, keyboard help) plus the per-task commands
+  // for the PRIMARY task — the one open in the Drawer, or, when no Drawer is open, the
+  // roving-focused task. Every command drives the SAME trusted path the visible cards
+  // and bulk bar use (ADR-024 §24.14 / ADR-030); availability is by omission.
+  // When a task Drawer is open the Drawer content owns that task's commands (it has
+  // the refresh path that keeps the Drawer's own displays consistent), so the
+  // dashboard registers per-task commands for the roving-focused task ONLY while no
+  // task Drawer is open — no double registration, no stale Drawer.
+  const drawerTaskId = topKey?.startsWith("task:")
+    ? topKey.slice("task:".length)
+    : null;
+  const dashboardTaskId = drawerTaskId === null ? roving.focusedId : null;
+
   const contextualActions = useMemo<readonly AppAction[]>(() => {
-    const actions: AppAction[] = [focusCaptureAction];
-    if (topKey?.startsWith("task:")) {
-      const id = topKey.slice("task:".length);
-      const task = planningById.get(id);
-      if (task) {
-        actions.push(taskToggleAction(task));
-      }
-      if (!targets) {
-        return actions;
-      }
-      const subtitle = task?.title;
-      actions.push(
-        {
-          id: `today.action.task.${id}.plan_today`,
-          title: "Plan for Today",
-          subtitle,
-          keywords: ["plan", "today", "schedule"],
-          shortcut: { key: "p" },
-          kind: "run",
-          run: () => {
-            submitPlan([id], targets.today);
-            return { ok: true };
-          },
-        },
-        {
-          id: `today.action.task.${id}.plan_tomorrow`,
-          title: "Move to Tomorrow",
-          subtitle,
-          keywords: ["plan", "tomorrow", "defer", "schedule"],
-          shortcut: { key: "p", modifiers: ["shift"] },
-          kind: "run",
-          run: () => {
-            submitPlan([id], targets.tomorrow);
-            return { ok: true };
-          },
-        },
-        {
-          id: `today.action.task.${id}.clear_plan`,
-          title: "Clear plan",
-          subtitle,
-          keywords: ["plan", "clear", "unschedule", "remove"],
-          kind: "run",
-          run: () => {
-            submitPlan([id], null);
-            return { ok: true };
-          },
-        },
-      );
-    }
-    return actions;
+    const globals = buildTodayGlobalCommands({
+      sections: OPEN_BUCKETS.map((bucket) => ({
+        bucket,
+        label: BUCKET_LABEL[bucket],
+        count: planning ? planning[bucket].length : 0,
+      })),
+      hasOpenTasks: flattenOrder(rovingOrder).length > 0,
+      selectionCount: selected.size,
+      focusTaskList,
+      focusSection,
+      selectAll,
+      clearSelection,
+      openHelp,
+    });
+
+    const focusedTask = dashboardTaskId
+      ? planningById.get(dashboardTaskId)
+      : undefined;
+    const taskCommands = focusedTask
+      ? buildFocusedTaskCommands({
+          task: focusedTask,
+          done: isDone(focusedTask),
+          targets,
+          isOpen: false,
+          onToggleDone: () => toggleDone(focusedTask.id, !isDone(focusedTask)),
+          onOpen: () => openDrawer(`task:${focusedTask.id}`),
+          onClose: () => closeDrawer(),
+          onPlan: (date) => submitPlan([focusedTask.id], date),
+        })
+      : [];
+
+    return [focusCaptureAction, ...globals, ...taskCommands];
   }, [
     focusCaptureAction,
-    targets,
-    topKey,
+    planning,
+    rovingOrder,
+    selected,
+    focusTaskList,
+    focusSection,
+    selectAll,
+    clearSelection,
+    openHelp,
+    dashboardTaskId,
     planningById,
+    isDone,
+    targets,
+    toggleDone,
+    openDrawer,
+    closeDrawer,
     submitPlan,
-    taskToggleAction,
   ]);
 
   useRegisterContextualActions(contextualActions);
@@ -534,6 +633,10 @@ export function TodayDashboard({
       density: "compact",
       presentation: "list",
       className: done ? "dh-today__task--done" : undefined,
+      // Roving membership (TODAY-05): the open planning sections are ONE tab stop and
+      // are arrow-navigable; the collapsed "Completed today" keeps natural tabbing.
+      rovingTabIndex:
+        bucket === "completedToday" ? undefined : roving.tabIndexFor(item.id),
       ...openProps(`task:${item.id}`),
     };
   };
@@ -637,56 +740,66 @@ export function TodayDashboard({
           <>
             <PlanningSummary summary={planning.summary} />
 
-            {planning.overdue.length > 0
-              ? planningSection(
-                  "today-overdue",
-                  "Overdue",
-                  "overdue",
-                  planning.overdue,
-                )
-              : null}
-
-            <TodaySection
-              id="today-planned"
-              label="Today"
-              count={planning.today.length}
+            {/* The roving task collection (TODAY-05): ONE tab stop for every open
+                task, arrow-navigable across sections. The keyboard handler owns
+                Arrow/Home/End/Enter/Space; the direct action shortcuts (P/Shift+P/C)
+                ride the shared command dispatcher against the focused task. */}
+            <div
+              ref={roving.containerRef}
+              className="dh-today__tasklist"
+              data-today-tasklist=""
             >
-              {planning.today.length > 0 ? (
-                <CardCollection
-                  items={planning.today}
-                  getItemId={(item) => item.id}
-                  renderCard={(item) => (
-                    <Card {...planningCard(item, "today")} />
-                  )}
-                  ariaLabel="Tasks planned for today"
-                  presentation="list"
-                  density="compact"
-                />
-              ) : (
-                <p className="dh-today__section-empty">
-                  Nothing planned yet. Pull a task in from Anytime to commit to
-                  your day.
-                </p>
-              )}
-            </TodaySection>
+              {planning.overdue.length > 0
+                ? planningSection(
+                    "today-overdue",
+                    "Overdue",
+                    "overdue",
+                    planning.overdue,
+                  )
+                : null}
 
-            {planning.upcoming.length > 0
-              ? planningSection(
-                  "today-upcoming-tasks",
-                  "Upcoming",
-                  "upcoming",
-                  planning.upcoming,
-                )
-              : null}
+              <TodaySection
+                id="today-planned"
+                label="Today"
+                count={planning.today.length}
+              >
+                {planning.today.length > 0 ? (
+                  <CardCollection
+                    items={planning.today}
+                    getItemId={(item) => item.id}
+                    renderCard={(item) => (
+                      <Card {...planningCard(item, "today")} />
+                    )}
+                    ariaLabel="Tasks planned for today"
+                    presentation="list"
+                    density="compact"
+                  />
+                ) : (
+                  <p className="dh-today__section-empty">
+                    Nothing planned yet. Pull a task in from Anytime to commit
+                    to your day.
+                  </p>
+                )}
+              </TodaySection>
 
-            {planning.anytime.length > 0
-              ? planningSection(
-                  "today-anytime",
-                  "Anytime",
-                  "anytime",
-                  planning.anytime,
-                )
-              : null}
+              {planning.upcoming.length > 0
+                ? planningSection(
+                    "today-upcoming-tasks",
+                    "Upcoming",
+                    "upcoming",
+                    planning.upcoming,
+                  )
+                : null}
+
+              {planning.anytime.length > 0
+                ? planningSection(
+                    "today-anytime",
+                    "Anytime",
+                    "anytime",
+                    planning.anytime,
+                  )
+                : null}
+            </div>
 
             {planning.completedToday.length > 0 ? (
               <section

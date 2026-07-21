@@ -239,3 +239,36 @@ describe("Card — no invalidly-nested interactive controls", () => {
     expect(openTarget.contains(action)).toBe(false);
   });
 });
+
+describe("Card — roving tabindex (DS-09 keyboard collections)", () => {
+  it("applies rovingTabIndex to every interactive control the card owns", () => {
+    render(
+      <Card
+        id="rec-1"
+        title="Website relaunch"
+        href="/x"
+        onOpen={() => {}}
+        rovingTabIndex={-1}
+        selection={{ selected: false, onSelectedChange: () => {} }}
+        quickActions={[{ id: "a", label: "Complete", onSelect: () => {} }]}
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: "Website relaunch" }),
+    ).toHaveAttribute("tabindex", "-1");
+    expect(
+      screen.getByRole("checkbox", { name: "Select Website relaunch" }),
+    ).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("button", { name: "Complete" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
+  it("leaves natural tab behaviour when rovingTabIndex is undefined", () => {
+    render(<Card id="rec-1" title="Website relaunch" onOpen={() => {}} />);
+    expect(
+      screen.getByRole("button", { name: "Website relaunch" }),
+    ).not.toHaveAttribute("tabindex");
+  });
+});

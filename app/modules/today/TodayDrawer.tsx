@@ -16,6 +16,7 @@ import { RecordContent, RecordLayout } from "~/shared/record-layout";
 
 import { UPCOMING_KIND } from "./fixtures";
 import type { TodayData } from "./fixtures";
+import { renderKeyboardHelpDrawer } from "./keyboard/KeyboardHelp";
 import { TaskDrawerContent } from "./task/TaskDrawerContent";
 
 function splitKey(key: string): { readonly kind: string; readonly id: string } {
@@ -40,6 +41,12 @@ export function createTodayDrawerRenderer(
   return function renderTodayDrawer(
     entry: DrawerEntry,
   ): DrawerRenderResult | null {
+    // The keyboard-shortcuts reference (TODAY-05) is hosted by the same Drawer.
+    const help = renderKeyboardHelpDrawer(entry);
+    if (help !== null) {
+      return help;
+    }
+
     const { kind, id } = splitKey(entry.key);
 
     if (kind === "task") {

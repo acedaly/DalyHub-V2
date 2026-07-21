@@ -221,6 +221,54 @@ migration, no second store and no second planning model.
   restores waiting; planning never affects completion; bulk planning is atomic;
   cross-workspace ids are rejected.
 
+## Keyboard workflow (TODAY-05)
+
+TODAY-05 makes Today fully operable without a mouse, composed entirely from the
+DS-09 command system, the shared Drawer/Feedback machinery and the TODAY-02/03/04
+task routes (ADR-031). It adds no second command registry, no second palette, no
+Today-only keyboard engine and no scattered document listeners.
+
+- **One dispatcher.** The single shared shortcut dispatcher (`useCommandShortcuts`,
+  installed once by `CommandShortcutLayer`) now also dispatches **contextual `run`**
+  shortcuts globally — the DS-09 deferral that DS-10's Feedback platform unblocked.
+  So `P` / `Shift+P` / `C` fire against the focused task and the palette advertises
+  those hints. The editable-control boundary (`input`/`textarea`/`select`/
+  `contenteditable`/form controls) and the modifier-exact matching are the
+  dispatcher's existing contracts, reused — TODAY-05 adds no key listeners of its own.
+- **Roving focus** ([`keyboard/roving-model.ts`](../../app/modules/today/keyboard/roving-model.ts),
+  [`useTodayRovingFocus.ts`](../../app/modules/today/keyboard/useTodayRovingFocus.ts)).
+  The open planning sections (Overdue/Today/Upcoming/Anytime) are wrapped in ONE plain
+  container that is the collection's single tab stop. Arrow Up/Down cross section
+  boundaries and clamp at the ends (no wrap), Home/End move within the current
+  section, Enter opens the focused task, Space toggles its selection. The DS-04 Card
+  gained an additive `rovingTabIndex` prop applying a `tabIndex` to every control the
+  card owns, so only the active card is in the tab order — the accessible roving
+  pattern RecordTabs/reorder already use (not a `listbox` over interactive cards). The
+  collapsed "Completed today" section keeps natural tabbing.
+- **Command ownership.** A pure
+  [`keyboard/today-commands.ts`](../../app/modules/today/keyboard/today-commands.ts)
+  builds the per-task `AppAction`s (Open/Close · Complete/Reopen `C` · Plan today `P`
+  / tomorrow `Shift+P` / next week · Clear plan) and the global commands (Focus task
+  list · Go to <section> · Select all open tasks · Clear selection · Keyboard
+  shortcuts). **When a task's Drawer is open, `TaskDrawerContent` registers that
+  task's commands** — it has the live state AND the refresh path, so a keyboard plan
+  keeps the Drawer's Planning display consistent — plus a state-dependent **Clear
+  waiting**. Otherwise the dashboard registers the roving-focused task's commands. The
+  two sites are mutually exclusive. Availability is by omission (completed → only
+  Reopen; unplanned → no Clear plan; waiting → Clear waiting), while the server route
+  stays the correctness boundary.
+- **Global navigation commands** stay registered on the module manifest (Open Today,
+  Focus Quick Capture, Open Waiting) — nothing Today-specific is hard-coded in the
+  palette component.
+- **Keyboard help** ([`keyboard/KeyboardHelp.tsx`](../../app/modules/today/keyboard/KeyboardHelp.tsx)).
+  The `?` shortcut and the "Keyboard shortcuts" command open a reference hosted by the
+  SAME DS-03 Drawer (`help:shortcuts` key) — no bespoke modal, no second focus trap.
+- **Multi-select.** Space selects the focused task; "Select all open tasks" fills the
+  selection; the existing TODAY-04 bulk action bar (atomic `/today/plan`) plans them;
+  Escape (or "Clear selection") clears it. No partial application.
+- **Quick Capture** reuses the existing focus command; it still does not persist
+  (TODAY-01's disclosed fixture boundary is unchanged).
+
 ## Deliberately NOT built
 
 TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks

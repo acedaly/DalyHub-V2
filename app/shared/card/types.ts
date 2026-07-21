@@ -145,6 +145,18 @@ export interface CardProps {
 
   readonly density?: CardDensity;
   readonly presentation?: CardPresentation;
+  /**
+   * Roving-focus membership for a keyboard-navigable collection (DS-09 keyboard
+   * pattern). When set, the value is applied as the `tabIndex` of EVERY interactive
+   * control the card owns — the primary open target, the selection checkbox and the
+   * quick/overflow action buttons — so the card participates in a roving composite
+   * as ONE unit: `0` makes the card the collection's single tab stop (its controls
+   * are reachable with Tab; arrow keys move between cards), `-1` removes the whole
+   * card from the tab order. Undefined (the default) leaves natural tab behaviour
+   * unchanged, so every existing consumer is untouched. Programmatic `.focus()` on a
+   * `tabindex="-1"` control still works — the collection focuses the active card.
+   */
+  readonly rovingTabIndex?: number;
   /** A reorder handle node (supplied by `ReorderableCardCollection`). */
   readonly reorderHandle?: ReactNode;
   readonly className?: string;
