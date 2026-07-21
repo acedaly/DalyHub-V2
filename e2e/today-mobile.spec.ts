@@ -22,8 +22,13 @@ import {
  *
  * It mutates only the dedicated `t-drawer` task's scheduled date (which the seed
  * resets each server start) and restores it to unplanned, so the other journeys
- * stay stable. Real gesture geometry is driven with the pointer device; the pure
- * gesture maths are unit-tested separately.
+ * stay stable.
+ *
+ * Touch caveat: Playwright cannot dispatch a native OS touch-DRAG in this setup, so
+ * the swipe is driven by explicit `pointerType: "touch"` pointer events (see
+ * `touchSwipe`) with real coordinates — NOT `page.mouse` (which is `pointerType:
+ * "mouse"` and would not exercise the touch path or the compatibility-click
+ * behaviour). The pure gesture maths are unit-tested separately.
  */
 
 const PHONE = { width: 390, height: 844 };
@@ -37,21 +42,67 @@ function taskCard(page: Page): Locator {
   return page.locator(CARD);
 }
 
-/** Drag the card surface toward the inline-start to reveal its action tray. */
-async function swipeOpen(page: Page, card: Locator) {
+/**
+ * Drive a horizontal swipe with explicit TOUCH-pointer events.
+ *
+ * Playwright's high-level input (`page.mouse`, `page.touchscreen.tap`) cannot
+ * dispatch a native OS touch-DRAG gesture, and `page.mouse` reports
+ * `pointerType: "mouse"` — which would NOT exercise the touch code path or the
+ * touch compatibility-click behaviour this feature depends on. So we dispatch the
+ * real `pointerdown`/`pointermove`/`pointerup` sequence with `pointerType: "touch"`
+ * and real client coordinates (the trusted pointer-event approach the repo's
+ * Playwright setup supports). This drives the SAME hook path a finger does; mouse
+ * input is never used to claim touch compatibility-click coverage.
+ */
+async function touchSwipe(card: Locator) {
   const box = await card.boundingBox();
   if (box === null) {
     throw new Error("task card has no layout box");
   }
   const y = box.y + box.height / 2;
   const startX = box.x + box.width - 16;
-  await page.mouse.move(startX, y);
-  await page.mouse.down();
+  const base = { pointerId: 1, pointerType: "touch", bubbles: true } as const;
+  await card.dispatchEvent("pointerdown", {
+    ...base,
+    button: 0,
+    clientX: startX,
+    clientY: y,
+  });
   // Cross the intent threshold, then pull the tray fully open (past its width so it
-  // clamps to fully revealed), in steps so intermediate pointermoves fire.
-  await page.mouse.move(startX - 30, y, { steps: 3 });
-  await page.mouse.move(startX - box.width, y, { steps: 8 });
-  await page.mouse.up();
+  // clamps to fully revealed).
+  await card.dispatchEvent("pointermove", {
+    ...base,
+    clientX: startX - 30,
+    clientY: y,
+  });
+  await card.dispatchEvent("pointermove", {
+    ...base,
+    clientX: startX - box.width,
+    clientY: y,
+  });
+  await card.dispatchEvent("pointerup", {
+    ...base,
+    clientX: startX - box.width,
+    clientY: y,
+  });
+}
+
+/** A deliberate, movement-free TOUCH tap on the card (a fresh pointer sequence). */
+async function touchTap(card: Locator) {
+  const box = await card.boundingBox();
+  if (box === null) {
+    throw new Error("task card has no layout box");
+  }
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const base = { pointerId: 2, pointerType: "touch", bubbles: true } as const;
+  await card.dispatchEvent("pointerdown", {
+    ...base,
+    button: 0,
+    clientX: x,
+    clientY: y,
+  });
+  await card.dispatchEvent("pointerup", { ...base, clientX: x, clientY: y });
 }
 
 /** Ensure `t-drawer` is unplanned via its Drawer, then close it. */
@@ -104,9 +155,9 @@ test.describe("TODAY-06 — mobile Today", () => {
 
     const card = taskCard(page);
     await expect(card).toHaveAttribute("data-swipe-open", "false");
-    await swipeOpen(page, card);
+    await touchSwipe(card);
     await expect(card).toHaveAttribute("data-swipe-open", "true");
-    // A handled swipe must not also open the Card.
+    // A handled swipe must not also open the Card (no drawer).
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // Run the planning action from the revealed tray (same path as the visible
@@ -116,7 +167,8 @@ test.describe("TODAY-06 — mobile Today", () => {
     );
     await tray.getByText("Plan today", { exact: true }).click();
 
-    // After the mutation + revalidation the task appears in the Today section.
+    // After the mutation + revalidation the task appears in the Today section
+    // (planning persisted through the trusted /today/plan route).
     const todayList = page.getByRole("list", {
       name: "Tasks planned for today",
     });
@@ -127,12 +179,38 @@ test.describe("TODAY-06 — mobile Today", () => {
     await normaliseUnplanned(page);
   });
 
+  test("swipe suppresses its compatibility click but never swallows a later tap", async ({
+    page,
+  }) => {
+    await normaliseUnplanned(page);
+    await gotoFixture(page, "/today");
+    const card = taskCard(page);
+    const title = page.getByRole("link", { name: TITLE }).first();
+
+    // The swipe reveals the tray, arms click-suppression, and does not open the Card.
+    await touchSwipe(card);
+    await expect(card).toHaveAttribute("data-swipe-open", "true");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // A synthetic touch compatibility click on the title (what a real browser emits
+    // right after a swipe) is swallowed — the Card must NOT open.
+    await title.dispatchEvent("click", { bubbles: true });
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // No further compatibility click arrives; a later DELIBERATE tap opens the Card
+    // (its pointer-down clears any stale suppression — it is never swallowed).
+    await touchTap(card);
+    await title.dispatchEvent("click", { bubbles: true });
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+  });
+
   test("holds the accessibility baseline with a swipe tray open", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
     const card = taskCard(page);
-    await swipeOpen(page, card);
+    await touchSwipe(card);
     await expect(card).toHaveAttribute("data-swipe-open", "true");
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);

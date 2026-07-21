@@ -176,6 +176,14 @@ export function useCardSwipe(options: {
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent) => {
+      // A NEW pointer sequence begins. If a suppression from a previous swipe is
+      // still armed, its compatibility click never arrived (not every browser emits
+      // one) — clear it now so this fresh gesture's genuine tap/click (or a nested
+      // control's) is NEVER swallowed. Suppression is thus scoped to the immediate
+      // post-swipe click and can never remain armed across gestures (no timeout).
+      // Cleared before every early return so a tap that starts on a nested control
+      // after a swipe still works.
+      suppressClickRef.current = false;
       if (!enabled || !options.hasActions) {
         return;
       }

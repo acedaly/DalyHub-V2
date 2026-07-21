@@ -121,10 +121,29 @@ describe("Card swipe — touch-first device", () => {
   it("does not open the card after a handled swipe (the tap-open is suppressed)", () => {
     const { card, onOpen } = renderSwipeCard();
     drag(card, { dx: -120, dy: 0 });
-    // The synthetic click a touch fires after the swipe must be swallowed.
+    // The synthetic compatibility click a touch fires after the swipe is swallowed.
     fireEvent.click(screen.getByRole("button", { name: "Draft the proposal" }));
     expect(onOpen).not.toHaveBeenCalled();
     expect(card).toHaveAttribute("data-swipe-open", "true");
+  });
+
+  it("does not swallow a genuine tap after a swipe that emitted NO compatibility click", () => {
+    const { card, onOpen } = renderSwipeCard();
+    // A swipe arms click-suppression...
+    drag(card, { dx: -120, dy: 0 });
+    expect(card).toHaveAttribute("data-swipe-open", "true");
+    // ...but no compatibility click follows (not every mobile browser emits one).
+    // A later DELIBERATE tap must still open the card: its pointer-down clears the
+    // stale suppression, so suppression can never remain armed across gestures.
+    fireEvent.pointerDown(card, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 2,
+      button: 0,
+    });
+    fireEvent.pointerUp(card, { clientX: 200, clientY: 200, pointerId: 2 });
+    fireEvent.click(screen.getByRole("button", { name: "Draft the proposal" }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it("fires the SAME action handler from the tray and then closes it", () => {
