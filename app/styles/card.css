@@ -430,6 +430,14 @@
     min-height: var(--dh-touch-target-min);
     min-width: var(--dh-touch-target-min);
   }
+  /* The selection cell (the label) is the 44px touch target; the checkbox glyph
+   * inside stays visually compact (TODAY-06 selection targets). */
+  .dh-card__select {
+    min-inline-size: var(--dh-touch-target-min);
+    min-block-size: var(--dh-touch-target-min);
+    justify-content: center;
+    cursor: pointer;
+  }
   .dh-card__select-input {
     width: var(--dh-space-6);
     height: var(--dh-space-6);
@@ -461,4 +469,112 @@
     justify-content: flex-start;
     margin-top: var(--dh-space-1);
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* TODAY-06 — touch swipe quick actions                                        */
+/*                                                                             */
+/* A clip/position wrapper holds the revealed action tray BEHIND the card      */
+/* surface (the article). The wrapper is additive: on a non-touch device the   */
+/* reveal stays 0 and the tray is fully hidden behind the opaque surface, so    */
+/* desktop rendering is unchanged. `overflow: hidden` on the WRAPPER clips the  */
+/* moving surface + the tray (and keeps the border-radius correct while         */
+/* swiping) so neither can create horizontal document overflow. Every value is  */
+/* a token; motion collapses to instant under reduced motion via base.css.      */
+/*                                                                             */
+/* Elevation lives on the WRAPPER, not the clipped article: an element never    */
+/* clips its OWN box-shadow (overflow only clips descendants), so the card keeps */
+/* its exact standard resting + hover shadow while the surface inside is still   */
+/* clipped. Border, background, selection and focus states stay on the shared   */
+/* Card unchanged — only the (otherwise-clipped) shadow is relocated.           */
+/* -------------------------------------------------------------------------- */
+
+.dh-card-swipe {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--dh-radius-md);
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: var(--dh-shadow-sm);
+  transition: box-shadow var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-card-swipe:hover {
+  box-shadow: var(--dh-shadow-md);
+}
+
+/* The article inside the clip must NOT paint its own (clipped, invisible)
+ * shadow — the wrapper owns elevation now. Hover border-color, selection and
+ * focus treatments remain on the shared Card. */
+.dh-card-swipe > .dh-card,
+.dh-card-swipe > .dh-card:hover {
+  box-shadow: none;
+}
+
+/* The card surface follows the finger; on release it snaps (a token transition
+ * that base.css collapses to instant under prefers-reduced-motion). During an
+ * active drag the transition is disabled so it tracks the pointer exactly. */
+.dh-card-swipe > .dh-card {
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y;
+  /* `--swipe-reveal` is a runtime state variable (set by the swipe hook), not a
+   * DS-01 design token — deliberately outside the `--dh-*` token namespace. */
+  transform: translateX(calc(-1 * var(--swipe-reveal, 0px)));
+  transition: transform var(--dh-duration-base) var(--dh-ease-standard);
+}
+
+.dh-card-swipe > .dh-card[data-swipe-dragging="true"] {
+  transition: none;
+}
+
+/* The tray sits behind the surface on the trailing (inline-end) edge and is
+ * uncovered as the surface slides away. It is aria-hidden — a visual accelerator
+ * for the always-available quick actions on the card. */
+.dh-card__swipe-tray {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 0;
+  display: flex;
+  align-items: stretch;
+  background: var(--dh-color-accent-surface);
+}
+
+.dh-card__swipe-action {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-1);
+  min-inline-size: var(--dh-touch-target-min);
+  min-block-size: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-3);
+  border: none;
+  border-inline-start: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: transparent;
+  color: var(--dh-color-accent-text);
+  font: inherit;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-snug);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dh-card__swipe-action:first-child {
+  border-inline-start: none;
+}
+
+.dh-card__swipe-action:disabled {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.dh-card__swipe-action-icon {
+  display: inline-flex;
+  font-size: var(--dh-font-size-md);
+  line-height: 0;
 }

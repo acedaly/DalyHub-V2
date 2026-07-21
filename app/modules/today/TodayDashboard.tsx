@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useFetcher, useSearchParams } from "react-router";
 
-import { Card, CardCollection } from "~/shared/card";
+import { Card, CardCollection, closeActiveSwipeTray } from "~/shared/card";
 import type { CardAction, CardProps } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
@@ -224,6 +224,17 @@ export function TodayDashboard({
   const [searchParams, setSearchParams] = useSearchParams();
   const { openDrawer, closeDrawer, isOpen: drawerOpen } = useDrawer();
   const { notifySuccess, notifyError } = useFeedback();
+
+  // Opening any record closes an open swipe action tray (TODAY-06): a revealed tray
+  // must never linger behind the Drawer that a tap on it (or a keyboard command)
+  // opens. Every record-open path routes through here.
+  const openRecord = useCallback(
+    (key: string) => {
+      closeActiveSwipeTray();
+      openDrawer(key);
+    },
+    [openDrawer],
+  );
   const captureRef = useRef<HTMLTextAreaElement>(null);
   const planFetcher = useFetcher<PlanActionData>();
 
@@ -350,7 +361,7 @@ export function TodayDashboard({
 
   const roving = useTodayRovingFocus({
     order: rovingOrder,
-    onOpen: (id) => openDrawer(`task:${id}`),
+    onOpen: (id) => openRecord(`task:${id}`),
     onToggleSelect: (id) => toggleSelected(id, !selected.has(id)),
     onEscape: () => {
       if (selected.size > 0) {
@@ -411,7 +422,7 @@ export function TodayDashboard({
     setSearchParams(next, { replace: true, preventScrollReset: true });
   }, [searchParams, setSearchParams, rovingFocusTask]);
 
-  const openHelp = useCallback(() => openDrawer(HELP_DRAWER_KEY), [openDrawer]);
+  const openHelp = useCallback(() => openRecord(HELP_DRAWER_KEY), [openRecord]);
 
   const upcoming = useMemo(
     () => [...data.upcoming].sort((a, b) => a.sortKey - b.sortKey),
@@ -424,7 +435,7 @@ export function TodayDashboard({
 
   const openProps = (key: string) => ({
     href: `?${withDrawerPushed(searchParams, key).toString()}`,
-    onOpen: () => openDrawer(key),
+    onOpen: () => openRecord(key),
   });
 
   const focusCapture = useCallback(() => {
@@ -558,7 +569,7 @@ export function TodayDashboard({
           targets,
           isOpen: false,
           onToggleDone: () => toggleDone(focusedTask.id, !isDone(focusedTask)),
-          onOpen: () => openDrawer(`task:${focusedTask.id}`),
+          onOpen: () => openRecord(`task:${focusedTask.id}`),
           onClose: () => closeDrawer(),
           onPlan: (date) => submitPlan([focusedTask.id], date),
         })
@@ -579,7 +590,7 @@ export function TodayDashboard({
     isDone,
     targets,
     toggleDone,
-    openDrawer,
+    openRecord,
     closeDrawer,
     submitPlan,
   ]);
@@ -648,6 +659,10 @@ export function TodayDashboard({
       item.dueDate !== null &&
       referenceIso !== "" &&
       item.dueDate < referenceIso;
+    // The SAME state-appropriate actions drive the visible quick actions and the
+    // touch swipe tray (TODAY-06) — one identity, one execution path; the tray is an
+    // accelerator over the always-available buttons, never a touch-only action.
+    const actions = planQuickActions(item, bucket);
     return {
       id: item.id,
       title: item.title,
@@ -668,7 +683,8 @@ export function TodayDashboard({
               onSelectedChange: (on) => toggleSelected(item.id, on),
               label: `Select ${item.title}`,
             },
-      quickActions: planQuickActions(item, bucket),
+      quickActions: actions,
+      swipeActions: actions,
       density: "compact",
       presentation: "list",
       className: done ? "dh-today__task--done" : undefined,
@@ -901,7 +917,7 @@ export function TodayDashboard({
                         )
                           return;
                         event.preventDefault();
-                        openDrawer(key);
+                        openRecord(key);
                       }}
                     >
                       <span className="dh-today__waiting-title">

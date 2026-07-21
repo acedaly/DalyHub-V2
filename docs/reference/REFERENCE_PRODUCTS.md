@@ -391,6 +391,29 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Swipe / mobile quick-actions evaluation (TODAY-06)
+
+> The build-vs-reuse evaluation behind [ADR-032](../decisions/ARCHITECTURE_DECISIONS.md#adr-032-mobile-today--touch-swipe-quick-actions-as-an-additive-shared-card-accelerator-and-the-touch-target-corrections). **No new runtime or dev dependency was added** — TODAY-06 is an additive shared-Card capability + a pure gesture model + composition of already-built shared components. No third-party code was copied.
+
+- **Products studied (🔴 study-only, already catalogued): Things 3, Linear, Raycast; iOS Mail (the swipe-to-reveal list-row idiom).** Interaction-model inspiration only: Things' calm, restrained Today and quiet completion feedback; Linear/Raycast quick-actions and snappy transitions; the widely-known swipe-to-reveal-actions list pattern (iOS Mail/Things). Only the well-known *idea* of a swipe-to-reveal row was reused; **no code reuse** (closed source). Nothing new to research beyond the catalogued task-record entries.
+- **Reuse evaluation — swipe gesture recogniser.**
+  - [x] Problem is a commodity worth reusing? **No** — a swipe-to-reveal-*existing*-actions recogniser is UX interaction logic DalyHub owns (the DS-08 in-house fuzzy matcher / DS-10 pointer-driven resize hook precedent). `DESIGN_SYSTEM.md` constrains swipe to mapping onto existing Quick Actions, so no novel gesture physics is needed.
+  - [x] Checked REFERENCE_PRODUCTS.md — no prior gesture entry; this is the first.
+  - [x] Licence read — n/a (no dependency taken).
+  - [x] Candidates reviewed: `@use-gesture/react`, `react-swipeable`, `framer-motion`, `hammerjs`. All are MIT/permissive and healthy, but each adds bundle + API surface for a recogniser we can express in a small pure model — rejected on footprint/fit, consistent with the repo's "build the differentiators, few healthy deps" culture.
+  - [x] Footprint acceptable — the in-house model + hook are tiny and Workers/SSR-safe; no bundle cost.
+  - [x] Fits our stack, accessibility bar and Design System — reuses the ONE `AppAction`/`CardAction` path, the DS-01 tokens and the DS-11 baseline; the tray is an aria-hidden accelerator over accessible controls.
+  - [x] No telemetry / no privacy concern — n/a.
+  - [x] Provenance — original DalyHub code; no snippet adapted, so no attribution and no `THIRD_PARTY_NOTICES.md` change.
+  - [x] Covered by tests — pure `swipe-model` unit tests + Card/Today component tests + a real-D1 mobile Playwright journey.
+  - [x] REFERENCE_PRODUCTS.md updated (this entry).
+- **Reused, not rebuilt (in-house shared layer).** The DS-04 Card (extended additively), the DS-03 Drawer mobile sheet, the TODAY-04 selection + bulk bar, the DS-10 Feedback platform, the DS-01 tokens and the DS-11 safe-area/44px conventions are all consumed **unchanged** (bar the two documented touch-target/landmark corrections).
+- **Rejected.** A gesture library (footprint/fit — build); executing a consequential mutation from a casual swipe (calmer to reveal a tray); a Today-specific mobile Card or an `isMobile` markup fork (AGENTS.md §9.8 — additive shared capability instead).
+- **Licence implications.** None — no dependency added, no third-party code copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Build** the `swipeActions` Card capability, the pure `swipe-model`, the `useCardSwipe` hook and the tray on the existing stack; **reuse** every shared component; **add no dependency**. See [ADR-032](../decisions/ARCHITECTURE_DECISIONS.md#adr-032-mobile-today--touch-swipe-quick-actions-as-an-additive-shared-card-accelerator-and-the-touch-target-corrections).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

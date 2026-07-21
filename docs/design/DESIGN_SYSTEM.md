@@ -726,6 +726,22 @@ DalyHub is one product across a wide desktop workspace and a phone. Same model, 
 - **Touch targets & gestures.** Minimum 44px targets on touch; swipe maps to the same [Quick Actions](#quick-actions) available by keyboard on desktop. No action is touch-only or keyboard-only.
 - **Breakpoints are tokens**, defined once and shared.
 
+### Swipe quick actions (TODAY-06)
+
+On a touch-first device (`(hover: none) and (pointer: coarse)`), a [Card](#cards) that is given `swipeActions` can be **swiped horizontally to reveal an action tray** — the shared, additive mobile accelerator for a card's quick actions. First delivered for Today ([ADR-032](../decisions/ARCHITECTURE_DECISIONS.md#adr-032-mobile-today--touch-swipe-quick-actions-as-an-additive-shared-card-accelerator-and-the-touch-target-corrections)); reusable by every module's Mobile item.
+
+Contract:
+
+- **One shared Card, additive.** `swipeActions` is an optional prop on the ONE Card ([DS-04](#shared-cards-ds-04)); there is no mobile-specific card. The wrapper renders whenever the prop is present (SSR-safe) but only responds to pointers on a touch-first device, so desktop mouse/keyboard behaviour is unchanged.
+- **Maps to existing actions — one identity, one execution path.** The tray renders the SAME `CardAction`s the card exposes as visible `quickActions`, which drive the same [`AppAction`](#quick-actions) handlers and the same trusted server routes. Swipe never adds a new handler or new business logic, and never mutates on the client as the authority.
+- **Accelerator, never gesture-only.** Every action in the tray is also a visible, keyboard- and AT-reachable control (and available in the [Drawer](#drawer)). The tray is therefore `aria-hidden` and out of the tab order — a visual duplicate. The swipe gesture itself need not be exposed to assistive tech, but every action it reveals must have an ordinary accessible control and keyboard path.
+- **State-dependent availability.** Only valid actions appear (by omission), matching the visible actions and keyboard commands — never an invalid action just because the tray has room.
+- **Deliberate, cancellable, scroll-safe.** A clear horizontal intent past a movement threshold is required; a minor drag never reveals the tray; `touch-action: pan-y` + the intent guard preserve natural vertical page scrolling; a handled swipe never also opens the card; the gesture supports cancellation.
+- **One tray at a time.** Only one revealed tray exists; it closes on outside interaction, navigation, a Drawer opening, or a completed action.
+- **Tokens + reduced motion.** Distance, timing, surfaces and feedback use DS-01 tokens; the snap honours `prefers-reduced-motion` (instant); action meaning is icon + label, never colour alone.
+
+The gesture DECISION logic (intent, thresholds, offset clamping, the open/closed snap, and the single-open registry) lives in a pure, React-free `swipe-model` unit-tested independently of React and the DOM; the `useCardSwipe` hook only wires pointer input.
+
 ---
 
 ## Motion & feedback timing

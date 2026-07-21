@@ -81,6 +81,23 @@ test.describe("TODAY-01 — desktop", () => {
       dialog.getByRole("heading", { level: 3, name: "Finish PX-02" }),
     ).toBeVisible();
   });
+
+  test("swipe-wrapped task cards keep their elevation on desktop (shadow not clipped)", async ({
+    page,
+  }) => {
+    // TODAY-06 regression: the swipe wrapper clips its surface with overflow:hidden,
+    // so the card elevation must live on the WRAPPER (an element never clips its own
+    // box-shadow) — otherwise every Today task card would silently lose its shadow,
+    // including on desktop where swipe is inactive.
+    await page.goto("/today");
+    const wrapper = page.locator(".dh-card-swipe").first();
+    await expect(wrapper).toBeVisible();
+    const shadow = await wrapper.evaluate(
+      (el) => getComputedStyle(el).boxShadow,
+    );
+    expect(shadow).not.toBe("none");
+    expect(shadow.trim()).not.toBe("");
+  });
 });
 
 test.describe("TODAY-01 — mobile (320px)", () => {

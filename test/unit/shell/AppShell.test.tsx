@@ -92,7 +92,10 @@ function renderShell(initialPath = "/") {
 describe("PX-02 AppShell — frame & landmarks", () => {
   it("uses banner (sidebar brand), primary navigation and main landmarks", () => {
     renderShell();
-    expect(screen.getByRole("banner")).toBeInTheDocument();
+    // The rail sidebar owns the desktop banner; the mobile bar owns the mobile
+    // banner (only one is visible per viewport — the other is display:none). Both
+    // exist in the DOM here (jsdom ignores CSS visibility).
+    expect(screen.getAllByRole("banner").length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByRole("navigation", { name: "Primary" }),
     ).toBeInTheDocument();
@@ -109,9 +112,12 @@ describe("PX-02 AppShell — frame & landmarks", () => {
 
   it("renders the workspace brand name", () => {
     renderShell();
+    // The brand appears in a banner landmark (the rail on desktop, the mobile bar
+    // on mobile — both present in the DOM here).
+    const banners = screen.getAllByRole("banner");
     expect(
-      within(screen.getByRole("banner")).getByText("DalyHub"),
-    ).toBeInTheDocument();
+      banners.some((banner) => within(banner).queryByText("DalyHub") !== null),
+    ).toBe(true);
   });
 
   it("renders registry-driven navigation as icon + label rows", () => {

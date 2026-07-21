@@ -385,6 +385,17 @@
   border-radius: var(--dh-radius-md);
 }
 
+/* TODAY-06: task cards are wrapped in the swipe container (which clips with
+   overflow:hidden), so put the roving focus-within ring on the WRAPPER — otherwise
+   the inner card's ring would be clipped and the keyboard position lost. The
+   wrapper also owns the card elevation, so the focused card keeps its shadow AND
+   gains the ring (the focus treatment is added, never removed). */
+.dh-today__tasklist .dh-card-swipe:focus-within {
+  box-shadow:
+    0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring),
+    var(--dh-shadow-sm);
+}
+
 /* The keyboard-shortcuts reference, hosted in the shared DS-03 Drawer. */
 .dh-keyboard-help {
   display: flex;

@@ -160,7 +160,11 @@ export function AppShell({
           />
 
           <div className="dh-main-col">
-            <div className="dh-mobilebar">
+            {/* A `header` so the mobile bar's brand + menu toggle are contained by a
+                landmark (the `banner`) on mobile, where the rail sidebar banner is
+                hidden — otherwise its content sits outside every landmark (WCAG
+                region, DS-11). On desktop this bar is `display:none` and ignored. */}
+            <header className="dh-mobilebar">
               <button
                 type="button"
                 className="dh-mobilebar__toggle"
@@ -175,7 +179,7 @@ export function AppShell({
                 <span className="dh-visually-hidden">Open navigation</span>
               </button>
               <span className="dh-mobilebar__brand">{workspaceName}</span>
-            </div>
+            </header>
 
             <main id="main-content" className="dh-pane" tabIndex={-1}>
               {children}

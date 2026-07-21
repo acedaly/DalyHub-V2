@@ -21,6 +21,8 @@ import type { MouseEvent } from "react";
 import { useId } from "react";
 
 import { CardActionButton } from "./CardAction";
+import { CardSwipeTray } from "./CardSwipeTray";
+import { useCardSwipe } from "./useCardSwipe";
 import type { CardProps } from "./types";
 import { normaliseProgress, primaryOpenIsModifiedClick } from "./types";
 
@@ -51,6 +53,7 @@ export function Card(props: CardProps) {
     selection,
     quickActions,
     overflowAction,
+    swipeActions,
     href,
     onOpen,
     openAriaLabel,
@@ -64,6 +67,12 @@ export function Card(props: CardProps) {
   const generatedId = useId();
   const titleId = `${generatedId}-title`;
   const selectionId = `${generatedId}-select`;
+
+  // Touch swipe-to-reveal (TODAY-06). Structural (the wrapper renders whenever
+  // `swipeActions` are given, SSR-safe); the hook only responds to pointers on a
+  // touch-first device, so mouse/keyboard behaviour is unchanged.
+  const hasSwipe = swipeActions !== undefined && swipeActions.length > 0;
+  const swipe = useCardSwipe({ hasActions: hasSwipe });
 
   // Roving-focus membership: ONLY the primary open control carries the roving
   // tabindex (0 for the active card, -1 for the rest), so the collection is exactly
@@ -136,8 +145,9 @@ export function Card(props: CardProps) {
     .filter(Boolean)
     .join(" ");
 
-  return (
+  const article = (
     <article
+      ref={hasSwipe ? swipe.surfaceRef : undefined}
       className={rootClasses}
       aria-labelledby={titleId}
       data-card-id={id}
@@ -146,13 +156,29 @@ export function Card(props: CardProps) {
       data-density={density}
       data-presentation={presentation}
       data-testid={props["data-testid"]}
+      {...(hasSwipe
+        ? {
+            "data-swipe-open": swipe.isOpen ? "true" : "false",
+            "data-swipe-dragging": swipe.dragging ? "true" : "false",
+            onPointerDown: swipe.onPointerDown,
+            onPointerMove: swipe.onPointerMove,
+            onPointerUp: swipe.onPointerUp,
+            onPointerCancel: swipe.onPointerCancel,
+            onClickCapture: swipe.onClickCapture,
+          }
+        : {})}
     >
       {reorderHandle ? (
-        <div className="dh-card__handle-slot">{reorderHandle}</div>
+        <div className="dh-card__handle-slot" data-no-swipe>
+          {reorderHandle}
+        </div>
       ) : null}
 
       {selection ? (
-        <div className="dh-card__select">
+        // A `label` wrapping the checkbox so the whole cell is a 44px touch target
+        // on touch devices (the input stays visually compact) — TODAY-06 selection
+        // targets. Clicking the cell toggles selection and never opens the card.
+        <label className="dh-card__select" data-no-swipe>
           <input
             id={selectionId}
             className="dh-card__select-input"
@@ -166,7 +192,7 @@ export function Card(props: CardProps) {
             }
             onClick={(event) => event.stopPropagation()}
           />
-        </div>
+        </label>
       ) : null}
 
       <div className="dh-card__body">
@@ -261,6 +287,7 @@ export function Card(props: CardProps) {
           className="dh-card__actions"
           role="group"
           aria-label={`Actions for ${openAccessibleName}`}
+          data-no-swipe
         >
           {quickActions?.map((action) => (
             <CardActionButton
@@ -283,5 +310,29 @@ export function Card(props: CardProps) {
         </div>
       ) : null}
     </article>
+  );
+
+  if (!hasSwipe) {
+    return article;
+  }
+
+  // Swipe-enabled: a clip/position wrapper holds the revealed action tray behind
+  // the translated card surface (the article). The article keeps its exact internal
+  // structure — the wrapper is purely additive, so desktop rendering is unchanged
+  // (the tray stays fully hidden at reveal 0). The tray is an aria-hidden duplicate
+  // of the accessible quick actions above.
+  return (
+    <div
+      ref={swipe.rootRef}
+      className="dh-card-swipe"
+      data-swipe-open={swipe.isOpen ? "true" : "false"}
+    >
+      <CardSwipeTray
+        actions={swipeActions ?? []}
+        trayRef={swipe.trayRef}
+        onActionFired={swipe.close}
+      />
+      {article}
+    </div>
   );
 }

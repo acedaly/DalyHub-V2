@@ -27,6 +27,25 @@ export {
   reorderablePositionOf,
 } from "./reorder";
 
+// TODAY-06 — touch swipe quick actions (pure model + the shared single-open close).
+export {
+  clampOffset,
+  closeActiveSwipeTray,
+  createSwipeRegistry,
+  DEFAULT_SWIPE_THRESHOLDS,
+  FALLBACK_TRAY_WIDTH,
+  projectOffset,
+  resolveRelease,
+  resolveSwipeIntent,
+} from "./swipe-model";
+export type {
+  SwipeIntent,
+  SwipeRegistry,
+  SwipeRest,
+  SwipeThresholds,
+  SwipeTrayHandle,
+} from "./swipe-model";
+
 export { normaliseProgress } from "./types";
 export type {
   CardAction,

@@ -390,3 +390,58 @@ describe("TODAY-04 command integration", () => {
     );
   });
 });
+
+describe("TODAY-06 mobile swipe quick actions", () => {
+  /** Locate a planning task card's swipe wrapper + tray by its stable id. */
+  function trayFor(id: string): HTMLElement {
+    const article = document.querySelector(
+      `.dh-card[data-card-id="${id}"]`,
+    ) as HTMLElement | null;
+    expect(article).not.toBeNull();
+    const wrapper = article!.closest(".dh-card-swipe") as HTMLElement | null;
+    expect(wrapper).not.toBeNull();
+    const tray = wrapper!.querySelector(
+      ".dh-card__swipe-tray",
+    ) as HTMLElement | null;
+    expect(tray).not.toBeNull();
+    return tray!;
+  }
+
+  it("wraps every task card in a swipe container with an aria-hidden tray", () => {
+    renderToday();
+    const tray = trayFor("t-any");
+    // The tray is a visual accelerator — hidden from assistive tech (the visible
+    // quick actions carry the accessible controls).
+    expect(tray).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("offers state-appropriate swipe actions for an open backlog task", () => {
+    renderToday();
+    const tray = trayFor("t-any");
+    const labels = Array.from(
+      tray.querySelectorAll(".dh-card__swipe-action"),
+    ).map((node) => node.textContent);
+    expect(labels).toEqual(["Complete", "Plan today", "Tomorrow"]);
+  });
+
+  it("offers only Reopen in the swipe tray of a completed task", () => {
+    renderToday();
+    const tray = trayFor("t-done");
+    const labels = Array.from(
+      tray.querySelectorAll(".dh-card__swipe-action"),
+    ).map((node) => node.textContent);
+    expect(labels).toEqual(["Reopen"]);
+  });
+
+  it("drives the SAME plan mutation path from a swipe-tray action", () => {
+    const onPlan = vi.fn();
+    renderToday({ onPlan });
+    const tray = trayFor("t-any");
+    const planToday = Array.from(
+      tray.querySelectorAll(".dh-card__swipe-action"),
+    ).find((node) => node.textContent === "Plan today") as HTMLElement;
+    fireEvent.click(planToday);
+    // Same execution path as the visible quick action / bulk bar (ADR-030).
+    expect(onPlan).toHaveBeenCalledWith(["t-any"], "2026-07-19");
+  });
+});

@@ -310,6 +310,44 @@ Today-only keyboard engine and no scattered document listeners.
 - **Quick Capture** reuses the existing focus command; it still does not persist
   (TODAY-01's disclosed fixture boundary is unchanged).
 
+## Mobile (TODAY-06)
+
+Today is comfortable and dependable on a phone by touch, composed ENTIRELY from the
+shared layer (no mobile card, no parallel mobile tree) and accepted via
+[ADR-032](../decisions/ARCHITECTURE_DECISIONS.md#adr-032-mobile-today--touch-swipe-quick-actions-as-an-additive-shared-card-accelerator-and-the-touch-target-corrections).
+
+- **Swipe quick actions.** On a touch-first device a task Card is swiped horizontally
+  to reveal an action tray. It is an **accelerator** over the always-visible quick
+  actions: the tray renders the SAME `CardAction`s Today already builds
+  (`planQuickActions`) — Complete/Reopen, Plan today, Tomorrow, Clear/Remove — so a
+  tray action drives the SAME trusted routes (`/today/plan`, `/today/task/:id`) as the
+  visible buttons, the Drawer, the bulk bar and the keyboard commands. Availability is
+  state-dependent by omission (completed → only Reopen; unplanned → no Clear plan;
+  waiting is excluded from planning sections). The tray is `aria-hidden` (a visual
+  duplicate), so there is **no gesture-only functionality**. The shared capability is
+  the DS-04 Card `swipeActions` prop + a pure `swipe-model` + the `useCardSwipe` hook
+  (`app/shared/card/`). `touch-action: pan-y` + a clear-horizontal-intent threshold
+  keep vertical page scrolling natural; a minor drag never reveals the tray; a handled
+  swipe never opens the Card; one tray is open at a time and closes on outside
+  interaction, a Drawer opening, or a completed action; the snap honours reduced
+  motion. Desktop mouse/keyboard is untouched (the gate is `(hover: none) and (pointer:
+  coarse)`), so the TODAY-05 keyboard workflow is preserved.
+- **Adapted composition.** The task Cards, planning sections, planning summary,
+  selection + bulk bar and Waiting summary are the shared components at compact
+  density; long titles/metadata wrap; there is no horizontal page overflow from 320px
+  up. The sticky pane header clears a device notch via `env(safe-area-inset-top)`.
+- **Mobile Drawer.** The task Drawer is the unchanged DS-03 full-height sheet — safe
+  areas, tabs, and the Details/Planning/Waiting controls are reachable on a narrow
+  screen; deep-link + Back/Forward + focus restoration are preserved.
+- **Mobile selection + bulk planning.** TODAY-04 selection works on a phone: the Card
+  selection control is a 44px touch target (a `label` cell sized to the token), the
+  bulk bar shows the count and stays within the safe area, and Cancel exits selection;
+  planning stays the atomic `/today/plan` route.
+- **Touch-target + landmark corrections (shared layer).** The first real phone
+  axe-scan surfaced two latent DS-11 gaps, fixed at the source: the shared Card
+  selection meets 44px on touch, and the app-shell mobile bar is a `header` so its
+  brand + menu toggle are in the `banner` landmark on mobile.
+
 ## Deliberately NOT built
 
 TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks
@@ -385,3 +423,15 @@ change.
 - **End-to-end** — [`e2e/today.spec.ts`](../../e2e/today.spec.ts): sidebar
   reachability, sections, completion, capture, drawer, and no horizontal overflow
   at desktop and 320px.
+- **Swipe (unit + component)** — [`test/unit/card/swipe-model.test.ts`](../../test/unit/card/swipe-model.test.ts)
+  (pure intent/threshold/boundary/snap + the one-open-tray registry) and
+  [`test/unit/card/CardSwipe.test.tsx`](../../test/unit/card/CardSwipe.test.tsx)
+  (reveal/cancel, minor-drag no-op, vertical-not-captured, no-open-after-swipe, tray
+  close, disabled action, nested-control safety, non-touch inert). Today swipe wiring
+  (state-appropriate tray actions, same mutation path) in
+  [`test/unit/today/TodayDashboard.test.tsx`](../../test/unit/today/TodayDashboard.test.tsx).
+- **Mobile end-to-end (TODAY-06)** — [`e2e/today-mobile.spec.ts`](../../e2e/today-mobile.spec.ts):
+  a real-D1 phone journey (touch emulation) — touch-first precondition, no horizontal
+  overflow, swipe a task to reveal the tray → plan it → persisted after revalidation,
+  the task Drawer as a full-height sheet + Back/Forward, mobile selection + bulk bar,
+  the Waiting view, and axe-clean with the swipe tray open.

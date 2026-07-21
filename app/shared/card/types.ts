@@ -130,6 +130,20 @@ export interface CardProps {
   /** Curated quick actions (a small few). The overflow holds the long tail. */
   readonly quickActions?: readonly CardAction[];
   readonly overflowAction?: CardAction;
+  /**
+   * Touch swipe quick actions (TODAY-06). When provided AND the device is
+   * touch-first, the card can be swiped horizontally to reveal an action tray
+   * holding these actions. This is an ACCELERATOR only: the tray is a visual
+   * duplicate (`aria-hidden`) of controls that must also be reachable without a
+   * gesture — pass the SAME `CardAction`s here that you expose as `quickActions`
+   * (or in the Drawer), so every action keeps an ordinary accessible control and
+   * keyboard path (DESIGN_SYSTEM.md → Swipe quick actions, AGENTS.md §15). Reuses
+   * the shared `AppAction`/`CardAction` execution path — never a touch-only handler.
+   * Availability must be state-dependent: omit actions that do not apply. On a
+   * non-touch device (mouse/keyboard) the tray never reveals and behaviour is
+   * unchanged.
+   */
+  readonly swipeActions?: readonly CardAction[];
 
   /**
    * Primary open action. Provide `href` (a shareable link — e.g. a DS-03 drawer
