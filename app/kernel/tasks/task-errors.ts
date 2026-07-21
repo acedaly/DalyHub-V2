@@ -38,7 +38,13 @@ export type TaskValidationField =
   | "limit"
   | "waitingTarget"
   | "waitingTargetId"
-  | "waitingNote";
+  | "waitingNote"
+  /**
+   * The mutation was rejected because the task is completed (TODAY-04): planning
+   * applies to open work only. The id/input are valid — the STATE is not — so this
+   * is a validation-family rejection, not a not-found.
+   */
+  | "completed";
 
 /** A caller-supplied input that failed kernel-boundary validation. */
 export class TaskValidationError extends TaskError {

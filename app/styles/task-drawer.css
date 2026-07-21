@@ -185,3 +185,59 @@
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-danger-text);
 }
+
+/* ------------------------------------------------------------------------- */
+/* TODAY-04 — the Task Drawer's Planning section (in the DS-02 Summary).       */
+/* ------------------------------------------------------------------------- */
+.dh-task-planning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-task-planning__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-4);
+  margin: 0;
+}
+
+.dh-task-planning__date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dh-task-planning__date dt {
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-task-planning__date dd {
+  margin: 0;
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-task-planning__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-task-planning__custom {
+  max-width: 16rem;
+}
+
+.dh-task-planning__muted {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-task-planning__error {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-danger-text);
+}

@@ -1,35 +1,33 @@
 /**
- * TODAY-01 — the Today dashboard composition.
+ * TODAY-01 / TODAY-04 — the Today dashboard composition.
  *
- * The first genuinely useful DalyHub screen: the calm surface the owner lands on
- * every morning. It is NOT a reporting dashboard — it is Linear/Things/Craft-calm,
- * focused and minimal. It is composed ENTIRELY from the shared design system over
- * DS-01 tokens — no bespoke visual language:
- *   - the PX-02 CollectionLayout owns the sticky Pane Header (title "Today",
- *     subtitle = the current date, one primary action "Quick capture") and the
- *     pane's scroll + state precedence;
- *   - each section presents its records through the ONE DS-04 Card (identity icon +
- *     accent, status/date/progress as text) in a CardCollection;
- *   - a card opens the DS-03 Drawer hosting a DS-02 Record Layout (the canonical
- *     Card → drawer key → RecordLayout chain);
- *   - the shared EmptyState guards every section and the whole surface, so it can
- *     never render a blank region (PRODUCT_EXPERIENCE Part IV §5).
+ * The calm surface the owner lands on every morning, and — since TODAY-04 — a
+ * deliberate PLANNING workspace: the owner decides what to do today, what can wait
+ * and what moves to another day. Planning is the deliberate use of a task's EXISTING
+ * scheduled date as the owner's commitment ("I intend to work on this today"); the
+ * real tasks are bucketed by that date into Overdue / Today / Upcoming / Anytime /
+ * Completed-today sections (the pure `planning-view` view-model), each card offers
+ * calm plan quick actions, and a multi-select bulk action bar plans many at once.
+ * It is composed ENTIRELY from the shared design system over DS-01 tokens — no
+ * bespoke visual language: the PX-02 CollectionLayout (with its selection slot for
+ * the bulk bar), DS-04 Cards, the DS-03 Drawer, DS-10 feedback and DS-09 commands.
  *
- * It is a PURE presentation component: it takes typed data and a date label, and
- * owns only optimistic, in-memory UI state (which focus tasks are ticked, the quick
- * capture draft). There is no persistence, parsing or AI (TODAY-01 is fixture-only);
- * "Future implementation will connect Tasks" by swapping the data source, not this
- * composition.
+ * Planning NEVER changes a task's due date, waiting state or completion (ADR-030);
+ * waiting tasks are excluded from the planning sections by the loader, and completed
+ * tasks appear only under the collapsed "Completed today". The non-task sections
+ * (calendar, projects, notes, timeline, quick capture) stay fixture-backed until
+ * their modules connect — the preserved seam.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useFetcher, useSearchParams } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
-import type { CardProps } from "~/shared/card";
+import type { CardAction, CardProps } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
+import { useFeedback } from "~/shared/feedback";
 // Import the specific modules (not the `~/shared/commands` barrel) so the Today
 // route chunk does not eagerly pull the palette controller / DS-08 Search UI.
 import { toCardAction, type AppAction } from "~/shared/commands/action";
@@ -39,37 +37,55 @@ import { TODAY_CAPTURE_PARAM, TODAY_CAPTURE_VALUE } from "./commands";
 import { UPCOMING_KIND } from "./fixtures";
 import type {
   ActiveProject,
-  FocusTask,
   RecentNote,
   TimelineEntry,
   TodayData,
   UpcomingItem,
 } from "./fixtures";
+import type { PlanActionData } from "./routes/plan";
+import { formatCalendarDate } from "./task/task-view";
+import type {
+  PlanningData,
+  PlanningTaskItem,
+  PlanTargets,
+} from "./task/planning-view";
 import type { WaitingSummary } from "./task/waiting-view";
 
 export type TodayDashboardProps = {
   /**
-   * Today's data. TODAY-02: `focus` is real, workspace-scoped task data (open
-   * tasks) supplied by the route loader; the other sections remain fixture-backed
-   * until their modules connect (the preserved seam).
+   * Today's fixture data (the non-task demo sections). The real task data flows
+   * through `planning`; the fixture sections remain the preserved seam.
    */
   readonly data: TodayData;
   /** The formatted current date, rendered as the pane-header subtitle. */
   readonly date: string;
+  /** The owner's calendar date `YYYY-MM-DD`, for due/overdue comparisons. */
+  readonly todayIso?: string;
   /**
-   * Persist a focus task's completion (TODAY-02). When provided, completing a task
-   * on Today writes through to the same task the Drawer edits, and a revalidation
-   * keeps Today and the Drawer consistent. Absent in fixture/demo rendering, where
-   * completion is an in-memory optimistic demonstration only.
+   * The planning payload (TODAY-04): the real tasks bucketed by scheduled date, the
+   * calm summary and the quick-plan target dates. Omitted in fixture/demo rendering,
+   * where no planning sections are shown.
+   */
+  readonly planning?: PlanningData;
+  /**
+   * The active Waiting summary (TODAY-03): the count of waiting tasks and a small
+   * preview, rendered as a quiet section linking to `/today/waiting`. Waiting tasks
+   * are excluded from the planning sections (blocked work is not planned work).
+   */
+  readonly waiting?: WaitingSummary;
+  /**
+   * Persist a task's completion (TODAY-02). Completing a task on Today writes through
+   * to the same task the Drawer edits; a revalidation keeps them consistent.
    */
   readonly onCompleteTask?: (taskId: string, complete: boolean) => void;
   /**
-   * The active Waiting summary (TODAY-03): the count of waiting tasks and a small
-   * preview. Rendered as a quiet summary section linking to `/today/waiting`; the
-   * full Waiting collection is not duplicated on Today. Omitted in fixture/demo
-   * rendering (no waiting section shown).
+   * TEST/demo override for planning mutations. When provided it is called instead of
+   * posting to `/today/plan`; production passes nothing and the shared fetcher runs.
    */
-  readonly waiting?: WaitingSummary;
+  readonly onPlan?: (
+    ids: readonly string[],
+    scheduledDate: string | null,
+  ) => void;
 };
 
 const PROJECT_STATUS: Record<ActiveProject["status"], CardProps["status"]> = {
@@ -78,11 +94,14 @@ const PROJECT_STATUS: Record<ActiveProject["status"], CardProps["status"]> = {
   blocked: { label: "Blocked", tone: "danger" },
 };
 
+/** The planning section a card belongs to (drives its contextual quick actions). */
+type PlanBucket =
+  "overdue" | "today" | "upcoming" | "anytime" | "completedToday";
+
 /**
  * A labelled Today section: a quiet `xs`-muted heading + optional count over its
- * content (PRODUCT_EXPERIENCE Part V, "Today" — "quiet section label, xs muted").
- * A real `section`/heading keeps the pane's document outline correct and lets
- * assistive tech jump between the morning's regions.
+ * content. A real `section`/heading keeps the pane's document outline correct and
+ * lets assistive tech jump between the morning's regions.
  */
 function TodaySection({
   id,
@@ -109,40 +128,163 @@ function TodaySection({
   );
 }
 
+/** The calm planning summary strip — operational awareness, never analytics. */
+function PlanningSummary({
+  summary,
+}: {
+  readonly summary: PlanningData["summary"];
+}) {
+  const stats: readonly {
+    readonly id: string;
+    readonly value: number;
+    readonly label: string;
+  }[] = [
+    { id: "planned", value: summary.planned, label: "planned" },
+    { id: "overdue", value: summary.overdue, label: "overdue" },
+    { id: "waiting", value: summary.waiting, label: "waiting" },
+    {
+      id: "completed",
+      value: summary.completedToday,
+      label: "completed today",
+    },
+  ];
+  return (
+    <div
+      className="dh-today__summary"
+      role="group"
+      aria-label="Today at a glance"
+    >
+      {stats.map((stat) => (
+        <p key={stat.id} className="dh-today__summary-stat">
+          <span className="dh-today__summary-value">{stat.value}</span>
+          <span className="dh-today__summary-label">{stat.label}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export function TodayDashboard({
   data,
   date,
+  todayIso,
+  planning,
   waiting,
   onCompleteTask,
+  onPlan,
 }: TodayDashboardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { openDrawer, topKey } = useDrawer();
+  const { notifySuccess, notifyError } = useFeedback();
   const captureRef = useRef<HTMLTextAreaElement>(null);
+  const planFetcher = useFetcher<PlanActionData>();
+
+  const targets: PlanTargets | undefined = planning?.targets;
+  const referenceIso = todayIso ?? targets?.today ?? "";
 
   // Optimistic completion overrides, keyed by task id → intended done state. The
-  // server's `done` is the base truth; an override reflects an in-flight toggle and
-  // is cleared once fresh data arrives (a revalidation reconciles).
+  // server truth is the base; an override reflects an in-flight toggle and clears
+  // once fresh data arrives (a revalidation reconciles).
   const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(
     new Map(),
+  );
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [pendingPlan, setPendingPlan] = useState<ReadonlySet<string>>(
+    new Set(),
   );
   const [draft, setDraft] = useState("");
   const [captureNotice, setCaptureNotice] = useState("");
 
-  // A hydration marker so tests can wait for client interactivity before driving
-  // controlled inputs (React resets a controlled value on hydration, so typing
-  // before then is lost). Mirrors the design fixtures' `data-hydrated` hook.
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
-  // Reconcile: once the loader returns fresh focus data, drop optimistic overrides.
+  // Reconcile: once the loader returns fresh planning data, drop optimistic
+  // completion overrides AND the multi-select (the cards have re-bucketed).
   useEffect(() => {
     setOverrides((prev) => (prev.size === 0 ? prev : new Map()));
-  }, [data.focus]);
+    setSelected((prev) => (prev.size === 0 ? prev : new Set()));
+  }, [planning]);
+
+  // A planning submit is in flight until the fetcher returns to idle.
+  useEffect(() => {
+    if (planFetcher.state === "idle") {
+      setPendingPlan((prev) => (prev.size === 0 ? prev : new Set()));
+    }
+  }, [planFetcher.state]);
+
+  // Announce planning results once (success with a change, or a calm error).
+  const lastPlanData = useRef<PlanActionData | undefined>(undefined);
+  useEffect(() => {
+    const result = planFetcher.data;
+    if (!result || result === lastPlanData.current) {
+      return;
+    }
+    lastPlanData.current = result;
+    if (result.status === "success") {
+      if (result.changed > 0) {
+        notifySuccess(
+          result.changed === 1
+            ? "Plan updated."
+            : `${result.changed} tasks planned.`,
+        );
+      }
+    } else {
+      notifyError(result.message);
+    }
+  }, [planFetcher.data, notifySuccess, notifyError]);
 
   const isDone = useCallback(
-    (task: FocusTask) =>
-      overrides.has(task.id) ? overrides.get(task.id)! : task.done,
+    (item: PlanningTaskItem) =>
+      overrides.has(item.id) ? overrides.get(item.id)! : item.completed,
     [overrides],
+  );
+
+  const toggleDone = useCallback(
+    (id: string, willBeDone: boolean) => {
+      setOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(id, willBeDone);
+        return next;
+      });
+      onCompleteTask?.(id, willBeDone);
+    },
+    [onCompleteTask],
+  );
+
+  const toggleSelected = useCallback((id: string, on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+
+  // Plan (or clear) one or many tasks. Production posts to the trusted /today/plan
+  // action (which revalidates the loader); a test/demo override intercepts instead.
+  const submitPlan = useCallback(
+    (ids: readonly string[], scheduledDate: string | null) => {
+      if (ids.length === 0) {
+        return;
+      }
+      if (onPlan) {
+        onPlan(ids, scheduledDate);
+        return;
+      }
+      setPendingPlan(new Set(ids));
+      const form = new FormData();
+      form.set("intent", scheduledDate === null ? "clear_plan" : "plan");
+      for (const id of ids) {
+        form.append("id", id);
+      }
+      if (scheduledDate !== null) {
+        form.set("scheduledDate", scheduledDate);
+      }
+      void planFetcher.submit(form, { method: "post", action: "/today/plan" });
+    },
+    [onPlan, planFetcher],
   );
 
   const upcoming = useMemo(
@@ -154,38 +296,16 @@ export function TodayDashboard({
     [data.timeline],
   );
 
-  // A shareable drawer deep link (href) paired with an in-app SPA open (onOpen) —
-  // the ideal DS-03 integration. Filter params (none here) would be preserved.
   const openProps = (key: string) => ({
     href: `?${withDrawerPushed(searchParams, key).toString()}`,
     onOpen: () => openDrawer(key),
   });
-
-  const toggleDone = useCallback(
-    (task: FocusTask) => {
-      const willBeDone = !(overrides.has(task.id)
-        ? overrides.get(task.id)!
-        : task.done);
-      setOverrides((prev) => {
-        const next = new Map(prev);
-        next.set(task.id, willBeDone);
-        return next;
-      });
-      // Persist through to the real task (TODAY-02); optimistic UI above shows the
-      // change immediately and a revalidation reconciles with the server result.
-      onCompleteTask?.(task.id, willBeDone);
-    },
-    [overrides, onCompleteTask],
-  );
 
   const focusCapture = useCallback(() => {
     captureRef.current?.focus();
     captureRef.current?.scrollIntoView({ block: "center" });
   }, []);
 
-  // "Focus Quick Capture" navigates to /today?capture=1; on arrival we focus the
-  // existing textarea and then clean the param (replace, no Back-button trap),
-  // preserving any other params and WITHOUT clearing the draft or claiming a save.
   useEffect(() => {
     if (searchParams.get(TODAY_CAPTURE_PARAM) !== TODAY_CAPTURE_VALUE) {
       return;
@@ -196,8 +316,6 @@ export function TodayDashboard({
     setSearchParams(next, { replace: true, preventScrollReset: true });
   }, [searchParams, setSearchParams, focusCapture]);
 
-  // ONE shared action drives the pane-header button, the palette "Current context"
-  // entry and the keyboard path — one identity, one execution path (ADR-024 §24.14).
   const focusCaptureAction = useMemo<AppAction>(
     () => ({
       id: "today.action.focus_capture",
@@ -213,28 +331,47 @@ export function TodayDashboard({
     [focusCapture],
   );
 
-  // Run any shared action's client callback (the SAME path the palette uses).
   const activateAction = useCallback((action: AppAction) => {
     if (action.kind === "run") {
       void action.run();
     }
   }, []);
 
-  // A task's Complete/Reopen as ONE shared action instance — reused by the Card
-  // quick action and, when that task's Drawer is open, by the palette (below). It
-  // is an IN-MEMORY UI demonstration only: it toggles session state and says so —
-  // it never persists a Task or claims one was saved (ADR-024 §24.15).
+  // A flat lookup of every planning task, so a Drawer-open task can be found for its
+  // contextual planning commands (TODAY-04 exposes commands; TODAY-05 owns palette).
+  const planningById = useMemo(() => {
+    const map = new Map<string, PlanningTaskItem>();
+    if (planning) {
+      for (const bucket of [
+        planning.overdue,
+        planning.today,
+        planning.upcoming,
+        planning.anytime,
+        planning.completedToday,
+      ]) {
+        for (const item of bucket) {
+          map.set(item.id, item);
+        }
+      }
+    }
+    return map;
+  }, [planning]);
+
+  // A task's Complete/Reopen as ONE shared action — reused by the Card quick action
+  // and, when that task's Drawer is open, by the palette (below), so the Card, the
+  // keyboard path and the palette share one identity and one execution path
+  // (ADR-024 §24.14). It persists through `onCompleteTask` (TODAY-02) when provided.
   const taskToggleAction = useCallback(
-    (task: FocusTask): AppAction => {
-      const done = isDone(task);
+    (item: PlanningTaskItem): AppAction => {
+      const done = isDone(item);
       return {
-        id: `today.action.task.${task.id}.toggle`,
+        id: `today.action.task.${item.id}.toggle`,
         title: done ? "Reopen" : "Complete",
-        subtitle: task.title,
+        subtitle: item.title,
         keywords: ["task", "done", "complete", "reopen"],
         kind: "run",
         run: () => {
-          toggleDone(task);
+          toggleDone(item.id, !done);
           return {
             ok: true,
             message: done ? "Task reopened." : "Task completed.",
@@ -245,21 +382,69 @@ export function TodayDashboard({
     [isDone, toggleDone],
   );
 
-  // Context-aware palette: "Focus Quick Capture" is always relevant on Today, and a
-  // task-specific action appears ONLY while that task's Drawer is open — the Today
-  // surface owns the opaque `task:<id>` parsing; the shared infrastructure never
-  // learns what it means (ADR-024 §24.16). Closing the Drawer removes it.
+  // Context-aware palette: when a task's Drawer is open, expose its Complete/Reopen
+  // plus "Plan for Today" (P), "Move to Tomorrow" (Shift+P) and "Clear plan" as
+  // shared actions with keyboard shortcuts — architecturally ready for the TODAY-05
+  // palette, driving the SAME paths the cards and bulk bar use (ADR-030).
   const contextualActions = useMemo<readonly AppAction[]>(() => {
     const actions: AppAction[] = [focusCaptureAction];
     if (topKey?.startsWith("task:")) {
       const id = topKey.slice("task:".length);
-      const task = data.focus.find((t) => t.id === id);
-      if (task !== undefined) {
+      const task = planningById.get(id);
+      if (task) {
         actions.push(taskToggleAction(task));
       }
+      if (!targets) {
+        return actions;
+      }
+      const subtitle = task?.title;
+      actions.push(
+        {
+          id: `today.action.task.${id}.plan_today`,
+          title: "Plan for Today",
+          subtitle,
+          keywords: ["plan", "today", "schedule"],
+          shortcut: { key: "p" },
+          kind: "run",
+          run: () => {
+            submitPlan([id], targets.today);
+            return { ok: true };
+          },
+        },
+        {
+          id: `today.action.task.${id}.plan_tomorrow`,
+          title: "Move to Tomorrow",
+          subtitle,
+          keywords: ["plan", "tomorrow", "defer", "schedule"],
+          shortcut: { key: "p", modifiers: ["shift"] },
+          kind: "run",
+          run: () => {
+            submitPlan([id], targets.tomorrow);
+            return { ok: true };
+          },
+        },
+        {
+          id: `today.action.task.${id}.clear_plan`,
+          title: "Clear plan",
+          subtitle,
+          keywords: ["plan", "clear", "unschedule", "remove"],
+          kind: "run",
+          run: () => {
+            submitPlan([id], null);
+            return { ok: true };
+          },
+        },
+      );
     }
     return actions;
-  }, [focusCaptureAction, topKey, data.focus, taskToggleAction]);
+  }, [
+    focusCaptureAction,
+    targets,
+    topKey,
+    planningById,
+    submitPlan,
+    taskToggleAction,
+  ]);
 
   useRegisterContextualActions(contextualActions);
 
@@ -268,37 +453,124 @@ export function TodayDashboard({
     if (draft.trim() === "") {
       return;
     }
-    // TODAY-01 is fixture-only: Quick Capture is NOT connected — nothing is
-    // persisted, parsed or sent to AI. Crucially we do NOT clear the draft (that
-    // would silently discard the owner's unsaved text) and we never claim it was
-    // captured/saved. We just tell the truth; the field stays editable. The
-    // future persistence implementation (Tasks/Inbox) plugs in here.
     setCaptureNotice(
       "Quick Capture is not connected yet. Your draft has not been saved.",
     );
   };
 
-  const taskCard = (task: (typeof data.focus)[number]): CardProps => {
-    const done = isDone(task);
+  /* -- Planning card + section rendering -- */
+
+  const planQuickActions = (
+    item: PlanningTaskItem,
+    bucket: PlanBucket,
+  ): CardAction[] => {
+    const busy = pendingPlan.has(item.id);
+    // The completion quick action IS the shared toggle action (one identity, one
+    // execution path with the palette contextual action, ADR-024 §24.14).
+    const complete = toCardAction(taskToggleAction(item), {
+      onActivate: activateAction,
+    });
+    if (bucket === "completedToday" || !targets) {
+      return [complete];
+    }
+    const plan = (
+      id: string,
+      label: string,
+      date: string | null,
+    ): CardAction => ({
+      id: `${item.id}-${id}`,
+      label,
+      ariaLabel: `${label}: ${item.title}`,
+      disabled: busy,
+      onSelect: () => submitPlan([item.id], date),
+    });
+    const actions: CardAction[] = [complete];
+    if (bucket === "today") {
+      actions.push(plan("tomorrow", "Tomorrow", targets.tomorrow));
+      actions.push(plan("clear", "Remove", null));
+    } else if (bucket === "anytime") {
+      actions.push(plan("today", "Plan today", targets.today));
+      actions.push(plan("tomorrow", "Tomorrow", targets.tomorrow));
+    } else {
+      // overdue or upcoming
+      actions.push(plan("today", "Plan today", targets.today));
+      actions.push(plan("clear", "Clear", null));
+    }
+    return actions;
+  };
+
+  const planningCard = (
+    item: PlanningTaskItem,
+    bucket: PlanBucket,
+  ): CardProps => {
+    const done = isDone(item);
+    const dueLabel = item.dueDate ? formatCalendarDate(item.dueDate) : null;
+    const overdue =
+      !done &&
+      item.dueDate !== null &&
+      referenceIso !== "" &&
+      item.dueDate < referenceIso;
     return {
-      id: task.id,
-      title: task.title,
+      id: item.id,
+      title: item.title,
       typeLabel: "Task",
       icon: <EntityIcon type="task" />,
       accent: "accent",
-      context: { label: task.context },
+      headingLevel: 3,
+      context: item.parent ? { label: item.parent.title } : undefined,
       status: done ? { label: "Done", tone: "success" } : undefined,
-      // The Card quick action is the SAME shared action the palette runs when the
-      // task's Drawer is open — one identity, one execution path (ADR-024 §24.14).
-      quickActions: [
-        toCardAction(taskToggleAction(task), { onActivate: activateAction }),
-      ],
+      dateLabel: dueLabel
+        ? { label: `Due ${dueLabel}`, tone: overdue ? "danger" : "neutral" }
+        : undefined,
+      selection:
+        bucket === "completedToday"
+          ? undefined
+          : {
+              selected: selected.has(item.id),
+              onSelectedChange: (on) => toggleSelected(item.id, on),
+              label: `Select ${item.title}`,
+            },
+      quickActions: planQuickActions(item, bucket),
       density: "compact",
       presentation: "list",
       className: done ? "dh-today__task--done" : undefined,
-      ...openProps(`task:${task.id}`),
+      ...openProps(`task:${item.id}`),
     };
   };
+
+  const planningSection = (
+    id: string,
+    label: string,
+    bucket: PlanBucket,
+    items: readonly PlanningTaskItem[],
+  ) => (
+    <TodaySection id={id} label={label} count={items.length}>
+      <CardCollection
+        items={items}
+        getItemId={(item) => item.id}
+        renderCard={(item) => <Card {...planningCard(item, bucket)} />}
+        ariaLabel={`${label} tasks`}
+        presentation="list"
+        density="compact"
+      />
+    </TodaySection>
+  );
+
+  const bulkBar =
+    planning && targets && selected.size > 0 ? (
+      <PlanningBulkBar
+        count={selected.size}
+        targets={targets}
+        pending={planFetcher.state !== "idle"}
+        onPlan={(date) => {
+          submitPlan([...selected], date);
+          clearSelection();
+        }}
+        onCancel={clearSelection}
+      />
+    ) : undefined;
+
+  /* -- Fixture card builders (unchanged) -- */
 
   const upcomingCard = (item: UpcomingItem): CardProps => {
     const identity = UPCOMING_KIND[item.kind];
@@ -346,14 +618,10 @@ export function TodayDashboard({
   });
 
   return (
-    // The Today dashboard is a multi-section surface, not a single filtered
-    // collection: each section renders its own gentle empty note (so nothing is
-    // ever blank) and Quick Capture stays mounted and usable even when every data
-    // section is empty — so we do NOT gate the whole surface behind an empty slot
-    // (which would unmount the capture field and strand a first-time owner).
     <CollectionLayout
       title="Today"
       subtitle={date}
+      selection={bulkBar}
       primaryAction={
         <button
           type="button"
@@ -365,31 +633,96 @@ export function TodayDashboard({
       }
     >
       <div className="dh-today" data-hydrated={hydrated ? "true" : "false"}>
-        {/* Section 1 — Today's Focus */}
-        <TodaySection
-          id="today-focus"
-          label="Today's focus"
-          count={data.focus.length}
-        >
-          {data.focus.length > 0 ? (
-            <CardCollection
-              items={data.focus}
-              getItemId={(task) => task.id}
-              renderCard={(task) => <Card {...taskCard(task)} />}
-              ariaLabel="Today's focus tasks"
-              presentation="list"
-              density="compact"
-            />
-          ) : (
-            <p className="dh-today__section-empty">
-              Nothing pinned. Pull a task in to focus your day.
-            </p>
-          )}
-        </TodaySection>
+        {planning ? (
+          <>
+            <PlanningSummary summary={planning.summary} />
+
+            {planning.overdue.length > 0
+              ? planningSection(
+                  "today-overdue",
+                  "Overdue",
+                  "overdue",
+                  planning.overdue,
+                )
+              : null}
+
+            <TodaySection
+              id="today-planned"
+              label="Today"
+              count={planning.today.length}
+            >
+              {planning.today.length > 0 ? (
+                <CardCollection
+                  items={planning.today}
+                  getItemId={(item) => item.id}
+                  renderCard={(item) => (
+                    <Card {...planningCard(item, "today")} />
+                  )}
+                  ariaLabel="Tasks planned for today"
+                  presentation="list"
+                  density="compact"
+                />
+              ) : (
+                <p className="dh-today__section-empty">
+                  Nothing planned yet. Pull a task in from Anytime to commit to
+                  your day.
+                </p>
+              )}
+            </TodaySection>
+
+            {planning.upcoming.length > 0
+              ? planningSection(
+                  "today-upcoming-tasks",
+                  "Upcoming",
+                  "upcoming",
+                  planning.upcoming,
+                )
+              : null}
+
+            {planning.anytime.length > 0
+              ? planningSection(
+                  "today-anytime",
+                  "Anytime",
+                  "anytime",
+                  planning.anytime,
+                )
+              : null}
+
+            {planning.completedToday.length > 0 ? (
+              <section
+                className="dh-today__section"
+                aria-labelledby="today-completed-label"
+              >
+                <details className="dh-today__completed">
+                  <summary
+                    id="today-completed-label"
+                    className="dh-today__section-label"
+                  >
+                    Completed today
+                    <span className="dh-today__section-count">
+                      {" "}
+                      {planning.completedToday.length}
+                    </span>
+                  </summary>
+                  <CardCollection
+                    items={planning.completedToday}
+                    getItemId={(item) => item.id}
+                    renderCard={(item) => (
+                      <Card {...planningCard(item, "completedToday")} />
+                    )}
+                    ariaLabel="Tasks completed today"
+                    presentation="list"
+                    density="compact"
+                  />
+                </details>
+              </section>
+            ) : null}
+          </>
+        ) : null}
 
         {/* Waiting summary (TODAY-03) — only when something is waiting, so Today
-            stays calm. A count + preview + link to the full Waiting view; the
-            collection itself is not duplicated here. */}
+            stays calm. A count + preview + link to the full Waiting view; waiting
+            tasks never appear in the planning sections above (ADR-029/030). */}
         {waiting && waiting.count > 0 ? (
           <TodaySection
             id="today-waiting"
@@ -436,10 +769,10 @@ export function TodayDashboard({
           </TodaySection>
         ) : null}
 
-        {/* Section 2 — Upcoming */}
+        {/* On your calendar (fixture meetings/reminders/deadlines) */}
         <TodaySection
-          id="today-upcoming"
-          label="Upcoming"
+          id="today-calendar"
+          label="On your calendar"
           count={upcoming.length}
         >
           {upcoming.length > 0 ? (
@@ -447,7 +780,7 @@ export function TodayDashboard({
               items={upcoming}
               getItemId={(item) => item.id}
               renderCard={(item) => <Card {...upcomingCard(item)} />}
-              ariaLabel="Upcoming meetings, reminders and deadlines"
+              ariaLabel="Meetings, reminders and deadlines"
               presentation="list"
               density="compact"
             />
@@ -456,7 +789,7 @@ export function TodayDashboard({
           )}
         </TodaySection>
 
-        {/* Section 3 — Continue working */}
+        {/* Continue working (fixture projects) */}
         <TodaySection
           id="today-projects"
           label="Continue working"
@@ -477,7 +810,7 @@ export function TodayDashboard({
           )}
         </TodaySection>
 
-        {/* Section 4 — Recent notes */}
+        {/* Recent notes (fixture) */}
         <TodaySection
           id="today-notes"
           label="Recent notes"
@@ -497,7 +830,7 @@ export function TodayDashboard({
           )}
         </TodaySection>
 
-        {/* Section 5 — Daily timeline */}
+        {/* Daily timeline (fixture) */}
         <TodaySection id="today-timeline" label="Daily timeline">
           {timeline.length > 0 ? (
             <ol className="dh-today__timeline">
@@ -517,7 +850,7 @@ export function TodayDashboard({
           )}
         </TodaySection>
 
-        {/* Section 6 — Quick capture */}
+        {/* Quick capture (fixture, inert) */}
         <TodaySection id="today-capture" label="Quick capture">
           <form className="dh-today__capture" onSubmit={onCapture}>
             <label className="dh-visually-hidden" htmlFor="today-capture-input">
@@ -558,5 +891,102 @@ export function TodayDashboard({
         </TodaySection>
       </div>
     </CollectionLayout>
+  );
+}
+
+/**
+ * The multi-select bulk planning action bar (TODAY-04), shown in the CollectionLayout
+ * selection slot while tasks are selected. It plans many tasks at once — Today,
+ * Tomorrow, Next week, a custom date, or Clear plan — through ONE atomic operation.
+ * Keyboard-complete, labelled, and no modal-in-modal: the custom date is an inline
+ * native date input.
+ */
+function PlanningBulkBar({
+  count,
+  targets,
+  pending,
+  onPlan,
+  onCancel,
+}: {
+  readonly count: number;
+  readonly targets: PlanTargets;
+  readonly pending: boolean;
+  readonly onPlan: (scheduledDate: string | null) => void;
+  readonly onCancel: () => void;
+}) {
+  const [customDate, setCustomDate] = useState("");
+  return (
+    <div
+      className="dh-today__bulk"
+      role="group"
+      aria-label={`Plan ${count} selected ${count === 1 ? "task" : "tasks"}`}
+    >
+      <p className="dh-today__bulk-count" aria-live="polite">
+        {count} selected
+      </p>
+      <div className="dh-today__bulk-actions">
+        <button
+          type="button"
+          className="dh-today__secondary"
+          disabled={pending}
+          onClick={() => onPlan(targets.today)}
+        >
+          Plan today
+        </button>
+        <button
+          type="button"
+          className="dh-today__secondary"
+          disabled={pending}
+          onClick={() => onPlan(targets.tomorrow)}
+        >
+          Tomorrow
+        </button>
+        <button
+          type="button"
+          className="dh-today__secondary"
+          disabled={pending}
+          onClick={() => onPlan(targets.nextWeek)}
+        >
+          Next week
+        </button>
+        <button
+          type="button"
+          className="dh-today__secondary"
+          disabled={pending}
+          onClick={() => onPlan(null)}
+        >
+          Clear plan
+        </button>
+        <span className="dh-today__bulk-custom">
+          <label
+            className="dh-visually-hidden"
+            htmlFor="today-bulk-custom-date"
+          >
+            Choose a date for the selected tasks
+          </label>
+          <input
+            id="today-bulk-custom-date"
+            type="date"
+            className="dh-today__bulk-date"
+            value={customDate}
+            disabled={pending}
+            onChange={(event) => {
+              const value = event.target.value;
+              setCustomDate(value);
+              if (value !== "") {
+                onPlan(value);
+              }
+            }}
+          />
+        </span>
+        <button
+          type="button"
+          className="dh-today__bulk-cancel"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }

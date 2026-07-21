@@ -26,7 +26,12 @@ app/modules/today/
   routes/task-link-targets.tsx — TODAY-02: the "related records" target search
   routes/task-waiting-targets.tsx — TODAY-03: the waiting-target entity search
   routes/waiting.tsx         — TODAY-03: the /today/waiting collection view
-  TodayDashboard.tsx   — the pure composition of the sections (+ Waiting summary)
+  routes/plan.tsx            — TODAY-04: the bulk/quick planning endpoint (action)
+  TodayDashboard.tsx   — the pure composition of the sections (planning + Waiting +
+                         fixtures, the planning summary, multi-select bulk bar)
+  task/planning-view.ts      — TODAY-04: the pure planning view-model (buckets,
+                               summary, date arithmetic, target dates)
+  task/TaskPlanningSection.tsx — TODAY-04: the Task Drawer Planning section
   TodayDrawer.tsx      — maps a drawer key → a record (task → TaskDrawerContent)
   task/                — TODAY-02/03: the task record composition (view-model,
                          TaskDrawerContent, Details/Links/Activity tabs,
@@ -166,6 +171,56 @@ or link system.
   Timeline descriptors. Payloads are structured and safe; free-text content is never
   logged.
 
+## Planning (TODAY-04)
+
+TODAY-04 turns Today into a deliberate **planning workspace** — the owner decides
+what to do today, what can wait, and what moves to another day — composed entirely
+from the shared layer and composing the TODAY-02/03 task slice (ADR-030). It adds no
+migration, no second store and no second planning model.
+
+- **The model.** Planning EXTENDS the existing `task_details.scheduled_date`
+  (ADR-028): the scheduled date IS the owner's commitment ("I intend to work on this
+  today"), kept strictly distinct from the due date ("must be finished by").
+  Planning never touches the due date, the waiting state or completion.
+- **Authority & atomicity.** The `TaskRepository` owns planning atomically:
+  `planTask`/`clearPlan` (single) and `planTasks`/`clearPlans` (bulk). Each writes
+  ONLY `scheduled_date` in ONE `D1Database.batch()` and appends exactly one guarded
+  Activity event — `task.planned` (was unplanned), `task.rescheduled` (moved) or
+  `task.plan_cleared`. No-ops append nothing. **Bulk is atomic:** every id is
+  resolved first and any missing/cross-workspace id rejects the WHOLE operation, so
+  nothing is partially applied; tasks already on the date count as `unchanged`.
+- **Sections.** A pure, tested view-model
+  ([`planning-view.ts`](../../app/modules/today/task/planning-view.ts)) buckets tasks
+  by their scheduled date relative to the owner's calendar day into **Overdue**
+  (slipped plans), **Today** (the day's commitment), **Upcoming**, **Anytime** (the
+  unscheduled backlog to plan from) and a collapsed **Completed today**. Waiting
+  tasks are excluded (blocked work is not planned work); a task completed on a prior
+  day appears in no section.
+- **Summary.** A calm planning summary (planned · overdue · waiting · completed
+  today) gives operational awareness — no charts, no analytics.
+- **Plan actions.** Each DS-04 card carries contextual plan quick actions (Plan
+  today / Tomorrow / Clear). Multi-select drives a **bulk action bar** in the PX-02
+  CollectionLayout selection slot (Plan today / Tomorrow / Next week / Clear plan /
+  inline custom date). The DS-02 Task Drawer gains a **Planning section**
+  ([`TaskPlanningSection.tsx`](../../app/modules/today/task/TaskPlanningSection.tsx))
+  showing Scheduled + Due and the full quick actions with an inline DS-06 date
+  control — no modal-in-modal.
+- **Routes.** Single-task planning posts `plan`/`clear_plan` intents to the existing
+  `/today/task/:taskId` action; bulk + per-card planning posts to the new action-only
+  [`/today/plan`](../../app/modules/today/routes/plan.tsx) resource route.
+- **Keyboard.** Planning is exposed as shared contextual commands while a task's
+  Drawer is open — "Plan for Today" (`P`), "Move to Tomorrow" (`Shift+P`), "Clear
+  plan" — with shortcut metadata, driving the same mutation path as the cards and
+  bulk bar. The full palette + global dispatch remain TODAY-05's (architecturally
+  ready here).
+- **Activity.** Three new `task.planned`/`task.rescheduled`/`task.plan_cleared`
+  types are registered on the **tasks** module with DS-05 Timeline descriptors.
+  Payloads carry only the non-sensitive calendar dates; no free text, no second
+  history model.
+- **Rules (regression-tested).** Planning never changes due dates; planning never
+  restores waiting; planning never affects completion; bulk planning is atomic;
+  cross-workspace ids are rejected.
+
 ## Deliberately NOT built
 
 TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks
@@ -201,9 +256,10 @@ change.
 
 1. **Execution list.** The reorderable/inline-completable *task execution list*
    in TODAY-01's original "Execution Workspace" outcome is folded into the later
-   TODAY items (TODAY-04 Planning / TODAY-05 Keyboard). TODAY-01 ships the calm
-   morning dashboard the brief specifies and demonstrates completion optimistically
-   on focus tasks.
+   TODAY items. TODAY-04 delivers the planning half — the real tasks are now bucketed
+   into planning sections with per-card plan/complete actions and multi-select bulk
+   planning — and TODAY-05 (Keyboard) will complete the full keyboard-driven
+   execution flow. (Reordering WITHIN a bucket is still deferred to TODAY-05.)
 2. **Search provider (added by DS-08).** The Today module now registers a real,
    registry-discovered, **fixture-backed** search provider
    ([`app/modules/today/search.ts`](../../app/modules/today/search.ts)) over the

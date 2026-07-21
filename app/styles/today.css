@@ -259,3 +259,102 @@
   gap: var(--dh-space-1);
   overflow-wrap: anywhere;
 }
+
+/* ------------------------------------------------------------------------- */
+/* TODAY-04 — planning summary, sections and the multi-select bulk bar.       */
+/* Every value is a DS-01 token; no bespoke colour or spacing.               */
+/* ------------------------------------------------------------------------- */
+
+/* The calm planning summary strip — operational awareness, not analytics. */
+.dh-today__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-4);
+  margin: 0;
+  padding: var(--dh-space-3) 0;
+}
+
+.dh-today__summary-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  margin: 0;
+}
+
+.dh-today__summary-value {
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today__summary-label {
+  order: 2;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* Completed today — a calm, collapsed disclosure. */
+.dh-today__completed > summary {
+  cursor: pointer;
+  list-style: revert;
+}
+
+.dh-today__completed > summary::-webkit-details-marker {
+  display: revert;
+}
+
+/* The multi-select bulk planning bar (CollectionLayout selection slot). */
+.dh-today__bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+  box-shadow: var(--dh-shadow-md);
+}
+
+.dh-today__bulk-count {
+  margin: 0;
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-today__bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-today__bulk-custom {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dh-today__bulk-date {
+  min-height: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font: inherit;
+}
+
+.dh-today__bulk-cancel {
+  min-height: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-3);
+  border: none;
+  border-radius: var(--dh-radius-sm);
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.dh-today__bulk-cancel:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-sunken);
+}

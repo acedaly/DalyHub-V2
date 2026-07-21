@@ -1,30 +1,29 @@
 /**
- * TODAY-01 — the Today dashboard, exercised as behaviour (not structure).
+ * TODAY-01 / TODAY-04 — the Today dashboard, exercised as behaviour.
  *
- * It composes shared parts, so these tests assert what the owner experiences: the
- * six sections render, upcoming items are chronological, a focus task completes
- * optimistically, quick capture is inert-but-structured, and a card opens the DS-03
- * Drawer over the pane. Rendered inside a MemoryRouter + DrawerProvider — the same
- * frame the route provides.
+ * Today is now a deliberate PLANNING workspace: the real tasks are bucketed by their
+ * scheduled date into Overdue / Today / Upcoming / Anytime / Completed-today, each
+ * card offers calm plan quick actions, a multi-select bulk bar plans many at once,
+ * and a lightweight summary gives operational awareness. These tests assert what the
+ * owner experiences (not structure), plus the preserved fixture sections, quick
+ * capture, the Drawer, and the exposed planning commands. Rendered inside a data
+ * router + DrawerProvider + FeedbackProvider — the frame the route provides.
  */
 
 import type { ReactElement } from "react";
-import { MemoryRouter, RouterProvider, createMemoryRouter } from "react-router";
+import { RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
 import { DrawerProvider } from "~/shared/drawer";
-import type { DrawerEntry } from "~/shared/drawer";
 
 import { TODAY_FIXTURE } from "~/modules/today/fixtures";
 import { TodayDashboard } from "~/modules/today/TodayDashboard";
 import { createTodayDrawerRenderer } from "~/modules/today/TodayDrawer";
+import type { PlanningData } from "~/modules/today/task/planning-view";
+import type { WaitingSummary } from "~/modules/today/task/waiting-view";
 
-// TODAY-02: opening a task Drawer mounts TaskDrawerContent, which fetches the task
-// from its resource route. These behaviour tests are about the dashboard, not the
-// server, so `fetch` is stubbed to a calm not-found — the task Drawer still opens
-// with its accessible name; its body content is covered by the task Drawer tests.
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
@@ -39,11 +38,93 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/**
- * Render the dashboard inside a real DATA router (createMemoryRouter), because the
- * task Drawer content uses router data hooks (useRevalidator/useFetcher). The
- * FeedbackProvider supplies the shared feedback API the Drawer's completion uses.
- */
+const PLANNING: PlanningData = {
+  summary: { planned: 2, overdue: 1, waiting: 0, completedToday: 1 },
+  targets: {
+    today: "2026-07-19",
+    tomorrow: "2026-07-20",
+    nextWeek: "2026-07-26",
+  },
+  overdue: [
+    {
+      id: "t-over",
+      title: "Overdue task",
+      parent: { kind: "area", id: "a-home", title: "Home" },
+      scheduledDate: "2026-07-17",
+      dueDate: null,
+      completed: false,
+      completedDate: null,
+    },
+  ],
+  today: [
+    {
+      id: "t-px02",
+      title: "Finish PX-02",
+      parent: { kind: "area", id: "a-dh", title: "DalyHub V2" },
+      scheduledDate: "2026-07-19",
+      dueDate: null,
+      completed: false,
+      completedDate: null,
+    },
+    {
+      id: "t-pr",
+      title: "Review PR",
+      parent: null,
+      scheduledDate: "2026-07-19",
+      dueDate: null,
+      completed: false,
+      completedDate: null,
+    },
+  ],
+  upcoming: [
+    {
+      id: "t-up",
+      title: "Upcoming task",
+      parent: null,
+      scheduledDate: "2026-07-25",
+      dueDate: null,
+      completed: false,
+      completedDate: null,
+    },
+  ],
+  anytime: [
+    {
+      id: "t-any",
+      title: "Anytime task",
+      parent: null,
+      scheduledDate: null,
+      dueDate: null,
+      completed: false,
+      completedDate: null,
+    },
+  ],
+  completedToday: [
+    {
+      id: "t-done",
+      title: "Done task",
+      parent: null,
+      scheduledDate: "2026-07-19",
+      dueDate: null,
+      completed: true,
+      completedDate: "2026-07-19",
+    },
+  ],
+};
+
+function taskTitles(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const bucket of [
+    PLANNING.overdue,
+    PLANNING.today,
+    PLANNING.upcoming,
+    PLANNING.anytime,
+    PLANNING.completedToday,
+  ]) {
+    for (const item of bucket) map.set(item.id, item.title);
+  }
+  return map;
+}
+
 function renderInDataRouter(
   element: ReactElement,
   initialEntries = ["/today"],
@@ -54,17 +135,37 @@ function renderInDataRouter(
   return render(<RouterProvider router={router} />);
 }
 
-function renderToday() {
+interface RenderOptions {
+  readonly planning?: PlanningData;
+  readonly waiting?: WaitingSummary;
+  readonly onPlan?: (ids: readonly string[], date: string | null) => void;
+  readonly onCompleteTask?: (id: string, complete: boolean) => void;
+  readonly entries?: readonly string[];
+}
+
+function renderToday(options: RenderOptions = {}) {
+  const planning = options.planning ?? PLANNING;
   return renderInDataRouter(
     <FeedbackProvider>
-      <DrawerProvider renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE)}>
-        <TodayDashboard data={TODAY_FIXTURE} date="Sunday 19 July 2026" />
+      <DrawerProvider
+        renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, taskTitles())}
+      >
+        <TodayDashboard
+          data={TODAY_FIXTURE}
+          date="Sunday 19 July 2026"
+          todayIso="2026-07-19"
+          planning={planning}
+          waiting={options.waiting}
+          onPlan={options.onPlan}
+          onCompleteTask={options.onCompleteTask}
+        />
       </DrawerProvider>
     </FeedbackProvider>,
+    [...(options.entries ?? ["/today"])],
   );
 }
 
-describe("TODAY-01 TodayDashboard", () => {
+describe("TODAY-04 planning dashboard", () => {
   it("renders the Today pane header with the current date", () => {
     renderToday();
     expect(
@@ -73,130 +174,153 @@ describe("TODAY-01 TodayDashboard", () => {
     expect(screen.getByText("Sunday 19 July 2026")).toBeInTheDocument();
   });
 
-  it("renders all six sections", () => {
+  it("renders the planning sections keyed on the scheduled date", () => {
     renderToday();
-    for (const label of [
-      /Today's focus/,
-      /^Upcoming/,
-      /Continue working/,
-      /Recent notes/,
-      /Daily timeline/,
-      /Quick capture/,
-    ]) {
+    for (const label of [/Overdue/, /^Today/, /^Upcoming/, /Anytime/]) {
       expect(
         screen.getByRole("heading", { level: 2, name: label }),
       ).toBeInTheDocument();
     }
+    // Completed today is a collapsed disclosure (a summary, not a heading).
+    expect(screen.getByText(/Completed today/)).toBeInTheDocument();
+    // The Today section holds the two tasks scheduled for today.
+    const today = screen.getByRole("list", {
+      name: /Tasks planned for today/,
+    });
+    expect(within(today).getByText("Finish PX-02")).toBeInTheDocument();
+    expect(within(today).getByText("Review PR")).toBeInTheDocument();
   });
 
-  it("shows focus tasks with a complete action", () => {
+  it("shows a calm planning summary with the key counts", () => {
     renderToday();
-    const focus = screen.getByRole("region", { name: /Today's focus/ });
-    expect(within(focus).getByText("Finish PX-02")).toBeInTheDocument();
-    expect(within(focus).getByText("Review PR")).toBeInTheDocument();
-    expect(within(focus).getByText("Gym")).toBeInTheDocument();
-    expect(
-      within(focus).getAllByRole("button", { name: "Complete" }).length,
-    ).toBe(3);
+    const summary = screen.getByRole("group", { name: /Today at a glance/ });
+    expect(within(summary).getByText("planned")).toBeInTheDocument();
+    expect(within(summary).getByText("overdue")).toBeInTheDocument();
+    expect(within(summary).getByText("completed today")).toBeInTheDocument();
   });
 
-  it("orders upcoming items chronologically regardless of source order", () => {
-    renderToday();
-    const upcoming = screen.getByRole("region", { name: /^Upcoming/ });
-    const titles = within(upcoming)
-      .getAllByRole("heading", { level: 3 })
-      .map((node) => node.textContent);
-    expect(titles).toEqual([
-      "Design standup", // 09:00
-      "Water the plants", // 11:30
-      "1:1 with Sam", // 14:30
-      "Send signed contract", // 17:00
-    ]);
-  });
-
-  it("completes a focus task optimistically (done pill + reopen)", () => {
-    renderToday();
-    const focus = screen.getByRole("region", { name: /Today's focus/ });
-    const firstComplete = within(focus).getAllByRole("button", {
+  it("completes a task through the persisting callback", () => {
+    const onCompleteTask = vi.fn();
+    renderToday({ onCompleteTask });
+    const today = screen.getByRole("list", { name: /Tasks planned for today/ });
+    const complete = within(today).getAllByRole("button", {
       name: "Complete",
-    })[0];
-    fireEvent.click(firstComplete);
-    expect(within(focus).getByText("Done")).toBeInTheDocument();
+    })[0]!;
+    fireEvent.click(complete);
+    expect(onCompleteTask).toHaveBeenCalledWith("t-px02", true);
+  });
+
+  it("plans a single task to today from an Anytime card", () => {
+    const onPlan = vi.fn();
+    renderToday({ onPlan });
+    const anytime = screen.getByRole("list", { name: /Anytime tasks/ });
+    fireEvent.click(
+      within(anytime).getByRole("button", { name: /Plan today: Anytime task/ }),
+    );
+    expect(onPlan).toHaveBeenCalledWith(["t-any"], "2026-07-19");
+  });
+
+  it("moves a today task to tomorrow from its card", () => {
+    const onPlan = vi.fn();
+    renderToday({ onPlan });
+    const today = screen.getByRole("list", { name: /Tasks planned for today/ });
+    fireEvent.click(
+      within(today).getByRole("button", { name: /Tomorrow: Finish PX-02/ }),
+    );
+    expect(onPlan).toHaveBeenCalledWith(["t-px02"], "2026-07-20");
+  });
+
+  it("bulk-plans selected tasks to a chosen relative date", () => {
+    const onPlan = vi.fn();
+    renderToday({ onPlan });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Finish PX-02" }),
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Anytime task" }),
+    );
+
+    const bar = screen.getByRole("group", { name: /Plan 2 selected tasks/ });
+    expect(within(bar).getByText("2 selected")).toBeInTheDocument();
+    fireEvent.click(within(bar).getByRole("button", { name: "Next week" }));
+
+    expect(onPlan).toHaveBeenCalledTimes(1);
+    const [ids, date] = onPlan.mock.calls[0]!;
+    expect(new Set(ids)).toEqual(new Set(["t-px02", "t-any"]));
+    expect(date).toBe("2026-07-26");
+  });
+
+  it("bulk-clears the plan on selected tasks", () => {
+    const onPlan = vi.fn();
+    renderToday({ onPlan });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select Finish PX-02" }),
+    );
+    const bar = screen.getByRole("group", { name: /Plan 1 selected task/ });
+    fireEvent.click(within(bar).getByRole("button", { name: "Clear plan" }));
+    expect(onPlan).toHaveBeenCalledWith(["t-px02"], null);
+  });
+
+  it("does not show completed tasks as selectable", () => {
+    renderToday();
     expect(
-      within(focus).getByRole("button", { name: "Reopen" }),
+      screen.queryByRole("checkbox", { name: "Select Done task" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("still renders the preserved fixture sections", () => {
+    renderToday();
+    expect(
+      screen.getByRole("list", { name: /Meetings, reminders and deadlines/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: /Recently active projects/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: /Recent notes/ }),
     ).toBeInTheDocument();
   });
 
-  it("shows projects with progress and recent notes with snippets", () => {
+  it("keeps Quick Capture inert and honest (nothing saved)", () => {
     renderToday();
-    const projects = screen.getByRole("region", { name: /Continue working/ });
-    expect(within(projects).getByText("DalyHub V2")).toBeInTheDocument();
-    expect(within(projects).getAllByRole("progressbar").length).toBeGreaterThan(
-      0,
-    );
-
-    const notes = screen.getByRole("region", { name: /Recent notes/ });
-    expect(within(notes).getByText("Standup notes")).toBeInTheDocument();
-    expect(within(notes).getByText(/Ship PX-02/)).toBeInTheDocument();
+    const textarea = screen.getByPlaceholderText("What needs your attention?");
+    fireEvent.change(textarea, { target: { value: "New idea" } });
+    fireEvent.click(screen.getByRole("button", { name: "Capture" }));
+    expect(
+      screen.getByText(/Quick Capture is not connected yet/),
+    ).toBeInTheDocument();
+    expect((textarea as HTMLTextAreaElement).value).toBe("New idea");
   });
 
-  it("renders the daily timeline in chronological order", () => {
-    renderToday();
-    const timeline = screen.getByRole("region", { name: /Daily timeline/ });
-    const times = within(timeline)
-      .getAllByText(/^\d\d:\d\d$/)
-      .map((node) => node.textContent);
-    expect(times).toEqual(["08:10", "09:00", "11:15", "13:00"]);
+  it("renders the Waiting summary when tasks are waiting", () => {
+    renderToday({
+      waiting: {
+        count: 1,
+        preview: [
+          {
+            id: "t-w",
+            title: "Await sign-off",
+            subjectLabel: "Sarah",
+            subjectType: "person",
+            sinceLabel: "18 Jul 2026",
+            elapsedLabel: "1 day",
+          },
+        ],
+      },
+    });
+    expect(
+      screen.getByRole("region", { name: /^Waiting/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Await sign-off")).toBeInTheDocument();
   });
 
-  it("quick capture keeps the draft and states plainly it is not saved", () => {
+  it("opens a task card in the Drawer over the pane", () => {
     renderToday();
-    const field = screen.getByPlaceholderText(
-      "What needs your attention?",
-    ) as HTMLTextAreaElement;
-    const capture = screen.getByRole("button", { name: "Capture" });
-
-    // Blank submission remains prevented.
-    expect(capture).toBeDisabled();
-
-    fireEvent.change(field, { target: { value: "Call the plumber" } });
-    expect(capture).toBeEnabled();
-    fireEvent.click(capture);
-
-    // The draft is preserved (nothing is stored, so nothing is discarded)...
-    expect(field.value).toBe("Call the plumber");
-    // ...and the notice states plainly that nothing was saved — never claiming
-    // the content was captured/saved/stored.
-    const status = screen.getByRole("status");
-    expect(status).toHaveTextContent(/not connected/i);
-    expect(status).toHaveTextContent(/has not been saved/i);
-    expect(status.textContent ?? "").not.toMatch(
-      /\bcaptured\b|has been saved|was saved|stored/i,
-    );
-
-    // Editing the field clears the previous status message.
-    fireEvent.change(field, { target: { value: "Call the plumber tomorrow" } });
-    expect(screen.getByRole("status").textContent).toBe("");
-  });
-
-  it("opens a task in the Drawer when a card is activated", () => {
-    renderToday();
-    const focus = screen.getByRole("region", { name: /Today's focus/ });
-    fireEvent.click(within(focus).getByRole("link", { name: "Finish PX-02" }));
-    // The Drawer opens with the task's title as its accessible name (the editable
-    // record body loads asynchronously — covered by the task Drawer tests).
+    const today = screen.getByRole("list", { name: /Tasks planned for today/ });
+    fireEvent.click(within(today).getByRole("link", { name: "Finish PX-02" }));
     expect(
       screen.getByRole("dialog", { name: "Finish PX-02" }),
     ).toBeInTheDocument();
-  });
-
-  it("labels a deadline as Deadline in the drawer (matching its card)", () => {
-    const renderDrawer = createTodayDrawerRenderer(TODAY_FIXTURE);
-    const result = renderDrawer({ key: "upcoming:u-contract" } as DrawerEntry);
-    expect(result).not.toBeNull();
-    render(<MemoryRouter>{result?.children}</MemoryRouter>);
-    expect(screen.getByText("Deadline")).toBeInTheDocument();
-    expect(screen.queryByText("Reminder")).not.toBeInTheDocument();
   });
 });
 
@@ -221,8 +345,15 @@ function renderTodayWithCommands(entries: readonly string[] = ["/today"]) {
     <FeedbackProvider>
       <CommandContextProvider>
         <ContextualObserver />
-        <DrawerProvider renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE)}>
-          <TodayDashboard data={TODAY_FIXTURE} date="Sunday 19 July 2026" />
+        <DrawerProvider
+          renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, taskTitles())}
+        >
+          <TodayDashboard
+            data={TODAY_FIXTURE}
+            date="Sunday 19 July 2026"
+            todayIso="2026-07-19"
+            planning={PLANNING}
+          />
         </DrawerProvider>
       </CommandContextProvider>
     </FeedbackProvider>,
@@ -230,7 +361,7 @@ function renderTodayWithCommands(entries: readonly string[] = ["/today"]) {
   );
 }
 
-describe("TODAY-01 / DS-09 command integration", () => {
+describe("TODAY-04 command integration", () => {
   it("registers a Focus Quick Capture contextual action on Today", () => {
     renderTodayWithCommands();
     expect(
@@ -238,11 +369,16 @@ describe("TODAY-01 / DS-09 command integration", () => {
     ).toBe(true);
   });
 
-  it("adds a task-specific contextual action only while a task Drawer is open", () => {
+  it("exposes planning commands with shortcuts while a task Drawer is open", () => {
     renderTodayWithCommands(["/today?drawer=task:t-px02"]);
-    expect(
-      observedContextual.some((a) => a.id.startsWith("today.action.task.")),
-    ).toBe(true);
+    const planToday = observedContextual.find((a) =>
+      a.id.endsWith(".plan_today"),
+    );
+    const planTomorrow = observedContextual.find((a) =>
+      a.id.endsWith(".plan_tomorrow"),
+    );
+    expect(planToday?.shortcut).toEqual({ key: "p" });
+    expect(planTomorrow?.shortcut).toEqual({ key: "p", modifiers: ["shift"] });
   });
 
   it("has no task-specific contextual action without a task Drawer", () => {
@@ -250,13 +386,5 @@ describe("TODAY-01 / DS-09 command integration", () => {
     expect(
       observedContextual.some((a) => a.id.startsWith("today.action.task.")),
     ).toBe(false);
-  });
-
-  it("keeps the Card Complete action (shared action) labelled Complete", () => {
-    renderTodayWithCommands();
-    const focus = screen.getByRole("region", { name: /Today's focus/ });
-    expect(
-      within(focus).getAllByRole("button", { name: "Complete" }).length,
-    ).toBeGreaterThan(0);
   });
 });

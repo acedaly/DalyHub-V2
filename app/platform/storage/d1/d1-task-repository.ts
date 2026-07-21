@@ -45,6 +45,9 @@ import {
 } from "~/kernel/spine";
 import {
   isWaitingTargetType,
+  TASK_PLAN_CLEARED,
+  TASK_PLANNED,
+  TASK_RESCHEDULED,
   TASK_WAITING_ON,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
@@ -52,19 +55,26 @@ import {
   TaskNotFoundError,
   TaskStorageError,
   TaskValidationError,
+  validatePlanDate,
   validateSetWaitingInput,
   validateTaskDate,
   validateTaskDescription,
   validateTaskId,
+  validateTaskIdList,
   validateTaskLimit,
   validateTaskPriority,
   validateTaskStatus,
   validateTaskTitle,
+  type BulkPlanResult,
+  type ClearPlanResult,
   type ClearWaitingResult,
   type CompleteTaskResult,
   type GetTaskOptions,
+  type ListPlanningTasksInput,
   type ListTasksInput,
   type ListWaitingTasksInput,
+  type PlanTaskInput,
+  type PlanTaskResult,
   type SetWaitingInput,
   type SetWaitingResult,
   type TaskDetails,
@@ -130,6 +140,27 @@ const WAITING_TARGET_JOIN = `
 type TaskWaitingJoinedRow = TaskJoinedRow & WaitingTargetColumns;
 
 /**
+ * A joined task-list row: the detail/parent columns, with the waiting-target columns
+ * OPTIONAL — `listTasks` selects them, the planning bands (which exclude waiting) do
+ * not. `rowToTaskWaiting` returns null when `waiting_since` is null, so their absence
+ * is safe.
+ */
+type TaskListRow = TaskJoinedRow & {
+  readonly parent_title: string | null;
+} & Partial<WaitingTargetColumns>;
+
+/**
+ * Planning query band bounds (TODAY-04). Each band is fetched independently so the
+ * planning view never loses commitments to backlog truncation. Scheduled work gets a
+ * generous bound and is ordered scheduled-date ascending (overdue/today first, only
+ * far-future upcoming ever truncated); the backlog and recent completions are
+ * bounded modestly (calm daily surface, not a report).
+ */
+const PLANNING_SCHEDULED_LIMIT = 200;
+const PLANNING_BACKLOG_LIMIT = 100;
+const PLANNING_COMPLETED_LIMIT = 100;
+
+/**
  * TEST-ONLY deterministic failure injection points for `completeTask`'s atomic
  * batch, used to prove the WHOLE operation rolls back when any statement after the
  * completion write fails. Each value forces a failure immediately AFTER the named
@@ -153,6 +184,13 @@ export interface D1TaskRepositoryOptions {
   readonly activityIdGenerator?: IdGenerator;
   /** TEST-ONLY: force `completeTask`'s batch to fail at a chosen point. */
   readonly completeFault?: CompleteTaskFault;
+  /**
+   * TEST-ONLY: invoked once inside a planning mutation AFTER the initial read (and
+   * the open-state check) but BEFORE the guarded write, to simulate a concurrent
+   * mutation — e.g. the task being completed — racing the plan. Lets a test prove
+   * the in-write `completed_at IS NULL` guard rejects the race, not just the read.
+   */
+  readonly planRaceHook?: () => Promise<void>;
 }
 
 /** A resolved id → title lookup for a related entity, or null when unavailable. */
@@ -169,6 +207,7 @@ export class D1TaskRepository implements TaskRepository {
   readonly #newActivityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
   readonly #completeFault?: CompleteTaskFault;
+  readonly #planRaceHook?: () => Promise<void>;
 
   constructor(
     db: D1Database,
@@ -183,6 +222,7 @@ export class D1TaskRepository implements TaskRepository {
       options.activityIdGenerator ?? activitySecureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
     this.#completeFault = options.completeFault;
+    this.#planRaceHook = options.planRaceHook;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -244,34 +284,110 @@ export class D1TaskRepository implements TaskRepository {
       .bind(this.#workspaceId, limit);
 
     const result = await this.#run(statement);
-    const rows = (result.results ?? []) as (TaskWaitingJoinedRow & {
-      readonly parent_title: string | null;
-    })[];
-    const items: TaskListItem[] = rows.map((row) => {
-      const details = rowToTaskDetails(row);
-      return {
-        id: row.id,
-        workspaceId: parseWorkspaceId(row.workspace_id),
-        title: row.title,
-        createdAt: fromStorageTimestamp(row.created_at),
-        updatedAt: fromStorageTimestamp(row.updated_at),
-        completedAt:
-          row.completed_at === null
-            ? null
-            : fromStorageTimestamp(row.completed_at),
-        status: details.status,
-        priority: details.priority,
-        dueDate: details.dueDate,
-        scheduledDate: details.scheduledDate,
-        parent: this.#parentRelation(
-          row.parent_link_type,
-          row.parent_id,
-          row.parent_title,
-        ),
-        waiting: rowToTaskWaiting(row),
-      };
-    });
+    const rows = (result.results ?? []) as TaskListRow[];
+    const items = rows.map((row) => this.#toTaskListItem(row));
     return { items };
+  }
+
+  /**
+   * Planning query (TODAY-04): fetch the tasks the planning surface buckets, each
+   * band bounded INDEPENDENTLY so a large unscheduled backlog can never crowd out
+   * the owner's planned/overdue/today tasks or today's completions (unlike the
+   * single, due-date-ordered `listTasks` page). Three bounded reads — scheduled
+   * (planned) open tasks ordered scheduled-date ascending so overdue/today are kept
+   * first, the unscheduled backlog, and the most-recent completions — are unioned
+   * into one flat list for the caller to bucket. Waiting tasks are excluded. The
+   * three bands are disjoint (open-scheduled / open-unscheduled / completed), so no
+   * task appears twice.
+   */
+  async listPlanningTasks(
+    input: ListPlanningTasksInput,
+  ): Promise<TaskListPage> {
+    const scheduledLimit = input.scheduledLimit ?? PLANNING_SCHEDULED_LIMIT;
+    const backlogLimit = input.backlogLimit ?? PLANNING_BACKLOG_LIMIT;
+    const completedLimit = input.completedLimit ?? PLANNING_COMPLETED_LIMIT;
+
+    const scheduled = await this.#queryPlanningBand(
+      "sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NOT NULL",
+      "td.scheduled_date ASC, e.id ASC",
+      scheduledLimit,
+    );
+    const backlog = await this.#queryPlanningBand(
+      "sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NULL",
+      "(td.due_date IS NULL) ASC, td.due_date ASC, e.created_at ASC, e.id ASC",
+      backlogLimit,
+    );
+    const completed = await this.#queryPlanningBand(
+      "sr.completed_at IS NOT NULL AND td.waiting_since IS NULL",
+      "sr.completed_at DESC, e.id ASC",
+      completedLimit,
+    );
+
+    return { items: [...scheduled, ...backlog, ...completed] };
+  }
+
+  /**
+   * Run one bounded planning band. Waiting is excluded by the WHERE clause, so no
+   * waiting-target join is needed. The WHERE/ORDER fragments are trusted, constant
+   * kernel SQL (never caller data); the workspace id and limit are bound.
+   */
+  async #queryPlanningBand(
+    where: string,
+    order: string,
+    limit: number,
+  ): Promise<TaskListItem[]> {
+    const statement = this.#db
+      .prepare(
+        `SELECT ${TASK_DETAIL_COLUMNS},
+                pl.target_entity_id AS parent_id,
+                pl.type AS parent_link_type,
+                pe.title AS parent_title
+         FROM entities e
+         JOIN spine_records sr
+           ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         LEFT JOIN task_details td
+           ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN entity_links pl
+           ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+              AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
+         LEFT JOIN entities pe
+           ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+              AND pe.deleted_at IS NULL
+         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
+           AND ${where}
+         ORDER BY ${order}
+         LIMIT ?`,
+      )
+      .bind(this.#workspaceId, limit);
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as TaskListRow[];
+    return rows.map((row) => this.#toTaskListItem(row));
+  }
+
+  /** Map a joined task-list row into a `TaskListItem` (shared by the list queries). */
+  #toTaskListItem(row: TaskListRow): TaskListItem {
+    const details = rowToTaskDetails(row);
+    return {
+      id: row.id,
+      workspaceId: parseWorkspaceId(row.workspace_id),
+      title: row.title,
+      createdAt: fromStorageTimestamp(row.created_at),
+      updatedAt: fromStorageTimestamp(row.updated_at),
+      completedAt:
+        row.completed_at === null
+          ? null
+          : fromStorageTimestamp(row.completed_at),
+      status: details.status,
+      priority: details.priority,
+      dueDate: details.dueDate,
+      scheduledDate: details.scheduledDate,
+      parent: this.#parentRelation(
+        row.parent_link_type,
+        row.parent_id,
+        row.parent_title,
+      ),
+      waiting: rowToTaskWaiting(row),
+    };
   }
 
   /* ---------------------------------------------------------------------- */
@@ -581,7 +697,7 @@ export class D1TaskRepository implements TaskRepository {
           : { entityType: TASK, subjectKind: "text" },
     };
 
-    const entityRow = await this.#runWaiting(
+    const entityRow = await this.#runGuardedMutation(
       entityStmt,
       event,
       [detailsStmt, ...linkStmts],
@@ -649,7 +765,7 @@ export class D1TaskRepository implements TaskRepository {
       payload: { entityType: TASK },
     };
 
-    const entityRow = await this.#runWaiting(
+    const entityRow = await this.#runGuardedMutation(
       entityStmt,
       event,
       [detailsStmt, ...linkStmts],
@@ -738,6 +854,287 @@ export class D1TaskRepository implements TaskRepository {
       });
     }
     return { items };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Planning (TODAY-04) — the scheduled date as the owner's commitment       */
+  /* ---------------------------------------------------------------------- */
+
+  async planTask(id: string, input: PlanTaskInput): Promise<PlanTaskResult> {
+    const entityId = validateTaskId(id);
+    const scheduledDate = validatePlanDate(input.scheduledDate);
+
+    const current = await this.getTask(entityId);
+    if (!current) {
+      throw new TaskNotFoundError();
+    }
+    // Planning applies to OPEN work only: reject a completed task up front (and the
+    // guarded write below re-checks, so a completion racing this call is also caught).
+    this.#rejectIfCompleted(current);
+    // Already planned for that exact date: idempotent no-op, no Activity.
+    if (current.scheduledDate === scheduledDate) {
+      return { task: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const group = this.#buildPlanGroup(entityId, current, scheduledDate, nowTs);
+
+    await this.#planRaceHook?.();
+    const entityRow = await this.#runGuardedMutation(
+      group.entityStmt,
+      group.event,
+      group.domainStmts,
+      now,
+    );
+    if (!entityRow) {
+      // The open-gated guard matched nothing: the task was completed or deleted
+      // between the read and the write. Nothing was written or recorded — reject.
+      await this.#throwPlanGuardMiss(entityId);
+    }
+    return {
+      task: {
+        ...current,
+        updatedAt: fromStorageTimestamp(entityRow!.updated_at),
+        scheduledDate,
+      },
+      changed: true,
+    };
+  }
+
+  async clearPlan(id: string): Promise<ClearPlanResult> {
+    const entityId = validateTaskId(id);
+
+    const current = await this.getTask(entityId);
+    if (!current) {
+      throw new TaskNotFoundError();
+    }
+    // Planning applies to OPEN work only: reject a completed task up front (and the
+    // guarded write below re-checks, so a completion racing this call is also caught).
+    this.#rejectIfCompleted(current);
+    // No plan to clear: idempotent no-op, no Activity.
+    if (current.scheduledDate === null) {
+      return { task: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const group = this.#buildPlanGroup(entityId, current, null, nowTs);
+
+    await this.#planRaceHook?.();
+    const entityRow = await this.#runGuardedMutation(
+      group.entityStmt,
+      group.event,
+      group.domainStmts,
+      now,
+    );
+    if (!entityRow) {
+      // The open-gated guard matched nothing: completed or deleted mid-flight — reject.
+      await this.#throwPlanGuardMiss(entityId);
+    }
+    return {
+      task: {
+        ...current,
+        updatedAt: fromStorageTimestamp(entityRow!.updated_at),
+        scheduledDate: null,
+      },
+      changed: true,
+    };
+  }
+
+  async planTasks(
+    ids: readonly string[],
+    input: PlanTaskInput,
+  ): Promise<BulkPlanResult> {
+    const scheduledDate = validatePlanDate(input.scheduledDate);
+    return this.#bulkPlan(ids, scheduledDate);
+  }
+
+  async clearPlans(ids: readonly string[]): Promise<BulkPlanResult> {
+    return this.#bulkPlan(ids, null);
+  }
+
+  /**
+   * The shared bulk-planning path (plan-to-date or clear). Validates the id list,
+   * resolves EVERY id to a task in this workspace (rejecting the WHOLE operation if
+   * any is missing, so nothing is partially applied), then runs a single atomic
+   * batch that changes only the tasks whose plan actually differs — each with its
+   * own guarded Activity event. Tasks already in the requested state are counted as
+   * `unchanged` and contribute no statements.
+   */
+  async #bulkPlan(
+    ids: readonly string[],
+    scheduledDate: string | null,
+  ): Promise<BulkPlanResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    // Resolve all first; ANY id that is missing/cross-workspace/deleted (→ not
+    // found) OR completed (→ planning applies to open work) rejects the WHOLE
+    // operation up front, so no partial plan is ever committed. The open-gated
+    // per-task writes below are a second line of defence against a completion that
+    // races the batch — that task's group then no-ops (no plan, no Activity).
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId);
+      if (!current) {
+        throw new TaskNotFoundError();
+      }
+      this.#rejectIfCompleted(current);
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    await this.#planRaceHook?.();
+
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+    for (const current of currents) {
+      if ((current.scheduledDate ?? null) === scheduledDate) {
+        unchanged += 1;
+        continue;
+      }
+      const group = this.#buildPlanGroup(
+        current.id,
+        current,
+        scheduledDate,
+        nowTs,
+      );
+      const model = buildActivityWriteModel(
+        group.event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      const eventStmts = this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        model,
+      );
+      // Per-task ordering [bump, activity, ...subjects, details]: the activity's
+      // `changes() > 0` guard refers to the bump IMMEDIATELY before it, and each
+      // group's own bump resets `changes()` for that group's activity — so many
+      // guarded events compose correctly in one batch (mirrors `completeTask`).
+      statements.push(group.entityStmt, ...eventStmts, ...group.domainStmts);
+      changed += 1;
+    }
+
+    if (statements.length > 0) {
+      try {
+        await this.#db.batch(statements);
+      } catch (cause) {
+        if (cause instanceof ActivityError) {
+          throw cause;
+        }
+        throw new TaskStorageError(undefined, { cause });
+      }
+    }
+
+    return { changed, unchanged };
+  }
+
+  /**
+   * Build the statements for planning ONE task to `scheduledDate` (a date, or null
+   * to clear): the guard-anchor entity bump, the `changes()`-guarded planning event
+   * (`task.planned`/`task.rescheduled`/`task.plan_cleared`) with its subjects, and
+   * the `task_details` write that touches ONLY the scheduled date. It writes neither
+   * the due date, the waiting state nor completion (ADR-030). Payloads carry only
+   * the non-sensitive calendar dates. The caller guarantees the plan actually
+   * changes (no-ops are filtered before this is called).
+   */
+  #buildPlanGroup(
+    entityId: string,
+    current: TaskView,
+    scheduledDate: string | null,
+    nowTs: string,
+  ): {
+    readonly entityStmt: D1PreparedStatement;
+    readonly event: NewActivityEvent;
+    readonly domainStmts: readonly D1PreparedStatement[];
+  } {
+    const isClear = scheduledDate === null;
+    const type = isClear
+      ? TASK_PLAN_CLEARED
+      : current.scheduledDate === null
+        ? TASK_PLANNED
+        : TASK_RESCHEDULED;
+
+    const payload: Record<string, JsonValue> = { entityType: TASK };
+    if (!isClear) {
+      payload["scheduledDate"] = scheduledDate;
+    }
+    if (current.scheduledDate !== null) {
+      payload["previous"] = current.scheduledDate;
+    }
+    const event: NewActivityEvent = {
+      type,
+      subjects: [{ entityId, role: SUBJECT_ROLE }],
+      payload,
+    };
+
+    // The guard anchor and both detail writes gate on the task being OPEN, so a
+    // completion racing the write causes the whole group to no-op (ADR-030 §30.4a).
+    const entityStmt = this.#bumpOpenTaskStatement(entityId, nowTs);
+    const detailsStmt = isClear
+      ? this.#clearScheduledStatement(entityId, nowTs)
+      : this.#setScheduledStatement(entityId, current, scheduledDate, nowTs);
+
+    return { entityStmt, event, domainStmts: [detailsStmt] };
+  }
+
+  /**
+   * Write ONLY `scheduled_date` on `task_details` (creating the row from the task's
+   * current values on first edit), gated on the active AND OPEN task. Never touches
+   * the due date, waiting columns or any other field, and never plans completed work.
+   */
+  #setScheduledStatement(
+    entityId: string,
+    current: TaskView,
+    scheduledDate: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO task_details
+           (workspace_id, entity_id, entity_type, status, priority,
+            due_date, scheduled_date, description, updated_at)
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (${this.#openTaskExistsSql})
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           scheduled_date = excluded.scheduled_date,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        this.#workspaceId,
+        entityId,
+        current.status,
+        current.priority,
+        current.dueDate,
+        scheduledDate,
+        current.description,
+        nowTs,
+        this.#workspaceId,
+        entityId,
+      );
+  }
+
+  /**
+   * Clear ONLY `scheduled_date` on `task_details` (leaves every other column), gated
+   * on the active AND OPEN task so a completed task's plan is never cleared here.
+   */
+  #clearScheduledStatement(
+    entityId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE task_details
+         SET scheduled_date = NULL, updated_at = ?
+         WHERE workspace_id = ? AND entity_id = ?
+           AND EXISTS (${this.#openTaskExistsSql})`,
+      )
+      .bind(nowTs, this.#workspaceId, entityId, this.#workspaceId, entityId);
   }
 
   /* ---------------------------------------------------------------------- */
@@ -947,6 +1344,21 @@ export class D1TaskRepository implements TaskRepository {
               AND deleted_at IS NULL`;
   }
 
+  /**
+   * Reusable EXISTS clause: the anchor is an active AND OPEN task in this workspace
+   * (`spine_records.completed_at IS NULL`). Planning applies to open work only, so
+   * the planning writes gate on this INSIDE the guarded batch — enforcing the
+   * invariant even against a completion that races between the read and the write
+   * (ADR-030 §30.4a). Binds `(workspaceId, entityId)`.
+   */
+  get #openTaskExistsSql(): string {
+    return `SELECT 1 FROM entities oe
+            JOIN spine_records osr
+              ON osr.workspace_id = oe.workspace_id AND osr.entity_id = oe.id
+            WHERE oe.workspace_id = ? AND oe.id = ? AND oe.type = '${TASK}'
+              AND oe.deleted_at IS NULL AND osr.completed_at IS NULL`;
+  }
+
   /** The guarded entity `updated_at` bump used as the Activity append anchor. */
   #bumpEntityStatement(entityId: string, nowTs: string): D1PreparedStatement {
     return this.#db
@@ -956,6 +1368,58 @@ export class D1TaskRepository implements TaskRepository {
          RETURNING ${ENTITY_RETURNING}`,
       )
       .bind(nowTs, entityId, this.#workspaceId);
+  }
+
+  /**
+   * The planning guard-anchor bump: like {@link #bumpEntityStatement} but gated on
+   * the task being OPEN. If the task was completed (or deleted) between the read and
+   * this write, it matches nothing → `changes() = 0` → the guarded planning Activity
+   * is NOT appended and the gated `task_details` write no-ops, so a completed task
+   * is never planned and no planning Activity is ever recorded against it.
+   */
+  #bumpOpenTaskStatement(entityId: string, nowTs: string): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entities SET updated_at = ?
+         WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
+           AND EXISTS (SELECT 1 FROM spine_records
+                       WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL)
+         RETURNING ${ENTITY_RETURNING}`,
+      )
+      .bind(nowTs, entityId, this.#workspaceId, this.#workspaceId, entityId);
+  }
+
+  /** The task-domain rejection for a planning mutation attempted on completed work. */
+  #completedError(): TaskValidationError {
+    return new TaskValidationError(
+      "completed",
+      "this task is completed — planning applies to open work",
+    );
+  }
+
+  /** Reject a planning mutation up front when the read shows the task completed. */
+  #rejectIfCompleted(task: TaskView): void {
+    if (task.completedAt !== null) {
+      throw this.#completedError();
+    }
+  }
+
+  /**
+   * Re-read a task after its open-gated planning guard matched nothing, and throw the
+   * honest reason: a completion that raced the write → the completed rejection; a
+   * deletion (or a vanished task) → not found. Used so the race is REJECTED, never
+   * silently swallowed.
+   */
+  async #throwPlanGuardMiss(entityId: string): Promise<never> {
+    const refreshed = await this.getTask(entityId, { includeDeleted: true });
+    if (
+      refreshed &&
+      refreshed.completedAt !== null &&
+      refreshed.deletedAt === null
+    ) {
+      throw this.#completedError();
+    }
+    throw new TaskNotFoundError();
   }
 
   /**
@@ -1049,12 +1513,13 @@ export class D1TaskRepository implements TaskRepository {
   }
 
   /**
-   * Run a waiting mutation as ONE atomic batch: the guard-anchor entity bump FIRST,
-   * then its `changes()`-guarded event append, then the gated domain writes (the
-   * `task_details` upsert and the `task.waiting_on` link statements). Returns the
+   * Run a single-task guarded mutation as ONE atomic batch: the guard-anchor entity
+   * bump FIRST, then its `changes()`-guarded event append, then the gated domain
+   * writes (e.g. the `task_details` upsert and any link statements). Returns the
    * entity RETURNING row when the guard matched, else null (task deleted mid-flight).
+   * Shared by the waiting and planning mutations (TODAY-03/04).
    */
-  async #runWaiting(
+  async #runGuardedMutation(
     entityStmt: D1PreparedStatement,
     event: NewActivityEvent,
     domainStmts: readonly D1PreparedStatement[],

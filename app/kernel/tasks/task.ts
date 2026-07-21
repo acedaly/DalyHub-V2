@@ -184,6 +184,33 @@ export type TaskListPage = {
 };
 
 /**
+ * Options for the planning query (TODAY-04). Unlike `listTasks` — a single generic,
+ * due-date-ordered page — the planning view must NEVER lose the owner's actual
+ * commitments to backlog truncation. Each planning band (scheduled work, the
+ * unscheduled backlog, and recent completions) is fetched and bounded INDEPENDENTLY,
+ * so a large unscheduled backlog can never crowd out today's/overdue/upcoming
+ * planned tasks or today's completions.
+ */
+export type ListPlanningTasksInput = {
+  /** The owner's calendar date `YYYY-MM-DD` (for the caller's bucketing). */
+  readonly todayIso: string;
+  /**
+   * Max scheduled (planned) tasks — ordered scheduled-date ascending, so overdue and
+   * today are preserved first; only far-future upcoming is ever truncated. Defaults
+   * to a generous planning bound.
+   */
+  readonly scheduledLimit?: number;
+  /** Max unscheduled backlog tasks (the "Anytime" band). Truncation here is calm. */
+  readonly backlogLimit?: number;
+  /**
+   * Max recently-completed tasks (most-recent first). The caller filters these to
+   * "completed today" in the owner's timezone; today's completions are the most
+   * recent, so a bounded page captures them.
+   */
+  readonly completedLimit?: number;
+};
+
+/**
  * The input that activates or changes a task's waiting state. EXACTLY ONE subject
  * must be supplied: an entity target (by id) OR a free-text note — never both,
  * never neither. The waiting `since` timestamp is set server-side (never
@@ -213,6 +240,45 @@ export type ClearWaitingResult = {
 export type CompleteTaskResult = {
   readonly task: TaskView;
   readonly changed: boolean;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Planning (TODAY-04)                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The input that plans a task: the calendar date the owner commits to working on
+ * it. Planning EXTENDS the existing scheduled date — the date IS the commitment
+ * ("I intend to work on this today"). It is always a real date-only `YYYY-MM-DD`
+ * (clearing a plan is `clearPlan`, not a null here). Planning never touches the
+ * due date, waiting state or completion (ADR-030).
+ */
+export type PlanTaskInput = {
+  /** The scheduled (planned) date, `YYYY-MM-DD`. Never routed through a timezone. */
+  readonly scheduledDate: string;
+};
+
+/** The outcome of `planTask`: the fresh task view and whether the plan changed. */
+export type PlanTaskResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
+/** The outcome of `clearPlan`: the fresh task view and whether it was planned. */
+export type ClearPlanResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
+/**
+ * The outcome of a bulk planning operation (`planTasks`/`clearPlans`): how many of
+ * the selected tasks actually changed and how many were already in the requested
+ * state (a no-op, no Activity). The operation is ATOMIC — either every change in
+ * `changed` commits together, or none does.
+ */
+export type BulkPlanResult = {
+  readonly changed: number;
+  readonly unchanged: number;
 };
 
 /** Options for the bounded, deterministic Waiting collection query. */

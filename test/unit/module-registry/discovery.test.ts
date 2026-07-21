@@ -130,6 +130,12 @@ describe("module discovery", () => {
           moduleId: "today",
           file: "routes/waiting.tsx",
         },
+        // TODAY-04 adds the planning endpoint (bulk/quick plan action, no nav).
+        {
+          id: "today.plan",
+          moduleId: "today",
+          file: "routes/plan.tsx",
+        },
         // TODAY-02 adds three resource routes (no nav entry): the task Drawer's
         // data endpoint, its Activity Timeline page and its link-target search.
         {

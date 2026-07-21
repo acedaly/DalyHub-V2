@@ -26,6 +26,7 @@ export {
   type UpdateTaskInput,
   type UpdateTaskResult,
   type ListTasksInput,
+  type ListPlanningTasksInput,
   type TaskListItem,
   type TaskListPage,
   type SetWaitingInput,
@@ -35,6 +36,10 @@ export {
   type ListWaitingTasksInput,
   type WaitingTaskListItem,
   type WaitingTaskPage,
+  type PlanTaskInput,
+  type PlanTaskResult,
+  type ClearPlanResult,
+  type BulkPlanResult,
 } from "./task";
 
 export {
@@ -45,6 +50,10 @@ export {
   TASK_WAITING_STARTED,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
+  TASK_PLANNED,
+  TASK_RESCHEDULED,
+  TASK_PLAN_CLEARED,
+  MAX_PLAN_BATCH_SIZE,
   isWaitingTargetType,
   isReservedTaskLinkType,
   type WaitingTargetType,
@@ -76,4 +85,6 @@ export {
   validateWaitingNote,
   validateWaitingTargetId,
   validateSetWaitingInput,
+  validatePlanDate,
+  validateTaskIdList,
 } from "./task-validation";
