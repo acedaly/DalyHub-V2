@@ -36,11 +36,15 @@ export interface TodayGlobalCommandDeps {
   readonly hasOpenTasks: boolean;
   /** How many tasks are currently selected. */
   readonly selectionCount: number;
+  /** The quick-plan target dates (for the bulk planning commands), if available. */
+  readonly targets?: PlanTargets;
   readonly focusTaskList: () => void;
   readonly focusSection: (bucket: string) => void;
   readonly selectAll: () => void;
   readonly clearSelection: () => void;
   readonly openHelp: () => void;
+  /** Plan (or, with null, clear the plan of) the current selection — one atomic op. */
+  readonly bulkPlan?: (scheduledDate: string | null) => void;
 }
 
 /**
@@ -99,12 +103,41 @@ export function buildTodayGlobalCommands(
   }
 
   if (deps.selectionCount > 0) {
+    // Bulk planning of the current selection, driven by the SAME atomic path the bulk
+    // action bar uses — so the multi-select workflow is fully keyboard-operable
+    // through the palette, not only via the (also keyboard-reachable) bulk bar.
+    const count = deps.selectionCount;
+    const noun = count === 1 ? "task" : "tasks";
+    const bulkPlan = deps.bulkPlan;
+    const targets = deps.targets;
+    if (bulkPlan && targets) {
+      const bulk = (
+        verb: string,
+        title: string,
+        date: string | null,
+      ): AppAction => ({
+        id: `today.cmd.bulk_${verb}`,
+        title,
+        subtitle: `${count} selected ${noun}`,
+        keywords: ["bulk", "selected", "plan", "schedule", verb],
+        kind: "run",
+        run: () => {
+          bulkPlan(date);
+          return { ok: true };
+        },
+      });
+      actions.push(
+        bulk("plan_today", "Plan selected for Today", targets.today),
+        bulk("plan_tomorrow", "Move selected to Tomorrow", targets.tomorrow),
+        bulk("plan_next_week", "Plan selected for Next Week", targets.nextWeek),
+        bulk("clear_plan", "Clear plan for selected", null),
+      );
+    }
+
     actions.push({
       id: "today.cmd.clear_selection",
       title: "Clear selection",
-      subtitle: `Deselect ${deps.selectionCount} selected ${
-        deps.selectionCount === 1 ? "task" : "tasks"
-      }`,
+      subtitle: `Deselect ${count} selected ${noun}`,
       keywords: ["clear", "deselect", "selection", "none"],
       kind: "run",
       run: () => {

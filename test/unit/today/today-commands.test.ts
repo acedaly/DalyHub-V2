@@ -129,6 +129,34 @@ describe("buildTodayGlobalCommands", () => {
     if (cmd.kind === "run") cmd.run();
     expect(focusSection).toHaveBeenCalledWith("anytime");
   });
+
+  it("exposes bulk planning commands only when a selection exists", () => {
+    // No selection → no bulk commands.
+    expect(
+      buildTodayGlobalCommands(
+        globalDeps({ targets: TARGETS, bulkPlan: vi.fn() }),
+      ).some((c) => c.id.startsWith("today.cmd.bulk_")),
+    ).toBe(false);
+    // With a selection → the four bulk commands appear.
+    const bulkPlan = vi.fn();
+    const cmds = buildTodayGlobalCommands(
+      globalDeps({ selectionCount: 2, targets: TARGETS, bulkPlan }),
+    );
+    const ids = cmds.map((c) => c.id);
+    expect(ids).toContain("today.cmd.bulk_plan_today");
+    expect(ids).toContain("today.cmd.bulk_plan_tomorrow");
+    expect(ids).toContain("today.cmd.bulk_plan_next_week");
+    expect(ids).toContain("today.cmd.bulk_clear_plan");
+    // They drive the one atomic bulk path with the right dates.
+    const run = (id: string) => {
+      const c = cmds.find((x) => x.id === id)!;
+      if (c.kind === "run") c.run();
+    };
+    run("today.cmd.bulk_plan_today");
+    run("today.cmd.bulk_clear_plan");
+    expect(bulkPlan).toHaveBeenNthCalledWith(1, TARGETS.today);
+    expect(bulkPlan).toHaveBeenNthCalledWith(2, null);
+  });
 });
 
 describe("buildFocusedTaskCommands", () => {

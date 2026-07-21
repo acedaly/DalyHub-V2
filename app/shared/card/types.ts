@@ -147,14 +147,17 @@ export interface CardProps {
   readonly presentation?: CardPresentation;
   /**
    * Roving-focus membership for a keyboard-navigable collection (DS-09 keyboard
-   * pattern). When set, the value is applied as the `tabIndex` of EVERY interactive
-   * control the card owns — the primary open target, the selection checkbox and the
-   * quick/overflow action buttons — so the card participates in a roving composite
-   * as ONE unit: `0` makes the card the collection's single tab stop (its controls
-   * are reachable with Tab; arrow keys move between cards), `-1` removes the whole
-   * card from the tab order. Undefined (the default) leaves natural tab behaviour
-   * unchanged, so every existing consumer is untouched. Programmatic `.focus()` on a
-   * `tabindex="-1"` control still works — the collection focuses the active card.
+   * pattern). When set, this value is applied ONLY to the card's **primary open
+   * target**, so the collection behaves as a single composite widget with exactly
+   * ONE tab stop: `0` makes this card the tab stop (arrow keys move between cards),
+   * `-1` takes it out of the tab order. The card's SECONDARY controls (the selection
+   * checkbox and the quick/overflow action buttons) are always removed from the tab
+   * order (`tabindex="-1"`) while roving is active — so Tab never stops on them — yet
+   * they remain fully operable by pointer and by keyboard through the collection's
+   * own model (Space selects the focused card) and the shared contextual commands /
+   * Command Palette (every action has a keyboard equivalent). Undefined (the default)
+   * leaves natural tab behaviour unchanged, so every existing consumer is untouched.
+   * Programmatic `.focus()` on a `tabindex="-1"` control still works.
    */
   readonly rovingTabIndex?: number;
   /** A reorder handle node (supplied by `ReorderableCardCollection`). */

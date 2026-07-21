@@ -62,6 +62,35 @@ test.describe("TODAY-05 — keyboard navigation", () => {
     await expect.poll(activeText).toBe(firstText);
   });
 
+  test("is a single composite tab stop: Tab leaves it, Shift+Tab returns", async ({
+    page,
+  }) => {
+    await openTodayList(page);
+    const anytime = page.getByRole("list", { name: "Anytime tasks" });
+    const first = anytime.getByRole("link").first();
+    await first.focus();
+    await expect(first).toBeFocused();
+
+    // Exactly one element inside the collection is tabbable.
+    const tabbableCount = () =>
+      page.evaluate(() => {
+        const list = document.querySelector("[data-today-tasklist]");
+        return list ? list.querySelectorAll('[tabindex="0"]').length : -1;
+      });
+    expect(await tabbableCount()).toBe(1);
+
+    // Tab moves focus OUT of the collection (it never stops on a card's checkbox or
+    // quick-action button), and Shift+Tab brings it back to the focused task.
+    await page.keyboard.press("Tab");
+    const insideAfterTab = await page.evaluate(() => {
+      const list = document.querySelector("[data-today-tasklist]");
+      return list ? list.contains(document.activeElement) : true;
+    });
+    expect(insideAfterTab).toBe(false);
+    await page.keyboard.press("Shift+Tab");
+    await expect(first).toBeFocused();
+  });
+
   test("opens a task with Enter and closes it with Escape, restoring focus", async ({
     page,
   }) => {

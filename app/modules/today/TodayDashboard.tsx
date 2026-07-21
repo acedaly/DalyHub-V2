@@ -501,11 +501,16 @@ export function TodayDashboard({
       })),
       hasOpenTasks: flattenOrder(rovingOrder).length > 0,
       selectionCount: selected.size,
+      targets,
       focusTaskList,
       focusSection,
       selectAll,
       clearSelection,
       openHelp,
+      bulkPlan: (date) => {
+        submitPlan([...selected], date);
+        clearSelection();
+      },
     });
 
     const focusedTask = dashboardTaskId

@@ -238,13 +238,17 @@ Today-only keyboard engine and no scattered document listeners.
 - **Roving focus** ([`keyboard/roving-model.ts`](../../app/modules/today/keyboard/roving-model.ts),
   [`useTodayRovingFocus.ts`](../../app/modules/today/keyboard/useTodayRovingFocus.ts)).
   The open planning sections (Overdue/Today/Upcoming/Anytime) are wrapped in ONE plain
-  container that is the collection's single tab stop. Arrow Up/Down cross section
-  boundaries and clamp at the ends (no wrap), Home/End move within the current
-  section, Enter opens the focused task, Space toggles its selection. The DS-04 Card
-  gained an additive `rovingTabIndex` prop applying a `tabIndex` to every control the
-  card owns, so only the active card is in the tab order — the accessible roving
-  pattern RecordTabs/reorder already use (not a `listbox` over interactive cards). The
-  collapsed "Completed today" section keeps natural tabbing.
+  container that behaves as a single composite widget with **exactly one tab stop**:
+  Tab enters once and lands on the current task, Arrow keys move between tasks, and
+  Tab/Shift+Tab leave/re-enter — the owner never Tabs through every card's controls.
+  Arrow Up/Down cross section boundaries and clamp at the ends (no wrap), Home/End move
+  within the current section, Enter opens, Space selects. The DS-04 Card `rovingTabIndex`
+  prop is applied to **only each card's primary open control**; the card's secondary
+  controls (checkbox, quick/overflow actions) are taken out of the tab order and stay
+  operable by Space (select) and the shared shortcuts / Command Palette (every action
+  has a keyboard equivalent) — the accessible roving pattern RecordTabs/reorder use
+  (not a `listbox` over interactive cards). The collapsed "Completed today" section
+  keeps natural tabbing.
 - **Command ownership.** A pure
   [`keyboard/today-commands.ts`](../../app/modules/today/keyboard/today-commands.ts)
   builds the per-task `AppAction`s (Open/Close · Complete/Reopen `C` · Plan today `P`
@@ -264,8 +268,18 @@ Today-only keyboard engine and no scattered document listeners.
   The `?` shortcut and the "Keyboard shortcuts" command open a reference hosted by the
   SAME DS-03 Drawer (`help:shortcuts` key) — no bespoke modal, no second focus trap.
 - **Multi-select.** Space selects the focused task; "Select all open tasks" fills the
-  selection; the existing TODAY-04 bulk action bar (atomic `/today/plan`) plans them;
-  Escape (or "Clear selection") clears it. No partial application.
+  selection; the existing TODAY-04 bulk action bar (atomic `/today/plan`) — which lives
+  in the CollectionLayout selection slot OUTSIDE the roving container, so it is reached
+  by an ordinary Tab — plans them, and bulk **commands** ("Plan selected for
+  Today/Tomorrow/Next Week", "Clear plan for selected") drive the same atomic path from
+  the palette; Escape (or "Clear selection") clears it. No partial application.
+- **Command coverage (explicit).** Navigate/open/close/complete/reopen/plan/clear-plan/
+  clear-waiting/select-all/clear-selection/bulk-plan/help/open-Waiting are commands or
+  shortcuts. Mark-waiting, change-waiting-subject, choose-custom-date and open-Task-Activity
+  are reachable through their keyboard-accessible visible controls (the waiting editor,
+  date fields, and the RecordTabs tablist) rather than a dedicated command — a documented
+  boundary, tracked in [`PRODUCT_DEBT` DEBT-18](../product/PRODUCT_DEBT.md); none is
+  missing from the keyboard, only from the palette.
 - **Quick Capture** reuses the existing focus command; it still does not persist
   (TODAY-01's disclosed fixture boundary is unchanged).
 

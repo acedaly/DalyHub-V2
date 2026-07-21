@@ -171,12 +171,43 @@ function taskLink(name: string): HTMLElement {
   return screen.getByRole("link", { name });
 }
 
+/** The roving task-collection container. */
+function taskList(): HTMLElement {
+  const el = document.querySelector<HTMLElement>("[data-today-tasklist]");
+  if (!el) throw new Error("task collection not found");
+  return el;
+}
+
 describe("TODAY-05 roving focus", () => {
   it("makes the collection ONE tab stop: only the first task is tabbable", () => {
     renderToday();
     expect(taskLink("Overdue task")).toHaveAttribute("tabindex", "0");
     expect(taskLink("Task A")).toHaveAttribute("tabindex", "-1");
     expect(taskLink("Task C")).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("has exactly ONE element with tabindex=0 across the whole collection", () => {
+    renderToday();
+    const list = taskList();
+    const tabbable = list.querySelectorAll('[tabindex="0"]');
+    expect(tabbable).toHaveLength(1);
+    // The single tab stop is a task's primary open control — never a checkbox/button.
+    expect(tabbable[0].classList.contains("dh-card__open")).toBe(true);
+    // The count holds after arrowing to a different task.
+    fireEvent.keyDown(taskLink("Overdue task"), { key: "ArrowDown" });
+    expect(list.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+  });
+
+  it("never makes a checkbox or quick-action button an extra tab stop", () => {
+    renderToday();
+    const list = taskList();
+    // Focus a task so its actions are rendered/visible.
+    fireEvent.focus(taskLink("Task A"));
+    for (const control of list.querySelectorAll(
+      'input[type="checkbox"], button',
+    )) {
+      expect(control.getAttribute("tabindex")).toBe("-1");
+    }
   });
 
   it("Arrow Down moves the tab stop to the next task across sections", () => {
