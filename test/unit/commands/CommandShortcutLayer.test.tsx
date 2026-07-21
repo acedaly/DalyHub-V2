@@ -133,6 +133,47 @@ describe("CommandShortcutLayer", () => {
     await waitFor(() => expect(loc()).toBe("/projects"));
   });
 
+  it("dispatches a contextual RUN action's shortcut (TODAY-05)", async () => {
+    const run = vi.fn(() => ({ ok: true as const }));
+    renderLayer({
+      actions: [
+        {
+          id: "ctx.run",
+          title: "Complete task",
+          kind: "run",
+          run,
+          shortcut: { key: "c", modifiers: ["shift"] },
+        },
+      ],
+    });
+    press({ key: "c", shiftKey: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT dispatch a DISABLED contextual run action", async () => {
+    const run = vi.fn(() => ({ ok: true as const }));
+    renderLayer({
+      actions: [
+        {
+          id: "ctx.run.off",
+          title: "Disabled run",
+          kind: "run",
+          run,
+          shortcut: { key: "b", modifiers: ["shift"] },
+          disabled: true,
+        },
+      ],
+    });
+    press({ key: "b", shiftKey: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it("does NOT dispatch an executable command's shortcut (deferred to DS-10)", async () => {
     renderLayer({
       catalogue: {

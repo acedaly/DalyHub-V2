@@ -34,6 +34,7 @@ import { EntityIcon, isEntityType } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 
 import { formatTodayDate, ownerCalendarIso } from "../date";
+import { renderKeyboardHelpDrawer } from "../keyboard/KeyboardHelp";
 import { TaskDrawerContent } from "../task/TaskDrawerContent";
 import {
   serializeWaitingItem,
@@ -124,6 +125,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 /** A Drawer renderer scoped to this view: it opens task records only. */
 function renderWaitingDrawer(entry: DrawerEntry): DrawerRenderResult | null {
+  // The keyboard-shortcuts reference (TODAY-05) is hosted by the same Drawer.
+  const help = renderKeyboardHelpDrawer(entry);
+  if (help !== null) {
+    return help;
+  }
   const separator = entry.key.indexOf(":");
   const kind = separator === -1 ? entry.key : entry.key.slice(0, separator);
   const id = separator === -1 ? "" : entry.key.slice(separator + 1);
@@ -133,7 +139,8 @@ function renderWaitingDrawer(entry: DrawerEntry): DrawerRenderResult | null {
   return {
     title: "Task",
     description: "Task record",
-    children: <TaskDrawerContent taskId={id} />,
+    // `isTop` gates the task's keyboard-shortcut ownership when another drawer stacks.
+    children: <TaskDrawerContent taskId={id} isTop={entry.isTop} />,
   };
 }
 

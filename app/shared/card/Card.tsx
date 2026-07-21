@@ -56,6 +56,7 @@ export function Card(props: CardProps) {
     openAriaLabel,
     density = "comfortable",
     presentation = "list",
+    rovingTabIndex,
     reorderHandle,
     className,
   } = props;
@@ -63,6 +64,15 @@ export function Card(props: CardProps) {
   const generatedId = useId();
   const titleId = `${generatedId}-title`;
   const selectionId = `${generatedId}-select`;
+
+  // Roving-focus membership: ONLY the primary open control carries the roving
+  // tabindex (0 for the active card, -1 for the rest), so the collection is exactly
+  // ONE tab stop. The card's SECONDARY controls (selection checkbox, quick/overflow
+  // actions) are taken out of the tab order entirely (`-1`) — they stay operable by
+  // pointer and, on the focused card, by the collection's keyboard model (Space
+  // selects) or the shared contextual commands / Command Palette (each action has a
+  // keyboard equivalent), never as extra tab stops. Undefined leaves natural tabbing.
+  const secondaryTabIndex = rovingTabIndex === undefined ? undefined : -1;
 
   const handleOpenClick = (event: MouseEvent<HTMLElement>) => {
     // With both href and onOpen, let a modified/middle click follow the link
@@ -88,6 +98,7 @@ export function Card(props: CardProps) {
         className="dh-card__open"
         href={href}
         aria-label={openAriaLabel}
+        tabIndex={rovingTabIndex}
         onClick={handleOpenClick}
       >
         {titleContent}
@@ -99,6 +110,7 @@ export function Card(props: CardProps) {
         type="button"
         className="dh-card__open"
         aria-label={openAriaLabel}
+        tabIndex={rovingTabIndex}
         onClick={handleOpenClick}
       >
         {titleContent}
@@ -147,6 +159,7 @@ export function Card(props: CardProps) {
             type="checkbox"
             checked={selection.selected}
             disabled={selection.disabled}
+            tabIndex={secondaryTabIndex}
             aria-label={selection.label ?? `Select ${title}`}
             onChange={(event) =>
               selection.onSelectedChange(event.target.checked)
@@ -250,7 +263,11 @@ export function Card(props: CardProps) {
           aria-label={`Actions for ${openAccessibleName}`}
         >
           {quickActions?.map((action) => (
-            <CardActionButton key={action.id} action={action} />
+            <CardActionButton
+              key={action.id}
+              action={action}
+              tabIndex={secondaryTabIndex}
+            />
           ))}
           {overflowAction ? (
             <CardActionButton
@@ -260,6 +277,7 @@ export function Card(props: CardProps) {
                 icon: overflowAction.icon ?? <OverflowGlyph />,
               }}
               className="dh-card__action--overflow"
+              tabIndex={secondaryTabIndex}
             />
           ) : null}
         </div>

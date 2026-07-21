@@ -15,9 +15,18 @@ interface CardActionButtonProps {
   readonly action: CardAction;
   /** Extra class (e.g. to mark the overflow trigger). */
   readonly className?: string;
+  /**
+   * Roving `tabIndex` when the card belongs to a keyboard-navigable composite
+   * (DS-09); undefined leaves the control at its natural tab position.
+   */
+  readonly tabIndex?: number;
 }
 
-export function CardActionButton({ action, className }: CardActionButtonProps) {
+export function CardActionButton({
+  action,
+  className,
+  tabIndex,
+}: CardActionButtonProps) {
   const inactive = Boolean(action.disabled) || Boolean(action.pending);
   const classes = ["dh-card__action", className].filter(Boolean).join(" ");
   // Icon-only actions must still name themselves; require an explicit ariaLabel
@@ -57,6 +66,7 @@ export function CardActionButton({ action, className }: CardActionButtonProps) {
         aria-label={action.ariaLabel}
         title={action.description}
         aria-keyshortcuts={action.shortcut}
+        tabIndex={tabIndex}
         onClick={stop}
       >
         {label}
@@ -72,6 +82,7 @@ export function CardActionButton({ action, className }: CardActionButtonProps) {
       title={action.description}
       aria-keyshortcuts={action.shortcut}
       aria-busy={action.pending ? "true" : undefined}
+      tabIndex={tabIndex}
       disabled={inactive}
       onClick={(event) => {
         stop(event);

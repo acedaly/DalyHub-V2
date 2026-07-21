@@ -369,8 +369,10 @@ describe("TODAY-04 command integration", () => {
     ).toBe(true);
   });
 
-  it("exposes planning commands with shortcuts while a task Drawer is open", () => {
-    renderTodayWithCommands(["/today?drawer=task:t-px02"]);
+  it("exposes planning commands with shortcuts for the focused task (TODAY-05)", () => {
+    renderTodayWithCommands(["/today"]);
+    // Focus a task in the list; the dashboard registers its per-task commands.
+    fireEvent.focus(screen.getByRole("link", { name: "Finish PX-02" }));
     const planToday = observedContextual.find((a) =>
       a.id.endsWith(".plan_today"),
     );
@@ -381,10 +383,10 @@ describe("TODAY-04 command integration", () => {
     expect(planTomorrow?.shortcut).toEqual({ key: "p", modifiers: ["shift"] });
   });
 
-  it("has no task-specific contextual action without a task Drawer", () => {
+  it("has no task-specific contextual action until a task is focused", () => {
     renderTodayWithCommands(["/today"]);
-    expect(
-      observedContextual.some((a) => a.id.startsWith("today.action.task.")),
-    ).toBe(false);
+    expect(observedContextual.some((a) => a.id.startsWith("today.task."))).toBe(
+      false,
+    );
   });
 });

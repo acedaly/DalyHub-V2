@@ -8,7 +8,7 @@
  * and the loading / not-found / error states are calm.
  */
 
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { RouterProvider, createMemoryRouter } from "react-router";
 import {
   fireEvent,
@@ -19,6 +19,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  CommandContextProvider,
+  useContextualActions,
+  type AppAction,
+} from "~/shared/commands";
 import { DrawerProvider } from "~/shared/drawer";
 import { FeedbackProvider } from "~/shared/feedback";
 import { TaskDrawerContent } from "~/modules/today/task/TaskDrawerContent";
@@ -255,5 +260,87 @@ describe("states", () => {
       await screen.findByText("We couldn't load this task"),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* TODAY-05 — task-shortcut ownership gated on the interactive top drawer      */
+/* -------------------------------------------------------------------------- */
+
+let observed: readonly AppAction[] = [];
+function Observer() {
+  observed = useContextualActions();
+  return null;
+}
+
+/** A harness that renders the task drawer with a togglable `isTop`, so we can prove
+ *  the lower (non-top) task drawer keeps its state but not its shortcuts. */
+function IsTopHarness() {
+  const [isTop, setIsTop] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={() => setIsTop((t) => !t)}>
+        toggle-top
+      </button>
+      <TaskDrawerContent taskId="t1" isTop={isTop} />
+    </>
+  );
+}
+
+function renderWithCommands(element: ReactElement) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <FeedbackProvider>
+            <CommandContextProvider>
+              <Observer />
+              <DrawerProvider renderDrawer={() => null}>
+                {element}
+              </DrawerProvider>
+            </CommandContextProvider>
+          </FeedbackProvider>
+        ),
+      },
+    ],
+    { initialEntries: ["/today?drawer=task:t1"] },
+  );
+  return render(<RouterProvider router={router} />);
+}
+
+describe("TODAY-05 task drawer shortcut ownership (isTop)", () => {
+  it("registers task commands only while it is the top drawer, preserving state", async () => {
+    const fetchMock = stubFetch();
+    renderWithCommands(<IsTopHarness />);
+
+    // Loaded and top: its task commands (complete/plan/…) are registered.
+    await screen.findByRole("heading", { name: "Write the ADR" });
+    await waitFor(() =>
+      expect(observed.some((a) => a.id === "today.task.t1.toggle")).toBe(true),
+    );
+    expect(observed.some((a) => a.id === "today.task.t1.plan_today")).toBe(
+      true,
+    );
+    const loadsAfterMount = fetchMock.mock.calls.length;
+
+    // Stack another drawer above it → no longer top: task commands are removed…
+    fireEvent.click(screen.getByRole("button", { name: "toggle-top" }));
+    await waitFor(() =>
+      expect(observed.some((a) => a.id.startsWith("today.task.t1."))).toBe(
+        false,
+      ),
+    );
+    // …but local state is intact (still mounted, not re-fetched, heading present).
+    expect(
+      screen.getByRole("heading", { name: "Write the ADR" }),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls.length).toBe(loadsAfterMount);
+
+    // Becomes top again → task commands return.
+    fireEvent.click(screen.getByRole("button", { name: "toggle-top" }));
+    await waitFor(() =>
+      expect(observed.some((a) => a.id === "today.task.t1.toggle")).toBe(true),
+    );
   });
 });

@@ -239,3 +239,76 @@ describe("Card — no invalidly-nested interactive controls", () => {
     expect(openTarget.contains(action)).toBe(false);
   });
 });
+
+describe("Card — roving tabindex (DS-09 keyboard collections)", () => {
+  function renderRoving(rovingTabIndex: number) {
+    return render(
+      <Card
+        id="rec-1"
+        title="Website relaunch"
+        href="/x"
+        onOpen={() => {}}
+        rovingTabIndex={rovingTabIndex}
+        selection={{ selected: false, onSelectedChange: () => {} }}
+        quickActions={[{ id: "a", label: "Complete", onSelect: () => {} }]}
+        overflowAction={{ id: "o", label: "More", onSelect: () => {} }}
+      />,
+    );
+  }
+
+  it("puts ONLY the primary open control in the tab order (active card = 0)", () => {
+    renderRoving(0);
+    // The primary open target is the single tab stop for this card…
+    expect(
+      screen.getByRole("link", { name: "Website relaunch" }),
+    ).toHaveAttribute("tabindex", "0");
+    // …and the secondary controls are removed from the tab order (never extra stops).
+    expect(
+      screen.getByRole("checkbox", { name: "Select Website relaunch" }),
+    ).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("button", { name: "Complete" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
+  it("takes the whole inactive card out of the tab order (primary = -1)", () => {
+    renderRoving(-1);
+    expect(
+      screen.getByRole("link", { name: "Website relaunch" }),
+    ).toHaveAttribute("tabindex", "-1");
+    expect(
+      screen.getByRole("checkbox", { name: "Select Website relaunch" }),
+    ).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("button", { name: "Complete" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
+  it("leaves natural tab behaviour when rovingTabIndex is undefined", () => {
+    render(
+      <Card
+        id="rec-1"
+        title="Website relaunch"
+        onOpen={() => {}}
+        selection={{ selected: false, onSelectedChange: () => {} }}
+        quickActions={[{ id: "a", label: "Complete", onSelect: () => {} }]}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Website relaunch" }),
+    ).not.toHaveAttribute("tabindex");
+    // Secondary controls keep their natural tab position too.
+    expect(
+      screen.getByRole("checkbox", { name: "Select Website relaunch" }),
+    ).not.toHaveAttribute("tabindex");
+    expect(
+      screen.getByRole("button", { name: "Complete" }),
+    ).not.toHaveAttribute("tabindex");
+  });
+});

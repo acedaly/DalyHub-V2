@@ -196,7 +196,7 @@ auto-repeat, resolves collisions by precedence (one event → one action), and
 | `?` | Shortcuts overlay (reserved) |
 | `[` | Sidebar (reserved) |
 
-### Command-declared shortcuts (navigation dispatched; executable deferred)
+### Command-declared shortcuts (navigation + contextual-run dispatched; registered-execute deferred)
 
 `CommandShortcutLayer` installs that single dispatcher app-wide (mounted once inside
 `CommandContextProvider`) with the reserved bindings **plus** the shortcuts declared
@@ -206,15 +206,23 @@ therefore actually navigates, not just shows a hint. Precedence is deterministic
 reserved → contextual → registered, so one key event still fires at most one action;
 a disabled action yields an `enabled: false` binding and never fires.
 
-**Executable** command / contextual-run shortcuts are intentionally NOT dispatched
-globally yet: firing one with the palette closed runs it through the authenticated
-boundary and needs a pending/success/failure surface *outside* the palette — the
-DS-10 global feedback surface, which DS-09 excludes. Because those shortcuts cannot
-currently run app-wide, the palette **does not advertise them**: a shortcut hint is
-shown only for a `navigate` command/action (whose shortcut is actually dispatched),
-never for an executable command — so no hint promises a control that does nothing.
-Global dispatch (and the hint) for executable shortcuts lands with DS-10. Wiring
-navigation shortcuts loads the catalogue in the always-on shell (a deliberate,
+**Contextual `run` action shortcuts are ALSO dispatched globally (TODAY-05).** This
+was deferred at DS-09 because firing a run action with the palette closed needs a
+pending/success/failure surface *outside* the palette; DS-10 shipped it (the shared
+Feedback platform), and a contextual run action reports its own feedback through it,
+so global dispatch is honest. `CommandShortcutLayer` now installs a binding for every
+contextual action that declares a `shortcut` — navigation actions navigate, run
+actions execute their client callback — respecting the same reserved → contextual →
+registered precedence and the `enabled: false` rule for disabled actions. This is how
+Today's `P` / `Shift+P` / `C` fire against the focused task.
+
+**Registered `execute` (server) command shortcuts are still NOT dispatched globally:**
+firing one with the palette closed runs it through the authenticated `POST
+/commands/:id` boundary and needs the authenticated-execution feedback surface, which
+no module uses yet. Accordingly the palette advertises a shortcut hint for a
+`navigate` command/action OR a contextual action (both are dispatched), **never** for
+a registered executable command — so no hint promises a control that does nothing.
+Wiring navigation shortcuts loads the catalogue in the always-on shell (a deliberate,
 documented departure from the otherwise fully-lazy palette posture — it pulls only
 the small catalogue transport and the pure navigation helper, never the palette UI).
 
