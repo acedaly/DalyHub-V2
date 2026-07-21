@@ -162,7 +162,7 @@ describe("POST action — set_waiting / clear_waiting", () => {
     expect(await countActivitiesOfType("task.waiting_cleared")).toBe(1);
   });
 
-  it("clears waiting automatically when the task is completed", async () => {
+  it("completing a waiting task atomically returns a completed, non-waiting task", async () => {
     const task = await seedTask(WS);
     await runAction(
       task,
@@ -172,9 +172,22 @@ describe("POST action — set_waiting / clear_waiting", () => {
         waitingNote: "x",
       }),
     );
-    await runAction(task, formData({ intent: "complete" }));
+    // One atomic operation: the action returns the completed, non-waiting task.
+    const res = await runAction(task, formData({ intent: "complete" }));
+    const body = (await res.json()) as {
+      kind: string;
+      ok: boolean;
+      task: { completedAt: string | null; waiting: unknown | null };
+    };
+    expect(body.kind).toBe("completion");
+    expect(body.ok).toBe(true);
+    expect(body.task.completedAt).not.toBeNull();
+    expect(body.task.waiting).toBeNull();
+    // Persisted, with exactly one completion + one waiting-cleared event.
     const reread = await makeTaskRepository(makeContext(WS)).getTask(task);
+    expect(reread?.completedAt).not.toBeNull();
     expect(reread?.waiting).toBeNull();
+    expect(await countActivitiesOfType("task.completed")).toBe(1);
     expect(await countActivitiesOfType("task.waiting_cleared")).toBe(1);
   });
 

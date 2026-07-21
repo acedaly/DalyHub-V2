@@ -206,6 +206,15 @@ export type ClearWaitingResult = {
   readonly changed: boolean;
 };
 
+/**
+ * The outcome of `completeTask`: the fresh (completed, non-waiting) task view and
+ * whether completion actually happened (`false` for an already-completed no-op).
+ */
+export type CompleteTaskResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
 /** Options for the bounded, deterministic Waiting collection query. */
 export type ListWaitingTasksInput = {
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */

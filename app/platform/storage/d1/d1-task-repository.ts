@@ -38,6 +38,7 @@ import {
   TASK,
   TASK_BELONGS_TO_AREA,
   TASK_BELONGS_TO_PROJECT,
+  TASK_COMPLETED,
   systemClock,
   type Clock,
   type IdGenerator,
@@ -60,6 +61,7 @@ import {
   validateTaskStatus,
   validateTaskTitle,
   type ClearWaitingResult,
+  type CompleteTaskResult,
   type GetTaskOptions,
   type ListTasksInput,
   type ListWaitingTasksInput,
@@ -87,6 +89,10 @@ import {
   type EntityRow,
 } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
+import {
+  buildEntityUpdatedAtBumpStatement,
+  buildSpineCompleteStatement,
+} from "./spine-database";
 import {
   rowToTaskDetails,
   rowToTaskWaiting,
@@ -123,6 +129,20 @@ const WAITING_TARGET_JOIN = `
 /** The joined read row shape when the waiting-on target columns are selected. */
 type TaskWaitingJoinedRow = TaskJoinedRow & WaitingTargetColumns;
 
+/**
+ * TEST-ONLY deterministic failure injection points for `completeTask`'s atomic
+ * batch, used to prove the WHOLE operation rolls back when any statement after the
+ * completion write fails. Each value forces a failure immediately AFTER the named
+ * statement; the D1 batch is one transaction, so nothing commits. Never set in
+ * production.
+ */
+export type CompleteTaskFault =
+  | "after-completion"
+  | "after-completion-activity"
+  | "after-waiting-update"
+  | "after-waiting-cleared-activity"
+  | "after-waiting-link";
+
 /** Optional dependencies for the repository, injectable for deterministic tests. */
 export interface D1TaskRepositoryOptions {
   /** Clock used for domain AND Activity timestamps (one call per mutation). */
@@ -131,6 +151,8 @@ export interface D1TaskRepositoryOptions {
   readonly actorContext?: ActivityActorContext;
   /** Id generator for Activity events. Defaults to a secure UUID generator. */
   readonly activityIdGenerator?: IdGenerator;
+  /** TEST-ONLY: force `completeTask`'s batch to fail at a chosen point. */
+  readonly completeFault?: CompleteTaskFault;
 }
 
 /** A resolved id → title lookup for a related entity, or null when unavailable. */
@@ -146,6 +168,7 @@ export class D1TaskRepository implements TaskRepository {
   readonly #actor: ActivityActorContext;
   readonly #newActivityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
+  readonly #completeFault?: CompleteTaskFault;
 
   constructor(
     db: D1Database,
@@ -159,6 +182,7 @@ export class D1TaskRepository implements TaskRepository {
     this.#newActivityId =
       options.activityIdGenerator ?? activitySecureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
+    this.#completeFault = options.completeFault;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -714,6 +738,202 @@ export class D1TaskRepository implements TaskRepository {
       });
     }
     return { items };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Completion + waiting clearance — one atomic operation (ADR-029)         */
+  /* ---------------------------------------------------------------------- */
+
+  async completeTask(id: string): Promise<CompleteTaskResult> {
+    const entityId = validateTaskId(id);
+
+    const current = await this.getTask(entityId);
+    if (!current) {
+      throw new TaskNotFoundError();
+    }
+    // Already completed: idempotent no-op (matching the spine contract). No batch,
+    // no Activity. Any waiting was cleared by the completion that first set it.
+    if (current.completedAt !== null) {
+      return { task: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const entityRow = await this.#runCompleteBatch(
+      entityId,
+      current,
+      now,
+      nowTs,
+    );
+    if (!entityRow) {
+      // The completion gate matched nothing: the task was completed or deleted by a
+      // concurrent racer between the read and the batch. Nothing was written; report
+      // honestly from the fresh state.
+      const refreshed = await this.getTask(entityId);
+      if (!refreshed) {
+        throw new TaskNotFoundError();
+      }
+      return { task: refreshed, changed: false };
+    }
+
+    return {
+      task: {
+        ...current,
+        completedAt: now,
+        updatedAt: fromStorageTimestamp(entityRow.updated_at),
+        waiting: null,
+      },
+      changed: true,
+    };
+  }
+
+  /**
+   * Run completion AND waiting clearance as ONE atomic `D1Database.batch()`.
+   * Statement order and guards:
+   *   1. spine completion gate (RETURNING) — `changes()` iff completed now;
+   *   2. entity `updated_at` bump, guarded on (1)'s `changes()` (RETURNING the row);
+   *   3. `task.completed` event, guarded on (2)'s `changes()`;
+   *   4. waiting-state clear — gated on the freshly-written completion AND
+   *      `waiting_since IS NOT NULL`, so it fires iff the task WAS waiting and the
+   *      completion committed; its `changes()` drives the next event;
+   *   5. `task.waiting_cleared` event, guarded on (4)'s `changes()` (so it is
+   *      appended ONLY when the task was actively waiting);
+   *   6. active `task.waiting_on` link soft-delete, gated on the committed completion.
+   * The completion SQL is the SHARED spine builder (the spine stays the authority).
+   * Any failure rolls the entire batch back — a completed-but-still-waiting task is
+   * impossible. Returns the entity RETURNING row iff completion happened, else null.
+   */
+  async #runCompleteBatch(
+    entityId: string,
+    current: TaskView,
+    now: Date,
+    nowTs: string,
+  ): Promise<EntityRow | null> {
+    const fault = this.#completeFault;
+
+    // 1-2. Shared spine completion gate + guarded entity bump.
+    const spineStmt = buildSpineCompleteStatement(
+      this.#db,
+      this.#workspaceId,
+      entityId,
+      nowTs,
+    );
+    const entityStmt = buildEntityUpdatedAtBumpStatement(
+      this.#db,
+      this.#workspaceId,
+      entityId,
+      nowTs,
+    );
+
+    // 3. Completion Activity (guarded on the entity bump's changes()).
+    const completionModel = buildActivityWriteModel(
+      {
+        type: TASK_COMPLETED,
+        subjects: [{ entityId, role: SUBJECT_ROLE }],
+        payload: { completedAt: nowTs },
+      },
+      this.#actor.actor,
+      this.#newActivityId(),
+      now,
+    );
+    const [completionActivity, ...completionSubjects] =
+      this.#recorder.buildAppendStatements(this.#workspaceId, completionModel);
+
+    // 4. Clear the waiting state — only when the task WAS waiting AND the completion
+    //    with THIS timestamp is now present (visible within the same transaction),
+    //    so it cannot fire without the completion committing.
+    const waitingClearStmt = this.#db
+      .prepare(
+        `UPDATE task_details
+         SET waiting_since = NULL, waiting_note = NULL, updated_at = ?
+         WHERE workspace_id = ? AND entity_id = ? AND waiting_since IS NOT NULL
+           AND EXISTS (SELECT 1 FROM spine_records
+                       WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?)`,
+      )
+      .bind(
+        nowTs,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+        nowTs,
+      );
+
+    // 5. Waiting-cleared Activity (guarded on the waiting clear's changes(), so it
+    //    is appended ONLY when the task was actively waiting).
+    const waitingClearedModel = buildActivityWriteModel(
+      {
+        type: TASK_WAITING_CLEARED,
+        subjects: [{ entityId, role: SUBJECT_ROLE }],
+        payload: { entityType: TASK },
+      },
+      this.#actor.actor,
+      this.#newActivityId(),
+      now,
+    );
+    const [waitingClearedActivity, ...waitingClearedSubjects] =
+      this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        waitingClearedModel,
+      );
+
+    // 6. Soft-delete the active waiting link, gated on the committed completion.
+    const waitingLinkStmt = this.#db
+      .prepare(
+        `UPDATE entity_links SET deleted_at = ?, updated_at = ?
+         WHERE workspace_id = ? AND source_entity_id = ?
+           AND type = '${TASK_WAITING_ON}' AND deleted_at IS NULL
+           AND EXISTS (SELECT 1 FROM spine_records
+                       WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?)`,
+      )
+      .bind(
+        nowTs,
+        nowTs,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+        nowTs,
+      );
+
+    const batch: D1PreparedStatement[] = [
+      spineStmt,
+      entityStmt,
+      ...(fault === "after-completion" ? [this.#forcedFailure()] : []),
+      completionActivity!,
+      ...(fault === "after-completion-activity" ? [this.#forcedFailure()] : []),
+      ...completionSubjects,
+      waitingClearStmt,
+      ...(fault === "after-waiting-update" ? [this.#forcedFailure()] : []),
+      waitingClearedActivity!,
+      ...(fault === "after-waiting-cleared-activity"
+        ? [this.#forcedFailure()]
+        : []),
+      ...waitingClearedSubjects,
+      waitingLinkStmt,
+      ...(fault === "after-waiting-link" ? [this.#forcedFailure()] : []),
+    ];
+
+    let results: D1Result<EntityRow>[];
+    try {
+      results = await this.#db.batch<EntityRow>(batch);
+    } catch (cause) {
+      if (cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new TaskStorageError(undefined, { cause });
+    }
+
+    // The entity bump is always at index 1 (fault statements only exist in test
+    // paths, which throw before results are read).
+    const rows = results[1]?.results ?? [];
+    return rows[0] ?? null;
+  }
+
+  /** A statement guaranteed to fail, aborting and rolling back the batch (tests). */
+  #forcedFailure(): D1PreparedStatement {
+    return this.#db.prepare("SELECT 1 FROM __dalyhub_forced_task_fault__");
   }
 
   /* ---------------------------------------------------------------------- */

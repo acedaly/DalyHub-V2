@@ -253,15 +253,19 @@ async function handleCompletion(
 ): Promise<TaskActionData> {
   try {
     if (intent === "complete") {
-      await scope.spine.complete(taskId);
-      // Completing a task clears its active waiting state (ADR-029): a completed
-      // task must never present as still waiting. Idempotent — a no-op when the
-      // task was not waiting, so no spurious `task.waiting_cleared` is appended.
-      await scope.tasks.clearWaiting(taskId);
-    } else {
-      // Reopening does NOT restore a prior waiting state (the documented default).
-      await scope.spine.reopen(taskId);
+      // Completing a task AND clearing any active waiting state is ONE atomic
+      // task-domain operation (ADR-029): a completed task can never be left still
+      // waiting. The route no longer coordinates this invariant through two calls.
+      const result = await scope.tasks.completeTask(taskId);
+      return {
+        kind: "completion",
+        ok: true,
+        task: serializeTaskView(result.task),
+      };
     }
+    // Reopening goes through the spine (the completion authority) and does NOT
+    // restore a prior waiting state (the documented default).
+    await scope.spine.reopen(taskId);
     const task = await scope.tasks.getTask(taskId);
     if (!task) {
       return {

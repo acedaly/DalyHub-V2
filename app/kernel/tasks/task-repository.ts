@@ -17,6 +17,7 @@
 
 import type {
   ClearWaitingResult,
+  CompleteTaskResult,
   GetTaskOptions,
   ListTasksInput,
   ListWaitingTasksInput,
@@ -86,4 +87,21 @@ export interface TaskRepository {
    * then longest-waiting, then due date, then id. Never an unbounded query.
    */
   listWaitingTasks(input?: ListWaitingTasksInput): Promise<WaitingTaskPage>;
+
+  /**
+   * Complete a task AND clear any active waiting state as ONE atomic domain
+   * operation (ADR-029). A single `D1Database.batch()` sets the spine completion,
+   * bumps `updated_at`, clears `waiting_since`/`waiting_note`, soft-deletes the
+   * active `task.waiting_on` link, appends the `task.completed` event, and — ONLY
+   * when the task was actively waiting — appends exactly one `task.waiting_cleared`
+   * event. Either all of that commits, or nothing does: a completed task can never
+   * be left still-waiting. The FND-07 spine stays the completion authority (the
+   * completion SQL is the shared spine builder); this method owns the cross-domain
+   * invariant so no route coordinates it through two calls.
+   *
+   * Completing an already-completed task is an idempotent no-op (no Activity,
+   * `changed: false`). Throws `TaskNotFoundError` for a missing/deleted/non-task/
+   * cross-workspace id. Reopening is unchanged and never restores waiting.
+   */
+  completeTask(id: string): Promise<CompleteTaskResult>;
 }

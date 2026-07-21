@@ -31,6 +31,7 @@ export {
   type SetWaitingInput,
   type SetWaitingResult,
   type ClearWaitingResult,
+  type CompleteTaskResult,
   type ListWaitingTasksInput,
   type WaitingTaskListItem,
   type WaitingTaskPage,

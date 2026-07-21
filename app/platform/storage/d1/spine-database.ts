@@ -109,6 +109,59 @@ export function rowToSpineRecord(row: SpineJoinedRow): SpineRecord {
   };
 }
 
+/** The entity columns a completion mutation returns, matching {@link EntityRow}. */
+const ENTITY_RETURNING_COLUMNS =
+  "id, workspace_id, type, title, created_at, updated_at, deleted_at";
+
+/**
+ * The guarded spine-completion statement: set `completed_at` for an ACTIVE,
+ * not-yet-completed record in the workspace, RETURNING its id. Matches nothing (an
+ * idempotent no-op) when the record is already completed or no longer active, so a
+ * delete racing a completion cannot change completion state.
+ *
+ * Extracted here so the FND-07 SpineRepository (the completion authority) and the
+ * TaskRepository's atomic complete-and-clear-waiting operation (ADR-029) build the
+ * SAME statement — the completion SQL lives in ONE place, never duplicated.
+ */
+export function buildSpineCompleteStatement(
+  db: D1Database,
+  workspaceId: string,
+  entityId: string,
+  nowTs: string,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE spine_records SET completed_at = ?
+       WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL
+         AND EXISTS (SELECT 1 FROM entities
+                     WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+       RETURNING entity_id`,
+    )
+    .bind(nowTs, workspaceId, entityId, workspaceId, entityId);
+}
+
+/**
+ * The guarded entity `updated_at` bump used as the completion Activity anchor:
+ * advance `updated_at` for an active record ONLY when the immediately-preceding
+ * statement changed a row (`changes() > 0`), RETURNING the fresh entity row. Shared
+ * by the spine completion/reopen paths and the task complete-and-clear operation,
+ * so a losing racer or a no-op causes no churn and appends nothing.
+ */
+export function buildEntityUpdatedAtBumpStatement(
+  db: D1Database,
+  workspaceId: string,
+  entityId: string,
+  nowTs: string,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE entities SET updated_at = ?
+       WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL AND changes() > 0
+       RETURNING ${ENTITY_RETURNING_COLUMNS}`,
+    )
+    .bind(nowTs, workspaceId, entityId);
+}
+
 /**
  * Compose a `SpineRecord` from a raw `entities` RETURNING row plus the spine
  * state the caller already knows (its kind, its completion timestamp and its

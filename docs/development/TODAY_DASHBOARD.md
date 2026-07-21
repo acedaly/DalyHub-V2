@@ -127,11 +127,21 @@ or link system.
   `task.waiting_on` is reserved (`RESERVED_TASK_LINK_TYPES`) so the generic
   EntityLink repository refuses it and the TaskRepository stays the sole writer.
 - **Semantics.** One active waiting state and one primary subject; changing the
-  subject preserves the original `since`. Completing a task **clears** waiting
-  (auto-clear in the task action, emitting `task.waiting_cleared`); reopening does
-  NOT restore it. A deleted/unlinked target degrades to an unresolved subject.
-  Cross-workspace targets, non-task anchors, the self-target and disallowed types
-  are rejected server-side; no-op and rejected mutations append no Activity.
+  subject preserves the original `since`. Completing a task **clears** waiting;
+  reopening does NOT restore it. A deleted/unlinked target degrades to an
+  unresolved subject. Cross-workspace targets, non-task anchors, the self-target
+  and disallowed types are rejected server-side; no-op and rejected mutations
+  append no Activity.
+- **Completion is atomic.** Completing a task AND clearing its active waiting
+  state is ONE task-domain operation, `TaskRepository.completeTask(taskId)`: a
+  single `D1Database.batch()` writes the spine completion, clears
+  `waiting_since`/`waiting_note`, soft-deletes the active `task.waiting_on` link,
+  and appends `task.completed` plus — only when the task was waiting — one
+  `task.waiting_cleared` event. Either everything commits or nothing does, so a
+  task can never be left completed-but-still-waiting (ADR-029 §29.4a). The FND-07
+  spine stays the completion authority (the completion write is the shared spine
+  statement builder); the route calls this ONE operation, never
+  `spine.complete()` + `tasks.clearWaiting()` as two transactions.
 - **Display.** Waiting is a derived first-class state — precedence
   completion → waiting → open-state status — so `status` (`todo`/`in_progress`)
   and completion can never visibly contradict.

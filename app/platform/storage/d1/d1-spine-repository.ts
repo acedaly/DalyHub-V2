@@ -91,6 +91,8 @@ import type { WorkspaceContext } from "~/kernel/workspaces";
 import { toStorageTimestamp, type EntityRow } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import {
+  buildEntityUpdatedAtBumpStatement,
+  buildSpineCompleteStatement,
   composeSpineRecord,
   rowToSpineRecord,
   SPINE_JOINED_COLUMNS,
@@ -796,21 +798,13 @@ export class D1SpineRepository implements SpineRepository {
       let spineStmt: D1PreparedStatement;
       let payload: ActivityPayload;
       if (complete) {
-        spineStmt = this.#db
-          .prepare(
-            `UPDATE spine_records SET completed_at = ?
-             WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL
-               AND EXISTS (SELECT 1 FROM entities
-                           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
-             RETURNING entity_id`,
-          )
-          .bind(
-            nowTs,
-            this.#workspaceId,
-            entityId,
-            this.#workspaceId,
-            entityId,
-          );
+        // Shared with the TaskRepository's atomic complete-and-clear (ADR-029).
+        spineStmt = buildSpineCompleteStatement(
+          this.#db,
+          this.#workspaceId,
+          entityId,
+          nowTs,
+        );
         payload = { completedAt: nowTs };
       } else {
         // `record.completedAt` is non-null here (we are past the already-open guard).
@@ -834,14 +828,14 @@ export class D1SpineRepository implements SpineRepository {
       }
 
       // Advance updated_at ONLY when the completion actually changed (guarded on the
-      // spine update's changes()), so a no-op or losing race causes no churn.
-      const entityStmt = this.#db
-        .prepare(
-          `UPDATE entities SET updated_at = ?
-           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL AND changes() > 0
-           RETURNING ${ENTITY_RETURNING}`,
-        )
-        .bind(nowTs, this.#workspaceId, entityId);
+      // spine update's changes()), so a no-op or losing race causes no churn. Shared
+      // with the TaskRepository's atomic complete-and-clear (ADR-029).
+      const entityStmt = buildEntityUpdatedAtBumpStatement(
+        this.#db,
+        this.#workspaceId,
+        entityId,
+        nowTs,
+      );
 
       const results = await this.#runBatch(
         [

@@ -37,6 +37,7 @@ import {
 } from "./d1-spine-repository";
 import {
   D1TaskRepository,
+  type CompleteTaskFault,
   type D1TaskRepositoryOptions,
 } from "./d1-task-repository";
 import {
@@ -51,7 +52,11 @@ export {
   type D1SpineRepositoryOptions,
   type SpineCreateFault,
 } from "./d1-spine-repository";
-export { D1TaskRepository, type D1TaskRepositoryOptions };
+export {
+  D1TaskRepository,
+  type D1TaskRepositoryOptions,
+  type CompleteTaskFault,
+};
 export { D1ActivityRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export { D1ActivityRecorder } from "./d1-activity-recorder";
