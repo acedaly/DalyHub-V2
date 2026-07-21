@@ -1,0 +1,86 @@
+/**
+ * PROJ-01 Projects kernel — the read-projection domain types.
+ *
+ * The storage-independent shapes the Projects collection and a project overview
+ * render. A Project is an ordinary spine record (FND-07 / ADR-014); this module adds
+ * NO new persisted state — it is a READ projection that resolves, in bounded
+ * workspace-scoped queries, the facts a project surface needs: the project's Area
+ * (directly or via its Goal), its optional Goal, its open/completed state, and its
+ * active direct-task counts (the same definition as the SpineRepository's project
+ * rollup). Project identity, completion, parentage and the authoritative rollup stay
+ * the SpineRepository's; project mutations go through `spine.createProject` /
+ * `rename` / `complete` / `reopen` (ADR-034). Nothing here is copied or cached onto a
+ * project — Area/Goal titles are resolved live through the hierarchy.
+ */
+
+import type { WorkspaceId } from "~/kernel/workspaces";
+
+/**
+ * A resolved parent reference on a project — its Area or its Goal — carrying the
+ * CURRENT title (resolved through the hierarchy, never a stored duplicate).
+ */
+export type ProjectRelation = {
+  readonly kind: "area" | "goal";
+  readonly id: string;
+  readonly title: string;
+};
+
+/** The completion filter for the project collection. */
+export type ProjectStateFilter = "open" | "completed" | "all";
+
+/**
+ * Options for the bounded, workspace-scoped project collection query. Never
+ * "load every project"; the limit is clamped to a safe maximum.
+ */
+export type ListProjectsInput = {
+  /** Completion filter. Defaults to `all`. */
+  readonly state?: ProjectStateFilter;
+  /** Page size, clamped to a safe maximum; defaults to a safe page size. */
+  readonly limit?: number;
+};
+
+/**
+ * A project as shown in the collection: identity, its Area/Goal context, its
+ * open/completed state and its active direct-task counts. `area` is present whether
+ * the project sits directly under an Area or advances a Goal (resolved to the Goal's
+ * Area); `goal` is present only when the project advances a Goal. The counts match
+ * the SpineRepository's project rollup (active direct child tasks) and are computed
+ * live — never cached columns.
+ */
+export type ProjectListItem = {
+  readonly id: string;
+  readonly workspaceId: WorkspaceId;
+  readonly title: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly completedAt: Date | null;
+  readonly area: ProjectRelation | null;
+  readonly goal: ProjectRelation | null;
+  /** Total active direct child tasks. */
+  readonly taskTotal: number;
+  /** Completed active direct child tasks. */
+  readonly taskCompleted: number;
+};
+
+/** A bounded page of project summaries. */
+export type ProjectListPage = {
+  readonly items: readonly ProjectListItem[];
+};
+
+/**
+ * The project overview header/summary data for the record route: identity, dates,
+ * open/completed state and the resolved Area/Goal context. The displayed PROGRESS is
+ * NOT here — it comes from `SpineRepository.getRollup(projectId)`, the single source
+ * of truth (PROJ-01 §4). This projection only resolves the relationships and header
+ * facts efficiently and testably.
+ */
+export type ProjectOverview = {
+  readonly id: string;
+  readonly workspaceId: WorkspaceId;
+  readonly title: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly completedAt: Date | null;
+  readonly area: ProjectRelation | null;
+  readonly goal: ProjectRelation | null;
+};

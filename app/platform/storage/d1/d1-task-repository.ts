@@ -33,6 +33,7 @@ import {
 import type { MarkdownSource } from "~/kernel/markdown";
 import {
   GOAL_BELONGS_TO_AREA,
+  PROJECT,
   PROJECT_ADVANCES_GOAL,
   PROJECT_BELONGS_TO_AREA,
   TASK,
@@ -71,6 +72,7 @@ import {
   type CompleteTaskResult,
   type GetTaskOptions,
   type ListPlanningTasksInput,
+  type ListProjectTasksInput,
   type ListTasksInput,
   type ListWaitingTasksInput,
   type PlanTaskInput,
@@ -287,6 +289,64 @@ export class D1TaskRepository implements TaskRepository {
     const rows = (result.results ?? []) as TaskListRow[];
     const items = rows.map((row) => this.#toTaskListItem(row));
     return { items };
+  }
+
+  /**
+   * List the tasks belonging to ONE Project (PROJ-01) in a single bounded,
+   * workspace-scoped statement. Drives from the task entity joined to its active
+   * `task.belongs_to_project` parent link constrained to `projectId` AND to an active
+   * `project` entity — so a wrong-kind or missing project id yields no rows (never a
+   * cross-workspace disclosure), completed tasks are included per `state`, waiting
+   * tasks carry their waiting representation, and ordering is deterministic. No N+1,
+   * no per-task `getTask`, never "load every workspace task and filter in the client".
+   */
+  async listProjectTasks(
+    projectId: string,
+    input: ListProjectTasksInput = {},
+  ): Promise<TaskListPage> {
+    const parentId = validateTaskId(projectId);
+    const limit = validateTaskLimit(input.limit);
+    const state = input.state ?? "open";
+    const completedClause =
+      state === "open"
+        ? " AND sr.completed_at IS NULL"
+        : state === "completed"
+          ? " AND sr.completed_at IS NOT NULL"
+          : "";
+
+    const statement = this.#db
+      .prepare(
+        `SELECT ${TASK_DETAIL_COLUMNS},
+                ${WAITING_TARGET_COLUMNS},
+                pl.target_entity_id AS parent_id,
+                pl.type AS parent_link_type,
+                pe.title AS parent_title
+         FROM entities e
+         JOIN spine_records sr
+           ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         JOIN entity_links pl
+           ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+              AND pl.deleted_at IS NULL AND pl.type = '${TASK_BELONGS_TO_PROJECT}'
+              AND pl.target_entity_id = ?
+         JOIN entities pe
+           ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+              AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+         LEFT JOIN task_details td
+           ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         ${WAITING_TARGET_JOIN}
+         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${completedClause}
+         ORDER BY (sr.completed_at IS NOT NULL) ASC,
+                  (td.due_date IS NULL) ASC,
+                  td.due_date ASC,
+                  e.created_at ASC,
+                  e.id ASC
+         LIMIT ?`,
+      )
+      .bind(parentId, this.#workspaceId, limit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as TaskListRow[];
+    return { items: rows.map((row) => this.#toTaskListItem(row)) };
   }
 
   /**

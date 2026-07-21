@@ -15,6 +15,7 @@
 import type { ActivityRepository } from "~/kernel/activity";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type { ProjectRepository } from "~/kernel/projects";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
 import type {
@@ -31,6 +32,7 @@ import {
   D1EntityLinkRepository,
   type D1EntityLinkRepositoryOptions,
 } from "./d1-entity-link-repository";
+import { D1ProjectRepository } from "./d1-project-repository";
 import {
   D1SpineRepository,
   type D1SpineRepositoryOptions,
@@ -58,6 +60,7 @@ export {
   type CompleteTaskFault,
 };
 export { D1ActivityRepository };
+export { D1ProjectRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export { D1ActivityRecorder } from "./d1-activity-recorder";
 export {
@@ -127,6 +130,20 @@ export function createTaskRepository(
   options?: D1TaskRepositoryOptions,
 ): TaskRepository {
   return new D1TaskRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped, READ-ONLY D1-backed ProjectRepository — the
+ * PROJ-01 project read projection (ADR-034). It performs no mutations (project
+ * create/rename/complete/reopen stay the SpineRepository's) and resolves each
+ * project's Area/Goal context and active direct-task counts in bounded, N+1-free
+ * queries. Bound to a `WorkspaceContext`; there is no unscoped construction path.
+ */
+export function createProjectRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): ProjectRepository {
+  return new D1ProjectRepository(db, context);
 }
 
 /**

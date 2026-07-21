@@ -4,6 +4,7 @@ import {
   createActivityRepository,
   createEntityLinkRepository,
   createEntityRepository,
+  createProjectRepository,
   createSpineRepository,
   createTaskRepository,
   createWorkspaceRepository,
@@ -118,6 +119,15 @@ export function makeTaskRepository(
   options?: D1TaskRepositoryOptions,
 ) {
   return createTaskRepository(env.DB, context, options);
+}
+
+/**
+ * Construct a workspace-scoped, read-only D1-backed ProjectRepository over the
+ * isolated test database (PROJ-01: the project read projection, bound to a
+ * `WorkspaceContext`).
+ */
+export function makeProjectRepository(context: WorkspaceContext) {
+  return createProjectRepository(env.DB, context);
 }
 
 /** Count all rows in `task_details` directly. */

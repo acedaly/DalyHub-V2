@@ -22,6 +22,7 @@ import {
 } from "~/kernel/activity";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type { ProjectRepository } from "~/kernel/projects";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
 import type {
@@ -32,6 +33,7 @@ import {
   createActivityRepository,
   createEntityLinkRepository,
   createEntityRepository,
+  createProjectRepository,
   createSpineRepository,
   createTaskRepository,
   createWorkspaceRepository,
@@ -69,6 +71,13 @@ export interface WorkspaceScope {
    * the editable task-detail slice the Task Drawer reads and writes.
    */
   readonly tasks: TaskRepository;
+  /**
+   * The PROJ-01 project read projection (ADR-034): a READ-ONLY view that resolves a
+   * project's Area/Goal context and active direct-task counts in bounded, N+1-free
+   * queries. Project mutations stay `spine.*`; the authoritative rollup stays
+   * `spine.getRollup`.
+   */
+  readonly projects: ProjectRepository;
   readonly activity: ActivityRepository;
 }
 
@@ -130,6 +139,8 @@ export function bindWorkspaceRepositories(
   });
   const spine = createSpineRepository(env.DB, context, { actorContext });
   const tasks = createTaskRepository(env.DB, context, { actorContext });
+  // Read-only projection: no actor (it never mutates or records Activity).
+  const projects = createProjectRepository(env.DB, context);
   const activity = createActivityRepository(env.DB, context);
-  return { context, entities, entityLinks, spine, tasks, activity };
+  return { context, entities, entityLinks, spine, tasks, projects, activity };
 }

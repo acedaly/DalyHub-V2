@@ -27,6 +27,8 @@ export {
   type UpdateTaskResult,
   type ListTasksInput,
   type ListPlanningTasksInput,
+  type ListProjectTasksInput,
+  type TaskStateFilter,
   type TaskListItem,
   type TaskListPage,
   type SetWaitingInput,
