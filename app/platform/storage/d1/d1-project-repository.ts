@@ -123,6 +123,13 @@ export class D1ProjectRepository implements ProjectRepository {
         : state === "completed"
           ? " AND sr.completed_at IS NOT NULL"
           : "";
+    // Ordering is a trusted closed set (never caller data). `recent` selects the
+    // globally most-recently-updated projects AT the database before the limit, so
+    // no recently-updated project beyond a creation-ordered page can be missed.
+    const orderClause =
+      input.orderBy === "recent"
+        ? "e.updated_at DESC, e.id DESC"
+        : "e.created_at ASC, e.id ASC";
 
     // Active direct child-task counts per project, computed once for the whole page
     // (no per-project rollup call). Matches the spine rollup definition: active
@@ -151,7 +158,7 @@ export class D1ProjectRepository implements ProjectRepository {
            GROUP BY tl.target_entity_id
          ) tc ON tc.project_id = e.id
          WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL${completedClause}
-         ORDER BY e.created_at ASC, e.id ASC
+         ORDER BY ${orderClause}
          LIMIT ?`,
       )
       .bind(this.#workspaceId, this.#workspaceId, limit);

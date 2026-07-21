@@ -29,12 +29,24 @@ export type ProjectRelation = {
 export type ProjectStateFilter = "open" | "completed" | "all";
 
 /**
+ * The ordering of the project collection query:
+ * - `created` — deterministic `(createdAt, id)` ascending (the stable default).
+ * - `recent`  — most-recently-updated first (`updatedAt` descending, `id`
+ *   descending as a stable tiebreak) — used by Today's "Continue working" so the
+ *   globally most-recently-active projects are selected AT the database, before the
+ *   limit is applied (never a client-side re-sort of a creation-ordered page).
+ */
+export type ProjectOrder = "created" | "recent";
+
+/**
  * Options for the bounded, workspace-scoped project collection query. Never
  * "load every project"; the limit is clamped to a safe maximum.
  */
 export type ListProjectsInput = {
   /** Completion filter. Defaults to `all`. */
   readonly state?: ProjectStateFilter;
+  /** Ordering. Defaults to `created` (deterministic `(createdAt, id)` ascending). */
+  readonly orderBy?: ProjectOrder;
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */
   readonly limit?: number;
 };

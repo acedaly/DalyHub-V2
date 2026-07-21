@@ -9,6 +9,7 @@
 export type {
   ProjectRelation,
   ProjectStateFilter,
+  ProjectOrder,
   ListProjectsInput,
   ProjectListItem,
   ProjectListPage,

@@ -47,8 +47,6 @@ import type { Route } from "./+types/index";
 
 /** How many recently-active projects "Continue working" shows. Bounded. */
 const RECENT_PROJECTS_COUNT = 6;
-/** How many open projects to read before picking the most-recently-updated. */
-const RECENT_PROJECTS_SCAN = 24;
 
 export function meta() {
   return [
@@ -135,24 +133,23 @@ export async function loader({ context }: Route.LoaderArgs) {
       ),
     };
 
-    // "Continue working": the REAL open projects, most-recently-updated first (PROJ-01).
-    // A bounded scan sorted by `updatedAt` desc, then the top few — no new store, no
-    // separate Today project model; the same read model the Projects module uses.
+    // "Continue working": the REAL open projects, most-recently-updated first — the
+    // ordering + bound are applied AT the database (`orderBy: "recent"`), so the
+    // globally most-recently-active projects are selected, never a creation-ordered
+    // page re-sorted in the loader. No new store, no separate Today project model.
     const projectPage = await scope.projects.listProjects({
       state: "open",
-      limit: RECENT_PROJECTS_SCAN,
+      orderBy: "recent",
+      limit: RECENT_PROJECTS_COUNT,
     });
-    recentProjects = [...projectPage.items]
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-      .slice(0, RECENT_PROJECTS_COUNT)
-      .map((project) => ({
-        id: project.id,
-        title: project.title,
-        areaLabel: project.area?.title ?? null,
-        completed: project.completedAt !== null,
-        taskTotal: project.taskTotal,
-        taskCompleted: project.taskCompleted,
-      }));
+    recentProjects = projectPage.items.map((project) => ({
+      id: project.id,
+      title: project.title,
+      areaLabel: project.area?.title ?? null,
+      completed: project.completedAt !== null,
+      taskTotal: project.taskTotal,
+      taskCompleted: project.taskCompleted,
+    }));
   } catch {
     buckets = EMPTY_BUCKETS;
     waiting = EMPTY_WAITING_SUMMARY;

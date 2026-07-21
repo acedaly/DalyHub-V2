@@ -164,6 +164,38 @@ describe("ProjectRepository.listProjects", () => {
     expect(page.items.map((p) => p.id)).toEqual([p1.id, p2.id]);
   });
 
+  it("orders by most-recently-updated at the database with `orderBy: recent`", async () => {
+    // An ADVANCING clock so rename gives p1 a strictly later `updated_at`.
+    const clock = new FakeClock();
+    const s = makeSpineRepository(makeContext(WS), {
+      clock: clock.now,
+      idGenerator: ids("re"),
+      activityIdGenerator: ids("rea"),
+    });
+    const area = await s.createArea({ title: "Career" });
+    const p1 = await s.createProject({
+      title: "First",
+      parent: { kind: "area", id: area.id },
+    });
+    clock.advance(1000);
+    const p2 = await s.createProject({
+      title: "Second",
+      parent: { kind: "area", id: area.id },
+    });
+    clock.advance(1000);
+    // Renaming p1 moves its `updated_at` ahead of p2's, without changing created order.
+    await s.rename(p1.id, "First (updated)");
+
+    const repo = makeProjectRepository(makeContext(WS));
+    // Creation order is unchanged; recency order puts the freshly-updated p1 first.
+    expect(
+      (await repo.listProjects({ orderBy: "created" })).items.map((p) => p.id),
+    ).toEqual([p1.id, p2.id]);
+    // A limit of 1 under `recent` selects p1 globally — not p1 by creation order.
+    const recent = await repo.listProjects({ orderBy: "recent", limit: 1 });
+    expect(recent.items.map((p) => p.id)).toEqual([p1.id]);
+  });
+
   it("clamps the limit to a bounded page (never unbounded)", async () => {
     const s = spine(WS);
     const area = await s.createArea({ title: "Career" });
