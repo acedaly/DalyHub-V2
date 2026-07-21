@@ -208,14 +208,21 @@ describe("POST /projects/:projectId/mutate", () => {
     const projectId = await seedProject(WS);
 
     let body = (await (
-      await runMutate(projectId, formData({ intent: "rename", title: "Renamed" }))
+      await runMutate(
+        projectId,
+        formData({ intent: "rename", title: "Renamed" }),
+      )
     ).json()) as ProjectMutationResult;
     expect(body).toMatchObject({ kind: "rename", ok: true });
 
     body = (await (
       await runMutate(projectId, formData({ intent: "complete" }))
     ).json()) as ProjectMutationResult;
-    expect(body).toMatchObject({ kind: "completion", ok: true, completed: true });
+    expect(body).toMatchObject({
+      kind: "completion",
+      ok: true,
+      completed: true,
+    });
 
     body = (await (
       await runMutate(projectId, formData({ intent: "reopen" }))
@@ -242,7 +249,11 @@ describe("POST /projects/:projectId/mutate", () => {
     const body = (await (
       await runMutate(
         target,
-        formData({ intent: "create_task", title: "Do the thing", projectId: other }),
+        formData({
+          intent: "create_task",
+          title: "Do the thing",
+          projectId: other,
+        }),
       )
     ).json()) as ProjectMutationResult;
     expect(body).toMatchObject({ kind: "create_task", ok: true });
@@ -326,7 +337,10 @@ describe("project loaders", () => {
   it("the collection state filter narrows to open / completed", async () => {
     const { area } = await seedParents(WS);
     const s = spine(WS);
-    await s.createProject({ title: "Open", parent: { kind: "area", id: area } });
+    await s.createProject({
+      title: "Open",
+      parent: { kind: "area", id: area },
+    });
     const done = await s.createProject({
       title: "Done",
       parent: { kind: "area", id: area },
@@ -356,9 +370,7 @@ describe("project loaders", () => {
   it("the link-targets loader 404s for a non-project anchor", async () => {
     const { area } = await seedParents(WS);
     const response = (await linkTargetsLoader({
-      request: new Request(
-        `https://app.test/projects/${area}/link-targets?q=`,
-      ),
+      request: new Request(`https://app.test/projects/${area}/link-targets?q=`),
       context: authedContext(),
       params: { projectId: area },
     } as unknown as Parameters<typeof linkTargetsLoader>[0])) as Response;
