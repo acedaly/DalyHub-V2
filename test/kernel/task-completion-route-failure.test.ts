@@ -30,7 +30,7 @@ vi.mock("~/platform/workspaces", () => ({
 }));
 
 // Imported AFTER the mock is declared so the route binds the mocked module.
-const { action } = await import("~/modules/today/routes/task-detail");
+const { action } = await import("~/modules/tasks/routes/task-detail");
 
 function authedContext(): RouterContextProvider {
   const session: AuthenticatedSession = {

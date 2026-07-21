@@ -79,7 +79,7 @@ function MarkdownView({ source }: { source: string }) {
   const [html, setHtml] = useState<SanitizedMarkdownHtml | null>(null);
   useEffect(() => {
     let active = true;
-    import("../../../platform/markdown")
+    import("~/platform/markdown")
       .then(({ renderMarkdownSource }) => {
         if (active) setHtml(renderMarkdownSource(source).html);
       })

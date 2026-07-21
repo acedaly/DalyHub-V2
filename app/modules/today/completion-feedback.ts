@@ -13,7 +13,7 @@ import { useEffect } from "react";
 
 import { useFeedback } from "~/shared/feedback";
 
-import type { TaskActionData } from "./routes/task-detail";
+import type { TaskActionData } from "~/shared/task-record/contract";
 
 export function useCompletionFailureFeedback(
   result: TaskActionData | undefined,

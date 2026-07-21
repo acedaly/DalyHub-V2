@@ -64,7 +64,7 @@ beforeEach(() => {
       // The Task A detail endpoint returns a real task so the Drawer loads and can
       // register its contextual commands; everything else is a calm not-found.
       if (
-        url.includes("/today/task/t-a") &&
+        url.includes("/tasks/t-a") &&
         !url.includes("/activity") &&
         !url.includes("/link-targets")
       ) {

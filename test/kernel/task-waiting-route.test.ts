@@ -3,8 +3,8 @@ import { RouterContextProvider } from "react-router";
 
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { setAuthenticatedSession } from "~/platform/request";
-import { action } from "~/modules/today/routes/task-detail";
-import { loader as waitingTargetsLoader } from "~/modules/today/routes/task-waiting-targets";
+import { action } from "~/modules/tasks/routes/task-detail";
+import { loader as waitingTargetsLoader } from "~/modules/tasks/routes/task-waiting-targets";
 import { loader as waitingLoader } from "~/modules/today/routes/waiting";
 
 import {

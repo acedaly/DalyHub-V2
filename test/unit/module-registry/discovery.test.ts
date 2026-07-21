@@ -136,29 +136,6 @@ describe("module discovery", () => {
           moduleId: "today",
           file: "routes/plan.tsx",
         },
-        // TODAY-02 adds three resource routes (no nav entry): the task Drawer's
-        // data endpoint, its Activity Timeline page and its link-target search.
-        {
-          id: "today.task",
-          moduleId: "today",
-          file: "routes/task-detail.tsx",
-        },
-        {
-          id: "today.task.activity",
-          moduleId: "today",
-          file: "routes/task-activity.tsx",
-        },
-        {
-          id: "today.task.link_targets",
-          moduleId: "today",
-          file: "routes/task-link-targets.tsx",
-        },
-        // TODAY-03 adds the waiting-target search resource route.
-        {
-          id: "today.task.waiting_targets",
-          moduleId: "today",
-          file: "routes/task-waiting-targets.tsx",
-        },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
         { id: "goals.index", moduleId: "goals", file: "routes/index.tsx" },
         {
@@ -167,6 +144,30 @@ describe("module discovery", () => {
           file: "routes/index.tsx",
         },
         { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
+        // PROJ-01 / ADR-033 re-homed the task record resource routes to the Tasks
+        // module (previously `today.task*`): the task Drawer's data endpoint, its
+        // Activity Timeline page, the link-target search and the waiting-target
+        // search. The shared TaskRecordDrawer opens them from any surface.
+        {
+          id: "tasks.record",
+          moduleId: "tasks",
+          file: "routes/task-detail.tsx",
+        },
+        {
+          id: "tasks.record.activity",
+          moduleId: "tasks",
+          file: "routes/task-activity.tsx",
+        },
+        {
+          id: "tasks.record.link_targets",
+          moduleId: "tasks",
+          file: "routes/task-link-targets.tsx",
+        },
+        {
+          id: "tasks.record.waiting_targets",
+          moduleId: "tasks",
+          file: "routes/task-waiting-targets.tsx",
+        },
       ]);
       // DS-09: Today registers registry-discovered navigation commands; TODAY-03
       // adds "Open Waiting".

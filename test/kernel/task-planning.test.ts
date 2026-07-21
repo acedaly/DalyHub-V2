@@ -14,7 +14,7 @@ import { env } from "cloudflare:test";
 
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { setAuthenticatedSession } from "~/platform/request";
-import { action as taskAction } from "~/modules/today/routes/task-detail";
+import { action as taskAction } from "~/modules/tasks/routes/task-detail";
 import { action as planAction } from "~/modules/today/routes/plan";
 import {
   TASK_PLANNED,

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { FeedbackProvider } from "~/shared/feedback";
 import { useCompletionFailureFeedback } from "~/modules/today/completion-feedback";
-import type { TaskActionData } from "~/modules/today/routes/task-detail";
+import type { TaskActionData } from "~/shared/task-record/contract";
 
 function Harness({ result }: { result: TaskActionData | undefined }) {
   useCompletionFailureFeedback(result);

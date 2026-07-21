@@ -42,7 +42,7 @@ import {
 } from "../task/waiting-view";
 import { TodayDashboard } from "../TodayDashboard";
 import { createTodayDrawerRenderer } from "../TodayDrawer";
-import type { TaskActionData } from "./task-detail";
+import type { TaskActionData } from "~/shared/task-record/contract";
 import type { Route } from "./+types/index";
 
 export function meta() {
@@ -183,7 +183,7 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
         { intent: complete ? "complete" : "reopen" },
         {
           method: "post",
-          action: `/today/task/${encodeURIComponent(taskId)}`,
+          action: `/tasks/${encodeURIComponent(taskId)}`,
         },
       );
     },

@@ -65,7 +65,7 @@ import type {
   UpcomingItem,
 } from "./fixtures";
 import type { PlanActionData } from "./routes/plan";
-import { formatCalendarDate } from "./task/task-view";
+import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type {
   PlanningData,
   PlanningTaskItem,

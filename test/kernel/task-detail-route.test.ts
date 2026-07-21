@@ -3,8 +3,8 @@ import { RouterContextProvider } from "react-router";
 
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { setAuthenticatedSession } from "~/platform/request";
-import { action, loader } from "~/modules/today/routes/task-detail";
-import { loader as linkTargetsLoader } from "~/modules/today/routes/task-link-targets";
+import { action, loader } from "~/modules/tasks/routes/task-detail";
+import { loader as linkTargetsLoader } from "~/modules/tasks/routes/task-link-targets";
 
 import {
   FakeClock,

@@ -15,7 +15,7 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import type { EntityLinkTargetOption } from "~/shared/forms/model";
 
-import { TASK_RELATE_TARGET_TYPES } from "../task/task-view";
+import { TASK_RELATE_TARGET_TYPES } from "~/shared/task-record/task-view";
 import type { Route } from "./+types/task-link-targets";
 
 export interface TaskLinkTargetsData {

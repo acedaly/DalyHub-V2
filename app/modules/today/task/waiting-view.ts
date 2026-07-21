@@ -22,7 +22,7 @@ import {
   taskDateLabel,
   waitingSubjectLabel,
   type SerializedTaskWaiting,
-} from "./task-view";
+} from "~/shared/task-record/task-view";
 
 /** A waiting task, resolved to the strings the Waiting card renders. */
 export interface WaitingCardData {

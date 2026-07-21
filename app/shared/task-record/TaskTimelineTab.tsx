@@ -13,10 +13,12 @@ import { useCallback } from "react";
 import { Timeline } from "~/shared/activity-feed";
 import type { ActivityStreamPage } from "~/shared/activity-feed/model";
 
-import type { SerializedActivityItem } from "../routes/task-activity";
+import type { SerializedActivityItem } from "./contract";
 
 interface TaskTimelineTabProps {
   readonly taskId: string;
+  /** The base path of the task resource route. Defaults to `/tasks`. */
+  readonly basePath?: string;
 }
 
 interface FetchedActivityPage {
@@ -26,11 +28,14 @@ interface FetchedActivityPage {
   readonly error?: string;
 }
 
-export function TaskTimelineTab({ taskId }: TaskTimelineTabProps) {
+export function TaskTimelineTab({
+  taskId,
+  basePath = "/tasks",
+}: TaskTimelineTabProps) {
   const loadPage = useCallback(
     async (cursor: string | null): Promise<ActivityStreamPage> => {
       const url = new URL(
-        `/today/task/${encodeURIComponent(taskId)}/activity`,
+        `${basePath}/${encodeURIComponent(taskId)}/activity`,
         window.location.origin,
       );
       if (cursor) {
@@ -55,7 +60,7 @@ export function TaskTimelineTab({ taskId }: TaskTimelineTabProps) {
         hasMore: data.hasMore ?? false,
       };
     },
-    [taskId],
+    [taskId, basePath],
   );
 
   return (

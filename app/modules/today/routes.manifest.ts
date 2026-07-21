@@ -33,37 +33,15 @@ const routes: readonly RouteContribution[] = [
   // TODAY-04 Planning: the bulk/quick planning endpoint (action-only resource
   // route, no nav entry). The Today surface's per-card plan actions and the
   // multi-select bulk action bar POST here; the per-task Planning section in the
-  // Task Drawer uses the existing /today/task/:taskId action.
+  // Task Drawer uses the re-homed /tasks/:taskId action (ADR-033).
   {
     id: "today.plan",
     path: "today/plan",
     file: "routes/plan.tsx",
   },
-  // TODAY-02 task Drawer data endpoints (resource routes, no nav entry): the task
-  // itself (loader + mutation action), its Activity Timeline page, and the
-  // "related records" target search. They are addressed by the Drawer content on
-  // /today, so opening/editing a task never leaves Today.
-  {
-    id: "today.task",
-    path: "today/task/:taskId",
-    file: "routes/task-detail.tsx",
-  },
-  {
-    id: "today.task.activity",
-    path: "today/task/:taskId/activity",
-    file: "routes/task-activity.tsx",
-  },
-  {
-    id: "today.task.link_targets",
-    path: "today/task/:taskId/link-targets",
-    file: "routes/task-link-targets.tsx",
-  },
-  // TODAY-03: the waiting-control entity target search (resource route, no nav).
-  {
-    id: "today.task.waiting_targets",
-    path: "today/task/:taskId/waiting-targets",
-    file: "routes/task-waiting-targets.tsx",
-  },
+  // PROJ-01 / ADR-033: the task record resource routes were re-homed to the Tasks
+  // module (`/tasks/:taskId*`) so a task is edited the same way from Today AND a
+  // Project. The browser drawer URL (`?drawer=task:<id>`) is unchanged.
 ];
 
 export default routes;
