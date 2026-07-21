@@ -249,7 +249,7 @@ Today-only keyboard engine and no scattered document listeners.
   has a keyboard equivalent) — the accessible roving pattern RecordTabs/reorder use
   (not a `listbox` over interactive cards). The collapsed "Completed today" section
   keeps natural tabbing.
-- **Command ownership.** A pure
+- **Command ownership + shortcut scope.** A pure
   [`keyboard/today-commands.ts`](../../app/modules/today/keyboard/today-commands.ts)
   builds the per-task `AppAction`s (Open/Close · Complete/Reopen `C` · Plan today `P`
   / tomorrow `Shift+P` / next week · Clear plan) and the global commands (Focus task
@@ -257,10 +257,21 @@ Today-only keyboard engine and no scattered document listeners.
   shortcuts). **When a task's Drawer is open, `TaskDrawerContent` registers that
   task's commands** — it has the live state AND the refresh path, so a keyboard plan
   keeps the Drawer's Planning display consistent — plus a state-dependent **Clear
-  waiting**. Otherwise the dashboard registers the roving-focused task's commands. The
-  two sites are mutually exclusive. Availability is by omission (completed → only
-  Reopen; unplanned → no Clear plan; waiting → Clear waiting), while the server route
-  stays the correctness boundary.
+  waiting**. **The dashboard registers the roving task's commands ONLY when no
+  Drawer/overlay is open AND focus is within the task collection.** The roving
+  controller tracks `focusWithin` (via `focusin`/`focusout`) and exposes `activeId`
+  (the focused task ONLY while focus is inside) distinct from the retained tab-stop
+  `focusedId` — so `C`/`P`/`Shift+P` can never complete or replan a stale task from
+  behind the keyboard-help / a project/note Drawer, or after Tab leaves the list to
+  Quick Capture. `focusedId` is still retained for focus restoration (Shift+Tab).
+  Availability is by omission (completed → only Reopen; unplanned → no Clear plan;
+  waiting → Clear waiting), while the server route stays the correctness boundary.
+- **Section navigation.** "Go to <section>" ESTABLISHES that section as the navigation
+  context: it sets the section's first task (pure `sectionFirstIdOf`) as the roving
+  target — so it becomes the single tab stop and Arrow/Home/End continue from that
+  section — and scrolls the heading into view. It sets the target as state (not DOM
+  `.focus()`), which is race-free against the palette restoring focus to its opener on
+  close; Tab then enters the collection at the section's first task.
 - **Global navigation commands** stay registered on the module manifest (Open Today,
   Focus Quick Capture, Open Waiting) — nothing Today-specific is hard-coded in the
   palette component.

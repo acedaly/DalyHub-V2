@@ -130,6 +130,64 @@ test.describe("TODAY-05 — shortcut boundary", () => {
     await expect(capture).toHaveValue("prep");
     await expect(page.getByRole("dialog")).toBeHidden();
   });
+
+  test("a task shortcut does not fire behind the keyboard-help Drawer", async ({
+    page,
+  }) => {
+    await openTodayList(page);
+    const anytime = page.getByRole("list", { name: "Anytime tasks" });
+    const firstLink = anytime.getByRole("link").first();
+    const title = ((await firstLink.textContent()) ?? "").trim();
+    await firstLink.focus();
+
+    // Open the keyboard-help Drawer, then press the task shortcuts.
+    await page.keyboard.press("Shift+?");
+    await expect(
+      page.getByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeVisible();
+    await page.keyboard.press("c");
+    await page.keyboard.press("p");
+    await page.keyboard.press("Shift+P");
+
+    // The stale task was NOT completed or replanned — no such feedback appears.
+    await expect(page.getByText(/Task completed/i)).toHaveCount(0);
+    await expect(page.getByText(/Plan updated|tasks planned/i)).toHaveCount(0);
+
+    // Close the Drawer; the task is unchanged and still in its open section.
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeHidden();
+    await expect(anytime.getByRole("link", { name: title })).toBeVisible();
+  });
+});
+
+test.describe("TODAY-05 — section navigation", () => {
+  test("Go to Anytime establishes the first Anytime task as the roving target", async ({
+    page,
+  }) => {
+    await openTodayList(page);
+    await page.keyboard.press("Control+k");
+    const input = palette(page);
+    await input.fill("Go to Anytime");
+    await expect(
+      page.getByRole("option", { name: /Go to Anytime/ }),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+
+    // The first Anytime task is now the collection's single tab stop (roving target),
+    // so tabbing into the collection lands there and arrow navigation continues from
+    // Anytime — established as the navigation context, not the previous section.
+    const anytime = page.getByRole("list", { name: "Anytime tasks" });
+    await expect(anytime.getByRole("link").first()).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+    // It is the ONLY tab stop in the collection (a single composite widget).
+    await expect(
+      page.locator('[data-today-tasklist] [tabindex="0"]'),
+    ).toHaveCount(1);
+  });
 });
 
 test.describe("TODAY-05 — planning by shortcut", () => {

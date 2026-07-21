@@ -49,10 +49,37 @@ export interface TodayRovingFocus {
    * elements), and cleaned up on unmount.
    */
   readonly containerRef: React.RefObject<HTMLDivElement | null>;
-  /** The currently focused task id, or null when none is focused yet. */
+  /**
+   * The RETAINED roving tab-stop task id — the task Tab returns to (focus
+   * restoration), or null when none has been focused yet. This deliberately PERSISTS
+   * when keyboard focus leaves the collection, so Shift+Tab lands back on the same
+   * card. It is NOT the command target — see {@link focusWithin}.
+   */
   readonly focusedId: string | null;
-  /** Move focus to a task by id (updates state and moves DOM focus). */
+  /**
+   * Whether keyboard focus is CURRENTLY inside the task collection. Distinct from
+   * {@link focusedId}: this goes false the moment focus leaves the collection (a
+   * Drawer opens and traps focus, focus moves to Quick Capture / the page header,
+   * etc.), so a caller can scope task shortcuts to "the focused task is the ACTIVE
+   * target" — a stale task never owns `C`/`P`/`Shift+P` behind an unrelated surface.
+   */
+  readonly focusWithin: boolean;
+  /**
+   * The active command-target task id: the focused task ONLY while focus is within
+   * the collection, else null. This is what dashboard task shortcuts should target.
+   */
+  readonly activeId: string | null;
+  /** Move focus to a task by id (updates state AND moves DOM focus). */
   readonly focusTask: (id: string | null) => void;
+  /**
+   * Set the roving tab-stop target WITHOUT moving DOM focus. Used by the palette
+   * "Go to <section>" / "Focus task list" commands: the palette restores focus to its
+   * own opener on close, so a DOM `.focus()` here would both lose that race and cause
+   * a focus-ring flicker. Setting the target is race-free — Tab then enters the
+   * collection at that task and Arrow/Home/End continue from there (the accepted
+   * "establish the navigation context" behaviour). A null id is ignored.
+   */
+  readonly setRovingTarget: (id: string | null) => void;
   /** The roving `tabIndex` for a card: 0 for the single tab stop, -1 otherwise. */
   readonly tabIndexFor: (id: string) => number;
 }
@@ -74,6 +101,7 @@ export function useTodayRovingFocus({
 }: UseTodayRovingFocusOptions): TodayRovingFocus {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [focusWithin, setFocusWithin] = useState(false);
 
   // Reconcile the focused task whenever the order changes (a mutation re-buckets the
   // cards). If it vanished, drop to null so the tab stop returns to the first task.
@@ -107,15 +135,39 @@ export function useTodayRovingFocus({
     [focusDom],
   );
 
+  const setRovingTarget = useCallback((id: string | null) => {
+    if (id !== null) {
+      setFocusedId(id);
+    }
+  }, []);
+
   const tabIndexFor = useCallback(
     (id: string): number => (tabStopId(order, focusedId) === id ? 0 : -1),
     [order, focusedId],
   );
 
   const handleFocusIn = useCallback((event: FocusEvent) => {
+    // Focus entered (or moved within) the collection: it is now the active context,
+    // and the focused card becomes the retained tab stop.
+    setFocusWithin(true);
     const id = cardIdOf(event.target);
     if (id !== null) {
       setFocusedId((prev) => (prev === id ? prev : id));
+    }
+  }, []);
+
+  const handleFocusOut = useCallback((event: FocusEvent) => {
+    // Focus left the collection entirely (the new focus target is outside it, or
+    // focus was lost to the body): clear the ACTIVE flag so no task shortcut fires
+    // against the retained tab stop from behind another surface. `focusedId` is kept
+    // for focus restoration (Shift+Tab returns to the same card).
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const next = event.relatedTarget;
+    if (!(next instanceof Node) || !container.contains(next)) {
+      setFocusWithin(false);
     }
   }, []);
 
@@ -188,11 +240,23 @@ export function useTodayRovingFocus({
     }
     el.addEventListener("keydown", handleKeyDown);
     el.addEventListener("focusin", handleFocusIn);
+    el.addEventListener("focusout", handleFocusOut);
     return () => {
       el.removeEventListener("keydown", handleKeyDown);
       el.removeEventListener("focusin", handleFocusIn);
+      el.removeEventListener("focusout", handleFocusOut);
     };
-  }, [handleKeyDown, handleFocusIn]);
+  }, [handleKeyDown, handleFocusIn, handleFocusOut]);
 
-  return { containerRef, focusedId, focusTask, tabIndexFor };
+  const activeId = focusWithin ? focusedId : null;
+
+  return {
+    containerRef,
+    focusedId,
+    focusWithin,
+    activeId,
+    focusTask,
+    setRovingTarget,
+    tabIndexFor,
+  };
 }

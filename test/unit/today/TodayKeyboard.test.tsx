@@ -25,6 +25,7 @@ import {
   useContextualActions,
   type AppAction,
 } from "~/shared/commands";
+import { CommandShortcutLayer } from "~/shared/commands/CommandShortcutLayer";
 import { DrawerProvider } from "~/shared/drawer";
 import { FeedbackProvider } from "~/shared/feedback";
 
@@ -254,6 +255,30 @@ describe("TODAY-05 roving focus", () => {
     // Focus is unchanged — the modified arrow was left to the browser.
     expect(taskLink("Overdue task")).toHaveAttribute("tabindex", "0");
   });
+
+  it("Go to <section> establishes that section as the navigation context", () => {
+    renderToday();
+    // Start on Task A (Today section) as the roving target.
+    fireEvent.focus(taskLink("Task A"));
+    expect(taskLink("Task A")).toHaveAttribute("tabindex", "0");
+
+    // Run "Go to Anytime": the roving target jumps to the first Anytime task (Task C)
+    // WITHOUT stealing DOM focus (race-free vs. the palette's focus restore).
+    const go = contextual.find(
+      (a) => a.id === "today.cmd.focus_section.anytime",
+    )!;
+    act(() => {
+      if (go.kind === "run") go.run();
+    });
+    expect(taskLink("Task C")).toHaveAttribute("tabindex", "0");
+    expect(taskLink("Task A")).toHaveAttribute("tabindex", "-1");
+    // Exactly one tab stop remains.
+    expect(taskList().querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+
+    // Arrow navigation now continues from Anytime (Task C), not the previous section.
+    fireEvent.keyDown(taskLink("Task C"), { key: "ArrowUp" });
+    expect(taskLink("Task B")).toHaveAttribute("tabindex", "0");
+  });
 });
 
 describe("TODAY-05 contextual commands", () => {
@@ -278,15 +303,19 @@ describe("TODAY-05 contextual commands", () => {
     expect(planToday?.shortcut).toEqual({ key: "p" });
   });
 
-  it("exposes the open task's commands (Close) while its Drawer is open", async () => {
+  it("exposes the open task's commands (Close) while its Drawer is open, with no dashboard duplicate", async () => {
     renderToday(["/today?drawer=task:t-a"]);
-    // The Drawer content owns the open task's commands; they register once it loads.
+    // The Drawer content (isOpen: true) owns the open task's commands — it emits
+    // "Close task", never "Open task". They register once the task loads.
     await waitFor(() =>
       expect(contextual.some((a) => a.id === "today.task.t-a.close")).toBe(
         true,
       ),
     );
     expect(contextual.some((a) => a.id === "today.task.t-a.toggle")).toBe(true);
+    // The dashboard is NOT simultaneously registering a second copy: a dashboard
+    // registration would use isOpen: false and emit "Open task" (never "Close").
+    expect(contextual.some((a) => a.id === "today.task.t-a.open")).toBe(false);
   });
 
   it("Select all then Clear selection are registered and reversible", () => {
@@ -322,5 +351,113 @@ describe("TODAY-05 contextual commands", () => {
     expect(
       within(dialog).getByText(/fully operable from the keyboard/i),
     ).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Shortcut ownership — the stale-task defect (C / P / Shift+P scope)          */
+/* -------------------------------------------------------------------------- */
+
+/** Dispatch a global keydown, as the real shared dispatcher receives it. */
+function pressKey(key: string, opts: KeyboardEventInit = {}) {
+  act(() => {
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+        ...opts,
+      }),
+    );
+  });
+}
+
+/**
+ * Render Today WITH the real shared shortcut dispatcher (CommandShortcutLayer), so a
+ * global keypress actually flows through the one dispatcher against the registered
+ * contextual commands — the faithful path for proving shortcut scope. Returns the
+ * router (to open Drawers) and the persistence spies the task shortcuts would hit.
+ */
+function renderWithDispatcher() {
+  const onCompleteTask = vi.fn();
+  const onPlan = vi.fn();
+  const element = (
+    <FeedbackProvider>
+      <CommandContextProvider>
+        <Observer />
+        <CommandShortcutLayer
+          reserved={[]}
+          catalogue={async () => ({ commands: [] })}
+        />
+        <DrawerProvider
+          renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, new Map())}
+        >
+          <TodayDashboard
+            data={TODAY_FIXTURE}
+            date="Tuesday 21 July 2026"
+            todayIso="2026-07-21"
+            planning={PLANNING}
+            onCompleteTask={onCompleteTask}
+            onPlan={onPlan}
+          />
+        </DrawerProvider>
+      </CommandContextProvider>
+    </FeedbackProvider>
+  );
+  const router = createMemoryRouter([{ path: "*", element }], {
+    initialEntries: ["/today"],
+  });
+  render(<RouterProvider router={router} />);
+  return { router, onCompleteTask, onPlan };
+}
+
+/** Move real DOM focus (fires the container's focusin/focusout), flushed in act. */
+function focusEl(el: HTMLElement) {
+  act(() => el.focus());
+}
+
+describe("TODAY-05 shortcut ownership", () => {
+  it("C completes the focused task while focus is inside the collection (control)", () => {
+    const { onCompleteTask } = renderWithDispatcher();
+    focusEl(taskLink("Task A"));
+    pressKey("c");
+    expect(onCompleteTask).toHaveBeenCalledWith("t-a", true);
+  });
+
+  it("does NOT complete or replan a task from behind the keyboard-help Drawer", async () => {
+    const { onCompleteTask, onPlan } = renderWithDispatcher();
+    focusEl(taskLink("Task A"));
+    // Open the keyboard-help Drawer (the exact defect scenario).
+    const help = contextual.find((a) => a.id === "today.cmd.keyboard_help")!;
+    await act(async () => {
+      if (help.kind === "run") help.run();
+    });
+    pressKey("c");
+    pressKey("p");
+    pressKey("p", { shiftKey: true });
+    expect(onCompleteTask).not.toHaveBeenCalled();
+    expect(onPlan).not.toHaveBeenCalled();
+  });
+
+  it("does NOT complete a task from behind a non-task record Drawer", async () => {
+    const { router, onCompleteTask } = renderWithDispatcher();
+    focusEl(taskLink("Task A"));
+    await act(async () => {
+      await router.navigate("/today?drawer=note:n1");
+    });
+    pressKey("c");
+    pressKey("p");
+    expect(onCompleteTask).not.toHaveBeenCalled();
+  });
+
+  it("does NOT act on the last task after focus leaves the collection", () => {
+    const { onCompleteTask, onPlan } = renderWithDispatcher();
+    focusEl(taskLink("Task A"));
+    // Move focus OUT of the collection to a non-input control (the pane-header button).
+    focusEl(screen.getByRole("button", { name: "Quick capture" }));
+    pressKey("c");
+    pressKey("p");
+    expect(onCompleteTask).not.toHaveBeenCalled();
+    expect(onPlan).not.toHaveBeenCalled();
   });
 });

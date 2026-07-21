@@ -91,6 +91,23 @@ export function prevId(
   return index - 1 >= 0 ? flat[index - 1] : flat[index];
 }
 
+/**
+ * The first task id of a section identified by its section id (e.g. a planning
+ * bucket like `"anytime"`), or null when the section is absent or empty. Used by the
+ * "Go to <section>" commands to establish that section as the navigation context.
+ */
+export function sectionFirstIdOf(
+  order: RovingOrder,
+  sectionId: string,
+): string | null {
+  for (const section of order) {
+    if (section.id === sectionId) {
+      return section.taskIds.length > 0 ? section.taskIds[0] : null;
+    }
+  }
+  return null;
+}
+
 /** The section that contains `id`, or null when no section does. */
 function sectionOf(order: RovingOrder, id: string): RovingSection | null {
   for (const section of order) {

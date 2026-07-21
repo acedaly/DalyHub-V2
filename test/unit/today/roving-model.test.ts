@@ -8,6 +8,7 @@ import {
   prevId,
   reconcileFocus,
   sectionFirstId,
+  sectionFirstIdOf,
   sectionLastId,
   tabStopId,
   type RovingOrder,
@@ -83,6 +84,17 @@ describe("roving-model", () => {
     expect(reconcileFocus(ORDER, "c")).toBe("c");
     expect(reconcileFocus(ORDER, "gone")).toBeNull();
     expect(reconcileFocus(ORDER, null)).toBeNull();
+  });
+
+  it("finds the first task of a section by its id (for Go-to-section)", () => {
+    expect(sectionFirstIdOf(ORDER, "anytime")).toBe("d");
+    expect(sectionFirstIdOf(ORDER, "today")).toBe("c");
+    expect(sectionFirstIdOf(ORDER, "overdue")).toBe("a");
+    // An empty or unknown section yields null (the command is omitted for those).
+    expect(
+      sectionFirstIdOf([{ id: "overdue", taskIds: [] }], "overdue"),
+    ).toBeNull();
+    expect(sectionFirstIdOf(ORDER, "nope")).toBeNull();
   });
 
   it("resolves the single tab stop", () => {

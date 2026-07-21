@@ -42,6 +42,7 @@ import {
 import {
   firstId,
   flattenOrder,
+  sectionFirstIdOf,
   type RovingOrder,
 } from "./keyboard/roving-model";
 import { useTodayRovingFocus } from "./keyboard/useTodayRovingFocus";
@@ -211,7 +212,7 @@ export function TodayDashboard({
   onPlan,
 }: TodayDashboardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { openDrawer, closeDrawer, topKey } = useDrawer();
+  const { openDrawer, closeDrawer, isOpen: drawerOpen } = useDrawer();
   const { notifySuccess, notifyError } = useFeedback();
   const captureRef = useRef<HTMLTextAreaElement>(null);
   const planFetcher = useFetcher<PlanActionData>();
@@ -348,36 +349,29 @@ export function TodayDashboard({
     },
   });
 
-  // Run a focus move AFTER the current synchronous work (e.g. the palette closing and
-  // restoring focus to its opener), so a "focus" command's focus is the one that wins.
-  const focusSoon = useCallback((fn: () => void) => {
-    if (typeof window === "undefined") {
-      fn();
-      return;
-    }
-    window.setTimeout(fn, 0);
-  }, []);
-
   const selectAll = useCallback(() => {
     setSelected(new Set(flattenOrder(rovingOrder)));
   }, [rovingOrder]);
 
+  // "Focus task list" / "Go to <section>" ESTABLISH the navigation context by setting
+  // the roving TARGET (the first task, or the first task of the section) as the
+  // collection's single tab stop, and scroll it into view. They deliberately do NOT
+  // move DOM focus: these commands are invoked from the palette, which restores focus
+  // to its own opener on close — a DOM `.focus()` would lose that race and flicker.
+  // Setting the target is race-free: Tab then enters the collection at that task and
+  // Arrow/Home/End continue from there (the accepted "establish the context" model).
   const focusTaskList = useCallback(() => {
-    focusSoon(() => roving.focusTask(firstId(rovingOrder)));
-  }, [focusSoon, roving, rovingOrder]);
+    roving.setRovingTarget(firstId(rovingOrder));
+  }, [roving, rovingOrder]);
 
   const focusSection = useCallback(
     (bucket: string) => {
+      roving.setRovingTarget(sectionFirstIdOf(rovingOrder, bucket));
       const headingId = SECTION_HEADING_ID[bucket];
-      focusSoon(() => {
-        const heading = headingId ? document.getElementById(headingId) : null;
-        if (heading) {
-          heading.focus();
-          heading.scrollIntoView({ block: "start" });
-        }
-      });
+      const heading = headingId ? document.getElementById(headingId) : null;
+      heading?.scrollIntoView({ block: "start" });
     },
-    [focusSoon],
+    [roving, rovingOrder],
   );
 
   const openHelp = useCallback(() => openDrawer(HELP_DRAWER_KEY), [openDrawer]);
@@ -483,14 +477,17 @@ export function TodayDashboard({
   // for the PRIMARY task — the one open in the Drawer, or, when no Drawer is open, the
   // roving-focused task. Every command drives the SAME trusted path the visible cards
   // and bulk bar use (ADR-024 §24.14 / ADR-030); availability is by omission.
-  // When a task Drawer is open the Drawer content owns that task's commands (it has
-  // the refresh path that keeps the Drawer's own displays consistent), so the
-  // dashboard registers per-task commands for the roving-focused task ONLY while no
-  // task Drawer is open — no double registration, no stale Drawer.
-  const drawerTaskId = topKey?.startsWith("task:")
-    ? topKey.slice("task:".length)
-    : null;
-  const dashboardTaskId = drawerTaskId === null ? roving.focusedId : null;
+  // Dashboard-level task shortcuts (C / P / Shift+P) target the roving task ONLY when
+  // both are true: (1) NO Drawer/overlay is open, and (2) keyboard focus is currently
+  // WITHIN the open task collection. This prevents a stale task from being completed
+  // or replanned behind an unrelated surface — e.g. after opening the keyboard-help,
+  // a project/note/upcoming Drawer, or after Tabbing out to Quick Capture, the last
+  // roving task must NOT still own those keys. When a TASK Drawer is open,
+  // `TaskDrawerContent` owns that task's commands (it has the refresh path); when a
+  // NON-task Drawer is open, no background task owns them. `roving.focusedId` is still
+  // retained as the tab stop for focus restoration — but `roving.activeId` (the
+  // command target) is null unless focus is inside the collection.
+  const dashboardTaskId = drawerOpen ? null : roving.activeId;
 
   const contextualActions = useMemo<readonly AppAction[]>(() => {
     const globals = buildTodayGlobalCommands({
