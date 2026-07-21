@@ -139,7 +139,8 @@ function renderWaitingDrawer(entry: DrawerEntry): DrawerRenderResult | null {
   return {
     title: "Task",
     description: "Task record",
-    children: <TaskDrawerContent taskId={id} />,
+    // `isTop` gates the task's keyboard-shortcut ownership when another drawer stacks.
+    children: <TaskDrawerContent taskId={id} isTop={entry.isTop} />,
   };
 }
 

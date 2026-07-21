@@ -33,7 +33,12 @@ import { useFeedback } from "~/shared/feedback";
 import { toCardAction, type AppAction } from "~/shared/commands/action";
 import { useRegisterContextualActions } from "~/shared/commands/CommandContextProvider";
 
-import { TODAY_CAPTURE_PARAM, TODAY_CAPTURE_VALUE } from "./commands";
+import {
+  TODAY_CAPTURE_PARAM,
+  TODAY_CAPTURE_VALUE,
+  TODAY_NAV_LIST,
+  TODAY_NAV_PARAM,
+} from "./commands";
 import { HELP_DRAWER_KEY } from "./keyboard/KeyboardHelp";
 import {
   buildFocusedTaskCommands,
@@ -353,26 +358,48 @@ export function TodayDashboard({
     setSelected(new Set(flattenOrder(rovingOrder)));
   }, [rovingOrder]);
 
-  // "Focus task list" / "Go to <section>" ESTABLISH the navigation context by setting
-  // the roving TARGET (the first task, or the first task of the section) as the
-  // collection's single tab stop, and scroll it into view. They deliberately do NOT
-  // move DOM focus: these commands are invoked from the palette, which restores focus
-  // to its own opener on close — a DOM `.focus()` would lose that race and flicker.
-  // Setting the target is race-free: Tab then enters the collection at that task and
-  // Arrow/Home/End continue from there (the accepted "establish the context" model).
-  const focusTaskList = useCallback(() => {
-    roving.setRovingTarget(firstId(rovingOrder));
-  }, [roving, rovingOrder]);
-
-  const focusSection = useCallback(
-    (bucket: string) => {
-      roving.setRovingTarget(sectionFirstIdOf(rovingOrder, bucket));
-      const headingId = SECTION_HEADING_ID[bucket];
-      const heading = headingId ? document.getElementById(headingId) : null;
-      heading?.scrollIntoView({ block: "start" });
+  // "Focus task list" / "Go to <section>" are NAVIGATE commands: they carry a bounded
+  // `today-nav` param on a `/today?…` target that PRESERVES the current params (so an
+  // open drawer/filter is not dropped). Navigating naturally closes the palette, and
+  // the effect below moves focus AFTER the palette has closed and restored focus to
+  // its opener — so the roving target can't be overwritten by focus restoration
+  // (the Focus-Quick-Capture pattern; no timing hacks).
+  const navTarget = useCallback(
+    (value: string): string => {
+      const params = new URLSearchParams(searchParams);
+      params.set(TODAY_NAV_PARAM, value);
+      return `/today?${params.toString()}`;
     },
-    [roving, rovingOrder],
+    [searchParams],
   );
+
+  // On arrival with a `today-nav` param, move keyboard focus to the target task (the
+  // list's first task, or the section's first task), scroll its heading into view,
+  // then clean the param — so it never traps Back and never re-fires. This runs after
+  // the palette closed + restored focus, so it wins deterministically. The effect
+  // depends ONLY on the search params + stable callbacks (the order is read through a
+  // ref) so it fires once per navigation — not every render — exactly like the
+  // Focus-Quick-Capture effect; that keeps the cleanup navigation from racing itself.
+  const rovingFocusTask = roving.focusTask;
+  const rovingOrderRef = useRef(rovingOrder);
+  rovingOrderRef.current = rovingOrder;
+  useEffect(() => {
+    const nav = searchParams.get(TODAY_NAV_PARAM);
+    if (nav === null) {
+      return;
+    }
+    const order = rovingOrderRef.current;
+    const target =
+      nav === TODAY_NAV_LIST ? firstId(order) : sectionFirstIdOf(order, nav);
+    if (target !== null) {
+      const heading = document.getElementById(SECTION_HEADING_ID[nav] ?? "");
+      heading?.scrollIntoView({ block: "start" });
+      rovingFocusTask(target);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete(TODAY_NAV_PARAM);
+    setSearchParams(next, { replace: true, preventScrollReset: true });
+  }, [searchParams, setSearchParams, rovingFocusTask]);
 
   const openHelp = useCallback(() => openDrawer(HELP_DRAWER_KEY), [openDrawer]);
 
@@ -490,17 +517,18 @@ export function TodayDashboard({
   const dashboardTaskId = drawerOpen ? null : roving.activeId;
 
   const contextualActions = useMemo<readonly AppAction[]>(() => {
+    const hasOpenTasks = flattenOrder(rovingOrder).length > 0;
     const globals = buildTodayGlobalCommands({
       sections: OPEN_BUCKETS.map((bucket) => ({
         bucket,
         label: BUCKET_LABEL[bucket],
         count: planning ? planning[bucket].length : 0,
+        navTarget: navTarget(bucket),
       })),
-      hasOpenTasks: flattenOrder(rovingOrder).length > 0,
+      hasOpenTasks,
       selectionCount: selected.size,
       targets,
-      focusTaskList,
-      focusSection,
+      taskListTarget: hasOpenTasks ? navTarget(TODAY_NAV_LIST) : null,
       selectAll,
       clearSelection,
       openHelp,
@@ -532,8 +560,7 @@ export function TodayDashboard({
     planning,
     rovingOrder,
     selected,
-    focusTaskList,
-    focusSection,
+    navTarget,
     selectAll,
     clearSelection,
     openHelp,

@@ -188,6 +188,38 @@ test.describe("TODAY-05 — section navigation", () => {
       page.locator('[data-today-tasklist] [tabindex="0"]'),
     ).toHaveCount(1);
   });
+
+  test("Go to Anytime survives palette close + focus restoration from a focused task", async ({
+    page,
+  }) => {
+    await openTodayList(page);
+    const anytime = page.getByRole("list", { name: "Anytime tasks" });
+    // Focus a NON-first Anytime task, then open the palette FROM it (its card becomes
+    // the palette opener, the element focus is restored to on close).
+    const opener = anytime.getByRole("link").nth(1);
+    await opener.focus();
+    await expect(opener).toBeFocused();
+
+    await page.keyboard.press("Control+k");
+    const input = palette(page);
+    await input.fill("Go to Anytime");
+    await expect(
+      page.getByRole("option", { name: /Go to Anytime/ }),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+
+    // The palette closes automatically (a navigate command).
+    await expect(input).toBeHidden();
+    // Despite the palette restoring focus to its opener, the post-navigation effect
+    // wins: the FIRST Anytime task is the roving target AND holds focus.
+    const first = anytime.getByRole("link").first();
+    await expect(first).toHaveAttribute("tabindex", "0");
+    await expect(first).toBeFocused();
+
+    // Arrow navigation continues from Anytime, not the originally-focused task.
+    await page.keyboard.press("ArrowDown");
+    await expect(anytime.getByRole("link").nth(1)).toBeFocused();
+  });
 });
 
 test.describe("TODAY-05 — planning by shortcut", () => {
@@ -212,6 +244,49 @@ test.describe("TODAY-05 — planning by shortcut", () => {
     await expect(planning.getByRole("button", { name: "Clear" })).toBeVisible();
 
     // Restore: clear the plan so the shared journeys stay stable.
+    await planning.getByRole("button", { name: "Clear" }).click();
+    await expect(planning.getByText("Not planned")).toBeVisible();
+  });
+
+  test("a lower task drawer does not own shortcuts when help is stacked above it", async ({
+    page,
+  }) => {
+    // Open the task drawer and normalise it to unplanned + not completed.
+    await gotoFixture(page, DRAWER_URL);
+    const taskDialog = page.getByRole("dialog", { name: "Draft the proposal" });
+    const planning = taskDialog.getByRole("group", { name: "Planning" });
+    const clear = planning.getByRole("button", { name: "Clear" });
+    if ((await clear.count()) > 0) {
+      await clear.first().click();
+      await expect(planning.getByText("Not planned")).toBeVisible();
+    }
+    const completion = taskDialog.getByRole("checkbox");
+    await expect(completion).not.toBeChecked();
+
+    // Stack the keyboard-help drawer ABOVE the task drawer (the task drawer stays
+    // mounted but is no longer the interactive top).
+    await page.keyboard.press("Shift+?");
+    const help = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+    await expect(help).toBeVisible();
+
+    // Press the task shortcuts: they must NOT reach the hidden task behind help.
+    await page.keyboard.press("c");
+    await page.keyboard.press("p");
+    await page.keyboard.press("Shift+P");
+    await expect(page.getByText(/Task completed/i)).toHaveCount(0);
+
+    // Close help → the task drawer is the top again; it was left untouched.
+    await page.keyboard.press("Escape");
+    await expect(help).toBeHidden();
+    await expect(planning.getByText("Not planned")).toBeVisible();
+    await expect(completion).not.toBeChecked();
+
+    // Now that it is top again, its shortcuts work: P plans it.
+    await taskDialog.getByRole("button", { name: /close/i }).first().focus();
+    await page.keyboard.press("p");
+    await expect(planning.getByText("Not planned")).toHaveCount(0);
+
+    // Restore test data.
     await planning.getByRole("button", { name: "Clear" }).click();
     await expect(planning.getByText("Not planned")).toBeVisible();
   });

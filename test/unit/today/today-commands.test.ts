@@ -38,15 +38,34 @@ function globalDeps(
 ): TodayGlobalCommandDeps {
   return {
     sections: [
-      { bucket: "overdue", label: "Overdue", count: 1 },
-      { bucket: "today", label: "Today", count: 2 },
-      { bucket: "upcoming", label: "Upcoming", count: 0 },
-      { bucket: "anytime", label: "Anytime", count: 3 },
+      {
+        bucket: "overdue",
+        label: "Overdue",
+        count: 1,
+        navTarget: "/today?today-nav=overdue",
+      },
+      {
+        bucket: "today",
+        label: "Today",
+        count: 2,
+        navTarget: "/today?today-nav=today",
+      },
+      {
+        bucket: "upcoming",
+        label: "Upcoming",
+        count: 0,
+        navTarget: "/today?today-nav=upcoming",
+      },
+      {
+        bucket: "anytime",
+        label: "Anytime",
+        count: 3,
+        navTarget: "/today?today-nav=anytime",
+      },
     ],
     hasOpenTasks: true,
     selectionCount: 0,
-    focusTaskList: vi.fn(),
-    focusSection: vi.fn(),
+    taskListTarget: "/today?today-nav=list",
     selectAll: vi.fn(),
     clearSelection: vi.fn(),
     openHelp: vi.fn(),
@@ -87,7 +106,15 @@ describe("buildTodayGlobalCommands", () => {
     const cmds = buildTodayGlobalCommands(
       globalDeps({
         hasOpenTasks: false,
-        sections: [{ bucket: "overdue", label: "Overdue", count: 0 }],
+        taskListTarget: null,
+        sections: [
+          {
+            bucket: "overdue",
+            label: "Overdue",
+            count: 0,
+            navTarget: "/today?today-nav=overdue",
+          },
+        ],
       }),
     );
     const ids = cmds.map((c) => c.id);
@@ -95,6 +122,29 @@ describe("buildTodayGlobalCommands", () => {
     expect(ids).not.toContain("today.cmd.select_all");
     // Keyboard help is always available.
     expect(ids).toContain("today.cmd.keyboard_help");
+  });
+
+  it("focus/section commands are NAVIGATE commands that close the palette", () => {
+    const cmds = buildTodayGlobalCommands(globalDeps());
+    const list = cmds.find((c) => c.id === "today.cmd.focus_task_list")!;
+    const section = cmds.find(
+      (c) => c.id === "today.cmd.focus_section.anytime",
+    )!;
+    // They navigate (naturally closing the palette) with the bounded today-nav param.
+    expect(list.kind).toBe("navigate");
+    expect(section.kind).toBe("navigate");
+    if (list.kind === "navigate") {
+      expect(list.target).toEqual({
+        kind: "route",
+        to: "/today?today-nav=list",
+      });
+    }
+    if (section.kind === "navigate") {
+      expect(section.target).toEqual({
+        kind: "route",
+        to: "/today?today-nav=anytime",
+      });
+    }
   });
 
   it("exposes Clear selection only when something is selected", () => {
@@ -121,13 +171,11 @@ describe("buildTodayGlobalCommands", () => {
     expect(openHelp).toHaveBeenCalledTimes(1);
   });
 
-  it("routes a section command to focusSection with its bucket", () => {
-    const focusSection = vi.fn();
-    const cmd = buildTodayGlobalCommands(globalDeps({ focusSection })).find(
-      (c) => c.id === "today.cmd.focus_section.anytime",
-    )!;
-    if (cmd.kind === "run") cmd.run();
-    expect(focusSection).toHaveBeenCalledWith("anytime");
+  it("omits the section command for an empty section (no placeholder)", () => {
+    const ids = buildTodayGlobalCommands(globalDeps()).map((c) => c.id);
+    // Upcoming has count 0 in the fixture → its command is not built.
+    expect(ids).not.toContain("today.cmd.focus_section.upcoming");
+    expect(ids).toContain("today.cmd.focus_section.overdue");
   });
 
   it("exposes bulk planning commands only when a selection exists", () => {

@@ -57,7 +57,9 @@ export function createTodayDrawerRenderer(
       return {
         title: title ?? "Task",
         description: "Task record",
-        children: <TaskDrawerContent taskId={id} />,
+        // `isTop` gates the task's keyboard-shortcut ownership: a lower task drawer
+        // (with another drawer stacked above) keeps its state but not its shortcuts.
+        children: <TaskDrawerContent taskId={id} isTop={entry.isTop} />,
       };
     }
 

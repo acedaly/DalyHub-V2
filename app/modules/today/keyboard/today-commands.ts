@@ -27,6 +27,15 @@ export interface TodaySectionTarget {
   readonly label: string;
   /** How many tasks it holds (0 → the "focus section" command is omitted). */
   readonly count: number;
+  /**
+   * The app-relative navigation target that jumps to this section (a `/today?…`
+   * path carrying the bounded `today-nav` param). "Go to <section>" is a NAVIGATE
+   * command, not a run action: navigating naturally closes the palette, and a
+   * post-navigation effect moves focus AFTER the palette has restored focus to its
+   * opener — so the roving target can't be overwritten (the Focus-Quick-Capture
+   * pattern), with no timing hacks.
+   */
+  readonly navTarget: string;
 }
 
 export interface TodayGlobalCommandDeps {
@@ -38,8 +47,12 @@ export interface TodayGlobalCommandDeps {
   readonly selectionCount: number;
   /** The quick-plan target dates (for the bulk planning commands), if available. */
   readonly targets?: PlanTargets;
-  readonly focusTaskList: () => void;
-  readonly focusSection: (bucket: string) => void;
+  /**
+   * The app-relative navigation target that focuses the task list, or null when
+   * there are no open tasks (then the command is omitted). Like the section targets,
+   * it is a NAVIGATE command so the palette closes and focus lands race-free.
+   */
+  readonly taskListTarget: string | null;
   readonly selectAll: () => void;
   readonly clearSelection: () => void;
   readonly openHelp: () => void;
@@ -48,26 +61,25 @@ export interface TodayGlobalCommandDeps {
 }
 
 /**
- * The global Today keyboard commands: focus the task list, focus a section, select
- * all open tasks, clear selection, and open the keyboard-shortcuts reference. Only
- * commands with a real target right now are returned (no placeholders).
+ * The global Today keyboard commands: focus the task list, jump to a section, select
+ * all open tasks, clear selection, bulk-plan the selection, and open the keyboard
+ * reference. Only commands with a real target right now are returned (no
+ * placeholders). The focus/section commands are NAVIGATE commands (they carry a
+ * `today-nav` target and let the palette close naturally); the rest are run actions.
  */
 export function buildTodayGlobalCommands(
   deps: TodayGlobalCommandDeps,
 ): readonly AppAction[] {
   const actions: AppAction[] = [];
 
-  if (deps.hasOpenTasks) {
+  if (deps.hasOpenTasks && deps.taskListTarget !== null) {
     actions.push({
       id: "today.cmd.focus_task_list",
       title: "Focus task list",
       subtitle: "Move keyboard focus to the first task",
       keywords: ["focus", "list", "tasks", "navigate", "keyboard"],
-      kind: "run",
-      run: () => {
-        deps.focusTaskList();
-        return { ok: true };
-      },
+      kind: "navigate",
+      target: { kind: "route", to: deps.taskListTarget },
     });
   }
 
@@ -80,11 +92,8 @@ export function buildTodayGlobalCommands(
       title: `Go to ${section.label}`,
       subtitle: `Jump to the ${section.label} section`,
       keywords: ["focus", "section", "jump", section.label.toLowerCase()],
-      kind: "run",
-      run: () => {
-        deps.focusSection(section.bucket);
-        return { ok: true };
-      },
+      kind: "navigate",
+      target: { kind: "route", to: section.navTarget },
     });
   }
 

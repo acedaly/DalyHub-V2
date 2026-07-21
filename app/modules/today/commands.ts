@@ -21,6 +21,19 @@ export const TODAY_CAPTURE_PARAM = "capture";
 /** The single accepted value of the capture parameter. */
 export const TODAY_CAPTURE_VALUE = "1";
 
+/**
+ * The bounded query parameter the "Focus task list" / "Go to <section>" NAVIGATE
+ * commands carry. Today reads it on arrival, moves keyboard focus to the target task
+ * (the task list's first task, or a section's first task), then cleans it from the
+ * URL — the Focus-Quick-Capture pattern, so focus lands AFTER the palette closes and
+ * restores focus, with no timing hacks. Value: `"list"` or a planning bucket id
+ * (`overdue`/`today`/`upcoming`/`anytime`).
+ */
+export const TODAY_NAV_PARAM = "today-nav";
+
+/** The `today-nav` value that focuses the whole task list (its first task). */
+export const TODAY_NAV_LIST = "list";
+
 /** The path (with the capture intent) the Focus Quick Capture command opens. */
 export const TODAY_CAPTURE_PATH = `/today?${TODAY_CAPTURE_PARAM}=${TODAY_CAPTURE_VALUE}`;
 

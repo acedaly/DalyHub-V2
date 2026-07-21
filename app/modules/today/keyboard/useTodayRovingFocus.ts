@@ -71,15 +71,6 @@ export interface TodayRovingFocus {
   readonly activeId: string | null;
   /** Move focus to a task by id (updates state AND moves DOM focus). */
   readonly focusTask: (id: string | null) => void;
-  /**
-   * Set the roving tab-stop target WITHOUT moving DOM focus. Used by the palette
-   * "Go to <section>" / "Focus task list" commands: the palette restores focus to its
-   * own opener on close, so a DOM `.focus()` here would both lose that race and cause
-   * a focus-ring flicker. Setting the target is race-free — Tab then enters the
-   * collection at that task and Arrow/Home/End continue from there (the accepted
-   * "establish the navigation context" behaviour). A null id is ignored.
-   */
-  readonly setRovingTarget: (id: string | null) => void;
   /** The roving `tabIndex` for a card: 0 for the single tab stop, -1 otherwise. */
   readonly tabIndexFor: (id: string) => number;
 }
@@ -134,12 +125,6 @@ export function useTodayRovingFocus({
     },
     [focusDom],
   );
-
-  const setRovingTarget = useCallback((id: string | null) => {
-    if (id !== null) {
-      setFocusedId(id);
-    }
-  }, []);
 
   const tabIndexFor = useCallback(
     (id: string): number => (tabStopId(order, focusedId) === id ? 0 : -1),
@@ -256,7 +241,6 @@ export function useTodayRovingFocus({
     focusWithin,
     activeId,
     focusTask,
-    setRovingTarget,
     tabIndexFor,
   };
 }

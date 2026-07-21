@@ -256,22 +256,27 @@ describe("TODAY-05 roving focus", () => {
     expect(taskLink("Overdue task")).toHaveAttribute("tabindex", "0");
   });
 
-  it("Go to <section> establishes that section as the navigation context", () => {
+  it("Go to <section> is a NAVIGATE command with the today-nav target", () => {
     renderToday();
-    // Start on Task A (Today section) as the roving target.
-    fireEvent.focus(taskLink("Task A"));
-    expect(taskLink("Task A")).toHaveAttribute("tabindex", "0");
-
-    // Run "Go to Anytime": the roving target jumps to the first Anytime task (Task C)
-    // WITHOUT stealing DOM focus (race-free vs. the palette's focus restore).
     const go = contextual.find(
       (a) => a.id === "today.cmd.focus_section.anytime",
     )!;
-    act(() => {
-      if (go.kind === "run") go.run();
-    });
+    expect(go.kind).toBe("navigate");
+    if (go.kind === "navigate") {
+      expect(go.target).toEqual({
+        kind: "route",
+        to: "/today?today-nav=anytime",
+      });
+    }
+  });
+
+  it("arriving with ?today-nav establishes that section as the navigation context", () => {
+    // The navigate command lands here; the effect moves focus + sets the roving
+    // target to the section's first task, THEN cleans the param.
+    renderToday(["/today?today-nav=anytime"]);
     expect(taskLink("Task C")).toHaveAttribute("tabindex", "0");
     expect(taskLink("Task A")).toHaveAttribute("tabindex", "-1");
+    expect(taskLink("Task C")).toHaveFocus();
     // Exactly one tab stop remains.
     expect(taskList().querySelectorAll('[tabindex="0"]')).toHaveLength(1);
 

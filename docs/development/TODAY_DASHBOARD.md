@@ -266,12 +266,19 @@ Today-only keyboard engine and no scattered document listeners.
   Quick Capture. `focusedId` is still retained for focus restoration (Shift+Tab).
   Availability is by omission (completed → only Reopen; unplanned → no Clear plan;
   waiting → Clear waiting), while the server route stays the correctness boundary.
-- **Section navigation.** "Go to <section>" ESTABLISHES that section as the navigation
-  context: it sets the section's first task (pure `sectionFirstIdOf`) as the roving
-  target — so it becomes the single tab stop and Arrow/Home/End continue from that
-  section — and scrolls the heading into view. It sets the target as state (not DOM
-  `.focus()`), which is race-free against the palette restoring focus to its opener on
-  close; Tab then enters the collection at the section's first task.
+  **A lower task drawer owns its shortcuts only while it is the interactive top:**
+  `TaskDrawerContent` takes `isTop` (from `DrawerEntry.isTop`) and registers its task
+  commands only when top — so stacking the keyboard-help (or another record) drawer
+  above a task drawer keeps the lower drawer's state but drops its `C`/`P`/`Shift+P`
+  ownership; they return when it becomes top again.
+- **Section navigation.** "Go to <section>" / "Focus task list" are NAVIGATE commands
+  carrying a bounded `today-nav` param (`/today?…&today-nav=<list|bucket>`, preserving
+  current params). Navigating closes the palette naturally, and a post-navigation
+  effect (fired once per navigation, like the Focus-Quick-Capture effect) moves focus
+  to the section's first task, scrolls its heading into view, then cleans the param.
+  Because the effect runs after the palette closed and restored focus, the target wins
+  deterministically — no timing hacks — and Arrow/Home/End then continue from that
+  section.
 - **Global navigation commands** stay registered on the module manifest (Open Today,
   Focus Quick Capture, Open Waiting) — nothing Today-specific is hard-coded in the
   palette component.

@@ -51,11 +51,24 @@ import {
 
 interface TaskDrawerContentProps {
   readonly taskId: string;
+  /**
+   * Whether THIS task drawer is the interactive top drawer (from `DrawerEntry.isTop`).
+   * The shared stack keeps a lower drawer mounted when another is pushed above it, so
+   * this content registers its contextual task commands (C / P / Shift+P / Clear
+   * waiting) ONLY while it is the top — otherwise those keys could mutate a task
+   * hidden behind, say, the keyboard-help drawer. Defaults to true so a plain
+   * single-drawer use is unaffected. Local state is preserved across stacking; only
+   * command registration is gated.
+   */
+  readonly isTop?: boolean;
 }
 
 type DetailResponse = TaskDetailData | { readonly error: string };
 
-export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
+export function TaskDrawerContent({
+  taskId,
+  isTop = true,
+}: TaskDrawerContentProps) {
   const detailUrl = `/today/task/${encodeURIComponent(taskId)}`;
   const revalidator = useRevalidator();
   const { closeDrawer } = useDrawer();
@@ -366,7 +379,10 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   const activeWaiting =
     activeTask !== null && activeTask.waiting !== null && !activeCompleted;
   const taskCommands = useMemo<readonly AppAction[]>(() => {
-    if (activeTask === null) {
+    // Only the INTERACTIVE TOP drawer owns its task's shortcuts: a lower task drawer
+    // stays mounted (its local state intact) when another drawer is stacked above it,
+    // but must not keep `C`/`P`/`Shift+P` active against the now-hidden task.
+    if (activeTask === null || !isTop) {
       return [];
     }
     const targets = planTargets(ownerCalendarIso(new Date()));
@@ -406,6 +422,7 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
     }
     return commands;
   }, [
+    isTop,
     activeTask,
     activeCompleted,
     activeWaiting,
