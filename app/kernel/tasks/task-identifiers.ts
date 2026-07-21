@@ -70,3 +70,27 @@ export const TASK_WAITING_CHANGED = "task.waiting_changed";
 
 /** Activity: a task's waiting state was cleared (returned to normal work). */
 export const TASK_WAITING_CLEARED = "task.waiting_cleared";
+
+/**
+ * TODAY-04 Planning — the planning Activity types. Planning is the deliberate use
+ * of the EXISTING scheduled date as the owner's commitment ("I intend to work on
+ * this today"); these three types make planning changes legible in the shared
+ * Timeline WITHOUT a second history model. Payloads carry only the non-sensitive
+ * calendar dates (safe to log) — never free text.
+ */
+
+/** Activity: a task was planned (a scheduled date set where there was none). */
+export const TASK_PLANNED = "task.planned";
+
+/** Activity: a planned task was moved to a different scheduled date. */
+export const TASK_RESCHEDULED = "task.rescheduled";
+
+/** Activity: a task's plan (scheduled date) was removed. */
+export const TASK_PLAN_CLEARED = "task.plan_cleared";
+
+/**
+ * The maximum number of tasks a single bulk-planning operation may touch. Bulk
+ * planning is ATOMIC (one transaction) and calm — a bound keeps the batch small
+ * and predictable rather than an unbounded "plan everything".
+ */
+export const MAX_PLAN_BATCH_SIZE = 100;

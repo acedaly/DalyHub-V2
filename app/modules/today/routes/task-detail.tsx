@@ -95,6 +95,17 @@ export type TaskActionData =
       readonly status: "error";
       readonly formError?: string;
       readonly fieldErrors?: Readonly<Record<string, string>>;
+    }
+  | {
+      readonly kind: "planning";
+      readonly status: "success";
+      readonly task: SerializedTaskView;
+    }
+  | {
+      readonly kind: "planning";
+      readonly status: "error";
+      readonly formError?: string;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
     };
 
 function json(data: unknown, status = 200): Response {
@@ -184,6 +195,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(await handleSetWaiting(scope, taskId, form));
     case "clear_waiting":
       return json(await handleClearWaiting(scope, taskId));
+    case "plan":
+      return json(await handlePlan(scope, taskId, form));
+    case "clear_plan":
+      return json(await handleClearPlan(scope, taskId));
     default:
       return json(
         { kind: "update", status: "error", formError: "Unknown action." },
@@ -389,6 +404,70 @@ async function handleClearWaiting(
     }
     return {
       kind: "waiting",
+      status: "error",
+      formError: "That couldn't be saved. Please try again.",
+    };
+  }
+}
+
+async function handlePlan(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  try {
+    const result = await scope.tasks.planTask(taskId, {
+      scheduledDate: String(form.get("scheduledDate") ?? ""),
+    });
+    return {
+      kind: "planning",
+      status: "success",
+      task: serializeTaskView(result.task),
+    };
+  } catch (cause) {
+    if (cause instanceof TaskValidationError) {
+      return {
+        kind: "planning",
+        status: "error",
+        fieldErrors: { scheduledDate: cause.message },
+      };
+    }
+    if (cause instanceof TaskNotFoundError) {
+      return {
+        kind: "planning",
+        status: "error",
+        formError: "This task is no longer available.",
+      };
+    }
+    return {
+      kind: "planning",
+      status: "error",
+      formError: "That couldn't be saved. Your work is safe — try again.",
+    };
+  }
+}
+
+async function handleClearPlan(
+  scope: WorkspaceScope,
+  taskId: string,
+): Promise<TaskActionData> {
+  try {
+    const result = await scope.tasks.clearPlan(taskId);
+    return {
+      kind: "planning",
+      status: "success",
+      task: serializeTaskView(result.task),
+    };
+  } catch (cause) {
+    if (cause instanceof TaskNotFoundError) {
+      return {
+        kind: "planning",
+        status: "error",
+        formError: "This task is no longer available.",
+      };
+    }
+    return {
+      kind: "planning",
       status: "error",
       formError: "That couldn't be saved. Please try again.",
     };

@@ -215,6 +215,45 @@ export type CompleteTaskResult = {
   readonly changed: boolean;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Planning (TODAY-04)                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The input that plans a task: the calendar date the owner commits to working on
+ * it. Planning EXTENDS the existing scheduled date — the date IS the commitment
+ * ("I intend to work on this today"). It is always a real date-only `YYYY-MM-DD`
+ * (clearing a plan is `clearPlan`, not a null here). Planning never touches the
+ * due date, waiting state or completion (ADR-030).
+ */
+export type PlanTaskInput = {
+  /** The scheduled (planned) date, `YYYY-MM-DD`. Never routed through a timezone. */
+  readonly scheduledDate: string;
+};
+
+/** The outcome of `planTask`: the fresh task view and whether the plan changed. */
+export type PlanTaskResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
+/** The outcome of `clearPlan`: the fresh task view and whether it was planned. */
+export type ClearPlanResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
+/**
+ * The outcome of a bulk planning operation (`planTasks`/`clearPlans`): how many of
+ * the selected tasks actually changed and how many were already in the requested
+ * state (a no-op, no Activity). The operation is ATOMIC — either every change in
+ * `changed` commits together, or none does.
+ */
+export type BulkPlanResult = {
+  readonly changed: number;
+  readonly unchanged: number;
+};
+
 /** Options for the bounded, deterministic Waiting collection query. */
 export type ListWaitingTasksInput = {
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */

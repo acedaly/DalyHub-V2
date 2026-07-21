@@ -30,6 +30,15 @@ const routes: readonly RouteContribution[] = [
     path: "today/waiting",
     file: "routes/waiting.tsx",
   },
+  // TODAY-04 Planning: the bulk/quick planning endpoint (action-only resource
+  // route, no nav entry). The Today surface's per-card plan actions and the
+  // multi-select bulk action bar POST here; the per-task Planning section in the
+  // Task Drawer uses the existing /today/task/:taskId action.
+  {
+    id: "today.plan",
+    path: "today/plan",
+    file: "routes/plan.tsx",
+  },
   // TODAY-02 task Drawer data endpoints (resource routes, no nav entry): the task
   // itself (loader + mutation action), its Activity Timeline page, and the
   // "related records" target search. They are addressed by the Drawer content on

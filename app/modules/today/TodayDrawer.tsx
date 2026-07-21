@@ -26,8 +26,17 @@ function splitKey(key: string): { readonly kind: string; readonly id: string } {
   return { kind: key.slice(0, separator), id: key.slice(separator + 1) };
 }
 
-/** Build the drawer resolver bound to a set of Today records (the fixtures). */
-export function createTodayDrawerRenderer(data: TodayData) {
+/**
+ * Build the drawer resolver bound to a set of Today records. The fixture `data`
+ * backs the non-task demo kinds (upcoming/project/note); `taskTitles` names a real
+ * task's Drawer dialog by its title (a task may be in any planning section, or be a
+ * shared/searched task not currently listed — then the body still loads its real
+ * heading). TODAY-04 replaced the fixture focus lookup with the real planning tasks.
+ */
+export function createTodayDrawerRenderer(
+  data: TodayData,
+  taskTitles: ReadonlyMap<string, string> = new Map(),
+) {
   return function renderTodayDrawer(
     entry: DrawerEntry,
   ): DrawerRenderResult | null {
@@ -35,12 +44,11 @@ export function createTodayDrawerRenderer(data: TodayData) {
 
     if (kind === "task") {
       if (id.length === 0) return null;
-      // The dialog's accessible name uses the known focus-task title when
-      // available (a shareable/searched task may not be in the focus list) — the
+      // The dialog's accessible name uses the known task title when available — the
       // TaskDrawerContent then loads the full record and renders its real heading.
-      const focusTitle = data.focus.find((item) => item.id === id)?.title;
+      const title = taskTitles.get(id);
       return {
-        title: focusTitle ?? "Task",
+        title: title ?? "Task",
         description: "Task record",
         children: <TaskDrawerContent taskId={id} />,
       };

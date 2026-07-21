@@ -16,11 +16,15 @@
  */
 
 import type {
+  BulkPlanResult,
+  ClearPlanResult,
   ClearWaitingResult,
   CompleteTaskResult,
   GetTaskOptions,
   ListTasksInput,
   ListWaitingTasksInput,
+  PlanTaskInput,
+  PlanTaskResult,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
@@ -87,6 +91,51 @@ export interface TaskRepository {
    * then longest-waiting, then due date, then id. Never an unbounded query.
    */
   listWaitingTasks(input?: ListWaitingTasksInput): Promise<WaitingTaskPage>;
+
+  /**
+   * Plan a task (TODAY-04): set its scheduled date to the owner's committed day
+   * ATOMICALLY. One batch bumps the active task's `updated_at`, writes ONLY
+   * `scheduled_date` on `task_details` (never the due date, waiting state or
+   * completion), and appends exactly one `task.planned` (the task had no plan) or
+   * `task.rescheduled` (the plan moved to a different date) event. Planning a task
+   * that is already scheduled for that exact date is an idempotent no-op (no
+   * Activity, `changed: false`). Throws `TaskValidationError` for an invalid/absent
+   * date and `TaskNotFoundError` for a missing/deleted/non-task/cross-workspace id.
+   */
+  planTask(id: string, input: PlanTaskInput): Promise<PlanTaskResult>;
+
+  /**
+   * Clear a task's plan (TODAY-04): remove its scheduled date ATOMICALLY. One batch
+   * clears ONLY `scheduled_date` and appends exactly one `task.plan_cleared` event.
+   * It never changes the due date, waiting state or completion. Clearing a task
+   * that has no plan is an idempotent no-op (no Activity, `changed: false`). Throws
+   * `TaskNotFoundError` for a missing/deleted task.
+   */
+  clearPlan(id: string): Promise<ClearPlanResult>;
+
+  /**
+   * Plan MANY tasks to the same date as ONE ATOMIC operation (TODAY-04). The date
+   * and the id list are validated first; every id must resolve to a task in this
+   * workspace or the whole operation is rejected (`TaskNotFoundError`) and nothing
+   * is written. Then a single `D1Database.batch()` plans every task whose date
+   * actually changes — each with its own guarded `task.planned`/`task.rescheduled`
+   * event — so either all commit or none do. Tasks already on the requested date
+   * are counted as `unchanged` and get no statements. Throws `TaskValidationError`
+   * for an invalid date or an empty/oversized/invalid id list.
+   */
+  planTasks(
+    ids: readonly string[],
+    input: PlanTaskInput,
+  ): Promise<BulkPlanResult>;
+
+  /**
+   * Clear the plan on MANY tasks as ONE ATOMIC operation (TODAY-04). Mirrors
+   * `planTasks`: the id list is validated, every id must resolve to a task in this
+   * workspace, and a single batch clears the plan on every currently-planned task
+   * (each with a guarded `task.plan_cleared` event). Tasks with no plan are counted
+   * as `unchanged`. Throws `TaskValidationError`/`TaskNotFoundError` as `planTasks`.
+   */
+  clearPlans(ids: readonly string[]): Promise<BulkPlanResult>;
 
   /**
    * Complete a task AND clear any active waiting state as ONE atomic domain

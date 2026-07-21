@@ -111,15 +111,36 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
+  // These persisting-completion journeys use the DEDICATED `t-complete` seed task
+  // ("Wrap up the sprint") so completing it never disturbs the tasks other specs
+  // open by title. The dev DB is shared and only reseeds at server start, so each
+  // test first normalises the task to OPEN (reopening it if a prior run left it
+  // completed) — the same robustness pattern the Waiting journey uses.
+  const COMPLETE_TITLE = "Wrap up the sprint";
+
+  async function ensureOpen(page: import("@playwright/test").Page) {
+    await page.goto("/today");
+    const summary = page.getByText(/Completed today/);
+    if ((await summary.count()) === 0) {
+      return;
+    }
+    await summary.first().click();
+    const list = page.getByRole("list", { name: "Tasks completed today" });
+    const card = list.locator(".dh-card", { hasText: COMPLETE_TITLE });
+    if ((await card.count()) > 0) {
+      await card.getByRole("button", { name: "Reopen" }).click();
+      await expect(list.getByText(COMPLETE_TITLE)).toHaveCount(0);
+    }
+  }
+
   test("runs a contextual action bound to an open task Drawer", async ({
     page,
   }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
-    // Open a task record in the Drawer.
-    await page.getByRole("link", { name: "Finish PX-02" }).first().click();
+    await ensureOpen(page);
+    // Open the dedicated task record in the Drawer.
+    await page.goto("/today?drawer=task%3At-complete");
     await expect(
-      page.getByRole("dialog", { name: /Finish PX-02/ }),
+      page.getByRole("dialog", { name: new RegExp(COMPLETE_TITLE) }),
     ).toBeVisible();
     // Mod+K opens the palette over the Drawer; a task-specific contextual action
     // appears under "Current context".
@@ -133,7 +154,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await expect(listbox.getByText("Current context")).toBeVisible();
     await expect(option(page, /Complete/).first()).toBeVisible();
     await input.press("Enter");
-    // TODAY-02: the contextual completion action now persists through to the real
+    // TODAY-02/04: the contextual completion action persists through to the real
     // task (the SAME shared action the Card and Drawer use) and reports it.
     await expect(page.getByText(/task completed/i).first()).toBeVisible();
   });
@@ -141,15 +162,16 @@ test.describe("DS-09 Command Palette — desktop", () => {
   test("activates the same shared action through its Card control", async ({
     page,
   }) => {
-    await page.goto("/today");
-    const focus = page.getByRole("region", { name: /Today's focus/ });
-    const firstCard = focus.locator(".dh-card").first();
-    await firstCard.hover();
-    await firstCard.getByRole("button", { name: "Complete" }).click();
-    await expect(firstCard.getByText("Done")).toBeVisible();
-    await expect(
-      firstCard.getByRole("button", { name: "Reopen" }),
-    ).toBeVisible();
+    await ensureOpen(page);
+    // The card's Complete quick action IS the shared toggle action. Completing a
+    // task persists it, and it moves to the collapsed "Completed today" section
+    // (TODAY-04) — proving the shared action ran and persisted from the Card.
+    const card = page.locator(".dh-card", { hasText: COMPLETE_TITLE }).first();
+    await card.getByRole("button", { name: "Complete" }).click();
+
+    await page.getByText(/Completed today/).click();
+    const completed = page.getByRole("list", { name: "Tasks completed today" });
+    await expect(completed.getByText(COMPLETE_TITLE)).toBeVisible();
   });
 
   test("closes on Escape and restores focus to the trigger", async ({

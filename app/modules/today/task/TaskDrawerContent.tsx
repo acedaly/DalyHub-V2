@@ -30,11 +30,14 @@ import { TaskDetailsTab, type TaskDetailsValues } from "./TaskDetailsTab";
 import { TaskLinksTab } from "./TaskLinksTab";
 import { TaskTimelineTab } from "./TaskTimelineTab";
 import {
+  TaskPlanningSection,
+  type PlanningActionOutcome,
+} from "./TaskPlanningSection";
+import {
   TaskWaitingSection,
   type WaitingActionOutcome,
 } from "./TaskWaitingSection";
 import {
-  formatCalendarDate,
   isTaskComplete,
   taskDisplayStatus,
   taskPriorityLabel,
@@ -293,6 +296,50 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
     };
   }, [postAction, notifySuccess, refresh]);
 
+  const planTask = useCallback(
+    async (scheduledDate: string): Promise<PlanningActionOutcome> => {
+      const form = new FormData();
+      form.set("intent", "plan");
+      form.set("scheduledDate", scheduledDate);
+      const result = await postAction(form);
+      if (result.kind === "planning" && result.status === "success") {
+        notifySuccess("Plan updated.");
+        refresh();
+        return { ok: true };
+      }
+      if (result.kind === "planning" && result.status === "error") {
+        return {
+          ok: false,
+          formError: result.formError,
+          fieldErrors: result.fieldErrors,
+        };
+      }
+      return {
+        ok: false,
+        formError: "That couldn't be saved. Please try again.",
+      };
+    },
+    [postAction, notifySuccess, refresh],
+  );
+
+  const clearPlan = useCallback(async (): Promise<PlanningActionOutcome> => {
+    const form = new FormData();
+    form.set("intent", "clear_plan");
+    const result = await postAction(form);
+    if (result.kind === "planning" && result.status === "success") {
+      notifySuccess("Plan cleared.");
+      refresh();
+      return { ok: true };
+    }
+    if (result.kind === "planning" && result.status === "error") {
+      return { ok: false, formError: result.formError };
+    }
+    return {
+      ok: false,
+      formError: "That couldn't be saved. Please try again.",
+    };
+  }, [postAction, notifySuccess, refresh]);
+
   if (loadError) {
     return (
       <EmptyState
@@ -330,17 +377,9 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   const waitingActive = task.waiting !== null && !completed;
   const status = taskDisplayStatus(completed, task.status, waitingActive);
 
+  // Scheduled + Due are shown by the Planning section (TODAY-04), so they are not
+  // duplicated here; the summary metadata carries the remaining task facts.
   const metadata: RecordMetaItem[] = [];
-  const dueLabel = formatCalendarDate(task.dueDate);
-  if (dueLabel) metadata.push({ id: "due", label: "Due", value: dueLabel });
-  const scheduledLabel = formatCalendarDate(task.scheduledDate);
-  if (scheduledLabel) {
-    metadata.push({
-      id: "scheduled",
-      label: "Scheduled",
-      value: scheduledLabel,
-    });
-  }
   metadata.push({
     id: "priority",
     label: "Priority",
@@ -381,6 +420,13 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
               searchTargets={searchWaitingTargets}
               onSetWaiting={setWaiting}
               onClear={clearWaiting}
+            />
+            <TaskPlanningSection
+              scheduledDate={task.scheduledDate}
+              dueDate={task.dueDate}
+              completed={completed}
+              onPlan={planTask}
+              onClear={clearPlan}
             />
           </div>
         ),

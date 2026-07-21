@@ -27,7 +27,10 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "./task";
-import { WAITING_NOTE_MAX_LENGTH } from "./task-identifiers";
+import {
+  MAX_PLAN_BATCH_SIZE,
+  WAITING_NOTE_MAX_LENGTH,
+} from "./task-identifiers";
 import type { SetWaitingInput } from "./task";
 
 /** Default number of task summaries returned by `listTasks` when no limit is given. */
@@ -281,6 +284,55 @@ export function validateSetWaitingInput(
     "waitingTarget",
     "must wait on an entity or a free-text subject",
   );
+}
+
+/**
+ * Validate the date a plan commits to (TODAY-04). Reuses the shared date-only rule
+ * but REQUIRES a real calendar date — planning always sets a scheduled date;
+ * removing a plan is a separate `clearPlan`, never a null here. Returns the exact
+ * `YYYY-MM-DD` string stored.
+ */
+export function validatePlanDate(value: unknown): string {
+  const date = validateTaskDate(value, "scheduledDate");
+  if (date === null) {
+    throw new TaskValidationError(
+      "scheduledDate",
+      "a date is required to plan a task",
+    );
+  }
+  return date;
+}
+
+/**
+ * Validate a bulk-planning id list (TODAY-04): a non-empty, deduplicated set of
+ * valid task-id SHAPES, bounded by `MAX_PLAN_BATCH_SIZE`. Existence, type and
+ * workspace are checked against storage by the repository. Deduplication keeps a
+ * bulk operation's per-task Activity one-event-per-task even if the caller repeats
+ * an id. Order is preserved (first occurrence wins).
+ */
+export function validateTaskIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    throw new TaskValidationError("id", "must be a list of task ids");
+  }
+  if (value.length === 0) {
+    throw new TaskValidationError("id", "select at least one task");
+  }
+  if (value.length > MAX_PLAN_BATCH_SIZE) {
+    throw new TaskValidationError(
+      "limit",
+      `at most ${MAX_PLAN_BATCH_SIZE} tasks can be planned at once`,
+    );
+  }
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const entry of value) {
+    const id = validateTaskId(entry);
+    if (!seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
 }
 
 /**

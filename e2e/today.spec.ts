@@ -2,11 +2,13 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 /**
- * TODAY-01 — the Today dashboard, driven end to end against the development-auth
- * server. Role-based and non-brittle: it asserts the sidebar entry, the pane
- * header, the six sections, optimistic completion, inert quick capture, a card
- * opening the Drawer, and the no-horizontal-overflow invariant on desktop and at
- * 320px. It composes only shared PX-02/DS parts — no bespoke chrome to assert.
+ * TODAY-01 / TODAY-04 — the Today dashboard, driven end to end against the
+ * development-auth server. Role-based and non-brittle: it asserts the sidebar
+ * entry, the pane header, the planning sections + summary, the preserved fixture
+ * sections, inert quick capture, a card opening the Drawer, and the
+ * no-horizontal-overflow invariant on desktop and at 320px. Planning MUTATIONS are
+ * driven in `planning.spec.ts` against a dedicated task, so this structural spec
+ * does not interfere with the shared dev database.
  */
 
 async function hasNoHorizontalOverflow(page: Page) {
@@ -30,11 +32,16 @@ test.describe("TODAY-01 — desktop", () => {
     ).toBeVisible();
   });
 
-  test("renders all six sections", async ({ page }) => {
+  test("renders the planning and fixture sections", async ({ page }) => {
     await page.goto("/today");
+    // The planning summary is always present (operational awareness).
+    await expect(
+      page.getByRole("group", { name: /Today at a glance/ }),
+    ).toBeVisible();
+    // The Today commitment section + the preserved fixture sections.
     for (const name of [
-      /Today's focus/,
-      /^Upcoming/,
+      /^Today/,
+      /On your calendar/,
       /Continue working/,
       /Recent notes/,
       /Daily timeline/,
@@ -42,27 +49,15 @@ test.describe("TODAY-01 — desktop", () => {
     ]) {
       await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
     }
-    await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
-  });
-
-  test("completes a focus task optimistically", async ({ page }) => {
-    await page.goto("/today");
-    const focus = page.getByRole("region", { name: /Today's focus/ });
-    // Quick actions reveal on hover/focus (DS-04); hover the card so the action
-    // is settled before clicking, then assert the optimistic completion.
-    const firstCard = focus.locator(".dh-card").first();
-    await firstCard.hover();
-    await firstCard.getByRole("button", { name: "Complete" }).click();
-    await expect(firstCard.getByText("Done")).toBeVisible();
+    // The seeded, unplanned tasks appear under Anytime.
     await expect(
-      firstCard.getByRole("button", { name: "Reopen" }),
+      page.getByRole("heading", { level: 2, name: /Anytime/ }),
     ).toBeVisible();
+    await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
   });
 
   test("quick capture is structured but does not persist", async ({ page }) => {
     await page.goto("/today");
-    // Wait for client hydration before typing: a controlled input's value is reset
-    // by hydration, so filling before then would be discarded.
     await page.locator('.dh-today[data-hydrated="true"]').waitFor();
     const capture = page.getByRole("button", { name: "Capture", exact: true });
     await expect(capture).toBeDisabled();
@@ -71,7 +66,6 @@ test.describe("TODAY-01 — desktop", () => {
       .fill("Call the plumber");
     await expect(capture).toBeEnabled();
     await capture.click();
-    // Nothing is stored, so the draft is preserved and the notice says so plainly.
     await expect(page.getByRole("status")).toContainText(/has not been saved/i);
     await expect(
       page.getByPlaceholder("What needs your attention?"),

@@ -27,7 +27,14 @@ import { DrawerProvider } from "~/shared/drawer";
 import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate, ownerCalendarIso } from "../date";
 import { TODAY_FIXTURE } from "../fixtures";
-import type { FocusTask } from "../fixtures";
+import {
+  bucketPlanning,
+  planningSummary,
+  planTargets,
+  type PlanningBuckets,
+  type PlanningData,
+  type PlanningTaskItem,
+} from "../task/planning-view";
 import {
   toWaitingCardData,
   toWaitingPreviewItem,
@@ -48,8 +55,12 @@ export function meta() {
   ];
 }
 
-/** How many open tasks the Today focus section loads. Bounded — never unbounded. */
-const FOCUS_LIMIT = 25;
+/**
+ * How many tasks the planning surface loads (open work + today's completions).
+ * Bounded — a calm daily planning surface, never an unbounded backlog dump. The
+ * task list orders open work first, so a busy day's completions stay within reach.
+ */
+const PLAN_LIMIT = 100;
 
 /** Bounded fetch backing the Today Waiting summary (count + a small preview). */
 const WAITING_SUMMARY_LIMIT = 50;
@@ -59,34 +70,51 @@ const WAITING_PREVIEW_COUNT = 3;
 
 const EMPTY_WAITING_SUMMARY: WaitingSummary = { count: 0, preview: [] };
 
+const EMPTY_BUCKETS: PlanningBuckets = {
+  overdue: [],
+  today: [],
+  upcoming: [],
+  anytime: [],
+  completedToday: [],
+};
+
 export async function loader({ context }: Route.LoaderArgs) {
   // Authentication is guaranteed by the Worker boundary; re-check (401 propagates).
   const session = requireAuthenticatedSession(context);
   const now = new Date();
   const date = formatTodayDate(now);
   const todayIso = ownerCalendarIso(now);
+  const targets = planTargets(todayIso);
 
-  // Real, workspace-scoped focus tasks (open work). A scope/list failure degrades
-  // to an empty focus section so Today still renders — never a 500.
-  let focus: readonly FocusTask[];
+  // Real, workspace-scoped tasks, bucketed into the planning sections. A scope/list
+  // failure degrades to empty sections so Today still renders — never a 500.
+  let buckets: PlanningBuckets;
   let waiting: WaitingSummary;
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-    // Include completed tasks so completing on Today keeps the card (Done + Reopen)
-    // and Today/Drawer completion stays consistent; open work sorts first. Waiting
-    // tasks are EXCLUDED from focus — blocked work surfaces in the Waiting view, not
-    // as ordinary active focus (ADR-029).
+    // Include completed tasks so "Completed today" and the summary are real; open
+    // work sorts first. Waiting tasks are EXCLUDED — blocked work surfaces in the
+    // Waiting view, not the planning sections (ADR-029), so a waiting task never
+    // silently becomes today's work (TODAY-04 rule).
     const page = await scope.tasks.listTasks({
-      limit: FOCUS_LIMIT,
+      limit: PLAN_LIMIT,
       includeCompleted: true,
       excludeWaiting: true,
     });
-    focus = page.items.map((item) => ({
+    const items: PlanningTaskItem[] = page.items.map((item) => ({
       id: item.id,
       title: item.title,
-      context: item.parent?.title ?? "",
-      done: item.completedAt !== null,
+      parent: item.parent,
+      scheduledDate: item.scheduledDate,
+      dueDate: item.dueDate,
+      completed: item.completedAt !== null,
+      // Completion is a UTC instant; resolve its OWNER-calendar date so "completed
+      // today" matches the owner's day, not the UTC runtime's (consistent with the
+      // pane-header date and overdue comparisons).
+      completedDate:
+        item.completedAt !== null ? ownerCalendarIso(item.completedAt) : null,
     }));
+    buckets = bucketPlanning(items, todayIso);
 
     const waitingPage = await scope.tasks.listWaitingTasks({
       limit: WAITING_SUMMARY_LIMIT,
@@ -111,11 +139,21 @@ export async function loader({ context }: Route.LoaderArgs) {
       ),
     };
   } catch {
-    focus = [];
+    buckets = EMPTY_BUCKETS;
     waiting = EMPTY_WAITING_SUMMARY;
   }
 
-  return { date, data: { ...TODAY_FIXTURE, focus }, waiting };
+  const planning: PlanningData = {
+    summary: planningSummary(buckets, waiting.count),
+    targets,
+    overdue: buckets.overdue,
+    today: buckets.today,
+    upcoming: buckets.upcoming,
+    anytime: buckets.anytime,
+    completedToday: buckets.completedToday,
+  };
+
+  return { date, todayIso, data: TODAY_FIXTURE, waiting, planning };
 }
 
 export default function TodayRoute({ loaderData }: Route.ComponentProps) {
@@ -125,11 +163,28 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
   // optimistic override is reconciled by the ensuing revalidation).
   useCompletionFailureFeedback(fetcher.data);
 
-  // The drawer renderer is bound to this request's data so a focus task's real
-  // title names its Drawer dialog; the editable body is TaskDrawerContent.
+  // Every real task title (across the planning sections) so a card's Drawer dialog
+  // is named by its real title; the editable body is TaskDrawerContent.
+  const taskTitles = useMemo(() => {
+    const map = new Map<string, string>();
+    const p = loaderData.planning;
+    for (const bucket of [
+      p.overdue,
+      p.today,
+      p.upcoming,
+      p.anytime,
+      p.completedToday,
+    ]) {
+      for (const item of bucket) {
+        map.set(item.id, item.title);
+      }
+    }
+    return map;
+  }, [loaderData.planning]);
+
   const renderTodayDrawer = useMemo(
-    () => createTodayDrawerRenderer(loaderData.data),
-    [loaderData.data],
+    () => createTodayDrawerRenderer(loaderData.data, taskTitles),
+    [loaderData.data, taskTitles],
   );
 
   const onCompleteTask = useCallback(
@@ -150,7 +205,9 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
       <TodayDashboard
         data={loaderData.data}
         date={loaderData.date}
+        todayIso={loaderData.todayIso}
         waiting={loaderData.waiting}
+        planning={loaderData.planning}
         onCompleteTask={onCompleteTask}
       />
     </DrawerProvider>

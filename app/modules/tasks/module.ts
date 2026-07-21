@@ -21,6 +21,9 @@ import {
   TASK_REOPENED,
 } from "~/kernel/spine";
 import {
+  TASK_PLAN_CLEARED,
+  TASK_PLANNED,
+  TASK_RESCHEDULED,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
   TASK_WAITING_ON,
@@ -86,6 +89,21 @@ export default defineModule({
       type: TASK_WAITING_CLEARED,
       label: "Stopped waiting",
       description: "A task's waiting state was cleared.",
+    },
+    {
+      type: TASK_PLANNED,
+      label: "Planned",
+      description: "A task was planned for a day (a scheduled date was set).",
+    },
+    {
+      type: TASK_RESCHEDULED,
+      label: "Rescheduled",
+      description: "A planned task was moved to a different day.",
+    },
+    {
+      type: TASK_PLAN_CLEARED,
+      label: "Plan cleared",
+      description: "A task's plan (scheduled date) was removed.",
     },
   ],
 });

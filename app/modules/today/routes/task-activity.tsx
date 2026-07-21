@@ -17,6 +17,9 @@ import { env } from "cloudflare:workers";
 
 import { TASK_COMPLETED, TASK_REOPENED } from "~/kernel/spine";
 import {
+  TASK_PLAN_CLEARED,
+  TASK_PLANNED,
+  TASK_RESCHEDULED,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
   TASK_WAITING_STARTED,
@@ -67,6 +70,17 @@ const TASK_DESCRIPTORS: Record<string, ActivityTypeDescriptor> = {
     tone: "warning",
   },
   [TASK_WAITING_CLEARED]: { label: "Stopped waiting", entityType: "task" },
+  [TASK_PLANNED]: {
+    label: "Planned",
+    entityType: "task",
+    tone: "accent",
+  },
+  [TASK_RESCHEDULED]: {
+    label: "Rescheduled",
+    entityType: "task",
+    tone: "accent",
+  },
+  [TASK_PLAN_CLEARED]: { label: "Plan cleared", entityType: "task" },
 };
 
 const DESCRIPTORS = createActivityDescriptorMap(

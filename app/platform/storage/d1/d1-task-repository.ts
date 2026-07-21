@@ -45,6 +45,9 @@ import {
 } from "~/kernel/spine";
 import {
   isWaitingTargetType,
+  TASK_PLAN_CLEARED,
+  TASK_PLANNED,
+  TASK_RESCHEDULED,
   TASK_WAITING_ON,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
@@ -52,19 +55,25 @@ import {
   TaskNotFoundError,
   TaskStorageError,
   TaskValidationError,
+  validatePlanDate,
   validateSetWaitingInput,
   validateTaskDate,
   validateTaskDescription,
   validateTaskId,
+  validateTaskIdList,
   validateTaskLimit,
   validateTaskPriority,
   validateTaskStatus,
   validateTaskTitle,
+  type BulkPlanResult,
+  type ClearPlanResult,
   type ClearWaitingResult,
   type CompleteTaskResult,
   type GetTaskOptions,
   type ListTasksInput,
   type ListWaitingTasksInput,
+  type PlanTaskInput,
+  type PlanTaskResult,
   type SetWaitingInput,
   type SetWaitingResult,
   type TaskDetails,
@@ -581,7 +590,7 @@ export class D1TaskRepository implements TaskRepository {
           : { entityType: TASK, subjectKind: "text" },
     };
 
-    const entityRow = await this.#runWaiting(
+    const entityRow = await this.#runGuardedMutation(
       entityStmt,
       event,
       [detailsStmt, ...linkStmts],
@@ -649,7 +658,7 @@ export class D1TaskRepository implements TaskRepository {
       payload: { entityType: TASK },
     };
 
-    const entityRow = await this.#runWaiting(
+    const entityRow = await this.#runGuardedMutation(
       entityStmt,
       event,
       [detailsStmt, ...linkStmts],
@@ -738,6 +747,264 @@ export class D1TaskRepository implements TaskRepository {
       });
     }
     return { items };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Planning (TODAY-04) — the scheduled date as the owner's commitment       */
+  /* ---------------------------------------------------------------------- */
+
+  async planTask(id: string, input: PlanTaskInput): Promise<PlanTaskResult> {
+    const entityId = validateTaskId(id);
+    const scheduledDate = validatePlanDate(input.scheduledDate);
+
+    const current = await this.getTask(entityId);
+    if (!current) {
+      throw new TaskNotFoundError();
+    }
+    // Already planned for that exact date: idempotent no-op, no Activity.
+    if (current.scheduledDate === scheduledDate) {
+      return { task: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const group = this.#buildPlanGroup(entityId, current, scheduledDate, nowTs);
+
+    const entityRow = await this.#runGuardedMutation(
+      group.entityStmt,
+      group.event,
+      group.domainStmts,
+      now,
+    );
+    if (!entityRow) {
+      throw new TaskNotFoundError();
+    }
+    return {
+      task: {
+        ...current,
+        updatedAt: fromStorageTimestamp(entityRow.updated_at),
+        scheduledDate,
+      },
+      changed: true,
+    };
+  }
+
+  async clearPlan(id: string): Promise<ClearPlanResult> {
+    const entityId = validateTaskId(id);
+
+    const current = await this.getTask(entityId);
+    if (!current) {
+      throw new TaskNotFoundError();
+    }
+    // No plan to clear: idempotent no-op, no Activity.
+    if (current.scheduledDate === null) {
+      return { task: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const group = this.#buildPlanGroup(entityId, current, null, nowTs);
+
+    const entityRow = await this.#runGuardedMutation(
+      group.entityStmt,
+      group.event,
+      group.domainStmts,
+      now,
+    );
+    if (!entityRow) {
+      throw new TaskNotFoundError();
+    }
+    return {
+      task: {
+        ...current,
+        updatedAt: fromStorageTimestamp(entityRow.updated_at),
+        scheduledDate: null,
+      },
+      changed: true,
+    };
+  }
+
+  async planTasks(
+    ids: readonly string[],
+    input: PlanTaskInput,
+  ): Promise<BulkPlanResult> {
+    const scheduledDate = validatePlanDate(input.scheduledDate);
+    return this.#bulkPlan(ids, scheduledDate);
+  }
+
+  async clearPlans(ids: readonly string[]): Promise<BulkPlanResult> {
+    return this.#bulkPlan(ids, null);
+  }
+
+  /**
+   * The shared bulk-planning path (plan-to-date or clear). Validates the id list,
+   * resolves EVERY id to a task in this workspace (rejecting the WHOLE operation if
+   * any is missing, so nothing is partially applied), then runs a single atomic
+   * batch that changes only the tasks whose plan actually differs — each with its
+   * own guarded Activity event. Tasks already in the requested state are counted as
+   * `unchanged` and contribute no statements.
+   */
+  async #bulkPlan(
+    ids: readonly string[],
+    scheduledDate: string | null,
+  ): Promise<BulkPlanResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    // Resolve all first; any unresolved id rejects the whole operation up front so
+    // no partial plan is ever committed (cross-workspace ids are "not found").
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId);
+      if (!current) {
+        throw new TaskNotFoundError();
+      }
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+    for (const current of currents) {
+      if ((current.scheduledDate ?? null) === scheduledDate) {
+        unchanged += 1;
+        continue;
+      }
+      const group = this.#buildPlanGroup(
+        current.id,
+        current,
+        scheduledDate,
+        nowTs,
+      );
+      const model = buildActivityWriteModel(
+        group.event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      const eventStmts = this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        model,
+      );
+      // Per-task ordering [bump, activity, ...subjects, details]: the activity's
+      // `changes() > 0` guard refers to the bump IMMEDIATELY before it, and each
+      // group's own bump resets `changes()` for that group's activity — so many
+      // guarded events compose correctly in one batch (mirrors `completeTask`).
+      statements.push(group.entityStmt, ...eventStmts, ...group.domainStmts);
+      changed += 1;
+    }
+
+    if (statements.length > 0) {
+      try {
+        await this.#db.batch(statements);
+      } catch (cause) {
+        if (cause instanceof ActivityError) {
+          throw cause;
+        }
+        throw new TaskStorageError(undefined, { cause });
+      }
+    }
+
+    return { changed, unchanged };
+  }
+
+  /**
+   * Build the statements for planning ONE task to `scheduledDate` (a date, or null
+   * to clear): the guard-anchor entity bump, the `changes()`-guarded planning event
+   * (`task.planned`/`task.rescheduled`/`task.plan_cleared`) with its subjects, and
+   * the `task_details` write that touches ONLY the scheduled date. It writes neither
+   * the due date, the waiting state nor completion (ADR-030). Payloads carry only
+   * the non-sensitive calendar dates. The caller guarantees the plan actually
+   * changes (no-ops are filtered before this is called).
+   */
+  #buildPlanGroup(
+    entityId: string,
+    current: TaskView,
+    scheduledDate: string | null,
+    nowTs: string,
+  ): {
+    readonly entityStmt: D1PreparedStatement;
+    readonly event: NewActivityEvent;
+    readonly domainStmts: readonly D1PreparedStatement[];
+  } {
+    const isClear = scheduledDate === null;
+    const type = isClear
+      ? TASK_PLAN_CLEARED
+      : current.scheduledDate === null
+        ? TASK_PLANNED
+        : TASK_RESCHEDULED;
+
+    const payload: Record<string, JsonValue> = { entityType: TASK };
+    if (!isClear) {
+      payload["scheduledDate"] = scheduledDate;
+    }
+    if (current.scheduledDate !== null) {
+      payload["previous"] = current.scheduledDate;
+    }
+    const event: NewActivityEvent = {
+      type,
+      subjects: [{ entityId, role: SUBJECT_ROLE }],
+      payload,
+    };
+
+    const entityStmt = this.#bumpEntityStatement(entityId, nowTs);
+    const detailsStmt = isClear
+      ? this.#clearScheduledStatement(entityId, nowTs)
+      : this.#setScheduledStatement(entityId, current, scheduledDate, nowTs);
+
+    return { entityStmt, event, domainStmts: [detailsStmt] };
+  }
+
+  /**
+   * Write ONLY `scheduled_date` on `task_details` (creating the row from the task's
+   * current values on first edit), gated on the active task. Never touches the due
+   * date, waiting columns or any other field.
+   */
+  #setScheduledStatement(
+    entityId: string,
+    current: TaskView,
+    scheduledDate: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO task_details
+           (workspace_id, entity_id, entity_type, status, priority,
+            due_date, scheduled_date, description, updated_at)
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (${this.#activeTaskExistsSql})
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           scheduled_date = excluded.scheduled_date,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        this.#workspaceId,
+        entityId,
+        current.status,
+        current.priority,
+        current.dueDate,
+        scheduledDate,
+        current.description,
+        nowTs,
+        this.#workspaceId,
+        entityId,
+      );
+  }
+
+  /** Clear ONLY `scheduled_date` on `task_details` (leaves every other column). */
+  #clearScheduledStatement(
+    entityId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE task_details
+         SET scheduled_date = NULL, updated_at = ?
+         WHERE workspace_id = ? AND entity_id = ?`,
+      )
+      .bind(nowTs, this.#workspaceId, entityId);
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1049,12 +1316,13 @@ export class D1TaskRepository implements TaskRepository {
   }
 
   /**
-   * Run a waiting mutation as ONE atomic batch: the guard-anchor entity bump FIRST,
-   * then its `changes()`-guarded event append, then the gated domain writes (the
-   * `task_details` upsert and the `task.waiting_on` link statements). Returns the
+   * Run a single-task guarded mutation as ONE atomic batch: the guard-anchor entity
+   * bump FIRST, then its `changes()`-guarded event append, then the gated domain
+   * writes (e.g. the `task_details` upsert and any link statements). Returns the
    * entity RETURNING row when the guard matched, else null (task deleted mid-flight).
+   * Shared by the waiting and planning mutations (TODAY-03/04).
    */
-  async #runWaiting(
+  async #runGuardedMutation(
     entityStmt: D1PreparedStatement,
     event: NewActivityEvent,
     domainStmts: readonly D1PreparedStatement[],
