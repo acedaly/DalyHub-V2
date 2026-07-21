@@ -40,10 +40,15 @@ import {
   toWaitingPreviewItem,
   type WaitingSummary,
 } from "../task/waiting-view";
-import { TodayDashboard } from "../TodayDashboard";
+import { TodayDashboard, type RecentProjectItem } from "../TodayDashboard";
 import { createTodayDrawerRenderer } from "../TodayDrawer";
 import type { TaskActionData } from "~/shared/task-record/contract";
 import type { Route } from "./+types/index";
+
+/** How many recently-active projects "Continue working" shows. Bounded. */
+const RECENT_PROJECTS_COUNT = 6;
+/** How many open projects to read before picking the most-recently-updated. */
+const RECENT_PROJECTS_SCAN = 24;
 
 export function meta() {
   return [
@@ -83,6 +88,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   // failure degrades to empty sections so Today still renders — never a 500.
   let buckets: PlanningBuckets;
   let waiting: WaitingSummary;
+  let recentProjects: RecentProjectItem[];
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     // The dedicated planning query bounds each band (scheduled work, backlog, recent
@@ -128,9 +134,29 @@ export async function loader({ context }: Route.LoaderArgs) {
         ),
       ),
     };
+
+    // "Continue working": the REAL open projects, most-recently-updated first (PROJ-01).
+    // A bounded scan sorted by `updatedAt` desc, then the top few — no new store, no
+    // separate Today project model; the same read model the Projects module uses.
+    const projectPage = await scope.projects.listProjects({
+      state: "open",
+      limit: RECENT_PROJECTS_SCAN,
+    });
+    recentProjects = [...projectPage.items]
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .slice(0, RECENT_PROJECTS_COUNT)
+      .map((project) => ({
+        id: project.id,
+        title: project.title,
+        areaLabel: project.area?.title ?? null,
+        completed: project.completedAt !== null,
+        taskTotal: project.taskTotal,
+        taskCompleted: project.taskCompleted,
+      }));
   } catch {
     buckets = EMPTY_BUCKETS;
     waiting = EMPTY_WAITING_SUMMARY;
+    recentProjects = [];
   }
 
   const planning: PlanningData = {
@@ -143,7 +169,14 @@ export async function loader({ context }: Route.LoaderArgs) {
     completedToday: buckets.completedToday,
   };
 
-  return { date, todayIso, data: TODAY_FIXTURE, waiting, planning };
+  return {
+    date,
+    todayIso,
+    data: TODAY_FIXTURE,
+    waiting,
+    planning,
+    recentProjects,
+  };
 }
 
 export default function TodayRoute({ loaderData }: Route.ComponentProps) {
@@ -198,6 +231,7 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
         todayIso={loaderData.todayIso}
         waiting={loaderData.waiting}
         planning={loaderData.planning}
+        recentProjects={loaderData.recentProjects}
         onCompleteTask={onCompleteTask}
       />
     </DrawerProvider>
