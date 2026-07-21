@@ -50,6 +50,11 @@ import {
   sectionFirstIdOf,
   type RovingOrder,
 } from "./keyboard/roving-model";
+import {
+  buildTodayNavTarget,
+  isTodayNavValue,
+  type TodayNavValue,
+} from "./keyboard/nav-target";
 import { useTodayRovingFocus } from "./keyboard/useTodayRovingFocus";
 import { UPCOMING_KIND } from "./fixtures";
 import type {
@@ -359,17 +364,15 @@ export function TodayDashboard({
   }, [rovingOrder]);
 
   // "Focus task list" / "Go to <section>" are NAVIGATE commands: they carry a bounded
-  // `today-nav` param on a `/today?…` target that PRESERVES the current params (so an
-  // open drawer/filter is not dropped). Navigating naturally closes the palette, and
-  // the effect below moves focus AFTER the palette has closed and restored focus to
-  // its opener — so the roving target can't be overwritten by focus restoration
-  // (the Focus-Quick-Capture pattern; no timing hacks).
+  // `today-nav` param on a `/today?…` target built from the current params with the
+  // ENTIRE Drawer stack REMOVED (the shared `withAllDrawersRemoved` helper — never a
+  // hand-deleted param), while preserving every unrelated param. Running the command
+  // from inside an open drawer therefore navigates the Drawer stack away cleanly
+  // (leaving the provider's own history entry + push token intact, so Back reopens
+  // the drawer and Forward returns with it closed). Navigating naturally closes the
+  // palette AND the drawer stack; the effect below moves focus after they unmount.
   const navTarget = useCallback(
-    (value: string): string => {
-      const params = new URLSearchParams(searchParams);
-      params.set(TODAY_NAV_PARAM, value);
-      return `/today?${params.toString()}`;
-    },
+    (value: TodayNavValue): string => buildTodayNavTarget(searchParams, value),
     [searchParams],
   );
 
@@ -388,14 +391,21 @@ export function TodayDashboard({
     if (nav === null) {
       return;
     }
-    const order = rovingOrderRef.current;
-    const target =
-      nav === TODAY_NAV_LIST ? firstId(order) : sectionFirstIdOf(order, nav);
-    if (target !== null) {
-      const heading = document.getElementById(SECTION_HEADING_ID[nav] ?? "");
-      heading?.scrollIntoView({ block: "start" });
-      rovingFocusTask(target);
+    // Only an ACCEPTED bounded value focuses a task — an arbitrary/unknown value never
+    // resolves to a task (and is still cleaned below, so it can't linger or loop).
+    if (isTodayNavValue(nav)) {
+      const order = rovingOrderRef.current;
+      const target =
+        nav === TODAY_NAV_LIST ? firstId(order) : sectionFirstIdOf(order, nav);
+      if (target !== null) {
+        const heading = document.getElementById(SECTION_HEADING_ID[nav] ?? "");
+        heading?.scrollIntoView({ block: "start" });
+        rovingFocusTask(target);
+      }
     }
+    // Clean the param with `replace` (no new history entry) regardless of whether the
+    // section was empty or the value was unknown; preserve every unrelated param and
+    // recreate no drawer.
     const next = new URLSearchParams(searchParams);
     next.delete(TODAY_NAV_PARAM);
     setSearchParams(next, { replace: true, preventScrollReset: true });

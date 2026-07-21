@@ -220,6 +220,107 @@ test.describe("TODAY-05 — section navigation", () => {
     await page.keyboard.press("ArrowDown");
     await expect(anytime.getByRole("link").nth(1)).toBeFocused();
   });
+
+  test("Go to Anytime from inside a task drawer closes the stack, cleans the URL, and Back reopens it", async ({
+    page,
+  }) => {
+    await openTodayList(page);
+    const anytime = page.getByRole("list", { name: "Anytime tasks" });
+
+    // Open a task drawer the real way: focus a task and activate it, so the Drawer
+    // provider pushes its own history entry (the token Back/Forward relies on).
+    const firstLink = anytime.getByRole("link").first();
+    const title = ((await firstLink.textContent()) ?? "").trim();
+    await firstLink.focus();
+    await page.keyboard.press("Enter");
+    const taskDialog = page.getByRole("dialog", { name: title });
+    await expect(taskDialog).toBeVisible();
+    await expect(page).toHaveURL(/drawer=/);
+
+    // Run "Go to Anytime" from INSIDE the open drawer.
+    await page.keyboard.press("Control+k");
+    const input = palette(page);
+    await input.fill("Go to Anytime");
+    await expect(
+      page.getByRole("option", { name: /Go to Anytime/ }),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+
+    // Navigating closes the palette AND the whole drawer stack — no manual close.
+    await expect(input).toBeHidden();
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    // The URL carries no drawer param (stack removed) and no lingering today-nav
+    // (the post-navigation effect cleaned it via replace).
+    await expect(page).not.toHaveURL(/drawer=/);
+    await expect(page).not.toHaveURL(/today-nav=/);
+
+    // Focus landed on the first Anytime task, which is the collection's ONLY tab stop.
+    await expect(firstLink).toBeFocused();
+    await expect(firstLink).toHaveAttribute("tabindex", "0");
+    await expect(
+      page.locator('[data-today-tasklist] [tabindex="0"]'),
+    ).toHaveCount(1);
+
+    // Back reopens the SAME task drawer (the provider's history entry was preserved).
+    await page.goBack();
+    const reopened = page.getByRole("dialog", { name: title });
+    await expect(reopened).toBeVisible();
+    await expect(reopened.getByRole("heading", { name: title })).toBeVisible();
+
+    // Forward returns to Today with the drawer closed and the heading present.
+    await page.goForward();
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Today" }),
+    ).toBeVisible();
+  });
+
+  test("Go to Anytime from a STACKED drawer removes every drawer param and Back restores a drawer", async ({
+    page,
+  }) => {
+    await openTodayList(page);
+    const anytime = page.getByRole("list", { name: "Anytime tasks" });
+
+    // Open a task drawer (provider push), then stack the keyboard-help drawer above it
+    // (also a provider push) — the URL now carries TWO drawer params.
+    const firstLink = anytime.getByRole("link").first();
+    const title = ((await firstLink.textContent()) ?? "").trim();
+    await firstLink.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("dialog", { name: title })).toBeVisible();
+
+    await page.keyboard.press("Shift+?");
+    await expect(
+      page.getByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/drawer=.*drawer=/);
+
+    // Run the section command from the top of the stack. Open the palette and wait for
+    // it to take focus over the modal drawer, then activate the option by click (a
+    // deterministic run that does not depend on the highlighted row).
+    await page.keyboard.press("Control+k");
+    const input = palette(page);
+    await expect(input).toBeFocused();
+    await input.fill("Go to Anytime");
+    const option = page.getByRole("option", { name: /Go to Anytime/ });
+    await expect(option).toBeVisible();
+    await option.click();
+
+    // The ENTIRE stack is gone — no drawer param survives — and the palette is closed.
+    await expect(input).toBeHidden();
+    await expect(page).not.toHaveURL(/drawer=/);
+    await expect(page).not.toHaveURL(/today-nav=/);
+    await expect(
+      page.getByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeHidden();
+    await expect(page.getByRole("dialog", { name: title })).toBeHidden();
+
+    // Back re-enters the drawer stack (its history entries were left intact).
+    await page.goBack();
+    await expect(page.getByRole("dialog").first()).toBeVisible();
+    await expect(page).toHaveURL(/drawer=/);
+  });
 });
 
 test.describe("TODAY-05 — planning by shortcut", () => {

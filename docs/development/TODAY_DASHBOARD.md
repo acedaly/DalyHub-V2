@@ -272,13 +272,22 @@ Today-only keyboard engine and no scattered document listeners.
   above a task drawer keeps the lower drawer's state but drops its `C`/`P`/`Shift+P`
   ownership; they return when it becomes top again.
 - **Section navigation.** "Go to <section>" / "Focus task list" are NAVIGATE commands
-  carrying a bounded `today-nav` param (`/today?…&today-nav=<list|bucket>`, preserving
-  current params). Navigating closes the palette naturally, and a post-navigation
-  effect (fired once per navigation, like the Focus-Quick-Capture effect) moves focus
-  to the section's first task, scrolls its heading into view, then cleans the param.
-  Because the effect runs after the palette closed and restored focus, the target wins
-  deterministically — no timing hacks — and Arrow/Home/End then continue from that
-  section.
+  whose target is built by [`keyboard/nav-target.ts`](../../app/modules/today/keyboard/nav-target.ts):
+  it starts from the current params with the **entire Drawer stack removed** (via the
+  shared `withAllDrawersRemoved` helper — never by hand-parsing `drawer` keys), preserves
+  every other param, and sets a bounded `today-nav` value (`/today?…&today-nav=<list|bucket>`).
+  Stripping the whole stack means a section command run from **inside an open drawer**
+  (or a stack of them) navigates the drawers away cleanly in one push, without touching
+  the Drawer provider's own history entry / push token — so the browser Back button
+  reopens the previous drawer and Forward returns to Today with it closed. Navigating
+  closes the palette AND the drawer stack naturally, and a post-navigation effect (fired
+  once per navigation, like the Focus-Quick-Capture effect) moves focus to the section's
+  first task after the modal surfaces have unmounted, scrolls its heading into view, then
+  cleans the param via a `replace`. The `today-nav` value is validated by a bounded type
+  guard (`isTodayNavValue`) so an arbitrary query value can never become a section
+  identifier. Because the effect runs after the palette closed and restored focus, the
+  target wins deterministically — no timing hacks — and Arrow/Home/End then continue from
+  that section.
 - **Global navigation commands** stay registered on the module manifest (Open Today,
   Focus Quick Capture, Open Waiting) — nothing Today-specific is hard-coded in the
   palette component.
