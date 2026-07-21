@@ -47,11 +47,14 @@
   }
 
   /* TODAY-06: when the mobile bar has scrolled away and the pane header pins to
-   * the top of the viewport, keep it clear of a device notch. `env()` resolves to
-   * 0 in an ordinary browser (no gap), and to the real inset on a notched
-   * standalone display, so the sticky header/filter bar is never hidden behind the
-   * status-bar cutout (DS-11 safe-area contract). */
+   * the top of the viewport, keep it clear of a device notch. The inset is applied
+   * to the STICKY OFFSET (`top`), not padding, so it only shifts the header once it
+   * is PINNED — it adds no gap while the header is still in normal flow below the
+   * already safe-area-padded mobile bar. `env()` resolves to 0 in an ordinary
+   * browser (offset unchanged) and to the real inset on a notched standalone
+   * display, so the pinned header/filter bar never hides behind the cutout (DS-11
+   * safe-area contract). */
   .dh-collection__sticky {
-    padding-block-start: env(safe-area-inset-top);
+    top: env(safe-area-inset-top, 0px);
   }
 }
