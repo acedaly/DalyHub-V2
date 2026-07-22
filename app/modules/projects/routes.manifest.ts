@@ -49,6 +49,11 @@ const routes: readonly RouteContribution[] = [
     file: "routes/tasks.tsx",
   },
   {
+    id: "projects.activity",
+    path: "projects/:projectId/activity",
+    file: "routes/activity.tsx",
+  },
+  {
     id: "projects.parent_options",
     path: "projects/parent-options",
     file: "routes/parent-options.tsx",

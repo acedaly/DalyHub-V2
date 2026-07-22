@@ -457,6 +457,31 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Project Activity tab evaluation (PROJ-04)
+
+> The reuse evaluation behind [ADR-036](../decisions/ARCHITECTURE_DECISIONS.md#adr-036-the-project-activity-tab--the-shared-timeline-over-the-project-subject-events). **No new runtime or dev dependency was added** — PROJ-04 is pure composition of the already-built DS-05 Timeline + the FND-05 Activity stream + the DS-02 Record Layout. No third-party code was copied or adapted.
+
+- **Products studied (🔴 study-only, already catalogued): Linear, GitHub, Things 3.** Interaction-model inspiration only, for a **calm record Timeline**: Linear's issue Activity feed (a dense, chronological, non-judgemental history), GitHub's issue/PR timeline (day-grouped events with linked references). Only the well-known *idea* of a record-scoped chronological activity tab was reused; **no code reuse** (closed/unrelated source).
+- **Reuse evaluation — the project Timeline.**
+  - [x] Problem is a commodity worth reusing? **Yes, internally** — DalyHub already built the commodity as DS-05; PROJ-04 must reuse it, not rebuild. The only bespoke part is the module-owned route + two descriptors.
+  - [x] Timeline renderer / virtualisation — reused the ONE shared `ActivityStream`/`Timeline` (in-house windowing, day grouping, states, `role="feed"` a11y). **No timeline or virtualisation dependency taken** (DS-05 already rejected a data-grid dependency).
+  - [x] Event model / pagination — reused the FND-05 `activity.listForEntity` (append-only, workspace-scoped, opaque scope-bound cursors, N+1-free). **No audit-log or ORM dependency**, no second event store, no migration.
+  - [x] Descriptors — reused the shared registry + safe fallback; registered only `project.completed` / `project.reopened`. No duplicated registry, no product switch statement.
+  - [x] Date/day-grouping — reused the shared DS-05 date seam. No date package.
+  - [x] State management — reused the DS-05 stream hook (`useActivityStream`) + React Router revalidation. No state-management dependency.
+  - [x] Licence read — n/a (no dependency taken).
+  - [x] Footprint acceptable — one loader-only resource route + one thin tab component + two descriptors; no bundle cost.
+  - [x] Fits our stack, accessibility bar and Design System — workspace resolved server-side, parameterised/bounded/scope-bound cursor reads, `role="feed"` semantics, `<time datetime>`, non-colour meaning, Activity-last tab order; the fix for [DEBT-21](../product/PRODUCT_DEBT.md) makes the bare record axe-clean.
+  - [x] No telemetry / no privacy concern — read-only, workspace-scoped; no sensitive free-text waiting content surfaced from payloads; no cross-workspace disclosure.
+  - [x] Provenance — original DalyHub code; no snippet adapted, so no attribution and no `THIRD_PARTY_NOTICES.md` change.
+  - [x] Covered by tests — project descriptor unit tests, a `ProjectActivityTab` component test, a real Workers/D1 route integration test, and a real-D1 Playwright journey.
+  - [x] REFERENCE_PRODUCTS.md updated (this entry).
+- **Rejected.** A `project_activity` / Projects audit-log table (FND-05 is the one event store); a Projects-only timeline list (forks DS-05, drops virtualisation/a11y); descendant child-task aggregation in React (contradicts the ADR-012 subject model — a separate decision if ever wanted); a duplicated descriptor registry / Projects formatter (extend the shared registry); a timeline/virtualisation/date/state library (DS-05 supplies all).
+- **Licence implications.** None — no dependency added, no third-party code copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Reuse** DS-05 (renderer, model, pagination, virtualisation), FND-05 (`activity.listForEntity`) and DS-02 (Record Layout); **build** only the module-owned `/projects/:projectId/activity` route, the `ProjectActivityTab` and the two project descriptors; **add no dependency**. See [ADR-036](../decisions/ARCHITECTURE_DECISIONS.md#adr-036-the-project-activity-tab--the-shared-timeline-over-the-project-subject-events).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

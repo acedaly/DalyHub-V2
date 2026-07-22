@@ -220,7 +220,9 @@ function toTaskCardProps(
     title: task.title,
     typeLabel: "Task",
     icon: <EntityIcon type="task" />,
-    headingLevel: 4,
+    // h3 under the tab's section h2 (record h1 → section h2 → card h3): a
+    // non-skipping outline on the bare project record (DEBT-21).
+    headingLevel: 3,
     status: { label: status.label, tone: status.tone },
     metadata,
     dateLabel: date
@@ -255,6 +257,7 @@ export function ProjectTasksTab({
 
   return (
     <div className="dh-project-tasks">
+      <h2 className="dh-visually-hidden">Tasks</h2>
       <div className="dh-project-tasks__toolbar">
         <SegmentedFilter
           param="tasks"

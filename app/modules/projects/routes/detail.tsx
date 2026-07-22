@@ -41,6 +41,7 @@ import type {
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { NewTaskForm } from "../NewTaskForm";
+import { ProjectActivityTab } from "../ProjectActivityTab";
 import { ProjectLinksTab } from "../ProjectLinksTab";
 import { ProjectOverview } from "../ProjectOverview";
 import { NEW_TASK_KEY, ProjectTasksTab } from "../ProjectTasksTab";
@@ -418,6 +419,17 @@ function ProjectDetail({
           searchTargets={searchTargets}
           onLink={onLink}
           onUnlink={onUnlink}
+        />
+      }
+      activityTab={
+        // The project's real FND-05 Activity, rendered by the shared DS-05 Timeline.
+        // `reloadKey` is the project's `updatedAt`: a rename/complete/reopen bumps it
+        // and revalidation re-reads the first page (the new event appears at the top,
+        // no hard reload, no duplicate rows); a drawer-only URL change leaves it
+        // untouched, so already-loaded Activity pages are preserved.
+        <ProjectActivityTab
+          projectId={overview.id}
+          reloadKey={overview.updatedAt}
         />
       }
     />

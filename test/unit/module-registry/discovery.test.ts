@@ -171,6 +171,12 @@ describe("module discovery", () => {
           moduleId: "projects",
           file: "routes/tasks.tsx",
         },
+        // PROJ-04 project Activity Timeline resource route.
+        {
+          id: "projects.activity",
+          moduleId: "projects",
+          file: "routes/activity.tsx",
+        },
         {
           id: "projects.parent_options",
           moduleId: "projects",

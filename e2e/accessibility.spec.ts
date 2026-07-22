@@ -43,6 +43,10 @@ const PRODUCT_ROUTES = [
   "/areas",
   "/goals",
   "/projects",
+  // The BARE project record (no Drawer open) — the DEBT-21 regression gate: PROJ-04
+  // gave the record a non-skipping heading outline (record h1 → section h2 → content
+  // h3), so the bare page is now axe-clean without relying on the Drawer-open scan.
+  "/projects/pr-website",
   "/tasks",
 ] as const;
 
