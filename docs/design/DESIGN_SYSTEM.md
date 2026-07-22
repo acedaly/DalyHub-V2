@@ -108,6 +108,12 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Clicking opens the [Drawer](#drawer). Cards support selection, drag (with keyboard equivalent), and inline quick actions. Density is configurable (comfortable/compact).
 **Rules.** **One Card component, configured** — not a bespoke card per module. If a module needs a new card affordance, add it to the shared Card. (This is a top target in [PRODUCT_DEBT](../product/PRODUCT_DEBT.md).)
 
+### Health signal (PROJ-02)
+**Purpose.** A restrained, reusable presentation of a **derived** record health state (PROJ-02, [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity)) — calm, honest, explained.
+**Anatomy.** A toned **pill** (`HealthIndicator`: a decorative dot + state label + optional primary reason) for the Card `metadata` slot and record header; a **`ProjectHealthPanel`** (state pill + a de-duplicated reason list + a supporting-facts `dl`) for the record Summary. Tones are a strict subset of the shared vocabulary (`neutral`/`success`/`info`/`warning`/`danger`).
+**Behaviour.** Health is evaluated server-side and rendered as text — it refreshes through the normal loader revalidation, never a cached column. Stronger tones (`danger`/`warning`) are reserved for genuinely overdue or blocked work; ordinary inactivity is calm (`info`), never an aggressive red.
+**Rules.** Meaning is **always** text + tone, never colour alone. Reuse the shared components — do **not** add a second project-card component or invent status vocabulary that competes with open/completed or task status. Free-text waiting subjects are never surfaced.
+
 ### Timeline
 **Purpose.** Show an entity's history in chronological order — the "what happened, when" of any record.
 **Anatomy.** A vertical, time-ordered stream of events rendered from the [shared Activity model](../../AGENTS.md#96-shared-activity-model).

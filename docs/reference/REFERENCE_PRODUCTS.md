@@ -435,6 +435,26 @@ Candidates considered for a shared forms system: **form/validation** — React H
 - **Licence implications.** None — no dependency added, no third-party code copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
 - **Decision (Depend / Adapt / Build).** **Build** the Projects module + the read-only projection on the existing stack; **reuse** every shared component and the spine; **add no dependency**. See [ADR-034](../decisions/ARCHITECTURE_DECISIONS.md#adr-034-the-projects-module--a-read-only-projection-over-the-spine-no-second-project-model).
 
+## Project health evaluation (PROJ-02)
+
+> The reuse evaluation behind [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity). **No new runtime or dev dependency was added** — PROJ-02 is a pure, derived evaluation over the already-built spine/task/Activity data plus the shared design system. No third-party code was copied.
+
+- **Products studied (🔴 study-only, already catalogued): Linear, Things 3, Sunsama/Amie.** Interaction-model inspiration only, for a **calm health signal**: Linear's project *health* (on-track/at-risk/off-track with a short reason, no vanity score); Things/Sunsama's restraint (surface attention-worthy work without nagging or gamification). Only the well-known *idea* of a state-plus-reason health cue was reused; **no code reuse** (closed source).
+- **Reuse evaluation — the health model and its facts read.**
+  - [x] Problem is a commodity worth reusing? **No** — "is this project on track" is domain logic over DalyHub's own spine/tasks/Activity; the rules (staleness from meaningful activity, blocked vs some-waiting, due vs scheduled, precedence) are bespoke and must stay storage-independent and testable.
+  - [x] Date/duration math — evaluated `date-fns` (MIT, already catalogued as *Rejected — build*). **Rejected again**: staleness/wait/upcoming math is a few pure date-only helpers (`daysBetweenIsoDates`, `addDaysToIsoDate`) over `YYYY-MM-DD`/UTC with an injected clock, reusing the existing `~/shared/datetime` owner-calendar seam. No dependency taken.
+  - [x] Badge/status presentation — reused the shared Card `status`/`metadata` slots and the DS-01 feedback token triples; a small `HealthIndicator`/`ProjectHealthPanel` (shared, not a second card). No UI dependency.
+  - [x] Licence read — n/a (no dependency taken).
+  - [x] Footprint acceptable — a small kernel evaluator + read-only D1 facts adapter (mirroring the PROJ-01 projection); no bundle cost.
+  - [x] Fits our stack, accessibility bar and Design System — derived (never cached), workspace-scoped/parameterised/bounded reads, text + tone (never colour-only), calm non-judgmental wording.
+  - [x] No telemetry / no privacy concern — workspace-scoped reads only; free-text waiting subjects are never included in facts/telemetry.
+  - [x] Provenance — original DalyHub code; no snippet adapted, so no attribution and no `THIRD_PARTY_NOTICES.md` change.
+  - [x] Covered by tests — exhaustive pure evaluator matrix, presentation, Workers/D1 integration, route + a real-D1 Playwright journey.
+  - [x] REFERENCE_PRODUCTS.md updated (this entry).
+- **Rejected.** A persisted health score/column (can drift — derived instead); an opaque weighted numeric score (state + transparent reasons is calmer and testable); a date library (pure helpers); a Today-only calculation (reuse the one shared evaluator); a second project/task model (compose the existing spine/tasks/Activity).
+- **Licence implications.** None — no dependency added, no third-party code copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Build** the derived health model + facts read on the existing stack; **reuse** the shared components, the spine/task/Activity data and the owner-calendar helpers; **add no dependency**. See [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity).
+
 ---
 
 ## Entry template

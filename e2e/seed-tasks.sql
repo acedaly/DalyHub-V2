@@ -215,3 +215,71 @@ SELECT
   printf('2026-07-18T06:%02d:00.000Z', n - 1),
   NULL
 FROM seq;
+
+-- PROJ-02 (health) — four dedicated projects covering the health states, isolated
+-- from the PROJ-01 journeys' projects. Each uses wall-clock-INDEPENDENT signals:
+--   pr-atrisk  — one OPEN task overdue by a fixed far-past due date (always overdue)
+--                plus one completed task; the health journey completes the overdue
+--                task, leaving all tasks complete → "On track".
+--   pr-blocked — its only open task is waiting (a free-text subject) → "Blocked".
+--   pr-ontrack — its only task is complete (open work = 0) → "On track".
+--   pr-stale   — an open task whose activity is anchored in 2020, so it is stale
+--                regardless of the run date (no wall-clock dependency).
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-atrisk', 'local-dev-workspace', 'project', 'Conference talk', '2026-07-19T04:00:00.000Z', '2026-07-19T04:00:00.000Z', NULL),
+  ('pr-blocked', 'local-dev-workspace', 'project', 'Office move', '2026-07-19T04:00:01.000Z', '2026-07-19T04:00:01.000Z', NULL),
+  ('pr-ontrack', 'local-dev-workspace', 'project', 'Team offsite', '2026-07-19T04:00:02.000Z', '2026-07-19T04:00:02.000Z', NULL),
+  ('pr-stale', 'local-dev-workspace', 'project', 'Old archive tidy', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL),
+  ('pht-overdue', 'local-dev-workspace', 'task', 'Submit the abstract', '2026-07-19T04:01:00.000Z', '2026-07-19T04:01:00.000Z', NULL),
+  ('pht-atrisk-done', 'local-dev-workspace', 'task', 'Book the venue', '2026-07-19T04:01:01.000Z', '2026-07-19T04:01:01.000Z', NULL),
+  ('pht-blocked', 'local-dev-workspace', 'task', 'Sign the lease', '2026-07-19T04:01:02.000Z', '2026-07-19T04:01:02.000Z', NULL),
+  ('pht-ontrack-done', 'local-dev-workspace', 'task', 'Pick the dates', '2026-07-19T04:01:03.000Z', '2026-07-19T04:01:03.000Z', NULL),
+  ('pht-stale', 'local-dev-workspace', 'task', 'Shred old files', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-atrisk', 'project', NULL),
+  ('local-dev-workspace', 'pr-blocked', 'project', NULL),
+  ('local-dev-workspace', 'pr-ontrack', 'project', NULL),
+  ('local-dev-workspace', 'pr-stale', 'project', NULL),
+  ('local-dev-workspace', 'pht-overdue', 'task', NULL),
+  ('local-dev-workspace', 'pht-atrisk-done', 'task', '2026-07-19T05:00:00.000Z'),
+  ('local-dev-workspace', 'pht-blocked', 'task', NULL),
+  ('local-dev-workspace', 'pht-ontrack-done', 'task', '2026-07-19T05:00:00.000Z'),
+  ('local-dev-workspace', 'pht-stale', 'task', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-pratrisk-area', 'local-dev-workspace', 'pr-atrisk', 'a-dh', 'project.belongs_to_area', '2026-07-19T04:00:00.000Z', '2026-07-19T04:00:00.000Z', NULL),
+  ('l-prblocked-area', 'local-dev-workspace', 'pr-blocked', 'a-dh', 'project.belongs_to_area', '2026-07-19T04:00:01.000Z', '2026-07-19T04:00:01.000Z', NULL),
+  ('l-prontrack-area', 'local-dev-workspace', 'pr-ontrack', 'a-dh', 'project.belongs_to_area', '2026-07-19T04:00:02.000Z', '2026-07-19T04:00:02.000Z', NULL),
+  ('l-prstale-area', 'local-dev-workspace', 'pr-stale', 'a-dh', 'project.belongs_to_area', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL),
+  ('l-phtoverdue-proj', 'local-dev-workspace', 'pht-overdue', 'pr-atrisk', 'task.belongs_to_project', '2026-07-19T04:01:00.000Z', '2026-07-19T04:01:00.000Z', NULL),
+  ('l-phtdone-proj', 'local-dev-workspace', 'pht-atrisk-done', 'pr-atrisk', 'task.belongs_to_project', '2026-07-19T04:01:01.000Z', '2026-07-19T04:01:01.000Z', NULL),
+  ('l-phtblocked-proj', 'local-dev-workspace', 'pht-blocked', 'pr-blocked', 'task.belongs_to_project', '2026-07-19T04:01:02.000Z', '2026-07-19T04:01:02.000Z', NULL),
+  ('l-phtontrack-proj', 'local-dev-workspace', 'pht-ontrack-done', 'pr-ontrack', 'task.belongs_to_project', '2026-07-19T04:01:03.000Z', '2026-07-19T04:01:03.000Z', NULL),
+  ('l-phtstale-proj', 'local-dev-workspace', 'pht-stale', 'pr-stale', 'task.belongs_to_project', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL);
+INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, waiting_since, waiting_note, updated_at)
+VALUES
+  ('local-dev-workspace', 'pht-overdue', 'task', 'todo', NULL, '2000-01-01', NULL, NULL, NULL, NULL, '2026-07-19T04:01:00.000Z'),
+  ('local-dev-workspace', 'pht-blocked', 'task', 'todo', NULL, NULL, NULL, NULL, '2026-07-19T04:02:00.000Z', 'landlord counter-signature', '2026-07-19T04:02:00.000Z');
+
+-- Reset the PROJ-02 health seed's MUTABLE state so every run is deterministic: the
+-- overdue task is re-opened with its far-past due date, the blocked task's waiting is
+-- restored, and the completed tasks stay completed.
+UPDATE spine_records SET completed_at = NULL
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('pr-atrisk', 'pr-blocked', 'pr-ontrack', 'pr-stale', 'pht-overdue', 'pht-blocked', 'pht-stale');
+UPDATE spine_records SET completed_at = '2026-07-19T05:00:00.000Z'
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('pht-atrisk-done', 'pht-ontrack-done');
+UPDATE task_details
+SET status = 'todo', due_date = '2000-01-01', scheduled_date = NULL,
+    waiting_since = NULL, waiting_note = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pht-overdue';
+UPDATE task_details
+SET status = 'todo', waiting_since = '2026-07-19T04:02:00.000Z',
+    waiting_note = 'landlord counter-signature'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pht-blocked';
+DELETE FROM entity_links
+WHERE workspace_id = 'local-dev-workspace' AND source_entity_id = 'pht-blocked'
+  AND type = 'task.waiting_on';

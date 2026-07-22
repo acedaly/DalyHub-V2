@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 
 import { ProjectOverview } from "~/modules/projects/ProjectOverview";
+
+import { stubHealth } from "../../support/project-health";
 import {
   projectProgress,
   type SerializedProjectOverview,
@@ -43,6 +45,7 @@ describe("ProjectOverview", () => {
       <ProjectOverview
         overview={overview()}
         progress={projectProgress(1, 4)}
+        health={stubHealth({ taskTotal: 4, taskCompleted: 1 })}
         completed={false}
         completionPending={false}
         onToggleComplete={() => {}}
@@ -66,11 +69,40 @@ describe("ProjectOverview", () => {
     ).toBeInTheDocument();
   });
 
+  it("explains the project's health with all current reasons and supporting facts", () => {
+    renderInRouter(
+      <ProjectOverview
+        overview={overview()}
+        progress={projectProgress(0, 4)}
+        health={stubHealth({
+          taskTotal: 4,
+          taskCompleted: 0,
+          overdueOpen: 1,
+          waitingOpen: 1,
+          upcomingDueOpen: 1,
+        })}
+        completed={false}
+        completionPending={false}
+        onToggleComplete={() => {}}
+        onRename={() => {}}
+        tasksTab={<div>tasks-content</div>}
+        linksTab={<div>links-content</div>}
+      />,
+    );
+    // The at-risk state pill (appears in header + panel).
+    expect(screen.getAllByText("At risk").length).toBeGreaterThan(0);
+    // Multiple reasons are preserved, not just the winner.
+    expect(screen.getByText("1 task past its due date")).toBeInTheDocument();
+    expect(screen.getByText("1 of 4 open tasks waiting")).toBeInTheDocument();
+    expect(screen.getByText("1 task due soon")).toBeInTheDocument();
+  });
+
   it("offers Reopen when the project is completed", () => {
     renderInRouter(
       <ProjectOverview
         overview={overview({ completedAt: "2026-07-21T00:00:00.000Z" })}
         progress={projectProgress(4, 4)}
+        health={stubHealth({ taskTotal: 4, taskCompleted: 4 })}
         completed
         completionPending={false}
         onToggleComplete={() => {}}
@@ -90,6 +122,7 @@ describe("ProjectOverview", () => {
       <ProjectOverview
         overview={overview({ goal: null })}
         progress={projectProgress(0, 0)}
+        health={stubHealth({ taskTotal: 0, taskCompleted: 0 })}
         completed={false}
         completionPending={false}
         onToggleComplete={() => {}}
@@ -108,6 +141,7 @@ describe("ProjectOverview", () => {
       <ProjectOverview
         overview={overview()}
         progress={projectProgress(1, 4)}
+        health={stubHealth({ taskTotal: 4, taskCompleted: 1 })}
         completed={false}
         completionPending={false}
         onToggleComplete={onToggleComplete}

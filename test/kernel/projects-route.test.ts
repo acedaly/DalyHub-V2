@@ -19,6 +19,7 @@ import {
   FakeClock,
   makeContext,
   makeSpineRepository,
+  makeTaskRepository,
   resetTables,
   sequentialIds,
 } from "./support";
@@ -410,6 +411,40 @@ describe("project loaders", () => {
       params: { projectId: area },
     } as unknown as Parameters<typeof linkTargetsLoader>[0])) as Response;
     expect(response.status).toBe(404);
+  });
+
+  it("both loaders surface derived health (collection + record), and completing a task refreshes it", async () => {
+    const s = spine(WS);
+    const t = makeTaskRepository(makeContext(WS), {
+      clock: new FakeClock().now,
+      activityIdGenerator: sequentialIds("hact"),
+    });
+    const area = await s.createArea({ title: "Area" });
+    const project = await s.createProject({
+      title: "Overdue project",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await s.createTask({
+      title: "Overdue task",
+      parent: { kind: "project", id: project.id },
+    });
+    await t.updateTask(task.id, { dueDate: "2000-01-01" });
+
+    // Collection loader carries health on the item.
+    const page = await runIndex("all");
+    const item = page.projects.find((p) => p.id === project.id)!;
+    expect(item.health.state).toBe("at_risk");
+    expect(item.health.reasons[0].code).toBe("overdue");
+
+    // Record loader carries health too.
+    let detail = await runDetail(project.id);
+    expect(detail.health.state).toBe("at_risk");
+
+    // Resolving the cause (completing the overdue task) refreshes health on the next
+    // loader run — derived, never cached.
+    await t.completeTask(task.id);
+    detail = await runDetail(project.id);
+    expect(detail.health.state).toBe("on_track");
   });
 
   it("the collection loader paginates: nextCursor reaches every project", async () => {

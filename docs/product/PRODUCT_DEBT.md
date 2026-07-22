@@ -136,3 +136,14 @@
 - [`ARCHITECTURE_DECISIONS.md`](../decisions/ARCHITECTURE_DECISIONS.md) — the kernel decisions structural debt converges toward.
 - [`AGENTS.md`](../../AGENTS.md) — the standards that define what counts as debt.
 - [`docs/README.md`](../README.md) — documentation index.
+
+### ☐ DEBT-20 — No health-specific project filter yet (DS-07 clause-builder still deferred) — P3
+- **Current issue.** PROJ-02 surfaces project health on every collection card and explains it on the record, but the `/projects` collection still filters only by the restrained Open/Completed/All URL segment ([`SegmentedFilter`](../../app/modules/projects/SegmentedFilter.tsx)). There is no way to filter the collection to *just* at-risk / blocked / stale projects. Health is derived (not a stored column), so a health filter must be applied server-side over the same bounded facts, not a client re-sort of one page.
+- **Assessment.** For a single-owner workspace the expected outcome — *recognise which open projects need attention without opening every record* — is met by the always-visible health cue on each card plus normal scanning; a dedicated filter is a refinement, not a requirement. The audit deliberately did **not** invent a second filtering system.
+- **Desired future state.** When richer project filtering lands, add a health **enum** field (on-track/at-risk/blocked/stale) to the DS-07 `FilterBar` clause-builder (the same path [DEBT-19](#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3) and ADR-034 point to), evaluated server-side over the bounded facts — never replacing the Open/Completed/All state control.
+- **Related roadmap item.** [PROJ-02](../roadmap/ROADMAP_V2.md#-proj-02--health); [DS-07](../roadmap/ROADMAP_V2.md#-ds-07--filters--saved-views).
+
+### ☐ DEBT-21 — Bare project record page has a pre-existing heading-order gap — P3
+- **Current issue.** PROJ-02's record axe scan surfaced (did not cause) a pre-existing PROJ-01 condition: the bare `/projects/:id` record page jumps from the record `h1` straight to the Tasks tab's task cards at `h4`, with no intervening `h2`/`h3` — an axe `heading-order` (WCAG best-practice) violation. It was never caught because the only prior record axe gate scans the record with the shared Task Drawer **open** (which inerts the background and hides its headings). PROJ-02 matched that established gate for its own record scan rather than performing a drive-by heading-hierarchy refactor of the PROJ-01/DS-02 record layout.
+- **Desired future state.** A DS-02 / PROJ-05 pass gives the project record a correct heading outline (e.g. a section-level `h2` around the tab region and task cards at `h3`), so the **bare** record page is axe-clean without the Drawer open.
+- **Related roadmap item.** [PROJ-02](../roadmap/ROADMAP_V2.md#-proj-02--health) (surfaced); [PROJ-05](../roadmap/ROADMAP_V2.md#-proj-05--settings) / DS-02 (fix).

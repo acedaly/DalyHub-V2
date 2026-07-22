@@ -1,0 +1,160 @@
+/*
+ * PROJ-02 Project Health presentation (ADR-035).
+ *
+ * A restrained toned pill (the health state) plus the detailed record panel. Every
+ * tone pairs its colour with a text label and a decorative dot, so meaning is never
+ * carried by colour alone (DS-11 / WCAG 2.2 AA). Colours come from the shared
+ * feedback token triples; forced-colours falls back to system colours via the
+ * border + text the pill always carries.
+ */
+
+.dh-health {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-health__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: 0 var(--dh-space-2);
+  min-height: var(--dh-space-5);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  white-space: nowrap;
+}
+
+.dh-health__dot {
+  width: var(--dh-space-2);
+  height: var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+.dh-health__pill[data-tone="success"] {
+  color: var(--dh-color-success-text);
+  background: var(--dh-color-success-surface);
+  border-color: transparent;
+}
+.dh-health__pill[data-tone="warning"] {
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-color: transparent;
+}
+.dh-health__pill[data-tone="danger"] {
+  color: var(--dh-color-danger-text);
+  background: var(--dh-color-danger-surface);
+  border-color: transparent;
+}
+.dh-health__pill[data-tone="info"] {
+  color: var(--dh-color-info-text);
+  background: var(--dh-color-info-surface);
+  border-color: transparent;
+}
+
+.dh-health__reason {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- The detailed record panel ------------------------------------------- */
+
+.dh-health-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-health-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-health-panel__reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-health-panel__reason {
+  position: relative;
+  padding-inline-start: var(--dh-space-4);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-health-panel__reason::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--dh-space-1);
+  inset-block-start: 0.55em;
+  width: var(--dh-space-2);
+  height: var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-border-strong, var(--dh-color-border));
+}
+.dh-health-panel__reason[data-tone="success"]::before {
+  background: var(--dh-color-success);
+}
+.dh-health-panel__reason[data-tone="info"]::before {
+  background: var(--dh-color-info);
+}
+.dh-health-panel__reason[data-tone="warning"]::before {
+  background: var(--dh-color-warning);
+}
+.dh-health-panel__reason[data-tone="danger"]::before {
+  background: var(--dh-color-danger);
+}
+
+.dh-health-panel__facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--dh-space-2) var(--dh-space-4);
+}
+
+.dh-health-panel__fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+}
+
+.dh-health-panel__fact dt {
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-health-panel__fact dd {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .dh-health__pill {
+    border-color: CanvasText;
+  }
+  .dh-health__dot,
+  .dh-health-panel__reason::before {
+    background: CanvasText;
+  }
+}

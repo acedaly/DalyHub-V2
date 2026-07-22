@@ -12,6 +12,7 @@
  */
 
 import { normaliseProgress, type CardTone } from "~/shared/card";
+import type { ProjectHealth } from "~/shared/project-health";
 import {
   formatCalendarDate,
   serializeTaskWaiting,
@@ -36,6 +37,8 @@ export interface SerializedProjectListItem {
   readonly goal: ProjectRelation | null;
   readonly taskTotal: number;
   readonly taskCompleted: number;
+  /** The DERIVED health signal (PROJ-02) — never persisted, JSON-safe. */
+  readonly health: ProjectHealth;
 }
 
 /** JSON-serialised project overview (Dates → ISO strings). */
@@ -49,9 +52,14 @@ export interface SerializedProjectOverview {
   readonly goal: ProjectRelation | null;
 }
 
-/** Serialise a `ProjectListItem` for a JSON loader response. */
+/**
+ * Serialise a `ProjectListItem` for a JSON loader response, carrying its derived
+ * health (PROJ-02). Health is evaluated server-side from the whole-page facts and is
+ * already JSON-safe, so it flows straight through pagination on the item itself.
+ */
 export function serializeProjectListItem(
   item: ProjectListItem,
+  health: ProjectHealth,
 ): SerializedProjectListItem {
   return {
     id: item.id,
@@ -63,6 +71,7 @@ export function serializeProjectListItem(
     goal: item.goal,
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
+    health,
   };
 }
 
@@ -166,6 +175,8 @@ export interface ProjectCardData {
   readonly progress: ProjectProgress;
   /** e.g. "Updated 21 Jul 2026", or null when it doesn't genuinely help. */
   readonly updatedLabel: string | null;
+  /** The DERIVED health signal (PROJ-02). */
+  readonly health: ProjectHealth;
 }
 
 /**
@@ -213,5 +224,6 @@ export function toProjectCardData(
     state: projectStateLabel(item),
     progress: projectProgress(item.taskCompleted, item.taskTotal),
     updatedLabel: updated ? `Updated ${updated}` : null,
+    health: item.health,
   };
 }

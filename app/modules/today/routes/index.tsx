@@ -22,7 +22,9 @@ import { useFetcher } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { evaluateProjectHealth } from "~/kernel/project-health";
 import { DrawerProvider } from "~/shared/drawer";
+import { createOwnerHealthContext } from "~/shared/project-health";
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate, ownerCalendarIso } from "../date";
@@ -142,14 +144,25 @@ export async function loader({ context }: Route.LoaderArgs) {
       orderBy: "recent",
       limit: RECENT_PROJECTS_COUNT,
     });
-    recentProjects = projectPage.items.map((project) => ({
-      id: project.id,
-      title: project.title,
-      areaLabel: project.area?.title ?? null,
-      completed: project.completedAt !== null,
-      taskTotal: project.taskTotal,
-      taskCompleted: project.taskCompleted,
-    }));
+    // The SAME shared derived health model Projects uses — never a Today-only
+    // calculation. Facts for the whole bounded set are gathered in one N+1-free read.
+    const healthContext = createOwnerHealthContext(now);
+    const healthFacts = await scope.projectHealth.listProjectHealthFacts(
+      projectPage.items.map((project) => project.id),
+      todayIso,
+    );
+    recentProjects = projectPage.items.map((project) => {
+      const facts = healthFacts.get(project.id);
+      return {
+        id: project.id,
+        title: project.title,
+        areaLabel: project.area?.title ?? null,
+        completed: project.completedAt !== null,
+        taskTotal: project.taskTotal,
+        taskCompleted: project.taskCompleted,
+        health: facts ? evaluateProjectHealth(facts, healthContext) : null,
+      };
+    });
   } catch {
     buckets = EMPTY_BUCKETS;
     waiting = EMPTY_WAITING_SUMMARY;

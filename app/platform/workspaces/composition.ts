@@ -22,6 +22,7 @@ import {
 } from "~/kernel/activity";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
@@ -33,6 +34,7 @@ import {
   createActivityRepository,
   createEntityLinkRepository,
   createEntityRepository,
+  createProjectHealthRepository,
   createProjectRepository,
   createSpineRepository,
   createTaskRepository,
@@ -78,6 +80,14 @@ export interface WorkspaceScope {
    * `spine.getRollup`.
    */
   readonly projects: ProjectRepository;
+  /**
+   * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
+   * view that gathers the raw facts (rollup, waiting, overdue/slipped/upcoming, latest
+   * meaningful activity) a project's DERIVED health is evaluated from, for a whole
+   * bounded page in a fixed number of grouped queries (no N+1). The rules stay the
+   * pure `evaluateProjectHealth`; nothing here is cached.
+   */
+  readonly projectHealth: ProjectHealthRepository;
   readonly activity: ActivityRepository;
 }
 
@@ -139,8 +149,18 @@ export function bindWorkspaceRepositories(
   });
   const spine = createSpineRepository(env.DB, context, { actorContext });
   const tasks = createTaskRepository(env.DB, context, { actorContext });
-  // Read-only projection: no actor (it never mutates or records Activity).
+  // Read-only projections: no actor (they never mutate or record Activity).
   const projects = createProjectRepository(env.DB, context);
+  const projectHealth = createProjectHealthRepository(env.DB, context);
   const activity = createActivityRepository(env.DB, context);
-  return { context, entities, entityLinks, spine, tasks, projects, activity };
+  return {
+    context,
+    entities,
+    entityLinks,
+    spine,
+    tasks,
+    projects,
+    projectHealth,
+    activity,
+  };
 }

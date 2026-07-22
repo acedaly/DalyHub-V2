@@ -15,6 +15,7 @@
 import type { ActivityRepository } from "~/kernel/activity";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
@@ -32,6 +33,7 @@ import {
   D1EntityLinkRepository,
   type D1EntityLinkRepositoryOptions,
 } from "./d1-entity-link-repository";
+import { D1ProjectHealthRepository } from "./d1-project-health-repository";
 import { D1ProjectRepository } from "./d1-project-repository";
 import {
   D1SpineRepository,
@@ -61,6 +63,7 @@ export {
 };
 export { D1ActivityRepository };
 export { D1ProjectRepository };
+export { D1ProjectHealthRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export { D1ActivityRecorder } from "./d1-activity-recorder";
 export {
@@ -144,6 +147,21 @@ export function createProjectRepository(
   context: WorkspaceContext,
 ): ProjectRepository {
   return new D1ProjectRepository(db, context);
+}
+
+/**
+ * Factory for the workspace-scoped, READ-ONLY D1-backed ProjectHealthRepository —
+ * the PROJ-02 derived project-health facts projection (ADR-035). It performs no
+ * mutations and caches nothing: health is recomputed from live spine, task-detail
+ * and Activity data, gathered for a whole bounded page in a fixed number of grouped
+ * queries (no N+1). Bound to a `WorkspaceContext`; there is no unscoped construction
+ * path.
+ */
+export function createProjectHealthRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): ProjectHealthRepository {
+  return new D1ProjectHealthRepository(db, context);
 }
 
 /**

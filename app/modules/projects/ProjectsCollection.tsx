@@ -26,6 +26,7 @@ import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
 import type { SelectOption } from "~/shared/forms/types";
+import { HealthIndicator } from "~/shared/project-health";
 
 import { NewProjectForm } from "./NewProjectForm";
 import { SegmentedFilter } from "./SegmentedFilter";
@@ -124,6 +125,14 @@ function toCardProps(
   onOpenProject: (id: string) => void,
 ): CardProps {
   const metadata: CardMetaItem[] = [];
+  // The derived health signal (PROJ-02): a restrained toned pill + the primary
+  // reason as accessible text. It is a distinct axis from the open/completed
+  // `status` pill, so both coexist without a second card component.
+  metadata.push({
+    id: "health",
+    label: "Health",
+    value: <HealthIndicator health={card.health} showReason />,
+  });
   if (card.goalLabel) {
     metadata.push({ id: "goal", label: "Goal", value: card.goalLabel });
   }

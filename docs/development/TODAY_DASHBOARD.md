@@ -67,7 +67,7 @@ the quick-capture draft).
   |---|---|---|---|
   | 1 | Today's focus | DS-04 Card (list, compact) | optimistic complete/reopen quick action |
   | 2 | Upcoming | DS-04 Card (list) | meetings/reminders/deadlines, sorted by `sortKey` |
-  | 3 | Continue working | DS-04 Card (grid) | area badge · status badge · rolled-up progress |
+  | 3 | Continue working | DS-04 Card (grid) | area badge · status badge · rolled-up progress · **PROJ-02 health cue (only when attention is needed)** |
   | 4 | Recent notes | DS-04 Card (list) | title · snippet (subtitle) · last-edited (date) |
   | 5 | Daily timeline | token-only list | a simple day schedule (see below) |
   | 6 | Quick capture | native field + button | structure only — nothing is saved |
@@ -78,6 +78,16 @@ the quick-capture draft).
   `Card → drawer key → renderDrawer → RecordLayout` chain. The Card never owns
   drawer state; `TodayDrawer.ts` maps `<kind>:<id>` keys to fixtures and returns
   `null` for an unknown/stale key (the Drawer's graceful not-found panel).
+
+### Project health on "Continue working" (PROJ-02)
+
+Since PROJ-02, the "Continue working" cards carry the **same** derived project-health
+model as `/projects` (`app/shared/project-health`, [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity))
+— never a Today-only calculation. To keep the calm dashboard uncluttered, the health
+pill is shown **only when a project needs attention** (`at_risk`/`blocked`/`stale`);
+on-track projects show nothing extra. The loader gathers the facts for those bounded
+projects in the same N+1-free read and evaluates with the owner-calendar clock; no
+other Today section is changed.
 
 ## The Task Drawer (TODAY-02)
 

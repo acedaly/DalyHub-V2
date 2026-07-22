@@ -23,10 +23,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useFetcher, useNavigate, useSearchParams } from "react-router";
 
 import { Card, CardCollection, closeActiveSwipeTray } from "~/shared/card";
-import type { CardAction, CardProps } from "~/shared/card";
+import type { CardAction, CardMetaItem, CardProps } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
+import {
+  HealthIndicator,
+  healthNeedsAttention,
+  type ProjectHealth,
+} from "~/shared/project-health";
 import { useFeedback } from "~/shared/feedback";
 // Import the specific modules (not the `~/shared/commands` barrel) so the Today
 // route chunk does not eagerly pull the palette controller / DS-08 Search UI.
@@ -86,6 +91,8 @@ export type RecentProjectItem = {
   readonly completed: boolean;
   readonly taskTotal: number;
   readonly taskCompleted: number;
+  /** The DERIVED health signal (PROJ-02), or null when unavailable. */
+  readonly health: ProjectHealth | null;
 };
 
 export type TodayDashboardProps = {
@@ -770,6 +777,18 @@ export function TodayDashboard({
   // project opened from the Projects module lands on, never a fixture drawer.
   const projectCard = (project: RecentProjectItem): CardProps => {
     const href = `/projects/${encodeURIComponent(project.id)}`;
+    // Keep Today calm: only surface a health cue when the project genuinely needs
+    // attention (at-risk / blocked / stale). On-track projects show nothing extra.
+    const metadata: CardMetaItem[] =
+      project.health && healthNeedsAttention(project.health)
+        ? [
+            {
+              id: "health",
+              label: "Health",
+              value: <HealthIndicator health={project.health} showReason />,
+            },
+          ]
+        : [];
     return {
       id: project.id,
       title: project.title,
@@ -780,6 +799,7 @@ export function TodayDashboard({
         ? { label: "Completed", tone: "success" }
         : { label: "Open", tone: "neutral" },
       context: project.areaLabel ? { label: project.areaLabel } : undefined,
+      metadata,
       progress:
         project.taskTotal > 0
           ? {

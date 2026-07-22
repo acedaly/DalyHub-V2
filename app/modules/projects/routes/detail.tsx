@@ -19,7 +19,12 @@ import { isRouteErrorResponse, useRevalidator } from "react-router";
 import { listActiveLinks } from "~/platform/entity-links";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { evaluateProjectHealth } from "~/kernel/project-health";
 import { ownerCalendarIso } from "~/shared/datetime";
+import {
+  createOwnerHealthContext,
+  type ProjectHealth,
+} from "~/shared/project-health";
 import {
   DrawerProvider,
   useDrawer,
@@ -87,6 +92,33 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       ? projectProgressFromRollup(rollup.tasks)
       : projectProgressFromRollup({ total: 0, completed: 0, ratio: null });
 
+  // The DERIVED health signal (PROJ-02): gather this project's facts and evaluate
+  // with the owner-calendar clock. Facts are read live (never cached) so health
+  // cannot drift from tasks, Activity or the rollup.
+  const healthContext = createOwnerHealthContext(new Date());
+  const healthFacts = await scope.projectHealth.getProjectHealthFacts(
+    projectId,
+    healthContext.todayIso,
+  );
+  const health: ProjectHealth = evaluateProjectHealth(
+    healthFacts ?? {
+      projectId,
+      completedAt: overview.completedAt,
+      createdAt: overview.createdAt,
+      updatedAt: overview.updatedAt,
+      taskTotal: rollup.kind === "project" ? rollup.tasks.total : 0,
+      taskCompleted: rollup.kind === "project" ? rollup.tasks.completed : 0,
+      waitingOpen: 0,
+      overdueOpen: 0,
+      slippedOpen: 0,
+      upcomingDueOpen: 0,
+      upcomingScheduledOpen: 0,
+      oldestWaitingSince: null,
+      lastMeaningfulActivityAt: null,
+    },
+    healthContext,
+  );
+
   const [taskPage, links] = await Promise.all([
     scope.tasks.listProjectTasks(projectId, { state: taskState }),
     listActiveLinks(
@@ -102,6 +134,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   return {
     overview: serializeProjectOverview(overview),
     progress,
+    health,
     tasks: taskPage.items.map(serializeProjectTask),
     tasksNextCursor: taskPage.nextCursor,
     taskState,
@@ -116,6 +149,7 @@ export default function ProjectDetailRoute({
   const {
     overview,
     progress,
+    health,
     tasks,
     tasksNextCursor,
     taskState,
@@ -133,6 +167,7 @@ export default function ProjectDetailRoute({
       <ProjectDetail
         overview={overview}
         progress={progress}
+        health={health}
         tasks={tasks}
         tasksNextCursor={tasksNextCursor}
         taskState={taskState}
@@ -221,6 +256,7 @@ function RenameDrawerHost({
 function ProjectDetail({
   overview,
   progress,
+  health,
   tasks,
   tasksNextCursor,
   taskState,
@@ -229,6 +265,7 @@ function ProjectDetail({
 }: {
   readonly overview: SerializedProjectOverview;
   readonly progress: ProjectProgress;
+  readonly health: ProjectHealth;
   readonly tasks: readonly SerializedProjectTask[];
   readonly tasksNextCursor: string | null;
   readonly taskState: TaskState;
@@ -358,6 +395,7 @@ function ProjectDetail({
     <ProjectOverview
       overview={overview}
       progress={progress}
+      health={health}
       completed={completed}
       completionPending={completionPending}
       onToggleComplete={(complete) => void onToggleComplete(complete)}

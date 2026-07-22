@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import { ProjectsCollectionView } from "~/modules/projects/ProjectsCollection";
 import type { SerializedProjectListItem } from "~/modules/projects/project-view";
 
+import { stubHealth } from "../../support/project-health";
+
 /**
  * PROJ-01 — the Projects collection as behaviour: cards render with Area/Goal and
  * roll-up progress, the state segment is present, the empty vs filtered-empty
@@ -39,6 +41,7 @@ function project(
     goal: null,
     taskTotal: 4,
     taskCompleted: 1,
+    health: stubHealth({ taskTotal: 4, taskCompleted: 1 }),
     ...over,
   };
 }
@@ -98,6 +101,53 @@ describe("Projects collection", () => {
       screen.getByRole("group", { name: "Filter projects by state" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("New project").length).toBeGreaterThan(0);
+  });
+
+  it("shows the derived health state and its primary reason on a card", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "at-risk",
+          title: "Overdue project",
+          health: stubHealth({
+            taskTotal: 4,
+            taskCompleted: 0,
+            overdueOpen: 2,
+          }),
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    expect(screen.getByText("At risk")).toHaveAttribute("data-tone", "danger");
+    expect(screen.getByText("2 tasks past their due date")).toBeInTheDocument();
+  });
+
+  it("does not falsely label a completed project as actively at risk", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "done",
+          title: "Shipped",
+          completedAt: "2026-07-20T00:00:00.000Z",
+          taskTotal: 4,
+          taskCompleted: 4,
+          health: stubHealth({
+            taskTotal: 4,
+            taskCompleted: 4,
+            completedAt: new Date("2026-07-20T00:00:00.000Z"),
+          }),
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
+    expect(screen.queryByText("At risk")).not.toBeInTheDocument();
   });
 
   it("shows a genuinely-empty state when there are no projects at all", () => {

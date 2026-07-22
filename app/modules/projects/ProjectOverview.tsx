@@ -14,6 +14,11 @@ import type { ReactNode } from "react";
 
 import { EntityIcon } from "~/shared/entity";
 import {
+  HealthIndicator,
+  ProjectHealthPanel,
+  type ProjectHealth,
+} from "~/shared/project-health";
+import {
   RecordLayout,
   type RecordAction,
   type RecordMetaItem,
@@ -29,6 +34,8 @@ import {
 interface ProjectOverviewProps {
   readonly overview: SerializedProjectOverview;
   readonly progress: ProjectProgress;
+  /** The DERIVED health signal (PROJ-02). */
+  readonly health: ProjectHealth;
   /** The effective completed state (optimistic override applied). */
   readonly completed: boolean;
   readonly completionPending: boolean;
@@ -45,6 +52,7 @@ interface ProjectOverviewProps {
 export function ProjectOverview({
   overview,
   progress,
+  health,
   completed,
   completionPending,
   onToggleComplete,
@@ -59,6 +67,11 @@ export function ProjectOverview({
     : { label: "Open", tone: "neutral" as const };
 
   const headerMetadata: RecordMetaItem[] = [];
+  headerMetadata.push({
+    id: "health",
+    label: "Health",
+    value: <HealthIndicator health={health} />,
+  });
   if (overview.area) {
     headerMetadata.push({
       id: "area",
@@ -142,14 +155,17 @@ export function ProjectOverview({
       secondaryActions={[renameAction]}
       summary={{
         description: (
-          <p className="dh-project-overview__progress">
-            <span className="dh-project-overview__progress-label">
-              Roll-up progress:
-            </span>{" "}
-            {progress.has
-              ? `${progress.percent}% — ${progress.summary} complete`
-              : "No tasks yet."}
-          </p>
+          <div className="dh-project-overview__summary">
+            <p className="dh-project-overview__progress">
+              <span className="dh-project-overview__progress-label">
+                Roll-up progress:
+              </span>{" "}
+              {progress.has
+                ? `${progress.percent}% — ${progress.summary} complete`
+                : "No tasks yet."}
+            </p>
+            <ProjectHealthPanel health={health} />
+          </div>
         ),
         metadata: summaryMetadata,
       }}

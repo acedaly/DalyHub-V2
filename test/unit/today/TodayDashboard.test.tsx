@@ -164,6 +164,7 @@ function renderToday(options: RenderOptions = {}) {
               completed: false,
               taskTotal: 8,
               taskCompleted: 3,
+              health: null,
             },
           ]}
           onPlan={options.onPlan}

@@ -14,6 +14,8 @@ import {
 } from "~/modules/projects/project-view";
 import type { TaskListItem } from "~/kernel/tasks";
 
+import { stubHealth } from "../../support/project-health";
+
 /**
  * PROJ-01 — the pure Projects view-model: presentation mapping, roll-up formatting,
  * empty-progress rules and serialisation. No React, no I/O — just derivations.
@@ -87,6 +89,7 @@ describe("serialisation", () => {
   it("serialises a list item's Dates to ISO strings", () => {
     const s = serializeProjectListItem(
       listItem({ taskTotal: 5, taskCompleted: 2 }),
+      stubHealth(),
     );
     expect(s.createdAt).toBe("2026-07-18T09:00:00.000Z");
     expect(s.updatedAt).toBe("2026-07-20T10:00:00.000Z");
@@ -146,6 +149,7 @@ describe("card mapping", () => {
           taskTotal: 4,
           taskCompleted: 1,
         }),
+        stubHealth({ taskTotal: 4, taskCompleted: 1 }),
       ),
     );
     expect(card.areaLabel).toBe("Career");
@@ -156,7 +160,12 @@ describe("card mapping", () => {
   });
 
   it("shows no goal label and no progress bar for an empty area-only project", () => {
-    const card = toProjectCardData(serializeProjectListItem(listItem()));
+    const card = toProjectCardData(
+      serializeProjectListItem(
+        listItem(),
+        stubHealth({ taskTotal: 0, taskCompleted: 0 }),
+      ),
+    );
     expect(card.goalLabel).toBeNull();
     expect(card.progress.has).toBe(false);
   });

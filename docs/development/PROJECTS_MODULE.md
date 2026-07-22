@@ -136,13 +136,55 @@ the **Tasks** module at `/tasks/:taskId*`; owner-calendar helpers live in
 only its TODAY-05 keyboard commands. There is **no** Projects-only task Drawer, second
 task edit form, second task action route or second completion path.
 
+## Health (PROJ-02, ADR-035)
+
+Project **health** is a **derived, non-persisted** signal — no migration, no cached
+column — accepted via
+[ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity).
+A pure, React-free evaluator maps live facts to a calm state and transparent reasons,
+recomputed every read so it can never drift from tasks, Activity or the rollup.
+
+- **Model** ([`app/kernel/project-health`](../../app/kernel/project-health)):
+  `evaluateProjectHealth(facts, clock)` → `{ state, label, tone, reasons[], summary,
+  evaluatedAtIso }`. States: `on_track` · `stale` · `blocked` · `at_risk` ·
+  `completed` (health-only vocabulary — never colliding with open/completed or task
+  status). **Precedence** completed → at_risk → blocked → stale → on_track, with every
+  applicable reason preserved (primary first).
+- **Signals.** Progress uses the authoritative rollup (empty = "No tasks yet", never
+  100%). **Staleness** uses the latest MEANINGFUL activity across the project AND its
+  child tasks (`MEANINGFUL_HEALTH_ACTIVITY_TYPES`; `project.updated_at` alone is not
+  meaningful; structural/link plumbing and deletes are excluded) against
+  `STALE_AFTER_DAYS = 14`. **Blockers** distinguish "some waiting with other
+  actionable work" from "all remaining open work waiting" (`blocked`), with
+  `LONG_WAIT_AFTER_DAYS = 14`. **Due (deadline)** and **scheduled (commitment)** dates
+  are kept distinct via the owner-calendar/date-only utilities; overdue/slipped drive
+  `at_risk`, upcoming (`UPCOMING_WITHIN_DAYS = 7`) is calm context. Completed tasks
+  never trigger open-work warnings; a completed project shows no active warning.
+- **Data** ([`app/kernel/project-health/project-health-repository.ts`](../../app/kernel/project-health/project-health-repository.ts),
+  [D1 adapter](../../app/platform/storage/d1/d1-project-health-repository.ts)):
+  `ProjectHealthRepository` on `WorkspaceScope.projectHealth` gathers
+  `ProjectHealthFacts` for a whole bounded page in a fixed number of grouped,
+  workspace-scoped, parameterised queries (base + child-task aggregate + latest
+  meaningful activity), chunked at 40 to respect D1's variable limit — **no N+1**.
+  Soft-deleted tasks / unlinked links never contribute; wrong-kind/missing/cross-workspace
+  ids are calm. The evaluator runs server-side in the loader with the owner-calendar
+  clock; health crosses to the browser as JSON. **Sensitive free-text waiting subjects
+  are never exposed** in facts, payloads or telemetry.
+- **UI** ([`app/shared/project-health`](../../app/shared/project-health)): a restrained
+  `HealthIndicator` pill + primary reason in the Card `metadata` slot on `/projects`
+  (distinct from the open/completed `status` pill), and a `ProjectHealthPanel`
+  explaining all reasons + supporting facts in the DS-02 record Summary. Health
+  refreshes through the existing mutation revalidation — no cached column to invalidate.
+
 ## Today integration
 
 The Today "Continue working" fixture seam is replaced with the **real** bounded read
 model (open projects, most-recently-updated first), mapped to a plain Today display
 shape (no cross-module import, no separate Today project store). A project opened from
 Today lands on the **same** canonical `/projects/:id` record. Other Today fixture
-sections and the DS-08 search seam are undisturbed.
+sections and the DS-08 search seam are undisturbed. Since PROJ-02, those cards show the
+**same** derived health model (never a Today-only calculation), but only when a project
+needs attention (`at_risk`/`blocked`/`stale`) so the calm dashboard stays uncluttered.
 
 ## Testing
 
@@ -174,16 +216,36 @@ sections and the DS-08 search seam are undisturbed.
   authoritative, an appended page-2 task opens the shared Task Drawer without disturbing
   state, and the New-Project parent picker searches the server for an Area.
 
-## What remains for PROJ-02–06
+## What remains for PROJ-03–06
 
-PROJ-02 (health signals: stale/blocked/at-risk/upcoming), PROJ-03 (notes/knowledge),
-PROJ-04 (the Activity tab), PROJ-05 (settings: area/goal reassignment, status models,
-archival), PROJ-06 (mobile-specific enhancements) are **not started**. Deferred
-refinements are tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
+PROJ-03 (notes/knowledge), PROJ-04 (the Activity tab), PROJ-05 (settings: area/goal
+reassignment, status models, archival), PROJ-06 (mobile-specific enhancements) are
+**not started**. Deferred refinements are tracked in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
+
+## Health testing (PROJ-02)
+
+- **Pure evaluator** ([`test/unit/project-health/evaluate.test.ts`](../../test/unit/project-health/evaluate.test.ts)):
+  the exhaustive matrix — empty/on-track/all-complete/completed, inactivity before/at/after
+  the threshold, some/all waiting, long wait, overdue/slipped/upcoming, precedence with
+  multiple simultaneous signals + preserved secondary reasons, open tasks under a
+  completed project, calendar-day boundaries, deterministic injected clock, no
+  display-string parsing.
+- **Presentation** ([`test/unit/project-health/presentation.test.tsx`](../../test/unit/project-health/presentation.test.tsx)):
+  `HealthIndicator`/`ProjectHealthPanel` render state + reasons as text (never
+  colour-only), no duplicate reasons, calm on-track/empty states.
+- **Workers/D1 integration** ([`test/kernel/project-health.test.ts`](../../test/kernel/project-health.test.ts)):
+  health from ALL tasks (45–60 > any page size), meaningful vs irrelevant activity,
+  waiting/due/scheduled correctness, soft-delete/cross-workspace exclusion, calm
+  wrong-kind/missing, N+1-free chunking, completion/reopen changes.
+- **Route + E2E**: the collection & record loaders surface health and refresh after a
+  mutation ([`projects-route.test.ts`](../../test/kernel/projects-route.test.ts)); a
+  real-D1 journey with seeded wall-clock-independent dates + axe + responsive matrix
+  ([`e2e/project-health.spec.ts`](../../e2e/project-health.spec.ts)).
 
 ## Related documents
 
-- [ADR-034](../decisions/ARCHITECTURE_DECISIONS.md#adr-034-the-projects-module--a-read-only-projection-over-the-spine-no-second-project-model) · [ADR-033](../decisions/ARCHITECTURE_DECISIONS.md#adr-033-re-homing-the-task-record-surface-to-a-shared-module-boundary)
+- [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity) · [ADR-034](../decisions/ARCHITECTURE_DECISIONS.md#adr-034-the-projects-module--a-read-only-projection-over-the-spine-no-second-project-model) · [ADR-033](../decisions/ARCHITECTURE_DECISIONS.md#adr-033-re-homing-the-task-record-surface-to-a-shared-module-boundary)
 - [`SPINE_MODEL.md`](SPINE_MODEL.md) — the Area → Goal → Project → Task spine.
 - [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md) — the task record surface and the Today integration.
 - [`ROADMAP_V2.md` PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview) · [`docs/README.md`](../README.md).
