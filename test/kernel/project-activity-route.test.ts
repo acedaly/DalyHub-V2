@@ -298,8 +298,9 @@ describe("GET /projects/:projectId/activity", () => {
     }
 
     // Reproduce the route's resolution algorithm over a counting DB: read one page,
-    // then resolve each UNIQUE subject id once. The statement count must scale with
-    // the number of DISTINCT entities, not with the number of events on the page.
+    // then resolve ALL unique subject ids through the batched `getByIds`. The
+    // statement count must NOT scale with the number of entities — one chunked
+    // `IN (...)` read for a whole page's worth of distinct ids (no N+1).
     const counting = countingDb(env.DB);
     const activity = createActivityRepository(counting.db, makeContext(WS));
     const entities = createEntityRepository(counting.db, makeContext(WS));
@@ -309,16 +310,21 @@ describe("GET /projects/:projectId/activity", () => {
     for (const record of page.items) {
       for (const subject of record.subjects) ids.add(subject.entityId);
     }
-    counting.reset();
-    for (const id of ids) {
-      await entities.getById(id, { includeDeleted: true });
-    }
-    // One prepared statement per unique entity — never per event.
-    expect(counting.prepareCount()).toBe(ids.size);
-    expect(page.items.length).toBe(30);
-    // The 30 events reference far fewer distinct entities than 30 (project + area +
-    // the tasks on this page), proving the batch is bounded.
+    // The 30 events reference many distinct entities (project + area + the tasks on
+    // this page), proving the batch is exercised with more than a couple of ids.
+    expect(ids.size).toBeGreaterThan(10);
     expect(ids.size).toBeLessThanOrEqual(page.items.length + 2);
+
+    counting.reset();
+    const resolved = await entities.getByIds([...ids], {
+      includeDeleted: true,
+    });
+    // ONE prepared statement for the whole batch (a single ≤90-id chunk) — never
+    // one per entity.
+    expect(counting.prepareCount()).toBe(1);
+    // Every referenced entity was resolved in that single read.
+    expect(resolved.size).toBe(ids.size);
+    expect(page.items.length).toBe(30);
   });
 });
 

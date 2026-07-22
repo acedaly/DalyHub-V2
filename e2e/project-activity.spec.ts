@@ -125,7 +125,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     await expect(page.getByText(/No activity yet/i)).toBeVisible();
   });
 
-  test("survives a direct reload back onto the Activity tab", async ({
+  test("deep-links the Activity tab: it survives a direct reload", async ({
     page,
   }) => {
     await gotoFixture(page, RECORD);
@@ -133,13 +133,20 @@ test.describe("PROJ-04 project Activity tab", () => {
     await expect(
       page.getByRole("feed", { name: "Project activity" }),
     ).toBeVisible();
+    // The selection is deep-linked into the URL (DESIGN_SYSTEM: record tabs are
+    // preserved per record and deep-linkable).
+    await expect(page).toHaveURL(/[?&]tab=activity\b/);
 
     await page.reload();
-    // The record is intact; re-selecting Activity re-reads the timeline.
+    // The record is intact AND the Activity tab is still selected WITHOUT
+    // re-clicking — the timeline re-reads itself on the persisted tab.
     await expect(
       page.getByRole("heading", { name: "Activity showcase" }),
     ).toBeVisible();
-    await page.getByRole("tab", { name: "Activity" }).click();
+    await expect(page.getByRole("tab", { name: "Activity" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await expect(
       page.getByRole("feed", { name: "Project activity" }),
     ).toBeVisible();

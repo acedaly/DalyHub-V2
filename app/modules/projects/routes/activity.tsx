@@ -85,27 +85,28 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     throw error;
   }
 
-  // Resolve every referenced subject's identity in ONE bounded batch (no N+1). A
-  // referenced TASK opens in the SAME shared Task Drawer the project record already
-  // hosts (`?drawer=task:<id>`); every other kind — the project itself, its Area /
-  // Goal — renders as calm non-link text (no cross-module Drawer is invented here).
+  // Resolve every referenced subject's identity in ONE bounded batch (no N+1) — a
+  // single chunked `IN (...)` read, not a query per id. A referenced TASK opens in
+  // the SAME shared Task Drawer the project record already hosts
+  // (`?drawer=task:<id>`); every other kind — the project itself, its Area / Goal —
+  // renders as calm non-link text (no cross-module Drawer is invented here).
   const ids = new Set<string>();
   for (const record of page.items) {
     for (const subject of record.subjects) {
       ids.add(subject.entityId);
     }
   }
+  const entities = await scope.entities.getByIds([...ids], {
+    includeDeleted: true,
+  });
   const resolved = new Map<string, ResolvedEntity>();
-  for (const id of ids) {
-    const entity = await scope.entities.getById(id, { includeDeleted: true });
-    if (entity) {
-      resolved.set(id, {
-        entityId: id,
-        entityType: entity.type,
-        label: entity.title,
-        drawerKey: entity.type === "task" ? `task:${id}` : undefined,
-      });
-    }
+  for (const [id, entity] of entities) {
+    resolved.set(id, {
+      entityId: id,
+      entityType: entity.type,
+      label: entity.title,
+      drawerKey: entity.type === "task" ? `task:${id}` : undefined,
+    });
   }
 
   const items = toActivityItems(page.items, {
