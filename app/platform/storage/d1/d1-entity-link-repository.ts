@@ -29,10 +29,14 @@ import {
   type ActivityActorContext,
   type NewActivityEvent,
 } from "~/kernel/activity";
-import { RESERVED_SPINE_LINK_TYPES } from "~/kernel/spine";
+import {
+  RESERVED_SPINE_LINK_TYPES,
+  TASK_BELONGS_TO_PROJECT,
+} from "~/kernel/spine";
 import { RESERVED_TASK_LINK_TYPES } from "~/kernel/tasks";
 import {
   EntityLinkConflictError,
+  EntityLinkEndpointArchivedError,
   EntityLinkEndpointNotFoundError,
   EntityLinkError,
   EntityLinkNotFoundError,
@@ -243,6 +247,8 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
                )
+           AND NOT ${this.#archivedTaskParentExistsSql}
+           AND NOT ${this.#archivedTaskParentExistsSql}
          RETURNING ${LINK_COLUMNS}`,
       )
       .bind(
@@ -253,6 +259,10 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         type,
         nowTs,
         nowTs,
+        this.#workspaceId,
+        sourceEntityId,
+        this.#workspaceId,
+        targetEntityId,
         this.#workspaceId,
         sourceEntityId,
         this.#workspaceId,
@@ -281,10 +291,15 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
           created: true,
         };
       }
-      // Nothing inserted and no UNIQUE violation: an endpoint is no longer active
-      // (a concurrent soft-delete raced the pre-check). Fail safely and
-      // indistinguishably from a nonexistent/cross-workspace endpoint.
-      throw new EntityLinkEndpointNotFoundError();
+      // Nothing inserted and no UNIQUE violation. Re-check WHY: either an
+      // endpoint went inactive after the pre-check above (a concurrent
+      // soft-delete raced it — `#requireEndpointsActive` throws its own
+      // `EntityLinkEndpointNotFoundError`), or both endpoints are still active
+      // and the archived-task-parent guard is what blocked the insert (a
+      // concurrent archive committed after the pre-check but at/before THIS
+      // statement's own commit).
+      await this.#requireEndpointsActive(sourceEntityId, targetEntityId);
+      throw new EntityLinkEndpointArchivedError();
     } catch (cause) {
       if (cause instanceof EntityLinkError || cause instanceof ActivityError) {
         throw cause;
@@ -406,9 +421,20 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         `UPDATE entity_links
            SET deleted_at = ?, updated_at = ?
          WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL
+           AND NOT ${this.#archivedTaskParentExistsSql}
+           AND NOT ${this.#archivedTaskParentExistsSql}
          RETURNING ${LINK_COLUMNS}`,
       )
-      .bind(nowTs, nowTs, linkId, this.#workspaceId);
+      .bind(
+        nowTs,
+        nowTs,
+        linkId,
+        this.#workspaceId,
+        this.#workspaceId,
+        existing.source_entity_id,
+        this.#workspaceId,
+        existing.target_entity_id,
+      );
 
     const { changed, row } = await this.#recordLinkMutation(
       domainStatement,
@@ -419,11 +445,16 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       return { link: rowToEntityLink(row), outcome: "unlinked", changed: true };
     }
 
-    // A concurrent unlink won: no row changed here, so no event. Re-read and keep
-    // it idempotent.
+    // Nothing changed here. Re-read and classify: still active means the
+    // archived-task-parent guard blocked it (a concurrent archive committed
+    // after the read above but at/before this statement's own commit) — a
+    // concurrent unlink winning would have left the row deleted, not active.
     const current = await this.#findById(linkId);
     if (!current) {
       throw new EntityLinkNotFoundError();
+    }
+    if (current.deleted_at === null) {
+      throw new EntityLinkEndpointArchivedError();
     }
     return {
       link: rowToEntityLink(current),
@@ -531,9 +562,19 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
                    AND id = entity_links.target_entity_id
                    AND deleted_at IS NULL
                )
+           AND NOT ${this.#archivedTaskParentExistsSql}
+           AND NOT ${this.#archivedTaskParentExistsSql}
          RETURNING ${LINK_COLUMNS}`,
       )
-      .bind(nowTs, existing.id, this.#workspaceId);
+      .bind(
+        nowTs,
+        existing.id,
+        this.#workspaceId,
+        this.#workspaceId,
+        existing.source_entity_id,
+        this.#workspaceId,
+        existing.target_entity_id,
+      );
 
     const { changed, row } = await this.#recordLinkMutation(
       domainStatement,
@@ -546,9 +587,11 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
   /**
    * Determine why a conditional restore UPDATE affected no row and return a safe
    * outcome — the link is now active (a concurrent restore won → the caller's
-   * idempotent already-active outcome), still unlinked (an endpoint is
-   * missing/inactive → `EntityLinkEndpointNotFoundError`), or gone (not expected —
-   * a typed `EntityLinkConflictError`).
+   * idempotent already-active outcome), still unlinked with an inactive
+   * endpoint (→ `EntityLinkEndpointNotFoundError`), still unlinked with both
+   * endpoints active (the archived-task-parent guard blocked it →
+   * `EntityLinkEndpointArchivedError`), or gone (not expected — a typed
+   * `EntityLinkConflictError`).
    */
   async #classifyFailedRestore<T>(
     id: string,
@@ -559,7 +602,11 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       return onAlreadyActive(rowToEntityLink(current));
     }
     if (current) {
-      throw new EntityLinkEndpointNotFoundError();
+      await this.#requireEndpointsActive(
+        current.source_entity_id,
+        current.target_entity_id,
+      );
+      throw new EntityLinkEndpointArchivedError();
     }
     throw new EntityLinkConflictError();
   }
@@ -731,6 +778,28 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         )
         .bind(id, this.#workspaceId),
     );
+  }
+
+  /**
+   * True when `?` (bound to an entity id, alongside `?` for workspace id) is a
+   * Task whose parent Project is currently ARCHIVED. Checked directly against
+   * `project_details`, mirroring `D1TaskRepository`'s own archived-parent guard
+   * (PROJ-05, ADR-037 §37.5/§37.8) — a Task's structural children (including its
+   * generic relates_to links) stay read-only for as long as its parent Project
+   * is archived. Folding this into the SAME statement as the link mutation
+   * itself (rather than a preceding read) means a concurrent archive can never
+   * race a create/unlink/restore: whichever commits first is authoritative.
+   * Binds `(workspaceId, entityId)` at its embedding site. */
+  get #archivedTaskParentExistsSql(): string {
+    return `EXISTS (
+              SELECT 1 FROM entity_links pl
+              JOIN project_details pd
+                ON pd.workspace_id = pl.workspace_id
+               AND pd.entity_id = pl.target_entity_id
+              WHERE pl.workspace_id = ? AND pl.source_entity_id = ?
+                AND pl.type = '${TASK_BELONGS_TO_PROJECT}' AND pl.deleted_at IS NULL
+                AND pd.archived_at IS NOT NULL
+            )`;
   }
 
   /** Require both endpoint entities to exist, be active, and be in the bound

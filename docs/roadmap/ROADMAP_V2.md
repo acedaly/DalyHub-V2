@@ -296,12 +296,15 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
     seam; a no-op appends nothing; concurrent identical requests yield exactly
     one transition; the archive guard ("no active unfinished direct Task") is
     enforced at commit time, closing the race PR #37 left open. An archived
-    Project is enforced read-only at the `D1TaskRepository`/`D1SpineRepository`
-    boundary — covering Task creation, reopening, moving, detail edits, waiting,
-    planning (single + bulk) and generic link/unlink — with the SQL-level guard
-    folded directly into the domain statement (not just a preceding read) for
-    every mutation except `completeTask`, which is deliberately read-guarded only
-    (completing a task can never itself recreate unfinished work). Today's
+    Project is enforced read-only at the repository boundary — covering Task
+    creation, reopening, moving (`D1SpineRepository`), detail edits, waiting,
+    planning (single + bulk) (`D1TaskRepository`), and generic `task.relates_to`
+    link/unlink (`D1EntityLinkRepository`) — with the SQL-level guard folded
+    directly into each domain statement (not just a preceding read), so a
+    concurrent archive can never race any of these mutations to completion.
+    `completeTask` is the sole deliberate exception, kept read-guarded only,
+    because completing a task can never itself recreate unfinished work under
+    any interleaving with archive. Today's
     "Continue working" deliberately still uses `state: "open"` only —
     restricting it to `workflowStatus: "active"` is deferred to Slice 3/4 (see
     below), since no Settings UI exists yet to move a Project out of the

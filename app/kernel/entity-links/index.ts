@@ -29,6 +29,7 @@ export {
   EntityLinkError,
   EntityLinkValidationError,
   EntityLinkEndpointNotFoundError,
+  EntityLinkEndpointArchivedError,
   EntityLinkNotFoundError,
   InvalidEntityLinkCursorError,
   EntityLinkInvalidStateError,
