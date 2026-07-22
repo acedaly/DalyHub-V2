@@ -103,6 +103,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     overview: serializeProjectOverview(overview),
     progress,
     tasks: taskPage.items.map(serializeProjectTask),
+    tasksNextCursor: taskPage.nextCursor,
     taskState,
     links,
     todayIso,
@@ -112,7 +113,15 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 export default function ProjectDetailRoute({
   loaderData,
 }: Route.ComponentProps) {
-  const { overview, progress, tasks, taskState, links, todayIso } = loaderData;
+  const {
+    overview,
+    progress,
+    tasks,
+    tasksNextCursor,
+    taskState,
+    links,
+    todayIso,
+  } = loaderData;
 
   const renderDrawer = useMemo(
     () => createProjectDrawerRenderer(overview),
@@ -125,6 +134,7 @@ export default function ProjectDetailRoute({
         overview={overview}
         progress={progress}
         tasks={tasks}
+        tasksNextCursor={tasksNextCursor}
         taskState={taskState}
         links={links}
         todayIso={todayIso}
@@ -212,6 +222,7 @@ function ProjectDetail({
   overview,
   progress,
   tasks,
+  tasksNextCursor,
   taskState,
   links,
   todayIso,
@@ -219,6 +230,7 @@ function ProjectDetail({
   readonly overview: SerializedProjectOverview;
   readonly progress: ProjectProgress;
   readonly tasks: readonly SerializedProjectTask[];
+  readonly tasksNextCursor: string | null;
   readonly taskState: TaskState;
   readonly links: readonly EntityLinkSelection[];
   readonly todayIso: string;
@@ -352,7 +364,9 @@ function ProjectDetail({
       onRename={() => openDrawer(RENAME_KEY)}
       tasksTab={
         <ProjectTasksTab
+          projectId={overview.id}
           tasks={tasks}
+          nextCursor={tasksNextCursor}
           taskState={taskState}
           todayIso={todayIso}
         />

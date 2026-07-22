@@ -63,11 +63,30 @@ describe("NewProjectForm", () => {
     fireEvent.click(option);
   }
 
-  it("posts to /projects/new and reports the new project id on success", async () => {
-    const fetchMock = vi.fn(async (_url: unknown, _init?: RequestInit) =>
-      jsonResponse({ ok: true, projectId: "p-new" }),
-    );
+  /**
+   * The parent picker is server-backed: an `onSearch` hits `/projects/parent-options`.
+   * This mock answers that endpoint with options and answers the create POST
+   * separately, so tests exercise the real (searchable) picker path.
+   */
+  function stubProjectFetch(createResult: unknown) {
+    const fetchMock = vi.fn(async (url: unknown, _init?: RequestInit) => {
+      if (String(url).includes("/projects/parent-options")) {
+        return jsonResponse({ options: parentOptions });
+      }
+      return jsonResponse(createResult);
+    });
     vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function createCall(fetchMock: ReturnType<typeof vi.fn>) {
+    return fetchMock.mock.calls.find((call) =>
+      String(call[0]).endsWith("/projects/new"),
+    );
+  }
+
+  it("posts to /projects/new and reports the new project id on success", async () => {
+    const fetchMock = stubProjectFetch({ ok: true, projectId: "p-new" });
     const onCreated = vi.fn();
     renderInRouter(
       <NewProjectForm
@@ -84,18 +103,17 @@ describe("NewProjectForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create project" }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("p-new"));
-    const [url, init] = fetchMock.mock.calls[0]!;
-    expect(String(url)).toBe("/projects/new");
-    expect(init?.method).toBe("POST");
+    const call = createCall(fetchMock);
+    expect(call).toBeDefined();
+    expect(String(call![0])).toBe("/projects/new");
+    expect((call![1] as RequestInit | undefined)?.method).toBe("POST");
   });
 
   it("surfaces a server field error against the parent", async () => {
-    vi.stubGlobal("fetch", async () =>
-      jsonResponse({
-        ok: false,
-        fieldErrors: { parentId: "Choose an Area or a Goal for this project." },
-      }),
-    );
+    stubProjectFetch({
+      ok: false,
+      fieldErrors: { parentId: "Choose an Area or a Goal for this project." },
+    });
     renderInRouter(
       <NewProjectForm
         parentOptions={parentOptions}

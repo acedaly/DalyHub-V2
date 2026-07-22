@@ -9,13 +9,15 @@
  * project stays behind the Drawer and the task is edited the one canonical way.
  */
 
-import { useSearchParams } from "react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFetcher, useSearchParams } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
 import { DrawerTrigger, useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EntityIcon, isEntityType } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
+import { LoadMore } from "~/shared/load-more";
 import {
   isTaskWaiting,
   taskDateLabel,
@@ -35,10 +37,106 @@ const TASK_STATE_OPTIONS = [
 /** The drawer key that opens the "New task" create form. */
 export const NEW_TASK_KEY = "new-task";
 
+type TaskState = "open" | "completed" | "all";
+
 interface ProjectTasksTabProps {
+  readonly projectId: string;
   readonly tasks: readonly SerializedProjectTask[];
-  readonly taskState: "open" | "completed" | "all";
+  /** Opaque cursor for the next task page from the loader, or null when exhausted. */
+  readonly nextCursor: string | null;
+  readonly taskState: TaskState;
   readonly todayIso: string;
+}
+
+/** The subset of the tasks endpoint's payload a "Load more" fetch reads back. */
+type TasksPageData = {
+  readonly tasks: readonly SerializedProjectTask[];
+  readonly nextCursor: string | null;
+};
+
+/**
+ * Accumulate keyset pages of a project's tasks behind "Load more" WITHOUT
+ * navigating — a fetcher hits the dedicated `/projects/:id/tasks` endpoint, so the
+ * record route's `?drawer=task:<id>` state, scroll position and focus are never
+ * disturbed by loading more rows (pagination state and drawer state stay wholly
+ * independent). The loader's first page seeds the list; changing the task filter
+ * (or any loader re-run — reload, Back/Forward, a mutation's revalidation) hands
+ * down a fresh first page and cursor, which RESETS the accumulation. Duplicate ids
+ * are collapsed defensively so a task card can never render twice.
+ */
+function useProjectTaskPagination(
+  projectId: string,
+  firstPage: readonly SerializedProjectTask[],
+  initialCursor: string | null,
+  taskState: TaskState,
+) {
+  const fetcher = useFetcher<TasksPageData>();
+  const [appended, setAppended] = useState<SerializedProjectTask[]>([]);
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const processed = useRef<TasksPageData | null>(null);
+
+  // Reset when the QUERY that defines the task set changes — the state filter or the
+  // first page's cursor — NOT on every loader re-run. Opening/closing the task Drawer
+  // only toggles the `?drawer=` param; keeping the loaded pages across that keeps
+  // pagination and drawer state fully independent (neither resets the other).
+  useEffect(() => {
+    setAppended([]);
+    setCursor(initialCursor);
+    setLoadFailed(false);
+    processed.current = null;
+  }, [initialCursor, taskState]);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) {
+      return;
+    }
+    const data = fetcher.data;
+    if (processed.current === data) {
+      return;
+    }
+    processed.current = data;
+    // The endpoint returns `{ tasks, nextCursor }` on success; a 4xx JSON body has
+    // neither, so treat a missing `tasks` array as a calm, retryable failure.
+    if (!Array.isArray(data.tasks)) {
+      setLoadFailed(true);
+      return;
+    }
+    setAppended((prev) => [...prev, ...data.tasks]);
+    setCursor(data.nextCursor ?? null);
+    setLoadFailed(false);
+  }, [fetcher.state, fetcher.data]);
+
+  const loadMore = useCallback(() => {
+    if (cursor === null) {
+      return;
+    }
+    setLoadFailed(false);
+    fetcher.load(
+      `/projects/${encodeURIComponent(projectId)}/tasks?state=${encodeURIComponent(taskState)}&cursor=${encodeURIComponent(cursor)}`,
+    );
+  }, [cursor, fetcher, projectId, taskState]);
+
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const out: SerializedProjectTask[] = [];
+    for (const task of [...firstPage, ...appended]) {
+      if (seen.has(task.id)) {
+        continue;
+      }
+      seen.add(task.id);
+      out.push(task);
+    }
+    return out;
+  }, [firstPage, appended]);
+
+  return {
+    items,
+    hasMore: cursor !== null,
+    loading: fetcher.state !== "idle",
+    loadFailed,
+    loadMore,
+  };
 }
 
 function toTaskCardProps(
@@ -91,12 +189,16 @@ function toTaskCardProps(
 }
 
 export function ProjectTasksTab({
+  projectId,
   tasks,
+  nextCursor,
   taskState,
   todayIso,
 }: ProjectTasksTabProps) {
   const { openDrawer } = useDrawer();
   const [searchParams] = useSearchParams();
+  const { items, hasMore, loading, loadFailed, loadMore } =
+    useProjectTaskPagination(projectId, tasks, nextCursor, taskState);
 
   const openProps = (key: string) => ({
     href: `?${withDrawerPushed(searchParams, key).toString()}`,
@@ -120,7 +222,7 @@ export function ProjectTasksTab({
         </DrawerTrigger>
       </div>
 
-      {tasks.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState
           icon={<EntityIcon type="task" />}
           headingLevel={3}
@@ -142,16 +244,26 @@ export function ProjectTasksTab({
           }
         />
       ) : (
-        <CardCollection
-          items={tasks}
-          getItemId={(task) => task.id}
-          ariaLabel="Project tasks"
-          presentation="list"
-          density="comfortable"
-          renderCard={(task) => (
-            <Card {...toTaskCardProps(task, todayIso, openProps)} />
-          )}
-        />
+        <>
+          <CardCollection
+            items={items}
+            getItemId={(task) => task.id}
+            ariaLabel="Project tasks"
+            presentation="list"
+            density="comfortable"
+            renderCard={(task) => (
+              <Card {...toTaskCardProps(task, todayIso, openProps)} />
+            )}
+          />
+          {hasMore ? (
+            <LoadMore
+              loading={loading}
+              loadFailed={loadFailed}
+              onLoadMore={loadMore}
+              label="Load more tasks"
+            />
+          ) : null}
+        </>
       )}
     </div>
   );

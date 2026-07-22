@@ -43,6 +43,16 @@ const routes: readonly RouteContribution[] = [
     path: "projects/:projectId/link-targets",
     file: "routes/link-targets.tsx",
   },
+  {
+    id: "projects.tasks",
+    path: "projects/:projectId/tasks",
+    file: "routes/tasks.tsx",
+  },
+  {
+    id: "projects.parent_options",
+    path: "projects/parent-options",
+    file: "routes/parent-options.tsx",
+  },
 ];
 
 export default routes;

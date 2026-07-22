@@ -28,13 +28,18 @@ import {
   validateSpineLimit,
 } from "~/kernel/spine";
 import {
+  decodeProjectCursorForScope,
+  encodeProjectCursor,
   ProjectStorageError,
   type ListProjectsInput,
+  type ProjectCursorScope,
   type ProjectListItem,
   type ProjectListPage,
   type ProjectOverview,
+  type ProjectOrder,
   type ProjectRelation,
   type ProjectRepository,
+  type ProjectStateFilter,
 } from "~/kernel/projects";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
@@ -116,20 +121,52 @@ export class D1ProjectRepository implements ProjectRepository {
 
   async listProjects(input: ListProjectsInput = {}): Promise<ProjectListPage> {
     const limit = validateSpineLimit(input.limit);
-    const state = input.state ?? "all";
+    const state: ProjectStateFilter = input.state ?? "all";
+    const order: ProjectOrder = input.orderBy ?? "created";
     const completedClause =
       state === "open"
         ? " AND sr.completed_at IS NULL"
         : state === "completed"
           ? " AND sr.completed_at IS NOT NULL"
           : "";
+
     // Ordering is a trusted closed set (never caller data). `recent` selects the
     // globally most-recently-updated projects AT the database before the limit, so
     // no recently-updated project beyond a creation-ordered page can be missed.
+    // Every ordering carries `e.id` as a deterministic unique tiebreaker so the
+    // sequence is TOTAL — a keyset cursor can resume after it without skipping or
+    // duplicating a row.
+    const sortColumn = order === "recent" ? "e.updated_at" : "e.created_at";
     const orderClause =
-      input.orderBy === "recent"
+      order === "recent"
         ? "e.updated_at DESC, e.id DESC"
         : "e.created_at ASC, e.id ASC";
+
+    // The cursor is bound to the FULL query scope (workspace + state + order); a
+    // cursor issued for a different scope is rejected, never reinterpreted against
+    // a different result set. The keyset predicate resumes strictly AFTER the last
+    // returned row in the ordering's direction.
+    const scope: ProjectCursorScope = {
+      workspaceId: this.#workspaceId,
+      state,
+      order,
+    };
+    const conditions: string[] = [];
+    const cursorParams: string[] = [];
+    if (input.cursor !== undefined) {
+      const position = decodeProjectCursorForScope(input.cursor, scope);
+      const comparator = order === "recent" ? "<" : ">";
+      conditions.push(
+        `(${sortColumn} ${comparator} ? OR (${sortColumn} = ? AND e.id ${comparator} ?))`,
+      );
+      cursorParams.push(position.sortValue, position.sortValue, position.id);
+    }
+    const cursorClause =
+      conditions.length > 0 ? ` AND ${conditions.join(" AND ")}` : "";
+
+    // Fetch one more than the page size: the extra row (if present) proves another
+    // page exists WITHOUT a second COUNT query, and is trimmed before returning.
+    const fetchLimit = limit + 1;
 
     // Active direct child-task counts per project, computed once for the whole page
     // (no per-project rollup call). Matches the spine rollup definition: active
@@ -157,15 +194,27 @@ export class D1ProjectRepository implements ProjectRepository {
                  AND tl.deleted_at IS NULL
            GROUP BY tl.target_entity_id
          ) tc ON tc.project_id = e.id
-         WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL${completedClause}
+         WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL${completedClause}${cursorClause}
          ORDER BY ${orderClause}
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, this.#workspaceId, limit);
+      .bind(this.#workspaceId, this.#workspaceId, ...cursorParams, fetchLimit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as ProjectListRow[];
-    return { items: rows.map((row) => this.#toListItem(row)) };
+
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeProjectCursor(scope, {
+            sortValue: order === "recent" ? last.updated_at : last.created_at,
+            id: last.id,
+          })
+        : null;
+
+    return { items: pageRows.map((row) => this.#toListItem(row)), nextCursor };
   }
 
   async getProjectOverview(id: string): Promise<ProjectOverview | null> {

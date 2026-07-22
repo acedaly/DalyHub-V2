@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { InvalidSpineCursorError } from "~/kernel/spine";
+
 import {
   FakeClock,
   makeContext,
@@ -325,8 +327,13 @@ describe("TaskRepository.listProjectTasks", () => {
     expect(completedPage.items.map((i) => i.id)).toEqual([done.id]);
     const allPage = await t.listProjectTasks(project.id, { state: "all" });
     expect(allPage.items).toHaveLength(3);
-    // Open tasks sort before completed ones.
-    expect(allPage.items[allPage.items.length - 1]!.id).toBe(done.id);
+    // The paginated list orders deterministically by `(createdAt, id)` — a stable
+    // keyset — so the sequence is exactly creation order (open, done, waiting).
+    expect(allPage.items.map((i) => i.id)).toEqual([
+      open.id,
+      done.id,
+      waiting.id,
+    ]);
   });
 
   it("returns no tasks for a wrong-kind, missing or cross-workspace project id", async () => {
@@ -376,5 +383,255 @@ describe("TaskRepository.listProjectTasks", () => {
     await s.reopen(first.id);
     item = (await repo.listProjects()).items[0]!;
     expect([item.taskTotal, item.taskCompleted]).toEqual([1, 0]);
+  });
+});
+
+describe("ProjectRepository.listProjects — keyset pagination", () => {
+  it("reaches EVERY project across pages with no gap and no duplicate", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Career" });
+    const created: string[] = [];
+    // More than a single page (and more than the default page size) so the cursor
+    // is genuinely exercised across several boundaries.
+    for (let i = 0; i < 55; i += 1) {
+      const p = await s.createProject({
+        title: `Project ${i}`,
+        parent: { kind: "area", id: area.id },
+      });
+      created.push(p.id);
+    }
+
+    const repo = makeProjectRepository(makeContext(WS));
+
+    // The unpaginated (bounded) order is the ground truth the paged walk must match.
+    const groundTruth = (await repo.listProjects({ limit: 100 })).items.map(
+      (p) => p.id,
+    );
+    expect(groundTruth).toHaveLength(55);
+    expect(new Set(groundTruth)).toEqual(new Set(created));
+
+    const walked: string[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+    do {
+      const page = await repo.listProjects({ limit: 20, cursor });
+      expect(page.items.length).toBeLessThanOrEqual(20);
+      walked.push(...page.items.map((p) => p.id));
+      cursor = page.nextCursor ?? undefined;
+      pages += 1;
+      expect(pages).toBeLessThan(10); // termination guard
+    } while (cursor);
+
+    // Same set, same length, no duplicates, and the SAME order as the ground truth.
+    expect(walked).toHaveLength(55);
+    expect(new Set(walked).size).toBe(55);
+    expect(walked).toEqual(groundTruth);
+  });
+
+  it("emits a null nextCursor exactly when the last page is reached", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Career" });
+    for (let i = 0; i < 3; i += 1) {
+      await s.createProject({
+        title: `P${i}`,
+        parent: { kind: "area", id: area.id },
+      });
+    }
+    const repo = makeProjectRepository(makeContext(WS));
+    // A full-but-final page (exactly the limit) still reports no further pages.
+    const exact = await repo.listProjects({ limit: 3 });
+    expect(exact.items).toHaveLength(3);
+    expect(exact.nextCursor).toBeNull();
+
+    const partial = await repo.listProjects({ limit: 2 });
+    expect(partial.nextCursor).not.toBeNull();
+    const second = await repo.listProjects({
+      limit: 2,
+      cursor: partial.nextCursor!,
+    });
+    expect(second.items).toHaveLength(1);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it("rejects a cursor issued for a different state filter", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Career" });
+    for (let i = 0; i < 4; i += 1) {
+      await s.createProject({
+        title: `P${i}`,
+        parent: { kind: "area", id: area.id },
+      });
+    }
+    const repo = makeProjectRepository(makeContext(WS));
+    const page = await repo.listProjects({ state: "all", limit: 2 });
+    // A cursor bound to `all` must not be honoured under `open` (different rows).
+    await expect(
+      repo.listProjects({ state: "open", cursor: page.nextCursor! }),
+    ).rejects.toBeInstanceOf(InvalidSpineCursorError);
+  });
+
+  it("rejects a cursor issued for a different ordering", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Career" });
+    for (let i = 0; i < 4; i += 1) {
+      await s.createProject({
+        title: `P${i}`,
+        parent: { kind: "area", id: area.id },
+      });
+    }
+    const repo = makeProjectRepository(makeContext(WS));
+    const page = await repo.listProjects({ orderBy: "created", limit: 2 });
+    await expect(
+      repo.listProjects({ orderBy: "recent", cursor: page.nextCursor! }),
+    ).rejects.toBeInstanceOf(InvalidSpineCursorError);
+  });
+
+  it("rejects a cursor issued for a different workspace", async () => {
+    const s = spine(WS);
+    const area = await s.createArea({ title: "Career" });
+    for (let i = 0; i < 4; i += 1) {
+      await s.createProject({
+        title: `P${i}`,
+        parent: { kind: "area", id: area.id },
+      });
+    }
+    const page = await makeProjectRepository(makeContext(WS)).listProjects({
+      limit: 2,
+    });
+    // The other workspace must not accept this workspace's cursor.
+    await expect(
+      makeProjectRepository(makeContext(OTHER)).listProjects({
+        cursor: page.nextCursor!,
+      }),
+    ).rejects.toBeInstanceOf(InvalidSpineCursorError);
+  });
+
+  it("rejects a malformed cursor", async () => {
+    const repo = makeProjectRepository(makeContext(WS));
+    await expect(
+      repo.listProjects({ cursor: "not-a-real-cursor" }),
+    ).rejects.toBeInstanceOf(InvalidSpineCursorError);
+  });
+});
+
+describe("TaskRepository.listProjectTasks — keyset pagination", () => {
+  it("reaches EVERY task across pages with no gap and no duplicate", async () => {
+    const s = spine(WS);
+    const t = tasks(WS);
+    const area = await s.createArea({ title: "Career" });
+    const project = await s.createProject({
+      title: "Big project",
+      parent: { kind: "area", id: area.id },
+    });
+    const created: string[] = [];
+    for (let i = 0; i < 55; i += 1) {
+      const task = await s.createTask({
+        title: `Task ${i}`,
+        parent: { kind: "project", id: project.id },
+      });
+      created.push(task.id);
+    }
+
+    const groundTruth = (
+      await t.listProjectTasks(project.id, { state: "all", limit: 100 })
+    ).items.map((i) => i.id);
+    expect(groundTruth).toHaveLength(55);
+
+    const walked: string[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+    do {
+      const page = await t.listProjectTasks(project.id, {
+        state: "all",
+        limit: 20,
+        cursor,
+      });
+      expect(page.items.length).toBeLessThanOrEqual(20);
+      walked.push(...page.items.map((i) => i.id));
+      cursor = page.nextCursor ?? undefined;
+      pages += 1;
+      expect(pages).toBeLessThan(10);
+    } while (cursor);
+
+    expect(walked).toHaveLength(55);
+    expect(new Set(walked).size).toBe(55);
+    expect(walked).toEqual(groundTruth);
+    expect(new Set(walked)).toEqual(new Set(created));
+  });
+
+  it("rejects a cursor issued for a different project", async () => {
+    const s = spine(WS);
+    const t = tasks(WS);
+    const area = await s.createArea({ title: "Career" });
+    const a = await s.createProject({
+      title: "A",
+      parent: { kind: "area", id: area.id },
+    });
+    const b = await s.createProject({
+      title: "B",
+      parent: { kind: "area", id: area.id },
+    });
+    for (let i = 0; i < 4; i += 1) {
+      await s.createTask({
+        title: `A${i}`,
+        parent: { kind: "project", id: a.id },
+      });
+    }
+    const page = await t.listProjectTasks(a.id, { state: "all", limit: 2 });
+    await expect(
+      t.listProjectTasks(b.id, { state: "all", cursor: page.nextCursor! }),
+    ).rejects.toBeInstanceOf(InvalidSpineCursorError);
+  });
+
+  it("rejects a cursor issued for a different state filter", async () => {
+    const s = spine(WS);
+    const t = tasks(WS);
+    const area = await s.createArea({ title: "Career" });
+    const project = await s.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    for (let i = 0; i < 4; i += 1) {
+      await s.createTask({
+        title: `T${i}`,
+        parent: { kind: "project", id: project.id },
+      });
+    }
+    const page = await t.listProjectTasks(project.id, {
+      state: "all",
+      limit: 2,
+    });
+    await expect(
+      t.listProjectTasks(project.id, {
+        state: "open",
+        cursor: page.nextCursor!,
+      }),
+    ).rejects.toBeInstanceOf(InvalidSpineCursorError);
+  });
+
+  it("rejects a cursor issued for a different workspace", async () => {
+    const s = spine(WS);
+    const t = tasks(WS);
+    const area = await s.createArea({ title: "Career" });
+    const project = await s.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    for (let i = 0; i < 4; i += 1) {
+      await s.createTask({
+        title: `T${i}`,
+        parent: { kind: "project", id: project.id },
+      });
+    }
+    const page = await t.listProjectTasks(project.id, {
+      state: "all",
+      limit: 2,
+    });
+    await expect(
+      tasks(OTHER).listProjectTasks(project.id, {
+        state: "all",
+        cursor: page.nextCursor!,
+      }),
+    ).rejects.toBeInstanceOf(InvalidSpineCursorError);
   });
 });

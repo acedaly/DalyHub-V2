@@ -31,8 +31,23 @@ adapter [`d1-project-repository.ts`](../../app/platform/storage/d1/d1-project-re
 resolves each project's Area (directly or **through its Goal**) and its active
 direct-task counts in **one bounded, N+1-free query**; its count definition matches
 the spine project rollup (active direct child tasks), computed live. It performs **no
-mutations**. `TaskRepository.listProjectTasks(projectId, {state,limit})` extends the
-authoritative Task contract (ADR-028) with the single bounded child-task query.
+mutations**. `TaskRepository.listProjectTasks(projectId, {state,limit,cursor})` extends
+the authoritative Task contract (ADR-028) with the bounded, keyset-paginated child-task
+query.
+
+**Pagination — every record reachable (ADR-034 §34.1a/§34.3/§34.6).** Both
+`listProjects` and `listProjectTasks` are **keyset-paginated** with opaque, versioned
+cursors mirroring the spine/EntityLink pattern
+([`project-cursor.ts`](../../app/kernel/projects/project-cursor.ts) bound to
+workspace + state + ordering;
+[`task-project-cursor.ts`](../../app/kernel/tasks/task-project-cursor.ts) bound to
+workspace + project id + state). Each fetches `limit + 1` to detect a further page and
+returns `nextCursor` (null when exhausted); ordering is a stable keyset with `id` as the
+deterministic tiebreaker (`(created_at, id)`, or `(updated_at, id)` for the collection's
+`recent` order). A cursor issued for a different scope is rejected
+(`InvalidSpineCursorError`), never reinterpreted. No unbounded "load everything" query is
+ever issued, and the record's roll-up total stays `SpineRepository.getRollup` —
+authoritative even while only some task pages are loaded.
 
 **Never copied:** Area/Goal titles are resolved live through the hierarchy; a Goal
 parent derives its Area (never stored twice); progress is derived; link records live
@@ -45,11 +60,13 @@ composed by the shell — never in a central switch.
 
 | Route | Kind | Responsibility |
 | --- | --- | --- |
-| `GET /projects` | page | The collection: `projects.listProjects({state})` + Area/Goal parent options for the create form. |
+| `GET /projects` | page | The collection: `projects.listProjects({state,cursor})` + first-page Area/Goal seed options for the create form. Also serves keyset pages for the collection's "Load more" (via `useFetcher().load`). |
 | `POST /projects/new` | resource | Create a project via `spine.createProject` (parent kind resolved server-side). |
 | `GET /projects/:projectId` | page | The overview: `getProjectOverview` + `spine.getRollup` + `listProjectTasks` + `project.relates_to` links. |
 | `POST /projects/:projectId/mutate` | resource | `rename` / `complete` / `reopen` / `create_task` / `link` / `unlink` (verified project id). |
 | `GET /projects/:projectId/link-targets` | resource | The Key links picker's target search (verified project anchor). |
+| `GET /projects/:projectId/tasks` | resource | One keyset page of the project's tasks (`state`, `cursor`) for the Tasks tab's "Load more" — fetched WITHOUT navigating, so `?drawer=` state is untouched. Returns `400` for a tampered/cross-scope cursor. |
+| `GET /projects/parent-options` | resource | Server-backed, workspace-scoped, bounded search of active Areas/Goals (`q`) for the New-Project parent picker (kinds resolved server-side). |
 
 `/projects/new` is a static segment, so it ranks above the dynamic
 `/projects/:projectId` and never shadows a real (UUID) project id. Resource routes
@@ -62,9 +79,14 @@ same pattern the shared task record surface uses).
 - **Collection** — [`ProjectsCollection.tsx`](../../app/modules/projects/ProjectsCollection.tsx):
   PX-02 `CollectionLayout`, the one DS-04 `Card`, a restrained URL-reflected state
   segment ([`SegmentedFilter`](../../app/modules/projects/SegmentedFilter.tsx):
-  Open/Completed/All), and the shared `EmptyState` (empty vs filtered-empty vs
-  error). A card opens the overview through **normal client navigation** (a real
-  `<a href="/projects/:id">` + SPA open) — never a `div onClick`.
+  Open/Completed/All), the shared `EmptyState` (empty vs filtered-empty vs error), and
+  the shared [`LoadMore`](../../app/shared/load-more) affordance. A card opens the
+  overview through **normal client navigation** (a real `<a href="/projects/:id">` + SPA
+  open) — never a `div onClick`. "Load more" accumulates keyset pages with
+  `useFetcher().load('/projects?state=…&cursor=…')` (no navigation): pages are appended,
+  de-duplicated by id, and the accumulation resets only when the state filter (or
+  first-page cursor) changes — so opening the new-project Drawer keeps the loaded pages.
+  The subtitle reads "N projects loaded" while more remain (never a false total).
 - **Overview** — [`ProjectOverview.tsx`](../../app/modules/projects/ProjectOverview.tsx):
   the DS-02 Record Layout (header: identity, open/completed pill, Area/Goal context,
   Complete/Reopen + Rename; summary: parent Area, optional Goal, state, task totals,
@@ -72,8 +94,13 @@ same pattern the shared task record surface uses).
 - **Tasks tab** — [`ProjectTasksTab.tsx`](../../app/modules/projects/ProjectTasksTab.tsx):
   the project's real child tasks as DS-04 Cards with the shared task semantics
   (completion = the spine's `completedAt`; waiting = the TODAY-03 state; scheduled ≠
-  due), an Open/Completed/All filter and "Add task". A task opens the **shared
-  `TaskRecordDrawer`** (ADR-033) over the project (`?drawer=task:<id>`).
+  due), an Open/Completed/All filter, "Add task" and the shared `LoadMore` affordance. A
+  task opens the **shared `TaskRecordDrawer`** (ADR-033) over the project
+  (`?drawer=task:<id>`). "Load more" fetches the dedicated `/projects/:id/tasks` endpoint
+  with `useFetcher().load` so the `?drawer=` param, scroll and focus are **never**
+  disturbed by loading more rows; pages are appended and de-duplicated, and the reset
+  keys on the task filter (not the drawer), keeping pagination and drawer state fully
+  independent.
 - **Key links tab** — [`ProjectLinksTab.tsx`](../../app/modules/projects/ProjectLinksTab.tsx):
   the structural Area/Goal relationships + the DS-06 `EntityLinkPicker` over
   `project.relates_to`.
@@ -82,6 +109,10 @@ same pattern the shared task record surface uses).
   [`NewTaskForm`](../../app/modules/projects/NewTaskForm.tsx),
   [`RenameProjectForm`](../../app/modules/projects/RenameProjectForm.tsx)) hosted in
   the DS-03 Drawer, with duplicate-submit prevention and server-authoritative errors.
+  `NewProjectForm`'s "Area or Goal" field is **server-backed and searchable** —
+  `SelectField.onSearch` queries `/projects/parent-options?q=` (reusing the shared
+  `searchLinkTargets`), so every eligible Area/Goal is selectable however many there are;
+  the create action re-verifies the chosen parent's kind + ownership server-side.
 
 The pure view-model
 ([`project-view.ts`](../../app/modules/projects/project-view.ts)) owns serialisation
@@ -117,14 +148,26 @@ sections and the DS-08 search seam are undisturbed.
   `listProjects` (Area/Goal resolution incl. via-Goal, counts matching the rollup,
   state filters, workspace isolation, bounds, order), `getProjectOverview`
   (found/missing/wrong-kind/soft-deleted/cross-workspace), `listProjectTasks`
-  (waiting representation, state, wrong-kind/cross-workspace, roll-up reflection).
+  (waiting representation, state, wrong-kind/cross-workspace, roll-up reflection), and
+  **keyset pagination** for both — >50 records reachable across pages with the exact
+  same order as the unpaginated walk (no gap, no duplicate at boundaries), `nextCursor`
+  null exactly at the last page, and cursor rejection across state / ordering / project /
+  workspace and for a malformed cursor.
 - **Route integration** ([`test/kernel/projects-route.test.ts`](../../test/kernel/projects-route.test.ts)):
   the ACTUAL loaders/actions — create/rename/complete/reopen, method guards,
-  parent-substitution rejection, wrong-kind/cross-workspace 404s, revalidation.
+  parent-substitution rejection, wrong-kind/cross-workspace 404s, revalidation, the
+  collection loader's cursor walk reaching every project, the `/projects/:id/tasks`
+  endpoint (keyset walk + `400` on a tampered cursor), and the `/projects/parent-options`
+  search (Areas/Goals only, filtered by query, kinds resolved server-side).
 - **E2E** ([`e2e/projects.spec.ts`](../../e2e/projects.spec.ts)): a real-D1 journey
   (browse → open → verify Area/Goal → create task → open in the shared Drawer →
   complete → progress updates → Back/Forward/Escape + focus restoration → reload →
-  complete + reopen the project → Today's Continue working → axe → responsive 320–2560).
+  complete + reopen the project → Today's Continue working → axe → responsive 320–2560),
+  plus **pagination journeys** over a >50-row seed: the collection "Load more" reaches a
+  second-page project (no false total, no duplicate, affordance retires when exhausted),
+  the Tasks tab "Load more" reaches a second-page task while the roll-up total stays
+  authoritative, an appended page-2 task opens the shared Task Drawer without disturbing
+  state, and the New-Project parent picker searches the server for an Area.
 
 ## What remains for PROJ-02–06
 

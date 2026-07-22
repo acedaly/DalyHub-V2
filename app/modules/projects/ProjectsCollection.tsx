@@ -9,8 +9,8 @@
  * an inaccessible clickable container.
  */
 
-import { useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFetcher, useNavigate } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
@@ -24,6 +24,7 @@ import {
 } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
+import { LoadMore } from "~/shared/load-more";
 import type { SelectOption } from "~/shared/forms/types";
 
 import { NewProjectForm } from "./NewProjectForm";
@@ -47,13 +48,26 @@ const STATE_OPTIONS = [
 
 export interface ProjectsCollectionViewProps {
   readonly projects: readonly SerializedProjectListItem[];
+  /** Opaque cursor for the next page from the loader, or null when exhausted. */
+  readonly nextCursor: string | null;
   readonly parentOptions: readonly SelectOption[];
   readonly state: ProjectState;
   readonly failed: boolean;
 }
 
+/**
+ * The subset of the collection loader's payload a "Load more" fetch reads back:
+ * the next page of projects and the following cursor (plus the calm failure flag).
+ */
+type ProjectsPageData = {
+  readonly projects: readonly SerializedProjectListItem[];
+  readonly nextCursor: string | null;
+  readonly failed: boolean;
+};
+
 export function ProjectsCollectionView({
   projects,
+  nextCursor,
   parentOptions,
   state,
   failed,
@@ -77,6 +91,7 @@ export function ProjectsCollectionView({
     <DrawerProvider renderDrawer={renderDrawer}>
       <ProjectsCollection
         projects={projects}
+        nextCursor={nextCursor}
         state={state}
         failed={failed}
         onOpenProject={(id) => navigate(`/projects/${encodeURIComponent(id)}`)}
@@ -147,28 +162,123 @@ function toCardProps(
   };
 }
 
+/**
+ * Accumulate keyset pages behind a "Load more" affordance WITHOUT navigating (so a
+ * `?drawer=` param and scroll position survive). The loader's first page seeds the
+ * list; each "Load more" runs the SAME loader through a fetcher with the next
+ * `cursor`, and the returned rows are appended. Changing the state filter (or any
+ * loader re-run — reload, Back/Forward, a mutation's revalidation) hands down a
+ * fresh first page and cursor, which RESETS the accumulation so nothing stale or
+ * cross-filter lingers. Duplicate ids are collapsed defensively so a card can never
+ * render twice even if a page boundary overlaps.
+ */
+function useProjectPagination(
+  firstPage: readonly SerializedProjectListItem[],
+  initialCursor: string | null,
+  state: ProjectState,
+) {
+  const fetcher = useFetcher<ProjectsPageData>();
+  const [appended, setAppended] = useState<SerializedProjectListItem[]>([]);
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const processed = useRef<ProjectsPageData | null>(null);
+
+  // Reset the accumulation when the QUERY that defines the result set changes — the
+  // state filter or the first page's cursor. Keying on those (not the base array's
+  // identity) means a filter change or reload resets predictably, while an unrelated
+  // loader re-run — e.g. opening the new-project Drawer, which only adds a URL param
+  // — keeps the already-loaded pages instead of snapping back to page one.
+  useEffect(() => {
+    setAppended([]);
+    setCursor(initialCursor);
+    setLoadFailed(false);
+    processed.current = null;
+  }, [initialCursor, state]);
+
+  // Fold each fetched page into the accumulation exactly once.
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) {
+      return;
+    }
+    const data = fetcher.data;
+    if (processed.current === data) {
+      return;
+    }
+    processed.current = data;
+    if (data.failed) {
+      setLoadFailed(true);
+      return;
+    }
+    setAppended((prev) => [...prev, ...data.projects]);
+    setCursor(data.nextCursor);
+    setLoadFailed(false);
+  }, [fetcher.state, fetcher.data]);
+
+  const loadMore = useCallback(() => {
+    if (cursor === null) {
+      return;
+    }
+    setLoadFailed(false);
+    fetcher.load(
+      `/projects?state=${encodeURIComponent(state)}&cursor=${encodeURIComponent(cursor)}`,
+    );
+  }, [cursor, fetcher, state]);
+
+  // De-duplicate defensively: the base page and any appended pages are merged in
+  // order, first occurrence wins, so an overlapping boundary never doubles a card.
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const out: SerializedProjectListItem[] = [];
+    for (const project of [...firstPage, ...appended]) {
+      if (seen.has(project.id)) {
+        continue;
+      }
+      seen.add(project.id);
+      out.push(project);
+    }
+    return out;
+  }, [firstPage, appended]);
+
+  return {
+    items,
+    hasMore: cursor !== null,
+    loading: fetcher.state !== "idle",
+    loadFailed,
+    loadMore,
+  };
+}
+
 function ProjectsCollection({
   projects,
+  nextCursor,
   state,
   failed,
   onOpenProject,
 }: {
   readonly projects: readonly SerializedProjectListItem[];
+  readonly nextCursor: string | null;
   readonly state: ProjectState;
   readonly failed: boolean;
   readonly onOpenProject: (id: string) => void;
 }) {
+  const { items, hasMore, loading, loadFailed, loadMore } =
+    useProjectPagination(projects, nextCursor, state);
+
   const cards = useMemo(
-    () => projects.map((project) => toProjectCardData(project)),
-    [projects],
+    () => items.map((project) => toProjectCardData(project)),
+    [items],
   );
 
-  const count = projects.length;
+  const count = items.length;
+  // Never present the loaded-row count as the TOTAL while more pages remain — say
+  // how many are "loaded" so far, not how many exist.
   const subtitle = failed
     ? "We couldn't load your projects."
-    : count === 1
-      ? "1 project"
-      : `${count} projects`;
+    : hasMore
+      ? `${count} projects loaded`
+      : count === 1
+        ? "1 project"
+        : `${count} projects`;
 
   return (
     <CollectionLayout
@@ -242,6 +352,14 @@ function ProjectsCollection({
         density="comfortable"
         renderCard={(card) => <Card {...toCardProps(card, onOpenProject)} />}
       />
+      {!failed && hasMore ? (
+        <LoadMore
+          loading={loading}
+          loadFailed={loadFailed}
+          onLoadMore={loadMore}
+          label="Load more projects"
+        />
+      ) : null}
     </CollectionLayout>
   );
 }

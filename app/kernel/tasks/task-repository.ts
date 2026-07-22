@@ -27,6 +27,7 @@ import type {
   ListWaitingTasksInput,
   PlanTaskInput,
   PlanTaskResult,
+  ProjectTaskListPage,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
@@ -73,12 +74,15 @@ export interface TaskRepository {
    * a wrong-kind or missing id simply yields no tasks (never a cross-workspace
    * disclosure). Completed tasks are included per `state` (default `open`), waiting
    * tasks are included with their waiting representation, and ordering is
-   * deterministic (open first, then due date, creation, id).
+   * deterministic `(createdAt, id)` — a stable keyset so the returned page carries
+   * an opaque `nextCursor` (bound to workspace + project + state) that resumes
+   * exactly after the last row, making every matching task reachable without an
+   * unbounded query, a skip or a duplicate.
    */
   listProjectTasks(
     projectId: string,
     input?: ListProjectTasksInput,
-  ): Promise<TaskListPage>;
+  ): Promise<ProjectTaskListPage>;
 
   /**
    * List the tasks the planning surface needs (TODAY-04), bounded per band so the

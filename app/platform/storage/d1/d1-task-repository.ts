@@ -45,6 +45,8 @@ import {
   type IdGenerator,
 } from "~/kernel/spine";
 import {
+  decodeProjectTaskCursorForScope,
+  encodeProjectTaskCursor,
   isWaitingTargetType,
   TASK_PLAN_CLEARED,
   TASK_PLANNED,
@@ -77,6 +79,8 @@ import {
   type ListWaitingTasksInput,
   type PlanTaskInput,
   type PlanTaskResult,
+  type ProjectTaskCursorScope,
+  type ProjectTaskListPage,
   type SetWaitingInput,
   type SetWaitingResult,
   type TaskDetails,
@@ -297,13 +301,18 @@ export class D1TaskRepository implements TaskRepository {
    * `task.belongs_to_project` parent link constrained to `projectId` AND to an active
    * `project` entity — so a wrong-kind or missing project id yields no rows (never a
    * cross-workspace disclosure), completed tasks are included per `state`, waiting
-   * tasks carry their waiting representation, and ordering is deterministic. No N+1,
-   * no per-task `getTask`, never "load every workspace task and filter in the client".
+   * tasks carry their waiting representation, and ordering is deterministic
+   * `(createdAt, id)`. That stable keyset — over columns that never change once the
+   * task is created — lets the page carry a `nextCursor` (bound to workspace +
+   * project + state) that resumes exactly after the last row, so EVERY matching
+   * task is reachable across pages without a skip, a duplicate or an unbounded
+   * query. No N+1, no per-task `getTask`, never "load every workspace task and
+   * filter in the client".
    */
   async listProjectTasks(
     projectId: string,
     input: ListProjectTasksInput = {},
-  ): Promise<TaskListPage> {
+  ): Promise<ProjectTaskListPage> {
     const parentId = validateTaskId(projectId);
     const limit = validateTaskLimit(input.limit);
     const state = input.state ?? "open";
@@ -313,6 +322,28 @@ export class D1TaskRepository implements TaskRepository {
         : state === "completed"
           ? " AND sr.completed_at IS NOT NULL"
           : "";
+
+    // The cursor is bound to the FULL query scope (workspace + project + state); a
+    // cursor issued for a different scope is rejected, never reinterpreted. The
+    // keyset predicate resumes strictly AFTER the last returned row in the
+    // `(created_at ASC, id ASC)` ordering.
+    const scope: ProjectTaskCursorScope = {
+      workspaceId: this.#workspaceId,
+      projectId: parentId,
+      state,
+    };
+    const cursorParams: string[] = [];
+    let cursorClause = "";
+    if (input.cursor !== undefined) {
+      const position = decodeProjectTaskCursorForScope(input.cursor, scope);
+      cursorClause =
+        " AND (e.created_at > ? OR (e.created_at = ? AND e.id > ?))";
+      cursorParams.push(position.createdAt, position.createdAt, position.id);
+    }
+
+    // Fetch one more than the page size: the extra row (if present) proves another
+    // page exists, and is trimmed before returning.
+    const fetchLimit = limit + 1;
 
     const statement = this.#db
       .prepare(
@@ -334,19 +365,30 @@ export class D1TaskRepository implements TaskRepository {
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
          ${WAITING_TARGET_JOIN}
-         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${completedClause}
-         ORDER BY (sr.completed_at IS NOT NULL) ASC,
-                  (td.due_date IS NULL) ASC,
-                  td.due_date ASC,
-                  e.created_at ASC,
-                  e.id ASC
+         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${completedClause}${cursorClause}
+         ORDER BY e.created_at ASC, e.id ASC
          LIMIT ?`,
       )
-      .bind(parentId, this.#workspaceId, limit);
+      .bind(parentId, this.#workspaceId, ...cursorParams, fetchLimit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as TaskListRow[];
-    return { items: rows.map((row) => this.#toTaskListItem(row)) };
+
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeProjectTaskCursor(scope, {
+            createdAt: last.created_at,
+            id: last.id,
+          })
+        : null;
+
+    return {
+      items: pageRows.map((row) => this.#toTaskListItem(row)),
+      nextCursor,
+    };
   }
 
   /**

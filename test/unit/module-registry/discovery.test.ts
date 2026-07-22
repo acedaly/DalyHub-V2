@@ -165,6 +165,17 @@ describe("module discovery", () => {
           moduleId: "projects",
           file: "routes/link-targets.tsx",
         },
+        // PROJ-01 pagination + searchable parent picker resource routes.
+        {
+          id: "projects.tasks",
+          moduleId: "projects",
+          file: "routes/tasks.tsx",
+        },
+        {
+          id: "projects.parent_options",
+          moduleId: "projects",
+          file: "routes/parent-options.tsx",
+        },
         { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
         // PROJ-01 / ADR-033 re-homed the task record resource routes to the Tasks
         // module (previously `today.task*`): the task Drawer's data endpoint, its

@@ -49,6 +49,14 @@ export type ListProjectsInput = {
   readonly orderBy?: ProjectOrder;
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */
   readonly limit?: number;
+  /**
+   * An opaque cursor from a previous page's `nextCursor`, to fetch the following
+   * page. It is bound to the workspace, `state` filter and ordering it was issued
+   * for; a cursor that does not match the current query scope is rejected
+   * (`InvalidSpineCursorError`), never silently reinterpreted. Omit for the first
+   * page.
+   */
+  readonly cursor?: string;
 };
 
 /**
@@ -77,6 +85,12 @@ export type ProjectListItem = {
 /** A bounded page of project summaries. */
 export type ProjectListPage = {
   readonly items: readonly ProjectListItem[];
+  /**
+   * An opaque cursor to fetch the next page, or `null` when this is the last page
+   * (no more matching projects). Pass it back as `ListProjectsInput.cursor`. It is
+   * bound to this query's workspace, `state` filter and ordering.
+   */
+  readonly nextCursor: string | null;
 };
 
 /**

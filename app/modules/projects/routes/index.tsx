@@ -44,11 +44,17 @@ function parseState(value: string | null): ProjectState {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
-  const state = parseState(new URL(request.url).searchParams.get("state"));
+  const params = new URL(request.url).searchParams;
+  const state = parseState(params.get("state"));
+  // An opaque keyset cursor for the NEXT page, echoed back from a prior page's
+  // `nextCursor`. It is validated (and scope-checked) in the repository; an absent
+  // or malformed value simply yields the first page or a calm error — never an
+  // unbounded query.
+  const cursor = params.get("cursor") ?? undefined;
 
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-    const page = await scope.projects.listProjects({ state });
+    const page = await scope.projects.listProjects({ state, cursor });
     // The Area/Goal parent options for the create form (bounded, workspace-scoped).
     const [areas, goals] = await Promise.all([
       scope.entities.list({ type: "area", limit: PARENT_OPTIONS_LIMIT }),
@@ -68,6 +74,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ];
     return {
       projects: page.items.map(serializeProjectListItem),
+      nextCursor: page.nextCursor,
       parentOptions,
       state,
       failed: false,
@@ -75,6 +82,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   } catch {
     return {
       projects: [] as SerializedProjectListItem[],
+      nextCursor: null as string | null,
       parentOptions: [] as SelectOption[],
       state,
       failed: true,
@@ -86,6 +94,7 @@ export default function ProjectsRoute({ loaderData }: Route.ComponentProps) {
   return (
     <ProjectsCollectionView
       projects={loaderData.projects}
+      nextCursor={loaderData.nextCursor}
       parentOptions={loaderData.parentOptions}
       state={loaderData.state}
       failed={loaderData.failed}
