@@ -245,3 +245,12 @@ Timelines/Feeds arrive when a module adopts DS-05 (e.g.
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md#shared-timeline--activity-feed-ds-05) — the pattern contract.
 - [`DATA_KERNEL.md`](DATA_KERNEL.md) & [ADR-012](../decisions/ARCHITECTURE_DECISIONS.md#adr-012-activity-persistence-and-atomic-mutation-recording) — the FND-05 Activity model this renders.
 - [`docs/README.md`](../README.md) — documentation index.
+
+## Production Project Timeline (PROJ-04)
+
+`/projects/:projectId` composes the final Record Layout Activity tab with the one
+shared `Timeline`. `GET /projects/:projectId/activity` authenticates, resolves the
+workspace and validates the active project before using `activity.listForEntity`.
+It returns only mapped, JSON-safe Activity items and opaque cursors. Project history
+is direct-subject history; it does not recursively aggregate child-task events.
+No dependency, migration, copied third-party code or second Activity store was added.

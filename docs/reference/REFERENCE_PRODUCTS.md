@@ -480,3 +480,11 @@ Copy this to add a new reference product or building block:
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — where borrowed interaction patterns are formalised.
 - [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md) — the items these references inform.
 - [`docs/README.md`](../README.md) — documentation index.
+
+## Project Activity evaluation (PROJ-04)
+
+PROJ-04 reuses the in-house FND-05 Activity repository and DS-05 Timeline exactly as
+built. A timeline, virtualisation, state-management, date, audit-log and ORM package
+were rejected: the existing stack already supplies the renderer, descriptor mapping,
+opaque pagination and accessibility behaviour. No third-party code was copied and no
+dependency or `THIRD_PARTY_NOTICES.md` change is required.

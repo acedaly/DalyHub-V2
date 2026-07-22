@@ -148,9 +148,18 @@ describe("ProjectOverview", () => {
         onRename={onRename}
         tasksTab={<div>tasks-content</div>}
         linksTab={<div>links-content</div>}
+        activityTab={<div>activity-content</div>}
       />,
     );
     expect(screen.getByRole("tab", { name: "Tasks" })).toBeInTheDocument();
+    const activityTab = screen.getByRole("tab", { name: "Activity" });
+    expect(
+      activityTab.compareDocumentPosition(
+        screen.getByRole("tab", { name: "Key links" }),
+      ) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    fireEvent.click(activityTab);
+    expect(screen.getByText("activity-content")).toBeInTheDocument();
     const linksTab = screen.getByRole("tab", { name: "Key links" });
     fireEvent.click(linksTab);
     expect(screen.getByText("links-content")).toBeInTheDocument();

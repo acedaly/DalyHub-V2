@@ -44,6 +44,7 @@ interface ProjectOverviewProps {
   readonly onRename: () => void;
   readonly tasksTab: ReactNode;
   readonly linksTab: ReactNode;
+  readonly activityTab?: ReactNode;
   /** Controlled active tab (deep-linked via the Record Layout). */
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
@@ -59,6 +60,7 @@ export function ProjectOverview({
   onRename,
   tasksTab,
   linksTab,
+  activityTab = null,
   activeTabId,
   onTabChange,
 }: ProjectOverviewProps) {
@@ -174,6 +176,7 @@ export function ProjectOverview({
       tabs={[
         { id: "tasks", label: "Tasks", content: tasksTab },
         { id: "links", label: "Key links", content: linksTab },
+        { id: "activity", label: "Activity", content: activityTab },
       ]}
     />
   );

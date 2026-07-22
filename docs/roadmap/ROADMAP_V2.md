@@ -267,10 +267,11 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 - **Dependencies.** PROJ-01, FND-08, NOTES-01.
 - **Expected outcome.** Notes linked to the project are browsable/editable within it. **P2.**
 
-### ☐ PROJ-04 — Activity
+### ☑ PROJ-04 — Activity
 - **Purpose.** The project's Timeline/Activity from the shared model.
 - **Dependencies.** PROJ-01, DS-05.
 - **Expected outcome.** The Activity tab shows the project's event history. **P2.**
+- **Status: ☑ Done.** `/projects/:projectId` now composes its final Activity tab with the shared DS-05 `Timeline`, backed by the FND-05 `activity.listForEntity(projectId, …)` authority through an authenticated, workspace-scoped, bounded `/projects/:projectId/activity` resource route. Direct project-subject events are mapped through the trusted descriptor registry and safe fallback; cursor pagination, grouping, virtualisation, empty/error/retry/end states and task Drawer links reuse DS-05. Child-task histories are deliberately not scraped or duplicated; only events whose persisted subject association includes the project appear. No migration, dependency, second event store or bespoke Timeline. See [`PROJECTS_MODULE.md`](../development/PROJECTS_MODULE.md).
 
 ### ☐ PROJ-05 — Settings
 - **Purpose.** Project configuration via the shared Settings pattern.
