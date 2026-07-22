@@ -29,11 +29,12 @@
  */
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
+import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 
 import type { ProjectOrder, ProjectStateFilter } from "./project";
 
 /** The current project cursor format version. Bump when the encoded shape changes. */
-export const PROJECT_CURSOR_VERSION = 2;
+export const PROJECT_CURSOR_VERSION = 3;
 
 /** The ordering position a project cursor points just after. */
 export type ProjectCursorPosition = {
@@ -51,6 +52,8 @@ export type ProjectCursorPosition = {
 export type ProjectCursorScope = {
   readonly workspaceId: string;
   readonly state: ProjectStateFilter;
+  /** The exact `workflowStatus` filter, or `null` when unrestricted. */
+  readonly workflowStatus: ProjectWorkflowStatus | null;
   readonly order: ProjectOrder;
 };
 
@@ -61,6 +64,11 @@ const PROJECT_STATE_FILTERS: readonly ProjectStateFilter[] = [
   "all",
 ];
 const PROJECT_ORDERS: readonly ProjectOrder[] = ["created", "recent"];
+const PROJECT_WORKFLOW_STATUS_VALUES: readonly ProjectWorkflowStatus[] = [
+  "planned",
+  "active",
+  "on_hold",
+];
 
 const textEncoder = new TextEncoder();
 /** A FATAL decoder: malformed UTF-8 throws rather than yielding replacement chars. */
@@ -102,6 +110,7 @@ export function encodeProjectCursor(
     PROJECT_CURSOR_VERSION,
     scope.workspaceId,
     scope.state,
+    scope.workflowStatus,
     scope.order,
     position.sortValue,
     position.id,
@@ -139,11 +148,12 @@ export function decodeProjectCursor(cursor: string): DecodedProjectCursor {
     throw new InvalidSpineCursorError();
   }
 
-  if (!Array.isArray(parsed) || parsed.length !== 6) {
+  if (!Array.isArray(parsed) || parsed.length !== 7) {
     throw new InvalidSpineCursorError();
   }
 
-  const [version, workspaceId, state, order, sortValue, id] = parsed;
+  const [version, workspaceId, state, workflowStatus, order, sortValue, id] =
+    parsed;
 
   if (
     version !== PROJECT_CURSOR_VERSION ||
@@ -151,6 +161,11 @@ export function decodeProjectCursor(cursor: string): DecodedProjectCursor {
     workspaceId.length === 0 ||
     typeof state !== "string" ||
     !PROJECT_STATE_FILTERS.includes(state as ProjectStateFilter) ||
+    (workflowStatus !== null &&
+      (typeof workflowStatus !== "string" ||
+        !PROJECT_WORKFLOW_STATUS_VALUES.includes(
+          workflowStatus as ProjectWorkflowStatus,
+        ))) ||
     typeof order !== "string" ||
     !PROJECT_ORDERS.includes(order as ProjectOrder) ||
     typeof sortValue !== "string" ||
@@ -165,6 +180,7 @@ export function decodeProjectCursor(cursor: string): DecodedProjectCursor {
     scope: {
       workspaceId,
       state: state as ProjectStateFilter,
+      workflowStatus: workflowStatus as ProjectWorkflowStatus | null,
       order: order as ProjectOrder,
     },
     position: { sortValue, id },
@@ -179,6 +195,7 @@ export function projectCursorScopeMatches(
   return (
     a.workspaceId === b.workspaceId &&
     a.state === b.state &&
+    a.workflowStatus === b.workflowStatus &&
     a.order === b.order
   );
 }

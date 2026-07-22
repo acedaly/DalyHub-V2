@@ -127,12 +127,16 @@ function toCardProps(
   const metadata: CardMetaItem[] = [];
   // The derived health signal (PROJ-02): a restrained toned pill + the primary
   // reason as accessible text. It is a distinct axis from the open/completed
-  // `status` pill, so both coexist without a second card component.
-  metadata.push({
-    id: "health",
-    label: "Health",
-    value: <HealthIndicator health={card.health} showReason />,
-  });
+  // `status` pill, so both coexist without a second card component. Shown ONLY
+  // for genuinely active work (PROJ-05 §8 / ADR-037) — a Planned, On-hold,
+  // Completed or Archived project never shows an active-work health warning.
+  if (card.healthVisible) {
+    metadata.push({
+      id: "health",
+      label: "Health",
+      value: <HealthIndicator health={card.health} showReason />,
+    });
+  }
   if (card.goalLabel) {
     metadata.push({ id: "goal", label: "Goal", value: card.goalLabel });
   }

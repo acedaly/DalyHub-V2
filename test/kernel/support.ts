@@ -6,10 +6,12 @@ import {
   createEntityRepository,
   createProjectHealthRepository,
   createProjectRepository,
+  createProjectSettingsRepository,
   createSpineRepository,
   createTaskRepository,
   createWorkspaceRepository,
   type AtomicMutationFault,
+  type D1ProjectSettingsRepositoryOptions,
   type D1SpineRepositoryOptions,
   type D1TaskRepositoryOptions,
 } from "~/platform/storage/d1";
@@ -29,6 +31,9 @@ export interface RepositoryTestOptions {
   actorContext?: ActivityActorContext;
   activityIdGenerator?: IdGenerator;
   activityFault?: AtomicMutationFault;
+  /** EntityLink-only: a test-only deterministic race barrier (see
+   * `D1EntityLinkRepositoryOptions.raceBarrier`). Ignored by other factories. */
+  raceBarrier?: () => Promise<void>;
 }
 
 /**
@@ -138,6 +143,26 @@ export function makeProjectRepository(context: WorkspaceContext) {
  */
 export function makeProjectHealthRepository(context: WorkspaceContext) {
   return createProjectHealthRepository(env.DB, context);
+}
+
+/**
+ * Construct a workspace-scoped D1-backed ProjectSettingsRepository over the
+ * isolated test database (PROJ-05: workflow status + archival, bound to a
+ * `WorkspaceContext`).
+ */
+export function makeProjectSettingsRepository(
+  context: WorkspaceContext,
+  options?: D1ProjectSettingsRepositoryOptions,
+) {
+  return createProjectSettingsRepository(env.DB, context, options);
+}
+
+/** Count all rows in `project_details` directly. */
+export async function countProjectDetailRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM project_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 /** Count all rows in `task_details` directly. */
@@ -270,6 +295,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM entity_links").run();
   await env.DB.prepare("DELETE FROM spine_records").run();
   await env.DB.prepare("DELETE FROM task_details").run();
+  await env.DB.prepare("DELETE FROM project_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

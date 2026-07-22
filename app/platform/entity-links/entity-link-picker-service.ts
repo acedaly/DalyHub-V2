@@ -20,6 +20,7 @@
 
 import type { EntityRecord, EntityRepository } from "~/kernel/entities";
 import {
+  EntityLinkEndpointArchivedError,
   EntityLinkEndpointNotFoundError,
   EntityLinkError,
   EntityLinkNotFoundError,
@@ -206,6 +207,7 @@ export type CreateLinkRejectionReason =
   | "anchor_unavailable"
   | "target_unavailable"
   | "reserved_type"
+  | "endpoint_archived"
   | "storage";
 
 /** The typed, safe outcome of a policy-enforced create. Never throws raw errors. */
@@ -234,6 +236,8 @@ const REJECTION_MESSAGES: Record<CreateLinkRejectionReason, string> = {
   target_unavailable: "That item is no longer available.",
   reserved_type:
     "That relationship is managed elsewhere and can't be set here.",
+  endpoint_archived:
+    "This task's project is archived and read-only — restore it to make changes.",
   storage: "That link couldn't be saved. Please try again.",
 };
 
@@ -334,6 +338,9 @@ export async function createLinkWithPolicy(
       type: request.linkType,
     });
   } catch (error) {
+    if (error instanceof EntityLinkEndpointArchivedError) {
+      return reject("endpoint_archived");
+    }
     if (error instanceof EntityLinkEndpointNotFoundError) {
       return reject("target_unavailable");
     }
@@ -374,7 +381,8 @@ export async function createLinkWithPolicy(
 }
 
 /** Why a policy-authorised unlink was refused (all safe to show the user). */
-export type UnlinkRejectionReason = "not_found" | "not_permitted" | "storage";
+export type UnlinkRejectionReason =
+  "not_found" | "not_permitted" | "endpoint_archived" | "storage";
 
 /** The typed, safe outcome of a policy-authorised unlink. */
 export type UnlinkResult =
@@ -392,6 +400,8 @@ export type UnlinkResult =
 const UNLINK_MESSAGES: Record<UnlinkRejectionReason, string> = {
   not_found: "That link no longer exists.",
   not_permitted: "That link can't be removed here.",
+  endpoint_archived:
+    "This task's project is archived and read-only — restore it to make changes.",
   storage: "That link couldn't be removed. Please try again.",
 };
 
@@ -434,6 +444,9 @@ export async function unlinkWithPolicy(
     const result = await deps.entityLinks.unlink(linkId);
     return { ok: true, changed: result.changed, outcome: result.outcome };
   } catch (error) {
+    if (error instanceof EntityLinkEndpointArchivedError) {
+      return rejectUnlink("endpoint_archived");
+    }
     if (error instanceof EntityLinkNotFoundError) {
       return rejectUnlink("not_found");
     }

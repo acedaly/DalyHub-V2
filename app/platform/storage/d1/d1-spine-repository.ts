@@ -284,6 +284,19 @@ export class D1SpineRepository implements SpineRepository {
     const id = this.#newId();
     const linkId = this.#newId();
 
+    // PROJ-05 (ADR-037): an archived Project is read-only until restored — a Task
+    // cannot be created under it. Folded directly into the entity insert's gate
+    // (never a separate precondition read) so a project archived concurrently
+    // with this create cannot slip a new active Task underneath it. Irrelevant for
+    // any other (kind, parentKind) pair, so every other creation path is unchanged.
+    const parentProjectNotArchivedClause =
+      kind === TASK && parentKind === PROJECT
+        ? ` AND NOT EXISTS (
+                 SELECT 1 FROM project_details
+                 WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
+               )`
+        : "";
+
     const entityStmt = this.#db
       .prepare(
         `INSERT INTO entities
@@ -292,7 +305,7 @@ export class D1SpineRepository implements SpineRepository {
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
-               )
+               )${parentProjectNotArchivedClause}
          RETURNING ${ENTITY_RETURNING}`,
       )
       .bind(
@@ -305,6 +318,9 @@ export class D1SpineRepository implements SpineRepository {
         this.#workspaceId,
         parentId,
         parentKind,
+        ...(parentProjectNotArchivedClause
+          ? [this.#workspaceId, parentId]
+          : []),
       );
 
     const spineStmt = this.#db
@@ -807,6 +823,19 @@ export class D1SpineRepository implements SpineRepository {
         );
         payload = { completedAt: nowTs };
       } else {
+        // Reopening a Task whose direct parent is a Project must not recreate
+        // unfinished work inside an ARCHIVED Project (PROJ-05 / ADR-037) — folded
+        // into this same guarded UPDATE (never a separate precondition read) so a
+        // project archived concurrently with this reopen cannot slip through.
+        // Irrelevant for every other (kind, parent) combination.
+        const parentProjectNotArchivedClause =
+          record.kind === TASK && record.parent?.kind === PROJECT
+            ? ` AND NOT EXISTS (
+                     SELECT 1 FROM project_details
+                     WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
+                   )`
+            : "";
+
         // `record.completedAt` is non-null here (we are past the already-open guard).
         const observed = toStorageTimestamp(record.completedAt!);
         spineStmt = this.#db
@@ -814,7 +843,7 @@ export class D1SpineRepository implements SpineRepository {
             `UPDATE spine_records SET completed_at = NULL
              WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?
                AND EXISTS (SELECT 1 FROM entities
-                           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+                           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)${parentProjectNotArchivedClause}
              RETURNING entity_id`,
           )
           .bind(
@@ -823,6 +852,9 @@ export class D1SpineRepository implements SpineRepository {
             observed,
             this.#workspaceId,
             entityId,
+            ...(parentProjectNotArchivedClause
+              ? [this.#workspaceId, record.parent!.id]
+              : []),
           );
         payload = { previousCompletedAt: observed };
       }
@@ -876,9 +908,34 @@ export class D1SpineRepository implements SpineRepository {
         // an inactive record cannot be completed or reopened.
         throw new SpineNotFoundError();
       }
+      if (
+        !complete &&
+        refreshed.kind === TASK &&
+        refreshed.parent?.kind === PROJECT &&
+        refreshed.completedAt !== null &&
+        (await this.#isProjectArchived(refreshed.parent.id))
+      ) {
+        // Permanently blocked (not a transient race): reject immediately rather
+        // than spin through the retry budget.
+        throw new SpineParentUnavailableError(
+          "This project is archived and read-only — restore it to reopen tasks",
+        );
+      }
       record = refreshed;
     }
     throw new SpineConflictError();
+  }
+
+  /** True when `projectId` (an active Project in this workspace) is archived. */
+  async #isProjectArchived(projectId: string): Promise<boolean> {
+    const row = await this.#db
+      .prepare(
+        `SELECT 1 FROM project_details
+         WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL`,
+      )
+      .bind(this.#workspaceId, projectId)
+      .first();
+    return row !== null;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -938,6 +995,27 @@ export class D1SpineRepository implements SpineRepository {
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
 
+    // PROJ-05 (ADR-037): a Task cannot leave, nor arrive at, an ARCHIVED Project —
+    // it is read-only until restored. Folded into the unlink/dest gates below
+    // (never a separate precondition read) so a project archived concurrently
+    // with this move cannot be silently bypassed. Irrelevant for Area/Goal/Project
+    // moves (only a Task can have a Project parent), so every other move is
+    // unaffected.
+    const oldParentProjectGuard =
+      record.kind === TASK && oldParentKind === PROJECT
+        ? ` AND NOT EXISTS (
+                 SELECT 1 FROM project_details
+                 WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
+               )`
+        : "";
+    const destParentProjectGuard =
+      record.kind === TASK && parentKind === PROJECT
+        ? ` AND NOT EXISTS (
+                 SELECT 1 FROM project_details
+                 WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
+               )`
+        : "";
+
     // 1. Unlink the current parent, BOUND to the exact (source, target, type)
     //    relationship we observed — not merely a separately-read link id — so a
     //    concurrent move that already changed the parent cannot be unlinked by a
@@ -958,7 +1036,7 @@ export class D1SpineRepository implements SpineRepository {
            AND EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
-               )
+               )${oldParentProjectGuard}${destParentProjectGuard}
          RETURNING id`,
       )
       .bind(
@@ -973,6 +1051,8 @@ export class D1SpineRepository implements SpineRepository {
         this.#workspaceId,
         parentId,
         parentKind,
+        ...(oldParentProjectGuard ? [this.#workspaceId, oldParentId] : []),
+        ...(destParentProjectGuard ? [this.#workspaceId, parentId] : []),
       );
 
     // 2. Establish the destination link: restore an existing soft-deleted one in
@@ -997,7 +1077,7 @@ export class D1SpineRepository implements SpineRepository {
              AND EXISTS (
                    SELECT 1 FROM entities
                    WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
-                 )
+                 )${destParentProjectGuard}
            RETURNING id`,
         )
         .bind(
@@ -1009,6 +1089,7 @@ export class D1SpineRepository implements SpineRepository {
           this.#workspaceId,
           parentId,
           parentKind,
+          ...(destParentProjectGuard ? [this.#workspaceId, parentId] : []),
         );
     } else {
       destLinkId = this.#newId();
@@ -1026,7 +1107,7 @@ export class D1SpineRepository implements SpineRepository {
              AND EXISTS (
                    SELECT 1 FROM entities
                    WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
-                 )
+                 )${destParentProjectGuard}
            RETURNING id`,
         )
         .bind(
@@ -1042,6 +1123,7 @@ export class D1SpineRepository implements SpineRepository {
           this.#workspaceId,
           parentId,
           parentKind,
+          ...(destParentProjectGuard ? [this.#workspaceId, parentId] : []),
         );
     }
 

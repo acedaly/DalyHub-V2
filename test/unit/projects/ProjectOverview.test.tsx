@@ -26,6 +26,9 @@ function overview(
     createdAt: "2026-07-18T09:00:00.000Z",
     updatedAt: "2026-07-20T10:00:00.000Z",
     completedAt: null,
+    status: "active",
+    archivedAt: null,
+    healthVisible: true,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: { kind: "goal", id: "g1", title: "Ship v2" },
     ...over,
@@ -40,7 +43,7 @@ function renderInRouter(node: ReactElement) {
 }
 
 describe("ProjectOverview", () => {
-  it("renders identity, Open state, derived summary and roll-up progress", () => {
+  it("renders identity, the Active state, derived summary and roll-up progress", () => {
     renderInRouter(
       <ProjectOverview
         overview={overview()}
@@ -58,8 +61,9 @@ describe("ProjectOverview", () => {
     expect(
       screen.getByRole("heading", { name: "DalyHub V2" }),
     ).toBeInTheDocument();
-    // Open state pill and the Area/Goal context.
-    expect(screen.getAllByText("Open").length).toBeGreaterThan(0);
+    // The workflow-status state pill (the fixture's default status is "active")
+    // and the Area/Goal context.
+    expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Career").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Ship v2").length).toBeGreaterThan(0);
     // The roll-up progress presentation.
@@ -176,5 +180,76 @@ describe("ProjectOverview", () => {
     expect(onToggleComplete).toHaveBeenCalledWith(true);
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
     expect(onRename).toHaveBeenCalled();
+  });
+
+  describe("health visibility (PROJ-05 §8 / ADR-037)", () => {
+    it("shows the Health metadata for genuinely active work", () => {
+      renderInRouter(
+        <ProjectOverview
+          overview={overview({ status: "active", healthVisible: true })}
+          progress={projectProgress(1, 4)}
+          health={stubHealth({ taskTotal: 4, taskCompleted: 1 })}
+          completed={false}
+          completionPending={false}
+          onToggleComplete={() => {}}
+          onRename={() => {}}
+          tasksTab={<div>tasks-content</div>}
+          linksTab={<div>links-content</div>}
+          activityTab={<div>activity-content</div>}
+        />,
+      );
+      expect(screen.getByText("Health")).toBeInTheDocument();
+    });
+
+    it.each([
+      ["Planned", { status: "planned" as const, healthVisible: false }, false],
+      ["On-hold", { status: "on_hold" as const, healthVisible: false }, false],
+      [
+        "Completed",
+        {
+          completedAt: "2026-07-21T00:00:00.000Z" as string | null,
+          healthVisible: false,
+        },
+        true,
+      ],
+      [
+        "Archived",
+        {
+          archivedAt: "2026-07-21T00:00:00.000Z" as string | null,
+          healthVisible: false,
+        },
+        false,
+      ],
+    ] satisfies [string, Partial<SerializedProjectOverview>, boolean][])(
+      "hides BOTH the header Health metadata and the detailed health panel for a %s project",
+      (_label, over, completed) => {
+        // An overdue-triggering fixture: if either the header metadata OR the
+        // summary `ProjectHealthPanel` rendered despite `healthVisible: false`,
+        // this state label and reason text would be visible.
+        renderInRouter(
+          <ProjectOverview
+            overview={overview(over)}
+            progress={projectProgress(1, 4)}
+            health={stubHealth({
+              taskTotal: 4,
+              taskCompleted: 1,
+              overdueOpen: 1,
+            })}
+            completed={completed}
+            completionPending={false}
+            onToggleComplete={() => {}}
+            onRename={() => {}}
+            tasksTab={<div>tasks-content</div>}
+            linksTab={<div>links-content</div>}
+            activityTab={<div>activity-content</div>}
+          />,
+        );
+        expect(screen.queryByText("Health")).not.toBeInTheDocument();
+        expect(screen.queryByText("At risk")).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("1 task past its due date"),
+        ).not.toBeInTheDocument();
+      },
+    );
   });
 });

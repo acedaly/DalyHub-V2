@@ -24,7 +24,11 @@
 
 import { env } from "cloudflare:workers";
 
-import { TaskNotFoundError, TaskValidationError } from "~/kernel/tasks";
+import {
+  TaskNotFoundError,
+  TaskProjectArchivedError,
+  TaskValidationError,
+} from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
   resolveAuthenticatedWorkspaceScope,
@@ -125,6 +129,9 @@ function planErrorMessage(cause: unknown): string {
   }
   if (cause instanceof TaskNotFoundError) {
     return "One of those tasks is no longer available. Nothing was changed.";
+  }
+  if (cause instanceof TaskProjectArchivedError) {
+    return "One of those tasks belongs to an archived project. Nothing was changed.";
   }
   return "That couldn't be saved. Your work is safe — try again.";
 }

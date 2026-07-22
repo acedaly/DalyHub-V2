@@ -163,6 +163,33 @@ wrangler d1 migrations apply dalyhub-v2 --env production --remote
 (Set the real `database_id` in `env.production` locally, or apply against the
 named remote database directly, before running this.)
 
+> **⚠ Production migration gap (as of this PR).** Production has migrations
+> `0001`–`0005` applied (see [Verified production deployment](#verified-production-deployment-2026-07-18)
+> above); migrations `0006`, `0007` and `0008` (including this PR's PROJ-05
+> `project_details` table) have **NOT** been applied to production yet. **Do not
+> deploy this PR's Worker code to production before applying `0006`–`0008`** —
+> `d1-project-repository.ts` and `d1-project-settings-repository.ts` query the
+> `project_details` table unconditionally, and the Worker will error against a
+> database that doesn't yet have it. The required order, every time:
+> 1. **Backup** the production D1 database (`wrangler d1 export` or the
+>    dashboard's backup) before touching it.
+> 2. **Migrate**: `wrangler d1 migrations apply dalyhub-v2 --env production --remote`
+>    (applies `0006`–`0008` in order; each migration in this repo is additive and
+>    existing-data-safe — see the migration-specific integration tests in
+>    `test/kernel/migration-000*.test.ts`).
+> 3. **Verify**: confirm `project_details` exists (`STRICT`, FK, CHECK
+>    constraints) and that every pre-existing, non-deleted Project has a
+>    backfilled row (`status = 'active'`, `archived_at IS NULL`) — the exact
+>    assertions `test/kernel/migration-0008.test.ts` makes, re-run manually
+>    against the real database if desired.
+> 4. **Deploy** the Worker (`pnpm run deploy:production`) — only after step 3
+>    passes.
+> 5. **Smoke test**: open `/projects`, confirm existing Projects still load with
+>    no archived/status regressions, and that `/health` still returns `ok`.
+>
+> This corrective PR does **not** perform any of these steps and does **not**
+> mutate the production database — they remain the owner's manual action.
+
 ### Verify
 
 Wrangler prints the deployed URL (or your configured route). Verify by opening it

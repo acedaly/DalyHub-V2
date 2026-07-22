@@ -18,6 +18,7 @@
 export type EntityLinkErrorCode =
   | "validation"
   | "endpoint_not_found"
+  | "endpoint_archived"
   | "not_found"
   | "invalid_cursor"
   | "invalid_state"
@@ -67,6 +68,23 @@ export class EntityLinkEndpointNotFoundError extends EntityLinkError {
   readonly code = "endpoint_not_found" as const;
 
   constructor(message = "A linked entity is unavailable") {
+    super(message);
+  }
+}
+
+/**
+ * An endpoint exists and is active, but a domain-owning module has made it
+ * (and its links) read-only for now — e.g. a Task whose parent Project is
+ * archived (PROJ-05, ADR-037). The kernel entity-link contract stays unaware
+ * of WHY; only a D1 adapter that also owns that module's storage may throw
+ * this, folding the precondition into the same statement as the mutation
+ * itself so a concurrent change to the archived state cannot race a link
+ * create/unlink/restore.
+ */
+export class EntityLinkEndpointArchivedError extends EntityLinkError {
+  readonly code = "endpoint_archived" as const;
+
+  constructor(message = "A linked entity is currently read-only") {
     super(message);
   }
 }

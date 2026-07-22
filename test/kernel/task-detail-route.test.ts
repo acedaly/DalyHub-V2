@@ -10,6 +10,7 @@ import {
   FakeClock,
   countActivitiesOfType,
   makeContext,
+  makeProjectSettingsRepository,
   makeSpineRepository,
   makeTaskRepository,
   resetTables,
@@ -49,6 +50,14 @@ function spine(ws: string) {
     clock: new FakeClock().now,
     idGenerator: nextEntityId,
     activityIdGenerator: nextActivityId,
+  });
+}
+
+function settings(ws: string) {
+  // No deterministic idGenerator override: this repository's Activity ids only
+  // need to be unique, and several tests below construct it more than once.
+  return makeProjectSettingsRepository(makeContext(ws), {
+    clock: new FakeClock().now,
   });
 }
 
@@ -259,6 +268,159 @@ describe("POST action — links", () => {
       )
     ).json()) as { kind: string; ok: boolean };
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("POST action — links against an archived project (PROJ-05 review item 1)", () => {
+  async function seedTaskUnderArchivedProject(ws: string) {
+    const s = spine(ws);
+    const area = await s.createArea({ title: "Career" });
+    const project = await s.createProject({
+      title: "Ship V2",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await s.createTask({
+      title: "Write the ADR",
+      parent: { kind: "project", id: project.id },
+    });
+    // Archive is blocked while an active incomplete direct Task exists — complete
+    // it first, exactly like `project-archive-guard.test.ts`'s seed helper.
+    await s.complete(task.id);
+    const other = await s.createArea({ title: "Health" });
+    const settled = await settings(ws).archive(project.id);
+    expect(settled.changed).toBe(true);
+    return { project: project.id, task: task.id, other: other.id };
+  }
+
+  it("refuses to create a link (nothing mutates)", async () => {
+    const { task, other } =
+      await seedTaskUnderArchivedProject(CONFIGURED_WORKSPACE);
+    // Seeding itself creates two structural entity_link.created events (project
+    // under area, task under project) — capture that baseline so the assertion
+    // below proves the REJECTED relates_to link added no further event.
+    const baseline = await countActivitiesOfType("entity_link.created");
+    const result = (await (
+      await runAction(
+        task,
+        formData({
+          intent: "link",
+          targetId: other,
+          linkType: "task.relates_to",
+          direction: "outgoing",
+        }),
+      )
+    ).json()) as { kind: string; ok: boolean; message: string };
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/archived/i);
+    expect(await countActivitiesOfType("entity_link.created")).toBe(baseline);
+  });
+
+  it("refuses to remove an existing link (nothing mutates)", async () => {
+    // Link BEFORE archiving (link creation itself is proven blocked above), then
+    // archive, then prove the existing link survives an unlink attempt.
+    const s = spine(CONFIGURED_WORKSPACE);
+    const area = await s.createArea({ title: "Career" });
+    const project = await s.createProject({
+      title: "Ship V2",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await s.createTask({
+      title: "Write the ADR",
+      parent: { kind: "project", id: project.id },
+    });
+    const other = await s.createArea({ title: "Health" });
+    await runAction(
+      task.id,
+      formData({
+        intent: "link",
+        targetId: other.id,
+        linkType: "task.relates_to",
+        direction: "outgoing",
+      }),
+    );
+    const before = (await (await runLoader(task.id)).json()) as {
+      links: { linkId: string }[];
+    };
+    expect(before.links).toHaveLength(1);
+
+    // Archive is blocked while an active incomplete direct Task exists.
+    await s.complete(task.id);
+    const settled = await settings(CONFIGURED_WORKSPACE).archive(project.id);
+    expect(settled.changed).toBe(true);
+
+    const result = (await (
+      await runAction(
+        task.id,
+        formData({ intent: "unlink", linkId: before.links[0]!.linkId }),
+      )
+    ).json()) as { kind: string; ok: boolean; message: string };
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/archived/i);
+
+    const after = (await (await runLoader(task.id)).json()) as {
+      links: unknown[];
+    };
+    expect(after.links).toHaveLength(1);
+  });
+
+  it("link and unlink work again once the project is restored", async () => {
+    const { project, task, other } =
+      await seedTaskUnderArchivedProject(CONFIGURED_WORKSPACE);
+    await settings(CONFIGURED_WORKSPACE).restore(project);
+
+    const linked = (await (
+      await runAction(
+        task,
+        formData({
+          intent: "link",
+          targetId: other,
+          linkType: "task.relates_to",
+          direction: "outgoing",
+        }),
+      )
+    ).json()) as { kind: string; ok: boolean };
+    expect(linked.ok).toBe(true);
+
+    const detail = (await (await runLoader(task)).json()) as {
+      links: { linkId: string }[];
+    };
+    expect(detail.links).toHaveLength(1);
+
+    const unlinked = (await (
+      await runAction(
+        task,
+        formData({ intent: "unlink", linkId: detail.links[0]!.linkId }),
+      )
+    ).json()) as { kind: string; ok: boolean };
+    expect(unlinked.ok).toBe(true);
+  });
+
+  it("a Task floating directly under an Area is never affected by an unrelated archived project", async () => {
+    const s = spine(CONFIGURED_WORKSPACE);
+    const area = await s.createArea({ title: "Career" });
+    const floating = await s.createTask({
+      title: "Floating",
+      parent: { kind: "area", id: area.id },
+    });
+    const other = await s.createArea({ title: "Health" });
+    const project = await s.createProject({
+      title: "Unrelated",
+      parent: { kind: "area", id: area.id },
+    });
+    await settings(CONFIGURED_WORKSPACE).archive(project.id);
+
+    const linked = (await (
+      await runAction(
+        floating.id,
+        formData({
+          intent: "link",
+          targetId: other.id,
+          linkType: "task.relates_to",
+          direction: "outgoing",
+        }),
+      )
+    ).json()) as { kind: string; ok: boolean };
+    expect(linked.ok).toBe(true);
   });
 });
 

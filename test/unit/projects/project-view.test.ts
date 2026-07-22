@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ProjectListItem, ProjectOverview } from "~/kernel/projects";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 import {
+  isHealthVisible,
   isProjectComplete,
   projectProgress,
   projectProgressFromRollup,
@@ -31,6 +32,11 @@ function listItem(over: Partial<ProjectListItem> = {}): ProjectListItem {
     createdAt: new Date("2026-07-18T09:00:00.000Z"),
     updatedAt: new Date("2026-07-20T10:00:00.000Z"),
     completedAt: null,
+    // A realistic fixture: pre-existing Projects were backfilled "active" by
+    // migration 0008 (PROJ-05), which is the workflow status that maps to the
+    // generic "Open" precedent these fixtures exercise.
+    status: "active",
+    archivedAt: null,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
     taskTotal: 0,
@@ -71,17 +77,121 @@ describe("progress", () => {
 });
 
 describe("state pill", () => {
-  it("is Open when active and Completed when completed (label carries meaning)", () => {
+  // The intended precedence (PROJ-05 / ADR-037): Archived > Completed >
+  // Active/Planned/On hold. Each tier wins regardless of the others' values.
+  it("shows the specific workflow status label for open, non-archived work", () => {
+    expect(
+      projectStateLabel({
+        completedAt: null,
+        archivedAt: null,
+        status: "active",
+      }),
+    ).toEqual({ label: "Active", tone: "neutral" });
+    expect(
+      projectStateLabel({
+        completedAt: null,
+        archivedAt: null,
+        status: "planned",
+      }),
+    ).toEqual({ label: "Planned", tone: "neutral" });
+    expect(
+      projectStateLabel({
+        completedAt: null,
+        archivedAt: null,
+        status: "on_hold",
+      }),
+    ).toEqual({ label: "On hold", tone: "neutral" });
+  });
+
+  it("defaults to Planned when status is not carried (a legacy/incomplete fixture)", () => {
     expect(projectStateLabel({ completedAt: null })).toEqual({
-      label: "Open",
+      label: "Planned",
       tone: "neutral",
     });
-    expect(projectStateLabel({ completedAt: "2026-07-20" })).toEqual({
-      label: "Completed",
-      tone: "success",
-    });
+  });
+
+  it("is Completed regardless of workflow status (Completed outranks status)", () => {
+    expect(
+      projectStateLabel({
+        completedAt: "2026-07-20",
+        archivedAt: null,
+        status: "active",
+      }),
+    ).toEqual({ label: "Completed", tone: "success" });
+  });
+
+  it("is Archived regardless of completion or status (Archived outranks everything)", () => {
+    expect(
+      projectStateLabel({
+        completedAt: "2026-07-20",
+        archivedAt: "2026-07-21",
+        status: "active",
+      }),
+    ).toEqual({ label: "Archived", tone: "neutral" });
+    expect(
+      projectStateLabel({
+        completedAt: null,
+        archivedAt: "2026-07-21",
+        status: "on_hold",
+      }),
+    ).toEqual({ label: "Archived", tone: "neutral" });
+  });
+
+  it("isProjectComplete reflects only completedAt", () => {
     expect(isProjectComplete({ completedAt: null })).toBe(false);
     expect(isProjectComplete({ completedAt: "x" })).toBe(true);
+  });
+});
+
+describe("health visibility (PROJ-05 §8 / ADR-037)", () => {
+  it("shows health ONLY for open, incomplete, non-archived, ACTIVE work", () => {
+    expect(
+      isHealthVisible({
+        status: "active",
+        completedAt: null,
+        archivedAt: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("hides health for Planned (work hasn't started — no stalled warning)", () => {
+    expect(
+      isHealthVisible({
+        status: "planned",
+        completedAt: null,
+        archivedAt: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("hides health for On-hold (deliberately paused — no act-now prompt)", () => {
+    expect(
+      isHealthVisible({
+        status: "on_hold",
+        completedAt: null,
+        archivedAt: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("hides health for a Completed project even if status still reads active", () => {
+    expect(
+      isHealthVisible({
+        status: "active",
+        completedAt: "2026-07-20",
+        archivedAt: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("hides health for an Archived project even if status still reads active", () => {
+    expect(
+      isHealthVisible({
+        status: "active",
+        completedAt: null,
+        archivedAt: "2026-07-21",
+      }),
+    ).toBe(false);
   });
 });
 
@@ -105,12 +215,16 @@ describe("serialisation", () => {
       createdAt: new Date("2026-07-18T09:00:00.000Z"),
       updatedAt: new Date("2026-07-20T10:00:00.000Z"),
       completedAt: new Date("2026-07-21T00:00:00.000Z"),
+      status: "active",
+      archivedAt: null,
       area: { kind: "area", id: "a1", title: "Career" },
       goal: { kind: "goal", id: "g1", title: "Ship" },
     };
     const s = serializeProjectOverview(overview);
     expect(s.completedAt).toBe("2026-07-21T00:00:00.000Z");
     expect(s.goal?.title).toBe("Ship");
+    // A completed project never shows active-work health (PROJ-05 §8).
+    expect(s.healthVisible).toBe(false);
   });
 
   it("serialises a project task's waiting state (which the generic serializer omits)", () => {
@@ -154,9 +268,10 @@ describe("card mapping", () => {
     );
     expect(card.areaLabel).toBe("Career");
     expect(card.goalLabel).toBe("Ship v2");
-    expect(card.state.label).toBe("Open");
+    expect(card.state.label).toBe("Active");
     expect(card.progress.summary).toBe("1 of 4 tasks");
     expect(card.updatedLabel).toBe("Updated 20 Jul 2026");
+    expect(card.healthVisible).toBe(true);
   });
 
   it("shows no goal label and no progress bar for an empty area-only project", () => {

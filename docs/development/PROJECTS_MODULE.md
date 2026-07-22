@@ -314,13 +314,40 @@ needs attention (`at_risk`/`blocked`/`stale`) so the calm dashboard stays unclut
   the Tasks tab "Load more" reaches a second-page task while the roll-up total stays
   authoritative, an appended page-2 task opens the shared Task Drawer without disturbing
   state, and the New-Project parent picker searches the server for an Area.
+- **PROJ-05 settings + archival (slice 2 hardening) — real Workers/D1**
+  ([`test/kernel/project-settings.test.ts`](../../test/kernel/project-settings.test.ts)):
+  normal status transition, status no-op, two simultaneous identical status
+  requests (exactly one transition), conflicting simultaneous status requests
+  (causally-honest `oldStatus`/`newStatus` event chain, never fabricated),
+  normal/repeated archive, blocked archive (active task) appending no Activity,
+  soft-deleted/cross-workspace/cross-project tasks never blocking archive,
+  concurrent task creation racing archive, normal/repeated restore, an
+  Activity-insert failure rolling the domain write back, and a genuine no-op
+  never reaching an armed fault. **Cross-module archived-project guard**
+  ([`test/kernel/project-archive-guard.test.ts`](../../test/kernel/project-archive-guard.test.ts)):
+  every Task-detail mutation (update/waiting/planning single+bulk/completion)
+  and every spine mutation (create/reopen/move, both move directions) rejected
+  against an archived Project, a floating Area-parented Task unaffected, and
+  everything working again after restore. **Migration**
+  ([`test/kernel/migration-0008.test.ts`](../../test/kernel/migration-0008.test.ts)):
+  the actual sequential `0007` → `0008` migration over pre-existing open/completed/
+  soft-deleted Projects and a non-Project Task, STRICT + indexes, the composite
+  FK rejecting a non-Project entity and a cross-workspace mismatch, the status
+  CHECK constraint, the documented backfill and no-row default, and upsert
+  idempotency. **Query/timestamp semantics** (added to
+  [`test/kernel/projects.test.ts`](../../test/kernel/projects.test.ts)): the
+  `"archived"` state, the `workflowStatus` filter, and a settings-only
+  transition affecting `"recent"` ordering via the effective `updatedAt`.
 
 ## What remains for PROJ-03, 05, 06
 
-PROJ-03 (notes/knowledge, blocked on NOTES-01), PROJ-05 (settings: area/goal
-reassignment, status models, archival), PROJ-06 (mobile-specific enhancements) are
-**not started**. (PROJ-02 health and PROJ-04 the Activity tab are done.) Deferred
-refinements are tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
+PROJ-03 (notes/knowledge, blocked on NOTES-01) and PROJ-06 (mobile-specific
+enhancements) are **not started**. PROJ-05 (settings: area/goal reassignment,
+status models, archival) has its persistence + concurrency/archival-invariant
+foundation done (slices 1–2 below); its shared Settings UI and Archived
+collection (slices 3–4) are **not yet built** — PROJ-05 overall is NOT done.
+(PROJ-02 health and PROJ-04 the Activity tab are done.) Deferred refinements are
+tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 
 ## Health testing (PROJ-02)
 
@@ -349,5 +376,16 @@ refinements are tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 - [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md) — the task record surface and the Today integration.
 - [`ROADMAP_V2.md` PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview) · [`docs/README.md`](../README.md).
 
-### PROJ-05 foundation (slice 1)
-Migration `0008_create_project_details.sql` adds the Projects-owned, workspace-scoped `project_details` table. It owns only the open-work workflow status (`planned`, `active`, `on_hold`) and reversible `archived_at` state; missing rows resolve to `planned`, while existing active Projects are backfilled as `active`. Identity/title, parentage, completion, links and roll-ups remain authoritative in the spine. `ProjectSettingsRepository` is workspace-bound and records real status/archive/restore transitions atomically in shared Activity (`project.status_changed`, `project.archived`, `project.restored`). Archive rejects a Project with any active incomplete direct Task. This slice deliberately does not yet wire Settings UI, collection/Today filtering, or archived mutation guards.
+### PROJ-05 foundation (slice 1) + corrective hardening (slice 2)
+Migration `0008_create_project_details.sql` adds the Projects-owned, workspace-scoped `project_details` table. It owns only the open-work workflow status (`planned`, `active`, `on_hold`) and reversible `archived_at` state; missing rows resolve to `planned` (both pre-existing OPEN and pre-existing COMPLETED Projects were intentionally backfilled `active` at migration time — completed Projects carry no visible status until reopened, but reopening should not surprise the owner with a reset-to-Planned project). Identity/title, parentage, completion, links and roll-ups remain authoritative in the spine.
+
+`ProjectSettingsRepository` is workspace-bound and records real status/archive/restore transitions atomically in shared Activity (`project.status_changed`, `project.archived`, `project.restored`) — accepted and detailed in [ADR-037](../decisions/ARCHITECTURE_DECISIONS.md#adr-037-project-operational-details-remain-module-owned):
+
+- **Atomic, race-proof transitions.** Every transition folds its precondition (the observed prior status, "not archived", or "no active unfinished direct Task") directly into the domain statement itself — never a separate precondition read — so a concurrent Task creation/reopening or a competing transition is evaluated at the write's own commit. The domain write and its Activity append share ONE `D1Database.batch()` via the same `recordAtomicMutation` seam the Entity/EntityLink repositories use. A no-op appends no Activity; a guard miss re-reads the fresh state rather than assuming success; an Activity-insert failure rolls the domain write back too.
+- **Archive is blocked (and stays race-proof) while any active incomplete direct Task exists** — the check is a `NOT EXISTS` folded into the SAME write, closing the TOCTOU the initial slice had.
+- **An archived Project is read-only until restored, enforced at the repository boundary — not duplicated per mutation.** `D1SpineRepository` rejects creating a Task under an archived Project, reopening a Task whose Project is archived, and moving a Task into or out of an archived Project (reusing the existing `SpineParentUnavailableError` — spine stays unaware of PROJ-05's TypeScript contracts by design, only its SQL adapter references `project_details`). `D1TaskRepository` folds the SAME "parent Project not archived" guard directly into the domain SQL statement (not just a preceding read) for `updateTask`, `setWaiting`, `clearWaiting`, `planTask` and `clearPlan` (single + bulk), so a concurrent archive racing one of these writes is resolved at the statement's own atomic commit, exactly like the archive guard itself; `completeTask` deliberately keeps a read-based-only guard, because completing a task can never itself recreate unfinished work under any interleaving with `archive`, so no SQL fold is needed there. Generic `task.relates_to` link/unlink is guarded TWICE, deliberately: the Task-detail route pre-checks via `scope.projectSettings.get(task.project.id)` for a fast, friendly rejection with no wasted mutation attempt, and `D1EntityLinkRepository`'s own `create`/`unlink`/`restore` SQL additionally folds the same "either endpoint is a Task under an archived Project" predicate into its `NOT EXISTS` clauses — so ANY caller of the generic link repository is covered, not just this route, and a concurrent archive can never race a link mutation to completion (a blocked attempt throws `EntityLinkEndpointArchivedError`, mapped to the same calm message).
+- **One authoritative presentation timestamp (ADR-037 §37.2).** `ProjectListItem.updatedAt`/`ProjectOverview.updatedAt` are the LATER of the spine entity's and the settings row's `updated_at`, computed at read time (never copied into a second column) — so a status change, archive or restore affects "recent" collection ordering and the Project Activity tab's in-place reload key exactly like a rename does.
+- **Health visibility is one shared rule.** `isHealthVisible` (in `project-view.ts`) — true only for an open, incomplete, non-archived, `"active"`-status Project — is the SAME function the Project cards, BOTH the Project overview header pill and its detailed `ProjectHealthPanel`, and Today's cards all consult; a Planned or On-hold Project never shows a stalled/at-risk warning, and a Completed or Archived Project never shows an active-work warning anywhere it's rendered.
+- **Today's "Continue working" still uses `state: "open"` only (ADR-037 §37.7).** Restricting it to `workflowStatus: "active"` is the eventual intent, but every newly created Project defaults to `"planned"` and the Settings UI that would let an owner activate one (roadmap Slice 3) does not exist yet — filtering on `"active"` today would make every new Project permanently unreachable from Today. `listProjects`' `workflowStatus` parameter is implemented and tested; Today adopts it once Slice 3/4 ships a status-selection path.
+
+This slice deliberately does **not** yet wire the shared Settings UI or the `/projects?state=archived` collection UI — the repository and loader contracts those need are in place and tested. See [ROADMAP_V2 PROJ-05](../roadmap/ROADMAP_V2.md#-proj-05--settings) for the remaining slices.

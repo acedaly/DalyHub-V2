@@ -251,7 +251,15 @@ SAME `Timeline` given a different record-scoped `loadPage`, never a forked compo
   events name the task, not the project, and are deliberately not aggregated — see
   [`PROJECTS_MODULE.md`](./PROJECTS_MODULE.md) → Activity for the audited scope. A
   relevant mutation revalidates the Timeline in place via the project's `updatedAt`
-  reload key (new event at the top, no hard reload, no duplicate rows).
+  reload key (new event at the top, no hard reload, no duplicate rows). Since PROJ-05
+  (ADR-037 §37.2), that `updatedAt` is the LATER of the spine entity's and the
+  `project_details` settings row's `updated_at` — so a status change, archive or
+  restore (which touch only the settings row, never `entities.updated_at`) also
+  bumps the reload key and the new `project.status_changed`/`project.archived`/
+  `project.restored` event appears at the top with no hard reload, exactly like a
+  rename/complete/reopen already did. Those three types have no registered
+  descriptor yet (they render via the shared safe generic fallback, humanized from
+  the type string); dedicated descriptors are left to the PROJ-05 Settings UI slice.
 
 Both prove the intended shape: a module owns a small resource route over
 `activity.listForEntity`, maps records server-side, and drops a `<Timeline>` into its

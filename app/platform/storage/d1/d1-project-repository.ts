@@ -41,6 +41,7 @@ import {
   type ProjectRepository,
   type ProjectStateFilter,
 } from "~/kernel/projects";
+import { parseProjectWorkflowStatus } from "~/kernel/project-settings";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 
@@ -83,9 +84,25 @@ const PROJECT_RELATION_COLUMNS = `
   ge.id AS goal_id, ge.title AS goal_title,
   gae.id AS goal_area_id, gae.title AS goal_area_title`;
 
+/**
+ * The authoritative PRESENTATION timestamp expression (ADR-037 §37.2): the later of
+ * the spine entity's `updated_at` and the PROJ-05 `project_details.updated_at`. A
+ * status change, archive or restore touches ONLY `project_details.updated_at` (the
+ * spine's `entities.updated_at` is reserved for identity/title — ADR-014) — so
+ * without this MAX, a settings-only transition would never affect "recent" ordering,
+ * health staleness or the Activity tab's reload key. ISO-8601 UTC strings compare
+ * correctly lexicographically. Used as a raw expression (not just the `AS` alias)
+ * because a cursor's keyset predicate is a WHERE clause, where SQLite cannot resolve
+ * a SELECT-list alias.
+ */
+const EFFECTIVE_UPDATED_AT_EXPR =
+  "(CASE WHEN pd.updated_at IS NOT NULL AND pd.updated_at > e.updated_at THEN pd.updated_at ELSE e.updated_at END)";
+
 /** The base project columns selected by both reads. */
 const PROJECT_BASE_COLUMNS = `e.id AS id, e.workspace_id AS workspace_id, e.title AS title,
-  e.created_at AS created_at, e.updated_at AS updated_at, sr.completed_at AS completed_at, COALESCE(pd.status, 'planned') AS status, pd.archived_at AS archived_at`;
+  e.created_at AS created_at, e.updated_at AS updated_at,
+  ${EFFECTIVE_UPDATED_AT_EXPR} AS effective_updated_at,
+  sr.completed_at AS completed_at, COALESCE(pd.status, 'planned') AS status, pd.archived_at AS archived_at`;
 
 interface ProjectRelationRow {
   readonly area_id: string | null;
@@ -102,6 +119,7 @@ interface ProjectBaseRow extends ProjectRelationRow {
   readonly title: string;
   readonly created_at: string;
   readonly updated_at: string;
+  readonly effective_updated_at: string;
   readonly completed_at: string | null;
   readonly status: string;
   readonly archived_at: string | null;
@@ -125,6 +143,13 @@ export class D1ProjectRepository implements ProjectRepository {
     const limit = validateSpineLimit(input.limit);
     const state: ProjectStateFilter = input.state ?? "all";
     const order: ProjectOrder = input.orderBy ?? "created";
+    // `state` meaning (PROJ-05, documented — ADR-037 / PROJECTS_MODULE.md):
+    //   "open"      — non-completed, non-archived.
+    //   "completed" — completed, non-archived.
+    //   "archived"  — archived only (regardless of completion).
+    //   "all"       — every NON-ARCHIVED project (open or completed). Archived
+    //                 Projects never leak into this ordinary active-work bucket;
+    //                 they are reached only via the dedicated "archived" state.
     const completedClause =
       state === "open"
         ? " AND sr.completed_at IS NULL AND pd.archived_at IS NULL"
@@ -133,6 +158,14 @@ export class D1ProjectRepository implements ProjectRepository {
           : state === "archived"
             ? " AND pd.archived_at IS NOT NULL"
             : " AND pd.archived_at IS NULL";
+    // An additional, independent exact workflow-status filter (e.g. Today's
+    // "Continue working" passes `workflowStatus: "active"` so Planned/On-hold
+    // Projects — open but not actively worked — never appear as ordinary active
+    // work). `?? 'planned'` mirrors the same default the base columns COALESCE.
+    const workflowStatusClause =
+      input.workflowStatus !== undefined
+        ? " AND COALESCE(pd.status, 'planned') = ?"
+        : "";
 
     // Ordering is a trusted closed set (never caller data). `recent` selects the
     // globally most-recently-updated projects AT the database before the limit, so
@@ -140,10 +173,11 @@ export class D1ProjectRepository implements ProjectRepository {
     // Every ordering carries `e.id` as a deterministic unique tiebreaker so the
     // sequence is TOTAL — a keyset cursor can resume after it without skipping or
     // duplicating a row.
-    const sortColumn = order === "recent" ? "e.updated_at" : "e.created_at";
+    const sortColumn =
+      order === "recent" ? EFFECTIVE_UPDATED_AT_EXPR : "e.created_at";
     const orderClause =
       order === "recent"
-        ? "e.updated_at DESC, e.id DESC"
+        ? `${EFFECTIVE_UPDATED_AT_EXPR} DESC, e.id DESC`
         : "e.created_at ASC, e.id ASC";
 
     // The cursor is bound to the FULL query scope (workspace + state + order); a
@@ -153,6 +187,7 @@ export class D1ProjectRepository implements ProjectRepository {
     const scope: ProjectCursorScope = {
       workspaceId: this.#workspaceId,
       state,
+      workflowStatus: input.workflowStatus ?? null,
       order,
     };
     const conditions: string[] = [];
@@ -199,11 +234,17 @@ export class D1ProjectRepository implements ProjectRepository {
                  AND tl.deleted_at IS NULL
            GROUP BY tl.target_entity_id
          ) tc ON tc.project_id = e.id
-         WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL${completedClause}${cursorClause}
+         WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL${completedClause}${workflowStatusClause}${cursorClause}
          ORDER BY ${orderClause}
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, this.#workspaceId, ...cursorParams, fetchLimit);
+      .bind(
+        this.#workspaceId,
+        this.#workspaceId,
+        ...(input.workflowStatus !== undefined ? [input.workflowStatus] : []),
+        ...cursorParams,
+        fetchLimit,
+      );
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as ProjectListRow[];
@@ -214,7 +255,8 @@ export class D1ProjectRepository implements ProjectRepository {
     const nextCursor =
       hasMore && last
         ? encodeProjectCursor(scope, {
-            sortValue: order === "recent" ? last.updated_at : last.created_at,
+            sortValue:
+              order === "recent" ? last.effective_updated_at : last.created_at,
             id: last.id,
           })
         : null;
@@ -250,13 +292,12 @@ export class D1ProjectRepository implements ProjectRepository {
       workspaceId: parseWorkspaceId(row.workspace_id),
       title: row.title,
       createdAt: fromStorageTimestamp(row.created_at),
-      updatedAt: fromStorageTimestamp(row.updated_at),
+      updatedAt: fromStorageTimestamp(row.effective_updated_at),
       completedAt:
         row.completed_at === null
           ? null
           : fromStorageTimestamp(row.completed_at),
-      status:
-        row.status as import("~/kernel/project-settings").ProjectWorkflowStatus,
+      status: this.#parseStatus(row.status),
       archivedAt:
         row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
       area: relations.area,
@@ -271,13 +312,12 @@ export class D1ProjectRepository implements ProjectRepository {
       workspaceId: parseWorkspaceId(row.workspace_id),
       title: row.title,
       createdAt: fromStorageTimestamp(row.created_at),
-      updatedAt: fromStorageTimestamp(row.updated_at),
+      updatedAt: fromStorageTimestamp(row.effective_updated_at),
       completedAt:
         row.completed_at === null
           ? null
           : fromStorageTimestamp(row.completed_at),
-      status:
-        row.status as import("~/kernel/project-settings").ProjectWorkflowStatus,
+      status: this.#parseStatus(row.status),
       archivedAt:
         row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
       area: relations.area,
@@ -285,6 +325,23 @@ export class D1ProjectRepository implements ProjectRepository {
       taskTotal: Number(row.task_total ?? 0),
       taskCompleted: Number(row.task_completed ?? 0),
     };
+  }
+
+  /**
+   * Parse a persisted `project_details.status` string at the storage boundary
+   * (Phase 9 — no unsafe `as` cast from an arbitrary DB string). The column has a DB
+   * CHECK constraint restricting it to the three valid values, so a parse failure
+   * here means genuinely corrupt state, not caller input — surfaced as a storage
+   * error rather than a validation error.
+   */
+  #parseStatus(
+    value: string,
+  ): import("~/kernel/project-settings").ProjectWorkflowStatus {
+    try {
+      return parseProjectWorkflowStatus(value);
+    } catch (cause) {
+      throw new ProjectStorageError(undefined, { cause });
+    }
   }
 
   /**

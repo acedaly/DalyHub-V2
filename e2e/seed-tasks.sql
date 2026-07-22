@@ -284,6 +284,19 @@ DELETE FROM entity_links
 WHERE workspace_id = 'local-dev-workspace' AND source_entity_id = 'pht-blocked'
   AND type = 'task.waiting_on';
 
+-- PROJ-05: all four health-demo projects are ACTIVE work — health is presented
+-- only for `workflowStatus: "active"` Projects (ADR-037 §37.6), so without this
+-- these journeys' health pills would be hidden by the new visibility rule.
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-atrisk', 'active', NULL, '2026-07-19T04:00:00.000Z'),
+  ('local-dev-workspace', 'pr-blocked', 'active', NULL, '2026-07-19T04:00:01.000Z'),
+  ('local-dev-workspace', 'pr-ontrack', 'active', NULL, '2026-07-19T04:00:02.000Z'),
+  ('local-dev-workspace', 'pr-stale', 'active', NULL, '2020-01-01T00:00:00.000Z');
+UPDATE project_details SET status = 'active', archived_at = NULL
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('pr-atrisk', 'pr-blocked', 'pr-ontrack', 'pr-stale');
+
 -- PROJ-04 Activity seed — a dedicated project with a REAL FND-05 Activity history so
 -- the project record's Activity tab shows deterministic events end to end, plus an
 -- empty project for the empty-state journey. The events are seeded directly into the

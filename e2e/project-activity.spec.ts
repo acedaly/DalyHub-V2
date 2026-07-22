@@ -170,12 +170,14 @@ test.describe("PROJ-04 project Activity tab", () => {
     ).toBeVisible();
   });
 
-  test("Tasks and Key links tabs and project health remain intact", async ({
+  test("Tasks and Key links tabs remain intact, and a completed project shows no active-work health", async ({
     page,
   }) => {
     await gotoFixture(page, RECORD);
-    // Health signal still renders on the record header.
-    await expect(page.getByText("Health").first()).toBeVisible();
+    // `pr-activity` is seeded COMPLETED — a completed project never shows an
+    // active-work health warning (PROJ-05 §8 / ADR-037 §37.6), so the Health
+    // metadata item is correctly absent from the record header.
+    await expect(page.getByText(/^Health/).first()).not.toBeVisible();
     // Tasks tab still lists the project's tasks.
     await expect(
       page.getByRole("heading", { name: /Activity task/ }).first(),

@@ -77,3 +77,25 @@ export class ProjectSettingsStorageError extends Error {
     this.name = "ProjectSettingsStorageError";
   }
 }
+export class ProjectSettingsConflictError extends Error {
+  readonly code = "conflict" as const;
+  constructor() {
+    super("That change couldn't be completed. Please try again.");
+    this.name = "ProjectSettingsConflictError";
+  }
+}
+/**
+ * A Project is archived and therefore read-only until restored. Distinct from
+ * `ProjectArchiveBlockedError` (which rejects the ARCHIVE transition itself) — this
+ * error rejects a mutation ATTEMPTED AGAINST an already-archived Project (its own
+ * settings, or one of its structural child Tasks).
+ */
+export class ProjectArchivedError extends Error {
+  readonly code = "archived" as const;
+  constructor() {
+    super(
+      "This project is archived and read-only. Restore it to make changes.",
+    );
+    this.name = "ProjectArchivedError";
+  }
+}

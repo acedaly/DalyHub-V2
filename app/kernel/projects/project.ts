@@ -46,16 +46,24 @@ export type ProjectOrder = "created" | "recent";
 export type ListProjectsInput = {
   /** Completion filter. Defaults to `all`. */
   readonly state?: ProjectStateFilter;
+  /**
+   * An additional, exact workflow-status filter (PROJ-05), independent of `state`.
+   * When set, only Projects with EXACTLY this workflow status are returned — e.g.
+   * Today's "Continue working" passes `"active"` so Planned/On-hold Projects (which
+   * are `state: "open"` but not actively worked) never appear as ordinary active
+   * work. Omit for no workflow-status restriction.
+   */
+  readonly workflowStatus?: ProjectWorkflowStatus;
   /** Ordering. Defaults to `created` (deterministic `(createdAt, id)` ascending). */
   readonly orderBy?: ProjectOrder;
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */
   readonly limit?: number;
   /**
    * An opaque cursor from a previous page's `nextCursor`, to fetch the following
-   * page. It is bound to the workspace, `state` filter and ordering it was issued
-   * for; a cursor that does not match the current query scope is rejected
-   * (`InvalidSpineCursorError`), never silently reinterpreted. Omit for the first
-   * page.
+   * page. It is bound to the workspace, `state` filter, `workflowStatus` and
+   * ordering it was issued for; a cursor that does not match the current query
+   * scope is rejected (`InvalidSpineCursorError`), never silently reinterpreted.
+   * Omit for the first page.
    */
   readonly cursor?: string;
 };
@@ -73,10 +81,23 @@ export type ProjectListItem = {
   readonly workspaceId: WorkspaceId;
   readonly title: string;
   readonly createdAt: Date;
+  /**
+   * The authoritative PRESENTATION timestamp (ADR-037 §37.2): the later of the
+   * spine entity's `updated_at` and the PROJ-05 `project_details.updated_at` — so a
+   * status change/archive/restore affects "recent" ordering, health staleness and
+   * Activity revalidation exactly like a rename does. Never a raw copy of either
+   * source; always the derived maximum.
+   */
   readonly updatedAt: Date;
   readonly completedAt: Date | null;
-  readonly status?: ProjectWorkflowStatus;
-  readonly archivedAt?: Date | null;
+  /**
+   * The PROJ-05 workflow status. ALWAYS present — every projected Project has an
+   * effective value (an explicit `project_details` row, or the documented default
+   * `"planned"` when none exists yet).
+   */
+  readonly status: ProjectWorkflowStatus;
+  /** ALWAYS present (never omitted) — `null` when not archived. */
+  readonly archivedAt: Date | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
   /** Total active direct child tasks. */
@@ -108,10 +129,13 @@ export type ProjectOverview = {
   readonly workspaceId: WorkspaceId;
   readonly title: string;
   readonly createdAt: Date;
+  /** The authoritative PRESENTATION timestamp — see {@link ProjectListItem.updatedAt}. */
   readonly updatedAt: Date;
   readonly completedAt: Date | null;
-  readonly status?: ProjectWorkflowStatus;
-  readonly archivedAt?: Date | null;
+  /** ALWAYS present — see {@link ProjectListItem.status}. */
+  readonly status: ProjectWorkflowStatus;
+  /** ALWAYS present (never omitted) — `null` when not archived. */
+  readonly archivedAt: Date | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
 };

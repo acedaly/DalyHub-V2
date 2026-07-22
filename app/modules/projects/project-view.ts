@@ -37,15 +37,18 @@ export interface SerializedProjectListItem {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly completedAt: string | null;
-  readonly status?: ProjectWorkflowStatus;
-  readonly archivedAt?: string | null;
+  /** ALWAYS present — every projected Project has an effective workflow status. */
+  readonly status: ProjectWorkflowStatus;
+  /** ALWAYS present (never omitted) — `null` when not archived. */
+  readonly archivedAt: string | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
   readonly taskTotal: number;
   readonly taskCompleted: number;
   /** The DERIVED health signal (PROJ-02) — never persisted, JSON-safe. */
   readonly health: ProjectHealth;
-  readonly healthVisible?: boolean;
+  /** Whether active-work health should be presented — see {@link isHealthVisible}. */
+  readonly healthVisible: boolean;
 }
 
 /** JSON-serialised project overview (Dates → ISO strings). */
@@ -55,10 +58,14 @@ export interface SerializedProjectOverview {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly completedAt: string | null;
-  readonly status?: ProjectWorkflowStatus;
-  readonly archivedAt?: string | null;
+  /** ALWAYS present — every projected Project has an effective workflow status. */
+  readonly status: ProjectWorkflowStatus;
+  /** ALWAYS present (never omitted) — `null` when not archived. */
+  readonly archivedAt: string | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
+  /** Whether active-work health should be presented — see {@link isHealthVisible}. */
+  readonly healthVisible: boolean;
 }
 
 /**
@@ -83,6 +90,7 @@ export function serializeProjectListItem(
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
     health,
+    healthVisible: isHealthVisible(item),
   };
 }
 
@@ -102,7 +110,30 @@ export function serializeProjectOverview(
     archivedAt: overview.archivedAt ? overview.archivedAt.toISOString() : null,
     area: overview.area,
     goal: overview.goal,
+    healthVisible: isHealthVisible(overview),
   };
+}
+
+/**
+ * The ONE health-visibility rule (Phase 8 / ADR-037): active-work health (the
+ * PROJ-02 stale/blocked/at-risk signal) is presented only for a Project that is
+ * genuinely open, incomplete, non-archived, active work — i.e. workflow status
+ * `"active"`. A Planned Project hasn't started (no "stalled" warning is honest);
+ * an On-hold Project is deliberately paused (no "act now" prompt); a Completed or
+ * Archived Project shows no active-work warning. Every consumer (Project cards,
+ * the Project overview and Today) calls this SAME function rather than inventing
+ * its own condition.
+ */
+export function isHealthVisible(project: {
+  readonly status: ProjectWorkflowStatus;
+  readonly completedAt: unknown;
+  readonly archivedAt: unknown;
+}): boolean {
+  return (
+    project.status === "active" &&
+    project.completedAt === null &&
+    project.archivedAt === null
+  );
 }
 
 /** Is the project completed? Completion is the spine's `completedAt`. */
@@ -196,7 +227,8 @@ export interface ProjectCardData {
   readonly updatedLabel: string | null;
   /** The DERIVED health signal (PROJ-02). */
   readonly health: ProjectHealth;
-  readonly healthVisible?: boolean;
+  /** Whether active-work health should be presented — see {@link isHealthVisible}. */
+  readonly healthVisible: boolean;
 }
 
 /**
@@ -245,9 +277,6 @@ export function toProjectCardData(
     progress: projectProgress(item.taskCompleted, item.taskTotal),
     updatedLabel: updated ? `Updated ${updated}` : null,
     health: item.health,
-    healthVisible:
-      item.status === "active" &&
-      item.completedAt === null &&
-      item.archivedAt === null,
+    healthVisible: item.healthVisible,
   };
 }

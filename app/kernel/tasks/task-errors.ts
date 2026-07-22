@@ -14,7 +14,8 @@
  */
 
 /** Discriminator so callers can branch on error kind without `instanceof`. */
-export type TaskErrorCode = "validation" | "not_found" | "storage" | "corrupt";
+export type TaskErrorCode =
+  "validation" | "not_found" | "storage" | "corrupt" | "project_archived";
 
 /** Base class for every kernel task error. */
 export abstract class TaskError extends Error {
@@ -96,6 +97,23 @@ export class CorruptTaskRecordError extends TaskError {
   readonly code = "corrupt" as const;
 
   constructor(message = "A stored task record is corrupt") {
+    super(message);
+  }
+}
+
+/**
+ * The mutation was rejected because this Task's direct parent PROJECT is
+ * archived (PROJ-05 / ADR-037) — an archived Project is read-only until
+ * restored. The task itself is perfectly valid; the PARENT's state blocks the
+ * write, so this is its own error family rather than `TaskValidationError` or
+ * `TaskNotFoundError`.
+ */
+export class TaskProjectArchivedError extends TaskError {
+  readonly code = "project_archived" as const;
+
+  constructor(
+    message = "This task's project is archived and read-only — restore it to make changes",
+  ) {
     super(message);
   }
 }

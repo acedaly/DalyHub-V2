@@ -27,6 +27,7 @@ import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import {
   isProjectComplete,
+  projectStateLabel,
   type ProjectProgress,
   type SerializedProjectOverview,
 } from "./project-view";
@@ -65,16 +66,27 @@ export function ProjectOverview({
   activeTabId,
   onTabChange,
 }: ProjectOverviewProps) {
-  const state = completed
-    ? { label: "Completed", tone: "success" as const }
-    : { label: "Open", tone: "neutral" as const };
+  // Archived → Completed → the specific workflow status (Planned/Active/On
+  // hold) — the SAME precedence and label the collection Card uses, driven by
+  // the optimistic `completed` override so the pill updates immediately on
+  // Complete/Reopen, before revalidation refreshes `overview` itself.
+  const state = projectStateLabel({
+    completedAt: completed ? (overview.completedAt ?? "pending") : null,
+    archivedAt: overview.archivedAt,
+    status: overview.status,
+  });
 
   const headerMetadata: RecordMetaItem[] = [];
-  headerMetadata.push({
-    id: "health",
-    label: "Health",
-    value: <HealthIndicator health={health} />,
-  });
+  // Shown ONLY for genuinely active work (PROJ-05 §8 / ADR-037) — see
+  // `isHealthVisible` in `project-view.ts`, the SAME rule the collection Card
+  // and Today use.
+  if (overview.healthVisible) {
+    headerMetadata.push({
+      id: "health",
+      label: "Health",
+      value: <HealthIndicator health={health} />,
+    });
+  }
   if (overview.area) {
     headerMetadata.push({
       id: "area",
@@ -167,7 +179,9 @@ export function ProjectOverview({
                 ? `${progress.percent}% — ${progress.summary} complete`
                 : "No tasks yet."}
             </p>
-            <ProjectHealthPanel health={health} />
+            {overview.healthVisible ? (
+              <ProjectHealthPanel health={health} />
+            ) : null}
           </div>
         ),
         metadata: summaryMetadata,

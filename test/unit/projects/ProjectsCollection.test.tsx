@@ -37,11 +37,14 @@ function project(
     createdAt: "2026-07-18T09:00:00.000Z",
     updatedAt: "2026-07-20T10:00:00.000Z",
     completedAt: null,
+    status: "active",
+    archivedAt: null,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
     taskTotal: 4,
     taskCompleted: 1,
     health: stubHealth({ taskTotal: 4, taskCompleted: 1 }),
+    healthVisible: true,
     ...over,
   };
 }
@@ -134,6 +137,7 @@ describe("Projects collection", () => {
           completedAt: "2026-07-20T00:00:00.000Z",
           taskTotal: 4,
           taskCompleted: 4,
+          healthVisible: false,
           health: stubHealth({
             taskTotal: 4,
             taskCompleted: 4,
@@ -148,6 +152,28 @@ describe("Projects collection", () => {
     });
     expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
     expect(screen.queryByText("At risk")).not.toBeInTheDocument();
+    // A completed project never shows an active-work health pill (PROJ-05 §8).
+    expect(screen.queryByText(/^Health/)).not.toBeInTheDocument();
+  });
+
+  it("hides the Health metadata for Planned, On-hold and Archived cards", () => {
+    renderCollection({
+      projects: [
+        project({ id: "planned", title: "Planned", healthVisible: false }),
+        project({ id: "on-hold", title: "On hold", healthVisible: false }),
+        project({
+          id: "archived",
+          title: "Archived one",
+          archivedAt: "2026-07-21T00:00:00.000Z",
+          healthVisible: false,
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    expect(screen.queryByText(/^Health/)).not.toBeInTheDocument();
   });
 
   it("shows a genuinely-empty state when there are no projects at all", () => {

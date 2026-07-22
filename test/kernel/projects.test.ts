@@ -6,6 +6,7 @@ import {
   FakeClock,
   makeContext,
   makeProjectRepository,
+  makeProjectSettingsRepository,
   makeSpineRepository,
   makeTaskRepository,
   resetTables,
@@ -140,6 +141,110 @@ describe("ProjectRepository.listProjects", () => {
     expect(openOnly.items.map((p) => p.id)).toEqual([open.id]);
     const completedOnly = await repo.listProjects({ state: "completed" });
     expect(completedOnly.items.map((p) => p.id)).toEqual([done.id]);
+  });
+
+  it("'archived' returns archived projects only, regardless of completion", async () => {
+    const s = spine(WS);
+    const settings = makeProjectSettingsRepository(makeContext(WS));
+    const area = await s.createArea({ title: "Career" });
+    const open = await s.createProject({
+      title: "Open",
+      parent: { kind: "area", id: area.id },
+    });
+    const archived = await s.createProject({
+      title: "Archived",
+      parent: { kind: "area", id: area.id },
+    });
+    const completedThenArchived = await s.createProject({
+      title: "Completed then archived",
+      parent: { kind: "area", id: area.id },
+    });
+    await s.complete(completedThenArchived.id);
+    await settings.archive(archived.id);
+    await settings.archive(completedThenArchived.id);
+
+    const repo = makeProjectRepository(makeContext(WS));
+    const archivedPage = await repo.listProjects({ state: "archived" });
+    expect(archivedPage.items.map((p) => p.id).sort()).toEqual(
+      [archived.id, completedThenArchived.id].sort(),
+    );
+
+    // "all", "open" and "completed" never leak an archived project (PROJ-05 §7):
+    // they mean "every/open/completed NON-ARCHIVED project" — archived work is
+    // reached only through the dedicated "archived" state.
+    const all = await repo.listProjects({ state: "all" });
+    expect(all.items.map((p) => p.id)).toEqual([open.id]);
+    const openOnly = await repo.listProjects({ state: "open" });
+    expect(openOnly.items.map((p) => p.id)).toEqual([open.id]);
+    const completedOnly = await repo.listProjects({ state: "completed" });
+    expect(completedOnly.items).toHaveLength(0);
+  });
+
+  it("an additional workflowStatus filter restricts to an exact status (Today's active-only query)", async () => {
+    const s = spine(WS);
+    const settings = makeProjectSettingsRepository(makeContext(WS));
+    const area = await s.createArea({ title: "Career" });
+    const planned = await s.createProject({
+      title: "Planned",
+      parent: { kind: "area", id: area.id },
+    });
+    const active = await s.createProject({
+      title: "Active",
+      parent: { kind: "area", id: area.id },
+    });
+    await settings.setStatus(active.id, "active");
+    const onHold = await s.createProject({
+      title: "On hold",
+      parent: { kind: "area", id: area.id },
+    });
+    await settings.setStatus(onHold.id, "on_hold");
+
+    const repo = makeProjectRepository(makeContext(WS));
+    const activeOnly = await repo.listProjects({
+      state: "open",
+      workflowStatus: "active",
+    });
+    expect(activeOnly.items.map((p) => p.id)).toEqual([active.id]);
+
+    const plannedOnly = await repo.listProjects({
+      state: "open",
+      workflowStatus: "planned",
+    });
+    expect(plannedOnly.items.map((p) => p.id)).toEqual([planned.id]);
+  });
+
+  it("a settings-only transition (status/archive/restore) affects the 'recent' order and the effective updatedAt (ADR-037 §37.2)", async () => {
+    const clock = new FakeClock();
+    const s = makeSpineRepository(makeContext(WS), {
+      clock: clock.now,
+      idGenerator: ids("r"),
+    });
+    const area = await s.createArea({ title: "Career" });
+    const p1 = await s.createProject({
+      title: "First",
+      parent: { kind: "area", id: area.id },
+    });
+    clock.advance(1000);
+    const p2 = await s.createProject({
+      title: "Second",
+      parent: { kind: "area", id: area.id },
+    });
+    // p2 is more recently created/updated than p1 at this point.
+    clock.advance(1000);
+    const settings = makeProjectSettingsRepository(makeContext(WS), {
+      clock: clock.now,
+    });
+    // A status change on p1 (whose entities.updated_at is OLDER than p2's) must
+    // still bump it to the front of "recent" — proving the ordering uses the
+    // effective (MAX of entity + settings) timestamp, not entities.updated_at alone.
+    await settings.setStatus(p1.id, "active");
+
+    const repo = makeProjectRepository(makeContext(WS));
+    const recent = await repo.listProjects({ orderBy: "recent" });
+    expect(recent.items.map((p) => p.id)).toEqual([p1.id, p2.id]);
+    expect(recent.items[0]?.updatedAt.getTime()).toBeGreaterThan(
+      recent.items[1]!.updatedAt.getTime(),
+    );
   });
 
   it("is workspace-isolated and orders deterministically", async () => {

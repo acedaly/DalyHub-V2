@@ -195,7 +195,10 @@ export function createWorkspaceRepository(
   return new D1WorkspaceRepository(db, options);
 }
 
-export { D1ProjectSettingsRepository } from "./d1-project-settings-repository";
+export {
+  D1ProjectSettingsRepository,
+  type D1ProjectSettingsRepositoryOptions,
+} from "./d1-project-settings-repository";
 
 export function createProjectSettingsRepository(
   db: D1Database,

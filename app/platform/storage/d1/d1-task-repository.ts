@@ -56,6 +56,7 @@ import {
   TASK_WAITING_CLEARED,
   TASK_WAITING_STARTED,
   TaskNotFoundError,
+  TaskProjectArchivedError,
   TaskStorageError,
   TaskValidationError,
   validatePlanDate,
@@ -506,6 +507,7 @@ export class D1TaskRepository implements TaskRepository {
     if (!current) {
       throw new TaskNotFoundError();
     }
+    await this.#rejectIfParentProjectArchived(current);
 
     // Normalise and validate every provided field at the boundary before writing.
     const afterTitle =
@@ -586,29 +588,47 @@ export class D1TaskRepository implements TaskRepository {
 
     // 1. The guarded domain statement: bump the active task's `updated_at`, and set
     //    the title ONLY when it changed (so an unchanged title is never rewritten
-    //    over a concurrent rename).
+    //    over a concurrent rename). Gated on the task's PARENT PROJECT (if any)
+    //    not being archived (ADR-037) — a title/detail edit under an archived
+    //    Project is read-only.
     const entityStmt = titleChanged
       ? this.#db
           .prepare(
             `UPDATE entities SET title = ?, updated_at = ?
              WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
+               AND ${this.#taskParentProjectNotArchivedSql}
              RETURNING ${ENTITY_RETURNING}`,
           )
-          .bind(afterTitle, nowTs, entityId, this.#workspaceId)
+          .bind(
+            afterTitle,
+            nowTs,
+            entityId,
+            this.#workspaceId,
+            this.#workspaceId,
+            entityId,
+          )
       : this.#db
           .prepare(
             `UPDATE entities SET updated_at = ?
              WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
+               AND ${this.#taskParentProjectNotArchivedSql}
              RETURNING ${ENTITY_RETURNING}`,
           )
-          .bind(nowTs, entityId, this.#workspaceId);
+          .bind(
+            nowTs,
+            entityId,
+            this.#workspaceId,
+            this.#workspaceId,
+            entityId,
+          );
 
     // 2. Upsert the additive details — but ON CONFLICT update ONLY the columns that
     //    changed (plus `updated_at`), so an omitted/unchanged column keeps its DB
     //    value even if a concurrent update changed it. The INSERT (new-row) branch
     //    supplies every column (unchanged ones = current/defaults), and is gated on
-    //    the task still being active so a racing delete writes nothing. The SET
-    //    fragments are fixed, trusted column literals — never caller data.
+    //    the task still being active (and its parent Project not archived) so a
+    //    racing delete or archive writes nothing. The SET fragments are fixed,
+    //    trusted column literals — never caller data.
     let detailsStmt: D1PreparedStatement | undefined;
     if (detailChanged) {
       const setParts: string[] = [];
@@ -632,6 +652,7 @@ export class D1TaskRepository implements TaskRepository {
                    WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
                      AND deleted_at IS NULL
                  )
+             AND ${this.#taskParentProjectNotArchivedSql}
            ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
              ${setParts.join(",\n             ")}`,
         )
@@ -644,6 +665,8 @@ export class D1TaskRepository implements TaskRepository {
           afterScheduled,
           afterDescription,
           nowTs,
+          this.#workspaceId,
+          entityId,
           this.#workspaceId,
           entityId,
         );
@@ -699,6 +722,7 @@ export class D1TaskRepository implements TaskRepository {
     if (!current) {
       throw new TaskNotFoundError();
     }
+    await this.#rejectIfParentProjectArchived(current);
 
     // Resolve + validate an entity target BEFORE writing (active, in-workspace,
     // allowed type, not the task itself). A missing/cross-workspace/deleted target
@@ -772,6 +796,8 @@ export class D1TaskRepository implements TaskRepository {
         nowTs,
         this.#workspaceId,
         entityId,
+        this.#workspaceId,
+        entityId,
       );
 
     // 3. Replace the active `task.waiting_on` link (entity subject) or clear it
@@ -839,6 +865,7 @@ export class D1TaskRepository implements TaskRepository {
     if (!current) {
       throw new TaskNotFoundError();
     }
+    await this.#rejectIfParentProjectArchived(current);
     if (current.waiting === null) {
       // Not waiting: idempotent no-op, no Activity.
       return { task: current, changed: false };
@@ -849,14 +876,25 @@ export class D1TaskRepository implements TaskRepository {
 
     const entityStmt = this.#bumpEntityStatement(entityId, nowTs);
 
-    // Clear the waiting state on `task_details` (only the waiting columns).
+    // Clear the waiting state on `task_details` (only the waiting columns). Gated
+    // on the active task whose parent Project (if any) is not archived — this
+    // statement is independent of the anchor bump, so it needs its OWN gate.
     const detailsStmt = this.#db
       .prepare(
         `UPDATE task_details
          SET waiting_since = NULL, waiting_note = NULL, updated_at = ?
-         WHERE workspace_id = ? AND entity_id = ?`,
+         WHERE workspace_id = ? AND entity_id = ?
+           AND EXISTS (${this.#activeTaskExistsSql})`,
       )
-      .bind(nowTs, this.#workspaceId, entityId);
+      .bind(
+        nowTs,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+      );
 
     // Soft-delete any active `task.waiting_on` link (gated on the active task).
     const linkStmts = this.#waitingLinkStatements(entityId, null, nowTs);
@@ -970,6 +1008,7 @@ export class D1TaskRepository implements TaskRepository {
     if (!current) {
       throw new TaskNotFoundError();
     }
+    await this.#rejectIfParentProjectArchived(current);
     // Planning applies to OPEN work only: reject a completed task up front (and the
     // guarded write below re-checks, so a completion racing this call is also caught).
     this.#rejectIfCompleted(current);
@@ -1011,6 +1050,7 @@ export class D1TaskRepository implements TaskRepository {
     if (!current) {
       throw new TaskNotFoundError();
     }
+    await this.#rejectIfParentProjectArchived(current);
     // Planning applies to OPEN work only: reject a completed task up front (and the
     // guarded write below re-checks, so a completion racing this call is also caught).
     this.#rejectIfCompleted(current);
@@ -1081,6 +1121,7 @@ export class D1TaskRepository implements TaskRepository {
       if (!current) {
         throw new TaskNotFoundError();
       }
+      await this.#rejectIfParentProjectArchived(current);
       this.#rejectIfCompleted(current);
       currents.push(current);
     }
@@ -1218,6 +1259,8 @@ export class D1TaskRepository implements TaskRepository {
         nowTs,
         this.#workspaceId,
         entityId,
+        this.#workspaceId,
+        entityId,
       );
   }
 
@@ -1236,7 +1279,15 @@ export class D1TaskRepository implements TaskRepository {
          WHERE workspace_id = ? AND entity_id = ?
            AND EXISTS (${this.#openTaskExistsSql})`,
       )
-      .bind(nowTs, this.#workspaceId, entityId, this.#workspaceId, entityId);
+      .bind(
+        nowTs,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+      );
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1250,6 +1301,7 @@ export class D1TaskRepository implements TaskRepository {
     if (!current) {
       throw new TaskNotFoundError();
     }
+    await this.#rejectIfParentProjectArchived(current);
     // Already completed: idempotent no-op (matching the spine contract). No batch,
     // no Activity. Any waiting was cleared by the completion that first set it.
     if (current.completedAt !== null) {
@@ -1439,45 +1491,74 @@ export class D1TaskRepository implements TaskRepository {
   /* Internals                                                              */
   /* ---------------------------------------------------------------------- */
 
-  /** Reusable EXISTS clause: the anchor is an active task in this workspace. */
+  /**
+   * Reusable NOT-EXISTS clause: the task's direct PROJECT parent (if any) is not
+   * archived (PROJ-05 / ADR-037) — an archived Project's structural children are
+   * read-only until restored. A Task floating directly under an Area has no
+   * Project parent, so this is trivially satisfied for it. Binds
+   * `(workspaceId, entityId)` at its embedding site, immediately after whatever
+   * params precede it in the same clause.
+   */
+  get #taskParentProjectNotArchivedSql(): string {
+    return `NOT EXISTS (
+              SELECT 1 FROM entity_links pl
+              JOIN project_details pd
+                ON pd.workspace_id = pl.workspace_id AND pd.entity_id = pl.target_entity_id
+              WHERE pl.workspace_id = ? AND pl.source_entity_id = ?
+                AND pl.type = '${TASK_BELONGS_TO_PROJECT}' AND pl.deleted_at IS NULL
+                AND pd.archived_at IS NOT NULL
+            )`;
+  }
+
+  /** Reusable EXISTS clause: the anchor is an active task in this workspace WHOSE
+   * PARENT PROJECT (if any) is not archived. Binds `(workspaceId, entityId,
+   * workspaceId, entityId)` at its embedding site. */
   get #activeTaskExistsSql(): string {
     return `SELECT 1 FROM entities
             WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
-              AND deleted_at IS NULL`;
+              AND deleted_at IS NULL
+              AND ${this.#taskParentProjectNotArchivedSql}`;
   }
 
   /**
    * Reusable EXISTS clause: the anchor is an active AND OPEN task in this workspace
-   * (`spine_records.completed_at IS NULL`). Planning applies to open work only, so
-   * the planning writes gate on this INSIDE the guarded batch — enforcing the
-   * invariant even against a completion that races between the read and the write
-   * (ADR-030 §30.4a). Binds `(workspaceId, entityId)`.
+   * (`spine_records.completed_at IS NULL`) whose PARENT PROJECT (if any) is not
+   * archived. Planning applies to open work only, so the planning writes gate on
+   * this INSIDE the guarded batch — enforcing the invariant even against a
+   * completion that races between the read and the write (ADR-030 §30.4a), or a
+   * project archived between the read and the write (ADR-037). Binds
+   * `(workspaceId, entityId, workspaceId, entityId)`.
    */
   get #openTaskExistsSql(): string {
     return `SELECT 1 FROM entities oe
             JOIN spine_records osr
               ON osr.workspace_id = oe.workspace_id AND osr.entity_id = oe.id
             WHERE oe.workspace_id = ? AND oe.id = ? AND oe.type = '${TASK}'
-              AND oe.deleted_at IS NULL AND osr.completed_at IS NULL`;
+              AND oe.deleted_at IS NULL AND osr.completed_at IS NULL
+              AND ${this.#taskParentProjectNotArchivedSql}`;
   }
 
-  /** The guarded entity `updated_at` bump used as the Activity append anchor. */
+  /** The guarded entity `updated_at` bump used as the Activity append anchor,
+   * gated on the task's PARENT PROJECT (if any) not being archived (ADR-037). */
   #bumpEntityStatement(entityId: string, nowTs: string): D1PreparedStatement {
     return this.#db
       .prepare(
         `UPDATE entities SET updated_at = ?
          WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
+           AND ${this.#taskParentProjectNotArchivedSql}
          RETURNING ${ENTITY_RETURNING}`,
       )
-      .bind(nowTs, entityId, this.#workspaceId);
+      .bind(nowTs, entityId, this.#workspaceId, this.#workspaceId, entityId);
   }
 
   /**
    * The planning guard-anchor bump: like {@link #bumpEntityStatement} but gated on
-   * the task being OPEN. If the task was completed (or deleted) between the read and
-   * this write, it matches nothing → `changes() = 0` → the guarded planning Activity
+   * the task being OPEN and on the task's PARENT PROJECT (if any) not being
+   * archived. If the task was completed (or deleted) between the read and this
+   * write, it matches nothing → `changes() = 0` → the guarded planning Activity
    * is NOT appended and the gated `task_details` write no-ops, so a completed task
-   * is never planned and no planning Activity is ever recorded against it.
+   * is never planned and no planning Activity is ever recorded against it. The
+   * same applies to a project archived between the read and the write (ADR-037).
    */
   #bumpOpenTaskStatement(entityId: string, nowTs: string): D1PreparedStatement {
     return this.#db
@@ -1486,9 +1567,18 @@ export class D1TaskRepository implements TaskRepository {
          WHERE id = ? AND workspace_id = ? AND type = '${TASK}' AND deleted_at IS NULL
            AND EXISTS (SELECT 1 FROM spine_records
                        WHERE workspace_id = ? AND entity_id = ? AND completed_at IS NULL)
+           AND ${this.#taskParentProjectNotArchivedSql}
          RETURNING ${ENTITY_RETURNING}`,
       )
-      .bind(nowTs, entityId, this.#workspaceId, this.#workspaceId, entityId);
+      .bind(
+        nowTs,
+        entityId,
+        this.#workspaceId,
+        this.#workspaceId,
+        entityId,
+        this.#workspaceId,
+        entityId,
+      );
   }
 
   /** The task-domain rejection for a planning mutation attempted on completed work. */
@@ -1503,6 +1593,45 @@ export class D1TaskRepository implements TaskRepository {
   #rejectIfCompleted(task: TaskView): void {
     if (task.completedAt !== null) {
       throw this.#completedError();
+    }
+  }
+
+  /**
+   * Reject ANY mutation up front when the task's direct parent is an ARCHIVED
+   * Project (PROJ-05 / ADR-037) — an archived Project is read-only until
+   * restored, and this is the shared repository-level guard every Task-detail
+   * mutation (title/detail edit, waiting, planning, single or bulk, and
+   * completion) runs through, so no route needs its own bespoke check. A Task
+   * floating directly under an Area has no Project parent to check.
+   *
+   * This up-front read gives a FAST, PRECISE rejection (`TaskProjectArchivedError`)
+   * in the common case. For `updateTask`/`setWaiting`/`clearWaiting`/`planTask`/
+   * `clearPlan` (single and bulk), the SAME precondition is ALSO folded directly
+   * into every domain statement those methods write via the shared
+   * `#taskParentProjectNotArchivedSql`/`#activeTaskExistsSql`/`#openTaskExistsSql`
+   * fragments — including each statement that is independent of the guard-anchor
+   * bump (a detail upsert or a waiting-link write), so NONE of them can commit
+   * even if a Project is archived in the instant between this read and the write.
+   * A race that slips past this read therefore surfaces as the method's ordinary
+   * not-found/conflict fallback (the guarded statement matches nothing), never a
+   * silent partial mutation. `completeTask` keeps ONLY this read-based check
+   * (not folded into its shared spine-completion SQL, which every spine kind
+   * uses): completing an already-completed Task, or a Task whose Project could
+   * only be archived because it holds no unfinished work, can never itself
+   * recreate unfinished work, so no interleaving of `completeTask` and `archive`
+   * threatens the invariant — see ADR-037 for the argument in full.
+   */
+  async #rejectIfParentProjectArchived(task: TaskView): Promise<void> {
+    if (task.project === null) return;
+    const row = await this.#db
+      .prepare(
+        `SELECT 1 FROM project_details
+         WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL`,
+      )
+      .bind(this.#workspaceId, task.project.id)
+      .first();
+    if (row !== null) {
+      throw new TaskProjectArchivedError();
     }
   }
 
@@ -1527,10 +1656,13 @@ export class D1TaskRepository implements TaskRepository {
   /**
    * Statements that make the active `task.waiting_on` link reflect `targetId`:
    * always soft-delete any current active waiting link, then (when a target is
-   * given) create-or-restore the link to it. Both gated on the active task; the
-   * create is additionally gated on the active, in-workspace target (the composite
-   * FK is the final backstop). Soft-delete runs before create so the one-active
-   * partial unique index never conflicts within the transaction.
+   * given) create-or-restore the link to it. Both gated on the active task AND its
+   * parent Project not being archived (ADR-037) — this statement is independent of
+   * the guard-anchor bump, so it needs its OWN gate or it could commit even when
+   * the anchor's guard blocks the rest of the mutation; the create is additionally
+   * gated on the active, in-workspace target (the composite FK is the final
+   * backstop). Soft-delete runs before create so the one-active partial unique
+   * index never conflicts within the transaction.
    */
   #waitingLinkStatements(
     taskId: string,
@@ -1541,9 +1673,10 @@ export class D1TaskRepository implements TaskRepository {
       .prepare(
         `UPDATE entity_links SET deleted_at = ?, updated_at = ?
          WHERE workspace_id = ? AND source_entity_id = ?
-           AND type = '${TASK_WAITING_ON}' AND deleted_at IS NULL`,
+           AND type = '${TASK_WAITING_ON}' AND deleted_at IS NULL
+           AND ${this.#taskParentProjectNotArchivedSql}`,
       )
-      .bind(nowTs, nowTs, this.#workspaceId, taskId);
+      .bind(nowTs, nowTs, this.#workspaceId, taskId, this.#workspaceId, taskId);
     if (targetId === null) {
       return [softDelete];
     }
@@ -1566,6 +1699,8 @@ export class D1TaskRepository implements TaskRepository {
         targetId,
         nowTs,
         nowTs,
+        this.#workspaceId,
+        taskId,
         this.#workspaceId,
         taskId,
         this.#workspaceId,

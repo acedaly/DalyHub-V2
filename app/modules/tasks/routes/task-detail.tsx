@@ -23,10 +23,13 @@
 
 import { env } from "cloudflare:workers";
 
+import { SpineParentUnavailableError } from "~/kernel/spine";
 import {
   TaskNotFoundError,
+  TaskProjectArchivedError,
   TaskValidationError,
   type SetWaitingInput,
+  type TaskView,
 } from "~/kernel/tasks";
 import {
   createLinkWithPolicy,
@@ -122,7 +125,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   // reach `spine.complete`/`reopen` (which also complete Goals/Projects) or become
   // a `task.relates_to` picker anchor. Non-tasks get the same calm not-found, and
   // nothing is mutated. (`update` is also self-guarded by `updateTask`.)
-  if (!(await scope.tasks.getTask(taskId))) {
+  const task = await scope.tasks.getTask(taskId);
+  if (!task) {
     return json({ error: "not_found" }, 404);
   }
 
@@ -133,9 +137,9 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     case "reopen":
       return json(await handleCompletion(scope, taskId, intent));
     case "link":
-      return json(await handleLink(scope, taskId, form));
+      return json(await handleLink(scope, task, form));
     case "unlink":
-      return json(await handleUnlink(scope, taskId, form));
+      return json(await handleUnlink(scope, task, form));
     case "set_waiting":
       return json(await handleSetWaiting(scope, taskId, form));
     case "clear_waiting":
@@ -197,6 +201,9 @@ async function handleUpdate(
         formError: "This task is no longer available.",
       };
     }
+    if (cause instanceof TaskProjectArchivedError) {
+      return { kind: "update", status: "error", formError: cause.message };
+    }
     return {
       kind: "update",
       status: "error",
@@ -235,7 +242,18 @@ async function handleCompletion(
       };
     }
     return { kind: "completion", ok: true, task: serializeTaskView(task) };
-  } catch {
+  } catch (cause) {
+    if (
+      cause instanceof TaskProjectArchivedError ||
+      cause instanceof SpineParentUnavailableError
+    ) {
+      return {
+        kind: "completion",
+        ok: false,
+        message:
+          "This project is archived and read-only — restore it to make changes.",
+      };
+    }
     return {
       kind: "completion",
       ok: false,
@@ -244,14 +262,38 @@ async function handleCompletion(
   }
 }
 
+/**
+ * `link`/`unlink` go through the generic EntityLink policy (`createLinkWithPolicy`/
+ * `unlinkWithPolicy`), NOT `D1TaskRepository` — so the repository-level
+ * `#rejectIfParentProjectArchived` guard is never reached for these two intents.
+ * This is the shared, Task-specific check that closes that gap: an archived
+ * Project's structural children are read-only until restored, so a related-record
+ * link cannot be added or removed either. Checked BEFORE any policy call, so a
+ * rejection creates no link mutation and no Activity event.
+ */
+async function rejectIfParentProjectArchived(
+  scope: WorkspaceScope,
+  task: TaskView,
+): Promise<string | null> {
+  if (task.project === null) return null;
+  const settings = await scope.projectSettings.get(task.project.id);
+  return settings?.archivedAt
+    ? "This task's project is archived and read-only — restore it to make changes."
+    : null;
+}
+
 async function handleLink(
   scope: WorkspaceScope,
-  taskId: string,
+  task: TaskView,
   form: FormData,
 ): Promise<TaskActionData> {
+  const archivedMessage = await rejectIfParentProjectArchived(scope, task);
+  if (archivedMessage) {
+    return { kind: "link", ok: false, message: archivedMessage };
+  }
   const result = await createLinkWithPolicy(
     pickerDeps(scope),
-    relatesToPolicy(taskId),
+    relatesToPolicy(task.id),
     {
       targetId: String(form.get("targetId") ?? ""),
       linkType: String(form.get("linkType") ?? ""),
@@ -265,12 +307,16 @@ async function handleLink(
 
 async function handleUnlink(
   scope: WorkspaceScope,
-  taskId: string,
+  task: TaskView,
   form: FormData,
 ): Promise<TaskActionData> {
+  const archivedMessage = await rejectIfParentProjectArchived(scope, task);
+  if (archivedMessage) {
+    return { kind: "unlink", ok: false, message: archivedMessage };
+  }
   const result = await unlinkWithPolicy(
     pickerDeps(scope),
-    relatesToPolicy(taskId),
+    relatesToPolicy(task.id),
     String(form.get("linkId") ?? ""),
   );
   return result.ok
@@ -320,6 +366,9 @@ async function handleSetWaiting(
         formError: "This task is no longer available.",
       };
     }
+    if (cause instanceof TaskProjectArchivedError) {
+      return { kind: "waiting", status: "error", formError: cause.message };
+    }
     return {
       kind: "waiting",
       status: "error",
@@ -346,6 +395,9 @@ async function handleClearWaiting(
         status: "error",
         formError: "This task is no longer available.",
       };
+    }
+    if (cause instanceof TaskProjectArchivedError) {
+      return { kind: "waiting", status: "error", formError: cause.message };
     }
     return {
       kind: "waiting",
@@ -384,6 +436,9 @@ async function handlePlan(
         formError: "This task is no longer available.",
       };
     }
+    if (cause instanceof TaskProjectArchivedError) {
+      return { kind: "planning", status: "error", formError: cause.message };
+    }
     return {
       kind: "planning",
       status: "error",
@@ -418,6 +473,9 @@ async function handleClearPlan(
         status: "error",
         formError: "This task is no longer available.",
       };
+    }
+    if (cause instanceof TaskProjectArchivedError) {
+      return { kind: "planning", status: "error", formError: cause.message };
     }
     return {
       kind: "planning",

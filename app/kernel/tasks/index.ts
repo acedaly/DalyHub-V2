@@ -83,6 +83,7 @@ export {
   TaskNotFoundError,
   TaskStorageError,
   CorruptTaskRecordError,
+  TaskProjectArchivedError,
   type TaskErrorCode,
   type TaskValidationField,
 } from "./task-errors";
