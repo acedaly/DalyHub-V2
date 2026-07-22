@@ -19,6 +19,11 @@ import { env } from "cloudflare:workers";
 
 import { SpineValidationError } from "~/kernel/spine";
 import {
+  ProjectArchiveBlockedError,
+  ProjectSettingsValidationError,
+  parseProjectWorkflowStatus,
+} from "~/kernel/project-settings";
+import {
   createLinkWithPolicy,
   unlinkWithPolicy,
   type EntityLinkPickerDeps,
@@ -63,9 +68,19 @@ export type ProjectMutationResult =
       readonly fieldErrors?: Readonly<Record<string, string>>;
     }
   | { readonly kind: "link"; readonly ok: boolean; readonly message?: string }
+  | { readonly kind: "unlink"; readonly ok: boolean; readonly message?: string }
   | {
-      readonly kind: "unlink";
+      readonly kind: "settings";
       readonly ok: boolean;
+      readonly outcome:
+        | "changed"
+        | "unchanged"
+        | "moved"
+        | "archived"
+        | "restored"
+        | "blocked"
+        | "archived_rejected"
+        | "invalid";
       readonly message?: string;
     };
 
@@ -116,6 +131,17 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
+  const settings = await scope.projectSettings.get(projectId);
+  if (!settings) throw new Response("Not Found", { status: 404 });
+  if (settings.archivedAt && intent !== "restore" && intent !== "archive") {
+    return json({
+      kind: "settings",
+      ok: false,
+      outcome: "archived_rejected",
+      message: "Archived projects can only be restored.",
+    });
+  }
+
   switch (intent) {
     case "rename":
       return json(await handleRename(scope, projectId, form));
@@ -128,6 +154,18 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(await handleLink(scope, projectId, form));
     case "unlink":
       return json(await handleUnlink(scope, projectId, form));
+    case "set_status":
+      return json(
+        await handleStatus(scope, projectId, String(form.get("status") ?? "")),
+      );
+    case "move":
+      return json(
+        await handleMove(scope, projectId, String(form.get("parentId") ?? "")),
+      );
+    case "archive":
+      return json(await handleArchive(scope, projectId));
+    case "restore":
+      return json(await handleRestore(scope, projectId));
     default:
       return json(
         { kind: "rename", ok: false, formError: "Unknown action." },
@@ -246,4 +284,108 @@ async function handleUnlink(
   return result.ok
     ? { kind: "unlink", ok: true }
     : { kind: "unlink", ok: false, message: result.message };
+}
+
+async function handleStatus(
+  scope: WorkspaceScope,
+  id: string,
+  value: string,
+): Promise<ProjectMutationResult> {
+  try {
+    const result = await scope.projectSettings.setStatus(
+      id,
+      parseProjectWorkflowStatus(value),
+    );
+    return {
+      kind: "settings",
+      ok: true,
+      outcome: result.changed ? "changed" : "unchanged",
+    };
+  } catch (cause) {
+    return {
+      kind: "settings",
+      ok: false,
+      outcome: "invalid",
+      message:
+        cause instanceof ProjectSettingsValidationError
+          ? cause.message
+          : "That couldn't be saved. Please try again.",
+    };
+  }
+}
+async function handleMove(
+  scope: WorkspaceScope,
+  id: string,
+  parentId: string,
+): Promise<ProjectMutationResult> {
+  const parent = await scope.spine.getById(parentId);
+  if (!parent || (parent.kind !== "area" && parent.kind !== "goal"))
+    return {
+      kind: "settings",
+      ok: false,
+      outcome: "invalid",
+      message: "Choose an available Area or Goal.",
+    };
+  try {
+    const result = await scope.spine.move(id, {
+      kind: parent.kind,
+      id: parent.id,
+    });
+    return {
+      kind: "settings",
+      ok: true,
+      outcome: result.changed ? "moved" : "unchanged",
+    };
+  } catch {
+    return {
+      kind: "settings",
+      ok: false,
+      outcome: "invalid",
+      message: "That couldn't be saved. Please try again.",
+    };
+  }
+}
+async function handleArchive(
+  scope: WorkspaceScope,
+  id: string,
+): Promise<ProjectMutationResult> {
+  try {
+    const result = await scope.projectSettings.archive(id);
+    return {
+      kind: "settings",
+      ok: true,
+      outcome: result.changed ? "archived" : "unchanged",
+    };
+  } catch (cause) {
+    return {
+      kind: "settings",
+      ok: false,
+      outcome:
+        cause instanceof ProjectArchiveBlockedError ? "blocked" : "invalid",
+      message:
+        cause instanceof ProjectArchiveBlockedError
+          ? cause.message
+          : "That couldn't be saved. Please try again.",
+    };
+  }
+}
+async function handleRestore(
+  scope: WorkspaceScope,
+  id: string,
+): Promise<ProjectMutationResult> {
+  try {
+    const result = await scope.projectSettings.restore(id);
+    return {
+      kind: "settings",
+      ok: true,
+      outcome: result.changed ? "restored" : "unchanged",
+    };
+  } catch {
+    return {
+      kind: "settings",
+      ok: false,
+      outcome: "invalid",
+      message: "That couldn't be saved. Please try again.",
+    };
+  }
 }

@@ -85,7 +85,7 @@ const PROJECT_RELATION_COLUMNS = `
 
 /** The base project columns selected by both reads. */
 const PROJECT_BASE_COLUMNS = `e.id AS id, e.workspace_id AS workspace_id, e.title AS title,
-  e.created_at AS created_at, e.updated_at AS updated_at, sr.completed_at AS completed_at`;
+  e.created_at AS created_at, e.updated_at AS updated_at, sr.completed_at AS completed_at, COALESCE(pd.status, 'planned') AS status, pd.archived_at AS archived_at`;
 
 interface ProjectRelationRow {
   readonly area_id: string | null;
@@ -103,6 +103,8 @@ interface ProjectBaseRow extends ProjectRelationRow {
   readonly created_at: string;
   readonly updated_at: string;
   readonly completed_at: string | null;
+  readonly status: string;
+  readonly archived_at: string | null;
 }
 
 interface ProjectListRow extends ProjectBaseRow {
@@ -125,10 +127,12 @@ export class D1ProjectRepository implements ProjectRepository {
     const order: ProjectOrder = input.orderBy ?? "created";
     const completedClause =
       state === "open"
-        ? " AND sr.completed_at IS NULL"
+        ? " AND sr.completed_at IS NULL AND pd.archived_at IS NULL"
         : state === "completed"
-          ? " AND sr.completed_at IS NOT NULL"
-          : "";
+          ? " AND sr.completed_at IS NOT NULL AND pd.archived_at IS NULL"
+          : state === "archived"
+            ? " AND pd.archived_at IS NOT NULL"
+            : " AND pd.archived_at IS NULL";
 
     // Ordering is a trusted closed set (never caller data). `recent` selects the
     // globally most-recently-updated projects AT the database before the limit, so
@@ -179,6 +183,7 @@ export class D1ProjectRepository implements ProjectRepository {
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         LEFT JOIN project_details pd ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
          ${PROJECT_RELATION_JOINS}
          LEFT JOIN (
            SELECT tl.target_entity_id AS project_id,
@@ -225,6 +230,7 @@ export class D1ProjectRepository implements ProjectRepository {
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         LEFT JOIN project_details pd ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
          ${PROJECT_RELATION_JOINS}
          WHERE e.id = ? AND e.workspace_id = ? AND e.type = '${PROJECT}'
                AND e.deleted_at IS NULL
@@ -249,6 +255,10 @@ export class D1ProjectRepository implements ProjectRepository {
         row.completed_at === null
           ? null
           : fromStorageTimestamp(row.completed_at),
+      status:
+        row.status as import("~/kernel/project-settings").ProjectWorkflowStatus,
+      archivedAt:
+        row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
       area: relations.area,
       goal: relations.goal,
     };
@@ -266,6 +276,10 @@ export class D1ProjectRepository implements ProjectRepository {
         row.completed_at === null
           ? null
           : fromStorageTimestamp(row.completed_at),
+      status:
+        row.status as import("~/kernel/project-settings").ProjectWorkflowStatus,
+      archivedAt:
+        row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
       area: relations.area,
       goal: relations.goal,
       taskTotal: Number(row.task_total ?? 0),
