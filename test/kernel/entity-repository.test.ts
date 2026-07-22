@@ -129,6 +129,56 @@ describe("D1EntityRepository (workspace-scoped)", () => {
     });
   });
 
+  describe("getByIds — batched, bounded, workspace-scoped resolution", () => {
+    it("resolves many ids into a map, de-duplicating input", async () => {
+      const r = repoA();
+      const a = await r.create({ type: "note", title: "Alpha" });
+      const b = await r.create({ type: "widget", title: "Beta" });
+      const map = await r.getByIds([a.id, b.id, a.id]);
+      expect(map.size).toBe(2);
+      expect(map.get(a.id)).toEqual(a);
+      expect(map.get(b.id)?.title).toBe("Beta");
+    });
+
+    it("omits missing and cross-workspace ids without disclosure; empty input → empty map", async () => {
+      const a = await repoA().create({ type: "note", title: "Mine" });
+      const hidden = await repoB().create({ type: "note", title: "Theirs" });
+      const map = await repoA().getByIds([a.id, hidden.id, "does-not-exist"]);
+      expect(map.size).toBe(1);
+      expect(map.has(a.id)).toBe(true);
+      expect(map.has(hidden.id)).toBe(false);
+      expect((await repoA().getByIds([])).size).toBe(0);
+    });
+
+    it("excludes soft-deleted entities unless includeDeleted is set", async () => {
+      const r = repoA();
+      const live = await r.create({ type: "note", title: "Live" });
+      const gone = await r.create({ type: "note", title: "Gone" });
+      await r.softDelete(gone.id);
+
+      const active = await r.getByIds([live.id, gone.id]);
+      expect(active.has(live.id)).toBe(true);
+      expect(active.has(gone.id)).toBe(false);
+
+      const withDeleted = await r.getByIds([live.id, gone.id], {
+        includeDeleted: true,
+      });
+      expect(withDeleted.size).toBe(2);
+      expect(withDeleted.get(gone.id)?.deletedAt).not.toBeNull();
+    });
+
+    it("resolves more ids than one chunk (>90) across chunked reads", async () => {
+      const r = repoA();
+      const ids: string[] = [];
+      for (let i = 0; i < 95; i += 1) {
+        ids.push((await r.create({ type: "note", title: `N${i}` })).id);
+      }
+      const map = await r.getByIds(ids);
+      expect(map.size).toBe(95);
+      expect(new Set(map.keys())).toEqual(new Set(ids));
+    });
+  });
+
   describe("update & cross-workspace isolation (scenarios 4, 6, 7)", () => {
     it("changes the title and advances updatedAt", async () => {
       const r = repoA();

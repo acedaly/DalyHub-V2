@@ -108,6 +108,23 @@ const SUBJECT_ROLE = "subject";
  * cannot cause a stale before/after payload. */
 const MAX_UPDATE_ATTEMPTS = 5;
 
+/**
+ * The per-query id chunk size for `getByIds`. D1 caps bound variables at 100 per
+ * statement and each read binds the ids plus one `workspace_id`, so a chunk of 90
+ * keeps every statement well within the limit while still resolving a whole
+ * Timeline page's referenced entities in a single read (no N+1).
+ */
+const GET_BY_IDS_CHUNK_SIZE = 90;
+
+/** Split `items` into contiguous chunks of at most `size` (for bounded IN reads). */
+function chunkIds(items: readonly string[], size: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
 export class D1EntityRepository implements EntityRepository {
   readonly #db: D1Database;
   readonly #workspaceId: string;
@@ -189,6 +206,49 @@ export class D1EntityRepository implements EntityRepository {
     );
 
     return row ? rowToEntity(row) : null;
+  }
+
+  async getByIds(
+    ids: readonly string[],
+    options: GetEntityOptions = {},
+  ): Promise<Map<string, EntityRecord>> {
+    const resolved = new Map<string, EntityRecord>();
+    if (ids.length === 0) {
+      return resolved;
+    }
+
+    // De-duplicate and validate up front so one bad id is a clean rejection, not a
+    // silent partial read (matching `getById`'s `validateEntityId`).
+    const unique = [...new Set(ids)].map((id) => validateEntityId(id));
+    const deletedClause = options.includeDeleted
+      ? ""
+      : " AND deleted_at IS NULL";
+
+    // A FIXED number of chunked `IN (...)` reads (one per ≤90 ids), run
+    // concurrently — never one query per id. Each stays within D1's bound-variable
+    // limit and is workspace-scoped, so a cross-workspace id simply never matches.
+    const chunks = chunkIds(unique, GET_BY_IDS_CHUNK_SIZE);
+    const results = await Promise.all(
+      chunks.map((idChunk) => {
+        const placeholders = idChunk.map(() => "?").join(", ");
+        return this.#all(
+          this.#db
+            .prepare(
+              `SELECT ${SELECT_COLUMNS} FROM entities
+               WHERE workspace_id = ? AND id IN (${placeholders})${deletedClause}`,
+            )
+            .bind(this.#workspaceId, ...idChunk),
+        );
+      }),
+    );
+
+    for (const rows of results) {
+      for (const row of rows) {
+        const entity = rowToEntity(row);
+        resolved.set(entity.id, entity);
+      }
+    }
+    return resolved;
   }
 
   async update(id: string, input: UpdateEntityInput): Promise<EntityRecord> {

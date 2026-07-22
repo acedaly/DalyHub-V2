@@ -73,6 +73,22 @@ export interface EntityRepository {
   getById(id: string, options?: GetEntityOptions): Promise<EntityRecord | null>;
 
   /**
+   * Resolve MANY entities by id within the bound workspace in ONE bounded batch —
+   * a small, FIXED number of chunked `IN (...)` reads regardless of how many ids
+   * are requested, never one query per id (no N+1). Returns a `Map` keyed by id
+   * containing only the entities that exist in this workspace; ids that are
+   * missing, or that live in another workspace, are simply absent (never
+   * disclosed). Soft-deleted entities are excluded unless `options.includeDeleted`
+   * is true. Duplicate ids are de-duplicated; an empty input yields an empty map.
+   * Used by record Timelines to resolve every referenced subject's identity in one
+   * pass (DS-05 / ADR-036).
+   */
+  getByIds(
+    ids: readonly string[],
+    options?: GetEntityOptions,
+  ): Promise<Map<string, EntityRecord>>;
+
+  /**
    * Update the shared, mutable fields of a live entity in the bound workspace
    * (for now: `title`). Advances `updatedAt` when a field actually changes.
    * Submitting the entity's already-stored title is an idempotent no-op: the

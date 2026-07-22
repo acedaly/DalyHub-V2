@@ -283,3 +283,97 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pht-blocked';
 DELETE FROM entity_links
 WHERE workspace_id = 'local-dev-workspace' AND source_entity_id = 'pht-blocked'
   AND type = 'task.waiting_on';
+
+-- PROJ-04 Activity seed — a dedicated project with a REAL FND-05 Activity history so
+-- the project record's Activity tab shows deterministic events end to end, plus an
+-- empty project for the empty-state journey. The events are seeded directly into the
+-- `activities` / `activity_subjects` tables (the one shared Activity store) with fixed
+-- timestamps; they are immutable, so INSERT OR IGNORE keeps every run deterministic.
+-- Over one page (default 30) of project-subject events exist, so "Load more" and a
+-- second page are reachable. `pr-activity` is completed/reopened by the journey, so
+-- its completion is reset below.
+
+-- The Activity project + one real child task (the referenced entity the timeline
+-- links to) + an empty project.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-activity', 'local-dev-workspace', 'project', 'Activity showcase', '2026-07-19T06:00:00.000Z', '2026-07-19T06:50:00.000Z', NULL),
+  ('pr-empty', 'local-dev-workspace', 'project', 'Quiet project', '2026-07-19T06:00:00.000Z', '2026-07-19T06:00:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-activity', 'project', NULL),
+  ('local-dev-workspace', 'pr-empty', 'project', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-pract-area', 'local-dev-workspace', 'pr-activity', 'a-dh', 'project.belongs_to_area', '2026-07-19T06:00:00.000Z', '2026-07-19T06:00:00.000Z', NULL),
+  ('l-prempty-area', 'local-dev-workspace', 'pr-empty', 'a-dh', 'project.belongs_to_area', '2026-07-19T06:00:00.000Z', '2026-07-19T06:00:00.000Z', NULL);
+
+-- 30 child tasks under pr-activity (real entities so their link events resolve and
+-- the newest one is a navigable referenced entity in the timeline).
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 30)
+SELECT
+  'pat-' || substr('00' || n, -2),
+  'local-dev-workspace', 'task',
+  'Activity task ' || substr('00' || n, -2),
+  printf('2026-07-19T06:%02d:00.000Z', 9 + n),
+  printf('2026-07-19T06:%02d:00.000Z', 9 + n),
+  NULL
+FROM seq;
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 30)
+SELECT 'local-dev-workspace', 'pat-' || substr('00' || n, -2), 'task', NULL FROM seq;
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 30)
+SELECT
+  'l-pat-' || substr('00' || n, -2),
+  'local-dev-workspace',
+  'pat-' || substr('00' || n, -2),
+  'pr-activity', 'task.belongs_to_project',
+  printf('2026-07-19T06:%02d:00.000Z', 9 + n),
+  printf('2026-07-19T06:%02d:00.000Z', 9 + n),
+  NULL
+FROM seq;
+
+-- The project's own Activity events: creation, its structural Area link, one
+-- entity_link.created per child task (project as `target`), and a rename. All name
+-- pr-activity as an authorised subject, so the project Timeline surfaces them.
+INSERT OR IGNORE INTO activities (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+VALUES
+  ('a-pract-created', 'local-dev-workspace', 'entity.created', 'system', NULL, '2026-07-19T06:00:00.000Z', '{}'),
+  ('a-pract-slink', 'local-dev-workspace', 'entity_link.created', 'system', NULL, '2026-07-19T06:00:01.000Z', '{}'),
+  ('a-pract-rename', 'local-dev-workspace', 'entity.updated', 'system', NULL, '2026-07-19T06:50:00.000Z', '{}'),
+  ('a-pract-completed', 'local-dev-workspace', 'project.completed', 'system', NULL, '2026-07-19T06:55:00.000Z', '{}');
+INSERT OR IGNORE INTO activities (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 30)
+SELECT
+  'a-pract-tl-' || substr('00' || n, -2),
+  'local-dev-workspace', 'entity_link.created', 'system', NULL,
+  printf('2026-07-19T06:%02d:00.000Z', 9 + n),
+  '{}'
+FROM seq;
+
+INSERT OR IGNORE INTO activity_subjects (workspace_id, activity_id, entity_id, role)
+VALUES
+  ('local-dev-workspace', 'a-pract-created', 'pr-activity', 'subject'),
+  ('local-dev-workspace', 'a-pract-slink', 'pr-activity', 'source'),
+  ('local-dev-workspace', 'a-pract-slink', 'a-dh', 'target'),
+  ('local-dev-workspace', 'a-pract-rename', 'pr-activity', 'subject'),
+  ('local-dev-workspace', 'a-pract-completed', 'pr-activity', 'subject');
+INSERT OR IGNORE INTO activity_subjects (workspace_id, activity_id, entity_id, role)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 30)
+SELECT 'local-dev-workspace', 'a-pract-tl-' || substr('00' || n, -2), 'pat-' || substr('00' || n, -2), 'source' FROM seq;
+INSERT OR IGNORE INTO activity_subjects (workspace_id, activity_id, entity_id, role)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 30)
+SELECT 'local-dev-workspace', 'a-pract-tl-' || substr('00' || n, -2), 'pr-activity', 'target' FROM seq;
+
+-- Reset the Activity seed's mutable state so every run starts from a known point.
+-- Both projects are COMPLETED at rest and titled canonically: completion (not
+-- updated_at recency) keeps them OUT of Today's bounded "Continue working" and the
+-- default open `/projects` view, so this seed never displaces the other Projects
+-- journeys. The Activity journey reopens/completes pr-activity live and ends it
+-- completed again; those appended events are historical and harmless on re-runs.
+UPDATE spine_records SET completed_at = '2026-07-19T07:00:00.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id IN ('pr-activity', 'pr-empty');
+UPDATE entities SET title = 'Activity showcase'
+WHERE workspace_id = 'local-dev-workspace' AND id = 'pr-activity';

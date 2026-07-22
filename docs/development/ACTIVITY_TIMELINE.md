@@ -229,14 +229,46 @@ route or fake production data.
 
 ---
 
+## Real product adopters
+
+Two records ship a real DS-05 Timeline over the FND-05 stream today; both are the
+SAME `Timeline` given a different record-scoped `loadPage`, never a forked component:
+
+- **The task record's Activity tab** (TODAY-02, [ADR-028](../decisions/ARCHITECTURE_DECISIONS.md#adr-028-task-drawer-persistence-and-composition--the-additive-task-detail-slice)) —
+  `TaskTimelineTab` fetching the module-owned `/tasks/:taskId/activity` resource route.
+- **The project record's Activity tab** (PROJ-04, [ADR-036](../decisions/ARCHITECTURE_DECISIONS.md#adr-036-the-project-activity-tab--the-shared-timeline-over-the-project-subject-events)) —
+  [`ProjectActivityTab`](../../app/modules/projects/ProjectActivityTab.tsx) fetching the
+  module-owned [`/projects/:projectId/activity`](../../app/modules/projects/routes/activity.tsx)
+  resource route. Its loader is the canonical "Wiring a route" pattern above:
+  `activity.listForEntity(projectId, {limit, cursor})` (the workspace fixed server-side,
+  never client input), `toActivityItems(page.items, {descriptors, resolveEntity,
+  anchorEntityId})` with the project descriptors and a **batched** resolver (no N+1),
+  serialised to JSON. The module registers descriptors ONLY for `project.completed` /
+  `project.reopened` and inherits the shared defaults + safe fallback for everything
+  else. The project Timeline shows the events for which the **project** is an
+  authorised Activity subject (creation, rename, its structural + Key links, a child
+  task's `task.belongs_to_project` link, complete/reopen); a child task's own lifecycle
+  events name the task, not the project, and are deliberately not aggregated — see
+  [`PROJECTS_MODULE.md`](./PROJECTS_MODULE.md) → Activity for the audited scope. A
+  relevant mutation revalidates the Timeline in place via the project's `updatedAt`
+  reload key (new event at the top, no hard reload, no duplicate rows).
+
+Both prove the intended shape: a module owns a small resource route over
+`activity.listForEntity`, maps records server-side, and drops a `<Timeline>` into its
+DS-02 Activity tab (Activity last). Neither adds an event store, a migration, a
+dependency or a second renderer.
+
+---
+
 ## What DS-05 deliberately does NOT do
 
 No new event model, audit log, timeline/activity table, migration or persistence; no
 product Activity module; no notification centre, comments, mentions, realtime,
 WebSockets, AI summaries, analytics, editable/destructive event history; no
-data-grid dependency; no workspace-selection control in the component. Real product
-Timelines/Feeds arrive when a module adopts DS-05 (e.g.
-[PROJ-04](../roadmap/ROADMAP_V2.md#-proj-04--activity)).
+data-grid dependency; no workspace-selection control in the component. Record
+Timelines are wired by a module adopting DS-05 — shipped for the task record
+(ADR-028) and the project record ([PROJ-04](../roadmap/ROADMAP_V2.md#-proj-04--activity),
+ADR-036).
 
 ---
 

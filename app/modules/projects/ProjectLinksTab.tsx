@@ -70,6 +70,7 @@ export function ProjectLinksTab({
 
   return (
     <div className="dh-task-drawer__links">
+      <h2 className="dh-visually-hidden">Key links</h2>
       <section aria-label="Relationships" className="dh-task-drawer__section">
         <h3 className="dh-task-drawer__section-label">Relationships</h3>
         {relationships.length > 0 ? (

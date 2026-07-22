@@ -14,7 +14,11 @@
 
 import { env } from "cloudflare:workers";
 import { useCallback, useMemo, useState } from "react";
-import { isRouteErrorResponse, useRevalidator } from "react-router";
+import {
+  isRouteErrorResponse,
+  useRevalidator,
+  useSearchParams,
+} from "react-router";
 
 import { listActiveLinks } from "~/platform/entity-links";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -41,6 +45,7 @@ import type {
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { NewTaskForm } from "../NewTaskForm";
+import { ProjectActivityTab } from "../ProjectActivityTab";
 import { ProjectLinksTab } from "../ProjectLinksTab";
 import { ProjectOverview } from "../ProjectOverview";
 import { NEW_TASK_KEY, ProjectTasksTab } from "../ProjectTasksTab";
@@ -276,8 +281,37 @@ function ProjectDetail({
   const { openDrawer } = useDrawer();
   const { notifySuccess, notifyError, notifyUndo } = useFeedback();
   const [completionPending, setCompletionPending] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const completed = overview.completedAt !== null;
+
+  // The active record tab is deep-linked via `?tab=` (DESIGN_SYSTEM → Tabs: record
+  // tabs are preserved per record and deep-linkable), so a reload, a shared URL or
+  // Back/Forward return to the SAME tab. Tasks is the default and carries no param
+  // (a clean canonical URL). Switching tabs preserves the `?tasks=` filter and the
+  // `?drawer=` state, and replaces history (no per-click Back stop).
+  const requestedTab = searchParams.get("tab");
+  const activeTabId =
+    requestedTab === "links" || requestedTab === "activity"
+      ? requestedTab
+      : "tasks";
+  const onTabChange = useCallback(
+    (tabId: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tabId === "tasks") {
+            next.delete("tab");
+          } else {
+            next.set("tab", tabId);
+          }
+          return next;
+        },
+        { replace: true, preventScrollReset: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const postMutation = useCallback(
     async (body: FormData): Promise<ProjectMutationResult> => {
@@ -400,6 +434,8 @@ function ProjectDetail({
       completionPending={completionPending}
       onToggleComplete={(complete) => void onToggleComplete(complete)}
       onRename={() => openDrawer(RENAME_KEY)}
+      activeTabId={activeTabId}
+      onTabChange={onTabChange}
       tasksTab={
         <ProjectTasksTab
           projectId={overview.id}
@@ -418,6 +454,17 @@ function ProjectDetail({
           searchTargets={searchTargets}
           onLink={onLink}
           onUnlink={onUnlink}
+        />
+      }
+      activityTab={
+        // The project's real FND-05 Activity, rendered by the shared DS-05 Timeline.
+        // `reloadKey` is the project's `updatedAt`: a rename/complete/reopen bumps it
+        // and revalidation re-reads the first page (the new event appears at the top,
+        // no hard reload, no duplicate rows); a drawer-only URL change leaves it
+        // untouched, so already-loaded Activity pages are preserved.
+        <ProjectActivityTab
+          projectId={overview.id}
+          reloadKey={overview.updatedAt}
         />
       }
     />

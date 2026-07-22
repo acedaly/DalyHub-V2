@@ -44,6 +44,8 @@ interface ProjectOverviewProps {
   readonly onRename: () => void;
   readonly tasksTab: ReactNode;
   readonly linksTab: ReactNode;
+  /** The PROJ-04 Activity tab — the shared DS-05 Timeline. Always the last tab. */
+  readonly activityTab: ReactNode;
   /** Controlled active tab (deep-linked via the Record Layout). */
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
@@ -59,6 +61,7 @@ export function ProjectOverview({
   onRename,
   tasksTab,
   linksTab,
+  activityTab,
   activeTabId,
   onTabChange,
 }: ProjectOverviewProps) {
@@ -174,6 +177,9 @@ export function ProjectOverview({
       tabs={[
         { id: "tasks", label: "Tasks", content: tasksTab },
         { id: "links", label: "Key links", content: linksTab },
+        // Activity is the FINAL tab, per the shared tab vocabulary (Activity and
+        // Settings always sit last, in that order — DESIGN_SYSTEM.md → Tabs).
+        { id: "activity", label: "Activity", content: activityTab },
       ]}
     />
   );

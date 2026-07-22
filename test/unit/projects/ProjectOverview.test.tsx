@@ -52,6 +52,7 @@ describe("ProjectOverview", () => {
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
         linksTab={<div>links-content</div>}
+        activityTab={<div>activity-content</div>}
       />,
     );
     expect(
@@ -87,6 +88,7 @@ describe("ProjectOverview", () => {
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
         linksTab={<div>links-content</div>}
+        activityTab={<div>activity-content</div>}
       />,
     );
     // The at-risk state pill (appears in header + panel).
@@ -109,6 +111,7 @@ describe("ProjectOverview", () => {
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
         linksTab={<div>links-content</div>}
+        activityTab={<div>activity-content</div>}
       />,
     );
     expect(
@@ -129,6 +132,7 @@ describe("ProjectOverview", () => {
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
         linksTab={<div>links-content</div>}
+        activityTab={<div>activity-content</div>}
       />,
     );
     expect(screen.getAllByText(/No tasks yet/).length).toBeGreaterThan(0);
@@ -148,12 +152,25 @@ describe("ProjectOverview", () => {
         onRename={onRename}
         tasksTab={<div>tasks-content</div>}
         linksTab={<div>links-content</div>}
+        activityTab={<div>activity-content</div>}
       />,
     );
+    // Tab order follows the shared vocabulary: Tasks, Key links, then Activity
+    // LAST (Activity/Settings always sit last — DESIGN_SYSTEM.md → Tabs).
+    const tabNames = screen
+      .getAllByRole("tab")
+      .map((tab) => tab.textContent?.trim());
+    expect(tabNames).toEqual(["Tasks", "Key links", "Activity"]);
+
     expect(screen.getByRole("tab", { name: "Tasks" })).toBeInTheDocument();
     const linksTab = screen.getByRole("tab", { name: "Key links" });
     fireEvent.click(linksTab);
     expect(screen.getByText("links-content")).toBeInTheDocument();
+
+    // The Activity tab lazily renders its content (the shared Timeline) only when
+    // selected, exactly like the other record tabs.
+    fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
+    expect(screen.getByText("activity-content")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Complete project" }));
     expect(onToggleComplete).toHaveBeenCalledWith(true);
