@@ -274,7 +274,10 @@ export class D1ProjectHealthRepository implements ProjectHealthRepository {
    * child tasks, via one UNION grouped by project. `MAX(occurred_at)` is idempotent
    * to duplicate activity subjects or repeated links, so neither can inflate a count
    * or produce an incorrect date. Only active `task.belongs_to_project` links map a
-   * task's activity to its project.
+   * task's activity to its project, AND the task entity must still be active — a
+   * soft-deleted task retains its structural parent link (for a faithful restore), so
+   * the entity join is what keeps its historical activity from inflating project
+   * momentum (matching the task-facts query's `te.deleted_at IS NULL`).
    */
   async #runActivityFacts(
     ids: readonly string[],
@@ -295,6 +298,9 @@ export class D1ProjectHealthRepository implements ProjectHealthRepository {
            FROM activities a
            JOIN activity_subjects s
              ON s.workspace_id = a.workspace_id AND s.activity_id = a.id
+           JOIN entities te
+             ON te.workspace_id = a.workspace_id AND te.id = s.entity_id
+                AND te.type = '${TASK}' AND te.deleted_at IS NULL
            JOIN entity_links tl
              ON tl.workspace_id = a.workspace_id AND tl.source_entity_id = s.entity_id
                 AND tl.type = '${TASK_BELONGS_TO_PROJECT}' AND tl.deleted_at IS NULL

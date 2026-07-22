@@ -229,6 +229,33 @@ describe("ProjectHealthRepository — staleness from Activity", () => {
     expect(health.state).toBe("stale");
   });
 
+  it("a soft-deleted child task's activity does not keep a project fresh (stays stale)", async () => {
+    const w = world(WS, "2026-07-01T00:00:00.000Z");
+    const project = await newProject(w);
+    // An old remaining task keeps the project open with stale activity.
+    await addTask(w, project.id, "Old remaining");
+
+    // A recently created/updated task — then soft-deleted. Its structural link is
+    // retained (for restore), so its recent activity must NOT count toward momentum.
+    w.clock.advance(18 * 86_400_000); // 2026-07-19
+    const recent = await addTask(w, project.id, "Recent then deleted");
+    await w.tasks.updateTask(recent.id, { dueDate: "2026-08-01" });
+    await w.spine.softDelete(recent.id);
+
+    const facts = await w.health.getProjectHealthFacts(
+      project.id,
+      "2026-07-20",
+    );
+    // The deleted task contributes neither to counts nor to latest activity.
+    expect(facts!.taskTotal).toBe(1);
+    expect(facts!.lastMeaningfulActivityAt?.toISOString()).toBe(
+      "2026-07-01T00:00:00.000Z",
+    );
+    expect(evaluateProjectHealth(facts!, contextAt("2026-07-20")).state).toBe(
+      "stale",
+    );
+  });
+
   it("aggregates latest activity without inflating from duplicate subjects/links", async () => {
     const w = world(WS, "2026-07-01T00:00:00.000Z");
     const project = await newProject(w);
