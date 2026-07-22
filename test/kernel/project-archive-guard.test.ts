@@ -210,3 +210,76 @@ describe("Spine mutations reject against an archived project", () => {
     expect(created.id).toBeTruthy();
   });
 });
+
+describe("Task-detail mutation guards are folded into the write itself (review item 4)", () => {
+  // These race a real `archive()` against a real Task-detail mutation on the
+  // SAME task, mirroring `project-settings.test.ts`'s own concurrent-create
+  // race test: rather than asserting a fixed winner (this single-process D1
+  // instance doesn't guarantee a specific interleaving), each test proves the
+  // invariant the SQL fold exists for — whichever settles, a task write can
+  // never succeed against a project this test observes as archived immediately
+  // after, and a rejection is always the SAME `TaskProjectArchivedError` the
+  // read-based guard already throws (the fold changes WHEN the guard is
+  // evaluated, never WHAT it throws).
+
+  it("archive() racing updateTask() on the same (completed) task never leaves an inconsistent result", async () => {
+    const { project, task } = await seedArchivedRestoredCompletedTaskProject();
+
+    const [archiveResult, updateResult] = await Promise.allSettled([
+      settings().archive(project.id),
+      tasks().updateTask(task.id, { title: "Renamed mid-race" }),
+    ]);
+
+    const finalSettings = await settings().get(project.id);
+    if (updateResult.status === "rejected") {
+      expect(updateResult.reason).toBeInstanceOf(TaskProjectArchivedError);
+    } else {
+      // The update committed while the project was not yet archived at ITS
+      // statement's own commit — legitimate only if archive did not win first.
+      expect(
+        finalSettings?.archivedAt === null ||
+          archiveResult.status === "rejected",
+      ).toBe(true);
+    }
+  });
+
+  it("archive() racing setWaiting() on the same (completed) task never leaves an inconsistent result", async () => {
+    const { project, task } = await seedArchivedRestoredCompletedTaskProject();
+
+    const [archiveResult, waitingResult] = await Promise.allSettled([
+      settings().archive(project.id),
+      tasks().setWaiting(task.id, { target: { kind: "text", note: "x" } }),
+    ]);
+
+    const finalSettings = await settings().get(project.id);
+    if (waitingResult.status === "rejected") {
+      expect(waitingResult.reason).toBeInstanceOf(TaskProjectArchivedError);
+    } else {
+      expect(
+        finalSettings?.archivedAt === null ||
+          archiveResult.status === "rejected",
+      ).toBe(true);
+    }
+  });
+
+  /** A project with exactly one COMPLETED direct Task — archivable (the guard
+   * only blocks on an ACTIVE incomplete direct Task) and, critically, a
+   * completed Task is unaffected by the separate "planning applies to open
+   * work only" rule, so `updateTask`/`setWaiting` failures can only be
+   * attributed to the archived-project guard under test, never a different
+   * business rule. */
+  async function seedArchivedRestoredCompletedTaskProject() {
+    const sp = spine();
+    const area = await sp.createArea({ title: "Area" });
+    const project = await sp.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await sp.createTask({
+      title: "T",
+      parent: { kind: "project", id: project.id },
+    });
+    await sp.complete(task.id);
+    return { project, task };
+  }
+});

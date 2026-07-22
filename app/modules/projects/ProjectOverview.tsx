@@ -179,7 +179,9 @@ export function ProjectOverview({
                 ? `${progress.percent}% — ${progress.summary} complete`
                 : "No tasks yet."}
             </p>
-            <ProjectHealthPanel health={health} />
+            {overview.healthVisible ? (
+              <ProjectHealthPanel health={health} />
+            ) : null}
           </div>
         ),
         metadata: summaryMetadata,

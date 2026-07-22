@@ -297,13 +297,19 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
     one transition; the archive guard ("no active unfinished direct Task") is
     enforced at commit time, closing the race PR #37 left open. An archived
     Project is enforced read-only at the `D1TaskRepository`/`D1SpineRepository`
-    boundary — covering Task creation, reopening, moving, detail edits, waiting
-    and planning (single + bulk) — so no individual route needs its own
-    bespoke check. Today's "Continue working" is restricted to
-    `workflowStatus: "active"`. Health visibility is a single shared rule
-    (`isHealthVisible`) consumed by the Project cards, the Project overview and
-    Today. The authoritative "recent"/health-staleness timestamp is the later
-    of the spine entity's and the settings row's `updated_at` (ADR-037 §37.2).
+    boundary — covering Task creation, reopening, moving, detail edits, waiting,
+    planning (single + bulk) and generic link/unlink — with the SQL-level guard
+    folded directly into the domain statement (not just a preceding read) for
+    every mutation except `completeTask`, which is deliberately read-guarded only
+    (completing a task can never itself recreate unfinished work). Today's
+    "Continue working" deliberately still uses `state: "open"` only —
+    restricting it to `workflowStatus: "active"` is deferred to Slice 3/4 (see
+    below), since no Settings UI exists yet to move a Project out of the
+    `"planned"` default. Health visibility is a single shared rule
+    (`isHealthVisible`) consumed by the Project cards, BOTH the Project overview
+    header and its detailed health panel, and Today. The authoritative
+    "recent"/health-staleness timestamp is the later of the spine entity's and
+    the settings row's `updated_at` (ADR-037 §37.2).
     See [ADR-037](../decisions/ARCHITECTURE_DECISIONS.md#adr-037-project-operational-details-remain-module-owned)
     and [PROJECTS_MODULE.md](../development/PROJECTS_MODULE.md).
   - ☐ **Slice 3 — Shared Project Settings UI and Archived collection.** The

@@ -111,17 +111,6 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-copy';
 UPDATE entities SET title = 'Website relaunch'
 WHERE workspace_id = 'local-dev-workspace' AND id = 'pr-website';
 
--- PROJ-05: mark 'pr-website' workflow status ACTIVE — the project the owner is
--- actively working on, so it keeps appearing in Today's "Continue working"
--- (which restricts to `workflowStatus: "active"`, ADR-037 §37.6) exactly as
--- every projects/today journey seeded before PROJ-05 expected. A brand-new
--- Project with no `project_details` row defaults to "planned" and would
--- otherwise never appear there until the PROJ-05 Settings UI ships.
-INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
-VALUES ('local-dev-workspace', 'pr-website', 'active', NULL, '2026-07-19T02:00:05.000Z');
-UPDATE project_details SET status = 'active', archived_at = NULL
-WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-website';
-
 -- The New-Project parent-search journey CREATES a project titled "Search-picked
 -- project". Remove any left by a prior run (its spine record and structural link too)
 -- so every run starts from the same known state — this project is otherwise open and

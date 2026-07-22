@@ -221,13 +221,20 @@ describe("ProjectOverview", () => {
         false,
       ],
     ] satisfies [string, Partial<SerializedProjectOverview>, boolean][])(
-      "hides the Health metadata for a %s project",
+      "hides BOTH the header Health metadata and the detailed health panel for a %s project",
       (_label, over, completed) => {
+        // An overdue-triggering fixture: if either the header metadata OR the
+        // summary `ProjectHealthPanel` rendered despite `healthVisible: false`,
+        // this state label and reason text would be visible.
         renderInRouter(
           <ProjectOverview
             overview={overview(over)}
             progress={projectProgress(1, 4)}
-            health={stubHealth({ taskTotal: 4, taskCompleted: 1 })}
+            health={stubHealth({
+              taskTotal: 4,
+              taskCompleted: 1,
+              overdueOpen: 1,
+            })}
             completed={completed}
             completionPending={false}
             onToggleComplete={() => {}}
@@ -238,6 +245,10 @@ describe("ProjectOverview", () => {
           />,
         );
         expect(screen.queryByText("Health")).not.toBeInTheDocument();
+        expect(screen.queryByText("At risk")).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("1 task past its due date"),
+        ).not.toBeInTheDocument();
       },
     );
   });

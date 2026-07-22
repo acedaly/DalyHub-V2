@@ -139,13 +139,17 @@ export async function loader({ context }: Route.LoaderArgs) {
     // ordering + bound are applied AT the database (`orderBy: "recent"`), so the
     // globally most-recently-active projects are selected, never a creation-ordered
     // page re-sorted in the loader. No new store, no separate Today project model.
-    // `workflowStatus: "active"` (PROJ-05 §7 / ADR-037) restricts this to Projects
-    // the owner has marked actively worked — Planned and On-hold Projects are
-    // `state: "open"` (incomplete, non-archived) but deliberately excluded here so
-    // they never read as ordinary "keep going" work.
+    //
+    // DEFERRED (PROJ-05 §7 / ADR-037 §37.6, corrective-PR review): restricting this
+    // to `workflowStatus: "active"` is the eventual intent, but every newly created
+    // Project defaults to `"planned"` and the Settings UI to change that (roadmap
+    // Slice 3) does not exist yet — turning this filter on now would make EVERY new
+    // Project invisible here with no user-facing way to activate it. `state: "open"`
+    // (incomplete, non-archived) stays the filter until Slice 3/4 ships a real
+    // status-selection path; `listProjects`' `workflowStatus` parameter is already
+    // implemented and tested for that later slice to use.
     const projectPage = await scope.projects.listProjects({
       state: "open",
-      workflowStatus: "active",
       orderBy: "recent",
       limit: RECENT_PROJECTS_COUNT,
     });

@@ -89,16 +89,20 @@ on-track projects show nothing extra. The loader gathers the facts for those bou
 projects in the same N+1-free read and evaluates with the owner-calendar clock; no
 other Today section is changed.
 
-### "Continue working" is workflow-status-restricted (PROJ-05, ADR-037 §37.6)
+### "Continue working" stays `state: "open"` only for now (PROJ-05, ADR-037 §37.7)
 
 The loader's `scope.projects.listProjects` call for this section passes
-`workflowStatus: "active"` alongside `state: "open"` — so a Planned or On-hold
-Project (both `state: "open"`, i.e. incomplete and non-archived) never appears as
-ordinary "keep going" work; only Projects the owner has actually marked **actively
-worked** do. Completed and archived Projects were already excluded by `state: "open"`
-and remain so. This is the SAME `workflowStatus` filter the Archived collection
-(PROJ-05 slice 3, not yet built) will use for its own query, and the same
-`isHealthVisible` rule every Project-health consumer shares.
+`state: "open"` (incomplete, non-archived) and does **not** yet add
+`workflowStatus: "active"`. Restricting it to actively-worked Projects is the
+eventual intent, but every newly created Project defaults to `"planned"` and the
+Settings UI that would let an owner switch one to `"active"` (roadmap Slice 3)
+does not exist yet — filtering on `"active"` today would make every new Project
+permanently unreachable from Today, with no way back in. `listProjects`'
+`workflowStatus` parameter is already implemented and tested; Today (and the
+Archived collection, PROJ-05 slice 3, not yet built) adopt it once a real
+status-selection path ships. Completed and archived Projects are already excluded
+by `state: "open"`. Health visibility uses the SAME `isHealthVisible` rule every
+Project-health consumer shares, independent of this deferral.
 
 ## The Task Drawer (TODAY-02)
 
