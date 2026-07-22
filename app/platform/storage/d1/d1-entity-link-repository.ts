@@ -116,6 +116,17 @@ export interface D1EntityLinkRepositoryOptions {
    * domain mutation is rolled back when the append fails. Never set in production.
    */
   readonly activityFault?: AtomicMutationFault;
+  /**
+   * TEST-ONLY deterministic race barrier, awaited immediately before the domain
+   * statement's batch executes in `create`/`unlink`/restore — i.e. AFTER every
+   * precondition read this method performs, but BEFORE the write. Lets a test
+   * pause a create/unlink/restore mid-flight, commit a concurrent `archive()`,
+   * then release it — deterministically reproducing the exact
+   * read-then-write interleaving the archived-task-parent guard exists to
+   * close, rather than relying on `Promise.allSettled` scheduling order. Never
+   * set in production.
+   */
+  readonly raceBarrier?: () => Promise<void>;
 }
 
 /** The link columns selected for every direct read, matching {@link EntityLinkRow}. */
@@ -178,6 +189,7 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
   readonly #newActivityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
   readonly #activityFault?: AtomicMutationFault;
+  readonly #raceBarrier?: () => Promise<void>;
 
   constructor(
     db: D1Database,
@@ -193,6 +205,15 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       options.activityIdGenerator ?? activitySecureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
     this.#activityFault = options.activityFault;
+    this.#raceBarrier = options.raceBarrier;
+  }
+
+  /** TEST-ONLY: await the injected race barrier, if any, immediately before a
+   * domain write executes. A no-op when `raceBarrier` was never set. */
+  async #awaitRaceBarrier(): Promise<void> {
+    if (this.#raceBarrier) {
+      await this.#raceBarrier();
+    }
   }
 
   async create(input: CreateEntityLinkInput): Promise<CreateEntityLinkResult> {
@@ -268,6 +289,8 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         this.#workspaceId,
         targetEntityId,
       );
+
+    await this.#awaitRaceBarrier();
 
     try {
       const model = buildActivityWriteModel(
@@ -436,6 +459,8 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         existing.target_entity_id,
       );
 
+    await this.#awaitRaceBarrier();
+
     const { changed, row } = await this.#recordLinkMutation(
       domainStatement,
       this.#linkEvent(LINK_UNLINKED, existing),
@@ -575,6 +600,8 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         this.#workspaceId,
         existing.target_entity_id,
       );
+
+    await this.#awaitRaceBarrier();
 
     const { changed, row } = await this.#recordLinkMutation(
       domainStatement,

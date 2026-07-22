@@ -31,6 +31,9 @@ export interface RepositoryTestOptions {
   actorContext?: ActivityActorContext;
   activityIdGenerator?: IdGenerator;
   activityFault?: AtomicMutationFault;
+  /** EntityLink-only: a test-only deterministic race barrier (see
+   * `D1EntityLinkRepositoryOptions.raceBarrier`). Ignored by other factories. */
+  raceBarrier?: () => Promise<void>;
 }
 
 /**

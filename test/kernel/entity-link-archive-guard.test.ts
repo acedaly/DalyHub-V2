@@ -4,6 +4,7 @@ import { EntityLinkEndpointArchivedError } from "~/kernel/entity-links";
 
 import {
   FakeClock,
+  countActivitiesOfType,
   makeContext,
   makeLinkRepository,
   makeProjectSettingsRepository,
@@ -11,6 +12,16 @@ import {
   resetTables,
   sequentialIds,
 } from "./support";
+
+/** A promise a test can resolve on demand, to deterministically pause a
+ * repository call at an injected race barrier. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
 
 /**
  * PROJ-05 corrective — review round 3: the generic `D1EntityLinkRepository`
@@ -94,6 +105,7 @@ describe("D1EntityLinkRepository folds the archived-task-parent guard into its o
   it("create() creates no row and no Activity when blocked", async () => {
     const { task, other } = await seedArchivedProjectWithTask();
     const lk = links();
+    const baseline = await countActivitiesOfType("entity_link.created");
 
     await expect(
       lk.create({
@@ -108,6 +120,7 @@ describe("D1EntityLinkRepository folds the archived-task-parent guard into its o
       type: "task.relates_to",
     });
     expect(page.items).toHaveLength(0);
+    expect(await countActivitiesOfType("entity_link.created")).toBe(baseline);
   });
 
   it("unlink() is rejected for an existing link once the parent project is archived, leaving the link intact", async () => {
@@ -202,16 +215,16 @@ describe("D1EntityLinkRepository folds the archived-task-parent guard into its o
   });
 });
 
-describe("archive() racing create()/unlink() never leaves an inconsistent result", () => {
-  // Mirrors `project-settings.test.ts`'s own concurrent-create race test and
-  // `project-archive-guard.test.ts`'s Task-detail race tests: rather than
-  // asserting a fixed winner (this single-process D1 instance doesn't
-  // guarantee a specific interleaving), each test proves the invariant the
-  // SQL fold exists for — a link create/unlink can never succeed once the
-  // project is archived, and a rejection is always the SAME typed
-  // `EntityLinkEndpointArchivedError`, never a raw/unexpected failure.
+describe("a concurrent archive() committing mid-mutation deterministically rejects create()/unlink()/restore", () => {
+  // A test-only `raceBarrier` (awaited by the repository immediately AFTER its
+  // own precondition reads but BEFORE the domain write) reproduces the EXACT
+  // old vulnerable interleaving deterministically, rather than relying on
+  // `Promise.allSettled` scheduling order: start the mutation, let it pause at
+  // the barrier, commit a concurrent `archive()` and CONFIRM it committed,
+  // THEN release the barrier so the paused write executes against the now-
+  // archived state and observes the guard.
 
-  it("archive() racing create()", async () => {
+  it("archive() committing between the read and the write deterministically rejects create()", async () => {
     const sp = spine();
     const area = await sp.createArea({ title: "Area" });
     const project = await sp.createProject({
@@ -224,30 +237,42 @@ describe("archive() racing create()/unlink() never leaves an inconsistent result
     });
     await sp.complete(task.id);
     const other = await sp.createArea({ title: "Other" });
-    const lk = links();
     const svc = settings();
+    const baseline = await countActivitiesOfType("entity_link.created");
 
-    const [archiveResult, createResult] = await Promise.allSettled([
-      svc.archive(project.id),
-      lk.create({
-        sourceEntityId: task.id,
-        targetEntityId: other.id,
-        type: "task.relates_to",
-      }),
-    ]);
+    const gate = deferred();
+    const barriered = makeLinkRepository(makeContext(WS), {
+      clock: new FakeClock().now,
+      idGenerator: sequentialIds("racelnk"),
+      raceBarrier: () => gate.promise,
+    });
 
-    if (createResult.status === "rejected") {
-      expect(createResult.reason).toBeInstanceOf(
-        EntityLinkEndpointArchivedError,
-      );
-    } else {
-      // The create committed before the archive did — legitimate ordering.
-      expect(createResult.value.outcome).toBe("created");
-    }
-    expect(["fulfilled", "rejected"]).toContain(archiveResult.status);
+    const createPromise = barriered.create({
+      sourceEntityId: task.id,
+      targetEntityId: other.id,
+      type: "task.relates_to",
+    });
+
+    // The archive commits WHILE create() is paused at the barrier.
+    const settled = await svc.archive(project.id);
+    expect(settled.changed).toBe(true);
+
+    // Release the paused write: it now executes against the archived state.
+    gate.resolve();
+
+    await expect(createPromise).rejects.toThrow(
+      EntityLinkEndpointArchivedError,
+    );
+
+    const page = await barriered.listForEntity(task.id, {
+      direction: "both",
+      type: "task.relates_to",
+    });
+    expect(page.items).toHaveLength(0);
+    expect(await countActivitiesOfType("entity_link.created")).toBe(baseline);
   });
 
-  it("archive() racing unlink()", async () => {
+  it("archive() committing between the read and the write deterministically rejects unlink()", async () => {
     const sp = spine();
     const area = await sp.createArea({ title: "Area" });
     const project = await sp.createProject({
@@ -259,27 +284,92 @@ describe("archive() racing create()/unlink() never leaves an inconsistent result
       parent: { kind: "project", id: project.id },
     });
     const other = await sp.createArea({ title: "Other" });
-    const lk = links();
-    const { link } = await lk.create({
+    // Set up the link with a plain (unbarriered) repository — only the
+    // unlink() attempt under test should pause at the barrier.
+    const setupLk = links("setuplnk");
+    const { link } = await setupLk.create({
       sourceEntityId: task.id,
       targetEntityId: other.id,
       type: "task.relates_to",
     });
     await sp.complete(task.id);
     const svc = settings();
+    const baseline = await countActivitiesOfType("entity_link.unlinked");
 
-    const [archiveResult, unlinkResult] = await Promise.allSettled([
-      svc.archive(project.id),
-      lk.unlink(link.id),
-    ]);
+    const gate = deferred();
+    const barriered = makeLinkRepository(makeContext(WS), {
+      clock: new FakeClock().now,
+      idGenerator: sequentialIds("raceunlnk"),
+      raceBarrier: () => gate.promise,
+    });
 
-    if (unlinkResult.status === "rejected") {
-      expect(unlinkResult.reason).toBeInstanceOf(
-        EntityLinkEndpointArchivedError,
-      );
-    } else {
-      expect(unlinkResult.value.outcome).toBe("unlinked");
-    }
-    expect(["fulfilled", "rejected"]).toContain(archiveResult.status);
+    const unlinkPromise = barriered.unlink(link.id);
+
+    const settled = await svc.archive(project.id);
+    expect(settled.changed).toBe(true);
+
+    gate.resolve();
+
+    await expect(unlinkPromise).rejects.toThrow(
+      EntityLinkEndpointArchivedError,
+    );
+
+    const stillActive = await setupLk.getById(link.id);
+    expect(stillActive?.deletedAt).toBeNull();
+    expect(await countActivitiesOfType("entity_link.unlinked")).toBe(baseline);
+  });
+
+  it("archive() committing between the read and the write deterministically rejects a create()-triggered restore of a soft-deleted link", async () => {
+    const sp = spine();
+    const area = await sp.createArea({ title: "Area" });
+    const project = await sp.createProject({
+      title: "P",
+      parent: { kind: "area", id: area.id },
+    });
+    const task = await sp.createTask({
+      title: "T",
+      parent: { kind: "project", id: project.id },
+    });
+    const other = await sp.createArea({ title: "Other" });
+    // Create then unlink (soft-delete) the exact relationship BEFORE archiving
+    // is even possible, using a plain (unbarriered) repository.
+    const setupLk = links("setuplnk2");
+    const { link } = await setupLk.create({
+      sourceEntityId: task.id,
+      targetEntityId: other.id,
+      type: "task.relates_to",
+    });
+    await setupLk.unlink(link.id);
+    await sp.complete(task.id);
+    const svc = settings();
+    const baseline = await countActivitiesOfType("entity_link.restored");
+
+    const gate = deferred();
+    const barriered = makeLinkRepository(makeContext(WS), {
+      clock: new FakeClock().now,
+      idGenerator: sequentialIds("racerestore"),
+      raceBarrier: () => gate.promise,
+    });
+
+    // `create()` on the SAME (source, target, type) reconciles by restoring
+    // the existing soft-deleted row in place — exercising `#restoreWithActivity`.
+    const recreatePromise = barriered.create({
+      sourceEntityId: task.id,
+      targetEntityId: other.id,
+      type: "task.relates_to",
+    });
+
+    const settled = await svc.archive(project.id);
+    expect(settled.changed).toBe(true);
+
+    gate.resolve();
+
+    await expect(recreatePromise).rejects.toThrow(
+      EntityLinkEndpointArchivedError,
+    );
+
+    const stillDeleted = await setupLk.getById(link.id);
+    expect(stillDeleted?.deletedAt).not.toBeNull();
+    expect(await countActivitiesOfType("entity_link.restored")).toBe(baseline);
   });
 });
