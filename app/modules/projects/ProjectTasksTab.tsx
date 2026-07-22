@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useSearchParams } from "react-router";
+import { useFetcher, useLocation, useSearchParams } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
@@ -55,14 +55,44 @@ type TasksPageData = {
 };
 
 /**
+ * True when two location searches differ ONLY in the `?drawer=` param — i.e. the
+ * navigation opened, closed or swapped the task Drawer and changed nothing about
+ * which tasks the list should show. Everything else (the `?tasks=` filter, or a
+ * fully-identical URL — the signature of an in-place mutation revalidation) is NOT
+ * drawer-only.
+ */
+function isDrawerOnlyChange(prev: string, next: string): boolean {
+  if (prev === next) {
+    return false;
+  }
+  const a = new URLSearchParams(prev);
+  const b = new URLSearchParams(next);
+  const drawerDiffers = a.get("drawer") !== b.get("drawer");
+  a.delete("drawer");
+  b.delete("drawer");
+  return drawerDiffers && a.toString() === b.toString();
+}
+
+/**
  * Accumulate keyset pages of a project's tasks behind "Load more" WITHOUT
  * navigating — a fetcher hits the dedicated `/projects/:id/tasks` endpoint, so the
  * record route's `?drawer=task:<id>` state, scroll position and focus are never
  * disturbed by loading more rows (pagination state and drawer state stay wholly
- * independent). The loader's first page seeds the list; changing the task filter
- * (or any loader re-run — reload, Back/Forward, a mutation's revalidation) hands
- * down a fresh first page and cursor, which RESETS the accumulation. Duplicate ids
- * are collapsed defensively so a task card can never render twice.
+ * independent). The loader's first page seeds the list; duplicate ids are collapsed
+ * defensively so a task card can never render twice.
+ *
+ * Reset policy — the accumulation is dropped when (and only when) the task set may
+ * have changed underneath it:
+ *   - the `?tasks=` filter changed (a different result set), OR
+ *   - the loader re-ran with the URL otherwise UNCHANGED — the signature of a
+ *     **mutation revalidation** (a task was completed, edited or created via the
+ *     shared Drawer / the create form, whose action triggers a revalidation of this
+ *     record loader). Dropping the appended pages here means a completed/edited/new
+ *     task is RECONCILED from the authoritative fresh first page — no stale row
+ *     lingers, and the roll-up and list stay consistent.
+ * It is NOT dropped when the ONLY thing that changed was the `?drawer=` param
+ * (opening/closing/swapping the Task Drawer), so pagination and drawer state stay
+ * fully independent.
  */
 function useProjectTaskPagination(
   projectId: string,
@@ -71,21 +101,39 @@ function useProjectTaskPagination(
   taskState: TaskState,
 ) {
   const fetcher = useFetcher<TasksPageData>();
+  const location = useLocation();
   const [appended, setAppended] = useState<SerializedProjectTask[]>([]);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [loadFailed, setLoadFailed] = useState(false);
   const processed = useRef<TasksPageData | null>(null);
+  const prevFirstPage = useRef(firstPage);
+  const prevSearch = useRef(location.search);
 
-  // Reset when the QUERY that defines the task set changes — the state filter or the
-  // first page's cursor — NOT on every loader re-run. Opening/closing the task Drawer
-  // only toggles the `?drawer=` param; keeping the loaded pages across that keeps
-  // pagination and drawer state fully independent (neither resets the other).
   useEffect(() => {
+    // `firstPage` is a loader-provided prop, so a new identity means the record
+    // loader actually re-ran; a plain local re-render (load-more state) leaves it
+    // unchanged and must not reset anything.
+    if (prevFirstPage.current === firstPage) {
+      prevSearch.current = location.search;
+      return;
+    }
+    const drawerOnly = isDrawerOnlyChange(prevSearch.current, location.search);
+    prevFirstPage.current = firstPage;
+    prevSearch.current = location.search;
+    if (drawerOnly) {
+      // Opening/closing the Task Drawer — keep the accumulated pages.
+      return;
+    }
+    // A filter change OR a mutation revalidation — reconcile from the fresh page.
     setAppended([]);
     setCursor(initialCursor);
     setLoadFailed(false);
-    processed.current = null;
-  }, [initialCursor, taskState]);
+    // Mark the current fetcher payload as already consumed rather than clearing the
+    // marker: a stale `fetcher.data` from a prior "Load more" persists across this
+    // reset, and nulling the marker would let the fold effect re-append it (re-adding
+    // the page we just dropped). The next real "Load more" produces a new payload.
+    processed.current = fetcher.data ?? null;
+  }, [firstPage, location.search, initialCursor, fetcher.data]);
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) {

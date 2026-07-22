@@ -98,8 +98,13 @@ same pattern the shared task record surface uses).
   task opens the **shared `TaskRecordDrawer`** (ADR-033) over the project
   (`?drawer=task:<id>`). "Load more" fetches the dedicated `/projects/:id/tasks` endpoint
   with `useFetcher().load` so the `?drawer=` param, scroll and focus are **never**
-  disturbed by loading more rows; pages are appended and de-duplicated, and the reset
-  keys on the task filter (not the drawer), keeping pagination and drawer state fully
+  disturbed by loading more rows; pages are appended and de-duplicated. The
+  accumulation is **reconciled** — dropped back to the fresh first page — when the task
+  set may have changed underneath it: a `?tasks=` filter change, OR a **mutation
+  revalidation** (a task completed / edited / created via the Drawer or the create form,
+  whose action revalidates this record loader with the URL unchanged). It is NOT reset
+  when only the `?drawer=` param changes (opening/closing the Drawer), so a completed or
+  edited task never lingers as a stale row while pagination and drawer state stay fully
   independent.
 - **Key links tab** — [`ProjectLinksTab.tsx`](../../app/modules/projects/ProjectLinksTab.tsx):
   the structural Area/Goal relationships + the DS-06 `EntityLinkPicker` over
