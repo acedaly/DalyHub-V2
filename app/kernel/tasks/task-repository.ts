@@ -22,10 +22,12 @@ import type {
   CompleteTaskResult,
   GetTaskOptions,
   ListPlanningTasksInput,
+  ListProjectTasksInput,
   ListTasksInput,
   ListWaitingTasksInput,
   PlanTaskInput,
   PlanTaskResult,
+  ProjectTaskListPage,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
@@ -62,6 +64,25 @@ export interface TaskRepository {
    * a safe default and maximum page size. Never an unbounded "load everything".
    */
   listTasks(input?: ListTasksInput): Promise<TaskListPage>;
+
+  /**
+   * List the tasks belonging to ONE Project (PROJ-01) as bounded, deterministic
+   * summaries — the efficient query behind a project's task list. Resolves every
+   * task in a single bounded, workspace-scoped statement (no N+1, no per-task
+   * `getTask`); never loads every workspace task to filter in the client. Tasks are
+   * matched by their active `task.belongs_to_project` parent link to `projectId`, so
+   * a wrong-kind or missing id simply yields no tasks (never a cross-workspace
+   * disclosure). Completed tasks are included per `state` (default `open`), waiting
+   * tasks are included with their waiting representation, and ordering is
+   * deterministic `(createdAt, id)` — a stable keyset so the returned page carries
+   * an opaque `nextCursor` (bound to workspace + project + state) that resumes
+   * exactly after the last row, making every matching task reachable without an
+   * unbounded query, a skip or a duplicate.
+   */
+  listProjectTasks(
+    projectId: string,
+    input?: ListProjectTasksInput,
+  ): Promise<ProjectTaskListPage>;
 
   /**
    * List the tasks the planning surface needs (TODAY-04), bounded per band so the

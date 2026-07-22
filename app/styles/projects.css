@@ -1,0 +1,81 @@
+/**
+ * PROJ-01 — Projects module styles.
+ *
+ * Composes ONLY DS-01 tokens (no hard-coded visual values) and reuses the shared
+ * surfaces (CollectionLayout, Card, Record Layout, Drawer, forms, EmptyState). These
+ * rules cover the few module-specific bits of chrome: the restrained state segment,
+ * the project-task toolbar, the roll-up progress line and the not-found panel.
+ */
+
+/* Anchors styled as shared buttons (DrawerTrigger / not-found links use `.dh-btn`). */
+a.dh-btn {
+  text-decoration: none;
+}
+
+/* The restrained, accessible state segment (Open / Completed / All). */
+.dh-segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-1);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-segmented__option {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  text-decoration: none;
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-segmented__option:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-segmented__option[aria-current="true"] {
+  color: #fff;
+  background: var(--dh-color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-segmented__option {
+    transition: none;
+  }
+}
+
+/* The project overview's Tasks tab toolbar: filter on the left, "Add task" trailing. */
+.dh-project-tasks__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  margin-bottom: var(--dh-space-4);
+}
+
+/* The roll-up progress line in the record Summary. */
+.dh-project-overview__progress {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-project-overview__progress-label {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+/* The calm not-found / error panel for an unknown project. */
+.dh-project-not-found {
+  padding: var(--dh-space-8) var(--dh-space-4);
+}

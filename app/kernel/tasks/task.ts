@@ -183,6 +183,46 @@ export type TaskListPage = {
   readonly items: readonly TaskListItem[];
 };
 
+/** The completion filter for a project's task list (PROJ-01). */
+export type TaskStateFilter = "open" | "completed" | "all";
+
+/**
+ * Options for listing the tasks belonging to one Project (PROJ-01). Bounded and
+ * workspace-scoped — never "load every workspace task and filter in the client".
+ * Waiting tasks are INCLUDED (a project shows its blocked work, surfaced with its
+ * waiting representation, unlike Today's focus which excludes them).
+ */
+export type ListProjectTasksInput = {
+  /** Completion filter. Defaults to `open` (a project shows active work first). */
+  readonly state?: TaskStateFilter;
+  /** Page size, clamped to a safe maximum; defaults to a safe page size. */
+  readonly limit?: number;
+  /**
+   * An opaque cursor from a previous page's `nextCursor`, to fetch the following
+   * page. It is bound to the workspace, project id and `state` filter it was
+   * issued for; a cursor that does not match the current query scope is rejected
+   * (`InvalidSpineCursorError`), never silently reinterpreted. Omit for the first
+   * page.
+   */
+  readonly cursor?: string;
+};
+
+/**
+ * A bounded page of a project's task summaries (PROJ-01), with a keyset cursor to
+ * fetch the next page. The roll-up totals shown against the project stay the
+ * SpineRepository's authority — this page bounds only how many task ROWS load at
+ * once, never what the project's completion counts report.
+ */
+export type ProjectTaskListPage = {
+  readonly items: readonly TaskListItem[];
+  /**
+   * An opaque cursor to fetch the next page, or `null` when this is the last page
+   * (no more matching tasks). Pass it back as `ListProjectTasksInput.cursor`. It
+   * is bound to this query's workspace, project id and `state` filter.
+   */
+  readonly nextCursor: string | null;
+};
+
 /**
  * Options for the planning query (TODAY-04). Unlike `listTasks` — a single generic,
  * due-date-ordered page — the planning view must NEVER lose the owner's actual

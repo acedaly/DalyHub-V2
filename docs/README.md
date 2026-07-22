@@ -52,6 +52,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/FEEDBACK_AND_INSPECTOR.md`](development/FEEDBACK_AND_INSPECTOR.md) | The Global Interaction Layer (DS-10): the Notification framework, the Undo framework, the Operation lifecycle (one Feedback platform + the hidden `useFeedback` API) and the shared Inspector — the model/runtime layers, calm queue/undo/operation semantics, the URL-driven resizable/sheet Inspector reusing the DS-03 modal machinery, accessibility, integration points, and the development demonstration. |
 | [`development/SETTINGS_LAYOUT.md`](development/SETTINGS_LAYOUT.md) | The Shared Settings layout (DS-10b): the structure primitives (`SettingsLayout`/`SettingsGroup`/`SettingsRow`), the two accessible-naming patterns, declared change behaviour (immediate via `useImmediateSetting`, autosave and explicit-save via DS-06), the dangerous-action contract (`DangerousAction`/`ConfirmationDialog` reusing the DS-03 modal machinery, typed confirmation, failure/retry), where Settings fits across routes/Inspectors/records, accessibility, and the development demonstration. |
 | [`development/ACCESSIBILITY_RESPONSIVE.md`](development/ACCESSIBILITY_RESPONSIVE.md) | The Accessibility & Responsive Baseline (DS-11): keyboard conventions, responsive rules (320px→ultra-wide, container queries, safe-area, touch targets), accessibility standards (landmarks, headings, live regions, forced-colors, reduced motion), the three-layer testing strategy (jsx-a11y · component/contrast tests · the axe-core + no-overflow + keyboard Playwright gate), and the requirements every future module inherits and must keep. |
+| [`development/PROJECTS_MODULE.md`](development/PROJECTS_MODULE.md) | The Projects module (PROJ-01): data ownership (the spine authority + the read-only `ProjectRepository` projection, `getRollup` as the progress source of truth, `listProjectTasks`), the routes, the shared composition (collection · overview · Tasks/Key-links tabs · create/rename forms), the re-homed shared task-record surface (ADR-033), the Today integration, testing, and what remains for PROJ-02–06. |
 
 ---
 
@@ -93,7 +94,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
         ├── SHARED_SEARCH.md
         ├── COMMAND_PALETTE.md
         ├── FEEDBACK_AND_INSPECTOR.md
-        └── SETTINGS_LAYOUT.md
+        ├── SETTINGS_LAYOUT.md
+        └── PROJECTS_MODULE.md
 ```
 
 > Beyond `docs/`, the repository root now also carries the application itself

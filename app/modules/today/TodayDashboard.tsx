@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useFetcher, useSearchParams } from "react-router";
+import { Link, useFetcher, useNavigate, useSearchParams } from "react-router";
 
 import { Card, CardCollection, closeActiveSwipeTray } from "~/shared/card";
 import type { CardAction, CardProps } from "~/shared/card";
@@ -58,20 +58,35 @@ import {
 import { useTodayRovingFocus } from "./keyboard/useTodayRovingFocus";
 import { UPCOMING_KIND } from "./fixtures";
 import type {
-  ActiveProject,
   RecentNote,
   TimelineEntry,
   TodayData,
   UpcomingItem,
 } from "./fixtures";
 import type { PlanActionData } from "./routes/plan";
-import { formatCalendarDate } from "./task/task-view";
+import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type {
   PlanningData,
   PlanningTaskItem,
   PlanTargets,
 } from "./task/planning-view";
 import type { WaitingSummary } from "./task/waiting-view";
+
+/**
+ * A recently-active REAL project for the "Continue working" section (PROJ-01). A
+ * plain display shape derived by the loader from the project read model — Today never
+ * imports the Projects module (the module import boundary forbids it). Opening one
+ * navigates to the canonical `/projects/:id` route, the same record a project opened
+ * from the Projects module lands on.
+ */
+export type RecentProjectItem = {
+  readonly id: string;
+  readonly title: string;
+  readonly areaLabel: string | null;
+  readonly completed: boolean;
+  readonly taskTotal: number;
+  readonly taskCompleted: number;
+};
 
 export type TodayDashboardProps = {
   /**
@@ -96,6 +111,11 @@ export type TodayDashboardProps = {
    */
   readonly waiting?: WaitingSummary;
   /**
+   * The recently-active REAL projects for "Continue working" (PROJ-01). Replaces the
+   * former fixture seam; opening one navigates to the canonical project record route.
+   */
+  readonly recentProjects?: readonly RecentProjectItem[];
+  /**
    * Persist a task's completion (TODAY-02). Completing a task on Today writes through
    * to the same task the Drawer edits; a revalidation keeps them consistent.
    */
@@ -108,12 +128,6 @@ export type TodayDashboardProps = {
     ids: readonly string[],
     scheduledDate: string | null,
   ) => void;
-};
-
-const PROJECT_STATUS: Record<ActiveProject["status"], CardProps["status"]> = {
-  active: { label: "Active", tone: "info" },
-  paused: { label: "Paused", tone: "warning" },
-  blocked: { label: "Blocked", tone: "danger" },
 };
 
 /** The planning section a card belongs to (drives its contextual quick actions). */
@@ -218,12 +232,14 @@ export function TodayDashboard({
   todayIso,
   planning,
   waiting,
+  recentProjects = [],
   onCompleteTask,
   onPlan,
 }: TodayDashboardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { openDrawer, closeDrawer, isOpen: drawerOpen } = useDrawer();
   const { notifySuccess, notifyError } = useFeedback();
+  const navigate = useNavigate();
 
   // Opening any record closes an open swipe action tray (TODAY-06): a revealed tray
   // must never linger behind the Drawer that a tap on it (or a keyboard command)
@@ -749,18 +765,35 @@ export function TodayDashboard({
     };
   };
 
-  const projectCard = (project: ActiveProject): CardProps => ({
-    id: project.id,
-    title: project.title,
-    typeLabel: "Project",
-    icon: <EntityIcon type="project" />,
-    accent: "accent",
-    status: PROJECT_STATUS[project.status],
-    context: { label: project.area },
-    progress: { value: project.progress },
-    presentation: "grid",
-    ...openProps(`project:${project.id}`),
-  });
+  // A real project card (PROJ-01): opens the canonical `/projects/:id` record route
+  // through normal client navigation (a real link + SPA open) — the SAME record a
+  // project opened from the Projects module lands on, never a fixture drawer.
+  const projectCard = (project: RecentProjectItem): CardProps => {
+    const href = `/projects/${encodeURIComponent(project.id)}`;
+    return {
+      id: project.id,
+      title: project.title,
+      typeLabel: "Project",
+      icon: <EntityIcon type="project" />,
+      accent: "accent",
+      status: project.completed
+        ? { label: "Completed", tone: "success" }
+        : { label: "Open", tone: "neutral" },
+      context: project.areaLabel ? { label: project.areaLabel } : undefined,
+      progress:
+        project.taskTotal > 0
+          ? {
+              value: project.taskCompleted,
+              max: project.taskTotal,
+              label: `${project.taskCompleted} of ${project.taskTotal} tasks`,
+            }
+          : undefined,
+      presentation: "grid",
+      href,
+      onOpen: () => navigate(href),
+      openAriaLabel: `Open ${project.title}`,
+    };
+  };
 
   const noteCard = (note: RecentNote): CardProps => ({
     id: note.id,
@@ -957,15 +990,15 @@ export function TodayDashboard({
           )}
         </TodaySection>
 
-        {/* Continue working (fixture projects) */}
+        {/* Continue working — REAL projects (PROJ-01), opening the canonical route. */}
         <TodaySection
           id="today-projects"
           label="Continue working"
-          count={data.projects.length}
+          count={recentProjects.length}
         >
-          {data.projects.length > 0 ? (
+          {recentProjects.length > 0 ? (
             <CardCollection
-              items={data.projects}
+              items={recentProjects}
               getItemId={(project) => project.id}
               renderCard={(project) => <Card {...projectCard(project)} />}
               ariaLabel="Recently active projects"

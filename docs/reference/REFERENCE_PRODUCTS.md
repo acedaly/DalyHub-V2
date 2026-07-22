@@ -414,6 +414,29 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Projects overview evaluation (PROJ-01)
+
+> The reuse evaluation behind [ADR-034](../decisions/ARCHITECTURE_DECISIONS.md#adr-034-the-projects-module--a-read-only-projection-over-the-spine-no-second-project-model) and [ADR-033](../decisions/ARCHITECTURE_DECISIONS.md#adr-033-re-homing-the-task-record-surface-to-a-shared-module-boundary). **No new runtime or dev dependency was added** — PROJ-01 is composition of the already-built shared design system + a read-only projection over the FND-07 spine. No third-party code was copied.
+
+- **Products studied (🔴 study-only, already catalogued): Things 3, Linear, Notion, Craft.** Interaction-model inspiration only, for a **project overview** surface: Things' calm project header + a quiet task list and unobtrusive progress; Linear's project view (summary + tasks + restrained state control, no dashboard tiles or KPI cards); Notion/Craft's record-as-a-page composition. Only the well-known *idea* of a calm record-overview (header · derived summary · tasks · links) was reused; **no code reuse** (closed source). Nothing new to research beyond the catalogued Record-Layout/Card/Drawer entries.
+- **Reuse evaluation — the project surface and its read model.**
+  - [x] Problem is a commodity worth reusing? **No** — a project overview is domain composition over DalyHub's own spine/Design System; there is nothing generic to depend on. A read-only projection resolving Area/Goal + task counts in one query is bespoke SQL over the existing schema.
+  - [x] Checked REFERENCE_PRODUCTS.md — the Record Layout (DS-02), Card (DS-04), Drawer (DS-03), Forms (DS-06) and task-record (TODAY-02) entries already cover the building blocks; PROJ-01 reuses them unchanged.
+  - [x] Licence read — n/a (no dependency taken).
+  - [x] Candidates reviewed for the state filter: the DS-07 `FilterBar` clause-builder (already in the repo). Chosen instead: a restrained URL-reflected segment for the single mutually-exclusive server-side state (Open/Completed/All), with the DS-07 clause-builder reserved for the richer, composable filtering PROJ-02 (health/area/date) needs. No new dependency either way.
+  - [x] Footprint acceptable — the projection is a small kernel contract + D1 adapter (mirroring the TODAY-02 Task repository); no bundle cost.
+  - [x] Fits our stack, accessibility bar and Design System — the spine stays the authority; every surface is a shared component; the DS-11 baseline is inherited.
+  - [x] No telemetry / no privacy concern — workspace-scoped reads only.
+  - [x] Provenance — original DalyHub code; no snippet adapted, so no attribution and no `THIRD_PARTY_NOTICES.md` change.
+  - [x] Covered by tests — pure view-model, component, Workers/D1 integration, route integration and a real-D1 Playwright journey.
+  - [x] REFERENCE_PRODUCTS.md updated (this entry).
+- **Reused, not rebuilt (in-house shared layer).** The DS-02 Record Layout, the one DS-04 Card, the DS-03 Drawer + focus machinery, the DS-06 forms + EntityLink picker, the DS-10 Feedback platform, the PX-02 CollectionLayout + EmptyState, the DS-01 tokens, the DS-11 baseline, the FND-07 spine and the shared task-record surface (ADR-033) are all consumed **unchanged**.
+- **Rejected.** A second project table with cached counts/percentages (FND-07 — progress is derived); a per-project `getRollup` in the collection loop (N+1); the DS-07 clause-builder for a single mutually-exclusive state (a segment is calmer; the clause-builder fits PROJ-02); a Projects-only task Drawer (ADR-033 — reuse the one shared record).
+- **Licence implications.** None — no dependency added, no third-party code copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Build** the Projects module + the read-only projection on the existing stack; **reuse** every shared component and the spine; **add no dependency**. See [ADR-034](../decisions/ARCHITECTURE_DECISIONS.md#adr-034-the-projects-module--a-read-only-projection-over-the-spine-no-second-project-model).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

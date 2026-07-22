@@ -27,6 +27,9 @@ export {
   type UpdateTaskResult,
   type ListTasksInput,
   type ListPlanningTasksInput,
+  type ListProjectTasksInput,
+  type ProjectTaskListPage,
+  type TaskStateFilter,
   type TaskListItem,
   type TaskListPage,
   type SetWaitingInput,
@@ -60,6 +63,19 @@ export {
 } from "./task-identifiers";
 
 export type { TaskRepository } from "./task-repository";
+
+export {
+  PROJECT_TASK_CURSOR_VERSION,
+  encodeProjectTaskCursor,
+  decodeProjectTaskCursor,
+  decodeProjectTaskCursorForScope,
+  projectTaskCursorScopeMatches,
+} from "./task-project-cursor";
+export type {
+  ProjectTaskCursorPosition,
+  ProjectTaskCursorScope,
+  DecodedProjectTaskCursor,
+} from "./task-project-cursor";
 
 export {
   TaskError,

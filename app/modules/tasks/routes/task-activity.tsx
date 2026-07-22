@@ -30,26 +30,18 @@ import {
   createActivityDescriptorMap,
   DEFAULT_ACTIVITY_DESCRIPTORS,
   toActivityItems,
-  type ActivityItem,
   type ActivityTypeDescriptor,
   type ResolvedEntity,
 } from "~/shared/activity-feed/model";
+import type {
+  SerializedActivityItem,
+  TaskActivityPage,
+} from "~/shared/task-record/contract";
 
 import type { Route } from "./+types/task-activity";
 
 /** How many events a single Timeline page loads. Bounded — never "load everything". */
 const PAGE_SIZE = 30;
-
-/** The JSON-safe shape of an `ActivityItem` (its only `Date` → ISO string). */
-export type SerializedActivityItem = Omit<ActivityItem, "occurredAt"> & {
-  readonly occurredAt: string;
-};
-
-export interface TaskActivityPage {
-  readonly items: readonly SerializedActivityItem[];
-  readonly nextCursor: string | null;
-  readonly hasMore: boolean;
-}
 
 /** Task-specific descriptors layered over the kernel lifecycle defaults. */
 const TASK_DESCRIPTORS: Record<string, ActivityTypeDescriptor> = {

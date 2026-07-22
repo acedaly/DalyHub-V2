@@ -1,0 +1,20 @@
+/**
+ * The shared "Load more" affordance for keyset-paginated collections (PROJ-01).
+ *
+ * A centred, calm control that sits below a CardCollection. Tokens only — spacing,
+ * colour and type come from the design system, never raw values.
+ */
+
+.dh-load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin-top: var(--dh-space-4);
+}
+
+.dh-load-more__error {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}

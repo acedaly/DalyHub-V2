@@ -156,6 +156,16 @@ function renderToday(options: RenderOptions = {}) {
           todayIso="2026-07-19"
           planning={planning}
           waiting={options.waiting}
+          recentProjects={[
+            {
+              id: "p-real",
+              title: "DalyHub V2",
+              areaLabel: "Career",
+              completed: false,
+              taskTotal: 8,
+              taskCompleted: 3,
+            },
+          ]}
           onPlan={options.onPlan}
           onCompleteTask={options.onCompleteTask}
         />

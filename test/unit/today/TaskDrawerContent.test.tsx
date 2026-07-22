@@ -27,7 +27,7 @@ import {
 import { DrawerProvider } from "~/shared/drawer";
 import { FeedbackProvider } from "~/shared/feedback";
 import { TaskDrawerContent } from "~/modules/today/task/TaskDrawerContent";
-import type { SerializedTaskView } from "~/modules/today/task/task-view";
+import type { SerializedTaskView } from "~/shared/task-record/task-view";
 
 const TASK: SerializedTaskView = {
   id: "t1",

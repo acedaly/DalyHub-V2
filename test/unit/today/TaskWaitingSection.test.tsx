@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-import { TaskWaitingSection } from "~/modules/today/task/TaskWaitingSection";
-import type { SerializedTaskWaiting } from "~/modules/today/task/task-view";
+import { TaskWaitingSection } from "~/shared/task-record/TaskWaitingSection";
+import type { SerializedTaskWaiting } from "~/shared/task-record/task-view";
 
 // TODAY-03 — the Task Drawer waiting control. Time is injected (`nowMs`) so the
 // elapsed label is deterministic and never flaky.

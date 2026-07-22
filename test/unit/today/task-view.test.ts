@@ -12,7 +12,7 @@ import {
   taskDisplayStatus,
   taskPriorityLabel,
   taskStatusLabel,
-} from "~/modules/today/task/task-view";
+} from "~/shared/task-record/task-view";
 import type { TaskView } from "~/kernel/tasks";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 import { parseMarkdownSource } from "~/kernel/markdown";

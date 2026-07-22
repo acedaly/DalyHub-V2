@@ -40,73 +40,18 @@ import {
   resolveAuthenticatedWorkspaceScope,
   type WorkspaceScope,
 } from "~/platform/workspaces";
-import type { EntityLinkSelection } from "~/shared/forms/model";
 
 import {
   serializeTaskView,
   TASK_RELATE_TARGET_TYPES,
   TASK_RELATES_TO,
-  type SerializedTaskView,
-} from "../task/task-view";
+} from "~/shared/task-record/task-view";
+import type {
+  TaskActionData,
+  TaskDetailData,
+} from "~/shared/task-record/contract";
+
 import type { Route } from "./+types/task-detail";
-
-/** The loader payload for a task Drawer: the task and its related-record links. */
-export interface TaskDetailData {
-  readonly task: SerializedTaskView;
-  readonly links: readonly EntityLinkSelection[];
-}
-
-/** The discriminated action outcomes the Drawer client consumes. */
-export type TaskActionData =
-  | {
-      readonly kind: "update";
-      readonly status: "success";
-      readonly task: SerializedTaskView;
-    }
-  | {
-      readonly kind: "update";
-      readonly status: "error";
-      readonly formError?: string;
-      readonly fieldErrors?: Readonly<Record<string, string>>;
-    }
-  | {
-      readonly kind: "completion";
-      readonly ok: true;
-      readonly task: SerializedTaskView;
-    }
-  | {
-      readonly kind: "completion";
-      readonly ok: false;
-      readonly message: string;
-    }
-  | { readonly kind: "link"; readonly ok: boolean; readonly message?: string }
-  | {
-      readonly kind: "unlink";
-      readonly ok: boolean;
-      readonly message?: string;
-    }
-  | {
-      readonly kind: "waiting";
-      readonly status: "success";
-      readonly task: SerializedTaskView;
-    }
-  | {
-      readonly kind: "waiting";
-      readonly status: "error";
-      readonly formError?: string;
-      readonly fieldErrors?: Readonly<Record<string, string>>;
-    }
-  | {
-      readonly kind: "planning";
-      readonly status: "success";
-      readonly task: SerializedTaskView;
-    }
-  | {
-      readonly kind: "planning";
-      readonly status: "error";
-      readonly formError?: string;
-      readonly fieldErrors?: Readonly<Record<string, string>>;
-    };
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {

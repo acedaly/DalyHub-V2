@@ -9,7 +9,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { TaskPlanningSection } from "~/modules/today/task/TaskPlanningSection";
+import { TaskPlanningSection } from "~/shared/task-record/TaskPlanningSection";
 
 // 02:00 UTC on 19 Jul 2026 is midday in Australia/Sydney → owner day 2026-07-19.
 const NOW = new Date("2026-07-19T02:00:00.000Z");

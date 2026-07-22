@@ -4,7 +4,7 @@ import {
   formatWaitingElapsed,
   formatWaitingSince,
   waitingSubjectLabel,
-} from "~/modules/today/task/task-view";
+} from "~/shared/task-record/task-view";
 import { toWaitingCardData } from "~/modules/today/task/waiting-view";
 
 // TODAY-03 — pure, deterministic waiting derivations (time is injected, never

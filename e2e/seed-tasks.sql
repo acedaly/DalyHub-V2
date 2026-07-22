@@ -73,3 +73,145 @@ WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-waiting');
 DELETE FROM entity_links
 WHERE workspace_id = 'local-dev-workspace' AND type = 'task.waiting_on';
+
+-- PROJ-01: a real Goal and two Projects — one directly under an Area, one advancing
+-- the Goal (so its Area resolves through the Goal) — plus two child tasks under the
+-- area-parented project (one open, one completed → a 1/2 roll-up). Mirrors the ids the
+-- projects journey references; the completion/creation the journey performs is reset
+-- below so every run starts from a known point.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('g-launch', 'local-dev-workspace', 'goal', 'Launch the site', '2026-07-19T02:00:00.000Z', '2026-07-19T02:00:00.000Z', NULL),
+  ('pr-website', 'local-dev-workspace', 'project', 'Website relaunch', '2026-07-19T02:00:01.000Z', '2026-07-19T02:00:05.000Z', NULL),
+  ('pr-launch', 'local-dev-workspace', 'project', 'Launch checklist', '2026-07-19T02:00:02.000Z', '2026-07-19T02:00:04.000Z', NULL),
+  ('pt-design', 'local-dev-workspace', 'task', 'Design the homepage', '2026-07-19T02:01:00.000Z', '2026-07-19T02:01:00.000Z', NULL),
+  ('pt-copy', 'local-dev-workspace', 'task', 'Write the launch copy', '2026-07-19T02:01:01.000Z', '2026-07-19T02:01:01.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'g-launch', 'goal', NULL),
+  ('local-dev-workspace', 'pr-website', 'project', NULL),
+  ('local-dev-workspace', 'pr-launch', 'project', NULL),
+  ('local-dev-workspace', 'pt-design', 'task', NULL),
+  ('local-dev-workspace', 'pt-copy', 'task', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-glaunch-area', 'local-dev-workspace', 'g-launch', 'a-dh', 'goal.belongs_to_area', '2026-07-19T02:00:00.000Z', '2026-07-19T02:00:00.000Z', NULL),
+  ('l-prweb-area', 'local-dev-workspace', 'pr-website', 'a-dh', 'project.belongs_to_area', '2026-07-19T02:00:01.000Z', '2026-07-19T02:00:01.000Z', NULL),
+  ('l-prlaunch-goal', 'local-dev-workspace', 'pr-launch', 'g-launch', 'project.advances_goal', '2026-07-19T02:00:02.000Z', '2026-07-19T02:00:02.000Z', NULL),
+  ('l-ptdesign-proj', 'local-dev-workspace', 'pt-design', 'pr-website', 'task.belongs_to_project', '2026-07-19T02:01:00.000Z', '2026-07-19T02:01:00.000Z', NULL),
+  ('l-ptcopy-proj', 'local-dev-workspace', 'pt-copy', 'pr-website', 'task.belongs_to_project', '2026-07-19T02:01:01.000Z', '2026-07-19T02:01:01.000Z', NULL);
+
+-- Reset the PROJ-01 seed's MUTABLE state so every run starts deterministically: the
+-- Projects and the task `pt-design` are open; `pt-copy` is completed (the 1/2 roll-up).
+UPDATE spine_records SET completed_at = NULL
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('g-launch', 'pr-website', 'pr-launch', 'pt-design');
+UPDATE spine_records SET completed_at = '2026-07-19T03:00:00.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-copy';
+UPDATE entities SET title = 'Website relaunch'
+WHERE workspace_id = 'local-dev-workspace' AND id = 'pr-website';
+
+-- The New-Project parent-search journey CREATES a project titled "Search-picked
+-- project". Remove any left by a prior run (its spine record and structural link too)
+-- so every run starts from the same known state — this project is otherwise open and
+-- would accumulate in Today's "Continue working" across local re-runs.
+DELETE FROM entity_links
+WHERE workspace_id = 'local-dev-workspace'
+  AND source_entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'project'
+      AND title = 'Search-picked project'
+  );
+DELETE FROM spine_records
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'project'
+      AND title = 'Search-picked project'
+  );
+DELETE FROM entities
+WHERE workspace_id = 'local-dev-workspace' AND type = 'project'
+  AND title = 'Search-picked project';
+
+-- PROJ-01 pagination seed — MORE than one page (default page size 50) of both
+-- projects and a single project's tasks, so the keyset "Load more" affordance and
+-- cross-page reachability can be exercised end to end. These rows are immutable
+-- (no journey mutates them), so INSERT OR IGNORE alone keeps every run
+-- deterministic — no reset needed. Distinct `created_at` per row gives a stable
+-- `(created_at, id)` ordering the cursor resumes after.
+
+-- A dedicated Area holding 60 paginated projects. They are created AFTER the named
+-- projects (so those stay on the collection's first page) and marked COMPLETED (so
+-- they never displace Today's open-recency "Continue working"); with 63 projects
+-- total the collection's first page is full and "Load more" shows.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES ('a-pag', 'local-dev-workspace', 'area', 'Pagination', '2026-07-18T03:30:00.000Z', '2026-07-18T03:30:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES ('local-dev-workspace', 'a-pag', 'area', NULL);
+
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60)
+SELECT
+  'pgp-' || substr('000' || n, -3),
+  'local-dev-workspace',
+  'project',
+  'Paginated project ' || substr('000' || n, -3),
+  printf('2026-07-19T05:%02d:00.000Z', n - 1),
+  printf('2026-07-19T05:%02d:00.000Z', n - 1),
+  NULL
+FROM seq;
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60)
+SELECT 'local-dev-workspace', 'pgp-' || substr('000' || n, -3), 'project', printf('2026-07-19T05:%02d:30.000Z', n - 1) FROM seq;
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60)
+SELECT
+  'l-pgp-' || substr('000' || n, -3),
+  'local-dev-workspace',
+  'pgp-' || substr('000' || n, -3),
+  'a-pag',
+  'project.belongs_to_area',
+  printf('2026-07-19T05:%02d:00.000Z', n - 1),
+  printf('2026-07-19T05:%02d:00.000Z', n - 1),
+  NULL
+FROM seq;
+
+-- A dedicated project holding 60 child tasks, so the project record's Tasks tab has
+-- more than one page and its "Load more" can be exercised (the roll-up total stays
+-- authoritative while only the first page of rows is loaded). The tasks are COMPLETED
+-- so they never enter Today's planning bands (which exclude completed work) — they are
+-- reached via the project's own Tasks tab under the All/Completed filter. Their
+-- completion is a fixed past date, so they are never "completed today" either.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES ('pg-tasks', 'local-dev-workspace', 'project', 'Task-heavy project', '2026-07-18T03:31:00.000Z', '2026-07-18T03:31:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES ('local-dev-workspace', 'pg-tasks', 'project', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES ('l-pgtasks-area', 'local-dev-workspace', 'pg-tasks', 'a-pag', 'project.belongs_to_area', '2026-07-18T03:31:00.000Z', '2026-07-18T03:31:00.000Z', NULL);
+
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60)
+SELECT
+  'pgt-' || substr('000' || n, -3),
+  'local-dev-workspace',
+  'task',
+  'Paginated task ' || substr('000' || n, -3),
+  printf('2026-07-18T06:%02d:00.000Z', n - 1),
+  printf('2026-07-18T06:%02d:00.000Z', n - 1),
+  NULL
+FROM seq;
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60)
+SELECT 'local-dev-workspace', 'pgt-' || substr('000' || n, -3), 'task', printf('2026-07-18T06:%02d:30.000Z', n - 1) FROM seq;
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60)
+SELECT
+  'l-pgt-' || substr('000' || n, -3),
+  'local-dev-workspace',
+  'pgt-' || substr('000' || n, -3),
+  'pg-tasks',
+  'task.belongs_to_project',
+  printf('2026-07-18T06:%02d:00.000Z', n - 1),
+  printf('2026-07-18T06:%02d:00.000Z', n - 1),
+  NULL
+FROM seq;
