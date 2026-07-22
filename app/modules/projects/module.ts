@@ -22,6 +22,11 @@ import {
 } from "~/kernel/spine";
 
 import routes from "./routes.manifest";
+import {
+  PROJECT_ARCHIVED,
+  PROJECT_RESTORED,
+  PROJECT_STATUS_CHANGED,
+} from "~/kernel/project-settings";
 
 export default defineModule({
   id: "projects",
@@ -47,6 +52,21 @@ export default defineModule({
     },
   ],
   activityTypes: [
+    {
+      type: PROJECT_STATUS_CHANGED,
+      label: "Project status changed",
+      description: "A project workflow status changed.",
+    },
+    {
+      type: PROJECT_ARCHIVED,
+      label: "Project archived",
+      description: "A project was archived.",
+    },
+    {
+      type: PROJECT_RESTORED,
+      label: "Project restored",
+      description: "A project was restored.",
+    },
     {
       type: PROJECT_COMPLETED,
       label: "Project completed",

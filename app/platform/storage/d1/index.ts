@@ -17,6 +17,7 @@ import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
+import type { ProjectSettingsRepository } from "~/kernel/project-settings";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
 import type {
@@ -35,6 +36,10 @@ import {
 } from "./d1-entity-link-repository";
 import { D1ProjectHealthRepository } from "./d1-project-health-repository";
 import { D1ProjectRepository } from "./d1-project-repository";
+import {
+  D1ProjectSettingsRepository,
+  type D1ProjectSettingsRepositoryOptions,
+} from "./d1-project-settings-repository";
 import {
   D1SpineRepository,
   type D1SpineRepositoryOptions,
@@ -188,4 +193,14 @@ export function createWorkspaceRepository(
   options?: D1WorkspaceRepositoryOptions,
 ): WorkspaceRepository {
   return new D1WorkspaceRepository(db, options);
+}
+
+export { D1ProjectSettingsRepository } from "./d1-project-settings-repository";
+
+export function createProjectSettingsRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1ProjectSettingsRepositoryOptions,
+): ProjectSettingsRepository {
+  return new D1ProjectSettingsRepository(db, context, options);
 }

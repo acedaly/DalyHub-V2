@@ -14,6 +14,7 @@
  */
 
 import type { WorkspaceId } from "~/kernel/workspaces";
+import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 
 /**
  * A resolved parent reference on a project — its Area or its Goal — carrying the
@@ -26,7 +27,7 @@ export type ProjectRelation = {
 };
 
 /** The completion filter for the project collection. */
-export type ProjectStateFilter = "open" | "completed" | "all";
+export type ProjectStateFilter = "open" | "completed" | "archived" | "all";
 
 /**
  * The ordering of the project collection query:
@@ -74,6 +75,8 @@ export type ProjectListItem = {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly completedAt: Date | null;
+  readonly status?: ProjectWorkflowStatus;
+  readonly archivedAt?: Date | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
   /** Total active direct child tasks. */
@@ -107,6 +110,8 @@ export type ProjectOverview = {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly completedAt: Date | null;
+  readonly status?: ProjectWorkflowStatus;
+  readonly archivedAt?: Date | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
 };

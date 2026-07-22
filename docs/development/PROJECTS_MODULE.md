@@ -348,3 +348,6 @@ refinements are tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 - [`SPINE_MODEL.md`](SPINE_MODEL.md) — the Area → Goal → Project → Task spine.
 - [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md) — the task record surface and the Today integration.
 - [`ROADMAP_V2.md` PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview) · [`docs/README.md`](../README.md).
+
+### PROJ-05 foundation (slice 1)
+Migration `0008_create_project_details.sql` adds the Projects-owned, workspace-scoped `project_details` table. It owns only the open-work workflow status (`planned`, `active`, `on_hold`) and reversible `archived_at` state; missing rows resolve to `planned`, while existing active Projects are backfilled as `active`. Identity/title, parentage, completion, links and roll-ups remain authoritative in the spine. `ProjectSettingsRepository` is workspace-bound and records real status/archive/restore transitions atomically in shared Activity (`project.status_changed`, `project.archived`, `project.restored`). Archive rejects a Project with any active incomplete direct Task. This slice deliberately does not yet wire Settings UI, collection/Today filtering, or archived mutation guards.

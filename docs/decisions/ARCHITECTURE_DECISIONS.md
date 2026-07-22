@@ -759,3 +759,6 @@ Statuses below are **Accepted** unless noted. Numbering is stable and permanent.
 - [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md) — how these decisions are realised technically.
 - [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md) — the foundation items (`FND-*`) that implement these ADRs.
 - [`docs/README.md`](../README.md) — documentation index.
+
+### ADR-037 — Project operational details remain module-owned
+**Decision.** PROJ-05 adds an additive `project_details` table and workspace-bound `ProjectSettingsRepository` for Project workflow status and reversible archival only. Completion, identity, structural parentage, links and roll-ups remain the spine's authority. Archival is not spine soft deletion because an archived Project remains readable and structurally present. Real changes are committed with their shared Activity event in one D1 batch; no-ops append nothing.

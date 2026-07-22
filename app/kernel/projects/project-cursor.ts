@@ -33,7 +33,7 @@ import { InvalidSpineCursorError } from "~/kernel/spine";
 import type { ProjectOrder, ProjectStateFilter } from "./project";
 
 /** The current project cursor format version. Bump when the encoded shape changes. */
-export const PROJECT_CURSOR_VERSION = 1;
+export const PROJECT_CURSOR_VERSION = 2;
 
 /** The ordering position a project cursor points just after. */
 export type ProjectCursorPosition = {
@@ -57,6 +57,7 @@ export type ProjectCursorScope = {
 const PROJECT_STATE_FILTERS: readonly ProjectStateFilter[] = [
   "open",
   "completed",
+  "archived",
   "all",
 ];
 const PROJECT_ORDERS: readonly ProjectOrder[] = ["created", "recent"];

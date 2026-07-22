@@ -12,6 +12,10 @@
  */
 
 import { normaliseProgress, type CardTone } from "~/shared/card";
+import {
+  projectWorkflowStatusLabel,
+  type ProjectWorkflowStatus,
+} from "~/kernel/project-settings";
 import type { ProjectHealth } from "~/shared/project-health";
 import {
   formatCalendarDate,
@@ -33,12 +37,15 @@ export interface SerializedProjectListItem {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly completedAt: string | null;
+  readonly status?: ProjectWorkflowStatus;
+  readonly archivedAt?: string | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
   readonly taskTotal: number;
   readonly taskCompleted: number;
   /** The DERIVED health signal (PROJ-02) — never persisted, JSON-safe. */
   readonly health: ProjectHealth;
+  readonly healthVisible?: boolean;
 }
 
 /** JSON-serialised project overview (Dates → ISO strings). */
@@ -48,6 +55,8 @@ export interface SerializedProjectOverview {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly completedAt: string | null;
+  readonly status?: ProjectWorkflowStatus;
+  readonly archivedAt?: string | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
 }
@@ -67,6 +76,8 @@ export function serializeProjectListItem(
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
+    status: item.status,
+    archivedAt: item.archivedAt ? item.archivedAt.toISOString() : null,
     area: item.area,
     goal: item.goal,
     taskTotal: item.taskTotal,
@@ -87,6 +98,8 @@ export function serializeProjectOverview(
     completedAt: overview.completedAt
       ? overview.completedAt.toISOString()
       : null,
+    status: overview.status,
+    archivedAt: overview.archivedAt ? overview.archivedAt.toISOString() : null,
     area: overview.area,
     goal: overview.goal,
   };
@@ -106,10 +119,16 @@ export function isProjectComplete(project: {
  */
 export function projectStateLabel(project: {
   readonly completedAt: string | null;
+  readonly archivedAt?: string | null;
+  readonly status?: ProjectWorkflowStatus;
 }): { readonly label: string; readonly tone: CardTone } {
-  return isProjectComplete(project)
-    ? { label: "Completed", tone: "success" }
-    : { label: "Open", tone: "neutral" };
+  if (project.archivedAt) return { label: "Archived", tone: "neutral" };
+  if (isProjectComplete(project))
+    return { label: "Completed", tone: "success" };
+  return {
+    label: projectWorkflowStatusLabel(project.status ?? "planned"),
+    tone: "neutral",
+  };
 }
 
 /**
@@ -177,6 +196,7 @@ export interface ProjectCardData {
   readonly updatedLabel: string | null;
   /** The DERIVED health signal (PROJ-02). */
   readonly health: ProjectHealth;
+  readonly healthVisible?: boolean;
 }
 
 /**
@@ -225,5 +245,9 @@ export function toProjectCardData(
     progress: projectProgress(item.taskCompleted, item.taskTotal),
     updatedLabel: updated ? `Updated ${updated}` : null,
     health: item.health,
+    healthVisible:
+      item.status === "active" &&
+      item.completedAt === null &&
+      item.archivedAt === null,
   };
 }
