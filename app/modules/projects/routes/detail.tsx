@@ -42,6 +42,7 @@ import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { NewTaskForm } from "../NewTaskForm";
 import { ProjectLinksTab } from "../ProjectLinksTab";
+import { ProjectTimelineTab } from "../ProjectTimelineTab";
 import { ProjectOverview } from "../ProjectOverview";
 import { NEW_TASK_KEY, ProjectTasksTab } from "../ProjectTasksTab";
 import { RenameProjectForm } from "../RenameProjectForm";
@@ -409,6 +410,7 @@ function ProjectDetail({
           todayIso={todayIso}
         />
       }
+      activityTab={<ProjectTimelineTab projectId={overview.id} />}
       linksTab={
         <ProjectLinksTab
           projectId={overview.id}

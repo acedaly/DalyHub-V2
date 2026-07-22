@@ -249,3 +249,25 @@ reassignment, status models, archival), PROJ-06 (mobile-specific enhancements) a
 - [`SPINE_MODEL.md`](SPINE_MODEL.md) — the Area → Goal → Project → Task spine.
 - [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md) — the task record surface and the Today integration.
 - [`ROADMAP_V2.md` PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview) · [`docs/README.md`](../README.md).
+
+## Activity (PROJ-04)
+
+The final **Activity** tab on `/projects/:projectId` is the record-scoped DS-05
+`Timeline`, backed only by `GET /projects/:projectId/activity`. Its loader resolves
+the authenticated workspace, confirms an active project through the existing
+projection, then calls `activity.listForEntity(projectId, { limit, cursor })`.
+The cursor is opaque, bounded and scope-bound in the FND-05 repository; no workspace
+id is accepted from the browser and missing, deleted, wrong-kind and cross-workspace
+anchors all receive the same calm not-found response. It maps the returned records
+through the shared descriptor registry and safe fallback, resolving labels in the
+existing workspace-bound entity path. There is no migration or project history table.
+
+This is a direct-subject Timeline: it contains every event whose FND-05 subject
+association includes the project (creation, rename, complete/reopen and EntityLink
+changes, plus future registered types). Child-task events are not scraped or copied
+into it. The current task creation/completion/edit/planning/waiting events are
+subjected to their task; only the structural link event naturally appears for its
+project endpoint. PROJ-02's child-task *health* aggregation remains a separate,
+derived signal, not canonical Timeline history. Revalidation after project mutations
+refreshes the route while the tab's shared stream provides cursor de-duplication,
+loading, retry, empty and exhausted states.
