@@ -207,9 +207,12 @@ workflow.
   returns every aligned Project (55+) while `listAreaProjects` stays bounded at 50;
   a deterministically-seeded at-risk Project placed past the first displayed page
   still drives `needs_attention` at the route layer; a second deterministic route
-  test seeds 101 ACTIVE Projects with the at-risk one placed past BOTH the card
-  page and the health-facts repository's own 100-id batch ceiling, proving the
-  loader's own batching reaches it; direct-versus-Project Task counts; completed/
+  test seeds 151 ACTIVE Projects — enough that, after the loader reuses health
+  facts already fetched for the 50 displayed Projects, the remaining 101 ids
+  themselves span two of the route's own sequential `HEALTH_FACTS_BATCH_SIZE =
+  100` batches (100 then 1) — with the at-risk Project placed in that SECOND
+  additional batch, proving the loader's own sequential batching loop (not just
+  its first iteration) reaches it; direct-versus-Project Task counts; completed/
   archived Projects excluded from active warnings; moved/soft-deleted/cross-
   workspace descendants; wrong-kind/missing/cross-workspace Area ids fail closed
   (empty facts, no throw); and a `countingDb`-instrumented test proving
