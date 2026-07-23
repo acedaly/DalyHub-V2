@@ -161,7 +161,6 @@ function renderToday(options: RenderOptions = {}) {
               id: "p-real",
               title: "DalyHub V2",
               areaLabel: "Career",
-              completed: false,
               taskTotal: 8,
               taskCompleted: 3,
               health: null,
@@ -454,5 +453,79 @@ describe("TODAY-06 mobile swipe quick actions", () => {
     fireEvent.click(planToday);
     // Same execution path as the visible quick action / bulk bar (ADR-030).
     expect(onPlan).toHaveBeenCalledWith(["t-any"], "2026-07-19");
+  });
+});
+
+describe("PROJ-05 Slice 4 — Continue working is Active-only", () => {
+  it("labels the section's count from the Active projects the loader supplied", () => {
+    renderToday();
+    const section = screen.getByRole("region", { name: "Continue working 1" });
+    expect(
+      within(section).getByRole("heading", {
+        level: 2,
+        name: "Continue working 1",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("presents every card's status as Active — never the old generic Open label", () => {
+    renderToday();
+    const section = screen.getByRole("region", { name: /Continue working/ });
+    expect(within(section).getByText("Active")).toBeInTheDocument();
+    expect(within(section).queryByText("Open")).not.toBeInTheDocument();
+    expect(within(section).queryByText("Completed")).not.toBeInTheDocument();
+    expect(within(section).queryByText("Planned")).not.toBeInTheDocument();
+    expect(within(section).queryByText("On hold")).not.toBeInTheDocument();
+    expect(within(section).queryByText("Archived")).not.toBeInTheDocument();
+  });
+
+  it("opens the canonical project record via a real link", () => {
+    renderToday();
+    const link = screen.getByRole("link", { name: "Open DalyHub V2" });
+    expect(link).toHaveAttribute("href", "/projects/p-real");
+  });
+});
+
+/** A render variant that can override `recentProjects` directly. */
+function renderTodayWithProjects(
+  recentProjects: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly areaLabel: string | null;
+    readonly taskTotal: number;
+    readonly taskCompleted: number;
+    readonly health: null;
+  }[],
+) {
+  return renderInDataRouter(
+    <FeedbackProvider>
+      <DrawerProvider
+        renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, taskTitles())}
+      >
+        <TodayDashboard
+          data={TODAY_FIXTURE}
+          date="Sunday 19 July 2026"
+          todayIso="2026-07-19"
+          planning={PLANNING}
+          recentProjects={recentProjects}
+        />
+      </DrawerProvider>
+    </FeedbackProvider>,
+  );
+}
+
+describe("PROJ-05 Slice 4 — Continue working empty state", () => {
+  it("reads 'No active projects to continue' with a quiet explanation, not the stale open-projects copy", () => {
+    renderTodayWithProjects([]);
+    const section = screen.getByRole("region", { name: "Continue working 0" });
+    expect(
+      within(section).getByText("No active projects to continue."),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByText(/workflow status is set to Active/),
+    ).toBeInTheDocument();
+    expect(
+      within(section).queryByText(/No recent projects to continue/),
+    ).not.toBeInTheDocument();
   });
 });

@@ -49,6 +49,13 @@
   color: var(--dh-color-text-muted);
 }
 
+.dh-today__section-empty-detail {
+  display: inline-block;
+  margin-top: var(--dh-space-1);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
 /* A completed focus task reads as done without relying on colour alone. */
 .dh-today__task--done .dh-card__title-text {
   text-decoration: line-through;

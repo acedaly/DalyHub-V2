@@ -39,7 +39,15 @@ const DESIGN_FIXTURES = [
 // /projects, /tasks) share the shell + placeholder layout and are covered by the
 // accessibility sweep; the responsive matrix focuses on the surfaces with real
 // content so the full 7-viewport sweep stays fast at `workers: 1`.
-const PRODUCT_ROUTES = ["/", "/today"] as const;
+const PRODUCT_ROUTES = [
+  "/",
+  "/today",
+  // PROJ-05 Slice 4 — the Settings tab, the Archived collection and a bare
+  // archived record across the full breakpoint matrix.
+  "/projects/pr-settings?tab=settings",
+  "/projects?state=archived",
+  "/projects/pr-archived-demo",
+] as const;
 
 test.describe("responsive — no horizontal overflow across the breakpoint matrix", () => {
   for (const path of [...DESIGN_FIXTURES, ...PRODUCT_ROUTES]) {
@@ -99,6 +107,42 @@ test.describe("responsive — open overlays never overflow", () => {
       await page.keyboard.press("ControlOrMeta+k");
       await page.getByRole("dialog").waitFor();
       await expectNoHorizontalOverflow(page);
+    });
+
+    // PROJ-05 Slice 4 — the Project Settings archive/restore confirmation
+    // dialogs at the viewport extremes.
+    test(`Project Settings archive dialog at ${viewport.label}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/projects/pr-settings?tab=settings");
+      await page.getByRole("button", { name: "Archive project…" }).click();
+      await page
+        .getByRole("dialog", { name: "Archive this project?" })
+        .waitFor();
+      await expectNoHorizontalOverflow(page);
+      // Cancel — never actually archive `pr-settings` from a responsive scan.
+      await page.keyboard.press("Escape");
+    });
+
+    test(`Project Settings restore dialog at ${viewport.label}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/projects/pr-archived-demo?tab=settings");
+      await page.getByRole("button", { name: "Restore project…" }).click();
+      await page
+        .getByRole("dialog", { name: "Restore this project?" })
+        .waitFor();
+      await expectNoHorizontalOverflow(page);
+      // Cancel — `pr-archived-demo` stays permanently archived for other scans.
+      await page.keyboard.press("Escape");
     });
   }
 });

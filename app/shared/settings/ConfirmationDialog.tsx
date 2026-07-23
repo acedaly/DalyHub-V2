@@ -81,6 +81,15 @@ export function ConfirmationDialog(props: ConfirmationDialogProps) {
     // deterministically. We restore on the next frame (after the panel has
     // unmounted and the browser has settled focus, which can otherwise land on
     // <body>), rather than gating on the current active element — which is racy.
+    //
+    // This handles the opener still being CONNECTED at close time. A separate,
+    // DELAYED loss — the opener (and this whole dialog) being unmounted TOGETHER
+    // moments later by the same mutation's own revalidation (e.g. Project
+    // Settings swapping its `ArchiveGroup` for a `RestoreGroup` after a
+    // successful archive) — cannot be handled here: this component unmounts in
+    // that same swap, so its own cleanup runs before it could ever notice.
+    // `SettingsLayout` (the stable ancestor that survives such swaps) owns that
+    // belt-and-braces recovery instead — see its "focus safety net" comment.
     const raf = requestAnimationFrame(() => {
       if (opener && opener.isConnected) {
         opener.focus();

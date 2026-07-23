@@ -89,20 +89,74 @@ on-track projects show nothing extra. The loader gathers the facts for those bou
 projects in the same N+1-free read and evaluates with the owner-calendar clock; no
 other Today section is changed.
 
-### "Continue working" stays `state: "open"` only for now (PROJ-05, ADR-037 §37.7)
+### "Continue working" is Active-only (PROJ-05 Slice 4, ADR-037 §37.7)
 
-The loader's `scope.projects.listProjects` call for this section passes
-`state: "open"` (incomplete, non-archived) and does **not** yet add
-`workflowStatus: "active"`. Restricting it to actively-worked Projects is the
-eventual intent, but every newly created Project defaults to `"planned"` and the
-Settings UI that would let an owner switch one to `"active"` (roadmap Slice 3)
-does not exist yet — filtering on `"active"` today would make every new Project
-permanently unreachable from Today, with no way back in. `listProjects`'
-`workflowStatus` parameter is already implemented and tested; Today (and the
-Archived collection, PROJ-05 slice 3, not yet built) adopt it once a real
-status-selection path ships. Completed and archived Projects are already excluded
-by `state: "open"`. Health visibility uses the SAME `isHealthVisible` rule every
-Project-health consumer shares, independent of this deferral.
+The loader's `scope.projects.listProjects` call for this section is:
+
+```ts
+scope.projects.listProjects({
+  state: "open",
+  workflowStatus: "active",
+  orderBy: "recent",
+  limit: RECENT_PROJECTS_COUNT,
+});
+```
+
+`state: "open"` (incomplete, non-archived) and `workflowStatus: "active"` are
+**independent** filters, both applied AT the database — never a larger page
+re-filtered or re-sorted in React, and never a second Today-owned Project
+repository or status-label mapping:
+
+- **Why Planned and On hold are excluded.** A Project defaults to `"planned"` on
+  creation (AGENTS.md §4/the spine never auto-activates a new Project); the owner
+  deliberately moves it to `"active"` from the Project Settings tab (PROJ-05 Slice
+  3) when they start real work on it. Continue working is deliberately a list of
+  work the owner has chosen to be actively working, not everything that merely
+  exists — an On-hold Project is a Project the owner has just as deliberately
+  paused, so it is equally absent until reactivated.
+- **Why Completed and Archived are excluded independently of workflow status.**
+  `state: "open"` alone already excludes both, regardless of what `project_details
+  .status` says — so a Completed or Archived Project whose PRESERVED workflow
+  status happens to be `"active"` still never appears. Reopening a Completed
+  Project preserves its existing documented workflow status (never resets to
+  Planned), so it can reappear in Today immediately if that preserved status is
+  Active; restoring an Archived Project likewise preserves its workflow status
+  (ADR-037 §37.1/§37.5), so an Active project that was archived reappears in
+  Today after restore + revalidation with no second manual status change,
+  while a restored Planned or On-hold project correctly stays absent.
+- **Bounded recent ordering is unchanged.** `orderBy: "recent"` and
+  `RECENT_PROJECTS_COUNT` behave exactly as before Slice 4 — the ordering keyset
+  is the ADR-037 §37.2 effective `updatedAt` (`MAX(entities.updated_at,
+  project_details.updated_at)`), so a settings-only transition (a status change,
+  archive or restore) affects "recent" ordering exactly like a rename does.
+- **Shared health behaviour is unaffected.** Health visibility still uses the SAME
+  `isHealthVisible` rule every Project-health consumer shares
+  (`status === "active" && completedAt === null && archivedAt === null`) — since
+  every item this query now returns already satisfies that condition by
+  construction, the health pill's own `at_risk`/`blocked`/`stale`-only visibility
+  rule is the only remaining gate on whether a card shows a health cue.
+- **Card presentation.** Each card's status pill reads the shared
+  `projectWorkflowStatusLabel("active")` ("Active") — the SAME vocabulary the
+  Project Settings tab and collection use — never the old generic "Open" label,
+  and never a status this section could otherwise show (a Planned/On-hold/
+  Completed/Archived card never reaches it, so there is no `completed` branch to
+  render). The Today-specific `RecentProjectItem` display shape therefore carries
+  no `completed`/`status`/`archivedAt` field.
+- **Accurate empty state.** When no Project is Active, the section reads **"No
+  active projects to continue."** with a quiet supporting sentence explaining that
+  a Project appears here once its workflow status is set to Active in Settings —
+  replacing the earlier "No recent projects to continue." copy, which implied
+  every open Project was eligible and was accurate only under the pre-Slice-4
+  `state: "open"`-only filter.
+
+Proven end to end by a real Workers/D1 route integration test
+([`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts)) that
+drives the ACTUAL loader (not just the repository predicate
+`test/kernel/projects.test.ts` already covers), and a real-D1 Playwright journey
+([`e2e/project-settings.spec.ts`](../../e2e/project-settings.spec.ts), `PROJ-05
+Slice 4 — Today integration` describe block) exercising the complete
+Planned → Active → On hold → Active → Archive → Restore round trip live against
+Today, plus a separate proof that a restored Planned project stays absent.
 
 ## The Task Drawer (TODAY-02)
 
@@ -442,12 +496,28 @@ change.
 
 - **Component** — [`test/unit/today/TodayDashboard.test.tsx`](../../test/unit/today/TodayDashboard.test.tsx):
   the six sections, chronological ordering, optimistic completion, inert-but-structured
-  capture, and a card opening the Drawer.
+  capture, and a card opening the Drawer. **PROJ-05 Slice 4:** "Continue working"'s
+  count reflects Active projects only; every card's status pill reads "Active" (never
+  Open/Planned/On hold/Completed/Archived); a card is a real link to the canonical
+  project route; and the empty state reads "No active projects to continue." with the
+  supporting sentence, never the stale "No recent projects to continue." copy.
+- **Route/Workers/D1** — [`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts)
+  (PROJ-05 Slice 4): the ACTUAL `/today` loader over real D1 — includes an Active
+  project; excludes Planned, On hold, a Completed project with a preserved Active
+  status, and an Archived project with a preserved Active status; preserves
+  workspace isolation; stays bounded by `RECENT_PROJECTS_COUNT`; orders by the
+  effective "recent" `updatedAt`; reflects every documented status/archive/restore
+  transition; and returns the calm empty shape when nothing is Active.
 - **Navigation** — [`test/unit/modules/today-navigation.test.ts`](../../test/unit/modules/today-navigation.test.ts):
   the manifest → registry → navigation flow (Today first, generic glyph).
 - **End-to-end** — [`e2e/today.spec.ts`](../../e2e/today.spec.ts): sidebar
   reachability, sections, completion, capture, drawer, and no horizontal overflow
-  at desktop and 320px.
+  at desktop and 320px. **Today integration closure (PROJ-05 Slice 4)** —
+  [`e2e/project-settings.spec.ts`](../../e2e/project-settings.spec.ts), `PROJ-05
+  Slice 4 — Today integration` describe block: the complete
+  Planned → Active → On hold → Active → Archive → Restore round trip proven live
+  against Today (appearance/disappearance at each transition, Back/Forward and a
+  copied URL, no hard reload), plus a restored Planned project staying absent.
 - **Swipe (unit + component)** — [`test/unit/card/swipe-model.test.ts`](../../test/unit/card/swipe-model.test.ts)
   (pure intent/threshold/boundary/snap + the one-open-tray registry) and
   [`test/unit/card/CardSwipe.test.tsx`](../../test/unit/card/CardSwipe.test.tsx)

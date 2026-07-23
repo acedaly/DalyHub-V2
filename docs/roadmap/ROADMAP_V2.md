@@ -273,16 +273,18 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 - **Expected outcome.** The Activity tab shows the project's event history. **P2.**
 - **Status: ☑ Done.** The project record's **Activity tab** — the ONE shared DS-05 `Timeline` over the ONE FND-05 Activity stream — accepted via [ADR-036](../decisions/ARCHITECTURE_DECISIONS.md#adr-036-the-project-activity-tab--the-shared-timeline-over-the-project-subject-events), building on [ADR-021](../decisions/ARCHITECTURE_DECISIONS.md#adr-021-the-shared-timeline--activity-feed-ds-05) (DS-05) and [ADR-028](../decisions/ARCHITECTURE_DECISIONS.md#adr-028-the-task-record-drawer--details-links-and-the-timeline-activity-tab)/[ADR-033](../decisions/ARCHITECTURE_DECISIONS.md#adr-033-re-homing-the-task-record-surface-to-a-shared-module-boundary) (the task record's Activity precedent). **No migration, no new dependency, no second event store, no `project_activity` table, no bespoke Projects timeline.** A registry-discovered resource route `GET /projects/:projectId/activity` (mirroring `/tasks/:taskId/activity`) authenticates, resolves the workspace **server-side** (never a client value), verifies the anchor is an ACTIVE project in this workspace (missing / soft-deleted / wrong-kind / cross-workspace → calm 404, no disclosure), validates a bounded cursor (tampered/cross-scope → calm 400, internals opaque), reads **`activity.listForEntity(projectId, …)`** — the sole authority — maps records through the DS-05 view-model **server-side** with the project event descriptors and a batched (no-N+1) entity resolver, and returns one JSON page. The tab drops a `<Timeline>` into the DS-02 Record Layout as the **final tab** (Tasks · Key links · **Activity**, per the shared Activity-last vocabulary), preserving the other tabs, the `?drawer=` state and health. **Timeline scope** is the events for which the project is an authorised Activity subject — its `entity.created`, `entity.updated` (rename), the `entity_link.*` events for its structural parent / Key links / a child task's `task.belongs_to_project` link (project as `target`), and `project.completed`/`project.reopened`; child-task LIFECYCLE events (a task's own completion/planning/waiting) name the task, not the project, and are deliberately NOT scraped or merged (the ADR-012 subject model stays authoritative — descendant aggregation is left to a separate accepted decision, and is distinct from PROJ-02's derived health union). Newest-first `(occurredAt,id)`, opaque scope-bound cursor pagination, day grouping, semantic `<time>`, registered descriptors with the shared safe generic fallback (never raw JSON), referenced tasks navigable via the shared Task Drawer (other kinds calm non-link text), and the full empty/loading/more/error+retry/exhausted state set — all from the shared virtualised `ActivityStream`. A relevant mutation (rename/complete/reopen) revalidates the Timeline **in place** via the project's `updatedAt` reload key — the new event appears at the top with no hard reload and no duplicate rows — while a drawer-only navigation preserves loaded pages. **DEBT-21 fixed:** the bare project record now has a non-skipping heading outline (record `h1` → per-tab section `h2` → content `h3`), so it is axe-clean without relying on the Drawer-open scan. Tests: project descriptor unit tests, a `ProjectActivityTab` component test (feed, append+dedup, retry, referenced-entity Drawer, reload-on-mutation, empty), real Workers/D1 route integration (newest-first, id tie-break, multi-page reachability with no gaps/dups, `nextCursor`→null at exhaustion, tampered/cross-project cursor 400, missing/wrong-kind/deleted/cross-workspace 404, rename/complete/reopen after revalidation, audited child-task semantics, N+1-free resolution), a bare-record + Activity-tab axe gate (light+dark), and a real-D1 Playwright journey (open → Activity → seeded history → second page → live completion/reopen without reload → referenced task Drawer → reload → empty state → keyboard → responsive matrix). `pnpm run format:check`, `lint`, `typecheck`, `test`, `build`, `deploy:dry-run` and `test:e2e` are green. See [`PROJECTS_MODULE.md`](../development/PROJECTS_MODULE.md) and [`ACTIVITY_TIMELINE.md`](../development/ACTIVITY_TIMELINE.md). **PROJ-03 (knowledge), PROJ-05 (settings/archival) and PROJ-06 (mobile) were NOT started.**
 
-### ☐ PROJ-05 — Settings
+### ☑ PROJ-05 — Settings
 - **Purpose.** Project configuration via the shared Settings pattern.
 - **Dependencies.** PROJ-01, DS-10.
 - **Expected outcome.** Project settings (area/goal, status, archival) via shared controls. **P2.**
-- **Status: in progress, decomposed into four slices.** The first slice merged
+- **Status: ☑ Done, decomposed into four slices.** The first slice merged
   before CI completed (a failing unit suite skipped D1/build/E2E) and was
-  corrected in a follow-up hardening PR. Slice 3 (the shared Settings UI and
-  Archived collection) is now done. **Do not mark PROJ-05 done** — Slice 4
-  (Today integration + full accessibility/responsive/E2E closure) remains
-  unbuilt.
+  corrected in a follow-up hardening PR. All four slices are now done: Slice 3
+  (the shared Settings UI and Archived collection) and Slice 4 (Today
+  integration + full accessibility/responsive/E2E closure) are described below.
+  **PROJ-05 is complete** — Today's "Continue working" is Active-only, every
+  documented status/archive/restore transition is proven against Today, and
+  the whole PROJ-05 surface passes accessibility and responsive closure.
   - ☑ **Slice 1 — Project operational-state persistence and projection.**
     Migration `0008_create_project_details.sql` (additive, STRICT, composite
     FK to `entities`, CHECK-constrained `status`); the `ProjectSettingsRepository`
@@ -344,9 +346,22 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
     gains a fourth **Archived** option reusing the existing `CollectionLayout`/
     `Card`/`LoadMore`/keyset-pagination machinery; `"all"` keeps its exact
     existing meaning and an archived Project never leaks into it or vice versa.
-    The New-Project form explains — honestly, with real links to the existing
-    `/areas`/`/goals` routes, never a fabricated fixture or auto-created entity —
-    why it can't yet create a Project when no Area/Goal exists at all. Tested at
+    The New-Project form explains — honestly, never a fabricated fixture or
+    auto-created entity — why it can't yet create a Project when no Area/Goal
+    exists at all. **Correction (Slice 4 documentation audit):** the form does
+    NOT link to `/areas`/`/goals` — those routes are not built, and any such
+    links were removed before this slice merged. It distinguishes two states:
+    a confirmed-empty parent query (the search genuinely succeeded and found
+    no Area/Goal at all) shows an honest explanation with only a Close action;
+    a parent-OPTION QUERY FAILURE (a storage/network error) shows a separate,
+    calm, retryable state ("Couldn't load Areas and Goals" + "Try again").
+    Neither state auto-creates a parent or makes parentage optional. The
+    Project Settings tab's organisation picker seeds from the project's
+    CURRENT parent only (never a first-page catalogue); every alternative
+    parent is found via the same server-backed, bounded
+    `/projects/parent-options` search the New-Project form uses. The Project
+    detail loader does NOT fetch a parent catalogue for the record — only the
+    Settings tab's picker searches, on demand. Tested at
     all three layers: pure/unit (view-model, archived-control-hiding,
     creation-discoverability), component (Settings tab behaviour, archived
     read-only rendering, Archived collection/empty-state), real Workers/D1 route
@@ -361,12 +376,58 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
     deferred to Slice 4:** Today's "Continue working" still does not filter on
     `workflowStatus: "active"`; full PROJ-05 accessibility/responsive/E2E
     closure is not claimed by this slice's narrower journey.
-  - ☐ **Slice 4 — Today integration, accessibility, responsive and end-to-end
-    closure.** Wire Today's "Continue working" to `workflowStatus: "active"`
-    now that Slice 3 gives an owner a way to activate a Project; full
-    accessibility/responsive/Playwright closure for the whole PROJ-05 surface
-    (Settings tab + Archived collection) beyond Slice 3's focused journey; any
-    remaining polish.
+  - ☑ **Slice 4 — Today integration, accessibility, responsive and end-to-end
+    closure.** Today's "Continue working" loader now passes
+    `scope.projects.listProjects({ state: "open", workflowStatus: "active",
+    orderBy: "recent", limit: RECENT_PROJECTS_COUNT })` — both filters applied
+    at the database, never a larger page re-filtered in React, no Today-owned
+    Project repository or duplicated status logic. Planned and On-hold Projects
+    are absent from Continue working; Completed and Archived Projects remain
+    excluded independently of workflow status (including a Completed/Archived
+    Project whose PRESERVED status is `"active"`); archive/restore preserve
+    workflow status exactly as Slices 1–2 already guaranteed, so an Active
+    Project reappears in Today after being archived and restored with no
+    second manual status change, while a restored Planned/On-hold Project
+    correctly stays absent. The Card's status pill reuses the SAME
+    `projectWorkflowStatusLabel` vocabulary the Settings tab/collection use
+    (reads "Active", never the old generic "Open"); the Today-specific
+    `RecentProjectItem` display shape drops its now-impossible `completed`
+    field; the empty state reads "No active projects to continue." with a
+    quiet supporting sentence, replacing the stale "No recent projects to
+    continue." copy. Full accessibility/responsive/E2E closure for the whole
+    PROJ-05 surface: the Settings tab, the Archive/Restore confirmation
+    dialogs, a blocked archive's inline alert and the Archived collection are
+    now axe-clean and overflow-free across the full breakpoint matrix
+    (extending the existing `e2e/accessibility.spec.ts`/`e2e/responsive.spec.ts`
+    sweeps, not a second scan mechanism). A genuine shared-layer accessibility
+    gap the audit found was fixed at its source: Project Settings replaces its
+    whole "Archive" group (a `DangerousAction` + its own `ConfirmationDialog`)
+    with a "Restore" group in one commit once archiving succeeds (and the
+    reverse after restoring), unmounting the trigger and the dialog that
+    confirmed it TOGETHER — which could silently orphan focus on `<body>`.
+    The fix lives in `SettingsLayout`, the stable ancestor that survives every
+    such conditional group swap, which watches for focus orphaned to `<body>`
+    and reclaims it to the page's main region — benefiting every settings
+    surface's dangerous actions, not just Project archive/restore. (A PR
+    review caught that the first attempt at this fix, placed inside
+    `ConfirmationDialog` itself, could never actually fire against this real
+    swap, since the dialog unmounts in the same commit as its trigger — proven
+    by a real Playwright assertion that failed against the first attempt and
+    passes against the corrected one.) The complete
+    Planned → Active → On hold → Active → Archive → Restore journey is proven
+    live against Today by a real Workers/D1 route-integration test
+    ([`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts))
+    and a real-D1 Playwright journey
+    ([`e2e/project-settings.spec.ts`](../../e2e/project-settings.spec.ts),
+    extending the Slice 3 journey rather than a second test architecture), plus
+    a separate proof that a restored Planned/On-hold Project stays absent from
+    Today. `pnpm run format:check`, `lint`, `typecheck`, `test`, `build`,
+    `deploy:dry-run` and `test:e2e` are green. See
+    [PROJECTS_MODULE.md](../development/PROJECTS_MODULE.md) and
+    [TODAY_DASHBOARD.md](../development/TODAY_DASHBOARD.md).
+    **PROJ-05 is now complete — all four slices done.** No migration (the
+    `workflowStatus` filter and every settings/archive/restore contract Slice 4
+    relies on were already implemented and tested); no new dependency.
 
 ### ☐ PROJ-06 — Mobile
 - **Purpose.** Mobile-complete Projects.

@@ -143,15 +143,23 @@ test.describe("PROJ-01 — Projects", () => {
   test("Today's Continue working opens the SAME canonical project record", async ({
     page,
   }) => {
+    // Continue working is bounded (RECENT_PROJECTS_COUNT) and Active-only
+    // (PROJ-05 Slice 4), so exactly WHICH Active project appears here can shift
+    // as other e2e journeys activate/restore projects earlier in the same
+    // shared-D1 suite run. This proves the canonical-navigation CONTRACT — any
+    // card opens its own `/projects/:id` record, never a fixture or a
+    // mismatched route — without pinning to one specific project's presence.
     await gotoFixture(page, "/today");
     const section = page.getByRole("region", { name: "Continue working" });
-    const link = section.getByRole("link", { name: "Open Website relaunch" });
-    await expect(link).toHaveAttribute("href", "/projects/pr-website");
+    const link = section.getByRole("link").first();
+    const href = await link.getAttribute("href");
+    expect(href).toMatch(/^\/projects\/[^/]+$/);
+    const title = (await link.textContent())?.replace(/^Open\s+/, "").trim();
     await link.click();
-    await expect(page).toHaveURL(/\/projects\/pr-website/);
-    await expect(
-      page.getByRole("heading", { name: "Website relaunch" }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(
+      new RegExp(href!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    );
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
   });
 
   test("collection: Load more reaches a project beyond the first keyset page", async ({
