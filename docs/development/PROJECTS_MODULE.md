@@ -334,9 +334,11 @@ the copy. No new route, no new migration.
 - **Project creation discoverability** ([`NewProjectForm.tsx`](../../app/modules/projects/NewProjectForm.tsx)):
   when the workspace's parent-option query has genuinely succeeded and found NEITHER
   an Area nor a Goal at all, the form shows an honest confirmed-empty explanation
-  (Close only) instead of a silently-unusable picker. **Correction (Slice 4
-  documentation audit): this explanation does NOT link to `/areas`/`/goals` — those
-  routes are not built, and any such links were removed before this slice merged.**
+  instead of a silently-unusable picker. **AREA-01 update:** because `/areas` and the
+  New Area Drawer now exist, that confirmed-empty state links to
+  `/areas?drawer=new-area` ("Create an Area"). It still does NOT link to Goals (Goal
+  records/creation are AREA-02), auto-create an Area, seed fixture data, or make
+  Project parentage optional.
   A SEPARATE state — the parent-option query itself failing (a storage/network
   error) — shows a calm, retryable "Couldn't load Areas and Goals" / "Try again"
   message; the two states are never conflated, so a query failure is never

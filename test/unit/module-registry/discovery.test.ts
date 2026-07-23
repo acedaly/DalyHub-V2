@@ -137,6 +137,22 @@ describe("module discovery", () => {
           file: "routes/plan.tsx",
         },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
+        { id: "areas.new", moduleId: "areas", file: "routes/new.tsx" },
+        {
+          id: "areas.detail",
+          moduleId: "areas",
+          file: "routes/detail.tsx",
+        },
+        {
+          id: "areas.mutate",
+          moduleId: "areas",
+          file: "routes/mutate.tsx",
+        },
+        {
+          id: "areas.activity",
+          moduleId: "areas",
+          file: "routes/activity.tsx",
+        },
         { id: "goals.index", moduleId: "goals", file: "routes/index.tsx" },
         // PROJ-01 adds the collection + record page routes and the create/mutate/
         // link-target resource routes.

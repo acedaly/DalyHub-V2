@@ -41,6 +41,9 @@ const PRODUCT_ROUTES = [
   "/today",
   "/today/waiting",
   "/areas",
+  "/areas/a-dh",
+  "/areas/a-dh?tab=projects",
+  "/areas/a-dh?tab=activity",
   "/goals",
   "/projects",
   // The BARE project record (no Drawer open) — the DEBT-21 regression gate: PROJ-04
@@ -119,6 +122,22 @@ test.describe("automated accessibility — open overlays", () => {
     await gotoFixture(page, "/projects");
     await page.getByRole("link", { name: "New project" }).first().click();
     await page.getByRole("dialog", { name: "New project" }).waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
+  });
+
+  test("Areas new-area sheet has no violations", async ({ page }) => {
+    await gotoFixture(page, "/areas");
+    await page.getByRole("link", { name: "New Area" }).first().click();
+    await page.getByRole("dialog", { name: "New Area" }).waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
+  });
+
+  test("Area rename sheet has no violations", async ({ page }) => {
+    await gotoFixture(page, "/areas/a-dh");
+    await page.getByRole("button", { name: "Rename" }).click();
+    await page.getByRole("dialog", { name: "Rename Area" }).waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");
   });

@@ -1,24 +1,57 @@
 /**
- * FND-09 — the Areas module route (placeholder).
- *
- * Module-owned route module, referenced declaratively by the Areas manifest
- * (`file: "routes/index.tsx"`) and composed into the app route tree by the
- * platform route adapter. It renders a placeholder only; the Areas product
- * experience is a later roadmap item.
+ * AREA-01 — Areas collection route (`/areas`).
  */
 
-import { ModulePlaceholder } from "~/shared/shell/ModulePlaceholder";
+import { env } from "cloudflare:workers";
+
+import { requireAuthenticatedSession } from "~/platform/request";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+
+import { AreasCollectionView } from "../AreasCollection";
+import {
+  serializeAreaListItem,
+  type SerializedAreaListItem,
+} from "../area-view";
+import type { Route } from "./+types/index";
 
 export function meta() {
-  return [{ title: "Areas · DalyHub" }];
+  return [
+    { title: "Areas · DalyHub" },
+    {
+      name: "description",
+      content:
+        "The permanent domains of life that hold Goals, Projects and Tasks.",
+    },
+  ];
 }
 
-export default function AreasRoute() {
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const session = requireAuthenticatedSession(context);
+  const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;
+
+  try {
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const page = await scope.areas.listAreas({ cursor });
+    return {
+      areas: page.items.map(serializeAreaListItem),
+      nextCursor: page.nextCursor,
+      failed: false,
+    };
+  } catch {
+    return {
+      areas: [] as SerializedAreaListItem[],
+      nextCursor: null as string | null,
+      failed: true,
+    };
+  }
+}
+
+export default function AreasRoute({ loaderData }: Route.ComponentProps) {
   return (
-    <ModulePlaceholder
-      name="Areas"
-      entityType="area"
-      summary="Areas are the permanent domains of your life — the top of the spine."
+    <AreasCollectionView
+      areas={loaderData.areas}
+      nextCursor={loaderData.nextCursor}
+      failed={loaderData.failed}
     />
   );
 }

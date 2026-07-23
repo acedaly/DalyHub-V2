@@ -35,13 +35,18 @@ const DESIGN_FIXTURES = [
   "/design/settings",
 ] as const;
 
-// The substantive product surfaces. The module placeholders (/areas, /goals,
-// /projects, /tasks) share the shell + placeholder layout and are covered by the
-// accessibility sweep; the responsive matrix focuses on the surfaces with real
-// content so the full 7-viewport sweep stays fast at `workers: 1`.
+// The substantive product surfaces. The remaining module placeholders (/goals,
+// /tasks) share the shell + placeholder layout and are covered by the accessibility
+// sweep; the responsive matrix focuses on the surfaces with real content so the
+// full 7-viewport sweep stays fast at `workers: 1`.
 const PRODUCT_ROUTES = [
   "/",
   "/today",
+  // AREA-01 — real Areas collection + record tabs.
+  "/areas",
+  "/areas/a-dh",
+  "/areas/a-dh?tab=projects",
+  "/areas/a-dh?tab=activity",
   // PROJ-06 — the complete Projects collection + record surface across the
   // canonical matrix: collection filters/cards, default Tasks tab, Key links,
   // Activity Timeline and Settings.
@@ -163,6 +168,30 @@ test.describe("responsive — open overlays never overflow", () => {
       await gotoFixture(page, "/projects");
       await page.getByRole("link", { name: "New project" }).first().click();
       await page.getByRole("dialog", { name: "New project" }).waitFor();
+      await expectNoHorizontalOverflow(page);
+      await page.keyboard.press("Escape");
+    });
+
+    test(`Areas new-area sheet at ${viewport.label}`, async ({ page }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/areas");
+      await page.getByRole("link", { name: "New Area" }).first().click();
+      await page.getByRole("dialog", { name: "New Area" }).waitFor();
+      await expectNoHorizontalOverflow(page);
+      await page.keyboard.press("Escape");
+    });
+
+    test(`Area rename sheet at ${viewport.label}`, async ({ page }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/areas/a-dh");
+      await page.getByRole("button", { name: "Rename" }).click();
+      await page.getByRole("dialog", { name: "Rename Area" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
     });

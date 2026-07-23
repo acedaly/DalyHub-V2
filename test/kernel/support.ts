@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 
 import {
   createActivityRepository,
+  createAreaRepository,
   createEntityLinkRepository,
   createEntityRepository,
   createProjectHealthRepository,
@@ -134,6 +135,14 @@ export function makeTaskRepository(
  */
 export function makeProjectRepository(context: WorkspaceContext) {
   return createProjectRepository(env.DB, context);
+}
+
+/**
+ * Construct a workspace-scoped, read-only D1-backed AreaRepository over the
+ * isolated test database (AREA-01: the Area read projection).
+ */
+export function makeAreaRepository(context: WorkspaceContext) {
+  return createAreaRepository(env.DB, context);
 }
 
 /**

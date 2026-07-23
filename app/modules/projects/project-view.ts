@@ -16,6 +16,7 @@ import {
   projectWorkflowStatusLabel,
   type ProjectWorkflowStatus,
 } from "~/kernel/project-settings";
+import { isProjectHealthVisible } from "~/kernel/project-health";
 import type { ProjectHealth } from "~/shared/project-health";
 import {
   formatCalendarDate,
@@ -129,11 +130,7 @@ export function isHealthVisible(project: {
   readonly completedAt: unknown;
   readonly archivedAt: unknown;
 }): boolean {
-  return (
-    project.status === "active" &&
-    project.completedAt === null &&
-    project.archivedAt === null
-  );
+  return isProjectHealthVisible(project);
 }
 
 /** Is the project completed? Completion is the spine's `completedAt`. */

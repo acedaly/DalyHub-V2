@@ -23,6 +23,8 @@
  * workflow status (PROJ-05 owns a richer project status model).
  */
 
+import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
+
 /* -------------------------------------------------------------------------- */
 /* Domain thresholds — named, documented constants (never buried in React)     */
 /* -------------------------------------------------------------------------- */
@@ -210,6 +212,24 @@ export type ProjectHealth = {
   /** The instant health was evaluated (ISO-8601 UTC). */
   readonly evaluatedAtIso: string;
 };
+
+/**
+ * Shared visibility rule for active-work health. A health warning is presented
+ * only for a Project that is incomplete, non-archived and actively worked. Planned,
+ * on-hold, completed and archived Projects may still have evaluated facts, but
+ * they do not create an active warning on Project, Today, Area or Goal surfaces.
+ */
+export function isProjectHealthVisible(project: {
+  readonly status: ProjectWorkflowStatus;
+  readonly completedAt: unknown;
+  readonly archivedAt: unknown;
+}): boolean {
+  return (
+    project.status === "active" &&
+    project.completedAt === null &&
+    project.archivedAt === null
+  );
+}
 
 /**
  * The injected clock + owner-calendar seam. Passed in (never read from the ambient

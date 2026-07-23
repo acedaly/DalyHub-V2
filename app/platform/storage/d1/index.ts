@@ -13,6 +13,7 @@
  */
 
 import type { ActivityRepository } from "~/kernel/activity";
+import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
@@ -26,6 +27,7 @@ import type {
 } from "~/kernel/workspaces";
 
 import { D1ActivityRepository } from "./d1-activity-repository";
+import { D1AreaRepository } from "./d1-area-repository";
 import {
   D1EntityRepository,
   type D1EntityRepositoryOptions,
@@ -67,6 +69,7 @@ export {
   type CompleteTaskFault,
 };
 export { D1ActivityRepository };
+export { D1AreaRepository };
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
@@ -152,6 +155,19 @@ export function createProjectRepository(
   context: WorkspaceContext,
 ): ProjectRepository {
   return new D1ProjectRepository(db, context);
+}
+
+/**
+ * Factory for the workspace-scoped, READ-ONLY D1-backed AreaRepository — the
+ * AREA-01 read projection. It performs no mutations and resolves live hierarchy
+ * counts in bounded, parameterised queries. Bound to a `WorkspaceContext`; there
+ * is no unscoped construction path.
+ */
+export function createAreaRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): AreaRepository {
+  return new D1AreaRepository(db, context);
 }
 
 /**

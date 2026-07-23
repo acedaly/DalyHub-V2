@@ -63,10 +63,9 @@ interface NewProjectFormProps {
  * Area or advance a Goal (AGENTS.md §4 — parentage stays required; making it
  * optional would need its own ADR). When the AUTHENTICATED parent query has
  * actually succeeded and found neither, showing an empty, silently-unusable
- * picker is a dead end (AGENTS.md §6). This is an HONEST explanation, not a
- * fabricated fixture or a link to an unbuilt route: Areas/Goals (AREA-01/
- * AREA-02) don't exist yet, so the only real action here is Close — it never
- * auto-creates an Area/Goal and never makes the field optional.
+ * picker is a dead end (AGENTS.md §6). AREA-01 provides real Area creation, so
+ * this state points to that route; it never auto-creates an Area and never makes
+ * the field optional.
  */
 function NoEligibleParents({ onCancel }: { readonly onCancel: () => void }) {
   return (
@@ -80,6 +79,9 @@ function NoEligibleParents({ onCancel }: { readonly onCancel: () => void }) {
         <FormButton type="button" variant="secondary" onClick={onCancel}>
           Close
         </FormButton>
+        <a className="dh-btn dh-btn--primary" href="/areas?drawer=new-area">
+          Create an Area
+        </a>
       </FormActions>
     </div>
   );

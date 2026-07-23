@@ -20,6 +20,7 @@ import {
   type ActivityActorContext,
   type ActivityRepository,
 } from "~/kernel/activity";
+import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
@@ -33,6 +34,7 @@ import type {
 } from "~/kernel/workspaces";
 import {
   createActivityRepository,
+  createAreaRepository,
   createEntityLinkRepository,
   createEntityRepository,
   createProjectHealthRepository,
@@ -82,6 +84,12 @@ export interface WorkspaceScope {
    * `spine.getRollup`.
    */
   readonly projects: ProjectRepository;
+  /**
+   * The AREA-01 area read projection: a READ-ONLY view over the spine that resolves
+   * Area collection/record hierarchy facts in bounded, N+1-free queries. Area
+   * mutations stay `spine.*`; rollups stay derived from the spine.
+   */
+  readonly areas: AreaRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -154,6 +162,7 @@ export function bindWorkspaceRepositories(
   const tasks = createTaskRepository(env.DB, context, { actorContext });
   // Read-only projections: no actor (they never mutate or record Activity).
   const projects = createProjectRepository(env.DB, context);
+  const areas = createAreaRepository(env.DB, context);
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -166,6 +175,7 @@ export function bindWorkspaceRepositories(
     spine,
     tasks,
     projects,
+    areas,
     projectHealth,
     projectSettings,
     activity,

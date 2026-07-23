@@ -149,9 +149,9 @@ describe("NewProjectForm", () => {
         screen.queryByRole("combobox", { name: /Area or Goal/ }),
       ).not.toBeInTheDocument();
       expect(screen.getByText(/doesn.t have either yet/)).toBeInTheDocument();
-      // Areas/Goals (AREA-01/AREA-02) aren't built yet — never link to those
-      // unbuilt routes; the only real action is Close.
-      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "Create an Area" }),
+      ).toHaveAttribute("href", "/areas?drawer=new-area");
       fireEvent.click(screen.getByRole("button", { name: "Close" }));
       expect(onCancel).toHaveBeenCalled();
     });

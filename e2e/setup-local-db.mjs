@@ -25,6 +25,7 @@ const SEED_TASKS = join(
   "seed-tasks.sql",
 );
 const MOBILE_PROJECT_TITLE_PREFIX = "Mobile Projects workflow ";
+const AREA_OVERVIEW_TITLE_PREFIX = "Area overview e2e ";
 const MOBILE_TASK_TITLES = [
   "Mobile task to complete and reconcile from the shared drawer",
   "Unfinished mobile task that deliberately blocks archiving",
@@ -44,6 +45,18 @@ const MOBILE_CLEANUP_SQL = [
   `DELETE FROM spine_records WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${MOBILE_ENTITY_QUERY});`,
   `DELETE FROM entity_links WHERE workspace_id = '${WORKSPACE_ID}' AND (source_entity_id IN (${MOBILE_ENTITY_QUERY}) OR target_entity_id IN (${MOBILE_ENTITY_QUERY}));`,
   `DELETE FROM entities WHERE workspace_id = '${WORKSPACE_ID}' AND id IN (${MOBILE_ENTITY_QUERY});`,
+];
+const AREA_OVERVIEW_ENTITY_QUERY = `
+  SELECT id FROM entities
+  WHERE workspace_id = '${WORKSPACE_ID}'
+    AND type = 'area'
+    AND title LIKE '${AREA_OVERVIEW_TITLE_PREFIX}%'
+`;
+const AREA_OVERVIEW_CLEANUP_SQL = [
+  `DELETE FROM activity_subjects WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${AREA_OVERVIEW_ENTITY_QUERY});`,
+  `DELETE FROM spine_records WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${AREA_OVERVIEW_ENTITY_QUERY});`,
+  `DELETE FROM entity_links WHERE workspace_id = '${WORKSPACE_ID}' AND (source_entity_id IN (${AREA_OVERVIEW_ENTITY_QUERY}) OR target_entity_id IN (${AREA_OVERVIEW_ENTITY_QUERY}));`,
+  `DELETE FROM entities WHERE workspace_id = '${WORKSPACE_ID}' AND id IN (${AREA_OVERVIEW_ENTITY_QUERY});`,
 ];
 
 function wrangler(args) {
@@ -67,6 +80,9 @@ wrangler([
 // test-owned rows before seeding so an interrupted local run cannot affect other
 // journeys that share the same Miniflare D1 instance.
 for (const statement of MOBILE_CLEANUP_SQL) {
+  wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
+}
+for (const statement of AREA_OVERVIEW_CLEANUP_SQL) {
   wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
 }
 

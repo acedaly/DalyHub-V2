@@ -190,6 +190,13 @@ named remote database directly, before running this.)
 > This corrective PR does **not** perform any of these steps and does **not**
 > mutate the production database — they remain the owner's manual action.
 
+> **AREA-01 deployment note.** The Areas overview adds no migration and no runtime
+> dependency. It reads the existing spine tables and the already-required
+> `project_details` data to present Goal-backed/direct Projects and Project health
+> visibility, so the migration prerequisite above remains unchanged: production
+> must have migrations `0001`-`0008` applied before deploying Worker code that
+> includes AREA-01.
+
 ### Verify
 
 Wrangler prints the deployed URL (or your configured route). Verify by opening it

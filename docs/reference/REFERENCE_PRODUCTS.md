@@ -529,6 +529,29 @@ Candidates considered for a shared forms system: **form/validation** — React H
   **add no dependency**. See
   [PROJECTS_MODULE.md](../development/PROJECTS_MODULE.md#mobile-proj-06).
 
+## AREA-01 — Areas overview reuse assessment
+
+> The reuse evaluation behind
+> [ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview--read-only-spine-projection-and-derived-momentum).
+> **No new runtime or dev dependency was added** — AREA-01 is pure composition of
+> the existing spine, read-projection pattern, DS-02 Record Layout, PX-02 Collection
+> Layout, DS-03 Drawer, DS-04 Card, DS-05 Timeline and DS-06 Forms. No third-party
+> code was copied or adapted.
+
+- **Products studied.** Existing catalogue entries for Things 3, Linear and Notion
+  remain sufficient: calm Areas/Projects structure, clear hierarchy context,
+  keyboard-first records, and records-as-first-class objects. Interaction/UX
+  inspiration only; no code reuse.
+- **Rejected.** An Areas-specific card system, an Area-specific timeline, a second
+  Project health evaluator, a persisted Area health score, a Goal details table,
+  and any new UI/runtime dependency.
+- **Licence implications.** None — no dependency added, no third-party code
+  copied, so no `THIRD_PARTY_NOTICES.md` change.
+- **Decision (Depend / Adapt / Build).** **Reuse** the existing shared design
+  system and kernel seams; **build** only the Areas projection, route components,
+  pure momentum evaluator and tests. See
+  [AREAS_MODULE.md](../development/AREAS_MODULE.md).
+
 ---
 
 ## Entry template

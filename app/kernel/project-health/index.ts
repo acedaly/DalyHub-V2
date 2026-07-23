@@ -15,6 +15,7 @@ export {
   HEALTH_REASON_CODES,
   MEANINGFUL_HEALTH_ACTIVITY_TYPES,
   evaluateProjectHealth,
+  isProjectHealthVisible,
   daysBetweenIsoDates,
   addDaysToIsoDate,
 } from "./project-health";

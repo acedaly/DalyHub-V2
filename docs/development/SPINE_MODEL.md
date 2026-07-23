@@ -175,6 +175,14 @@ the `SpineRepository` — never by touching `spine_records` or structural links
 directly. FND-09 replaces the current `system` actor with the authenticated user
 behind the same seam, with no change to the spine contract.
 
+Production module pages may add bounded, read-only projections when a complete
+screen cannot be served cleanly by one single-record spine call. AREA-01's
+`WorkspaceScope.areas` is the precedent: it is a storage-independent `AreaRepository`
+contract over the same workspace scope, performs deterministic parameterised reads
+for the Areas collection and record, and copies no Area identity, hierarchy or
+roll-up state into another table. Creation and rename still go only through
+`WorkspaceScope.spine`.
+
 ## What FND-07 deliberately does not build
 
 No UI of any kind (pages, forms, cards, tree, drag-and-drop, Today, boards,
