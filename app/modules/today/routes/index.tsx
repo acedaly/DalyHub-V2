@@ -135,21 +135,17 @@ export async function loader({ context }: Route.LoaderArgs) {
       ),
     };
 
-    // "Continue working": the REAL open projects, most-recently-updated first — the
-    // ordering + bound are applied AT the database (`orderBy: "recent"`), so the
-    // globally most-recently-active projects are selected, never a creation-ordered
-    // page re-sorted in the loader. No new store, no separate Today project model.
-    //
-    // DEFERRED (PROJ-05 §7 / ADR-037 §37.6, corrective-PR review): restricting this
-    // to `workflowStatus: "active"` is the eventual intent, but every newly created
-    // Project defaults to `"planned"` and the Settings UI to change that (roadmap
-    // Slice 3) does not exist yet — turning this filter on now would make EVERY new
-    // Project invisible here with no user-facing way to activate it. `state: "open"`
-    // (incomplete, non-archived) stays the filter until Slice 3/4 ships a real
-    // status-selection path; `listProjects`' `workflowStatus` parameter is already
-    // implemented and tested for that later slice to use.
+    // "Continue working" (PROJ-05 Slice 4): the REAL Active-workflow-status open
+    // projects, most-recently-updated first. `state: "open"` keeps Completed and
+    // Archived projects excluded independently of workflow status; `workflowStatus:
+    // "active"` further restricts to Projects the owner has deliberately moved into
+    // active work via the Project Settings tab (Planned and On hold are absent). Both
+    // the filter and the `orderBy: "recent"` ordering + bound are applied AT the
+    // database — never a larger page re-filtered or re-sorted in React. No new store,
+    // no separate Today project model, no duplicated status logic.
     const projectPage = await scope.projects.listProjects({
       state: "open",
+      workflowStatus: "active",
       orderBy: "recent",
       limit: RECENT_PROJECTS_COUNT,
     });
@@ -166,7 +162,6 @@ export async function loader({ context }: Route.LoaderArgs) {
         id: project.id,
         title: project.title,
         areaLabel: project.area?.title ?? null,
-        completed: project.completedAt !== null,
         taskTotal: project.taskTotal,
         taskCompleted: project.taskCompleted,
         health: facts ? evaluateProjectHealth(facts, healthContext) : null,

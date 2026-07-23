@@ -111,6 +111,18 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-copy';
 UPDATE entities SET title = 'Website relaunch'
 WHERE workspace_id = 'local-dev-workspace' AND id = 'pr-website';
 
+-- PROJ-05 Slice 4 — `pr-website` is the showcase project the existing Projects
+-- journeys navigate; nothing mutates its workflow status, so it is permanently
+-- Active (real work in progress) rather than the "planned" default, matching the
+-- ADR-037 §37.7 Today integration this slice completes: Today's "Continue working"
+-- now filters to `workflowStatus: "active"`, so a project a journey expects to
+-- appear there must genuinely be Active, not merely open.
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-website', 'active', NULL, '2026-07-19T02:00:05.000Z');
+UPDATE project_details SET status = 'active', archived_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-website';
+
 -- The New-Project parent-search journey CREATES a project titled "Search-picked
 -- project". Remove any left by a prior run (its spine record and structural link too)
 -- so every run starts from the same known state — this project is otherwise open and
@@ -422,3 +434,93 @@ WHERE workspace_id = 'local-dev-workspace' AND source_entity_id = 'pr-settings'
   AND type = 'project.advances_goal' AND deleted_at IS NULL;
 UPDATE entity_links SET deleted_at = NULL, updated_at = '2026-07-19T08:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND id = 'l-prsettings-area';
+
+-- PROJ-05 Slice 4 — a dedicated project for the full Today-integration journey
+-- (Planned → Active → appears in Today → On hold → disappears → Active → Archive →
+-- disappears from Today + appears in Archived → Restore → reappears in Today because
+-- restore preserves the Active workflow status). Starts Planned, directly under Area
+-- `a-dh`, with no child tasks (immediately eligible for archiving). Isolated from
+-- `pr-settings` (a distinct project) so the two Settings journeys never race.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-today', 'local-dev-workspace', 'project', 'Today integration project', '2026-07-19T09:00:00.000Z', '2026-07-19T09:00:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-today', 'project', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-prtoday-area', 'local-dev-workspace', 'pr-today', 'a-dh', 'project.belongs_to_area', '2026-07-19T09:00:00.000Z', '2026-07-19T09:00:00.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-today', 'planned', NULL, '2026-07-19T09:00:00.000Z');
+
+-- Reset the journey's mutable state so every run starts Planned and not archived.
+UPDATE project_details SET status = 'planned', archived_at = NULL, updated_at = '2026-07-19T09:00:00.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-today';
+
+-- A second, untouched-by-mutation project starting Planned, used to prove a
+-- restored Planned Project stays absent from Today's "Continue working" (it is
+-- archived and restored directly, without ever passing through Active).
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-today-planned', 'local-dev-workspace', 'project', 'Planned project (Today absence check)', '2026-07-19T09:01:00.000Z', '2026-07-19T09:01:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-today-planned', 'project', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-prtodayplanned-area', 'local-dev-workspace', 'pr-today-planned', 'a-dh', 'project.belongs_to_area', '2026-07-19T09:01:00.000Z', '2026-07-19T09:01:00.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-today-planned', 'planned', NULL, '2026-07-19T09:01:00.000Z');
+
+UPDATE project_details SET status = 'planned', archived_at = NULL, updated_at = '2026-07-19T09:01:00.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-today-planned';
+
+-- PROJ-05 Slice 4 — a PERMANENTLY archived project, so the Archived collection
+-- (`/projects?state=archived`) and a real archived record's resting state are
+-- reachable for accessibility/responsive scans without any test having to mutate
+-- shared state first. Nothing ever un-archives it, so INSERT OR IGNORE plus an
+-- idempotent re-assertion keeps it archived across every run.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-archived-demo', 'local-dev-workspace', 'project', 'Archived showcase project', '2026-07-19T10:00:00.000Z', '2026-07-19T10:00:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-archived-demo', 'project', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-prarchiveddemo-area', 'local-dev-workspace', 'pr-archived-demo', 'a-dh', 'project.belongs_to_area', '2026-07-19T10:00:00.000Z', '2026-07-19T10:00:00.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-archived-demo', 'active', '2026-07-19T10:00:01.000Z', '2026-07-19T10:00:01.000Z');
+UPDATE project_details SET status = 'active', archived_at = '2026-07-19T10:00:01.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-archived-demo';
+
+-- PROJ-05 Slice 4 — a project with one unfinished direct Task, permanently
+-- ineligible for archiving, so the blocked-archive inline alert is reachable
+-- without a test having to create and later clean up a blocking task itself.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-archive-blocked-demo', 'local-dev-workspace', 'project', 'Archive-blocked demo project', '2026-07-19T10:01:00.000Z', '2026-07-19T10:01:00.000Z', NULL),
+  ('pt-archive-blocked-demo', 'local-dev-workspace', 'task', 'Unfinished blocking task', '2026-07-19T10:01:01.000Z', '2026-07-19T10:01:01.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-archive-blocked-demo', 'project', NULL),
+  ('local-dev-workspace', 'pt-archive-blocked-demo', 'task', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-prarchiveblockeddemo-area', 'local-dev-workspace', 'pr-archive-blocked-demo', 'a-dh', 'project.belongs_to_area', '2026-07-19T10:01:00.000Z', '2026-07-19T10:01:00.000Z', NULL),
+  ('l-ptarchiveblockeddemo-proj', 'local-dev-workspace', 'pt-archive-blocked-demo', 'pr-archive-blocked-demo', 'task.belongs_to_project', '2026-07-19T10:01:01.000Z', '2026-07-19T10:01:01.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-archive-blocked-demo', 'active', NULL, '2026-07-19T10:01:00.000Z');
+
+-- Reset the blocking task's completion (nothing ever completes it deliberately,
+-- but keep this deterministic in case a future journey exercises it) and keep
+-- the project itself active and never archived (an archive attempt against it is
+-- always rejected, so there is nothing else to reset).
+UPDATE spine_records SET completed_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-archive-blocked-demo';
+UPDATE project_details SET status = 'active', archived_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-archive-blocked-demo';

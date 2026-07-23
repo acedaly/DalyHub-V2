@@ -62,7 +62,7 @@ composed by the shell — never in a central switch.
 | --- | --- | --- |
 | `GET /projects` | page | The collection: `projects.listProjects({state,cursor})` (state: `open` / `completed` / **`archived`** / `all` — PROJ-05) + first-page Area/Goal seed options for the create form. Also serves keyset pages for the collection's "Load more" (via `useFetcher().load`). |
 | `POST /projects/new` | resource | Create a project via `spine.createProject` (parent kind resolved server-side). |
-| `GET /projects/:projectId` | page | The overview: `getProjectOverview` + `spine.getRollup` + `listProjectTasks` + `project.relates_to` links + a first-page Area/Goal seed for the Settings tab's organisation picker (PROJ-05). |
+| `GET /projects/:projectId` | page | The overview: `getProjectOverview` + `spine.getRollup` + `listProjectTasks` + `project.relates_to` links. It does **not** fetch a parent (Area/Goal) catalogue — the Settings tab's organisation picker seeds only from the project's CURRENT parent and searches `/projects/parent-options` on demand (PROJ-05 Slice 4 documentation correction). |
 | `POST /projects/:projectId/mutate` | resource | `rename` / `complete` / `reopen` / `create_task` / `link` / `unlink` / **`set_status`** / **`move`** / **`archive`** / **`restore`** (PROJ-05, verified project id). Any intent OTHER than `archive`/`restore` is rejected against an archived project with a calm `"archived_rejected"` outcome — never a partial mutation. |
 | `GET /projects/:projectId/link-targets` | resource | The Key links picker's target search (verified project anchor). |
 | `GET /projects/:projectId/tasks` | resource | One keyset page of the project's tasks (`state`, `cursor`) for the Tasks tab's "Load more" — fetched WITHOUT navigating, so `?drawer=` state is untouched. Returns `400` for a tampered/cross-scope cursor. |
@@ -80,7 +80,7 @@ same pattern the shared task record surface uses).
 - **Collection** — [`ProjectsCollection.tsx`](../../app/modules/projects/ProjectsCollection.tsx):
   PX-02 `CollectionLayout`, the one DS-04 `Card`, a restrained URL-reflected state
   segment ([`SegmentedFilter`](../../app/modules/projects/SegmentedFilter.tsx):
-  Open/Completed/All), the shared `EmptyState` (empty vs filtered-empty vs error), and
+  All/Open/Completed/**Archived**, PROJ-05), the shared `EmptyState` (empty vs filtered-empty vs error), and
   the shared [`LoadMore`](../../app/shared/load-more) affordance. A card opens the
   overview through **normal client navigation** (a real `<a href="/projects/:id">` + SPA
   open) — never a `div onClick`. "Load more" accumulates keyset pages with
@@ -89,10 +89,12 @@ same pattern the shared task record surface uses).
   first-page cursor) changes — so opening the new-project Drawer keeps the loaded pages.
   The subtitle reads "N projects loaded" while more remain (never a false total).
 - **Overview** — [`ProjectOverview.tsx`](../../app/modules/projects/ProjectOverview.tsx):
-  the DS-02 Record Layout (header: identity, open/completed pill, Area/Goal context,
-  Complete/Reopen + Rename; summary: parent Area, optional Goal, state, task totals,
-  completed count, roll-up progress, created/updated; tabs: **Tasks**, **Key links**,
-  **Activity** — Activity LAST per the shared tab vocabulary).
+  the DS-02 Record Layout (header: identity, Archived/Completed/workflow-status pill,
+  Area/Goal context, Complete/Reopen + Rename — both HIDDEN while archived; summary:
+  parent Area, optional Goal, state, task totals, completed count, roll-up progress,
+  created/updated; tabs: **Tasks**, **Key links**, **Activity**, **Settings** — Settings
+  is now the final tab (PROJ-05 Slice 3), per the shared tab vocabulary's "Activity and
+  Settings always sit last").
 - **Tasks tab** — [`ProjectTasksTab.tsx`](../../app/modules/projects/ProjectTasksTab.tsx):
   the project's real child tasks as DS-04 Cards with the shared task semantics
   (completion = the spine's `completedAt`; waiting = the TODAY-03 state; scheduled ≠
@@ -330,26 +332,75 @@ the copy. No new route, no new migration.
   here, and can be restored at any time.") and deliberately omits a second "New
   project" CTA (creating a project doesn't address "nothing is archived").
 - **Project creation discoverability** ([`NewProjectForm.tsx`](../../app/modules/projects/NewProjectForm.tsx)):
-  when the workspace has NEITHER an Area nor a Goal at all (the create form's seed
-  page — unfiltered, up to its bound — is empty), the form shows an honest
-  explanation instead of a silently-unusable picker, with real links to the existing
-  `/areas` and `/goals` module placeholder routes. It never auto-creates an Area/Goal,
-  never makes parentage optional (that would need its own ADR — AGENTS.md §4), and the
-  picker stays fully usable once at least one eligible parent exists.
+  when the workspace's parent-option query has genuinely succeeded and found NEITHER
+  an Area nor a Goal at all, the form shows an honest confirmed-empty explanation
+  (Close only) instead of a silently-unusable picker. **Correction (Slice 4
+  documentation audit): this explanation does NOT link to `/areas`/`/goals` — those
+  routes are not built, and any such links were removed before this slice merged.**
+  A SEPARATE state — the parent-option query itself failing (a storage/network
+  error) — shows a calm, retryable "Couldn't load Areas and Goals" / "Try again"
+  message; the two states are never conflated, so a query failure is never
+  mis-reported as "no Areas or Goals exist". Neither state auto-creates an
+  Area/Goal, and neither makes parentage optional (that would need its own ADR —
+  AGENTS.md §4); the picker stays fully usable once at least one eligible parent
+  exists.
 - **No new route, no new migration.** Every mutation goes through the intents Slices
   1–2 already built and tested at the repository/route boundary; this slice adds only
-  the UI that calls them and the `parentOptions` seed on the record loader (mirroring
-  the collection loader's existing seed).
+  the UI that calls them. The Project Settings tab's organisation picker seeds from
+  the project's CURRENT parent only (never a first-page catalogue like the
+  collection/create-form seed) — the record loader does not fetch a parent catalogue
+  at all; every alternative parent is found via the same server-backed
+  `/projects/parent-options` search the New-Project form uses.
 
-## Today integration
+## Today integration (PROJ-05 Slice 4)
 
-The Today "Continue working" fixture seam is replaced with the **real** bounded read
-model (open projects, most-recently-updated first), mapped to a plain Today display
-shape (no cross-module import, no separate Today project store). A project opened from
-Today lands on the **same** canonical `/projects/:id` record. Other Today fixture
-sections and the DS-08 search seam are undisturbed. Since PROJ-02, those cards show the
-**same** derived health model (never a Today-only calculation), but only when a project
-needs attention (`at_risk`/`blocked`/`stale`) so the calm dashboard stays uncluttered.
+The Today "Continue working" section reads the **real**, bounded, database-filtered
+read model: `scope.projects.listProjects({ state: "open", workflowStatus: "active",
+orderBy: "recent", limit: RECENT_PROJECTS_COUNT })`. `state: "open"` excludes
+Completed and Archived projects; `workflowStatus: "active"` INDEPENDENTLY restricts
+the section to Projects the owner has deliberately moved into active work via the
+Project Settings tab — Planned and On hold projects are absent, and archiving an
+Active project (or completing it) removes it even though its preserved workflow
+status remains "active". Both filters and the "recent" ordering/bound are applied AT
+the database — never a larger page re-filtered or re-sorted in React, and never a
+second status-label mapping (the Card's status pill reuses the same
+`projectWorkflowStatusLabel` vocabulary the Settings tab and collection use, so it
+always reads "Active", never the old generic "Open"). A project opened from Today
+lands on the **same** canonical `/projects/:id` record, and no Today-owned Project
+repository, cache or drawer rendering of Projects React components exists. Other
+Today fixture sections and the DS-08 search seam are undisturbed. Since PROJ-02,
+those cards show the **same** derived health model (never a Today-only calculation),
+but only when a project needs attention (`at_risk`/`blocked`/`stale`) so the calm
+dashboard stays uncluttered.
+
+**Effect of every workflow transition on Today** — proven by a real Workers/D1 route
+integration test ([`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts))
+and a real-D1 Playwright journey
+([`e2e/project-settings.spec.ts`](../../e2e/project-settings.spec.ts)):
+
+- Planned → Active (via Settings `set_status`): the Project appears in Continue
+  working, reading Active; a settings-only transition still bumps the ADR-037 §37.2
+  effective `updatedAt`, so "recent" ordering stays honest.
+- Active → On hold / Active → Planned: the Project disappears from Continue working
+  immediately; it remains visible in the ordinary Projects collection and its
+  canonical record, and nothing about completion or archival changes.
+- Active → Archived: the Project disappears from Today and appears in the Archived
+  collection; the existing archive-eligibility guard (no active unfinished direct
+  Task) still applies — Today never substitutes client-only filtering for that
+  repository rule.
+- Archived → Restored: restore preserves the workflow status exactly as it was
+  before archiving (ADR-037 §37.1/§37.5); an Active project therefore reappears in
+  Today after restore + revalidation with no second manual status change, while a
+  restored Planned or On-hold project stays correctly absent.
+- Completed (any workflow status, including a preserved "active" one): still
+  excluded by `state: "open"` independently of `workflowStatus`; reopening a
+  Completed project preserves its existing documented workflow status and it may
+  reappear in Today if that preserved status is Active.
+
+**"Continue working"'s empty state** now reads "No active projects to continue.",
+with a quiet supporting sentence explaining that a project appears once its workflow
+status is set to Active — replacing the earlier "No recent projects to continue."
+copy, which was accurate only while the section was `state: "open"`-only.
 
 ## Testing
 
@@ -440,6 +491,60 @@ needs attention (`at_risk`/`blocked`/`stale`) so the calm dashboard stays unclut
   preserved workflow status, and no 320px horizontal overflow with the Settings tab
   and a confirmation dialog open. Full PROJ-05 accessibility/responsive/Today-integration
   E2E closure is Slice 4 — this journey is deliberately narrow, not exhaustive.
+- **E2E — Today integration closure** (same file, `PROJ-05 Slice 4 — Today
+  integration` describe block, over the dedicated seeded `pr-today`/
+  `pr-today-planned` projects, isolated from `pr-settings`): the complete
+  Planned → Active (appears in Today, reads Active) → On hold (disappears) →
+  Active → Archive (disappears from Today, appears in Archived) → Restore
+  (reappears in Today because Active was preserved) journey, driven entirely
+  through the real Settings tab UI and Today's real loader — no client-only
+  filtering ever substitutes for repository state, and every reconciliation is a
+  revalidation, never a hard reload; Back/Forward and a copied URL are proven
+  mid-journey; a SEPARATE test proves a restored Planned project stays absent
+  from Continue working. **Accessibility/responsive closure**
+  ([`e2e/accessibility.spec.ts`](../../e2e/accessibility.spec.ts),
+  [`e2e/responsive.spec.ts`](../../e2e/responsive.spec.ts)): the Settings tab
+  (light/dark, 320–2560px), the Archived collection (with a real permanently-archived
+  seeded card), a bare archived record, the archive confirmation dialog, the restore
+  confirmation dialog, and a blocked archive's inline alert are all axe-clean and
+  overflow-free across the full breakpoint matrix — extending the existing
+  `PRODUCT_ROUTES`/viewport sweeps rather than a second scan mechanism. Today's own
+  resting-state scan (`/today`, already in `PRODUCT_ROUTES`) now exercises a real
+  Active "Continue working" card, since the showcase project `pr-website` carries a
+  permanent Active `project_details` row.
+- **Focus-restoration fix + regression test** (`app/shared/settings/ConfirmationDialog.tsx`,
+  [`test/unit/settings/ConfirmationDialog.test.tsx`](../../test/unit/settings/ConfirmationDialog.test.tsx)):
+  a genuine accessibility gap the Slice 4 audit found and fixed at the shared DS-10b
+  layer (not duplicated per consumer) — a `DangerousAction`'s trigger (e.g. "Archive
+  project…") can be removed from the DOM by its OWN mutation's revalidation
+  AFTER the dialog has already restored focus to it (a browser resets focus to
+  `<body>` when the currently-focused node is removed, and nothing else reclaimed
+  it). `ConfirmationDialog` now also watches, for a bounded window after close,
+  for focus being orphaned to `<body>` and reclaims it to the page's main region —
+  benefiting every DS-10b dangerous action in the app, not just Project archive.
+  Proven by a test that fails without the fix (verified by reverting it locally)
+  and passes with it.
+- **Unit — Today's "Continue working" is Active-only**
+  ([`test/unit/today/TodayDashboard.test.tsx`](../../test/unit/today/TodayDashboard.test.tsx)):
+  the section's count reflects only the Active projects the loader supplied; every
+  card's status pill reads "Active" (never the old generic "Open", and never
+  Planned/On hold/Completed/Archived); a card is a real link to the canonical
+  `/projects/:id` route; and the empty state reads "No active projects to
+  continue." with the quiet supporting sentence — never the stale "No recent
+  projects to continue." copy.
+- **Workers/D1 — the Today loader itself**
+  ([`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts), new
+  in Slice 4): drives the ACTUAL `/today` route loader (not just the repository
+  predicate `test/kernel/projects.test.ts` already proves) — includes an Active,
+  incomplete, non-archived project; excludes Planned, On hold, a Completed project
+  even with a preserved Active status, and an Archived project even with a
+  preserved Active status; preserves workspace isolation; stays bounded by
+  `RECENT_PROJECTS_COUNT`; orders by the effective "recent" `updatedAt`; reflects a
+  settings-only transition to Active; removes a project after Active → On hold and
+  after archive; includes a project again after restore; excludes a restored
+  Planned or On-hold project; and returns the calm empty shape when nothing is
+  Active. Deterministic `FakeClock` + `sequentialIds`, following the existing
+  `test/kernel/support.ts` conventions — no wall-clock races.
 - **PROJ-05 settings + archival (slices 1–2 foundation, hardened at the repository
   boundary) — real Workers/D1**
   ([`test/kernel/project-settings.test.ts`](../../test/kernel/project-settings.test.ts)):
@@ -466,18 +571,17 @@ needs attention (`at_risk`/`blocked`/`stale`) so the calm dashboard stays unclut
   `"archived"` state, the `workflowStatus` filter, and a settings-only
   transition affecting `"recent"` ordering via the effective `updatedAt`.
 
-## What remains for PROJ-03, 05, 06
+## What remains for PROJ-03, 06
 
 PROJ-03 (notes/knowledge, blocked on NOTES-01) and PROJ-06 (mobile-specific
-enhancements) are **not started**. PROJ-05 (settings: area/goal reassignment,
-status models, archival) has its persistence + concurrency/archival-invariant
-foundation (slices 1–2) AND its shared Settings UI + Archived collection
-(**slice 3**, this document's "Settings, archival and the Archived collection"
-section) done. **Slice 4 — Today integration (`workflowStatus: "active"` on
-"Continue working"), full accessibility/responsive/E2E closure, and any
-remaining polish — is NOT yet built, so PROJ-05 overall remains IN PROGRESS,
-not done.** (PROJ-02 health and PROJ-04 the Activity tab are done.) Deferred
-refinements are tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
+enhancements) are **not started**. **PROJ-05 (settings: area/goal reassignment,
+status models, archival) is now DONE, all four slices**: persistence +
+concurrency/archival-invariant foundation (slices 1–2), the shared Settings UI +
+Archived collection (slice 3), and Today integration + full
+accessibility/responsive/end-to-end closure (**slice 4**, this document's "Today
+integration (PROJ-05 Slice 4)" section). (PROJ-01 overview, PROJ-02 health and
+PROJ-04 the Activity tab were already done.) Deferred refinements are tracked in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 
 ## Health testing (PROJ-02)
 
@@ -516,6 +620,6 @@ Migration `0008_create_project_details.sql` adds the Projects-owned, workspace-s
 - **An archived Project is read-only until restored, enforced at the repository boundary — not duplicated per mutation.** `D1SpineRepository` rejects creating a Task under an archived Project, reopening a Task whose Project is archived, and moving a Task into or out of an archived Project (reusing the existing `SpineParentUnavailableError` — spine stays unaware of PROJ-05's TypeScript contracts by design, only its SQL adapter references `project_details`). `D1TaskRepository` folds the SAME "parent Project not archived" guard directly into the domain SQL statement (not just a preceding read) for `updateTask`, `setWaiting`, `clearWaiting`, `planTask` and `clearPlan` (single + bulk), so a concurrent archive racing one of these writes is resolved at the statement's own atomic commit, exactly like the archive guard itself; `completeTask` deliberately keeps a read-based-only guard, because completing a task can never itself recreate unfinished work under any interleaving with `archive`, so no SQL fold is needed there. Generic `task.relates_to` link/unlink is guarded TWICE, deliberately: the Task-detail route pre-checks via `scope.projectSettings.get(task.project.id)` for a fast, friendly rejection with no wasted mutation attempt, and `D1EntityLinkRepository`'s own `create`/`unlink`/`restore` SQL additionally folds the same "either endpoint is a Task under an archived Project" predicate into its `NOT EXISTS` clauses — so ANY caller of the generic link repository is covered, not just this route, and a concurrent archive can never race a link mutation to completion (a blocked attempt throws `EntityLinkEndpointArchivedError`, mapped to the same calm message).
 - **One authoritative presentation timestamp (ADR-037 §37.2).** `ProjectListItem.updatedAt`/`ProjectOverview.updatedAt` are the LATER of the spine entity's and the settings row's `updated_at`, computed at read time (never copied into a second column) — so a status change, archive or restore affects "recent" collection ordering and the Project Activity tab's in-place reload key exactly like a rename does.
 - **Health visibility is one shared rule.** `isHealthVisible` (in `project-view.ts`) — true only for an open, incomplete, non-archived, `"active"`-status Project — is the SAME function the Project cards, BOTH the Project overview header pill and its detailed `ProjectHealthPanel`, and Today's cards all consult; a Planned or On-hold Project never shows a stalled/at-risk warning, and a Completed or Archived Project never shows an active-work warning anywhere it's rendered.
-- **Today's "Continue working" still uses `state: "open"` only (ADR-037 §37.7).** Restricting it to `workflowStatus: "active"` is the eventual intent, but this is DELIBERATELY still deferred to Slice 4: Slice 3 (this PR) ships the Settings UI that lets an owner move a Project to `"active"`, but wiring Today's filter is its own change with its own accessibility/responsive/E2E closure, kept out of this PR's scope per the roadmap's slice boundaries. `listProjects`' `workflowStatus` parameter remains implemented and tested; Today adopts it in Slice 4.
+- **Today's "Continue working" is Active-only (ADR-037 §37.7/§37.8, PROJ-05 Slice 4 — done).** Slice 3 shipped the Settings UI that lets an owner move a Project to `"active"`; Slice 4 wired Today's loader to `workflowStatus: "active"` (alongside the existing `state: "open"`) and closed the accessibility/responsive/E2E gaps across the whole PROJ-05 surface. See the ["Today integration (PROJ-05 Slice 4)"](#today-integration-proj-05-slice-4) section above for the full behaviour and tests.
 
-Slice 3 (see the "Settings, archival and the Archived collection" section above) wires the shared Settings UI and the `/projects?state=archived` collection UI onto exactly these repository/route contracts — no new migration, no new route, no repository change. See [ROADMAP_V2 PROJ-05](../roadmap/ROADMAP_V2.md#-proj-05--settings) for Slice 4 (Today integration + full accessibility/responsive/E2E closure), the only remaining slice.
+Slice 3 (see the "Settings, archival and the Archived collection" section above) wires the shared Settings UI and the `/projects?state=archived` collection UI onto exactly these repository/route contracts — no new migration, no new route, no repository change. Slice 4 (Today integration + full accessibility/responsive/E2E closure) is now done — see [ROADMAP_V2 PROJ-05](../roadmap/ROADMAP_V2.md#-proj-05--settings). **PROJ-05 (all four slices) is complete.**

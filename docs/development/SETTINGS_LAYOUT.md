@@ -181,7 +181,12 @@ button that opens the shared `ConfirmationDialog`. The dialog:
 - places **initial focus** on the typed-confirmation input when present, else the
   safe **Cancel** button — never the destructive one;
 - **restores focus** to the trigger on close (a post-close safety net mirrors the
-  Drawer/Inspector, so it is deterministic across browsers);
+  Drawer/Inspector, so it is deterministic across browsers); if the trigger is
+  later removed by the SAME mutation's own revalidation (e.g. archiving a project
+  hides its "Archive project…" button behind the read-only Archived view) — a
+  gap PROJ-05 Slice 4's accessibility audit found and fixed here — a bounded
+  post-close watcher notices focus orphaned to `<body>` and reclaims it to the
+  page's main region, so every DS-10b dangerous action gets this for free;
 - gates **Confirm** behind an optional **typed confirmation** (an exact, case- and
   whitespace-significant phrase — e.g. `DELETE`);
 - **prevents duplicate submissions** while a confirmation is in flight (Confirm and

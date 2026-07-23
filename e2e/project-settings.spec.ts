@@ -142,3 +142,189 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 });
+
+/**
+ * PROJ-05 Slice 4 — Today integration closure. Extends the Slice 3 Settings
+ * journey above rather than a second test architecture: it proves the complete
+ * Project workflow-status/archive/restore journey affects Today's "Continue
+ * working" exactly as ADR-037's Today integration promises, over the dedicated
+ * seeded `pr-today` project (isolated from `pr-settings`). Every transition goes
+ * through the real Settings tab UI/mutation route; no client-only filtering ever
+ * substitutes for repository state, and no hard reload is used to reconcile
+ * in-record mutations — only revalidation.
+ */
+test.describe("PROJ-05 Slice 4 — Today integration", () => {
+  test("Planned → Active → On hold → Active → Archive → Restore, reflected live on Today", async ({
+    page,
+  }) => {
+    const projectLink = () =>
+      page.getByRole("link", { name: "Open Today integration project" });
+
+    // 1–3: Today shows no Active/Planned/On hold/Completed/Archived card for this
+    // project while it is still Planned.
+    await gotoFixture(page, "/today");
+    const continueWorking = page.getByRole("region", {
+      name: "Continue working",
+    });
+    await expect(continueWorking).toBeVisible();
+    await expect(projectLink()).toHaveCount(0);
+
+    // 4–6: open it through Projects (not Today, since it is absent), open its
+    // final Settings tab, change it to Active.
+    await gotoFixture(page, "/projects/pr-today");
+    await expect(
+      page.getByRole("heading", { name: "Today integration project" }),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: "Settings" }).click();
+    const statusSelect = page.getByRole("combobox", {
+      name: "Workflow status",
+    });
+    await expect(statusSelect).toHaveValue("planned");
+    await statusSelect.selectOption("active");
+    await expect(
+      page.getByRole("group", { name: "Workflow status saved" }),
+    ).toBeVisible();
+
+    // 7–8: back to Today — it now appears and reads Active. No hard reload.
+    await gotoFixture(page, "/today");
+    await expect(projectLink()).toBeVisible();
+    const card = page.locator('article[data-card-id="pr-today"]');
+    await expect(card.getByText("Active", { exact: true })).toBeVisible();
+
+    // 9–10: back to Settings, change to On hold; back to Today — it disappears.
+    await gotoFixture(page, "/projects/pr-today");
+    await page.getByRole("tab", { name: "Settings" }).click();
+    await expect(
+      page.getByRole("combobox", { name: "Workflow status" }),
+    ).toHaveValue("active");
+    await page
+      .getByRole("combobox", { name: "Workflow status" })
+      .selectOption("on_hold");
+    await expect(
+      page.getByRole("group", { name: "Workflow status saved" }),
+    ).toBeVisible();
+    await gotoFixture(page, "/today");
+    await expect(projectLink()).toHaveCount(0);
+
+    // 11: change it back to Active.
+    await gotoFixture(page, "/projects/pr-today");
+    await page.getByRole("tab", { name: "Settings" }).click();
+    await page
+      .getByRole("combobox", { name: "Workflow status" })
+      .selectOption("active");
+    await expect(
+      page.getByRole("group", { name: "Workflow status saved" }),
+    ).toBeVisible();
+
+    // 12: archive it through the real confirmation, keyboard-operated.
+    const archiveButton = page.getByRole("button", {
+      name: "Archive project…",
+    });
+    await archiveButton.focus();
+    await page.keyboard.press("Enter");
+    const archiveDialog = page.getByRole("dialog", {
+      name: "Archive this project?",
+    });
+    await expect(archiveDialog).toBeVisible();
+    await archiveDialog
+      .getByRole("button", { name: "Archive project" })
+      .click();
+    await expect(archiveDialog).toBeHidden();
+    await expect(
+      page.getByRole("group", { name: "Project archived" }),
+    ).toBeVisible();
+
+    // 13: disappears from Today, appears in Archived.
+    await gotoFixture(page, "/today");
+    await expect(projectLink()).toHaveCount(0);
+    await gotoFixture(page, "/projects?state=archived");
+    const archivedCard = page.getByRole("link", {
+      name: "Open Today integration project",
+    });
+    await expect(archivedCard).toBeVisible();
+
+    // 14–16: open it from Archived, restore it (keyboard-operated), confirm it
+    // returns to Today because Active was preserved.
+    await archivedCard.click();
+    await expect(page).toHaveURL(/\/projects\/pr-today/);
+    await page.getByRole("tab", { name: "Settings" }).click();
+    const restoreButton = page.getByRole("button", {
+      name: "Restore project…",
+    });
+    await restoreButton.focus();
+    await page.keyboard.press("Enter");
+    const restoreDialog = page.getByRole("dialog", {
+      name: "Restore this project?",
+    });
+    await expect(restoreDialog).toBeVisible();
+    await restoreDialog
+      .getByRole("button", { name: "Restore project" })
+      .click();
+    await expect(restoreDialog).toBeHidden();
+    await expect(
+      page.getByRole("group", { name: "Project restored" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "Workflow status" }),
+    ).toHaveValue("active");
+
+    await gotoFixture(page, "/today");
+    await expect(projectLink()).toBeVisible();
+
+    // 18: Back/Forward and a copied URL do not break.
+    await projectLink().click();
+    await expect(page).toHaveURL(/\/projects\/pr-today/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/today/);
+    await expect(projectLink()).toBeVisible();
+    await page.goForward();
+    await expect(page).toHaveURL(/\/projects\/pr-today/);
+    // `pr-today` is left restored (Active, not archived); the seed resets it to
+    // its Planned baseline before the next full suite run regardless.
+  });
+
+  test("a restored Planned project stays absent from Today's Continue working", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/projects/pr-today-planned");
+    await expect(
+      page.getByRole("heading", {
+        name: "Planned project (Today absence check)",
+      }),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: "Settings" }).click();
+    await expect(
+      page.getByRole("combobox", { name: "Workflow status" }),
+    ).toHaveValue("planned");
+
+    // Archive it directly (it never passes through Active) and restore it.
+    await page.getByRole("button", { name: "Archive project…" }).click();
+    const archiveDialog = page.getByRole("dialog", {
+      name: "Archive this project?",
+    });
+    await archiveDialog
+      .getByRole("button", { name: "Archive project" })
+      .click();
+    await expect(archiveDialog).toBeHidden();
+
+    await page.getByRole("button", { name: "Restore project…" }).click();
+    const restoreDialog = page.getByRole("dialog", {
+      name: "Restore this project?",
+    });
+    await restoreDialog
+      .getByRole("button", { name: "Restore project" })
+      .click();
+    await expect(restoreDialog).toBeHidden();
+    // Workflow status is preserved as Planned across the round trip.
+    await expect(
+      page.getByRole("combobox", { name: "Workflow status" }),
+    ).toHaveValue("planned");
+
+    await gotoFixture(page, "/today");
+    await expect(
+      page.getByRole("link", {
+        name: "Open Planned project (Today absence check)",
+      }),
+    ).toHaveCount(0);
+  });
+});

@@ -1,5 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ConfirmationDialog } from "~/shared/settings";
@@ -46,6 +52,60 @@ function Harness({
         opener={opener}
       >
         This permanently deletes the workspace.
+      </ConfirmationDialog>
+    </div>
+  );
+}
+
+/**
+ * A harness whose trigger DISAPPEARS on demand — mirroring a `DangerousAction`
+ * whose own mutation triggers an async revalidation that swaps the surrounding
+ * view (e.g. archiving a project hides the "Archive project…" button behind the
+ * read-only Archived view). Removal is driven imperatively (`exposeRemove`),
+ * never by a click (which would itself move focus) or a timer race — so the test
+ * can wait for the dialog to genuinely restore focus to the trigger FIRST, then
+ * remove it, proving the DELAYED-removal case deterministically.
+ */
+function HarnessWithVanishingTrigger({
+  onConfirm,
+  exposeRemove,
+}: {
+  onConfirm: () => Promise<void>;
+  exposeRemove: (remove: () => void) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+  const [triggerRemoved, setTriggerRemoved] = useState(false);
+  useEffect(() => {
+    exposeRemove(() => setTriggerRemoved(true));
+  }, [exposeRemove]);
+  return (
+    <div>
+      <main id="main-content" tabIndex={-1}>
+        {!triggerRemoved ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              setOpener(event.currentTarget);
+              setOpen(true);
+            }}
+          >
+            Archive project…
+          </button>
+        ) : (
+          <p>Archived</p>
+        )}
+      </main>
+      <ConfirmationDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onConfirm={onConfirm}
+        title="Archive this project?"
+        confirmLabel="Archive project"
+        cancelLabel="Cancel"
+        opener={opener}
+      >
+        This project becomes read-only.
       </ConfirmationDialog>
     </div>
   );
@@ -172,6 +232,49 @@ describe("DS-10b ConfirmationDialog", () => {
     // Let it finish so no act warning lingers.
     gate.resolve();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  // PROJ-05 Slice 4: archiving a project (or any dangerous action whose success
+  // revalidates the surrounding view) can remove the trigger AFTER this dialog has
+  // already restored focus to it. Focus must land somewhere meaningful — never be
+  // silently orphaned to `<body>`.
+  it("reclaims focus to the page's main region when its trigger vanishes shortly after close", async () => {
+    const onConfirm = vi.fn(() => Promise.resolve());
+    let removeTrigger: (() => void) | null = null;
+    render(
+      <HarnessWithVanishingTrigger
+        onConfirm={onConfirm}
+        exposeRemove={(remove) => {
+          removeTrigger = remove;
+        }}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: "Archive project…" });
+    fireEvent.click(trigger);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Archive project" }),
+    );
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // The dialog has restored focus to the trigger (the ordinary, undisturbed
+    // path) BEFORE it is removed — proving this is the DELAYED-removal case, not
+    // merely the already-handled "opener disconnected at restore time" case.
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    // The "revalidation" now swaps the view, removing the still-focused trigger.
+    act(() => {
+      removeTrigger?.();
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Archive project…" }),
+      ).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        document.getElementById("main-content"),
+      ),
+    );
   });
 
   describe("typed confirmation", () => {

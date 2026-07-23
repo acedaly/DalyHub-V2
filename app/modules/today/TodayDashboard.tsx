@@ -33,6 +33,7 @@ import {
   type ProjectHealth,
 } from "~/shared/project-health";
 import { useFeedback } from "~/shared/feedback";
+import { projectWorkflowStatusLabel } from "~/kernel/project-settings";
 // Import the specific modules (not the `~/shared/commands` barrel) so the Today
 // route chunk does not eagerly pull the palette controller / DS-08 Search UI.
 import { toCardAction, type AppAction } from "~/shared/commands/action";
@@ -78,17 +79,20 @@ import type {
 import type { WaitingSummary } from "./task/waiting-view";
 
 /**
- * A recently-active REAL project for the "Continue working" section (PROJ-01). A
- * plain display shape derived by the loader from the project read model — Today never
- * imports the Projects module (the module import boundary forbids it). Opening one
- * navigates to the canonical `/projects/:id` route, the same record a project opened
- * from the Projects module lands on.
+ * A recently-active REAL project for the "Continue working" section (PROJ-05 Slice
+ * 4). A plain display shape derived by the loader from the project read model —
+ * Today never imports the Projects module (the module import boundary forbids it).
+ * Opening one navigates to the canonical `/projects/:id` route, the same record a
+ * project opened from the Projects module lands on. Every item here is guaranteed by
+ * the loader's query (`state: "open"` + `workflowStatus: "active"`) to be an
+ * incomplete, non-archived project whose workflow status is Active — so there is no
+ * `completed`/`archivedAt`/`status` field to carry: the section's cards are always
+ * presented as Active, never Planned/On hold/Completed/Archived.
  */
 export type RecentProjectItem = {
   readonly id: string;
   readonly title: string;
   readonly areaLabel: string | null;
-  readonly completed: boolean;
   readonly taskTotal: number;
   readonly taskCompleted: number;
   /** The DERIVED health signal (PROJ-02), or null when unavailable. */
@@ -772,9 +776,14 @@ export function TodayDashboard({
     };
   };
 
-  // A real project card (PROJ-01): opens the canonical `/projects/:id` record route
-  // through normal client navigation (a real link + SPA open) — the SAME record a
-  // project opened from the Projects module lands on, never a fixture drawer.
+  // A real project card (PROJ-05 Slice 4): opens the canonical `/projects/:id`
+  // record route through normal client navigation (a real link + SPA open) — the
+  // SAME record a project opened from the Projects module lands on, never a fixture
+  // drawer. Every project the loader hands to this section is already known to be
+  // Active (the query filters on `workflowStatus: "active"`), so the status pill
+  // reuses the SAME shared workflow-status vocabulary the Project Settings tab and
+  // collection use — never a second "Open"/generic label, and never a status this
+  // section could otherwise show (Planned/On hold/Completed/Archived never reach it).
   const projectCard = (project: RecentProjectItem): CardProps => {
     const href = `/projects/${encodeURIComponent(project.id)}`;
     // Keep Today calm: only surface a health cue when the project genuinely needs
@@ -795,9 +804,7 @@ export function TodayDashboard({
       typeLabel: "Project",
       icon: <EntityIcon type="project" />,
       accent: "accent",
-      status: project.completed
-        ? { label: "Completed", tone: "success" }
-        : { label: "Open", tone: "neutral" },
+      status: { label: projectWorkflowStatusLabel("active"), tone: "neutral" },
       context: project.areaLabel ? { label: project.areaLabel } : undefined,
       metadata,
       progress:
@@ -1010,7 +1017,8 @@ export function TodayDashboard({
           )}
         </TodaySection>
 
-        {/* Continue working — REAL projects (PROJ-01), opening the canonical route. */}
+        {/* Continue working — REAL Active projects (PROJ-05 Slice 4), opening the
+            canonical route. The count reflects Active projects only. */}
         <TodaySection
           id="today-projects"
           label="Continue working"
@@ -1026,7 +1034,12 @@ export function TodayDashboard({
             />
           ) : (
             <p className="dh-today__section-empty">
-              No recent projects to continue.
+              No active projects to continue.
+              <br />
+              <span className="dh-today__section-empty-detail">
+                A project appears here once its workflow status is set to Active
+                in its Settings.
+              </span>
             </p>
           )}
         </TodaySection>

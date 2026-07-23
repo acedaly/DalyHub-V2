@@ -48,6 +48,13 @@ const PRODUCT_ROUTES = [
   // h3), so the bare page is now axe-clean without relying on the Drawer-open scan.
   "/projects/pr-website",
   "/tasks",
+  // PROJ-05 Slice 4 — the Settings tab (an active, non-archived project), the
+  // Archived collection (with a real permanently-archived card) and a bare
+  // archived record's resting state.
+  "/projects/pr-settings?tab=settings",
+  "/projects?state=archived",
+  "/projects/pr-archived-demo",
+  "/projects/pr-archived-demo?tab=settings",
 ] as const;
 
 test.describe("automated accessibility — resting surfaces (light)", () => {
@@ -100,5 +107,43 @@ test.describe("automated accessibility — open overlays", () => {
       .click();
     await page.getByRole("dialog").waitFor();
     await expectNoAxeViolations(page);
+  });
+
+  // PROJ-05 Slice 4 — the real Project Settings archive/restore dialogs and the
+  // blocked-archive inline alert, over real seeded projects (not the generic
+  // /design/settings fixture).
+  test("Project Settings archive confirmation dialog has no violations", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/projects/pr-settings?tab=settings");
+    await page.getByRole("button", { name: "Archive project…" }).click();
+    await page.getByRole("dialog", { name: "Archive this project?" }).waitFor();
+    await expectNoAxeViolations(page);
+    // Cancel — never actually archive `pr-settings` from an axe scan.
+    await page.keyboard.press("Escape");
+  });
+
+  test("Project Settings restore confirmation dialog has no violations", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/projects/pr-archived-demo?tab=settings");
+    await page.getByRole("button", { name: "Restore project…" }).click();
+    await page.getByRole("dialog", { name: "Restore this project?" }).waitFor();
+    await expectNoAxeViolations(page);
+    // Cancel — `pr-archived-demo` stays permanently archived for other scans.
+    await page.keyboard.press("Escape");
+  });
+
+  test("a blocked archive's inline alert has no violations", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/projects/pr-archive-blocked-demo?tab=settings");
+    await page.getByRole("button", { name: "Archive project…" }).click();
+    const dialog = page.getByRole("dialog", { name: "Archive this project?" });
+    await dialog.waitFor();
+    await dialog.getByRole("button", { name: "Archive project" }).click();
+    await dialog.getByRole("alert").waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
   });
 });

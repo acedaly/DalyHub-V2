@@ -88,7 +88,35 @@ export function ConfirmationDialog(props: ConfirmationDialogProps) {
         document.getElementById("main-content")?.focus?.();
       }
     });
-    return () => cancelAnimationFrame(raf);
+
+    // Belt-and-braces for a DELAYED loss: the opener can be REMOVED LATER, after
+    // this dialog has already closed and restored focus to it — e.g. a
+    // `DangerousAction`'s trigger (an "Archive project…" button) disappearing
+    // once its mutation's own revalidation swaps the surrounding view to the
+    // read-only archived state. A browser resets focus to `<body>` when the
+    // focused node is removed, and nothing else claims it afterwards. Watch for
+    // that specific, bounded aftermath — never act unless focus has genuinely
+    // been orphaned to `<body>` — and recover to the page's main region.
+    let settled = false;
+    const reclaimIfOrphaned = () => {
+      if (settled || document.activeElement !== document.body) {
+        return;
+      }
+      settled = true;
+      document.getElementById("main-content")?.focus?.();
+    };
+    const observer = new MutationObserver(reclaimIfOrphaned);
+    observer.observe(document.body, { childList: true, subtree: true });
+    const stopWatching = window.setTimeout(() => {
+      settled = true;
+      observer.disconnect();
+    }, 4000);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      window.clearTimeout(stopWatching);
+    };
   }, [open, opener]);
 
   if (!open) {
