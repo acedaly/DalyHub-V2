@@ -482,6 +482,55 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Projects mobile evaluation (PROJ-06)
+
+> The reuse evaluation for the mobile-complete Projects pass. **No new runtime or
+> dev dependency was added** — PROJ-06 is composition and hardening of the already
+> accepted shared mobile surfaces. No third-party code was copied or adapted.
+
+- **Products studied (🔴 study-only, already catalogued): Things 3, Linear,
+  Notion, and DalyHub's own TODAY-06 implementation.** Interaction-model
+  inspiration only: calm project hierarchy, clear visible actions, sheet-based
+  editing, and the shared Card swipe contract's constraints. TODAY-06 was treated
+  as the internal reference for touch/card behaviour, not as code to duplicate.
+- **Reuse evaluation — mobile Projects.**
+  - [x] Problem is a commodity worth reusing? **Internally, yes** — Collection
+    Layout, Card, Drawer, Record Layout, Tabs, forms, Timeline, Settings,
+    Feedback, `LoadMore` and the shared task record already solve the mobile
+    primitives. PROJ-06 reuses and hardens them instead of adding a Projects-only
+    mobile layout.
+  - [x] Gesture library / swipe dependency — rejected. No Project action met the
+    "frequent, low-risk, visible equivalent" bar; archive explicitly keeps
+    confirmation friction. The existing Card swipe contract remains available for
+    modules that genuinely need it, but Projects does not opt in.
+  - [x] Form/picker dependency — rejected. DS-06 `SelectField` and
+    `EntityLinkPicker` already provide searchable, server-backed touch-safe
+    controls.
+  - [x] Timeline/virtualisation dependency — rejected. DS-05 already supplies the
+    responsive Timeline and loading states.
+  - [x] Licence read — n/a (no dependency taken).
+  - [x] Fits our stack, accessibility bar and Design System — server-authoritative
+    loaders/mutations, no client-only filtering, no new focus trap/scroll lock,
+    44px touch targets, axe coverage, no document horizontal overflow across the
+    canonical DS-11 matrix.
+  - [x] Provenance — original DalyHub code; no snippet adapted, so no attribution
+    and no `THIRD_PARTY_NOTICES.md` change.
+  - [x] Covered by tests — unit no-swipe/honest-link card contract, focused
+    real-D1 mobile Playwright journey, and extended DS-11 responsive/accessibility
+    sweeps.
+  - [x] REFERENCE_PRODUCTS.md updated (this entry).
+- **Rejected.** A Projects-only mobile record layout, a Projects-only task editor,
+  a Projects-specific drawer/focus trap, swipe-to-archive, client-side filtering,
+  and any new UI/runtime dependency.
+- **Licence implications.** None — no dependency added, no third-party code
+  copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Reuse** the shared DS/PX surfaces and
+  existing Projects/Tasks routes; **build** only targeted CSS hardening and tests;
+  **add no dependency**. See
+  [PROJECTS_MODULE.md](../development/PROJECTS_MODULE.md#mobile-proj-06).
+
+---
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

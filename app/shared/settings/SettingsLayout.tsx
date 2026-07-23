@@ -94,7 +94,12 @@ export function SettingsLayout({
       // replayed against a later, unrelated mutation once focus happens to
       // land on <body> for some other reason.
       lastFocused = null;
-      if (document.activeElement !== document.body) {
+      const active = document.activeElement;
+      const focusEscapedToPageFallback =
+        active === document.body ||
+        (active instanceof HTMLElement &&
+          (active.id === "main-content" || !active.isConnected));
+      if (!focusEscapedToPageFallback) {
         return;
       }
       root.focus({ preventScroll: true });

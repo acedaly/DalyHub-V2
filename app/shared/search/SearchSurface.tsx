@@ -24,7 +24,7 @@ import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
 
-import { Highlight } from "./Highlight";
+import { Highlight } from "./HighlightText";
 import type { SearchFn } from "./client";
 import { buildResultDestination, destinationHref } from "./navigation";
 import { useSearchController } from "./useSearchController";

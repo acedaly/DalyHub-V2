@@ -124,9 +124,24 @@ UPDATE project_details SET status = 'active', archived_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-website';
 
 -- The New-Project parent-search journey CREATES a project titled "Search-picked
--- project". Remove any left by a prior run (its spine record and structural link too)
--- so every run starts from the same known state — this project is otherwise open and
--- would accumulate in Today's "Continue working" across local re-runs.
+-- project". Remove any left by a prior run (including details, activity subjects,
+-- spine record and structural link) so every run starts from the same known state —
+-- this project is otherwise open and would accumulate in Today's "Continue working"
+-- across local re-runs.
+DELETE FROM activity_subjects
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'project'
+      AND title = 'Search-picked project'
+  );
+DELETE FROM project_details
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'project'
+      AND title = 'Search-picked project'
+  );
 DELETE FROM entity_links
 WHERE workspace_id = 'local-dev-workspace'
   AND source_entity_id IN (

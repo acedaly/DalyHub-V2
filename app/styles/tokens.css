@@ -95,8 +95,8 @@
   /* ---------------------------------------------------------------------- */
   --dh-control-height-sm: 1.75rem; /* 28 */
   --dh-control-height-md: 2.25rem; /* 36 */
-  --dh-control-height-lg: 2.75rem; /* 44 — also the touch-target minimum */
-  --dh-touch-target-min: 2.75rem; /* 44px — WCAG 2.2 target size */
+  --dh-control-height-lg: max(2.75rem, 45px); /* 44px target + rounding guard */
+  --dh-touch-target-min: max(2.75rem, 45px); /* WCAG 2.2 target size */
 
   --dh-width-prose: 68ch; /* readable long-form measure */
   --dh-width-narrow: 42rem; /* single-column pages */

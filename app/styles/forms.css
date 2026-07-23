@@ -619,6 +619,26 @@
   min-block-size: var(--dh-control-height-md);
 }
 
+@media (hover: none) {
+  .dh-input,
+  .dh-combobox__input,
+  .dh-link-picker__type-select {
+    min-block-size: var(--dh-touch-target-min);
+  }
+
+  .dh-tags__chip-remove,
+  .dh-select__chip-remove,
+  .dh-combobox__clear {
+    inline-size: var(--dh-touch-target-min);
+    block-size: var(--dh-touch-target-min);
+  }
+
+  .dh-link-picker__unlink,
+  .dh-markdown-field__preview-toggle {
+    min-block-size: var(--dh-touch-target-min);
+  }
+}
+
 .dh-link-picker__single-note,
 .dh-markdown-field__hint {
   margin: 0;
@@ -705,6 +725,12 @@
   cursor: pointer;
   font: inherit;
   font-size: var(--dh-font-size-xs);
+}
+
+@media (hover: none) {
+  .dh-save-status__retry {
+    min-block-size: var(--dh-touch-target-min);
+  }
 }
 
 /* ------------------------------------------------------------------ Error summary */

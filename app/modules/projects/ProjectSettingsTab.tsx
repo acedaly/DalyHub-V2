@@ -38,7 +38,7 @@
  * rendered (not merely disabled).
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ConfirmationDialog,
@@ -314,9 +314,25 @@ export function ProjectSettingsTab({
 }: ProjectSettingsTabProps) {
   const archived = isProjectArchived(overview);
   const parent = currentParent(overview);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const previousArchived = useRef(archived);
+
+  useEffect(() => {
+    if (previousArchived.current === archived) {
+      return;
+    }
+    previousArchived.current = archived;
+    const frame = requestAnimationFrame(() => {
+      const settings = rootRef.current?.querySelector<HTMLElement>(
+        ".dh-settings[aria-label='Project settings']",
+      );
+      settings?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [archived]);
 
   return (
-    <div className="dh-project-settings">
+    <div className="dh-project-settings" ref={rootRef}>
       <h2 className="dh-visually-hidden">Settings</h2>
       <SettingsLayout aria-label="Project settings">
         {archived ? (

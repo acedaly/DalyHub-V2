@@ -70,11 +70,13 @@ test.describe("PROJ-04 project Activity tab", () => {
     await loadMore.click();
 
     await expect(page.getByText(/reached the beginning/i)).toBeVisible();
-    const total = await feed.getByRole("article").count();
-    expect(total).toBeGreaterThan(firstPage);
+    const loadedSetSize = Number(
+      await feed.getByRole("article").first().getAttribute("aria-setsize"),
+    );
+    expect(loadedSetSize).toBeGreaterThan(firstPage);
 
-    // No duplicate events across the page boundary: every article's accessible name
-    // is unique.
+    // No duplicate events among the virtualised rows currently rendered at the
+    // page boundary: every mounted article's accessible name is unique.
     const names = await feed
       .getByRole("article")
       .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("aria-label")));

@@ -205,6 +205,11 @@ button that opens the shared `ConfirmationDialog`. The dialog:
 - is cancellable by Cancel, Escape and the scrim; honours reduced motion and the
   mobile safe area.
 
+On phone widths the confirmation panel scrolls internally if the viewport is short,
+and its actions stack into full-width touch targets below 30rem. The dangerous
+action's friction is identical on mobile and desktop — do not replace confirmation
+with a gesture-only shortcut.
+
 For a bespoke confirmation (not a settings row), use `ConfirmationDialog` directly.
 The component provides the interaction contract only — it encodes no product rule
 about what gets deleted; the consumer's `onConfirm` does.
@@ -228,9 +233,9 @@ keyboard-complete (every control, the dialog, the danger button); visible focus;
 status/errors announced (the dialog error is a live `alert`; a row status may be a
 polite live region using bare `aria-live`, never `role="status"`); no colour-only
 meaning (the danger region and status tones carry icon/shape + text); ≥44px targets
-(switch, buttons, inputs); correct focus placement + restoration for confirmations;
-reduced motion honoured; no 320px horizontal overflow; usable at 200% zoom; light &
-dark.
+(switch, buttons, selects, inputs); correct focus placement + restoration for
+confirmations; reduced motion honoured; no 320px horizontal overflow; usable at
+200% zoom; light & dark.
 
 ## Development demonstration
 

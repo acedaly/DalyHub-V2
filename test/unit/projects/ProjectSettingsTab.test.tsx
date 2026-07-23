@@ -307,5 +307,29 @@ describe("ProjectSettingsTab", () => {
         (await screen.findAllByText("Project restored")).length,
       ).toBeGreaterThan(0);
     });
+
+    it("moves focus to the shared settings region when the archived state changes after revalidation", async () => {
+      const { rerender } = renderTab({ overview: archivedOverview() });
+      const restore = screen.getByRole("button", { name: "Restore project…" });
+      restore.focus();
+      expect(document.activeElement).toBe(restore);
+
+      rerender(
+        <FeedbackProvider>
+          <ProjectSettingsTab
+            overview={overview({ status: "active", archivedAt: null })}
+            onSetStatus={noop}
+            onMove={noop}
+            onArchive={noop}
+            onRestore={noop}
+          />
+        </FeedbackProvider>,
+      );
+
+      const settingsRegion = screen.getByRole("region", {
+        name: "Project settings",
+      });
+      await waitFor(() => expect(document.activeElement).toBe(settingsRegion));
+    });
   });
 });

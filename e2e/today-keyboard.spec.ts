@@ -34,7 +34,7 @@ test.describe("TODAY-05 — keyboard navigation", () => {
   test("opens Today through the Command Palette", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await page.keyboard.press("Control+k");
+    await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeFocused();
     await input.fill("Go to Today");
@@ -167,7 +167,7 @@ test.describe("TODAY-05 — section navigation", () => {
     page,
   }) => {
     await openTodayList(page);
-    await page.keyboard.press("Control+k");
+    await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await input.fill("Go to Anytime");
     await expect(
@@ -200,7 +200,7 @@ test.describe("TODAY-05 — section navigation", () => {
     await opener.focus();
     await expect(opener).toBeFocused();
 
-    await page.keyboard.press("Control+k");
+    await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await input.fill("Go to Anytime");
     await expect(
@@ -238,7 +238,7 @@ test.describe("TODAY-05 — section navigation", () => {
     await expect(page).toHaveURL(/drawer=/);
 
     // Run "Go to Anytime" from INSIDE the open drawer.
-    await page.keyboard.press("Control+k");
+    await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await input.fill("Go to Anytime");
     await expect(
@@ -304,7 +304,7 @@ test.describe("TODAY-05 — section navigation", () => {
     // Run the section command from the top of the stack. Open the palette and wait for
     // it to take focus over the modal drawer, then activate the option by click (a
     // deterministic run that does not depend on the highlighted row).
-    await page.keyboard.press("Control+k");
+    await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeFocused();
     await input.fill("Go to Anytime");
@@ -414,7 +414,7 @@ test.describe("TODAY-05 — keyboard help & Waiting", () => {
 
   test("opens Waiting through the Command Palette", async ({ page }) => {
     await openTodayList(page);
-    await page.keyboard.press("Control+k");
+    await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await input.fill("Open Waiting");
     await expect(

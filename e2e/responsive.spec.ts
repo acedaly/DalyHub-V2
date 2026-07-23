@@ -42,6 +42,14 @@ const DESIGN_FIXTURES = [
 const PRODUCT_ROUTES = [
   "/",
   "/today",
+  // PROJ-06 — the complete Projects collection + record surface across the
+  // canonical matrix: collection filters/cards, default Tasks tab, Key links,
+  // Activity Timeline and Settings.
+  "/projects",
+  "/projects/pr-website",
+  "/projects/pr-website?tasks=all",
+  "/projects/pr-website?tab=links",
+  "/projects/pr-website?tab=activity",
   // PROJ-05 Slice 4 — the Settings tab, the Archived collection and a bare
   // archived record across the full breakpoint matrix.
   "/projects/pr-settings?tab=settings",
@@ -142,6 +150,35 @@ test.describe("responsive — open overlays never overflow", () => {
         .waitFor();
       await expectNoHorizontalOverflow(page);
       // Cancel — `pr-archived-demo` stays permanently archived for other scans.
+      await page.keyboard.press("Escape");
+    });
+
+    test(`Projects new-project sheet at ${viewport.label}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/projects");
+      await page.getByRole("link", { name: "New project" }).first().click();
+      await page.getByRole("dialog", { name: "New project" }).waitFor();
+      await expectNoHorizontalOverflow(page);
+      await page.keyboard.press("Escape");
+    });
+
+    test(`Project task Drawer at ${viewport.label}`, async ({ page }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/projects/pr-website");
+      await page
+        .getByRole("link", { name: "Open Design the homepage" })
+        .first()
+        .click();
+      await page.getByRole("dialog").waitFor();
+      await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
     });
   }

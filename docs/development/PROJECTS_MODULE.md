@@ -1,4 +1,4 @@
-# PROJECTS_MODULE.md — The Projects module (PROJ-01)
+# PROJECTS_MODULE.md — The Projects module (PROJ-01/02/04/05/06)
 
 The first real **Projects** module: browse real projects, open a project and
 understand what it is, which Area it belongs to, which Goal it advances (when
@@ -579,16 +579,67 @@ copy, which was accurate only while the section was `state: "open"`-only.
   `"archived"` state, the `workflowStatus` filter, and a settings-only
   transition affecting `"recent"` ordering via the effective `updatedAt`.
 
-## What remains for PROJ-03, 06
+## Mobile (PROJ-06)
 
-PROJ-03 (notes/knowledge, blocked on NOTES-01) and PROJ-06 (mobile-specific
-enhancements) are **not started**. **PROJ-05 (settings: area/goal reassignment,
-status models, archival) is now DONE, all four slices**: persistence +
-concurrency/archival-invariant foundation (slices 1–2), the shared Settings UI +
-Archived collection (slice 3), and Today integration + full
-accessibility/responsive/end-to-end closure (**slice 4**, this document's "Today
-integration (PROJ-05 Slice 4)" section). (PROJ-01 overview, PROJ-02 health and
-PROJ-04 the Activity tab were already done.) Deferred refinements are tracked in
+PROJ-06 is complete as one PR. The audit found that Projects already inherited the
+right architecture and most responsive behaviour from shared components; the
+remaining risk was not missing routes or a second mobile layout, but narrow-phone
+ergonomics and proof across the whole journey.
+
+- **Problems found.** Narrow project/task segmented filters could become cramped;
+  the Project Tasks toolbar did not give the filter and "Add task" enough width at
+  320px; Activity event timestamps competed with long event copy in the final
+  column; several shared touch controls still used the 36px medium control height
+  on phone surfaces; confirmation actions were reachable but too compact on short
+  phones; and Projects had no focused real-D1 mobile journey. During verification,
+  the production build also exposed a shared search case-collision (`highlight.ts`
+  vs `Highlight.tsx`), fixed by moving the React renderer to
+  `HighlightText.tsx` while keeping the exported component name `Highlight`.
+- **What changed.** Projects-specific CSS now only composes shared patterns:
+  segmented filters become a two-column full-width control below 30rem; the Tasks
+  toolbar and empty-parent actions stack cleanly; long segment labels wrap safely.
+  Shared CSS corrections make Activity timestamps collapse under event content in
+  narrow Timeline containers, make Record Layout header actions touch-sized on
+  coarse pointers, make DS-06 inputs/link-picker controls touch-sized, and make
+  DS-10b confirmation/settings controls reach the touch target with safe-area
+  padding respected. The DS token touch floor now guards against sub-pixel mobile
+  rounding. No project-specific Card, Drawer, form, Timeline, Settings, focus trap,
+  scroll lock or route was added.
+- **Shared contracts reused.** Collection Layout, Card, Drawer/sheet, Record
+  Layout, Tabs, DS-06 forms and EntityLinkPicker, shared Timeline, shared Settings,
+  Feedback, `LoadMore`, and the shared `TaskRecordDrawer`. The New Project and
+  Project Settings Area/Goal pickers stay server-backed; Project tasks still use
+  `/projects/:id/tasks` and the shared `/tasks/:taskId*` record surface; archive,
+  restore, status and move still post to `/projects/:id/mutate`.
+- **Mobile behaviour.** The owner can enter Projects from the mobile app shell,
+  use All/Open/Completed/Archived, load additional project pages, open/close the
+  New Project sheet, search/select a real Area/Goal, create a Project, land on its
+  canonical record, use Tasks/Key links/Activity/Settings tabs, create/open/mutate
+  tasks through the shared Drawer, link/unlink related records, change workflow
+  status, and reach archive confirmation/blocked-archive recovery without
+  horizontal document scrolling. Archived records remain honestly read-only.
+- **Swipe decision.** No Project swipe accelerator was added. The audit found no
+  clear frequent, low-risk Project action that justified a gesture; archive is
+  explicitly dangerous/reversible-with-friction and remains behind the visible
+  Settings confirmation path.
+- **Evidence.** `e2e/projects-mobile.spec.ts` drives a real phone workflow at
+  390x844, a 320x720 pagination/filter/sheet path, and a 320x568 short-height
+  sheet/confirmation path with axe, touch-target and no-horizontal-overflow
+  assertions. `e2e/responsive.spec.ts` now sweeps `/projects`, the default Project
+  record, all-task state, Key links, Activity, Settings, Archived collection,
+  archived record, New Project sheet and Project task Drawer across the canonical
+  320/375/390/768/1024/1440/2560 matrix. `e2e/accessibility.spec.ts` now includes
+  the Projects record tabs and real Projects overlays. Unit coverage includes the
+  Projects no-swipe/honest-link card contract.
+- **Migration/deployment.** No migration, no environment variable, no Wrangler
+  configuration change and no new dependency. Deployment implication is CSS/route
+  code only; the existing dry-run path remains authoritative.
+
+## What remains for PROJ-03
+
+PROJ-03 (notes/knowledge, blocked on NOTES-01) is **not started**. PROJ-01
+overview, PROJ-02 health, PROJ-04 Activity, PROJ-05 settings/archival/Today
+integration, and PROJ-06 mobile are complete. Deferred refinements are tracked in
 [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 
 ## Health testing (PROJ-02)

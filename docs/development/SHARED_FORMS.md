@@ -162,7 +162,7 @@ Direction is honoured exactly (`outgoing` → anchor is the source; `incoming` r
 
 ## Accessibility
 
-Every field has an accessible name; errors and save-status changes are announced through live regions; all controls are keyboard-complete (combobox/listbox via `useCombobox`; tags add/remove without a mouse); the first invalid field is focused on failed submit; 44px touch targets; no colour-only state; disabled vs read-only are semantically distinct; no horizontal overflow at 320px; usable at 200% zoom; light/dark; reduced motion honoured. Prefer native HTML; use ARIA only where native semantics are insufficient.
+Every field has an accessible name; errors and save-status changes are announced through live regions; all controls are keyboard-complete (combobox/listbox via `useCombobox`; tags add/remove without a mouse); the first invalid field is focused on failed submit; 44px touch targets; no colour-only state; disabled vs read-only are semantically distinct; no horizontal overflow at 320px; usable at 200% zoom; light/dark; reduced motion honoured. On touch/coarse-pointer devices, text inputs, comboboxes, clear/remove buttons, link-picker controls and retry buttons lift to the shared touch-target floor while preserving the same DOM and keyboard behaviour. Prefer native HTML; use ARIA only where native semantics are insufficient.
 
 ## Development demonstration
 

@@ -3,8 +3,9 @@
  *
  * Composes ONLY DS-01 tokens (no hard-coded visual values) and reuses the shared
  * surfaces (CollectionLayout, Card, Record Layout, Drawer, forms, EmptyState). These
- * rules cover the few module-specific bits of chrome: the restrained state segment,
- * the project-task toolbar, the roll-up progress line and the not-found panel.
+ * rules cover the few module-specific bits of chrome: the restrained state segment
+ * (Open / Completed / All / Archived), the project-task toolbar, the roll-up
+ * progress line and the not-found panel.
  */
 
 /* Anchors styled as shared buttons (DrawerTrigger / not-found links use `.dh-btn`). */
@@ -17,6 +18,7 @@ a.dh-btn {
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--dh-space-1);
+  max-inline-size: 100%;
   padding: var(--dh-space-1);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
@@ -26,13 +28,17 @@ a.dh-btn {
 .dh-segmented__option {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: var(--dh-touch-target-min);
+  min-inline-size: 0;
   padding: var(--dh-space-1) var(--dh-space-3);
   border-radius: var(--dh-radius-sm);
   color: var(--dh-color-text-secondary);
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-medium);
+  text-align: center;
   text-decoration: none;
+  overflow-wrap: anywhere;
   transition:
     background-color var(--dh-duration-fast) var(--dh-ease-standard),
     color var(--dh-duration-fast) var(--dh-ease-standard);
@@ -116,4 +122,30 @@ a.dh-btn {
   display: flex;
   flex-wrap: wrap;
   gap: var(--dh-space-3);
+}
+
+@media (max-width: 30rem) {
+  .dh-segmented {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    inline-size: 100%;
+  }
+
+  .dh-project-tasks__toolbar {
+    align-items: stretch;
+  }
+
+  .dh-project-tasks__toolbar .dh-segmented,
+  .dh-project-tasks__toolbar > .dh-btn {
+    inline-size: 100%;
+  }
+
+  .dh-project-tasks__toolbar > .dh-btn,
+  .dh-project-empty-parents__actions .dh-btn {
+    justify-content: center;
+  }
+
+  .dh-project-empty-parents__actions {
+    flex-direction: column;
+  }
 }

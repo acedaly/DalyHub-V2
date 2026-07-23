@@ -429,10 +429,36 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
     `workflowStatus` filter and every settings/archive/restore contract Slice 4
     relies on were already implemented and tested); no new dependency.
 
-### ☐ PROJ-06 — Mobile
+### ☑ PROJ-06 — Mobile
 - **Purpose.** Mobile-complete Projects.
 - **Dependencies.** DS-11, PROJ-01.
 - **Expected outcome.** Projects fully usable on a phone. **P3.**
+- **Status: ☑ Done.** Completed the Projects mobile audit and implementation as
+  one coherent PR; no roadmap split was needed because the module already reused
+  the shared Collection Layout, Record Layout, Card, Drawer, forms, Tabs,
+  Timeline, Settings and shared task-record contracts. PROJ-06 keeps Project
+  cards as normal, honest record links and deliberately adds **no** swipe
+  accelerator (no frequent, low-risk Project action justified one; archive keeps
+  its confirmation friction). The mobile work corrected the gaps the audit found:
+  narrow project/task segmented filters now fit comfortably, the Tasks toolbar and
+  empty-parent actions stack cleanly, timeline timestamps collapse under event
+  copy in narrow containers, mobile form/link-picker controls and record/settings
+  actions meet the 44px target, confirmation dialogs use reachable full-width
+  actions on short phones, and the shared search Highlight renderer no longer
+  collides with the React-free `highlight.ts` model during the production build.
+  The implementation preserves existing tablet/desktop/ultra-wide behaviour,
+  URL/back-forward Drawer contracts, server-authoritative loaders/mutations,
+  archived read-only rules, and the canonical shared Task Drawer. Coverage now
+  includes a focused real-D1 phone journey
+  (`e2e/projects-mobile.spec.ts`) across mobile navigation, collection filters,
+  New Project sheet, creation under a real Area, canonical record landing, Tasks,
+  Key links, Activity, Settings, task creation/completion/reconciliation,
+  archive-blocked confirmation, Back/Forward, focus restoration, axe, touch
+  targets and no horizontal overflow; `e2e/responsive.spec.ts` and
+  `e2e/accessibility.spec.ts` also sweep the Projects collection, record tabs and
+  overlays. Unit coverage adds the no-swipe/honest-link Projects card contract.
+  No migration, no new dependency and no ADR were required. See
+  [PROJECTS_MODULE.md](../development/PROJECTS_MODULE.md#mobile-proj-06).
 
 ---
 
