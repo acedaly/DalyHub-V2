@@ -58,28 +58,57 @@ export function SettingsLayout({
   // because the swap unmounts the dialog (and its own post-close restoration
   // effect) in the SAME commit as the trigger, before it could ever notice.
   // `SettingsLayout` is the stable ANCESTOR that survives every such swap (its
-  // children change; it does not), so it is the right place to notice focus
-  // orphaned to `<body>` after a mutation inside it and reclaim it to the
-  // page's main region — benefiting every settings surface, not just Projects.
+  // children change; it does not), so it is the right place to notice and
+  // recover.
+  //
+  // The fallback is deliberately LOCAL, never a global page region:
+  // `SettingsLayout` is also hosted inside a modal Drawer/Inspector, whose
+  // background (including any page `#main-content`) is made `inert` while
+  // open — focusing a global region could fail outright or, worse, escape the
+  // modal's focus boundary. Focusing THIS layout's own root instead always
+  // stays wherever the layout itself is legitimately mounted (in a modal's
+  // un-inerted subtree, or the full page). It also only acts when the element
+  // that vanished was tracked as having been focused WITHIN this layout in the
+  // first place — an unrelated mutation elsewhere on the page, or `<body>`
+  // being focused for an unconnected reason, never has its focus hijacked.
   useEffect(() => {
     const root = rootRef.current;
     if (!root || typeof document === "undefined") {
       return;
     }
+    let lastFocused: HTMLElement | null = null;
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement && root.contains(event.target)) {
+        lastFocused = event.target;
+      }
+    };
+    root.addEventListener("focusin", onFocusIn);
+
     const reclaimIfOrphaned = () => {
+      if (!lastFocused || lastFocused.isConnected) {
+        return;
+      }
       if (document.activeElement !== document.body) {
         return;
       }
-      document.getElementById("main-content")?.focus?.();
+      lastFocused = null;
+      root.focus({ preventScroll: true });
     };
     const observer = new MutationObserver(reclaimIfOrphaned);
     observer.observe(root, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    return () => {
+      root.removeEventListener("focusin", onFocusIn);
+      observer.disconnect();
+    };
   }, []);
 
   return (
     <section
       ref={rootRef}
+      // Not a tab stop (not in the natural tab order) — only a programmatic
+      // focus target for the safety net above, mirroring how the app shell's
+      // `#main-content` region is focusable without being tabbable.
+      tabIndex={-1}
       className={className ? `dh-settings ${className}` : "dh-settings"}
       aria-labelledby={title ? headingId : undefined}
       aria-label={title ? undefined : ariaLabel}

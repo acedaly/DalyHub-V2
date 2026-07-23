@@ -1,5 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { useState } from "react";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -9,6 +16,8 @@ import {
   SettingsRow,
 } from "~/shared/settings";
 import { FeedbackProvider } from "~/shared/feedback";
+import { DrawerProvider, DrawerTrigger } from "~/shared/drawer";
+import type { DrawerEntry, DrawerRenderResult } from "~/shared/drawer";
 
 /**
  * Mirrors `ProjectSettingsTab`'s REAL archived/non-archived conditional swap:
@@ -19,51 +28,98 @@ import { FeedbackProvider } from "~/shared/feedback";
  * commit, exactly like the real Project Settings tab. `SettingsLayout` wraps
  * both states and never itself unmounts.
  */
-function SwappingSettingsHarness({
+function SwappingSettingsContent({
   onArchive,
 }: {
   readonly onArchive: () => Promise<void>;
 }) {
   const [archived, setArchived] = useState(false);
   return (
+    <SettingsLayout aria-label="Project settings">
+      {archived ? (
+        <SettingsGroup title="Archived">
+          <SettingsRow
+            label="Restore this project"
+            control={
+              <button type="button" onClick={() => setArchived(false)}>
+                Restore project…
+              </button>
+            }
+          />
+        </SettingsGroup>
+      ) : (
+        <SettingsGroup title="Archive" tone="danger">
+          <DangerousAction
+            label="Archive this project"
+            actionLabel="Archive project…"
+            confirmTitle="Archive this project?"
+            confirmLabel="Archive project"
+            onConfirm={async () => {
+              await onArchive();
+              setArchived(true);
+            }}
+          />
+        </SettingsGroup>
+      )}
+    </SettingsLayout>
+  );
+}
+
+function FullPageHarness({
+  onArchive,
+}: {
+  readonly onArchive: () => Promise<void>;
+}) {
+  return (
     <FeedbackProvider>
       <main id="main-content" tabIndex={-1}>
-        <SettingsLayout aria-label="Project settings">
-          {archived ? (
-            <SettingsGroup title="Archived">
-              <SettingsRow
-                label="Restore this project"
-                control={
-                  <button type="button" onClick={() => setArchived(false)}>
-                    Restore project…
-                  </button>
-                }
-              />
-            </SettingsGroup>
-          ) : (
-            <SettingsGroup title="Archive" tone="danger">
-              <DangerousAction
-                label="Archive this project"
-                actionLabel="Archive project…"
-                confirmTitle="Archive this project?"
-                confirmLabel="Archive project"
-                onConfirm={async () => {
-                  await onArchive();
-                  setArchived(true);
-                }}
-              />
-            </SettingsGroup>
-          )}
-        </SettingsLayout>
+        <SwappingSettingsContent onArchive={onArchive} />
       </main>
     </FeedbackProvider>
   );
 }
 
+/** A settings surface hosted inside the real DS-03 modal Drawer. */
+function DrawerHostedHarness({
+  onArchive,
+}: {
+  readonly onArchive: () => Promise<void>;
+}) {
+  const renderDrawer = (entry: DrawerEntry): DrawerRenderResult | null => {
+    if (entry.key !== "settings:project") {
+      return null;
+    }
+    return {
+      title: "Project settings",
+      children: <SwappingSettingsContent onArchive={onArchive} />,
+    };
+  };
+  return (
+    <MemoryRouter initialEntries={["/host"]}>
+      <Routes>
+        <Route
+          path="/host"
+          element={
+            <FeedbackProvider>
+              <DrawerProvider renderDrawer={renderDrawer}>
+                <main id="main-content" tabIndex={-1}>
+                  <DrawerTrigger drawerKey="settings:project">
+                    Open project settings
+                  </DrawerTrigger>
+                </main>
+              </DrawerProvider>
+            </FeedbackProvider>
+          }
+        />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 describe("DS-10b SettingsLayout — focus safety net (PROJ-05 Slice 4)", () => {
-  it("reclaims focus to the page's main region when a confirmed dangerous action's own subtree (trigger + dialog) unmounts together on success", async () => {
+  it("reclaims focus to the settings surface itself — never a global page region — when a confirmed dangerous action's own subtree (trigger + dialog) unmounts together on success", async () => {
     const onArchive = vi.fn(() => Promise.resolve());
-    render(<SwappingSettingsHarness onArchive={onArchive} />);
+    render(<FullPageHarness onArchive={onArchive} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Archive project…" }));
     fireEvent.click(
@@ -82,10 +138,92 @@ describe("DS-10b SettingsLayout — focus safety net (PROJ-05 Slice 4)", () => {
     expect(
       screen.getByRole("button", { name: "Restore project…" }),
     ).toBeInTheDocument();
+    const settingsRegion = screen.getByRole("region", {
+      name: "Project settings",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(settingsRegion));
+    // Never the global page region — the fallback is local to this surface.
+    expect(document.activeElement).not.toBe(
+      document.getElementById("main-content"),
+    );
+  });
+
+  it("keeps focus inside the modal boundary when the same swap happens inside a Drawer (the background main-content stays untouched)", async () => {
+    const onArchive = vi.fn(() => Promise.resolve());
+    render(<DrawerHostedHarness onArchive={onArchive} />);
+
+    fireEvent.click(
+      screen.getByRole("link", { name: "Open project settings" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Project settings",
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Archive project…" }),
+    );
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "Archive project" }),
+    );
+    await waitFor(() => expect(onArchive).toHaveBeenCalledTimes(1));
+
     await waitFor(() =>
-      expect(document.activeElement).toBe(
-        document.getElementById("main-content"),
-      ),
+      expect(
+        within(dialog).queryByRole("button", { name: "Archive project…" }),
+      ).toBeNull(),
+    );
+    // Still a modal: the Drawer never closed, and focus stays INSIDE it — on
+    // the SettingsLayout region — never escaping to the inert background's
+    // #main-content.
+    expect(dialog).toBeInTheDocument();
+    const settingsRegion = within(dialog).getByRole("region", {
+      name: "Project settings",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(settingsRegion));
+    expect(document.activeElement).not.toBe(
+      document.getElementById("main-content"),
+    );
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it("never steals focus for an unrelated mutation when nothing inside this layout was ever focused", async () => {
+    function UnrelatedMutationHarness() {
+      const [shown, setShown] = useState(false);
+      return (
+        <FeedbackProvider>
+          <main id="main-content" tabIndex={-1}>
+            <button type="button" onClick={() => setShown(true)}>
+              Toggle unrelated content
+            </button>
+            <SettingsLayout aria-label="Unrelated settings">
+              <SettingsGroup title="Info">
+                {shown ? <p>Unrelated content appeared.</p> : null}
+              </SettingsGroup>
+            </SettingsLayout>
+          </main>
+        </FeedbackProvider>
+      );
+    }
+    render(<UnrelatedMutationHarness />);
+
+    // Nothing inside SettingsLayout has EVER been focused — activeElement is
+    // whatever the environment defaults to (typically <body>).
+    const bodyWasActive = document.activeElement;
+
+    // A mutation occurs INSIDE the settings surface's subtree, but it is not
+    // the removal of a previously-focused element the layout was tracking.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Toggle unrelated content" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Unrelated content appeared.")).toBeVisible(),
+    );
+
+    // Focus must be exactly where it already was — never hijacked to the
+    // settings region.
+    expect(document.activeElement).toBe(bodyWasActive);
+    expect(document.activeElement).not.toBe(
+      screen.getByRole("region", { name: "Unrelated settings" }),
     );
   });
 });

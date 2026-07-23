@@ -74,16 +74,12 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     // ConfirmationDialog) with the Restore group in one commit — the dialog
     // itself cannot notice its own trigger disappearing, so the shared
     // SettingsLayout's focus safety net is what must land focus somewhere
-    // meaningful, never silently lost to <body>.
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          document.activeElement instanceof HTMLElement
-            ? document.activeElement.id
-            : null,
-        ),
-      )
-      .toBe("main-content");
+    // meaningful, never silently lost to <body>. The fallback is the settings
+    // surface itself (never a global page region, which would break inside a
+    // modal Drawer/Inspector).
+    await expect(
+      page.getByRole("region", { name: "Project settings" }),
+    ).toBeFocused();
 
     // The record shows the Archived state prominently, with Rename/Complete
     // hidden and Settings showing Restore instead of Archive.
@@ -133,15 +129,9 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     // Restoring likewise replaces the WHOLE Restore group (trigger + its
     // ConfirmationDialog) with the Organisation/Workflow/Archive groups in one
     // commit — the same focus-safety-net requirement as the archive above.
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          document.activeElement instanceof HTMLElement
-            ? document.activeElement.id
-            : null,
-        ),
-      )
-      .toBe("main-content");
+    await expect(
+      page.getByRole("region", { name: "Project settings" }),
+    ).toBeFocused();
 
     // Normal controls return; the preserved workflow status survives the
     // archive/restore round trip.
@@ -178,73 +168,82 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
  * working" exactly as ADR-037's Today integration promises, over the dedicated
  * seeded `pr-today` project (isolated from `pr-settings`). Every transition goes
  * through the real Settings tab UI/mutation route; no client-only filtering ever
- * substitutes for repository state, and no hard reload is used to reconcile
- * in-record mutations — only revalidation.
+ * substitutes for repository state.
+ *
+ * ONLY the very first navigation is a full page load (`gotoFixture`, the
+ * "initial setup load"). Every transition after that is REAL client-side
+ * navigation — the app shell's sidebar links, a Continue-working card link, or
+ * `page.goBack()`/`page.goForward()` — proving the whole journey reconciles
+ * through live SPA navigation and browser history, never a hard reload.
  */
 test.describe("PROJ-05 Slice 4 — Today integration", () => {
-  test("Planned → Active → On hold → Active → Archive → Restore, reflected live on Today", async ({
+  test("Planned → Active → On hold → Active → Archive → Restore, reflected live on Today via real SPA navigation", async ({
     page,
   }) => {
+    const nav = () => page.getByRole("navigation", { name: "Primary" });
+    const goToToday = () => nav().getByRole("link", { name: "Today" }).click();
+    const goToProjects = () =>
+      nav().getByRole("link", { name: "Projects", exact: true }).click();
     const projectLink = () =>
       page.getByRole("link", { name: "Open Today integration project" });
+    const statusSelect = () =>
+      page.getByRole("combobox", { name: "Workflow status" });
 
-    // 1–3: Today shows no Active/Planned/On hold/Completed/Archived card for this
-    // project while it is still Planned.
-    await gotoFixture(page, "/today");
-    const continueWorking = page.getByRole("region", {
-      name: "Continue working",
-    });
-    await expect(continueWorking).toBeVisible();
-    await expect(projectLink()).toHaveCount(0);
-
-    // 4–6: open it through Projects (not Today, since it is absent), open its
-    // final Settings tab, change it to Active.
+    // 1: the ONE full page load — arrive directly at the project record.
     await gotoFixture(page, "/projects/pr-today");
     await expect(
       page.getByRole("heading", { name: "Today integration project" }),
     ).toBeVisible();
+
+    // 2–3: open its final Settings tab (an in-page URL param, not a navigation
+    // away), confirm it starts Planned, and change it to Active.
     await page.getByRole("tab", { name: "Settings" }).click();
-    const statusSelect = page.getByRole("combobox", {
-      name: "Workflow status",
-    });
-    await expect(statusSelect).toHaveValue("planned");
-    await statusSelect.selectOption("active");
+    await expect(statusSelect()).toHaveValue("planned");
+    await statusSelect().selectOption("active");
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
 
-    // 7–8: back to Today — it now appears and reads Active. No hard reload.
-    await gotoFixture(page, "/today");
+    // 4: real client navigation to Today via the sidebar — it now appears and
+    // reads Active.
+    await goToToday();
+    await expect(page).toHaveURL(/\/today$/);
     await expect(projectLink()).toBeVisible();
     const card = page.locator('article[data-card-id="pr-today"]');
     await expect(card.getByText("Active", { exact: true })).toBeVisible();
 
-    // 9–10: back to Settings, change to On hold; back to Today — it disappears.
-    await gotoFixture(page, "/projects/pr-today");
+    // 5: real client navigation BACK to the record via the Continue working
+    // card link itself (it is visible, since the project is Active).
+    await projectLink().click();
+    await expect(page).toHaveURL(/\/projects\/pr-today/);
     await page.getByRole("tab", { name: "Settings" }).click();
-    await expect(
-      page.getByRole("combobox", { name: "Workflow status" }),
-    ).toHaveValue("active");
-    await page
-      .getByRole("combobox", { name: "Workflow status" })
-      .selectOption("on_hold");
+    await expect(statusSelect()).toHaveValue("active");
+    await statusSelect().selectOption("on_hold");
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
-    await gotoFixture(page, "/today");
+
+    // 6: back to Today (sidebar) — it disappears. The URL assertion is load-
+    // bearing, not decorative: `projectLink()` has zero count on the project
+    // record itself too, so without waiting for the navigation to actually land
+    // on Today first, the very next `goBack()` can race an in-flight
+    // navigation and land one entry short.
+    await goToToday();
+    await expect(page).toHaveURL(/\/today$/);
     await expect(projectLink()).toHaveCount(0);
 
-    // 11: change it back to Active.
-    await gotoFixture(page, "/projects/pr-today");
-    await page.getByRole("tab", { name: "Settings" }).click();
-    await page
-      .getByRole("combobox", { name: "Workflow status" })
-      .selectOption("active");
+    // 7: it is no longer reachable via a Today card, so return to the record
+    // via REAL browser history (`goBack`) rather than a fresh navigation —
+    // this restores the exact `?tab=settings` entry from step 5.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/projects\/pr-today\?tab=settings/);
+    await expect(statusSelect()).toHaveValue("on_hold");
+    await statusSelect().selectOption("active");
     await expect(
       page.getByRole("group", { name: "Workflow status saved" }),
     ).toBeVisible();
 
-    // 12: archive it through the real confirmation, keyboard-operated.
+    // 8: archive it through the real confirmation, keyboard-operated.
     const archiveButton = page.getByRole("button", {
       name: "Archive project…",
     });
@@ -262,19 +261,26 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
       page.getByRole("group", { name: "Project archived" }),
     ).toBeVisible();
 
-    // 13: disappears from Today, appears in Archived.
-    await gotoFixture(page, "/today");
+    // 9: real navigation to Today (sidebar) — disappeared.
+    await goToToday();
+    await expect(page).toHaveURL(/\/today$/);
     await expect(projectLink()).toHaveCount(0);
-    await gotoFixture(page, "/projects?state=archived");
+
+    // 10: reach the Archived collection via real sidebar + segmented-filter
+    // links, then open the archived card — all real client navigation.
+    await goToProjects();
+    await expect(page).toHaveURL(/\/projects$/);
+    await page.getByRole("link", { name: "Archived" }).click();
+    await expect(page).toHaveURL(/state=archived/);
     const archivedCard = page.getByRole("link", {
       name: "Open Today integration project",
     });
     await expect(archivedCard).toBeVisible();
-
-    // 14–16: open it from Archived, restore it (keyboard-operated), confirm it
-    // returns to Today because Active was preserved.
     await archivedCard.click();
     await expect(page).toHaveURL(/\/projects\/pr-today/);
+
+    // 11: restore it (keyboard-operated), confirm it returns to Today because
+    // Active was preserved.
     await page.getByRole("tab", { name: "Settings" }).click();
     const restoreButton = page.getByRole("button", {
       name: "Restore project…",
@@ -292,14 +298,13 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     await expect(
       page.getByRole("group", { name: "Project restored" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("combobox", { name: "Workflow status" }),
-    ).toHaveValue("active");
+    await expect(statusSelect()).toHaveValue("active");
 
-    await gotoFixture(page, "/today");
+    // 12: real navigation to Today (sidebar) — reappears.
+    await goToToday();
     await expect(projectLink()).toBeVisible();
 
-    // 18: Back/Forward and a copied URL do not break.
+    // 13: Back/Forward through the real SPA history built by this journey.
     await projectLink().click();
     await expect(page).toHaveURL(/\/projects\/pr-today/);
     await page.goBack();
@@ -348,7 +353,11 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
       page.getByRole("combobox", { name: "Workflow status" }),
     ).toHaveValue("planned");
 
-    await gotoFixture(page, "/today");
+    await page
+      .getByRole("navigation", { name: "Primary" })
+      .getByRole("link", { name: "Today" })
+      .click();
+    await expect(page).toHaveURL(/\/today$/);
     await expect(
       page.getByRole("link", {
         name: "Open Planned project (Today absence check)",
