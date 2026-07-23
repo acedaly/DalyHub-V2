@@ -1,8 +1,11 @@
+import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { createAreaRepository } from "~/platform/storage/d1";
 import { InvalidSpineCursorError } from "~/kernel/spine";
 
 import {
+  countingDb,
   FakeClock,
   makeAreaRepository,
   makeContext,
@@ -175,5 +178,158 @@ describe("AreaRepository", () => {
       .items[0]!;
     expect(item.rollup.projects.total).toBe(1);
     expect(item.activeProjectCount).toBe(0);
+  });
+
+  describe("getAreaMomentumFacts — the complete momentum boundary", () => {
+    it("returns EVERY aligned Project, independent of listAreaProjects' bounded card page", async () => {
+      const s = spine(WS);
+      const area = await s.createArea({ title: "Big Area" });
+      const goal = await s.createGoal({ title: "Goal", areaId: area.id });
+      for (let i = 0; i < 40; i++) {
+        await s.createProject({
+          title: `Direct ${i}`,
+          parent: { kind: "area", id: area.id },
+        });
+      }
+      for (let i = 0; i < 15; i++) {
+        await s.createProject({
+          title: `Goal-backed ${i}`,
+          parent: { kind: "goal", id: goal.id },
+        });
+      }
+
+      const repo = makeAreaRepository(makeContext(WS));
+      const page = await repo.listAreaProjects({ areaId: area.id, limit: 50 });
+      expect(page.items).toHaveLength(50);
+      expect(page.nextCursor).toBeTruthy();
+
+      const momentumFacts = await repo.getAreaMomentumFacts(area.id);
+      expect(momentumFacts.projects).toHaveLength(55);
+    });
+
+    it("distinguishes unfinished/completed direct Area Tasks from Project Tasks", async () => {
+      const s = spine(WS);
+      const area = await s.createArea({ title: "Area" });
+      const directOpen = await s.createTask({
+        title: "Direct open",
+        parent: { kind: "area", id: area.id },
+      });
+      const directDone = await s.createTask({
+        title: "Direct done",
+        parent: { kind: "area", id: area.id },
+      });
+      await s.complete(directDone.id);
+      const project = await s.createProject({
+        title: "P",
+        parent: { kind: "area", id: area.id },
+      });
+      const projectOpen = await s.createTask({
+        title: "Project open",
+        parent: { kind: "project", id: project.id },
+      });
+      const projectDone = await s.createTask({
+        title: "Project done",
+        parent: { kind: "project", id: project.id },
+      });
+      await s.complete(projectDone.id);
+      expect(directOpen.id).toBeTruthy();
+      expect(projectOpen.id).toBeTruthy();
+
+      const facts = await makeAreaRepository(
+        makeContext(WS),
+      ).getAreaMomentumFacts(area.id);
+      expect(facts.directTasks).toEqual({
+        unfinishedTotal: 1,
+        completedTotal: 1,
+      });
+    });
+
+    it("excludes soft-deleted Tasks and cross-workspace/wrong-kind descendants", async () => {
+      const s = spine(WS);
+      const area = await s.createArea({ title: "Area" });
+      const keep = await s.createTask({
+        title: "Keep",
+        parent: { kind: "area", id: area.id },
+      });
+      const drop = await s.createTask({
+        title: "Drop",
+        parent: { kind: "area", id: area.id },
+      });
+      await s.softDelete(drop.id);
+      expect(keep.id).toBeTruthy();
+
+      const other = spine(OTHER, "other");
+      const otherArea = await other.createArea({ title: "Other" });
+      await other.createTask({
+        title: "Other workspace task",
+        parent: { kind: "area", id: otherArea.id },
+      });
+
+      const facts = await makeAreaRepository(
+        makeContext(WS),
+      ).getAreaMomentumFacts(area.id);
+      expect(facts.directTasks).toEqual({
+        unfinishedTotal: 1,
+        completedTotal: 0,
+      });
+    });
+
+    it("reflects moved Projects and never leaks a Project archived elsewhere", async () => {
+      const s = spine(WS);
+      const settings = makeProjectSettingsRepository(makeContext(WS));
+      const a1 = await s.createArea({ title: "A1" });
+      const a2 = await s.createArea({ title: "A2" });
+      const project = await s.createProject({
+        title: "Movable",
+        parent: { kind: "area", id: a1.id },
+      });
+      await settings.setStatus(project.id, "active");
+      await s.move(project.id, { kind: "area", id: a2.id });
+
+      const repo = makeAreaRepository(makeContext(WS));
+      expect((await repo.getAreaMomentumFacts(a1.id)).projects).toHaveLength(0);
+      const a2Facts = await repo.getAreaMomentumFacts(a2.id);
+      expect(a2Facts.projects.map((p) => p.id)).toEqual([project.id]);
+      expect(a2Facts.projects[0]?.status).toBe("active");
+    });
+
+    it("fails closed (empty facts, no throw) for a wrong-kind, missing or cross-workspace Area id", async () => {
+      const s = spine(WS);
+      const area = await s.createArea({ title: "Area" });
+      const project = await s.createProject({
+        title: "Not an Area",
+        parent: { kind: "area", id: area.id },
+      });
+      const other = spine(OTHER, "other");
+      const otherArea = await other.createArea({ title: "Other Area" });
+
+      const repo = makeAreaRepository(makeContext(WS));
+      for (const wrongId of [project.id, "nonexistent-id", otherArea.id]) {
+        const facts = await repo.getAreaMomentumFacts(wrongId);
+        expect(facts).toEqual({
+          directTasks: { unfinishedTotal: 0, completedTotal: 0 },
+          projects: [],
+        });
+      }
+    });
+
+    it("issues a fixed, small number of queries regardless of aligned Project count (no N+1)", async () => {
+      const s = spine(WS);
+      const area = await s.createArea({ title: "Area" });
+      for (let i = 0; i < 20; i++) {
+        await s.createProject({
+          title: `P${i}`,
+          parent: { kind: "area", id: area.id },
+        });
+      }
+      const counting = countingDb(env.DB);
+      const countingRepo = createAreaRepository(counting.db, makeContext(WS));
+      counting.reset();
+      const facts = await countingRepo.getAreaMomentumFacts(area.id);
+      expect(facts.projects).toHaveLength(20);
+      // Two workspace-scoped aggregate queries (direct-task counts, aligned
+      // Project facts) — never one query per Project.
+      expect(counting.prepareCount()).toBeLessThanOrEqual(2);
+    });
   });
 });

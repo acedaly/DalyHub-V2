@@ -70,22 +70,71 @@ server; no client-supplied workspace or actor is accepted.
 
 ## Momentum semantics
 
-Area momentum is derived, not stored. The pure evaluator accepts authoritative
-facts and an injected clock, returns accessible labels, a summary and transparent
-reasons, and has no React or persistence imports.
+Area momentum is derived, not stored. The pure evaluator (`app/kernel/areas/area-momentum.ts`)
+accepts authoritative facts and an injected clock, returns accessible labels, a
+summary and transparent reasons, and has no React or persistence imports.
 
-Precedence:
+**Corrected post-merge (see [ADR-038's dated amendment](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview--read-only-spine-projection-and-derived-momentum)).**
+The original AREA-01 merge derived momentum from the same bounded first Project
+page the record displays (`AREA_CHILD_PAGE_SIZE = 50`) and from TOTAL rather than
+UNFINISHED counts. Both are corrected:
 
-1. Any visible at-risk active Project -> `needs_attention`.
-2. Any visible blocked active Project -> `blocked`.
-3. Any visible stale or on-hold active Project -> `quiet`.
-4. No active Goals, Projects or Tasks -> `empty` ("No active work").
-5. Otherwise -> `steady`.
+- **The momentum boundary is COMPLETE, independent of the displayed card page.**
+  `AreaRepository.getAreaMomentumFacts(areaId)` reads every Project aligned to the
+  Area (direct or Goal-backed) with NO `LIMIT` — a fixed, small number (two) of
+  workspace-scoped, parameterised aggregate queries, never one query per Project
+  and never an arbitrary cap that would silently drop a Project from the aggregate.
+  The Area route loader then fetches Project health facts only for the VISIBLE
+  ACTIVE subset (`isProjectHealthVisible`) through the existing batched, N+1-free
+  `ProjectHealthRepository.listProjectHealthFacts`, chunked at its own 100-id
+  bounded-page ceiling so an Area with more than 100 active Projects still reads
+  every one of them (never one health query per Project). The displayed card page
+  (`listAreaProjects`, still bounded at 50 for the UI) and the momentum boundary
+  are two independent reads; changing one never changes the other.
+- **Unfinished, not total, drives every "is there active work" decision.** Goal and
+  direct-Task counts are OPEN/unfinished versus completed, not raw totals — an
+  Area containing only completed Goals, only completed direct Tasks, or a completed
+  Project whose Tasks are also complete is `empty`, never `steady`.
+- **Direct Area Tasks are read from a dedicated query, never inferred from the
+  combined Area task roll-up** (`rollup.tasks`, which also includes Tasks under
+  aligned Projects). `AreaRepository.getAreaMomentumFacts` returns
+  `directTasks: { unfinishedTotal, completedTotal }` from a `task.belongs_to_area`-only
+  read, so a Project Task can never be mislabelled as sitting directly in the Area.
+- **Only genuinely `active`-workflow Projects count as active momentum.** Planned
+  and On-hold Projects are classified separately (`planned_projects`/`on_hold_projects`
+  reason codes) and are never described as active momentum.
 
-Completed and archived Projects are counted as context where useful, but never
-create active warning reasons. The evaluator does not average project percentages
-into an Area score and does not label an empty Area as healthy. Sensitive task free
-text, waiting notes and raw payloads are never exposed in aggregate reasons.
+Revised precedence:
+
+1. Any visible at-risk active Project -> `needs_attention` ("Needs attention").
+2. Otherwise, any visible blocked active Project -> `needs_attention` ("Blocked work").
+3. Otherwise, any visible stale active Project -> `watch` ("Worth a look").
+4. Otherwise, On-hold Projects with no `active`-workflow Project -> `watch` ("Mostly paused").
+5. Otherwise, one or more `active`-workflow Projects -> `steady` ("Momentum visible"),
+   describing only the true active Project count.
+6. Otherwise, one or more unfinished direct Area Tasks -> `steady` ("Momentum visible"),
+   explicitly described as direct Area Tasks.
+7. Otherwise, one or more open Goals -> `watch` ("Direction set") — honest, calm
+   wording that never calls a Goal an active Project or a direct Task.
+8. Otherwise, one or more Planned Projects -> `watch` ("Work planned") — never
+   described as active momentum.
+9. Otherwise -> `empty` ("No active work").
+
+Completed and archived Projects are always explanatory context
+(`completed_projects_ignored`/`archived_projects_ignored`) appended after the
+primary reason — they never create an active warning at any precedence step. No
+reason ever reports a zero count; a fact with zero positive instances simply does
+not produce a reason. The evaluator does not average project percentages into an
+Area score and does not label an empty Area as healthy. Sensitive task free text,
+waiting notes and raw payloads are never exposed in aggregate reasons.
+
+## Tab totals
+
+The Goals and Projects Record-Layout tab badges use the exact authoritative
+`rollup.goals.total` / `rollup.projects.total` — never `goals.length` /
+`projects.length` (the bounded first-page array). The bounded-page note under each
+tab's card list still says only the first page is displayed; it never fabricates a
+loaded-versus-total distinction.
 
 ## Goals and Projects
 
@@ -125,12 +174,27 @@ workflow.
 ## Testing
 
 - **Unit / pure** (`test/unit/areas`): view-model mapping, roll-up presentation,
-  grouping, deterministic ordering, long content, form states, component states,
-  the React-free momentum import guard, and momentum precedence/edge cases.
+  grouping, deterministic ordering, long content, form states, component states
+  (including that the Goals/Projects tab badges use the exact roll-up totals, not
+  the first-page array length), the React-free momentum import guard, and the full
+  momentum precedence/edge-case matrix (empty; completed-only Goals/direct
+  Tasks/Project Tasks; a lone open Goal; a lone unfinished direct Task; Planned-only;
+  On-hold-only; active/at-risk/blocked/stale; precedence when they coexist;
+  completed/archived Projects ignored even with warning facts; mixed active +
+  Planned + On-hold; no zero-count reason; deterministic injected clock).
 - **Workers/D1 integration** (`test/kernel/areas*.test.ts`): list/create/get/rename,
   roll-up accuracy across Goals, direct Projects, Goal-backed Projects, direct
   Tasks and Project Tasks, soft-delete/move effects, workspace isolation,
-  wrong-kind/missing ids, cursor behaviour, Activity, and route outcomes.
+  wrong-kind/missing ids, cursor behaviour, Activity, and route outcomes. Also
+  covers the corrected momentum boundary specifically: `getAreaMomentumFacts`
+  returns every aligned Project (55+) while `listAreaProjects` stays bounded at 50;
+  a deterministically-seeded at-risk Project placed past the first displayed page
+  still drives `needs_attention` at the route layer; direct-versus-Project Task
+  counts; completed/archived Projects excluded from active warnings; moved/
+  soft-deleted/cross-workspace descendants; wrong-kind/missing/cross-workspace Area
+  ids fail closed (empty facts, no throw); and a `countingDb`-instrumented test
+  proving `getAreaMomentumFacts` issues a fixed, small number of queries regardless
+  of aligned-Project count (no N+1).
 - **E2E** (`e2e/areas.spec.ts`): real navigation from app chrome, seeded hierarchy,
   New Area validation/create, landing on the canonical record, rename, Goals and
   Projects tabs, project navigation with Back/Forward, empty Area states, Activity,

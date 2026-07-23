@@ -34,7 +34,7 @@ const momentum: AreaMomentum = {
   summary: "Active work is present without a derived warning.",
   reasons: [
     {
-      code: "active_work_present",
+      code: "active_projects",
       count: 1,
       summary: "1 active project contributing momentum.",
     },
@@ -168,5 +168,18 @@ describe("AreaOverview", () => {
     expect(onRename).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
     expect(screen.getByText("activity-content")).toBeInTheDocument();
+  });
+
+  it("uses the exact roll-up totals for tab badges, never the first-page array length", () => {
+    // `rollup` fixes goals.total = 1 and projects.total = 2. Rendering an EMPTY
+    // Goals page and a single-item Projects page proves the badge reflects the
+    // authoritative roll-up total, not `goals.length`/`projects.length`.
+    renderRecord({ goals: [], projects: [project] });
+    expect(screen.getByRole("tab", { name: "Goals" }).textContent).toBe(
+      "Goals1",
+    );
+    expect(screen.getByRole("tab", { name: /Projects/ }).textContent).toBe(
+      "Projects2",
+    );
   });
 });

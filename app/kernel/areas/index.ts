@@ -13,6 +13,9 @@ export type {
   AreaListPage,
   AreaGoalPage,
   AreaProjectPage,
+  AreaAlignedProjectFact,
+  AreaDirectTaskFacts,
+  AreaMomentumSourceFacts,
 } from "./area";
 
 export type { AreaRepository } from "./area-repository";
@@ -39,6 +42,8 @@ export type {
   AreaMomentumReasonCode,
   AreaMomentumReason,
   AreaMomentumProjectFacts,
+  AreaMomentumGoalFacts,
+  AreaMomentumDirectTaskFacts,
   AreaMomentumFacts,
   AreaMomentumContext,
   AreaMomentum,
