@@ -76,6 +76,41 @@ export type AreaProjectItem = {
   readonly taskCompleted: number;
 };
 
+/**
+ * One Project aligned to an Area (direct or Goal-backed) for the COMPLETE momentum
+ * boundary — deliberately lighter than `AreaProjectItem` (no title, no task counts):
+ * it exists only to classify every aligned Project by workflow bucket and to seed
+ * the bounded batch Project-health read. `createdAt`/`updatedAt` mirror the same
+ * "effective" definition `listAreaProjects` uses, so a defensive facts fallback can
+ * be built consistently if a Project health read ever comes back short.
+ */
+export type AreaAlignedProjectFact = {
+  readonly id: string;
+  readonly status: ProjectWorkflowStatus;
+  readonly completedAt: Date | null;
+  readonly archivedAt: Date | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+};
+
+/** Authoritative counts for Tasks parented DIRECTLY to the Area — never inferred
+ * from the combined Area task roll-up, which also includes Project Tasks. */
+export type AreaDirectTaskFacts = {
+  readonly unfinishedTotal: number;
+  readonly completedTotal: number;
+};
+
+/**
+ * The COMPLETE Area momentum-facts boundary: every Project aligned to the Area
+ * (direct or Goal-backed) regardless of the bounded card page, plus authoritative
+ * direct Area Task counts. Read in a fixed, small number of workspace-scoped
+ * aggregate queries — never one query per Project.
+ */
+export type AreaMomentumSourceFacts = {
+  readonly directTasks: AreaDirectTaskFacts;
+  readonly projects: readonly AreaAlignedProjectFact[];
+};
+
 export type AreaListPage = {
   readonly items: readonly AreaListItem[];
   readonly nextCursor: string | null;

@@ -28,11 +28,13 @@ import {
   AreaStorageError,
   decodeAreaCursorForScope,
   encodeAreaCursor,
+  type AreaAlignedProjectFact,
   type AreaCursorScope,
   type AreaGoalItem,
   type AreaGoalPage,
   type AreaListItem,
   type AreaListPage,
+  type AreaMomentumSourceFacts,
   type AreaOverview,
   type AreaProjectItem,
   type AreaProjectPage,
@@ -91,6 +93,20 @@ interface AreaProjectRow {
   readonly goal_title: string | null;
   readonly task_total: number | null;
   readonly task_completed: number | null;
+}
+
+interface AreaAlignedProjectFactRow {
+  readonly id: string;
+  readonly created_at: string;
+  readonly effective_updated_at: string;
+  readonly completed_at: string | null;
+  readonly status: string;
+  readonly archived_at: string | null;
+}
+
+interface AreaDirectTaskFactsRow {
+  readonly unfinished_total: number | null;
+  readonly completed_total: number | null;
 }
 
 function rollup(completed: number, total: number): CompletionRollup {
@@ -525,6 +541,122 @@ export class D1AreaRepository implements AreaRepository {
     return {
       items: pageRows.map((row) => this.#toProjectItem(row)),
       nextCursor,
+    };
+  }
+
+  /**
+   * The COMPLETE Area momentum-facts boundary. Unlike `listAreaProjects`, this
+   * NEVER paginates: it reads every Project aligned to the Area (direct or
+   * Goal-backed) so an at-risk/blocked/stale active Project past the bounded card
+   * page still reaches the momentum evaluator. Two workspace-scoped, parameterised
+   * aggregate queries — direct Area Task counts and the complete aligned-Project
+   * list — run concurrently; neither is a query per Project.
+   */
+  async getAreaMomentumFacts(areaId: string): Promise<AreaMomentumSourceFacts> {
+    const id = validateSpineId(areaId, "id");
+    const [directTasks, projects] = await Promise.all([
+      this.#selectDirectAreaTaskFacts(id),
+      this.#selectAlignedProjectFacts(id),
+    ]);
+    return { directTasks, projects };
+  }
+
+  async #selectDirectAreaTaskFacts(
+    areaId: string,
+  ): Promise<AreaMomentumSourceFacts["directTasks"]> {
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT
+             SUM(CASE WHEN tsr.completed_at IS NULL THEN 1 ELSE 0 END) AS unfinished_total,
+             SUM(CASE WHEN tsr.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed_total
+           FROM entity_links tl
+           JOIN entities te
+             ON te.workspace_id = tl.workspace_id AND te.id = tl.source_entity_id
+                AND te.type = '${TASK}' AND te.deleted_at IS NULL
+           JOIN spine_records tsr
+             ON tsr.workspace_id = te.workspace_id AND tsr.entity_id = te.id
+           WHERE tl.workspace_id = ? AND tl.type = '${TASK_BELONGS_TO_AREA}'
+                 AND tl.deleted_at IS NULL AND tl.target_entity_id = ?`,
+        )
+        .bind(this.#workspaceId, areaId),
+    );
+    const row = ((result.results ?? []) as AreaDirectTaskFactsRow[])[0];
+    return {
+      unfinishedTotal: Number(row?.unfinished_total ?? 0),
+      completedTotal: Number(row?.completed_total ?? 0),
+    };
+  }
+
+  async #selectAlignedProjectFacts(
+    areaId: string,
+  ): Promise<readonly AreaAlignedProjectFact[]> {
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `WITH area_projects AS (
+             SELECT pe.id AS project_id
+             FROM entity_links pl
+             JOIN entities pe
+               ON pe.workspace_id = pl.workspace_id AND pe.id = pl.source_entity_id
+                  AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+             WHERE pl.workspace_id = ? AND pl.type = '${PROJECT_BELONGS_TO_AREA}'
+                   AND pl.deleted_at IS NULL AND pl.target_entity_id = ?
+             UNION
+             SELECT pe.id AS project_id
+             FROM entity_links gl
+             JOIN entities ge
+               ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                  AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+             JOIN entity_links pg
+               ON pg.workspace_id = ge.workspace_id AND pg.target_entity_id = ge.id
+                  AND pg.type = '${PROJECT_ADVANCES_GOAL}' AND pg.deleted_at IS NULL
+             JOIN entities pe
+               ON pe.workspace_id = pg.workspace_id AND pe.id = pg.source_entity_id
+                  AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+             WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                   AND gl.deleted_at IS NULL AND gl.target_entity_id = ?
+           )
+           SELECT e.id, e.created_at,
+                  ${EFFECTIVE_PROJECT_UPDATED_AT_EXPR} AS effective_updated_at,
+                  sr.completed_at,
+                  COALESCE(pd.status, 'planned') AS status,
+                  pd.archived_at
+           FROM area_projects ap
+           JOIN entities e
+             ON e.workspace_id = ? AND e.id = ap.project_id
+                AND e.type = '${PROJECT}' AND e.deleted_at IS NULL
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN project_details pd
+             ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id`,
+        )
+        .bind(
+          this.#workspaceId,
+          areaId,
+          this.#workspaceId,
+          areaId,
+          this.#workspaceId,
+        ),
+    );
+    const rows = (result.results ?? []) as AreaAlignedProjectFactRow[];
+    return rows.map((row) => this.#toAlignedProjectFact(row));
+  }
+
+  #toAlignedProjectFact(
+    row: AreaAlignedProjectFactRow,
+  ): AreaAlignedProjectFact {
+    return {
+      id: row.id,
+      status: this.#parseStatus(row.status),
+      completedAt:
+        row.completed_at === null
+          ? null
+          : fromStorageTimestamp(row.completed_at),
+      archivedAt:
+        row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
+      createdAt: fromStorageTimestamp(row.created_at),
+      updatedAt: fromStorageTimestamp(row.effective_updated_at),
     };
   }
 

@@ -288,7 +288,7 @@ export function AreaOverviewView({
         {
           id: "goals",
           label: "Goals",
-          badge: goals.length,
+          badge: rollup.goals.total,
           content:
             goals.length === 0 ? (
               <EmptyState
@@ -314,7 +314,7 @@ export function AreaOverviewView({
         {
           id: "projects",
           label: "Projects",
-          badge: projects.length,
+          badge: rollup.projects.total,
           content:
             projects.length === 0 ? (
               <EmptyState

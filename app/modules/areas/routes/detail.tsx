@@ -11,8 +11,16 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { evaluateAreaMomentum } from "~/kernel/areas";
-import { evaluateProjectHealth } from "~/kernel/project-health";
+import {
+  evaluateAreaMomentum,
+  type AreaMomentumProjectFacts,
+} from "~/kernel/areas";
+import {
+  evaluateProjectHealth,
+  isProjectHealthVisible,
+  type ProjectHealthFacts,
+  type ProjectHealthRepository,
+} from "~/kernel/project-health";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -40,10 +48,64 @@ import type { Route } from "./+types/detail";
 const RENAME_KEY = "rename";
 const AREA_CHILD_PAGE_SIZE = 50;
 
+/**
+ * `ProjectHealthRepository.listProjectHealthFacts` caps a single read at 100 ids
+ * (`MAX_HEALTH_BATCH`) as a bounded-collection-page safety ceiling, and internally
+ * fans a batch out into ≤40-id chunks with a small number of concurrent queries
+ * per chunk. The COMPLETE momentum boundary must cover every aligned Project
+ * regardless of count, so this chunks the (unbounded) aligned-Project id set into
+ * ≤100-id batches and calls the SAME batched, N+1-free operation per batch — never
+ * a query per Project, and never an arbitrary cap that would silently drop a
+ * Project from the aggregate. Batches are read SEQUENTIALLY (not `Promise.all`)
+ * so total in-flight D1 concurrency stays bounded to one batch's own internal
+ * fan-out — an Area with hundreds of active Projects issues more ROUND TRIPS, not
+ * unbounded simultaneous D1 work.
+ */
+const HEALTH_FACTS_BATCH_SIZE = 100;
+
 type AreaTab = "goals" | "projects" | "activity";
 
 export function meta() {
   return [{ title: "Area · DalyHub" }];
+}
+
+async function collectProjectHealthFacts(
+  projectHealth: ProjectHealthRepository,
+  ids: readonly string[],
+  todayIso: string,
+): Promise<Map<string, ProjectHealthFacts>> {
+  const merged = new Map<string, ProjectHealthFacts>();
+  for (let i = 0; i < ids.length; i += HEALTH_FACTS_BATCH_SIZE) {
+    const batch = ids.slice(i, i + HEALTH_FACTS_BATCH_SIZE);
+    const page = await projectHealth.listProjectHealthFacts(batch, todayIso);
+    for (const [id, facts] of page) {
+      merged.set(id, facts);
+    }
+  }
+  return merged;
+}
+
+function fallbackHealthFacts(project: {
+  readonly id: string;
+  readonly completedAt: Date | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}): ProjectHealthFacts {
+  return {
+    projectId: project.id,
+    completedAt: project.completedAt,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+    taskTotal: 0,
+    taskCompleted: 0,
+    waitingOpen: 0,
+    overdueOpen: 0,
+    slippedOpen: 0,
+    upcomingDueOpen: 0,
+    upcomingScheduledOpen: 0,
+    oldestWaitingSince: null,
+    lastMeaningfulActivityAt: null,
+  };
 }
 
 export async function loader({ params, context }: Route.LoaderArgs) {
@@ -56,52 +118,84 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  const [rollup, goalPage, projectPage] = await Promise.all([
+  const [rollup, goalPage, projectPage, momentumFacts] = await Promise.all([
     scope.spine.getRollup(areaId),
     scope.areas.listAreaGoals({ areaId, limit: AREA_CHILD_PAGE_SIZE }),
     scope.areas.listAreaProjects({ areaId, limit: AREA_CHILD_PAGE_SIZE }),
+    scope.areas.getAreaMomentumFacts(areaId),
   ]);
   if (rollup.kind !== "area") {
     throw new Response("Not Found", { status: 404 });
   }
 
   const healthContext = createOwnerHealthContext(new Date());
-  const factsById = await scope.projectHealth.listProjectHealthFacts(
+
+  // The DISPLAYED (bounded) card page — a separate concern from momentum.
+  const displayedFactsById = await collectProjectHealthFacts(
+    scope.projectHealth,
     projectPage.items.map((project) => project.id),
     healthContext.todayIso,
   );
   const projects = projectPage.items.map((project) => {
-    const facts = factsById.get(project.id) ?? {
-      projectId: project.id,
-      completedAt: project.completedAt,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-      taskTotal: project.taskTotal,
-      taskCompleted: project.taskCompleted,
-      waitingOpen: 0,
-      overdueOpen: 0,
-      slippedOpen: 0,
-      upcomingDueOpen: 0,
-      upcomingScheduledOpen: 0,
-      oldestWaitingSince: null,
-      lastMeaningfulActivityAt: null,
-    };
+    const facts =
+      displayedFactsById.get(project.id) ?? fallbackHealthFacts(project);
     return serializeAreaProjectItem(
       project,
       evaluateProjectHealth(facts, healthContext),
     );
   });
+
+  // The COMPLETE momentum boundary: every Project aligned to the Area, independent
+  // of the card page above. Health is only ever needed (and only ever fetched) for
+  // the visible active subset — Planned/On-hold/completed/archived Projects never
+  // create an active warning, so they never need a health read. A visible active
+  // Project that is ALSO on the displayed card page reuses the facts already
+  // fetched above instead of being queried a second time.
+  const visibleActiveIds = momentumFacts.projects
+    .filter((project) => isProjectHealthVisible(project))
+    .map((project) => project.id);
+  const idsNotAlreadyLoaded = visibleActiveIds.filter(
+    (id) => !displayedFactsById.has(id),
+  );
+  const additionalFactsById = await collectProjectHealthFacts(
+    scope.projectHealth,
+    idsNotAlreadyLoaded,
+    healthContext.todayIso,
+  );
+  const momentumFactsById = new Map([
+    ...displayedFactsById,
+    ...additionalFactsById,
+  ]);
+  const momentumProjects: AreaMomentumProjectFacts[] =
+    momentumFacts.projects.map((project) => {
+      if (!isProjectHealthVisible(project)) {
+        return {
+          id: project.id,
+          status: project.status,
+          completedAt: project.completedAt,
+          archivedAt: project.archivedAt,
+        };
+      }
+      const facts =
+        momentumFactsById.get(project.id) ?? fallbackHealthFacts(project);
+      return {
+        id: project.id,
+        status: project.status,
+        completedAt: project.completedAt,
+        archivedAt: project.archivedAt,
+        health: evaluateProjectHealth(facts, healthContext),
+      };
+    });
+
   const evaluatedAtIso = healthContext.now.toISOString();
   const momentum = evaluateAreaMomentum(
     {
-      rollup,
-      projects: projects.map((project) => ({
-        id: project.id,
-        completedAt: project.completedAt,
-        archivedAt: project.archivedAt,
-        status: project.status,
-        health: project.health,
-      })),
+      goals: {
+        openTotal: rollup.goals.total - rollup.goals.completed,
+        completedTotal: rollup.goals.completed,
+      },
+      directTasks: momentumFacts.directTasks,
+      projects: momentumProjects,
     },
     { evaluatedAtIso },
   );

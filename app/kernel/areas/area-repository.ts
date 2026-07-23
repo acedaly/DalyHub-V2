@@ -11,6 +11,7 @@ import type {
   AreaGoalPage,
   AreaListInput,
   AreaListPage,
+  AreaMomentumSourceFacts,
   AreaOverview,
   AreaProjectPage,
 } from "./area";
@@ -33,4 +34,14 @@ export interface AreaRepository {
    * Goal in that Area, with live direct-task counts and parent context.
    */
   listAreaProjects(input: AreaChildrenInput): Promise<AreaProjectPage>;
+
+  /**
+   * The COMPLETE Area momentum-facts boundary (AGENTS.md-corrective): every
+   * Project aligned to the Area, independent of `listAreaProjects`'s bounded card
+   * page, plus authoritative direct Area Task counts. Read as a fixed, small
+   * number of workspace-scoped aggregate queries — never one query per Project,
+   * and never capped at an arbitrary maximum that would silently truncate the
+   * aggregate.
+   */
+  getAreaMomentumFacts(areaId: string): Promise<AreaMomentumSourceFacts>;
 }
