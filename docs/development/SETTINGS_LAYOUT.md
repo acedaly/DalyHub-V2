@@ -181,12 +181,20 @@ button that opens the shared `ConfirmationDialog`. The dialog:
 - places **initial focus** on the typed-confirmation input when present, else the
   safe **Cancel** button — never the destructive one;
 - **restores focus** to the trigger on close (a post-close safety net mirrors the
-  Drawer/Inspector, so it is deterministic across browsers); if the trigger is
-  later removed by the SAME mutation's own revalidation (e.g. archiving a project
-  hides its "Archive project…" button behind the read-only Archived view) — a
-  gap PROJ-05 Slice 4's accessibility audit found and fixed here — a bounded
-  post-close watcher notices focus orphaned to `<body>` and reclaims it to the
-  page's main region, so every DS-10b dangerous action gets this for free;
+  Drawer/Inspector, so it is deterministic across browsers). This handles the
+  trigger still being connected at close time. It CANNOT, on its own, handle a
+  DELAYED loss — the trigger (and this whole dialog) being unmounted TOGETHER,
+  moments later, by the same mutation's own revalidation (e.g. Project Settings
+  replacing its entire "Archive" group with a "Restore" group after a successful
+  archive) — since the dialog's own effect is torn down in that same commit,
+  before it could ever notice. `SettingsLayout` — the stable ancestor that
+  survives every such conditional group swap — owns that belt-and-braces
+  recovery instead: it watches for focus orphaned to `<body>` after a mutation
+  inside it and reclaims it to the page's main region, so every settings
+  surface's dangerous actions get this for free, not just Project archive/restore
+  (a gap PROJ-05 Slice 4's accessibility audit found, initially mis-placed in
+  `ConfirmationDialog` itself and corrected after a PR review proved the
+  original placement never actually fired against the real conditional swap);
 - gates **Confirm** behind an optional **typed confirmation** (an exact, case- and
   whitespace-significant phrase — e.g. `DELETE`);
 - **prevents duplicate submissions** while a confirmation is in flight (Confirm and

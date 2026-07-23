@@ -81,6 +81,15 @@ export function ConfirmationDialog(props: ConfirmationDialogProps) {
     // deterministically. We restore on the next frame (after the panel has
     // unmounted and the browser has settled focus, which can otherwise land on
     // <body>), rather than gating on the current active element — which is racy.
+    //
+    // This handles the opener still being CONNECTED at close time. A separate,
+    // DELAYED loss — the opener (and this whole dialog) being unmounted TOGETHER
+    // moments later by the same mutation's own revalidation (e.g. Project
+    // Settings swapping its `ArchiveGroup` for a `RestoreGroup` after a
+    // successful archive) — cannot be handled here: this component unmounts in
+    // that same swap, so its own cleanup runs before it could ever notice.
+    // `SettingsLayout` (the stable ancestor that survives such swaps) owns that
+    // belt-and-braces recovery instead — see its "focus safety net" comment.
     const raf = requestAnimationFrame(() => {
       if (opener && opener.isConnected) {
         opener.focus();
@@ -88,35 +97,7 @@ export function ConfirmationDialog(props: ConfirmationDialogProps) {
         document.getElementById("main-content")?.focus?.();
       }
     });
-
-    // Belt-and-braces for a DELAYED loss: the opener can be REMOVED LATER, after
-    // this dialog has already closed and restored focus to it — e.g. a
-    // `DangerousAction`'s trigger (an "Archive project…" button) disappearing
-    // once its mutation's own revalidation swaps the surrounding view to the
-    // read-only archived state. A browser resets focus to `<body>` when the
-    // focused node is removed, and nothing else claims it afterwards. Watch for
-    // that specific, bounded aftermath — never act unless focus has genuinely
-    // been orphaned to `<body>` — and recover to the page's main region.
-    let settled = false;
-    const reclaimIfOrphaned = () => {
-      if (settled || document.activeElement !== document.body) {
-        return;
-      }
-      settled = true;
-      document.getElementById("main-content")?.focus?.();
-    };
-    const observer = new MutationObserver(reclaimIfOrphaned);
-    observer.observe(document.body, { childList: true, subtree: true });
-    const stopWatching = window.setTimeout(() => {
-      settled = true;
-      observer.disconnect();
-    }, 4000);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      observer.disconnect();
-      window.clearTimeout(stopWatching);
-    };
+    return () => cancelAnimationFrame(raf);
   }, [open, opener]);
 
   if (!open) {

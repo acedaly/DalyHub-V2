@@ -400,14 +400,20 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
     now axe-clean and overflow-free across the full breakpoint matrix
     (extending the existing `e2e/accessibility.spec.ts`/`e2e/responsive.spec.ts`
     sweeps, not a second scan mechanism). A genuine shared-layer accessibility
-    gap the audit found was fixed at its source: `ConfirmationDialog`'s
-    post-close focus restoration did not account for its opener being removed
-    LATER by the SAME mutation's own revalidation (e.g. an "Archive project…"
-    trigger disappearing once the view swaps to the read-only Archived state),
-    which could silently orphan focus on `<body>`; it now watches for that
-    bounded aftermath and reclaims focus to the page's main region — fixed
-    once in the shared DS-10b `ConfirmationDialog`, so every dangerous action
-    in the app benefits, not just Project archive. The complete
+    gap the audit found was fixed at its source: Project Settings replaces its
+    whole "Archive" group (a `DangerousAction` + its own `ConfirmationDialog`)
+    with a "Restore" group in one commit once archiving succeeds (and the
+    reverse after restoring), unmounting the trigger and the dialog that
+    confirmed it TOGETHER — which could silently orphan focus on `<body>`.
+    The fix lives in `SettingsLayout`, the stable ancestor that survives every
+    such conditional group swap, which watches for focus orphaned to `<body>`
+    and reclaims it to the page's main region — benefiting every settings
+    surface's dangerous actions, not just Project archive/restore. (A PR
+    review caught that the first attempt at this fix, placed inside
+    `ConfirmationDialog` itself, could never actually fire against this real
+    swap, since the dialog unmounts in the same commit as its trigger — proven
+    by a real Playwright assertion that failed against the first attempt and
+    passes against the corrected one.) The complete
     Planned → Active → On hold → Active → Archive → Restore journey is proven
     live against Today by a real Workers/D1 route-integration test
     ([`test/kernel/today-route.test.ts`](../../test/kernel/today-route.test.ts))

@@ -70,6 +70,21 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
       page.getByRole("group", { name: "Project archived" }),
     ).toBeVisible();
 
+    // Archiving replaces the WHOLE Archive group (the trigger and its owning
+    // ConfirmationDialog) with the Restore group in one commit — the dialog
+    // itself cannot notice its own trigger disappearing, so the shared
+    // SettingsLayout's focus safety net is what must land focus somewhere
+    // meaningful, never silently lost to <body>.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement.id
+            : null,
+        ),
+      )
+      .toBe("main-content");
+
     // The record shows the Archived state prominently, with Rename/Complete
     // hidden and Settings showing Restore instead of Archive.
     await expect(
@@ -114,6 +129,19 @@ test.describe("PROJ-05 — Project Settings and Archived collection", () => {
     await expect(
       page.getByRole("group", { name: "Project restored" }),
     ).toBeVisible();
+
+    // Restoring likewise replaces the WHOLE Restore group (trigger + its
+    // ConfirmationDialog) with the Organisation/Workflow/Archive groups in one
+    // commit — the same focus-safety-net requirement as the archive above.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement.id
+            : null,
+        ),
+      )
+      .toBe("main-content");
 
     // Normal controls return; the preserved workflow status survives the
     // archive/restore round trip.

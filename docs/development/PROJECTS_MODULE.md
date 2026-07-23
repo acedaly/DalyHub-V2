@@ -512,18 +512,26 @@ copy, which was accurate only while the section was `state: "open"`-only.
   resting-state scan (`/today`, already in `PRODUCT_ROUTES`) now exercises a real
   Active "Continue working" card, since the showcase project `pr-website` carries a
   permanent Active `project_details` row.
-- **Focus-restoration fix + regression test** (`app/shared/settings/ConfirmationDialog.tsx`,
-  [`test/unit/settings/ConfirmationDialog.test.tsx`](../../test/unit/settings/ConfirmationDialog.test.tsx)):
-  a genuine accessibility gap the Slice 4 audit found and fixed at the shared DS-10b
-  layer (not duplicated per consumer) — a `DangerousAction`'s trigger (e.g. "Archive
-  project…") can be removed from the DOM by its OWN mutation's revalidation
-  AFTER the dialog has already restored focus to it (a browser resets focus to
-  `<body>` when the currently-focused node is removed, and nothing else reclaimed
-  it). `ConfirmationDialog` now also watches, for a bounded window after close,
-  for focus being orphaned to `<body>` and reclaims it to the page's main region —
-  benefiting every DS-10b dangerous action in the app, not just Project archive.
-  Proven by a test that fails without the fix (verified by reverting it locally)
-  and passes with it.
+- **Focus-restoration fix + regression tests** (`app/shared/settings/SettingsLayout.tsx`,
+  [`test/unit/settings/SettingsLayout.test.tsx`](../../test/unit/settings/SettingsLayout.test.tsx),
+  plus real assertions added to
+  [`e2e/project-settings.spec.ts`](../../e2e/project-settings.spec.ts)): a genuine
+  accessibility gap the Slice 4 audit found and fixed at the shared DS-10b layer
+  (not duplicated per consumer) — Project Settings replaces its whole "Archive"
+  group (a `DangerousAction` + its own `ConfirmationDialog`) with a "Restore" group
+  once archiving succeeds, and the reverse after restoring; the trigger and the
+  dialog that confirmed it unmount TOGETHER in that same commit, so a browser
+  resets focus to `<body>` and nothing reclaims it. The fix lives in
+  `SettingsLayout` — the stable ANCESTOR that survives every such conditional
+  group swap — which watches for focus orphaned to `<body>` after a mutation
+  inside it and reclaims it to the page's main region, benefiting every settings
+  surface's dangerous actions, not just Project archive/restore. **This was
+  corrected after a PR review**: the first attempt placed the same watcher inside
+  `ConfirmationDialog` itself, which a reviewer correctly identified could never
+  fire against the real conditional swap, since the dialog's own watcher effect
+  unmounts in the same commit as its trigger — proven wrong by a real Playwright
+  assertion (`document.activeElement` after archive and after restore) that
+  failed against that first attempt and passes against the corrected one.
 - **Unit — Today's "Continue working" is Active-only**
   ([`test/unit/today/TodayDashboard.test.tsx`](../../test/unit/today/TodayDashboard.test.tsx)):
   the section's count reflects only the Active projects the loader supplied; every
