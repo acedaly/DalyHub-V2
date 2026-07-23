@@ -261,6 +261,23 @@
   background: var(--dh-color-accent-hover);
 }
 
+@container (max-width: 28rem) {
+  .dh-activity-item {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--dh-space-1) var(--dh-space-2);
+  }
+
+  .dh-activity-item__time {
+    grid-column: 2;
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .dh-activity-item__unknown {
+    grid-column: 2;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dh-activity__btn {
     transition-duration: var(--dh-duration-instant);

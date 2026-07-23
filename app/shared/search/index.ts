@@ -13,7 +13,7 @@
 
 export { default as SearchSurface } from "./SearchSurface";
 export type { SearchSurfaceProps } from "./SearchSurface";
-export { Highlight } from "./Highlight";
+export { Highlight } from "./HighlightText";
 export {
   useSearchController,
   SEARCH_DEBOUNCE_MS,

@@ -228,6 +228,12 @@
 .record-action--primary:hover {
   background: var(--dh-color-accent-hover);
 }
+
+@media (hover: none), (pointer: coarse) {
+  .record-action {
+    min-height: var(--dh-touch-target-min);
+  }
+}
 .record-action--primary:active {
   background: var(--dh-color-accent-active);
 }

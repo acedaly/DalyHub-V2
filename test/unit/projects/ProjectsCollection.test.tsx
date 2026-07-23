@@ -108,6 +108,47 @@ describe("Projects collection", () => {
     expect(screen.getAllByText("New project").length).toBeGreaterThan(0);
   });
 
+  it("keeps project cards as honest links with no mobile swipe accelerator", () => {
+    const { container } = renderCollection({
+      projects: [
+        project({
+          id: "long",
+          title:
+            "A very long translated-like project title that should wrap without needing a gesture",
+          area: {
+            kind: "area",
+            id: "a-long",
+            title:
+              "An unusually long Area name that still belongs in card context",
+          },
+          goal: {
+            kind: "goal",
+            id: "g-long",
+            title:
+              "A deeply specific Goal title that is allowed to wrap across lines",
+          },
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+
+    const card = screen.getByRole("article", {
+      name: /A very long translated-like project title/,
+    });
+    expect(
+      within(card).getByRole("link", {
+        name: /Open A very long translated-like project title/,
+      }),
+    ).toHaveAttribute("href", "/projects/long");
+    expect(
+      within(card).queryByRole("button", { name: /archive|complete/i }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelector(".dh-card-swipe")).toBeNull();
+  });
+
   it("shows the derived health state and its primary reason on a card", () => {
     renderCollection({
       projects: [

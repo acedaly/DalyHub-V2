@@ -119,18 +119,13 @@ test.describe("DS-09 Command Palette — desktop", () => {
   const COMPLETE_TITLE = "Wrap up the sprint";
 
   async function ensureOpen(page: import("@playwright/test").Page) {
+    await page.request.post("/tasks/t-complete", {
+      form: { intent: "reopen" },
+    });
     await page.goto("/today");
-    const summary = page.getByText(/Completed today/);
-    if ((await summary.count()) === 0) {
-      return;
-    }
-    await summary.first().click();
-    const list = page.getByRole("list", { name: "Tasks completed today" });
-    const card = list.locator(".dh-card", { hasText: COMPLETE_TITLE });
-    if ((await card.count()) > 0) {
-      await card.getByRole("button", { name: "Reopen" }).click();
-      await expect(list.getByText(COMPLETE_TITLE)).toHaveCount(0);
-    }
+    await expect(
+      page.locator(".dh-card", { hasText: COMPLETE_TITLE }).first(),
+    ).toBeVisible();
   }
 
   test("runs a contextual action bound to an open task Drawer", async ({

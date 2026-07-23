@@ -330,6 +330,13 @@
   border-color: var(--dh-color-disabled-border);
 }
 
+@media (hover: none), (pointer: coarse) {
+  .dh-settings-select,
+  .dh-settings-danger-button {
+    min-height: var(--dh-touch-target-min);
+  }
+}
+
 /* ---------------------------------------------------------------- confirmation dialog */
 
 .dh-confirm-root {
@@ -484,6 +491,30 @@
   color: var(--dh-color-disabled-text);
   background: var(--dh-color-disabled-surface);
   border-color: var(--dh-color-disabled-border);
+}
+
+@media (max-width: 30rem) {
+  .dh-confirm {
+    width: 100%;
+    padding: var(--dh-space-4);
+    border-radius: var(--dh-radius-lg);
+  }
+
+  .dh-confirm__actions {
+    justify-content: stretch;
+  }
+
+  .dh-confirm__button {
+    flex: 1 1 100%;
+    min-height: var(--dh-touch-target-min);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .dh-confirm__input,
+  .dh-confirm__button {
+    min-height: var(--dh-touch-target-min);
+  }
 }
 
 @keyframes dh-confirm-scrim-in {

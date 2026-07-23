@@ -47,6 +47,11 @@ const PRODUCT_ROUTES = [
   // gave the record a non-skipping heading outline (record h1 → section h2 → content
   // h3), so the bare page is now axe-clean without relying on the Drawer-open scan.
   "/projects/pr-website",
+  // PROJ-06 — the complete Projects mobile-facing record tabs are swept by the
+  // existing route matrix instead of a separate scanner.
+  "/projects/pr-website?tasks=all",
+  "/projects/pr-website?tab=links",
+  "/projects/pr-website?tab=activity",
   "/tasks",
   // PROJ-05 Slice 4 — the Settings tab (an active, non-archived project), the
   // Archived collection (with a real permanently-archived card) and a bare
@@ -103,6 +108,25 @@ test.describe("automated accessibility — open overlays", () => {
     await gotoFixture(page, "/design/settings");
     await page
       .getByRole("button", { name: /delete|reset|remove|archive/i })
+      .first()
+      .click();
+    await page.getByRole("dialog").waitFor();
+    await expectNoAxeViolations(page);
+  });
+
+  // PROJ-06 — real Projects overlays: the create sheet and shared task Drawer.
+  test("Projects new-project sheet has no violations", async ({ page }) => {
+    await gotoFixture(page, "/projects");
+    await page.getByRole("link", { name: "New project" }).first().click();
+    await page.getByRole("dialog", { name: "New project" }).waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
+  });
+
+  test("Project task Drawer has no violations", async ({ page }) => {
+    await gotoFixture(page, "/projects/pr-website");
+    await page
+      .getByRole("link", { name: "Open Design the homepage" })
       .first()
       .click();
     await page.getByRole("dialog").waitFor();

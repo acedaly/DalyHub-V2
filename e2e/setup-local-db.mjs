@@ -24,6 +24,27 @@ const SEED_TASKS = join(
   dirname(fileURLToPath(import.meta.url)),
   "seed-tasks.sql",
 );
+const MOBILE_PROJECT_TITLE_PREFIX = "Mobile Projects workflow ";
+const MOBILE_TASK_TITLES = [
+  "Mobile task to complete and reconcile from the shared drawer",
+  "Unfinished mobile task that deliberately blocks archiving",
+];
+const MOBILE_ENTITY_QUERY = `
+  SELECT id FROM entities
+  WHERE workspace_id = '${WORKSPACE_ID}'
+    AND (
+      (type = 'project' AND title LIKE '${MOBILE_PROJECT_TITLE_PREFIX}%')
+      OR (type = 'task' AND title IN (${MOBILE_TASK_TITLES.map((title) => `'${title}'`).join(", ")}))
+    )
+`;
+const MOBILE_CLEANUP_SQL = [
+  `DELETE FROM activity_subjects WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${MOBILE_ENTITY_QUERY});`,
+  `DELETE FROM task_details WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${MOBILE_ENTITY_QUERY});`,
+  `DELETE FROM project_details WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${MOBILE_ENTITY_QUERY});`,
+  `DELETE FROM spine_records WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${MOBILE_ENTITY_QUERY});`,
+  `DELETE FROM entity_links WHERE workspace_id = '${WORKSPACE_ID}' AND (source_entity_id IN (${MOBILE_ENTITY_QUERY}) OR target_entity_id IN (${MOBILE_ENTITY_QUERY}));`,
+  `DELETE FROM entities WHERE workspace_id = '${WORKSPACE_ID}' AND id IN (${MOBILE_ENTITY_QUERY});`,
+];
 
 function wrangler(args) {
   execFileSync("pnpm", ["exec", "wrangler", ...args], {
@@ -41,6 +62,13 @@ wrangler([
   "--command",
   `INSERT OR IGNORE INTO workspaces (id, created_at, updated_at) VALUES ('${WORKSPACE_ID}', '${TS}', '${TS}');`,
 ]);
+
+// PROJ-06 mobile journey creates real records through the UI. Remove only those
+// test-owned rows before seeding so an interrupted local run cannot affect other
+// journeys that share the same Miniflare D1 instance.
+for (const statement of MOBILE_CLEANUP_SQL) {
+  wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
+}
 
 // TODAY-02: seed a small real spine (areas + focus tasks) so /today shows real
 // task data and the task Drawer opens real records.

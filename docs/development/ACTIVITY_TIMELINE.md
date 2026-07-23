@@ -213,7 +213,9 @@ rows (pass `virtualization="off"` to disable, e.g. in a small tab).
 hierarchy; semantic `<time>`; visible focus on keyboard-accessible entity links;
 a polite live-region announcement of newly-loaded events; non-colour event meaning;
 44px touch targets; correct behaviour at 320px and 200% zoom; reduced-motion
-compliance. Virtualisation preserves keyboard and screen-reader use.
+compliance. In narrow containers, timestamps collapse below the event body so long
+event copy and time labels wrap inside the Timeline instead of widening the page.
+Virtualisation preserves keyboard and screen-reader use.
 
 ---
 

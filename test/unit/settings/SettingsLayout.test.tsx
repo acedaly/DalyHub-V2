@@ -187,6 +187,51 @@ describe("DS-10b SettingsLayout — focus safety net (PROJ-05 Slice 4)", () => {
     expect(dialog.contains(document.activeElement)).toBe(true);
   });
 
+  it("reclaims focus from the page-level main-content fallback when a tracked settings control is removed", async () => {
+    function MainFallbackHarness() {
+      const [trackedPresent, setTrackedPresent] = useState(true);
+      return (
+        <FeedbackProvider>
+          <main id="main-content" tabIndex={-1}>
+            <SettingsLayout aria-label="Project settings">
+              <SettingsGroup title="Info">
+                {trackedPresent ? (
+                  <button type="button">Tracked control</button>
+                ) : null}
+              </SettingsGroup>
+            </SettingsLayout>
+            <button type="button" onClick={() => setTrackedPresent(false)}>
+              Remove tracked control
+            </button>
+          </main>
+        </FeedbackProvider>
+      );
+    }
+    render(<MainFallbackHarness />);
+
+    const tracked = screen.getByRole("button", { name: "Tracked control" });
+    act(() => tracked.focus());
+    expect(document.activeElement).toBe(tracked);
+
+    const main = document.getElementById("main-content");
+    act(() => main?.focus());
+    expect(document.activeElement).toBe(main);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove tracked control" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Tracked control" }),
+      ).toBeNull(),
+    );
+
+    const settingsRegion = screen.getByRole("region", {
+      name: "Project settings",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(settingsRegion));
+  });
+
   it("never steals focus for an unrelated mutation when nothing inside this layout was ever focused", async () => {
     function UnrelatedMutationHarness() {
       const [shown, setShown] = useState(false);
