@@ -199,12 +199,19 @@ jobs:
         # journeys, auth fail-closed checks, the DS-11 axe WCAG 2.2 AA scans,
         # dark mode, mobile/touch-target and responsive-overflow coverage,
         # keyboard/Drawer/history behaviour, and real local D1 journeys.
-        # Playwright's built-in `--shard` distributes whole spec files, so the
-        # union of all 3 shards runs the entire suite exactly once — no test is
-        # skipped or excluded. `workers` stays 1 (see playwright.config.ts):
-        # several specs are stateful (seeded/cleaned-up D1 records), so the
-        # parallelism axis here is GitHub Actions shards (separate runners,
-        # separate isolated local D1), not intra-runner workers.
+        # Playwright's built-in `--shard` distributes test GROUPS, and with
+        # `fullyParallel: true` (and no `describe.serial` anywhere in e2e/,
+        # verified) each independent test is its own group — so shards split
+        # at individual-test granularity, not whole spec files; a single spec
+        # file's tests can land on different shards/runners. The union of all
+        # 3 shards still runs the entire suite exactly once — no test is
+        # skipped or excluded. This is safe here because every test creates
+        # and tears down its own fixtures (unique per-test titles/prefixes,
+        # `afterEach` cleanup) rather than depending on a preceding test's
+        # state. `workers` stays 1 (see playwright.config.ts): within a given
+        # shard's runner, tests still execute one at a time; the parallelism
+        # axis is GitHub Actions shards (separate runners, separate isolated
+        # local D1), not intra-runner workers.
         #
         # PLAYWRIGHT_SKIP_BUILD reuses the build/ artifact downloaded above
         # instead of letting the production-mode webServer rebuild it a second

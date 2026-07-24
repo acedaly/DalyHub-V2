@@ -99,24 +99,32 @@ The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, 3]`), not
 three copy-pasted jobs, so evaluating a different shard count is a one-line
 change. Each shard:
 
-- runs `pnpm exec playwright test --shard=N/3` — Playwright's own sharding
-  splits whole spec files across the 3 invocations, so **the union of all
-  shards runs the entire suite exactly once**: functional E2E coverage,
-  authentication/fail-closed behaviour, the DS-11 accessibility (axe) scans,
-  dark mode, mobile and touch-target coverage, the responsive/no-overflow
-  matrix, keyboard/Drawer/browser-history behaviour, and the real local-D1
-  journeys. No spec is skipped or excluded to hit a timing target.
+- runs `pnpm exec playwright test --shard=N/3`. With `fullyParallel: true` (and
+  no `describe.serial` anywhere in `e2e/`, verified), Playwright's sharding
+  operates on independent test **groups**, and an independent test with no
+  serial ancestor is its own group — so shards split at **individual-test**
+  granularity, not whole spec files. A single spec file's tests can and do land
+  on different shards. Regardless of that split, **the union of all shards runs
+  the entire suite exactly once**: functional E2E coverage, authentication/
+  fail-closed behaviour, the DS-11 accessibility (axe) scans, dark mode, mobile
+  and touch-target coverage, the responsive/no-overflow matrix, keyboard/
+  Drawer/browser-history behaviour, and the real local-D1 journeys. No spec is
+  skipped or excluded to hit a timing target.
 - runs on its **own GitHub Actions runner**, so it gets its own isolated local
   Miniflare/D1 state (`.wrangler/state` lives on that runner's disk only and is
   discarded when the job ends). Shards cannot see or interfere with each
-  other's database state — this is what keeps the suite's stateful
-  create/seed/cleanup journeys safe to shard at all.
-- keeps `workers: 1` in `playwright.config.ts`. Several specs are stateful
-  (seeded records, cleanup between runs, migrations) with ordering
-  dependencies within a runner; sharding across runners — not raising
-  in-runner worker count — is the parallelism axis this suite has been proven
-  safe under. Increasing `workers` would need its own regression pass against
-  every stateful spec before it's safe to change.
+  other's database state.
+- is safe to split at test granularity because every test in `e2e/` creates and
+  tears down its own fixtures — unique per-test titles/prefixes plus
+  `afterEach` cleanup (see `e2e/setup-local-db.mjs` and the mobile specs'
+  cleanup helpers) — rather than depending on state a preceding test left
+  behind. There is no hidden test-order dependency for sharding to break.
+- keeps `workers: 1` in `playwright.config.ts`. This is a conservative default,
+  not a proven requirement: within a shard's runner, tests still execute one
+  at a time regardless. The parallelism this PR adds comes from GitHub Actions
+  shards (separate runners, separate isolated local D1), not from raising the
+  in-runner worker count. Increasing `workers` is a separate, independently
+  testable change or future item.
 - installs **only the Playwright Chromium headless shell**
   (`playwright install --with-deps --only-shell chromium`), not the full
   Chrome/Chromium binary or ffmpeg. The suite runs headless with no video
@@ -174,14 +182,18 @@ repository. No test skips for a missing workspace or binding: the second
 (un-migrated) local D1 and the `DEFAULT_WORKSPACE_ID` test value are provided
 by the pool config. See [`DATA_KERNEL.md`](DATA_KERNEL.md).
 
-### Generated types, produced once
+### Generated types, produced once per job
 
-`pnpm install`'s `postinstall` hook runs `wrangler types` exactly once per job.
-`pnpm run typecheck` no longer re-runs `wrangler types` itself — it only runs
-React Router typegen and `tsc -b`, reusing the `worker-configuration.d.ts` the
-same job's install already generated. If you edit `wrangler.jsonc` locally, run
-`pnpm cf-typegen` (or re-run `pnpm install`) before typechecking so the
-generated `Env` type reflects the change.
+Every job runs its own `pnpm install --frozen-lockfile`, so `wrangler types`
+still runs once per job (via the `postinstall` hook) — that's unavoidable
+without sharing filesystem state across jobs, which CI does not do. What's
+fixed is the **duplication within a single job**: `pnpm run typecheck` no
+longer re-runs `wrangler types` itself — it only runs React Router typegen and
+`tsc -b`, reusing the `worker-configuration.d.ts` that same job's install
+already generated. Only the `static-quality` job runs `typecheck`, so this
+removes one redundant `wrangler types` invocation, not five. If you edit
+`wrangler.jsonc` locally, run `pnpm cf-typegen` (or re-run `pnpm install`)
+before typechecking so the generated `Env` type reflects the change.
 
 ### Caching
 
