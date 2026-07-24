@@ -372,7 +372,9 @@ export async function runRoadmapPlan(
     );
   }
 
-  const existingGoalDetails = goal ? await scope.goalDetails.get(goal.id) : null;
+  const existingGoalDetails = goal
+    ? await scope.goalDetails.get(goal.id)
+    : null;
   if (goal && !existingGoalDetails) {
     throw new Error("Goal details could not be read.");
   }
@@ -399,7 +401,9 @@ export async function runRoadmapPlan(
     );
   }
 
-  let existingTasks = project ? await listAllProjectTasks(scope, project.id) : [];
+  let existingTasks = project
+    ? await listAllProjectTasks(scope, project.id)
+    : [];
   assertUniqueTaskTitles(existingTasks);
   const taskByTitle = new Map(
     existingTasks.map((task) => [normaliseTitle(task.title), task]),
@@ -786,7 +790,8 @@ export async function runRoadmapPlan(
   const finalSettings = project
     ? await scope.projectSettings.get(project.id)
     : null;
-  const finalTasks = apply && project ? existingTasks : [...taskByTitle.values()];
+  const finalTasks =
+    apply && project ? existingTasks : [...taskByTitle.values()];
   const targetTitles = new Set([
     ...input.openItems.map((item) =>
       normaliseTitle(`${item.id} — ${item.title}`),
@@ -802,8 +807,7 @@ export async function runRoadmapPlan(
     shouldCreateMilestone(milestone, completedIds, openIds),
   );
   const missingOpenTasks = input.openItems.filter(
-    (item) =>
-      !taskByTitle.has(normaliseTitle(`${item.id} — ${item.title}`)),
+    (item) => !taskByTitle.has(normaliseTitle(`${item.id} — ${item.title}`)),
   ).length;
   const missingMilestones = plannedMilestones.filter(
     (milestone) => !taskByTitle.has(normaliseTitle(milestone.title)),
@@ -813,8 +817,7 @@ export async function runRoadmapPlan(
     : finalTasks.filter((task) => !task.completedAt).length + missingOpenTasks;
   const completedMilestones = apply
     ? targetTasks.filter(
-        (task) =>
-          task.completedAt && task.title.startsWith("Milestone — "),
+        (task) => task.completedAt && task.title.startsWith("Milestone — "),
       ).length
     : plannedMilestones.length;
   const totalTasks = apply
@@ -876,10 +879,7 @@ export default {
       return json({ error: "target_not_production" }, 503);
     }
     const token = request.headers.get("authorization");
-    if (
-      !env.ROADMAP_RUN_TOKEN ||
-      token !== `Bearer ${env.ROADMAP_RUN_TOKEN}`
-    ) {
+    if (!env.ROADMAP_RUN_TOKEN || token !== `Bearer ${env.ROADMAP_RUN_TOKEN}`) {
       return json({ error: "unauthorised" }, 401);
     }
     try {

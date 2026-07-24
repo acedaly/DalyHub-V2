@@ -65,9 +65,7 @@ export function parseRoadmap(markdown) {
       continue;
     }
 
-    const heading = lines[index].match(
-      /^### ([☐◐☑⊘]) ([A-Z]+-\d+) — (.+)$/,
-    );
+    const heading = lines[index].match(/^### ([☐◐☑⊘]) ([A-Z]+-\d+) — (.+)$/);
     if (!heading) {
       continue;
     }
