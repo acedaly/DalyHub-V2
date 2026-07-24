@@ -482,10 +482,49 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 - **Expected outcome.** A view relating recent task activity to goals, surfacing neglected goals. **P2.**
 - **Status: ☑ Done.** `/goals` — an `FND-09` placeholder since AREA-01/02 — becomes the real, workspace-wide Alignment view; no new nav entry, no premature global dashboard. Alignment is DERIVED and NON-PERSISTED, mirroring PROJ-02/AREA-01/AREA-02's evaluator-plus-facts-repository shape exactly: a pure `evaluateGoalAlignment` (`app/kernel/alignment`) maps complete facts + an injected owner-calendar clock to one of five explainable states — `completed` (spine authority only), `no_structure` (no Project has ever advanced the Goal), `unreachable` (every linked Project is archived — the only structurally-enforced block on new Task work), `active` and `neglected` (governed by the single most recent qualifying Task-activity instant, mapped to the owner's calendar day against a centrally-defined `RECENT_ACTION_WINDOW_DAYS = 14`, the same fortnight cadence ADR-035 already validated). Every result carries one or more structured reasons (primary first, never a zero count) — calm `neutral`/`info`/`success` tones only, deliberately never `warning`/`danger` (PRODUCT_PRINCIPLES' anti-guilt mandate). "Goal-related action" reuses the EXISTING `MEANINGFUL_HEALTH_ACTIVITY_TYPES` vocabulary (no second classification), traversed via the only indirect path the spine allows — `Task -> task.belongs_to_project -> Project -> project.advances_goal -> Goal`; a Task can never link directly to a Goal, and a Project can never advance more than one Goal (the partial unique structural-link index), so evidence is always attributed to exactly one Goal by construction. A new read-only `AlignmentRepository` (`d1-alignment-repository.ts`) gathers the COMPLETE activity aggregate for a whole bounded page of Goals in a fixed, small, chunked number of grouped queries (no N+1), separate from a SEPARATELY bounded single-Goal evidence page (up to 5 real contributing Tasks, an honest "+more" note, never the classification boundary) — mirroring ADR-038 §38.7/ADR-039 §39.6's complete-boundary-vs-bounded-display-page split exactly. The EXISTING `GoalRepository` gained a batched `listGoalProjectContributions` (reusing `evaluateGoalProjectContribution` unchanged) and a new workspace-wide `listGoals` collection read (its own dedicated `goal-list-cursor.ts`, never interchangeable with the existing Goal→Projects cursor). The Goals collection shows every open Goal with an `AlignmentIndicator` pill + calm counts recap (plain numbers, never a percentage); the Goal record's Summary tab gains an additive `GoalAlignmentPanel` with the state, every reason and real Task/Project navigation links. No migration, no new relationship model, no parallel analytics event store, no persisted/cached score. Accepted via [ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection). See [`AREAS_MODULE.md`](../development/AREAS_MODULE.md) and [`GOALS_MODULE.md`](../development/GOALS_MODULE.md).
 
-### ☐ AREA-04 — Mobile
+### ☑ AREA-04 — Mobile
 - **Purpose.** Mobile-complete Areas & Goals.
 - **Dependencies.** DS-11, AREA-01.
 - **Expected outcome.** Areas/Goals usable on a phone. **P3.**
+- **Status: ☑ Done.** Completed the Areas & Goals mobile audit and implementation
+  as one PR, matching PROJ-06's shape rather than TODAY-06's: the audit found
+  that both modules already inherited the right architecture and nearly all
+  responsive behaviour from the shared Collection Layout, Record Layout, Card,
+  Drawer, DS-06 forms, Tabs, Timeline and the AREA-03 `AlignmentIndicator`/
+  `GoalAlignmentPanel`, so no second mobile layout, no missing route and no
+  missing Drawer were needed. The one substantive, verified gap was a **shared**
+  DS-02 `RecordHeader` breadcrumb defect (not Areas/Goals-specific, fixed at the
+  shared layer per the "shared over bespoke" rule): a long parent crumb label
+  (an Area title above a Goal) wraps across several lines on a narrow phone, and
+  the decorative "/" separator — rendered on an `inline-flex` `<li>` — laid out
+  as a sibling flex item and was vertically centred against the whole wrapped
+  block instead of the label's first line, floating mid-paragraph; the crumb
+  `<li>` is now plain inline flow with the separator's spacing restored via a
+  margin, so it stays attached to the wrapped label wherever it wraps. Areas and
+  Goals keep normal, honest record-linked Cards and deliberately add **no** swipe
+  accelerator, matching PROJ-06's precedent — no frequent, low-risk Area/Goal
+  card action justified one (renaming and completing a Goal are deliberate,
+  infrequent actions). Momentum, alignment and Project-contribution progress
+  remain exactly the same server-derived, non-cached reads; nothing was
+  reimplemented in React for mobile. Coverage now includes a focused real-D1
+  phone journey (`e2e/areas-goals-mobile.spec.ts`) across mobile navigation, Area
+  creation with a long wrapping title, Summary/Goals/Projects/Activity tab
+  navigation, Goal creation, target-date/definition-of-done editing, completion/
+  reopening, a Project+Task created live to prove the Goal's Alignment turns
+  "Recently active" with real evidence, the `/goals` Alignment collection
+  showing both that active Goal and the permanently-seeded neglected one, Back/
+  Forward for every route-backed Drawer, focus restoration, keyboard operation,
+  axe, touch targets and no horizontal overflow, plus a 320×568 short-viewport
+  sheet path and a dedicated breadcrumb-wrap regression test; `e2e/responsive.
+  spec.ts` and `e2e/accessibility.spec.ts` now sweep the Goal Activity tab, the
+  New Goal sheet and the Goal Edit-details sheet across the canonical matrix and
+  its extremes; `e2e/touch-targets.spec.ts` covers the Areas/Goals record actions
+  and tabs. `pnpm run format:check`, `lint`, `typecheck`, `test`, `build`,
+  `deploy:dry-run` and `test:e2e` are green. No migration, no new environment
+  variable, no Wrangler configuration change and no new dependency — the change
+  is shared CSS (`record-layout.css`) plus tests. See
+  [AREAS_MODULE.md](../development/AREAS_MODULE.md#mobile-area-04) and
+  [GOALS_MODULE.md](../development/GOALS_MODULE.md#mobile-area-04).
 
 ---
 

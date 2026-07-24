@@ -77,3 +77,42 @@ test.describe("touch targets — Search", () => {
     );
   });
 });
+
+test.describe("touch targets — Areas & Goals (mobile)", () => {
+  // `RecordAction`/tab controls only grow to the 44px floor under a coarse
+  // pointer (`@media (hover: none), (pointer: coarse)` in record-layout.css) —
+  // a plain narrow desktop viewport keeps the 36px medium control height, so
+  // touch must be emulated to exercise the SAME path a phone takes (matching
+  // `today-mobile.spec.ts`/`projects-mobile.spec.ts`).
+  test.use({
+    viewport: { width: 320, height: 720 },
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  test("the Areas collection's primary action and record tabs meet the minimum", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/areas");
+    await expectMinTouchTarget(
+      page.getByRole("link", { name: "New Area" }).first(),
+    );
+
+    await gotoFixture(page, "/areas/a-dh");
+    await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
+    for (const name of ["Goals", "Projects", "Activity"] as const) {
+      await expectMinTouchTarget(page.getByRole("tab", { name }));
+    }
+  });
+
+  test("the Goal record's actions and the Alignment evidence control meet the minimum", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/goals/g-launch");
+    await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: "Edit details" }),
+    );
+    await expectMinTouchTarget(page.getByRole("button", { name: "Complete" }));
+  });
+});

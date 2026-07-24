@@ -554,6 +554,53 @@ Candidates considered for a shared forms system: **form/validation** — React H
 
 ---
 
+## Areas & Goals mobile evaluation (AREA-04)
+
+> The reuse evaluation for the mobile-complete Areas & Goals pass. **No new
+> runtime or dev dependency was added** — AREA-04 is composition and targeted
+> shared-layer hardening, matching PROJ-06's shape. No third-party code was
+> copied or adapted.
+
+- **Products studied (🔴 study-only, already catalogued): Things 3, Linear,
+  Notion, and DalyHub's own TODAY-06/PROJ-06 implementations.** Interaction
+  inspiration only, already recorded above; PROJ-06's "audit and harden, don't
+  add a gesture" precedent was treated as the internal reference for this pass.
+- **Reuse evaluation — mobile Areas & Goals.**
+  - [x] Problem is a commodity worth reusing? **Internally, yes** — Collection
+    Layout, Card, Drawer, Record Layout, Tabs, DS-06 forms, shared Timeline and
+    the `AlignmentIndicator`/`GoalAlignmentPanel` (AREA-03) already solve the
+    mobile primitives. AREA-04 reuses and hardens them instead of adding an
+    Areas/Goals-only mobile layout.
+  - [x] Gesture library / swipe dependency — rejected. No Area or Goal card
+    action met the "frequent, low-risk, visible equivalent" bar (renaming and
+    completing a Goal are deliberate, infrequent actions).
+  - [x] Form/picker dependency — rejected. DS-06 `TextField`/`DateField` and the
+    shared Area/Goal picker already provide touch-safe controls.
+  - [x] Timeline/virtualisation dependency — rejected. DS-05 already supplies
+    the responsive Timeline and loading states, previously hardened by PROJ-06.
+  - [x] Licence read — n/a (no dependency taken).
+  - [x] Fits our stack, accessibility bar and Design System — server-
+    authoritative loaders/mutations, no client-only alignment/momentum logic, no
+    new focus trap/scroll lock, 44px touch targets, axe coverage, no document
+    horizontal overflow across the canonical DS-11 matrix.
+  - [x] Provenance — original DalyHub code; no snippet adapted, so no
+    attribution and no `THIRD_PARTY_NOTICES.md` change.
+  - [x] Covered by tests — a focused real-D1 mobile Playwright journey
+    (`e2e/areas-goals-mobile.spec.ts`), extended DS-11 responsive/accessibility/
+    touch-target sweeps, and a dedicated breadcrumb-wrap regression check.
+  - [x] REFERENCE_PRODUCTS.md updated (this entry).
+- **Rejected.** An Areas/Goals-only mobile record layout, a second momentum/
+  alignment evaluator or React re-implementation, an Areas/Goals-specific
+  Drawer/focus trap, swipe-to-complete, and any new UI/runtime dependency.
+- **Licence implications.** None — no dependency added, no third-party code
+  copied, so no [`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md) change.
+- **Decision (Depend / Adapt / Build).** **Reuse** the shared DS/PX surfaces and
+  existing Areas/Goals routes; **build** only the shared `RecordHeader`
+  breadcrumb-wrap fix (record-layout.css, benefits every module) and tests; **add
+  no dependency**. See
+  [AREAS_MODULE.md](../development/AREAS_MODULE.md#mobile-area-04) and
+  [GOALS_MODULE.md](../development/GOALS_MODULE.md#mobile-area-04).
+
 ## Entry template
 
 Copy this to add a new reference product or building block:

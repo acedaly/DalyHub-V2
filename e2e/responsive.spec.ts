@@ -51,6 +51,7 @@ const PRODUCT_ROUTES = [
   // record with the derived Alignment Summary panel.
   "/goals",
   "/goals/g-launch",
+  "/goals/g-launch?tab=activity",
   // PROJ-06 — the complete Projects collection + record surface across the
   // canonical matrix: collection filters/cards, default Tasks tab, Key links,
   // Activity Timeline and Settings.
@@ -196,6 +197,33 @@ test.describe("responsive — open overlays never overflow", () => {
       await gotoFixture(page, "/areas/a-dh");
       await page.getByRole("button", { name: "Rename" }).click();
       await page.getByRole("dialog", { name: "Rename Area" }).waitFor();
+      await expectNoHorizontalOverflow(page);
+      await page.keyboard.press("Escape");
+    });
+
+    // AREA-04 — the New Goal sheet (opened from the Area record's Goals tab)
+    // and the Goal record's Edit details sheet (target date + definition of
+    // done), at the viewport extremes.
+    test(`Areas new-goal sheet at ${viewport.label}`, async ({ page }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/areas/a-dh?tab=goals");
+      await page.getByRole("link", { name: "New Goal" }).first().click();
+      await page.getByRole("dialog", { name: "New Goal" }).waitFor();
+      await expectNoHorizontalOverflow(page);
+      await page.keyboard.press("Escape");
+    });
+
+    test(`Goal edit-details sheet at ${viewport.label}`, async ({ page }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await gotoFixture(page, "/goals/g-launch");
+      await page.getByRole("button", { name: "Edit details" }).click();
+      await page.getByRole("dialog", { name: "Goal details" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
     });

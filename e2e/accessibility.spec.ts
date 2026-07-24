@@ -146,6 +146,23 @@ test.describe("automated accessibility — open overlays", () => {
     await page.keyboard.press("Escape");
   });
 
+  // AREA-04 — the New Goal sheet and the Goal record's Edit details sheet.
+  test("Areas new-goal sheet has no violations", async ({ page }) => {
+    await gotoFixture(page, "/areas/a-dh?tab=goals");
+    await page.getByRole("link", { name: "New Goal" }).first().click();
+    await page.getByRole("dialog", { name: "New Goal" }).waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
+  });
+
+  test("Goal edit-details sheet has no violations", async ({ page }) => {
+    await gotoFixture(page, "/goals/g-launch");
+    await page.getByRole("button", { name: "Edit details" }).click();
+    await page.getByRole("dialog", { name: "Goal details" }).waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
+  });
+
   test("Project task Drawer has no violations", async ({ page }) => {
     await gotoFixture(page, "/projects/pr-website");
     await page
