@@ -22,6 +22,7 @@ import {
 } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AreaRepository } from "~/kernel/areas";
+import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
@@ -39,6 +40,7 @@ import {
   createActivityRepository,
   createAlignmentRepository,
   createAreaRepository,
+  createDiaryRepository,
   createEntityLinkRepository,
   createEntityRepository,
   createGoalDetailsRepository,
@@ -118,6 +120,16 @@ export interface WorkspaceScope {
    * atomically with its own trusted actor, mirroring `goalDetails`.
    */
   readonly noteDetails: NoteDetailsRepository;
+  /**
+   * The DIARY-01A authoritative Diary Entry repository (ADR-041): the
+   * Interstitial Journal's capture surface AND Timeline read model. It creates
+   * `diary` entities with their chronological detail slice atomically (the
+   * generic `entities` repository refuses to create one), owns entry-detail
+   * edits, and lists the Timeline. Entry title/lifecycle stay `entities.*`;
+   * relationships stay `entityLinks`; the audit trail stays `activity`. Composes
+   * with the same trusted actor as the other mutation repositories.
+   */
+  readonly diary: DiaryRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -207,6 +219,7 @@ export function bindWorkspaceRepositories(
   const noteDetails = createNoteDetailsRepository(env.DB, context, {
     actorContext,
   });
+  const diary = createDiaryRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -224,6 +237,7 @@ export function bindWorkspaceRepositories(
     goals,
     goalDetails,
     noteDetails,
+    diary,
     projectHealth,
     projectSettings,
     activity,
