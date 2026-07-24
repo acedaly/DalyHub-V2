@@ -55,7 +55,6 @@ import {
   type DiaryCursorScope,
   type DiaryEntry,
   type DiaryEntryChangeResult,
-  type DiaryEntrySource,
   type DiaryRepository,
   type DiaryTimelinePage,
   type ListDiaryTimelineInput,
@@ -91,6 +90,25 @@ export interface D1DiaryRepositoryOptions {
 }
 
 const SUBJECT_ROLE = "subject";
+
+/** The editable Diary detail columns. Trusted SQL identifiers — never caller
+ * data — so they may be interpolated into a dynamic partial-update statement
+ * while every VALUE stays bound. */
+type DiaryDetailColumn =
+  | "entry_type"
+  | "body"
+  | "occurred_at"
+  | "timezone"
+  | "source_channel"
+  | "source_reference";
+const DIARY_DETAIL_COLUMNS: readonly DiaryDetailColumn[] = [
+  "entry_type",
+  "body",
+  "occurred_at",
+  "timezone",
+  "source_channel",
+  "source_reference",
+];
 
 /** The entity columns a create returns, matching the `entities` row shape. */
 const ENTITY_RETURNING =
@@ -416,73 +434,86 @@ export class D1DiaryRepository implements DiaryRepository {
     if (!current) throw new DiaryNotFoundError();
 
     // Merge the present fields over the current entry to get the desired state.
-    const nextEntryType =
-      validated.entryType !== undefined
-        ? validated.entryType
-        : current.entryType;
+    // Source is merged at the SUBFIELD level (an omitted `channel`/`reference`
+    // is preserved, never reset to a create-time default), and `reference: null`
+    // explicitly clears it.
+    const nextEntryType = validated.entryType ?? current.entryType;
     const nextBody =
       validated.body !== undefined ? validated.body : current.body;
-    const nextOccurredAt =
-      validated.occurredAt !== undefined
-        ? validated.occurredAt
-        : current.occurredAt;
-    const nextTimezone =
-      validated.timezone !== undefined ? validated.timezone : current.timezone;
-    const nextSource: DiaryEntrySource =
-      validated.source !== undefined ? validated.source : current.source;
-
-    const unchanged =
-      nextEntryType === current.entryType &&
-      nextBody === current.body &&
-      nextOccurredAt.getTime() === current.occurredAt.getTime() &&
-      nextTimezone === current.timezone &&
-      nextSource.channel === current.source.channel &&
-      nextSource.reference === current.source.reference;
-    if (unchanged) {
-      return { entry: current, changed: false };
+    const nextOccurredAt = validated.occurredAt ?? current.occurredAt;
+    const nextTimezone = validated.timezone ?? current.timezone;
+    let nextChannel = current.source.channel;
+    let nextReference: string | null = current.source.reference;
+    if (validated.source !== undefined) {
+      if (validated.source.channel !== undefined) {
+        nextChannel = validated.source.channel;
+      }
+      if (validated.source.reference !== undefined) {
+        nextReference = validated.source.reference;
+      }
     }
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
     const occurredTs = toStorageTimestamp(nextOccurredAt);
 
-    // ONE conditional statement: the ACTIVE-entity precondition and the
-    // change-detection (`IS NOT` handles nullable body/reference correctly) are
-    // folded into the WHERE, so an entry soft-deleted between the read and the
-    // write cannot commit, and a concurrent identical edit changes nothing.
+    // The DESIRED and CURRENT value of each detail column, as stored. We update
+    // ONLY the columns whose value actually changes — never a full-row rewrite.
+    // This is what prevents a lost update: two callers editing DIFFERENT fields
+    // concurrently each touch only their own column, so neither can silently
+    // restore the other's field to a stale snapshot value.
+    const desired: Record<DiaryDetailColumn, string | null> = {
+      entry_type: nextEntryType,
+      body: nextBody,
+      occurred_at: occurredTs,
+      timezone: nextTimezone,
+      source_channel: nextChannel,
+      source_reference: nextReference,
+    };
+    const currentCols: Record<DiaryDetailColumn, string | null> = {
+      entry_type: current.entryType,
+      body: current.body,
+      occurred_at: toStorageTimestamp(current.occurredAt),
+      timezone: current.timezone,
+      source_channel: current.source.channel,
+      source_reference: current.source.reference,
+    };
+    const changed = DIARY_DETAIL_COLUMNS.filter(
+      (column) => desired[column] !== currentCols[column],
+    );
+    if (changed.length === 0) {
+      return { entry: current, changed: false };
+    }
+
+    // Column names come only from the trusted DIARY_DETAIL_COLUMNS constant
+    // (never caller data); every value is bound. The precondition (an ACTIVE
+    // `diary` entity) and the concurrency guard (`IS NOT` on the changed columns,
+    // correct for nullable body/reference) are folded into the WHERE, so an entry
+    // soft-deleted between the read and the write cannot commit, and a concurrent
+    // identical write changes nothing.
+    const setSql = changed.map((column) => `${column} = ?`).join(", ");
+    const guardSql = changed.map((column) => `${column} IS NOT ?`).join(" OR ");
     const domainStatement = this.#db
       .prepare(
         `UPDATE diary_entry_details
-            SET entry_type = ?, body = ?, occurred_at = ?, timezone = ?,
-                source_channel = ?, source_reference = ?, updated_at = ?
+            SET ${setSql}, updated_at = ?
           WHERE workspace_id = ? AND entity_id = ?
             AND EXISTS (
                   SELECT 1 FROM entities
                   WHERE workspace_id = ? AND id = ? AND type = '${DIARY_ENTITY_TYPE}'
                         AND deleted_at IS NULL
                 )
-            AND (entry_type IS NOT ? OR body IS NOT ? OR occurred_at IS NOT ?
-                 OR timezone IS NOT ? OR source_channel IS NOT ? OR source_reference IS NOT ?)
+            AND (${guardSql})
           RETURNING entry_type`,
       )
       .bind(
-        nextEntryType,
-        nextBody,
-        occurredTs,
-        nextTimezone,
-        nextSource.channel,
-        nextSource.reference,
+        ...changed.map((column) => desired[column]),
         nowTs,
         this.#workspaceId,
         entryId,
         this.#workspaceId,
         entryId,
-        nextEntryType,
-        nextBody,
-        occurredTs,
-        nextTimezone,
-        nextSource.channel,
-        nextSource.reference,
+        ...changed.map((column) => desired[column]),
       );
 
     const event: NewActivityEvent = {
@@ -520,19 +551,19 @@ export class D1DiaryRepository implements DiaryRepository {
     }
 
     // The gate matched nothing. Reconcile honestly (mirrors the Note repository):
-    // the entry became unavailable, or a concurrent racer already wrote the same
-    // desired state (a benign idempotent no-op), or a different concurrent edit
-    // won (a real conflict).
+    // the entry became unavailable, or a concurrent racer already wrote exactly
+    // the columns we intended (a benign idempotent no-op), or a genuine conflict.
     const refreshed = await this.get(entryId);
     if (!refreshed) throw new DiaryNotFoundError();
-    const nowMatchesDesired =
-      refreshed.entryType === nextEntryType &&
-      refreshed.body === nextBody &&
-      refreshed.occurredAt.getTime() === nextOccurredAt.getTime() &&
-      refreshed.timezone === nextTimezone &&
-      refreshed.source.channel === nextSource.channel &&
-      refreshed.source.reference === nextSource.reference;
-    if (nowMatchesDesired) {
+    const refreshedCols: Record<DiaryDetailColumn, string | null> = {
+      entry_type: refreshed.entryType,
+      body: refreshed.body,
+      occurred_at: toStorageTimestamp(refreshed.occurredAt),
+      timezone: refreshed.timezone,
+      source_channel: refreshed.source.channel,
+      source_reference: refreshed.source.reference,
+    };
+    if (changed.every((column) => refreshedCols[column] === desired[column])) {
       return { entry: refreshed, changed: false };
     }
     throw new DiaryConflictError();

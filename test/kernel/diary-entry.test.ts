@@ -242,6 +242,42 @@ describe("DiaryRepository.update", () => {
     );
   });
 
+  it("concurrent edits to DIFFERENT fields both apply — no lost update", async () => {
+    const repo = diary();
+    const entry = await repo.create({
+      entryType: "note",
+      title: "x",
+      body: "A",
+      timezone: "UTC",
+    });
+    const [a, b] = await Promise.all([
+      repo.update(entry.id, { body: "B" }),
+      repo.update(entry.id, { timezone: "Asia/Tokyo" }),
+    ]);
+    expect(a.changed).toBe(true);
+    expect(b.changed).toBe(true);
+    const final = await repo.get(entry.id);
+    // Neither edit clobbered the other's field back to its stale snapshot value.
+    expect(final?.body).toBe("B");
+    expect(final?.timezone).toBe("Asia/Tokyo");
+    expect(await countActivitiesOfType("diary_entry.updated")).toBe(2);
+  });
+
+  it("editing one source subfield preserves the other (no create-time defaulting)", async () => {
+    const repo = diary();
+    const entry = await repo.create({
+      entryType: "note",
+      title: "x",
+      source: { channel: "voice", reference: "rec-1" },
+    });
+    const r1 = await repo.update(entry.id, { source: { reference: "rec-2" } });
+    expect(r1.entry.source).toEqual({ channel: "voice", reference: "rec-2" });
+    const r2 = await repo.update(entry.id, { source: { channel: "photo" } });
+    expect(r2.entry.source).toEqual({ channel: "photo", reference: "rec-2" });
+    const r3 = await repo.update(entry.id, { source: { reference: null } });
+    expect(r3.entry.source).toEqual({ channel: "photo", reference: null });
+  });
+
   it("concurrent identical edits append exactly one diary_entry.updated event", async () => {
     const repo = diary();
     const entry = await repo.create({ entryType: "note", title: "x" });

@@ -64,6 +64,7 @@ export {
 export {
   DEFAULT_DIARY_PAGE_SIZE,
   MAX_DIARY_PAGE_SIZE,
+  MAX_DIARY_ENTRY_TYPE_FILTERS,
   DIARY_TIMEZONE_MAX_LENGTH,
   DIARY_SOURCE_CHANNEL_MAX_LENGTH,
   DIARY_SOURCE_REFERENCE_MAX_LENGTH,
@@ -75,6 +76,7 @@ export {
   validateOccurredAt,
   validateTimezone,
   validateSource,
+  validatePartialSource,
   validateDiaryLimit,
   validateOrder,
   validateEntryTypeFilter,
@@ -84,6 +86,7 @@ export {
 } from "./diary-validation";
 export type {
   DiaryTimelineOrder,
+  PartialDiarySource,
   ValidatedCreateDiaryEntry,
   ValidatedUpdateDiaryEntry,
 } from "./diary-validation";

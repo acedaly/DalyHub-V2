@@ -27,6 +27,16 @@ import { DiaryValidationError } from "./diary-errors";
 export const DEFAULT_DIARY_PAGE_SIZE = 50;
 /** Maximum page size for a Timeline query — lists are never unbounded. */
 export const MAX_DIARY_PAGE_SIZE = 100;
+/**
+ * Maximum number of distinct entry types a single Timeline filter may name.
+ * The entry-type vocabulary is OPEN, so a caller could in principle pass an
+ * unbounded list; each becomes a bound SQL variable, and D1 caps a statement at
+ * ~100 bound variables (shared here with the workspace, range, cursor and limit
+ * binds). Capping the filter well below that keeps every Timeline query valid
+ * rather than failing as an opaque storage error (AGENTS.md §17 — bounded
+ * queries). 50 is far more than any real UI needs (there are nine built-ins).
+ */
+export const MAX_DIARY_ENTRY_TYPE_FILTERS = 50;
 /** Maximum length of an IANA timezone id (UTF-16 code units). */
 export const DIARY_TIMEZONE_MAX_LENGTH = 64;
 /** Maximum length of a source channel identifier. */
@@ -135,7 +145,44 @@ export function validateTimezone(value: unknown): string {
   return value;
 }
 
-/** Validate a capture source, applying defaults for omitted fields. */
+/** Validate a supplied source channel identifier (non-empty, bounded, lowercase). */
+function validateChannel(value: unknown): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new DiaryValidationError(
+      "source",
+      "channel must be a non-empty string",
+    );
+  }
+  if (value.length > DIARY_SOURCE_CHANNEL_MAX_LENGTH) {
+    throw new DiaryValidationError("source", "channel is too long");
+  }
+  if (!CHANNEL_PATTERN.test(value)) {
+    throw new DiaryValidationError(
+      "source",
+      "channel must be a lowercase identifier",
+    );
+  }
+  return value;
+}
+
+/** Validate a supplied source reference (a bounded string, or null to clear it). */
+function validateReference(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string") {
+    throw new DiaryValidationError("source", "reference must be a string");
+  }
+  if (value.length > DIARY_SOURCE_REFERENCE_MAX_LENGTH) {
+    throw new DiaryValidationError("source", "reference is too long");
+  }
+  return value;
+}
+
+/**
+ * Validate a CAPTURE source, applying create-time defaults for omitted fields
+ * (channel → `manual`, reference → `null`). Use this ONLY for create — an edit
+ * must NOT default omitted fields (see {@link validatePartialSource}), or a
+ * partial `{ reference }` edit would silently reset the channel to `manual`.
+ */
 export function validateSource(value: unknown): DiaryEntrySource {
   if (value === undefined || value === null) {
     return DEFAULT_DIARY_SOURCE;
@@ -144,39 +191,43 @@ export function validateSource(value: unknown): DiaryEntrySource {
     throw new DiaryValidationError("source", "must be an object");
   }
   const raw = value as { channel?: unknown; reference?: unknown };
+  return {
+    channel:
+      raw.channel === undefined
+        ? DEFAULT_DIARY_SOURCE.channel
+        : validateChannel(raw.channel),
+    reference:
+      raw.reference === undefined || raw.reference === null
+        ? null
+        : validateReference(raw.reference),
+  };
+}
 
-  let channel = DEFAULT_DIARY_SOURCE.channel;
+/**
+ * A partial source edit: only the subfields the caller actually supplied. An
+ * omitted key is absent (so the repository preserves the current value); a
+ * present `reference: null` explicitly CLEARS the reference. This is what edits
+ * use so an omitted subfield is never reset to a create-time default.
+ */
+export type PartialDiarySource = {
+  readonly channel?: string;
+  readonly reference?: string | null;
+};
+
+/** Validate the PRESENT subfields of a source edit, defaulting nothing. */
+export function validatePartialSource(value: unknown): PartialDiarySource {
+  if (typeof value !== "object" || value === null) {
+    throw new DiaryValidationError("source", "must be an object");
+  }
+  const raw = value as { channel?: unknown; reference?: unknown };
+  const out: { channel?: string; reference?: string | null } = {};
   if (raw.channel !== undefined) {
-    if (typeof raw.channel !== "string" || raw.channel.length === 0) {
-      throw new DiaryValidationError(
-        "source",
-        "channel must be a non-empty string",
-      );
-    }
-    if (raw.channel.length > DIARY_SOURCE_CHANNEL_MAX_LENGTH) {
-      throw new DiaryValidationError("source", "channel is too long");
-    }
-    if (!CHANNEL_PATTERN.test(raw.channel)) {
-      throw new DiaryValidationError(
-        "source",
-        "channel must be a lowercase identifier",
-      );
-    }
-    channel = raw.channel;
+    out.channel = validateChannel(raw.channel);
   }
-
-  let reference: string | null = null;
-  if (raw.reference !== undefined && raw.reference !== null) {
-    if (typeof raw.reference !== "string") {
-      throw new DiaryValidationError("source", "reference must be a string");
-    }
-    if (raw.reference.length > DIARY_SOURCE_REFERENCE_MAX_LENGTH) {
-      throw new DiaryValidationError("source", "reference is too long");
-    }
-    reference = raw.reference;
+  if (raw.reference !== undefined) {
+    out.reference = validateReference(raw.reference);
   }
-
-  return { channel, reference };
+  return out;
 }
 
 /** Validate and clamp a Timeline page limit to `[1, MAX_DIARY_PAGE_SIZE]`. */
@@ -222,6 +273,14 @@ export function validateEntryTypeFilter(
       out.push(parsed);
     }
   }
+  // Bound the number of distinct filters so the Timeline query stays within
+  // D1's per-statement bound-variable limit (see MAX_DIARY_ENTRY_TYPE_FILTERS).
+  if (out.length > MAX_DIARY_ENTRY_TYPE_FILTERS) {
+    throw new DiaryValidationError(
+      "entryType",
+      `filter names at most ${MAX_DIARY_ENTRY_TYPE_FILTERS} distinct types`,
+    );
+  }
   return out;
 }
 
@@ -266,13 +325,18 @@ export function validateCreateInput(
   };
 }
 
-/** A fully validated set of entry-detail edits (only present fields included). */
+/**
+ * A fully validated set of entry-detail edits — only present fields are
+ * included. `source` is a PARTIAL edit (only supplied subfields), which the
+ * repository merges over the current source so an omitted subfield is preserved,
+ * never reset to a create-time default.
+ */
 export type ValidatedUpdateDiaryEntry = {
   readonly entryType?: DiaryEntryType;
   readonly body?: MarkdownSource | null;
   readonly occurredAt?: Date;
   readonly timezone?: string;
-  readonly source?: DiaryEntrySource;
+  readonly source?: PartialDiarySource;
 };
 
 /** Validate the present fields of an entry-detail edit; reject an empty edit. */
@@ -284,7 +348,7 @@ export function validateUpdateInput(
     body?: MarkdownSource | null;
     occurredAt?: Date;
     timezone?: string;
-    source?: DiaryEntrySource;
+    source?: PartialDiarySource;
   } = {};
   if (input.entryType !== undefined) {
     out.entryType = validateDiaryEntryType(input.entryType);
@@ -299,7 +363,7 @@ export function validateUpdateInput(
     out.timezone = validateTimezone(input.timezone);
   }
   if (input.source !== undefined) {
-    out.source = validateSource(input.source);
+    out.source = validatePartialSource(input.source);
   }
   if (Object.keys(out).length === 0) {
     throw new DiaryValidationError(
