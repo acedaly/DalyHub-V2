@@ -11,6 +11,19 @@
  * and its `note.content_updated` Activity append run in the SAME
  * `D1Database.batch()` as `recordAtomicMutation` (ADR-012) — a no-op appends
  * nothing, and an Activity-insert failure rolls the details write back too.
+ *
+ * The idempotency check at the top of `update` compares against a value read
+ * BEFORE the write (needed to short-circuit an obvious no-op without touching
+ * storage), so two concurrent submissions of the SAME new content can both
+ * pass it and reach the SQL. The `ON CONFLICT DO UPDATE`'s own
+ * `WHERE note_details.content != excluded.content` predicate is the real,
+ * storage-level guard: whichever request loses the race finds the content
+ * already written and its UPDATE is skipped, so it changes nothing and
+ * appends no Activity — `update` reconciles that outcome as an idempotent
+ * success rather than a conflict (see the comment at the reconciliation
+ * branch below). This keeps "identical content never appends a second
+ * Activity event" true under genuine concurrency, not just for sequential
+ * calls.
  */
 
 import {
@@ -111,6 +124,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
          ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
            content = excluded.content,
            updated_at = excluded.updated_at
+         WHERE note_details.content != excluded.content
          RETURNING content, updated_at`,
       )
       .bind(this.#workspaceId, id, validated, nowTs, this.#workspaceId, id);
@@ -134,12 +148,20 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
       };
     }
 
-    // The gate failed: the Note was soft-deleted (or otherwise became
-    // unavailable) between the read above and this statement's execution.
-    // Reconcile honestly rather than assume the stale read still holds.
+    // The gate failed. Two distinct causes look identical here — the Note was
+    // soft-deleted (or otherwise became unavailable) between the read above
+    // and this statement's execution, OR a concurrent duplicate submission
+    // already wrote this exact content first (the `WHERE note_details.content
+    // != excluded.content` predicate skipped a genuine no-op UPDATE). Reconcile
+    // honestly rather than assume the stale read still holds.
     const refreshed = await this.get(id);
     if (!refreshed) {
       throw new NoteDetailsNotFoundError();
+    }
+    if (refreshed.content === validated) {
+      // A concurrent racer already stored this exact content: a benign,
+      // idempotent no-op — not a conflict, and no second Activity event.
+      return { details: refreshed, changed: false };
     }
     throw new NoteDetailsConflictError();
   }

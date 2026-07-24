@@ -197,6 +197,20 @@ describe("NoteDetailsRepository.update", () => {
     const final = await repo.get(note.id);
     expect(["alpha", "beta", "gamma"]).toContain(final?.content);
   });
+
+  it("concurrent identical-content submissions append exactly one Activity event", async () => {
+    const note = await seedNote(entities());
+    const repo = details();
+    const results = await Promise.all([
+      repo.update(note.id, "same content"),
+      repo.update(note.id, "same content"),
+      repo.update(note.id, "same content"),
+    ]);
+    expect(results.filter((r) => r.changed)).toHaveLength(1);
+    expect(await countNoteDetailRows()).toBe(1);
+    expect(await countActivitiesOfType("note.content_updated")).toBe(1);
+    expect((await repo.get(note.id))?.content).toBe("same content");
+  });
 });
 
 describe("Activity atomicity — the content write and its event are all-or-nothing", () => {
