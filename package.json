@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "wrangler types && react-router typegen && tsc -b",
+    "typecheck": "react-router typegen && tsc -b",
     "test": "pnpm run test:unit && pnpm run test:kernel",
     "test:unit": "vitest run",
     "test:kernel": "vitest run --config ./vitest.workers.config.ts",
