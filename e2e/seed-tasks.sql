@@ -539,3 +539,44 @@ UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-archive-blocked-demo';
 UPDATE project_details SET status = 'active', archived_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-archive-blocked-demo';
+
+-- AREA-03 (Alignment) — a Goal whose only qualifying Task activity is
+-- WALL-CLOCK-INDEPENDENT, anchored in 2020, so it reads as `neglected`
+-- (outside the 14-day recent window) regardless of the run date — mirroring
+-- the PROJ-02 `pr-stale`/`pht-stale` pattern above. Reached via
+-- `Task -> task.belongs_to_project -> Project -> project.advances_goal ->
+-- Goal`, the only indirect path the spine allows (SPINE_MODEL.md). The
+-- journey itself creates a SECOND Goal live through the UI (recent activity
+-- by construction) to exercise the `active` state end to end.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('g-align-neglected', 'local-dev-workspace', 'goal', 'Learn Spanish', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL),
+  ('pr-align-neglected', 'local-dev-workspace', 'project', 'Spanish course', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL),
+  ('t-align-neglected', 'local-dev-workspace', 'task', 'Finish unit 1', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'g-align-neglected', 'goal', NULL),
+  ('local-dev-workspace', 'pr-align-neglected', 'project', NULL),
+  ('local-dev-workspace', 't-align-neglected', 'task', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-galignneglected-area', 'local-dev-workspace', 'g-align-neglected', 'a-dh', 'goal.belongs_to_area', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL),
+  ('l-pralignneglected-goal', 'local-dev-workspace', 'pr-align-neglected', 'g-align-neglected', 'project.advances_goal', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL),
+  ('l-talignneglected-proj', 'local-dev-workspace', 't-align-neglected', 'pr-align-neglected', 'task.belongs_to_project', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-align-neglected', 'active', NULL, '2020-01-01T00:00:00.000Z');
+UPDATE project_details SET status = 'active', archived_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-align-neglected';
+-- The Task's only qualifying (meaningful) Activity event: its own creation,
+-- dated 2020-01-01 so `lastContributingActivityAt` is real and far in the
+-- past — proving the neglected reason reports an ACTUAL "days ago" figure,
+-- not just "never recorded".
+INSERT OR IGNORE INTO activities (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+VALUES
+  ('a-talignneglected-created', 'local-dev-workspace', 'entity.created', 'system', NULL, '2020-01-01T00:00:00.000Z', '{}');
+INSERT OR IGNORE INTO activity_subjects (workspace_id, activity_id, entity_id, role)
+VALUES
+  ('local-dev-workspace', 'a-talignneglected-created', 't-align-neglected', 'subject');
+UPDATE spine_records SET completed_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'g-align-neglected';

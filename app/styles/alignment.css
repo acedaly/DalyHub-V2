@@ -1,0 +1,197 @@
+/*
+ * AREA-03 Alignment presentation (ADR-040).
+ *
+ * A restrained toned pill (the alignment state) plus the detailed Goal-record
+ * panel and its bounded contributing-Task evidence list. Mirrors
+ * `health.css` structurally (`.dh-health*` -> `.dh-alignment*`) — the SAME
+ * "colour never carries meaning alone" contract (DS-11 / WCAG 2.2 AA): every
+ * tone pairs its colour with a text label and a decorative dot. Alignment
+ * deliberately never uses the warning/danger tone tokens (ADR-040 §40.5).
+ */
+
+.dh-alignment {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-alignment__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: 0 var(--dh-space-2);
+  min-height: var(--dh-space-5);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  white-space: nowrap;
+}
+
+.dh-alignment__dot {
+  width: var(--dh-space-2);
+  height: var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+.dh-alignment__pill[data-tone="success"] {
+  color: var(--dh-color-success-text);
+  background: var(--dh-color-success-surface);
+  border-color: transparent;
+}
+.dh-alignment__pill[data-tone="info"] {
+  color: var(--dh-color-info-text);
+  background: var(--dh-color-info-surface);
+  border-color: transparent;
+}
+
+.dh-alignment__reason {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- The Goals collection summary line ------------------------------------ */
+
+.dh-goals-alignment-summary {
+  margin: 0 0 var(--dh-space-4);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* --- The detailed Goal-record panel --------------------------------------- */
+
+.dh-alignment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-alignment-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-alignment-panel__reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-alignment-panel__reason {
+  position: relative;
+  padding-inline-start: var(--dh-space-4);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-alignment-panel__reason::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--dh-space-1);
+  inset-block-start: 0.55em;
+  width: var(--dh-space-2);
+  height: var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-border-strong, var(--dh-color-border));
+}
+.dh-alignment-panel__reason[data-tone="success"]::before {
+  background: var(--dh-color-success);
+}
+.dh-alignment-panel__reason[data-tone="info"]::before {
+  background: var(--dh-color-info);
+}
+
+.dh-alignment-panel__evidence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-alignment-panel__evidence-heading {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-alignment-panel__evidence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-alignment-panel__evidence-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-2) 0;
+  border-block-end: var(--dh-border-width-thin) solid var(--dh-color-border);
+  min-width: 0;
+}
+.dh-alignment-panel__evidence-item:last-child {
+  border-block-end: none;
+}
+
+.dh-alignment-panel__evidence-task {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-height: var(--dh-touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  text-align: start;
+  font: inherit;
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.dh-alignment-panel__evidence-context {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-alignment-panel__evidence-project {
+  color: inherit;
+}
+
+.dh-alignment-panel__evidence-note {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .dh-alignment__pill {
+    border-color: CanvasText;
+  }
+  .dh-alignment__dot,
+  .dh-alignment-panel__reason::before {
+    background: CanvasText;
+  }
+}

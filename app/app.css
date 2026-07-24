@@ -47,6 +47,7 @@
 @import "./styles/areas.css";
 @import "./styles/goals.css";
 @import "./styles/health.css";
+@import "./styles/alignment.css";
 @import "./styles/load-more.css";
 @import "./styles/search.css";
 @import "./styles/command.css";

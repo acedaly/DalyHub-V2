@@ -22,11 +22,17 @@ import {
 } from "~/kernel/spine";
 import {
   decodeGoalCursorForScope,
+  decodeGoalListCursorForScope,
   encodeGoalCursor,
+  encodeGoalListCursor,
   evaluateGoalProjectContribution,
   GoalStorageError,
   type GoalChildrenInput,
   type GoalCursorScope,
+  type GoalListCursorScope,
+  type GoalListInput,
+  type GoalListItem,
+  type GoalListPage,
   type GoalOverview,
   type GoalProjectContribution,
   type GoalProjectFact,
@@ -67,6 +73,39 @@ interface GoalProjectFactRow {
   readonly status: string;
   readonly completed_at: string | null;
   readonly archived_at: string | null;
+}
+
+interface GoalProjectFactBatchRow extends GoalProjectFactRow {
+  readonly goal_id: string;
+}
+
+interface GoalListRow {
+  readonly id: string;
+  readonly title: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+  readonly completed_at: string | null;
+  readonly area_id: string;
+  readonly area_title: string;
+}
+
+/**
+ * The per-query id chunk size for the batched contribution read
+ * (`listGoalProjectContributions`, ADR-040 §40.6). Mirrors
+ * `ProjectHealthRepository`'s `HEALTH_CHUNK_SIZE`: D1 caps bound variables at
+ * 100 per statement; a chunk of 50 (the id set bound once here, unlike the
+ * activity UNION's two binds) keeps every statement comfortably under that
+ * limit while gathering a whole page of Goals in a small, FIXED number of
+ * statements — never one query per Goal.
+ */
+const GOAL_PROJECT_CONTRIBUTION_CHUNK_SIZE = 50;
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
 }
 
 interface GoalProjectRow {
@@ -125,6 +164,92 @@ export class D1GoalRepository implements GoalRepository {
     const id = validateSpineId(goalId, "id");
     const facts = await this.#selectGoalProjectFacts(id);
     return evaluateGoalProjectContribution(facts);
+  }
+
+  async listGoalProjectContributions(
+    goalIds: readonly string[],
+  ): Promise<Map<string, GoalProjectContribution>> {
+    const ids = [...new Set(goalIds.map((id) => validateSpineId(id, "id")))];
+    const result = new Map<string, GoalProjectContribution>();
+    if (ids.length === 0) {
+      return result;
+    }
+    const chunks = chunk(ids, GOAL_PROJECT_CONTRIBUTION_CHUNK_SIZE);
+    const gathered = await Promise.all(
+      chunks.map((idChunk) => this.#selectGoalProjectFactsBatch(idChunk)),
+    );
+    const factsByGoal = new Map<string, GoalProjectFact[]>();
+    for (const part of gathered) {
+      for (const [goalId, facts] of part) {
+        const existing = factsByGoal.get(goalId);
+        if (existing) {
+          existing.push(...facts);
+        } else {
+          factsByGoal.set(goalId, [...facts]);
+        }
+      }
+    }
+    for (const id of ids) {
+      result.set(
+        id,
+        evaluateGoalProjectContribution(factsByGoal.get(id) ?? []),
+      );
+    }
+    return result;
+  }
+
+  async listGoals(input: GoalListInput = {}): Promise<GoalListPage> {
+    const limit = validateSpineLimit(input.limit);
+    const scope: GoalListCursorScope = { workspaceId: this.#workspaceId };
+    const cursorParams: string[] = [];
+    const cursorClause =
+      input.cursor !== undefined
+        ? (() => {
+            const position = decodeGoalListCursorForScope(input.cursor!, scope);
+            cursorParams.push(
+              position.createdAt,
+              position.createdAt,
+              position.id,
+            );
+            return " AND (ge.created_at > ? OR (ge.created_at = ? AND ge.id > ?))";
+          })()
+        : "";
+    const fetchLimit = limit + 1;
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT ge.id, ge.title, ge.created_at, ge.updated_at, gsr.completed_at,
+                  ae.id AS area_id, ae.title AS area_title
+           FROM entity_links gl
+           JOIN entities ge
+             ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+           JOIN spine_records gsr
+             ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
+           JOIN entities ae
+             ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
+                AND ae.type = '${AREA}' AND ae.deleted_at IS NULL
+           WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                 AND gl.deleted_at IS NULL${cursorClause}
+           ORDER BY ge.created_at ASC, ge.id ASC
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, ...cursorParams, fetchLimit),
+    );
+    const rows = (result.results ?? []) as GoalListRow[];
+    const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      rows.length > limit && last
+        ? encodeGoalListCursor(scope, {
+            createdAt: last.created_at,
+            id: last.id,
+          })
+        : null;
+    return {
+      items: pageRows.map((row) => this.#toGoalListItem(row)),
+      nextCursor,
+    };
   }
 
   async listGoalProjects(input: GoalChildrenInput): Promise<GoalProjectPage> {
@@ -243,6 +368,77 @@ export class D1GoalRepository implements GoalRepository {
       archivedAt:
         row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
     }));
+  }
+
+  /**
+   * The batched equivalent of `#selectGoalProjectFacts`, for a bounded chunk
+   * of Goal ids at once — one workspace-scoped, parameterised query, grouped
+   * by Goal id in memory (ADR-040 §40.6). No `LIMIT` on the underlying
+   * traversal: every active `project.advances_goal` Project for every
+   * requested Goal is read, so a Project past any UI page size still reaches
+   * `evaluateGoalProjectContribution`.
+   */
+  async #selectGoalProjectFactsBatch(
+    goalIds: readonly string[],
+  ): Promise<Map<string, GoalProjectFact[]>> {
+    const placeholders = goalIds.map(() => "?").join(", ");
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT pg.target_entity_id AS goal_id, e.id AS id,
+                  COALESCE(pd.status, 'planned') AS status,
+                  sr.completed_at, pd.archived_at
+           FROM entity_links pg
+           JOIN entities e
+             ON e.workspace_id = pg.workspace_id AND e.id = pg.source_entity_id
+                AND e.type = '${PROJECT}' AND e.deleted_at IS NULL
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN project_details pd
+             ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
+           WHERE pg.workspace_id = ? AND pg.type = '${PROJECT_ADVANCES_GOAL}'
+                 AND pg.deleted_at IS NULL
+                 AND pg.target_entity_id IN (${placeholders})`,
+        )
+        .bind(this.#workspaceId, ...goalIds),
+    );
+    const rows = (result.results ?? []) as GoalProjectFactBatchRow[];
+    const byGoal = new Map<string, GoalProjectFact[]>();
+    for (const row of rows) {
+      const fact: GoalProjectFact = {
+        id: row.id,
+        status: this.#parseStatus(row.status),
+        completedAt:
+          row.completed_at === null
+            ? null
+            : fromStorageTimestamp(row.completed_at),
+        archivedAt:
+          row.archived_at === null
+            ? null
+            : fromStorageTimestamp(row.archived_at),
+      };
+      const existing = byGoal.get(row.goal_id);
+      if (existing) {
+        existing.push(fact);
+      } else {
+        byGoal.set(row.goal_id, [fact]);
+      }
+    }
+    return byGoal;
+  }
+
+  #toGoalListItem(row: GoalListRow): GoalListItem {
+    return {
+      id: row.id,
+      title: row.title,
+      createdAt: fromStorageTimestamp(row.created_at),
+      updatedAt: fromStorageTimestamp(row.updated_at),
+      completedAt:
+        row.completed_at === null
+          ? null
+          : fromStorageTimestamp(row.completed_at),
+      area: { id: row.area_id, title: row.area_title },
+    };
   }
 
   #toGoalOverview(row: GoalOverviewRow): GoalOverview {

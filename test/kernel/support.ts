@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 
 import {
   createActivityRepository,
+  createAlignmentRepository,
   createAreaRepository,
   createEntityLinkRepository,
   createEntityRepository,
@@ -174,6 +175,15 @@ export function makeGoalDetailsRepository(
  */
 export function makeProjectHealthRepository(context: WorkspaceContext) {
   return createProjectHealthRepository(env.DB, context);
+}
+
+/**
+ * Construct a workspace-scoped, read-only D1-backed AlignmentRepository over
+ * the isolated test database (AREA-03: the derived Goal-alignment
+ * activity-facts projection, bound to a `WorkspaceContext`).
+ */
+export function makeAlignmentRepository(context: WorkspaceContext) {
+  return createAlignmentRepository(env.DB, context);
 }
 
 /**

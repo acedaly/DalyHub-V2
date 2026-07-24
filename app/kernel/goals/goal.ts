@@ -83,3 +83,29 @@ export type GoalProjectPage = {
   readonly items: readonly GoalProjectItem[];
   readonly nextCursor: string | null;
 };
+
+/**
+ * One Goal on the workspace-wide list (AREA-03, ADR-040 §40.7) — the
+ * identity/completion/Area-context fields the Alignment collection needs to
+ * render a card. Deliberately lighter than `GoalOverview`; alignment itself
+ * (state/reasons) is a SEPARATE evaluation composed by the route, never
+ * stored on this shape.
+ */
+export type GoalListItem = {
+  readonly id: string;
+  readonly title: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly completedAt: Date | null;
+  readonly area: GoalAreaContext;
+};
+
+export type GoalListInput = {
+  readonly limit?: number;
+  readonly cursor?: string;
+};
+
+export type GoalListPage = {
+  readonly items: readonly GoalListItem[];
+  readonly nextCursor: string | null;
+};

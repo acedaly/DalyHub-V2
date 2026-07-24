@@ -27,6 +27,7 @@ const SEED_TASKS = join(
 const MOBILE_PROJECT_TITLE_PREFIX = "Mobile Projects workflow ";
 const AREA_OVERVIEW_TITLE_PREFIX = "Area overview e2e ";
 const GOAL_JOURNEY_TITLE_PREFIX = "Goal e2e ";
+const ALIGNMENT_JOURNEY_TITLE_PREFIX = "Alignment e2e ";
 const MOBILE_TASK_TITLES = [
   "Mobile task to complete and reconcile from the shared drawer",
   "Unfinished mobile task that deliberately blocks archiving",
@@ -89,6 +90,29 @@ const GOAL_JOURNEY_CLEANUP_SQL = [
   `DELETE FROM entity_links WHERE workspace_id = '${WORKSPACE_ID}' AND (source_entity_id IN (${GOAL_JOURNEY_ENTITY_QUERY}) OR target_entity_id IN (${GOAL_JOURNEY_ENTITY_QUERY}));`,
   `DELETE FROM entities WHERE workspace_id = '${WORKSPACE_ID}' AND id IN (${GOAL_JOURNEY_ENTITY_QUERY});`,
 ];
+// AREA-03 Alignment journey creates a real Goal + Project + Task live through
+// the UI (under the existing permanent `a-dh` fixture Area) so its "recent
+// activity" is genuine, not backdated. Includes 'task' (unlike the AREA-02
+// cleanup above) since this journey creates one.
+const ALIGNMENT_JOURNEY_ENTITY_QUERY = `
+  SELECT id FROM entities
+  WHERE workspace_id = '${WORKSPACE_ID}'
+    AND type IN ('goal', 'project', 'task')
+    AND title LIKE '${ALIGNMENT_JOURNEY_TITLE_PREFIX}%'
+`;
+const ALIGNMENT_JOURNEY_ACTIVITY_QUERY = `
+  SELECT DISTINCT activity_id FROM activity_subjects
+  WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY})
+`;
+const ALIGNMENT_JOURNEY_CLEANUP_SQL = [
+  `DELETE FROM activity_subjects WHERE workspace_id = '${WORKSPACE_ID}' AND activity_id IN (${ALIGNMENT_JOURNEY_ACTIVITY_QUERY});`,
+  `DELETE FROM goal_details WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY});`,
+  `DELETE FROM project_details WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY});`,
+  `DELETE FROM task_details WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY});`,
+  `DELETE FROM spine_records WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY});`,
+  `DELETE FROM entity_links WHERE workspace_id = '${WORKSPACE_ID}' AND (source_entity_id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY}) OR target_entity_id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY}));`,
+  `DELETE FROM entities WHERE workspace_id = '${WORKSPACE_ID}' AND id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY});`,
+];
 
 function wrangler(args) {
   execFileSync("pnpm", ["exec", "wrangler", ...args], {
@@ -117,6 +141,9 @@ for (const statement of AREA_OVERVIEW_CLEANUP_SQL) {
   wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
 }
 for (const statement of GOAL_JOURNEY_CLEANUP_SQL) {
+  wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
+}
+for (const statement of ALIGNMENT_JOURNEY_CLEANUP_SQL) {
   wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
 }
 

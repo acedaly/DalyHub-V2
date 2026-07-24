@@ -11,8 +11,14 @@
  * them.
  */
 
+import { useId } from "react";
 import type { ReactNode } from "react";
 
+import {
+  GoalAlignmentPanel,
+  type GoalAlignment,
+  type SerializedGoalAlignmentEvidence,
+} from "~/shared/alignment";
 import {
   Card,
   CardCollection,
@@ -48,11 +54,17 @@ interface GoalOverviewProps {
   readonly projects: readonly SerializedGoalProjectItem[];
   readonly projectsNextCursor: string | null;
   readonly todayIso: string;
+  /** AREA-03: the derived Goal alignment (ADR-040) — whether recent Task
+   * activity has contributed to this Goal, with explained reasons. */
+  readonly alignment: GoalAlignment;
+  readonly alignmentEvidence: readonly SerializedGoalAlignmentEvidence[];
+  readonly alignmentEvidenceHasMore: boolean;
   readonly completionPending: boolean;
   readonly onToggleComplete: (complete: boolean) => void;
   readonly onRename: () => void;
   readonly onEditDetails: () => void;
   readonly onOpenProject: (projectId: string) => void;
+  readonly onOpenTask: (taskId: string) => void;
   readonly activityTab: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
@@ -118,11 +130,15 @@ export function GoalOverview({
   projects,
   projectsNextCursor,
   todayIso,
+  alignment,
+  alignmentEvidence,
+  alignmentEvidenceHasMore,
   completionPending,
   onToggleComplete,
   onRename,
   onEditDetails,
   onOpenProject,
+  onOpenTask,
   activityTab,
   activeTabId,
   onTabChange,
@@ -133,6 +149,7 @@ export function GoalOverview({
   const updated = dateLabel(overview.updatedAt);
   const target = targetDatePresentation(details.targetDate, todayIso);
   const progress = goalContributionProgress(contribution);
+  const alignmentHeadingId = useId();
 
   const headerMetadata: RecordMetaItem[] = [];
   if (target.state !== "unset") {
@@ -244,6 +261,22 @@ export function GoalOverview({
                 ? `${progress.percent}% — ${progress.summary}`
                 : progress.summary}
             </p>
+            <div className="dh-goal-overview__alignment">
+              <h2
+                id={alignmentHeadingId}
+                className="dh-goal-overview__alignment-heading"
+              >
+                Alignment
+              </h2>
+              <GoalAlignmentPanel
+                alignment={alignment}
+                evidence={alignmentEvidence}
+                evidenceHasMore={alignmentEvidenceHasMore}
+                todayIso={todayIso}
+                headingId={alignmentHeadingId}
+                onOpenTask={onOpenTask}
+              />
+            </div>
           </div>
         ),
         metadata: summaryMetadata,

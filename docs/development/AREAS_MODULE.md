@@ -246,15 +246,21 @@ Production must still have the spine, project-detail and goal-detail migrations
 applied before this Worker code runs, because Areas reads compose with Projects,
 Project health and Goal details.
 
-Deliberate deferrals: alignment/intention reporting (AREA-03), mobile-specific
-Areas/Goals workflows (AREA-04), Area deletion/restore, Area settings, and
-descendant-aggregated Activity. Full Goal records and Goal-specific fields are
-now delivered by AREA-02 — see [`GOALS_MODULE.md`](./GOALS_MODULE.md).
+Deliberate deferrals: mobile-specific Areas/Goals workflows (AREA-04), Area
+deletion/restore, Area settings, and descendant-aggregated Activity. Full Goal
+records and Goal-specific fields are delivered by AREA-02 — see
+[`GOALS_MODULE.md`](./GOALS_MODULE.md). Alignment/intention reporting is now
+delivered by AREA-03 as the real `/goals` collection, not an Area-record
+surface — see [`GOALS_MODULE.md` § Alignment](./GOALS_MODULE.md#alignment-area-03).
+The Area record's own Goals tab is unchanged by AREA-03: it stays the calm,
+structural "Goals in this Area" list (no alignment pill), since Alignment is
+inherently cross-Area and belongs on the workspace-wide collection instead.
 
 ## Related documents
 
 - [`ROADMAP_V2.md` AREA-01](../roadmap/ROADMAP_V2.md#-area-01--area-overview)
-- [`GOALS_MODULE.md`](./GOALS_MODULE.md) — the AREA-02 canonical Goal record.
+- [`GOALS_MODULE.md`](./GOALS_MODULE.md) — the AREA-02 canonical Goal record and
+  the AREA-03 Alignment view.
 - [`SPINE_MODEL.md`](./SPINE_MODEL.md)
 - [`PROJECTS_MODULE.md`](./PROJECTS_MODULE.md)
 - [`ACTIVITY_TIMELINE.md`](./ACTIVITY_TIMELINE.md)

@@ -13,6 +13,7 @@
  */
 
 import type { ActivityRepository } from "~/kernel/activity";
+import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
@@ -28,6 +29,7 @@ import type {
 } from "~/kernel/workspaces";
 
 import { D1ActivityRepository } from "./d1-activity-repository";
+import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1AreaRepository } from "./d1-area-repository";
 import {
   D1EntityRepository,
@@ -75,6 +77,7 @@ export {
   type CompleteTaskFault,
 };
 export { D1ActivityRepository };
+export { D1AlignmentRepository };
 export { D1AreaRepository };
 export { D1GoalRepository };
 export {
@@ -236,6 +239,21 @@ export function createActivityRepository(
   context: WorkspaceContext,
 ): ActivityRepository {
   return new D1ActivityRepository(db, context);
+}
+
+/**
+ * Factory for the workspace-scoped, READ-ONLY D1-backed AlignmentRepository —
+ * the AREA-03 derived Goal-alignment activity-facts projection (ADR-040). It
+ * performs no mutations and caches nothing: the Task-activity contribution to
+ * each Goal is recomputed from live `entity_links` and Activity data, gathered
+ * for a whole bounded page of Goals in a fixed number of grouped queries (no
+ * N+1). Bound to a `WorkspaceContext`; there is no unscoped construction path.
+ */
+export function createAlignmentRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): AlignmentRepository {
+  return new D1AlignmentRepository(db, context);
 }
 
 /**

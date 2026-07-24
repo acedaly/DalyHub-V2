@@ -35,8 +35,8 @@ const DESIGN_FIXTURES = [
   "/design/settings",
 ] as const;
 
-// The substantive product surfaces. The remaining module placeholders (/goals,
-// /tasks) share the shell + placeholder layout and are covered by the accessibility
+// The substantive product surfaces. The remaining module placeholder (/tasks)
+// shares the shell + placeholder layout and is covered by the accessibility
 // sweep; the responsive matrix focuses on the surfaces with real content so the
 // full 7-viewport sweep stays fast at `workers: 1`.
 const PRODUCT_ROUTES = [
@@ -47,6 +47,10 @@ const PRODUCT_ROUTES = [
   "/areas/a-dh",
   "/areas/a-dh?tab=projects",
   "/areas/a-dh?tab=activity",
+  // AREA-03 — the real Goals collection (the Alignment view) + a real Goal
+  // record with the derived Alignment Summary panel.
+  "/goals",
+  "/goals/g-launch",
   // PROJ-06 — the complete Projects collection + record surface across the
   // canonical matrix: collection filters/cards, default Tasks tab, Key links,
   // Activity Timeline and Settings.

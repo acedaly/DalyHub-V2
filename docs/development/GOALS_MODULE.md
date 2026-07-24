@@ -1,13 +1,19 @@
-# GOALS_MODULE.md — The Goals module (AREA-02)
+# GOALS_MODULE.md — The Goals module (AREA-02 + AREA-03)
 
 The first real **Goals** module: canonical Goal records with a target date and a
 definition of done, and exact progress derived from every Project structurally
 advancing the Goal. Composed **entirely** from the shared design system and the
 FND-07 spine, plus one small additive detail table — no second Goal identity
-model.
+model. AREA-03 turns the previously-placeholder `/goals` route into the
+**Alignment view** — a derived, non-persisted signal showing whether recent
+Task activity has contributed to each Goal — see [Alignment
+(AREA-03)](#alignment-area-03) below.
 
 Accepted via
-[ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary).
+[ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
+(AREA-02) and
+[ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection)
+(AREA-03).
 
 ## Data ownership
 
@@ -153,9 +159,9 @@ shell:
 
 | Route | Kind | Responsibility |
 | --- | --- | --- |
-| `GET /goals` | page | Unchanged FND-09 module placeholder — AREA-02 does not add a global Goals dashboard (none is evidenced as required). |
+| `GET /goals` | page | **AREA-03.** The real Goals collection — the Alignment view. Every open Goal across every Area, each with its derived `GoalAlignment` state. Replaces the former FND-09 placeholder; no second nav entry was added. |
 | `POST /goals/new` | resource | Create a Goal via `spine.createGoal`, after verifying the given Area is active in the trusted workspace. Title only — see "Goal creation" below. |
-| `GET /goals/:goalId` | page | Canonical Goal record: Summary, Projects, Activity. |
+| `GET /goals/:goalId` | page | Canonical Goal record: Summary (now including the AREA-03 Alignment panel), Projects, Activity. |
 | `POST /goals/:goalId/mutate` | resource | `rename` / `update_details` / `complete` / `reopen`, verified active-Goal anchor. |
 | `GET /goals/:goalId/activity` | resource | One bounded DS-05 Timeline page over `activity.listForEntity(goalId)`. |
 
@@ -311,6 +317,157 @@ space: pre-wrap` preserves line breaks).
   regression test explicitly asserted zero links, which is no longer correct
   behaviour).
 
+**AREA-03 (Alignment) testing:**
+- **Unit / pure** (`test/unit/alignment`): `goal-alignment.test.ts` — the
+  exhaustive state matrix (no Goals is a collection-level empty state, not an
+  evaluator case; completed always wins even with recent activity; no
+  Projects → `no_structure`; every-Project-archived → `unreachable`, singular
+  vs. plural phrasing, a completed-but-not-archived Project does NOT trigger
+  it; a contribution path with no recorded activity vs. old activity →
+  `neglected` with the exact day count; the inclusive 14-day boundary tested
+  at 13/14/15 days and today/yesterday phrasing; multiple contributing
+  Projects reflected via the composed contribution counts; no
+  `warning`/`danger` tone ever; determinism; `composeGoalAlignmentFacts`'
+  honest zero/null composition; `deduplicateGoalIds` as documented defence-
+  in-depth for the spine's one-active-parent invariant, since "one Project
+  advancing two Goals" is architecturally impossible per `SPINE_MODEL.md`).
+  `alignment-view.test.ts` — the display-order sort, the accessible summary,
+  the evidence date label, the owner-calendar context builder.
+  `presentation.test.tsx`/`GoalsCollection.test.tsx` — `AlignmentIndicator`/
+  `GoalAlignmentPanel` render text (never colour alone), evidence links
+  navigate to the real Task/Project, the collection's honest empty/failure/
+  loaded states and neglected-first sort, `GoalOverview.test.tsx`'s two new
+  cases (the Alignment panel and its evidence-driven Task-open action).
+- **Workers/D1 integration** (`test/kernel/alignment.test.ts`): workspace
+  isolation; a Task's creation/completion/reopening all as qualifying
+  evidence; the Task-directly-under-Area and direct-Area-Project cases
+  correctly excluded (no Goal path exists); soft-deleted Task exclusion;
+  exact, non-leaking attribution across multiple Goals sharing a workspace;
+  proof via a Project move that "one Project, two Goals" cannot occur;
+  `lastContributingActivityAt` staying unbounded while
+  `recentContributingTaskCount` respects the supporting window; an archived
+  Project's PAST activity still counting as historical evidence (the
+  disclosed §40.8 decision); exactness for 55+ Goals with contributing Tasks
+  (chunked, no truncation); a `countingDb`-instrumented fixed-query-count (no
+  N+1) proof; `listGoalAlignmentEvidence`'s per-Task most-recent-event
+  ranking, bounded `hasMore` truncation, and single-Goal scoping;
+  `GoalRepository.listGoals`'s ordering, cursor pagination, scope-bound
+  cursor rejection, soft-delete exclusion and workspace isolation;
+  `listGoalProjectContributions` matching `getGoalProjectContribution`
+  exactly with its own N+1 proof.
+- **Route integration** (`test/kernel/goals-alignment-route.test.ts`): the
+  ACTUAL `/goals` and `/goals/:goalId` loaders — an honest empty page; every
+  state (`no_structure`/`completed`/`active`/`neglected`) reached through
+  real spine mutations; the neglected reason grounded in real facts;
+  workspace isolation; cursor pagination round-tripping; no raw Activity
+  payload in the JSON response; the Goal record's `alignment`/
+  `alignmentEvidence`/`alignmentEvidenceHasMore` fields, including the
+  `unreachable` state driven by a real archived Project.
+- **E2E** (`e2e/goals-alignment.spec.ts`): a real-D1 journey using ONE
+  wall-clock-independent seeded Goal (`g-align-neglected`, its only Task
+  activity anchored in 2020 — mirrors PROJ-02's `pr-stale` fixture pattern)
+  to prove `neglected` with an understandable reason, plus a Goal + Project +
+  Task created LIVE through the UI (genuinely recent activity) to prove
+  `active` end to end: the collection shows both correctly attributed,
+  keyboard-focused Enter navigation to the canonical record, the Alignment
+  panel's real Task/Project links (opening the shared Task Drawer, following
+  the Project link), and completing the Goal updates the panel to
+  `completed` via the existing revalidator with no full browser refresh. Axe
+  and no-horizontal-overflow checks throughout; `/goals` and a real Goal
+  record were added to the shared `e2e/accessibility.spec.ts` and
+  `e2e/responsive.spec.ts` sweeps (DS-11's "every future module adds its
+  surface" requirement).
+
+## Alignment (AREA-03)
+
+The Alignment view answers: *what Goals have received meaningful action
+recently, and which have had little or none?* It is DERIVED and
+NON-PERSISTED, mirroring PROJ-02/AREA-01/AREA-02's pure-evaluator-plus-facts-
+repository shape exactly (ADR-040). Nothing about it changes Goal/Project/Task
+identity, completion or the spine's relationship model.
+
+**The recent-action window.** `RECENT_ACTION_WINDOW_DAYS = 14`
+(`app/kernel/alignment/goal-alignment.ts`) — the same fortnight cadence
+ADR-035 already validated for Project staleness. The boundary is
+owner-calendar, not a raw UTC window: the evaluator maps the single most
+recent qualifying Activity instant to its owner-calendar date and compares it
+against "today", exactly mirroring `evaluateProjectHealth`'s staleness
+calculation (inclusive — a contribution exactly 14 days old is no longer
+"recent").
+
+**Qualifying evidence.** An Activity event whose type is in the EXISTING
+`MEANINGFUL_HEALTH_ACTIVITY_TYPES` (ADR-035 §35.4 — no second classification)
+AND whose subject is an active Task holding an active
+`task.belongs_to_project` link to a Project holding an active
+`project.advances_goal` link to the Goal — the ONLY indirect path the spine
+allows (`SPINE_MODEL.md`). A Task can never link directly to a Goal; a
+Project can never advance more than one Goal (the partial unique structural-
+link index), so evidence is always attributed to exactly one Goal by
+construction.
+
+**Five explainable states**, precedence `completed` → `no_structure` →
+`unreachable` → `active`-or-`neglected`:
+
+| State | Meaning |
+| --- | --- |
+| `completed` | The Goal's own `completedAt` is set — spine authority only, never inferred from activity. Always wins. |
+| `no_structure` | No Project has ever advanced this Goal (`contribution.total === 0`). Distinguished from `neglected` — this Goal was never given a path, not "acted on and then dropped". |
+| `unreachable` | Projects advance the Goal, but every one is archived (`contribution.archived === contribution.total`) — the only structurally-enforced block on new Task work (an archived Project cannot receive a new Task). A completed-but-not-archived Project does NOT trigger this. |
+| `active` | A reachable structure exists AND the most recent qualifying contribution is within the recent window. |
+| `neglected` | A reachable structure exists AND the most recent qualifying contribution (if any) is outside the window, or none has ever been recorded. The roadmap's "neglected Goal". |
+
+Tone is deliberately restricted to `neutral`/`info`/`success` — `warning`/
+`danger` are not members of `AlignmentTone` at all, so a future change cannot
+accidentally make ordinary inactivity look alarming (PRODUCT_PRINCIPLES'
+anti-guilt mandate). Every result carries one or more structured reasons
+(primary first, e.g. `"Projects exist, but no recent Task activity was
+found."` / `"Most recent contributing Task activity was 23 days ago."`) —
+never a bare zero count.
+
+**Two independent reads per Goal — a complete classification boundary and a
+separately bounded evidence page**, mirroring ADR-038 §38.7 / ADR-039 §39.6
+exactly:
+
+- `AlignmentRepository.listGoalAlignmentFacts`/`getGoalAlignmentFacts`
+  (`app/kernel/alignment` + `d1-alignment-repository.ts`) read the COMPLETE
+  qualifying-activity aggregate — an unbounded `recentContributingTaskCount`/
+  `lastContributingActivityAt` — with no `LIMIT` on the traversal, chunked at
+  a fixed, small number of grouped queries per page of Goals (no N+1).
+- `GoalRepository.listGoalProjectContributions` is the SAME
+  `evaluateGoalProjectContribution` boundary, now batched over a page of
+  Goals (mirrors `ProjectHealthRepository.listProjectHealthFacts`'s chunked
+  shape).
+- `AlignmentRepository.listGoalAlignmentEvidence` is a SEPARATE, small,
+  single-Goal, bounded (`ORDER BY occurred_at DESC LIMIT ?`) read used ONLY
+  by the Goal record's Summary panel — never consulted for classification, so
+  truncating it (an honest "+more" note) can never silently change a Goal's
+  state.
+- `composeGoalAlignmentFacts` (pure, `app/kernel/alignment`) merges the three
+  independent authorities (spine `completedAt`, the contribution boundary,
+  the activity aggregate) into the evaluator's actual input — no single
+  repository owns the composed shape.
+
+**The collection.** `GoalRepository.listGoals` is a new, small,
+keyset-paginated (`GOAL_LIST_PAGE_SIZE = 50`, its own dedicated
+`goal-list-cursor.ts` — deliberately separate from the existing Goal→Projects
+cursor, matching this codebase's "cursors are never interchangeable across
+collection surfaces" convention), workspace-wide read resolving each Goal's
+title, completion and resolved Area context. The `/goals` route composes it
+with the batched contribution and alignment-facts reads, evaluates each
+Goal's alignment, and sorts the FETCHED PAGE (never the whole workspace) by
+state precedence (`neglected` → `active` → `unreachable` → `no_structure` →
+`completed`) so the Goals most worth a look lead — see Deferrals for the
+disclosed cross-page-ordering limitation. A calm summary line reports plain
+counts ("2 of 5 open Goals have had recent action") — never a percentage or
+score.
+
+**The Goal record.** The Summary tab gains an additive `GoalAlignmentPanel`
+(`app/shared/alignment`, mirrors `ProjectHealthPanel`): the state, every
+reason, and up to 5 real contributing Tasks (title, parent Project, and how
+long ago), each a direct navigation link/action to the canonical Task/Project
+record — never a raw Activity payload. The Area record's own Goals tab is
+UNCHANGED by AREA-03 (see `AREAS_MODULE.md`).
+
 ## Migration, deployment and deferrals
 
 `migrations/0009_create_goal_details.sql` is additive and forward-only: existing
@@ -320,17 +477,26 @@ existing Goal before it can read. Apply after `0008` in the existing sequential
 migration order; no seed or fixture creates production user data.
 
 Deliberate deferrals: an interactive cursor-based "Load more" on the Goal
-record's Projects tab (tracked in `PRODUCT_DEBT.md`); AREA-03's alignment
-analysis / neglected-Goal detection; AREA-04's mobile-specific refinements; Goal
-deletion, archival and restoration (no accepted contract requires them); numeric
-Goal targets/categories/tags; a global Goals dashboard.
+record's Projects tab (tracked in `PRODUCT_DEBT.md`); AREA-04's mobile-specific
+refinements; Goal deletion, archival and restoration (no accepted contract
+requires them); numeric Goal targets/categories/tags. AREA-03 additionally
+defers/discloses: cross-page Alignment priority ordering (each page is sorted
+internally by state, but a neglected Goal on page 2 is not promoted above an
+active Goal on page 1 — low risk given DalyHub is single-owner and most
+workspaces hold well under one page of Goals); the Goal record's contributing-
+Task evidence is a bounded top-5 with an honest "+more" note, never the
+complete list; no alignment HISTORY is stored, so "how has this Goal's
+alignment trended over time" is out of scope (a possible future `REVIEW-03`
+concern, not this item's) — see `PRODUCT_DEBT.md`.
 
 ## Related documents
 
-- [`ROADMAP_V2.md` AREA-02](../roadmap/ROADMAP_V2.md#-area-02--goals)
+- [`ROADMAP_V2.md` AREA-02](../roadmap/ROADMAP_V2.md#-area-02--goals) /
+  [AREA-03](../roadmap/ROADMAP_V2.md#-area-03--alignment-view)
 - [`SPINE_MODEL.md`](./SPINE_MODEL.md)
 - [`AREAS_MODULE.md`](./AREAS_MODULE.md)
 - [`PROJECTS_MODULE.md`](./PROJECTS_MODULE.md)
 - [`ACTIVITY_TIMELINE.md`](./ACTIVITY_TIMELINE.md)
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
 - [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
+  / [ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection)

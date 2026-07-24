@@ -20,6 +20,7 @@ import {
   type ActivityActorContext,
   type ActivityRepository,
 } from "~/kernel/activity";
+import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
@@ -35,6 +36,7 @@ import type {
 } from "~/kernel/workspaces";
 import {
   createActivityRepository,
+  createAlignmentRepository,
   createAreaRepository,
   createEntityLinkRepository,
   createEntityRepository,
@@ -117,6 +119,15 @@ export interface WorkspaceScope {
    */
   readonly projectHealth: ProjectHealthRepository;
   readonly activity: ActivityRepository;
+  /**
+   * The AREA-03 Alignment activity-facts projection (ADR-040): a READ-ONLY,
+   * non-persisted view over structural `entity_links` and the Activity stream
+   * resolving how recently Task activity has contributed to each Goal, for a
+   * whole bounded page in a fixed number of grouped queries (no N+1). The
+   * rules stay the pure `evaluateGoalAlignment`; nothing here is cached, and
+   * Goal completion / Project contribution stay `goals`' authority.
+   */
+  readonly alignment: AlignmentRepository;
 }
 
 /**
@@ -189,6 +200,7 @@ export function bindWorkspaceRepositories(
     actorContext,
   });
   const activity = createActivityRepository(env.DB, context);
+  const alignment = createAlignmentRepository(env.DB, context);
   return {
     context,
     entities,
@@ -202,5 +214,6 @@ export function bindWorkspaceRepositories(
     projectHealth,
     projectSettings,
     activity,
+    alignment,
   };
 }

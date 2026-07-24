@@ -10,6 +10,10 @@ import type {
   SerializedGoalProjectContribution,
   SerializedGoalProjectItem,
 } from "~/modules/goals/goal-view";
+import type {
+  GoalAlignment,
+  SerializedGoalAlignmentEvidence,
+} from "~/shared/alignment";
 
 /**
  * AREA-02 — the canonical Goal record: identity + explicit Open/Completed
@@ -73,6 +77,23 @@ function project(
   };
 }
 
+function alignment(over: Partial<GoalAlignment> = {}): GoalAlignment {
+  return {
+    state: "no_structure",
+    label: "No contribution path",
+    tone: "neutral",
+    reasons: [
+      {
+        code: "no_structure",
+        tone: "neutral",
+        summary: "No Projects currently advance this Goal.",
+      },
+    ],
+    evaluatedAtIso: "2026-07-22T00:00:00.000Z",
+    ...over,
+  };
+}
+
 function renderInRouter(node: ReactElement) {
   const router = createMemoryRouter([{ path: "/", element: node }], {
     initialEntries: ["/"],
@@ -87,11 +108,15 @@ function renderGoal(
     contribution: SerializedGoalProjectContribution;
     projects: readonly SerializedGoalProjectItem[];
     projectsNextCursor: string | null;
+    alignment: GoalAlignment;
+    alignmentEvidence: readonly SerializedGoalAlignmentEvidence[];
+    alignmentEvidenceHasMore: boolean;
     completionPending: boolean;
     onToggleComplete: (complete: boolean) => void;
     onRename: () => void;
     onEditDetails: () => void;
     onOpenProject: (id: string) => void;
+    onOpenTask: (id: string) => void;
   }> = {},
 ) {
   return renderInRouter(
@@ -102,11 +127,15 @@ function renderGoal(
       projects={over.projects ?? []}
       projectsNextCursor={over.projectsNextCursor ?? null}
       todayIso={TODAY}
+      alignment={over.alignment ?? alignment()}
+      alignmentEvidence={over.alignmentEvidence ?? []}
+      alignmentEvidenceHasMore={over.alignmentEvidenceHasMore ?? false}
       completionPending={over.completionPending ?? false}
       onToggleComplete={over.onToggleComplete ?? (() => {})}
       onRename={over.onRename ?? (() => {})}
       onEditDetails={over.onEditDetails ?? (() => {})}
       onOpenProject={over.onOpenProject ?? (() => {})}
+      onOpenTask={over.onOpenTask ?? (() => {})}
       activityTab={<div>activity-content</div>}
     />,
   );
@@ -292,5 +321,51 @@ describe("GoalOverview", () => {
     renderGoal();
     fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
     expect(screen.getByText("activity-content")).toBeInTheDocument();
+  });
+
+  it("AREA-03: shows the Alignment panel in the Summary tab with its state and reasons", () => {
+    renderGoal({
+      alignment: alignment({
+        state: "neglected",
+        label: "No recent action",
+        tone: "info",
+        reasons: [
+          {
+            code: "structure_without_recent_activity",
+            tone: "info",
+            summary: "Projects exist, but no recent Task activity was found.",
+          },
+        ],
+      }),
+    });
+    expect(
+      screen.getByRole("heading", { name: "Alignment" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No recent action")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Projects exist, but no recent Task activity was found.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("AREA-03: shows real contributing-Task evidence and opens the Task record on click", () => {
+    const onOpenTask = vi.fn();
+    renderGoal({
+      alignment: alignment({ state: "active", tone: "success" }),
+      alignmentEvidence: [
+        {
+          taskId: "t1",
+          taskTitle: "Run 5k",
+          projectId: "p1",
+          projectTitle: "12-week training plan",
+          occurredAt: "2026-07-20T00:00:00.000Z",
+        },
+      ],
+      onOpenTask,
+    });
+    const taskButton = screen.getByRole("button", { name: "Run 5k" });
+    fireEvent.click(taskButton);
+    expect(onOpenTask).toHaveBeenCalledWith("t1");
   });
 });

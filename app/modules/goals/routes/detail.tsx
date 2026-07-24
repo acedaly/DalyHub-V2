@@ -13,7 +13,12 @@ import {
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
-import { ownerCalendarIso } from "~/shared/datetime";
+import {
+  composeGoalAlignmentFacts,
+  createOwnerAlignmentContext,
+  evaluateGoalAlignment,
+  serializeGoalAlignmentEvidence,
+} from "~/shared/alignment";
 import {
   DrawerProvider,
   useDrawer,
@@ -23,6 +28,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
+import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { GoalActivityTab } from "../GoalActivityTab";
 import { GoalDetailsForm } from "../GoalDetailsForm";
@@ -40,6 +46,9 @@ import type { Route } from "./+types/detail";
 const RENAME_KEY = "rename";
 const EDIT_DETAILS_KEY = "edit-details";
 const GOAL_PROJECT_PAGE_SIZE = 50;
+/** A calm handful of real contributing Tasks — enough to be useful, small
+ * enough to stay scannable in a Summary panel (ADR-040 §40.6). */
+const GOAL_ALIGNMENT_EVIDENCE_LIMIT = 5;
 
 export function meta() {
   return [{ title: "Goal · DalyHub" }];
@@ -55,11 +64,29 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  const [details, contribution, projectPage] = await Promise.all([
-    scope.goalDetails.get(goalId),
-    scope.goals.getGoalProjectContribution(goalId),
-    scope.goals.listGoalProjects({ goalId, limit: GOAL_PROJECT_PAGE_SIZE }),
-  ]);
+  const { evaluation, recentWindowStartIso } = createOwnerAlignmentContext(
+    new Date(),
+  );
+
+  const [details, contribution, projectPage, activityFacts, evidencePage] =
+    await Promise.all([
+      scope.goalDetails.get(goalId),
+      scope.goals.getGoalProjectContribution(goalId),
+      scope.goals.listGoalProjects({ goalId, limit: GOAL_PROJECT_PAGE_SIZE }),
+      scope.alignment.getGoalAlignmentFacts(goalId, { recentWindowStartIso }),
+      scope.alignment.listGoalAlignmentEvidence(
+        goalId,
+        GOAL_ALIGNMENT_EVIDENCE_LIMIT,
+      ),
+    ]);
+
+  const alignmentFacts = composeGoalAlignmentFacts({
+    goalId,
+    completedAt: overview.completedAt,
+    contribution,
+    activity: activityFacts ?? undefined,
+  });
+  const alignment = evaluateGoalAlignment(alignmentFacts, evaluation);
 
   return {
     overview: serializeGoalOverview(overview),
@@ -67,7 +94,10 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     contribution: serializeGoalProjectContribution(contribution),
     projects: projectPage.items.map(serializeGoalProjectItem),
     projectsNextCursor: projectPage.nextCursor,
-    todayIso: ownerCalendarIso(new Date()),
+    todayIso: evaluation.todayIso,
+    alignment,
+    alignmentEvidence: evidencePage.items.map(serializeGoalAlignmentEvidence),
+    alignmentEvidenceHasMore: evidencePage.hasMore,
   };
 }
 
@@ -102,6 +132,16 @@ function createGoalDrawerRenderer(
   definitionOfDone: string | null,
 ) {
   return function render(entry: DrawerEntry): DrawerRenderResult | null {
+    const separator = entry.key.indexOf(":");
+    const kind = separator === -1 ? entry.key : entry.key.slice(0, separator);
+    const id = separator === -1 ? "" : entry.key.slice(separator + 1);
+    if (kind === "task" && id.length > 0) {
+      return {
+        title: "Task",
+        description: "Task record",
+        children: <TaskRecordDrawer taskId={id} />,
+      };
+    }
     if (entry.key === RENAME_KEY) {
       return {
         title: "Rename Goal",
@@ -262,6 +302,9 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       projects={props.projects}
       projectsNextCursor={props.projectsNextCursor}
       todayIso={props.todayIso}
+      alignment={props.alignment}
+      alignmentEvidence={props.alignmentEvidence}
+      alignmentEvidenceHasMore={props.alignmentEvidenceHasMore}
       completionPending={completionPending}
       onToggleComplete={(complete) => void onToggleComplete(complete)}
       onRename={() => openDrawer(RENAME_KEY)}
@@ -269,6 +312,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       onOpenProject={(projectId) =>
         navigate(`/projects/${encodeURIComponent(projectId)}`)
       }
+      onOpenTask={(taskId) => openDrawer(`task:${taskId}`)}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       activityTab={

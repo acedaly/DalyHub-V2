@@ -44,7 +44,11 @@ const PRODUCT_ROUTES = [
   "/areas/a-dh",
   "/areas/a-dh?tab=projects",
   "/areas/a-dh?tab=activity",
+  // AREA-03 — the real Goals collection (the Alignment view) + a real Goal
+  // record with the derived Alignment Summary panel.
   "/goals",
+  "/goals/g-launch",
+  "/goals/g-launch?tab=activity",
   "/projects",
   // The BARE project record (no Drawer open) — the DEBT-21 regression gate: PROJ-04
   // gave the record a non-skipping heading outline (record h1 → section h2 → content

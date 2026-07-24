@@ -16,6 +16,7 @@ import {
   type ProjectWorkflowStatus,
 } from "~/kernel/project-settings";
 import type {
+  GoalListItem,
   GoalOverview,
   GoalProjectContribution,
   GoalProjectItem,
@@ -59,6 +60,29 @@ export type SerializedGoalProjectItem = {
   readonly taskTotal: number;
   readonly taskCompleted: number;
 };
+
+export type SerializedGoalListItem = {
+  readonly id: string;
+  readonly title: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly completedAt: string | null;
+  readonly area: { readonly id: string; readonly title: string };
+};
+
+/** AREA-03: one Goal on the workspace-wide Alignment collection. */
+export function serializeGoalListItem(
+  item: GoalListItem,
+): SerializedGoalListItem {
+  return {
+    id: item.id,
+    title: item.title,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+    completedAt: item.completedAt ? item.completedAt.toISOString() : null,
+    area: item.area,
+  };
+}
 
 export function serializeGoalOverview(
   overview: GoalOverview,

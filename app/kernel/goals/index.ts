@@ -10,6 +10,9 @@ export type {
   GoalProjectItem,
   GoalChildrenInput,
   GoalProjectPage,
+  GoalListItem,
+  GoalListInput,
+  GoalListPage,
 } from "./goal";
 
 export {
@@ -52,3 +55,16 @@ export type {
   GoalCursorScope,
   DecodedGoalCursor,
 } from "./goal-cursor";
+
+export {
+  GOAL_LIST_CURSOR_VERSION,
+  encodeGoalListCursor,
+  decodeGoalListCursor,
+  decodeGoalListCursorForScope,
+  goalListCursorScopeMatches,
+} from "./goal-list-cursor";
+export type {
+  GoalListCursorPosition,
+  GoalListCursorScope,
+  DecodedGoalListCursor,
+} from "./goal-list-cursor";

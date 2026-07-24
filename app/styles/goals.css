@@ -43,6 +43,13 @@
   font-weight: var(--dh-font-weight-semibold);
 }
 
+.dh-goal-overview__alignment-heading {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-secondary);
+}
+
 .dh-goal-bounded-note {
   margin: var(--dh-space-4) 0 0;
   color: var(--dh-color-text-secondary);
