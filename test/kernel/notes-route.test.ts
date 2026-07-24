@@ -52,10 +52,10 @@ function formData(entries: Record<string, string>): FormData {
   return form;
 }
 
-async function runIndex(cursor?: string) {
-  const url = cursor
-    ? `https://app.test/notes?cursor=${encodeURIComponent(cursor)}`
-    : "https://app.test/notes";
+async function runIndex(cursor?: string, state?: "active" | "deleted") {
+  const url = new URL("https://app.test/notes");
+  if (cursor) url.searchParams.set("cursor", cursor);
+  if (state) url.searchParams.set("state", state);
   return indexLoader({
     request: new Request(url),
     context: authedContext(),
@@ -318,5 +318,149 @@ describe("Notes routes", () => {
     expect(types).toContain("entity.created");
     expect(types).toContain("entity.updated");
     expect(types).toContain("note.content_updated");
+  });
+
+  describe("Note lifecycle — soft-delete & restore (NOTES-01C)", () => {
+    it("deletes through the generic EntityRepository.softDelete, disappears from the active collection, and appears in the deleted-only collection", async () => {
+      const note = await entities().create({
+        type: "note",
+        title: "Doomed",
+      });
+      await entities().create({ type: "note", title: "Survivor" });
+
+      const response = await runMutate(note.id, formData({ intent: "delete" }));
+      const body = (await response.json()) as NoteMutationResult;
+      expect(body).toEqual({ kind: "delete", ok: true });
+
+      const active = await runIndex(undefined, "active");
+      expect(active.notes.map((n) => n.id)).not.toContain(note.id);
+
+      const deleted = await runIndex(undefined, "deleted");
+      expect(deleted.notes.map((n) => n.id)).toEqual([note.id]);
+    });
+
+    it("restores through EntityRepository.restore, returning to the active collection and out of deleted", async () => {
+      const note = await entities().create({ type: "note", title: "Back" });
+      await runMutate(note.id, formData({ intent: "delete" }));
+
+      const response = await runMutate(
+        note.id,
+        formData({ intent: "restore" }),
+      );
+      const body = (await response.json()) as NoteMutationResult;
+      expect(body).toEqual({ kind: "restore", ok: true });
+
+      const active = await runIndex(undefined, "active");
+      expect(active.notes.map((n) => n.id)).toContain(note.id);
+      const deleted = await runIndex(undefined, "deleted");
+      expect(deleted.notes.map((n) => n.id)).not.toContain(note.id);
+    });
+
+    it("a deleted Note's canonical route fails closed (404) — never editable through it", async () => {
+      const note = await entities().create({ type: "note", title: "Gone" });
+      await runMutate(note.id, formData({ intent: "delete" }));
+
+      await expect(runDetail(note.id)).rejects.toMatchObject({ status: 404 });
+      const activity = await runActivity(note.id);
+      expect(activity.status).toBe(404);
+      await expect(
+        runMutate(note.id, formData({ intent: "rename", title: "X" })),
+      ).rejects.toMatchObject({ status: 404 });
+      await expect(
+        runMutate(note.id, formData({ intent: "update_content", content: "X" })),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("restored content and links survive delete→restore exactly, including whitespace-only content", async () => {
+      const note = await entities().create({ type: "note", title: "Note" });
+      const source = "  \n\ttrailing whitespace preserved  \n\n";
+      await runMutate(
+        note.id,
+        formData({ intent: "update_content", content: source }),
+      );
+
+      await runMutate(note.id, formData({ intent: "delete" }));
+      await runMutate(note.id, formData({ intent: "restore" }));
+
+      const detail = await runDetail(note.id);
+      expect(detail.details.content).toBe(source);
+      expect(detail.overview.title).toBe("Note");
+    });
+
+    it("delete and restore are idempotent — repeating either is a calm no-op, never an error", async () => {
+      const note = await entities().create({ type: "note", title: "Note" });
+
+      const first = await runMutate(note.id, formData({ intent: "delete" }));
+      expect(((await first.json()) as NoteMutationResult).ok).toBe(true);
+      const second = await runMutate(note.id, formData({ intent: "delete" }));
+      expect(((await second.json()) as NoteMutationResult).ok).toBe(true);
+
+      const restore1 = await runMutate(
+        note.id,
+        formData({ intent: "restore" }),
+      );
+      expect(((await restore1.json()) as NoteMutationResult).ok).toBe(true);
+      const restore2 = await runMutate(
+        note.id,
+        formData({ intent: "restore" }),
+      );
+      expect(((await restore2.json()) as NoteMutationResult).ok).toBe(true);
+
+      const detail = await runDetail(note.id);
+      expect(detail.overview.title).toBe("Note");
+    });
+
+    it("fails closed with a calm 404 for missing, wrong-type and cross-workspace ids on delete/restore alike", async () => {
+      const e = entities();
+      const wrongType = await e.create({ type: "widget", title: "Not a note" });
+      const otherNote = await entities(OTHER).create({
+        type: "note",
+        title: "Other",
+      });
+
+      for (const id of ["nonexistent", wrongType.id, otherNote.id]) {
+        await expect(
+          runMutate(id, formData({ intent: "delete" })),
+        ).rejects.toMatchObject({ status: 404 });
+        await expect(
+          runMutate(id, formData({ intent: "restore" })),
+        ).rejects.toMatchObject({ status: 404 });
+      }
+      // Cross-workspace note is genuinely untouched by workspace A's attempts.
+      const stillThere = await entities(OTHER).getById(otherNote.id);
+      expect(stillThere?.deletedAt).toBeNull();
+    });
+
+    it("records the kernel-reserved entity.deleted/entity.restored Activity events — no duplicate note.deleted event", async () => {
+      const note = await entities().create({ type: "note", title: "Note" });
+      await runMutate(note.id, formData({ intent: "delete" }));
+      await runMutate(note.id, formData({ intent: "restore" }));
+
+      const activity = await makeActivityRepository(
+        makeContext(WS),
+      ).listForEntity(note.id);
+      const types = activity.items.map((item) => item.type);
+      expect(types).toContain("entity.deleted");
+      expect(types).toContain("entity.restored");
+      expect(types).not.toContain("note.deleted");
+    });
+
+    it("the active collection never leaks a deleted Note; the deleted collection never leaks an active one (truthful, bounded)", async () => {
+      const e = entities();
+      const active1 = await e.create({ type: "note", title: "Active 1" });
+      const active2 = await e.create({ type: "note", title: "Active 2" });
+      const deleted1 = await e.create({ type: "note", title: "Deleted 1" });
+      await e.softDelete(deleted1.id);
+
+      const activePage = await runIndex(undefined, "active");
+      expect(activePage.notes.map((n) => n.id).sort()).toEqual(
+        [active1.id, active2.id].sort(),
+      );
+      expect(activePage.failed).toBe(false);
+
+      const deletedPage = await runIndex(undefined, "deleted");
+      expect(deletedPage.notes.map((n) => n.id)).toEqual([deleted1.id]);
+      expect(deletedPage.failed).toBe(false);
+    });
   });
 });

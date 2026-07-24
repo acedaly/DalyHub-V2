@@ -14,6 +14,7 @@ const SCOPE: CursorScope = {
   workspaceId: "ws_alpha",
   type: "widget",
   includeDeleted: false,
+  deletedOnly: false,
 };
 
 describe("cursor encode/decode (scoped, versioned)", () => {
@@ -33,6 +34,18 @@ describe("cursor encode/decode (scoped, versioned)", () => {
       workspaceId: "ws_beta",
       type: null,
       includeDeleted: true,
+      deletedOnly: false,
+    };
+    const cursor = encodeCursor(scope, { createdAt: "t", id: "i" });
+    expect(decodeCursor(cursor).scope).toEqual(scope);
+  });
+
+  it("round-trips a deleted-only scope", () => {
+    const scope: CursorScope = {
+      workspaceId: "ws_gamma",
+      type: "note",
+      includeDeleted: true,
+      deletedOnly: true,
     };
     const cursor = encodeCursor(scope, { createdAt: "t", id: "i" });
     expect(decodeCursor(cursor).scope).toEqual(scope);
@@ -67,25 +80,36 @@ describe("cursor encode/decode (scoped, versioned)", () => {
 
   it("rejects a cursor with the wrong version", () => {
     const wrongVersion = btoa(
-      JSON.stringify([CURSOR_VERSION + 1, "ws", "widget", 0, "t", "i"]),
+      JSON.stringify([CURSOR_VERSION + 1, "ws", "widget", 0, 0, "t", "i"]),
     );
     expect(() => decodeCursor(wrongVersion)).toThrow(InvalidCursorError);
   });
 
   it("rejects cursors that decode to the wrong shape", () => {
     const wrongShapes = [
-      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, "t"])), // too short
-      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, "t", "i", "x"])), // too long
-      btoa(JSON.stringify([CURSOR_VERSION, "", "widget", 0, "t", "i"])), // empty ws
-      btoa(JSON.stringify([CURSOR_VERSION, "ws", 5, 0, "t", "i"])), // bad type
-      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 2, "t", "i"])), // bad flag
-      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, "", "i"])), // empty ts
-      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, "t", ""])), // empty id
+      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, 0, "t"])), // too short
+      btoa(
+        JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, 0, "t", "i", "x"]),
+      ), // too long
+      btoa(JSON.stringify([CURSOR_VERSION, "", "widget", 0, 0, "t", "i"])), // empty ws
+      btoa(JSON.stringify([CURSOR_VERSION, "ws", 5, 0, 0, "t", "i"])), // bad type
+      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 2, 0, "t", "i"])), // bad includeDeleted flag
+      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, 2, "t", "i"])), // bad deletedOnly flag
+      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, 0, "", "i"])), // empty ts
+      btoa(JSON.stringify([CURSOR_VERSION, "ws", "widget", 0, 0, "t", ""])), // empty id
       btoa(JSON.stringify({ version: CURSOR_VERSION })), // not an array
     ];
     for (const cursor of wrongShapes) {
       expect(() => decodeCursor(cursor)).toThrow(InvalidCursorError);
     }
+  });
+
+  it("rejects a legacy (v2, 6-element) cursor from before deletedOnly existed", () => {
+    // NOTES-01C bumped CURSOR_VERSION 2 → 3 when `deletedOnly` was added to the
+    // scope; a pre-NOTES-01C cursor decodes to the wrong shape/version and is
+    // therefore rejected — same posture as the FND-02 → v2 bump.
+    const legacyV2 = btoa(JSON.stringify([2, "ws", "widget", 0, "t", "i"]));
+    expect(() => decodeCursor(legacyV2)).toThrow(InvalidCursorError);
   });
 });
 
@@ -97,6 +121,9 @@ describe("cursorScopeMatches", () => {
     ).toBe(false);
     expect(cursorScopeMatches(SCOPE, { ...SCOPE, type: null })).toBe(false);
     expect(cursorScopeMatches(SCOPE, { ...SCOPE, includeDeleted: true })).toBe(
+      false,
+    );
+    expect(cursorScopeMatches(SCOPE, { ...SCOPE, deletedOnly: true })).toBe(
       false,
     );
   });

@@ -27,9 +27,9 @@ import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
 import type { SelectOption } from "~/shared/forms/types";
 import { HealthIndicator } from "~/shared/project-health";
+import { SegmentedFilter } from "~/shared/segmented-filter";
 
 import { NewProjectForm } from "./NewProjectForm";
-import { SegmentedFilter } from "./SegmentedFilter";
 import {
   toProjectCardData,
   type ProjectCardData,

@@ -10,8 +10,13 @@
  * preview is opened, so importing this control does not pull the parser bundle
  * into a route.
  *
- * It is deliberately NOT the full Notes editor (that is a later roadmap item) —
- * it is a plain source textarea with a safe preview disclosure.
+ * It is deliberately NOT the full Notes editor — it is a plain source textarea
+ * with an optional safe preview disclosure. A caller that renders its OWN
+ * preview surface driven by the same value (NOTES-01C's side-by-side source/
+ * preview layout) sets `hidePreviewToggle` to suppress this control's built-in
+ * toggle+preview, so there is never a duplicate/competing preview affordance —
+ * the caller's preview still renders through this exact same pipeline, never a
+ * second parser or sink.
  */
 
 import { useEffect, useState } from "react";
@@ -31,6 +36,12 @@ export interface MarkdownFieldProps extends BaseControlProps<string> {
   /** Rows for the source textarea. */
   readonly rows?: number;
   readonly placeholder?: string;
+  /**
+   * Suppress this control's own "Show preview" toggle and preview panel — for a
+   * caller that renders its own preview surface for the same value (e.g. a
+   * side-by-side layout). Defaults to false (the built-in disclosure shows).
+   */
+  readonly hidePreviewToggle?: boolean;
 }
 
 export function MarkdownField({
@@ -49,6 +60,7 @@ export function MarkdownField({
   className,
   rows = 6,
   placeholder,
+  hidePreviewToggle = false,
 }: MarkdownFieldProps) {
   const baseId = id ?? `dh-md-${label.replace(/\s+/g, "-").toLowerCase()}`;
   const { helpId, errorId } = deriveFieldIds(baseId);
@@ -141,20 +153,22 @@ export function MarkdownField({
           onBlur={() => onBlur?.()}
         />
 
-        <div className="dh-markdown-field__toolbar">
-          <button
-            type="button"
-            className="dh-markdown-field__preview-toggle"
-            aria-expanded={showPreview}
-            aria-controls={previewId}
-            onClick={() => setShowPreview((open) => !open)}
-          >
-            {showPreview ? "Hide preview" : "Show preview"}
-          </button>
-          <span className="dh-markdown-field__hint">Markdown supported</span>
-        </div>
+        {hidePreviewToggle ? null : (
+          <div className="dh-markdown-field__toolbar">
+            <button
+              type="button"
+              className="dh-markdown-field__preview-toggle"
+              aria-expanded={showPreview}
+              aria-controls={previewId}
+              onClick={() => setShowPreview((open) => !open)}
+            >
+              {showPreview ? "Hide preview" : "Show preview"}
+            </button>
+            <span className="dh-markdown-field__hint">Markdown supported</span>
+          </div>
+        )}
 
-        {showPreview ? (
+        {!hidePreviewToggle && showPreview ? (
           <div id={previewId} className="dh-markdown-field__preview">
             {preview?.kind === "ready" ? (
               value.trim().length > 0 ? (

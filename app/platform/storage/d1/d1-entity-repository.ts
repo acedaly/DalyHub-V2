@@ -324,18 +324,25 @@ export class D1EntityRepository implements EntityRepository {
   ): Promise<EntityPage<TType>> {
     const type = validateOptionalType(input.type);
     const limit = validateLimit(input.limit);
-    const includeDeleted = input.includeDeleted === true;
+    const deletedOnly = input.deletedOnly === true;
+    // `deletedOnly` takes precedence over `includeDeleted` (see `entity.ts`'s
+    // documented precedence) — a deleted-only listing already implies deleted
+    // rows are included, so the two flags never disagree in the query itself.
+    const includeDeleted = deletedOnly || input.includeDeleted === true;
 
     const scope: CursorScope = {
       workspaceId: this.#workspaceId,
       type: type ?? null,
       includeDeleted,
+      deletedOnly,
     };
 
     const conditions: string[] = ["workspace_id = ?"];
     const params: unknown[] = [this.#workspaceId];
 
-    if (!includeDeleted) {
+    if (deletedOnly) {
+      conditions.push("deleted_at IS NOT NULL");
+    } else if (!includeDeleted) {
       conditions.push("deleted_at IS NULL");
     }
     if (type !== undefined) {

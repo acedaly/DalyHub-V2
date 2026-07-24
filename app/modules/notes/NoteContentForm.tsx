@@ -1,55 +1,89 @@
 /**
- * NOTES-01B — the Note record's "Note" tab: the Markdown source editor.
+ * NOTES-01C — the Note record's "Note" tab: the Markdown source editor, now
+ * with dependable AUTOSAVE (replacing NOTES-01B's explicit-Save-only model)
+ * and a desktop side-by-side source/preview layout.
  *
- * A dependable EXPLICIT-save source editor, not a premature block editor
- * (mirrors `~/modules/goals/GoalDetailsForm.tsx`'s explicit-save shape, but
- * lives inline in the record's tab content rather than a Drawer — long-form
- * Note editing is DESIGN_SYSTEM.md's flagged exception that warrants a
- * full-page record surface, so the content form is NOT hosted in a Drawer).
- * Uses the ONE DS-06 Markdown control (`MarkdownField`) — a plain textarea
- * that preserves the exact source, plus its own lazy-loaded safe-preview
- * disclosure through the shared FND-08 pipeline. No second parser, no second
- * unsafe-HTML sink (the one sanctioned raw-HTML render stays inside
- * `MarkdownContent`), no autosave engine: Save is explicit, and the Save
- * button is disabled whenever the content is unchanged so no-op saves are
- * never emitted from the UI (the server-side `NoteDetailsRepository.update`
- * is independently idempotent either way).
+ * Autosave correctness is entirely the ONE shared, pure DS-06 coordinator
+ * (`~/shared/forms/autosave.ts`, exercised through `useAutosaveField`) — one
+ * save ever in flight, rapid edits coalesce to the LATEST value, a stale/late
+ * response can never overwrite newer local state, a failed save preserves the
+ * user's draft and offers explicit Retry, and no save is even attempted while
+ * the value is invalid (oversized). NOTES-01B's own explicit-Save deferral
+ * comment called out that adapting this hook to a FULL-DOCUMENT payload needed
+ * its own design pass — this file is that pass: the debounce is tuned longer
+ * than DS-06's 800ms short-field default (`NOTE_AUTOSAVE_DEBOUNCE_MS`) so
+ * continuous typing coalesces into one save instead of one per pause, and a
+ * lightweight client-side size check (`validateNoteContentSize`) gives
+ * immediate feedback for an oversized document instead of always waiting on a
+ * round trip to learn the same thing from the server's authoritative
+ * `parseMarkdownSource` boundary — that boundary remains the real limit.
  *
- * `SaveStatusIndicator` presents six required signals with five states:
- * "idle" IS "unchanged" (its own documented semantics — nothing shown, matching
- * the saved baseline); "unsaved"/"saving"/"saved"/"error" cover the rest.
- * "saved" is a transient local flag cleared the moment the user edits again.
- * Validation failures surface as the MarkdownField's own field error;
- * unexpected/storage failures surface as the form-level error next to the
- * indicator's Retry — both are shown even though both map to `status="error"`.
- * The form never claims "saved" until the mutate route's response confirms
- * it, and a failed submission leaves the user's typed draft intact
- * (`useForm`'s documented guarantee).
+ * The editor still uses the ONE DS-06 Markdown control (`MarkdownField`, with
+ * its OWN built-in preview toggle suppressed via `hidePreviewToggle`) for the
+ * textarea, so exact source preservation (including whitespace-only content)
+ * is unchanged. The preview pane (Split/Preview view modes) renders through
+ * the exact same shared FND-08 pipeline (`renderMarkdownSource` →
+ * `<MarkdownContent>`) — no second parser, no second unsafe-HTML sink.
+ *
+ * `SaveStatusIndicator` presents unsaved/saving/saved/error; `error` also
+ * distinguishes a detected OFFLINE failure from a generic one
+ * (`useOnlineStatus`), and a save automatically retries the moment
+ * connectivity returns — the user should not have to notice and click Retry
+ * for something the browser already told us. `UnsavedChangesGuard` now arms
+ * while the latest edit is not yet safely persisted (`unsaved`/`saving`/
+ * `error`) rather than on `useForm`'s old `isDirty` flag, and disarms the
+ * instant a save actually lands (`saved`/`idle`) — it never blocks navigation
+ * once the latest content is safely stored, and never traps the user
+ * indefinitely (Leave is always available).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { MARKDOWN_SOURCE_MAX_BYTES } from "~/kernel/markdown";
+import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import {
-  Form,
-  FormActions,
-  FormButton,
-  FormErrorSummary,
   MarkdownField,
   SaveStatusIndicator,
   UnsavedChangesGuard,
-  useForm,
-  type AutosaveStatus,
-  type SubmitOutcome,
+  useAutosaveField,
 } from "~/shared/forms";
+import { MarkdownContent } from "~/shared/markdown";
 
+import { validateNoteContentSize } from "./note-content-validation";
+import {
+  availableNoteEditorViewModes,
+  resolveNoteEditorViewMode,
+  NOTE_EDITOR_WIDE_QUERY,
+  type NoteEditorViewMode,
+} from "./note-editor-view-mode";
+import { useIsWideViewport } from "./use-wide-viewport";
+import { useOnlineStatus } from "./use-online-status";
 import type { NoteMutationResult } from "./routes/mutate";
 
-type Values = { readonly content: string };
-
-const FIELD_LABELS: Record<string, string> = { content: "Note" };
-
 const CONTENT_HELP = `Markdown source — supports headings, lists, links, tables and more. Up to ${MARKDOWN_SOURCE_MAX_BYTES.toLocaleString()} bytes.`;
+
+/**
+ * A full document is a much larger, less frequently-committed payload than
+ * the short fields `useAutosaveField` is otherwise proven against — a longer
+ * debounce than DS-06's 800ms default keeps rapid, continuous typing from
+ * generating a save per pause, while still saving well within what a user
+ * reads as "automatic" once they stop.
+ */
+const NOTE_AUTOSAVE_DEBOUNCE_MS = 1500;
+
+/** How long to wait after the last edit before rendering the preview pane —
+ * cheap, purely local work, but debounced so a long paste or fast typing
+ * burst doesn't re-parse Markdown on every keystroke. */
+const PREVIEW_DEBOUNCE_MS = 200;
+
+const OFFLINE_MESSAGE =
+  "You're offline. Your changes are safe here and will save automatically once you're back online.";
+
+const MODE_LABELS: Record<NoteEditorViewMode, string> = {
+  source: "Source",
+  split: "Split",
+  preview: "Preview",
+};
 
 export interface NoteContentFormProps {
   readonly noteId: string;
@@ -57,109 +91,220 @@ export interface NoteContentFormProps {
   /** Called after a successful content save, so the record can revalidate
    * (the Activity tab's `reloadKey` depends on the fresh `contentUpdatedAt`). */
   readonly onSaved: () => void;
+  /**
+   * Force the navigation guard off regardless of autosave state — set (via a
+   * synchronous `flushSync`) the instant the record's own Delete action
+   * succeeds, so a note the user just deliberately deleted never asks "leave
+   * with unsaved changes?" on the way to `/notes` (`~/modules/notes/use-delete-note.ts`).
+   */
+  readonly suppressGuard?: boolean;
 }
+
+type PreviewState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "ready"; readonly html: SanitizedMarkdownHtml }
+  | { readonly kind: "error"; readonly message: string };
 
 export function NoteContentForm({
   noteId,
   initialContent,
   onSaved,
+  suppressGuard = false,
 }: NoteContentFormProps) {
-  const [justSaved, setJustSaved] = useState(false);
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
+  // The hook always surfaces its ONE calm, fixed `errorMessage` on failure
+  // (never a raw exception) — this ref captures the more specific server
+  // message (when one exists) purely for DISPLAY, layered on top in render.
+  const lastServerMessageRef = useRef<string | null>(null);
 
-  const form = useForm<Values>({
-    initialValues: { content: initialContent },
-    fieldOrder: ["content"],
-    onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
+  const field = useAutosaveField<string>({
+    initialValue: initialContent,
+    debounceMs: NOTE_AUTOSAVE_DEBOUNCE_MS,
+    validate: validateNoteContentSize,
+    onSave: async (value, signal) => {
       const body = new FormData();
       body.set("intent", "update_content");
-      body.set("content", values.content);
+      body.set("content", value);
       let data: NoteMutationResult;
       try {
         const response = await fetch(
           `/notes/${encodeURIComponent(noteId)}/mutate`,
-          { method: "POST", body },
+          { method: "POST", body, signal },
         );
         data = (await response.json()) as NoteMutationResult;
-      } catch {
-        return {
-          status: "error",
-          formError: "That couldn't be saved. Please try again.",
-        };
+      } catch (cause) {
+        lastServerMessageRef.current = null;
+        throw cause instanceof Error ? cause : new Error("network");
       }
       if (data.kind === "update_content" && data.ok) {
-        setJustSaved(true);
-        onSaved();
-        return { status: "success" };
+        lastServerMessageRef.current = null;
+        onSavedRef.current();
+        return;
       }
-      return {
-        status: "error",
-        formError: data.kind === "update_content" ? data.formError : undefined,
-        fieldErrors:
-          data.kind === "update_content"
-            ? (data.fieldErrors as
-                Partial<Record<keyof Values & string, string>> | undefined)
-            : undefined,
-      };
+      lastServerMessageRef.current =
+        (data.kind === "update_content" &&
+          (data.fieldErrors?.content ?? data.formError)) ||
+        null;
+      throw new Error("save rejected");
     },
   });
 
-  const contentField = form.field("content");
-
-  // Any further edit past the last successful save clears the transient
-  // "saved" indicator — it must never linger and imply an UNSAVED edit is
-  // safe.
+  // Offline detection: attribute a failure honestly, and retry automatically
+  // the moment connectivity returns instead of waiting for the user to notice
+  // and click Retry for something the browser already told us.
+  const online = useOnlineStatus();
+  const statusRef = useRef(field.status);
+  statusRef.current = field.status;
+  const retryRef = useRef(field.retry);
+  retryRef.current = field.retry;
   useEffect(() => {
-    setJustSaved(false);
-  }, [form.values.content]);
+    if (online && statusRef.current === "error") {
+      retryRef.current();
+    }
+  }, [online]);
 
-  const status: AutosaveStatus = form.isSubmitting
-    ? "saving"
-    : form.submit.status === "error"
-      ? "error"
-      : form.isDirty
-        ? "unsaved"
-        : justSaved
-          ? "saved"
-          : "idle";
+  const isOffline = !online;
+  const displayError =
+    field.status === "error"
+      ? isOffline
+        ? OFFLINE_MESSAGE
+        : (lastServerMessageRef.current ?? field.error)
+      : null;
+
+  // Guard while the latest edit is not yet safely persisted. `saving` is
+  // included: a save in flight might still fail, or might be superseded by an
+  // even newer edit the coordinator will save next — the content is not yet
+  // durably safe until `saved`/`idle`. Never traps the user: Leave is always
+  // offered by `UnsavedChangesGuard` itself.
+  const hasUnsettledChanges =
+    !suppressGuard &&
+    (field.status === "unsaved" ||
+      field.status === "saving" ||
+      field.status === "error");
+
+  const isWide = useIsWideViewport(NOTE_EDITOR_WIDE_QUERY);
+  const [desiredViewMode, setDesiredViewMode] =
+    useState<NoteEditorViewMode>("source");
+  const viewMode = resolveNoteEditorViewMode(desiredViewMode, isWide);
+  const viewModes = availableNoteEditorViewModes(isWide);
+
+  const [preview, setPreview] = useState<PreviewState>({ kind: "idle" });
+  useEffect(() => {
+    if (viewMode === "source") {
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      import("../../platform/markdown")
+        .then(({ renderMarkdownSource }) => {
+          if (cancelled) return;
+          try {
+            const { html } = renderMarkdownSource(field.value);
+            setPreview({ kind: "ready", html });
+          } catch {
+            setPreview({
+              kind: "error",
+              message:
+                "This content can't be previewed. Check for unusually long text or unusual characters.",
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPreview({
+              kind: "error",
+              message: "Preview is unavailable right now.",
+            });
+          }
+        });
+    }, PREVIEW_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [viewMode, field.value]);
 
   return (
     <>
-      <UnsavedChangesGuard when={form.isDirty && !form.isSubmitting} />
-      <Form
-        aria-label="Note content"
-        busy={form.isSubmitting}
-        onSubmit={form.handleSubmit}
-      >
-        <FormErrorSummary
-          formError={form.formError}
-          fieldErrors={form.fieldErrors}
-          order={form.fieldOrder as string[]}
-          labels={FIELD_LABELS}
-          onFocusField={form.focusField}
-        />
-        <MarkdownField
-          label="Note"
-          rows={16}
-          help={CONTENT_HELP}
-          showOptionalCue={false}
-          {...contentField}
-        />
-        <FormActions>
-          <SaveStatusIndicator
-            status={status}
-            error={form.submit.status === "error" ? form.formError : null}
-            onRetry={() => form.handleSubmit()}
-          />
-          <FormButton
-            type="submit"
-            variant="primary"
-            pending={form.isSubmitting}
-            disabled={!form.isDirty}
+      <UnsavedChangesGuard when={hasUnsettledChanges} />
+      <div className="dh-note-editor">
+        <div className="dh-note-editor__toolbar">
+          <div
+            className="dh-note-editor__modes"
+            role="group"
+            aria-label="Editor view"
           >
-            Save
-          </FormButton>
-        </FormActions>
-      </Form>
+            {viewModes.map((mode) => {
+              const selected = viewMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  className="dh-note-editor__mode"
+                  aria-pressed={selected}
+                  onClick={() => setDesiredViewMode(mode)}
+                >
+                  <span
+                    className="dh-note-editor__mode-check"
+                    aria-hidden="true"
+                  >
+                    {selected ? "✓" : ""}
+                  </span>
+                  {MODE_LABELS[mode]}
+                </button>
+              );
+            })}
+          </div>
+          <SaveStatusIndicator
+            status={field.status}
+            error={displayError}
+            onRetry={field.retry}
+          />
+        </div>
+
+        <div className="dh-note-editor__panes" data-view={viewMode}>
+          {viewMode !== "preview" ? (
+            <div className="dh-note-editor__source">
+              <MarkdownField
+                label="Note"
+                rows={20}
+                help={CONTENT_HELP}
+                showOptionalCue={false}
+                hidePreviewToggle
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={field.validationError}
+              />
+            </div>
+          ) : null}
+          {viewMode !== "source" ? (
+            <div
+              className="dh-note-editor__preview"
+              aria-label="Markdown preview"
+            >
+              {preview.kind === "ready" ? (
+                field.value.trim().length > 0 ? (
+                  <MarkdownContent html={preview.html} />
+                ) : (
+                  <p className="dh-note-editor__preview-empty">
+                    Nothing to preview yet.
+                  </p>
+                )
+              ) : preview.kind === "error" ? (
+                <p className="dh-note-editor__preview-error">
+                  {preview.message}
+                </p>
+              ) : (
+                <p className="dh-note-editor__preview-loading">
+                  Rendering preview…
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
     </>
   );
 }

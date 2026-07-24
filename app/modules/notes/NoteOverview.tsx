@@ -1,14 +1,17 @@
 /**
- * NOTES-01B — the canonical Note record, composed through the shared DS-02
- * Record Layout.
+ * NOTES-01B/NOTES-01C — the canonical Note record, composed through the
+ * shared DS-02 Record Layout.
  *
- * Presentation only: the header (generic entity identity — title, Rename —
- * never a bespoke Notes-only header), the "Note" tab (the Markdown source
- * editor/preview, `NoteContentForm`) and the "Activity" tab. Data loading and
- * mutations live in the route; this component only renders them. Deliberately
- * has no third "Settings"/"Links" tab — NOTES-01B ships no capability that
- * would need one (DESIGN_SYSTEM.md: never an empty tab for a future
- * capability).
+ * Presentation only: the header (generic entity identity — title, Rename,
+ * Delete — never a bespoke Notes-only header), the "Note" tab (the Markdown
+ * source editor/preview, `NoteContentForm`) and the "Activity" tab. Data
+ * loading and mutations live in the route; this component only renders them.
+ * Deliberately has no third "Settings"/"Links" tab — Delete lives as a Record
+ * Header action (via `useDeleteNote`'s Undo-toast flow) rather than a Settings
+ * tab, since a deleted Note's canonical route 404s (soft-deleted entities read
+ * as "not found" everywhere in the kernel) and there is nothing else on this
+ * record that would justify a Settings tab existing just for one action
+ * (DESIGN_SYSTEM.md: never an empty tab for a future capability).
  */
 
 import type { ReactNode } from "react";
@@ -22,6 +25,7 @@ import {
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NoteContentForm } from "./NoteContentForm";
+import { useDeleteNote } from "./use-delete-note";
 import {
   effectiveNoteUpdatedAt,
   type SerializedNoteDetails,
@@ -69,11 +73,24 @@ export function NoteOverview({
     summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
   }
 
+  const {
+    deleteNote,
+    pending: deletePending,
+    deleted,
+  } = useDeleteNote(overview.id, overview.title);
+
   const renameAction: RecordAction = {
     id: "rename",
     label: "Rename",
     variant: "secondary",
     onSelect: onRename,
+  };
+  const deleteAction: RecordAction = {
+    id: "delete",
+    label: "Delete note",
+    variant: "secondary",
+    disabled: deletePending,
+    onSelect: deleteNote,
   };
 
   return (
@@ -82,7 +99,7 @@ export function NoteOverview({
       typeLabel="Note"
       icon={<EntityIcon type="note" />}
       breadcrumb={[{ id: "notes", label: "Notes", href: "/notes" }]}
-      secondaryActions={[renameAction]}
+      secondaryActions={[renameAction, deleteAction]}
       summary={
         summaryMetadata.length > 0 ? { metadata: summaryMetadata } : undefined
       }
@@ -97,6 +114,7 @@ export function NoteOverview({
               noteId={overview.id}
               initialContent={details.content}
               onSaved={onSaved}
+              suppressGuard={deleted}
             />
           ),
         },

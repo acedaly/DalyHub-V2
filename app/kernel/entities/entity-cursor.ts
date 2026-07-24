@@ -13,8 +13,9 @@
  * Binding the scope into the cursor is a security and correctness requirement
  * (FND-03 / ADR-010): a cursor issued for workspace A must be rejected in
  * workspace B, a cursor issued under one type filter must be rejected under
- * another, and a cursor issued with `includeDeleted: true` must not be accepted
- * in the default active-only query. Mismatches — like malformed cursors — are
+ * another, and a cursor issued with `includeDeleted: true` (or `deletedOnly:
+ * true`, NOTES-01C's "Deleted" view mode) must not be accepted in the default
+ * active-only query, or vice versa. Mismatches — like malformed cursors — are
  * rejected as `InvalidCursorError`.
  *
  * The encoding is base64url over a small, versioned JSON array. It is opaque to
@@ -33,7 +34,7 @@
 import { InvalidCursorError } from "./entity-errors";
 
 /** The current cursor format version. Bump when the encoded shape changes. */
-export const CURSOR_VERSION = 2;
+export const CURSOR_VERSION = 3;
 
 /** The ordering position a cursor points just after. */
 export type CursorPosition = {
@@ -52,6 +53,8 @@ export type CursorScope = {
   readonly type: string | null;
   /** Whether soft-deleted rows were included. */
   readonly includeDeleted: boolean;
+  /** Whether the listing was restricted to ONLY soft-deleted rows. */
+  readonly deletedOnly: boolean;
 };
 
 /** Encode a base64url string with no padding (URL/JSON-safe, ASCII payload). */
@@ -81,6 +84,7 @@ export function encodeCursor(
       scope.workspaceId,
       scope.type,
       scope.includeDeleted ? 1 : 0,
+      scope.deletedOnly ? 1 : 0,
       position.createdAt,
       position.id,
     ]),
@@ -117,11 +121,19 @@ export function decodeCursor(cursor: string): DecodedCursor {
     throw new InvalidCursorError();
   }
 
-  if (!Array.isArray(parsed) || parsed.length !== 6) {
+  if (!Array.isArray(parsed) || parsed.length !== 7) {
     throw new InvalidCursorError();
   }
 
-  const [version, workspaceId, type, includeDeleted, createdAt, id] = parsed;
+  const [
+    version,
+    workspaceId,
+    type,
+    includeDeleted,
+    deletedOnly,
+    createdAt,
+    id,
+  ] = parsed;
 
   if (
     version !== CURSOR_VERSION ||
@@ -129,6 +141,7 @@ export function decodeCursor(cursor: string): DecodedCursor {
     workspaceId.length === 0 ||
     !(type === null || (typeof type === "string" && type.length > 0)) ||
     !(includeDeleted === 0 || includeDeleted === 1) ||
+    !(deletedOnly === 0 || deletedOnly === 1) ||
     typeof createdAt !== "string" ||
     createdAt.length === 0 ||
     typeof id !== "string" ||
@@ -138,7 +151,12 @@ export function decodeCursor(cursor: string): DecodedCursor {
   }
 
   return {
-    scope: { workspaceId, type, includeDeleted: includeDeleted === 1 },
+    scope: {
+      workspaceId,
+      type,
+      includeDeleted: includeDeleted === 1,
+      deletedOnly: deletedOnly === 1,
+    },
     position: { createdAt, id },
   };
 }
@@ -148,7 +166,8 @@ export function cursorScopeMatches(a: CursorScope, b: CursorScope): boolean {
   return (
     a.workspaceId === b.workspaceId &&
     a.type === b.type &&
-    a.includeDeleted === b.includeDeleted
+    a.includeDeleted === b.includeDeleted &&
+    a.deletedOnly === b.deletedOnly
   );
 }
 

@@ -102,9 +102,15 @@ export type ScopedListEntitiesInput<TType extends EntityType = EntityType> = {
   readonly cursor?: string;
   /**
    * When true, soft-deleted records are included. Defaults to false: ordinary
-   * lists exclude deleted records.
+   * lists exclude deleted records. Ignored when `deletedOnly` is true.
    */
   readonly includeDeleted?: boolean;
+  /**
+   * When true, list ONLY soft-deleted records (an honest "Deleted" view), instead
+   * of the default active-only listing. Takes precedence over `includeDeleted`.
+   * Defaults to false.
+   */
+  readonly deletedOnly?: boolean;
 };
 
 /**

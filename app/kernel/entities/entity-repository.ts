@@ -106,7 +106,10 @@ export interface EntityRepository {
    * orders deterministically by `(createdAt, id)`, and returns at most a safe
    * maximum page size along with a `nextCursor` for the following page. A cursor
    * is bound to the workspace and query shape that produced it and is rejected
-   * (`InvalidCursorError`) if replayed under a different scope.
+   * (`InvalidCursorError`) if replayed under a different scope. `input.deletedOnly`
+   * lists exclusively soft-deleted records (an honest "Deleted" collection view) —
+   * its own bound, distinct query scope, so a cursor from one mode is rejected
+   * under another.
    */
   list<TType extends EntityType = EntityType>(
     input?: ScopedListEntitiesInput<TType>,
