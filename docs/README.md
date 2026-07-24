@@ -55,6 +55,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/PROJECTS_MODULE.md`](development/PROJECTS_MODULE.md) | The Projects module (PROJ-01 + PROJ-02 + PROJ-04 + PROJ-05 + PROJ-06 done): data ownership (the spine authority + the read-only `ProjectRepository` projection, `getRollup` as the progress source of truth, `listProjectTasks`), the routes, the shared composition (collection · overview · Tasks/Key-links/Activity/**Settings** tabs · create/rename forms), the re-homed shared task-record surface (ADR-033), the **Active-only Today integration (PROJ-05 Slice 4)**, the **derived project-health signal (PROJ-02, ADR-035)**, the **project Activity tab (PROJ-04, ADR-036)**, the **Settings tab, archive/restore and the Archived collection (PROJ-05, ADR-037)**, the **mobile-complete Projects workflow (PROJ-06)**, testing, and what remains for PROJ-03. |
 | [`development/AREAS_MODULE.md`](development/AREAS_MODULE.md) | The Areas module (AREA-01 done, AREA-02 Goal-card integration done): data ownership (spine mutations + read-only `AreaRepository` projection), routes, Areas collection, New Area Drawer, canonical Area record, derived momentum semantics, Goal/Project presentation (Goal cards now link to the canonical record and show a batched target date), Activity tab reuse, Project creation dependency, accessibility/responsive coverage, tests and deferrals to AREA-04 (AREA-03's alignment reporting now lives on the real `/goals` collection — see `GOALS_MODULE.md`). |
 | [`development/GOALS_MODULE.md`](development/GOALS_MODULE.md) | The Goals module (AREA-02 + AREA-03 done): data ownership (spine identity/completion + the additive `goal_details` table), the target-date and definition-of-done semantics, explicit completion kept separate from derived Project-contribution progress, the exact and complete Project-contribution boundary, routes, the canonical `/goals/:goalId` record, Goal creation (title-only, via the shared `NewGoalForm`), Area/Project integration, the **AREA-03 Alignment view** (the real `/goals` collection: a derived, non-persisted Goal↔Task-activity signal — recent-action window, qualifying evidence, the five explainable states, the Goal record's Alignment panel), accessibility/responsive coverage, tests and deferrals to AREA-04. |
+| [`development/NOTES_PERSISTENCE.md`](development/NOTES_PERSISTENCE.md) | The Notes persistence & domain foundation (NOTES-01A, backend-only): ownership boundaries (identity/title/lifecycle stay `EntityRepository`; the additive `note_details` table owns only the Markdown source), the STRICT schema and no-backfill migration, no-row/empty-content semantics, exact Markdown-source preservation, validation reusing the one shared FND-08 parser, the content-timestamp contract, atomic mutation/Activity recording, workspace isolation, and what remains for the later Notes UI slice. |
 
 ---
 
@@ -99,7 +100,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
         ├── SETTINGS_LAYOUT.md
         ├── PROJECTS_MODULE.md
         ├── AREAS_MODULE.md
-        └── GOALS_MODULE.md
+        ├── GOALS_MODULE.md
+        └── NOTES_PERSISTENCE.md
 ```
 
 > Beyond `docs/`, the repository root now also carries the application itself

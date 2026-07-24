@@ -8,6 +8,7 @@ import {
   createEntityRepository,
   createGoalDetailsRepository,
   createGoalRepository,
+  createNoteDetailsRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -16,6 +17,7 @@ import {
   createWorkspaceRepository,
   type AtomicMutationFault,
   type D1GoalDetailsRepositoryOptions,
+  type D1NoteDetailsRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
   type D1SpineRepositoryOptions,
   type D1TaskRepositoryOptions,
@@ -169,6 +171,17 @@ export function makeGoalDetailsRepository(
 }
 
 /**
+ * Construct a workspace-scoped D1-backed NoteDetailsRepository over the
+ * isolated test database (NOTES-01A: the Note-owned Markdown content slice).
+ */
+export function makeNoteDetailsRepository(
+  context: WorkspaceContext,
+  options?: D1NoteDetailsRepositoryOptions,
+) {
+  return createNoteDetailsRepository(env.DB, context, options);
+}
+
+/**
  * Construct a workspace-scoped, read-only D1-backed ProjectHealthRepository over the
  * isolated test database (PROJ-02: the derived project-health facts projection,
  * bound to a `WorkspaceContext`).
@@ -210,6 +223,14 @@ export async function countProjectDetailRows(): Promise<number> {
 export async function countGoalDetailRows(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM goal_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count all rows in `note_details` directly. */
+export async function countNoteDetailRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM note_details",
   ).first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -346,6 +367,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM task_details").run();
   await env.DB.prepare("DELETE FROM project_details").run();
   await env.DB.prepare("DELETE FROM goal_details").run();
+  await env.DB.prepare("DELETE FROM note_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

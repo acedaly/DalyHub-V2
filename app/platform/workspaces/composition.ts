@@ -25,6 +25,7 @@ import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
+import type { NoteDetailsRepository } from "~/kernel/notes";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -42,6 +43,7 @@ import {
   createEntityRepository,
   createGoalDetailsRepository,
   createGoalRepository,
+  createNoteDetailsRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -109,6 +111,13 @@ export interface WorkspaceScope {
    * its own trusted actor, mirroring `projectSettings`.
    */
   readonly goalDetails: GoalDetailsRepository;
+  /**
+   * The NOTES-01A Note-owned Markdown content slice — the entities table
+   * deliberately does not model a Note's body. Notes are NOT part of the
+   * spine (identity/title/lifecycle stay `entities.*`); this composes
+   * atomically with its own trusted actor, mirroring `goalDetails`.
+   */
+  readonly noteDetails: NoteDetailsRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -195,6 +204,9 @@ export function bindWorkspaceRepositories(
   const goalDetails = createGoalDetailsRepository(env.DB, context, {
     actorContext,
   });
+  const noteDetails = createNoteDetailsRepository(env.DB, context, {
+    actorContext,
+  });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -211,6 +223,7 @@ export function bindWorkspaceRepositories(
     areas,
     goals,
     goalDetails,
+    noteDetails,
     projectHealth,
     projectSettings,
     activity,

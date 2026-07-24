@@ -18,6 +18,7 @@ import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
+import type { NoteDetailsRepository } from "~/kernel/notes";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -44,6 +45,10 @@ import {
   type D1GoalDetailsRepositoryOptions,
 } from "./d1-goal-details-repository";
 import { D1GoalRepository } from "./d1-goal-repository";
+import {
+  D1NoteDetailsRepository,
+  type D1NoteDetailsRepositoryOptions,
+} from "./d1-note-details-repository";
 import { D1ProjectHealthRepository } from "./d1-project-health-repository";
 import { D1ProjectRepository } from "./d1-project-repository";
 import {
@@ -84,6 +89,10 @@ export {
   D1GoalDetailsRepository,
   type D1GoalDetailsRepositoryOptions,
 } from "./d1-goal-details-repository";
+export {
+  D1NoteDetailsRepository,
+  type D1NoteDetailsRepositoryOptions,
+} from "./d1-note-details-repository";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
@@ -210,6 +219,20 @@ export function createGoalDetailsRepository(
   options?: D1GoalDetailsRepositoryOptions,
 ): GoalDetailsRepository {
   return new D1GoalDetailsRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed NoteDetailsRepository — the
+ * NOTES-01A Note-owned Markdown content slice. Like the other mutation
+ * repositories it is bound to a `WorkspaceContext` and a trusted Activity
+ * actor; there is no way to construct one without a context.
+ */
+export function createNoteDetailsRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1NoteDetailsRepositoryOptions,
+): NoteDetailsRepository {
+  return new D1NoteDetailsRepository(db, context, options);
 }
 
 /**
