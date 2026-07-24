@@ -1,5 +1,11 @@
 import { Link, RouterProvider, createMemoryRouter } from "react-router";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import type { ReactElement } from "react";
 
@@ -159,7 +165,9 @@ describe("NoteContentForm", () => {
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => first)
-      .mockResolvedValueOnce(jsonResponse({ kind: "update_content", ok: true }));
+      .mockResolvedValueOnce(
+        jsonResponse({ kind: "update_content", ok: true }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     vi.useFakeTimers();
@@ -212,7 +220,9 @@ describe("NoteContentForm", () => {
           formError: "storage failure",
         }),
       )
-      .mockResolvedValueOnce(jsonResponse({ kind: "update_content", ok: true }));
+      .mockResolvedValueOnce(
+        jsonResponse({ kind: "update_content", ok: true }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     renderInRouter(
@@ -243,7 +253,9 @@ describe("NoteContentForm", () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce(jsonResponse({ kind: "update_content", ok: true }));
+      .mockResolvedValueOnce(
+        jsonResponse({ kind: "update_content", ok: true }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     renderInRouter(
@@ -340,7 +352,9 @@ describe("NoteContentForm", () => {
       const textbox = screen.getByRole("textbox", { name: "Note" });
       fireEvent.change(textbox, { target: { value: "Saved edit" } });
       fireEvent.blur(textbox);
-      await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByText("Saved")).toBeInTheDocument(),
+      );
 
       fireEvent.click(screen.getByRole("link", { name: "Go elsewhere" }));
       await screen.findByText("Elsewhere");
@@ -350,7 +364,10 @@ describe("NoteContentForm", () => {
     });
 
     it("suppressGuard forces navigation through regardless of autosave state (the record's own Delete flow)", async () => {
-      vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => new Promise<Response>(() => {})),
+      );
       renderInRouter(
         <>
           <Link to="/elsewhere">Go elsewhere</Link>
@@ -398,8 +415,12 @@ describe("NoteContentForm", () => {
       expect(
         screen.queryByRole("button", { name: /Split/ }),
       ).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Source/ })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Preview/ })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Source/ }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Preview/ }),
+      ).toBeInTheDocument();
     });
 
     it("Preview mode renders the safe preview through the shared pipeline and hides the source", async () => {

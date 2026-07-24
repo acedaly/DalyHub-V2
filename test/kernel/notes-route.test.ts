@@ -367,7 +367,10 @@ describe("Notes routes", () => {
         runMutate(note.id, formData({ intent: "rename", title: "X" })),
       ).rejects.toMatchObject({ status: 404 });
       await expect(
-        runMutate(note.id, formData({ intent: "update_content", content: "X" })),
+        runMutate(
+          note.id,
+          formData({ intent: "update_content", content: "X" }),
+        ),
       ).rejects.toMatchObject({ status: 404 });
     });
 

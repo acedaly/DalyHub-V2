@@ -151,10 +151,10 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     await page.getByRole("link", { name: "Deleted" }).click();
     // Scoped to this test's own card — an orphaned Deleted Note left behind
     // by an earlier failed run would otherwise make "Restore" ambiguous.
-    const ownCard = page
-      .getByRole("listitem")
-      .filter({ hasText: noteTitle });
-    await expectMinTouchTarget(ownCard.getByRole("button", { name: "Restore" }));
+    const ownCard = page.getByRole("listitem").filter({ hasText: noteTitle });
+    await expectMinTouchTarget(
+      ownCard.getByRole("button", { name: "Restore" }),
+    );
 
     // Cleanup: this fixture is not covered by e2e/notes.spec.ts's own cleanup
     // hooks, so remove it directly. This journey deletes/restores the Note,
@@ -171,7 +171,16 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     ]) {
       execFileSync(
         "pnpm",
-        ["exec", "wrangler", "d1", "execute", "DB", "--local", "--command", command],
+        [
+          "exec",
+          "wrangler",
+          "d1",
+          "execute",
+          "DB",
+          "--local",
+          "--command",
+          command,
+        ],
         { cwd: process.cwd(), stdio: "pipe" },
       );
     }

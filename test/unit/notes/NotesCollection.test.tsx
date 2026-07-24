@@ -242,9 +242,7 @@ describe("Notes collection", () => {
       });
       await waitFor(() =>
         expect(
-          within(toasts).getByText(
-            'Couldn\'t restore "Old draft". Try again.',
-          ),
+          within(toasts).getByText('Couldn\'t restore "Old draft". Try again.'),
         ).toBeInTheDocument(),
       );
       // The row stays — nothing was actually restored.

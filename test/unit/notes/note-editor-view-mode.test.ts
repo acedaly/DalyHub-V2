@@ -21,10 +21,7 @@ describe("availableNoteEditorViewModes", () => {
   });
 
   it("omits Split entirely when narrow — never merely disables it", () => {
-    expect(availableNoteEditorViewModes(false)).toEqual([
-      "source",
-      "preview",
-    ]);
+    expect(availableNoteEditorViewModes(false)).toEqual(["source", "preview"]);
   });
 });
 

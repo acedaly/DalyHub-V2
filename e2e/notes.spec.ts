@@ -155,9 +155,7 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     );
 
     // 5-6. Type Markdown and let it AUTOSAVE — there is no Save button.
-    await expect(
-      page.getByRole("button", { name: "Save" }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Save" })).not.toBeVisible();
     const editor = page.getByRole("textbox", { name: "Note" });
     await editor.fill(markdown);
     await expect(page.getByText("Unsaved")).toBeVisible();
@@ -270,7 +268,7 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     // the FIRST matching request is gated — the coalesced follow-up save
     // (and everything else) passes straight through, and the route stays
     // registered throughout rather than being torn down mid-handling.
-    let releaseResponse: (() => void) | null = null;
+    let releaseResponse: () => void = () => {};
     const gate = new Promise<void>((resolve) => {
       releaseResponse = resolve;
     });
@@ -298,7 +296,7 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await editor.fill("Content B — the final value");
     await expect(editor).toHaveValue("Content B — the final value");
 
-    releaseResponse?.();
+    releaseResponse();
 
     await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
     await expect(editor).toHaveValue("Content B — the final value");

@@ -1,5 +1,11 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 
