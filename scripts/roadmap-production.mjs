@@ -28,7 +28,7 @@ const REQUIRED_ENV = [
 
 function cleanInlineMarkdown(value) {
   return value
-    .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .trim();
