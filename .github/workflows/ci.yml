@@ -16,12 +16,41 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify (lint, types, tests, build, e2e)
+  static-quality:
+    name: Static quality (format, lint, types)
     runs-on: ubuntu-latest
-    # Raised from 15 for the DS-11 accessibility + responsive regression coverage,
-    # which adds axe scans and a 320px→ultra-wide overflow sweep to the E2E run.
-    timeout-minutes: 25
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        # The postinstall hook (`wrangler types`) generates worker-configuration.d.ts
+        # exactly once here; `pnpm run typecheck` below does not regenerate it.
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type-check
+        run: pnpm run typecheck
+
+  unit-test:
+    name: Unit & component tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,43 +67,191 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check formatting
-        run: pnpm run format:check
-
-      - name: Lint
-        run: pnpm run lint
-
-      - name: Type-check
-        run: pnpm run typecheck
-
       - name: Unit & component tests
         run: pnpm run test:unit
 
+  kernel-test:
+    name: Kernel tests (Workers runtime + D1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Kernel integration tests (Workers runtime + D1)
-        # Runs the FND-02 data-kernel suite inside the real Workers runtime with
-        # an isolated, local D1 (Miniflare). The committed migration is applied
+        # Runs the data-kernel suite inside the real Workers runtime with an
+        # isolated, local D1 (Miniflare). The committed migrations are applied
         # to a fresh test database — D1 is not mocked. No Cloudflare credentials
-        # or remote database are used.
+        # or remote database are used. This runner's Miniflare/D1 state is
+        # local to the job and is discarded when the job ends.
         run: pnpm run test:kernel
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Production build
         run: pnpm run build
 
+      - name: Strip any local env file from the build output
+        # Defence in depth: a fresh CI checkout never has `.dev.vars`, so the
+        # build should not produce `build/server/.dev.vars`. Remove it anyway
+        # before it becomes a shared artifact, so a local-only dev auth
+        # override can never travel into the Playwright jobs' production-mode
+        # preview server.
+        run: rm -f build/server/.dev.vars
+
+      - name: Upload production build artifact
+        # `.wrangler/deploy/config.json` is a tiny, deterministic pointer file
+        # (just a relative path to build/server/wrangler.json, no secrets, no
+        # absolute paths, no timestamps — verified identical across rebuilds)
+        # that the Cloudflare Vite plugin writes as a build side effect and
+        # requires again at `vite preview` time. It has to travel with the
+        # build/ output, or the Playwright jobs' production-mode preview
+        # server fails to start with no build/ output to reuse it against.
+        # include-hidden-files is required: upload-artifact excludes dotfiles/
+        # dot-directories by default, which would otherwise silently drop the
+        # whole .wrangler/ path from the artifact.
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: |
+            build/
+            .wrangler/deploy/
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  playwright:
+    name: Playwright E2E (shard ${{ matrix.shard }}/3)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download production build artifact
+        # Restores both build/ and .wrangler/deploy/ (see the build job's
+        # upload step) at their original repo-root-relative paths.
+        uses: actions/download-artifact@v4
+        with:
+          name: production-build
+          path: .
+
       - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+        # Headless-shell only: this suite runs headless in CI with no video
+        # recording, headed mode or PDF generation (verified against every
+        # e2e/*.spec.ts and helpers.ts), so the full Chrome/Chromium binary and
+        # ffmpeg download are unused weight. Playwright already prefers the
+        # headless shell at runtime for a headless "chromium" project when
+        # both are installed, so installing only the shell removes the
+        # redundant ~115 MB Chromium download without changing which binary
+        # executes tests.
+        run: pnpm exec playwright install --with-deps --only-shell chromium
 
-      - name: Playwright E2E, accessibility & responsive regression
-        # Runs the full Playwright suite, which now includes the DS-11 automated
-        # accessibility gate (axe-core WCAG 2.2 AA scans of every shared surface, in
-        # light and dark, with modal overlays open) and the responsive regression
-        # matrix (no horizontal overflow from 320px through ultra-wide). A genuine
-        # accessibility or layout regression fails the build here.
-        run: pnpm run test:e2e
+      - name: Playwright E2E, accessibility & responsive regression (shard ${{ matrix.shard }}/3)
+        # Runs this shard's slice of the full Playwright suite — functional
+        # journeys, auth fail-closed checks, the DS-11 axe WCAG 2.2 AA scans,
+        # dark mode, mobile/touch-target and responsive-overflow coverage,
+        # keyboard/Drawer/history behaviour, and real local D1 journeys.
+        # Playwright's built-in `--shard` distributes test GROUPS, and with
+        # `fullyParallel: true` (and no `describe.serial` anywhere in e2e/,
+        # verified) each independent test is its own group — so shards split
+        # at individual-test granularity, not whole spec files; a single spec
+        # file's tests can land on different shards/runners. The union of all
+        # 3 shards still runs the entire suite exactly once — no test is
+        # skipped or excluded. This is safe here because every test creates
+        # and tears down its own fixtures (unique per-test titles/prefixes,
+        # `afterEach` cleanup) rather than depending on a preceding test's
+        # state. `workers` stays 1 (see playwright.config.ts): within a given
+        # shard's runner, tests still execute one at a time; the parallelism
+        # axis is GitHub Actions shards (separate runners, separate isolated
+        # local D1), not intra-runner workers.
+        #
+        # PLAYWRIGHT_SKIP_BUILD reuses the build/ artifact downloaded above
+        # instead of letting the production-mode webServer rebuild it a second
+        # (and, across 3 shards, a fourth/fifth/sixth) time.
+        env:
+          PLAYWRIGHT_SKIP_BUILD: "1"
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/3
 
-      - name: Upload Playwright report on failure
+      - name: Upload Playwright HTML report (shard ${{ matrix.shard }}) on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-shard-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
+
+      - name: Upload Playwright traces & screenshots (shard ${{ matrix.shard }}) on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results-shard-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  gate:
+    name: CI Gate
+    # Every required job — the stable check to require in branch protection,
+    # independent of internal job/matrix structure. Fails if any dependency
+    # fails, is cancelled, or (via `if: always()`) never ran.
+    needs: [static-quality, unit-test, kernel-test, build, playwright]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check all required jobs succeeded
+        run: |
+          echo '${{ toJson(needs) }}' | tee needs.json
+          if jq -e 'to_entries[] | select(.value.result != "success")' needs.json > /dev/null; then
+            echo "One or more required jobs did not succeed."
+            exit 1
+          fi
+          echo "All required jobs succeeded."
