@@ -1,0 +1,36 @@
+name: Roadmap lint diagnostic
+
+on:
+  push:
+    branches:
+      - feat/production-roadmap-project
+
+permissions:
+  contents: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/production-roadmap-project
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Capture lint output
+        run: pnpm lint > roadmap-lint-output.txt 2>&1 || true
+      - name: Commit lint output
+        run: |
+          if git diff --quiet -- roadmap-lint-output.txt && git ls-files --error-unmatch roadmap-lint-output.txt >/dev/null 2>&1; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add roadmap-lint-output.txt
+          git commit -m "chore: capture roadmap lint diagnostics"
+          git push origin HEAD:feat/production-roadmap-project
