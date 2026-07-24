@@ -227,7 +227,12 @@ When no tabs are supplied, the content region is the layout's `children` wrapped
 **Mobile/touch contract.** Header actions wrap onto additional rows rather than
 disappearing or forcing width, and on coarse-pointer/touch devices every
 `RecordAction` uses the shared 44px touch-target floor. Long action labels wrap the
-header region, not the document.
+header region, not the document. Each breadcrumb crumb is plain inline flow (not
+`inline-flex`): a long parent label (e.g. an Area title above a Goal) wraps across
+several lines on a narrow phone with its "/" separator staying attached to the
+first line, rather than a flex layout centring the separator against the whole
+wrapped block (fixed by AREA-04, see
+[`AREAS_MODULE.md`](../development/AREAS_MODULE.md#mobile-area-04)).
 - **Content** (`RecordContentProps`): `isLoading` · `isEmpty` · `error` · `loadingSlot`/`emptySlot`/`errorSlot` overrides · `label`. Precedence: error → loading → empty → children.
 
 ### Responsive behaviour

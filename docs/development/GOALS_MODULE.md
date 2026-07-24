@@ -264,7 +264,9 @@ tabs and Timeline are keyboard-operable, labelled, focus-restoring, axe-scanned
 and overflow-checked. Progress and completion state are always carried by text,
 never colour alone. Long Goal titles and long definitions of done wrap without
 horizontal overflow (`overflow-wrap: anywhere` on the definition text; `white-
-space: pre-wrap` preserves line breaks).
+space: pre-wrap` preserves line breaks). AREA-04 (see
+[Mobile](#mobile-area-04) below) audits and proves this baseline end to end on
+a real phone.
 
 ## Testing
 
@@ -468,6 +470,77 @@ long ago), each a direct navigation link/action to the canonical Task/Project
 record — never a raw Activity payload. The Area record's own Goals tab is
 UNCHANGED by AREA-03 (see `AREAS_MODULE.md`).
 
+## Mobile (AREA-04)
+
+AREA-04 is complete as one PR, covering both Goals (this section) and Areas
+(see [`AREAS_MODULE.md`](./AREAS_MODULE.md#mobile-area-04)). The audit found
+that the canonical Goal record, the `/goals` Alignment collection, and every
+Goal Drawer (New Goal, Rename, Edit details) already inherited the right
+architecture and nearly all responsive behaviour from the shared design
+system; the remaining risk was narrow-phone ergonomics and end-to-end proof,
+not a second mobile layout.
+
+- **Problems found.** The one substantive, verified gap was a **shared**
+  DS-02 `RecordHeader` breadcrumb defect, not a Goals-specific one: a Goal's
+  breadcrumb shows `Areas / <Area title>`, and when the Area title is long
+  enough to wrap across several lines on a narrow phone, the decorative "/"
+  separator floated mid-paragraph instead of staying attached to the first
+  line of the wrapped label (root cause and fix described in
+  [`AREAS_MODULE.md`](./AREAS_MODULE.md#mobile-area-04); fixed once, at the
+  shared layer, for every module with a breadcrumb). Beyond that: the Goal
+  record's header actions (Rename / Edit details / Complete-Reopen), the
+  Alignment Summary panel, the Projects tab, and the Goal details Drawer
+  (target date + multiline definition of done) all already wrapped, scrolled
+  and met the 44px touch-target floor correctly at 320/375/390px and on a
+  320×568 short viewport, including with a long definition of done and an
+  overdue target date filled in.
+- **What changed.** No Goals-specific CSS change was needed. `app/styles/
+  goals.css` had zero `@media`/`@container` rules before this audit and still
+  has none — every narrow-viewport behaviour the Goal record needs (header
+  action wrapping, summary/alignment text wrapping, Drawer-as-sheet, Timeline
+  timestamp collapse) already comes from the shared Record Layout, Drawer,
+  Alignment and Timeline CSS, most of it hardened by DS-11/PROJ-06 already.
+- **Shared contracts reused.** Collection Layout (`/goals`), Card,
+  `AlignmentIndicator`/`GoalAlignmentPanel`, Drawer/sheet, Record Layout,
+  Tabs, DS-06 forms, shared Timeline and the shared mobile app shell. No
+  Goals-specific Card, Drawer, form, Timeline or focus trap was added. Goal
+  alignment and Project-contribution progress remain exactly the same
+  server-derived reads (`evaluateGoalAlignment`,
+  `evaluateGoalProjectContribution`) — nothing was reimplemented in React for
+  mobile.
+- **Mobile behaviour.** The owner can create a Goal under an Area from the
+  mobile shell, land on its canonical record, edit its target date and
+  definition of done through the Edit details sheet, complete and reopen it,
+  create a Project (and a Task) that advances it and see the Goal's
+  Alignment update to "Recently active" with real, tappable evidence links to
+  the contributing Task and Project, navigate the Goal's Projects tab, open
+  the `/goals` Alignment collection and read both an active and a neglected
+  Goal's honest explanation — all without horizontal document scrolling, with
+  correct focus restoration on every Drawer close and working browser
+  Back/Forward proven for each route-backed Drawer this workflow opens (New
+  Area, New Goal, Edit details, and the Alignment evidence's Task Drawer).
+- **Swipe decision.** No Goal swipe accelerator was added (see
+  [`AREAS_MODULE.md`](./AREAS_MODULE.md#mobile-area-04) for the shared
+  rationale) — completing/reopening a Goal is a deliberate, infrequent state
+  change, not a lightweight action worth a gesture.
+- **Evidence.** `e2e/areas-goals-mobile.spec.ts` (390×844 full workflow,
+  320×568 short-height sheets, and a dedicated long-title breadcrumb
+  regression) drives Goal creation, details editing, completion/reopening,
+  Alignment evidence navigation, Back/Forward, focus restoration, keyboard
+  operation, axe and touch-target checks over real seeded + live-created D1
+  data — the "active" and "neglected" states are proven end to end here (per
+  the roadmap's guidance to keep the real-D1 journey to representative
+  states); the full five-state alignment matrix remains covered by
+  `test/unit/alignment`. `e2e/responsive.spec.ts` and
+  `e2e/accessibility.spec.ts` now sweep the Goal record's Activity tab, the
+  New Goal sheet and the Edit details sheet at the canonical viewport matrix
+  and its extremes; `e2e/touch-targets.spec.ts` covers the Goal record's
+  header actions.
+- **Migration/deployment.** No migration, no environment variable, no
+  Wrangler configuration change and no new dependency. Deployment implication
+  is CSS (the shared `record-layout.css` breadcrumb fix) and test-only code;
+  the existing dry-run path remains authoritative.
+
 ## Migration, deployment and deferrals
 
 `migrations/0009_create_goal_details.sql` is additive and forward-only: existing
@@ -477,8 +550,8 @@ existing Goal before it can read. Apply after `0008` in the existing sequential
 migration order; no seed or fixture creates production user data.
 
 Deliberate deferrals: an interactive cursor-based "Load more" on the Goal
-record's Projects tab (tracked in `PRODUCT_DEBT.md`); AREA-04's mobile-specific
-refinements; Goal deletion, archival and restoration (no accepted contract
+record's Projects tab (tracked in `PRODUCT_DEBT.md`); Goal deletion, archival
+and restoration (no accepted contract
 requires them); numeric Goal targets/categories/tags. AREA-03 additionally
 defers/discloses: cross-page Alignment priority ordering (each page is sorted
 internally by state, but a neglected Goal on page 2 is not promoted above an

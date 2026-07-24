@@ -188,9 +188,9 @@ Areas-owned or Goals-owned second parent-selection model.
 The module inherits DS-11. The collection, record, drawers, forms, tabs, Timeline
 and project links are keyboard-operable, labelled, focus-restoring, axe-scanned and
 overflow-checked. Long Area, Goal and Project titles wrap inside cards, metrics,
-tabs and form sheets. AREA-04 still owns mobile-complete Areas/Goals refinements;
-AREA-01 ships the shared responsive baseline only and adds no swipe/mobile-only
-workflow.
+tabs and form sheets. AREA-04 (see [Mobile](#mobile-area-04) below) hardens this
+baseline into a fully audited, proven-on-a-phone experience; it adds no
+swipe/mobile-only workflow.
 
 ## Testing
 
@@ -236,6 +236,64 @@ workflow.
 - Existing accessibility/responsive sweeps include `/areas`, `/areas/:areaId`,
   Activity and overlay states rather than creating a second scan framework.
 
+## Mobile (AREA-04)
+
+AREA-04 is complete as one PR. The audit found that Areas (and Goals — see
+[`GOALS_MODULE.md`](./GOALS_MODULE.md#mobile-area-04)) already inherited the right
+architecture and nearly all responsive behaviour from the shared Collection
+Layout, Card, Drawer, Record Layout, Tabs, DS-06 forms and DS-05 Timeline; the
+remaining risk was narrow-phone ergonomics and proof across the whole workflow,
+not a second mobile layout.
+
+- **Problems found.** A shared DS-02 `RecordHeader` breadcrumb defect: when a
+  parent crumb's label (an Area title) is long enough to wrap across several
+  lines on a narrow phone, the decorative "/" separator — rendered on an
+  `inline-flex` `<li>` — laid out as a sibling flex item and was vertically
+  centred against the WHOLE wrapped block instead of the label's first line, so
+  it floated mid-paragraph, confusing to read. This affects every record with a
+  breadcrumb (Goals, Projects, Tasks), surfaced here because Area titles are the
+  longest crumb labels routinely present above a Goal record. No missing routes,
+  no missing Drawer, no missing touch target, and no confirmation/dialog gap were
+  found — Areas/Goals have no archive/delete flow, so there is no
+  `ConfirmationDialog` ergonomics risk PROJ-06 had to fix.
+- **What changed.** The shared fix (not an Areas-specific one, since the defect
+  lives in `record-layout.css` and affects every module's breadcrumb): the crumb
+  `<li>` is now plain inline flow instead of `inline-flex`, so the separator stays
+  attached to the wrapped label wherever it wraps, with the same visual spacing
+  restored via a margin on the separator's pseudo-element instead of a flex `gap`.
+  No Areas- or Goals-specific CSS was needed beyond this — the existing narrow-
+  viewport rule for the Goals-tab toolbar (`areas.css`, ≤30rem) already covered the
+  one Areas-specific stacking case the audit re-confirmed.
+- **Shared contracts reused.** Collection Layout, Card, Drawer/sheet, Record
+  Layout, Tabs, DS-06 forms, shared Timeline, `LoadMore`, and the shared mobile
+  app shell/navigation overlay. No Areas-specific Card, Drawer, form, Timeline,
+  focus trap, scroll lock or route was added.
+- **Mobile behaviour.** The owner can enter Areas from the mobile app shell,
+  create an Area (with a long, wrapping title), navigate its Summary/Goals/
+  Projects/Activity tabs, rename it, create a Goal under it, and navigate into a
+  Project — all without horizontal document scrolling, with reachable 44px touch
+  targets, working keyboard operation, and correct focus restoration when Drawers
+  close. See [`GOALS_MODULE.md`](./GOALS_MODULE.md#mobile-area-04) for the Goal
+  record, Goal details editing, completion/reopening and the Alignment
+  collection's mobile behaviour.
+- **Swipe decision.** No Area/Goal swipe accelerator was added, matching PROJ-06's
+  precedent: no frequent, low-risk Area or Goal card action was found that
+  justified a gesture (renaming and completing are deliberate, infrequent
+  actions, not lightweight enough to accelerate).
+- **Evidence.** `e2e/areas-goals-mobile.spec.ts` drives a real phone workflow at
+  390×844 (mobile nav → Areas → New Area → tabs → New Goal → canonical Goal
+  record → edit details → complete/reopen → Project/Task creation advancing the
+  Goal → Goals Alignment collection → evidence navigation → Back/Forward → focus
+  restoration → axe → touch targets → no horizontal overflow), a 320×568
+  short-height sheet/Goal-details path, and a dedicated long-title breadcrumb
+  regression check. `e2e/responsive.spec.ts` and `e2e/accessibility.spec.ts` now
+  sweep the New Goal and Goal Edit-details sheets at the viewport extremes;
+  `e2e/touch-targets.spec.ts` covers the Areas/Goals record actions and tabs.
+- **Migration/deployment.** No migration, no environment variable, no Wrangler
+  configuration change and no new dependency. Deployment implication is CSS
+  (shared `record-layout.css`) and test-only code; the existing dry-run path
+  remains authoritative.
+
 ## Migration, deployment and deferrals
 
 AREA-01 itself required no migration. AREA-02 adds
@@ -246,8 +304,8 @@ Production must still have the spine, project-detail and goal-detail migrations
 applied before this Worker code runs, because Areas reads compose with Projects,
 Project health and Goal details.
 
-Deliberate deferrals: mobile-specific Areas/Goals workflows (AREA-04), Area
-deletion/restore, Area settings, and descendant-aggregated Activity. Full Goal
+Deliberate deferrals: Area deletion/restore, Area settings, and
+descendant-aggregated Activity. Full Goal
 records and Goal-specific fields are delivered by AREA-02 — see
 [`GOALS_MODULE.md`](./GOALS_MODULE.md). Alignment/intention reporting is now
 delivered by AREA-03 as the real `/goals` collection, not an Area-record

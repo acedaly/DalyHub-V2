@@ -34,7 +34,7 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--dh-space-1) var(--dh-space-2);
   margin: 0;
   padding: 0;
@@ -42,15 +42,22 @@
   color: var(--dh-color-text-muted);
 }
 
+/*
+ * `li` is deliberately flow content, NOT `inline-flex`: a long crumb label
+ * (e.g. an Area title) wraps across several lines on a narrow phone, and an
+ * `inline-flex` `li` would lay its separator out as a SIBLING flex item —
+ * centring the "/" against the whole wrapped block instead of the label's
+ * first line, so it floats mid-paragraph. Plain inline flow keeps the
+ * separator attached to the text that follows it, wherever it wraps.
+ */
 .record-breadcrumb li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dh-space-1) var(--dh-space-2);
+  overflow-wrap: anywhere;
 }
 
 /* Separator between crumbs, drawn with a decorative pseudo-element. */
 .record-breadcrumb li + li::before {
   content: "/";
+  margin-inline-end: var(--dh-space-2);
   color: var(--dh-color-border-strong);
 }
 
