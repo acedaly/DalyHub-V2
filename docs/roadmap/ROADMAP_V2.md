@@ -513,8 +513,9 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
   reopening, a Project+Task created live to prove the Goal's Alignment turns
   "Recently active" with real evidence, the `/goals` Alignment collection
   showing both that active Goal and the permanently-seeded neglected one, Back/
-  Forward for every route-backed Drawer, focus restoration, keyboard operation,
-  axe, touch targets and no horizontal overflow, plus a 320×568 short-viewport
+  Forward proven for each route-backed Drawer the journey opens (New Area, New
+  Goal, Edit details, Task), focus restoration, keyboard operation, axe, touch
+  targets and no horizontal overflow, plus a 320×568 short-viewport
   sheet path and a dedicated breadcrumb-wrap regression test; `e2e/responsive.
   spec.ts` and `e2e/accessibility.spec.ts` now sweep the Goal Activity tab, the
   New Goal sheet and the Goal Edit-details sheet across the canonical matrix and

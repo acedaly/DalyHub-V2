@@ -517,7 +517,8 @@ not a second mobile layout.
   the `/goals` Alignment collection and read both an active and a neglected
   Goal's honest explanation — all without horizontal document scrolling, with
   correct focus restoration on every Drawer close and working browser
-  Back/Forward for every route-backed Drawer.
+  Back/Forward proven for each route-backed Drawer this workflow opens (New
+  Area, New Goal, Edit details, and the Alignment evidence's Task Drawer).
 - **Swipe decision.** No Goal swipe accelerator was added (see
   [`AREAS_MODULE.md`](./AREAS_MODULE.md#mobile-area-04) for the shared
   rationale) — completing/reopening a Goal is a deliberate, infrequent state

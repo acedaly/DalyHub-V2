@@ -135,6 +135,18 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expect(newAreaDialog).toHaveCount(0);
     await expect(newAreaTrigger).toBeFocused();
 
+    // 12 (New Area). Browser Back/Forward for this route-backed Drawer too,
+    // with focus restored once it's closed again.
+    await newAreaTrigger.click();
+    await expect(newAreaDialog).toBeVisible();
+    await page.goBack();
+    await expect(newAreaDialog).toHaveCount(0);
+    await page.goForward();
+    await expect(newAreaDialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(newAreaDialog).toHaveCount(0);
+    await expect(newAreaTrigger).toBeFocused();
+
     await newAreaTrigger.click();
     await newAreaDialog.getByLabel(/Title/).fill(areaTitle);
     await newAreaDialog.getByRole("button", { name: "Create Area" }).click();
@@ -164,6 +176,14 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expect(newGoalDialog).toBeVisible();
     await expect(page).toHaveURL(/drawer=new-goal/);
     await expectNoAxeViolations(page);
+
+    // 12 (New Goal). Browser Back/Forward for this route-backed Drawer, with
+    // focus restored to its trigger once closed again.
+    await page.goBack();
+    await expect(newGoalDialog).toHaveCount(0);
+    await page.goForward();
+    await expect(newGoalDialog).toBeVisible();
+
     await newGoalDialog.getByLabel(/Title/).fill(goalTitle);
     await newGoalDialog.getByRole("button", { name: "Create Goal" }).click();
 
@@ -318,6 +338,14 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
       taskDialog.getByRole("heading", { name: taskTitle }),
     ).toBeVisible();
     await expectNoAxeViolations(page);
+
+    // 12 (Task Drawer). Browser Back/Forward for the Alignment evidence's
+    // Task Drawer too, before closing it and restoring focus to the trigger.
+    await page.goBack();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.goForward();
+    await expect(taskDialog).toBeVisible();
+
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(taskButton).toBeFocused();
