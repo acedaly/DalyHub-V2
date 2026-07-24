@@ -151,6 +151,10 @@ describe("module discovery", () => {
       expect(registry.getActivityType("project.completed")?.moduleId).toBe(
         "projects",
       );
+      // NOTES-01A registers the Note-owned content Activity event.
+      expect(registry.getActivityType("note.content_updated")?.moduleId).toBe(
+        "notes",
+      );
       // FND-09 adds one navigable placeholder route per spine module, and PX-03
       // adds one per navigation-shell module, all composed automatically from
       // the manifests (no central route list). DS-09 adds Today's two
