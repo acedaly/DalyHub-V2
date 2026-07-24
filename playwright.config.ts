@@ -74,7 +74,15 @@ export default defineConfig({
       // check. The build copies `.dev.vars` into `build/server/`; we strip it so
       // preview runs Cloudflare Access mode with empty config and rejects
       // protected routes (no development-auth override leaks in).
-      command: `pnpm run build && node ./e2e/strip-dev-vars.mjs && pnpm exec vite preview --port ${PROD_PORT} --strictPort`,
+      //
+      // CI shards set PLAYWRIGHT_SKIP_BUILD=1 after downloading the exact
+      // `build/` artifact produced once by the workflow's build job, so three
+      // shards don't each redundantly rebuild the identical production bundle.
+      // Local/default usage (the flag unset) still builds fresh, so `pnpm run
+      // test:e2e` keeps working standalone against current source.
+      command: process.env.PLAYWRIGHT_SKIP_BUILD
+        ? `node ./e2e/strip-dev-vars.mjs && pnpm exec vite preview --port ${PROD_PORT} --strictPort`
+        : `pnpm run build && node ./e2e/strip-dev-vars.mjs && pnpm exec vite preview --port ${PROD_PORT} --strictPort`,
       url: `http://localhost:${PROD_PORT}/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
