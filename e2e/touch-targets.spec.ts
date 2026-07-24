@@ -141,20 +141,31 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     await expectMinTouchTarget(
       page.getByRole("button", { name: "Delete note" }),
     );
-    for (const name of ["Source", "Split", "Preview"] as const) {
+    // Split is never offered at 320px (narrow viewports get Source/Preview
+    // only — `note-editor-view-mode.ts`), so it is intentionally excluded here.
+    for (const name of ["Source", "Preview"] as const) {
       await expectMinTouchTarget(page.getByRole("button", { name }));
     }
 
     await page.getByRole("button", { name: "Delete note" }).click();
     await page.getByRole("link", { name: "Deleted" }).click();
-    await expectMinTouchTarget(
-      page.getByRole("button", { name: "Restore" }),
-    );
+    // Scoped to this test's own card — an orphaned Deleted Note left behind
+    // by an earlier failed run would otherwise make "Restore" ambiguous.
+    const ownCard = page
+      .getByRole("listitem")
+      .filter({ hasText: noteTitle });
+    await expectMinTouchTarget(ownCard.getByRole("button", { name: "Restore" }));
 
     // Cleanup: this fixture is not covered by e2e/notes.spec.ts's own cleanup
-    // hooks, so remove it directly.
+    // hooks, so remove it directly. This journey deletes/restores the Note,
+    // which records `entity.deleted`/`entity.restored` Activity — those (and
+    // their `activity_subjects` rows) must go BEFORE the entity itself, or
+    // the delete fails its foreign-key constraint (mirrors the dependency
+    // order `e2e/notes.spec.ts`'s own cleanup already documents).
     const noteQuery = `SELECT id FROM entities WHERE workspace_id = 'local-dev-workspace' AND type = 'note' AND title = '${noteTitle}'`;
     for (const command of [
+      `DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${noteQuery});`,
+      `DELETE FROM activities WHERE workspace_id = 'local-dev-workspace' AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
       `DELETE FROM note_details WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${noteQuery});`,
       `DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND id IN (${noteQuery});`,
     ]) {

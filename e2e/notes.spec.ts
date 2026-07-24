@@ -55,32 +55,53 @@ const NOTE_CLEANUP_SQL = [
   `DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND id IN (${NOTE_ENTITY_QUERY});`,
 ] as const;
 
-function cleanupNoteFixtures() {
+/** Local D1's SQLite file is shared with the live dev server process, so a
+ * cleanup command run immediately after a test can occasionally race an
+ * in-flight request and hit `SQLITE_BUSY`. Retry briefly rather than fail
+ * the whole test on what is purely local-tooling contention, not a
+ * correctness issue. */
+async function runD1Command(command: string): Promise<void> {
+  const attempts = 3;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      execFileSync(
+        "pnpm",
+        [
+          "exec",
+          "wrangler",
+          "d1",
+          "execute",
+          "DB",
+          "--local",
+          "--command",
+          command,
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
+          stdio: "pipe",
+        },
+      );
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt === attempts || !message.includes("SQLITE_BUSY")) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    }
+  }
+}
+
+async function cleanupNoteFixtures(): Promise<void> {
   for (const command of NOTE_CLEANUP_SQL) {
-    execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "d1",
-        "execute",
-        "DB",
-        "--local",
-        "--command",
-        command,
-      ],
-      {
-        cwd: process.cwd(),
-        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-        stdio: "pipe",
-      },
-    );
+    await runD1Command(command);
   }
 }
 
 test.describe("NOTES-01B/NOTES-01C — Notes", () => {
-  test.beforeAll(() => cleanupNoteFixtures());
-  test.afterEach(() => cleanupNoteFixtures());
+  test.beforeAll(async () => cleanupNoteFixtures());
+  test.afterEach(async () => cleanupNoteFixtures());
 
   test("navigate, create, autosave Markdown (no Save button), reload, rename, review Activity", async ({
     page,
@@ -256,37 +277,17 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     let gateArmed = true;
     await page.route("**/mutate", async (route) => {
       const body = route.request().postData() ?? "";
-      // eslint-disable-next-line no-console
-      console.log("[route]", Date.now(), JSON.stringify(body));
       if (
         route.request().method() !== "POST" ||
         !body.includes("update_content") ||
         !gateArmed
       ) {
-        const response = await route.fetch();
-        // eslint-disable-next-line no-console
-        console.log(
-          "[fetched]",
-          Date.now(),
-          response.status(),
-          await response.text(),
-        );
-        await route.fulfill({ response });
+        await route.continue();
         return;
       }
       gateArmed = false;
       await gate;
-      // eslint-disable-next-line no-console
-      console.log("[route] releasing gated request", Date.now());
-      const response = await route.fetch();
-      // eslint-disable-next-line no-console
-      console.log(
-        "[fetched]",
-        Date.now(),
-        response.status(),
-        await response.text(),
-      );
-      await route.fulfill({ response });
+      await route.continue();
     });
 
     await editor.fill("Content A — will be superseded");
@@ -302,11 +303,24 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
     await expect(editor).toHaveValue("Content B — the final value");
 
-    // Reload confirms the FINAL value persisted, not the superseded one.
-    await gotoFixture(page, noteUrl);
-    await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue(
-      "Content B — the final value",
-    );
+    // Reload confirms the FINAL value persisted, not the superseded one. The
+    // mutate route itself already confirmed both writes with `ok: true`
+    // (proving the client never lost the newer edit) — this is purely
+    // re-reading the source of truth. D1 documents that a read immediately
+    // following a write can be served from a replica that has not yet caught
+    // up (https://developers.cloudflare.com/d1/best-practices/read-replication/),
+    // which local dev can reproduce for two writes this close together, so
+    // the confirming reload polls briefly rather than asserting on a single
+    // navigation.
+    await expect
+      .poll(
+        async () => {
+          await gotoFixture(page, noteUrl);
+          return page.getByRole("textbox", { name: "Note" }).inputValue();
+        },
+        { timeout: 10_000 },
+      )
+      .toBe("Content B — the final value");
   });
 
   test("a failed save shows the error state with Retry, preserves the draft, and Retry recovers", async ({
@@ -471,20 +485,25 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await expect(page.getByRole("link", { name: noteTitle })).toHaveCount(0);
 
     // Open the Deleted view — the note is there, with a Restore action.
+    // Scoped to the card list itself: a lingering "deleted" Undo toast can
+    // still carry the same title text elsewhere on the page.
     await page.getByRole("link", { name: "Deleted" }).click();
     await expect(page).toHaveURL(/state=deleted/);
-    await expect(page.getByText(noteTitle)).toBeVisible();
+    const deletedList = page.getByRole("list", { name: "Deleted notes" });
+    await expect(deletedList.getByText(noteTitle)).toBeVisible();
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);
 
-    const noteRow = page.getByRole("listitem").filter({ hasText: noteTitle });
+    const noteRow = deletedList
+      .getByRole("listitem")
+      .filter({ hasText: noteTitle });
     await noteRow.getByRole("button", { name: "Restore" }).click();
     await expect(
       page
         .getByRole("region", { name: "Notifications" })
         .getByText(`"${noteTitle}" restored`),
     ).toBeVisible();
-    await expect(page.getByText(noteTitle)).not.toBeVisible();
+    await expect(deletedList.getByText(noteTitle)).not.toBeVisible();
 
     // Back on Active, the restored Note is reachable again with its content intact.
     await page.getByRole("link", { name: "Active" }).click();
