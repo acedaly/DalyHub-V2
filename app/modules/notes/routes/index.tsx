@@ -1,12 +1,26 @@
 /**
- * PX-03 — the Notes module route (Coming Soon placeholder).
+ * NOTES-01B — the real Notes collection route (`/notes`).
  *
- * Module-owned route referenced declaratively by the Notes manifest. It renders
- * the shared PX-03 "Coming Soon" scaffold only; the Notes product experience is a
- * later roadmap item (NOTES-01 → NOTES-04).
+ * Replaces the PX-03 `ModuleComingSoon` placeholder. The trusted server
+ * boundary for the bounded, workspace-scoped Note collection: it reads the
+ * generic `EntityRepository`'s Note projection through the authenticated
+ * composition boundary (`resolveAuthenticatedWorkspaceScope`), then renders
+ * the presentational `NotesCollectionView`. A scope/list failure degrades to
+ * a calm error state so the shell stays usable — never a 500 (mirrors
+ * `~/modules/projects/routes/index.tsx`).
  */
 
-import { ModuleComingSoon } from "~/shared/shell/ModuleComingSoon";
+import { env } from "cloudflare:workers";
+
+import { requireAuthenticatedSession } from "~/platform/request";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+
+import { NotesCollectionView } from "../NotesCollection";
+import {
+  serializeNoteListItem,
+  type SerializedNoteListItem,
+} from "../note-view";
+import type { Route } from "./+types/index";
 
 export function meta() {
   return [
@@ -18,20 +32,37 @@ export function meta() {
   ];
 }
 
-export default function NotesRoute() {
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const session = requireAuthenticatedSession(context);
+  const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;
+
+  try {
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const page = await scope.entities.list({ type: "note", cursor });
+    return {
+      notes: page.items.map(serializeNoteListItem),
+      nextCursor: page.nextCursor,
+      failed: false,
+    };
+  } catch {
+    return {
+      notes: [] as SerializedNoteListItem[],
+      nextCursor: null as string | null,
+      failed: true,
+    };
+  }
+}
+
+export default function NotesRoute({ loaderData }: Route.ComponentProps) {
   return (
-    <ModuleComingSoon
-      name="Notes"
-      entityType="note"
-      summary="Markdown records that document any entity in DalyHub."
-      fit="Notes attach across the Area → Goal → Project → Task spine — documenting a Project, a Meeting or any other record — through DalyHub's shared EntityLinks, and are written with the same Markdown pipeline every long-form field in DalyHub uses."
-      roadmapStatus="It's planned for Phase 5 — Notes (NOTES-01 → NOTES-04) of the DalyHub V2 roadmap."
-      capabilities={[
-        "Create, edit and read Markdown notes through the shared Record Layout and editor",
-        "Link a note to any entity and see backlinks from the entities it documents",
-        "Browse, filter and search notes by area, tag and content",
-        "A mobile-complete note-taking experience",
-      ]}
+    <NotesCollectionView
+      notes={loaderData.notes}
+      nextCursor={loaderData.nextCursor}
+      failed={loaderData.failed}
     />
   );
 }
+
+// Re-exported so `../NotesCollection` and other callers can share the exact
+// loader-data shape without re-declaring it.
+export type { SerializedNoteListItem };

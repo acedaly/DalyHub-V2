@@ -8,12 +8,17 @@
  * reachability of a new row, and the mobile overlay reaching a new module —
  * reusing the SAME shell/navigation/overlay machinery PX-02 already proved, never
  * a bespoke check.
+ *
+ * NOTES-01B replaced the `/notes` "Coming Soon" placeholder with a real
+ * collection (`app/modules/notes/routes/index.tsx`), so Notes is EXCLUDED from
+ * `SHELL_MODULES` below — its full journey now lives in `e2e/notes.spec.ts`.
+ * Notes' sidebar reachability and active-state coverage stays here (against
+ * its real collection heading, not a placeholder).
  */
 
 import { expect, test } from "@playwright/test";
 
 const SHELL_MODULES = [
-  { label: "Notes", path: "/notes" },
   { label: "Diary", path: "/diary" },
   { label: "Meetings", path: "/meetings" },
   { label: "People", path: "/people" },
@@ -77,6 +82,22 @@ test.describe("PX-03 — every module shell route resolves with real content", (
       ).toBeVisible();
     }
   });
+
+  // NOTES-01B: Notes has real content now, so it is checked separately from
+  // the Coming Soon loop above — the sidebar link still reaches a real,
+  // non-blank `/notes` heading (the collection Pane Header, not a placeholder).
+  test("the sidebar reaches the real Notes collection", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "Notes" }).click();
+    await expect(page).toHaveURL(/\/notes$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Notes" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
+  });
 });
 
 test.describe("PX-03 — sidebar active state on the new rows", () => {
@@ -84,6 +105,9 @@ test.describe("PX-03 — sidebar active state on the new rows", () => {
     page,
   }) => {
     await page.goto("/notes");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Notes" }),
+    ).toBeVisible();
     const nav = page.getByRole("navigation", { name: "Primary" });
     await expect(nav.getByRole("link", { name: "Notes" })).toHaveAttribute(
       "aria-current",

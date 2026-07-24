@@ -1,6 +1,6 @@
 # NOTES_PERSISTENCE.md — Notes persistence & domain foundation (NOTES-01A)
 
-> The backend-only persistence slice for Notes: what owns what, the schema, no-row/empty-content semantics, exact Markdown-source preservation, validation and security boundaries, the content-timestamp contract, mutation/Activity atomicity, and workspace isolation. This document covers **only** [NOTES-01A](../roadmap/ROADMAP_V2.md#phase-5--notes-notes); the Markdown editor UI, linking/backlinks, organisation/search and mobile Notes work remain [NOTES-01](../roadmap/ROADMAP_V2.md#-notes-01--note-record--markdown-editor) and later.
+> The backend-only persistence slice for Notes: what owns what, the schema, no-row/empty-content semantics, exact Markdown-source preservation, validation and security boundaries, the content-timestamp contract, mutation/Activity atomicity, and workspace isolation. This document covers **only** [NOTES-01A](../roadmap/ROADMAP_V2.md#phase-5--notes-notes). The collection/creation/canonical-record UI that composes this foundation is [NOTES-01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record) — see [NOTES_MODULE.md](./NOTES_MODULE.md). Autosave, lifecycle actions and further editor polish are deferred to [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish); linking/backlinks, organisation/search and mobile-specific work remain NOTES-02/03/04.
 
 ---
 
@@ -115,16 +115,15 @@ It never contains Markdown source, rendered HTML, user text, or an excerpt/snipp
 
 ## What remains for the later Notes UI slice
 
-This slice is backend-only. Deliberately **not** built here (see [NOTES-01](../roadmap/ROADMAP_V2.md#-notes-01--note-record--markdown-editor) and later):
+This slice was backend-only. [NOTES-01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record) has since built the Notes collection/record routes, module route contributions, the Markdown source editor + safe preview (via the DS-06 `MarkdownField` control, unchanged) and explicit Save on top of this foundation — see [NOTES_MODULE.md](./NOTES_MODULE.md) for that slice. Still deliberately not built:
 
-- Notes collection/record routes, a Notes module manifest, navigation entries, entity icon/search/command-palette registration.
-- A Markdown editor, preview/split-pane editing, autosave UI.
-- Tags, folders, Areas filtering, organisation.
+- Autosave, and any lifecycle action (soft-delete/restore) beyond create/rename — tracked as [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish).
+- Tags, folders, Areas filtering, organisation, content search.
 - EntityLinks/backlinks, wikilinks/mentions ([NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks), [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search)).
-- Mobile-specific Notes work ([NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile)).
+- Mobile-specific Notes work beyond the DS-11 baseline NOTES-01B already inherits ([NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile)).
 - Attachments/R2, Diary integration, AI features, import/export.
 
-**NOTES-01 is not complete.** This PR delivers only the persistence and domain foundation described above; [NOTES-01](../roadmap/ROADMAP_V2.md#-notes-01--note-record--markdown-editor)'s roadmap status is unchanged.
+NOTES-01A and NOTES-01B are each done in full; [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish) (autosave, lifecycle actions, further editor polish) remains not started.
 
 ## Why no new ADR
 
@@ -140,6 +139,7 @@ No kernel contract changed shape, no new storage technology was introduced, and 
 ---
 
 ## Related documents
+- [`NOTES_MODULE.md`](NOTES_MODULE.md) — the NOTES-01B collection/creation/canonical-record UI built on this foundation.
 - [`MARKDOWN_PIPELINE.md`](MARKDOWN_PIPELINE.md) — the authoritative Markdown source/validation/rendering contract this slice consumes unchanged.
 - [`SPINE_MODEL.md`](SPINE_MODEL.md) — why Notes are deliberately outside the spine.
 - [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md) — how the kernel/platform layers fit together.

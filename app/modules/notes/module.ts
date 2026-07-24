@@ -12,9 +12,11 @@
  * NOTES-01A additionally registers the `note.content_updated` Activity event
  * emitted by `NoteDetailsRepository` (`app/kernel/notes`) — the Note-owned
  * Markdown-content persistence slice — mirroring the Goals module's
- * `goal.details_updated` registration exactly. The record/editor UI itself
- * (NOTES-01) still owns the real implementation and extends this manifest
- * (routes, entity-link types, further Activity events) when it lands.
+ * `goal.details_updated` registration exactly. NOTES-01B extends this
+ * manifest's `routes` (collection, creation, canonical record, mutation,
+ * activity) — see `docs/development/NOTES_MODULE.md`. It registers no new
+ * entity type or Activity type: `note` and `note.content_updated` were
+ * already pre-registered by NOTES-01A.
  */
 
 import { defineModule } from "~/kernel/modules";

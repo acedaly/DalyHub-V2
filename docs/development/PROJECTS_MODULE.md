@@ -639,7 +639,7 @@ ergonomics and proof across the whole journey.
 
 ## What remains for PROJ-03
 
-PROJ-03 (notes/knowledge, blocked on NOTES-01) is **not started**. PROJ-01
+PROJ-03 (notes/knowledge, blocked on NOTES-01B) is **not started**. PROJ-01
 overview, PROJ-02 health, PROJ-04 Activity, PROJ-05 settings/archival/Today
 integration, and PROJ-06 mobile are complete. Deferred refinements are tracked in
 [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
