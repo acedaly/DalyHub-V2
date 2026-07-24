@@ -98,6 +98,24 @@ describe("NoteOverview", () => {
     );
   });
 
+  it("shows the Summary's Updated date from a content save that postdates the last rename", () => {
+    renderInRouter(
+      <NoteOverview
+        overview={overview({ updatedAt: "2026-07-20T10:00:00.000Z" })}
+        details={details({
+          content: "Hello",
+          contentUpdatedAt: "2026-07-22T09:00:00.000Z",
+        })}
+        onRename={() => {}}
+        onSaved={() => {}}
+        activityTab={<div>Activity content</div>}
+      />,
+    );
+
+    expect(screen.getByText("22 Jul 2026")).toBeInTheDocument();
+    expect(screen.queryByText("20 Jul 2026")).not.toBeInTheDocument();
+  });
+
   it("switches to the Activity tab and renders its content", () => {
     renderInRouter(
       <NoteOverview

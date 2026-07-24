@@ -33,6 +33,15 @@ const NOTE_ENTITY_QUERY = `
 `;
 const NOTE_CLEANUP_SQL = [
   `DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${NOTE_ENTITY_QUERY});`,
+  // `activities` rows carry no foreign key back to `entities` — removing the
+  // subject rows above (needed to satisfy `activity_subjects`' own RESTRICT
+  // before the entities below can be removed) does not cascade to the
+  // `activities` rows themselves. Every activity this journey creates is
+  // single-subject, so once its only subject row is gone it has zero
+  // remaining `activity_subjects` references; delete exactly those
+  // now-orphaned rows so Activity history does not silently accumulate
+  // across every local e2e run.
+  `DELETE FROM activities WHERE workspace_id = 'local-dev-workspace' AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
   `DELETE FROM note_details WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${NOTE_ENTITY_QUERY});`,
   `DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND id IN (${NOTE_ENTITY_QUERY});`,
 ] as const;

@@ -22,9 +22,10 @@ import {
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NoteContentForm } from "./NoteContentForm";
-import type {
-  SerializedNoteDetails,
-  SerializedNoteOverview,
+import {
+  effectiveNoteUpdatedAt,
+  type SerializedNoteDetails,
+  type SerializedNoteOverview,
 } from "./note-view";
 
 interface NoteOverviewProps {
@@ -51,7 +52,14 @@ export function NoteOverview({
   onTabChange,
 }: NoteOverviewProps) {
   const created = dateLabel(overview.createdAt);
-  const updated = dateLabel(overview.updatedAt);
+  // The record's "Updated" value must reflect a content-only save too — the
+  // entity's own `updatedAt` only advances on rename, while a Markdown save
+  // advances `noteDetails.contentUpdatedAt` instead (NOTES_PERSISTENCE.md's
+  // content-timestamp contract). `effectiveNoteUpdatedAt` is the later of the
+  // two, matching the Activity tab's reload key.
+  const updated = dateLabel(
+    effectiveNoteUpdatedAt(overview.updatedAt, details.contentUpdatedAt),
+  );
 
   const summaryMetadata: RecordMetaItem[] = [];
   if (created) {
