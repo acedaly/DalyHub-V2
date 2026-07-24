@@ -24,6 +24,7 @@
     "deploy:dry-run": "pnpm run build && wrangler deploy --dry-run --config build/server/wrangler.json",
     "deploy:production:preflight": "node scripts/deploy-production.mjs --preflight-only",
     "deploy:production": "node scripts/deploy-production.mjs",
+    "roadmap:production": "node scripts/roadmap-production.mjs",
     "cf-typegen": "wrangler types",
     "db:migrations:list:local": "wrangler d1 migrations list DB --local",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
