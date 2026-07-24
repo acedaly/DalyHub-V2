@@ -275,8 +275,26 @@ describe("module discovery", () => {
           file: "routes/task-waiting-targets.tsx",
         },
         // PX-03 — one navigable Coming Soon placeholder route per shell module,
-        // in module-registration order.
+        // in module-registration order. NOTES-01B replaced the Notes
+        // placeholder with the real collection/create/canonical-record/
+        // mutation/activity routes.
         { id: "notes.index", moduleId: "notes", file: "routes/index.tsx" },
+        { id: "notes.new", moduleId: "notes", file: "routes/new.tsx" },
+        {
+          id: "notes.detail",
+          moduleId: "notes",
+          file: "routes/detail.tsx",
+        },
+        {
+          id: "notes.mutate",
+          moduleId: "notes",
+          file: "routes/mutate.tsx",
+        },
+        {
+          id: "notes.activity",
+          moduleId: "notes",
+          file: "routes/activity.tsx",
+        },
         { id: "diary.index", moduleId: "diary", file: "routes/index.tsx" },
         {
           id: "meetings.index",
