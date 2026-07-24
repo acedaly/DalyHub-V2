@@ -1,0 +1,11 @@
+
+> dalyhub-v2@0.0.0 lint /home/runner/work/DalyHub-V2/DalyHub-V2
+> eslint .
+
+
+/home/runner/work/DalyHub-V2/DalyHub-V2/scripts/roadmap-production.mjs
+  31:31  error  Unnecessary escape character: \)  no-useless-escape
+
+✖ 1 problem (1 error, 0 warnings)
+
+ ELIFECYCLE  Command failed with exit code 1.
