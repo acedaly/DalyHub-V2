@@ -175,18 +175,24 @@ function alignmentSummary(
   if (open.length === 0) {
     return null;
   }
-  const neglected = open.filter(
-    (goal) => goal.alignment.state === "neglected",
-  ).length;
+  // Base the claim ONLY on `active` vs. the open total — never infer "every
+  // Goal has had recent action" from "no Goal is neglected", since
+  // `no_structure`/`unreachable` Goals are also not `active` and have NOT
+  // had recent action either; they are just not classified `neglected`.
   const active = open.filter(
     (goal) => goal.alignment.state === "active",
   ).length;
-  if (neglected === 0) {
+  const goalNoun = open.length === 1 ? "Goal" : "Goals";
+  if (active === open.length) {
     return open.length === 1
       ? "This Goal has had recent action."
       : "Every open Goal has had recent action.";
   }
-  const goalNoun = open.length === 1 ? "Goal" : "Goals";
+  if (active === 0) {
+    return open.length === 1
+      ? "This Goal has not had recent action yet."
+      : "No open Goals have had recent action yet.";
+  }
   return `${active} of ${open.length} open ${goalNoun} ${open.length === 1 ? "has" : "have"} had recent action.`;
 }
 
@@ -219,7 +225,9 @@ function GoalsCollection({
   const subtitle = failed
     ? "We couldn't load your Goals."
     : hasMore
-      ? `${count} Goals loaded`
+      ? count === 1
+        ? "1 Goal loaded"
+        : `${count} Goals loaded`
       : count === 1
         ? "1 Goal"
         : `${count} Goals`;

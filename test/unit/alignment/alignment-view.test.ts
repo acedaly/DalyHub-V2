@@ -164,6 +164,27 @@ describe("evidenceDateLabel", () => {
       evidenceDateLabel("2026-07-10T10:00:00.000Z", "2026-07-24"),
     ).toContain("(14 days ago)");
   });
+
+  it("uses the owner's Sydney calendar day, not the UTC day, near UTC midnight (regression)", () => {
+    // 2026-07-23T15:00:00.000Z is winter in Sydney (AEST, UTC+10, no DST) —
+    // 2026-07-24T01:00 locally. A naive UTC-date slice would read this as
+    // "2026-07-23" (yesterday, relative to todayIso "2026-07-24"); the
+    // owner-calendar conversion correctly reads it as "today", matching how
+    // the alignment STATE itself (via `calendarIsoOf`) would classify the
+    // same instant.
+    expect(
+      evidenceDateLabel("2026-07-23T15:00:00.000Z", "2026-07-24"),
+    ).toContain("(today)");
+  });
+
+  it("keeps a genuinely-earlier-Sydney-day instant labelled correctly near midnight", () => {
+    // 2026-07-23T05:00:00.000Z -> 2026-07-23T15:00 Sydney (AEST) -- still
+    // "yesterday" relative to todayIso "2026-07-24", proving the fix is not
+    // simply always advancing the date.
+    expect(
+      evidenceDateLabel("2026-07-23T05:00:00.000Z", "2026-07-24"),
+    ).toContain("(yesterday)");
+  });
 });
 
 describe("createOwnerAlignmentContext", () => {

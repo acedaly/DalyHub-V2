@@ -142,12 +142,17 @@ export function serializeGoalAlignmentEvidence(
 
 /** A calm "today" / "yesterday" / "N days ago" label for one evidence row's
  * date, computed against the SAME owner-calendar day the alignment state
- * itself used — never a raw ISO timestamp in the UI. */
+ * itself used — never a raw ISO timestamp in the UI. The occurred instant is
+ * converted through the SAME `ownerCalendarIso` helper the evaluator's
+ * `calendarIsoOf` uses (never a raw UTC slice): near UTC midnight, the
+ * owner's Sydney calendar date can differ from the UTC date, and using the
+ * UTC date here would disagree with the alignment state's own "how long
+ * ago" reasoning by a day. */
 export function evidenceDateLabel(
   occurredAtIso: string,
   todayIso: string,
 ): string {
-  const occurredDate = occurredAtIso.slice(0, 10);
+  const occurredDate = ownerCalendarIso(new Date(occurredAtIso));
   const days = Math.max(0, daysBetweenIsoDates(occurredDate, todayIso));
   const formatted = formatCalendarDate(occurredDate) ?? occurredDate;
   if (days === 0) {

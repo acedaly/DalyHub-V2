@@ -104,12 +104,19 @@ describe("Goals collection (the Alignment view)", () => {
     expect(screen.getByText("We couldn't load your Goals")).toBeInTheDocument();
   });
 
-  it("says loaded count, not total, when another page exists", () => {
+  it("says loaded count, not total, when another page exists (correctly pluralised)", () => {
     renderCollection([goal()], { nextCursor: "cursor-next" });
-    expect(screen.getByText("1 Goals loaded")).toBeInTheDocument();
+    expect(screen.getByText("1 Goal loaded")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Load more Goals" }),
     ).toBeInTheDocument();
+  });
+
+  it("pluralises the loaded count for more than one Goal", () => {
+    renderCollection([goal({ id: "g1" }), goal({ id: "g2" })], {
+      nextCursor: "cursor-next",
+    });
+    expect(screen.getByText("2 Goals loaded")).toBeInTheDocument();
   });
 
   it("shows a calm, honest recap sentence — plain counts, never a percentage", () => {
@@ -129,6 +136,86 @@ describe("Goals collection (the Alignment view)", () => {
     expect(
       screen.getByText("This Goal has had recent action."),
     ).toBeInTheDocument();
+  });
+
+  it("never claims recent action for a no_structure-only collection (regression: absence of `neglected` is not `active`)", () => {
+    renderCollection([
+      goal({
+        id: "g1",
+        alignment: alignment({
+          state: "no_structure",
+          label: "No contribution path",
+          tone: "neutral",
+          reasons: [
+            {
+              code: "no_structure",
+              tone: "neutral",
+              summary: "No Projects currently advance this Goal.",
+            },
+          ],
+        }),
+      }),
+    ]);
+    expect(
+      screen.getByText("This Goal has not had recent action yet."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("This Goal has had recent action."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/every open goal has had recent action/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("never claims recent action for an unreachable-only collection", () => {
+    renderCollection([
+      goal({
+        id: "g1",
+        alignment: alignment({
+          state: "unreachable",
+          label: "Structure archived",
+          tone: "neutral",
+          reasons: [
+            {
+              code: "unreachable_archived",
+              tone: "neutral",
+              summary: "The one Project linked to this Goal is archived.",
+              count: 1,
+            },
+          ],
+        }),
+      }),
+    ]);
+    expect(
+      screen.getByText("This Goal has not had recent action yet."),
+    ).toBeInTheDocument();
+  });
+
+  it("reports the true active fraction for a mixed active + no_structure collection", () => {
+    renderCollection([
+      goal({
+        id: "g1",
+        alignment: alignment({ state: "active" }),
+      }),
+      goal({
+        id: "g2",
+        alignment: alignment({
+          state: "no_structure",
+          label: "No contribution path",
+          tone: "neutral",
+          reasons: [
+            {
+              code: "no_structure",
+              tone: "neutral",
+              summary: "No Projects currently advance this Goal.",
+            },
+          ],
+        }),
+      }),
+    ]);
+    const status = screen.getByRole("status");
+    expect(status.textContent).toMatch(/1 of 2 open Goals/);
+    expect(status.textContent).not.toMatch(/every open goal/i);
   });
 
   it("sorts neglected Goals before active Goals for at-a-glance scanning", () => {
