@@ -254,17 +254,6 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
       releaseResponse = resolve;
     });
     let gateArmed = true;
-    page.on("response", (response) => {
-      if (response.url().includes("/mutate")) {
-        // eslint-disable-next-line no-console
-        console.log(
-          "[response]",
-          Date.now(),
-          response.status(),
-          response.url(),
-        );
-      }
-    });
     await page.route("**/mutate", async (route) => {
       const body = route.request().postData() ?? "";
       // eslint-disable-next-line no-console
@@ -274,14 +263,30 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
         !body.includes("update_content") ||
         !gateArmed
       ) {
-        await route.continue();
+        const response = await route.fetch();
+        // eslint-disable-next-line no-console
+        console.log(
+          "[fetched]",
+          Date.now(),
+          response.status(),
+          await response.text(),
+        );
+        await route.fulfill({ response });
         return;
       }
       gateArmed = false;
       await gate;
       // eslint-disable-next-line no-console
       console.log("[route] releasing gated request", Date.now());
-      await route.continue();
+      const response = await route.fetch();
+      // eslint-disable-next-line no-console
+      console.log(
+        "[fetched]",
+        Date.now(),
+        response.status(),
+        await response.text(),
+      );
+      await route.fulfill({ response });
     });
 
     await editor.fill("Content A — will be superseded");
