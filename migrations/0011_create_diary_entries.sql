@@ -7,11 +7,16 @@
 -- entry on the Timeline, the capture TIMEZONE and the capture SOURCE. Rendered
 -- HTML is never stored (FND-08 / ADR-006 / ADR-015).
 --
--- Unlike note_details (where an absent row means "empty content"), EVERY Diary
--- Entry has EXACTLY ONE row here, written atomically with the `entities` row by
--- the authoritative DiaryRepository — the generic EntityRepository refuses to
--- create a 'diary' entity, so a detail-less entry is impossible. Additive, with
--- NO backfill: every entry is created fresh with its slice.
+-- Unlike note_details (where an absent row means "empty content" and the read
+-- LEFT-JOINs), EVERY Diary Entry MUST have EXACTLY ONE row here: the Timeline
+-- read INNER-JOINs this table, so a detail-less 'diary' entity would be
+-- invisible and unrepairable through the DiaryRepository. Going forward the
+-- generic EntityRepository refuses to create a 'diary' entity, so a fresh
+-- detail-less entry is impossible. This migration additionally BACKFILLS any
+-- pre-existing 'diary' entity (which, before DIARY-01A, the generic repository
+-- could create) with an explicit-default detail row (see the INSERT below), so
+-- the "every diary entity has a detail row" invariant holds for old AND new
+-- data and no entity is left in a permanent partial state (ADR-041 §41.2).
 --
 -- Chronology is the primary organising principle (ADR-041): `occurred_at` is the
 -- Timeline sort key, distinct from the record's `created_at`/`updated_at`, so an
@@ -50,3 +55,18 @@ CREATE INDEX diary_entry_details_timeline
 -- Type-filtered Timeline access path: entries of a given type by occurred_at.
 CREATE INDEX diary_entry_details_type_timeline
   ON diary_entry_details (workspace_id, entry_type, occurred_at, entity_id);
+
+-- Backfill any pre-existing 'diary' entity with an explicit-default detail row so
+-- it stays visible/editable through the DiaryRepository's INNER-JOIN read. The
+-- defaults are deliberate and honest: entry_type 'note' (the neutral default
+-- kind), occurred_at = the entity's own created_at (the only truthful chronology
+-- signal available for a legacy row), timezone 'UTC', source 'manual', and
+-- updated_at = the entity's updated_at. Idempotent (this migration runs once, and
+-- the primary key would reject a duplicate regardless). New entries never reach
+-- this path — they are created with their real slice by the repository.
+INSERT INTO diary_entry_details
+  (workspace_id, entity_id, entry_type, body, occurred_at, timezone,
+   source_channel, source_reference, updated_at)
+SELECT workspace_id, id, 'note', NULL, created_at, 'UTC', 'manual', NULL, updated_at
+FROM entities
+WHERE type = 'diary';

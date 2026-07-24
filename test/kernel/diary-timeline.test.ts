@@ -188,7 +188,7 @@ describe("Day grouping composes with a Timeline page", () => {
       { type: "note", at: "2026-07-19T22:00:00.000Z" },
     ]);
     const page = await repo.list();
-    const groups = groupEntriesByDay(page.items);
+    const groups = groupEntriesByDay(page.items, "UTC");
     expect(groups.map((g) => g.day)).toEqual(["2026-07-20", "2026-07-19"]);
     expect(groups[0]!.entries).toHaveLength(2);
   });

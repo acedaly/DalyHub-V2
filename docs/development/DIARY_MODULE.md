@@ -70,7 +70,7 @@ substrate rather than inventing a parallel "journal store".
 
 The base `entities` table models no occurred-at, entry type, body or source, so —
 mirroring `task_details`/`goal_details`/`note_details` (ADR-028) — an additive,
-STRICT `diary_entry_details` table (migration `0011`, no backfill) owns **only**
+STRICT `diary_entry_details` table (migration `0011`) owns **only**
 the slice `entities` does not:
 
 | Column | Meaning |
@@ -84,9 +84,16 @@ the slice `entities` does not:
 
 Its composite foreign key `(workspace_id, entity_id, entity_type='diary') →
 entities(workspace_id, id, type)` `ON DELETE RESTRICT` makes a details row on a
-non-`diary` entity impossible and prevents a destructive cascade. Unlike
-`note_details`, **every** Diary Entry has exactly one row here, written atomically
-with the `entities` row (§3.5).
+non-`diary` entity impossible and prevents a destructive cascade. **Every** Diary
+Entry has exactly one row here (the Timeline read INNER-JOINs it, so a
+detail-less `diary` entity would be invisible). Two mechanisms uphold that: new
+entries are written atomically with the `entities` row and creation is reserved
+(§3.5), and migration `0011` **backfills** any pre-existing `diary` entity —
+which the generic repository could create before DIARY-01A — with an
+explicit-default row (`entry_type='note'`, `occurred_at=created_at`,
+`timezone='UTC'`, `source='manual'`). This deliberately differs from
+`note_details`' no-backfill because the read semantics differ (INNER vs LEFT
+JOIN); no entity is left in a partial state.
 
 ### 3.3 Chronology first: `occurred_at`, not `created_at`
 
@@ -150,9 +157,15 @@ workspace + order + filter + range + delete-mode — a cursor from any other sco
 is rejected, never reinterpreted.
 
 **Day and month grouping** are PURE kernel functions (`groupEntriesByDay`,
-`groupEntriesByMonth` — UTC keys, no `Intl`) over a returned page, so the future
-Desktop Timeline and Mobile Capture share one correct grouping implementation.
-`list` returns a flat, ordered page; grouping composes on top.
+`groupEntriesByMonth`) over a returned page, so the future Desktop Timeline and
+Mobile Capture share one correct grouping implementation. Grouping resolves each
+entry's `occurredAt` in an **explicit, required display timezone** (normally the
+active user/workspace zone) — not a hidden UTC default — so an entry near local
+midnight lands under the correct **local** calendar day (an entry at 23:30 in
+Sydney groups under that Sydney day, not the previous UTC day), correct across
+daylight-saving transitions. It uses `Intl.DateTimeFormat` with an explicit
+`timeZone`, which is deterministic and hydration-safe. `list` returns a flat,
+ordered page; grouping composes on top.
 
 ---
 
@@ -227,7 +240,7 @@ without becoming part of it.
 | `app/kernel/diary/diary-entry.ts` | The canonical `DiaryEntry` model + create/update inputs. |
 | `app/kernel/diary/diary-validation.ts` | Boundary validation (capture-first defaults, IANA timezone, optional body). |
 | `app/kernel/diary/diary-cursor.ts` | The scope-bound, versioned Timeline cursor. |
-| `app/kernel/diary/diary-grouping.ts` | Pure day/month grouping (UTC, no `Intl`). |
+| `app/kernel/diary/diary-grouping.ts` | Pure day/month grouping in an explicit display timezone. |
 | `app/kernel/diary/diary-repository.ts` | The `DiaryRepository` contract + Timeline input/page types. |
 | `app/kernel/diary/diary-errors.ts` | The typed error family. |
 | `app/platform/storage/d1/d1-diary-repository.ts` | The D1 adapter. |

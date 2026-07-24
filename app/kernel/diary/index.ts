@@ -108,8 +108,8 @@ export type {
 export {
   groupEntriesByDay,
   groupEntriesByMonth,
-  toUtcDayKey,
-  toUtcMonthKey,
+  toLocalDayKey,
+  toLocalMonthKey,
 } from "./diary-grouping";
 export type { DiaryDayGroup, DiaryMonthGroup } from "./diary-grouping";
 

@@ -1,24 +1,28 @@
 /**
- * DIARY-01A — pure day/month grouping of a Timeline page (unit tests).
+ * DIARY-01A — timezone-aware day/month grouping of a Timeline page (unit tests).
  *
- * Proves grouping is by `occurredAt` in UTC, preserves the page order,
- * coalesces contiguous same-key runs into one group, and never relies on `Intl`
- * or the machine's local time zone.
+ * Proves grouping resolves each entry's `occurredAt` in an EXPLICIT display time
+ * zone (never a hidden UTC or machine-local default), so an entry near local
+ * midnight lands under the correct LOCAL calendar day — including across a
+ * daylight-saving transition — while preserving page order and coalescing
+ * contiguous same-day runs.
  */
 
 import { describe, expect, it } from "vitest";
 
 import {
+  DiaryValidationError,
   groupEntriesByDay,
   groupEntriesByMonth,
-  toUtcDayKey,
-  toUtcMonthKey,
+  parseDiaryEntryType,
+  toLocalDayKey,
+  toLocalMonthKey,
   type DiaryEntry,
 } from "~/kernel/diary";
 import { parseWorkspaceId } from "~/kernel/workspaces";
-import { parseDiaryEntryType } from "~/kernel/diary";
 
 const WS = parseWorkspaceId("ws-group");
+const SYDNEY = "Australia/Sydney";
 
 function entry(id: string, occurredAtIso: string): DiaryEntry {
   return {
@@ -28,7 +32,7 @@ function entry(id: string, occurredAtIso: string): DiaryEntry {
     title: id,
     body: null,
     occurredAt: new Date(occurredAtIso),
-    timezone: "UTC",
+    timezone: SYDNEY,
     source: { channel: "manual", reference: null },
     createdAt: new Date(occurredAtIso),
     updatedAt: new Date(occurredAtIso),
@@ -36,48 +40,69 @@ function entry(id: string, occurredAtIso: string): DiaryEntry {
   };
 }
 
-describe("UTC keys", () => {
-  it("formats day and month keys in UTC regardless of local time", () => {
-    // 23:30 UTC — a local-time formatter in a positive offset would roll to the
-    // next day; the UTC key must not.
-    const instant = new Date("2026-07-20T23:30:00.000Z");
-    expect(toUtcDayKey(instant)).toBe("2026-07-20");
-    expect(toUtcMonthKey(instant)).toBe("2026-07");
+describe("local keys resolve in the given display zone", () => {
+  it("places a late-evening Sydney instant under the LOCAL day, not the UTC day", () => {
+    // 2026-07-20T14:30:00Z is 2026-07-21 00:30 in Sydney (AEST, UTC+10).
+    const instant = new Date("2026-07-20T14:30:00.000Z");
+    expect(toLocalDayKey(instant, "UTC")).toBe("2026-07-20");
+    expect(toLocalDayKey(instant, SYDNEY)).toBe("2026-07-21");
+    expect(toLocalMonthKey(instant, SYDNEY)).toBe("2026-07");
   });
 
-  it("pads single-digit months and days", () => {
-    expect(toUtcDayKey(new Date("2026-01-05T00:00:00.000Z"))).toBe(
-      "2026-01-05",
+  it("honours the daylight-saving offset (same wall time, different season → different local day)", () => {
+    // Summer: Sydney is AEDT (UTC+11), so 13:30Z is the NEXT local day.
+    expect(toLocalDayKey(new Date("2026-01-14T13:30:00.000Z"), SYDNEY)).toBe(
+      "2026-01-15",
+    );
+    // Winter: Sydney is AEST (UTC+10), so the same 13:30Z is the SAME local day.
+    expect(toLocalDayKey(new Date("2026-07-14T13:30:00.000Z"), SYDNEY)).toBe(
+      "2026-07-14",
+    );
+  });
+
+  it("rejects an invalid display time zone as a typed validation error", () => {
+    expect(() => toLocalDayKey(new Date(), "Mars/Phobos")).toThrow(
+      DiaryValidationError,
+    );
+    expect(() => groupEntriesByDay([], "Not/AZone")).toThrow(
+      DiaryValidationError,
     );
   });
 });
 
 describe("groupEntriesByDay", () => {
   it("returns an empty array for no entries", () => {
-    expect(groupEntriesByDay([])).toEqual([]);
+    expect(groupEntriesByDay([], SYDNEY)).toEqual([]);
   });
 
-  it("coalesces a contiguous same-day run and preserves order", () => {
+  it("groups by LOCAL day and coalesces a contiguous run, preserving order", () => {
+    // a & b are the same Sydney day (21 Jul); c is the previous Sydney day.
     const entries = [
-      entry("a", "2026-07-20T18:00:00.000Z"),
-      entry("b", "2026-07-20T09:00:00.000Z"),
-      entry("c", "2026-07-19T22:00:00.000Z"),
+      entry("a", "2026-07-21T09:00:00.000Z"), // 19:00 Sydney 21 Jul
+      entry("b", "2026-07-20T14:30:00.000Z"), // 00:30 Sydney 21 Jul
+      entry("c", "2026-07-20T09:00:00.000Z"), // 19:00 Sydney 20 Jul
     ];
-    const groups = groupEntriesByDay(entries);
-    expect(groups.map((g) => g.day)).toEqual(["2026-07-20", "2026-07-19"]);
+    const groups = groupEntriesByDay(entries, SYDNEY);
+    expect(groups.map((g) => g.day)).toEqual(["2026-07-21", "2026-07-20"]);
     expect(groups[0]!.entries.map((e) => e.id)).toEqual(["a", "b"]);
     expect(groups[1]!.entries.map((e) => e.id)).toEqual(["c"]);
+  });
+
+  it("groups the SAME page differently under a different display zone", () => {
+    const entries = [entry("a", "2026-07-20T14:30:00.000Z")];
+    expect(groupEntriesByDay(entries, "UTC")[0]!.day).toBe("2026-07-20");
+    expect(groupEntriesByDay(entries, SYDNEY)[0]!.day).toBe("2026-07-21");
   });
 });
 
 describe("groupEntriesByMonth", () => {
-  it("coalesces a contiguous same-month run and preserves order", () => {
+  it("coalesces a contiguous same-local-month run and preserves order", () => {
     const entries = [
-      entry("a", "2026-07-31T18:00:00.000Z"),
+      entry("a", "2026-07-31T09:00:00.000Z"),
       entry("b", "2026-07-01T09:00:00.000Z"),
-      entry("c", "2026-06-30T22:00:00.000Z"),
+      entry("c", "2026-06-30T09:00:00.000Z"),
     ];
-    const groups = groupEntriesByMonth(entries);
+    const groups = groupEntriesByMonth(entries, SYDNEY);
     expect(groups.map((g) => g.month)).toEqual(["2026-07", "2026-06"]);
     expect(groups[0]!.entries.map((e) => e.id)).toEqual(["a", "b"]);
   });

@@ -40,11 +40,40 @@ describe("migration 0010 → 0011 (diary_entry_details, additive, existing-data 
     expect(row?.sql).toMatch(/\bSTRICT\b/);
   });
 
-  it("performs NO backfill — an existing diary entity has no details row", async () => {
+  it("BACKFILLS a pre-existing diary entity with explicit-default details (so the INNER-JOIN read can see it)", async () => {
+    const row = await DB.prepare(
+      `SELECT entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at
+       FROM diary_entry_details WHERE workspace_id = 'ws_m11' AND entity_id = 'diary_m11'`,
+    ).first<{
+      entry_type: string;
+      body: string | null;
+      occurred_at: string;
+      timezone: string;
+      source_channel: string;
+      source_reference: string | null;
+      updated_at: string;
+    }>();
+    expect(row).not.toBeNull();
+    expect(row?.entry_type).toBe("note");
+    expect(row?.body).toBeNull();
+    // occurred_at defaults to the entity's created_at (the only truthful signal).
+    expect(row?.occurred_at).toBe(AT);
+    expect(row?.timezone).toBe("UTC");
+    expect(row?.source_channel).toBe("manual");
+    expect(row?.source_reference).toBeNull();
+    expect(row?.updated_at).toBe(AT);
+  });
+
+  it("backfills ONLY diary entities — a non-diary entity gets no diary_entry_details row", async () => {
+    const row = await DB.prepare(
+      "SELECT 1 AS x FROM diary_entry_details WHERE entity_id = 'note_m11'",
+    ).first();
+    expect(row).toBeNull();
+    // Exactly one backfilled row (the single pre-existing diary entity).
     const count = await DB.prepare(
       "SELECT COUNT(*) AS n FROM diary_entry_details",
     ).first<{ n: number }>();
-    expect(count?.n).toBe(0);
+    expect(count?.n).toBe(1);
   });
 
   it("enforces the composite (workspace, entity, type) foreign key — a non-diary entity cannot receive a row", async () => {
@@ -63,16 +92,22 @@ describe("migration 0010 → 0011 (diary_entry_details, additive, existing-data 
     expect(threw).toBe(true);
   });
 
-  it("accepts a row for a real diary entity, with a NULL (optional) body", async () => {
+  it("accepts a row for a freshly created diary entity, with a NULL (optional) body", async () => {
+    await DB.prepare(
+      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at)
+       VALUES ('diary_accept', 'ws_m11', 'diary', 'Fresh', ?, ?)`,
+    )
+      .bind(AT, AT)
+      .run();
     await DB.prepare(
       `INSERT INTO diary_entry_details
          (workspace_id, entity_id, entry_type, body, occurred_at, timezone, updated_at)
-       VALUES ('ws_m11', 'diary_m11', 'reflection', NULL, ?, 'Australia/Sydney', ?)`,
+       VALUES ('ws_m11', 'diary_accept', 'reflection', NULL, ?, 'Australia/Sydney', ?)`,
     )
       .bind(AT, AT)
       .run();
     const row = await DB.prepare(
-      "SELECT entry_type, body, timezone, source_channel FROM diary_entry_details WHERE entity_id = 'diary_m11'",
+      "SELECT entry_type, body, timezone, source_channel FROM diary_entry_details WHERE entity_id = 'diary_accept'",
     ).first<{
       entry_type: string;
       body: string | null;
@@ -87,6 +122,12 @@ describe("migration 0010 → 0011 (diary_entry_details, additive, existing-data 
   });
 
   it("rejects an empty entry_type and an empty occurred_at (CHECK constraints)", async () => {
+    await DB.prepare(
+      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at)
+       VALUES ('diary_check', 'ws_m11', 'diary', 'Check', ?, ?)`,
+    )
+      .bind(AT, AT)
+      .run();
     for (const [entryType, occurredAt] of [
       ["", AT],
       ["note", ""],
@@ -96,7 +137,7 @@ describe("migration 0010 → 0011 (diary_entry_details, additive, existing-data 
         await DB.prepare(
           `INSERT INTO diary_entry_details
              (workspace_id, entity_id, entry_type, occurred_at, timezone, updated_at)
-           VALUES ('ws_m11', 'diary_m11', ?, ?, 'UTC', ?)`,
+           VALUES ('ws_m11', 'diary_check', ?, ?, 'UTC', ?)`,
         )
           .bind(entryType, occurredAt, AT)
           .run();
