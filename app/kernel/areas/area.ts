@@ -51,6 +51,13 @@ export type AreaGoalItem = {
   readonly projectCompleted: number;
   readonly taskTotal: number;
   readonly taskCompleted: number;
+  /**
+   * AREA-02: the Goal-owned target date (`YYYY-MM-DD`), read through a batched
+   * `LEFT JOIN` against `goal_details` in the SAME query as every other Goal
+   * card fact — never a per-Goal follow-up read. `null` when unset. Momentum
+   * (AREA-01) never depends on this field.
+   */
+  readonly targetDate: string | null;
 };
 
 export type AreaProjectParentContext =

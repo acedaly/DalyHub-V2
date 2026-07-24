@@ -5,6 +5,8 @@ import {
   createAreaRepository,
   createEntityLinkRepository,
   createEntityRepository,
+  createGoalDetailsRepository,
+  createGoalRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -12,6 +14,7 @@ import {
   createTaskRepository,
   createWorkspaceRepository,
   type AtomicMutationFault,
+  type D1GoalDetailsRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
   type D1SpineRepositoryOptions,
   type D1TaskRepositoryOptions,
@@ -146,6 +149,25 @@ export function makeAreaRepository(context: WorkspaceContext) {
 }
 
 /**
+ * Construct a workspace-scoped, read-only D1-backed GoalRepository over the
+ * isolated test database (AREA-02: the Goal read projection).
+ */
+export function makeGoalRepository(context: WorkspaceContext) {
+  return createGoalRepository(env.DB, context);
+}
+
+/**
+ * Construct a workspace-scoped D1-backed GoalDetailsRepository over the
+ * isolated test database (AREA-02: target date + definition of done).
+ */
+export function makeGoalDetailsRepository(
+  context: WorkspaceContext,
+  options?: D1GoalDetailsRepositoryOptions,
+) {
+  return createGoalDetailsRepository(env.DB, context, options);
+}
+
+/**
  * Construct a workspace-scoped, read-only D1-backed ProjectHealthRepository over the
  * isolated test database (PROJ-02: the derived project-health facts projection,
  * bound to a `WorkspaceContext`).
@@ -170,6 +192,14 @@ export function makeProjectSettingsRepository(
 export async function countProjectDetailRows(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM project_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count all rows in `goal_details` directly. */
+export async function countGoalDetailRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM goal_details",
   ).first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -305,6 +335,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM spine_records").run();
   await env.DB.prepare("DELETE FROM task_details").run();
   await env.DB.prepare("DELETE FROM project_details").run();
+  await env.DB.prepare("DELETE FROM goal_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

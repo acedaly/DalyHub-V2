@@ -65,6 +65,9 @@ export type SerializedAreaGoalItem = {
   readonly projectCompleted: number;
   readonly taskTotal: number;
   readonly taskCompleted: number;
+  /** AREA-02: the Goal-owned target date (`YYYY-MM-DD`), or `null` when unset.
+   * Momentum never depends on this field. */
+  readonly targetDate: string | null;
 };
 
 export type SerializedAreaProjectItem = {
@@ -160,6 +163,7 @@ export function serializeAreaGoalItem(
     projectCompleted: item.projectCompleted,
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
+    targetDate: item.targetDate,
   };
 }
 

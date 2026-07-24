@@ -68,3 +68,23 @@
 .dh-area-not-found {
   min-inline-size: 0;
 }
+
+/* AREA-02: the Goals tab's "New Goal" toolbar. */
+.dh-area-tab-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--dh-space-3);
+  margin-bottom: var(--dh-space-4);
+}
+
+@media (max-width: 30rem) {
+  .dh-area-tab-toolbar {
+    justify-content: stretch;
+  }
+
+  .dh-area-tab-toolbar > .dh-btn {
+    inline-size: 100%;
+    justify-content: center;
+  }
+}

@@ -1,15 +1,18 @@
 /**
- * FND-07 — the Goals product module manifest.
+ * FND-07 / AREA-02 — the Goals product module manifest.
  *
  * A real, side-effect-free production manifest. It registers the `goal` entity
  * type, the single structural link a Goal owns (`goal.belongs_to_area`, directed
- * child → parent), and the Goal completion Activity types. Hierarchy correctness
- * lives in the SpineRepository (ADR-014 §4.1); this manifest only declares
- * discoverable metadata. FND-09 adds the single navigable placeholder route the
- * shell composes; the Goals product experience arrives in its own roadmap phase.
+ * child → parent), the Goal completion Activity types and the Goal-owned
+ * `goal.details_updated` event (target date / definition of done). Hierarchy
+ * correctness lives in the SpineRepository (ADR-014 §4.1); this manifest only
+ * declares discoverable metadata. AREA-02 adds the canonical `/goals/:goalId`
+ * record and its mutation/activity resource routes — see
+ * `docs/development/AREAS_MODULE.md` for the full Goal record surface.
  */
 
 import { defineModule } from "~/kernel/modules";
+import { GOAL_DETAILS_UPDATED } from "~/kernel/goals";
 import {
   AREA,
   GOAL,
@@ -46,6 +49,11 @@ export default defineModule({
       type: GOAL_REOPENED,
       label: "Goal reopened",
       description: "A completed goal was reopened.",
+    },
+    {
+      type: GOAL_DETAILS_UPDATED,
+      label: "Goal details updated",
+      description: "A goal's target date or definition of done changed.",
     },
   ],
 });

@@ -1,5 +1,10 @@
 /**
- * AREA-01 — canonical Area record, composed through the shared DS-02 Record Layout.
+ * AREA-01/AREA-02 — canonical Area record, composed through the shared DS-02
+ * Record Layout. AREA-02 upgrades the Goals tab: each card links to the
+ * canonical `/goals/:goalId` record, shows its target date when set (batched,
+ * never a per-Goal read), and the tab gains a "New Goal" action — the exact
+ * roll-up totals and bounded-card-page honesty AREA-01 established are
+ * unchanged.
  */
 
 import type { ReactNode } from "react";
@@ -10,6 +15,7 @@ import {
   type CardMetaItem,
   type CardProps,
 } from "~/shared/card";
+import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { HealthIndicator } from "~/shared/project-health";
@@ -32,6 +38,9 @@ import {
   type SerializedAreaRollup,
 } from "./area-view";
 
+/** The Drawer key that opens the AREA-02 "New Goal" create form. */
+export const NEW_GOAL_KEY = "new-goal";
+
 interface AreaOverviewViewProps {
   readonly overview: SerializedAreaOverview;
   readonly rollup: SerializedAreaRollup;
@@ -41,6 +50,7 @@ interface AreaOverviewViewProps {
   readonly projects: readonly SerializedAreaProjectItem[];
   readonly projectsNextCursor: string | null;
   readonly onRename: () => void;
+  readonly onOpenGoal: (goalId: string) => void;
   readonly onOpenProject: (projectId: string) => void;
   readonly activityTab: ReactNode;
   readonly activeTabId?: string;
@@ -72,7 +82,10 @@ function MomentumPanel({ momentum }: { readonly momentum: AreaMomentum }) {
   );
 }
 
-function goalCard(goal: SerializedAreaGoalItem): CardProps {
+function goalCard(
+  goal: SerializedAreaGoalItem,
+  onOpenGoal: (goalId: string) => void,
+): CardProps {
   const projects = rollupProgress(
     {
       total: goal.projectTotal,
@@ -102,6 +115,14 @@ function goalCard(goal: SerializedAreaGoalItem): CardProps {
   if (!tasks.has) {
     metadata.push({ id: "tasks", label: "Tasks", value: "No tasks yet" });
   }
+  // AREA-02: only shown when set, so an Area with no Goal target dates yet
+  // never overcrowds the card with an empty field.
+  if (goal.targetDate) {
+    const formatted = formatCalendarDate(goal.targetDate);
+    if (formatted) {
+      metadata.push({ id: "target", label: "Target", value: formatted });
+    }
+  }
 
   return {
     id: goal.id,
@@ -120,6 +141,9 @@ function goalCard(goal: SerializedAreaGoalItem): CardProps {
       : undefined,
     density: "comfortable",
     presentation: "list",
+    href: `/goals/${encodeURIComponent(goal.id)}`,
+    onOpen: () => onOpenGoal(goal.id),
+    openAriaLabel: `Open ${goal.title}`,
   };
 }
 
@@ -205,6 +229,7 @@ export function AreaOverviewView({
   projects,
   projectsNextCursor,
   onRename,
+  onOpenGoal,
   onOpenProject,
   activityTab,
   activeTabId,
@@ -294,18 +319,36 @@ export function AreaOverviewView({
               <EmptyState
                 icon={<EntityIcon type="goal" />}
                 title="No Goals in this Area"
-                description="Goals for this Area will appear here once AREA-02 adds Goal records."
+                description="Goals give this Area a direction and a definition of done."
+                primaryAction={
+                  <DrawerTrigger
+                    drawerKey={NEW_GOAL_KEY}
+                    className="dh-btn dh-btn--primary"
+                  >
+                    New Goal
+                  </DrawerTrigger>
+                }
               />
             ) : (
               <>
                 <h2 className="dh-visually-hidden">Goals</h2>
+                <div className="dh-area-tab-toolbar">
+                  <DrawerTrigger
+                    drawerKey={NEW_GOAL_KEY}
+                    className="dh-btn dh-btn--secondary"
+                  >
+                    New Goal
+                  </DrawerTrigger>
+                </div>
                 <CardCollection
                   items={goals}
                   getItemId={(goal) => goal.id}
                   ariaLabel="Area Goals"
                   presentation="list"
                   density="comfortable"
-                  renderCard={(goal) => <Card {...goalCard(goal)} />}
+                  renderCard={(goal) => (
+                    <Card {...goalCard(goal, onOpenGoal)} />
+                  )}
                 />
                 <BoundedNote kind="Goals" nextCursor={goalsNextCursor} />
               </>

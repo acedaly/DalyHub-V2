@@ -31,11 +31,12 @@ import {
 } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
+import { NewGoalForm } from "~/shared/goal-creation/NewGoalForm";
 import { createOwnerHealthContext } from "~/shared/project-health";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { AreaActivityTab } from "../AreaActivityTab";
-import { AreaOverviewView } from "../AreaOverview";
+import { NEW_GOAL_KEY, AreaOverviewView } from "../AreaOverview";
 import { RenameAreaForm } from "../RenameAreaForm";
 import {
   serializeAreaGoalItem,
@@ -247,6 +248,13 @@ function createAreaDrawerRenderer(areaId: string, title: string) {
         children: <RenameDrawerHost areaId={areaId} currentTitle={title} />,
       };
     }
+    if (entry.key === NEW_GOAL_KEY) {
+      return {
+        title: "New Goal",
+        description: "Give this Area a Goal.",
+        children: <NewGoalDrawerHost areaId={areaId} />,
+      };
+    }
     return null;
   };
 }
@@ -268,6 +276,18 @@ function RenameDrawerHost({
         revalidator.revalidate();
         closeDrawer();
       }}
+      onCancel={closeDrawer}
+    />
+  );
+}
+
+function NewGoalDrawerHost({ areaId }: { readonly areaId: string }) {
+  const navigate = useNavigate();
+  const { closeDrawer } = useDrawer();
+  return (
+    <NewGoalForm
+      areaId={areaId}
+      onCreated={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}
       onCancel={closeDrawer}
     />
   );
@@ -310,6 +330,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       projects={props.projects}
       projectsNextCursor={props.projectsNextCursor}
       onRename={() => openDrawer(RENAME_KEY)}
+      onOpenGoal={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}
       onOpenProject={(projectId) =>
         navigate(`/projects/${encodeURIComponent(projectId)}`)
       }

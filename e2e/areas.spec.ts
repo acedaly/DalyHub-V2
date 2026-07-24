@@ -41,8 +41,11 @@ test.describe("AREA-01 — Areas", () => {
     await expect(
       page.getByRole("article", { name: "Launch the site" }),
     ).toBeVisible();
-    const goalsCard = page.getByRole("article", { name: "Launch the site" });
-    await expect(goalsCard.getByRole("link")).toHaveCount(0);
+    // AREA-02: a Goal card is now a real link to its canonical record.
+    const openGoalLink = page.getByRole("link", {
+      name: "Open Launch the site",
+    });
+    await expect(openGoalLink).toHaveAttribute("href", /^\/goals\//);
 
     await page.getByRole("tab", { name: /Projects/ }).click();
     await expect(page).toHaveURL(/\/areas\/a-dh\?tab=projects/);

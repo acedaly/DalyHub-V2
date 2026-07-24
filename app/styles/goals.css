@@ -1,0 +1,56 @@
+/*
+ * AREA-02 Goals module styles.
+ *
+ * Module-local layout only; shared Card, Record Layout, Drawer, Forms and
+ * Timeline styles remain the authority for their own components.
+ */
+
+.dh-goal-overview__summary {
+  display: grid;
+  gap: var(--dh-space-4);
+  min-inline-size: 0;
+}
+
+.dh-goal-overview__definition-heading {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-goal-overview__definition-text {
+  margin: 0;
+  /* Plain text, not Markdown — line breaks are preserved accessibly without a
+   * rendering pipeline, and long content wraps without horizontal overflow. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-overview__definition-empty {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-style: italic;
+}
+
+.dh-goal-overview__progress {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-overview__progress-label {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-goal-bounded-note {
+  margin: var(--dh-space-4) 0 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-activity,
+.dh-goal-not-found {
+  min-inline-size: 0;
+}

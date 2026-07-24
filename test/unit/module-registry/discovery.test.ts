@@ -154,6 +154,16 @@ describe("module discovery", () => {
           file: "routes/activity.tsx",
         },
         { id: "goals.index", moduleId: "goals", file: "routes/index.tsx" },
+        // AREA-02 adds the canonical Goal record page and its create/mutate/
+        // activity resource routes.
+        { id: "goals.new", moduleId: "goals", file: "routes/new.tsx" },
+        { id: "goals.detail", moduleId: "goals", file: "routes/detail.tsx" },
+        { id: "goals.mutate", moduleId: "goals", file: "routes/mutate.tsx" },
+        {
+          id: "goals.activity",
+          moduleId: "goals",
+          file: "routes/activity.tsx",
+        },
         // PROJ-01 adds the collection + record page routes and the create/mutate/
         // link-target resource routes.
         {

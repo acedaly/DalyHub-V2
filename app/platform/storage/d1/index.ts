@@ -16,6 +16,7 @@ import type { ActivityRepository } from "~/kernel/activity";
 import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -36,6 +37,11 @@ import {
   D1EntityLinkRepository,
   type D1EntityLinkRepositoryOptions,
 } from "./d1-entity-link-repository";
+import {
+  D1GoalDetailsRepository,
+  type D1GoalDetailsRepositoryOptions,
+} from "./d1-goal-details-repository";
+import { D1GoalRepository } from "./d1-goal-repository";
 import { D1ProjectHealthRepository } from "./d1-project-health-repository";
 import { D1ProjectRepository } from "./d1-project-repository";
 import {
@@ -70,6 +76,11 @@ export {
 };
 export { D1ActivityRepository };
 export { D1AreaRepository };
+export { D1GoalRepository };
+export {
+  D1GoalDetailsRepository,
+  type D1GoalDetailsRepositoryOptions,
+} from "./d1-goal-details-repository";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
@@ -168,6 +179,34 @@ export function createAreaRepository(
   context: WorkspaceContext,
 ): AreaRepository {
   return new D1AreaRepository(db, context);
+}
+
+/**
+ * Factory for the workspace-scoped, READ-ONLY D1-backed GoalRepository — the
+ * AREA-02 Goal read projection. It performs no mutations and resolves live
+ * Goal-record facts (the resolved Area, exact Project contribution) in bounded,
+ * parameterised queries. Bound to a `WorkspaceContext`; there is no unscoped
+ * construction path.
+ */
+export function createGoalRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): GoalRepository {
+  return new D1GoalRepository(db, context);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed GoalDetailsRepository — the
+ * AREA-02 Goal-owned detail slice (target date, definition of done). Like the
+ * other mutation repositories it is bound to a `WorkspaceContext` and a trusted
+ * Activity actor; there is no way to construct one without a context.
+ */
+export function createGoalDetailsRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1GoalDetailsRepositoryOptions,
+): GoalDetailsRepository {
+  return new D1GoalDetailsRepository(db, context, options);
 }
 
 /**

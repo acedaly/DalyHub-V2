@@ -1,5 +1,5 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AreaOverviewView } from "~/modules/areas/AreaOverview";
@@ -10,6 +10,7 @@ import type {
   SerializedAreaRollup,
 } from "~/modules/areas/area-view";
 import type { AreaMomentum } from "~/kernel/areas";
+import { DrawerProvider } from "~/shared/drawer";
 
 import { stubHealth } from "../../support/project-health";
 
@@ -52,6 +53,7 @@ const goal: SerializedAreaGoalItem = {
   projectCompleted: 0,
   taskTotal: 2,
   taskCompleted: 1,
+  targetDate: null,
 };
 
 const project: SerializedAreaProjectItem = {
@@ -76,6 +78,7 @@ function renderRecord(
     goalsNextCursor?: string | null;
     projectsNextCursor?: string | null;
     onRename?: () => void;
+    onOpenGoal?: (id: string) => void;
     onOpenProject?: (id: string) => void;
   } = {},
 ) {
@@ -84,18 +87,21 @@ function renderRecord(
       {
         path: "/areas/a1",
         element: (
-          <AreaOverviewView
-            overview={overview}
-            rollup={rollup}
-            momentum={momentum}
-            goals={over.goals ?? [goal]}
-            goalsNextCursor={over.goalsNextCursor ?? null}
-            projects={over.projects ?? [project]}
-            projectsNextCursor={over.projectsNextCursor ?? null}
-            onRename={over.onRename ?? (() => {})}
-            onOpenProject={over.onOpenProject ?? (() => {})}
-            activityTab={<div>activity-content</div>}
-          />
+          <DrawerProvider renderDrawer={() => null}>
+            <AreaOverviewView
+              overview={overview}
+              rollup={rollup}
+              momentum={momentum}
+              goals={over.goals ?? [goal]}
+              goalsNextCursor={over.goalsNextCursor ?? null}
+              projects={over.projects ?? [project]}
+              projectsNextCursor={over.projectsNextCursor ?? null}
+              onRename={over.onRename ?? (() => {})}
+              onOpenGoal={over.onOpenGoal ?? (() => {})}
+              onOpenProject={over.onOpenProject ?? (() => {})}
+              activityTab={<div>activity-content</div>}
+            />
+          </DrawerProvider>
         ),
       },
     ],
@@ -116,13 +122,26 @@ describe("AreaOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Goals as informative, non-linked cards until Goal records exist", () => {
+  it("links Goal cards to the canonical Goal record and opens it (AREA-02)", () => {
+    const onOpenGoal = vi.fn();
+    renderRecord({ onOpenGoal });
+    expect(screen.getByText("Task roll-up: 1 of 2 tasks")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Open Ship v2" }));
+    expect(onOpenGoal).toHaveBeenCalledWith("g1");
+  });
+
+  it("shows a Goal's target date only when set, never overcrowding the card (AREA-02)", () => {
+    const { unmount } = renderRecord();
+    expect(screen.queryByText("Target")).not.toBeInTheDocument();
+    unmount();
+
+    renderRecord({ goals: [{ ...goal, targetDate: "2026-08-15" }] });
+    expect(screen.getByText("15 Aug 2026")).toBeInTheDocument();
+  });
+
+  it("exposes a New Goal action on the Goals tab (AREA-02)", () => {
     renderRecord();
-    const card = screen.getByRole("article", { name: "Ship v2" });
-    expect(within(card).queryByRole("link")).not.toBeInTheDocument();
-    expect(
-      within(card).getByText("Task roll-up: 1 of 2 tasks"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "New Goal" })).toBeInTheDocument();
   });
 
   it("shows direct versus Goal-backed Project context and opens canonical Projects", () => {

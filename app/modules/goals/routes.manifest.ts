@@ -16,6 +16,26 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: { navLabel: "Goals", navOrder: 20 },
   },
+  {
+    id: "goals.new",
+    path: "goals/new",
+    file: "routes/new.tsx",
+  },
+  {
+    id: "goals.detail",
+    path: "goals/:goalId",
+    file: "routes/detail.tsx",
+  },
+  {
+    id: "goals.mutate",
+    path: "goals/:goalId/mutate",
+    file: "routes/mutate.tsx",
+  },
+  {
+    id: "goals.activity",
+    path: "goals/:goalId/activity",
+    file: "routes/activity.tsx",
+  },
 ];
 
 export default routes;

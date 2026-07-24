@@ -183,6 +183,17 @@ for the Areas collection and record, and copies no Area identity, hierarchy or
 roll-up state into another table. Creation and rename still go only through
 `WorkspaceScope.spine`.
 
+When a module genuinely needs to persist an ADDITIVE detail field the spine
+deliberately does not model (see below), the precedent is `project_details`
+(PROJ-05, ADR-037) and AREA-02's `goal_details` (ADR-039): a small table keyed by
+`(workspace_id, entity_id)`, exposed through its own module-owned repository
+(`WorkspaceScope.projectSettings` / `WorkspaceScope.goalDetails`), atomic with its
+own Activity event via the shared `recordAtomicMutation` seam — never a second
+identity table, and never a write that bypasses `SpineRepository` for identity,
+title, completion or structural parentage. `WorkspaceScope.goals` mirrors
+`WorkspaceScope.areas`'s read-only-projection role for the Goal record and its
+exact, complete linked-Project contribution boundary.
+
 ## What FND-07 deliberately does not build
 
 No UI of any kind (pages, forms, cards, tree, drag-and-drop, Today, boards,

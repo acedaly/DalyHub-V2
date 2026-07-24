@@ -151,10 +151,16 @@ loaded-versus-total distinction.
 
 ## Goals and Projects
 
-AREA-01 shows active Goals belonging to the Area with spine completion/progress
-and contribution counts where available. It intentionally does **not** add Goal
-target dates, definitions of done, Goal details persistence, Goal creation or fake
-Goal links; AREA-02 owns full Goal records.
+AREA-01 showed active Goals belonging to the Area as informative, non-linked
+cards. **AREA-02 upgrades this**: each Goal card is a real link to the canonical
+`/goals/:goalId` record ([`GOALS_MODULE.md`](./GOALS_MODULE.md)), shows its
+target date when set (batched via a `LEFT JOIN` against `goal_details` in the
+SAME existing `listAreaGoals` query — genuinely zero additional queries, never a
+per-Goal fetch), and the Goals tab gains a "New Goal" action opening the shared
+`app/shared/goal-creation/NewGoalForm` in a Drawer. The exact roll-up totals
+(`rollup.goals.total`) and bounded-card-page honesty AREA-01 established are
+unchanged; Area momentum never depends on target dates or definition-of-done
+text.
 
 Projects are grouped by structural context:
 
@@ -172,8 +178,10 @@ evaluator.
 Projects still require an Area or Goal parent. Once AREA-01 exists, the New
 Project confirmed-empty state links to `/areas?drawer=new-area` so an empty
 workspace has a real route to create the first Area. It does not auto-create an
-Area, seed fixture data, make Project parentage optional, or link to an unbuilt
-Goal creation flow.
+Area, seed fixture data, or make Project parentage optional. A Goal created
+through AREA-02 is a valid Project parent through the existing
+`/projects/new`/`/projects/parent-options` server-backed search — no
+Areas-owned or Goals-owned second parent-selection model.
 
 ## Accessibility and responsive behaviour
 
@@ -189,7 +197,10 @@ workflow.
 - **Unit / pure** (`test/unit/areas`): view-model mapping, roll-up presentation,
   grouping, deterministic ordering, long content, form states, component states
   (including that the Goals/Projects tab badges use the exact roll-up totals, not
-  the first-page array length), the React-free momentum import guard, and the full
+  the first-page array length; AREA-02: Goal cards link to `/goals/:goalId` and
+  open it; a Goal's target date shows only when set, never overcrowding the
+  card; the "New Goal" action is exposed on the Goals tab), the React-free
+  momentum import guard, and the full
   momentum precedence/edge-case matrix (empty; completed-only Goals/direct
   Tasks/Project Tasks; a lone open Goal; a lone unfinished direct Task; Planned-only;
   On-hold-only; active/at-risk/blocked/stale; precedence when they coexist;
@@ -227,19 +238,26 @@ workflow.
 
 ## Migration, deployment and deferrals
 
-No migration or deploy-time data backfill is required. Production must still have
-the existing spine and project-detail migrations applied before this Worker code
-runs, because Areas reads compose with Projects and Project health.
+AREA-01 itself required no migration. AREA-02 adds
+`migrations/0009_create_goal_details.sql` (see [`GOALS_MODULE.md`](./GOALS_MODULE.md))
+— additive and forward-only; the Areas module's `listAreaGoals` query composes
+with it (a `LEFT JOIN`) but requires no backfill or deploy-time data change.
+Production must still have the spine, project-detail and goal-detail migrations
+applied before this Worker code runs, because Areas reads compose with Projects,
+Project health and Goal details.
 
-Deliberate deferrals: full Goal records and Goal-specific fields (AREA-02),
-alignment/intention reporting (AREA-03), mobile-specific Areas/Goals workflows
-(AREA-04), Area deletion/restore, Area settings, and descendant-aggregated Activity.
+Deliberate deferrals: alignment/intention reporting (AREA-03), mobile-specific
+Areas/Goals workflows (AREA-04), Area deletion/restore, Area settings, and
+descendant-aggregated Activity. Full Goal records and Goal-specific fields are
+now delivered by AREA-02 — see [`GOALS_MODULE.md`](./GOALS_MODULE.md).
 
 ## Related documents
 
 - [`ROADMAP_V2.md` AREA-01](../roadmap/ROADMAP_V2.md#-area-01--area-overview)
+- [`GOALS_MODULE.md`](./GOALS_MODULE.md) — the AREA-02 canonical Goal record.
 - [`SPINE_MODEL.md`](./SPINE_MODEL.md)
 - [`PROJECTS_MODULE.md`](./PROJECTS_MODULE.md)
 - [`ACTIVITY_TIMELINE.md`](./ACTIVITY_TIMELINE.md)
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
 - [`ARCHITECTURE_DECISIONS.md` ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview--read-only-spine-projection-and-derived-momentum)
+- [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)

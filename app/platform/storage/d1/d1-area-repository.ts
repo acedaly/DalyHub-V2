@@ -78,6 +78,9 @@ interface AreaGoalRow {
   readonly project_completed: number | null;
   readonly task_total: number | null;
   readonly task_completed: number | null;
+  /** AREA-02: batched via a `LEFT JOIN` against `goal_details` in the SAME
+   * query — never a per-Goal follow-up read. */
+  readonly target_date: string | null;
 }
 
 interface AreaProjectRow {
@@ -387,7 +390,8 @@ export class D1AreaRepository implements AreaRepository {
                   COALESCE(pc.total, 0) AS project_total,
                   COALESCE(pc.completed, 0) AS project_completed,
                   COALESCE(tc.total, 0) AS task_total,
-                  COALESCE(tc.completed, 0) AS task_completed
+                  COALESCE(tc.completed, 0) AS task_completed,
+                  gd.target_date AS target_date
            FROM entity_links gl
            JOIN entities ge
              ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
@@ -396,6 +400,8 @@ export class D1AreaRepository implements AreaRepository {
              ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
            LEFT JOIN project_counts pc ON pc.goal_id = ge.id
            LEFT JOIN task_counts tc ON tc.goal_id = ge.id
+           LEFT JOIN goal_details gd
+             ON gd.workspace_id = ge.workspace_id AND gd.entity_id = ge.id
            WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
                  AND gl.deleted_at IS NULL AND gl.target_entity_id = ?${cursorClause}
            ORDER BY ge.created_at ASC, ge.id ASC
@@ -693,6 +699,7 @@ export class D1AreaRepository implements AreaRepository {
       projectCompleted: Number(row.project_completed ?? 0),
       taskTotal: Number(row.task_total ?? 0),
       taskCompleted: Number(row.task_completed ?? 0),
+      targetDate: row.target_date ?? null,
     };
   }
 

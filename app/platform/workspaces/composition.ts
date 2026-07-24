@@ -23,6 +23,7 @@ import {
 import type { AreaRepository } from "~/kernel/areas";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -37,6 +38,8 @@ import {
   createAreaRepository,
   createEntityLinkRepository,
   createEntityRepository,
+  createGoalDetailsRepository,
+  createGoalRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -90,6 +93,20 @@ export interface WorkspaceScope {
    * mutations stay `spine.*`; rollups stay derived from the spine.
    */
   readonly areas: AreaRepository;
+  /**
+   * The AREA-02 Goal read projection: a READ-ONLY view over the spine that
+   * resolves the Goal record's Area context and exact Project-contribution
+   * facts in bounded, N+1-free queries. Goal mutations (create/rename/
+   * complete/reopen) stay `spine.*`; Goal-owned detail fields stay
+   * `goalDetails.*`.
+   */
+  readonly goals: GoalRepository;
+  /**
+   * The AREA-02 Goal-owned detail slice (target date, definition of done) — the
+   * spine deliberately does not model either field. Composes atomically with
+   * its own trusted actor, mirroring `projectSettings`.
+   */
+  readonly goalDetails: GoalDetailsRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -163,6 +180,10 @@ export function bindWorkspaceRepositories(
   // Read-only projections: no actor (they never mutate or record Activity).
   const projects = createProjectRepository(env.DB, context);
   const areas = createAreaRepository(env.DB, context);
+  const goals = createGoalRepository(env.DB, context);
+  const goalDetails = createGoalDetailsRepository(env.DB, context, {
+    actorContext,
+  });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -176,6 +197,8 @@ export function bindWorkspaceRepositories(
     tasks,
     projects,
     areas,
+    goals,
+    goalDetails,
     projectHealth,
     projectSettings,
     activity,

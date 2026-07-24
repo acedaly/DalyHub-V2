@@ -233,11 +233,25 @@ route or fake production data.
 
 ## Real product adopters
 
-Two records ship a real DS-05 Timeline over the FND-05 stream today; both are the
+Four records ship a real DS-05 Timeline over the FND-05 stream today; all are the
 SAME `Timeline` given a different record-scoped `loadPage`, never a forked component:
 
 - **The task record's Activity tab** (TODAY-02, [ADR-028](../decisions/ARCHITECTURE_DECISIONS.md#adr-028-task-drawer-persistence-and-composition--the-additive-task-detail-slice)) —
   `TaskTimelineTab` fetching the module-owned `/tasks/:taskId/activity` resource route.
+- **The Area record's Activity tab** (AREA-01, [ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview-read-only-spine-projection-and-derived-momentum)) —
+  [`AreaActivityTab`](../../app/modules/areas/AreaActivityTab.tsx) fetching the
+  module-owned [`/areas/:areaId/activity`](../../app/modules/areas/routes/activity.tsx)
+  resource route. Areas have no completion Activity types of their own, so no
+  module descriptors are registered — every event renders via the shared kernel
+  defaults.
+- **The Goal record's Activity tab** (AREA-02, [ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)) —
+  [`GoalActivityTab`](../../app/modules/goals/GoalActivityTab.tsx) fetching the
+  module-owned [`/goals/:goalId/activity`](../../app/modules/goals/routes/activity.tsx)
+  resource route. The module registers descriptors for `goal.completed`,
+  `goal.reopened` and the Goal-owned `goal.details_updated` (never the free-text
+  target date/definition content itself — the Activity payload carries only
+  presence booleans) and inherits the shared defaults + safe fallback for
+  everything else.
 - **The project record's Activity tab** (PROJ-04, [ADR-036](../decisions/ARCHITECTURE_DECISIONS.md#adr-036-the-project-activity-tab--the-shared-timeline-over-the-project-subject-events)) —
   [`ProjectActivityTab`](../../app/modules/projects/ProjectActivityTab.tsx) fetching the
   module-owned [`/projects/:projectId/activity`](../../app/modules/projects/routes/activity.tsx)
@@ -263,7 +277,7 @@ SAME `Timeline` given a different record-scoped `loadPage`, never a forked compo
   descriptor yet (they render via the shared safe generic fallback, humanized from
   the type string); dedicated descriptors are left to the PROJ-05 Settings UI slice.
 
-Both prove the intended shape: a module owns a small resource route over
+All four prove the intended shape: a module owns a small resource route over
 `activity.listForEntity`, maps records server-side, and drops a `<Timeline>` into its
 DS-02 Activity tab (Activity last). Neither adds an event store, a migration, a
 dependency or a second renderer.

@@ -197,6 +197,36 @@ named remote database directly, before running this.)
 > must have migrations `0001`-`0008` applied before deploying Worker code that
 > includes AREA-01.
 
+> **AREA-02 deployment note — migration `0009_create_goal_details.sql`.**
+> AREA-02 (canonical Goal records) adds ONE additive, forward-only migration:
+> `goal_details` (target date + definition of done), keyed by
+> `(workspace_id, entity_id)`, mirroring `0008_create_project_details.sql`'s
+> shape. **Unlike `0008`, this migration performs NO backfill** — an existing or
+> newly-created Goal simply has no `goal_details` row until its first detail
+> edit, and both fields resolve to `null` at the read boundary
+> (`d1-goal-details-repository.ts`'s `LEFT JOIN`), which is the correct default
+> for an optional, previously-nonexistent field. `d1-goal-repository.ts` also
+> `LEFT JOIN`s `goal_details` for the Area Goals-tab batch read, so **production
+> must have migration `0009` applied before deploying Worker code that includes
+> AREA-02** — the same unconditional-query hazard `0006`–`0008` already
+> established for `project_details`. The required order:
+> 1. **Backup** the production D1 database before touching it.
+> 2. **Migrate**: `wrangler d1 migrations apply dalyhub-v2 --env production --remote`
+>    (applies `0009`; additive and existing-data-safe — see
+>    `test/kernel/migration-0009.test.ts`).
+> 3. **Verify**: confirm `goal_details` exists (`STRICT`, composite FK, target-date
+>    format CHECK, non-blank-definition CHECK) and that it has **zero rows**
+>    immediately after migrating (no backfill is expected or correct).
+> 4. **Deploy** the Worker (`pnpm run deploy:production`) — only after step 3
+>    passes.
+> 5. **Smoke test**: open an existing Area's Goals tab, confirm existing Goals
+>    still render (with no target date/definition shown, since none exists
+>    yet), open a Goal's canonical `/goals/:goalId` record, and confirm
+>    `/health` still returns `ok`.
+>
+> This implementation does **not** perform any of these steps and does **not**
+> mutate the production database — they remain the owner's manual action.
+
 ### Verify
 
 Wrangler prints the deployed URL (or your configured route). Verify by opening it
