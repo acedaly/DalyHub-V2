@@ -1,4 +1,0 @@
-
-> dalyhub-v2@0.0.0 lint /home/runner/work/DalyHub-V2/DalyHub-V2
-> eslint .
-
