@@ -9,6 +9,7 @@ import {
   FakeClock,
   makeAreaRepository,
   makeContext,
+  makeGoalDetailsRepository,
   makeGoalRepository,
   makeProjectSettingsRepository,
   makeSpineRepository,
@@ -64,6 +65,38 @@ describe("GoalRepository", () => {
       ).getGoalOverview(goal.id);
       expect(overview?.title).toBe("New title");
       expect(overview?.completedAt).toBeInstanceOf(Date);
+    });
+
+    it("reflects a details-only edit (target date / definition of done) in the effective updatedAt, mirroring ADR-037 §37.2 for Projects", async () => {
+      const clock = new FakeClock();
+      const s = makeSpineRepository(makeContext(WS), {
+        clock: clock.now,
+        idGenerator: sequentialIds("gleff"),
+        activityIdGenerator: sequentialIds("gleffact"),
+      });
+      const area = await s.createArea({ title: "Health" });
+      const goal = await s.createGoal({
+        title: "Run a half-marathon",
+        areaId: area.id,
+      });
+      const before = await makeGoalRepository(makeContext(WS)).getGoalOverview(
+        goal.id,
+      );
+
+      // The spine's own `entities.updated_at` never moves again after creation
+      // here (no rename/complete/reopen) — only `goal_details.updated_at` does.
+      clock.advance(1000);
+      const details = makeGoalDetailsRepository(makeContext(WS), {
+        clock: clock.now,
+      });
+      await details.update(goal.id, { targetDate: "2026-12-31" });
+
+      const after = await makeGoalRepository(makeContext(WS)).getGoalOverview(
+        goal.id,
+      );
+      expect(after!.updatedAt.getTime()).toBeGreaterThan(
+        before!.updatedAt.getTime(),
+      );
     });
 
     it("fails closed (null) for missing, deleted, wrong-kind and cross-workspace ids", async () => {

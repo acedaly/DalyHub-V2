@@ -39,15 +39,27 @@ import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp } from "./database";
 
+/**
+ * The authoritative PRESENTATION timestamp expression (mirrors ADR-037 §37.2 for
+ * Projects): the later of the spine entity's `updated_at` and `goal_details.updated_at`.
+ * A target-date/definition-of-done edit touches ONLY `goal_details.updated_at` (the
+ * spine's `entities.updated_at` is reserved for identity/title — ADR-014), so without
+ * this MAX the Activity tab's `reloadKey` would never notice a details-only edit. ISO-8601
+ * UTC strings compare correctly lexicographically.
+ */
+const EFFECTIVE_UPDATED_AT_EXPR =
+  "(CASE WHEN gd.updated_at IS NOT NULL AND gd.updated_at > ge.updated_at THEN gd.updated_at ELSE ge.updated_at END)";
+
 interface GoalOverviewRow {
   readonly id: string;
   readonly workspace_id: string;
   readonly title: string;
   readonly created_at: string;
   readonly updated_at: string;
-  readonly completed_at: string | null;
+  readonly effective_updated_at: string;
   readonly area_id: string;
   readonly area_title: string;
+  readonly completed_at: string | null;
 }
 
 interface GoalProjectFactRow {
@@ -84,6 +96,7 @@ export class D1GoalRepository implements GoalRepository {
       this.#db
         .prepare(
           `SELECT ge.id, ge.workspace_id, ge.title, ge.created_at, ge.updated_at,
+                  ${EFFECTIVE_UPDATED_AT_EXPR} AS effective_updated_at,
                   gsr.completed_at, ae.id AS area_id, ae.title AS area_title
            FROM entity_links gl
            JOIN entities ge
@@ -91,6 +104,8 @@ export class D1GoalRepository implements GoalRepository {
                 AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
            JOIN spine_records gsr
              ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
+           LEFT JOIN goal_details gd
+             ON gd.workspace_id = ge.workspace_id AND gd.entity_id = ge.id
            JOIN entities ae
              ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
                 AND ae.type = '${AREA}' AND ae.deleted_at IS NULL
@@ -236,7 +251,7 @@ export class D1GoalRepository implements GoalRepository {
       workspaceId: parseWorkspaceId(row.workspace_id),
       title: row.title,
       createdAt: fromStorageTimestamp(row.created_at),
-      updatedAt: fromStorageTimestamp(row.updated_at),
+      updatedAt: fromStorageTimestamp(row.effective_updated_at),
       completedAt:
         row.completed_at === null
           ? null

@@ -272,6 +272,12 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       activityTab={
+        // `reloadKey` is the Goal's EFFECTIVE updatedAt (the later of the spine
+        // entity's own `updated_at` and `goal_details.updated_at` — mirrors
+        // ADR-037 §37.2 for Projects): a rename/complete/reopen bumps the spine
+        // value, and a target-date/definition-of-done edit bumps `goal_details`
+        // instead, so either one changes this key and revalidation re-reads the
+        // first Activity page with the new event visible immediately.
         <GoalActivityTab
           goalId={props.overview.id}
           reloadKey={props.overview.updatedAt}

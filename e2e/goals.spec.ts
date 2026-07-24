@@ -76,10 +76,31 @@ test.describe("AREA-02 — Goals", () => {
     await expect(page.getByText(/1 Jan 2027/).first()).toBeVisible();
     await expect(page.getByText("Cross the finish line.")).toBeVisible();
 
+    // 3b. Regression: with the Activity tab already open (no navigation, no
+    // reload), a SECOND details-only edit is reflected immediately. The
+    // details mutation only touches `goal_details`, never the spine record —
+    // the Activity tab's reload key must be the Goal's EFFECTIVE updatedAt
+    // (the later of the two) for the Timeline to notice and refetch.
+    await page.getByRole("tab", { name: "Activity" }).click();
+    const activityFeed = page.getByRole("feed", { name: "Goal activity" });
+    await expect(activityFeed.getByText("Updated goal details")).toHaveCount(1);
+
+    await editDetailsButton.click();
+    await detailsDialog.getByLabel(/Target date/).fill("2027-02-01");
+    await detailsDialog.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // Still on the Activity tab the whole time — the second edit's event is
+    // already visible, with no tab switch and no page reload. The Summary
+    // (rendered alongside whichever tab is active, not a tab itself) reflects
+    // the new target date too.
+    await expect(activityFeed.getByText("Updated goal details")).toHaveCount(2);
+    await expect(page.getByText(/1 Feb 2027/).first()).toBeVisible();
+
     // 4. Verify persistence after navigation (reload the canonical record).
     await gotoFixture(page, goalUrl);
     await expect(page.getByRole("heading", { name: goalTitle })).toBeVisible();
-    await expect(page.getByText(/1 Jan 2027/).first()).toBeVisible();
+    await expect(page.getByText(/1 Feb 2027/).first()).toBeVisible();
     await expect(page.getByText("Cross the finish line.")).toBeVisible();
 
     // 5. The Area Goal card links back to the canonical record and shows the
@@ -88,7 +109,7 @@ test.describe("AREA-02 — Goals", () => {
     await page.getByRole("tab", { name: "Goals" }).click();
     const goalCard = page.getByRole("article", { name: goalTitle });
     await expect(goalCard).toBeVisible();
-    await expect(goalCard.getByText("1 Jan 2027")).toBeVisible();
+    await expect(goalCard.getByText("1 Feb 2027")).toBeVisible();
     await goalCard.getByRole("link", { name: `Open ${goalTitle}` }).click();
     await expect(page).toHaveURL(goalUrl);
 
