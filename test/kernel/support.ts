@@ -4,6 +4,7 @@ import {
   createActivityRepository,
   createAlignmentRepository,
   createAreaRepository,
+  createDiaryRepository,
   createEntityLinkRepository,
   createEntityRepository,
   createGoalDetailsRepository,
@@ -16,6 +17,7 @@ import {
   createTaskRepository,
   createWorkspaceRepository,
   type AtomicMutationFault,
+  type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
   type D1NoteDetailsRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
@@ -179,6 +181,26 @@ export function makeNoteDetailsRepository(
   options?: D1NoteDetailsRepositoryOptions,
 ) {
   return createNoteDetailsRepository(env.DB, context, options);
+}
+
+/**
+ * Construct a workspace-scoped D1-backed DiaryRepository over the isolated test
+ * database (DIARY-01A: the authoritative Diary Entry capture surface + Timeline
+ * read model, bound to a `WorkspaceContext`).
+ */
+export function makeDiaryRepository(
+  context: WorkspaceContext,
+  options?: D1DiaryRepositoryOptions,
+) {
+  return createDiaryRepository(env.DB, context, options);
+}
+
+/** Count all rows in `diary_entry_details` directly. */
+export async function countDiaryEntryRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM diary_entry_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 /**
@@ -368,6 +390,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM project_details").run();
   await env.DB.prepare("DELETE FROM goal_details").run();
   await env.DB.prepare("DELETE FROM note_details").run();
+  await env.DB.prepare("DELETE FROM diary_entry_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

@@ -29,6 +29,7 @@ import {
   type ActivityActorContext,
   type NewActivityEvent,
 } from "~/kernel/activity";
+import { isReservedDiaryEntityType } from "~/kernel/diary";
 import { RESERVED_SPINE_ENTITY_TYPES } from "~/kernel/spine";
 import {
   EntityError,
@@ -157,7 +158,15 @@ export class D1EntityRepository implements EntityRepository {
     const { type, title } = validateCreateInput(input);
     // The four spine types are reserved for the SpineRepository, which enforces
     // load-bearing hierarchy invariants a bare `create` would bypass (ADR-014 §4.7).
-    if (RESERVED_SPINE_ENTITY_TYPES.has(type)) {
+    // The `diary` type is reserved for the DiaryRepository, which writes the entry's
+    // chronological detail slice (entry type + occurred-at) ATOMICALLY with the row;
+    // a bare `create` would produce a Diary Entry with no place on the Timeline
+    // (ADR-041 §reservation). Only creation is reserved — a Diary Entry's rename,
+    // soft-delete and restore are ordinary entity lifecycle, handled here.
+    if (
+      RESERVED_SPINE_ENTITY_TYPES.has(type) ||
+      isReservedDiaryEntityType(type)
+    ) {
       throw new ReservedEntityTypeError();
     }
     const now = this.#clock();
