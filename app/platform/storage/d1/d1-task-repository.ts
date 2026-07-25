@@ -219,6 +219,12 @@ export interface D1TaskRepositoryOptions {
   /** TEST-ONLY: force `completeTask`'s batch to fail at a chosen point. */
   readonly completeFault?: CompleteTaskFault;
   /**
+   * TEST-ONLY: force `completeTasks`' single atomic batch to fail (a forced-error
+   * statement appended at the end), to prove no task in the selection is left
+   * completed when the batch rolls back. Never set in production.
+   */
+  readonly bulkCompleteFault?: boolean;
+  /**
    * TEST-ONLY: invoked once inside a planning mutation AFTER the initial read (and
    * the open-state check) but BEFORE the guarded write, to simulate a concurrent
    * mutation — e.g. the task being completed — racing the plan. Lets a test prove
@@ -257,6 +263,7 @@ export class D1TaskRepository implements TaskRepository {
   readonly #newActivityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
   readonly #completeFault?: CompleteTaskFault;
+  readonly #bulkCompleteFault?: boolean;
   readonly #planRaceHook?: () => Promise<void>;
 
   constructor(
@@ -272,6 +279,7 @@ export class D1TaskRepository implements TaskRepository {
       options.activityIdGenerator ?? activitySecureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
     this.#completeFault = options.completeFault;
+    this.#bulkCompleteFault = options.bulkCompleteFault;
     this.#planRaceHook = options.planRaceHook;
   }
 
@@ -1962,7 +1970,145 @@ export class D1TaskRepository implements TaskRepository {
     nowTs: string,
   ): Promise<EntityRow | null> {
     const fault = this.#completeFault;
+    const group = this.#buildCompleteGroup(entityId, now, nowTs);
 
+    // Flatten the group in canonical order, interleaving the TEST-ONLY forced
+    // failures at their named points to prove the whole batch rolls back.
+    const batch: D1PreparedStatement[] = [
+      group.spineStmt,
+      group.entityStmt,
+      ...(fault === "after-completion" ? [this.#forcedFailure()] : []),
+      group.completionActivity,
+      ...(fault === "after-completion-activity" ? [this.#forcedFailure()] : []),
+      ...group.completionSubjects,
+      group.waitingClearStmt,
+      ...(fault === "after-waiting-update" ? [this.#forcedFailure()] : []),
+      group.waitingClearedActivity,
+      ...(fault === "after-waiting-cleared-activity"
+        ? [this.#forcedFailure()]
+        : []),
+      ...group.waitingClearedSubjects,
+      group.waitingLinkStmt,
+      ...(fault === "after-waiting-link" ? [this.#forcedFailure()] : []),
+    ];
+
+    let results: D1Result<EntityRow>[];
+    try {
+      results = await this.#db.batch<EntityRow>(batch);
+    } catch (cause) {
+      if (cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new TaskStorageError(undefined, { cause });
+    }
+
+    // The entity bump is always at index 1 (fault statements only exist in test
+    // paths, which throw before results are read).
+    const rows = results[1]?.results ?? [];
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Complete MANY tasks as ONE atomic batch (TASKS-01 §16). See the
+   * `TaskRepository.completeTasks` contract: validate + resolve every id up front
+   * (any missing/cross-workspace/archived id rejects the WHOLE operation before a
+   * single write), then concatenate each still-open task's full completion group
+   * (spine completion + guarded `task.completed` event + atomic waiting clearance)
+   * into ONE `D1Database.batch()`, so either all commit or none do. Already-completed
+   * tasks are idempotent no-ops counted as `unchanged`. Each group's own spine gate
+   * → entity bump resets `changes()` for that group's guarded events, so many guarded
+   * completions compose correctly in a single transaction (mirrors `#bulkPlan`).
+   */
+  async completeTasks(ids: readonly string[]): Promise<BulkFieldResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    // Resolve all first; ANY missing/cross-workspace/deleted id (→ not found) or an
+    // archived parent Project rejects the WHOLE operation before a single write.
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId);
+      if (!current) {
+        throw new TaskNotFoundError();
+      }
+      await this.#rejectIfParentProjectArchived(current);
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+    for (const current of currents) {
+      // Already completed: idempotent no-op (matches `completeTask`), no statements.
+      if (current.completedAt !== null) {
+        unchanged += 1;
+        continue;
+      }
+      const group = this.#buildCompleteGroup(current.id, now, nowTs);
+      statements.push(
+        group.spineStmt,
+        group.entityStmt,
+        group.completionActivity,
+        ...group.completionSubjects,
+        group.waitingClearStmt,
+        group.waitingClearedActivity,
+        ...group.waitingClearedSubjects,
+        group.waitingLinkStmt,
+      );
+      changed += 1;
+    }
+
+    // TEST-ONLY: prove a storage fault mid-batch leaves NONE of the selection
+    // completed. Appended once at the end so the whole transaction rolls back.
+    if (this.#bulkCompleteFault && statements.length > 0) {
+      statements.push(this.#forcedFailure());
+    }
+
+    if (statements.length > 0) {
+      try {
+        await this.#db.batch(statements);
+      } catch (cause) {
+        if (cause instanceof ActivityError) {
+          throw cause;
+        }
+        throw new TaskStorageError(undefined, { cause });
+      }
+    }
+
+    return { changed, unchanged };
+  }
+
+  /**
+   * Build the ordered statement group that completes ONE task AND clears any active
+   * waiting (ADR-029), shared by `completeTask` (single, with fault injection) and
+   * `completeTasks` (many, concatenated into one batch). Statement order and guards:
+   *   1. spine completion gate (RETURNING) — `changes()` iff completed now;
+   *   2. entity `updated_at` bump, guarded on (1)'s `changes()` (RETURNING the row);
+   *   3. `task.completed` event, guarded on (2)'s `changes()`;
+   *   4. waiting-state clear — gated on the freshly-written completion AND
+   *      `waiting_since IS NOT NULL`, so it fires iff the task WAS waiting and the
+   *      completion committed; its `changes()` drives the next event;
+   *   5. `task.waiting_cleared` event, guarded on (4)'s `changes()` (appended ONLY
+   *      when the task was actively waiting);
+   *   6. active `task.waiting_on` link soft-delete, gated on the committed completion.
+   * The completion SQL is the SHARED spine builder (the spine stays the authority).
+   */
+  #buildCompleteGroup(
+    entityId: string,
+    now: Date,
+    nowTs: string,
+  ): {
+    readonly spineStmt: D1PreparedStatement;
+    readonly entityStmt: D1PreparedStatement;
+    readonly completionActivity: D1PreparedStatement;
+    readonly completionSubjects: readonly D1PreparedStatement[];
+    readonly waitingClearStmt: D1PreparedStatement;
+    readonly waitingClearedActivity: D1PreparedStatement;
+    readonly waitingClearedSubjects: readonly D1PreparedStatement[];
+    readonly waitingLinkStmt: D1PreparedStatement;
+  } {
     // 1-2. Shared spine completion gate + guarded entity bump.
     const spineStmt = buildSpineCompleteStatement(
       this.#db,
@@ -2048,38 +2194,16 @@ export class D1TaskRepository implements TaskRepository {
         nowTs,
       );
 
-    const batch: D1PreparedStatement[] = [
+    return {
       spineStmt,
       entityStmt,
-      ...(fault === "after-completion" ? [this.#forcedFailure()] : []),
-      completionActivity!,
-      ...(fault === "after-completion-activity" ? [this.#forcedFailure()] : []),
-      ...completionSubjects,
+      completionActivity: completionActivity!,
+      completionSubjects,
       waitingClearStmt,
-      ...(fault === "after-waiting-update" ? [this.#forcedFailure()] : []),
-      waitingClearedActivity!,
-      ...(fault === "after-waiting-cleared-activity"
-        ? [this.#forcedFailure()]
-        : []),
-      ...waitingClearedSubjects,
+      waitingClearedActivity: waitingClearedActivity!,
+      waitingClearedSubjects,
       waitingLinkStmt,
-      ...(fault === "after-waiting-link" ? [this.#forcedFailure()] : []),
-    ];
-
-    let results: D1Result<EntityRow>[];
-    try {
-      results = await this.#db.batch<EntityRow>(batch);
-    } catch (cause) {
-      if (cause instanceof ActivityError) {
-        throw cause;
-      }
-      throw new TaskStorageError(undefined, { cause });
-    }
-
-    // The entity bump is always at index 1 (fault statements only exist in test
-    // paths, which throw before results are read).
-    const rows = results[1]?.results ?? [];
-    return rows[0] ?? null;
+    };
   }
 
   /** A statement guaranteed to fail, aborting and rolling back the batch (tests). */

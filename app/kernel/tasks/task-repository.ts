@@ -228,6 +228,22 @@ export interface TaskRepository {
   ): Promise<BulkFieldResult>;
 
   /**
+   * Complete MANY tasks (each with any active waiting cleared, per ADR-029) as ONE
+   * ATOMIC operation (TASKS-01 §16). Mirrors `setPriorityMany`/`planTasks`: the id
+   * list is validated and EVERY id is resolved to a task in this workspace first —
+   * any missing/cross-workspace/archived id rejects the WHOLE operation before a
+   * single write, so nothing is partially applied. Then ONE `D1Database.batch()`
+   * runs every open task's full completion group (the shared spine completion write,
+   * the guarded `task.completed` event, and the atomic waiting clearance) so either
+   * all commit or none do — a storage fault mid-batch can never leave a subset of
+   * the selection completed. Tasks that are already completed are idempotent no-ops,
+   * counted as `unchanged` and contributing no statements. Throws
+   * `TaskValidationError` for an empty/oversized/invalid id list and
+   * `TaskNotFoundError`/`TaskProjectArchivedError` as the other bulk methods.
+   */
+  completeTasks(ids: readonly string[]): Promise<BulkFieldResult>;
+
+  /**
    * Complete a task AND clear any active waiting state as ONE atomic domain
    * operation (ADR-029). A single `D1Database.batch()` sets the spine completion,
    * bumps `updated_at`, clears `waiting_since`/`waiting_note`, soft-deletes the

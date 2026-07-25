@@ -92,35 +92,13 @@ async function dispatch(
   form: FormData,
 ): Promise<TasksBulkResult> {
   switch (intent) {
-    case "complete": {
-      // Completion is per-task (spine authority owns it; there is no single-batch
-      // completeTasks). To honour the bulk route's "no partial mutation from a bad
-      // id" contract, RESOLVE EVERY id first — any missing/cross-workspace/archived
-      // id throws BEFORE any completion is written (mirroring how planTasks/
-      // setPriorityMany validate up front). Completing an already-resolved task can
-      // never itself fail validation, so after this gate the only residual
-      // non-atomicity is a transient storage fault mid-loop, which the outer catch
-      // reports honestly. Idempotent no-ops (already complete) are counted honestly.
-      const resolved = [];
-      for (const id of ids) {
-        const task = await scope.tasks.getTask(id);
-        if (!task) {
-          throw new TaskNotFoundError();
-        }
-        resolved.push(task.id);
-      }
-      let changed = 0;
-      let unchanged = 0;
-      for (const id of resolved) {
-        const result = await scope.tasks.completeTask(id);
-        if (result.changed) {
-          changed += 1;
-        } else {
-          unchanged += 1;
-        }
-      }
-      return { kind: "bulk", ok: true, changed, unchanged };
-    }
+    case "complete":
+      // Genuinely atomic (ADR-043 §16): the kernel resolves+validates every id, then
+      // completes the whole selection (with any waiting cleared, ADR-029) in ONE D1
+      // batch. A storage fault mid-batch rolls the transaction back, so the selection
+      // can never be left partially completed — the outer catch's "nothing was
+      // changed" is then factually correct. Already-complete tasks count `unchanged`.
+      return ok(await scope.tasks.completeTasks(ids));
     case "set_priority":
       return ok(
         await scope.tasks.setPriorityMany(
