@@ -425,10 +425,14 @@ adjusted so the **overflow menu (structural) lands before the lifecycle work tha
   Tasks search payload to carry priority. **Rendering signals in Search also requires extending the
   shared search result contract + surface** — `SearchResultItem` (`app/kernel/modules/module-capabilities.ts`)
   and `SearchOption` (`app/shared/search/SearchSurface.tsx`) render only icon/title/subtitle/type today,
-  so add an optional signal/metadata slot there; this shared change is in scope, not a `tasks/search.ts`-only
-  change. (If the shared-search change is deferred, drop Search from this slice's acceptance criteria.)
+  so add an optional signal/metadata slot there. It **also** needs a **bounded, workspace-scoped task-search
+  projection**: the current provider resolves results via `searchLinkTargets` (`EntityLinkTargetOption` =
+  id/type/title only), so priority/due/scheduled must be returned by one query — never a per-result `getTask`
+  N+1. **If that projection is out of scope for this slice, drop Search from its acceptance criteria** and give
+  Search signals a dedicated follow-up rather than shipping an N+1 or an unpopulated signal.
 - **Shared files:** `app/shared/card/*`, new `app/shared/task-signals/*`, `app/shared/task-record/task-view.ts`,
-  `app/shared/search/SearchSurface.tsx`, `app/kernel/modules/module-capabilities.ts` (search result contract).
+  `app/shared/search/SearchSurface.tsx`, `app/kernel/modules/module-capabilities.ts` (search result contract),
+  a bounded task-search projection behind `tasks/search.ts` (or Search deferred).
 - **Module files:** `tasks/TasksWorkspace.tsx`, `today/TodayDashboard.tsx` + `task/planning-view.ts`,
   `projects/ProjectTasksTab.tsx`, `tasks/search.ts`.
 - **Exclusions:** No new lifecycle actions; no icon-registry work.
@@ -439,11 +443,16 @@ adjusted so the **overflow menu (structural) lands before the lifecycle work tha
 - **Merge deps:** none. **Model:** **Claude Opus** (new primitive + colour-only correctness judgement).
 
 ### PR-2 — `DS-12` Record Header overflow menu (structural)
-- **Scope:** Implement the documented `RecordHeader` overflow (⋯) slot and adopt the Card
-  `overflowAction` slot; no new actions yet — just the container + a11y (menu button, focus, keyboard).
-- **Shared files:** `app/shared/record-layout/RecordHeader.tsx`, `app/shared/card/Card.tsx`.
-- **Module files:** none (wiring lands in PR-3).
-- **Exclusions:** No lifecycle behaviour.
+- **Scope:** Define the shared overflow **menu-item model** (an ordered list of `CardAction`/`AppAction`),
+  then implement the documented `RecordHeader` overflow (⋯) menu and generalise the Card's single
+  `overflowAction` into a menu (`overflowActions`) — preserving the existing one-item case. Deliver the
+  menu container + item model + a11y (menu button, focus, keyboard, `aria`); no lifecycle actions wired yet.
+  (If generalising the Card is larger than wanted, ship the `RecordHeader` menu here and defer Card-menu
+  adoption to PR-3.)
+- **Shared files:** `app/shared/record-layout/RecordHeader.tsx`, `app/shared/card/Card.tsx` + `card/types.ts`
+  (generalise `overflowAction` → `overflowActions`), Design System (Card contract + overflow pattern).
+- **Module files:** none (lifecycle wiring lands in PR-3).
+- **Exclusions:** No lifecycle behaviour; no per-module action wiring.
 - **Data/migration:** none. **Tests:** component + axe (menu semantics), keyboard e2e.
 - **Screenshots:** a record with an open overflow menu, light + dark, mobile.
 - **Merge deps:** none. **Model:** **Codex** (well-specified component, clear contract).
