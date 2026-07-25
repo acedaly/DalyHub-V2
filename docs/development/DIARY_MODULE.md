@@ -1,9 +1,10 @@
 # DIARY_MODULE.md — The Diary: architecture & kernel foundation
 
-> **Status:** DIARY-01A (architecture & kernel foundation) is ☑ Done. This
+> **Status:** DIARY-01A (architecture & kernel foundation) is ☑ Done, and
+> DIARY-01 (the Timeline screen & quick capture) is ☑ Done — see [§7](#7-diary-01--the-timeline-screen--quick-capture-ui). This
 > document describes the Diary's philosophy, its kernel architecture, its
-> responsibilities and boundaries, and the future roadmap it enables. It is the
-> authoritative developer reference for the Diary.
+> responsibilities and boundaries, the DIARY-01 UI built on it, and the future
+> roadmap it enables. It is the authoritative developer reference for the Diary.
 >
 > Related: [`ARCHITECTURE_DECISIONS.md` → ADR-041](../decisions/ARCHITECTURE_DECISIONS.md#adr-041--the-diary-an-interstitial-journal-built-on-the-kernel-with-chronology-as-its-primary-organising-principle) ·
 > [`ACTIVITY_TIMELINE.md`](./ACTIVITY_TIMELINE.md) ·
@@ -258,8 +259,7 @@ architecture) and `test/kernel/diary-entry.test.ts` /
 Everything below is a purely additive layer over the stable DIARY-01A contract —
 no architectural rewrite required:
 
-- **DIARY-01 — Timeline screen & quick capture.** Render `list` grouped by day
-  (via `groupEntriesByDay`); a sub-ten-second capture form over `create`.
+- **DIARY-01 — Timeline screen & quick capture.** ☑ Done — see [§7](#7-diary-01--the-timeline-screen--quick-capture-ui).
 - **DIARY-02 — Day context links.** Surface a day's related meetings/tasks/people
   via EntityLinks — a thin layer, since relationships are already kernel links.
 - **DIARY-03 — Mobile capture.** Capture on the go; `source.channel = "mobile"`.
@@ -271,3 +271,119 @@ no architectural rewrite required:
 - **Linked conversations / people / files.** Ordinary EntityLinks to future
   entity types.
 - **Month grouping.** `groupEntriesByMonth` already ships for a future month view.
+
+---
+
+## 7. DIARY-01 — the Timeline screen & quick-capture UI
+
+DIARY-01 builds the first real Diary experience on the DIARY-01A foundation,
+replacing the `/diary` `ModuleComingSoon` placeholder. It composes the accepted
+foundation and the design system — **no new store, link model, Activity stream,
+Markdown parser, filter framework or ADR** was introduced.
+
+### 7.1 Timeline route (`app/modules/diary/routes/index.tsx`)
+
+A loader-backed `/diary` route reads the workspace-bound, reserved
+`DiaryRepository` through `resolveAuthenticatedWorkspaceScope` (never the generic
+entity collection), lists a **bounded, cursor-paginated** page (25/page) in
+deterministic `(occurred_at, id)` newest-first order, and groups it with the pure
+kernel `groupEntriesByDay` in the explicit display timezone (§7.5). Entry-type
+and occurred-at-range filters are URL-backed; a malformed or scope-mismatched
+cursor degrades to a calm error state rather than a 500. Grouping is delegated
+entirely to the kernel helper — the module never re-implements day computation;
+"Load more" merges only the boundary day by its `YYYY-MM-DD` key.
+
+### 7.2 Quick capture (`QuickCapture.tsx`)
+
+A compact capture surface sits at the top of the Timeline — **no modal, no
+navigation**. The common path is a type (built-in registry selector) and a title,
+in under ten seconds; `Cmd/Ctrl+Enter` submits from any field; an optional
+Markdown body and an optional owner-local "when" (for backdating) stay secondary
+behind a disclosure. Capture goes through `DiaryRepository.create` (via
+`POST /diary/new`) — never a bare `entities.create`. `useForm` gives
+duplicate-submit prevention and draft retention on failure; success is announced
+via DS-10 feedback, the Timeline revalidates so the new entry appears in place,
+and the form remounts (clearing it) with focus returned to the title.
+
+### 7.3 Entry editor (`DiaryEntryEditor.tsx`)
+
+Editing opens the shared DS-03 Drawer from an entry (`?drawer=edit:<id>`), so it
+is deep-linkable, Back/Forward correct, and restores focus to the opener. The
+form loads the entry from the `GET /diary/:id` resource route (so a deep link to
+an off-page entry still works) and fails closed for a missing, deleted,
+wrong-type or cross-workspace id. `POST /diary/:id/mutate` splits the write per
+ADR-041 — **title via `EntityRepository.update`, the detail slice via
+`DiaryRepository.update`** — validating every field before either write and
+reporting partial success honestly (the two repositories are two writes, never a
+forged atomic pair). Markdown source is preserved exactly; previews render only
+through the one FND-08 sink. Delete/restore UI is deliberately deferred (the
+NOTES-01C shared lifecycle pattern can be adopted later).
+
+### 7.4 Type filter (`DiaryTypeFilter.tsx`)
+
+A restrained, single-select, URL-backed entry-type segment — not the full DS-07
+clause builder. It reads and writes one `type` param, drops `cursor` on change (so
+filter-scope changes reset pagination), and "All" clears the filter.
+
+**Shared-filter decision (post-NOTES-01C).** NOTES-01C promoted the Projects
+segment to a shared `SegmentedFilter` (`app/shared/segmented-filter`). The Diary
+type filter deliberately stays module-local rather than adopting it, because the
+shared control does not fit two Diary requirements:
+
+1. **Pagination-cursor reset.** The Diary Timeline cursor is scope-bound — the
+   kernel rejects a cursor issued for one filter under a different one
+   (`decodeDiaryCursorForScope`). `DiaryTypeFilter` therefore DROPS `cursor` when
+   the filter scope changes; the shared `SegmentedFilter` only sets/clears its own
+   param and preserves every other param, so a deep-linked `?type=…&cursor=…`
+   would carry a stale, now-invalid cursor into the new scope and degrade the
+   Timeline to its error state.
+2. **Facet + presentation.** The shared control models a single mutually-exclusive
+   lifecycle STATE (Active/Deleted, Open/Completed) with a few `dh-segmented`
+   options; the Diary filter is a different facet — an OPEN-vocabulary entry
+   TYPE — presented as ~10 restrained chips, for which the pill treatment reads
+   better than a bordered few-state segment.
+
+Adding cursor-reset semantics to the shared component solely for Diary would be a
+speculative shared change for a different facet; the module-local control is a
+single-purpose composition (the same pattern the shared control itself came
+from), not a competing generic abstraction. If a future shared filter grows an
+explicit "reset these params on change" contract, Diary can revisit this.
+
+### 7.5 Display timezone — reusing the accepted seam
+
+The Timeline groups and labels entries in a **display timezone** that is
+explicit and hydration-safe (never UTC, never machine-local). DalyHub already
+has one accepted display-zone seam — `OWNER_TIME_ZONE` in `app/shared/datetime`,
+documented to become the user/workspace timezone setting at **SET-01**. DIARY-01
+**reuses** it (`DIARY_DISPLAY_TIME_ZONE = OWNER_TIME_ZONE` in
+`app/modules/diary/occurred-time.ts`) rather than inventing a second convention
+or hardcoding a zone; when SET-01 lands, the Diary Timeline follows the setting
+unchanged. `occurred-time.ts` adds the small DST-aware owner-local ⇄ UTC
+conversion the capture/edit "when" control needs (each conversion done against an
+explicit IANA zone via `Intl.DateTimeFormat`), tested across both offsets, local
+midnight and both daylight-saving transitions. A converted instant must
+round-trip EXACTLY to the entered wall-clock, so an invalid calendar date (JS
+would normalise `Feb 31`) and a nonexistent spring-forward local time are
+rejected (the route surfaces its field error) rather than silently changed; an
+autumn overlap time is accepted deterministically at the standard-time
+occurrence. Day-range filters bound the day inclusively — the upper bound is the
+next local midnight minus 1 ms, so the final 59.999 s of the day stay inside an
+inclusive `occurredTo`. This is composition of the accepted foundation and
+design system, so **no new ADR** was warranted.
+
+### 7.6 Source map (DIARY-01 additions)
+
+| File | Responsibility |
+| --- | --- |
+| `app/modules/diary/routes/index.tsx` | Timeline loader + view host. |
+| `app/modules/diary/routes/new.tsx` | `POST /diary/new` capture action. |
+| `app/modules/diary/routes/entry.tsx` | `GET /diary/:id` single-entry read (editor). |
+| `app/modules/diary/routes/mutate.tsx` | `POST /diary/:id/mutate` coordinated edit. |
+| `app/modules/diary/DiaryTimeline.tsx` | Day-grouped Timeline, pagination, states, editor Drawer wiring. |
+| `app/modules/diary/QuickCapture.tsx` | Sub-ten-second capture form. |
+| `app/modules/diary/DiaryEntryEditor.tsx` | Route-backed Drawer editor. |
+| `app/modules/diary/DiaryTypeFilter.tsx` | Restrained URL-backed entry-type filter. |
+| `app/modules/diary/WhenField.tsx` | Owner-local "when" control over the DS-06 field anatomy. |
+| `app/modules/diary/diary-view.ts` | View model: serialisation, label fallback, filter parsing. |
+| `app/modules/diary/occurred-time.ts` | Display timezone seam + DST-aware owner-local ⇄ UTC + day headings. |
+| `app/styles/diary.css` | Timeline & capture styles (DS-01 tokens only). |

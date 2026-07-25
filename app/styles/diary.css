@@ -1,0 +1,307 @@
+/*
+ * DIARY-01 — the Diary Timeline & quick-capture styles (DS-01 tokens only).
+ *
+ * Timeline-first: a compact capture surface and a restrained type filter above a
+ * chronological history with a STRONG visual break between local days (a sticky
+ * day heading + a rule), without turning the surface into a calendar grid. Every
+ * value is a design token (no raw hex/px/duration); state is never colour-only
+ * (active filter uses weight + surface + a marker, backdated uses a labelled
+ * chip). Touch targets meet the 44px minimum via the shared `.dh-btn`/control
+ * tokens. Honours reduced-motion by using no non-shared motion at all.
+ */
+
+/* The capture surface and filter live in the layout's controls region; that
+ * region is sticky by default, but a tall capture form must scroll normally. */
+.dh-diary-collection .dh-collection__sticky {
+  position: static;
+}
+
+.dh-diary-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+  inline-size: 100%;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Quick capture                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-capture-wrap {
+  inline-size: 100%;
+}
+
+.dh-diary-capture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface-raised);
+}
+
+.dh-diary-capture__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: flex-start;
+}
+
+.dh-diary-capture__type {
+  flex: 1 1 12rem;
+  min-inline-size: 10rem;
+}
+
+.dh-diary-capture__title {
+  flex: 3 1 16rem;
+  min-inline-size: 12rem;
+}
+
+.dh-diary-capture__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dh-diary-capture__details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding-block-start: var(--dh-space-2);
+  border-block-start: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Type filter                                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  align-items: center;
+}
+
+.dh-diary-filter__label {
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-diary-filter__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
+}
+
+.dh-diary-filter__option {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  text-decoration: none;
+  background: var(--dh-color-surface);
+}
+
+.dh-diary-filter__option:hover {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+.dh-diary-filter__option[aria-current="true"] {
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-accent-text);
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-surface);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Timeline                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-diary-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+/* Strong visual break between days: a weighted, ruled heading, without a grid. */
+.dh-diary-day__heading {
+  margin: 0;
+  padding-block-end: var(--dh-space-2);
+  border-block-end: var(--dh-border-width-thick) solid
+    var(--dh-color-border-strong);
+  font-size: var(--dh-font-size-md);
+  font-weight: var(--dh-font-weight-semibold);
+  letter-spacing: var(--dh-letter-spacing-tight);
+  color: var(--dh-color-text);
+}
+
+.dh-diary-day__entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-diary-entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-entity-diary-accent);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+}
+
+.dh-diary-entry__meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  align-items: baseline;
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-diary-entry__time {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-diary-entry__type {
+  padding: 0 var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-diary-entry__backdated {
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-diary-entry__body {
+  grid-column: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-diary-entry__title {
+  margin: 0;
+  font-size: var(--dh-font-size-base);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-diary-entry__excerpt {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-diary-entry__content {
+  min-inline-size: 0;
+}
+
+.dh-diary-entry__render-error {
+  margin: 0;
+  color: var(--dh-color-danger-text);
+}
+
+.dh-diary-entry__actions {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+}
+
+.dh-diary-entry__preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  align-items: flex-start;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Editor drawer                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-diary-editor__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dh-diary-editor__partial {
+  margin: 0;
+  color: var(--dh-color-warning-text);
+}
+
+.dh-diary-editor__loading {
+  padding: var(--dh-space-4);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-diary-editor__error {
+  margin: 0;
+  color: var(--dh-color-danger-text);
+}
+
+.dh-diary-when__input {
+  inline-size: 100%;
+  min-block-size: var(--dh-control-height-md);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  font: inherit;
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+}
+
+@media (max-width: 40rem) {
+  .dh-diary-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .dh-diary-entry__actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+}

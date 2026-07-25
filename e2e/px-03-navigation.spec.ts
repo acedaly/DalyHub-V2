@@ -10,16 +10,16 @@
  * a bespoke check.
  *
  * NOTES-01B replaced the `/notes` "Coming Soon" placeholder with a real
- * collection (`app/modules/notes/routes/index.tsx`), so Notes is EXCLUDED from
- * `SHELL_MODULES` below — its full journey now lives in `e2e/notes.spec.ts`.
- * Notes' sidebar reachability and active-state coverage stays here (against
- * its real collection heading, not a placeholder).
+ * collection (`app/modules/notes/routes/index.tsx`), and DIARY-01 replaced the
+ * `/diary` placeholder with the real Timeline (`app/modules/diary/routes/index.tsx`),
+ * so both are EXCLUDED from `SHELL_MODULES` below — their full journeys live in
+ * `e2e/notes.spec.ts` and `e2e/diary.spec.ts`. Their sidebar reachability and
+ * active-state coverage stays here (against their real headings, not placeholders).
  */
 
 import { expect, test } from "@playwright/test";
 
 const SHELL_MODULES = [
-  { label: "Diary", path: "/diary" },
   { label: "Meetings", path: "/meetings" },
   { label: "People", path: "/people" },
   { label: "Assets", path: "/assets" },
@@ -93,6 +93,21 @@ test.describe("PX-03 — every module shell route resolves with real content", (
     await expect(page).toHaveURL(/\/notes$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Notes" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
+  });
+
+  // DIARY-01: Diary has the real Timeline now — the sidebar link reaches a real,
+  // non-blank `/diary` heading (the Timeline Pane Header, not a placeholder).
+  test("the sidebar reaches the real Diary Timeline", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "Diary" }).click();
+    await expect(page).toHaveURL(/\/diary$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Diary" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { level: 2, name: "Coming Soon" }),
