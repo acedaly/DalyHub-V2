@@ -94,7 +94,8 @@ function toKernelFilters(filters: TasksFilterState): WorkspaceTaskFilters {
   if (filters.priority === "__none") out.priority = null;
   else if (filters.priority) out.priority = filters.priority as TaskPriority;
   if (filters.timeSector === "__none") out.timeSector = null;
-  else if (filters.timeSector) out.timeSector = filters.timeSector as TimeSector;
+  else if (filters.timeSector)
+    out.timeSector = filters.timeSector as TimeSector;
   if (filters.commitmentState)
     out.commitmentState = filters.commitmentState as CommitmentState;
   if (filters.status) out.status = filters.status as TaskStatus;
@@ -204,38 +205,27 @@ async function handleCreate(
       fieldErrors: { parentId: "Choose a Project or Area for this task." },
     };
   }
+  // The task AND its quick-capture planning fields are created in ONE atomic
+  // repository operation (ADR-043 §13 / decision 15) — never a spine create
+  // followed by a separate detail write, so a failure can never leave a created-
+  // but-unplanned or orphaned task, and there is no partial-commit to retry over.
+  const priority = form.get("priority");
+  const sector = form.get("timeSector");
+  const commitment = form.get("commitmentState");
+  const dueDate = form.get("dueDate");
+  const scheduledDate = form.get("scheduledDate");
   try {
-    const task = await scope.spine.createTask({
+    const task = await scope.tasks.createTask({
       title,
       parent: { kind: parentKind, id: parentId },
+      ...(priority ? { priority: String(priority) as TaskPriority } : {}),
+      ...(sector ? { timeSector: String(sector) as TimeSector } : {}),
+      ...(commitment
+        ? { commitmentState: String(commitment) as CommitmentState }
+        : {}),
+      ...(dueDate ? { dueDate: String(dueDate) } : {}),
+      ...(scheduledDate ? { scheduledDate: String(scheduledDate) } : {}),
     });
-
-    // Apply the quick-capture planning fields, if any, in a follow-up update. The
-    // task is ALREADY created (the spine committed); spine createTask and detail
-    // edits are separate atomic operations across two authorities with no
-    // cross-authority transaction, so creation is the commit point. A failure HERE
-    // must NOT report the task uncreated — that would cause a duplicate on retry and
-    // orphan the created task (ADR-043 §13, review feedback). We return the created
-    // taskId regardless; the Drawer opens for the user to finish any unapplied
-    // planning fields.
-    const priority = form.get("priority");
-    const sector = form.get("timeSector");
-    const commitment = form.get("commitmentState");
-    const dueDate = form.get("dueDate");
-    const scheduledDate = form.get("scheduledDate");
-    const patch: Record<string, unknown> = {};
-    if (priority) patch["priority"] = String(priority);
-    if (sector) patch["timeSector"] = String(sector);
-    if (commitment) patch["commitmentState"] = String(commitment);
-    if (dueDate) patch["dueDate"] = String(dueDate);
-    if (scheduledDate) patch["scheduledDate"] = String(scheduledDate);
-    if (Object.keys(patch).length > 0) {
-      try {
-        await scope.tasks.updateTask(task.id, patch);
-      } catch {
-        return { kind: "create", ok: true, taskId: task.id };
-      }
-    }
     return { kind: "create", ok: true, taskId: task.id };
   } catch (cause) {
     if (cause instanceof TaskValidationError) {

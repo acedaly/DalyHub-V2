@@ -524,7 +524,7 @@
   margin-top: var(--dh-space-2);
   font-size: var(--dh-font-size-sm);
   font-weight: 600;
-  color: var(--dh-color-accent-strong, var(--dh-color-text));
+  color: var(--dh-color-accent-text);
   text-decoration: underline;
 }
 

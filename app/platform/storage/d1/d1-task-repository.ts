@@ -37,11 +37,16 @@ import {
   PROJECT,
   PROJECT_ADVANCES_GOAL,
   PROJECT_BELONGS_TO_AREA,
+  SpineInvalidParentKindError,
+  SpineParentUnavailableError,
   TASK,
   TASK_BELONGS_TO_AREA,
   TASK_BELONGS_TO_PROJECT,
   TASK_COMPLETED,
+  secureIdGenerator,
+  spineLinkTypeFor,
   systemClock,
+  validateSpineTitle,
   type Clock,
   type IdGenerator,
 } from "~/kernel/spine";
@@ -91,6 +96,7 @@ import {
   type ListWaitingTasksInput,
   type ListWorkspaceTaskGroupsInput,
   type ListWorkspaceTasksInput,
+  type NewTaskInput,
   type PlanTaskInput,
   type PlanTaskResult,
   type ProjectTaskCursorScope,
@@ -131,7 +137,12 @@ import {
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import {
   buildEntityUpdatedAtBumpStatement,
+  buildSpineChildEntityInsertStatement,
+  buildSpineChildLinkInsertStatement,
+  buildSpineChildRecordInsertStatement,
   buildSpineCompleteStatement,
+  spineEntityCreatedEvent,
+  spineLinkCreatedEvent,
 } from "./spine-database";
 import {
   rowToTaskDetails,
@@ -235,8 +246,20 @@ export interface D1TaskRepositoryOptions {
   readonly actorContext?: ActivityActorContext;
   /** Id generator for Activity events. Defaults to a secure UUID generator. */
   readonly activityIdGenerator?: IdGenerator;
+  /**
+   * Id generator for the ENTITY + structural link ids minted by the atomic
+   * `createTask` (the spine stays the identity authority; this is the same secure
+   * generator it uses). Injectable for deterministic tests.
+   */
+  readonly idGenerator?: IdGenerator;
   /** TEST-ONLY: force `completeTask`'s batch to fail at a chosen point. */
   readonly completeFault?: CompleteTaskFault;
+  /**
+   * TEST-ONLY: force `createTask`'s single atomic batch to fail (a forced-error
+   * statement appended at the end), to prove no entity/spine/link/details/Activity
+   * survives the rollback. Never set in production.
+   */
+  readonly createTaskFault?: boolean;
   /**
    * TEST-ONLY: force `completeTasks`' single atomic batch to fail (a forced-error
    * statement appended at the end), to prove no task in the selection is left
@@ -280,9 +303,11 @@ export class D1TaskRepository implements TaskRepository {
   readonly #clock: Clock;
   readonly #actor: ActivityActorContext;
   readonly #newActivityId: IdGenerator;
+  readonly #newEntityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
   readonly #completeFault?: CompleteTaskFault;
   readonly #bulkCompleteFault?: boolean;
+  readonly #createTaskFault?: boolean;
   readonly #planRaceHook?: () => Promise<void>;
 
   constructor(
@@ -296,10 +321,200 @@ export class D1TaskRepository implements TaskRepository {
     this.#actor = options.actorContext ?? createSystemActorContext();
     this.#newActivityId =
       options.activityIdGenerator ?? activitySecureIdGenerator;
+    this.#newEntityId = options.idGenerator ?? secureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
     this.#completeFault = options.completeFault;
     this.#bulkCompleteFault = options.bulkCompleteFault;
+    this.#createTaskFault = options.createTaskFault;
     this.#planRaceHook = options.planRaceHook;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Atomic create (identity + planning slice in ONE batch) — ADR-043 §13     */
+  /* ---------------------------------------------------------------------- */
+
+  async createTask(input: NewTaskInput): Promise<TaskView> {
+    const title = validateSpineTitle(input.title);
+    const parentKind = input.parent?.kind;
+    if (parentKind !== "area" && parentKind !== "project") {
+      throw new SpineInvalidParentKindError();
+    }
+    const parentId = validateTaskId(input.parent.id);
+    const linkType = spineLinkTypeFor(TASK, parentKind);
+    if (linkType === null) {
+      throw new SpineInvalidParentKindError();
+    }
+
+    // Validate + normalise the OPTIONAL planning fields at the boundary.
+    const priority =
+      input.priority === undefined
+        ? null
+        : validateTaskPriority(input.priority);
+    const timeSector =
+      input.timeSector === undefined
+        ? null
+        : validateTimeSector(input.timeSector);
+    const commitmentState =
+      input.commitmentState === undefined
+        ? "active"
+        : validateCommitmentState(input.commitmentState);
+    const dueDate = validateTaskDate(input.dueDate ?? null, "dueDate");
+    const scheduledDate = validateTaskDate(
+      input.scheduledDate ?? null,
+      "scheduledDate",
+    );
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const id = this.#newEntityId();
+    const linkId = this.#newEntityId();
+
+    // Identity + parentage: the SHARED spine create builders (the spine stays the
+    // identity authority; the parent-gate security SQL lives in ONE place).
+    const entityStmt = buildSpineChildEntityInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      { id, kind: TASK, title, parentKind, parentId, nowTs },
+    );
+    const spineStmt = buildSpineChildRecordInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      { id, kind: TASK },
+    );
+    const linkStmt = buildSpineChildLinkInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      {
+        linkId,
+        sourceEntityId: id,
+        targetEntityId: parentId,
+        parentKind,
+        linkType,
+        nowTs,
+      },
+    );
+
+    // The two create events, each guarded (via the recorder's `changes() > 0`
+    // predicate) on the insert IMMEDIATELY before it in the batch.
+    const entityModel = buildActivityWriteModel(
+      spineEntityCreatedEvent(id, TASK, title),
+      this.#actor.actor,
+      this.#newActivityId(),
+      now,
+    );
+    const [entityActivity, ...entitySubjects] =
+      this.#recorder.buildAppendStatements(this.#workspaceId, entityModel);
+    const linkModel = buildActivityWriteModel(
+      spineLinkCreatedEvent(linkId, id, parentId, linkType),
+      this.#actor.actor,
+      this.#newActivityId(),
+      now,
+    );
+    const [linkActivity, ...linkSubjects] =
+      this.#recorder.buildAppendStatements(this.#workspaceId, linkModel);
+
+    // The additive planning slice — written in the SAME batch, ONLY when a planning
+    // field is supplied (otherwise the task reads documented defaults with no row),
+    // gated on the just-created entity so it cannot outlive a rolled-back create.
+    const writeDetails =
+      priority !== null ||
+      timeSector !== null ||
+      commitmentState !== "active" ||
+      dueDate !== null ||
+      scheduledDate !== null;
+
+    const statements: D1PreparedStatement[] = [
+      entityStmt,
+      entityActivity!,
+      ...entitySubjects,
+      spineStmt,
+      linkStmt,
+      linkActivity!,
+      ...linkSubjects,
+    ];
+    if (writeDetails) {
+      statements.push(
+        this.#createDetailsStatement(
+          id,
+          { priority, dueDate, scheduledDate, timeSector, commitmentState },
+          nowTs,
+        ),
+      );
+    }
+    // TEST-ONLY: prove the WHOLE create rolls back — no entity/spine/link/details/
+    // Activity survives — when a statement fails mid-batch.
+    if (this.#createTaskFault) {
+      statements.push(this.#forcedFailure());
+    }
+
+    let results: D1Result<EntityRow>[];
+    try {
+      results = await this.#db.batch<EntityRow>(statements);
+    } catch (cause) {
+      if (cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new TaskStorageError(undefined, { cause });
+    }
+
+    // The entity insert is index 0; a zero-change result means the parent was
+    // missing/deleted/wrong-kind/archived/cross-workspace — the batch committed
+    // nothing (no entity, spine row, link, details or Activity).
+    const entityResult = results[0];
+    const entityRow = (entityResult?.results ?? [])[0];
+    if ((entityResult?.meta?.changes ?? 0) === 0 || !entityRow) {
+      throw new SpineParentUnavailableError();
+    }
+
+    const view = await this.getTask(id);
+    if (!view) {
+      throw new TaskStorageError();
+    }
+    return view;
+  }
+
+  /**
+   * The `task_details` insert for an atomic create: write the initial planning slice
+   * for the just-created task, gated on the entity existing (so it commits only with
+   * the create). Delegation is never set at creation. The column literals are trusted.
+   */
+  #createDetailsStatement(
+    entityId: string,
+    fields: {
+      readonly priority: string | null;
+      readonly dueDate: string | null;
+      readonly scheduledDate: string | null;
+      readonly timeSector: string | null;
+      readonly commitmentState: string;
+    },
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO task_details
+           (workspace_id, entity_id, entity_type, status, priority,
+            due_date, scheduled_date, time_sector, commitment_state,
+            delegate_to, delegated_on, follow_up_on, delegate_note,
+            description, updated_at)
+         SELECT ?, ?, '${TASK}', 'todo', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                   AND deleted_at IS NULL
+               )`,
+      )
+      .bind(
+        this.#workspaceId,
+        entityId,
+        fields.priority,
+        fields.dueDate,
+        fields.scheduledDate,
+        fields.timeSector,
+        fields.commitmentState,
+        nowTs,
+        this.#workspaceId,
+        entityId,
+      );
   }
 
   /* ---------------------------------------------------------------------- */

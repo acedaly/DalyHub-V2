@@ -92,9 +92,14 @@ import { toStorageTimestamp, type EntityRow } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import {
   buildEntityUpdatedAtBumpStatement,
+  buildSpineChildEntityInsertStatement,
+  buildSpineChildLinkInsertStatement,
+  buildSpineChildRecordInsertStatement,
   buildSpineCompleteStatement,
   composeSpineRecord,
   rowToSpineRecord,
+  spineEntityCreatedEvent,
+  spineLinkCreatedEvent,
   SPINE_JOINED_COLUMNS,
   type SpineJoinedRow,
 } from "./spine-database";
@@ -284,90 +289,37 @@ export class D1SpineRepository implements SpineRepository {
     const id = this.#newId();
     const linkId = this.#newId();
 
-    // PROJ-05 (ADR-037): an archived Project is read-only until restored — a Task
-    // cannot be created under it. Folded directly into the entity insert's gate
-    // (never a separate precondition read) so a project archived concurrently
-    // with this create cannot slip a new active Task underneath it. Irrelevant for
-    // any other (kind, parentKind) pair, so every other creation path is unchanged.
-    const parentProjectNotArchivedClause =
-      kind === TASK && parentKind === PROJECT
-        ? ` AND NOT EXISTS (
-                 SELECT 1 FROM project_details
-                 WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
-               )`
-        : "";
-
-    const entityStmt = this.#db
-      .prepare(
-        `INSERT INTO entities
-           (id, workspace_id, type, title, created_at, updated_at, deleted_at)
-         SELECT ?, ?, ?, ?, ?, ?, NULL
-         WHERE EXISTS (
-                 SELECT 1 FROM entities
-                 WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
-               )${parentProjectNotArchivedClause}
-         RETURNING ${ENTITY_RETURNING}`,
-      )
-      .bind(
-        id,
-        this.#workspaceId,
-        kind,
-        title,
-        nowTs,
-        nowTs,
-        this.#workspaceId,
-        parentId,
-        parentKind,
-        ...(parentProjectNotArchivedClause
-          ? [this.#workspaceId, parentId]
-          : []),
-      );
-
-    const spineStmt = this.#db
-      .prepare(
-        `INSERT INTO spine_records (workspace_id, entity_id, kind, completed_at)
-         SELECT ?, ?, ?, NULL
-         WHERE EXISTS (
-                 SELECT 1 FROM entities WHERE workspace_id = ? AND id = ?
-               )`,
-      )
-      .bind(this.#workspaceId, id, kind, this.#workspaceId, id);
-
-    const linkStmt = this.#db
-      .prepare(
-        `INSERT INTO entity_links
-           (id, workspace_id, source_entity_id, target_entity_id, type,
-            created_at, updated_at, deleted_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, NULL
-         WHERE EXISTS (
-                 SELECT 1 FROM entities
-                 WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-               )
-           AND EXISTS (
-                 SELECT 1 FROM entities
-                 WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
-               )
-         RETURNING id`,
-      )
-      .bind(
+    // The create SQL + event shapes come from the shared spine-database builders,
+    // so this path and the TaskRepository's atomic task-create build IDENTICAL
+    // statements — the parent-gate security SQL (incl. PROJ-05/ADR-037's archived-
+    // project gate for a Task under a Project) lives in ONE place, never duplicated.
+    const entityStmt = buildSpineChildEntityInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      { id, kind, title, parentKind, parentId, nowTs },
+    );
+    const spineStmt = buildSpineChildRecordInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      { id, kind },
+    );
+    const linkStmt = buildSpineChildLinkInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      {
         linkId,
-        this.#workspaceId,
-        id,
-        parentId,
+        sourceEntityId: id,
+        targetEntityId: parentId,
+        parentKind,
         linkType,
         nowTs,
-        nowTs,
-        this.#workspaceId,
-        id,
-        this.#workspaceId,
-        parentId,
-        parentKind,
-      );
+      },
+    );
 
     const steps: SpineStep[] = [
       {
         statement: entityStmt,
-        event: this.#entityEvent(ENTITY_CREATED, id, kind, title),
+        event: spineEntityCreatedEvent(id, kind, title),
         faultAfterEvent: this.#createFault === "entity-activity",
       },
       {
@@ -376,7 +328,7 @@ export class D1SpineRepository implements SpineRepository {
       },
       {
         statement: linkStmt,
-        event: this.#linkEvent(LINK_CREATED, linkId, id, parentId, linkType),
+        event: spineLinkCreatedEvent(linkId, id, parentId, linkType),
         faultAfterEvent: this.#createFault === "link-activity",
       },
     ];

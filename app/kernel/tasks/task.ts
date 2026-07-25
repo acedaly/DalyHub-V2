@@ -622,6 +622,28 @@ export type SearchTaskParentsInput = {
 };
 
 /**
+ * Create a task AND its initial planning fields as ONE atomic operation (ADR-043 §13
+ * / decision 15). The structural identity/parentage (an Area OR Project parent, the
+ * spine record and the `entity.created`/`entity_link.created` events) and the additive
+ * `task_details` planning slice are written together in a single transaction — never a
+ * spine create followed by a separate detail write. Any planning field is optional; an
+ * omitted field takes its documented default and no `task_details` row is written when
+ * no planning field is supplied.
+ */
+export type NewTaskInput = {
+  readonly title: string;
+  readonly parent: {
+    readonly kind: "area" | "project";
+    readonly id: string;
+  };
+  readonly priority?: TaskPriority | null;
+  readonly timeSector?: TimeSector | null;
+  readonly commitmentState?: CommitmentState;
+  readonly dueDate?: string | null;
+  readonly scheduledDate?: string | null;
+};
+
+/**
  * The result of a bulk field mutation (`setPriorityMany`, `setSectorMany`,
  * `setCommitmentMany`, `setStatusMany`): how many tasks actually changed vs were
  * already in the requested state. ATOMIC — either every change commits, or none.

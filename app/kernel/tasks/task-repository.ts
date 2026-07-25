@@ -29,6 +29,7 @@ import type {
   ListWaitingTasksInput,
   ListWorkspaceTaskGroupsInput,
   ListWorkspaceTasksInput,
+  NewTaskInput,
   PlanTaskInput,
   PlanTaskResult,
   ProjectTaskListPage,
@@ -49,6 +50,22 @@ import type {
 } from "./task";
 
 export interface TaskRepository {
+  /**
+   * Create a task AND its initial planning fields as ONE atomic operation (ADR-043
+   * §13 / decision 15). A single `D1Database.batch()` writes the `entities` row
+   * (gated on an active Area/Project parent — and, under a Project, one that is not
+   * archived), the `spine_records` row, the structural parent EntityLink, the
+   * `entity.created` + `entity_link.created` events AND the additive `task_details`
+   * planning slice (only when a planning field is supplied). Either everything
+   * commits or nothing does — a task can never be left created-without-its-planning
+   * or half-linked; there is no spine-create-then-detail-write sequence. Structural
+   * identity/parentage SQL is the SHARED spine create builder (the spine stays the
+   * identity authority). Throws `SpineParentUnavailableError` when the parent is
+   * missing/deleted/wrong-kind/archived/cross-workspace (nothing is written) and
+   * `TaskValidationError`/`SpineValidationError` for invalid input.
+   */
+  createTask(input: NewTaskInput): Promise<TaskView>;
+
   /**
    * Read one task as a full `TaskView` — the entity header, the spine's
    * completion, the additive details (documented defaults when it has no

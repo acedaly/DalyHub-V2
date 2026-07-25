@@ -62,6 +62,7 @@ export {
   type ListWorkspaceTaskGroupsInput,
   type TaskParentCandidate,
   type SearchTaskParentsInput,
+  type NewTaskInput,
   type BulkFieldResult,
 } from "./task";
 
