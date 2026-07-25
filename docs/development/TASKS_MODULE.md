@@ -64,6 +64,22 @@ colour alone.
 - **All Tasks**: the complete bounded collection with deterministic sorting and
   cursor pagination.
 
+**Matrix and Sectors scope to ACTIVE work only** (ADR-043 decision 11): the `active`
+system view excludes completed, cancelled, Someday/Maybe AND the parked/blocked
+states **waiting** and **on_hold**, so only actionable-now work enters a quadrant or
+sector bucket. Parked/terminal records stay reachable via All Tasks and the
+dedicated system views. `on_hold` is a real retained state ("On hold" on every
+surface) but is shown only through All / the status filter, never in active planning.
+
+**Matrix/Sectors grouping and counts are server-authoritative** (ADR-043 decision
+12): `TaskRepository.listWorkspaceTaskGroups(dimension)` returns, in ONE bounded
+window-function query, each bucket's authoritative total count (over the whole active
+scope, independent of paging) plus a bounded, smart-sorted slice and a `hasMore`
+flag. Quadrant/sector counts and empty states are correct before any records load; an
+overflowing bucket exposes a **"View all N"** link to the equivalent filtered All view
+(which paginates that one bucket on its own cursor). Mobile and desktop render the
+same grouping.
+
 System views (`?system=`): Inbox · Today · This Week · Next Week · This Month ·
 Next Month · Long Term · Someday/Maybe · Waiting · Routines · Overdue · Completed ·
 Cancelled · All. View/sort/filter/selected-task state is URL-reflected and
@@ -80,13 +96,37 @@ indexes back the sector, someday and scheduled query paths. Cross-field invarian
 (delegation, Someday exclusion, display precedence) are enforced by the
 workspace-bound `TaskRepository` and tests, as migration 0007 did for waiting.
 
-## Pagination
+## Creation (atomic)
+
+`TaskRepository.createTask(NewTaskInput)` creates a task AND its initial planning
+fields in ONE `D1Database.batch()` (ADR-043 decision 15): the `entities` row (gated
+on an active, non-archived Area/Project parent), the `spine_records` row, the
+structural parent link, the `entity.created` + `entity_link.created` events and the
+`task_details` slice (only when a planning field is given) — either all commit or
+none do, so a task is never created-without-its-planning or orphaned. The
+identity/parentage SQL is the SHARED spine create builders (`spine-database.ts`,
+reused by the SpineRepository), so the spine stays the identity authority. The
+quick-capture form posts to the dedicated **`/tasks/new` resource route** (no
+component) so it receives the action's JSON — mirroring `/projects/new`, `/notes/new`.
+
+## Parent search
+
+The create parent selector calls `TaskRepository.searchTaskParents(query)` — a
+bounded, indexed, parameterised `LIKE` over the WHOLE workspace collection restricted
+to active Areas + non-archived Projects, ordered deterministically and capped (ADR-043
+decision 13). It is never a fixed-prefix scan, so a newer Area/Project in a long-lived
+workspace is always found; the create action re-verifies the chosen parent.
+
+## Pagination & sort
 
 Every workspace-wide read is bounded, workspace-scoped, N+1-free and
 cursor-paginated. The cursor (`task-workspace-cursor.ts`) is opaque, versioned and
 bound to the full query scope — workspace + view + every filter + sort + the owner's
 calendar day — so a cursor that does not match the current query is rejected
-calmly (`InvalidSpineCursorError`), never reinterpreted.
+calmly (`InvalidSpineCursorError`), never reinterpreted. The default **`smart` sort is
+overdue-first** (ADR-043 decision 14): open-before-completed → overdue-before-not
+(open tasks due strictly before the owner's calendar day; due-today is not overdue) →
+priority P1→P4 (nulls last) → due date (nulls last), as one comparable keyset string.
 
 ## Delegation
 
