@@ -139,7 +139,7 @@ describe("task updates", () => {
     const result = await tasks.updateTask(task.id, {
       title: "Write the persistence ADR",
       status: "in_progress",
-      priority: "high",
+      priority: "p1",
       dueDate: "2026-08-01",
       scheduledDate: "2026-07-25",
       description: "## Plan\n\nDo the thing.",
@@ -148,7 +148,7 @@ describe("task updates", () => {
     expect(result.changed).toBe(true);
     expect(result.task.title).toBe("Write the persistence ADR");
     expect(result.task.status).toBe("in_progress");
-    expect(result.task.priority).toBe("high");
+    expect(result.task.priority).toBe("p1");
     expect(result.task.dueDate).toBe("2026-08-01");
     expect(result.task.scheduledDate).toBe("2026-07-25");
     expect(result.task.description).toBe("## Plan\n\nDo the thing.");
@@ -186,7 +186,7 @@ describe("task updates", () => {
     const { task } = await seedHierarchy(WS);
     const tasks = taskRepo(WS);
     await tasks.updateTask(task.id, {
-      priority: "high",
+      priority: "p1",
       dueDate: "2026-08-01",
     });
 
@@ -229,12 +229,12 @@ describe("task updates", () => {
     const { task } = await seedHierarchy(WS);
     const tasks = taskRepo(WS);
     await tasks.updateTask(task.id, {
-      priority: "high",
+      priority: "p1",
       description: "keep me",
     });
     // Change only the priority; the description column must be left alone.
-    const result = await tasks.updateTask(task.id, { priority: "low" });
-    expect(result.task.priority).toBe("low");
+    const result = await tasks.updateTask(task.id, { priority: "p3" });
+    expect(result.task.priority).toBe("p3");
     expect(result.task.description).toBe("keep me");
     const reread = (await tasks.getTask(task.id)) as TaskView;
     expect(reread.description).toBe("keep me");

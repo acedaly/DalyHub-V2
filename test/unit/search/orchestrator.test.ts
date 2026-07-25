@@ -222,20 +222,24 @@ describe("registry-driven provider discovery", () => {
 
   it("runs the discovered Today provider and opens results via Drawer targets", async () => {
     const registry = discoverModuleRegistry();
+    // The real Tasks provider needs D1/env (absent in this unit env) and is
+    // isolated by executeSearch; the fixture-backed Today provider still resolves
+    // its project/note/meeting candidates via Drawer targets. TASKS-01 retired
+    // Today's fixture TASK results, so we search a project instead.
     const outcome = await executeSearch({
       providers: registry.listSearchProviders(),
       context,
-      rawQuery: "PX-02",
+      rawQuery: "DalyHub",
     });
     const allResults = outcome.groups.flatMap((g) => g.results);
     expect(allResults.length).toBeGreaterThan(0);
-    const finish = allResults.find((r) => r.title.includes("PX-02"));
-    expect(finish?.target).toEqual({
+    const project = allResults.find((r) => r.entityType === "project");
+    expect(project?.target).toMatchObject({
       kind: "drawer",
-      drawerKey: "task:t-px02",
+      drawerKey: "project:p-dalyhub",
       canonicalPath: "/today",
     });
-    expect(finish?.moduleId).toBe("today");
+    expect(project?.moduleId).toBe("today");
   });
 });
 

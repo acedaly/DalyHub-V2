@@ -7,7 +7,12 @@ import { setAuthenticatedSession } from "~/platform/request";
 import { loader } from "~/routes/search";
 import type { SearchOutcome } from "~/shared/search/model";
 
-import { makeWorkspaceRepository, resetTables } from "./support";
+import {
+  makeContext,
+  makeSpineRepository,
+  makeWorkspaceRepository,
+  resetTables,
+} from "./support";
 
 /**
  * DS-08 — the ACTUAL `/search` route loader in the real Workers runtime, over real
@@ -53,6 +58,18 @@ async function seedConfiguredWorkspace(): Promise<void> {
   await makeWorkspaceRepository().create({
     id: parseWorkspaceId(CONFIGURED_WORKSPACE),
   });
+  // TASKS-01: seed a REAL task so the repository-backed Tasks search provider (which
+  // replaced Today's fixture task search) can resolve it through the trusted scope.
+  const spine = makeSpineRepository(makeContext(CONFIGURED_WORKSPACE));
+  const area = await spine.createArea({ title: "Product" });
+  const project = await spine.createProject({
+    title: "Ship",
+    parent: { kind: "area", id: area.id },
+  });
+  await spine.createTask({
+    title: "Finish PX-02",
+    parent: { kind: "project", id: project.id },
+  });
 }
 
 describe("GET /search route loader", () => {
@@ -66,14 +83,17 @@ describe("GET /search route loader", () => {
     expect(response.status).toBe(200);
     const outcome = (await response.json()) as SearchOutcome;
     expect(outcome.status).toBe("ok");
-    // The registry-discovered Today provider ran under the verified workspace.
+    // The registry-discovered, repository-backed Tasks provider ran under the
+    // verified workspace and resolved the REAL seeded task.
     const results = outcome.groups.flatMap((g) => g.results);
-    expect(results.some((r) => r.title.includes("PX-02"))).toBe(true);
-    expect(results.find((r) => r.title.includes("PX-02"))?.target).toEqual({
-      kind: "drawer",
-      drawerKey: "task:t-px02",
-      canonicalPath: "/today",
-    });
+    const finish = results.find((r) => r.title.includes("PX-02"));
+    expect(finish).toBeDefined();
+    expect(finish?.entityType).toBe("task");
+    expect(finish?.target.kind).toBe("drawer");
+    if (finish?.target.kind === "drawer") {
+      expect(finish.target.drawerKey).toMatch(/^task:/);
+      expect(finish.target.canonicalPath).toBe("/tasks");
+    }
   });
 
   it("ignores a forged workspace query parameter", async () => {

@@ -256,6 +256,13 @@ describe("module discovery", () => {
           file: "routes/parent-options.tsx",
         },
         { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
+        // TASKS-01 workspace resource routes (static segments before the dynamic id).
+        { id: "tasks.bulk", moduleId: "tasks", file: "routes/bulk.tsx" },
+        {
+          id: "tasks.parent_options",
+          moduleId: "tasks",
+          file: "routes/parent-options.tsx",
+        },
         // PROJ-01 / ADR-033 re-homed the task record resource routes to the Tasks
         // module (previously `today.task*`): the task Drawer's data endpoint, its
         // Activity Timeline page, the link-target search and the waiting-target
@@ -326,22 +333,29 @@ describe("module discovery", () => {
         { id: "help.index", moduleId: "help", file: "routes/index.tsx" },
       ]);
       // DS-09: Today registers registry-discovered navigation commands; TODAY-03
-      // adds "Open Waiting".
+      // adds "Open Waiting". TASKS-01 adds the Tasks module's navigation commands.
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
         "today.focus_quick_capture",
         "today.open_waiting",
+        "tasks.open",
+        "tasks.new",
+        "tasks.this_week",
+        "tasks.matrix",
+        "tasks.sectors",
+        "tasks.someday",
       ]);
       expect(registry.listCommands().every((c) => c.kind === "navigate")).toBe(
         true,
       );
       expect(registry.getCommand("today.open")?.moduleId).toBe("today");
       expect(registry.listSettings()).toEqual([]);
-      // TODAY-01's fixture-backed search provider (DS-08) is the first
-      // registry-discovered search contribution; ownership is retained.
+      // TODAY-01's fixture-backed provider plus TASKS-01's real, repository-backed
+      // Tasks search provider (the fixture task results were retired from Today).
       const searchProviders = registry.listSearchProviders();
       expect(searchProviders.map((provider) => provider.id)).toEqual([
         "today.search",
+        "tasks.search",
       ]);
       expect(searchProviders[0]?.moduleId).toBe("today");
     });

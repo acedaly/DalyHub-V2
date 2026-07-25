@@ -37,9 +37,12 @@ const TASK: SerializedTaskView = {
   deletedAt: null,
   completedAt: null,
   status: "todo",
-  priority: "high",
+  priority: "p1",
   dueDate: "2026-08-01",
   scheduledDate: null,
+  timeSector: null,
+  commitmentState: "active",
+  delegation: null,
   description: "The plan is documented here.",
   project: { kind: "project", id: "p1", title: "Ship V2" },
   goal: { kind: "goal", id: "g1", title: "Promotion" },
@@ -127,9 +130,9 @@ describe("task record rendering", () => {
     expect(
       await screen.findByRole("heading", { name: "Write the ADR" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("To do")).toBeInTheDocument();
+    expect(document.querySelector(".record-status")).toHaveTextContent("Inbox");
     expect(screen.getByText("1 Aug 2026")).toBeInTheDocument();
-    expect(screen.getByText("High")).toBeInTheDocument();
+    expect(screen.getByText("P1 · Do")).toBeInTheDocument();
     expect(screen.getByText("Ship V2")).toBeInTheDocument();
   });
 

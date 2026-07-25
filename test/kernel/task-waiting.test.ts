@@ -414,14 +414,14 @@ describe("reads & field preservation", () => {
     const { task } = await seedTask(WS);
     const tasks = taskRepo(WS);
     await tasks.updateTask(task.id, {
-      priority: "high",
+      priority: "p1",
       dueDate: "2026-08-01",
     });
     await tasks.setWaiting(task.id, {
       target: { kind: "text", note: "parts" },
     });
     const reread = (await tasks.getTask(task.id)) as TaskView;
-    expect(reread.priority).toBe("high");
+    expect(reread.priority).toBe("p1");
     expect(reread.dueDate).toBe("2026-08-01");
     expect(reread.waiting?.subject).toEqual({ kind: "text", note: "parts" });
   });
@@ -432,9 +432,9 @@ describe("reads & field preservation", () => {
     await tasks.setWaiting(task.id, {
       target: { kind: "text", note: "parts" },
     });
-    await tasks.updateTask(task.id, { priority: "low" });
+    await tasks.updateTask(task.id, { priority: "p3" });
     const reread = (await tasks.getTask(task.id)) as TaskView;
-    expect(reread.priority).toBe("low");
+    expect(reread.priority).toBe("p3");
     expect(reread.waiting?.subject).toEqual({ kind: "text", note: "parts" });
   });
 });

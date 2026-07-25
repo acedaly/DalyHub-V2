@@ -21,16 +21,16 @@ describe("today search provider", () => {
     expect(todayModule.searchProviders?.[0]?.id).toBe("today.search");
   });
 
-  it("finds a focus task and targets its existing Drawer key on /today", async () => {
+  it("no longer returns fixture focus tasks (TASKS-01 retired them; real Tasks search owns tasks)", async () => {
     const results = await run("PX-02");
     const finish = results.find((r) => r.title === "Finish PX-02");
-    expect(finish).toBeDefined();
-    expect(finish?.entityType).toBe("task");
-    expect(finish?.target).toEqual({
-      kind: "drawer",
-      drawerKey: "task:t-px02",
-      canonicalPath: "/today",
-    });
+    expect(finish).toBeUndefined();
+    // The remaining Today candidates are meetings, projects and notes only.
+    expect(
+      results.every(
+        (r) => r.entityType !== "task" || r.id.startsWith("upcoming:"),
+      ),
+    ).toBe(true);
   });
 
   it("finds a project, a note and a meeting across the fixtures", async () => {
@@ -60,8 +60,8 @@ describe("today search provider", () => {
     const all = await run("", 100);
     // Empty query still returns all candidates here (the orchestrator gates empty
     // queries upstream); assert the candidate set has no timeline ids.
+    // TASKS-01 retired the focus (task) candidates from Today search.
     const openable =
-      TODAY_FIXTURE.focus.length +
       TODAY_FIXTURE.upcoming.length +
       TODAY_FIXTURE.projects.length +
       TODAY_FIXTURE.notes.length;
