@@ -22,12 +22,24 @@ import {
 
 import { TaskValidationError } from "./task-errors";
 import {
+  COMMITMENT_STATES,
   TASK_PRIORITIES,
+  TASK_SORTS,
   TASK_STATUSES,
+  TASK_SYSTEM_VIEWS,
+  TIME_SECTORS,
+  type CommitmentState,
+  type TaskDelegation,
+  type TaskDelegationInput,
   type TaskPriority,
+  type TaskSort,
   type TaskStatus,
+  type TaskSystemView,
+  type TimeSector,
 } from "./task";
 import {
+  DELEGATE_TO_MAX_LENGTH,
+  DELEGATION_NOTE_MAX_LENGTH,
   MAX_PLAN_BATCH_SIZE,
   WAITING_NOTE_MAX_LENGTH,
 } from "./task-identifiers";
@@ -99,13 +111,13 @@ export function validateTaskStatus(value: unknown): TaskStatus {
   if (!isTaskStatus(value)) {
     throw new TaskValidationError(
       "status",
-      'must be one of "todo" or "in_progress"',
+      'must be one of "todo", "in_progress", "on_hold" or "cancelled"',
     );
   }
   return value;
 }
 
-/** Validate a nullable priority. `null` is a valid "no priority". */
+/** Validate a nullable priority. `null` is a valid "no priority" (untriaged). */
 export function validateTaskPriority(value: unknown): TaskPriority | null {
   if (value === null || value === undefined) {
     return null;
@@ -116,10 +128,193 @@ export function validateTaskPriority(value: unknown): TaskPriority | null {
   ) {
     throw new TaskValidationError(
       "priority",
-      'must be null or one of "low", "medium" or "high"',
+      'must be null or one of "p1", "p2", "p3" or "p4"',
     );
   }
   return value as TaskPriority;
+}
+
+/** Validate a nullable Time Sector. `null`/empty means "no sector" (Inbox). */
+export function validateTimeSector(value: unknown): TimeSector | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  if (
+    typeof value !== "string" ||
+    !(TIME_SECTORS as readonly string[]).includes(value)
+  ) {
+    throw new TaskValidationError(
+      "timeSector",
+      "must be null or a valid time sector",
+    );
+  }
+  return value as TimeSector;
+}
+
+/** Validate a commitment state. Defaults to `active` for null/undefined. */
+export function validateCommitmentState(value: unknown): CommitmentState {
+  if (value === null || value === undefined || value === "") {
+    return "active";
+  }
+  if (
+    typeof value !== "string" ||
+    !(COMMITMENT_STATES as readonly string[]).includes(value)
+  ) {
+    throw new TaskValidationError(
+      "commitmentState",
+      'must be "active" or "someday"',
+    );
+  }
+  return value as CommitmentState;
+}
+
+/**
+ * Validate a delegatee label: required, non-empty after trimming, bounded, no
+ * control characters (a single-line plain-text label, never HTML/Markdown). Returns
+ * the trimmed value stored verbatim.
+ */
+export function validateDelegateTo(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new TaskValidationError("delegateTo", "must be a string");
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new TaskValidationError(
+      "delegateTo",
+      "enter who this is delegated to",
+    );
+  }
+  if (codePointLength(trimmed) > DELEGATE_TO_MAX_LENGTH) {
+    throw new TaskValidationError(
+      "delegateTo",
+      `must be at most ${DELEGATE_TO_MAX_LENGTH} characters`,
+    );
+  }
+  // eslint-disable-next-line no-control-regex -- reject C0/C1 control characters.
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(trimmed)) {
+    throw new TaskValidationError(
+      "delegateTo",
+      "must not contain control characters",
+    );
+  }
+  return trimmed;
+}
+
+/** Validate a nullable delegation note (plain text, bounded). */
+export function validateDelegationNote(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new TaskValidationError("delegationNote", "must be a string or null");
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (codePointLength(trimmed) > DELEGATION_NOTE_MAX_LENGTH) {
+    throw new TaskValidationError(
+      "delegationNote",
+      `must be at most ${DELEGATION_NOTE_MAX_LENGTH} characters`,
+    );
+  }
+  // eslint-disable-next-line no-control-regex -- reject C0/C1 control characters.
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(trimmed)) {
+    throw new TaskValidationError(
+      "delegationNote",
+      "must not contain control characters",
+    );
+  }
+  return trimmed;
+}
+
+/**
+ * Validate and normalise a nullable delegation input. `null` clears delegation. A
+ * present value REQUIRES a non-empty `to`; the two optional dates are validated as
+ * date-only values and the note as bounded plain text. Returns the normalised
+ * {@link TaskDelegation} the repository stores.
+ */
+export function validateDelegationInput(
+  value: TaskDelegationInput | null | undefined,
+): TaskDelegation | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "object") {
+    throw new TaskValidationError("delegateTo", "must be a delegation record");
+  }
+  const to = validateDelegateTo((value as { to?: unknown }).to);
+  const delegatedOn = validateDelegationDate(
+    (value as { delegatedOn?: unknown }).delegatedOn,
+    "delegatedOn",
+  );
+  const followUpOn = validateDelegationDate(
+    (value as { followUpOn?: unknown }).followUpOn,
+    "followUpOn",
+  );
+  const note = validateDelegationNote((value as { note?: unknown }).note);
+  return { to, delegatedOn, followUpOn, note };
+}
+
+/** Validate a nullable delegation date-only value against a specific field. */
+function validateDelegationDate(
+  value: unknown,
+  field: "delegatedOn" | "followUpOn",
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new TaskValidationError(field, "must be a date string or null");
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const match = DATE_ONLY_PATTERN.exec(trimmed);
+  if (!match) {
+    throw new TaskValidationError(field, "must be a YYYY-MM-DD date");
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12) {
+    throw new TaskValidationError(field, "month must be between 01 and 12");
+  }
+  const maxDay =
+    month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1]!;
+  if (day < 1 || day > maxDay) {
+    throw new TaskValidationError(field, "day is out of range for the month");
+  }
+  return trimmed;
+}
+
+/** Validate a workspace-wide system view identifier. Defaults to `all`. */
+export function validateTaskSystemView(value: unknown): TaskSystemView {
+  if (value === null || value === undefined || value === "") {
+    return "all";
+  }
+  if (
+    typeof value !== "string" ||
+    !(TASK_SYSTEM_VIEWS as readonly string[]).includes(value)
+  ) {
+    throw new TaskValidationError("view", "is not a known task view");
+  }
+  return value as TaskSystemView;
+}
+
+/** Validate a workspace-wide sort identifier. Defaults to `smart`. */
+export function validateTaskSort(value: unknown): TaskSort {
+  if (value === null || value === undefined || value === "") {
+    return "smart";
+  }
+  if (
+    typeof value !== "string" ||
+    !(TASK_SORTS as readonly string[]).includes(value)
+  ) {
+    throw new TaskValidationError("sort", "is not a known sort order");
+  }
+  return value as TaskSort;
 }
 
 /** A strict date-only `YYYY-MM-DD` shape, validated further for calendar validity. */

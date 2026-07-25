@@ -17,13 +17,59 @@
 import type { MarkdownSource } from "~/kernel/markdown";
 import type { WorkspaceId } from "~/kernel/workspaces";
 
-/** The closed set of open-state workflow positions. "done" is derived from completion. */
-export const TASK_STATUSES = ["todo", "in_progress"] as const;
+/**
+ * The closed set of open-state workflow positions (TASKS-01 widened this from the
+ * TODAY-02 `todo`/`in_progress` pair). "done" is NEVER a status — completion is the
+ * spine's `completedAt`. Waiting, Someday/Maybe, Inbox and Planned are also NOT
+ * status values: they are DERIVED display states (from the waiting model, the
+ * commitment state, and the sector/schedule respectively), so nothing here can
+ * contradict them. `cancelled` is a deliberate decision not to proceed, retained in
+ * history — distinct from the reversible soft-delete (ADR-043 §5).
+ */
+export const TASK_STATUSES = [
+  "todo",
+  "in_progress",
+  "on_hold",
+  "cancelled",
+] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-/** The closed set of task priorities. Absence of a priority is `null`, not a value. */
-export const TASK_PRIORITIES = ["low", "medium", "high"] as const;
+/**
+ * The canonical Todoist-style / Eisenhower priority set (TASKS-01 replaced the
+ * legacy `low/medium/high` set — ADR-043 §2). Absence of a priority is `null`, not
+ * a value (an untriaged task). The Matrix maps each value to a quadrant: `p1`·Do,
+ * `p2`·Defer, `p3`·Delegate, `p4`·Delete/Review.
+ */
+export const TASK_PRIORITIES = ["p1", "p2", "p3", "p4"] as const;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+/**
+ * The Carl Pullein-inspired Time Sector (TASKS-01 / ADR-043 §3): the broad planning
+ * WINDOW in which the owner intends to address a task, kept distinct from the
+ * scheduled date (a specific day) and the due date (a deadline). Absence of a
+ * sector is `null` — a task with no sector and no schedule reads as the DERIVED
+ * "Inbox" state (Inbox is not a stored value). Sector is not a Project hierarchy
+ * and never changes parentage, priority, dates or completion.
+ */
+export const TIME_SECTORS = [
+  "this_week",
+  "next_week",
+  "this_month",
+  "next_month",
+  "long_term",
+  "routines",
+] as const;
+export type TimeSector = (typeof TIME_SECTORS)[number];
+
+/**
+ * The commitment state (TASKS-01 / ADR-043 §4): whether the owner is genuinely
+ * committed to the task (`active`) or has parked it as Someday/Maybe (`someday`).
+ * Someday/Maybe is a first-class state — NOT a priority, hold, sector, cancellation
+ * or delete — excluded from active counts and normal execution views while
+ * retaining the full record. `active` is the default.
+ */
+export const COMMITMENT_STATES = ["active", "someday"] as const;
+export type CommitmentState = (typeof COMMITMENT_STATES)[number];
 
 /** The kinds of record a Task can be related to and displayed against. */
 export type TaskRelationKind = "project" | "goal" | "area";
@@ -69,6 +115,24 @@ export type TaskRelation = {
   readonly title: string;
 };
 
+/**
+ * A task's delegation record (TASKS-01 / ADR-043 §7). Honest and additive: the
+ * delegatee is PLAIN TEXT now (People is not yet a module), designed so a future
+ * Person EntityLink can coexist or replace it without a destructive migration. A
+ * task is "delegated" iff `to` is present; the dates/note are optional context.
+ * `null` on a view means the task is not delegated.
+ */
+export type TaskDelegation = {
+  /** The delegatee — a plain-text external name/label (never a fake Person record). */
+  readonly to: string;
+  /** The date-only `YYYY-MM-DD` the task was delegated, or null. */
+  readonly delegatedOn: string | null;
+  /** The date-only `YYYY-MM-DD` to follow up, or null. */
+  readonly followUpOn: string | null;
+  /** An optional short note / expected outcome (plain text), or null. */
+  readonly note: string | null;
+};
+
 /** The additive, task-only detail fields (the columns of `task_details`). */
 export type TaskDetails = {
   readonly status: TaskStatus;
@@ -77,6 +141,12 @@ export type TaskDetails = {
   readonly dueDate: string | null;
   /** Date-only `YYYY-MM-DD`, or null. */
   readonly scheduledDate: string | null;
+  /** The planning window (ADR-043 §3), or null (derived "Inbox"). */
+  readonly timeSector: TimeSector | null;
+  /** The commitment state (ADR-043 §4). `active` unless parked as Someday/Maybe. */
+  readonly commitmentState: CommitmentState;
+  /** The delegation record (ADR-043 §7), or null when not delegated. */
+  readonly delegation: TaskDelegation | null;
   /** Markdown SOURCE (FND-08 / ADR-015), rendered through the one shared pipeline. */
   readonly description: MarkdownSource | null;
 };
@@ -87,6 +157,9 @@ export const DEFAULT_TASK_DETAILS: TaskDetails = {
   priority: null,
   dueDate: null,
   scheduledDate: null,
+  timeSector: null,
+  commitmentState: "active",
+  delegation: null,
   description: null,
 };
 
@@ -110,6 +183,9 @@ export type TaskView = {
   readonly priority: TaskPriority | null;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
+  readonly timeSector: TimeSector | null;
+  readonly commitmentState: CommitmentState;
+  readonly delegation: TaskDelegation | null;
   readonly description: MarkdownSource | null;
   /** The Project the task belongs to, if its structural parent is a Project. */
   readonly project: TaskRelation | null;
@@ -138,7 +214,24 @@ export type UpdateTaskInput = {
   readonly priority?: TaskPriority | null;
   readonly dueDate?: string | null;
   readonly scheduledDate?: string | null;
+  readonly timeSector?: TimeSector | null;
+  readonly commitmentState?: CommitmentState;
+  /**
+   * The delegation record, or `null` to clear delegation. An omitted field is left
+   * unchanged. A present value REQUIRES a non-empty `to`; the dates/note are
+   * optional. Setting delegation never itself changes priority or waiting — the
+   * route composes those explicitly (ADR-043 §7).
+   */
+  readonly delegation?: TaskDelegationInput | null;
   readonly description?: string | null;
+};
+
+/** The editable delegation input (dates/note optional; `to` required when present). */
+export type TaskDelegationInput = {
+  readonly to: string;
+  readonly delegatedOn?: string | null;
+  readonly followUpOn?: string | null;
+  readonly note?: string | null;
 };
 
 /** The outcome of an update: the fresh record and whether anything actually changed. */
@@ -172,6 +265,9 @@ export type TaskListItem = {
   readonly priority: TaskPriority | null;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
+  readonly timeSector: TimeSector | null;
+  readonly commitmentState: CommitmentState;
+  readonly delegation: TaskDelegation | null;
   /** The structural parent (a Project or an Area) as a context line, or null. */
   readonly parent: TaskRelation | null;
   /** The active waiting state, or null when the task is not waiting (TODAY-03). */
@@ -349,4 +445,110 @@ export type WaitingTaskListItem = {
 /** A bounded page of waiting tasks. */
 export type WaitingTaskPage = {
   readonly items: readonly WaitingTaskListItem[];
+};
+
+/* -------------------------------------------------------------------------- */
+/* Workspace-wide Tasks read model (TASKS-01 / ADR-043 §8)                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The workspace-wide system views `/tasks` exposes. Each is a bounded, server-
+ * authoritative query over the SAME canonical task records — not a parallel model.
+ * Membership rules (ADR-043 §5–§6): `someday`/`cancelled`/`completed`/`waiting`
+ * are their own views and are EXCLUDED from the active execution views (`inbox`,
+ * `today`, `this_week`…`routines`, `overdue`); `all` is the complete bounded
+ * collection (open + every terminal/parked state).
+ */
+export const TASK_SYSTEM_VIEWS = [
+  "inbox",
+  "today",
+  "this_week",
+  "next_week",
+  "this_month",
+  "next_month",
+  "long_term",
+  "someday",
+  "waiting",
+  "routines",
+  "overdue",
+  "completed",
+  "cancelled",
+  "all",
+] as const;
+export type TaskSystemView = (typeof TASK_SYSTEM_VIEWS)[number];
+
+/** Deterministic sort orders for the workspace-wide collection. */
+export const TASK_SORTS = [
+  "smart",
+  "due_date",
+  "scheduled_date",
+  "priority",
+  "created",
+  "updated",
+  "title",
+] as const;
+export type TaskSort = (typeof TASK_SORTS)[number];
+
+/**
+ * The filters the workspace-wide read model applies SERVER-SIDE (never by loading
+ * the workspace into React). Every filter that can change which tasks appear — or
+ * their order — is bound into the pagination cursor (ADR-043 §8), so a cursor from
+ * one filter set is rejected under another.
+ */
+export type WorkspaceTaskFilters = {
+  readonly priority?: TaskPriority | null;
+  readonly timeSector?: TimeSector | null;
+  readonly commitmentState?: CommitmentState;
+  readonly status?: TaskStatus;
+  /** Restrict to tasks under a Project (by id). */
+  readonly projectId?: string;
+  /** Restrict to tasks under a Goal (by id, resolved through the Project link). */
+  readonly goalId?: string;
+  /** Restrict to tasks under an Area (structural Area parent or the Project's Area). */
+  readonly areaId?: string;
+  /** Only delegated tasks (a delegatee is recorded). */
+  readonly delegatedOnly?: boolean;
+  /** Only waiting tasks. */
+  readonly waitingOnly?: boolean;
+};
+
+/** Options for the bounded, cursor-paginated workspace-wide Tasks query. */
+export type ListWorkspaceTasksInput = {
+  /** The system view (default `all`). */
+  readonly view?: TaskSystemView;
+  /** Additional filters applied on top of the view. */
+  readonly filters?: WorkspaceTaskFilters;
+  /** Sort order (default `smart`). */
+  readonly sort?: TaskSort;
+  /** Page size, clamped to a safe maximum; defaults to a safe page size. */
+  readonly limit?: number;
+  /**
+   * An opaque, versioned cursor from a previous page's `nextCursor`. It is bound to
+   * the full query scope (workspace + view + every filter + sort + date window); a
+   * cursor that does not match the current query is rejected, never reinterpreted.
+   */
+  readonly cursor?: string;
+  /**
+   * The owner's current calendar date `YYYY-MM-DD` — required for the calendar-
+   * relative views (`today`, `overdue`, `this_week`…) and for the smart sort's
+   * overdue-first ordering. Never derived in browser-local code (ADR-022).
+   */
+  readonly todayIso: string;
+};
+
+/** A bounded page of the workspace-wide Tasks collection, with a keyset cursor. */
+export type WorkspaceTaskListPage = {
+  readonly items: readonly TaskListItem[];
+  /** Opaque cursor for the next page, or null when this is the last page. */
+  readonly nextCursor: string | null;
+};
+
+/**
+ * The result of a bulk field mutation (`setPriorityMany`, `setSectorMany`,
+ * `setCommitmentMany`, `setStatusMany`): how many tasks actually changed vs were
+ * already in the requested state. ATOMIC — either every change commits, or none.
+ */
+export type BulkFieldResult = {
+  readonly changed: number;
+  readonly unchanged: number;
 };

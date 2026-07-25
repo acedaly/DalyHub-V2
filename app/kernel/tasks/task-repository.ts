@@ -16,25 +16,32 @@
  */
 
 import type {
+  BulkFieldResult,
   BulkPlanResult,
   ClearPlanResult,
   ClearWaitingResult,
+  CommitmentState,
   CompleteTaskResult,
   GetTaskOptions,
   ListPlanningTasksInput,
   ListProjectTasksInput,
   ListTasksInput,
   ListWaitingTasksInput,
+  ListWorkspaceTasksInput,
   PlanTaskInput,
   PlanTaskResult,
   ProjectTaskListPage,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
+  TaskPriority,
+  TaskStatus,
   TaskView,
+  TimeSector,
   UpdateTaskInput,
   UpdateTaskResult,
   WaitingTaskPage,
+  WorkspaceTaskListPage,
 } from "./task";
 
 export interface TaskRepository {
@@ -94,6 +101,25 @@ export interface TaskRepository {
    * date; unlike `listTasks`, a large early-due backlog can never hide planned work.
    */
   listPlanningTasks(input: ListPlanningTasksInput): Promise<TaskListPage>;
+
+  /**
+   * List the workspace-wide Tasks collection for `/tasks` (TASKS-01) as a bounded,
+   * deterministic, cursor-paginated page over the SAME canonical task records — the
+   * read model behind every `/tasks` system view (Focus/Matrix/Sectors/All and the
+   * Inbox/Today/This Week/…/Someday/Waiting/Overdue/Completed/Cancelled views). All
+   * filtering, sorting, counting, overdue detection and grouping is server-
+   * authoritative (never "load the workspace into React"): one bounded, N+1-free,
+   * workspace-scoped statement per page. Membership follows ADR-043 §5–§6 (Someday/
+   * Cancelled/Completed/Waiting are their own views, excluded from the active
+   * execution views). The page carries an opaque, versioned cursor bound to the full
+   * query scope (workspace + view + filters + sort + day); a cursor that does not
+   * match the current query is rejected (`InvalidSpineCursorError`), never
+   * reinterpreted. This method is READ-ONLY presentation/query ownership — it is
+   * never a second mutation authority.
+   */
+  listWorkspaceTasks(
+    input: ListWorkspaceTasksInput,
+  ): Promise<WorkspaceTaskListPage>;
 
   /**
    * Activate or change a task's waiting state (TODAY-03) ATOMICALLY: one batch
@@ -169,6 +195,37 @@ export interface TaskRepository {
    * as `unchanged`. Throws `TaskValidationError`/`TaskNotFoundError` as `planTasks`.
    */
   clearPlans(ids: readonly string[]): Promise<BulkPlanResult>;
+
+  /**
+   * Set the priority (P1–P4, or null to clear) on MANY tasks as ONE ATOMIC
+   * operation (TASKS-01). Mirrors `planTasks`: every id is validated and resolved to
+   * a task in this workspace first (any missing/cross-workspace id rejects the WHOLE
+   * operation), then a single batch updates only the tasks whose priority actually
+   * changes — each with its own guarded `entity.updated` event. No-op tasks are
+   * counted `unchanged`. Throws `TaskValidationError`/`TaskNotFoundError` as `planTasks`.
+   */
+  setPriorityMany(
+    ids: readonly string[],
+    priority: TaskPriority | null,
+  ): Promise<BulkFieldResult>;
+
+  /** Set the Time Sector (or null → Inbox) on MANY tasks atomically. See `setPriorityMany`. */
+  setSectorMany(
+    ids: readonly string[],
+    timeSector: TimeSector | null,
+  ): Promise<BulkFieldResult>;
+
+  /** Set the commitment state (active/someday) on MANY tasks atomically. See `setPriorityMany`. */
+  setCommitmentMany(
+    ids: readonly string[],
+    commitmentState: CommitmentState,
+  ): Promise<BulkFieldResult>;
+
+  /** Set the workflow status on MANY tasks atomically. See `setPriorityMany`. */
+  setStatusMany(
+    ids: readonly string[],
+    status: TaskStatus,
+  ): Promise<BulkFieldResult>;
 
   /**
    * Complete a task AND clear any active waiting state as ONE atomic domain

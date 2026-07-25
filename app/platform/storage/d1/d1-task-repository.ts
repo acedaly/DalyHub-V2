@@ -46,7 +46,9 @@ import {
 } from "~/kernel/spine";
 import {
   decodeProjectTaskCursorForScope,
+  decodeWorkspaceTaskCursorForScope,
   encodeProjectTaskCursor,
+  encodeWorkspaceTaskCursor,
   isWaitingTargetType,
   TASK_PLAN_CLEARED,
   TASK_PLANNED,
@@ -59,6 +61,9 @@ import {
   TaskProjectArchivedError,
   TaskStorageError,
   TaskValidationError,
+  workspaceTaskFiltersSignature,
+  validateCommitmentState,
+  validateDelegationInput,
   validatePlanDate,
   validateSetWaitingInput,
   validateTaskDate,
@@ -67,35 +72,47 @@ import {
   validateTaskIdList,
   validateTaskLimit,
   validateTaskPriority,
+  validateTaskSort,
   validateTaskStatus,
+  validateTaskSystemView,
   validateTaskTitle,
+  validateTimeSector,
+  type BulkFieldResult,
   type BulkPlanResult,
   type ClearPlanResult,
   type ClearWaitingResult,
+  type CommitmentState,
   type CompleteTaskResult,
   type GetTaskOptions,
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
   type ListTasksInput,
   type ListWaitingTasksInput,
+  type ListWorkspaceTasksInput,
   type PlanTaskInput,
   type PlanTaskResult,
   type ProjectTaskCursorScope,
   type ProjectTaskListPage,
   type SetWaitingInput,
   type SetWaitingResult,
+  type TaskDelegation,
   type TaskDetails,
   type TaskListItem,
   type TaskListPage,
+  type TaskPriority,
   type TaskRelation,
   type TaskRelationKind,
   type TaskRepository,
+  type TaskStatus,
   type TaskView,
   type TaskWaiting,
+  type TimeSector,
   type UpdateTaskInput,
   type UpdateTaskResult,
   type WaitingTaskListItem,
   type WaitingTaskPage,
+  type WorkspaceTaskCursorScope,
+  type WorkspaceTaskListPage,
 } from "~/kernel/tasks";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
@@ -128,6 +145,16 @@ const SUBJECT_ROLE = "subject";
 
 /** The two structural parent link types a Task can carry, as a trusted SQL list. */
 const TASK_PARENT_LINK_LIST = `'${TASK_BELONGS_TO_AREA}', '${TASK_BELONGS_TO_PROJECT}'`;
+
+/** Map a sector-named system view to its stored `time_sector` value (TASKS-01). */
+const SECTOR_FOR_VIEW: Record<string, string> = {
+  this_week: "this_week",
+  next_week: "next_week",
+  this_month: "this_month",
+  next_month: "next_month",
+  long_term: "long_term",
+  routines: "routines",
+};
 
 /**
  * The LEFT JOIN that resolves a task's active `task.waiting_on` link (`wl`) and its
@@ -204,6 +231,22 @@ export interface D1TaskRepositoryOptions {
 interface ResolvedEntity {
   readonly id: string;
   readonly title: string;
+}
+
+/** Structural equality for two delegation records (both may be null). */
+function delegationEquals(
+  a: TaskDelegation | null,
+  b: TaskDelegation | null,
+): boolean {
+  if (a === null || b === null) {
+    return a === b;
+  }
+  return (
+    a.to === b.to &&
+    (a.delegatedOn ?? null) === (b.delegatedOn ?? null) &&
+    (a.followUpOn ?? null) === (b.followUpOn ?? null) &&
+    (a.note ?? null) === (b.note ?? null)
+  );
 }
 
 export class D1TaskRepository implements TaskRepository {
@@ -410,13 +453,17 @@ export class D1TaskRepository implements TaskRepository {
     const backlogLimit = input.backlogLimit ?? PLANNING_BACKLOG_LIMIT;
     const completedLimit = input.completedLimit ?? PLANNING_COMPLETED_LIMIT;
 
+    // TASKS-01 (ADR-043 §17): Today excludes Someday/Maybe and Cancelled tasks —
+    // they are not active execution work — in addition to waiting and completed.
+    const activeExclusions =
+      "COALESCE(td.commitment_state, 'active') <> 'someday' AND COALESCE(td.status, 'todo') <> 'cancelled'";
     const scheduled = await this.#queryPlanningBand(
-      "sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NOT NULL",
+      `sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NOT NULL AND ${activeExclusions}`,
       "td.scheduled_date ASC, e.id ASC",
       scheduledLimit,
     );
     const backlog = await this.#queryPlanningBand(
-      "sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NULL",
+      `sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NULL AND ${activeExclusions}`,
       "(td.due_date IS NULL) ASC, td.due_date ASC, e.created_at ASC, e.id ASC",
       backlogLimit,
     );
@@ -484,6 +531,9 @@ export class D1TaskRepository implements TaskRepository {
       priority: details.priority,
       dueDate: details.dueDate,
       scheduledDate: details.scheduledDate,
+      timeSector: details.timeSector,
+      commitmentState: details.commitmentState,
+      delegation: details.delegation,
       parent: this.#parentRelation(
         row.parent_link_type,
         row.parent_id,
@@ -491,6 +541,297 @@ export class D1TaskRepository implements TaskRepository {
       ),
       waiting: rowToTaskWaiting(row),
     };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Workspace-wide read model (TASKS-01)                                    */
+  /* ---------------------------------------------------------------------- */
+
+  async listWorkspaceTasks(
+    input: ListWorkspaceTasksInput,
+  ): Promise<WorkspaceTaskListPage> {
+    const view = validateTaskSystemView(input.view);
+    const sort = validateTaskSort(input.sort);
+    const limit = validateTaskLimit(input.limit);
+    const filters = input.filters ?? {};
+    const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+
+    // Normalise/validate filter values that reach SQL (still bound, never inlined).
+    const filterPriority =
+      filters.priority === undefined
+        ? undefined
+        : validateTaskPriority(filters.priority);
+    const filterSector =
+      filters.timeSector === undefined
+        ? undefined
+        : validateTimeSector(filters.timeSector);
+    const filterCommitment =
+      filters.commitmentState === undefined
+        ? undefined
+        : validateCommitmentState(filters.commitmentState);
+    const filterStatus =
+      filters.status === undefined
+        ? undefined
+        : validateTaskStatus(filters.status);
+    const filterProjectId =
+      filters.projectId === undefined
+        ? undefined
+        : validateTaskId(filters.projectId);
+    const filterGoalId =
+      filters.goalId === undefined ? undefined : validateTaskId(filters.goalId);
+    const filterAreaId =
+      filters.areaId === undefined ? undefined : validateTaskId(filters.areaId);
+
+    const scope: WorkspaceTaskCursorScope = {
+      workspaceId: this.#workspaceId,
+      view,
+      sort,
+      todayIso,
+      filtersSignature: workspaceTaskFiltersSignature(filters),
+    };
+
+    const sortSpec = this.#workspaceSortSpec(sort);
+    const whereParts: string[] = [];
+    const params: (string | number)[] = [];
+
+    // View membership (ADR-043 §5–§6). `todayIso` is bound where a view needs it.
+    this.#appendViewClause(view, todayIso, whereParts, params);
+
+    // Additional filters on top of the view.
+    if (filterPriority !== undefined) {
+      if (filterPriority === null) {
+        whereParts.push("td.priority IS NULL");
+      } else {
+        whereParts.push("td.priority = ?");
+        params.push(filterPriority);
+      }
+    }
+    if (filterSector !== undefined) {
+      if (filterSector === null) {
+        whereParts.push("td.time_sector IS NULL");
+      } else {
+        whereParts.push("td.time_sector = ?");
+        params.push(filterSector);
+      }
+    }
+    if (filterCommitment !== undefined) {
+      whereParts.push("COALESCE(td.commitment_state, 'active') = ?");
+      params.push(filterCommitment);
+    }
+    if (filterStatus !== undefined) {
+      whereParts.push("COALESCE(td.status, 'todo') = ?");
+      params.push(filterStatus);
+    }
+    if (filters.delegatedOnly) {
+      whereParts.push("td.delegate_to IS NOT NULL");
+    }
+    if (filters.waitingOnly) {
+      whereParts.push("td.waiting_since IS NOT NULL");
+    }
+    if (filterProjectId !== undefined) {
+      whereParts.push(
+        `EXISTS (SELECT 1 FROM entity_links tpl
+                 WHERE tpl.workspace_id = e.workspace_id AND tpl.source_entity_id = e.id
+                   AND tpl.deleted_at IS NULL AND tpl.type = '${TASK_BELONGS_TO_PROJECT}'
+                   AND tpl.target_entity_id = ?)`,
+      );
+      params.push(filterProjectId);
+    }
+    if (filterAreaId !== undefined) {
+      // A task is "in" an Area if its structural parent is that Area, OR its parent
+      // Project belongs to that Area.
+      whereParts.push(
+        `(EXISTS (SELECT 1 FROM entity_links tal
+                  WHERE tal.workspace_id = e.workspace_id AND tal.source_entity_id = e.id
+                    AND tal.deleted_at IS NULL AND tal.type = '${TASK_BELONGS_TO_AREA}'
+                    AND tal.target_entity_id = ?)
+          OR EXISTS (SELECT 1 FROM entity_links tpl2
+                     JOIN entity_links pal ON pal.workspace_id = tpl2.workspace_id
+                       AND pal.source_entity_id = tpl2.target_entity_id
+                       AND pal.deleted_at IS NULL AND pal.type = '${PROJECT_BELONGS_TO_AREA}'
+                     WHERE tpl2.workspace_id = e.workspace_id AND tpl2.source_entity_id = e.id
+                       AND tpl2.deleted_at IS NULL AND tpl2.type = '${TASK_BELONGS_TO_PROJECT}'
+                       AND pal.target_entity_id = ?))`,
+      );
+      params.push(filterAreaId, filterAreaId);
+    }
+    if (filterGoalId !== undefined) {
+      whereParts.push(
+        `EXISTS (SELECT 1 FROM entity_links tpg
+                 JOIN entity_links pag ON pag.workspace_id = tpg.workspace_id
+                   AND pag.source_entity_id = tpg.target_entity_id
+                   AND pag.deleted_at IS NULL AND pag.type = '${PROJECT_ADVANCES_GOAL}'
+                 WHERE tpg.workspace_id = e.workspace_id AND tpg.source_entity_id = e.id
+                   AND tpg.deleted_at IS NULL AND tpg.type = '${TASK_BELONGS_TO_PROJECT}'
+                   AND pag.target_entity_id = ?)`,
+      );
+      params.push(filterGoalId);
+    }
+
+    // Keyset cursor over (sort_value <dir>, created_at ASC, id ASC).
+    if (input.cursor !== undefined) {
+      const position = decodeWorkspaceTaskCursorForScope(input.cursor, scope);
+      const cmp = sortSpec.dir === "DESC" ? "<" : ">";
+      whereParts.push(
+        `(${sortSpec.expr} ${cmp} ? OR (${sortSpec.expr} = ? AND (e.created_at > ? OR (e.created_at = ? AND e.id > ?))))`,
+      );
+      params.push(
+        position.sortValue,
+        position.sortValue,
+        position.createdAt,
+        position.createdAt,
+        position.id,
+      );
+    }
+
+    const fetchLimit = limit + 1;
+    const whereSql =
+      whereParts.length > 0 ? ` AND ${whereParts.join(" AND ")}` : "";
+
+    const statement = this.#db
+      .prepare(
+        `SELECT ${TASK_DETAIL_COLUMNS},
+                ${WAITING_TARGET_COLUMNS},
+                pl.target_entity_id AS parent_id,
+                pl.type AS parent_link_type,
+                pe.title AS parent_title,
+                ${sortSpec.expr} AS sort_value
+         FROM entities e
+         JOIN spine_records sr
+           ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         LEFT JOIN task_details td
+           ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN entity_links pl
+           ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+              AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
+         LEFT JOIN entities pe
+           ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+              AND pe.deleted_at IS NULL
+         ${WAITING_TARGET_JOIN}
+         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
+         ORDER BY sort_value ${sortSpec.dir}, e.created_at ASC, e.id ASC
+         LIMIT ?`,
+      )
+      .bind(this.#workspaceId, ...params, fetchLimit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as (TaskListRow & {
+      readonly sort_value: string | null;
+    })[];
+
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeWorkspaceTaskCursor(scope, {
+            sortValue: last.sort_value ?? "",
+            createdAt: last.created_at,
+            id: last.id,
+          })
+        : null;
+
+    return {
+      items: pageRows.map((row) => this.#toTaskListItem(row)),
+      nextCursor,
+    };
+  }
+
+  /** The single primary sort expression + direction for a workspace-tasks sort. */
+  #workspaceSortSpec(sort: string): { expr: string; dir: "ASC" | "DESC" } {
+    switch (sort) {
+      case "due_date":
+        return { expr: "COALESCE(td.due_date, '9999-99-99')", dir: "ASC" };
+      case "scheduled_date":
+        return {
+          expr: "COALESCE(td.scheduled_date, '9999-99-99')",
+          dir: "ASC",
+        };
+      case "priority":
+        return { expr: "COALESCE(td.priority, 'p9')", dir: "ASC" };
+      case "created":
+        return { expr: "e.created_at", dir: "ASC" };
+      case "updated":
+        return { expr: "e.updated_at", dir: "DESC" };
+      case "title":
+        return { expr: "lower(e.title)", dir: "ASC" };
+      case "smart":
+      default:
+        // Open before completed, then P1..P4 (nulls last), then due date (nulls
+        // last) — a single comparable string so it keysets as one column.
+        return {
+          expr: `(CASE WHEN sr.completed_at IS NULL THEN '0' ELSE '1' END || '|' || COALESCE(td.priority, 'p9') || '|' || COALESCE(td.due_date, '9999-99-99'))`,
+          dir: "ASC",
+        };
+    }
+  }
+
+  /**
+   * Append the WHERE fragments for a system view (ADR-043 §5–§6). Active-execution
+   * views exclude completed, cancelled, someday and (for Inbox/Today/Overdue)
+   * waiting; the terminal/parked views select exactly their state; `all` is every
+   * non-deleted task.
+   */
+  #appendViewClause(
+    view: string,
+    todayIso: string,
+    whereParts: string[],
+    params: (string | number)[],
+  ): void {
+    const notTerminal =
+      "sr.completed_at IS NULL AND COALESCE(td.status, 'todo') <> 'cancelled' AND COALESCE(td.commitment_state, 'active') <> 'someday'";
+    switch (view) {
+      case "all":
+        return;
+      case "completed":
+        whereParts.push("sr.completed_at IS NOT NULL");
+        return;
+      case "cancelled":
+        whereParts.push(
+          "sr.completed_at IS NULL AND COALESCE(td.status, 'todo') = 'cancelled'",
+        );
+        return;
+      case "someday":
+        whereParts.push(
+          "sr.completed_at IS NULL AND COALESCE(td.commitment_state, 'active') = 'someday'",
+        );
+        return;
+      case "waiting":
+        whereParts.push(
+          "sr.completed_at IS NULL AND td.waiting_since IS NOT NULL AND COALESCE(td.commitment_state, 'active') <> 'someday'",
+        );
+        return;
+      case "inbox":
+        whereParts.push(
+          `${notTerminal} AND td.waiting_since IS NULL AND td.time_sector IS NULL AND td.scheduled_date IS NULL`,
+        );
+        return;
+      case "today":
+        whereParts.push(
+          `${notTerminal} AND td.waiting_since IS NULL AND td.scheduled_date = ?`,
+        );
+        params.push(todayIso);
+        return;
+      case "overdue":
+        whereParts.push(
+          `${notTerminal} AND td.waiting_since IS NULL AND ((td.scheduled_date IS NOT NULL AND td.scheduled_date < ?) OR (td.due_date IS NOT NULL AND td.due_date < ?))`,
+        );
+        params.push(todayIso, todayIso);
+        return;
+      case "this_week":
+      case "next_week":
+      case "this_month":
+      case "next_month":
+      case "long_term":
+      case "routines": {
+        const sector = SECTOR_FOR_VIEW[view];
+        whereParts.push(`${notTerminal} AND td.time_sector = ?`);
+        params.push(sector);
+        return;
+      }
+      default:
+        return;
+    }
   }
 
   /* ---------------------------------------------------------------------- */
@@ -534,6 +875,18 @@ export class D1TaskRepository implements TaskRepository {
       input.description === undefined
         ? current.description
         : validateTaskDescription(input.description);
+    const afterSector =
+      input.timeSector === undefined
+        ? current.timeSector
+        : validateTimeSector(input.timeSector);
+    const afterCommitment =
+      input.commitmentState === undefined
+        ? current.commitmentState
+        : validateCommitmentState(input.commitmentState);
+    const afterDelegation: TaskDelegation | null =
+      input.delegation === undefined
+        ? current.delegation
+        : validateDelegationInput(input.delegation);
 
     // Only fields that ACTUALLY changed are written; a field the caller did not
     // change is never touched, so a concurrent partial update to a DIFFERENT field
@@ -546,6 +899,12 @@ export class D1TaskRepository implements TaskRepository {
     const scheduledChanged = afterScheduled !== current.scheduledDate;
     const descriptionChanged =
       (afterDescription ?? null) !== (current.description ?? null);
+    const sectorChanged = afterSector !== current.timeSector;
+    const commitmentChanged = afterCommitment !== current.commitmentState;
+    const delegationChanged = !delegationEquals(
+      current.delegation,
+      afterDelegation,
+    );
 
     const changes: Record<string, JsonValue> = {};
     if (titleChanged) {
@@ -566,9 +925,25 @@ export class D1TaskRepository implements TaskRepository {
         after: afterScheduled,
       };
     }
-    // Never dump description content into the payload — only note that it changed.
+    if (sectorChanged) {
+      changes["timeSector"] = {
+        before: current.timeSector,
+        after: afterSector,
+      };
+    }
+    if (commitmentChanged) {
+      changes["commitmentState"] = {
+        before: current.commitmentState,
+        after: afterCommitment,
+      };
+    }
+    // Never dump description or the (possibly sensitive) delegatee/note content
+    // into the payload — only note that it changed (ADR-043 §8).
     if (descriptionChanged) {
       changes["descriptionChanged"] = true;
+    }
+    if (delegationChanged) {
+      changes["delegationChanged"] = true;
     }
 
     const detailChanged =
@@ -576,7 +951,10 @@ export class D1TaskRepository implements TaskRepository {
       priorityChanged ||
       dueChanged ||
       scheduledChanged ||
-      descriptionChanged;
+      descriptionChanged ||
+      sectorChanged ||
+      commitmentChanged ||
+      delegationChanged;
 
     if (!titleChanged && !detailChanged) {
       // A no-op update: nothing changes, no `updated_at` churn, no Activity.
@@ -637,6 +1015,15 @@ export class D1TaskRepository implements TaskRepository {
       if (dueChanged) setParts.push("due_date = excluded.due_date");
       if (scheduledChanged)
         setParts.push("scheduled_date = excluded.scheduled_date");
+      if (sectorChanged) setParts.push("time_sector = excluded.time_sector");
+      if (commitmentChanged)
+        setParts.push("commitment_state = excluded.commitment_state");
+      if (delegationChanged) {
+        setParts.push("delegate_to = excluded.delegate_to");
+        setParts.push("delegated_on = excluded.delegated_on");
+        setParts.push("follow_up_on = excluded.follow_up_on");
+        setParts.push("delegate_note = excluded.delegate_note");
+      }
       if (descriptionChanged)
         setParts.push("description = excluded.description");
       setParts.push("updated_at = excluded.updated_at");
@@ -645,8 +1032,10 @@ export class D1TaskRepository implements TaskRepository {
         .prepare(
           `INSERT INTO task_details
              (workspace_id, entity_id, entity_type, status, priority,
-              due_date, scheduled_date, description, updated_at)
-           SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?
+              due_date, scheduled_date, time_sector, commitment_state,
+              delegate_to, delegated_on, follow_up_on, delegate_note,
+              description, updated_at)
+           SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
            WHERE EXISTS (
                    SELECT 1 FROM entities
                    WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
@@ -663,6 +1052,12 @@ export class D1TaskRepository implements TaskRepository {
           afterPriority,
           afterDue,
           afterScheduled,
+          afterSector,
+          afterCommitment,
+          afterDelegation?.to ?? null,
+          afterDelegation?.delegatedOn ?? null,
+          afterDelegation?.followUpOn ?? null,
+          afterDelegation?.note ?? null,
           afterDescription,
           nowTs,
           this.#workspaceId,
@@ -701,6 +1096,9 @@ export class D1TaskRepository implements TaskRepository {
         priority: afterPriority,
         dueDate: afterDue,
         scheduledDate: afterScheduled,
+        timeSector: afterSector,
+        commitmentState: afterCommitment,
+        delegation: afterDelegation,
         description: afterDescription,
       },
       changed: true,
@@ -954,6 +1352,7 @@ export class D1TaskRepository implements TaskRepository {
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
            AND sr.completed_at IS NULL AND td.waiting_since IS NOT NULL
+           AND COALESCE(td.commitment_state, 'active') <> 'someday'
          ORDER BY
            (CASE WHEN td.due_date IS NOT NULL AND td.due_date < ? THEN 0 ELSE 1 END) ASC,
            td.waiting_since ASC,
@@ -1175,6 +1574,203 @@ export class D1TaskRepository implements TaskRepository {
     }
 
     return { changed, unchanged };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Bulk field mutations (TASKS-01)                                          */
+  /* ---------------------------------------------------------------------- */
+
+  async setPriorityMany(
+    ids: readonly string[],
+    priority: TaskPriority | null,
+  ): Promise<BulkFieldResult> {
+    const value = validateTaskPriority(priority);
+    return this.#bulkSetField(ids, {
+      column: "priority",
+      changesKey: "priority",
+      value,
+      currentOf: (t) => t.priority,
+    });
+  }
+
+  async setSectorMany(
+    ids: readonly string[],
+    timeSector: TimeSector | null,
+  ): Promise<BulkFieldResult> {
+    const value = validateTimeSector(timeSector);
+    return this.#bulkSetField(ids, {
+      column: "time_sector",
+      changesKey: "timeSector",
+      value,
+      currentOf: (t) => t.timeSector,
+    });
+  }
+
+  async setCommitmentMany(
+    ids: readonly string[],
+    commitmentState: CommitmentState,
+  ): Promise<BulkFieldResult> {
+    const value = validateCommitmentState(commitmentState);
+    return this.#bulkSetField(ids, {
+      column: "commitment_state",
+      changesKey: "commitmentState",
+      value,
+      currentOf: (t) => t.commitmentState,
+    });
+  }
+
+  async setStatusMany(
+    ids: readonly string[],
+    status: TaskStatus,
+  ): Promise<BulkFieldResult> {
+    const value = validateTaskStatus(status);
+    return this.#bulkSetField(ids, {
+      column: "status",
+      changesKey: "status",
+      value,
+      currentOf: (t) => t.status,
+    });
+  }
+
+  /**
+   * The shared bulk single-field path (TASKS-01). Validates the id list, resolves
+   * EVERY id to a task in this workspace (rejecting the WHOLE operation if any is
+   * missing/archived, so nothing is partially applied), then runs ONE atomic batch
+   * that changes only the tasks whose value actually differs — each with its own
+   * guarded `entity.updated` event (payload records the field's before/after; never
+   * free text). Tasks already at the value are counted `unchanged`.
+   */
+  async #bulkSetField(
+    ids: readonly string[],
+    field: {
+      readonly column:
+        "priority" | "time_sector" | "commitment_state" | "status";
+      readonly changesKey: string;
+      readonly value: string | null;
+      readonly currentOf: (task: TaskView) => string | null;
+    },
+  ): Promise<BulkFieldResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId);
+      if (!current) {
+        throw new TaskNotFoundError();
+      }
+      await this.#rejectIfParentProjectArchived(current);
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+    for (const current of currents) {
+      const before = field.currentOf(current);
+      if ((before ?? null) === (field.value ?? null)) {
+        unchanged += 1;
+        continue;
+      }
+      const entityStmt = this.#bumpEntityStatement(current.id, nowTs);
+      const event: NewActivityEvent = {
+        type: ENTITY_UPDATED,
+        subjects: [{ entityId: current.id, role: SUBJECT_ROLE }],
+        payload: {
+          entityType: TASK,
+          changes: { [field.changesKey]: { before, after: field.value } },
+        },
+      };
+      const model = buildActivityWriteModel(
+        event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      const eventStmts = this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        model,
+      );
+      const detailsStmt = this.#fieldUpsertStatement(
+        current,
+        field.column,
+        field.value,
+        nowTs,
+      );
+      statements.push(entityStmt, ...eventStmts, detailsStmt);
+      changed += 1;
+    }
+
+    if (statements.length > 0) {
+      try {
+        await this.#db.batch(statements);
+      } catch (cause) {
+        if (cause instanceof ActivityError) {
+          throw cause;
+        }
+        throw new TaskStorageError(undefined, { cause });
+      }
+    }
+
+    return { changed, unchanged };
+  }
+
+  /**
+   * Build a `task_details` upsert that sets exactly ONE column (creating the row
+   * from the task's current values on first edit), gated on the active task whose
+   * parent Project is not archived. The SET fragment is a fixed, trusted column
+   * literal — never caller data.
+   */
+  #fieldUpsertStatement(
+    current: TaskView,
+    column: "priority" | "time_sector" | "commitment_state" | "status",
+    value: string | null,
+    nowTs: string,
+  ): D1PreparedStatement {
+    const after = {
+      status: column === "status" ? (value ?? "todo") : current.status,
+      priority: column === "priority" ? value : current.priority,
+      timeSector: column === "time_sector" ? value : current.timeSector,
+      commitmentState:
+        column === "commitment_state"
+          ? (value ?? "active")
+          : current.commitmentState,
+    };
+    return this.#db
+      .prepare(
+        `INSERT INTO task_details
+           (workspace_id, entity_id, entity_type, status, priority,
+            due_date, scheduled_date, time_sector, commitment_state,
+            delegate_to, delegated_on, follow_up_on, delegate_note,
+            description, updated_at)
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (${this.#activeTaskExistsSql})
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           ${column} = excluded.${column},
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        this.#workspaceId,
+        current.id,
+        after.status,
+        after.priority,
+        current.dueDate,
+        current.scheduledDate,
+        after.timeSector,
+        after.commitmentState,
+        current.delegation?.to ?? null,
+        current.delegation?.delegatedOn ?? null,
+        current.delegation?.followUpOn ?? null,
+        current.delegation?.note ?? null,
+        current.description,
+        nowTs,
+        this.#workspaceId,
+        current.id,
+        this.#workspaceId,
+        current.id,
+      );
   }
 
   /**
@@ -1970,6 +2566,9 @@ export class D1TaskRepository implements TaskRepository {
       priority: details.priority,
       dueDate: details.dueDate,
       scheduledDate: details.scheduledDate,
+      timeSector: details.timeSector,
+      commitmentState: details.commitmentState,
+      delegation: details.delegation,
       description: details.description,
       project: relationships.project,
       goal: relationships.goal,
