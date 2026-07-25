@@ -321,12 +321,33 @@ NOTES-01C shared lifecycle pattern can be adopted later).
 
 ### 7.4 Type filter (`DiaryTypeFilter.tsx`)
 
-A restrained, single-select, URL-backed entry-type segment — in the spirit of
-the Projects module's `SegmentedFilter`, not the full DS-07 clause builder, and
-**not** the shared segmented-filter being extracted by NOTES-01C. It reads and
-writes one `type` param, drops `cursor` on change (so filter-scope changes reset
-pagination), and "All" clears the filter. When NOTES-01C's shared segmented
-filter lands, this control can adopt it.
+A restrained, single-select, URL-backed entry-type segment — not the full DS-07
+clause builder. It reads and writes one `type` param, drops `cursor` on change (so
+filter-scope changes reset pagination), and "All" clears the filter.
+
+**Shared-filter decision (post-NOTES-01C).** NOTES-01C promoted the Projects
+segment to a shared `SegmentedFilter` (`app/shared/segmented-filter`). The Diary
+type filter deliberately stays module-local rather than adopting it, because the
+shared control does not fit two Diary requirements:
+
+1. **Pagination-cursor reset.** The Diary Timeline cursor is scope-bound — the
+   kernel rejects a cursor issued for one filter under a different one
+   (`decodeDiaryCursorForScope`). `DiaryTypeFilter` therefore DROPS `cursor` when
+   the filter scope changes; the shared `SegmentedFilter` only sets/clears its own
+   param and preserves every other param, so a deep-linked `?type=…&cursor=…`
+   would carry a stale, now-invalid cursor into the new scope and degrade the
+   Timeline to its error state.
+2. **Facet + presentation.** The shared control models a single mutually-exclusive
+   lifecycle STATE (Active/Deleted, Open/Completed) with a few `dh-segmented`
+   options; the Diary filter is a different facet — an OPEN-vocabulary entry
+   TYPE — presented as ~10 restrained chips, for which the pill treatment reads
+   better than a bordered few-state segment.
+
+Adding cursor-reset semantics to the shared component solely for Diary would be a
+speculative shared change for a different facet; the module-local control is a
+single-purpose composition (the same pattern the shared control itself came
+from), not a competing generic abstraction. If a future shared filter grows an
+explicit "reset these params on change" contract, Diary can revisit this.
 
 ### 7.5 Display timezone — reusing the accepted seam
 

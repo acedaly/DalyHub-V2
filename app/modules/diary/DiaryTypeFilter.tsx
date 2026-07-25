@@ -1,14 +1,18 @@
 /**
  * DIARY-01 — the restrained, URL-backed entry-type filter.
  *
- * A calm, single-select segment for one server-side facet (entry type), in the
- * spirit of the Projects module's `SegmentedFilter`: the full DS-07 clause
- * builder is designed for multi-field composable filtering, whereas navigating a
- * growing chronological history by type is served better — and more calmly — by a
- * compact segment that reads and writes ONE URL parameter and is translated to
- * the kernel's bounded `entryTypes` query server-side. (When NOTES-01C's shared
- * segmented-filter extraction lands, this can adopt it; until then it stays a
- * small, module-local control so this slice does not depend on in-flight work.)
+ * A calm, single-select segment for one server-side facet (entry type): the full
+ * DS-07 clause builder is designed for multi-field composable filtering, whereas
+ * navigating a growing chronological history by type is served better — and more
+ * calmly — by a compact control that reads and writes ONE URL parameter,
+ * translated to the kernel's bounded `entryTypes` query server-side.
+ *
+ * This stays module-local rather than adopting the shared `SegmentedFilter`
+ * (`app/shared/segmented-filter`, promoted by NOTES-01C) because it must DROP the
+ * scope-bound pagination `cursor` when the filter changes — the shared control
+ * preserves every other param and would carry a now-invalid cursor into the new
+ * scope — and because it presents an OPEN-vocabulary entry TYPE as chips rather
+ * than a few mutually-exclusive lifecycle states. See DIARY_MODULE.md §7.4.
  *
  * It is a group of client-navigation links (deep-linkable, shareable,
  * Back/Forward correct) that need no JavaScript, mark the active option with
