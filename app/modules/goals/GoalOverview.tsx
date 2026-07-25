@@ -19,13 +19,6 @@ import {
   type GoalAlignment,
   type SerializedGoalAlignmentEvidence,
 } from "~/shared/alignment";
-import {
-  Card,
-  CardCollection,
-  type CardMetaItem,
-  type CardProps,
-} from "~/shared/card";
-import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import {
   RecordLayout,
@@ -34,9 +27,9 @@ import {
 } from "~/shared/record-layout";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
+import { GoalProjectsTab } from "./GoalProjectsTab";
 import {
   goalContributionProgress,
-  goalProjectStateLabel,
   goalStateLabel,
   isGoalComplete,
   NO_DEFINITION_OF_DONE_TEXT,
@@ -72,55 +65,6 @@ interface GoalOverviewProps {
 
 function dateLabel(iso: string): string | null {
   return formatCalendarDate(iso.slice(0, 10));
-}
-
-function projectCard(
-  project: SerializedGoalProjectItem,
-  onOpenProject: (projectId: string) => void,
-): CardProps {
-  const hasTasks = project.taskTotal > 0;
-  const metadata: CardMetaItem[] = [];
-  if (hasTasks) {
-    metadata.push({
-      id: "tasks",
-      label: "Tasks",
-      value: `${project.taskCompleted} of ${project.taskTotal} tasks`,
-    });
-  } else {
-    metadata.push({ id: "tasks", label: "Tasks", value: "No tasks yet" });
-  }
-  return {
-    id: project.id,
-    title: project.title,
-    typeLabel: "Project",
-    icon: <EntityIcon type="project" />,
-    headingLevel: 3,
-    status: goalProjectStateLabel(project),
-    metadata,
-    progress: hasTasks
-      ? {
-          value: project.taskCompleted,
-          max: project.taskTotal,
-          label: `Task roll-up: ${project.taskCompleted} of ${project.taskTotal} tasks`,
-        }
-      : undefined,
-    density: "comfortable",
-    presentation: "list",
-    href: `/projects/${encodeURIComponent(project.id)}`,
-    onOpen: () => onOpenProject(project.id),
-    openAriaLabel: `Open ${project.title}`,
-  };
-}
-
-function BoundedNote({ nextCursor }: { readonly nextCursor: string | null }) {
-  if (!nextCursor) {
-    return null;
-  }
-  return (
-    <p className="dh-goal-bounded-note" role="note">
-      More Projects advance this Goal. This record shows the first bounded page.
-    </p>
-  );
 }
 
 export function GoalOverview({
@@ -287,30 +231,18 @@ export function GoalOverview({
         {
           id: "projects",
           label: "Projects",
+          // The badge is the EXACT, complete contribution total
+          // (`getGoalProjectContribution`) — never the loaded page's length — so a
+          // Goal with more Projects than one page still reports the true total.
           badge: contribution.total,
-          content:
-            projects.length === 0 ? (
-              <EmptyState
-                icon={<EntityIcon type="project" />}
-                title="No Projects advancing this Goal"
-                description="Projects created for this Goal will appear here."
-              />
-            ) : (
-              <>
-                <h2 className="dh-visually-hidden">Projects</h2>
-                <CardCollection
-                  items={projects}
-                  getItemId={(project) => project.id}
-                  ariaLabel="Goal Projects"
-                  presentation="list"
-                  density="comfortable"
-                  renderCard={(project) => (
-                    <Card {...projectCard(project, onOpenProject)} />
-                  )}
-                />
-                <BoundedNote nextCursor={projectsNextCursor} />
-              </>
-            ),
+          content: (
+            <GoalProjectsTab
+              goalId={overview.id}
+              projects={projects}
+              nextCursor={projectsNextCursor}
+              onOpenProject={onOpenProject}
+            />
+          ),
         },
         { id: "activity", label: "Activity", content: activityTab },
       ]}

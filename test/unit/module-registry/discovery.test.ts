@@ -199,6 +199,12 @@ describe("module discovery", () => {
         // activity resource routes.
         { id: "goals.new", moduleId: "goals", file: "routes/new.tsx" },
         { id: "goals.detail", moduleId: "goals", file: "routes/detail.tsx" },
+        // DEBT-22 adds the Goal contributing-Projects pagination resource route.
+        {
+          id: "goals.projects",
+          moduleId: "goals",
+          file: "routes/projects.tsx",
+        },
         { id: "goals.mutate", moduleId: "goals", file: "routes/mutate.tsx" },
         {
           id: "goals.activity",

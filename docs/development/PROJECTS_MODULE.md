@@ -112,7 +112,12 @@ same pattern the shared task record surface uses).
   independent.
 - **Key links tab** — [`ProjectLinksTab.tsx`](../../app/modules/projects/ProjectLinksTab.tsx):
   the structural Area/Goal relationships + the DS-06 `EntityLinkPicker` over
-  `project.relates_to`.
+  `project.relates_to`. The structural Area/Goal titles (here AND in the record
+  header/summary metadata) and every existing `project.relates_to` link are now
+  **navigable** to their canonical records via the shared `EntityLink`
+  (deliverable 4) — a Project→Goal or Project→Area title opens that record;
+  unsupported/unavailable targets stay calm text; the picker's Remove stays a
+  separate control and archived Projects keep their relationships followable.
 - **Create / rename** — DS-06 forms
   ([`NewProjectForm`](../../app/modules/projects/NewProjectForm.tsx),
   [`NewTaskForm`](../../app/modules/projects/NewTaskForm.tsx),

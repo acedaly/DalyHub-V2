@@ -160,6 +160,16 @@ const policy: EntityLinkPickerPolicy = {
 
 Direction is honoured exactly (`outgoing` → anchor is the source; `incoming` reverses the endpoints). The service creates/removes links through the existing repository only — no second relationship table, no migration. The picker excludes the anchor, prevents duplicate active links, bounds results, and never leaks an inaccessible entity's title. The `searchTargets` contract lets [DS-08](../roadmap/ROADMAP_V2.md#-ds-08--shared-search) supply real search later without replacing the picker.
 
+### Navigable existing links
+
+Each **existing link's title is an accessible link to the related record** via the ONE shared entity-destination helper (`entityDestination` in [`app/shared/entity/destination.ts`](../../app/shared/entity/destination.ts), rendered by [`EntityLink`](../../app/shared/entity/EntityLink.tsx)):
+
+- Area / Goal / Project / Note → their canonical record route; Task → the shared Task Drawer (`task:<id>`) opened over the current context, restoring focus to the link on close; every other type (person, meeting, …) → **plain, non-interactive text** (no genuine destination yet — never a "Coming Soon" link).
+- The title link and the **Remove** button are SEPARATE, independently-focusable controls (no nested interactivity): activating the title navigates and never unlinks; Remove never navigates. Archived / read-only records (Remove hidden) stay navigable. The accessible name carries the record TYPE + title ("Project: Website relaunch"); the id is never exposed in visible text; long titles wrap.
+- The helper is **storage-independent and maps identity → destination only — it never infers access.** Only records already resolved by a trusted server loader reach the picker, and a missing / inaccessible / unsupported target degrades to text.
+
+Structural relationship rows on the record surfaces (Project record Area/Goal, Task Drawer Area/Goal/Project) use the SAME `EntityLink`, so a visible relationship is a navigation path wherever a destination exists.
+
 ## Accessibility
 
 Every field has an accessible name; errors and save-status changes are announced through live regions; all controls are keyboard-complete (combobox/listbox via `useCombobox`; tags add/remove without a mouse); the first invalid field is focused on failed submit; 44px touch targets; no colour-only state; disabled vs read-only are semantically distinct; no horizontal overflow at 320px; usable at 200% zoom; light/dark; reduced motion honoured. On touch/coarse-pointer devices, text inputs, comboboxes, clear/remove buttons, link-picker controls and retry buttons lift to the shared touch-target floor while preserving the same DOM and keyboard behaviour. Prefer native HTML; use ARIA only where native semantics are insufficient.

@@ -239,6 +239,29 @@ wrapped block (fixed by AREA-04, see
 
 The layout is a **container-query context** (`container-type: inline-size`), so it adapts to the width of its container — the main region today, a [Drawer](#drawer) in DS-03 tomorrow — not the viewport. With `min-width: 0`, wrapping metadata, `overflow-wrap: anywhere` on titles/descriptions and a horizontally-scrollable tab strip, there is **no horizontal page overflow from 320px up**. On a narrow container, header actions take the full width beneath the title and grow to a comfortable target rather than disappearing.
 
+### Surface & boundaries
+
+A canonical record reads as ONE contained workspace, clearly bounded from the
+application canvas — never content dissolving into the page. The boundary is owned
+by the shared layout (`app/styles/record-layout.css`), on DS-01 tokens only, so
+every consumer (Area, Goal, Project, Note, Task) gets it identically:
+
+- The record has deliberate **spacing from the global left navigation** and the top
+  of the pane (`.record-layout` padding, `--dh-space-6`/`--dh-gutter`), suppressed
+  inside a Drawer where the drawer body already provides its own padding.
+- The **summary** and the **active tab panel / no-tabs content region** share ONE
+  contained surface treatment: `--dh-color-surface` fill, a hairline
+  `--dh-color-border`, `--dh-radius-lg`, and internal padding — so the tab content
+  no longer blends into the canvas. Light-theme borders stay visible against white;
+  dark-theme borders stay restrained (both from the theme-mapped token).
+- **No doubled / stacked-card borders.** Cards inside a tab sit on
+  `--dh-color-surface-raised` (one shade above the panel), so nested cards stay
+  distinct without a second concentric border; a state slot that carries its own
+  border (empty/error) drops it when nested directly inside the contained surface.
+  The result is a bounded record, not a stack of rounded cards inside rounded cards.
+- Existing container-query behaviour is unchanged; the record remains uncluttered
+  and free of horizontal overflow at 320px, and mobile is not "boxed in".
+
 ### Accessibility
 
 - **Landmarks & outline:** the record is an `article` labelled by its heading; the heading level is configurable so the surrounding page keeps a correct outline.

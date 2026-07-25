@@ -11,7 +11,7 @@
  *     authoritative). No project-specific link table.
  */
 
-import { EntityIcon, isEntityType } from "~/shared/entity";
+import { EntityIcon, EntityLink, isEntityType } from "~/shared/entity";
 import { EntityLinkPicker } from "~/shared/forms";
 import type {
   EntityLinkSelection,
@@ -43,9 +43,11 @@ interface ProjectLinksTabProps {
 
 function RelationshipRow({
   kind,
+  id,
   title,
 }: {
   readonly kind: string;
+  readonly id: string;
   readonly title: string;
 }) {
   const label = kind.charAt(0).toUpperCase() + kind.slice(1);
@@ -53,7 +55,14 @@ function RelationshipRow({
     <li className="dh-task-drawer__relationship">
       {isEntityType(kind) ? <EntityIcon type={kind} /> : null}
       <span className="dh-task-drawer__relationship-kind">{label}</span>
-      <span className="dh-task-drawer__relationship-title">{title}</span>
+      {/* The related Area/Goal title opens its canonical record when a destination
+       * exists, and degrades to plain text otherwise. */}
+      <EntityLink
+        type={kind}
+        id={id}
+        title={title}
+        className="dh-task-drawer__relationship-title"
+      />
     </li>
   );
 }
@@ -83,6 +92,7 @@ export function ProjectLinksTab({
               <RelationshipRow
                 key={`${relation.kind}:${relation.id}`}
                 kind={relation.kind}
+                id={relation.id}
                 title={relation.title}
               />
             ))}

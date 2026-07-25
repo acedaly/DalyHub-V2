@@ -263,17 +263,19 @@ describe("GoalOverview", () => {
     );
   });
 
-  it("shows the bounded-page note only when more Projects exist than the displayed page", () => {
+  it("offers an interactive 'Load more' only when more Projects exist (DEBT-22)", () => {
+    // Exhausted first page: no Load more, no false 'first page' note.
     renderGoal({ projects: [project()], projectsNextCursor: null });
     fireEvent.click(screen.getByRole("tab", { name: /Projects/ }));
     expect(
-      screen.queryByText(/shows the first bounded page/),
+      screen.queryByRole("button", { name: /Load more Projects/ }),
     ).not.toBeInTheDocument();
 
+    // A further page exists: an interactive Load more affordance appears.
     renderGoal({ projects: [project()], projectsNextCursor: "next" });
     fireEvent.click(screen.getAllByRole("tab", { name: /Projects/ })[1]!);
     expect(
-      screen.getByText(/shows the first bounded page/),
+      screen.getByRole("button", { name: /Load more Projects/ }),
     ).toBeInTheDocument();
   });
 

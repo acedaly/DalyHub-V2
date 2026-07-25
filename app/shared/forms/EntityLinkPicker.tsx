@@ -18,6 +18,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
+import { EntityLink } from "~/shared/entity";
+
 import {
   linkTypeLabel,
   selectableTargets,
@@ -267,9 +269,19 @@ export function EntityLinkPicker({
                   </span>
                 ) : null}
                 <span className="dh-link-picker__link-body">
-                  <span className="dh-link-picker__link-title">
-                    {link.target.title || "Untitled"}
-                  </span>
+                  {/* The title is an accessible link to the related record when a
+                   * genuine destination exists (Area/Goal/Project/Note → its
+                   * canonical record; Task → the shared Drawer), and degrades to
+                   * plain text otherwise. It is a SEPARATE interactive element from
+                   * the Remove button (never nested), so activating the title
+                   * navigates and never unlinks, and archived/read-only records
+                   * (Remove hidden) stay navigable. */}
+                  <EntityLink
+                    type={link.target.type}
+                    id={link.target.id}
+                    title={link.target.title || "Untitled"}
+                    className="dh-link-picker__link-title"
+                  />
                   <span className="dh-link-picker__link-type">
                     {linkTypeLabel(linkTypes, link.linkType)}
                   </span>

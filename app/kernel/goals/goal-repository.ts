@@ -8,6 +8,8 @@
  */
 
 import type {
+  GoalAlignmentListInput,
+  GoalAlignmentListPage,
   GoalChildrenInput,
   GoalListInput,
   GoalListPage,
@@ -31,6 +33,21 @@ export interface GoalRepository {
    * collection surface. Copies no Area/hierarchy state into another table.
    */
   listGoals(input?: GoalListInput): Promise<GoalListPage>;
+
+  /**
+   * The WORKSPACE-WIDE Goal list ordered by the deterministic Alignment display
+   * precedence (`GOAL_ALIGNMENT_DISPLAY_RANK`), established BEFORE pagination
+   * (DEBT-23) — so the Goals most worth a look lead across the WHOLE workspace,
+   * not merely within each fetched page. Ordering is a keyset over
+   * `(displayRank, createdAt, id)` ending in the immutable id; pages carry no
+   * duplicates or gaps. The SQL rank uses the SAME structural facts, meaningful
+   * activity vocabulary and recent-window bound as the pure `evaluateGoalAlignment`
+   * (parity is proven by test), so it never introduces a second, drifting
+   * classification. The read is bounded and never issues an unbounded scan.
+   */
+  listGoalsByAlignment(
+    input: GoalAlignmentListInput,
+  ): Promise<GoalAlignmentListPage>;
 
   /**
    * The EXACT, complete Project-contribution boundary for a Goal: every active

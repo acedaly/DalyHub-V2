@@ -171,7 +171,11 @@ Projects are grouped by structural context:
 Project cards link to the existing canonical `/projects/:projectId` records and
 reuse the existing workflow vocabulary plus the shared Project health visibility
 rule. There is no Area-owned Project card model, Project mutation route or health
-evaluator.
+evaluator. When a Project card advances a Goal, its parent-Goal context label is a
+**separate** real link to the canonical `/goals/:goalId` record (deliverable 4) —
+distinct from the card's primary open target (the Project), so no nested
+interactivity is created; a direct-Area Project shows calm "Directly in this Area"
+text.
 
 ## Project creation dependency
 

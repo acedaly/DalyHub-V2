@@ -27,6 +27,11 @@ const routes: readonly RouteContribution[] = [
     file: "routes/detail.tsx",
   },
   {
+    id: "goals.projects",
+    path: "goals/:goalId/projects",
+    file: "routes/projects.tsx",
+  },
+  {
     id: "goals.mutate",
     path: "goals/:goalId/mutate",
     file: "routes/mutate.tsx",

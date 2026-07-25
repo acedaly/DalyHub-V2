@@ -109,3 +109,35 @@ export type GoalListPage = {
   readonly items: readonly GoalListItem[];
   readonly nextCursor: string | null;
 };
+
+/**
+ * Input for the WORKSPACE-WIDE, Alignment-ordered Goal list (DEBT-23). Unlike
+ * {@link GoalListInput}, it carries the owner-calendar-derived recent-window lower
+ * bound so the repository's SQL ranking splits `active`/`neglected` using the SAME
+ * window constant/fact the pure evaluator's alignment-facts read uses.
+ */
+export type GoalAlignmentListInput = {
+  readonly limit?: number;
+  readonly cursor?: string;
+  /**
+   * The EXACT owner-calendar active/neglected boundary instant (from
+   * `createOwnerAlignmentContext().recentBoundaryStartIso`). A qualifying
+   * contribution at/after this instant ranks the Goal `active`, else `neglected` —
+   * the SAME owner-calendar boundary `evaluateGoalAlignment` uses, so the SQL rank
+   * agrees with the evaluator for every instant (not just clearly-separated ones).
+   * The cursor is bound to this value, so a page reusing a cursor from a different
+   * window is rejected.
+   */
+  readonly activeBoundaryIso: string;
+};
+
+/**
+ * One page of Goals ordered by the deterministic workspace-wide Alignment
+ * precedence (`GOAL_ALIGNMENT_DISPLAY_RANK`), established BEFORE pagination
+ * (DEBT-23). Items carry the same display fields as {@link GoalListItem}; the
+ * cursor is the dedicated alignment-ordered cursor (rank + `(createdAt, id)`).
+ */
+export type GoalAlignmentListPage = {
+  readonly items: readonly GoalListItem[];
+  readonly nextCursor: string | null;
+};

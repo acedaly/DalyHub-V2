@@ -208,10 +208,17 @@ with a calm field error and writes nothing.
   (`goalProjectStateLabel`, mirroring `~/modules/projects`/`~/modules/areas`'
   small per-module pure helpers rather than a cross-module import), and links to
   the canonical `/projects/:projectId` record. The tab badge is the EXACT
-  `contribution.total`, never the supplied page's array length. A single
-  bounded first page (50) with an honest "more Projects exist" note — matching
-  AREA-01's Area Goals/Projects tabs, not the Project record's Tasks tab's
-  interactive "Load more" (see Deferrals).
+  `contribution.total`, never the supplied page's array length. A bounded first
+  page (50) with a real interactive **"Load more"** (DEBT-22, resolved) —
+  [`GoalProjectsTab`](../../app/modules/goals/GoalProjectsTab.tsx) accumulates
+  keyset pages via `useFetcher().load('/goals/:goalId/projects?cursor=…')` WITHOUT
+  navigating (so `?tab=`/`?drawer=` state, scroll and focus are undisturbed),
+  de-duplicates by id (a Project on a page boundary appears once), reconciles from
+  the fresh first page on a mutation revalidation, and reuses the existing
+  scope-bound, versioned `goal-cursor.ts`. It follows the exact
+  `ProjectTasksTab`/`/projects/:projectId/tasks` pattern — the same shared
+  `LoadMore` primitive, no forked control. The empty state means the COMPLETE
+  result is empty, never merely the current page.
 - **Activity tab** — the shared DS-05 Timeline over `activity.listForEntity`,
   batched entity resolution (no N+1), safe descriptors (no raw payload
   rendering).
@@ -449,19 +456,30 @@ exactly:
   the activity aggregate) into the evaluator's actual input — no single
   repository owns the composed shape.
 
-**The collection.** `GoalRepository.listGoals` is a new, small,
-keyset-paginated (`GOAL_LIST_PAGE_SIZE = 50`, its own dedicated
-`goal-list-cursor.ts` — deliberately separate from the existing Goal→Projects
-cursor, matching this codebase's "cursors are never interchangeable across
-collection surfaces" convention), workspace-wide read resolving each Goal's
-title, completion and resolved Area context. The `/goals` route composes it
-with the batched contribution and alignment-facts reads, evaluates each
-Goal's alignment, and sorts the FETCHED PAGE (never the whole workspace) by
-state precedence (`neglected` → `active` → `unreachable` → `no_structure` →
-`completed`) so the Goals most worth a look lead — see Deferrals for the
-disclosed cross-page-ordering limitation. A calm summary line reports plain
-counts ("2 of 5 open Goals have had recent action") — never a percentage or
-score.
+**The collection (DEBT-23, globally ordered).** The Alignment order is
+established WORKSPACE-WIDE, in the repository, BEFORE pagination.
+`GoalRepository.listGoalsByAlignment` computes each Goal's display rank in ONE
+workspace-scoped SQL statement: two grouped CTEs gather the complete
+Project-contribution facts (total/archived) and the most-recent qualifying
+two-hop Task activity (the SAME structural links, `MEANINGFUL_HEALTH_ACTIVITY_TYPES`
+vocabulary and `recentWindowStartIso` bound the pure evaluator's facts reads
+use), and a `CASE` assigns the exact `GOAL_ALIGNMENT_DISPLAY_RANK` — the ONE
+source of truth (`app/kernel/alignment/goal-alignment.ts`) from which the pure
+display comparator also derives, so the SQL order can never drift from
+`evaluateGoalAlignment` (proven by a parity test). It then keyset-paginates over
+`(displayRank, createdAt, id)` — ending in the immutable id — via a dedicated
+versioned cursor (`goal-alignment-cursor.ts`) bound to workspace + sort semantics
+(`alignment`); a creation-order (`goal-list-cursor.ts`) or cross-workspace cursor
+is rejected calmly and reset to the first page. So a neglected Goal is never
+stranded on a later page behind an active one. The read is bounded per page and
+scans only the workspace's own Goals (no cross-workspace scan), N+1-free.
+Alignment stays DERIVED — no persisted score, no cached classification column, no
+second algorithm. The `/goals` route composes the ordered page with the batched
+contribution and alignment-facts reads and evaluates each Goal for its reasons;
+the client renders the authoritative server order and does NOT re-sort. A calm
+summary line reports plain counts ("2 of 5 open Goals have had recent action") —
+never a percentage or score. (The creation-order `listGoals` remains for other
+composition needs.)
 
 **The Goal record.** The Summary tab gains an additive `GoalAlignmentPanel`
 (`app/shared/alignment`, mirrors `ProjectHealthPanel`): the state, every
@@ -549,18 +567,15 @@ safely with `null` defaults — the Worker never requires backfilling every
 existing Goal before it can read. Apply after `0008` in the existing sequential
 migration order; no seed or fixture creates production user data.
 
-Deliberate deferrals: an interactive cursor-based "Load more" on the Goal
-record's Projects tab (tracked in `PRODUCT_DEBT.md`); Goal deletion, archival
-and restoration (no accepted contract
-requires them); numeric Goal targets/categories/tags. AREA-03 additionally
-defers/discloses: cross-page Alignment priority ordering (each page is sorted
-internally by state, but a neglected Goal on page 2 is not promoted above an
-active Goal on page 1 — low risk given DalyHub is single-owner and most
-workspaces hold well under one page of Goals); the Goal record's contributing-
-Task evidence is a bounded top-5 with an honest "+more" note, never the
-complete list; no alignment HISTORY is stored, so "how has this Goal's
-alignment trended over time" is out of scope (a possible future `REVIEW-03`
-concern, not this item's) — see `PRODUCT_DEBT.md`.
+Deliberate deferrals: Goal deletion, archival and restoration (no accepted
+contract requires them); numeric Goal targets/categories/tags. AREA-03
+additionally defers/discloses: the Goal record's contributing-Task evidence is a
+bounded top-5 with an honest "+more" note, never the complete list; no alignment
+HISTORY is stored, so "how has this Goal's alignment trended over time" is out of
+scope (a possible future `REVIEW-03` concern — tracked as `DEBT-24`). **Resolved
+since:** the Goal record's Projects tab now has an interactive "Load more"
+(DEBT-22), and Alignment ordering now spans the whole workspace before pagination
+(DEBT-23) — see `PRODUCT_DEBT.md`.
 
 ## Related documents
 

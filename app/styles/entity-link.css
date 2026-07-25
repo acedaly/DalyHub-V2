@@ -1,0 +1,29 @@
+/*
+ * The shared relationship link (deliverable 4 — `EntityLink`), styled on DS-01
+ * tokens only.
+ *
+ * A calm, accessible link affordance reused by the EntityLinkPicker existing-links
+ * display, the structural relationship rows (Project/Task/Area records) and record
+ * metadata. It carries the `dh-entity-link` base class on top of any consumer class,
+ * so the same colour, hover underline and visible focus ring apply everywhere a
+ * relationship is navigable. Plain-text (no-destination) fallbacks do NOT carry this
+ * class, so an unsupported/unavailable target reads as ordinary text.
+ */
+
+.dh-entity-link {
+  color: var(--dh-color-accent-text);
+  text-decoration: none;
+  border-radius: var(--dh-radius-xs);
+  /* Long titles wrap safely instead of forcing horizontal overflow. */
+  overflow-wrap: anywhere;
+}
+
+.dh-entity-link:hover {
+  text-decoration: underline;
+}
+
+.dh-entity-link:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+  text-decoration: underline;
+}
