@@ -1,0 +1,62 @@
+/**
+ * The shared, restrained segmented state filter (`~/shared/segmented-filter`).
+ *
+ * Originally styled inline in `projects.css` (PROJ-01) and promoted here
+ * unchanged (NOTES-01C) when Notes needed the identical Active/Deleted
+ * pattern — one shared component, one shared stylesheet, never forked per
+ * module.
+ */
+
+.dh-segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
+  max-inline-size: 100%;
+  padding: var(--dh-space-1);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-segmented__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--dh-touch-target-min);
+  min-inline-size: 0;
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-segmented__option:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-segmented__option[aria-current="true"] {
+  color: #fff;
+  background: var(--dh-color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-segmented__option {
+    transition: none;
+  }
+}
+
+@media (max-width: 30rem) {
+  .dh-segmented {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    inline-size: 100%;
+  }
+}

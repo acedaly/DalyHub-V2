@@ -1,5 +1,5 @@
 /**
- * NOTES-01B — the real Notes collection route (`/notes`).
+ * NOTES-01B/NOTES-01C — the real Notes collection route (`/notes`).
  *
  * Replaces the PX-03 `ModuleComingSoon` placeholder. The trusted server
  * boundary for the bounded, workspace-scoped Note collection: it reads the
@@ -8,6 +8,12 @@
  * the presentational `NotesCollectionView`. A scope/list failure degrades to
  * a calm error state so the shell stays usable — never a 500 (mirrors
  * `~/modules/projects/routes/index.tsx`).
+ *
+ * NOTES-01C adds the `?state=active|deleted` lifecycle filter (mirroring
+ * Projects' `?state=` `SegmentedFilter` pattern): `deleted` lists ONLY
+ * soft-deleted Notes (`entities.list({ deletedOnly: true })`) — the honest
+ * "Deleted Notes" view lifecycle §F requires, with the same bounded cursor
+ * pagination as the default active listing.
  */
 
 import { env } from "cloudflare:workers";
@@ -15,7 +21,10 @@ import { env } from "cloudflare:workers";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
-import { NotesCollectionView } from "../NotesCollection";
+import {
+  NotesCollectionView,
+  type NoteCollectionState,
+} from "../NotesCollection";
 import {
   serializeNoteListItem,
   type SerializedNoteListItem,
@@ -32,22 +41,34 @@ export function meta() {
   ];
 }
 
+function parseState(value: string | null): NoteCollectionState {
+  return value === "deleted" ? "deleted" : "active";
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
-  const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;
+  const url = new URL(request.url);
+  const cursor = url.searchParams.get("cursor") ?? undefined;
+  const state = parseState(url.searchParams.get("state"));
 
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-    const page = await scope.entities.list({ type: "note", cursor });
+    const page = await scope.entities.list({
+      type: "note",
+      cursor,
+      deletedOnly: state === "deleted",
+    });
     return {
       notes: page.items.map(serializeNoteListItem),
       nextCursor: page.nextCursor,
+      state,
       failed: false,
     };
   } catch {
     return {
       notes: [] as SerializedNoteListItem[],
       nextCursor: null as string | null,
+      state,
       failed: true,
     };
   }
@@ -58,6 +79,7 @@ export default function NotesRoute({ loaderData }: Route.ComponentProps) {
     <NotesCollectionView
       notes={loaderData.notes}
       nextCursor={loaderData.nextCursor}
+      state={loaderData.state}
       failed={loaderData.failed}
     />
   );

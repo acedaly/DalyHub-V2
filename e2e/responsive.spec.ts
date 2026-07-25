@@ -65,9 +65,15 @@ const PRODUCT_ROUTES = [
   "/projects/pr-settings?tab=settings",
   "/projects?state=archived",
   "/projects/pr-archived-demo",
-  // PX-03 — the navigation-shell Coming Soon placeholder routes (Search's own
-  // sidebar affordance, /goals?tab= etc. remain covered by their own suites).
+  // NOTES-01B/NOTES-01C — the real Notes collection, including its
+  // Active/Deleted lifecycle filter (the record's own Split/Preview editor
+  // layout is covered at every breakpoint by `e2e/notes.spec.ts`'s own
+  // journey).
   "/notes",
+  "/notes?state=deleted",
+  // PX-03 — the remaining navigation-shell Coming Soon placeholder routes
+  // (Search's own sidebar affordance, /goals?tab= etc. remain covered by
+  // their own suites).
   "/diary",
   "/meetings",
   "/people",

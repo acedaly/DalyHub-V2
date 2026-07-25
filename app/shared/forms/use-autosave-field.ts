@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   initAutosave,
+  isPersisted,
   reduceAutosave,
   type AutosaveAction,
   type AutosaveState,
@@ -62,6 +63,18 @@ export interface UseAutosaveFieldResult<TValue> {
   readonly onChange: (value: TValue) => void;
   readonly onBlur: () => void;
   readonly retry: () => void;
+  /**
+   * Force the current value to be safely persisted before proceeding with
+   * something that will unmount this field (e.g. a record-level Delete) —
+   * unmounting otherwise ABORTS an in-flight save's fetch and, for an
+   * unsaved/failed edit, discards it outright, since the draft lives only in
+   * this hook's React state. Cancels any pending debounce and saves
+   * immediately if needed; awaits an already in-flight save rather than
+   * starting a second one. Resolves `true` once `value` is confirmed
+   * persisted, `false` if the value is invalid or the save failed — callers
+   * MUST treat `false` as "do not proceed", never as "proceed anyway".
+   */
+  readonly flush: () => Promise<boolean>;
 }
 
 export function useAutosaveField<TValue>(
@@ -87,6 +100,14 @@ export function useAutosaveField<TValue>(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
+  const flushWaitersRef = useRef<Array<(persisted: boolean) => void>>([]);
+
+  const settleFlushWaiters = useCallback((persisted: boolean) => {
+    if (flushWaitersRef.current.length === 0) return;
+    const waiters = flushWaitersRef.current;
+    flushWaitersRef.current = [];
+    waiters.forEach((resolve) => resolve(persisted));
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -115,6 +136,15 @@ export function useAutosaveField<TValue>(
       stateRef.current = next;
       setState(next);
 
+      // A `flush()` caller is waiting for the value to become durably safe (or
+      // to definitively fail) — settle it the moment this dispatch lands on
+      // either outcome, regardless of what triggered the dispatch.
+      if (isPersisted(next, isEqual)) {
+        settleFlushWaiters(true);
+      } else if (next.status === "error") {
+        settleFlushWaiters(false);
+      }
+
       if (effect && effect.type === "save") {
         const { seq, value } = effect;
         abortRef.current?.abort();
@@ -132,7 +162,7 @@ export function useAutosaveField<TValue>(
         );
       }
     },
-    [isEqual, errorMessage],
+    [isEqual, errorMessage, settleFlushWaiters],
   );
 
   const onChange = useCallback(
@@ -162,6 +192,24 @@ export function useAutosaveField<TValue>(
     dispatch({ type: "retry" });
   }, [clearTimer, dispatch]);
 
+  const flush = useCallback((): Promise<boolean> => {
+    clearTimer();
+    if (isPersisted(stateRef.current, isEqual)) {
+      return Promise.resolve(true);
+    }
+    if (!stateRef.current.valid) {
+      return Promise.resolve(false);
+    }
+    return new Promise<boolean>((resolve) => {
+      flushWaitersRef.current.push(resolve);
+      // An in-flight save already has a resolver watching for it; only a
+      // genuinely idle unsaved/error state needs a fresh dispatch.
+      if (stateRef.current.inFlightSeq === null) {
+        dispatch({ type: "requestSave" });
+      }
+    });
+  }, [clearTimer, dispatch, isEqual]);
+
   return {
     value: state.current,
     status: state.status,
@@ -170,5 +218,6 @@ export function useAutosaveField<TValue>(
     onChange,
     onBlur,
     retry,
+    flush,
   };
 }

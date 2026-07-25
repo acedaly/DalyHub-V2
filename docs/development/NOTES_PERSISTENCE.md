@@ -1,6 +1,6 @@
 # NOTES_PERSISTENCE.md — Notes persistence & domain foundation (NOTES-01A)
 
-> The backend-only persistence slice for Notes: what owns what, the schema, no-row/empty-content semantics, exact Markdown-source preservation, validation and security boundaries, the content-timestamp contract, mutation/Activity atomicity, and workspace isolation. This document covers **only** [NOTES-01A](../roadmap/ROADMAP_V2.md#phase-5--notes-notes). The collection/creation/canonical-record UI that composes this foundation is [NOTES-01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record) — see [NOTES_MODULE.md](./NOTES_MODULE.md). Autosave, lifecycle actions and further editor polish are deferred to [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish); linking/backlinks, organisation/search and mobile-specific work remain NOTES-02/03/04.
+> The backend-only persistence slice for Notes: what owns what, the schema, no-row/empty-content semantics, exact Markdown-source preservation, validation and security boundaries, the content-timestamp contract, mutation/Activity atomicity, and workspace isolation. This document covers **only** [NOTES-01A](../roadmap/ROADMAP_V2.md#phase-5--notes-notes) — the persistence layer, which never changed for NOTES-01B or NOTES-01C. The collection/creation/canonical-record UI that composes this foundation is [NOTES-01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record); autosave, the desktop editor layout and the delete/restore lifecycle UI are [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish) — see [NOTES_MODULE.md](./NOTES_MODULE.md) and [ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern). Linking/backlinks, organisation/search and mobile-specific work remain NOTES-02/03/04.
 
 ---
 
@@ -113,17 +113,17 @@ It never contains Markdown source, rendered HTML, user text, or an excerpt/snipp
 
 `NoteDetailsRepository` is constructed already bound to one `WorkspaceContext` (`createNoteDetailsRepository(db, context, options)`) — no method accepts a `workspaceId`, mirroring every other workspace-scoped repository (ADR-010). It is exposed on `WorkspaceScope.noteDetails` alongside `entities`/`goalDetails`/`projectSettings`, composed by `resolveWorkspaceScope`/`bindWorkspaceRepositories` (`app/platform/workspaces/composition.ts`) with the same trusted, server-derived actor context — a caller can never supply or override the workspace or the Activity actor.
 
-## What remains for the later Notes UI slice
+## What remains for the later Notes UI slices
 
-This slice was backend-only. [NOTES-01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record) has since built the Notes collection/record routes, module route contributions, the Markdown source editor + safe preview (via the DS-06 `MarkdownField` control, unchanged) and explicit Save on top of this foundation — see [NOTES_MODULE.md](./NOTES_MODULE.md) for that slice. Still deliberately not built:
+This slice was backend-only. [NOTES-01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record) built the Notes collection/record routes and the Markdown source editor on top of this foundation; [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish) added dependable autosave (the same DS-06 coordinator this document's `NoteDetailsRepository.update` boundary already served — autosave changed WHEN a save fires, never this persistence layer), a desktop Source/Split/Preview editor layout, and delete/restore built on the `entities.softDelete`/`.restore` this document already documents (§ above) — see [NOTES_MODULE.md](./NOTES_MODULE.md) and [ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern). Still deliberately not built:
 
-- Autosave, and any lifecycle action (soft-delete/restore) beyond create/rename — tracked as [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish).
 - Tags, folders, Areas filtering, organisation, content search.
 - EntityLinks/backlinks, wikilinks/mentions ([NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks), [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search)).
-- Mobile-specific Notes work beyond the DS-11 baseline NOTES-01B already inherits ([NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile)).
+- Mobile-specific Notes work beyond the DS-11 baseline and NOTES-01C's own responsive/touch-target coverage ([NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile)).
+- Offline-first editing (queuing writes made while offline for later sync) — NOTES-01C only detects and honestly attributes an offline save failure.
 - Attachments/R2, Diary integration, AI features, import/export.
 
-NOTES-01A and NOTES-01B are each done in full; [NOTES-01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish) (autosave, lifecycle actions, further editor polish) remains not started.
+NOTES-01A, NOTES-01B and NOTES-01C are each done in full.
 
 ## Why no new ADR
 
@@ -134,7 +134,7 @@ This slice applies existing, accepted decisions without introducing a new archit
 - [ADR-006](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy) / [ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline) — Markdown source is durable and validated by the one shared FND-08 parser; no second parser/sanitiser.
 - [ADR-028](../decisions/ARCHITECTURE_DECISIONS.md#adr-028-task-drawer-persistence-and-composition--the-additive-task-detail-slice) — precedent for exactly this shape: a small, additive, entity-type-constrained detail table composing the entity substrate rather than extending it, later reused without a new ADR for Goal Details and Project Settings. NOTES-01A is a direct application of that established pattern to a new (non-spine) entity type.
 
-No kernel contract changed shape, no new storage technology was introduced, and no cross-cutting rule was revised — so no new ADR is warranted. If a future Notes slice (e.g. NOTES-02's linking model) introduces a genuinely new decision, it will get its own ADR at that time.
+No kernel contract changed shape, no new storage technology was introduced, and no cross-cutting rule was revised — so no new ADR is warranted for NOTES-01A itself. (NOTES-01C did later add [ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern) — not for this persistence layer, which it left untouched, but for the UI-layer autosave adaptation and the first generic record-lifecycle pattern built on top of it.) If a future Notes slice (e.g. NOTES-02's linking model) introduces a genuinely new decision, it will get its own ADR at that time.
 
 ---
 

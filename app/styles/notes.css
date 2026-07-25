@@ -1,0 +1,127 @@
+/**
+ * NOTES-01C — Notes module styles.
+ *
+ * Composes ONLY DS-01 tokens (no hard-coded visual values) and reuses the
+ * shared surfaces (CollectionLayout, Card, Record Layout, the shared
+ * `~/shared/segmented-filter`, DS-06 forms). These rules cover the
+ * Notes-specific chrome: the editor's view-mode toolbar (Source/Split/
+ * Preview — never colour-only: a checkmark glyph AND a distinct
+ * background/text-colour pairing both mark the selected mode) and the
+ * side-by-side source/preview pane layout.
+ */
+
+.dh-note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-note-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+}
+
+/* The Source/Split/Preview view-mode toggle. Split is simply absent below the
+ * wide-viewport breakpoint (`resolveNoteEditorViewMode`/`availableNoteEditor
+ * ViewModes`) — never rendered disabled, since a control that always falls
+ * back on activation isn't worth offering. */
+.dh-note-editor__modes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
+  max-inline-size: 100%;
+  padding: var(--dh-space-1);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-note-editor__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: none;
+  border-radius: var(--dh-radius-sm);
+  background: transparent;
+  color: var(--dh-color-text-secondary);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-note-editor__mode:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+}
+
+/* The selected mode is never colour-only: a visible check glyph (reserved
+ * layout space via `.dh-note-editor__mode-check` even when empty, so the
+ * label never shifts) PLUS the background/text-colour pairing both carry the
+ * meaning. */
+.dh-note-editor__mode[aria-pressed="true"] {
+  color: #fff;
+  background: var(--dh-color-accent);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-note-editor__mode-check {
+  display: inline-block;
+  min-inline-size: 1ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-note-editor__mode {
+    transition: none;
+  }
+}
+
+/* Source/Preview panes. A single-column mode gets a comfortable, centred
+ * writing measure rather than stretching edge-to-edge on a wide screen; Split
+ * uses the extra width for two real columns instead. */
+.dh-note-editor__panes {
+  display: grid;
+  gap: var(--dh-space-4);
+}
+
+.dh-note-editor__source,
+.dh-note-editor__preview {
+  min-inline-size: 0; /* let grid children shrink instead of overflowing */
+}
+
+.dh-note-editor__panes[data-view="source"] .dh-note-editor__source,
+.dh-note-editor__panes[data-view="preview"] .dh-note-editor__preview {
+  max-inline-size: 52rem;
+  margin-inline: auto;
+  inline-size: 100%;
+}
+
+@media (min-width: 48rem) {
+  .dh-note-editor__panes[data-view="split"] {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.dh-note-editor__preview {
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+  overflow-wrap: anywhere;
+}
+
+.dh-note-editor__preview-empty,
+.dh-note-editor__preview-loading,
+.dh-note-editor__preview-error {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+}

@@ -20,6 +20,7 @@
  *  12. activity-feed.css      — the DS-05 Shared Timeline & Activity Feed.
  *  13. forms.css             — the DS-06 Shared Forms & field controls.
  *  14. today.css             — the TODAY-01 Today dashboard layout (tokens only).
+ *  15. segmented-filter.css  — the shared restrained segmented state filter.
  *
  * Theme mechanism (ADR-016 §5.11): the root layout sets `data-theme` on <html>
  * from the persisted cookie during SSR. `light`/`dark` force a scheme; `system`
@@ -42,6 +43,7 @@
 @import "./styles/activity-feed.css";
 @import "./styles/forms.css";
 @import "./styles/today.css";
+@import "./styles/segmented-filter.css";
 @import "./styles/task-drawer.css";
 @import "./styles/projects.css";
 @import "./styles/areas.css";
@@ -54,4 +56,5 @@
 @import "./styles/feedback.css";
 @import "./styles/inspector.css";
 @import "./styles/settings.css";
+@import "./styles/notes.css";
 @import "./styles/diary.css";
