@@ -628,6 +628,12 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await toolbar.getByRole("button", { name: "Heading" }).click();
     await expect(editor).toHaveValue(/^# Heading line/);
 
+    // 11a. A toolbar edit autosaves through the SAME indicator as typing —
+    // proven here after a single clean action (deterministic), before the
+    // heavier multi-action sequence below.
+    await editor.blur();
+    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+
     // 6. Bold and italic on selected words.
     await selectSubstring("plain");
     await toolbar.getByRole("button", { name: "Bold" }).click();
@@ -665,24 +671,41 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await expect(editor).toHaveValue(/\| Column 1 \| Column 2 \|/);
     await expect(editor).toHaveValue(/\| --- \| --- \|/);
 
-    // 11. Confirm the toolbar edits autosave through the SAME flow as typing.
-    // Blur requests an immediate save; after a content-heavy sequence the real
-    // network + D1 round trip (which may first drain an in-flight debounced
-    // save and then coalesce to the latest content) can take longer than the
-    // default expect timeout on a slow CI runner, so wait generously.
+    // 11-12. Save the full formatted document, then prove the EXACT Markdown
+    // source persisted by reloading and re-reading it.
     await editor.blur();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 15_000 });
     const savedSource = await editor.inputValue();
     expect(savedSource).toContain("# Heading line");
     expect(savedSource).toContain("**plain**");
+    expect(savedSource).toContain("_paragraph_");
+    expect(savedSource).toContain("visit [here](url)");
     expect(savedSource).toContain("- [ ] First");
     expect(savedSource).toContain("| Column 1 | Column 2 |");
 
-    // 12. Reload proves the EXACT Markdown source persisted (no HTML/JSON).
-    await gotoFixture(page, noteUrl);
-    await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue(
-      savedSource,
-    );
+    // Wait for autosave to SETTLE (neither "unsaved" nor "saving") before
+    // navigating away: the unsaved-changes guard's page-unload path would
+    // otherwise abort an in-flight save on reload. The transient "Saved" text
+    // is deliberately NOT asserted here — after a content-heavy sequence a
+    // post-save revalidation can re-initialise the editor to its calm idle
+    // state, so the settled `data-status` is the reliable signal.
+    await expect(
+      page.locator(
+        '.dh-save-status[data-status="unsaved"], .dh-save-status[data-status="saving"]',
+      ),
+    ).toHaveCount(0, { timeout: 20_000 });
+
+    // The reload is polled rather than asserted on a single navigation — D1's
+    // documented read-after-write replica lag can trail one reload on a slow CI
+    // runner. A matching reload IS the proof the toolbar edits autosaved.
+    await expect
+      .poll(
+        async () => {
+          await gotoFixture(page, noteUrl);
+          return page.getByRole("textbox", { name: "Note" }).inputValue();
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(savedSource);
 
     // 13. The rendered Preview uses the existing safe FND-08 pipeline — the
     // heading and table render, and nothing executes (no <script>). The
