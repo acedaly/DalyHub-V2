@@ -1,16 +1,17 @@
 /**
- * PROJ-01 — a restrained, accessible segmented state filter.
+ * DS-07-adjacent — a restrained, accessible segmented state filter.
  *
- * A calm alternative to the DS-07 clause-builder for a SINGLE mutually-exclusive,
- * server-side state (Open / Completed / All). The full DS-07 `FilterBar` is designed
- * for multi-field, composable filtering; a three-way state toggle is served better —
- * and more calmly — by a segment that reads and writes one URL parameter and is
- * translated to the bounded query server-side. Richer, composable project filtering
- * (health, area, goal, dates) arrives with PROJ-02; this stays deliberately small.
+ * A calm alternative to the full DS-07 clause-builder `FilterBar` for a SINGLE
+ * mutually-exclusive, server-side state (e.g. Open / Completed / Archived, or
+ * Active / Deleted). Originally built for Projects (PROJ-01) and promoted here
+ * unchanged when Notes (NOTES-01C) needed the identical Active/Deleted pattern —
+ * DESIGN_SYSTEM.md's "add an affordance to the ONE shared system, never fork per
+ * module" rule.
  *
- * It is a group of client-navigation links (deep-linkable, shareable, Back/Forward
- * correct), so it needs no JavaScript to work and marks the active option with
- * `aria-current`. Unrelated params (including the DS-03 `drawer` stack) are preserved.
+ * It is a group of client-navigation links (deep-linkable, shareable, Back/
+ * Forward correct), so it needs no JavaScript to work and marks the active
+ * option with `aria-current`. Unrelated params (including the DS-03 `drawer`
+ * stack) are preserved.
  */
 
 import { Link, useSearchParams } from "react-router";

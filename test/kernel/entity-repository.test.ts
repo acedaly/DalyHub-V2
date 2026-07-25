@@ -366,6 +366,36 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       expect(all.items).toHaveLength(2);
     });
 
+    it("deletedOnly lists exclusively soft-deleted records (an honest Deleted view)", async () => {
+      const r = repoA();
+      const live = await r.create({ type: "note", title: "Live" });
+      const goneA = await r.create({ type: "note", title: "Gone A" });
+      const goneB = await r.create({ type: "note", title: "Gone B" });
+      await r.softDelete(goneA.id);
+      await r.softDelete(goneB.id);
+
+      const deletedOnly = await r.list({ deletedOnly: true });
+      expect(deletedOnly.items.map((e) => e.id).sort()).toEqual(
+        [goneA.id, goneB.id].sort(),
+      );
+      expect(deletedOnly.items.every((e) => e.deletedAt !== null)).toBe(true);
+
+      // The default active listing never includes what deletedOnly returns.
+      const active = await r.list();
+      expect(active.items.map((e) => e.id)).toEqual([live.id]);
+    });
+
+    it("deletedOnly takes precedence over includeDeleted when both are set", async () => {
+      const r = repoA();
+      const live = await r.create({ type: "note", title: "Live" });
+      const gone = await r.create({ type: "note", title: "Gone" });
+      await r.softDelete(gone.id);
+      void live;
+
+      const page = await r.list({ deletedOnly: true, includeDeleted: false });
+      expect(page.items.map((e) => e.id)).toEqual([gone.id]);
+    });
+
     it("filters by type (scoped)", async () => {
       const r = repoA();
       await r.create({ type: "widget", title: "T1" });
@@ -544,6 +574,27 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       await expect(a.list({ cursor: inclPage.nextCursor! })).rejects.toThrow(
         InvalidCursorError,
       );
+    });
+
+    it("rejects a deletedOnly cursor replayed under the default active-only scope, and vice versa", async () => {
+      const a = repoA();
+      await seedFor(a, 3);
+      for (const id of (await a.list()).items.map((e) => e.id)) {
+        await a.softDelete(id);
+      }
+      await seedFor(a, 2); // fresh active records alongside the deleted ones
+
+      const deletedPage = await a.list({ deletedOnly: true, limit: 1 });
+      expect(deletedPage.nextCursor).not.toBeNull();
+      await expect(a.list({ cursor: deletedPage.nextCursor! })).rejects.toThrow(
+        InvalidCursorError,
+      );
+
+      const activePage = await a.list({ limit: 1 });
+      expect(activePage.nextCursor).not.toBeNull();
+      await expect(
+        a.list({ deletedOnly: true, cursor: activePage.nextCursor! }),
+      ).rejects.toThrow(InvalidCursorError);
     });
 
     it("accepts a cursor replayed under its own exact scope", async () => {

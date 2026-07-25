@@ -1,5 +1,11 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 
@@ -8,11 +14,14 @@ import type {
   SerializedNoteDetails,
   SerializedNoteOverview,
 } from "~/modules/notes/note-view";
+import { FeedbackProvider } from "~/shared/feedback";
 
 /**
- * NOTES-01B — the canonical Note record: generic entity identity (title,
- * Rename), the minimal "Note"/"Activity" tab structure (no premature empty
- * tab for a future capability), and no bespoke Notes-only header.
+ * NOTES-01B/NOTES-01C — the canonical Note record: generic entity identity
+ * (title, Rename, Delete), the minimal "Note"/"Activity" tab structure (no
+ * premature empty tab for a future capability), no bespoke Notes-only header,
+ * and the Delete action's Undo-toast lifecycle flow (soft-delete → navigate
+ * to `/notes` → an Undo toast whose Undo restores the Note).
  */
 
 function overview(
@@ -34,14 +43,22 @@ function details(
 }
 
 function renderInRouter(node: ReactElement) {
-  const router = createMemoryRouter([{ path: "/", element: node }], {
-    initialEntries: ["/"],
-  });
-  return render(<RouterProvider router={router} />);
+  const router = createMemoryRouter(
+    [
+      { path: "/", element: node },
+      { path: "/notes", element: <div>Notes collection</div> },
+    ],
+    { initialEntries: ["/"] },
+  );
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 describe("NoteOverview", () => {
-  it("renders the generic entity identity (title, type label) and a Rename action", () => {
+  it("renders the generic entity identity (title, type label) and Rename/Delete actions", () => {
     const onRename = vi.fn();
     renderInRouter(
       <NoteOverview
@@ -64,6 +81,9 @@ describe("NoteOverview", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
     expect(onRename).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Delete note" }),
+    ).toBeInTheDocument();
   });
 
   it("exposes exactly the Note and Activity tabs — no empty tab for a future capability", () => {
@@ -129,5 +149,223 @@ describe("NoteOverview", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
     expect(screen.getByText("Activity content")).toBeInTheDocument();
+  });
+
+  describe("Delete (NOTES-01C)", () => {
+    it("deletes, navigates to /notes, and offers Undo — choosing Undo restores it", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          json: async () => ({ kind: "delete", ok: true }),
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ kind: "restore", ok: true }),
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      renderInRouter(
+        <NoteOverview
+          overview={overview({ title: "Reading list" })}
+          details={details()}
+          onRename={() => {}}
+          onSaved={() => {}}
+          activityTab={<div>Activity content</div>}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+
+      await screen.findByText("Notes collection");
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        "/notes/n1/mutate",
+        expect.objectContaining({ method: "POST" }),
+      );
+      const deleteBody = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+      expect(deleteBody.get("intent")).toBe("delete");
+
+      const toasts = await screen.findByRole("region", {
+        name: "Notifications",
+      });
+      await waitFor(() =>
+        expect(
+          within(toasts).getByText('"Reading list" deleted'),
+        ).toBeInTheDocument(),
+      );
+
+      fireEvent.click(within(toasts).getByRole("button", { name: "Undo" }));
+
+      // The toast list may briefly empty (and its `<section>` unmount) between
+      // the "deleted" toast being dismissed by Undo and the "restored" toast
+      // landing — re-query fresh rather than reusing a DOM node that may have
+      // been replaced.
+      await waitFor(() =>
+        expect(
+          within(
+            screen.getByRole("region", { name: "Notifications" }),
+          ).getByText('"Reading list" restored'),
+        ).toBeInTheDocument(),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        "/notes/n1/mutate",
+        expect.objectContaining({ method: "POST" }),
+      );
+      const restoreBody = fetchMock.mock.calls[1]?.[1]?.body as FormData;
+      expect(restoreBody.get("intent")).toBe("restore");
+
+      vi.unstubAllGlobals();
+    });
+
+    it("shows a calm error and stays on the record when delete fails", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          json: async () => ({
+            kind: "delete",
+            ok: false,
+            formError: "nope",
+          }),
+        }),
+      );
+
+      renderInRouter(
+        <NoteOverview
+          overview={overview({ title: "Reading list" })}
+          details={details()}
+          onRename={() => {}}
+          onSaved={() => {}}
+          activityTab={<div>Activity content</div>}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+
+      const toasts = await screen.findByRole("region", {
+        name: "Notifications",
+      });
+      await waitFor(() =>
+        expect(
+          within(toasts).getByText(
+            'Couldn\'t delete "Reading list". Please try again.',
+          ),
+        ).toBeInTheDocument(),
+      );
+      // Never navigated away — the record is still here.
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Reading list" }),
+      ).toBeInTheDocument();
+
+      vi.unstubAllGlobals();
+    });
+
+    // Regression coverage for the codex-review finding on PR #53: Delete used
+    // to navigate away immediately, unmounting the editor before its debounced
+    // autosave ever fired — the just-typed content was discarded outright, and
+    // Undo restored the STALE previously-committed content instead. Delete now
+    // flushes the pending edit through the same field first (`flushRef` /
+    // `field.flush()`, see `use-delete-note.ts` and `use-autosave-field.ts`).
+    it("flushes an unsaved edit through the editor's own save path before deleting, so the deleted content is the latest typed content", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          json: async () => ({ kind: "update_content", ok: true }),
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ kind: "delete", ok: true }),
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      renderInRouter(
+        <NoteOverview
+          overview={overview({ title: "Reading list" })}
+          details={details({ content: "original" })}
+          onRename={() => {}}
+          onSaved={() => {}}
+          activityTab={<div>Activity content</div>}
+        />,
+      );
+
+      // Edit, but do NOT blur and do NOT wait out the debounce — Delete must
+      // still capture this content, not the last-committed "original".
+      fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+        target: { value: "edited but not yet saved" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+      const firstBody = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+      expect(firstBody.get("intent")).toBe("update_content");
+      expect(firstBody.get("content")).toBe("edited but not yet saved");
+
+      const secondBody = fetchMock.mock.calls[1]?.[1]?.body as FormData;
+      expect(secondBody.get("intent")).toBe("delete");
+
+      await screen.findByText("Notes collection");
+      const toasts = await screen.findByRole("region", {
+        name: "Notifications",
+      });
+      await waitFor(() =>
+        expect(
+          within(toasts).getByText('"Reading list" deleted'),
+        ).toBeInTheDocument(),
+      );
+
+      vi.unstubAllGlobals();
+    });
+
+    it("refuses to delete when the pending edit fails to save, and preserves the draft", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        json: async () => ({
+          kind: "update_content",
+          ok: false,
+          formError: "That couldn't be saved.",
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      renderInRouter(
+        <NoteOverview
+          overview={overview({ title: "Reading list" })}
+          details={details({ content: "original" })}
+          onRename={() => {}}
+          onSaved={() => {}}
+          activityTab={<div>Activity content</div>}
+        />,
+      );
+
+      fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+        target: { value: "edited but will fail to save" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+
+      const toasts = await screen.findByRole("region", {
+        name: "Notifications",
+      });
+      await waitFor(() =>
+        expect(
+          within(toasts).getByText(
+            "Couldn't save your latest changes, so \"Reading list\" wasn't deleted. Fix the save error, then try again.",
+          ),
+        ).toBeInTheDocument(),
+      );
+
+      // Only the (failed) content save was attempted — delete was never sent.
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(
+        (fetchMock.mock.calls[0]?.[1]?.body as FormData).get("intent"),
+      ).toBe("update_content");
+
+      // Still on the record, draft intact — nothing was lost or navigated away.
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Reading list" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+        "edited but will fail to save",
+      );
+
+      vi.unstubAllGlobals();
+    });
   });
 });

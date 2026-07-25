@@ -18,6 +18,7 @@ import { DrawerTrigger, useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EntityIcon, isEntityType } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
+import { SegmentedFilter } from "~/shared/segmented-filter";
 import {
   isTaskWaiting,
   taskDateLabel,
@@ -25,7 +26,6 @@ import {
   waitingSubjectLabel,
 } from "~/shared/task-record/task-view";
 
-import { SegmentedFilter } from "./SegmentedFilter";
 import type { SerializedProjectTask } from "./project-view";
 
 const TASK_STATE_OPTIONS = [
