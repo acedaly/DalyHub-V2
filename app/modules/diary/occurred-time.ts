@@ -176,6 +176,21 @@ export function formatZonedTime(instant: Date, timeZone: string): string {
   return `${parts.hour}:${parts.minute}`;
 }
 
+/** An absolute `"20 May 2024"` for an instant, resolved in `timeZone`. */
+export function formatZonedDateLong(instant: Date, timeZone: string): string {
+  const parts = partsInZone(instant, timeZone);
+  const month = MONTHS[Number(parts.month) - 1] ?? parts.month;
+  return `${Number(parts.day)} ${month} ${parts.year}`;
+}
+
+/** An absolute `"20 May 2024 at 06:30"` for an instant, resolved in `timeZone`. */
+export function formatZonedDateTimeLong(
+  instant: Date,
+  timeZone: string,
+): string {
+  return `${formatZonedDateLong(instant, timeZone)} at ${formatZonedTime(instant, timeZone)}`;
+}
+
 /** Parse a `YYYY-MM-DD` day key to its UTC-midnight instant, or `null`. */
 function dayKeyToUtcMidnight(dayKey: string): Date | null {
   const match = DAY_KEY_PATTERN.exec(dayKey);
@@ -194,6 +209,43 @@ function previousDayKey(dayKey: string): string | null {
 /** The `YYYY-MM-DD` calendar day immediately after `dayKey`. */
 function nextDayKey(dayKey: string): string | null {
   return adjacentDayKey(dayKey, 1);
+}
+
+/**
+ * The `YYYY-MM-DD` calendar day `deltaDays` away from `dayKey` (pure date
+ * arithmetic), or `null` for a malformed key. The Day-mode navigator's
+ * previous/next controls step through days with this.
+ */
+export function addDaysToDayKey(
+  dayKey: string,
+  deltaDays: number,
+): string | null {
+  return adjacentDayKey(dayKey, deltaDays);
+}
+
+/**
+ * Whether `dayKey` is a syntactically valid, real `YYYY-MM-DD` local day in
+ * `timeZone` (rejects e.g. month 13 and a nonexistent calendar date). A URL
+ * `?date=` that fails this degrades to today rather than a broken range.
+ */
+export function isValidDayKey(dayKey: string, timeZone: string): boolean {
+  return startOfLocalDayUtc(dayKey, timeZone) !== null;
+}
+
+/** An absolute `"Monday, 20 May 2024"` heading for a `YYYY-MM-DD` day key. */
+export function formatDayKeyLong(dayKey: string): string {
+  const midnight = dayKeyToUtcMidnight(dayKey);
+  if (!midnight) return dayKey;
+  const weekday = WEEKDAYS[midnight.getUTCDay()];
+  return `${weekday}, ${midnight.getUTCDate()} ${MONTHS[midnight.getUTCMonth()]} ${midnight.getUTCFullYear()}`;
+}
+
+/** A compact `"Mon, 20 May 2024"` label for the Day-mode date navigator. */
+export function formatDayKeyMedium(dayKey: string): string {
+  const midnight = dayKeyToUtcMidnight(dayKey);
+  if (!midnight) return dayKey;
+  const weekday = WEEKDAYS[midnight.getUTCDay()].slice(0, 3);
+  return `${weekday}, ${midnight.getUTCDate()} ${MONTHS[midnight.getUTCMonth()]} ${midnight.getUTCFullYear()}`;
 }
 
 /** The calendar day `deltaDays` away from `dayKey` (pure date arithmetic). */

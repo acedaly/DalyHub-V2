@@ -1,77 +1,168 @@
 /*
- * DIARY-01 — the Diary Timeline & quick-capture styles (DS-01 tokens only).
+ * DIARY-01 / DIARY-01B — the Diary day-timeline workspace (DS-01 tokens only).
  *
- * Timeline-first: a compact capture surface and a restrained type filter above a
- * chronological history with a STRONG visual break between local days (a sticky
- * day heading + a rule), without turning the surface into a calendar grid. Every
- * value is a design token (no raw hex/px/duration); state is never colour-only
- * (active filter uses weight + surface + a marker, backdated uses a labelled
- * chip). Touch targets meet the 44px minimum via the shared `.dh-btn`/control
- * tokens. Honours reduced-motion by using no non-shared motion at all.
+ * Timeline-first: one coherent toolbar (Day/Timeline mode, a Day-mode date
+ * navigator, a compact type filter, a single primary action) above a REAL visual
+ * timeline — a continuous vertical rule with icon-based nodes, a fixed time gutter
+ * and compact rows aligned to their occurred time. Entry details open in the shared
+ * DS-10 Inspector (docked on desktop, a sheet on mobile), so the timeline stays in
+ * context. Capture is launched on demand, never a permanent panel.
+ *
+ * Every value is a design token (no raw hex/px/duration); state is never colour-only
+ * (the active filter/mode uses weight + surface + a marker; selection uses surface +
+ * aria-current; backdated uses a labelled chip; type uses an icon + a label). Touch
+ * targets meet the 44px minimum via the shared control tokens. Light and dark come
+ * entirely from the token maps — this file hard-codes no colour and no theme.
  */
 
-/* The capture surface and filter live in the layout's controls region; that
- * region is sticky by default, but a tall capture form must scroll normally. */
-.dh-diary-collection .dh-collection__sticky {
-  position: static;
-}
-
-.dh-diary-controls {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-4);
-  inline-size: 100%;
-}
-
 /* -------------------------------------------------------------------------- */
-/* Quick capture                                                              */
+/* Toolbar                                                                    */
 /* -------------------------------------------------------------------------- */
 
-.dh-diary-capture-wrap {
-  inline-size: 100%;
-}
-
-.dh-diary-capture {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface-raised);
-}
-
-.dh-diary-capture__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-3);
-  align-items: flex-start;
-}
-
-.dh-diary-capture__type {
-  flex: 1 1 12rem;
-  min-inline-size: 10rem;
-}
-
-.dh-diary-capture__title {
-  flex: 3 1 16rem;
-  min-inline-size: 12rem;
-}
-
-.dh-diary-capture__actions {
+.dh-diary-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: var(--dh-space-3);
   align-items: center;
   justify-content: space-between;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
-.dh-diary-capture__details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-  padding-block-start: var(--dh-space-2);
-  border-block-start: var(--dh-border-width-thin) solid var(--dh-color-divider);
+/* Mode tabs (Day / Timeline), in the pane header's view-switcher slot. */
+.dh-diary-modes {
+  display: inline-flex;
+  gap: var(--dh-space-1);
+  align-items: center;
+}
+
+.dh-diary-modes__tab {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-control-height-md);
+  padding: 0 var(--dh-space-3);
+  border-block-end: var(--dh-border-width-thick) solid transparent;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  text-decoration: none;
+}
+
+.dh-diary-modes__tab:hover {
+  color: var(--dh-color-text);
+}
+
+.dh-diary-modes__tab[aria-current="true"] {
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+  border-block-end-color: var(--dh-color-accent);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Day navigator                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-datenav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.dh-diary-datenav__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--dh-touch-target-min);
+  min-block-size: var(--dh-touch-target-min);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  cursor: pointer;
+}
+
+.dh-diary-datenav__step:hover:not(:disabled) {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+.dh-diary-datenav__step:disabled {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.dh-diary-datenav__step--prev svg {
+  transform: rotate(180deg);
+}
+
+.dh-diary-datenav__current {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  min-block-size: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+}
+
+.dh-diary-datenav__label {
+  min-inline-size: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The native picker overlays the current-day chip so tapping anywhere opens it. */
+.dh-diary-datenav__picker {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.dh-diary-datenav__current:focus-within {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dh-diary-datenav__today {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  cursor: pointer;
+}
+
+.dh-diary-datenav__today:hover:not(:disabled) {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+.dh-diary-datenav__today:disabled {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -79,27 +170,28 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-diary-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  align-items: center;
+  /* Claim a full toolbar row so the inner scroll container is width-capped and
+   * scrolls horizontally, instead of wrapping to a line that sizes to its chips
+   * (which would push the page wider than the viewport). */
+  flex: 1 1 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
-.dh-diary-filter__label {
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
-}
-
-.dh-diary-filter__options {
+/* Scroll horizontally at narrow widths rather than wrapping into a pill block. */
+.dh-diary-filter__scroll {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--dh-space-1);
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-block-end: var(--dh-space-1);
 }
 
 .dh-diary-filter__option {
   display: inline-flex;
   align-items: center;
+  gap: var(--dh-space-1);
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
@@ -107,6 +199,7 @@
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-text-secondary);
   text-decoration: none;
+  white-space: nowrap;
   background: var(--dh-color-surface);
 }
 
@@ -122,78 +215,192 @@
   background: var(--dh-color-accent-surface);
 }
 
+.dh-diary-filter__count {
+  min-inline-size: 1.25rem;
+  padding: 0 var(--dh-space-1);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-2xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-diary-filter__option[aria-current="true"] .dh-diary-filter__count {
+  color: var(--dh-color-accent-text);
+  background: transparent;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Timeline                                                                   */
 /* -------------------------------------------------------------------------- */
 
 .dh-diary-timeline {
+  --diary-tl-time: 3.25rem;
+  --diary-tl-node: 1.75rem;
+  --diary-tl-gap: var(--dh-space-3);
+  --diary-tl-rule-x: calc(
+    var(--diary-tl-time) + var(--diary-tl-gap) + (var(--diary-tl-node) / 2)
+  );
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-6);
   margin: 0;
   padding: 0;
   list-style: none;
+  max-inline-size: var(--dh-width-content);
 }
 
 .dh-diary-day {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--dh-space-2);
 }
 
-/* Strong visual break between days: a weighted, ruled heading, without a grid. */
 .dh-diary-day__heading {
-  margin: 0;
+  margin: 0 0 var(--dh-space-1);
   padding-block-end: var(--dh-space-2);
-  border-block-end: var(--dh-border-width-thick) solid
-    var(--dh-color-border-strong);
-  font-size: var(--dh-font-size-md);
+  border-block-end: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-tight);
-  color: var(--dh-color-text);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--dh-color-text-secondary);
 }
 
+/* The continuous vertical rule runs behind the nodes, down the node column. */
 .dh-diary-day__entries {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.dh-diary-entry {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--dh-space-2) var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-entity-diary-accent);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+.dh-diary-day__entries::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--dh-space-3);
+  inset-inline-start: calc(
+    var(--diary-tl-rule-x) - (var(--dh-border-width-thick) / 2)
+  );
+  inline-size: var(--dh-border-width-thick);
+  background: var(--dh-color-border);
 }
 
-.dh-diary-entry__meta {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  align-items: baseline;
-  font-size: var(--dh-font-size-sm);
+.dh-diary-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--diary-tl-time) var(--diary-tl-node) 1fr auto;
+  column-gap: var(--diary-tl-gap);
+  align-items: start;
+  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-2) 0;
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-diary-entry:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-diary-entry[data-selected="true"] {
+  background: var(--dh-color-accent-surface);
 }
 
 .dh-diary-entry__time {
+  padding-block-start: var(--dh-space-1);
+  font-size: var(--dh-font-size-xs);
   font-variant-numeric: tabular-nums;
   font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  text-align: end;
+  white-space: nowrap;
+}
+
+.dh-diary-entry__node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--diary-tl-node);
+  block-size: var(--diary-tl-node);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  color: var(--dh-entity-diary-accent);
+  background: var(--dh-color-surface-raised);
+}
+
+.dh-diary-entry__node svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.dh-diary-entry[data-selected="true"] .dh-diary-entry__node {
+  border-color: var(--dh-color-accent);
+}
+
+.dh-diary-entry__main {
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  padding-block-start: var(--dh-space-px);
+}
+
+.dh-diary-entry__title {
+  margin: 0;
+  font-size: var(--dh-font-size-base);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
   color: var(--dh-color-text);
+}
+
+/* The primary action: a title button that stretches over the whole row (so the
+ * row is clickable) while the Edit button stays separately operable above it. */
+.dh-diary-entry__select {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.dh-diary-entry__select::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-diary-entry__excerpt {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.dh-diary-entry__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  align-items: center;
 }
 
 .dh-diary-entry__type {
   padding: 0 var(--dh-space-2);
   border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--dh-font-size-2xs);
   font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
   color: var(--dh-color-text-secondary);
   background: var(--dh-color-surface-sunken);
 }
@@ -202,56 +409,262 @@
   padding: 0 var(--dh-space-2);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--dh-font-size-2xs);
   color: var(--dh-color-text-muted);
 }
 
-.dh-diary-entry__body {
-  grid-column: 1;
-  min-inline-size: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
+.dh-diary-entry__edit {
+  position: relative;
+  z-index: var(--dh-z-raised);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--dh-touch-target-min);
+  min-block-size: var(--dh-touch-target-min);
+  border: 0;
+  border-radius: var(--dh-radius-md);
+  color: var(--dh-color-text-muted);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
 }
 
-.dh-diary-entry__title {
+.dh-diary-entry:hover .dh-diary-entry__edit,
+.dh-diary-entry:focus-within .dh-diary-entry__edit,
+.dh-diary-entry[data-selected="true"] .dh-diary-entry__edit {
+  opacity: 1;
+}
+
+.dh-diary-entry__edit:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-active-surface);
+}
+
+/* Keep the Edit affordance visible where hover isn't available (touch). */
+@media (hover: none) {
+  .dh-diary-entry__edit {
+    opacity: 1;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Details panel (Inspector body)                                             */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-diary-detail__title {
   margin: 0;
-  font-size: var(--dh-font-size-base);
+  font-size: var(--dh-font-size-xl);
   font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
-.dh-diary-entry__excerpt {
+.dh-diary-detail__facts,
+.dh-diary-detail__stamps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  overflow-wrap: anywhere;
 }
 
-.dh-diary-entry__content {
+.dh-diary-detail__stamps {
+  padding-block-start: var(--dh-space-3);
+  border-block-start: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-diary-detail__fact {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: var(--dh-space-2);
+  align-items: baseline;
+}
+
+.dh-diary-detail__fact dt {
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-diary-detail__fact dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  align-items: baseline;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+}
+
+.dh-diary-detail__type {
+  padding: 0 var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-diary-detail__badge {
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-2xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-diary-detail__section {
   min-inline-size: 0;
 }
 
-.dh-diary-entry__render-error {
+.dh-diary-detail__empty-body {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-diary-detail__render-error {
   margin: 0;
   color: var(--dh-color-danger-text);
 }
 
-.dh-diary-entry__actions {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: start;
+.dh-diary-detail__actions {
+  display: flex;
+  gap: var(--dh-space-3);
 }
 
-.dh-diary-entry__preview {
+.dh-diary-detail__loading,
+.dh-diary-detail__pending {
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-diary-detail__error {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--dh-space-3);
   align-items: flex-start;
+  color: var(--dh-color-text-secondary);
 }
 
 /* -------------------------------------------------------------------------- */
-/* Editor drawer                                                              */
+/* Capture                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-capture-wrap {
+  inline-size: 100%;
+}
+
+.dh-diary-capture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-diary-capture__types {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dh-diary-capture__legend {
+  padding: 0;
+  margin-block-end: var(--dh-space-2);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-diary-capture__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-diary-capture__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  cursor: pointer;
+}
+
+.dh-diary-capture__chip svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.dh-diary-capture__chip:hover {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+.dh-diary-capture__chip[data-checked="true"] {
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-accent-text);
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-surface);
+}
+
+/* The native radio is the accessible control; visually it's the chip itself. */
+.dh-diary-capture__radio {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dh-diary-capture__chip:focus-within {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dh-diary-capture__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dh-diary-capture__details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding-block-start: var(--dh-space-3);
+  border-block-start: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+/* The `display: flex` above outranks the UA `[hidden]` rule, so restore hiding
+ * when the disclosure is collapsed (the body/when stay behind "Add details"). */
+.dh-diary-capture__details[hidden] {
+  display: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Editor form                                                                */
 /* -------------------------------------------------------------------------- */
 
 .dh-diary-editor {
@@ -273,16 +686,6 @@
   color: var(--dh-color-warning-text);
 }
 
-.dh-diary-editor__loading {
-  padding: var(--dh-space-4);
-  color: var(--dh-color-text-secondary);
-}
-
-.dh-diary-editor__error {
-  margin: 0;
-  color: var(--dh-color-danger-text);
-}
-
 .dh-diary-when__input {
   inline-size: 100%;
   min-block-size: var(--dh-control-height-md);
@@ -294,14 +697,69 @@
   background: var(--dh-color-surface);
 }
 
-@media (max-width: 40rem) {
-  .dh-diary-entry {
-    grid-template-columns: 1fr;
+/* -------------------------------------------------------------------------- */
+/* Mobile floating capture action                                             */
+/* -------------------------------------------------------------------------- */
+
+.dh-diary-fab {
+  display: none;
+}
+
+@media (max-width: 48rem) {
+  .dh-diary-fab {
+    position: fixed;
+    inset-block-end: calc(var(--dh-space-5) + env(safe-area-inset-bottom, 0px));
+    inset-inline-end: var(--dh-space-5);
+    z-index: var(--dh-z-sticky);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 3.5rem;
+    block-size: 3.5rem;
+    border: 0;
+    border-radius: var(--dh-radius-full);
+    color: var(--dh-color-on-accent);
+    background: var(--dh-color-accent);
+    box-shadow: var(--dh-shadow-lg);
+    cursor: pointer;
   }
 
-  .dh-diary-entry__actions {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: start;
+  .dh-diary-fab:hover {
+    background: var(--dh-color-accent-hover);
+  }
+
+  .dh-diary-fab svg {
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+  }
+
+  /* Hide the floating action while a sheet is open (it would overlap the sheet). */
+  .dh-inspector-layout[data-inspector-open="true"] .dh-diary-fab {
+    display: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive                                                                 */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  .dh-diary-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--dh-space-2);
+  }
+
+  .dh-diary-datenav {
+    justify-content: space-between;
+  }
+
+  .dh-diary-datenav__current {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .dh-diary-timeline {
+    --diary-tl-time: 2.75rem;
   }
 }

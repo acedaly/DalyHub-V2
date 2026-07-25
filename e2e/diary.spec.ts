@@ -11,16 +11,17 @@ import {
 } from "./helpers";
 
 /**
- * DIARY-01 — the Diary Timeline & quick capture over the seeded Worker/D1 app.
+ * DIARY-01B — the Diary day-timeline workspace over the seeded Worker/D1 app.
  *
- * A real journey (mirrors `notes.spec.ts`): the placeholder is replaced by a
- * Timeline-first screen; a sub-ten-second capture files an entry under the
- * correct local day; a second capture carries optional Markdown; a backdated
- * capture lands under an earlier day with a "Backdated" marker; the type filter
- * is URL-backed and clearable; a bounded page reveals "Load more"; an entry is
- * edited through the route-backed Drawer with Back/Forward and focus
- * restoration; and the surface is keyboard-operable, axe-clean and free of
- * horizontal overflow at phone and desktop widths with adequate touch targets.
+ * The redesigned journey: the workspace opens in Day mode anchored on today with a
+ * coherent toolbar (mode tabs, a date navigator, a type filter, one New-entry
+ * action) and NO always-open capture card; a sub-ten-second capture (launched on
+ * demand) files an entry under the correct local day; a backdated capture is
+ * surfaced honestly on the day it belongs to; the type filter is URL-backed and
+ * clearable; an entry opens in the docked details panel with Back/Forward and focus
+ * restoration; Timeline mode retains multi-day pagination; and the surface is
+ * keyboard-operable, axe-clean and free of horizontal overflow at phone and desktop
+ * widths with adequate touch targets.
  */
 
 const WS = "local-dev-workspace";
@@ -81,151 +82,131 @@ function seedEntries(count: number): void {
   d1Execute(statements.join("\n"));
 }
 
-test.describe("DIARY-01 — Diary Timeline & capture", () => {
+test.describe("DIARY-01B — Diary day-timeline workspace", () => {
   test.beforeAll(() => cleanup());
   test.afterEach(() => cleanup());
 
-  test("capture, group, backdate, filter, edit and review", async ({
-    page,
-  }) => {
+  test("day-mode capture, select, edit, review", async ({ page }) => {
     const stamp = Date.now();
     const first = `${PREFIX}${stamp} standup`;
     const second = `${PREFIX}${stamp} decision`;
-    const backdated = `${PREFIX}${stamp} memory`;
 
-    // 1. Open the Diary — the placeholder is gone, the Timeline heading is here.
+    // 1. Open the Diary — Day mode, coherent toolbar, no always-open capture.
     await gotoFixture(page, "/diary");
     await expect(
       page.getByRole("heading", { level: 1, name: "Diary" }),
     ).toBeVisible();
+    await expect(page.getByRole("group", { name: "Diary view" })).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Coming Soon" }),
-    ).not.toBeVisible();
-    await expect(page.getByText("Your diary is empty")).toBeVisible();
+      page.getByRole("group", { name: "Selected day" }),
+    ).toBeVisible();
+    await expect(page.getByRole("form", { name: "Quick capture" })).toHaveCount(
+      0,
+    );
+    await expect(page.getByText("Nothing recorded on this day")).toBeVisible();
     await expectNoAxeViolations(page);
 
+    // 2. Launch capture from the New entry button and file the fast path.
+    await page.getByRole("button", { name: "New entry" }).first().click();
     const capture = page.getByRole("form", { name: "Quick capture" });
-    const titleField = capture.getByLabel("Title");
-
-    // 2. Capture through the fast path (validation first).
+    await expect(capture).toBeVisible();
     await capture.getByRole("button", { name: "Capture" }).click();
     await expect(
       capture.getByText("A title is required").first(),
     ).toBeVisible();
-
-    await titleField.fill(first);
+    await capture.getByRole("textbox", { name: /Title/ }).fill(first);
     await capture.getByRole("button", { name: "Capture" }).click();
 
-    // 3. It appears under Today, in the correct local day group.
-    const todayGroup = page
-      .getByRole("listitem")
-      .filter({ has: page.getByRole("heading", { level: 2, name: "Today" }) });
-    await expect(
-      todayGroup.getByRole("heading", { level: 3, name: first }),
-    ).toBeVisible();
-    // The title field is cleared and refocused for the next capture.
-    await expect(titleField).toHaveValue("");
-    await expect(titleField).toBeFocused();
-
-    // 4. Capture a second entry with optional Markdown via the details disclosure.
-    await titleField.fill(second);
-    await capture.getByRole("button", { name: "Add details" }).click();
-    await capture
-      .getByRole("textbox", { name: "Details" })
-      .fill("A **bold** reason.");
-    await capture.getByRole("button", { name: "Capture" }).click();
-    await expect(
-      todayGroup.getByRole("heading", { level: 3, name: second }),
-    ).toBeVisible();
-    // Let the post-capture remount settle before the next interaction.
-    await expect(titleField).toHaveValue("");
-
-    // 5. Backdate an entry and verify it lands under an earlier day, marked.
-    await titleField.fill(backdated);
-    await capture.getByRole("button", { name: "Add details" }).click();
-    await capture.getByLabel("When").fill("2020-01-15T09:00");
-    await capture.getByRole("button", { name: "Capture" }).click();
-
-    const oldGroup = page.getByRole("listitem").filter({
-      has: page.getByRole("heading", {
-        level: 2,
-        name: /15 January 2020$/,
-      }),
-    });
-    await expect(
-      oldGroup.getByRole("heading", { level: 3, name: backdated }),
-    ).toBeVisible();
-    await expect(oldGroup.getByText("Backdated")).toBeVisible();
-    // Chronology: Today's group precedes the 2020 group.
-    const headings = await page
-      .getByRole("heading", { level: 2 })
-      .allInnerTexts();
-    expect(headings.indexOf("Today")).toBeLessThan(
-      headings.findIndex((text) => text.includes("15 January 2020")),
-    );
-
-    // 6. Filtering is URL-backed and clearable. Enter a non-matching type
-    // filter by URL (deterministic) — it shows the distinct filtered-empty
-    // state — then clear it via the "All" chip (a URL-backed navigation).
-    await expect(titleField).toHaveValue("");
-    await gotoFixture(page, "/diary?type=idea");
-    await expect(page.getByText("No entries match this filter")).toBeVisible();
-    const filter = page.getByRole("group", { name: "Filter by type" });
-    await expect(filter.getByRole("link", { name: "Idea" })).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
-    await filter.getByRole("link", { name: "All" }).click();
-    await page.waitForURL(/\/diary(\?|$)/);
-    await expect(page).not.toHaveURL(/type=/);
+    // 3. The entry appears under today's timeline; the panel closes.
     await expect(
       page.getByRole("heading", { level: 3, name: first }),
     ).toBeVisible();
+    await expect(page.getByRole("form", { name: "Quick capture" })).toHaveCount(
+      0,
+    );
 
-    // 8-9. Edit an entry through the route-backed Drawer.
-    const editButton = page.getByRole("button", { name: `Edit ${first}` });
-    await editButton.click();
-    const editor = page.getByRole("dialog", { name: "Edit entry" });
-    await expect(editor).toBeVisible();
-    await expect(page).toHaveURL(/drawer=edit/);
-    const editTitle = editor.getByLabel("Title");
-    await expect(editTitle).toHaveValue(first);
+    // 4. A second capture with optional Markdown via the details disclosure.
+    await page.getByRole("button", { name: "New entry" }).first().click();
+    const capture2 = page.getByRole("form", { name: "Quick capture" });
+    await capture2.getByRole("textbox", { name: /Title/ }).fill(second);
+    await capture2.getByRole("button", { name: "Add details" }).click();
+    await capture2
+      .getByRole("textbox", { name: "Details" })
+      .fill("A **bold** reason.");
+    await capture2.getByRole("button", { name: "Capture" }).click();
+    await expect(
+      page.getByRole("heading", { level: 3, name: second }),
+    ).toBeVisible();
+
+    // 5. Select an entry — the docked details panel opens beside the timeline.
+    const row = page.getByRole("button", { name: first, exact: true });
+    await row.click();
+    await expect(page).toHaveURL(/inspector=view/);
+    await expect(
+      page.getByRole("button", { name: "Edit entry" }),
+    ).toBeVisible();
     await expectNoAxeViolations(page);
 
-    // 10a. Back closes the Drawer; Forward reopens it (route-backed).
+    // 6. Back closes the panel; Forward reopens it (route-backed).
     await page.goBack();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Edit entry" })).toHaveCount(
+      0,
+    );
     await page.goForward();
     await expect(
-      page.getByRole("dialog", { name: "Edit entry" }),
+      page.getByRole("button", { name: "Edit entry" }),
     ).toBeVisible();
 
-    // 12. Escape closes and restores focus to the entry that opened it.
+    // 7. Escape closes the panel and restores focus to the row that opened it.
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(editButton).toBeFocused();
+    await expect(page.getByRole("button", { name: "Edit entry" })).toHaveCount(
+      0,
+    );
+    await expect(row).toBeFocused();
 
-    // Reopen and save an edit.
-    await editButton.click();
+    // 8. Reopen, edit and save. Edit mode is URL-synced (the key is `edit:`), so a
+    // refresh restores it and Back/Forward is honest; saving returns to `view:`.
+    await row.click();
+    await page.getByRole("button", { name: "Edit entry" }).click();
+    await expect(page).toHaveURL(/inspector=edit/);
+
+    // Back returns edit → read (not straight out of the Inspector); Forward reopens
+    // edit. read→edit pushes a history entry, so the read step is not skipped.
+    await page.goBack();
+    await expect(page).toHaveURL(/inspector=view/);
+    await expect(
+      page.getByRole("button", { name: "Edit entry" }),
+    ).toBeVisible();
+    await page.goForward();
+    await expect(page).toHaveURL(/inspector=edit/);
+
+    const editor = page.getByRole("form", { name: "Edit entry" });
     const renamed = `${first} (edited)`;
-    await editor.getByLabel("Title").fill(renamed);
+    await editor.getByRole("textbox", { name: /Title/ }).fill(renamed);
     await editor.getByRole("textbox", { name: "Details" }).fill("Edited body.");
     await editor.getByRole("button", { name: "Save changes" }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    // The rename is reflected in the timeline row (and the panel's read view).
     await expect(
-      page.getByRole("heading", { level: 3, name: renamed }),
+      page
+        .getByRole("list", { name: "Diary timeline" })
+        .getByRole("heading", { level: 3, name: renamed }),
     ).toBeVisible();
+    await expect(page).toHaveURL(/inspector=view/);
 
-    // 13. Touch targets + 14. no horizontal overflow across the matrix.
+    // 9. Touch targets + no horizontal overflow across the matrix.
+    await page.getByRole("button", { name: "New entry" }).first().click();
     await expectMinTouchTarget(
-      capture.getByRole("button", { name: "Capture" }),
+      page.getByRole("form", { name: "Quick capture" }).getByRole("button", {
+        name: "Capture",
+      }),
     );
+    await page.keyboard.press("Escape");
     for (const viewport of RESPONSIVE_VIEWPORTS) {
       await page.setViewportSize(viewport);
       await expectNoHorizontalOverflow(page);
     }
 
-    // Axe in dark mode too.
+    // 10. Axe in dark mode too.
     await page.emulateMedia({ colorScheme: "dark" });
     await gotoFixture(page, "/diary");
     await expectNoAxeViolations(page);
@@ -233,15 +214,17 @@ test.describe("DIARY-01 — Diary Timeline & capture", () => {
     await page.emulateMedia({ colorScheme: "light" });
   });
 
-  test("keyboard-only capture with Ctrl/Cmd+Enter", async ({ page }) => {
+  test("keyboard capture with the `c` shortcut and Ctrl/Cmd+Enter", async ({
+    page,
+  }) => {
     const stamp = Date.now();
     const title = `${PREFIX}${stamp} keyboard`;
 
     await gotoFixture(page, "/diary");
-    const titleField = page
-      .getByRole("form", { name: "Quick capture" })
-      .getByLabel("Title");
-    await titleField.focus();
+    await page.keyboard.press("c");
+    const capture = page.getByRole("form", { name: "Quick capture" });
+    await expect(capture).toBeVisible();
+    const titleField = capture.getByRole("textbox", { name: /Title/ });
     await expect(titleField).toBeFocused();
     await page.keyboard.type(title);
     await page.keyboard.press("Control+Enter");
@@ -251,12 +234,64 @@ test.describe("DIARY-01 — Diary Timeline & capture", () => {
     ).toBeVisible();
   });
 
-  test("bounded pagination reveals more entries via Load more", async ({
+  test("a backdated capture is surfaced on the day it belongs to", async ({
+    page,
+  }) => {
+    const stamp = Date.now();
+    const backdated = `${PREFIX}${stamp} memory`;
+
+    await gotoFixture(page, "/diary");
+    await page.getByRole("button", { name: "New entry" }).first().click();
+    const capture = page.getByRole("form", { name: "Quick capture" });
+    await capture.getByRole("textbox", { name: /Title/ }).fill(backdated);
+    await capture.getByRole("button", { name: "Add details" }).click();
+    await capture.getByLabel("When").fill("2020-01-15T09:00");
+    await capture.getByRole("button", { name: "Capture" }).click();
+
+    // It does NOT appear on today; an honest notice offers to view that day.
+    await expect(
+      page.getByRole("heading", { level: 3, name: backdated }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "View that day" }).click();
+
+    await expect(page).toHaveURL(/date=2020-01-15/);
+    // Regression: viewing the day must NOT reopen capture (stale inspector=new).
+    await expect(page).not.toHaveURL(/inspector=/);
+    await expect(page.getByRole("form", { name: "Quick capture" })).toHaveCount(
+      0,
+    );
+    const row = page.getByRole("button", { name: backdated, exact: true });
+    await expect(row).toBeVisible();
+    // The destination timeline is interactive — the row opens its details.
+    await row.click();
+    await expect(page).toHaveURL(/inspector=view/);
+    await expect(
+      page.getByRole("button", { name: "Edit entry" }),
+    ).toBeVisible();
+  });
+
+  test("the type filter is URL-backed and clearable", async ({ page }) => {
+    await gotoFixture(page, "/diary?type=idea");
+    await expect(page.getByText("No entries match this filter")).toBeVisible();
+    const filter = page.getByRole("group", { name: "Filter by type" });
+    await expect(filter.getByRole("link", { name: /Idea/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await page.getByRole("link", { name: "Clear filter" }).click();
+    await expect(page).not.toHaveURL(/type=/);
+  });
+
+  test("Timeline mode retains multi-day pagination via Load more", async ({
     page,
   }) => {
     seedEntries(26);
 
-    await gotoFixture(page, "/diary");
+    await gotoFixture(page, "/diary?mode=timeline");
+    await expect(page.getByRole("link", { name: "Timeline" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
     // The oldest seeded entry is on the second page, hidden until Load more.
     await expect(
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 25` }),
@@ -269,5 +304,39 @@ test.describe("DIARY-01 — Diary Timeline & capture", () => {
     await expect(
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 25` }),
     ).toBeVisible();
+  });
+
+  test("the day navigator moves between days", async ({ page }) => {
+    seedEntries(3); // seed 00 lands on the Sydney-local day 2026-06-01
+
+    await gotoFixture(page, "/diary?date=2026-06-01");
+    await expect(
+      page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
+    ).toBeVisible();
+
+    // Previous day has no seeded entry.
+    await page.getByRole("button", { name: "Previous day" }).click();
+    await expect(page).toHaveURL(/date=2026-05-31/);
+    await expect(
+      page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
+    ).toHaveCount(0);
+
+    // Next day returns to the seeded day.
+    await page.getByRole("button", { name: "Next day" }).click();
+    await expect(page).toHaveURL(/date=2026-06-01/);
+    await expect(
+      page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
+    ).toBeVisible();
+
+    // Day changes push history: Back returns through each previously viewed day
+    // (2026-06-01 → 2026-05-31 → 2026-06-01) rather than skipping out of Diary,
+    // and Forward replays them.
+    await page.goBack();
+    await expect(page).toHaveURL(/date=2026-05-31/);
+    await page.goBack();
+    await expect(page).toHaveURL(/date=2026-06-01/);
+    await expect(page).toHaveURL(/\/diary/);
+    await page.goForward();
+    await expect(page).toHaveURL(/date=2026-05-31/);
   });
 });

@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   DIARY_DISPLAY_TIME_ZONE,
+  addDaysToDayKey,
   diaryDayHeading,
   endOfLocalDayUtc,
+  formatDayKeyLong,
+  formatDayKeyMedium,
+  formatZonedDateLong,
+  formatZonedDateTimeLong,
   formatZonedTime,
+  isValidDayKey,
   ownerLocalToUtc,
   startOfLocalDayUtc,
   utcToOwnerLocal,
@@ -133,6 +139,38 @@ describe("diaryDayHeading", () => {
   it("labels older days with an absolute weekday date", () => {
     expect(diaryDayHeading("2026-07-15", "2026-07-19")).toMatch(
       /^\w+day, 15 July 2026$/,
+    );
+  });
+});
+
+describe("Day-mode navigator helpers", () => {
+  it("steps forward and backward across month/year boundaries", () => {
+    expect(addDaysToDayKey("2026-07-15", 1)).toBe("2026-07-16");
+    expect(addDaysToDayKey("2026-07-01", -1)).toBe("2026-06-30");
+    expect(addDaysToDayKey("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addDaysToDayKey("not-a-day", 1)).toBeNull();
+  });
+
+  it("accepts real local days and rejects malformed ones", () => {
+    expect(isValidDayKey("2026-07-19", SYDNEY)).toBe(true);
+    expect(isValidDayKey("2026-13-40", SYDNEY)).toBe(false);
+    expect(isValidDayKey("2026-02-31", SYDNEY)).toBe(false);
+    expect(isValidDayKey("nope", SYDNEY)).toBe(false);
+  });
+
+  it("formats day keys for the navigator and headings", () => {
+    expect(formatDayKeyLong("2024-05-20")).toBe("Monday, 20 May 2024");
+    expect(formatDayKeyMedium("2024-05-20")).toBe("Mon, 20 May 2024");
+  });
+});
+
+describe("zoned date labels", () => {
+  it("formats an absolute date and date-time in the display zone", () => {
+    // 2026-07-19T04:30Z is 14:30 on 2026-07-19 in Sydney (AEST, +10).
+    const instant = new Date("2026-07-19T04:30:00.000Z");
+    expect(formatZonedDateLong(instant, SYDNEY)).toBe("19 July 2026");
+    expect(formatZonedDateTimeLong(instant, SYDNEY)).toBe(
+      "19 July 2026 at 14:30",
     );
   });
 });
