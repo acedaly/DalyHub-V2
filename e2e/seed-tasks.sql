@@ -51,7 +51,7 @@ VALUES
   ('l-complete-area', 'local-dev-workspace', 't-complete', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:06.000Z', '2026-07-19T01:00:06.000Z', NULL);
 INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at)
 VALUES
-  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'high', '2026-08-01', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z');
+  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2026-08-01', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z');
 
 -- Reset the seeded tasks' MUTABLE state so every e2e run starts from a known,
 -- deterministic point regardless of what a prior run's journeys changed (the
@@ -61,7 +61,7 @@ UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-waiting', 't-complete');
 UPDATE task_details
-SET status = 'todo', priority = 'high', due_date = '2026-08-01',
+SET status = 'todo', priority = 'p1', due_date = '2026-08-01',
     scheduled_date = NULL, description = 'Draft the **proposal** document.',
     waiting_since = NULL, waiting_note = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-drawer';

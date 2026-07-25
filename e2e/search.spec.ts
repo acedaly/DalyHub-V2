@@ -52,20 +52,22 @@ test.describe("DS-08 Shared Search — desktop", () => {
       listbox.locator('[role="option"][aria-selected="true"]'),
     ).toHaveCount(1);
 
-    // Enter opens the active result in the real DS-03 Drawer over /today.
+    // Enter opens the active result in the real DS-03 Drawer. TASKS-01: the task is
+    // now resolved by the real Tasks provider and opens on the canonical /tasks
+    // surface (its canonicalPath), not /today.
     await input.press("Enter");
-    await expect(page).toHaveURL(/\/today\?.*drawer=/);
+    await expect(page).toHaveURL(/\/tasks\?.*drawer=/);
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(
       dialog.getByRole("heading", { level: 3, name: "Finish PX-02" }),
     ).toBeVisible();
 
-    // Closing the Drawer preserves the underlying Today context.
+    // Closing the Drawer preserves the underlying Tasks context.
     await page.keyboard.press("Escape");
-    await expect(page).toHaveURL(/\/today$/);
+    await expect(page).toHaveURL(/\/tasks(\?.*)?$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Today" }),
+      page.getByRole("heading", { level: 1, name: "Tasks" }),
     ).toBeVisible();
 
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
@@ -225,7 +227,8 @@ test.describe("DS-08 Shared Search — modal, scrim and deep links", () => {
     await expect(page.getByRole("listbox")).toBeVisible();
     const link = page.getByRole("option").first().getByRole("link");
     const href = await link.getAttribute("href");
-    expect(href).toMatch(/\/today\?.*drawer=/);
+    // TASKS-01: the task result deep-links to the canonical /tasks surface.
+    expect(href).toMatch(/\/tasks\?.*drawer=/);
 
     // The deep link works standalone — no dependence on Search modal state.
     const direct = await context.newPage();
