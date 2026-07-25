@@ -469,3 +469,218 @@
   margin: 0;
   color: var(--dh-color-text);
 }
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-01 — the /tasks workspace layout (design tokens only).                */
+/*                                                                            */
+/* Layout and rhythm ONLY: the Matrix 2×2 grid, the Sector columns, the       */
+/* quick-capture preview and the bulk-action bar. Every visual value is a     */
+/* DS-01 `var(--dh-*)` token; all real chrome (cards, empty state, drawer,    */
+/* forms) comes from the shared components. The Matrix is a true 2×2 only at   */
+/* >= 768px and stacks full-width below, so it is never a cramped grid on a    */
+/* narrow phone and never overflows horizontally at 320px.                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-tasks-focus,
+.dh-tasks-sectors,
+.dh-tasks-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-6);
+}
+
+.dh-tasks-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+/* A quiet section label — matches the Today section rhythm (heading for the
+ * outline/AT, not a loud UI header). */
+.dh-tasks-section__label {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-snug);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-section__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-section__empty {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* Matrix + Sector cells share the quiet-section rhythm. */
+.dh-tasks-matrix__cell,
+.dh-tasks-sectors__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0; /* allow cards to shrink; never force horizontal overflow */
+}
+
+/* Mobile-first: everything stacks full-width. The 2×2 grid and the multi-column
+ * sectors are opt-in at the wider breakpoint below. */
+@media (min-width: 48rem) {
+  .dh-tasks-matrix {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--dh-space-6);
+  }
+
+  /* The untriaged bucket spans both columns beneath the 2×2. */
+  .dh-tasks-matrix__cell--untriaged {
+    grid-column: 1 / -1;
+  }
+
+  .dh-tasks-sectors {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--dh-space-6);
+  }
+}
+
+@media (min-width: 75rem) {
+  .dh-tasks-sectors {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* The All-view sort control row. */
+.dh-tasks-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin-bottom: var(--dh-space-4);
+}
+
+.dh-tasks-sort__label {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-sort__select {
+  width: auto;
+}
+
+/* The deterministic quick-capture interpretation preview. */
+.dh-tasks-capture {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-tasks-capture__title {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+}
+
+.dh-tasks-capture__label {
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-capture__tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-tasks-capture__token {
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text);
+}
+
+.dh-tasks-capture__actions {
+  display: flex;
+  gap: var(--dh-space-2);
+}
+
+/* System-view chips — a horizontally scrollable, keyboard-reachable row. */
+.dh-tasks-systems {
+  min-width: 0;
+}
+
+.dh-tasks-systems__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-tasks-systems__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-sm);
+  text-decoration: none;
+}
+
+.dh-tasks-systems__link[aria-current="true"] {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+  border-color: var(--dh-color-accent);
+}
+
+/* Bulk-action bar — bottom-anchored in the CollectionLayout selection slot. */
+.dh-tasks-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+}
+
+.dh-tasks-bulk__count {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-tasks-bulk__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  align-items: center;
+}
+
+.dh-tasks-bulk__select {
+  display: inline-flex;
+}
+
+.dh-tasks-bulk__status {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}

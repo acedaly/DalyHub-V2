@@ -31,6 +31,8 @@ import {
 } from "~/kernel/tasks";
 
 import routes from "./routes.manifest";
+import { tasksCommands } from "./commands";
+import { tasksSearchProvider } from "./search";
 
 export default defineModule({
   id: "tasks",
@@ -38,6 +40,8 @@ export default defineModule({
   description: "Atomic units of action under an Area or a Project.",
   order: 40,
   routes,
+  commands: tasksCommands,
+  searchProviders: [tasksSearchProvider],
   entityTypes: [{ type: TASK, singular: "Task", plural: "Tasks" }],
   entityLinkTypes: [
     {

@@ -28,8 +28,12 @@ import {
   TaskNotFoundError,
   TaskProjectArchivedError,
   TaskValidationError,
+  type CommitmentState,
   type SetWaitingInput,
+  type TaskPriority,
+  type TaskStatus,
   type TaskView,
+  type TimeSector,
 } from "~/kernel/tasks";
 import {
   createLinkWithPolicy,
@@ -168,13 +172,32 @@ async function handleUpdate(
   form: FormData,
 ): Promise<TaskActionData> {
   try {
+    // Delegation is only touched when the form carries a `delegateTo` field: an
+    // empty value clears delegation, a present value records it (dates/note
+    // optional). Omitting the field leaves delegation unchanged.
+    const delegation = form.has("delegateTo")
+      ? nullable(form.get("delegateTo")) === null
+        ? null
+        : {
+            to: String(form.get("delegateTo")),
+            delegatedOn: nullable(form.get("delegatedOn")),
+            followUpOn: nullable(form.get("followUpOn")),
+            note: nullable(form.get("delegateNote")),
+          }
+      : undefined;
     const result = await scope.tasks.updateTask(taskId, {
       title: String(form.get("title") ?? ""),
-      status: String(form.get("status") ?? "todo") as "todo" | "in_progress",
-      priority: nullable(form.get("priority")) as
-        "low" | "medium" | "high" | null,
+      status: String(form.get("status") ?? "todo") as TaskStatus,
+      priority: nullable(form.get("priority")) as TaskPriority | null,
       dueDate: nullable(form.get("dueDate")),
       scheduledDate: nullable(form.get("scheduledDate")),
+      timeSector: form.has("timeSector")
+        ? (nullable(form.get("timeSector")) as TimeSector | null)
+        : undefined,
+      commitmentState: form.has("commitmentState")
+        ? (String(form.get("commitmentState")) as CommitmentState)
+        : undefined,
+      delegation,
       // `description` is Markdown source; an empty field clears it.
       description:
         form.get("description") === null

@@ -38,6 +38,12 @@ export type TaskDetailsValues = {
   readonly priority: string;
   readonly dueDate: string;
   readonly scheduledDate: string;
+  readonly timeSector: string;
+  readonly commitmentState: string;
+  readonly delegateTo: string;
+  readonly delegatedOn: string;
+  readonly followUpOn: string;
+  readonly delegateNote: string;
 };
 
 interface TaskDetailsTabProps {
@@ -56,13 +62,31 @@ interface TaskDetailsTabProps {
 const STATUS_OPTIONS = [
   { value: "todo", label: "To do" },
   { value: "in_progress", label: "In progress" },
+  { value: "on_hold", label: "On hold" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: "", label: "None" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
+  { value: "", label: "No priority" },
+  { value: "p1", label: "P1 · Do" },
+  { value: "p2", label: "P2 · Defer" },
+  { value: "p3", label: "P3 · Delegate" },
+  { value: "p4", label: "P4 · Delete / Review" },
+];
+
+const SECTOR_OPTIONS = [
+  { value: "", label: "Inbox (no sector)" },
+  { value: "this_week", label: "This Week" },
+  { value: "next_week", label: "Next Week" },
+  { value: "this_month", label: "This Month" },
+  { value: "next_month", label: "Next Month" },
+  { value: "long_term", label: "Long Term" },
+  { value: "routines", label: "Routines" },
+];
+
+const COMMITMENT_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "someday", label: "Someday / Maybe" },
 ];
 
 const FIELD_LABELS: Record<string, string> = {
@@ -72,6 +96,12 @@ const FIELD_LABELS: Record<string, string> = {
   priority: "Priority",
   dueDate: "Due date",
   scheduledDate: "Scheduled date",
+  timeSector: "Time Sector",
+  commitmentState: "Commitment",
+  delegateTo: "Delegated to",
+  delegatedOn: "Delegated on",
+  followUpOn: "Follow up",
+  delegateNote: "Delegation note",
 };
 
 /** Render Markdown source safely through the ONE shared pipeline (lazy-loaded). */
@@ -161,6 +191,12 @@ function TaskDetailsForm({
       priority: task.priority ?? "",
       dueDate: task.dueDate ?? "",
       scheduledDate: task.scheduledDate ?? "",
+      timeSector: task.timeSector ?? "",
+      commitmentState: task.commitmentState,
+      delegateTo: task.delegation?.to ?? "",
+      delegatedOn: task.delegation?.delegatedOn ?? "",
+      followUpOn: task.delegation?.followUpOn ?? "",
+      delegateNote: task.delegation?.note ?? "",
     },
     fields: {
       title: { validate: required("A title is required") },
@@ -169,8 +205,14 @@ function TaskDetailsForm({
       "title",
       "status",
       "priority",
+      "timeSector",
+      "commitmentState",
       "dueDate",
       "scheduledDate",
+      "delegateTo",
+      "delegatedOn",
+      "followUpOn",
+      "delegateNote",
       "description",
     ],
     onSubmit: async (values) => {
@@ -188,6 +230,12 @@ function TaskDetailsForm({
   const priorityField = form.field("priority");
   const dueField = form.field("dueDate");
   const scheduledField = form.field("scheduledDate");
+  const sectorField = form.field("timeSector");
+  const commitmentField = form.field("commitmentState");
+  const delegateToField = form.field("delegateTo");
+  const delegatedOnField = form.field("delegatedOn");
+  const followUpOnField = form.field("followUpOn");
+  const delegateNoteField = form.field("delegateNote");
 
   return (
     <Form
@@ -206,11 +254,37 @@ function TaskDetailsForm({
       <SelectField label="Status" options={STATUS_OPTIONS} {...statusField} />
       <SelectField
         label="Priority"
+        help="P1 · Do · P2 · Defer · P3 · Delegate · P4 · Delete / Review"
         options={PRIORITY_OPTIONS}
         {...priorityField}
       />
+      <SelectField
+        label="Time Sector"
+        help="When you intend to work on this — separate from the due date."
+        options={SECTOR_OPTIONS}
+        {...sectorField}
+      />
+      <SelectField
+        label="Commitment"
+        help="Someday / Maybe is parked — kept out of active views."
+        options={COMMITMENT_OPTIONS}
+        {...commitmentField}
+      />
       <DateField label="Due date" {...dueField} />
       <DateField label="Scheduled date" {...scheduledField} />
+      <TextField
+        label="Delegated to"
+        help="A person or party — leave blank if not delegated."
+        maxLength={200}
+        {...delegateToField}
+      />
+      <DateField label="Delegated on" {...delegatedOnField} />
+      <DateField label="Follow up" {...followUpOnField} />
+      <TextField
+        label="Delegation note"
+        maxLength={500}
+        {...delegateNoteField}
+      />
       <MarkdownField
         label="Description"
         help="Markdown is supported."

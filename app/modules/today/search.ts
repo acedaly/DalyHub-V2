@@ -38,23 +38,15 @@ const PROJECT_STATUS_LABEL: Record<string, string> = {
   blocked: "Blocked",
 };
 
-/** Build the fixed candidate set once — Today's openable records as results. */
+/** Build the fixed candidate set once — Today's openable records as results.
+ *
+ * TASKS-01 (ADR-043 §18): real workspace TASKS are now searched by the Tasks
+ * module's repository-backed provider (`app/modules/tasks/search.ts`), so this
+ * fixture provider no longer contributes fake task results — there is ONE
+ * trustworthy task search. The remaining upcoming/project/note fixtures stay until
+ * those surfaces gain real repositories. */
 function buildCandidates(): readonly SearchResultItem[] {
   const items: SearchResultItem[] = [];
-
-  for (const task of TODAY_FIXTURE.focus) {
-    items.push({
-      id: `task:${task.id}`,
-      title: task.title,
-      subtitle: task.context,
-      entityType: "task",
-      target: {
-        kind: "drawer",
-        drawerKey: `task:${task.id}`,
-        canonicalPath: TODAY_PATH,
-      },
-    });
-  }
 
   for (const item of TODAY_FIXTURE.upcoming) {
     const kind = UPCOMING_KIND[item.kind];
@@ -136,6 +128,6 @@ const searchToday: SearchExecutor = async (query) => {
 export const todaySearchProvider: SearchProviderContribution = {
   id: "today.search",
   label: "Today",
-  entityTypes: ["task", "meeting", "project", "note"],
+  entityTypes: ["meeting", "project", "note"],
   search: searchToday,
 };

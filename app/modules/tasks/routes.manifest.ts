@@ -16,6 +16,20 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: { navLabel: "Tasks", navOrder: 40 },
   },
+  // TASKS-01: workspace-level resource routes. Static segments are declared BEFORE
+  // the dynamic `tasks/:taskId` so they never shadow a real task id. `bulk` runs
+  // bounded, atomic bulk field mutations; `parent-options` backs the create-task
+  // parent selector (Projects + Areas).
+  {
+    id: "tasks.bulk",
+    path: "tasks/bulk",
+    file: "routes/bulk.tsx",
+  },
+  {
+    id: "tasks.parent_options",
+    path: "tasks/parent-options",
+    file: "routes/parent-options.tsx",
+  },
   // PROJ-01 / ADR-033: the re-homed task record resource routes (no nav entry). The
   // ONE task record data endpoint (loader + mutation action), its Activity Timeline
   // page, the "related records" target search and the waiting-target search. They are
