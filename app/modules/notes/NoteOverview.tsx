@@ -14,7 +14,7 @@
  * (DESIGN_SYSTEM.md: never an empty tab for a future capability).
  */
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { EntityIcon } from "~/shared/entity";
 import {
@@ -73,11 +73,17 @@ export function NoteOverview({
     summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
   }
 
+  // Handed to `NoteContentForm` (which sets it during render, alongside its
+  // own `onSavedRef` pattern) and read by `useDeleteNote` so Delete can flush
+  // the latest edit through the SAME field it came from before it unmounts
+  // the editor — see both files' doc comments for why this matters.
+  const flushContentRef = useRef<(() => Promise<boolean>) | null>(null);
+
   const {
     deleteNote,
     pending: deletePending,
     deleted,
-  } = useDeleteNote(overview.id, overview.title);
+  } = useDeleteNote(overview.id, overview.title, flushContentRef);
 
   const renameAction: RecordAction = {
     id: "rename",
@@ -115,6 +121,7 @@ export function NoteOverview({
               initialContent={details.content}
               onSaved={onSaved}
               suppressGuard={deleted}
+              flushRef={flushContentRef}
             />
           ),
         },

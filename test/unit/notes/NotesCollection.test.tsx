@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { RouterProvider, createMemoryRouter } from "react-router";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -71,6 +73,49 @@ function renderCollection(
   return render(<RouterProvider router={router} />);
 }
 
+/**
+ * Like `renderCollection`, but the props `NotesCollectionView` receives are
+ * driven by local React state (`setData`) rather than frozen at render time —
+ * needed to simulate what a real `?state=active|deleted` navigation does
+ * (swap `notes`/`nextCursor`/`state` via fresh loader data) at a precise,
+ * test-controlled moment, independent of whatever a same-path "Load more"
+ * fetch is doing.
+ */
+function renderStatefulCollection(
+  initial: LoaderData,
+  loader: (request: Request) => unknown,
+) {
+  let setData!: (data: LoaderData) => void;
+  function Harness() {
+    const [data, setDataState] = useState(initial);
+    setData = setDataState;
+    return (
+      <NotesCollectionView
+        notes={data.notes}
+        nextCursor={data.nextCursor}
+        state={data.state ?? "active"}
+        failed={data.failed}
+      />
+    );
+  }
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/notes",
+        loader: ({ request }) => loader(request),
+        element: (
+          <FeedbackProvider>
+            <Harness />
+          </FeedbackProvider>
+        ),
+      },
+    ],
+    { initialEntries: ["/notes"] },
+  );
+  const result = render(<RouterProvider router={router} />);
+  return { ...result, setData: (data: LoaderData) => setData(data) };
+}
+
 describe("Notes collection", () => {
   it("renders a Note card as a canonical link with its Updated metadata", () => {
     renderCollection({
@@ -112,10 +157,11 @@ describe("Notes collection", () => {
               note({ id: "n2", title: "Bravo" }),
             ],
             nextCursor: null,
+            state: "active",
             failed: false,
           };
         }
-        return { notes: [], nextCursor: null, failed: false };
+        return { notes: [], nextCursor: null, state: "active", failed: false };
       },
     );
 
@@ -249,6 +295,121 @@ describe("Notes collection", () => {
       expect(screen.getByText("Old draft")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "Restore" }),
+      ).toBeInTheDocument();
+
+      vi.unstubAllGlobals();
+    });
+  });
+
+  // Regression coverage for two codex-review findings on PR #53.
+  describe("pagination correctness across the Active/Deleted filter (NOTES-01C)", () => {
+    it("discards a Load More response that resolves after the filter switched away, instead of merging it into the newly selected view", async () => {
+      let releaseStalePage: () => void = () => {};
+      const stalePagePromise = new Promise((resolve) => {
+        releaseStalePage = () =>
+          resolve({
+            notes: [note({ id: "n2", title: "Bravo (stale active page)" })],
+            nextCursor: "STALE_CURSOR",
+            state: "active",
+            failed: false,
+          });
+      });
+
+      const { setData } = renderStatefulCollection(
+        {
+          notes: [note({ id: "n1", title: "Alpha" })],
+          nextCursor: "CURSOR_1",
+          state: "active",
+          failed: false,
+        },
+        (request) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get("cursor") === "CURSOR_1") {
+            return stalePagePromise;
+          }
+          return {
+            notes: [],
+            nextCursor: null,
+            state: "deleted",
+            failed: false,
+          };
+        },
+      );
+
+      // Let the router's initial navigation commit before interacting.
+      await screen.findByText("1 notes loaded");
+
+      // Start "Load more" in the Active view — the fetch stays pending.
+      fireEvent.click(screen.getByRole("button", { name: "Load more notes" }));
+
+      // The user switches to Deleted BEFORE that fetch resolves — the same
+      // prop change a real `?state=deleted` navigation would produce.
+      act(() => {
+        setData({
+          notes: [],
+          nextCursor: null,
+          state: "deleted",
+          failed: false,
+        });
+      });
+      expect(screen.getByText("No deleted notes")).toBeInTheDocument();
+
+      // NOW the stale Active-state page resolves.
+      releaseStalePage();
+      await act(async () => {
+        await stalePagePromise;
+        // Let the fetcher's own internal state settle after the awaited data.
+        await new Promise((r) => setTimeout(r, 20));
+      });
+
+      // It must not have been merged into the Deleted view: no stray active
+      // note, no borrowed cursor reopening a "Load more" that doesn't exist
+      // for this (exhausted) Deleted page, and the honest empty state stands.
+      expect(
+        screen.queryByText("Bravo (stale active page)"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Load more deleted notes" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText("No deleted notes")).toBeInTheDocument();
+    });
+
+    it("keeps Load More reachable when restoring every currently-visible Deleted note leaves more pages unloaded", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          json: async () => ({ kind: "restore", ok: true }),
+        }),
+      );
+
+      renderCollection({
+        notes: [note({ id: "n1", title: "Old draft" })],
+        nextCursor: "MORE_DELETED",
+        state: "deleted",
+        failed: false,
+      });
+
+      expect(
+        screen.getByRole("button", { name: "Load more deleted notes" }),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+
+      const toasts = await screen.findByRole("region", {
+        name: "Notifications",
+      });
+      await waitFor(() =>
+        expect(
+          within(toasts).getByText('"Old draft" restored'),
+        ).toBeInTheDocument(),
+      );
+
+      // The only loaded row is gone, but more deleted notes exist on the
+      // server (a truthy cursor) — must NOT claim the collection is empty,
+      // and Load More must still be there to reach them.
+      expect(screen.queryByText("No deleted notes")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Load more deleted notes" }),
       ).toBeInTheDocument();
 
       vi.unstubAllGlobals();

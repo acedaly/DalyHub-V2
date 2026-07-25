@@ -70,11 +70,15 @@ export interface NotesCollectionViewProps {
 /**
  * The subset of the collection loader's payload a "Load more" fetch reads
  * back: the next page of Notes and the following cursor (plus the calm
- * failure flag).
+ * failure flag). `state` is the lifecycle filter the page was FETCHED FOR —
+ * carried through so a response that resolves after the user has since
+ * switched Active/Deleted can be told apart from one that matches the
+ * currently selected view (see `useNotePagination` below).
  */
 type NotesPageData = {
   readonly notes: readonly SerializedNoteListItem[];
   readonly nextCursor: string | null;
+  readonly state: NoteCollectionState;
   readonly failed: boolean;
 };
 
@@ -231,6 +235,19 @@ function useNotePagination(
       return;
     }
     processed.current = data;
+    // A "Load more" fetch that was still in flight when the user switched the
+    // Active/Deleted filter resolves AFTER the effect above has already reset
+    // `appended`/`cursor` for the newly selected state. Its `state` still
+    // reflects whichever filter was active when it was ISSUED (the loader
+    // echoes back the `?state=` it read), so a mismatch means this response
+    // belongs to a view the user has since left — merging it would silently
+    // mix the two lifecycle views (e.g. a still-active note rendered with a
+    // Restore action) and hand this state's pagination a cursor scoped to the
+    // OTHER state. Discard it; the reset already put this state's pagination
+    // in the correct empty position, and Load More is still there to retry.
+    if (data.state !== state) {
+      return;
+    }
     if (data.failed) {
       setLoadFailed(true);
       return;
@@ -238,7 +255,7 @@ function useNotePagination(
     setAppended((prev) => [...prev, ...data.notes]);
     setCursor(data.nextCursor);
     setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
+  }, [fetcher.state, fetcher.data, state]);
 
   const loadMore = useCallback(() => {
     if (cursor === null) {
@@ -389,7 +406,7 @@ function NotesCollection({
           />
         ) : undefined
       }
-      isEmpty={!failed && count === 0 && state === "active"}
+      isEmpty={!failed && count === 0 && !hasMore && state === "active"}
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="note" />}
@@ -405,7 +422,9 @@ function NotesCollection({
           }
         />
       }
-      isFilteredEmpty={!failed && count === 0 && state === "deleted"}
+      isFilteredEmpty={
+        !failed && count === 0 && !hasMore && state === "deleted"
+      }
       filteredEmptySlot={
         <EmptyState
           icon={<EntityIcon type="note" />}

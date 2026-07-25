@@ -14,7 +14,7 @@
  * path back, for whenever the Undo toast is missed, dismissed or expires.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 
@@ -40,7 +40,11 @@ async function postLifecycleIntent(
   }
 }
 
-export function useDeleteNote(noteId: string, title: string) {
+export function useDeleteNote(
+  noteId: string,
+  title: string,
+  flushContentRef: RefObject<(() => Promise<boolean>) | null>,
+) {
   const navigate = useNavigate();
   const feedback = useFeedback();
   const [pending, setPending] = useState(false);
@@ -59,6 +63,23 @@ export function useDeleteNote(noteId: string, title: string) {
     }
     pendingRef.current = true;
     setPending(true);
+
+    // Force the editor's latest edit to be safely persisted BEFORE deleting —
+    // otherwise the delete's own navigation unmounts the editor, which aborts
+    // an in-flight save's fetch and discards an unsaved/failed draft outright
+    // (it lives only in the editor's React state). A note that is "deleted"
+    // must delete exactly what the user last wrote, so Undo restores that,
+    // not an earlier version.
+    const flushed = (await flushContentRef.current?.()) ?? true;
+    if (!flushed) {
+      pendingRef.current = false;
+      setPending(false);
+      feedback.notifyError(
+        `Couldn't save your latest changes, so "${title}" wasn't deleted. Fix the save error, then try again.`,
+      );
+      return;
+    }
+
     const ok = await postLifecycleIntent(noteId, "delete");
     pendingRef.current = false;
     setPending(false);
@@ -84,7 +105,7 @@ export function useDeleteNote(noteId: string, title: string) {
         }
       },
     });
-  }, [noteId, title, navigate, feedback]);
+  }, [noteId, title, navigate, feedback, flushContentRef]);
 
   return { deleteNote, pending, deleted };
 }

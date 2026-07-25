@@ -258,5 +258,114 @@ describe("NoteOverview", () => {
 
       vi.unstubAllGlobals();
     });
+
+    // Regression coverage for the codex-review finding on PR #53: Delete used
+    // to navigate away immediately, unmounting the editor before its debounced
+    // autosave ever fired — the just-typed content was discarded outright, and
+    // Undo restored the STALE previously-committed content instead. Delete now
+    // flushes the pending edit through the same field first (`flushRef` /
+    // `field.flush()`, see `use-delete-note.ts` and `use-autosave-field.ts`).
+    it("flushes an unsaved edit through the editor's own save path before deleting, so the deleted content is the latest typed content", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          json: async () => ({ kind: "update_content", ok: true }),
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ kind: "delete", ok: true }),
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      renderInRouter(
+        <NoteOverview
+          overview={overview({ title: "Reading list" })}
+          details={details({ content: "original" })}
+          onRename={() => {}}
+          onSaved={() => {}}
+          activityTab={<div>Activity content</div>}
+        />,
+      );
+
+      // Edit, but do NOT blur and do NOT wait out the debounce — Delete must
+      // still capture this content, not the last-committed "original".
+      fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+        target: { value: "edited but not yet saved" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+      const firstBody = fetchMock.mock.calls[0]?.[1]?.body as FormData;
+      expect(firstBody.get("intent")).toBe("update_content");
+      expect(firstBody.get("content")).toBe("edited but not yet saved");
+
+      const secondBody = fetchMock.mock.calls[1]?.[1]?.body as FormData;
+      expect(secondBody.get("intent")).toBe("delete");
+
+      await screen.findByText("Notes collection");
+      const toasts = await screen.findByRole("region", {
+        name: "Notifications",
+      });
+      await waitFor(() =>
+        expect(
+          within(toasts).getByText('"Reading list" deleted'),
+        ).toBeInTheDocument(),
+      );
+
+      vi.unstubAllGlobals();
+    });
+
+    it("refuses to delete when the pending edit fails to save, and preserves the draft", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        json: async () => ({
+          kind: "update_content",
+          ok: false,
+          formError: "That couldn't be saved.",
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      renderInRouter(
+        <NoteOverview
+          overview={overview({ title: "Reading list" })}
+          details={details({ content: "original" })}
+          onRename={() => {}}
+          onSaved={() => {}}
+          activityTab={<div>Activity content</div>}
+        />,
+      );
+
+      fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+        target: { value: "edited but will fail to save" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+
+      const toasts = await screen.findByRole("region", {
+        name: "Notifications",
+      });
+      await waitFor(() =>
+        expect(
+          within(toasts).getByText(
+            "Couldn't save your latest changes, so \"Reading list\" wasn't deleted. Fix the save error, then try again.",
+          ),
+        ).toBeInTheDocument(),
+      );
+
+      // Only the (failed) content save was attempted — delete was never sent.
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(
+        (fetchMock.mock.calls[0]?.[1]?.body as FormData).get("intent"),
+      ).toBe("update_content");
+
+      // Still on the record, draft intact — nothing was lost or navigated away.
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Reading list" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+        "edited but will fail to save",
+      );
+
+      vi.unstubAllGlobals();
+    });
   });
 });

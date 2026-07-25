@@ -37,7 +37,7 @@
  * indefinitely (Leave is always available).
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import { MARKDOWN_SOURCE_MAX_BYTES } from "~/kernel/markdown";
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
@@ -98,6 +98,16 @@ export interface NoteContentFormProps {
    * with unsaved changes?" on the way to `/notes` (`~/modules/notes/use-delete-note.ts`).
    */
   readonly suppressGuard?: boolean;
+  /**
+   * Set (during render, like `onSavedRef` below) with the field's current
+   * `flush` function, so `use-delete-note.ts` can force the latest edit to be
+   * safely persisted BEFORE it deletes and navigates away — deleting while an
+   * edit is unsaved/saving/failed would otherwise unmount this field and
+   * discard that draft (the in-flight fetch is aborted, and an unsaved/failed
+   * value lives only in this hook's React state). See `flush`'s own doc
+   * comment in `~/shared/forms/use-autosave-field.ts`.
+   */
+  readonly flushRef?: RefObject<(() => Promise<boolean>) | null>;
 }
 
 type PreviewState =
@@ -110,6 +120,7 @@ export function NoteContentForm({
   initialContent,
   onSaved,
   suppressGuard = false,
+  flushRef,
 }: NoteContentFormProps) {
   const onSavedRef = useRef(onSaved);
   onSavedRef.current = onSaved;
@@ -149,6 +160,10 @@ export function NoteContentForm({
       throw new Error("save rejected");
     },
   });
+
+  if (flushRef) {
+    flushRef.current = field.flush;
+  }
 
   // Offline detection: attribute a failure honestly, and retry automatically
   // the moment connectivity returns instead of waiting for the user to notice
