@@ -296,6 +296,9 @@ describe("module discovery", () => {
           file: "routes/activity.tsx",
         },
         { id: "diary.index", moduleId: "diary", file: "routes/index.tsx" },
+        { id: "diary.new", moduleId: "diary", file: "routes/new.tsx" },
+        { id: "diary.entry", moduleId: "diary", file: "routes/entry.tsx" },
+        { id: "diary.mutate", moduleId: "diary", file: "routes/mutate.tsx" },
         {
           id: "meetings.index",
           moduleId: "meetings",

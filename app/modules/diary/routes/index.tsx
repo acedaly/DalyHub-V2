@@ -1,36 +1,111 @@
 /**
- * PX-03 — the Diary module route (Coming Soon placeholder).
+ * DIARY-01 — the real Diary Timeline route (`/diary`).
  *
- * Module-owned route referenced declaratively by the Diary manifest. It renders
- * the shared PX-03 "Coming Soon" scaffold only; the Diary product experience is a
- * later roadmap item (DIARY-01 → DIARY-03).
+ * Replaces the PX-03 `ModuleComingSoon` placeholder with the Interstitial
+ * Journal: a chronological Timeline of meaningful moments plus a sub-ten-second
+ * quick capture. The trusted server boundary reads the workspace-bound,
+ * RESERVED `DiaryRepository` (never the generic entity collection) through the
+ * authenticated composition seam, lists a BOUNDED, cursor-paginated page in
+ * deterministic `(occurred_at, id)` order, and groups it into local-day sections
+ * with the kernel's pure `groupEntriesByDay` resolved in the explicit display
+ * time zone. Entry-type and occurred-at-range filters are URL-backed so they
+ * survive refresh and Back/Forward; a malformed or scope-mismatched cursor
+ * degrades calmly rather than 500-ing (mirrors `~/modules/notes/routes/index`).
  */
 
-import { ModuleComingSoon } from "~/shared/shell/ModuleComingSoon";
+import { env } from "cloudflare:workers";
+
+import { toLocalDayKey } from "~/kernel/diary";
+import { requireAuthenticatedSession } from "~/platform/request";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+
+import { DiaryTimelineView } from "../DiaryTimeline";
+import {
+  parseEntryTypeFilter,
+  serializeTimelinePage,
+  type SerializedDayGroup,
+} from "../diary-view";
+import { DIARY_DISPLAY_TIME_ZONE, ownerLocalToUtc } from "../occurred-time";
+import type { Route } from "./+types/index";
+
+/** The Timeline page size — bounded and modest so pagination is exercised early. */
+const DIARY_TIMELINE_PAGE_SIZE = 25;
 
 export function meta() {
   return [
     { title: "Diary · DalyHub" },
     {
       name: "description",
-      content: "Dated Markdown journal entries, private by nature.",
+      content:
+        "Your interstitial journal — a chronological history of meaningful moments.",
     },
   ];
 }
 
-export default function DiaryRoute() {
-  return (
-    <ModuleComingSoon
-      name="Diary"
-      entityType="diary"
-      summary="Dated Markdown journal entries, private by nature."
-      fit="Diary is your private, dated journal — a place for reflection that sits beside the rest of your life without forcing structure onto it, connected to the day's meetings, tasks and people only when you choose to link them."
-      roadmapStatus="It's planned for Phase 9 — Diary (DIARY-01 → DIARY-03) of the DalyHub V2 roadmap."
-      capabilities={[
-        "Write and read dated Markdown journal entries, private by nature",
-        "Optionally link an entry to that day's meetings, tasks and people",
-        "A mobile-complete diary for capturing entries on the go",
-      ]}
-    />
-  );
+/** Convert a `YYYY-MM-DD` owner-local date to the UTC instant at local day start. */
+function localDateStartUtc(date: string): Date | undefined {
+  return ownerLocalToUtc(`${date}T00:00`, DIARY_DISPLAY_TIME_ZONE) ?? undefined;
+}
+
+/** Convert a `YYYY-MM-DD` owner-local date to the UTC instant at local day end. */
+function localDateEndUtc(date: string): Date | undefined {
+  return ownerLocalToUtc(`${date}T23:59`, DIARY_DISPLAY_TIME_ZONE) ?? undefined;
+}
+
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const session = requireAuthenticatedSession(context);
+  const url = new URL(request.url);
+  const cursor = url.searchParams.get("cursor") ?? undefined;
+  const entryTypes = parseEntryTypeFilter(url.searchParams.getAll("type"));
+  const fromParam = url.searchParams.get("from") ?? "";
+  const toParam = url.searchParams.get("to") ?? "";
+  const occurredFrom = fromParam ? localDateStartUtc(fromParam) : undefined;
+  const occurredTo = toParam ? localDateEndUtc(toParam) : undefined;
+
+  const isFiltered =
+    entryTypes !== undefined ||
+    occurredFrom !== undefined ||
+    occurredTo !== undefined;
+
+  const now = new Date();
+  const base = {
+    displayTimeZone: DIARY_DISPLAY_TIME_ZONE,
+    nowIso: now.toISOString(),
+    todayKey: toLocalDayKey(now, DIARY_DISPLAY_TIME_ZONE),
+    activeTypes: entryTypes ?? [],
+    from: fromParam,
+    to: toParam,
+    isFiltered,
+  };
+
+  try {
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const page = await scope.diary.list({
+      order: "newest",
+      limit: DIARY_TIMELINE_PAGE_SIZE,
+      ...(cursor ? { cursor } : {}),
+      ...(entryTypes ? { entryTypes } : {}),
+      ...(occurredFrom ? { occurredFrom } : {}),
+      ...(occurredTo ? { occurredTo } : {}),
+    });
+    return {
+      ...base,
+      groups: serializeTimelinePage(page.items, DIARY_DISPLAY_TIME_ZONE),
+      nextCursor: page.nextCursor,
+      failed: false,
+    };
+  } catch {
+    // A storage fault OR a malformed/scope-mismatched cursor: degrade to a calm
+    // error so the shell stays usable — never a 500.
+    return {
+      ...base,
+      groups: [] as SerializedDayGroup[],
+      nextCursor: null as string | null,
+      failed: true,
+    };
+  }
+}
+
+export default function DiaryRoute({ loaderData }: Route.ComponentProps) {
+  return <DiaryTimelineView {...loaderData} />;
 }
