@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
+  expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -577,5 +578,191 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("NOTES-04 mobile writing toolbar: format Markdown source, autosave, exact reload, safe preview, touch targets, axe", async ({
+    page,
+  }) => {
+    const stamp = Date.now();
+    const noteTitle = `${NOTE_TITLE_PREFIX}toolbar-${stamp}`;
+
+    // 1-3. Open Notes at a phone viewport, create and open a real Note.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoFixture(page, "/notes");
+    await page.getByRole("link", { name: "New note" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "New note" });
+    await dialog.getByLabel(/Title/).fill(noteTitle);
+    await dialog.getByRole("button", { name: "Create note" }).click();
+    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
+    const noteUrl = page.url();
+
+    // The writing toolbar is present on the phone editor; Split never is.
+    const toolbar = page.getByRole("toolbar", { name: "Formatting" });
+    await expect(toolbar).toBeVisible();
+    await expect(page.getByRole("button", { name: "Split" })).not.toBeVisible();
+
+    // Track when the FINAL formatted content (identified by the "Value 2" table
+    // cell) is persisted by a successful save — whether that save is triggered
+    // by the debounce mid-sequence or by the blur below. A persistent listener
+    // set up BEFORE the edits catches it either way, so the reload proof never
+    // depends on the transient save-status text and never reloads while a save
+    // is still in flight (which a page unload would abort).
+    let finalContentSaved = false;
+    page.on("response", (response) => {
+      if (
+        response.url().includes("/mutate") &&
+        response.request().method() === "POST" &&
+        response.ok() &&
+        (response.request().postData() ?? "").includes("Value 2")
+      ) {
+        finalContentSaved = true;
+      }
+    });
+
+    const editor = page.getByRole("textbox", { name: "Note" });
+    await editor.fill(
+      "Heading line\nplain paragraph\nvisit here\nFirst\nSecond",
+    );
+
+    // Helper: select a [start,end) range in the source textarea.
+    const selectRange = async (start: number, end: number) => {
+      await editor.evaluate(
+        (element, [from, to]) => {
+          const textarea = element as HTMLTextAreaElement;
+          textarea.focus();
+          textarea.setSelectionRange(from, to);
+        },
+        [start, end],
+      );
+    };
+    const selectSubstring = async (needle: string) => {
+      const value = await editor.inputValue();
+      const index = value.indexOf(needle);
+      await selectRange(index, index + needle.length);
+    };
+
+    // 5. Apply a heading to the first line.
+    await selectRange(0, "Heading line".length);
+    await toolbar.getByRole("button", { name: "Heading" }).click();
+    await expect(editor).toHaveValue(/^# Heading line/);
+
+    // 6. Bold and italic on selected words.
+    await selectSubstring("plain");
+    await toolbar.getByRole("button", { name: "Bold" }).click();
+    await expect(editor).toHaveValue(/\*\*plain\*\* paragraph/);
+    await selectSubstring("paragraph");
+    await toolbar.getByRole("button", { name: "Italic" }).click();
+    await expect(editor).toHaveValue(/_paragraph_/);
+
+    // 10. Insert a link over a selected word (Markdown link source only).
+    await selectSubstring("here");
+    await toolbar.getByRole("button", { name: "Link" }).click();
+    await expect(editor).toHaveValue(/visit \[here\]\(url\)/);
+
+    // 7-8. Bulleted list, then a checklist over the last two lines.
+    await selectRange(
+      (await editor.inputValue()).indexOf("First"),
+      (await editor.inputValue()).length,
+    );
+    await toolbar.getByRole("button", { name: "Bullets" }).click();
+    await expect(editor).toHaveValue(/- First\n- Second/);
+    await selectRange(
+      (await editor.inputValue()).indexOf("- First"),
+      (await editor.inputValue()).length,
+    );
+    await toolbar.getByRole("button", { name: "Checklist" }).click();
+    await expect(editor).toHaveValue(/- \[ \] First\n- \[ \] Second/);
+
+    // 9. Insert a table LAST, at the end of the document — block Markdown is
+    // blank-line separated so it parses (and renders) as a real table.
+    await selectRange(
+      (await editor.inputValue()).length,
+      (await editor.inputValue()).length,
+    );
+    await toolbar.getByRole("button", { name: "Table" }).click();
+    await expect(editor).toHaveValue(/\| Column 1 \| Column 2 \|/);
+    await expect(editor).toHaveValue(/\| --- \| --- \|/);
+
+    // 11-12. Prove the toolbar edits AUTOSAVE and the EXACT Markdown source
+    // persists across a reload. The proof is gated on the real save POST (whose
+    // body carries the final "Value 2" table content) rather than on the
+    // transient save-status text: after a content-heavy sequence the calm
+    // indicator is not a reliable Playwright signal, but the network round trip
+    // is. Waiting for the actual response also guarantees we never reload WHILE
+    // a save is in flight — a page unload would otherwise abort it.
+    const savedSource = await editor.inputValue();
+    expect(savedSource).toContain("# Heading line");
+    expect(savedSource).toContain("**plain**");
+    expect(savedSource).toContain("_paragraph_");
+    expect(savedSource).toContain("visit [here](url)");
+    expect(savedSource).toContain("- [ ] First");
+    expect(savedSource).toContain("| Column 1 | Column 2 |");
+
+    // Nudge a save (a no-op if the debounce already saved), then wait until the
+    // final content is confirmed persisted before reloading.
+    await editor.focus();
+    await editor.blur();
+    await expect.poll(() => finalContentSaved, { timeout: 30_000 }).toBe(true);
+
+    await gotoFixture(page, noteUrl);
+    await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue(
+      savedSource,
+    );
+
+    // 13. The rendered Preview uses the existing safe FND-08 pipeline — the
+    // heading and table render, and nothing executes (no <script>). The
+    // preview is the shared renderer, unchanged by NOTES-04; the toolbar's own
+    // axe scan runs below in Source mode. (Rendered GFM task-list checkboxes in
+    // the preview carry a known shared-renderer accessibility gap recorded as
+    // DEBT-26 — a Notes PR must not modify the shared Markdown pipeline.)
+    await page.getByRole("button", { name: "Preview" }).click();
+    const preview = page.locator(".dh-note-editor__preview");
+    await expect(
+      preview.getByRole("heading", { level: 1, name: "Heading line" }),
+    ).toBeVisible();
+    await expect(preview.getByRole("table")).toBeVisible();
+    await expect(preview.locator("script")).toHaveCount(0);
+    await page.getByRole("button", { name: "Source" }).click();
+
+    // 29. Touch targets: the toolbar controls meet the 44px minimum.
+    await expectMinTouchTarget(
+      toolbar.getByRole("button", { name: "Heading" }),
+    );
+    await expectMinTouchTarget(toolbar.getByRole("button", { name: "Table" }));
+
+    // 25. Keyboard operation: roving tabindex across the toolbar.
+    await toolbar.getByRole("button", { name: "Heading" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(toolbar.getByRole("button", { name: "Bold" })).toBeFocused();
+
+    // 27-28. Axe (light + dark) and no horizontal overflow at 390px and 320px.
+    await expectNoAxeViolations(page);
+    await expectNoHorizontalOverflow(page);
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expectNoAxeViolations(page);
+    await page.emulateMedia({ colorScheme: "light" });
+
+    // 30. Repeat a critical editor action at 320px.
+    await page.setViewportSize({ width: 320, height: 568 });
+    await expect(toolbar).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await selectSubstring("Column 1");
+    const bolded320Saved = page.waitForResponse(
+      (response) =>
+        response.url().includes("/mutate") &&
+        response.request().method() === "POST" &&
+        response.ok() &&
+        (response.request().postData() ?? "").includes("**Column 1**"),
+      { timeout: 30_000 },
+    );
+    await toolbar.getByRole("button", { name: "Bold" }).click();
+    await expect(editor).toHaveValue(/\*\*Column 1\*\*/);
+    await expectNoHorizontalOverflow(page);
+
+    // Let this final edit fully persist before the test ends, so the afterEach
+    // cleanup never races an in-flight save — a late save re-inserting
+    // note_details/activity rows would fail the entity-delete FK constraint.
+    await editor.blur();
+    await bolded320Saved;
   });
 });

@@ -45,8 +45,8 @@ lost or hidden focus, no duplicated tab stop.
 | `Escape` | Close the topmost modal surface (Drawer level, Search, Palette, Inspector sheet, confirmation), then restore focus to its opener. Scoped to the top layer only. |
 | `Enter` | Activate the focused control / primary action; open a focused Card or result. |
 | `Space` | Toggle the focused control (checkbox, switch, button). |
-| `Arrow` keys | Move within a composite widget: RecordTabs (roving tab), listbox/combobox options (Forms, Search, Palette), Card reorder. |
-| `Home` / `End` | Jump to the first/last item within a composite widget where it applies (tabs, listboxes). |
+| `Arrow` keys | Move within a composite widget: RecordTabs (roving tab), listbox/combobox options (Forms, Search, Palette), Card reorder, the Notes writing **toolbar** (roving tabindex). |
+| `Home` / `End` | Jump to the first/last item within a composite widget where it applies (tabs, listboxes, toolbars). |
 
 **Modal machinery is shared, never re-implemented.** The DS-03 hooks
 (`use-drawer-focus`, `use-body-scroll-lock`, `use-inert-background` in
@@ -56,6 +56,24 @@ wraps, background inerting, body-scroll lock, and focus restoration to the opene
 The Drawer, Search, Command Palette, the Inspector's mobile sheet, the mobile
 navigation overlay and the dangerous-action confirmation all reuse them — there is
 never a second focus-trap. **A new modal surface reuses these hooks.**
+
+**Command-button toolbars (lesson from NOTES-04).** A row of formatting/command
+buttons is a WAI-ARIA `role="toolbar"` with **roving tabindex** — only the active
+button is a Tab stop; `Arrow`/`Home`/`End` move focus between buttons — so a
+toolbar of a dozen controls adds ONE tab stop to the page, not a dozen. Each
+button's visible text is also its accessible name (never an unlabelled icon), with
+a `title` tooltip for the longer explanation. When such a control row must stay a
+single line on a phone (to keep the surface below it usable), it **scrolls
+horizontally** — an intentional, reachable overflow contained so it never adds
+document-level horizontal overflow — rather than wrapping into rows that push
+content below the fold; it wraps to full visibility only when there is width.
+
+**Known shared-renderer gap.** Rendered GFM task-list checkboxes (`- [ ]`) from the
+one FND-08 Markdown pipeline are unlabelled `<input type="checkbox" disabled>`
+([DEBT-26](../product/PRODUCT_DEBT.md)) — an axe `label` violation surfaced when
+Markdown containing a checklist is previewed. Until it is fixed in the shared
+pipeline, an editor's own axe gate scans the authoring surface (its controls),
+not the shared preview's rendered task lists.
 
 ---
 

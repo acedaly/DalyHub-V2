@@ -49,6 +49,7 @@ import {
 } from "~/shared/forms";
 import { MarkdownContent } from "~/shared/markdown";
 
+import { NoteFormattingToolbar } from "./NoteFormattingToolbar";
 import { validateNoteContentSize } from "./note-content-validation";
 import {
   availableNoteEditorViewModes,
@@ -124,6 +125,10 @@ export function NoteContentForm({
 }: NoteContentFormProps) {
   const onSavedRef = useRef(onSaved);
   onSavedRef.current = onSaved;
+  // The live source `<textarea>` node, captured from the DS-06 `MarkdownField`
+  // control so the NOTES-04 formatting toolbar can read the current selection
+  // and splice Markdown syntax into the SAME value the field already owns.
+  const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   // The hook always surfaces its ONE calm, fixed `errorMessage` on failure
   // (never a raw exception) — this ref captures the more specific server
   // message (when one exists) purely for DISPLAY, layered on top in render.
@@ -281,6 +286,11 @@ export function NoteContentForm({
         <div className="dh-note-editor__panes" data-view={viewMode}>
           {viewMode !== "preview" ? (
             <div className="dh-note-editor__source">
+              <NoteFormattingToolbar
+                textareaRef={sourceTextareaRef}
+                onChange={field.onChange}
+                label="Formatting"
+              />
               <MarkdownField
                 label="Note"
                 rows={20}
@@ -291,6 +301,10 @@ export function NoteContentForm({
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 error={field.validationError}
+                controlRef={(node) => {
+                  sourceTextareaRef.current =
+                    node as HTMLTextAreaElement | null;
+                }}
               />
             </div>
           ) : null}
