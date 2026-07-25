@@ -461,4 +461,189 @@ describe("NoteContentForm", () => {
       );
     });
   });
+
+  /**
+   * NOTES-04 — the formatting toolbar shares the SAME autosave coordinator and
+   * source value as typed edits. These prove a toolbar action integrates with
+   * autosave exactly like typing across the required moments: before a save,
+   * during an in-flight save, after a failed save, while offline, and
+   * immediately before a navigation.
+   */
+  describe("formatting toolbar autosave integration", () => {
+    function selectAll(textarea: HTMLTextAreaElement) {
+      textarea.focus();
+      textarea.setSelectionRange(0, textarea.value.length);
+    }
+
+    it("a toolbar action triggers the same debounced autosave as typing", async () => {
+      stubMatchMedia(false);
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(jsonResponse({ kind: "update_content", ok: true }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      vi.useFakeTimers();
+      try {
+        renderInRouter(
+          <NoteContentForm
+            noteId="n1"
+            initialContent="draft"
+            onSaved={() => {}}
+          />,
+        );
+        const textarea = screen.getByRole("textbox", {
+          name: "Note",
+        }) as HTMLTextAreaElement;
+        selectAll(textarea);
+        fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+        expect(textarea.value).toBe("**draft**");
+        expect(screen.getByText("Unsaved")).toBeInTheDocument();
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(NOTE_AUTOSAVE_DEBOUNCE_MS);
+        });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const body = fetchMock.mock.calls[0]![1].body as FormData;
+        expect(body.get("content")).toBe("**draft**");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("a toolbar action during an in-flight save is coalesced, never lost", async () => {
+      let resolveFirst: (value: Response) => void = () => {};
+      const first = new Promise<Response>((resolve) => {
+        resolveFirst = resolve;
+      });
+      const fetchMock = vi
+        .fn()
+        .mockImplementationOnce(() => first)
+        .mockResolvedValueOnce(
+          jsonResponse({ kind: "update_content", ok: true }),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+
+      vi.useFakeTimers();
+      try {
+        renderInRouter(
+          <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />,
+        );
+        const textarea = screen.getByRole("textbox", {
+          name: "Note",
+        }) as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: "Content A" } });
+        fireEvent.blur(textarea); // save A dispatched immediately
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(screen.getByText("Saving…")).toBeInTheDocument();
+
+        // Format WHILE save A is in flight.
+        selectAll(textarea);
+        fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+        expect(textarea.value).toBe("**Content A**");
+        expect(fetchMock).toHaveBeenCalledTimes(1); // no parallel save yet
+
+        await act(async () => {
+          resolveFirst(jsonResponse({ kind: "update_content", ok: true }));
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const secondBody = fetchMock.mock.calls[1]![1].body as FormData;
+        expect(secondBody.get("content")).toBe("**Content A**");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("a toolbar action after a failed save preserves and updates the draft", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({
+            kind: "update_content",
+            ok: false,
+            formError: "storage failure",
+          }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({ kind: "update_content", ok: true }),
+        );
+      vi.stubGlobal("fetch", fetchMock);
+
+      renderInRouter(
+        <NoteContentForm
+          noteId="n1"
+          initialContent="draft"
+          onSaved={() => {}}
+        />,
+      );
+      const textarea = screen.getByRole("textbox", {
+        name: "Note",
+      }) as HTMLTextAreaElement;
+      fireEvent.change(textarea, { target: { value: "edited" } });
+      fireEvent.blur(textarea);
+      await waitFor(() =>
+        expect(screen.getByText("Couldn't save")).toBeInTheDocument(),
+      );
+
+      // A formatting action applied on top of the failed draft keeps the work.
+      selectAll(textarea);
+      fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+      expect(textarea.value).toBe("**edited**");
+    });
+
+    it("a toolbar action made while offline preserves the content", async () => {
+      setOnline(false);
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValue(new TypeError("Failed to fetch"));
+      vi.stubGlobal("fetch", fetchMock);
+
+      renderInRouter(
+        <NoteContentForm
+          noteId="n1"
+          initialContent="draft"
+          onSaved={() => {}}
+        />,
+      );
+      const textarea = screen.getByRole("textbox", {
+        name: "Note",
+      }) as HTMLTextAreaElement;
+      selectAll(textarea);
+      fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+      fireEvent.blur(textarea);
+
+      await waitFor(() =>
+        expect(screen.getByText(/You're offline/)).toBeInTheDocument(),
+      );
+      expect(textarea.value).toBe("**draft**");
+    });
+
+    it("arms the navigation guard after a formatting action leaves unsaved content", async () => {
+      const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
+      vi.stubGlobal("fetch", fetchMock);
+      renderInRouter(
+        <>
+          <Link to="/elsewhere">Go elsewhere</Link>
+          <NoteContentForm noteId="n1" initialContent="" onSaved={() => {}} />
+        </>,
+      );
+      const textarea = screen.getByRole("textbox", {
+        name: "Note",
+      }) as HTMLTextAreaElement;
+      textarea.focus();
+      textarea.setSelectionRange(0, 0);
+      fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+
+      fireEvent.click(screen.getByRole("link", { name: "Go elsewhere" }));
+      expect(
+        await screen.findByText("Leave with unsaved changes?"),
+      ).toBeInTheDocument();
+    });
+  });
 });
