@@ -262,6 +262,28 @@ describe("DIARY-01 timeline loader", () => {
     expect(mismatched.failed).toBe(true);
   });
 
+  it("includes an entry late in the final minute of a to-bounded local day", async () => {
+    // 2026-07-19T13:59:45Z is 23:59:45 in Sydney on 2026-07-19 — inside the day,
+    // but after a naive `23:59` upper bound. The inclusive end-of-day bound must
+    // keep it in a `?to=2026-07-19` filter.
+    await makeDiaryRepository(makeContext(WS)).create({
+      entryType: "note",
+      title: "Late night",
+      occurredAt: new Date("2026-07-19T13:59:45.000Z"),
+    });
+    // An entry a moment into the NEXT local day must be excluded.
+    await makeDiaryRepository(makeContext(WS)).create({
+      entryType: "note",
+      title: "Next day",
+      occurredAt: new Date("2026-07-19T14:00:30.000Z"),
+    });
+
+    const result = await runIndex("?to=2026-07-19");
+    const titles = flatEntries(result).map((entry) => entry.title);
+    expect(titles).toContain("Late night");
+    expect(titles).not.toContain("Next day");
+  });
+
   it("filters by entry type", async () => {
     await capture({ entryType: "meeting", title: "A meeting" });
     await capture({ entryType: "idea", title: "An idea" });
@@ -300,6 +322,39 @@ describe("DIARY-01 edit route", () => {
     expect(stored?.entryType).toBe("decision"); // via DiaryRepository.update
     expect(stored?.body).toBe("New body.");
     expect(stored?.occurredAt.toISOString()).toBe("2026-07-19T05:00:00.000Z");
+  });
+
+  it("reports the saved title when the detail write fails after it (partial failure)", async () => {
+    // Seed a detail-LESS `diary` entity (the legacy state migration 0011
+    // backfills). The mutate guard sees an active diary entity, so the title
+    // write commits; the detail write's INNER JOIN then finds no row and throws
+    // DiaryNotFoundError. The response must still report the persisted title.
+    const ts = "2026-07-01T00:00:00.000Z";
+    await env.DB.prepare(
+      "INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES (?, ?, 'diary', ?, ?, ?, NULL)",
+    )
+      .bind("bare-diary-1", WS, "Legacy", ts, ts)
+      .run();
+
+    const response = await runMutate(
+      "bare-diary-1",
+      formData({
+        title: "Legacy renamed",
+        entryType: "note",
+        when: "2026-07-19T14:30",
+      }),
+    );
+    const data = (await response.json()) as DiaryMutationResult;
+    expect(data.ok).toBe(false);
+    if (!data.ok) {
+      expect(data.savedParts).toContain("title");
+      expect(data.formError).toBeTruthy();
+    }
+    // The title DID persist through EntityRepository.update.
+    const entity = await makeRepository(makeContext(WS)).getById(
+      "bare-diary-1",
+    );
+    expect(entity?.title).toBe("Legacy renamed");
   });
 
   it("appends no diary_entry.updated event for an unchanged edit", async () => {

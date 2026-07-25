@@ -199,9 +199,12 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       });
     }
     if (cause instanceof DiaryNotFoundError) {
+      // The title may already have persisted before the detail row vanished;
+      // report what was saved so the honest partial-failure contract holds.
       return json({
         ok: false,
         formError: "That entry is no longer available.",
+        ...(savedParts.length > 0 ? { savedParts } : {}),
       });
     }
     if (cause instanceof DiaryConflictError) {

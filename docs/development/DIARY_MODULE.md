@@ -340,8 +340,15 @@ or hardcoding a zone; when SET-01 lands, the Diary Timeline follows the setting
 unchanged. `occurred-time.ts` adds the small DST-aware owner-local ⇄ UTC
 conversion the capture/edit "when" control needs (each conversion done against an
 explicit IANA zone via `Intl.DateTimeFormat`), tested across both offsets, local
-midnight and both daylight-saving transitions. This is composition of the
-accepted foundation and design system, so **no new ADR** was warranted.
+midnight and both daylight-saving transitions. A converted instant must
+round-trip EXACTLY to the entered wall-clock, so an invalid calendar date (JS
+would normalise `Feb 31`) and a nonexistent spring-forward local time are
+rejected (the route surfaces its field error) rather than silently changed; an
+autumn overlap time is accepted deterministically at the standard-time
+occurrence. Day-range filters bound the day inclusively — the upper bound is the
+next local midnight minus 1 ms, so the final 59.999 s of the day stay inside an
+inclusive `occurredTo`. This is composition of the accepted foundation and
+design system, so **no new ADR** was warranted.
 
 ### 7.6 Source map (DIARY-01 additions)
 

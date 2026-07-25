@@ -25,7 +25,11 @@ import {
   serializeTimelinePage,
   type SerializedDayGroup,
 } from "../diary-view";
-import { DIARY_DISPLAY_TIME_ZONE, ownerLocalToUtc } from "../occurred-time";
+import {
+  DIARY_DISPLAY_TIME_ZONE,
+  endOfLocalDayUtc,
+  startOfLocalDayUtc,
+} from "../occurred-time";
 import type { Route } from "./+types/index";
 
 /** The Timeline page size — bounded and modest so pagination is exercised early. */
@@ -42,16 +46,6 @@ export function meta() {
   ];
 }
 
-/** Convert a `YYYY-MM-DD` owner-local date to the UTC instant at local day start. */
-function localDateStartUtc(date: string): Date | undefined {
-  return ownerLocalToUtc(`${date}T00:00`, DIARY_DISPLAY_TIME_ZONE) ?? undefined;
-}
-
-/** Convert a `YYYY-MM-DD` owner-local date to the UTC instant at local day end. */
-function localDateEndUtc(date: string): Date | undefined {
-  return ownerLocalToUtc(`${date}T23:59`, DIARY_DISPLAY_TIME_ZONE) ?? undefined;
-}
-
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const url = new URL(request.url);
@@ -59,8 +53,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const entryTypes = parseEntryTypeFilter(url.searchParams.getAll("type"));
   const fromParam = url.searchParams.get("from") ?? "";
   const toParam = url.searchParams.get("to") ?? "";
-  const occurredFrom = fromParam ? localDateStartUtc(fromParam) : undefined;
-  const occurredTo = toParam ? localDateEndUtc(toParam) : undefined;
+  // The lower bound is the local day's start; the upper bound is the INCLUSIVE
+  // last instant of the local day (the next local midnight minus 1 ms), so an
+  // inclusive `occurredTo` covers the whole day, not just up to 23:59:00.
+  const occurredFrom = fromParam
+    ? (startOfLocalDayUtc(fromParam, DIARY_DISPLAY_TIME_ZONE) ?? undefined)
+    : undefined;
+  const occurredTo = toParam
+    ? (endOfLocalDayUtc(toParam, DIARY_DISPLAY_TIME_ZONE) ?? undefined)
+    : undefined;
 
   const isFiltered =
     entryTypes !== undefined ||

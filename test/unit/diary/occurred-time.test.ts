@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   DIARY_DISPLAY_TIME_ZONE,
   diaryDayHeading,
+  endOfLocalDayUtc,
   formatZonedTime,
   ownerLocalToUtc,
+  startOfLocalDayUtc,
   utcToOwnerLocal,
 } from "~/modules/diary/occurred-time";
 
@@ -57,18 +59,26 @@ describe("ownerLocalToUtc / utcToOwnerLocal", () => {
     }
   });
 
-  it("resolves a spring-forward gap time deterministically (never null)", () => {
-    // DST begins 2026-10-04 02:00 → 03:00; 02:30 does not exist locally.
-    const utc = ownerLocalToUtc("2026-10-04T02:30", SYDNEY);
-    expect(utc).not.toBeNull();
-    expect(Number.isNaN((utc as Date).getTime())).toBe(false);
+  it("rejects a nonexistent spring-forward gap time (can't round-trip)", () => {
+    // DST begins 2026-10-04 02:00 → 03:00; 02:30 does not exist locally, so it
+    // cannot faithfully represent the entered wall-clock and is rejected.
+    expect(ownerLocalToUtc("2026-10-04T02:30", SYDNEY)).toBeNull();
   });
 
-  it("resolves an autumn overlap time deterministically (never null)", () => {
-    // DST ends 2026-04-05 03:00 → 02:00; 02:30 occurs twice locally.
+  it("resolves an autumn overlap time to the standard-time occurrence", () => {
+    // DST ends 2026-04-05 03:00 → 02:00; 02:30 occurs twice. It round-trips to
+    // itself, so it is accepted deterministically at the post-transition (AEST,
+    // +10) occurrence, 2026-04-04T16:30Z.
     const utc = ownerLocalToUtc("2026-04-05T02:30", SYDNEY);
-    expect(utc).not.toBeNull();
-    expect(Number.isNaN((utc as Date).getTime())).toBe(false);
+    expect(utc?.toISOString()).toBe("2026-04-04T16:30:00.000Z");
+    expect(utcToOwnerLocal(utc as Date, SYDNEY)).toBe("2026-04-05T02:30");
+  });
+
+  it("rejects an invalid calendar date instead of silently normalising it", () => {
+    // JS would normalise Feb 30/31 into March; the round-trip check catches it.
+    expect(ownerLocalToUtc("2026-02-31T10:00", SYDNEY)).toBeNull();
+    expect(ownerLocalToUtc("2026-02-30T10:00", SYDNEY)).toBeNull();
+    expect(ownerLocalToUtc("2026-04-31T10:00", SYDNEY)).toBeNull();
   });
 
   it("rejects malformed input", () => {
@@ -76,6 +86,24 @@ describe("ownerLocalToUtc / utcToOwnerLocal", () => {
     expect(ownerLocalToUtc("2026-13-01T00:00", SYDNEY)).toBeNull();
     expect(ownerLocalToUtc("2026-07-19T24:00", SYDNEY)).toBeNull();
     expect(ownerLocalToUtc("not-a-date", SYDNEY)).toBeNull();
+  });
+});
+
+describe("startOfLocalDayUtc / endOfLocalDayUtc", () => {
+  it("bounds a local day inclusively across the whole day", () => {
+    // Sydney winter (+10): local midnight 2026-07-19 is 2026-07-18T14:00Z; the
+    // inclusive end is the next local midnight minus 1 ms.
+    expect(startOfLocalDayUtc("2026-07-19", SYDNEY)?.toISOString()).toBe(
+      "2026-07-18T14:00:00.000Z",
+    );
+    expect(endOfLocalDayUtc("2026-07-19", SYDNEY)?.toISOString()).toBe(
+      "2026-07-19T13:59:59.999Z",
+    );
+  });
+
+  it("returns null for a malformed day key", () => {
+    expect(startOfLocalDayUtc("nope", SYDNEY)).toBeNull();
+    expect(endOfLocalDayUtc("2026-13-40", SYDNEY)).toBeNull();
   });
 });
 
