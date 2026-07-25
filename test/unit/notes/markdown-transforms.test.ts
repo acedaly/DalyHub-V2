@@ -332,6 +332,69 @@ describe("markdown-transforms — block insertions", () => {
   });
 });
 
+describe("markdown-transforms — reviewer edge cases (no content corruption)", () => {
+  it("Table preserves selected text (insertion, never replacement)", () => {
+    const result = tableTransform({
+      value: "keep me",
+      selectionStart: 0,
+      selectionEnd: 7,
+    });
+    expect(result.value).toContain("keep me");
+    expect(result.value.startsWith("keep me\n\n| Column 1 | Column 2 |")).toBe(
+      true,
+    );
+  });
+
+  it("Italic does not delete literal intraword underscores", () => {
+    // `bar` selected inside `foo_bar_baz` — the underscores are literal, not
+    // emphasis, so the action must NOT strip them (which would yield foobarbaz).
+    const result = italicTransform({
+      value: "foo_bar_baz",
+      selectionStart: 4,
+      selectionEnd: 7,
+    });
+    expect(result.value).not.toBe("foobarbaz");
+    expect(result.value).toContain("bar");
+    expect(result.value).toBe("foo__bar__baz");
+  });
+
+  it("Bold still toggles off when its markers genuinely bracket the selection", () => {
+    const result = boldTransform({
+      value: "**abc**",
+      selectionStart: 2,
+      selectionEnd: 5,
+    });
+    expect(result.value).toBe("abc");
+  });
+
+  it("Inline code sizes its delimiter longer than any backtick run inside", () => {
+    const result = inlineCodeTransform({
+      value: "a`b",
+      selectionStart: 0,
+      selectionEnd: 3,
+    });
+    expect(result.value).toBe("``a`b``");
+  });
+
+  it("Inline code pads a selection that starts or ends with a backtick", () => {
+    const result = inlineCodeTransform({
+      value: "`x",
+      selectionStart: 0,
+      selectionEnd: 2,
+    });
+    expect(result.value).toBe("`` `x ``");
+  });
+
+  it("Fenced code sizes its fence longer than a ``` run inside the selection", () => {
+    const result = codeBlockTransform({
+      value: "```",
+      selectionStart: 0,
+      selectionEnd: 3,
+    });
+    expect(result.value).toBe("````\n```\n````");
+  });
+});
+
 describe("markdown-transforms — remove formatting", () => {
   it("strips inline emphasis and code markers from the selection", () => {
     const result = removeFormattingTransform({

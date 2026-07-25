@@ -185,6 +185,36 @@ function makeLinePrefix(spec: LinePrefixSpec): MarkdownTransform {
 // Inline helpers (wrap the selection in paired markers)
 // ---------------------------------------------------------------------------
 
+/** A word character (letter, digit, underscore) — used to tell a real emphasis
+ * span from literal intraword markers. */
+function isWordChar(ch: string | undefined): boolean {
+  return ch !== undefined && /\w/.test(ch);
+}
+
+/** The length of the longest run of consecutive backticks in `text` (0 if
+ * none) — so a code delimiter can be sized longer than anything it must
+ * contain. */
+function longestBacktickRun(text: string): number {
+  let longest = 0;
+  const runs = text.match(/`+/g);
+  if (runs) {
+    for (const run of runs) {
+      longest = Math.max(longest, run.length);
+    }
+  }
+  return longest;
+}
+
+/** Collapse a selection to a caret at its END — for "insert a block here"
+ * actions that must NOT consume the selected text. */
+function collapseToEnd(input: EditorSelection): EditorSelection {
+  return {
+    value: input.value,
+    selectionStart: input.selectionEnd,
+    selectionEnd: input.selectionEnd,
+  };
+}
+
 function makeInlineWrap(
   marker: string,
   placeholder: string,
@@ -195,8 +225,19 @@ function makeInlineWrap(
     const selected = value.slice(s, e);
     const after = value.slice(e);
 
-    // Markers sit immediately OUTSIDE the selection → unwrap them.
-    if (before.endsWith(marker) && after.startsWith(marker)) {
+    // Markers sit immediately OUTSIDE the selection → unwrap them — but ONLY
+    // when they actually bracket the selection as emphasis, not when they are
+    // literal intraword markers (e.g. the underscores in `foo_bar_baz`, which
+    // CommonMark does NOT treat as emphasis). Requiring the characters just
+    // outside the markers to be non-word / string boundaries keeps the common
+    // `**abc**` / ` say **hi** ` toggle while never deleting adjacent literal
+    // characters.
+    if (
+      before.endsWith(marker) &&
+      after.startsWith(marker) &&
+      !isWordChar(before[before.length - marker.length - 1]) &&
+      !isWordChar(after[marker.length])
+    ) {
       const newValue =
         before.slice(0, before.length - marker.length) +
         selected +
@@ -324,7 +365,39 @@ export const headingTransform: MarkdownTransform = (input) =>
 
 export const boldTransform = makeInlineWrap("**", "bold text");
 export const italicTransform = makeInlineWrap("_", "italic text");
-export const inlineCodeTransform = makeInlineWrap("`", "code");
+
+/**
+ * Inline code. Backticks are NOT a fixed single delimiter: a code span's
+ * delimiter must be a run of backticks LONGER than any run inside it, or the
+ * span closes early (selecting `` a`b `` would otherwise render as code `a`
+ * followed by literal `` b` ``). The delimiter is sized to
+ * `longestBacktickRun + 1`, and a single space pads each side when the content
+ * itself starts or ends with a backtick (CommonMark's rule for a code span that
+ * begins/ends with a backtick).
+ */
+export const inlineCodeTransform: MarkdownTransform = (input) => {
+  const { value, selectionStart: s, selectionEnd: e } = input;
+  const before = value.slice(0, s);
+  const after = value.slice(e);
+  if (s === e) {
+    const insert = "`code`";
+    return {
+      value: before + insert + after,
+      selectionStart: s + 1,
+      selectionEnd: s + 5,
+    };
+  }
+  const selected = value.slice(s, e);
+  const delim = "`".repeat(longestBacktickRun(selected) + 1);
+  const pad = selected.startsWith("`") || selected.endsWith("`") ? " " : "";
+  const insert = delim + pad + selected + pad + delim;
+  const contentStart = s + delim.length + pad.length;
+  return {
+    value: before + insert + after,
+    selectionStart: contentStart,
+    selectionEnd: contentStart + selected.length,
+  };
+};
 
 export const bulletListTransform = makeLinePrefix({
   has: (rest) => /^[-*+] /.test(rest) && !/^[-*+] \[[ xX]\] /.test(rest),
@@ -381,28 +454,40 @@ export const linkTransform: MarkdownTransform = (input) => {
 
 /** Fenced code block (bare fence — FND-08 escapes code and does not highlight,
  * so no language identifier is added). Wraps a selection, or inserts an empty
- * fence with the caret on the middle line. */
+ * fence with the caret on the middle line. The fence is sized LONGER than any
+ * backtick run inside the selection (`longestBacktickRun + 1`, minimum 3), so a
+ * selection that itself contains a ``` fence — common when documenting
+ * Markdown — stays entirely inside the block instead of closing it early. */
 export const codeBlockTransform: MarkdownTransform = (input) => {
   const { value, selectionStart: s, selectionEnd: e } = input;
   const selected = value.slice(s, e);
+  const fence = "`".repeat(Math.max(3, longestBacktickRun(selected) + 1));
   if (s === e) {
-    const block = "```\ncode\n```";
-    return insertBlock(input, block, 4, 8); // selects "code"
+    const block = `${fence}\ncode\n${fence}`;
+    // selects "code" (after the fence line + its newline)
+    return insertBlock(input, block, fence.length + 1, fence.length + 5);
   }
-  const block = "```\n" + selected + "\n```";
-  return insertBlock(input, block, 4, 4 + selected.length);
+  const block = `${fence}\n${selected}\n${fence}`;
+  return insertBlock(
+    input,
+    block,
+    fence.length + 1,
+    fence.length + 1 + selected.length,
+  );
 };
 
-/** A GFM table skeleton. Inserts the canonical 2×2 example and selects the
- * first header cell for immediate editing. */
+/** A GFM table skeleton. Inserts the canonical 2×2 example after the caret (or
+ * after the selection — a table is an INSERTION, so any selected note content
+ * is preserved, never replaced) and selects the first header cell for editing. */
 export const tableTransform: MarkdownTransform = (input) => {
   const block = "| Column 1 | Column 2 |\n| --- | --- |\n| Value 1 | Value 2 |";
-  return insertBlock(input, block, 2, 10); // selects "Column 1"
+  return insertBlock(collapseToEnd(input), block, 2, 10); // selects "Column 1"
 };
 
-/** A thematic break on its own line. */
+/** A thematic break on its own line — inserted after the caret/selection, never
+ * replacing selected content. */
 export const horizontalRuleTransform: MarkdownTransform = (input) =>
-  insertBlock(input, "---");
+  insertBlock(collapseToEnd(input), "---");
 
 /** Remove common inline emphasis/code markers from the selection (a best-effort
  * "clear formatting" — leaves surrounding text untouched). */

@@ -666,8 +666,12 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await expect(editor).toHaveValue(/\| --- \| --- \|/);
 
     // 11. Confirm the toolbar edits autosave through the SAME flow as typing.
+    // Blur requests an immediate save; after a content-heavy sequence the real
+    // network + D1 round trip (which may first drain an in-flight debounced
+    // save and then coalesce to the latest content) can take longer than the
+    // default expect timeout on a slow CI runner, so wait generously.
     await editor.blur();
-    await expect(page.getByText("Saved")).toBeVisible();
+    await expect(page.getByText("Saved")).toBeVisible({ timeout: 15_000 });
     const savedSource = await editor.inputValue();
     expect(savedSource).toContain("# Heading line");
     expect(savedSource).toContain("**plain**");
