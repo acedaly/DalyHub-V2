@@ -13,15 +13,11 @@
 
 import { env } from "cloudflare:workers";
 
-import { searchLinkTargets } from "~/platform/entity-links";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { TaskParentOption } from "../tasks-contract";
 import type { Route } from "./+types/parent-options";
-
-/** The entity types a task may sit under (Project preferred, Area permitted). */
-const TASK_PARENT_TYPES = ["project", "area"] as const;
 
 /** How many parent options a single search returns (bounded — never unbounded). */
 const PARENT_OPTIONS_LIMIT = 50;
@@ -46,21 +42,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
-  const targets = await searchLinkTargets(
-    { entities: scope.entities, entityLinks: scope.entityLinks },
-    {
-      anchorId: "",
-      query,
-      targetTypes: [...TASK_PARENT_TYPES],
-      limit: PARENT_OPTIONS_LIMIT,
-    },
-  );
+  // Bounded, indexed, workspace-scoped title search over the WHOLE collection of
+  // valid task parents (active Areas + non-archived Projects) — never a fixed-prefix
+  // scan that could hide a newer parent in a long-lived workspace (ADR-043 §9).
+  const candidates = await scope.tasks.searchTaskParents({
+    query,
+    limit: PARENT_OPTIONS_LIMIT,
+  });
 
-  const options: TaskParentOption[] = targets.map((target) => ({
-    id: target.id,
-    kind: target.type === "area" ? "area" : "project",
-    title: target.title,
-    context: target.type === "area" ? "Area" : "Project",
+  const options: TaskParentOption[] = candidates.map((candidate) => ({
+    id: candidate.id,
+    kind: candidate.kind,
+    title: candidate.title,
+    context: candidate.kind === "area" ? "Area" : "Project",
   }));
 
   return json({ options } satisfies TaskParentOptionsData);

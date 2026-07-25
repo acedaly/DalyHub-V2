@@ -32,6 +32,7 @@ import {
 } from "~/kernel/activity";
 import type { MarkdownSource } from "~/kernel/markdown";
 import {
+  AREA,
   GOAL_BELONGS_TO_AREA,
   PROJECT,
   PROJECT_ADVANCES_GOAL,
@@ -88,17 +89,20 @@ import {
   type ListProjectTasksInput,
   type ListTasksInput,
   type ListWaitingTasksInput,
+  type ListWorkspaceTaskGroupsInput,
   type ListWorkspaceTasksInput,
   type PlanTaskInput,
   type PlanTaskResult,
   type ProjectTaskCursorScope,
   type ProjectTaskListPage,
+  type SearchTaskParentsInput,
   type SetWaitingInput,
   type SetWaitingResult,
   type TaskDelegation,
   type TaskDetails,
   type TaskListItem,
   type TaskListPage,
+  type TaskParentCandidate,
   type TaskPriority,
   type TaskRelation,
   type TaskRelationKind,
@@ -112,6 +116,8 @@ import {
   type WaitingTaskListItem,
   type WaitingTaskPage,
   type WorkspaceTaskCursorScope,
+  type WorkspaceTaskGroup,
+  type WorkspaceTaskGrouping,
   type WorkspaceTaskListPage,
 } from "~/kernel/tasks";
 import type { WorkspaceContext } from "~/kernel/workspaces";
@@ -193,6 +199,19 @@ type TaskListRow = TaskJoinedRow & {
 const PLANNING_SCHEDULED_LIMIT = 200;
 const PLANNING_BACKLOG_LIMIT = 100;
 const PLANNING_COMPLETED_LIMIT = 100;
+
+/**
+ * Default and hard-max bounded records returned PER BUCKET by the Matrix/Sectors
+ * grouping query (ADR-043 §11). Generous enough that most quadrants/sectors show in
+ * full, but always bounded — an overflowing bucket is reached through the equivalent
+ * filtered `all` view, which paginates that one bucket independently.
+ */
+const WORKSPACE_GROUP_BUCKET_LIMIT = 50;
+const WORKSPACE_GROUP_BUCKET_MAX = 200;
+
+/** Default and hard-max results for the bounded task-parent title search (ADR-043 §9). */
+const TASK_PARENT_SEARCH_LIMIT = 25;
+const TASK_PARENT_SEARCH_MAX = 50;
 
 /**
  * TEST-ONLY deterministic failure injection points for `completeTask`'s atomic
@@ -716,11 +735,12 @@ export class D1TaskRepository implements TaskRepository {
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.deleted_at IS NULL
          ${WAITING_TARGET_JOIN}
+         CROSS JOIN (SELECT ? AS today_iso) cal
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
          ORDER BY sort_value ${sortSpec.dir}, e.created_at ASC, e.id ASC
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, ...params, fetchLimit);
+      .bind(todayIso, this.#workspaceId, ...params, fetchLimit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as (TaskListRow & {
@@ -745,6 +765,159 @@ export class D1TaskRepository implements TaskRepository {
     };
   }
 
+  async listWorkspaceTaskGroups(
+    input: ListWorkspaceTaskGroupsInput,
+  ): Promise<WorkspaceTaskGrouping> {
+    const dimension = input.dimension;
+    if (dimension !== "quadrant" && dimension !== "sector") {
+      throw new TaskValidationError("dimension", "is not a known grouping");
+    }
+    const sort = validateTaskSort(input.sort);
+    const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+    // Bounded records per bucket (never unbounded); overflow is reached through the
+    // equivalent filtered `all` view, which paginates that bucket on its own cursor.
+    const bucketLimit = Math.min(
+      Math.max(1, input.bucketLimit ?? WORKSPACE_GROUP_BUCKET_LIMIT),
+      WORKSPACE_GROUP_BUCKET_MAX,
+    );
+
+    const sortSpec = this.#workspaceSortSpec(sort);
+    // The bucket key is a trusted column expression (never caller data): the priority
+    // (→ 'untriaged' when null) for the Matrix, the time sector (→ 'inbox' when null)
+    // for the Sectors view.
+    const bucketExpr =
+      dimension === "quadrant"
+        ? "COALESCE(td.priority, 'untriaged')"
+        : "COALESCE(td.time_sector, 'inbox')";
+
+    // ONE query: scope to active-planning work, compute each row's bucket + smart
+    // sort value, then window over the buckets for the AUTHORITATIVE per-bucket total
+    // (`COUNT(*) OVER`) and a deterministic within-bucket rank (`ROW_NUMBER() OVER`),
+    // finally keeping only the top `bucketLimit` rows per bucket. Counts are computed
+    // over the whole scope, independent of the returned slice — so empty states and
+    // quadrant/sector counts are correct before any paging (ADR-043 decision 12).
+    const statement = this.#db
+      .prepare(
+        `WITH scoped AS (
+           SELECT ${TASK_DETAIL_COLUMNS},
+                  ${WAITING_TARGET_COLUMNS},
+                  pl.target_entity_id AS parent_id,
+                  pl.type AS parent_link_type,
+                  pe.title AS parent_title,
+                  ${bucketExpr} AS bucket,
+                  ${sortSpec.expr} AS sort_value
+           FROM entities e
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN task_details td
+             ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+           LEFT JOIN entity_links pl
+             ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+                AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
+           LEFT JOIN entities pe
+             ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+                AND pe.deleted_at IS NULL
+           ${WAITING_TARGET_JOIN}
+           CROSS JOIN (SELECT ? AS today_iso) cal
+           WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
+             AND ${this.#activePlanningWhere}
+         ),
+         ranked AS (
+           SELECT *,
+                  COUNT(*) OVER (PARTITION BY bucket) AS bucket_count,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY bucket
+                    ORDER BY sort_value ${sortSpec.dir}, created_at ASC, id ASC
+                  ) AS rn
+           FROM scoped
+         )
+         SELECT * FROM ranked WHERE rn <= ? ORDER BY bucket ASC, rn ASC`,
+      )
+      .bind(todayIso, this.#workspaceId, bucketLimit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as (TaskListRow & {
+      readonly bucket: string;
+      readonly bucket_count: number;
+    })[];
+
+    // Rows arrive ordered by (bucket, rn), so a single pass builds each group in
+    // deterministic within-bucket order; `bucket_count` (constant per bucket) is the
+    // authoritative total, and `hasMore` compares it to the bounded slice length.
+    const byBucket = new Map<
+      string,
+      { count: number; items: TaskListItem[] }
+    >();
+    for (const row of rows) {
+      let group = byBucket.get(row.bucket);
+      if (!group) {
+        group = { count: row.bucket_count, items: [] };
+        byBucket.set(row.bucket, group);
+      }
+      group.items.push(this.#toTaskListItem(row));
+    }
+
+    const groups: WorkspaceTaskGroup[] = [...byBucket.entries()].map(
+      ([key, g]) => ({
+        key,
+        count: g.count,
+        items: g.items,
+        hasMore: g.count > g.items.length,
+      }),
+    );
+
+    return { dimension, groups };
+  }
+
+  async searchTaskParents(
+    input: SearchTaskParentsInput = {},
+  ): Promise<readonly TaskParentCandidate[]> {
+    const limit = Math.min(
+      Math.max(1, input.limit ?? TASK_PARENT_SEARCH_LIMIT),
+      TASK_PARENT_SEARCH_MAX,
+    );
+    // Case-insensitive substring match. Escape the LIKE metacharacters in the user's
+    // needle so a literal `%`/`_`/`\` matches itself, and bind the pattern (never
+    // interpolate). An empty needle → `%%` → the first bounded page of parents.
+    const needle = (input.query ?? "").trim().toLocaleLowerCase();
+    const escaped = needle.replace(/[\\%_]/g, (ch: string) => `\\${ch}`);
+    const pattern = `%${escaped}%`;
+
+    // Indexed, workspace-scoped search over the WHOLE collection (never a fixed
+    // prefix scan): active Areas and NON-ARCHIVED Projects whose title matches, so a
+    // newer parent in a long-lived workspace is always found (ADR-043 §9 / decision
+    // 13). Deterministic order: Projects first (the preferred parent), then title,
+    // then id. The type slugs are trusted kernel constants, never caller data.
+    const statement = this.#db
+      .prepare(
+        `SELECT e.id AS id, e.type AS type, e.title AS title
+         FROM entities e
+         LEFT JOIN project_details pd
+           ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
+         WHERE e.workspace_id = ?
+           AND e.type IN ('${AREA}', '${PROJECT}')
+           AND e.deleted_at IS NULL
+           AND (e.type <> '${PROJECT}' OR pd.archived_at IS NULL)
+           AND lower(e.title) LIKE ? ESCAPE '\\'
+         ORDER BY CASE e.type WHEN '${PROJECT}' THEN 0 ELSE 1 END,
+                  lower(e.title) ASC, e.id ASC
+         LIMIT ?`,
+      )
+      .bind(this.#workspaceId, pattern, limit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as {
+      readonly id: string;
+      readonly type: string;
+      readonly title: string;
+    }[];
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.type === AREA ? "area" : "project",
+      title: row.title,
+    }));
+  }
+
   /** The single primary sort expression + direction for a workspace-tasks sort. */
   #workspaceSortSpec(sort: string): { expr: string; dir: "ASC" | "DESC" } {
     switch (sort) {
@@ -765,13 +938,43 @@ export class D1TaskRepository implements TaskRepository {
         return { expr: "lower(e.title)", dir: "ASC" };
       case "smart":
       default:
-        // Open before completed, then P1..P4 (nulls last), then due date (nulls
-        // last) — a single comparable string so it keysets as one column.
+        // Smart order, as ONE comparable string so it keysets as a single column
+        // (ADR-043 §11 / decision 14). Segments, most-significant first:
+        //   1. open (0) before completed (1);
+        //   2. among OPEN tasks, OVERDUE (0) before non-overdue (1) — overdue means
+        //      an open task whose due date is strictly before the owner's calendar
+        //      day (`cal.today_iso`, bound once via the CROSS JOIN; due-TODAY is not
+        //      overdue). Completed tasks are forced non-overdue so they never lead.
+        //   3. priority P1..P4 (nulls → 'p9', last);
+        //   4. due date ascending (nulls → '9999-99-99', last).
+        // `cal.today_iso` is a joined column, not a bind placeholder, so this expr
+        // stays param-free and reusable in SELECT, the keyset WHERE, and ORDER BY.
         return {
-          expr: `(CASE WHEN sr.completed_at IS NULL THEN '0' ELSE '1' END || '|' || COALESCE(td.priority, 'p9') || '|' || COALESCE(td.due_date, '9999-99-99'))`,
+          expr:
+            `(CASE WHEN sr.completed_at IS NULL THEN '0' ELSE '1' END` +
+            ` || '|' || ` +
+            `CASE WHEN sr.completed_at IS NULL AND td.due_date IS NOT NULL` +
+            ` AND td.due_date < cal.today_iso THEN '0' ELSE '1' END` +
+            ` || '|' || COALESCE(td.priority, 'p9')` +
+            ` || '|' || COALESCE(td.due_date, '9999-99-99'))`,
           dir: "ASC",
         };
     }
+  }
+
+  /**
+   * The ACTIVE PLANNING scope predicate (no bind params): actionable-now work only —
+   * not completed, not cancelled, not Someday/Maybe, not waiting and not on_hold. The
+   * single source for the `active` system view AND the Matrix/Sectors grouping query,
+   * so both scope planning buckets identically (ADR-043 §11).
+   */
+  get #activePlanningWhere(): string {
+    return (
+      "sr.completed_at IS NULL" +
+      " AND COALESCE(td.status, 'todo') NOT IN ('cancelled', 'on_hold')" +
+      " AND COALESCE(td.commitment_state, 'active') <> 'someday'" +
+      " AND td.waiting_since IS NULL"
+    );
   }
 
   /**
@@ -792,8 +995,12 @@ export class D1TaskRepository implements TaskRepository {
       case "all":
         return;
       case "active":
-        // All active work: exclude completed/cancelled/someday (waiting included).
-        whereParts.push(notTerminal);
+        // The ACTIVE PLANNING scope (Matrix/Sectors, ADR-043 §11): actionable-now
+        // work only. Beyond completed/cancelled/someday it ALSO excludes the parked/
+        // blocked states — waiting (blocked on someone else) and on_hold (paused) —
+        // so neither clutters a quadrant or sector bucket. They stay reachable via
+        // `all`, the `waiting` view and the status filter.
+        whereParts.push(this.#activePlanningWhere);
         return;
       case "completed":
         whereParts.push("sr.completed_at IS NOT NULL");

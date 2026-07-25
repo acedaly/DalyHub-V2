@@ -474,10 +474,15 @@ export const TASK_SYSTEM_VIEWS = [
   "completed",
   "cancelled",
   /**
-   * All ACTIVE work: excludes completed, cancelled and Someday/Maybe (waiting is
-   * included — a blocked task still has a priority/sector). The default scope for
-   * the Matrix and Sectors planning views (ADR-043 §11), distinct from `all` (the
-   * complete collection incl. terminal/parked records).
+   * The ACTIVE PLANNING scope — the default for the Matrix and Sectors planning
+   * views (ADR-043 §11), distinct from `all` (the complete collection incl.
+   * terminal/parked records). It excludes every state that is not actionable *now*:
+   * completed, cancelled and Someday/Maybe (as the other views do) AND the two
+   * parked/blocked states — **waiting** (blocked on someone else — surfaced by the
+   * dedicated Waiting view) and **on_hold** (deliberately paused). Excluding those
+   * keeps a task out of a Matrix quadrant or a Time Sector bucket until it is real
+   * active work again; they remain fully reachable through `all`, the `waiting`
+   * view, and the status filter. (ADR-043 §11 / decision point 11.)
    */
   "active",
   "all",
@@ -552,6 +557,68 @@ export type WorkspaceTaskListPage = {
   readonly items: readonly TaskListItem[];
   /** Opaque cursor for the next page, or null when this is the last page. */
   readonly nextCursor: string | null;
+};
+
+/**
+ * The dimension the active-planning collection is grouped by, server-side, for the
+ * Matrix (`quadrant`) and Sectors (`sector`) views (ADR-043 §11 / decision 12).
+ */
+export type WorkspaceTaskGroupDimension = "quadrant" | "sector";
+
+/**
+ * One server-computed bucket of the ACTIVE planning collection. The `count` is the
+ * AUTHORITATIVE total for the bucket — computed over the whole active scope, never
+ * "how many happen to be loaded" — so quadrant/sector counts and empty states are
+ * correct before (and independent of) any record paging. `items` is a bounded,
+ * deterministically-sorted top slice of the bucket; `hasMore` is true when the
+ * bucket holds more than `items` (the rest are reached through the equivalent
+ * filtered `all` view, which paginates that one bucket independently).
+ */
+export type WorkspaceTaskGroup = {
+  /**
+   * The bucket key: for `quadrant`, one of `p1`|`p2`|`p3`|`p4`|`untriaged`; for
+   * `sector`, a `TimeSector` value or `inbox` (the derived no-sector bucket).
+   */
+  readonly key: string;
+  readonly count: number;
+  readonly items: readonly TaskListItem[];
+  readonly hasMore: boolean;
+};
+
+/** The full server-authoritative grouping of the active planning collection. */
+export type WorkspaceTaskGrouping = {
+  readonly dimension: WorkspaceTaskGroupDimension;
+  readonly groups: readonly WorkspaceTaskGroup[];
+};
+
+/** Options for the bounded, server-grouped active-planning query (Matrix/Sectors). */
+export type ListWorkspaceTaskGroupsInput = {
+  readonly dimension: WorkspaceTaskGroupDimension;
+  /** Within-bucket sort (default `smart` — overdue-first, then priority, then due). */
+  readonly sort?: TaskSort;
+  /** Bounded records returned per bucket; clamped to a safe maximum. */
+  readonly bucketLimit?: number;
+  /** The owner's calendar date `YYYY-MM-DD` — drives the `smart` overdue ranking. */
+  readonly todayIso: string;
+};
+
+/**
+ * A candidate parent (Area or Project) for creating a task, resolved by a bounded,
+ * indexed, workspace-scoped title search over the WHOLE collection (ADR-043 §9 /
+ * decision 13) — never a fixed-prefix scan. `kind` is the entity's real type.
+ */
+export type TaskParentCandidate = {
+  readonly id: string;
+  readonly kind: "area" | "project";
+  readonly title: string;
+};
+
+/** Options for the bounded task-parent title search. */
+export type SearchTaskParentsInput = {
+  /** Case-insensitive title query; empty returns the first bounded page of parents. */
+  readonly query?: string;
+  /** Max results to return; clamped to a safe maximum. */
+  readonly limit?: number;
 };
 
 /**

@@ -50,6 +50,7 @@ export type TaskValidationField =
   | "view"
   | "sort"
   | "cursor"
+  | "dimension"
   /**
    * The mutation was rejected because the task is completed (TODAY-04): planning
    * applies to open work only. The id/input are valid — the STATE is not — so this

@@ -88,8 +88,13 @@ function toKernelFilters(filters: TasksFilterState): WorkspaceTaskFilters {
   const out: {
     -readonly [K in keyof WorkspaceTaskFilters]: WorkspaceTaskFilters[K];
   } = {};
-  if (filters.priority) out.priority = filters.priority as TaskPriority;
-  if (filters.timeSector) out.timeSector = filters.timeSector as TimeSector;
+  // `__none` is the explicit "no priority / no sector" filter behind a Matrix
+  // Unprioritised or Sectors Inbox "view all" link — distinct from "no filter"
+  // (undefined). It maps to an explicit null so the repository queries `IS NULL`.
+  if (filters.priority === "__none") out.priority = null;
+  else if (filters.priority) out.priority = filters.priority as TaskPriority;
+  if (filters.timeSector === "__none") out.timeSector = null;
+  else if (filters.timeSector) out.timeSector = filters.timeSector as TimeSector;
   if (filters.commitmentState)
     out.commitmentState = filters.commitmentState as CommitmentState;
   if (filters.status) out.status = filters.status as TaskStatus;
@@ -112,7 +117,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const cursor = url.searchParams.get("cursor");
   const todayIso = ownerCalendarIso(new Date());
 
-  const base: Omit<TasksPageData, "items" | "nextCursor" | "failed"> = {
+  const base: Omit<
+    TasksPageData,
+    "items" | "nextCursor" | "grouping" | "failed"
+  > = {
     primaryView,
     systemView,
     sort,
@@ -120,8 +128,40 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     todayIso,
   };
 
+  // The Matrix and Sectors views render from a SERVER-AUTHORITATIVE grouping —
+  // accurate per-bucket counts + bounded per-bucket records — never from a single
+  // global page grouped in the client (ADR-043 §11 / decision 12).
+  const groupDimension =
+    primaryView === "matrix"
+      ? "quadrant"
+      : primaryView === "sectors"
+        ? "sector"
+        : null;
+
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    if (groupDimension !== null) {
+      const grouping = await scope.tasks.listWorkspaceTaskGroups({
+        dimension: groupDimension,
+        sort,
+        todayIso,
+      });
+      return {
+        ...base,
+        items: [],
+        nextCursor: null,
+        grouping: {
+          dimension: grouping.dimension,
+          groups: grouping.groups.map((group) => ({
+            key: group.key,
+            count: group.count,
+            hasMore: group.hasMore,
+            items: group.items.map(serializeTaskListItem),
+          })),
+        },
+        failed: false,
+      } satisfies TasksPageData;
+    }
     const page = await scope.tasks.listWorkspaceTasks({
       view: systemView,
       sort,
@@ -133,6 +173,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       ...base,
       items: page.items.map(serializeTaskListItem),
       nextCursor: page.nextCursor,
+      grouping: null,
       failed: false,
     } satisfies TasksPageData;
   } catch {
@@ -142,6 +183,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       ...base,
       items: [],
       nextCursor: null,
+      grouping: null,
       failed: true,
     } satisfies TasksPageData;
   }

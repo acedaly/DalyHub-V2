@@ -56,11 +56,10 @@ import {
 import { NewTaskForm } from "./NewTaskForm";
 import type { TasksBulkResult, TasksPageData } from "./tasks-contract";
 import {
-  MATRIX_QUADRANTS,
-  SECTOR_SECTIONS,
-  groupByQuadrant,
-  groupBySector,
+  resolveMatrixSections,
+  resolveSectorSections,
   toTaskCardData,
+  type GroupedSection,
   type TaskCardData,
 } from "./tasks-view-model";
 
@@ -282,6 +281,41 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     [items],
   );
 
+  // The Matrix and Sectors views render from the SERVER grouping (authoritative
+  // per-bucket counts + bounded records), not from the accumulated flat page. A
+  // loader re-run (revalidation after a mutation) replaces `data.grouping` wholesale,
+  // so stale bucket data can never linger (ADR-043 §11 / decision 12).
+  const grouping = data.grouping;
+  const isGrouped = grouping !== null;
+  const groupedSections = useMemo<GroupedSection[]>(() => {
+    if (!grouping) return [];
+    return grouping.dimension === "quadrant"
+      ? resolveMatrixSections(grouping)
+      : resolveSectorSections(grouping);
+  }, [grouping]);
+  const groupedTotal = useMemo(
+    () => (grouping ? grouping.groups.reduce((n, g) => n + g.count, 0) : 0),
+    [grouping],
+  );
+
+  // Build the "view all in this bucket" link: the flat All list scoped to the SAME
+  // active-planning population as the bucket (`system=active`) plus the bucket's
+  // priority/sector filter, so the overflow of a bucket paginates independently on
+  // its own cursor without an unbounded read.
+  const viewAllHref = useCallback(
+    (section: GroupedSection): string => {
+      const next = new URLSearchParams(searchParams);
+      next.set("view", "all");
+      next.set("system", "active");
+      next.set(section.filterParam, section.filterKey);
+      next.delete(section.filterParam === "priority" ? "sector" : "priority");
+      next.delete("cursor");
+      next.delete("drawer");
+      return `/tasks?${next.toString()}`;
+    },
+    [searchParams],
+  );
+
   // Selection for bulk actions. Cleared whenever the result set changes.
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
@@ -370,14 +404,18 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     [toCardProps],
   );
 
-  const count = items.length;
+  const count = isGrouped ? groupedTotal : items.length;
   const subtitle = data.failed
     ? "We couldn't load your tasks."
-    : hasMore
-      ? `${count} tasks loaded`
-      : count === 1
+    : isGrouped
+      ? count === 1
         ? "1 task"
-        : `${count} tasks`;
+        : `${count} tasks`
+      : hasMore
+        ? `${count} tasks loaded`
+        : count === 1
+          ? "1 task"
+          : `${count} tasks`;
 
   const onSortChange = useCallback(
     (value: string) => {
@@ -455,9 +493,17 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       }
     >
       {data.primaryView === "matrix" ? (
-        <MatrixView cards={cards} renderCollection={renderCollection} />
+        <MatrixView
+          sections={groupedSections}
+          renderCollection={renderCollection}
+          viewAllHref={viewAllHref}
+        />
       ) : data.primaryView === "sectors" ? (
-        <SectorsView cards={cards} renderCollection={renderCollection} />
+        <SectorsView
+          sections={groupedSections}
+          renderCollection={renderCollection}
+          viewAllHref={viewAllHref}
+        />
       ) : data.primaryView === "all" ? (
         <>
           <div className="dh-tasks-sort">
@@ -486,7 +532,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         <FocusView cards={cards} renderCollection={renderCollection} />
       )}
 
-      {!data.failed && hasMore ? (
+      {!data.failed && !isGrouped && hasMore ? (
         <LoadMore
           loading={loading}
           loadFailed={loadFailed}
@@ -572,87 +618,95 @@ function FocusView({
   );
 }
 
-function MatrixView({
-  cards,
+/**
+ * A single grouped bucket (a Matrix quadrant or a Time Sector column). Renders the
+ * AUTHORITATIVE server count in its heading, the bounded slice of cards the loader
+ * returned, and a "View all N →" link to the equivalent filtered list when the bucket
+ * holds more than the loaded slice (ADR-043 §11 / decision 12).
+ */
+function GroupedBucket({
+  section,
+  className,
   renderCollection,
+  viewAllHref,
 }: {
-  readonly cards: readonly TaskCardData[];
+  readonly section: GroupedSection;
+  readonly className: string;
   readonly renderCollection: RenderCollection;
+  readonly viewAllHref: (section: GroupedSection) => string;
 }) {
-  const buckets = groupByQuadrant(cards);
+  return (
+    <section className={className} aria-label={section.title}>
+      <h2 className="dh-tasks-section__label">
+        {section.title}
+        <span className="dh-tasks-section__count"> ({section.count})</span>
+      </h2>
+      {section.cards.length > 0 ? (
+        renderCollection(section.cards, `${section.title} tasks`, 3)
+      ) : (
+        <p className="dh-tasks-section__empty">Nothing here.</p>
+      )}
+      {section.hasMore ? (
+        <Link
+          to={viewAllHref(section)}
+          className="dh-tasks-section__more"
+          preventScrollReset
+        >
+          View all {section.count} in {section.title}
+        </Link>
+      ) : null}
+    </section>
+  );
+}
+
+function MatrixView({
+  sections,
+  renderCollection,
+  viewAllHref,
+}: {
+  readonly sections: readonly GroupedSection[];
+  readonly renderCollection: RenderCollection;
+  readonly viewAllHref: (section: GroupedSection) => string;
+}) {
   return (
     <div className="dh-tasks-matrix">
-      {MATRIX_QUADRANTS.map((quadrant) => {
-        const list = buckets[quadrant.quadrant];
-        return (
-          <section
-            key={quadrant.quadrant}
-            className="dh-tasks-matrix__cell"
-            aria-label={quadrant.title}
-          >
-            <h2 className="dh-tasks-section__label">
-              {quadrant.title}
-              <span className="dh-tasks-section__count"> ({list.length})</span>
-            </h2>
-            {list.length > 0 ? (
-              renderCollection(list, quadrant.title, 3)
-            ) : (
-              <p className="dh-tasks-section__empty">Nothing here.</p>
-            )}
-          </section>
-        );
-      })}
-      <section
-        className="dh-tasks-matrix__cell dh-tasks-matrix__cell--untriaged"
-        aria-label="Unprioritised"
-      >
-        <h2 className="dh-tasks-section__label">
-          Unprioritised
-          <span className="dh-tasks-section__count">
-            {" "}
-            ({buckets.untriaged.length})
-          </span>
-        </h2>
-        {buckets.untriaged.length > 0 ? (
-          renderCollection(buckets.untriaged, "Unprioritised tasks", 3)
-        ) : (
-          <p className="dh-tasks-section__empty">Nothing here.</p>
-        )}
-      </section>
+      {sections.map((section) => (
+        <GroupedBucket
+          key={section.key}
+          section={section}
+          className={
+            section.key === "untriaged"
+              ? "dh-tasks-matrix__cell dh-tasks-matrix__cell--untriaged"
+              : "dh-tasks-matrix__cell"
+          }
+          renderCollection={renderCollection}
+          viewAllHref={viewAllHref}
+        />
+      ))}
     </div>
   );
 }
 
 function SectorsView({
-  cards,
+  sections,
   renderCollection,
+  viewAllHref,
 }: {
-  readonly cards: readonly TaskCardData[];
+  readonly sections: readonly GroupedSection[];
   readonly renderCollection: RenderCollection;
+  readonly viewAllHref: (section: GroupedSection) => string;
 }) {
-  const groups = groupBySector(cards);
   return (
     <div className="dh-tasks-sectors">
-      {SECTOR_SECTIONS.map((section) => {
-        const list = groups[section.key] ?? [];
-        return (
-          <section
-            key={section.key}
-            className="dh-tasks-sectors__column"
-            aria-label={section.label}
-          >
-            <h2 className="dh-tasks-section__label">
-              {section.label}
-              <span className="dh-tasks-section__count"> ({list.length})</span>
-            </h2>
-            {list.length > 0 ? (
-              renderCollection(list, `${section.label} tasks`, 3)
-            ) : (
-              <p className="dh-tasks-section__empty">Nothing here.</p>
-            )}
-          </section>
-        );
-      })}
+      {sections.map((section) => (
+        <GroupedBucket
+          key={section.key}
+          section={section}
+          className="dh-tasks-sectors__column"
+          renderCollection={renderCollection}
+          viewAllHref={viewAllHref}
+        />
+      ))}
     </div>
   );
 }

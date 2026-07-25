@@ -26,6 +26,8 @@ import {
   type TimeSector,
 } from "~/kernel/tasks";
 
+import type { TasksGrouping } from "./tasks-contract";
+
 /** The primary `/tasks` presentation modes (the top-level view switcher). */
 export const TASKS_PRIMARY_VIEWS = [
   "focus",
@@ -218,4 +220,105 @@ export function groupBySector(
     (groups[key] ??= []).push(item);
   }
   return groups;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Server-authoritative grouping (Matrix / Sectors) — ADR-043 decision 12      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A display section for the Matrix/Sectors views, resolved from the SERVER grouping:
+ * an authoritative `count` (independent of how many records loaded), a bounded slice
+ * of `cards`, and `hasMore` (the rest live in the equivalent filtered `all` view).
+ * `filterKey` names the priority (`p1`..`p4`), `__none` (unprioritised/inbox), or a
+ * sector value — used to build the "view all in this bucket" link.
+ */
+export interface GroupedSection {
+  readonly key: string;
+  readonly title: string;
+  readonly subtitle: string | null;
+  readonly filterParam: "priority" | "sector";
+  readonly filterKey: string;
+  readonly count: number;
+  readonly cards: TaskCardData[];
+  readonly hasMore: boolean;
+}
+
+/** Index a server grouping by bucket key for O(1) section lookup. */
+function indexGrouping(
+  grouping: TasksGrouping | null,
+): Map<string, { count: number; cards: TaskCardData[]; hasMore: boolean }> {
+  const byKey = new Map<
+    string,
+    { count: number; cards: TaskCardData[]; hasMore: boolean }
+  >();
+  if (!grouping) return byKey;
+  for (const group of grouping.groups) {
+    byKey.set(group.key, {
+      count: group.count,
+      cards: group.items.map(toTaskCardData),
+      hasMore: group.hasMore,
+    });
+  }
+  return byKey;
+}
+
+/**
+ * Resolve the four Matrix quadrants + the Unprioritised bucket, in reading order,
+ * from the server grouping. Every quadrant is present with its authoritative count
+ * (0 when the server returned no such bucket) — so a quadrant is never shown empty
+ * merely because its first task fell beyond a loaded page.
+ */
+export function resolveMatrixSections(
+  grouping: TasksGrouping | null,
+): GroupedSection[] {
+  const byKey = indexGrouping(grouping);
+  const sections: GroupedSection[] = MATRIX_QUADRANTS.map((quadrant) => {
+    const bucket = byKey.get(quadrant.priority);
+    return {
+      key: quadrant.quadrant,
+      title: quadrant.title,
+      subtitle: quadrant.action,
+      filterParam: "priority" as const,
+      filterKey: quadrant.priority,
+      count: bucket?.count ?? 0,
+      cards: bucket?.cards ?? [],
+      hasMore: bucket?.hasMore ?? false,
+    };
+  });
+  const untriaged = byKey.get("untriaged");
+  sections.push({
+    key: "untriaged",
+    title: "Unprioritised",
+    subtitle: "No priority yet",
+    filterParam: "priority",
+    filterKey: "__none",
+    count: untriaged?.count ?? 0,
+    cards: untriaged?.cards ?? [],
+    hasMore: untriaged?.hasMore ?? false,
+  });
+  return sections;
+}
+
+/**
+ * Resolve the Time Sector sections (Inbox + the six sectors), in planning order,
+ * from the server grouping — same authoritative-count guarantee as the Matrix.
+ */
+export function resolveSectorSections(
+  grouping: TasksGrouping | null,
+): GroupedSection[] {
+  const byKey = indexGrouping(grouping);
+  return SECTOR_SECTIONS.map((section) => {
+    const bucket = byKey.get(section.key);
+    return {
+      key: section.key,
+      title: section.label,
+      subtitle: null,
+      filterParam: "sector" as const,
+      filterKey: section.key === "inbox" ? "__none" : section.key,
+      count: bucket?.count ?? 0,
+      cards: bucket?.cards ?? [],
+      hasMore: bucket?.hasMore ?? false,
+    };
+  });
 }

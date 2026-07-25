@@ -22,6 +22,24 @@ export interface TasksFilterState {
   readonly waitingOnly: boolean;
 }
 
+/** One server-grouped bucket of the active planning collection (Matrix/Sectors). */
+export interface TasksGroup {
+  /** `p1`..`p4`|`untriaged` (quadrant) or a `TimeSector`|`inbox` (sector). */
+  readonly key: string;
+  /** AUTHORITATIVE total in this bucket — independent of how many `items` loaded. */
+  readonly count: number;
+  /** A bounded, deterministically-sorted top slice of the bucket. */
+  readonly items: readonly SerializedTaskListItem[];
+  /** True when `count` exceeds the loaded `items` (reach the rest via the filtered view). */
+  readonly hasMore: boolean;
+}
+
+/** The server-authoritative grouping the Matrix/Sectors views render from. */
+export interface TasksGrouping {
+  readonly dimension: "quadrant" | "sector";
+  readonly groups: readonly TasksGroup[];
+}
+
 /** The `/tasks` page loader payload. */
 export interface TasksPageData {
   readonly primaryView: TasksPrimaryView;
@@ -30,9 +48,19 @@ export interface TasksPageData {
   readonly filters: TasksFilterState;
   /** The owner's calendar date `YYYY-MM-DD`. */
   readonly todayIso: string;
+  /**
+   * The flat, cursor-paginated page (Focus/All views). Empty for the Matrix/Sectors
+   * views, which render from `grouping` instead of a single global page.
+   */
   readonly items: readonly SerializedTaskListItem[];
   /** Opaque cursor for the next page, or null. */
   readonly nextCursor: string | null;
+  /**
+   * The server-authoritative grouping for the Matrix (`quadrant`) and Sectors
+   * (`sector`) views — accurate per-bucket counts + bounded per-bucket records — or
+   * null for the flat Focus/All views (ADR-043 §11 / decision 12).
+   */
+  readonly grouping: TasksGrouping | null;
   /** True when the query failed — the UI renders a calm error state. */
   readonly failed: boolean;
 }

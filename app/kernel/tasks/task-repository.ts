@@ -27,13 +27,16 @@ import type {
   ListProjectTasksInput,
   ListTasksInput,
   ListWaitingTasksInput,
+  ListWorkspaceTaskGroupsInput,
   ListWorkspaceTasksInput,
   PlanTaskInput,
   PlanTaskResult,
   ProjectTaskListPage,
+  SearchTaskParentsInput,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
+  TaskParentCandidate,
   TaskPriority,
   TaskStatus,
   TaskView,
@@ -41,6 +44,7 @@ import type {
   UpdateTaskInput,
   UpdateTaskResult,
   WaitingTaskPage,
+  WorkspaceTaskGrouping,
   WorkspaceTaskListPage,
 } from "./task";
 
@@ -120,6 +124,38 @@ export interface TaskRepository {
   listWorkspaceTasks(
     input: ListWorkspaceTasksInput,
   ): Promise<WorkspaceTaskListPage>;
+
+  /**
+   * Group the ACTIVE planning collection server-side for the Matrix (`quadrant`) and
+   * Sectors (`sector`) views (ADR-043 §11 / decision 12). In ONE bounded, N+1-free,
+   * workspace-scoped query it returns, per bucket, the AUTHORITATIVE total `count`
+   * (over the whole active scope — never "how many were loaded") AND a bounded,
+   * deterministically-sorted (`sort`, default `smart`) top slice of that bucket's
+   * tasks, with `hasMore` when the bucket holds more than the returned slice. This
+   * makes quadrant/sector counts and empty states correct independent of record
+   * paging: a bucket is never shown empty because its first task fell beyond a global
+   * page. The remainder of an overflowing bucket is reached through the equivalent
+   * filtered `all` view (priority/sector filter), which paginates that one bucket on
+   * its own cursor. READ-ONLY presentation/query ownership — never a mutation path.
+   */
+  listWorkspaceTaskGroups(
+    input: ListWorkspaceTaskGroupsInput,
+  ): Promise<WorkspaceTaskGrouping>;
+
+  /**
+   * Search the workspace's candidate task PARENTS — active Areas and non-archived
+   * Projects — by title, for the `/tasks` create flow (ADR-043 §9 / decision 13). A
+   * bounded, indexed, workspace-scoped SQL search over the WHOLE collection (never a
+   * fixed-prefix scan that can hide a newer Area/Project in a long-lived workspace):
+   * a case-insensitive title match, parameterised, ordered deterministically
+   * (Projects first, then title, then id) and capped. An empty query returns the
+   * first bounded page of parents. Returns only entities this workspace can see, so
+   * an inaccessible title never leaks; the create action re-verifies the chosen
+   * parent independently, so this is a convenience for selection, never the authority.
+   */
+  searchTaskParents(
+    input?: SearchTaskParentsInput,
+  ): Promise<readonly TaskParentCandidate[]>;
 
   /**
    * Activate or change a task's waiting state (TODAY-03) ATOMICALLY: one batch

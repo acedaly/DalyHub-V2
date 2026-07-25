@@ -517,6 +517,21 @@
   color: var(--dh-color-text-muted);
 }
 
+/* "View all N →" link shown when a Matrix/Sector bucket holds more than the
+   loaded slice — the overflow is reached through the equivalent filtered list. */
+.dh-tasks-section__more {
+  align-self: flex-start;
+  margin-top: var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  font-weight: 600;
+  color: var(--dh-color-accent-strong, var(--dh-color-text));
+  text-decoration: underline;
+}
+
+.dh-tasks-section__more:hover {
+  text-decoration: none;
+}
+
 /* Matrix + Sector cells share the quiet-section rhythm. */
 .dh-tasks-matrix__cell,
 .dh-tasks-sectors__column {

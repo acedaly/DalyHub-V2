@@ -65,8 +65,14 @@ export function workspaceTaskFiltersSignature(
     return "";
   }
   const parts: string[] = [];
-  if (filters.priority != null) parts.push(`p=${filters.priority}`);
-  if (filters.timeSector != null) parts.push(`s=${filters.timeSector}`);
+  // `undefined` = no filter; an explicit `null` = the "IS NULL" filter (a Matrix
+  // Unprioritised / Sectors Inbox "view all"). They are DISTINCT scopes, so a null
+  // filter is encoded (`p=null`) rather than omitted — a cursor from the unfiltered
+  // view is then rejected under the null-filtered view, never reinterpreted.
+  if (filters.priority !== undefined)
+    parts.push(`p=${filters.priority ?? "null"}`);
+  if (filters.timeSector !== undefined)
+    parts.push(`s=${filters.timeSector ?? "null"}`);
   if (filters.commitmentState != null)
     parts.push(`c=${filters.commitmentState}`);
   if (filters.status != null) parts.push(`w=${filters.status}`);

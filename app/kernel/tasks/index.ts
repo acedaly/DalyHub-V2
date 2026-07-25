@@ -56,6 +56,12 @@ export {
   type WorkspaceTaskFilters,
   type ListWorkspaceTasksInput,
   type WorkspaceTaskListPage,
+  type WorkspaceTaskGroupDimension,
+  type WorkspaceTaskGroup,
+  type WorkspaceTaskGrouping,
+  type ListWorkspaceTaskGroupsInput,
+  type TaskParentCandidate,
+  type SearchTaskParentsInput,
   type BulkFieldResult,
 } from "./task";
 
