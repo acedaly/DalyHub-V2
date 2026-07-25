@@ -169,14 +169,33 @@ function DetailsHost({
   readonly entryId: string;
   readonly mode: DetailsPanelMode;
 }) {
-  const { closeInspector, replaceInspector } = useInspector();
+  const { closeInspector } = useInspector();
   const revalidator = useRevalidator();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Drive read↔edit through the Inspector URL key so it is refresh-stable and
+  // Back/Forward-honest. read→edit PUSHES a history entry (so Back returns
+  // edit→read before the panel closes); edit→read (cancel/save) REPLACES it in
+  // place, so a deep-linked edit doesn't strand the user with no read behind it.
+  const setKey = useCallback(
+    (key: string, replace: boolean) => {
+      const next = new URLSearchParams(searchParams);
+      next.set("inspector", key);
+      navigate(
+        { search: `?${next.toString()}` },
+        { replace, preventScrollReset: true },
+      );
+    },
+    [navigate, searchParams],
+  );
+
   return (
     <DiaryDetailsHost
       entryId={entryId}
       mode={mode}
-      onRequestEdit={() => replaceInspector(`${EDIT_PREFIX}${entryId}`)}
-      onRequestRead={() => replaceInspector(`${VIEW_PREFIX}${entryId}`)}
+      onRequestEdit={() => setKey(`${EDIT_PREFIX}${entryId}`, false)}
+      onRequestRead={() => setKey(`${VIEW_PREFIX}${entryId}`, true)}
       onChanged={() => revalidator.revalidate()}
       onClose={closeInspector}
     />

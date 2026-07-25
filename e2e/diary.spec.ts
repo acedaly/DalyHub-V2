@@ -169,6 +169,17 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await row.click();
     await page.getByRole("button", { name: "Edit entry" }).click();
     await expect(page).toHaveURL(/inspector=edit/);
+
+    // Back returns edit → read (not straight out of the Inspector); Forward reopens
+    // edit. read→edit pushes a history entry, so the read step is not skipped.
+    await page.goBack();
+    await expect(page).toHaveURL(/inspector=view/);
+    await expect(
+      page.getByRole("button", { name: "Edit entry" }),
+    ).toBeVisible();
+    await page.goForward();
+    await expect(page).toHaveURL(/inspector=edit/);
+
     const editor = page.getByRole("form", { name: "Edit entry" });
     const renamed = `${first} (edited)`;
     await editor.getByRole("textbox", { name: /Title/ }).fill(renamed);
@@ -244,8 +255,19 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await page.getByRole("button", { name: "View that day" }).click();
 
     await expect(page).toHaveURL(/date=2020-01-15/);
+    // Regression: viewing the day must NOT reopen capture (stale inspector=new).
+    await expect(page).not.toHaveURL(/inspector=/);
+    await expect(page.getByRole("form", { name: "Quick capture" })).toHaveCount(
+      0,
+    );
     const row = page.getByRole("button", { name: backdated, exact: true });
     await expect(row).toBeVisible();
+    // The destination timeline is interactive — the row opens its details.
+    await row.click();
+    await expect(page).toHaveURL(/inspector=view/);
+    await expect(
+      page.getByRole("button", { name: "Edit entry" }),
+    ).toBeVisible();
   });
 
   test("the type filter is URL-backed and clearable", async ({ page }) => {
@@ -305,5 +327,16 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expect(
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
     ).toBeVisible();
+
+    // Day changes push history: Back returns through each previously viewed day
+    // (2026-06-01 → 2026-05-31 → 2026-06-01) rather than skipping out of Diary,
+    // and Forward replays them.
+    await page.goBack();
+    await expect(page).toHaveURL(/date=2026-05-31/);
+    await page.goBack();
+    await expect(page).toHaveURL(/date=2026-06-01/);
+    await expect(page).toHaveURL(/\/diary/);
+    await page.goForward();
+    await expect(page).toHaveURL(/date=2026-05-31/);
   });
 });
