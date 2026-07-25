@@ -29,6 +29,8 @@ import {
   recentWindowStartIso,
 } from "~/kernel/alignment";
 
+import { recentBoundaryStartIso } from "./window";
+
 /**
  * Build the owner-calendar evaluation context AND the SQL-facing window
  * bounds from a single instant, so the loader's facts read, the evaluator and
@@ -37,7 +39,12 @@ import {
  */
 export function createOwnerAlignmentContext(now: Date): {
   readonly evaluation: AlignmentEvaluationContext;
+  /** Approximate UTC-midnight lower bound for the SUPPORTING recent-count fact
+   * (ADR-040 §40.4 — a few hours of slack never flips a state). */
   readonly recentWindowStartIso: string;
+  /** EXACT owner-calendar instant separating `active` from `neglected`, used by
+   * the repository ranking so its order agrees with the evaluator (DEBT-23). */
+  readonly recentBoundaryStartIso: string;
 } {
   const todayIso = ownerCalendarIso(now);
   return {
@@ -47,6 +54,7 @@ export function createOwnerAlignmentContext(now: Date): {
       calendarIsoOf: (instant) => ownerCalendarIso(instant),
     },
     recentWindowStartIso: recentWindowStartIso(todayIso),
+    recentBoundaryStartIso: recentBoundaryStartIso(todayIso),
   };
 }
 

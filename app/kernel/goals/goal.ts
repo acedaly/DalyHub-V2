@@ -120,11 +120,15 @@ export type GoalAlignmentListInput = {
   readonly limit?: number;
   readonly cursor?: string;
   /**
-   * The owner-calendar `recentWindowStartIso` (from `createOwnerAlignmentContext`)
-   * — the same UTC lower bound the alignment-facts read binds. A qualifying
-   * contribution at/after this instant ranks the Goal `active`, else `neglected`.
+   * The EXACT owner-calendar active/neglected boundary instant (from
+   * `createOwnerAlignmentContext().recentBoundaryStartIso`). A qualifying
+   * contribution at/after this instant ranks the Goal `active`, else `neglected` —
+   * the SAME owner-calendar boundary `evaluateGoalAlignment` uses, so the SQL rank
+   * agrees with the evaluator for every instant (not just clearly-separated ones).
+   * The cursor is bound to this value, so a page reusing a cursor from a different
+   * window is rejected.
    */
-  readonly recentWindowStartIso: string;
+  readonly activeBoundaryIso: string;
 };
 
 /**

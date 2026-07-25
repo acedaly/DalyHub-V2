@@ -10,10 +10,14 @@
  * pagination — DEBT-23), then the `(createdAt, id)` tiebreak ending in the immutable
  * id, so a page boundary can never duplicate or omit a Goal.
  *
- * The cursor is bound to BOTH the workspace AND the sort semantics ("alignment"), so
- * a cursor issued for the creation-order list — or another workspace — is rejected
- * rather than reinterpreted. The version guards against a future ranking change
- * silently reusing stale positions.
+ * The cursor is bound to the workspace, the sort semantics ("alignment") AND the
+ * effective ranking window (`windowStartIso` — the owner-calendar active/neglected
+ * boundary that decides each Goal's rank). A cursor issued for the creation-order
+ * list, another workspace, or a DIFFERENT recency window (e.g. reused across an
+ * owner-calendar day rollover, when a Goal's rank could shift around the activity
+ * cutoff) is rejected rather than reinterpreted — so appended pages can never
+ * duplicate or omit a Goal whose rank moved. The version guards against a future
+ * ranking-format change silently reusing stale positions.
  */
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
@@ -32,6 +36,10 @@ export type GoalAlignmentCursorPosition = {
 
 export type GoalAlignmentCursorScope = {
   readonly workspaceId: string;
+  /** The effective ranking window (the owner-calendar active/neglected boundary
+   * instant) the rank was computed under. A cursor is invalid under a different
+   * window. */
+  readonly windowStartIso: string;
 };
 
 const textEncoder = new TextEncoder();
@@ -70,6 +78,7 @@ export function encodeGoalAlignmentCursor(
     GOAL_ALIGNMENT_CURSOR_VERSION,
     GOAL_ALIGNMENT_CURSOR_SORT,
     scope.workspaceId,
+    scope.windowStartIso,
     position.rank,
     position.createdAt,
     position.id,
@@ -100,15 +109,18 @@ export function decodeGoalAlignmentCursor(
   } catch {
     throw new InvalidSpineCursorError();
   }
-  if (!Array.isArray(parsed) || parsed.length !== 6) {
+  if (!Array.isArray(parsed) || parsed.length !== 7) {
     throw new InvalidSpineCursorError();
   }
-  const [version, sort, workspaceId, rank, createdAt, id] = parsed;
+  const [version, sort, workspaceId, windowStartIso, rank, createdAt, id] =
+    parsed;
   if (
     version !== GOAL_ALIGNMENT_CURSOR_VERSION ||
     sort !== GOAL_ALIGNMENT_CURSOR_SORT ||
     typeof workspaceId !== "string" ||
     workspaceId.length === 0 ||
+    typeof windowStartIso !== "string" ||
+    windowStartIso.length === 0 ||
     typeof rank !== "number" ||
     !Number.isInteger(rank) ||
     typeof createdAt !== "string" ||
@@ -118,14 +130,19 @@ export function decodeGoalAlignmentCursor(
   ) {
     throw new InvalidSpineCursorError();
   }
-  return { scope: { workspaceId }, position: { rank, createdAt, id } };
+  return {
+    scope: { workspaceId, windowStartIso },
+    position: { rank, createdAt, id },
+  };
 }
 
 export function goalAlignmentCursorScopeMatches(
   a: GoalAlignmentCursorScope,
   b: GoalAlignmentCursorScope,
 ): boolean {
-  return a.workspaceId === b.workspaceId;
+  return (
+    a.workspaceId === b.workspaceId && a.windowStartIso === b.windowStartIso
+  );
 }
 
 export function decodeGoalAlignmentCursorForScope(

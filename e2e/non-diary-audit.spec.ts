@@ -97,6 +97,29 @@ test.describe("Relationship navigation (deliverable 4)", () => {
     await expect(page).toHaveURL(/\/projects\/pr-launch$/);
   });
 
+  test("Goal Projects tab shows only the active Goal's Projects across navigation (scope isolation)", async ({
+    page,
+  }) => {
+    // DEBT-22 pagination is scoped per Goal: navigating between Goal records must
+    // never leak one Goal's Projects into another's tab. (The exact late-response
+    // interleaving is proven deterministically in the GoalProjectsTab unit test;
+    // this asserts the observable no-cross-contamination guarantee.)
+    await gotoFixture(page, "/goals/g-launch");
+    await page.getByRole("tab", { name: /Projects/ }).click();
+    await expect(
+      page.getByRole("link", { name: "Open Launch checklist" }),
+    ).toBeVisible();
+
+    await gotoFixture(page, "/goals/g-align-neglected");
+    await page.getByRole("tab", { name: /Projects/ }).click();
+    await expect(
+      page.getByRole("link", { name: "Open Spanish course" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Open Launch checklist" }),
+    ).toHaveCount(0);
+  });
+
   test("Project Key links relationship rows are navigable, back/forward works", async ({
     page,
   }) => {

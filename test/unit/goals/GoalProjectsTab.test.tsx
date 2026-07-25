@@ -1,5 +1,12 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { GoalProjectsTab } from "~/modules/goals/GoalProjectsTab";
@@ -146,5 +153,102 @@ describe("Goal Projects tab pagination (DEBT-22)", () => {
         name: /Load more Projects|Try again/,
       }),
     ).toBeInTheDocument();
+  });
+
+  it("discards a stale Goal A response after navigating to Goal B, and retries cleanly on B", async () => {
+    // The exact late-response/navigation race: "Load more" on Goal A is dispatched,
+    // the active Goal switches to B before A resolves, then A's response returns.
+    // A's Projects must NEVER append into B's list; a fresh "Load more" on B works.
+    let resolveA: (value: {
+      projects: SerializedGoalProjectItem[];
+      nextCursor: string | null;
+    }) => void = () => {};
+    const aPending = new Promise<{
+      projects: SerializedGoalProjectItem[];
+      nextCursor: string | null;
+    }>((resolve) => {
+      resolveA = resolve;
+    });
+
+    function Wrapper() {
+      const [active, setActive] = useState<{
+        id: string;
+        firstPage: SerializedGoalProjectItem[];
+        cursor: string | null;
+      }>({
+        id: "gA",
+        firstPage: [project({ id: "pA1", title: "A one" })],
+        cursor: "cursorA",
+      });
+      return (
+        <DrawerProvider renderDrawer={() => null}>
+          <button
+            type="button"
+            onClick={() =>
+              setActive({
+                id: "gB",
+                firstPage: [project({ id: "pB1", title: "B one" })],
+                cursor: "cursorB",
+              })
+            }
+          >
+            go-b
+          </button>
+          <GoalProjectsTab
+            goalId={active.id}
+            projects={active.firstPage}
+            nextCursor={active.cursor}
+            onOpenProject={vi.fn()}
+          />
+        </DrawerProvider>
+      );
+    }
+
+    const router = createMemoryRouter(
+      [
+        { path: "/goals/:goalId", element: <Wrapper /> },
+        {
+          path: "/goals/:goalId/projects",
+          loader: ({ request }: { request: Request }) => {
+            const url = new URL(request.url);
+            if (url.pathname.startsWith("/goals/gA/")) {
+              return aPending; // deferred — resolves only when the test says so
+            }
+            return {
+              projects: [project({ id: "pB2", title: "B two" })],
+              nextCursor: null,
+            };
+          },
+        },
+      ],
+      { initialEntries: ["/goals/gA"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    // 1. Load more on Goal A (request in flight, not resolved).
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Load more Projects" }),
+    );
+    // 2. Switch the active Goal to B before A resolves.
+    fireEvent.click(screen.getByRole("button", { name: "go-b" }));
+    await screen.findByText("B one");
+    // 3. Now let Goal A's stale response resolve.
+    resolveA({
+      projects: [project({ id: "pA2", title: "A two" })],
+      nextCursor: null,
+    });
+
+    // A's page-2 Project must never appear in Goal B's list.
+    await waitFor(() =>
+      expect(screen.queryByText("A two")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("B one")).toBeInTheDocument();
+
+    // 4. Retry after the reset: a fresh Load more on B works.
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Load more Projects" }),
+    );
+    await screen.findByText("B two");
+    expect(screen.queryByText("A two")).not.toBeInTheDocument();
   });
 });

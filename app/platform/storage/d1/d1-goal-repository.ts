@@ -293,7 +293,14 @@ export class D1GoalRepository implements GoalRepository {
     input: GoalAlignmentListInput,
   ): Promise<GoalAlignmentListPage> {
     const limit = validateSpineLimit(input.limit);
-    const scope: GoalAlignmentCursorScope = { workspaceId: this.#workspaceId };
+    // The cursor is bound to the effective ranking window, so a cursor reused
+    // under a different owner-calendar boundary (e.g. across a day rollover, when
+    // a Goal's rank could shift around the activity cutoff) is rejected — never
+    // silently reinterpreted into a duplicated or omitted page.
+    const scope: GoalAlignmentCursorScope = {
+      workspaceId: this.#workspaceId,
+      windowStartIso: input.activeBoundaryIso,
+    };
     const cursorParams: (string | number)[] = [];
     const cursorClause =
       input.cursor !== undefined
@@ -318,7 +325,7 @@ export class D1GoalRepository implements GoalRepository {
       ` WHEN gsr.completed_at IS NOT NULL THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.completed}` +
       ` WHEN COALESCE(c.total, 0) = 0 THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.no_structure}` +
       ` WHEN COALESCE(c.archived, 0) = COALESCE(c.total, 0) THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.unreachable}` +
-      ` WHEN act.last_at IS NOT NULL AND act.last_at >= ? THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.active}` +
+      ` WHEN act.last_at IS NOT NULL AND act.last_at >= ? THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.active}` + // ? = activeBoundaryIso (exact owner-calendar boundary)
       ` ELSE ${GOAL_ALIGNMENT_DISPLAY_RANK.neglected}` +
       " END";
     const result = await this.#run(
@@ -392,7 +399,7 @@ export class D1GoalRepository implements GoalRepository {
           this.#workspaceId, // contrib
           this.#workspaceId, // activity inner
           this.#workspaceId, // activity subjects
-          input.recentWindowStartIso, // rank CASE window bound
+          input.activeBoundaryIso, // rank CASE active/neglected boundary (exact)
           this.#workspaceId, // ranked goals
           ...cursorParams, // outer keyset (rank, rank, createdAt, createdAt, id)
           fetchLimit,

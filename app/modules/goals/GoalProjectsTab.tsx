@@ -90,6 +90,15 @@ function useGoalProjectPagination(
   const processed = useRef<ProjectsPageData | null>(null);
   const prevFirstPage = useRef(firstPage);
   const prevSearch = useRef(location.search);
+  // A monotonic pagination generation, bumped on every reset (Goal change or
+  // mutation revalidation). Each "Load more" captures the immutable request scope
+  // `{ gen, goalId }` at dispatch; a response is applied ONLY if that scope still
+  // matches the active Goal and generation — so a late response from a "Load more"
+  // on Goal A that resolves AFTER navigating to Goal B is discarded, never
+  // appended into Goal B. Object identity alone is insufficient: a stale response
+  // arrives as a NEW payload.
+  const generation = useRef(0);
+  const pending = useRef<{ gen: number; goalId: string } | null>(null);
 
   useEffect(() => {
     // `firstPage` is a loader-provided prop, so a new identity means the record
@@ -105,6 +114,11 @@ function useGoalProjectPagination(
     if (drawerOnly) {
       return;
     }
+    // A filter/Goal change or a mutation revalidation — start a NEW generation so
+    // any in-flight request's response is discarded on arrival, and forget the
+    // pending scope entirely.
+    generation.current += 1;
+    pending.current = null;
     setAppended([]);
     setCursor(initialCursor);
     setLoadFailed(false);
@@ -123,6 +137,13 @@ function useGoalProjectPagination(
       return;
     }
     processed.current = data;
+    // Bind the response to the request scope: discard a stale response whose Goal
+    // or pagination generation no longer matches the active one.
+    const scope = pending.current;
+    pending.current = null;
+    if (!scope || scope.goalId !== goalId || scope.gen !== generation.current) {
+      return;
+    }
     // The endpoint returns `{ projects, nextCursor }` on success; a 4xx JSON body
     // has neither, so treat a missing `projects` array as a calm, retryable failure.
     if (!Array.isArray(data.projects)) {
@@ -132,13 +153,14 @@ function useGoalProjectPagination(
     setAppended((prev) => [...prev, ...data.projects]);
     setCursor(data.nextCursor ?? null);
     setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
+  }, [fetcher.state, fetcher.data, goalId]);
 
   const loadMore = useCallback(() => {
     if (cursor === null) {
       return;
     }
     setLoadFailed(false);
+    pending.current = { gen: generation.current, goalId };
     fetcher.load(
       `/goals/${encodeURIComponent(goalId)}/projects?cursor=${encodeURIComponent(cursor)}`,
     );
