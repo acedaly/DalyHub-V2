@@ -12,12 +12,16 @@
  * without an N+1 parent lookup.
  */
 
+import type { NewActivityEvent } from "~/kernel/activity";
 import {
   CorruptSpineRecordError,
   parentKindOfLinkType,
+  PROJECT,
   RESERVED_SPINE_LINK_TYPES,
+  TASK,
   isSpineKind,
   type SpineParent,
+  type SpineParentKind,
   type SpineRecord,
   type SpineKind,
   type SpineLinkType,
@@ -160,6 +164,168 @@ export function buildEntityUpdatedAtBumpStatement(
        RETURNING ${ENTITY_RETURNING_COLUMNS}`,
     )
     .bind(nowTs, workspaceId, entityId);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared structural-create builders (FND-07 spine).                           */
+/*                                                                             */
+/* The single source of the spine's create SQL + Activity event shapes, so the */
+/* SpineRepository's own create path AND the TaskRepository's atomic task-      */
+/* creation (which composes the identity/parentage create with the additive    */
+/* task_details slice in ONE batch, ADR-043) build the SAME statements — the    */
+/* parent-gate security SQL lives in ONE place, never duplicated.              */
+/* -------------------------------------------------------------------------- */
+
+/** Generic structural-create Activity event types (shared with the repositories). */
+export const SPINE_ENTITY_CREATED = "entity.created";
+export const SPINE_LINK_CREATED = "entity_link.created";
+const SPINE_ROLE_SUBJECT = "subject";
+const SPINE_ROLE_SOURCE = "source";
+const SPINE_ROLE_TARGET = "target";
+
+/** The `entity.created` event with the new record as its sole subject. */
+export function spineEntityCreatedEvent(
+  entityId: string,
+  kind: SpineKind,
+  title: string,
+): NewActivityEvent {
+  return {
+    type: SPINE_ENTITY_CREATED,
+    subjects: [{ entityId, role: SPINE_ROLE_SUBJECT }],
+    payload: { entityType: kind, title },
+  };
+}
+
+/** The `entity_link.created` event with both endpoints (source + target) as subjects. */
+export function spineLinkCreatedEvent(
+  linkId: string,
+  sourceEntityId: string,
+  targetEntityId: string,
+  linkType: string,
+): NewActivityEvent {
+  return {
+    type: SPINE_LINK_CREATED,
+    subjects: [
+      { entityId: sourceEntityId, role: SPINE_ROLE_SOURCE },
+      { entityId: targetEntityId, role: SPINE_ROLE_TARGET },
+    ],
+    payload: { linkId, linkType, sourceEntityId, targetEntityId },
+  };
+}
+
+/**
+ * The gated `entities` insert for a NON-Area child: create the row ONLY when an
+ * active parent of the required kind exists (and, for a Task under a Project, only
+ * when that Project is NOT archived — PROJ-05/ADR-037), RETURNING the fresh row.
+ * A missing/deleted/wrong-type/cross-workspace/archived-parent gate inserts zero
+ * rows (no error), so the batch commits nothing and the caller raises a typed
+ * parent error. The parent-gate SQL lives here so the spine and the task-create
+ * path share exactly one implementation.
+ */
+export function buildSpineChildEntityInsertStatement(
+  db: D1Database,
+  workspaceId: string,
+  params: {
+    readonly id: string;
+    readonly kind: SpineKind;
+    readonly title: string;
+    readonly parentKind: SpineParentKind;
+    readonly parentId: string;
+    readonly nowTs: string;
+  },
+): D1PreparedStatement {
+  const parentProjectNotArchivedClause =
+    params.kind === TASK && params.parentKind === PROJECT
+      ? ` AND NOT EXISTS (
+             SELECT 1 FROM project_details
+             WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
+           )`
+      : "";
+  return db
+    .prepare(
+      `INSERT INTO entities
+         (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+       SELECT ?, ?, ?, ?, ?, ?, NULL
+       WHERE EXISTS (
+               SELECT 1 FROM entities
+               WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
+             )${parentProjectNotArchivedClause}
+       RETURNING ${ENTITY_RETURNING_COLUMNS}`,
+    )
+    .bind(
+      params.id,
+      workspaceId,
+      params.kind,
+      params.title,
+      params.nowTs,
+      params.nowTs,
+      workspaceId,
+      params.parentId,
+      params.parentKind,
+      ...(parentProjectNotArchivedClause ? [workspaceId, params.parentId] : []),
+    );
+}
+
+/** The gated `spine_records` insert for a child, only when its entity now exists. */
+export function buildSpineChildRecordInsertStatement(
+  db: D1Database,
+  workspaceId: string,
+  params: { readonly id: string; readonly kind: SpineKind },
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO spine_records (workspace_id, entity_id, kind, completed_at)
+       SELECT ?, ?, ?, NULL
+       WHERE EXISTS (
+               SELECT 1 FROM entities WHERE workspace_id = ? AND id = ?
+             )`,
+    )
+    .bind(workspaceId, params.id, params.kind, workspaceId, params.id);
+}
+
+/** The gated structural EntityLink insert connecting a child to its parent. */
+export function buildSpineChildLinkInsertStatement(
+  db: D1Database,
+  workspaceId: string,
+  params: {
+    readonly linkId: string;
+    readonly sourceEntityId: string;
+    readonly targetEntityId: string;
+    readonly parentKind: SpineParentKind;
+    readonly linkType: string;
+    readonly nowTs: string;
+  },
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO entity_links
+         (id, workspace_id, source_entity_id, target_entity_id, type,
+          created_at, updated_at, deleted_at)
+       SELECT ?, ?, ?, ?, ?, ?, ?, NULL
+       WHERE EXISTS (
+               SELECT 1 FROM entities
+               WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+             )
+         AND EXISTS (
+               SELECT 1 FROM entities
+               WHERE workspace_id = ? AND id = ? AND type = ? AND deleted_at IS NULL
+             )
+       RETURNING id`,
+    )
+    .bind(
+      params.linkId,
+      workspaceId,
+      params.sourceEntityId,
+      params.targetEntityId,
+      params.linkType,
+      params.nowTs,
+      params.nowTs,
+      workspaceId,
+      params.sourceEntityId,
+      workspaceId,
+      params.targetEntityId,
+      params.parentKind,
+    );
 }
 
 /**

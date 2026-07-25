@@ -16,28 +16,56 @@
  */
 
 import type {
+  BulkFieldResult,
   BulkPlanResult,
   ClearPlanResult,
   ClearWaitingResult,
+  CommitmentState,
   CompleteTaskResult,
   GetTaskOptions,
   ListPlanningTasksInput,
   ListProjectTasksInput,
   ListTasksInput,
   ListWaitingTasksInput,
+  ListWorkspaceTaskGroupsInput,
+  ListWorkspaceTasksInput,
+  NewTaskInput,
   PlanTaskInput,
   PlanTaskResult,
   ProjectTaskListPage,
+  SearchTaskParentsInput,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
+  TaskParentCandidate,
+  TaskPriority,
+  TaskStatus,
   TaskView,
+  TimeSector,
   UpdateTaskInput,
   UpdateTaskResult,
   WaitingTaskPage,
+  WorkspaceTaskGrouping,
+  WorkspaceTaskListPage,
 } from "./task";
 
 export interface TaskRepository {
+  /**
+   * Create a task AND its initial planning fields as ONE atomic operation (ADR-043
+   * §13 / decision 15). A single `D1Database.batch()` writes the `entities` row
+   * (gated on an active Area/Project parent — and, under a Project, one that is not
+   * archived), the `spine_records` row, the structural parent EntityLink, the
+   * `entity.created` + `entity_link.created` events AND the additive `task_details`
+   * planning slice (only when a planning field is supplied). Either everything
+   * commits or nothing does — a task can never be left created-without-its-planning
+   * or half-linked; there is no spine-create-then-detail-write sequence. Structural
+   * identity/parentage SQL is the SHARED spine create builder (the spine stays the
+   * identity authority). Throws `SpineParentUnavailableError` when the parent is
+   * missing/deleted/wrong-kind/archived/cross-workspace (nothing is written) and
+   * `TaskValidationError`/`SpineValidationError` for invalid input.
+   */
+  createTask(input: NewTaskInput): Promise<TaskView>;
+
   /**
    * Read one task as a full `TaskView` — the entity header, the spine's
    * completion, the additive details (documented defaults when it has no
@@ -94,6 +122,57 @@ export interface TaskRepository {
    * date; unlike `listTasks`, a large early-due backlog can never hide planned work.
    */
   listPlanningTasks(input: ListPlanningTasksInput): Promise<TaskListPage>;
+
+  /**
+   * List the workspace-wide Tasks collection for `/tasks` (TASKS-01) as a bounded,
+   * deterministic, cursor-paginated page over the SAME canonical task records — the
+   * read model behind every `/tasks` system view (Focus/Matrix/Sectors/All and the
+   * Inbox/Today/This Week/…/Someday/Waiting/Overdue/Completed/Cancelled views). All
+   * filtering, sorting, counting, overdue detection and grouping is server-
+   * authoritative (never "load the workspace into React"): one bounded, N+1-free,
+   * workspace-scoped statement per page. Membership follows ADR-043 §5–§6 (Someday/
+   * Cancelled/Completed/Waiting are their own views, excluded from the active
+   * execution views). The page carries an opaque, versioned cursor bound to the full
+   * query scope (workspace + view + filters + sort + day); a cursor that does not
+   * match the current query is rejected (`InvalidSpineCursorError`), never
+   * reinterpreted. This method is READ-ONLY presentation/query ownership — it is
+   * never a second mutation authority.
+   */
+  listWorkspaceTasks(
+    input: ListWorkspaceTasksInput,
+  ): Promise<WorkspaceTaskListPage>;
+
+  /**
+   * Group the ACTIVE planning collection server-side for the Matrix (`quadrant`) and
+   * Sectors (`sector`) views (ADR-043 §11 / decision 12). In ONE bounded, N+1-free,
+   * workspace-scoped query it returns, per bucket, the AUTHORITATIVE total `count`
+   * (over the whole active scope — never "how many were loaded") AND a bounded,
+   * deterministically-sorted (`sort`, default `smart`) top slice of that bucket's
+   * tasks, with `hasMore` when the bucket holds more than the returned slice. This
+   * makes quadrant/sector counts and empty states correct independent of record
+   * paging: a bucket is never shown empty because its first task fell beyond a global
+   * page. The remainder of an overflowing bucket is reached through the equivalent
+   * filtered `all` view (priority/sector filter), which paginates that one bucket on
+   * its own cursor. READ-ONLY presentation/query ownership — never a mutation path.
+   */
+  listWorkspaceTaskGroups(
+    input: ListWorkspaceTaskGroupsInput,
+  ): Promise<WorkspaceTaskGrouping>;
+
+  /**
+   * Search the workspace's candidate task PARENTS — active Areas and non-archived
+   * Projects — by title, for the `/tasks` create flow (ADR-043 §9 / decision 13). A
+   * bounded, indexed, workspace-scoped SQL search over the WHOLE collection (never a
+   * fixed-prefix scan that can hide a newer Area/Project in a long-lived workspace):
+   * a case-insensitive title match, parameterised, ordered deterministically
+   * (Projects first, then title, then id) and capped. An empty query returns the
+   * first bounded page of parents. Returns only entities this workspace can see, so
+   * an inaccessible title never leaks; the create action re-verifies the chosen
+   * parent independently, so this is a convenience for selection, never the authority.
+   */
+  searchTaskParents(
+    input?: SearchTaskParentsInput,
+  ): Promise<readonly TaskParentCandidate[]>;
 
   /**
    * Activate or change a task's waiting state (TODAY-03) ATOMICALLY: one batch
@@ -169,6 +248,53 @@ export interface TaskRepository {
    * as `unchanged`. Throws `TaskValidationError`/`TaskNotFoundError` as `planTasks`.
    */
   clearPlans(ids: readonly string[]): Promise<BulkPlanResult>;
+
+  /**
+   * Set the priority (P1–P4, or null to clear) on MANY tasks as ONE ATOMIC
+   * operation (TASKS-01). Mirrors `planTasks`: every id is validated and resolved to
+   * a task in this workspace first (any missing/cross-workspace id rejects the WHOLE
+   * operation), then a single batch updates only the tasks whose priority actually
+   * changes — each with its own guarded `entity.updated` event. No-op tasks are
+   * counted `unchanged`. Throws `TaskValidationError`/`TaskNotFoundError` as `planTasks`.
+   */
+  setPriorityMany(
+    ids: readonly string[],
+    priority: TaskPriority | null,
+  ): Promise<BulkFieldResult>;
+
+  /** Set the Time Sector (or null → Inbox) on MANY tasks atomically. See `setPriorityMany`. */
+  setSectorMany(
+    ids: readonly string[],
+    timeSector: TimeSector | null,
+  ): Promise<BulkFieldResult>;
+
+  /** Set the commitment state (active/someday) on MANY tasks atomically. See `setPriorityMany`. */
+  setCommitmentMany(
+    ids: readonly string[],
+    commitmentState: CommitmentState,
+  ): Promise<BulkFieldResult>;
+
+  /** Set the workflow status on MANY tasks atomically. See `setPriorityMany`. */
+  setStatusMany(
+    ids: readonly string[],
+    status: TaskStatus,
+  ): Promise<BulkFieldResult>;
+
+  /**
+   * Complete MANY tasks (each with any active waiting cleared, per ADR-029) as ONE
+   * ATOMIC operation (TASKS-01 §16). Mirrors `setPriorityMany`/`planTasks`: the id
+   * list is validated and EVERY id is resolved to a task in this workspace first —
+   * any missing/cross-workspace/archived id rejects the WHOLE operation before a
+   * single write, so nothing is partially applied. Then ONE `D1Database.batch()`
+   * runs every open task's full completion group (the shared spine completion write,
+   * the guarded `task.completed` event, and the atomic waiting clearance) so either
+   * all commit or none do — a storage fault mid-batch can never leave a subset of
+   * the selection completed. Tasks that are already completed are idempotent no-ops,
+   * counted as `unchanged` and contributing no statements. Throws
+   * `TaskValidationError` for an empty/oversized/invalid id list and
+   * `TaskNotFoundError`/`TaskProjectArchivedError` as the other bulk methods.
+   */
+  completeTasks(ids: readonly string[]): Promise<BulkFieldResult>;
 
   /**
    * Complete a task AND clear any active waiting state as ONE atomic domain

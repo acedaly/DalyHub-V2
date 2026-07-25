@@ -32,21 +32,29 @@ import {
 } from "~/kernel/activity";
 import type { MarkdownSource } from "~/kernel/markdown";
 import {
+  AREA,
   GOAL_BELONGS_TO_AREA,
   PROJECT,
   PROJECT_ADVANCES_GOAL,
   PROJECT_BELONGS_TO_AREA,
+  SpineInvalidParentKindError,
+  SpineParentUnavailableError,
   TASK,
   TASK_BELONGS_TO_AREA,
   TASK_BELONGS_TO_PROJECT,
   TASK_COMPLETED,
+  secureIdGenerator,
+  spineLinkTypeFor,
   systemClock,
+  validateSpineTitle,
   type Clock,
   type IdGenerator,
 } from "~/kernel/spine";
 import {
   decodeProjectTaskCursorForScope,
+  decodeWorkspaceTaskCursorForScope,
   encodeProjectTaskCursor,
+  encodeWorkspaceTaskCursor,
   isWaitingTargetType,
   TASK_PLAN_CLEARED,
   TASK_PLANNED,
@@ -59,6 +67,9 @@ import {
   TaskProjectArchivedError,
   TaskStorageError,
   TaskValidationError,
+  workspaceTaskFiltersSignature,
+  validateCommitmentState,
+  validateDelegationInput,
   validatePlanDate,
   validateSetWaitingInput,
   validateTaskDate,
@@ -67,35 +78,53 @@ import {
   validateTaskIdList,
   validateTaskLimit,
   validateTaskPriority,
+  validateTaskSort,
   validateTaskStatus,
+  validateTaskSystemView,
   validateTaskTitle,
+  validateTimeSector,
+  type BulkFieldResult,
   type BulkPlanResult,
   type ClearPlanResult,
   type ClearWaitingResult,
+  type CommitmentState,
   type CompleteTaskResult,
   type GetTaskOptions,
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
   type ListTasksInput,
   type ListWaitingTasksInput,
+  type ListWorkspaceTaskGroupsInput,
+  type ListWorkspaceTasksInput,
+  type NewTaskInput,
   type PlanTaskInput,
   type PlanTaskResult,
   type ProjectTaskCursorScope,
   type ProjectTaskListPage,
+  type SearchTaskParentsInput,
   type SetWaitingInput,
   type SetWaitingResult,
+  type TaskDelegation,
   type TaskDetails,
   type TaskListItem,
   type TaskListPage,
+  type TaskParentCandidate,
+  type TaskPriority,
   type TaskRelation,
   type TaskRelationKind,
   type TaskRepository,
+  type TaskStatus,
   type TaskView,
   type TaskWaiting,
+  type TimeSector,
   type UpdateTaskInput,
   type UpdateTaskResult,
   type WaitingTaskListItem,
   type WaitingTaskPage,
+  type WorkspaceTaskCursorScope,
+  type WorkspaceTaskGroup,
+  type WorkspaceTaskGrouping,
+  type WorkspaceTaskListPage,
 } from "~/kernel/tasks";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
@@ -108,7 +137,12 @@ import {
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import {
   buildEntityUpdatedAtBumpStatement,
+  buildSpineChildEntityInsertStatement,
+  buildSpineChildLinkInsertStatement,
+  buildSpineChildRecordInsertStatement,
   buildSpineCompleteStatement,
+  spineEntityCreatedEvent,
+  spineLinkCreatedEvent,
 } from "./spine-database";
 import {
   rowToTaskDetails,
@@ -128,6 +162,16 @@ const SUBJECT_ROLE = "subject";
 
 /** The two structural parent link types a Task can carry, as a trusted SQL list. */
 const TASK_PARENT_LINK_LIST = `'${TASK_BELONGS_TO_AREA}', '${TASK_BELONGS_TO_PROJECT}'`;
+
+/** Map a sector-named system view to its stored `time_sector` value (TASKS-01). */
+const SECTOR_FOR_VIEW: Record<string, string> = {
+  this_week: "this_week",
+  next_week: "next_week",
+  this_month: "this_month",
+  next_month: "next_month",
+  long_term: "long_term",
+  routines: "routines",
+};
 
 /**
  * The LEFT JOIN that resolves a task's active `task.waiting_on` link (`wl`) and its
@@ -168,6 +212,19 @@ const PLANNING_BACKLOG_LIMIT = 100;
 const PLANNING_COMPLETED_LIMIT = 100;
 
 /**
+ * Default and hard-max bounded records returned PER BUCKET by the Matrix/Sectors
+ * grouping query (ADR-043 §11). Generous enough that most quadrants/sectors show in
+ * full, but always bounded — an overflowing bucket is reached through the equivalent
+ * filtered `all` view, which paginates that one bucket independently.
+ */
+const WORKSPACE_GROUP_BUCKET_LIMIT = 50;
+const WORKSPACE_GROUP_BUCKET_MAX = 200;
+
+/** Default and hard-max results for the bounded task-parent title search (ADR-043 §9). */
+const TASK_PARENT_SEARCH_LIMIT = 25;
+const TASK_PARENT_SEARCH_MAX = 50;
+
+/**
  * TEST-ONLY deterministic failure injection points for `completeTask`'s atomic
  * batch, used to prove the WHOLE operation rolls back when any statement after the
  * completion write fails. Each value forces a failure immediately AFTER the named
@@ -189,8 +246,26 @@ export interface D1TaskRepositoryOptions {
   readonly actorContext?: ActivityActorContext;
   /** Id generator for Activity events. Defaults to a secure UUID generator. */
   readonly activityIdGenerator?: IdGenerator;
+  /**
+   * Id generator for the ENTITY + structural link ids minted by the atomic
+   * `createTask` (the spine stays the identity authority; this is the same secure
+   * generator it uses). Injectable for deterministic tests.
+   */
+  readonly idGenerator?: IdGenerator;
   /** TEST-ONLY: force `completeTask`'s batch to fail at a chosen point. */
   readonly completeFault?: CompleteTaskFault;
+  /**
+   * TEST-ONLY: force `createTask`'s single atomic batch to fail (a forced-error
+   * statement appended at the end), to prove no entity/spine/link/details/Activity
+   * survives the rollback. Never set in production.
+   */
+  readonly createTaskFault?: boolean;
+  /**
+   * TEST-ONLY: force `completeTasks`' single atomic batch to fail (a forced-error
+   * statement appended at the end), to prove no task in the selection is left
+   * completed when the batch rolls back. Never set in production.
+   */
+  readonly bulkCompleteFault?: boolean;
   /**
    * TEST-ONLY: invoked once inside a planning mutation AFTER the initial read (and
    * the open-state check) but BEFORE the guarded write, to simulate a concurrent
@@ -206,14 +281,33 @@ interface ResolvedEntity {
   readonly title: string;
 }
 
+/** Structural equality for two delegation records (both may be null). */
+function delegationEquals(
+  a: TaskDelegation | null,
+  b: TaskDelegation | null,
+): boolean {
+  if (a === null || b === null) {
+    return a === b;
+  }
+  return (
+    a.to === b.to &&
+    (a.delegatedOn ?? null) === (b.delegatedOn ?? null) &&
+    (a.followUpOn ?? null) === (b.followUpOn ?? null) &&
+    (a.note ?? null) === (b.note ?? null)
+  );
+}
+
 export class D1TaskRepository implements TaskRepository {
   readonly #db: D1Database;
   readonly #workspaceId: string;
   readonly #clock: Clock;
   readonly #actor: ActivityActorContext;
   readonly #newActivityId: IdGenerator;
+  readonly #newEntityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
   readonly #completeFault?: CompleteTaskFault;
+  readonly #bulkCompleteFault?: boolean;
+  readonly #createTaskFault?: boolean;
   readonly #planRaceHook?: () => Promise<void>;
 
   constructor(
@@ -227,9 +321,200 @@ export class D1TaskRepository implements TaskRepository {
     this.#actor = options.actorContext ?? createSystemActorContext();
     this.#newActivityId =
       options.activityIdGenerator ?? activitySecureIdGenerator;
+    this.#newEntityId = options.idGenerator ?? secureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
     this.#completeFault = options.completeFault;
+    this.#bulkCompleteFault = options.bulkCompleteFault;
+    this.#createTaskFault = options.createTaskFault;
     this.#planRaceHook = options.planRaceHook;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Atomic create (identity + planning slice in ONE batch) — ADR-043 §13     */
+  /* ---------------------------------------------------------------------- */
+
+  async createTask(input: NewTaskInput): Promise<TaskView> {
+    const title = validateSpineTitle(input.title);
+    const parentKind = input.parent?.kind;
+    if (parentKind !== "area" && parentKind !== "project") {
+      throw new SpineInvalidParentKindError();
+    }
+    const parentId = validateTaskId(input.parent.id);
+    const linkType = spineLinkTypeFor(TASK, parentKind);
+    if (linkType === null) {
+      throw new SpineInvalidParentKindError();
+    }
+
+    // Validate + normalise the OPTIONAL planning fields at the boundary.
+    const priority =
+      input.priority === undefined
+        ? null
+        : validateTaskPriority(input.priority);
+    const timeSector =
+      input.timeSector === undefined
+        ? null
+        : validateTimeSector(input.timeSector);
+    const commitmentState =
+      input.commitmentState === undefined
+        ? "active"
+        : validateCommitmentState(input.commitmentState);
+    const dueDate = validateTaskDate(input.dueDate ?? null, "dueDate");
+    const scheduledDate = validateTaskDate(
+      input.scheduledDate ?? null,
+      "scheduledDate",
+    );
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const id = this.#newEntityId();
+    const linkId = this.#newEntityId();
+
+    // Identity + parentage: the SHARED spine create builders (the spine stays the
+    // identity authority; the parent-gate security SQL lives in ONE place).
+    const entityStmt = buildSpineChildEntityInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      { id, kind: TASK, title, parentKind, parentId, nowTs },
+    );
+    const spineStmt = buildSpineChildRecordInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      { id, kind: TASK },
+    );
+    const linkStmt = buildSpineChildLinkInsertStatement(
+      this.#db,
+      this.#workspaceId,
+      {
+        linkId,
+        sourceEntityId: id,
+        targetEntityId: parentId,
+        parentKind,
+        linkType,
+        nowTs,
+      },
+    );
+
+    // The two create events, each guarded (via the recorder's `changes() > 0`
+    // predicate) on the insert IMMEDIATELY before it in the batch.
+    const entityModel = buildActivityWriteModel(
+      spineEntityCreatedEvent(id, TASK, title),
+      this.#actor.actor,
+      this.#newActivityId(),
+      now,
+    );
+    const [entityActivity, ...entitySubjects] =
+      this.#recorder.buildAppendStatements(this.#workspaceId, entityModel);
+    const linkModel = buildActivityWriteModel(
+      spineLinkCreatedEvent(linkId, id, parentId, linkType),
+      this.#actor.actor,
+      this.#newActivityId(),
+      now,
+    );
+    const [linkActivity, ...linkSubjects] =
+      this.#recorder.buildAppendStatements(this.#workspaceId, linkModel);
+
+    // The additive planning slice — written in the SAME batch, ONLY when a planning
+    // field is supplied (otherwise the task reads documented defaults with no row),
+    // gated on the just-created entity so it cannot outlive a rolled-back create.
+    const writeDetails =
+      priority !== null ||
+      timeSector !== null ||
+      commitmentState !== "active" ||
+      dueDate !== null ||
+      scheduledDate !== null;
+
+    const statements: D1PreparedStatement[] = [
+      entityStmt,
+      entityActivity!,
+      ...entitySubjects,
+      spineStmt,
+      linkStmt,
+      linkActivity!,
+      ...linkSubjects,
+    ];
+    if (writeDetails) {
+      statements.push(
+        this.#createDetailsStatement(
+          id,
+          { priority, dueDate, scheduledDate, timeSector, commitmentState },
+          nowTs,
+        ),
+      );
+    }
+    // TEST-ONLY: prove the WHOLE create rolls back — no entity/spine/link/details/
+    // Activity survives — when a statement fails mid-batch.
+    if (this.#createTaskFault) {
+      statements.push(this.#forcedFailure());
+    }
+
+    let results: D1Result<EntityRow>[];
+    try {
+      results = await this.#db.batch<EntityRow>(statements);
+    } catch (cause) {
+      if (cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new TaskStorageError(undefined, { cause });
+    }
+
+    // The entity insert is index 0; a zero-change result means the parent was
+    // missing/deleted/wrong-kind/archived/cross-workspace — the batch committed
+    // nothing (no entity, spine row, link, details or Activity).
+    const entityResult = results[0];
+    const entityRow = (entityResult?.results ?? [])[0];
+    if ((entityResult?.meta?.changes ?? 0) === 0 || !entityRow) {
+      throw new SpineParentUnavailableError();
+    }
+
+    const view = await this.getTask(id);
+    if (!view) {
+      throw new TaskStorageError();
+    }
+    return view;
+  }
+
+  /**
+   * The `task_details` insert for an atomic create: write the initial planning slice
+   * for the just-created task, gated on the entity existing (so it commits only with
+   * the create). Delegation is never set at creation. The column literals are trusted.
+   */
+  #createDetailsStatement(
+    entityId: string,
+    fields: {
+      readonly priority: string | null;
+      readonly dueDate: string | null;
+      readonly scheduledDate: string | null;
+      readonly timeSector: string | null;
+      readonly commitmentState: string;
+    },
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO task_details
+           (workspace_id, entity_id, entity_type, status, priority,
+            due_date, scheduled_date, time_sector, commitment_state,
+            delegate_to, delegated_on, follow_up_on, delegate_note,
+            description, updated_at)
+         SELECT ?, ?, '${TASK}', 'todo', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                   AND deleted_at IS NULL
+               )`,
+      )
+      .bind(
+        this.#workspaceId,
+        entityId,
+        fields.priority,
+        fields.dueDate,
+        fields.scheduledDate,
+        fields.timeSector,
+        fields.commitmentState,
+        nowTs,
+        this.#workspaceId,
+        entityId,
+      );
   }
 
   /* ---------------------------------------------------------------------- */
@@ -410,13 +695,17 @@ export class D1TaskRepository implements TaskRepository {
     const backlogLimit = input.backlogLimit ?? PLANNING_BACKLOG_LIMIT;
     const completedLimit = input.completedLimit ?? PLANNING_COMPLETED_LIMIT;
 
+    // TASKS-01 (ADR-043 §17): Today excludes Someday/Maybe and Cancelled tasks —
+    // they are not active execution work — in addition to waiting and completed.
+    const activeExclusions =
+      "COALESCE(td.commitment_state, 'active') <> 'someday' AND COALESCE(td.status, 'todo') <> 'cancelled'";
     const scheduled = await this.#queryPlanningBand(
-      "sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NOT NULL",
+      `sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NOT NULL AND ${activeExclusions}`,
       "td.scheduled_date ASC, e.id ASC",
       scheduledLimit,
     );
     const backlog = await this.#queryPlanningBand(
-      "sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NULL",
+      `sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NULL AND ${activeExclusions}`,
       "(td.due_date IS NULL) ASC, td.due_date ASC, e.created_at ASC, e.id ASC",
       backlogLimit,
     );
@@ -484,6 +773,9 @@ export class D1TaskRepository implements TaskRepository {
       priority: details.priority,
       dueDate: details.dueDate,
       scheduledDate: details.scheduledDate,
+      timeSector: details.timeSector,
+      commitmentState: details.commitmentState,
+      delegation: details.delegation,
       parent: this.#parentRelation(
         row.parent_link_type,
         row.parent_id,
@@ -491,6 +783,489 @@ export class D1TaskRepository implements TaskRepository {
       ),
       waiting: rowToTaskWaiting(row),
     };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Workspace-wide read model (TASKS-01)                                    */
+  /* ---------------------------------------------------------------------- */
+
+  async listWorkspaceTasks(
+    input: ListWorkspaceTasksInput,
+  ): Promise<WorkspaceTaskListPage> {
+    const view = validateTaskSystemView(input.view);
+    const sort = validateTaskSort(input.sort);
+    const limit = validateTaskLimit(input.limit);
+    const filters = input.filters ?? {};
+    const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+
+    // Normalise/validate filter values that reach SQL (still bound, never inlined).
+    const filterPriority =
+      filters.priority === undefined
+        ? undefined
+        : validateTaskPriority(filters.priority);
+    const filterSector =
+      filters.timeSector === undefined
+        ? undefined
+        : validateTimeSector(filters.timeSector);
+    const filterCommitment =
+      filters.commitmentState === undefined
+        ? undefined
+        : validateCommitmentState(filters.commitmentState);
+    const filterStatus =
+      filters.status === undefined
+        ? undefined
+        : validateTaskStatus(filters.status);
+    const filterProjectId =
+      filters.projectId === undefined
+        ? undefined
+        : validateTaskId(filters.projectId);
+    const filterGoalId =
+      filters.goalId === undefined ? undefined : validateTaskId(filters.goalId);
+    const filterAreaId =
+      filters.areaId === undefined ? undefined : validateTaskId(filters.areaId);
+
+    const scope: WorkspaceTaskCursorScope = {
+      workspaceId: this.#workspaceId,
+      view,
+      sort,
+      todayIso,
+      filtersSignature: workspaceTaskFiltersSignature(filters),
+    };
+
+    const sortSpec = this.#workspaceSortSpec(sort);
+    const whereParts: string[] = [];
+    const params: (string | number)[] = [];
+
+    // View membership (ADR-043 §5–§6). `todayIso` is bound where a view needs it.
+    this.#appendViewClause(view, todayIso, whereParts, params);
+
+    // Additional filters on top of the view.
+    if (filterPriority !== undefined) {
+      if (filterPriority === null) {
+        whereParts.push("td.priority IS NULL");
+      } else {
+        whereParts.push("td.priority = ?");
+        params.push(filterPriority);
+      }
+    }
+    if (filterSector !== undefined) {
+      if (filterSector === null) {
+        whereParts.push("td.time_sector IS NULL");
+      } else {
+        whereParts.push("td.time_sector = ?");
+        params.push(filterSector);
+      }
+    }
+    if (filterCommitment !== undefined) {
+      whereParts.push("COALESCE(td.commitment_state, 'active') = ?");
+      params.push(filterCommitment);
+    }
+    if (filterStatus !== undefined) {
+      whereParts.push("COALESCE(td.status, 'todo') = ?");
+      params.push(filterStatus);
+    }
+    if (filters.delegatedOnly) {
+      whereParts.push("td.delegate_to IS NOT NULL");
+    }
+    if (filters.waitingOnly) {
+      whereParts.push("td.waiting_since IS NOT NULL");
+    }
+    if (filterProjectId !== undefined) {
+      whereParts.push(
+        `EXISTS (SELECT 1 FROM entity_links tpl
+                 WHERE tpl.workspace_id = e.workspace_id AND tpl.source_entity_id = e.id
+                   AND tpl.deleted_at IS NULL AND tpl.type = '${TASK_BELONGS_TO_PROJECT}'
+                   AND tpl.target_entity_id = ?)`,
+      );
+      params.push(filterProjectId);
+    }
+    if (filterAreaId !== undefined) {
+      // A task is "in" an Area if its structural parent is that Area, OR its parent
+      // Project belongs to that Area.
+      whereParts.push(
+        `(EXISTS (SELECT 1 FROM entity_links tal
+                  WHERE tal.workspace_id = e.workspace_id AND tal.source_entity_id = e.id
+                    AND tal.deleted_at IS NULL AND tal.type = '${TASK_BELONGS_TO_AREA}'
+                    AND tal.target_entity_id = ?)
+          OR EXISTS (SELECT 1 FROM entity_links tpl2
+                     JOIN entity_links pal ON pal.workspace_id = tpl2.workspace_id
+                       AND pal.source_entity_id = tpl2.target_entity_id
+                       AND pal.deleted_at IS NULL AND pal.type = '${PROJECT_BELONGS_TO_AREA}'
+                     WHERE tpl2.workspace_id = e.workspace_id AND tpl2.source_entity_id = e.id
+                       AND tpl2.deleted_at IS NULL AND tpl2.type = '${TASK_BELONGS_TO_PROJECT}'
+                       AND pal.target_entity_id = ?))`,
+      );
+      params.push(filterAreaId, filterAreaId);
+    }
+    if (filterGoalId !== undefined) {
+      whereParts.push(
+        `EXISTS (SELECT 1 FROM entity_links tpg
+                 JOIN entity_links pag ON pag.workspace_id = tpg.workspace_id
+                   AND pag.source_entity_id = tpg.target_entity_id
+                   AND pag.deleted_at IS NULL AND pag.type = '${PROJECT_ADVANCES_GOAL}'
+                 WHERE tpg.workspace_id = e.workspace_id AND tpg.source_entity_id = e.id
+                   AND tpg.deleted_at IS NULL AND tpg.type = '${TASK_BELONGS_TO_PROJECT}'
+                   AND pag.target_entity_id = ?)`,
+      );
+      params.push(filterGoalId);
+    }
+
+    // Keyset cursor over (sort_value <dir>, created_at ASC, id ASC).
+    if (input.cursor !== undefined) {
+      const position = decodeWorkspaceTaskCursorForScope(input.cursor, scope);
+      const cmp = sortSpec.dir === "DESC" ? "<" : ">";
+      whereParts.push(
+        `(${sortSpec.expr} ${cmp} ? OR (${sortSpec.expr} = ? AND (e.created_at > ? OR (e.created_at = ? AND e.id > ?))))`,
+      );
+      params.push(
+        position.sortValue,
+        position.sortValue,
+        position.createdAt,
+        position.createdAt,
+        position.id,
+      );
+    }
+
+    const fetchLimit = limit + 1;
+    const whereSql =
+      whereParts.length > 0 ? ` AND ${whereParts.join(" AND ")}` : "";
+
+    const statement = this.#db
+      .prepare(
+        `SELECT ${TASK_DETAIL_COLUMNS},
+                ${WAITING_TARGET_COLUMNS},
+                pl.target_entity_id AS parent_id,
+                pl.type AS parent_link_type,
+                pe.title AS parent_title,
+                ${sortSpec.expr} AS sort_value
+         FROM entities e
+         JOIN spine_records sr
+           ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         LEFT JOIN task_details td
+           ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN entity_links pl
+           ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+              AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
+         LEFT JOIN entities pe
+           ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+              AND pe.deleted_at IS NULL
+         ${WAITING_TARGET_JOIN}
+         CROSS JOIN (SELECT ? AS today_iso) cal
+         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
+         ORDER BY sort_value ${sortSpec.dir}, e.created_at ASC, e.id ASC
+         LIMIT ?`,
+      )
+      .bind(todayIso, this.#workspaceId, ...params, fetchLimit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as (TaskListRow & {
+      readonly sort_value: string | null;
+    })[];
+
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeWorkspaceTaskCursor(scope, {
+            sortValue: last.sort_value ?? "",
+            createdAt: last.created_at,
+            id: last.id,
+          })
+        : null;
+
+    return {
+      items: pageRows.map((row) => this.#toTaskListItem(row)),
+      nextCursor,
+    };
+  }
+
+  async listWorkspaceTaskGroups(
+    input: ListWorkspaceTaskGroupsInput,
+  ): Promise<WorkspaceTaskGrouping> {
+    const dimension = input.dimension;
+    if (dimension !== "quadrant" && dimension !== "sector") {
+      throw new TaskValidationError("dimension", "is not a known grouping");
+    }
+    const sort = validateTaskSort(input.sort);
+    const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+    // Bounded records per bucket (never unbounded); overflow is reached through the
+    // equivalent filtered `all` view, which paginates that bucket on its own cursor.
+    const bucketLimit = Math.min(
+      Math.max(1, input.bucketLimit ?? WORKSPACE_GROUP_BUCKET_LIMIT),
+      WORKSPACE_GROUP_BUCKET_MAX,
+    );
+
+    const sortSpec = this.#workspaceSortSpec(sort);
+    // The bucket key is a trusted column expression (never caller data): the priority
+    // (→ 'untriaged' when null) for the Matrix, the time sector (→ 'inbox' when null)
+    // for the Sectors view.
+    const bucketExpr =
+      dimension === "quadrant"
+        ? "COALESCE(td.priority, 'untriaged')"
+        : "COALESCE(td.time_sector, 'inbox')";
+
+    // ONE query: scope to active-planning work, compute each row's bucket + smart
+    // sort value, then window over the buckets for the AUTHORITATIVE per-bucket total
+    // (`COUNT(*) OVER`) and a deterministic within-bucket rank (`ROW_NUMBER() OVER`),
+    // finally keeping only the top `bucketLimit` rows per bucket. Counts are computed
+    // over the whole scope, independent of the returned slice — so empty states and
+    // quadrant/sector counts are correct before any paging (ADR-043 decision 12).
+    const statement = this.#db
+      .prepare(
+        `WITH scoped AS (
+           SELECT ${TASK_DETAIL_COLUMNS},
+                  ${WAITING_TARGET_COLUMNS},
+                  pl.target_entity_id AS parent_id,
+                  pl.type AS parent_link_type,
+                  pe.title AS parent_title,
+                  ${bucketExpr} AS bucket,
+                  ${sortSpec.expr} AS sort_value
+           FROM entities e
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN task_details td
+             ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+           LEFT JOIN entity_links pl
+             ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+                AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
+           LEFT JOIN entities pe
+             ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+                AND pe.deleted_at IS NULL
+           ${WAITING_TARGET_JOIN}
+           CROSS JOIN (SELECT ? AS today_iso) cal
+           WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
+             AND ${this.#activePlanningWhere}
+         ),
+         ranked AS (
+           SELECT *,
+                  COUNT(*) OVER (PARTITION BY bucket) AS bucket_count,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY bucket
+                    ORDER BY sort_value ${sortSpec.dir}, created_at ASC, id ASC
+                  ) AS rn
+           FROM scoped
+         )
+         SELECT * FROM ranked WHERE rn <= ? ORDER BY bucket ASC, rn ASC`,
+      )
+      .bind(todayIso, this.#workspaceId, bucketLimit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as (TaskListRow & {
+      readonly bucket: string;
+      readonly bucket_count: number;
+    })[];
+
+    // Rows arrive ordered by (bucket, rn), so a single pass builds each group in
+    // deterministic within-bucket order; `bucket_count` (constant per bucket) is the
+    // authoritative total, and `hasMore` compares it to the bounded slice length.
+    const byBucket = new Map<
+      string,
+      { count: number; items: TaskListItem[] }
+    >();
+    for (const row of rows) {
+      let group = byBucket.get(row.bucket);
+      if (!group) {
+        group = { count: row.bucket_count, items: [] };
+        byBucket.set(row.bucket, group);
+      }
+      group.items.push(this.#toTaskListItem(row));
+    }
+
+    const groups: WorkspaceTaskGroup[] = [...byBucket.entries()].map(
+      ([key, g]) => ({
+        key,
+        count: g.count,
+        items: g.items,
+        hasMore: g.count > g.items.length,
+      }),
+    );
+
+    return { dimension, groups };
+  }
+
+  async searchTaskParents(
+    input: SearchTaskParentsInput = {},
+  ): Promise<readonly TaskParentCandidate[]> {
+    const limit = Math.min(
+      Math.max(1, input.limit ?? TASK_PARENT_SEARCH_LIMIT),
+      TASK_PARENT_SEARCH_MAX,
+    );
+    // Case-insensitive substring match. Escape the LIKE metacharacters in the user's
+    // needle so a literal `%`/`_`/`\` matches itself, and bind the pattern (never
+    // interpolate). An empty needle → `%%` → the first bounded page of parents.
+    const needle = (input.query ?? "").trim().toLocaleLowerCase();
+    const escaped = needle.replace(/[\\%_]/g, (ch: string) => `\\${ch}`);
+    const pattern = `%${escaped}%`;
+
+    // Indexed, workspace-scoped search over the WHOLE collection (never a fixed
+    // prefix scan): active Areas and NON-ARCHIVED Projects whose title matches, so a
+    // newer parent in a long-lived workspace is always found (ADR-043 §9 / decision
+    // 13). Deterministic order: Projects first (the preferred parent), then title,
+    // then id. The type slugs are trusted kernel constants, never caller data.
+    const statement = this.#db
+      .prepare(
+        `SELECT e.id AS id, e.type AS type, e.title AS title
+         FROM entities e
+         LEFT JOIN project_details pd
+           ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
+         WHERE e.workspace_id = ?
+           AND e.type IN ('${AREA}', '${PROJECT}')
+           AND e.deleted_at IS NULL
+           AND (e.type <> '${PROJECT}' OR pd.archived_at IS NULL)
+           AND lower(e.title) LIKE ? ESCAPE '\\'
+         ORDER BY CASE e.type WHEN '${PROJECT}' THEN 0 ELSE 1 END,
+                  lower(e.title) ASC, e.id ASC
+         LIMIT ?`,
+      )
+      .bind(this.#workspaceId, pattern, limit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as {
+      readonly id: string;
+      readonly type: string;
+      readonly title: string;
+    }[];
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.type === AREA ? "area" : "project",
+      title: row.title,
+    }));
+  }
+
+  /** The single primary sort expression + direction for a workspace-tasks sort. */
+  #workspaceSortSpec(sort: string): { expr: string; dir: "ASC" | "DESC" } {
+    switch (sort) {
+      case "due_date":
+        return { expr: "COALESCE(td.due_date, '9999-99-99')", dir: "ASC" };
+      case "scheduled_date":
+        return {
+          expr: "COALESCE(td.scheduled_date, '9999-99-99')",
+          dir: "ASC",
+        };
+      case "priority":
+        return { expr: "COALESCE(td.priority, 'p9')", dir: "ASC" };
+      case "created":
+        return { expr: "e.created_at", dir: "ASC" };
+      case "updated":
+        return { expr: "e.updated_at", dir: "DESC" };
+      case "title":
+        return { expr: "lower(e.title)", dir: "ASC" };
+      case "smart":
+      default:
+        // Smart order, as ONE comparable string so it keysets as a single column
+        // (ADR-043 §11 / decision 14). Segments, most-significant first:
+        //   1. open (0) before completed (1);
+        //   2. among OPEN tasks, OVERDUE (0) before non-overdue (1) — overdue means
+        //      an open task whose due date is strictly before the owner's calendar
+        //      day (`cal.today_iso`, bound once via the CROSS JOIN; due-TODAY is not
+        //      overdue). Completed tasks are forced non-overdue so they never lead.
+        //   3. priority P1..P4 (nulls → 'p9', last);
+        //   4. due date ascending (nulls → '9999-99-99', last).
+        // `cal.today_iso` is a joined column, not a bind placeholder, so this expr
+        // stays param-free and reusable in SELECT, the keyset WHERE, and ORDER BY.
+        return {
+          expr:
+            `(CASE WHEN sr.completed_at IS NULL THEN '0' ELSE '1' END` +
+            ` || '|' || ` +
+            `CASE WHEN sr.completed_at IS NULL AND td.due_date IS NOT NULL` +
+            ` AND td.due_date < cal.today_iso THEN '0' ELSE '1' END` +
+            ` || '|' || COALESCE(td.priority, 'p9')` +
+            ` || '|' || COALESCE(td.due_date, '9999-99-99'))`,
+          dir: "ASC",
+        };
+    }
+  }
+
+  /**
+   * The ACTIVE PLANNING scope predicate (no bind params): actionable-now work only —
+   * not completed, not cancelled, not Someday/Maybe, not waiting and not on_hold. The
+   * single source for the `active` system view AND the Matrix/Sectors grouping query,
+   * so both scope planning buckets identically (ADR-043 §11).
+   */
+  get #activePlanningWhere(): string {
+    return (
+      "sr.completed_at IS NULL" +
+      " AND COALESCE(td.status, 'todo') NOT IN ('cancelled', 'on_hold')" +
+      " AND COALESCE(td.commitment_state, 'active') <> 'someday'" +
+      " AND td.waiting_since IS NULL"
+    );
+  }
+
+  /**
+   * Append the WHERE fragments for a system view (ADR-043 §5–§6). Active-execution
+   * views exclude completed, cancelled, someday and (for Inbox/Today/Overdue)
+   * waiting; the terminal/parked views select exactly their state; `all` is every
+   * non-deleted task.
+   */
+  #appendViewClause(
+    view: string,
+    todayIso: string,
+    whereParts: string[],
+    params: (string | number)[],
+  ): void {
+    const notTerminal =
+      "sr.completed_at IS NULL AND COALESCE(td.status, 'todo') <> 'cancelled' AND COALESCE(td.commitment_state, 'active') <> 'someday'";
+    switch (view) {
+      case "all":
+        return;
+      case "active":
+        // The ACTIVE PLANNING scope (Matrix/Sectors, ADR-043 §11): actionable-now
+        // work only. Beyond completed/cancelled/someday it ALSO excludes the parked/
+        // blocked states — waiting (blocked on someone else) and on_hold (paused) —
+        // so neither clutters a quadrant or sector bucket. They stay reachable via
+        // `all`, the `waiting` view and the status filter.
+        whereParts.push(this.#activePlanningWhere);
+        return;
+      case "completed":
+        whereParts.push("sr.completed_at IS NOT NULL");
+        return;
+      case "cancelled":
+        whereParts.push(
+          "sr.completed_at IS NULL AND COALESCE(td.status, 'todo') = 'cancelled'",
+        );
+        return;
+      case "someday":
+        whereParts.push(
+          "sr.completed_at IS NULL AND COALESCE(td.commitment_state, 'active') = 'someday'",
+        );
+        return;
+      case "waiting":
+        whereParts.push(
+          "sr.completed_at IS NULL AND td.waiting_since IS NOT NULL AND COALESCE(td.commitment_state, 'active') <> 'someday'",
+        );
+        return;
+      case "inbox":
+        whereParts.push(
+          `${notTerminal} AND td.waiting_since IS NULL AND td.time_sector IS NULL AND td.scheduled_date IS NULL`,
+        );
+        return;
+      case "today":
+        whereParts.push(
+          `${notTerminal} AND td.waiting_since IS NULL AND td.scheduled_date = ?`,
+        );
+        params.push(todayIso);
+        return;
+      case "overdue":
+        whereParts.push(
+          `${notTerminal} AND td.waiting_since IS NULL AND ((td.scheduled_date IS NOT NULL AND td.scheduled_date < ?) OR (td.due_date IS NOT NULL AND td.due_date < ?))`,
+        );
+        params.push(todayIso, todayIso);
+        return;
+      case "this_week":
+      case "next_week":
+      case "this_month":
+      case "next_month":
+      case "long_term":
+      case "routines": {
+        const sector = SECTOR_FOR_VIEW[view];
+        whereParts.push(`${notTerminal} AND td.time_sector = ?`);
+        params.push(sector);
+        return;
+      }
+      default:
+        return;
+    }
   }
 
   /* ---------------------------------------------------------------------- */
@@ -534,6 +1309,18 @@ export class D1TaskRepository implements TaskRepository {
       input.description === undefined
         ? current.description
         : validateTaskDescription(input.description);
+    const afterSector =
+      input.timeSector === undefined
+        ? current.timeSector
+        : validateTimeSector(input.timeSector);
+    const afterCommitment =
+      input.commitmentState === undefined
+        ? current.commitmentState
+        : validateCommitmentState(input.commitmentState);
+    const afterDelegation: TaskDelegation | null =
+      input.delegation === undefined
+        ? current.delegation
+        : validateDelegationInput(input.delegation);
 
     // Only fields that ACTUALLY changed are written; a field the caller did not
     // change is never touched, so a concurrent partial update to a DIFFERENT field
@@ -546,6 +1333,12 @@ export class D1TaskRepository implements TaskRepository {
     const scheduledChanged = afterScheduled !== current.scheduledDate;
     const descriptionChanged =
       (afterDescription ?? null) !== (current.description ?? null);
+    const sectorChanged = afterSector !== current.timeSector;
+    const commitmentChanged = afterCommitment !== current.commitmentState;
+    const delegationChanged = !delegationEquals(
+      current.delegation,
+      afterDelegation,
+    );
 
     const changes: Record<string, JsonValue> = {};
     if (titleChanged) {
@@ -566,9 +1359,25 @@ export class D1TaskRepository implements TaskRepository {
         after: afterScheduled,
       };
     }
-    // Never dump description content into the payload — only note that it changed.
+    if (sectorChanged) {
+      changes["timeSector"] = {
+        before: current.timeSector,
+        after: afterSector,
+      };
+    }
+    if (commitmentChanged) {
+      changes["commitmentState"] = {
+        before: current.commitmentState,
+        after: afterCommitment,
+      };
+    }
+    // Never dump description or the (possibly sensitive) delegatee/note content
+    // into the payload — only note that it changed (ADR-043 §8).
     if (descriptionChanged) {
       changes["descriptionChanged"] = true;
+    }
+    if (delegationChanged) {
+      changes["delegationChanged"] = true;
     }
 
     const detailChanged =
@@ -576,7 +1385,10 @@ export class D1TaskRepository implements TaskRepository {
       priorityChanged ||
       dueChanged ||
       scheduledChanged ||
-      descriptionChanged;
+      descriptionChanged ||
+      sectorChanged ||
+      commitmentChanged ||
+      delegationChanged;
 
     if (!titleChanged && !detailChanged) {
       // A no-op update: nothing changes, no `updated_at` churn, no Activity.
@@ -637,6 +1449,15 @@ export class D1TaskRepository implements TaskRepository {
       if (dueChanged) setParts.push("due_date = excluded.due_date");
       if (scheduledChanged)
         setParts.push("scheduled_date = excluded.scheduled_date");
+      if (sectorChanged) setParts.push("time_sector = excluded.time_sector");
+      if (commitmentChanged)
+        setParts.push("commitment_state = excluded.commitment_state");
+      if (delegationChanged) {
+        setParts.push("delegate_to = excluded.delegate_to");
+        setParts.push("delegated_on = excluded.delegated_on");
+        setParts.push("follow_up_on = excluded.follow_up_on");
+        setParts.push("delegate_note = excluded.delegate_note");
+      }
       if (descriptionChanged)
         setParts.push("description = excluded.description");
       setParts.push("updated_at = excluded.updated_at");
@@ -645,8 +1466,10 @@ export class D1TaskRepository implements TaskRepository {
         .prepare(
           `INSERT INTO task_details
              (workspace_id, entity_id, entity_type, status, priority,
-              due_date, scheduled_date, description, updated_at)
-           SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?
+              due_date, scheduled_date, time_sector, commitment_state,
+              delegate_to, delegated_on, follow_up_on, delegate_note,
+              description, updated_at)
+           SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
            WHERE EXISTS (
                    SELECT 1 FROM entities
                    WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
@@ -663,6 +1486,12 @@ export class D1TaskRepository implements TaskRepository {
           afterPriority,
           afterDue,
           afterScheduled,
+          afterSector,
+          afterCommitment,
+          afterDelegation?.to ?? null,
+          afterDelegation?.delegatedOn ?? null,
+          afterDelegation?.followUpOn ?? null,
+          afterDelegation?.note ?? null,
           afterDescription,
           nowTs,
           this.#workspaceId,
@@ -701,6 +1530,9 @@ export class D1TaskRepository implements TaskRepository {
         priority: afterPriority,
         dueDate: afterDue,
         scheduledDate: afterScheduled,
+        timeSector: afterSector,
+        commitmentState: afterCommitment,
+        delegation: afterDelegation,
         description: afterDescription,
       },
       changed: true,
@@ -954,6 +1786,7 @@ export class D1TaskRepository implements TaskRepository {
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
            AND sr.completed_at IS NULL AND td.waiting_since IS NOT NULL
+           AND COALESCE(td.commitment_state, 'active') <> 'someday'
          ORDER BY
            (CASE WHEN td.due_date IS NOT NULL AND td.due_date < ? THEN 0 ELSE 1 END) ASC,
            td.waiting_since ASC,
@@ -1177,6 +2010,203 @@ export class D1TaskRepository implements TaskRepository {
     return { changed, unchanged };
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Bulk field mutations (TASKS-01)                                          */
+  /* ---------------------------------------------------------------------- */
+
+  async setPriorityMany(
+    ids: readonly string[],
+    priority: TaskPriority | null,
+  ): Promise<BulkFieldResult> {
+    const value = validateTaskPriority(priority);
+    return this.#bulkSetField(ids, {
+      column: "priority",
+      changesKey: "priority",
+      value,
+      currentOf: (t) => t.priority,
+    });
+  }
+
+  async setSectorMany(
+    ids: readonly string[],
+    timeSector: TimeSector | null,
+  ): Promise<BulkFieldResult> {
+    const value = validateTimeSector(timeSector);
+    return this.#bulkSetField(ids, {
+      column: "time_sector",
+      changesKey: "timeSector",
+      value,
+      currentOf: (t) => t.timeSector,
+    });
+  }
+
+  async setCommitmentMany(
+    ids: readonly string[],
+    commitmentState: CommitmentState,
+  ): Promise<BulkFieldResult> {
+    const value = validateCommitmentState(commitmentState);
+    return this.#bulkSetField(ids, {
+      column: "commitment_state",
+      changesKey: "commitmentState",
+      value,
+      currentOf: (t) => t.commitmentState,
+    });
+  }
+
+  async setStatusMany(
+    ids: readonly string[],
+    status: TaskStatus,
+  ): Promise<BulkFieldResult> {
+    const value = validateTaskStatus(status);
+    return this.#bulkSetField(ids, {
+      column: "status",
+      changesKey: "status",
+      value,
+      currentOf: (t) => t.status,
+    });
+  }
+
+  /**
+   * The shared bulk single-field path (TASKS-01). Validates the id list, resolves
+   * EVERY id to a task in this workspace (rejecting the WHOLE operation if any is
+   * missing/archived, so nothing is partially applied), then runs ONE atomic batch
+   * that changes only the tasks whose value actually differs — each with its own
+   * guarded `entity.updated` event (payload records the field's before/after; never
+   * free text). Tasks already at the value are counted `unchanged`.
+   */
+  async #bulkSetField(
+    ids: readonly string[],
+    field: {
+      readonly column:
+        "priority" | "time_sector" | "commitment_state" | "status";
+      readonly changesKey: string;
+      readonly value: string | null;
+      readonly currentOf: (task: TaskView) => string | null;
+    },
+  ): Promise<BulkFieldResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId);
+      if (!current) {
+        throw new TaskNotFoundError();
+      }
+      await this.#rejectIfParentProjectArchived(current);
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+    for (const current of currents) {
+      const before = field.currentOf(current);
+      if ((before ?? null) === (field.value ?? null)) {
+        unchanged += 1;
+        continue;
+      }
+      const entityStmt = this.#bumpEntityStatement(current.id, nowTs);
+      const event: NewActivityEvent = {
+        type: ENTITY_UPDATED,
+        subjects: [{ entityId: current.id, role: SUBJECT_ROLE }],
+        payload: {
+          entityType: TASK,
+          changes: { [field.changesKey]: { before, after: field.value } },
+        },
+      };
+      const model = buildActivityWriteModel(
+        event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      const eventStmts = this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        model,
+      );
+      const detailsStmt = this.#fieldUpsertStatement(
+        current,
+        field.column,
+        field.value,
+        nowTs,
+      );
+      statements.push(entityStmt, ...eventStmts, detailsStmt);
+      changed += 1;
+    }
+
+    if (statements.length > 0) {
+      try {
+        await this.#db.batch(statements);
+      } catch (cause) {
+        if (cause instanceof ActivityError) {
+          throw cause;
+        }
+        throw new TaskStorageError(undefined, { cause });
+      }
+    }
+
+    return { changed, unchanged };
+  }
+
+  /**
+   * Build a `task_details` upsert that sets exactly ONE column (creating the row
+   * from the task's current values on first edit), gated on the active task whose
+   * parent Project is not archived. The SET fragment is a fixed, trusted column
+   * literal — never caller data.
+   */
+  #fieldUpsertStatement(
+    current: TaskView,
+    column: "priority" | "time_sector" | "commitment_state" | "status",
+    value: string | null,
+    nowTs: string,
+  ): D1PreparedStatement {
+    const after = {
+      status: column === "status" ? (value ?? "todo") : current.status,
+      priority: column === "priority" ? value : current.priority,
+      timeSector: column === "time_sector" ? value : current.timeSector,
+      commitmentState:
+        column === "commitment_state"
+          ? (value ?? "active")
+          : current.commitmentState,
+    };
+    return this.#db
+      .prepare(
+        `INSERT INTO task_details
+           (workspace_id, entity_id, entity_type, status, priority,
+            due_date, scheduled_date, time_sector, commitment_state,
+            delegate_to, delegated_on, follow_up_on, delegate_note,
+            description, updated_at)
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (${this.#activeTaskExistsSql})
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           ${column} = excluded.${column},
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        this.#workspaceId,
+        current.id,
+        after.status,
+        after.priority,
+        current.dueDate,
+        current.scheduledDate,
+        after.timeSector,
+        after.commitmentState,
+        current.delegation?.to ?? null,
+        current.delegation?.delegatedOn ?? null,
+        current.delegation?.followUpOn ?? null,
+        current.delegation?.note ?? null,
+        current.description,
+        nowTs,
+        this.#workspaceId,
+        current.id,
+        this.#workspaceId,
+        current.id,
+      );
+  }
+
   /**
    * Build the statements for planning ONE task to `scheduledDate` (a date, or null
    * to clear): the guard-anchor entity bump, the `changes()`-guarded planning event
@@ -1362,7 +2392,145 @@ export class D1TaskRepository implements TaskRepository {
     nowTs: string,
   ): Promise<EntityRow | null> {
     const fault = this.#completeFault;
+    const group = this.#buildCompleteGroup(entityId, now, nowTs);
 
+    // Flatten the group in canonical order, interleaving the TEST-ONLY forced
+    // failures at their named points to prove the whole batch rolls back.
+    const batch: D1PreparedStatement[] = [
+      group.spineStmt,
+      group.entityStmt,
+      ...(fault === "after-completion" ? [this.#forcedFailure()] : []),
+      group.completionActivity,
+      ...(fault === "after-completion-activity" ? [this.#forcedFailure()] : []),
+      ...group.completionSubjects,
+      group.waitingClearStmt,
+      ...(fault === "after-waiting-update" ? [this.#forcedFailure()] : []),
+      group.waitingClearedActivity,
+      ...(fault === "after-waiting-cleared-activity"
+        ? [this.#forcedFailure()]
+        : []),
+      ...group.waitingClearedSubjects,
+      group.waitingLinkStmt,
+      ...(fault === "after-waiting-link" ? [this.#forcedFailure()] : []),
+    ];
+
+    let results: D1Result<EntityRow>[];
+    try {
+      results = await this.#db.batch<EntityRow>(batch);
+    } catch (cause) {
+      if (cause instanceof ActivityError) {
+        throw cause;
+      }
+      throw new TaskStorageError(undefined, { cause });
+    }
+
+    // The entity bump is always at index 1 (fault statements only exist in test
+    // paths, which throw before results are read).
+    const rows = results[1]?.results ?? [];
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Complete MANY tasks as ONE atomic batch (TASKS-01 §16). See the
+   * `TaskRepository.completeTasks` contract: validate + resolve every id up front
+   * (any missing/cross-workspace/archived id rejects the WHOLE operation before a
+   * single write), then concatenate each still-open task's full completion group
+   * (spine completion + guarded `task.completed` event + atomic waiting clearance)
+   * into ONE `D1Database.batch()`, so either all commit or none do. Already-completed
+   * tasks are idempotent no-ops counted as `unchanged`. Each group's own spine gate
+   * → entity bump resets `changes()` for that group's guarded events, so many guarded
+   * completions compose correctly in a single transaction (mirrors `#bulkPlan`).
+   */
+  async completeTasks(ids: readonly string[]): Promise<BulkFieldResult> {
+    const entityIds = validateTaskIdList(ids);
+
+    // Resolve all first; ANY missing/cross-workspace/deleted id (→ not found) or an
+    // archived parent Project rejects the WHOLE operation before a single write.
+    const currents: TaskView[] = [];
+    for (const entityId of entityIds) {
+      const current = await this.getTask(entityId);
+      if (!current) {
+        throw new TaskNotFoundError();
+      }
+      await this.#rejectIfParentProjectArchived(current);
+      currents.push(current);
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const statements: D1PreparedStatement[] = [];
+    let changed = 0;
+    let unchanged = 0;
+    for (const current of currents) {
+      // Already completed: idempotent no-op (matches `completeTask`), no statements.
+      if (current.completedAt !== null) {
+        unchanged += 1;
+        continue;
+      }
+      const group = this.#buildCompleteGroup(current.id, now, nowTs);
+      statements.push(
+        group.spineStmt,
+        group.entityStmt,
+        group.completionActivity,
+        ...group.completionSubjects,
+        group.waitingClearStmt,
+        group.waitingClearedActivity,
+        ...group.waitingClearedSubjects,
+        group.waitingLinkStmt,
+      );
+      changed += 1;
+    }
+
+    // TEST-ONLY: prove a storage fault mid-batch leaves NONE of the selection
+    // completed. Appended once at the end so the whole transaction rolls back.
+    if (this.#bulkCompleteFault && statements.length > 0) {
+      statements.push(this.#forcedFailure());
+    }
+
+    if (statements.length > 0) {
+      try {
+        await this.#db.batch(statements);
+      } catch (cause) {
+        if (cause instanceof ActivityError) {
+          throw cause;
+        }
+        throw new TaskStorageError(undefined, { cause });
+      }
+    }
+
+    return { changed, unchanged };
+  }
+
+  /**
+   * Build the ordered statement group that completes ONE task AND clears any active
+   * waiting (ADR-029), shared by `completeTask` (single, with fault injection) and
+   * `completeTasks` (many, concatenated into one batch). Statement order and guards:
+   *   1. spine completion gate (RETURNING) — `changes()` iff completed now;
+   *   2. entity `updated_at` bump, guarded on (1)'s `changes()` (RETURNING the row);
+   *   3. `task.completed` event, guarded on (2)'s `changes()`;
+   *   4. waiting-state clear — gated on the freshly-written completion AND
+   *      `waiting_since IS NOT NULL`, so it fires iff the task WAS waiting and the
+   *      completion committed; its `changes()` drives the next event;
+   *   5. `task.waiting_cleared` event, guarded on (4)'s `changes()` (appended ONLY
+   *      when the task was actively waiting);
+   *   6. active `task.waiting_on` link soft-delete, gated on the committed completion.
+   * The completion SQL is the SHARED spine builder (the spine stays the authority).
+   */
+  #buildCompleteGroup(
+    entityId: string,
+    now: Date,
+    nowTs: string,
+  ): {
+    readonly spineStmt: D1PreparedStatement;
+    readonly entityStmt: D1PreparedStatement;
+    readonly completionActivity: D1PreparedStatement;
+    readonly completionSubjects: readonly D1PreparedStatement[];
+    readonly waitingClearStmt: D1PreparedStatement;
+    readonly waitingClearedActivity: D1PreparedStatement;
+    readonly waitingClearedSubjects: readonly D1PreparedStatement[];
+    readonly waitingLinkStmt: D1PreparedStatement;
+  } {
     // 1-2. Shared spine completion gate + guarded entity bump.
     const spineStmt = buildSpineCompleteStatement(
       this.#db,
@@ -1448,38 +2616,16 @@ export class D1TaskRepository implements TaskRepository {
         nowTs,
       );
 
-    const batch: D1PreparedStatement[] = [
+    return {
       spineStmt,
       entityStmt,
-      ...(fault === "after-completion" ? [this.#forcedFailure()] : []),
-      completionActivity!,
-      ...(fault === "after-completion-activity" ? [this.#forcedFailure()] : []),
-      ...completionSubjects,
+      completionActivity: completionActivity!,
+      completionSubjects,
       waitingClearStmt,
-      ...(fault === "after-waiting-update" ? [this.#forcedFailure()] : []),
-      waitingClearedActivity!,
-      ...(fault === "after-waiting-cleared-activity"
-        ? [this.#forcedFailure()]
-        : []),
-      ...waitingClearedSubjects,
+      waitingClearedActivity: waitingClearedActivity!,
+      waitingClearedSubjects,
       waitingLinkStmt,
-      ...(fault === "after-waiting-link" ? [this.#forcedFailure()] : []),
-    ];
-
-    let results: D1Result<EntityRow>[];
-    try {
-      results = await this.#db.batch<EntityRow>(batch);
-    } catch (cause) {
-      if (cause instanceof ActivityError) {
-        throw cause;
-      }
-      throw new TaskStorageError(undefined, { cause });
-    }
-
-    // The entity bump is always at index 1 (fault statements only exist in test
-    // paths, which throw before results are read).
-    const rows = results[1]?.results ?? [];
-    return rows[0] ?? null;
+    };
   }
 
   /** A statement guaranteed to fail, aborting and rolling back the batch (tests). */
@@ -1970,6 +3116,9 @@ export class D1TaskRepository implements TaskRepository {
       priority: details.priority,
       dueDate: details.dueDate,
       scheduledDate: details.scheduledDate,
+      timeSector: details.timeSector,
+      commitmentState: details.commitmentState,
+      delegation: details.delegation,
       description: details.description,
       project: relationships.project,
       goal: relationships.goal,

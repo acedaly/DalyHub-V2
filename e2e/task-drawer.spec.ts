@@ -32,8 +32,8 @@ test.describe("TODAY-02 — desktop", () => {
     ).toBeVisible();
     // The open stack lives in the URL (DS-03).
     await expect(page).toHaveURL(/drawer=task%3At-drawer/);
-    // Real fields render.
-    await expect(dialog.getByText("High")).toBeVisible();
+    // Real fields render (TASKS-01: priority is now the canonical P1 · Do label).
+    await expect(dialog.getByText("P1 · Do")).toBeVisible();
     await expect(dialog.getByText("1 Aug 2026")).toBeVisible();
   });
 

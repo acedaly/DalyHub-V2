@@ -46,7 +46,10 @@ function spineRepo(ws: string) {
 
 function taskRepo(
   ws: string,
-  options: { completeFault?: CompleteTaskFault } = {},
+  options: {
+    completeFault?: CompleteTaskFault;
+    bulkCompleteFault?: boolean;
+  } = {},
 ) {
   return makeTaskRepository(makeContext(ws), {
     clock: new FakeClock("2026-07-20T00:00:00.000Z").now,
@@ -236,6 +239,121 @@ describe("completion guards & idempotency", () => {
     expect(again.task.completedAt).not.toBeNull();
     // No second completion event.
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
+  });
+});
+
+describe("atomic bulk completion (completeTasks)", () => {
+  async function seedTasks(ws: string, n: number) {
+    const spine = spineRepo(ws);
+    const area = await spine.createArea({ title: "Bulk" });
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = await spine.createTask({
+        title: `bulk ${i}`,
+        parent: { kind: "area", id: area.id },
+      });
+      ids.push(t.id);
+    }
+    return ids;
+  }
+
+  it("completes the whole selection in one batch and counts honestly", async () => {
+    const ids = await seedTasks(WS, 3);
+    const tasks = taskRepo(WS);
+
+    const result = await tasks.completeTasks(ids);
+
+    expect(result.changed).toBe(3);
+    expect(result.unchanged).toBe(0);
+    for (const id of ids) {
+      expect((await readState(WS, id)).completedAt).not.toBeNull();
+    }
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(3);
+  });
+
+  it("clears active waiting atomically for every waiting task in the selection", async () => {
+    const ids = await seedTasks(WS, 2);
+    await seedEntity(WS, "person-a", { type: "person", title: "Amy" });
+    const tasks = taskRepo(WS);
+    await tasks.setWaiting(ids[0]!, {
+      target: { kind: "entity", targetId: "person-a" },
+    });
+    await tasks.setWaiting(ids[1]!, {
+      target: { kind: "text", note: "finance" },
+    });
+
+    const result = await tasks.completeTasks(ids);
+
+    expect(result.changed).toBe(2);
+    for (const id of ids) {
+      const state = await readState(WS, id);
+      expect(state.completedAt).not.toBeNull();
+      expect(state.waitingSince).toBeNull();
+      expect(state.activeLinks).toBe(0);
+    }
+    expect(await countActivitiesOfType(TASK_WAITING_CLEARED)).toBe(2);
+  });
+
+  it("counts already-completed tasks as unchanged (idempotent)", async () => {
+    const ids = await seedTasks(WS, 3);
+    const tasks = taskRepo(WS);
+    await tasks.completeTask(ids[0]!);
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
+
+    const result = await tasks.completeTasks(ids);
+    expect(result.changed).toBe(2);
+    expect(result.unchanged).toBe(1);
+    // Only two NEW completion events (no duplicate for the already-completed one).
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(3);
+  });
+
+  it("rolls the WHOLE selection back on a mid-batch failure — nothing is completed", async () => {
+    const ids = await seedTasks(WS, 3);
+    await seedEntity(WS, "person-a", { type: "person", title: "Amy" });
+    const setup = taskRepo(WS);
+    // A waiting task in the selection makes the failure path exercise waiting
+    // clearance too; none of it may survive the rollback.
+    await setup.setWaiting(ids[1]!, {
+      target: { kind: "entity", targetId: "person-a" },
+    });
+
+    const faulty = taskRepo(WS, { bulkCompleteFault: true });
+    await expect(faulty.completeTasks(ids)).rejects.toBeInstanceOf(
+      TaskStorageError,
+    );
+
+    // Not a single task in the selection was completed, and waiting is intact.
+    for (const id of ids) {
+      expect((await readState(WS, id)).completedAt).toBeNull();
+    }
+    const waiting = await readState(WS, ids[1]!);
+    expect(waiting.waitingSince).not.toBeNull();
+    expect(waiting.activeLinks).toBe(1);
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
+    expect(await countActivitiesOfType(TASK_WAITING_CLEARED)).toBe(0);
+
+    // The selection is still completable normally afterwards (no corruption).
+    const ok = await taskRepo(WS).completeTasks(ids);
+    expect(ok.changed).toBe(3);
+    for (const id of ids) {
+      expect((await readState(WS, id)).completedAt).not.toBeNull();
+    }
+  });
+
+  it("rejects the whole operation for a cross-workspace id and completes nothing", async () => {
+    const ids = await seedTasks(WS, 2);
+    const otherIds = await seedTasks(OTHER, 1);
+
+    await expect(
+      taskRepo(WS).completeTasks([...ids, otherIds[0]!]),
+    ).rejects.toBeInstanceOf(TaskNotFoundError);
+
+    // Nothing in either workspace was completed.
+    for (const id of ids) {
+      expect((await readState(WS, id)).completedAt).toBeNull();
+    }
+    expect((await readState(OTHER, otherIds[0]!)).completedAt).toBeNull();
+    expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
   });
 });
 

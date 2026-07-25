@@ -30,6 +30,9 @@ function view(overrides: Partial<TaskView> = {}): TaskView {
     priority: null,
     dueDate: null,
     scheduledDate: null,
+    timeSector: null,
+    commitmentState: "active",
+    delegation: null,
     description: null,
     project: null,
     goal: null,
@@ -44,7 +47,7 @@ describe("serializeTaskView", () => {
     const serialized = serializeTaskView(
       view({
         completedAt: new Date("2026-07-21T00:00:00.000Z"),
-        priority: "high",
+        priority: "p1",
         dueDate: "2026-08-01",
         description: parseMarkdownSource("# Hi"),
         project: { kind: "project", id: "p1", title: "Ship V2" },
@@ -52,7 +55,7 @@ describe("serializeTaskView", () => {
     );
     expect(serialized.createdAt).toBe("2026-07-18T09:00:00.000Z");
     expect(serialized.completedAt).toBe("2026-07-21T00:00:00.000Z");
-    expect(serialized.priority).toBe("high");
+    expect(serialized.priority).toBe("p1");
     expect(serialized.dueDate).toBe("2026-08-01");
     expect(serialized.description).toBe("# Hi");
     expect(serialized.project).toEqual({
@@ -81,8 +84,8 @@ describe("display derivations", () => {
 
   it("labels statuses and priorities", () => {
     expect(taskStatusLabel("in_progress")).toBe("In progress");
-    expect(taskPriorityLabel("high")).toBe("High");
-    expect(taskPriorityLabel(null)).toBe("None");
+    expect(taskPriorityLabel("p1")).toBe("P1 · Do");
+    expect(taskPriorityLabel(null)).toBe("No priority");
   });
 
   it("reports completion from completedAt only", () => {

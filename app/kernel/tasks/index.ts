@@ -13,9 +13,19 @@
 export {
   TASK_STATUSES,
   TASK_PRIORITIES,
+  TIME_SECTORS,
+  COMMITMENT_STATES,
+  TASK_SYSTEM_VIEWS,
+  TASK_SORTS,
   DEFAULT_TASK_DETAILS,
   type TaskStatus,
   type TaskPriority,
+  type TimeSector,
+  type CommitmentState,
+  type TaskSystemView,
+  type TaskSort,
+  type TaskDelegation,
+  type TaskDelegationInput,
   type TaskRelationKind,
   type TaskRelation,
   type TaskDetails,
@@ -43,6 +53,17 @@ export {
   type PlanTaskResult,
   type ClearPlanResult,
   type BulkPlanResult,
+  type WorkspaceTaskFilters,
+  type ListWorkspaceTasksInput,
+  type WorkspaceTaskListPage,
+  type WorkspaceTaskGroupDimension,
+  type WorkspaceTaskGroup,
+  type WorkspaceTaskGrouping,
+  type ListWorkspaceTaskGroupsInput,
+  type TaskParentCandidate,
+  type SearchTaskParentsInput,
+  type NewTaskInput,
+  type BulkFieldResult,
 } from "./task";
 
 export {
@@ -56,6 +77,8 @@ export {
   TASK_PLANNED,
   TASK_RESCHEDULED,
   TASK_PLAN_CLEARED,
+  DELEGATE_TO_MAX_LENGTH,
+  DELEGATION_NOTE_MAX_LENGTH,
   MAX_PLAN_BATCH_SIZE,
   isWaitingTargetType,
   isReservedTaskLinkType,
@@ -78,6 +101,20 @@ export type {
 } from "./task-project-cursor";
 
 export {
+  WORKSPACE_TASK_CURSOR_VERSION,
+  workspaceTaskFiltersSignature,
+  encodeWorkspaceTaskCursor,
+  decodeWorkspaceTaskCursor,
+  decodeWorkspaceTaskCursorForScope,
+  workspaceTaskCursorScopeMatches,
+} from "./task-workspace-cursor";
+export type {
+  WorkspaceTaskCursorPosition,
+  WorkspaceTaskCursorScope,
+  DecodedWorkspaceTaskCursor,
+} from "./task-workspace-cursor";
+
+export {
   TaskError,
   TaskValidationError,
   TaskNotFoundError,
@@ -96,6 +133,13 @@ export {
   isTaskStatus,
   validateTaskStatus,
   validateTaskPriority,
+  validateTimeSector,
+  validateCommitmentState,
+  validateDelegateTo,
+  validateDelegationNote,
+  validateDelegationInput,
+  validateTaskSystemView,
+  validateTaskSort,
   validateTaskDate,
   validateTaskDescription,
   validateTaskLimit,

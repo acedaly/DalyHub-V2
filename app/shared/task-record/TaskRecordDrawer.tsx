@@ -47,8 +47,9 @@ import {
 } from "./TaskWaitingSection";
 import {
   isTaskComplete,
-  taskDisplayStatus,
+  taskDisplayState,
   taskPriorityLabel,
+  timeSectorLabel,
   type SerializedTaskView,
 } from "./task-view";
 
@@ -152,6 +153,12 @@ export function TaskRecordDrawer({
       form.set("priority", values.priority);
       form.set("dueDate", values.dueDate);
       form.set("scheduledDate", values.scheduledDate);
+      form.set("timeSector", values.timeSector);
+      form.set("commitmentState", values.commitmentState);
+      form.set("delegateTo", values.delegateTo);
+      form.set("delegatedOn", values.delegatedOn);
+      form.set("followUpOn", values.followUpOn);
+      form.set("delegateNote", values.delegateNote);
       form.set("description", values.description);
       const result = await postAction(form);
       if (result.kind === "update" && result.status === "success") {
@@ -456,7 +463,16 @@ export function TaskRecordDrawer({
   const completed =
     optimisticComplete !== null ? optimisticComplete : isTaskComplete(task);
   const waitingActive = task.waiting !== null && !completed;
-  const status = taskDisplayStatus(completed, task.status, waitingActive);
+  const displayState = taskDisplayState({
+    deletedAt: task.deletedAt,
+    completedAt: completed ? (task.completedAt ?? task.updatedAt) : null,
+    status: task.status,
+    commitmentState: task.commitmentState,
+    timeSector: task.timeSector,
+    scheduledDate: task.scheduledDate,
+    waiting: waitingActive ? task.waiting : null,
+  });
+  const status = { label: displayState.label, tone: displayState.tone };
 
   // Scheduled + Due are shown by the Planning section (TODAY-04), so they are not
   // duplicated here; the summary metadata carries the remaining task facts.
@@ -466,6 +482,25 @@ export function TaskRecordDrawer({
     label: "Priority",
     value: taskPriorityLabel(task.priority),
   });
+  metadata.push({
+    id: "sector",
+    label: "Time Sector",
+    value: timeSectorLabel(task.timeSector),
+  });
+  if (task.commitmentState === "someday") {
+    metadata.push({
+      id: "commitment",
+      label: "Commitment",
+      value: "Someday / Maybe",
+    });
+  }
+  if (task.delegation) {
+    metadata.push({
+      id: "delegated",
+      label: "Delegated to",
+      value: task.delegation.to,
+    });
+  }
   if (task.project) {
     metadata.push({
       id: "project",

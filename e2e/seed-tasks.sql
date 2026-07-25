@@ -51,7 +51,7 @@ VALUES
   ('l-complete-area', 'local-dev-workspace', 't-complete', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:06.000Z', '2026-07-19T01:00:06.000Z', NULL);
 INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at)
 VALUES
-  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'high', '2026-08-01', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z');
+  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2026-08-01', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z');
 
 -- Reset the seeded tasks' MUTABLE state so every e2e run starts from a known,
 -- deterministic point regardless of what a prior run's journeys changed (the
@@ -61,7 +61,7 @@ UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-waiting', 't-complete');
 UPDATE task_details
-SET status = 'todo', priority = 'high', due_date = '2026-08-01',
+SET status = 'todo', priority = 'p1', due_date = '2026-08-01',
     scheduled_date = NULL, description = 'Draft the **proposal** document.',
     waiting_since = NULL, waiting_note = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-drawer';
@@ -580,3 +580,60 @@ VALUES
   ('local-dev-workspace', 'a-talignneglected-created', 't-align-neglected', 'subject');
 UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'g-align-neglected';
+
+-- TASKS-01 full-journey fixture — a DEDICATED, isolated Project the `/tasks`
+-- end-to-end journey creates tasks under (via the searchable parent selector) and
+-- mutates freely (priority/sector/commitment/status/completion/delegation), so it
+-- never disturbs the Projects roll-up/health fixtures above. Active, directly under
+-- Area `a-dh`, no seeded child tasks. The journey's created tasks all use the
+-- 'Journey task%' title prefix; the cleanup below removes any left by a prior run
+-- (details, waiting/structural links, activity subjects, spine record, entity) so
+-- every run starts from the same known point regardless of what a prior run did.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-tasksjourney', 'local-dev-workspace', 'project', 'Tasks journey project', '2026-07-19T11:00:00.000Z', '2026-07-19T11:00:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-tasksjourney', 'project', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-prtasksjourney-area', 'local-dev-workspace', 'pr-tasksjourney', 'a-dh', 'project.belongs_to_area', '2026-07-19T11:00:00.000Z', '2026-07-19T11:00:00.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-tasksjourney', 'active', NULL, '2026-07-19T11:00:00.000Z');
+UPDATE project_details SET status = 'active', archived_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-tasksjourney';
+
+-- Remove any journey-created tasks from a prior run (child-first under ON DELETE
+-- RESTRICT). Matched by their fixed 'Journey task%' title prefix.
+DELETE FROM activity_subjects
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'Journey task%'
+  );
+DELETE FROM task_details
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'Journey task%'
+  );
+DELETE FROM entity_links
+WHERE workspace_id = 'local-dev-workspace'
+  AND source_entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'Journey task%'
+  );
+DELETE FROM spine_records
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'Journey task%'
+  );
+DELETE FROM entities
+WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+  AND title LIKE 'Journey task%';

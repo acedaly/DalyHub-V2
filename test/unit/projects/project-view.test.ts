@@ -247,6 +247,9 @@ describe("serialisation", () => {
       priority: null,
       dueDate: null,
       scheduledDate: null,
+      timeSector: null,
+      commitmentState: "active",
+      delegation: null,
       parent: { kind: "project", id: "p1", title: "P" },
       waiting: {
         since: new Date("2026-07-19T00:00:00.000Z"),

@@ -40,6 +40,17 @@ export type TaskValidationField =
   | "waitingTarget"
   | "waitingTargetId"
   | "waitingNote"
+  // TASKS-01 (ADR-043) additive fields.
+  | "timeSector"
+  | "commitmentState"
+  | "delegateTo"
+  | "delegatedOn"
+  | "followUpOn"
+  | "delegationNote"
+  | "view"
+  | "sort"
+  | "cursor"
+  | "dimension"
   /**
    * The mutation was rejected because the task is completed (TODAY-04): planning
    * applies to open work only. The id/input are valid — the STATE is not — so this

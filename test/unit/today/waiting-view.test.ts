@@ -88,7 +88,7 @@ describe("toWaitingCardData", () => {
   const base = {
     id: "t1",
     title: "Prepare supplier agreement",
-    priority: "high" as const,
+    priority: "p1" as const,
     dueDate: "2026-07-15",
     scheduledDate: null,
     parent: { kind: "project" as const, id: "p1", title: "Procurement uplift" },

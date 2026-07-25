@@ -143,7 +143,7 @@ describe("POST action — update", () => {
         intent: "update",
         title: "Write the persistence ADR",
         status: "in_progress",
-        priority: "high",
+        priority: "p1",
         dueDate: "2026-08-01",
         scheduledDate: "",
         description: "## Plan",
@@ -163,7 +163,7 @@ describe("POST action — update", () => {
       makeContext(CONFIGURED_WORKSPACE),
     ).getTask(task);
     expect(reread?.status).toBe("in_progress");
-    expect(reread?.priority).toBe("high");
+    expect(reread?.priority).toBe("p1");
     expect(reread?.dueDate).toBe("2026-08-01");
     expect(await countActivitiesOfType("entity.updated")).toBe(1);
   });

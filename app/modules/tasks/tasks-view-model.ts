@@ -1,0 +1,324 @@
+/**
+ * TASKS-01 — the `/tasks` workspace view-model (pure, React-free, testable).
+ *
+ * The seam between the workspace-scoped read model (`SerializedTaskListItem[]`) the
+ * loader returns and the display shapes the Tasks module renders. It owns the URL
+ * state parsing (view · sort · filters · sector), the Eisenhower Matrix quadrant
+ * grouping, the Time Sector grouping and the small card presentation derivations —
+ * all kept out of React so they can be unit tested directly (ADR-043 §8). It never
+ * fetches or mutates.
+ */
+
+import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
+import {
+  priorityQuadrant,
+  taskDisplayState,
+  taskPriorityTag,
+  timeSectorLabel,
+  type EisenhowerQuadrant,
+} from "~/shared/task-record/task-view";
+import {
+  TASK_SORTS,
+  TASK_SYSTEM_VIEWS,
+  TIME_SECTORS,
+  type TaskSort,
+  type TaskSystemView,
+  type TimeSector,
+} from "~/kernel/tasks";
+
+import type { TasksGrouping } from "./tasks-contract";
+
+/** The primary `/tasks` presentation modes (the top-level view switcher). */
+export const TASKS_PRIMARY_VIEWS = [
+  "focus",
+  "matrix",
+  "sectors",
+  "all",
+] as const;
+export type TasksPrimaryView = (typeof TASKS_PRIMARY_VIEWS)[number];
+
+/** True when `value` is a valid primary view. */
+export function isPrimaryView(value: string | null): value is TasksPrimaryView {
+  return (
+    value !== null && (TASKS_PRIMARY_VIEWS as readonly string[]).includes(value)
+  );
+}
+
+/** The default landing view — a useful execution/planning surface, not a dump. */
+export const DEFAULT_PRIMARY_VIEW: TasksPrimaryView = "focus";
+
+/** Resolve the `?view=` param to a primary view, defaulting safely. */
+export function resolvePrimaryView(value: string | null): TasksPrimaryView {
+  return isPrimaryView(value) ? value : DEFAULT_PRIMARY_VIEW;
+}
+
+/** Resolve the `?system=` param to a kernel system view, or null. */
+export function resolveSystemView(value: string | null): TaskSystemView | null {
+  if (value === null) return null;
+  return (TASK_SYSTEM_VIEWS as readonly string[]).includes(value)
+    ? (value as TaskSystemView)
+    : null;
+}
+
+/** Resolve the `?sort=` param, defaulting to smart. */
+export function resolveSort(value: string | null): TaskSort {
+  if (value !== null && (TASK_SORTS as readonly string[]).includes(value)) {
+    return value as TaskSort;
+  }
+  return "smart";
+}
+
+/**
+ * The kernel system view a primary view queries. Focus defaults to This Week (the
+ * useful default per ADR-043 §10 / §11.A); the Matrix and Sectors default to all
+ * ACTIVE work (their own grouping does the rest); All Tasks is the complete
+ * bounded collection. An explicit `?system=` overrides for the system-view chips.
+ */
+export function systemViewFor(
+  primary: TasksPrimaryView,
+  explicit: TaskSystemView | null,
+): TaskSystemView {
+  if (explicit !== null) return explicit;
+  switch (primary) {
+    case "focus":
+      return "this_week";
+    case "matrix":
+    case "sectors":
+      // Planning views scope to ACTIVE work only (excludes completed/cancelled/
+      // someday), NOT the complete `all` collection (ADR-043 §11).
+      return "active";
+    case "all":
+    default:
+      return "all";
+  }
+}
+
+/** A card-ready presentation of a task (pure). */
+export interface TaskCardData {
+  readonly id: string;
+  readonly title: string;
+  readonly priorityTag: string;
+  readonly quadrant: EisenhowerQuadrant | null;
+  readonly sector: TimeSector | null;
+  readonly sectorLabel: string;
+  readonly stateLabel: string;
+  readonly stateTone: string;
+  readonly dueDate: string | null;
+  readonly scheduledDate: string | null;
+  readonly parentLabel: string | null;
+  readonly delegatedTo: string | null;
+  readonly completed: boolean;
+  readonly waiting: boolean;
+}
+
+/** Map a serialized list item into card-ready display data (pure). */
+export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
+  const state = taskDisplayState({
+    deletedAt: null,
+    completedAt: item.completedAt,
+    status: item.status,
+    commitmentState: item.commitmentState,
+    timeSector: item.timeSector,
+    scheduledDate: item.scheduledDate,
+    waiting: item.waiting,
+  });
+  return {
+    id: item.id,
+    title: item.title,
+    priorityTag: taskPriorityTag(item.priority),
+    quadrant: priorityQuadrant(item.priority),
+    sector: item.timeSector,
+    sectorLabel: timeSectorLabel(item.timeSector),
+    stateLabel: state.label,
+    stateTone: state.tone,
+    dueDate: item.dueDate,
+    scheduledDate: item.scheduledDate,
+    parentLabel: item.parent?.title ?? null,
+    delegatedTo: item.delegation?.to ?? null,
+    completed: item.completedAt !== null,
+    waiting: item.waiting !== null && item.completedAt === null,
+  };
+}
+
+/** The four Matrix quadrants, in reading order, with their labels. */
+export const MATRIX_QUADRANTS: ReadonlyArray<{
+  readonly quadrant: EisenhowerQuadrant;
+  readonly priority: "p1" | "p2" | "p3" | "p4";
+  readonly title: string;
+  readonly action: string;
+}> = [
+  {
+    quadrant: "do",
+    priority: "p1",
+    title: "P1 · Do",
+    action: "Urgent & important",
+  },
+  {
+    quadrant: "defer",
+    priority: "p2",
+    title: "P2 · Defer",
+    action: "Important, not urgent",
+  },
+  {
+    quadrant: "delegate",
+    priority: "p3",
+    title: "P3 · Delegate",
+    action: "Urgent, delegate",
+  },
+  {
+    quadrant: "delete",
+    priority: "p4",
+    title: "P4 · Delete / Review",
+    action: "Neither — review",
+  },
+];
+
+/** Group card data into the four Matrix quadrants plus an untriaged bucket. */
+export function groupByQuadrant(items: readonly TaskCardData[]): {
+  readonly do: TaskCardData[];
+  readonly defer: TaskCardData[];
+  readonly delegate: TaskCardData[];
+  readonly delete: TaskCardData[];
+  readonly untriaged: TaskCardData[];
+} {
+  const buckets = {
+    do: [] as TaskCardData[],
+    defer: [] as TaskCardData[],
+    delegate: [] as TaskCardData[],
+    delete: [] as TaskCardData[],
+    untriaged: [] as TaskCardData[],
+  };
+  for (const item of items) {
+    if (item.quadrant === null) {
+      buckets.untriaged.push(item);
+    } else {
+      buckets[item.quadrant].push(item);
+    }
+  }
+  return buckets;
+}
+
+/** The Time Sector sections, in planning order, including the derived Inbox. */
+export const SECTOR_SECTIONS: ReadonlyArray<{
+  readonly key: TimeSector | "inbox";
+  readonly label: string;
+}> = [
+  { key: "inbox", label: "Inbox" },
+  ...TIME_SECTORS.map((s) => ({ key: s, label: timeSectorLabel(s) })),
+];
+
+/** Group card data into Time Sector sections (null sector → Inbox). */
+export function groupBySector(
+  items: readonly TaskCardData[],
+): Record<string, TaskCardData[]> {
+  const groups: Record<string, TaskCardData[]> = { inbox: [] };
+  for (const sector of TIME_SECTORS) {
+    groups[sector] = [];
+  }
+  for (const item of items) {
+    const key = item.sector ?? "inbox";
+    (groups[key] ??= []).push(item);
+  }
+  return groups;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Server-authoritative grouping (Matrix / Sectors) — ADR-043 decision 12      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A display section for the Matrix/Sectors views, resolved from the SERVER grouping:
+ * an authoritative `count` (independent of how many records loaded), a bounded slice
+ * of `cards`, and `hasMore` (the rest live in the equivalent filtered `all` view).
+ * `filterKey` names the priority (`p1`..`p4`), `__none` (unprioritised/inbox), or a
+ * sector value — used to build the "view all in this bucket" link.
+ */
+export interface GroupedSection {
+  readonly key: string;
+  readonly title: string;
+  readonly subtitle: string | null;
+  readonly filterParam: "priority" | "sector";
+  readonly filterKey: string;
+  readonly count: number;
+  readonly cards: TaskCardData[];
+  readonly hasMore: boolean;
+}
+
+/** Index a server grouping by bucket key for O(1) section lookup. */
+function indexGrouping(
+  grouping: TasksGrouping | null,
+): Map<string, { count: number; cards: TaskCardData[]; hasMore: boolean }> {
+  const byKey = new Map<
+    string,
+    { count: number; cards: TaskCardData[]; hasMore: boolean }
+  >();
+  if (!grouping) return byKey;
+  for (const group of grouping.groups) {
+    byKey.set(group.key, {
+      count: group.count,
+      cards: group.items.map(toTaskCardData),
+      hasMore: group.hasMore,
+    });
+  }
+  return byKey;
+}
+
+/**
+ * Resolve the four Matrix quadrants + the Unprioritised bucket, in reading order,
+ * from the server grouping. Every quadrant is present with its authoritative count
+ * (0 when the server returned no such bucket) — so a quadrant is never shown empty
+ * merely because its first task fell beyond a loaded page.
+ */
+export function resolveMatrixSections(
+  grouping: TasksGrouping | null,
+): GroupedSection[] {
+  const byKey = indexGrouping(grouping);
+  const sections: GroupedSection[] = MATRIX_QUADRANTS.map((quadrant) => {
+    const bucket = byKey.get(quadrant.priority);
+    return {
+      key: quadrant.quadrant,
+      title: quadrant.title,
+      subtitle: quadrant.action,
+      filterParam: "priority" as const,
+      filterKey: quadrant.priority,
+      count: bucket?.count ?? 0,
+      cards: bucket?.cards ?? [],
+      hasMore: bucket?.hasMore ?? false,
+    };
+  });
+  const untriaged = byKey.get("untriaged");
+  sections.push({
+    key: "untriaged",
+    title: "Unprioritised",
+    subtitle: "No priority yet",
+    filterParam: "priority",
+    filterKey: "__none",
+    count: untriaged?.count ?? 0,
+    cards: untriaged?.cards ?? [],
+    hasMore: untriaged?.hasMore ?? false,
+  });
+  return sections;
+}
+
+/**
+ * Resolve the Time Sector sections (Inbox + the six sectors), in planning order,
+ * from the server grouping — same authoritative-count guarantee as the Matrix.
+ */
+export function resolveSectorSections(
+  grouping: TasksGrouping | null,
+): GroupedSection[] {
+  const byKey = indexGrouping(grouping);
+  return SECTOR_SECTIONS.map((section) => {
+    const bucket = byKey.get(section.key);
+    return {
+      key: section.key,
+      title: section.label,
+      subtitle: null,
+      filterParam: "sector" as const,
+      filterKey: section.key === "inbox" ? "__none" : section.key,
+      count: bucket?.count ?? 0,
+      cards: bucket?.cards ?? [],
+      hasMore: bucket?.hasMore ?? false,
+    };
+  });
+}

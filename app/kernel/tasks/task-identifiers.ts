@@ -89,6 +89,21 @@ export const TASK_RESCHEDULED = "task.rescheduled";
 export const TASK_PLAN_CLEARED = "task.plan_cleared";
 
 /**
+ * TASKS-01 — the four planning dimensions (Time Sector, priority, commitment,
+ * workflow status) and delegation are edited through the SAME atomic write path as
+ * every other task-detail field and recorded with the ONE existing `entity.updated`
+ * Activity event, whose payload already carries per-field before/after `changes`
+ * (ADR-043 §8 — no second history model, no per-dimension event type). Bulk field
+ * mutations emit one guarded `entity.updated` per task that actually changed.
+ */
+
+/** The maximum length (code points) of a plain-text delegatee label. */
+export const DELEGATE_TO_MAX_LENGTH = 200;
+
+/** The maximum length (code points) of a plain-text delegation note. */
+export const DELEGATION_NOTE_MAX_LENGTH = 500;
+
+/**
  * The maximum number of tasks a single bulk-planning operation may touch. Bulk
  * planning is ATOMIC (one transaction) and calm — a bound keeps the batch small
  * and predictable rather than an unbounded "plan everything".

@@ -36,8 +36,11 @@ beforeAll(async () => {
     ).bind(AT),
   ]);
 
-  // 3. Now apply migration 0007 over the seeded data.
-  await applyD1Migrations(DB, env.TEST_MIGRATIONS);
+  // 3. Now apply migration 0007 over the seeded data. Slice to exactly 0007 — later
+  //    migrations (e.g. 0012, which remaps the legacy priority set) must not run here,
+  //    or this test's "0006 → 0007 preserves the row" assertions would observe their
+  //    effects. 0012's own migration test covers the 0011 → 0012 transition.
+  await applyD1Migrations(DB, env.TEST_MIGRATIONS.slice(0, 7));
 });
 
 describe("migration 0006 → 0007 (additive, existing-data safe)", () => {

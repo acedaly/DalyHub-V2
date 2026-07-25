@@ -13,6 +13,8 @@
 
 import type { RecordTone } from "~/shared/record-layout";
 import type {
+  CommitmentState,
+  TaskDelegation,
   TaskListItem,
   TaskPriority,
   TaskRelation,
@@ -20,6 +22,7 @@ import type {
   TaskView,
   TaskWaiting,
   TaskWaitingSubject,
+  TimeSector,
 } from "~/kernel/tasks";
 
 /**
@@ -68,6 +71,9 @@ export interface SerializedTaskView {
   readonly priority: TaskPriority | null;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
+  readonly timeSector: TimeSector | null;
+  readonly commitmentState: CommitmentState;
+  readonly delegation: TaskDelegation | null;
   readonly description: string | null;
   readonly project: TaskRelation | null;
   readonly goal: TaskRelation | null;
@@ -95,6 +101,9 @@ export function serializeTaskView(task: TaskView): SerializedTaskView {
     priority: task.priority,
     dueDate: task.dueDate,
     scheduledDate: task.scheduledDate,
+    timeSector: task.timeSector,
+    commitmentState: task.commitmentState,
+    delegation: task.delegation,
     description: task.description,
     project: task.project,
     goal: task.goal,
@@ -107,12 +116,18 @@ export function serializeTaskView(task: TaskView): SerializedTaskView {
 export interface SerializedTaskListItem {
   readonly id: string;
   readonly title: string;
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
   readonly completedAt: string | null;
   readonly status: TaskStatus;
   readonly priority: TaskPriority | null;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
+  readonly timeSector: TimeSector | null;
+  readonly commitmentState: CommitmentState;
+  readonly delegation: TaskDelegation | null;
   readonly parent: TaskRelation | null;
+  readonly waiting: SerializedTaskWaiting | null;
 }
 
 /** Serialise a `TaskListItem` for a JSON loader response. */
@@ -122,12 +137,18 @@ export function serializeTaskListItem(
   return {
     id: item.id,
     title: item.title,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
     status: item.status,
     priority: item.priority,
     dueDate: item.dueDate,
     scheduledDate: item.scheduledDate,
+    timeSector: item.timeSector,
+    commitmentState: item.commitmentState,
+    delegation: item.delegation,
     parent: item.parent,
+    waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
   };
 }
 
@@ -164,21 +185,158 @@ export function taskDisplayStatus(
 
 /** Human label for a workflow status value (edit control options). */
 export function taskStatusLabel(status: TaskStatus): string {
-  return status === "in_progress" ? "In progress" : "To do";
+  switch (status) {
+    case "in_progress":
+      return "In progress";
+    case "on_hold":
+      return "On hold";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return "To do";
+  }
 }
 
-/** Human label for a priority value; `null` reads as "None". */
-export function taskPriorityLabel(priority: TaskPriority | null): string {
+/**
+ * The Eisenhower quadrant a priority maps to (ADR-043 §2), or null for an untriaged
+ * (no-priority) task. The single source of truth for Matrix placement — the Matrix
+ * view, the Drawer and the card presentation all read this.
+ */
+export type EisenhowerQuadrant = "do" | "defer" | "delegate" | "delete";
+
+/** Map a P1–P4 priority to its Matrix quadrant. `null` → null (unprioritised). */
+export function priorityQuadrant(
+  priority: TaskPriority | null,
+): EisenhowerQuadrant | null {
   switch (priority) {
-    case "high":
-      return "High";
-    case "medium":
-      return "Medium";
-    case "low":
-      return "Low";
+    case "p1":
+      return "do";
+    case "p2":
+      return "defer";
+    case "p3":
+      return "delegate";
+    case "p4":
+      return "delete";
     default:
-      return "None";
+      return null;
   }
+}
+
+/** The Do/Defer/Delegate/Delete-Review action word for a quadrant. */
+export function quadrantActionLabel(quadrant: EisenhowerQuadrant): string {
+  switch (quadrant) {
+    case "do":
+      return "Do";
+    case "defer":
+      return "Defer";
+    case "delegate":
+      return "Delegate";
+    case "delete":
+      return "Delete / Review";
+  }
+}
+
+/**
+ * The full consistent priority label, e.g. "P1 · Do", "P4 · Delete / Review", or
+ * "No priority" for null. Meaning is always carried by the label, never colour.
+ */
+export function taskPriorityLabel(priority: TaskPriority | null): string {
+  const quadrant = priorityQuadrant(priority);
+  if (priority === null || quadrant === null) {
+    return "No priority";
+  }
+  return `${priority.toUpperCase()} · ${quadrantActionLabel(quadrant)}`;
+}
+
+/** The short priority tag, e.g. "P1". `null` → "—". */
+export function taskPriorityTag(priority: TaskPriority | null): string {
+  return priority === null ? "—" : priority.toUpperCase();
+}
+
+/** Human label for a Time Sector; `null` reads as "Inbox" (the derived state). */
+export function timeSectorLabel(sector: TimeSector | null): string {
+  switch (sector) {
+    case "this_week":
+      return "This Week";
+    case "next_week":
+      return "Next Week";
+    case "this_month":
+      return "This Month";
+    case "next_month":
+      return "Next Month";
+    case "long_term":
+      return "Long Term";
+    case "routines":
+      return "Routines";
+    default:
+      return "Inbox";
+  }
+}
+
+/**
+ * The ONE canonical task display-state precedence evaluator (ADR-043 §6), consumed
+ * by Tasks, Today and Projects — no duplicated status logic anywhere. Precedence,
+ * highest first: Deleted → Completed → Cancelled → Waiting → On hold →
+ * Someday/Maybe → In progress → Planned → Inbox. The result is a stable key plus a
+ * label and a tone; meaning is carried by the LABEL, never colour alone.
+ */
+export type TaskDisplayStateKind =
+  | "deleted"
+  | "completed"
+  | "cancelled"
+  | "waiting"
+  | "on_hold"
+  | "someday"
+  | "in_progress"
+  | "planned"
+  | "inbox";
+
+export interface TaskDisplayState {
+  readonly kind: TaskDisplayStateKind;
+  readonly label: string;
+  readonly tone: RecordTone;
+}
+
+/** The minimal shape the precedence evaluator reads (serialised or not). */
+export interface TaskDisplayStateInput {
+  readonly deletedAt?: string | null;
+  readonly completedAt: string | null;
+  readonly status: TaskStatus;
+  readonly commitmentState: CommitmentState;
+  readonly timeSector: TimeSector | null;
+  readonly scheduledDate: string | null;
+  readonly waiting: SerializedTaskWaiting | null;
+}
+
+/** Evaluate the deterministic display state of a task (ADR-043 §6). */
+export function taskDisplayState(
+  task: TaskDisplayStateInput,
+): TaskDisplayState {
+  if (task.deletedAt != null) {
+    return { kind: "deleted", label: "Deleted", tone: "neutral" };
+  }
+  if (task.completedAt !== null) {
+    return { kind: "completed", label: "Completed", tone: "success" };
+  }
+  if (task.status === "cancelled") {
+    return { kind: "cancelled", label: "Cancelled", tone: "neutral" };
+  }
+  if (task.waiting !== null) {
+    return { kind: "waiting", label: "Waiting", tone: "warning" };
+  }
+  if (task.status === "on_hold") {
+    return { kind: "on_hold", label: "On hold", tone: "neutral" };
+  }
+  if (task.commitmentState === "someday") {
+    return { kind: "someday", label: "Someday / Maybe", tone: "info" };
+  }
+  if (task.status === "in_progress") {
+    return { kind: "in_progress", label: "In progress", tone: "info" };
+  }
+  if (task.timeSector !== null || task.scheduledDate !== null) {
+    return { kind: "planned", label: "Planned", tone: "neutral" };
+  }
+  return { kind: "inbox", label: "Inbox", tone: "neutral" };
 }
 
 const MONTHS = [

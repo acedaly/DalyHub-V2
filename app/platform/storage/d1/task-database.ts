@@ -14,14 +14,19 @@
  */
 
 import {
+  COMMITMENT_STATES,
   DEFAULT_TASK_DETAILS,
   isTaskStatus,
   TASK_PRIORITIES,
+  TIME_SECTORS,
+  type CommitmentState,
+  type TaskDelegation,
   type TaskDetails,
   type TaskPriority,
   type TaskStatus,
   type TaskWaiting,
   type TaskWaitingSubject,
+  type TimeSector,
 } from "~/kernel/tasks";
 import { CorruptTaskRecordError } from "~/kernel/tasks";
 import { parseMarkdownSource, type MarkdownSource } from "~/kernel/markdown";
@@ -37,6 +42,12 @@ export interface TaskDetailsRow {
   readonly priority: string | null;
   readonly due_date: string | null;
   readonly scheduled_date: string | null;
+  readonly time_sector: string | null;
+  readonly commitment_state: string;
+  readonly delegate_to: string | null;
+  readonly delegated_on: string | null;
+  readonly follow_up_on: string | null;
+  readonly delegate_note: string | null;
   readonly description: string | null;
   readonly waiting_since: string | null;
   readonly waiting_note: string | null;
@@ -61,6 +72,12 @@ export interface TaskJoinedRow {
   readonly priority: string | null;
   readonly due_date: string | null;
   readonly scheduled_date: string | null;
+  readonly time_sector: string | null;
+  readonly commitment_state: string | null;
+  readonly delegate_to: string | null;
+  readonly delegated_on: string | null;
+  readonly follow_up_on: string | null;
+  readonly delegate_note: string | null;
   readonly description: string | null;
   readonly waiting_since: string | null;
   readonly waiting_note: string | null;
@@ -93,6 +110,12 @@ export const TASK_DETAIL_COLUMNS = `
   td.priority AS priority,
   td.due_date AS due_date,
   td.scheduled_date AS scheduled_date,
+  td.time_sector AS time_sector,
+  td.commitment_state AS commitment_state,
+  td.delegate_to AS delegate_to,
+  td.delegated_on AS delegated_on,
+  td.follow_up_on AS follow_up_on,
+  td.delegate_note AS delegate_note,
   td.description AS description,
   td.waiting_since AS waiting_since,
   td.waiting_note AS waiting_note`;
@@ -129,6 +152,46 @@ function toStatus(value: string | null): TaskStatus {
   return value;
 }
 
+/** Validate a stored time-sector string (or null) into a domain value; defensive. */
+function toTimeSector(value: string | null): TimeSector | null {
+  if (value === null) {
+    return null;
+  }
+  if (!(TIME_SECTORS as readonly string[]).includes(value)) {
+    throw new CorruptTaskRecordError();
+  }
+  return value as TimeSector;
+}
+
+/** Validate a stored commitment-state string (or null → default); defensive. */
+function toCommitmentState(value: string | null): CommitmentState {
+  if (value === null) {
+    return DEFAULT_TASK_DETAILS.commitmentState;
+  }
+  if (!(COMMITMENT_STATES as readonly string[]).includes(value)) {
+    throw new CorruptTaskRecordError();
+  }
+  return value as CommitmentState;
+}
+
+/** Build a `TaskDelegation` from the stored columns; null when not delegated. */
+function toDelegation(row: {
+  readonly delegate_to: string | null;
+  readonly delegated_on: string | null;
+  readonly follow_up_on: string | null;
+  readonly delegate_note: string | null;
+}): TaskDelegation | null {
+  if (row.delegate_to === null) {
+    return null;
+  }
+  return {
+    to: row.delegate_to,
+    delegatedOn: row.delegated_on,
+    followUpOn: row.follow_up_on,
+    note: row.delegate_note,
+  };
+}
+
 /** Re-brand a stored Markdown description (already validated on write); defensive. */
 function toDescription(value: string | null): MarkdownSource | null {
   if (value === null) {
@@ -152,6 +215,12 @@ export function rowToTaskDetails(row: {
   readonly priority: string | null;
   readonly due_date: string | null;
   readonly scheduled_date: string | null;
+  readonly time_sector?: string | null;
+  readonly commitment_state?: string | null;
+  readonly delegate_to?: string | null;
+  readonly delegated_on?: string | null;
+  readonly follow_up_on?: string | null;
+  readonly delegate_note?: string | null;
   readonly description: string | null;
 }): TaskDetails {
   return {
@@ -159,6 +228,14 @@ export function rowToTaskDetails(row: {
     priority: toPriority(row.priority),
     dueDate: row.due_date,
     scheduledDate: row.scheduled_date,
+    timeSector: toTimeSector(row.time_sector ?? null),
+    commitmentState: toCommitmentState(row.commitment_state ?? null),
+    delegation: toDelegation({
+      delegate_to: row.delegate_to ?? null,
+      delegated_on: row.delegated_on ?? null,
+      follow_up_on: row.follow_up_on ?? null,
+      delegate_note: row.delegate_note ?? null,
+    }),
     description: toDescription(row.description),
   };
 }
