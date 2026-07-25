@@ -13,18 +13,10 @@
 import { env } from "cloudflare:workers";
 
 import { requireAuthenticatedSession } from "~/platform/request";
-import {
-  resolveAuthenticatedWorkspaceScope,
-  type WorkspaceScope,
-} from "~/platform/workspaces";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { serializeTaskListItem } from "~/shared/task-record/task-view";
 import {
-  SpineParentUnavailableError,
-  SpineValidationError,
-} from "~/kernel/spine";
-import {
-  TaskValidationError,
   type CommitmentState,
   type TaskPriority,
   type TaskStatus,
@@ -39,25 +31,11 @@ import {
   resolveSystemView,
   systemViewFor,
 } from "../tasks-view-model";
-import type {
-  TasksCreateResult,
-  TasksFilterState,
-  TasksPageData,
-} from "../tasks-contract";
+import type { TasksFilterState, TasksPageData } from "../tasks-contract";
 import { TasksWorkspace } from "../TasksWorkspace";
 
 export function meta() {
   return [{ title: "Tasks · DalyHub" }];
-}
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "cache-control": "no-store",
-    },
-  });
 }
 
 /** Read the applied filters from the URL search params. */
@@ -188,87 +166,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       failed: true,
     } satisfies TasksPageData;
   }
-}
-
-/** Create a task under a chosen parent, then apply quick-capture planning fields. */
-async function handleCreate(
-  scope: WorkspaceScope,
-  form: FormData,
-): Promise<TasksCreateResult> {
-  const title = String(form.get("title") ?? "");
-  const parentId = String(form.get("parentId") ?? "");
-  const parentKind = String(form.get("parentKind") ?? "");
-  if (parentKind !== "area" && parentKind !== "project") {
-    return {
-      kind: "create",
-      ok: false,
-      fieldErrors: { parentId: "Choose a Project or Area for this task." },
-    };
-  }
-  // The task AND its quick-capture planning fields are created in ONE atomic
-  // repository operation (ADR-043 §13 / decision 15) — never a spine create
-  // followed by a separate detail write, so a failure can never leave a created-
-  // but-unplanned or orphaned task, and there is no partial-commit to retry over.
-  const priority = form.get("priority");
-  const sector = form.get("timeSector");
-  const commitment = form.get("commitmentState");
-  const dueDate = form.get("dueDate");
-  const scheduledDate = form.get("scheduledDate");
-  try {
-    const task = await scope.tasks.createTask({
-      title,
-      parent: { kind: parentKind, id: parentId },
-      ...(priority ? { priority: String(priority) as TaskPriority } : {}),
-      ...(sector ? { timeSector: String(sector) as TimeSector } : {}),
-      ...(commitment
-        ? { commitmentState: String(commitment) as CommitmentState }
-        : {}),
-      ...(dueDate ? { dueDate: String(dueDate) } : {}),
-      ...(scheduledDate ? { scheduledDate: String(scheduledDate) } : {}),
-    });
-    return { kind: "create", ok: true, taskId: task.id };
-  } catch (cause) {
-    if (cause instanceof TaskValidationError) {
-      return {
-        kind: "create",
-        ok: false,
-        fieldErrors: { [cause.field]: cause.message },
-      };
-    }
-    if (cause instanceof SpineValidationError) {
-      return {
-        kind: "create",
-        ok: false,
-        fieldErrors: { title: cause.message },
-      };
-    }
-    if (cause instanceof SpineParentUnavailableError) {
-      return {
-        kind: "create",
-        ok: false,
-        formError: "That Project or Area is no longer available.",
-      };
-    }
-    return {
-      kind: "create",
-      ok: false,
-      formError: "The task couldn't be created. Your text is safe — try again.",
-    };
-  }
-}
-
-export async function action({ request, context }: Route.ActionArgs) {
-  if (request.method !== "POST") {
-    throw new Response("Method Not Allowed", { status: 405 });
-  }
-  const session = requireAuthenticatedSession(context);
-  const form = await request.formData();
-  const intent = String(form.get("intent") ?? "");
-  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-  if (intent === "create") {
-    return json(await handleCreate(scope, form));
-  }
-  return json({ kind: "create", ok: false, formError: "Unknown action." }, 400);
 }
 
 export default function TasksRoute({ loaderData }: Route.ComponentProps) {

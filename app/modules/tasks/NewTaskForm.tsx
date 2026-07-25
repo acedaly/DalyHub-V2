@@ -258,7 +258,7 @@ export function NewTaskForm({
 
       let data: TasksCreateResult;
       try {
-        const response = await fetch("/tasks", { method: "POST", body });
+        const response = await fetch("/tasks/new", { method: "POST", body });
         data = (await response.json()) as TasksCreateResult;
       } catch {
         return {

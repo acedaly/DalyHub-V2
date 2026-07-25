@@ -257,6 +257,7 @@ describe("module discovery", () => {
         },
         { id: "tasks.index", moduleId: "tasks", file: "routes/index.tsx" },
         // TASKS-01 workspace resource routes (static segments before the dynamic id).
+        { id: "tasks.new", moduleId: "tasks", file: "routes/new.tsx" },
         { id: "tasks.bulk", moduleId: "tasks", file: "routes/bulk.tsx" },
         {
           id: "tasks.parent_options",

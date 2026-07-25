@@ -21,6 +21,11 @@ const routes: readonly RouteContribution[] = [
   // bounded, atomic bulk field mutations; `parent-options` backs the create-task
   // parent selector (Projects + Areas).
   {
+    id: "tasks.new",
+    path: "tasks/new",
+    file: "routes/new.tsx",
+  },
+  {
     id: "tasks.bulk",
     path: "tasks/bulk",
     file: "routes/bulk.tsx",
