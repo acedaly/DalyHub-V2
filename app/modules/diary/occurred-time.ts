@@ -122,9 +122,10 @@ function zoneOffsetMinutes(instant: Date, timeZone: string): number {
  * control yields) in `timeZone` to the UTC instant the kernel stores. DST-aware:
  * the offset is resolved at the target instant, then re-resolved once in case the
  * naive guess landed on the wrong side of a transition. Returns `null` for a
- * syntactically invalid or out-of-range value (the caller surfaces a field
- * error). A nonexistent spring-forward local time resolves to a deterministic,
- * best-effort instant rather than throwing.
+ * syntactically invalid or out-of-range value, an invalid calendar date, or a
+ * nonexistent spring-forward local time — none of which can round-trip to the
+ * entered wall-clock — so the caller surfaces its field error (see the exact
+ * round-trip check below). An autumn overlap time round-trips and is accepted.
  */
 export function ownerLocalToUtc(local: string, timeZone: string): Date | null {
   const match = LOCAL_DATETIME_PATTERN.exec(local);

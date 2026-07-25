@@ -75,26 +75,42 @@ export function DiaryEntryEditor({
   onCancel,
 }: DiaryEntryEditorProps) {
   const fetcher = useFetcher<DiaryEntryEditResponse>();
-  const requested = useRef(false);
+  // Track the LAST entry id we loaded (not a one-shot boolean): if the drawer
+  // key changes `edit:<a>` → `edit:<b>` while this instance is retained, the
+  // effect must reload B, not keep A.
+  const requestedId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!requested.current) {
-      requested.current = true;
+    if (requestedId.current !== entryId) {
+      requestedId.current = entryId;
       fetcher.load(`/diary/${encodeURIComponent(entryId)}`);
     }
   }, [entryId, fetcher]);
 
-  if (fetcher.data) {
+  const data = fetcher.data;
+  // Render fetched data ONLY when it is for the CURRENT entry id — otherwise the
+  // editor could show entry A under entry B's URL during a direct id change.
+  const matchesCurrent = data?.entry.id === entryId;
+
+  if (data && matchesCurrent) {
     return (
+      // Keyed by entry id so switching entries remounts the form with the new
+      // entry's initial values (so `useForm`'s dirty baseline is correct).
       <DiaryEditForm
-        entry={fetcher.data.entry}
+        key={entryId}
+        entry={data.entry}
         onSaved={onSaved}
         onCancel={onCancel}
       />
     );
   }
 
-  const failed = fetcher.state === "idle" && requested.current && !fetcher.data;
+  // "Not available" only once the load for THIS id has settled without matching
+  // data; a pending load or an in-flight id change shows the loading state.
+  const failed =
+    fetcher.state === "idle" &&
+    requestedId.current === entryId &&
+    !matchesCurrent;
 
   return (
     <div className="dh-diary-editor__loading" aria-live="polite">

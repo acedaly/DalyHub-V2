@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -104,5 +105,53 @@ describe("DiaryEntryEditor", () => {
     expect((screen.getByLabelText(/title/i) as HTMLInputElement).value).toBe(
       "Changed",
     );
+  });
+
+  it("reloads the entry when the drawer id changes on a retained instance", async () => {
+    // Reproduces a direct `?drawer=edit:<a>` → `?drawer=edit:<b>` change without
+    // an unmount: the SAME DiaryEntryEditor instance gets a new `entryId` prop.
+    function entryFor(id: string): DiaryEntryEditData {
+      return {
+        id,
+        title: `Entry ${id}`,
+        entryType: "note",
+        bodySource: "",
+        occurredAtIso: "2026-07-19T04:30:00.000Z",
+        occurredLocal: "2026-07-19T14:30",
+        timezone: "Australia/Sydney",
+      };
+    }
+    function Switcher() {
+      const [id, setId] = useState("d1");
+      return (
+        <FeedbackProvider>
+          <button type="button" onClick={() => setId("d2")}>
+            switch
+          </button>
+          <DiaryEntryEditor entryId={id} onSaved={vi.fn()} onCancel={vi.fn()} />
+        </FeedbackProvider>
+      );
+    }
+    const router = createMemoryRouter(
+      [
+        { path: "/", element: <Switcher /> },
+        {
+          path: "/diary/:entryId",
+          loader: ({ params }) => ({
+            entry: entryFor(params.entryId as string),
+          }),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    const title = () => screen.getByLabelText(/title/i) as HTMLInputElement;
+    await waitFor(() => expect(title().value).toBe("Entry d1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "switch" }));
+
+    // The second entry must load and display — never entry d1 under d2's id.
+    await waitFor(() => expect(title().value).toBe("Entry d2"));
   });
 });
