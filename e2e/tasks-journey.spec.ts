@@ -293,6 +293,17 @@ test.describe("TASKS-01 — full journey", () => {
     await expect(
       page.getByRole("link", { name: "Journey task Delta" }).first(),
     ).toBeVisible();
+
+    // Clear Delta's plan so it no longer occupies Today's "Today" band — a lingering
+    // scheduled-today task would otherwise leak a "Today" section into the shared
+    // Today dashboard (and its command palette) for subsequent specs in this run.
+    // (It moves to the always-present "Anytime" backlog, so the Today surface stays
+    // consistent with the seed baseline.) `runBulk` confirms the clear committed.
+    await gotoFixture(page, "/tasks?view=all");
+    await selectTask(page, "Journey task Delta");
+    await runBulk(page, () =>
+      page.getByRole("button", { name: "Clear plan" }).click(),
+    );
   });
 });
 
