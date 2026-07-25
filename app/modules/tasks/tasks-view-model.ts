@@ -82,6 +82,9 @@ export function systemViewFor(
       return "this_week";
     case "matrix":
     case "sectors":
+      // Planning views scope to ACTIVE work only (excludes completed/cancelled/
+      // someday), NOT the complete `all` collection (ADR-043 §11).
+      return "active";
     case "all":
     default:
       return "all";

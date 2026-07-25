@@ -51,9 +51,11 @@ describe("view/sort/system resolution", () => {
     expect(resolveSystemView("bogus")).toBeNull();
   });
 
-  it("focus defaults to this_week, others to all, explicit overrides", () => {
+  it("focus→this_week, matrix/sectors→active, all→all, explicit overrides", () => {
     expect(systemViewFor("focus", null)).toBe("this_week");
-    expect(systemViewFor("matrix", null)).toBe("all");
+    // Planning views scope to ACTIVE work, not the complete collection.
+    expect(systemViewFor("matrix", null)).toBe("active");
+    expect(systemViewFor("sectors", null)).toBe("active");
     expect(systemViewFor("all", null)).toBe("all");
     expect(systemViewFor("focus", "someday")).toBe("someday");
   });

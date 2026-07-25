@@ -117,6 +117,20 @@ test.describe("TASKS-01 — accessibility & responsive", () => {
     await expectNoAxeViolations(page);
   });
 
+  test("the default Focus view (and All) are axe-clean in light and dark", async ({
+    page,
+  }) => {
+    // Mirrors what the shared accessibility sweep scans: the default /tasks
+    // landing (Focus → This Week, empty for the seed → EmptyState) and All.
+    for (const path of ["/tasks", "/tasks?view=all"]) {
+      await gotoFixture(page, path);
+      await expectNoAxeViolations(page);
+      await page.emulateMedia({ colorScheme: "dark" });
+      await expectNoAxeViolations(page);
+      await page.emulateMedia({ colorScheme: "light" });
+    }
+  });
+
   test("no horizontal overflow from 320px to desktop across views", async ({
     page,
   }) => {

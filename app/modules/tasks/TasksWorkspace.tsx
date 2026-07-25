@@ -90,6 +90,7 @@ const SYSTEM_VIEW_LABELS: Record<TaskSystemView, string> = {
   overdue: "Overdue",
   completed: "Completed",
   cancelled: "Cancelled",
+  active: "Active",
   all: "All",
 };
 
@@ -178,12 +179,19 @@ function useTaskPagination(
   const [loadFailed, setLoadFailed] = useState(false);
   const processed = useRef<TasksPageData | null>(null);
 
+  // Reset the accumulation whenever the query scope changes (`resetKey`) OR the
+  // loader re-runs (a new `firstPage` reference — e.g. a revalidation after a bulk
+  // mutation, even if the cursor/scope is unchanged). Keying to the loader RESULT,
+  // not only the cursor, prevents stale appended rows — e.g. a completed task
+  // lingering in This Week — after a mutation (review feedback). `firstPage` is
+  // `loaderData.items`, whose reference is stable across renders and only changes
+  // when the loader actually re-runs.
   useEffect(() => {
     setAppended([]);
     setCursor(initialCursor);
     setLoadFailed(false);
     processed.current = null;
-  }, [initialCursor, resetKey]);
+  }, [firstPage, initialCursor, resetKey]);
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) {

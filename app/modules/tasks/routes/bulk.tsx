@@ -93,10 +93,25 @@ async function dispatch(
 ): Promise<TasksBulkResult> {
   switch (intent) {
     case "complete": {
-      // Completion is per-task (spine authority); report an honest aggregate.
+      // Completion is per-task (spine authority owns it; there is no single-batch
+      // completeTasks). To honour the bulk route's "no partial mutation from a bad
+      // id" contract, RESOLVE EVERY id first — any missing/cross-workspace/archived
+      // id throws BEFORE any completion is written (mirroring how planTasks/
+      // setPriorityMany validate up front). Completing an already-resolved task can
+      // never itself fail validation, so after this gate the only residual
+      // non-atomicity is a transient storage fault mid-loop, which the outer catch
+      // reports honestly. Idempotent no-ops (already complete) are counted honestly.
+      const resolved = [];
+      for (const id of ids) {
+        const task = await scope.tasks.getTask(id);
+        if (!task) {
+          throw new TaskNotFoundError();
+        }
+        resolved.push(task.id);
+      }
       let changed = 0;
       let unchanged = 0;
-      for (const id of ids) {
+      for (const id of resolved) {
         const result = await scope.tasks.completeTask(id);
         if (result.changed) {
           changed += 1;

@@ -250,7 +250,11 @@ export default function SearchSurface({
           />
         </div>
 
-        <div className="dh-search__results">
+        {/* tabIndex keeps the scroll region axe-clean when results overflow
+            (WCAG scrollable-region-focusable); the combobox input keeps focus.
+            Conflicts with jsx-a11y/no-noninteractive-tabindex, disabled with intent. */}
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+        <div className="dh-search__results" tabIndex={0}>
           <SearchResults
             controller={controller}
             listboxId={listboxId}

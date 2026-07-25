@@ -224,7 +224,14 @@ export default function CommandPalette({
 
         <CommandFeedback controller={controller} />
 
-        <div className="dh-command__results">
+        {/* tabIndex makes the scroll region keyboard-accessible so it stays
+            axe-clean once the catalogue is tall enough to overflow (WCAG
+            scrollable-region-focusable); the combobox input keeps focus and
+            aria-activedescendant drives option navigation. This directly conflicts
+            with jsx-a11y/no-noninteractive-tabindex's heuristic, so it is disabled
+            here with intent. */}
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+        <div className="dh-command__results" tabIndex={0}>
           <CommandResults
             controller={controller}
             listboxId={listboxId}

@@ -119,7 +119,9 @@ test.describe("DS-09 Command Palette — desktop", () => {
       .first()
       .getByRole("link")
       .click();
-    await expect(page).toHaveURL(/\/today\?.*drawer=/);
+    // TASKS-01: the task record is resolved by the real Tasks provider and opens on
+    // the canonical /tasks surface (its canonicalPath), not /today.
+    await expect(page).toHaveURL(/\/tasks\?.*drawer=/);
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 

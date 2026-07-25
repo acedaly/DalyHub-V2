@@ -473,6 +473,13 @@ export const TASK_SYSTEM_VIEWS = [
   "overdue",
   "completed",
   "cancelled",
+  /**
+   * All ACTIVE work: excludes completed, cancelled and Someday/Maybe (waiting is
+   * included — a blocked task still has a priority/sector). The default scope for
+   * the Matrix and Sectors planning views (ADR-043 §11), distinct from `all` (the
+   * complete collection incl. terminal/parked records).
+   */
+  "active",
   "all",
 ] as const;
 export type TaskSystemView = (typeof TASK_SYSTEM_VIEWS)[number];
@@ -530,8 +537,12 @@ export type ListWorkspaceTasksInput = {
   readonly cursor?: string;
   /**
    * The owner's current calendar date `YYYY-MM-DD` — required for the calendar-
-   * relative views (`today`, `overdue`, `this_week`…) and for the smart sort's
-   * overdue-first ordering. Never derived in browser-local code (ADR-022).
+   * relative VIEWS (`today`, `overdue`, `this_week`…), which resolve their
+   * membership against it. The `smart` SORT deliberately orders by open-first →
+   * priority (P1–P4) → due date (earliest first, nulls last): priority is the
+   * primary Eisenhower axis, and overdue work is surfaced by the dedicated
+   * `overdue` view and by the due-date tiebreak — it does not override priority.
+   * Never derived in browser-local code (ADR-022).
    */
   readonly todayIso: string;
 };

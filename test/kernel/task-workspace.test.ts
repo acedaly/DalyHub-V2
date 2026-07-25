@@ -194,6 +194,22 @@ describe("listWorkspaceTasks system views", () => {
     expect(all.items).toHaveLength(5);
   });
 
+  it("active excludes completed, cancelled and someday (the Matrix/Sectors scope)", async () => {
+    const seeded = await seedMany(WS);
+    const repo = taskRepo(WS);
+    const active = await repo.listWorkspaceTasks({
+      view: "active",
+      todayIso: TODAY,
+    });
+    const ids = active.items.map((i) => i.id);
+    expect(ids).toContain(seeded.inbox.id);
+    expect(ids).toContain(seeded.thisWeek.id);
+    expect(ids).toContain(seeded.scheduledToday.id);
+    expect(ids).not.toContain(seeded.someday.id);
+    expect(ids).not.toContain(seeded.cancelled.id);
+    expect(active.items).toHaveLength(3);
+  });
+
   it("filters by priority", async () => {
     const seeded = await seedMany(WS);
     const repo = taskRepo(WS);

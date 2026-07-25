@@ -168,7 +168,14 @@ async function handleCreate(
       parent: { kind: parentKind, id: parentId },
     });
 
-    // Apply the quick-capture planning fields, if any, in one follow-up update.
+    // Apply the quick-capture planning fields, if any, in a follow-up update. The
+    // task is ALREADY created (the spine committed); spine createTask and detail
+    // edits are separate atomic operations across two authorities with no
+    // cross-authority transaction, so creation is the commit point. A failure HERE
+    // must NOT report the task uncreated — that would cause a duplicate on retry and
+    // orphan the created task (ADR-043 §13, review feedback). We return the created
+    // taskId regardless; the Drawer opens for the user to finish any unapplied
+    // planning fields.
     const priority = form.get("priority");
     const sector = form.get("timeSector");
     const commitment = form.get("commitmentState");
@@ -181,7 +188,11 @@ async function handleCreate(
     if (dueDate) patch["dueDate"] = String(dueDate);
     if (scheduledDate) patch["scheduledDate"] = String(scheduledDate);
     if (Object.keys(patch).length > 0) {
-      await scope.tasks.updateTask(task.id, patch);
+      try {
+        await scope.tasks.updateTask(task.id, patch);
+      } catch {
+        return { kind: "create", ok: true, taskId: task.id };
+      }
     }
     return { kind: "create", ok: true, taskId: task.id };
   } catch (cause) {

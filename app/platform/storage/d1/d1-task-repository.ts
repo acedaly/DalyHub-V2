@@ -783,6 +783,10 @@ export class D1TaskRepository implements TaskRepository {
     switch (view) {
       case "all":
         return;
+      case "active":
+        // All active work: exclude completed/cancelled/someday (waiting included).
+        whereParts.push(notTerminal);
+        return;
       case "completed":
         whereParts.push("sr.completed_at IS NOT NULL");
         return;
