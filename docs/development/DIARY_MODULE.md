@@ -276,6 +276,12 @@ no architectural rewrite required:
 
 ## 7. DIARY-01 — the Timeline screen & quick-capture UI
 
+> **Superseded by DIARY-01B (§8).** This section records the original DIARY-01
+> presentation. The route/repository/endpoint contracts below are unchanged, but
+> the DIARY-01 view components (`DiaryTimeline.tsx`, `QuickCapture.tsx`,
+> `DiaryEntryEditor.tsx`) were replaced by the responsive workspace in §8; see
+> §8.6 for the current source map.
+
 DIARY-01 builds the first real Diary experience on the DIARY-01A foundation,
 replacing the `/diary` `ModuleComingSoon` placeholder. It composes the accepted
 foundation and the design system — **no new store, link model, Activity stream,
@@ -387,3 +393,105 @@ design system, so **no new ADR** was warranted.
 | `app/modules/diary/diary-view.ts` | View model: serialisation, label fallback, filter parsing. |
 | `app/modules/diary/occurred-time.ts` | Display timezone seam + DST-aware owner-local ⇄ UTC + day headings. |
 | `app/styles/diary.css` | Timeline & capture styles (DS-01 tokens only). |
+
+## 8. DIARY-01B — the responsive day-timeline workspace
+
+DIARY-01B is a **corrective visual & interaction follow-up** to DIARY-01: same
+accepted architecture (§3–§4), a genuinely timeline-first presentation. **No new
+store, link model, Activity stream, Markdown parser, migration or ADR** was
+introduced — it composes the existing route, repository, grouping and conversion
+foundations with the shared design system. The always-open capture card is gone;
+`/diary` is now a two-mode, docked-details workspace that reads as one coherent
+toolbar over a real visual timeline. The DIARY-01 `DiaryTimeline.tsx`,
+`QuickCapture.tsx` and `DiaryEntryEditor.tsx` components were replaced by the
+files in §8.6; their route/repository/endpoint contracts are unchanged.
+
+### 8.1 Two real modes: Day and Timeline
+
+The loader (`routes/index.tsx`) drives two modes off the `mode` URL param:
+
+- **Day** (default): the entries for ONE selected local calendar day. It defaults
+  to today unless a valid `?date=YYYY-MM-DD` is present. The day's occurred-at
+  range is resolved with the existing display-zone helpers
+  (`startOfLocalDayUtc`/`endOfLocalDayUtc`, §7.5) — never re-derived in the
+  browser — so a 23:30-local entry files under its local day, DST-correctly, and
+  the inclusive end-of-day bound keeps the final second of the day in view.
+- **Timeline** (`?mode=timeline`): the multi-day historical timeline, with the
+  bounded, cursor-paginated read model and "Load more" unchanged.
+
+Week and Month are **deliberately absent** — a tab that does nothing is a dead
+control. They appear in the mock-up as longer-term direction only, and will ship
+when genuinely implemented.
+
+### 8.2 URL state and cursor hygiene
+
+`mode`, `date`, `type` and `cursor` are all URL-backed (deep-linkable,
+Back/Forward correct). Because the Timeline cursor is scope-bound
+(`decodeDiaryCursorForScope`, §7.4), **every scope change drops `cursor`**:
+switching mode (`DiaryModeTabs`), changing the day (`DiaryDayNavigator`) and
+changing the type (`DiaryTypeFilter`) all delete it. An invalid `?date=` degrades
+to today rather than a broken range. Filter-chip counts are shown **only when
+they are honest** — Day mode, unfiltered, single page (the loader passes
+`typeCounts` only then; otherwise the chips show labels alone).
+
+### 8.3 Desktop docked details (the shared DS-10 Inspector)
+
+Opening an entry preserves the timeline beside it. Rather than a second drawer
+framework, the details surface reuses the shared **DS-10 Inspector**
+(`app/shared/inspector`): a non-modal, right-docked `complementary` panel on
+desktop (the page reflows via padding, never covered) and a focus-trapped modal
+sheet on mobile — one implementation, reusing the DS-03 focus/scroll-lock/inert
+hooks. Selection is route-backed via `?inspector=view:<id>` / `edit:<id>`, so it
+is deep-linkable and Back/Forward correct, and focus restores to the row on
+close. The panel shows a polished **read** state (title, type, occurred date/time,
+backdated status, body, created/updated) with a deliberate **edit** state; the
+edit form keeps ADR-041's split write (title via `EntityRepository`, detail slice
+via `DiaryRepository`). A timeline row is an accessible title button that stretches
+over the whole row, with a **separate** Edit button — no interactive control is
+nested inside another.
+
+### 8.4 Compact capture entry point
+
+The permanently-open capture card is replaced by a compact flow launched on
+demand — the desktop **New entry** button, the **`c`** keyboard shortcut, or the
+mobile **floating action** — hosted in the Inspector (`?inspector=new`). The
+chooser presents the real entry types with icons; the fast path is unchanged
+(retain the default type, type a title, submit; `Cmd/Ctrl+Enter` from any field;
+body and backdated "when" behind a disclosure). Capture still goes through
+`DiaryRepository.create` (`POST /diary/new`), with duplicate-submit prevention and
+draft retention. After capture the timeline revalidates; a backdated entry that
+belongs to **another day** is surfaced honestly with a "View that day" action
+rather than silently misplaced.
+
+### 8.5 Themes, responsiveness and deferrals
+
+Light and dark come entirely from the DS-01 token maps (`data-theme`) — the CSS
+hard-codes no colour and no theme, and type/selection/state are never signalled by
+colour alone (icon nodes, type badges, `aria-current`, labelled chips). The layout
+is intentional at 320/375/430px: a compact bar, the date navigator, horizontally
+scrollable filter chips, a clear rule with time labels, touch-friendly rows, and
+the floating capture action; no horizontal page overflow.
+
+Mock-up elements the current data model does not support are **omitted cleanly,
+not faked**: mood, attendees, linked records, attachments, projects and files are
+not part of the Diary detail slice, so no "No data" placeholder sections were
+invented. The shell-level bottom tab bar in the mock-up remains a deferred shell
+concern (PRODUCT_EXPERIENCE post-launch); this task adds only a Diary-scoped
+floating capture action, integrated with the existing shell.
+
+### 8.6 Source map (DIARY-01B)
+
+| File | Responsibility |
+| --- | --- |
+| `app/modules/diary/routes/index.tsx` | Day/Timeline loader (mode + date range) + workspace host. |
+| `app/modules/diary/routes/entry.tsx` | `GET /diary/:id` read — now returns presentation-ready read-view labels (type, occurred, created/updated). |
+| `app/modules/diary/DiaryWorkspace.tsx` | Workspace: Inspector wiring, toolbar, states, capture launch, `c` shortcut, mobile FAB. |
+| `app/modules/diary/DiaryTimelineBody.tsx` | The visual timeline (rule, icon nodes, compact rows, selection, edit action). |
+| `app/modules/diary/DiaryModeTabs.tsx` | Day/Timeline switch (drops cursor; leaving Day drops date). |
+| `app/modules/diary/DiaryDayNavigator.tsx` | Prev/next/Today + native date picker (URL-backed, drops cursor). |
+| `app/modules/diary/DiaryTypeFilter.tsx` | Compact scrollable type chips with honest counts (drops cursor). |
+| `app/modules/diary/DiaryDetailsPanel.tsx` | Inspector read/edit host (loads entry, read view, edit form). |
+| `app/modules/diary/DiaryCapture.tsx` | Compact capture chooser + fast path (Inspector-hosted). |
+| `app/modules/diary/diary-icons.tsx` | Entry-type → shared-icon map for timeline nodes / chooser. |
+| `app/modules/diary/occurred-time.ts` | Adds day-key helpers (add days, validate, long/medium labels, zoned date labels). |
+| `app/styles/diary.css` | Rebuilt timeline workspace styles (DS-01 tokens only). |

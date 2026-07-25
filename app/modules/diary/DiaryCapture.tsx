@@ -1,40 +1,37 @@
 /**
- * DIARY-01 — the sub-ten-second quick-capture surface.
+ * DIARY-01 / DIARY-01B — the compact quick-capture flow (hosted in the Inspector).
  *
- * Capture first, organise later: the common path is a type and a title, in one
- * place at the top of the Timeline — NO modal, NO navigation. Built entirely from
- * DS-06 shared controls (`useForm`, `SelectField`, `TextField`, `MarkdownField`)
- * with the owner-local `WhenField` for optional backdating. `useForm` gives
- * duplicate-submit prevention and draft retention on failure for free; the body
- * and "when" fields stay secondary behind a "More" disclosure so they never slow
- * the fast path. `Cmd/Ctrl+Enter` submits from any field. On success the entry is
- * captured through the reserved `DiaryRepository.create` (via `POST /diary/new`),
- * the parent revalidates the Timeline so the new entry appears in its correct
- * chronological position without a reload, and capture is announced to assistive
- * technology (DS-10 feedback).
+ * Capture first, organise later: launched from the "New entry" button, the `c`
+ * keyboard shortcut, or the mobile floating action — NOT a permanently-open panel
+ * dominating the page. The chooser presents the real supported entry types with
+ * icons and labels; the fast path stays under ten seconds: a sensible default type
+ * is retained, you type a title, you submit. Body and backdated "when" are optional
+ * behind a disclosure so they never slow the fast path. `Cmd/Ctrl+Enter` submits
+ * from any field.
  *
- * A successful capture REMOUNTS the inner form (via a bumped `key`), which is the
- * honest way to clear it: `useForm.reset()` restores the committed baseline (which
- * becomes the just-submitted values on success), so it cannot empty the draft.
- * The remount starts from empty initial values and returns focus to the title.
+ * Built entirely from DS-06 shared controls (`useForm`, `TextField`, `MarkdownField`)
+ * plus the owner-local `WhenField`. `useForm` gives duplicate-submit prevention and
+ * draft retention on failure for free. On success the entry is captured through the
+ * reserved `DiaryRepository.create` (via `POST /diary/new`); the parent revalidates
+ * the timeline and reports where the entry landed (honestly handling a backdated
+ * entry that belongs to another day).
  */
 
 import { useEffect, useRef, useState } from "react";
 
-import { useFeedback } from "~/shared/feedback";
 import {
   Form,
   FormActions,
   FormButton,
   FormErrorSummary,
   MarkdownField,
-  SelectField,
   TextField,
   required as requiredRule,
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
 
+import { entryTypeIcon } from "./diary-icons";
 import { entryTypeOptions } from "./diary-view";
 import { WhenField } from "./WhenField";
 import type { CreateDiaryEntryResult } from "./routes/new";
@@ -53,38 +50,20 @@ const FIELD_LABELS: Record<string, string> = {
   when: "When",
 };
 
-/** The default entry type — the neutral built-in kind, consistent with the
- * server default and DIARY-01A's backfill. */
+/** The default entry type — the neutral built-in kind, consistent with the server. */
 const DEFAULT_ENTRY_TYPE = "note";
 
-export interface QuickCaptureProps {
-  /** Called after a successful capture (to revalidate the Timeline). */
-  readonly onCaptured: () => void;
+export interface DiaryCaptureProps {
+  readonly todayKey: string;
+  /**
+   * Called after a successful capture with the new entry's id and the LOCAL day it
+   * belongs to, so the workspace can revalidate and — for a backdated entry landing
+   * on another day — offer to view that day rather than silently misplacing it.
+   */
+  readonly onCaptured: (entryId: string, capturedDayKey: string) => void;
 }
 
-export function QuickCapture({ onCaptured }: QuickCaptureProps) {
-  // Bumped after each successful capture to remount (and thus clear) the form.
-  const [captureKey, setCaptureKey] = useState(0);
-  return (
-    <CaptureForm
-      key={captureKey}
-      autoFocusTitle={captureKey > 0}
-      onCaptured={() => {
-        onCaptured();
-        setCaptureKey((key) => key + 1);
-      }}
-    />
-  );
-}
-
-function CaptureForm({
-  autoFocusTitle,
-  onCaptured,
-}: {
-  readonly autoFocusTitle: boolean;
-  readonly onCaptured: () => void;
-}) {
-  const feedback = useFeedback();
+export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
   const options = entryTypeOptions();
   const [showDetails, setShowDetails] = useState(false);
 
@@ -114,10 +93,11 @@ function CaptureForm({
         };
       }
       if (data.ok) {
-        // Announce + revalidate + remount (mirrors the Notes forms acting inside
-        // onSubmit on success); the remount clears the draft and refocuses.
-        feedback.notifySuccess("Entry captured");
-        onCaptured();
+        // The captured local day is the "when" date part, or today when blank.
+        const capturedDayKey = values.when
+          ? values.when.slice(0, 10)
+          : todayKey;
+        onCaptured(data.entryId, capturedDayKey);
         return { status: "success" };
       }
       return {
@@ -130,14 +110,21 @@ function CaptureForm({
   });
 
   const { focusField } = form;
+  // Land focus on the title for the fast path. The host Inspector focuses its close
+  // button in a single rAF on open; a NESTED rAF runs a frame later, so the title
+  // wins the initial focus (the fast path starts in the title, not the close button).
   useEffect(() => {
-    // Return focus to the title after a successful capture (the remount case).
-    if (autoFocusTitle) focusField("title");
-  }, [autoFocusTitle, focusField]);
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => focusField("title"));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [focusField]);
 
-  // Cmd+Enter on macOS, Ctrl+Enter elsewhere — a keyboard-only fast path. Bound
-  // as a native listener on the wrapper (not a JSX handler on a static element)
-  // so keydowns from any field bubble to it without needing a role.
+  // Cmd+Enter (macOS) / Ctrl+Enter — a keyboard-only fast path from any field.
   const wrapRef = useRef<HTMLDivElement>(null);
   const submitRef = useRef(form.handleSubmit);
   submitRef.current = form.handleSubmit;
@@ -174,22 +161,43 @@ function CaptureForm({
           labels={FIELD_LABELS}
           onFocusField={form.focusField}
         />
-        <div className="dh-diary-capture__row">
-          <SelectField
-            label="Type"
-            options={options}
-            className="dh-diary-capture__type"
-            {...typeField}
-          />
-          <TextField
-            label="Title"
-            required
-            maxLength={512}
-            placeholder="What happened?"
-            className="dh-diary-capture__title"
-            {...titleField}
-          />
-        </div>
+
+        <fieldset className="dh-diary-capture__types">
+          <legend className="dh-diary-capture__legend">Type</legend>
+          <div className="dh-diary-capture__chips">
+            {options.map((option) => {
+              const Icon = entryTypeIcon(option.value);
+              const checked = typeField.value === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className="dh-diary-capture__chip"
+                  data-checked={checked ? "true" : "false"}
+                >
+                  <input
+                    type="radio"
+                    name="dh-diary-capture-type"
+                    className="dh-diary-capture__radio"
+                    value={option.value}
+                    checked={checked}
+                    onChange={() => typeField.onChange(option.value)}
+                  />
+                  <Icon aria-hidden="true" />
+                  <span>{option.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <TextField
+          label="Title"
+          required
+          maxLength={512}
+          placeholder="What happened?"
+          {...titleField}
+        />
+
         <div className="dh-diary-capture__actions">
           <button
             type="button"
@@ -210,6 +218,7 @@ function CaptureForm({
             </FormButton>
           </FormActions>
         </div>
+
         <div
           id="dh-diary-capture-details"
           hidden={!showDetails}

@@ -224,7 +224,8 @@ describe("DIARY-01 timeline loader", () => {
       title: "Backdated",
       when: "2026-07-10T10:00",
     });
-    const result = await runIndex();
+    // Timeline mode spans multiple days (Day mode would show only today).
+    const result = await runIndex("?mode=timeline");
     const titles = flatEntries(result).map((entry) => entry.title);
     expect(titles.indexOf("Recent")).toBeLessThan(titles.indexOf("Backdated"));
   });
@@ -244,12 +245,12 @@ describe("DIARY-01 timeline loader", () => {
       });
     }
 
-    const first = await runIndex();
+    const first = await runIndex("?mode=timeline");
     expect(flatEntries(first).length).toBe(25); // the bounded page size
     expect(first.nextCursor).not.toBeNull();
 
     const second = await runIndex(
-      `?cursor=${encodeURIComponent(first.nextCursor as string)}`,
+      `?mode=timeline&cursor=${encodeURIComponent(first.nextCursor as string)}`,
     );
     expect(flatEntries(second).length).toBe(5);
     expect(second.failed).toBe(false);
@@ -257,15 +258,15 @@ describe("DIARY-01 timeline loader", () => {
     // A cursor issued for the unfiltered scope is rejected calmly when reused
     // under a different (type-filtered) scope — never silently reinterpreted.
     const mismatched = await runIndex(
-      `?type=meeting&cursor=${encodeURIComponent(first.nextCursor as string)}`,
+      `?mode=timeline&type=meeting&cursor=${encodeURIComponent(first.nextCursor as string)}`,
     );
     expect(mismatched.failed).toBe(true);
   });
 
-  it("includes an entry late in the final minute of a to-bounded local day", async () => {
+  it("includes an entry late in the final minute of a Day-mode local day", async () => {
     // 2026-07-19T13:59:45Z is 23:59:45 in Sydney on 2026-07-19 — inside the day,
     // but after a naive `23:59` upper bound. The inclusive end-of-day bound must
-    // keep it in a `?to=2026-07-19` filter.
+    // keep it in a `?date=2026-07-19` (Day mode) view.
     await makeDiaryRepository(makeContext(WS)).create({
       entryType: "note",
       title: "Late night",
@@ -278,10 +279,22 @@ describe("DIARY-01 timeline loader", () => {
       occurredAt: new Date("2026-07-19T14:00:30.000Z"),
     });
 
-    const result = await runIndex("?to=2026-07-19");
+    const result = await runIndex("?date=2026-07-19");
     const titles = flatEntries(result).map((entry) => entry.title);
     expect(titles).toContain("Late night");
     expect(titles).not.toContain("Next day");
+  });
+
+  it("defaults to Day mode anchored on today", async () => {
+    const result = await runIndex();
+    expect(result.mode).toBe("day");
+    expect(result.selectedDate).toBe(result.todayKey);
+  });
+
+  it("degrades an invalid ?date to today rather than a broken range", async () => {
+    const result = await runIndex("?date=2026-13-40");
+    expect(result.failed).toBe(false);
+    expect(result.selectedDate).toBe(result.todayKey);
   });
 
   it("filters by entry type", async () => {
