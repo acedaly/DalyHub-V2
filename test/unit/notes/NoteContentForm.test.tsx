@@ -13,8 +13,23 @@ import { MARKDOWN_SOURCE_MAX_BYTES } from "~/kernel/markdown";
 import { NoteContentForm } from "~/modules/notes/NoteContentForm";
 
 /**
- * NOTES-01C — the Note Markdown source editor as behaviour, now driven by
- * dependable AUTOSAVE (replacing NOTES-01B's explicit Save button):
+ * The live editor (`~/shared/markdown-editor`) mounts CodeMirror only in a real
+ * browser (Playwright covers that). In this happy-dom unit environment we force
+ * its accessible, controlled `<textarea>` fallback — the same surface a no-JS
+ * client gets — by making the lazily-imported CodeMirror setup throw, which the
+ * editor's own `.catch` handles by keeping the fallback in place. The fallback
+ * exercises the identical autosave/coordinator wiring these tests assert, so
+ * this proves the real behaviour without a layout engine.
+ */
+vi.mock("~/shared/markdown-editor/editor-setup", () => ({
+  createEditorExtensions: () => {
+    throw new Error("CodeMirror is not mounted in unit tests");
+  },
+}));
+
+/**
+ * NOTES-05 — the Note Markdown editor as behaviour, driven by dependable
+ * AUTOSAVE (no Save button) through the shared writing-first editor:
  *   - a debounced save fires automatically after the tuned pause, and an
  *     immediate blur also triggers one;
  *   - rapid edits WHILE a save is in flight coalesce — the newer value saves
@@ -26,9 +41,8 @@ import { NoteContentForm } from "~/modules/notes/NoteContentForm";
  *     (unsaved/saving/error) and releases the instant it is (saved/idle);
  *   - exact Markdown source preservation (whitespace-only, CRLF) still holds;
  *   - an oversized document is refused client-side before any save attempt;
- *   - the desktop Source/Split/Preview view-mode control only offers Split on
- *     a wide viewport, and both Source and Preview always render through the
- *     one shared Markdown pipeline.
+ *   - the editor offers an unobtrusive Read toggle that renders the note
+ *     through the one shared FND-08 pipeline (no persistent Source/Split/Preview).
  */
 
 function renderInRouter(node: ReactElement) {
@@ -394,37 +408,22 @@ describe("NoteContentForm", () => {
     });
   });
 
-  describe("view modes", () => {
-    it("defaults to Source, and Split is offered only on a wide viewport", () => {
-      stubMatchMedia(true);
-      renderInRouter(
-        <NoteContentForm noteId="n1" initialContent="Hi" onSaved={() => {}} />,
-      );
-      const group = screen.getByRole("group", { name: "Editor view" });
-      expect(group).toBeInTheDocument();
-      const sourceButton = screen.getByRole("button", { name: /Source/ });
-      expect(sourceButton).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByRole("button", { name: /Split/ })).toBeInTheDocument();
-    });
-
-    it("does not offer Split on a narrow viewport", () => {
-      stubMatchMedia(false);
+  describe("reading mode (NOTES-05)", () => {
+    it("writes by default: the formatting toolbar and editable surface are present, no Source/Split/Preview", () => {
       renderInRouter(
         <NoteContentForm noteId="n1" initialContent="Hi" onSaved={() => {}} />,
       );
       expect(
-        screen.queryByRole("button", { name: /Split/ }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /Source/ }),
+        screen.getByRole("toolbar", { name: "Formatting" }),
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /Preview/ }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Note" })).toBeInTheDocument();
+      // The retired persistent view-mode controls are gone.
+      for (const name of ["Source", "Split", "Preview"] as const) {
+        expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+      }
     });
 
-    it("Preview mode renders the safe preview through the shared pipeline and hides the source", async () => {
-      stubMatchMedia(true);
+    it("toggles to Read (rendering through the shared pipeline, hiding the editor) and back to Write", async () => {
       renderInRouter(
         <NoteContentForm
           noteId="n1"
@@ -432,33 +431,22 @@ describe("NoteContentForm", () => {
           onSaved={() => {}}
         />,
       );
-      fireEvent.click(screen.getByRole("button", { name: /Preview/ }));
+      // Write → Read.
+      fireEvent.click(screen.getByRole("button", { name: "Read" }));
       expect(
         screen.queryByRole("textbox", { name: "Note" }),
       ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("toolbar", { name: "Formatting" }),
+      ).not.toBeInTheDocument();
       await waitFor(() =>
         expect(
           screen.getByRole("heading", { name: "Heading" }),
         ).toBeInTheDocument(),
       );
-    });
-
-    it("Split mode shows both the source textarea and the live preview", async () => {
-      stubMatchMedia(true);
-      renderInRouter(
-        <NoteContentForm
-          noteId="n1"
-          initialContent="# Heading"
-          onSaved={() => {}}
-        />,
-      );
-      fireEvent.click(screen.getByRole("button", { name: /Split/ }));
+      // Read → Write restores the editing surface.
+      fireEvent.click(screen.getByRole("button", { name: "Write" }));
       expect(screen.getByRole("textbox", { name: "Note" })).toBeInTheDocument();
-      await waitFor(() =>
-        expect(
-          screen.getByRole("heading", { name: "Heading" }),
-        ).toBeInTheDocument(),
-      );
     });
   });
 

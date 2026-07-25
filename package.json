@@ -30,6 +30,14 @@
     "postinstall": "wrangler types"
   },
   "dependencies": {
+    "@codemirror/commands": "6.10.4",
+    "@codemirror/lang-markdown": "6.5.1",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/state": "6.7.1",
+    "@codemirror/view": "6.43.6",
+    "@lezer/common": "1.5.2",
+    "@lezer/highlight": "1.2.3",
+    "@lezer/markdown": "1.7.2",
     "isbot": "5.2.1",
     "jose": "6.2.3",
     "react": "19.2.7",

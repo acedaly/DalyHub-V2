@@ -1,22 +1,25 @@
-# NOTES_MODULE.md — The Notes module (NOTES-01B/NOTES-01C/NOTES-04)
+# NOTES_MODULE.md — The Notes module (NOTES-01B/NOTES-01C/NOTES-04/NOTES-05)
 
 The real **Notes** UI: a collection with an Active/Deleted lifecycle filter,
 a trusted title-only creation flow, and a canonical Markdown record — with
-dependable autosave, a desktop Source/Split/Preview layout, and (NOTES-04) a
-writing-first mobile editor with a Notes-local Markdown formatting toolbar —
-composed **entirely** from the shared design system and the NOTES-01A
-persistence foundation — no second Notes identity model, no second Markdown
-pipeline, no second lifecycle model, no bespoke UI primitives, and no unsafe
-client-only persistence path. Replaces the PX-03 `ModuleComingSoon`
-placeholder at `/notes`.
+dependable autosave and (NOTES-05) ONE **writing-first live Markdown editor**
+where the document is styled as it is typed while Markdown source stays the
+single source of truth — composed **entirely** from the shared design system
+and the NOTES-01A persistence foundation — no second Notes identity model, no
+second Markdown pipeline, no second lifecycle model, and no unsafe client-only
+persistence path. Replaces the PX-03 `ModuleComingSoon` placeholder at `/notes`.
 
 NOTES-01B needed no new ADR (a direct application of already-accepted
 patterns). NOTES-01C added [ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern),
 recording how the existing DS-06 autosave coordinator was adapted for a
 full document and how Notes became the first module to build a generic
 (non-Project-specific) soft-delete/restore UI on the kernel's existing
-`EntityRepository.softDelete`/`.restore` — see that ADR for the full design
-record; this document stays the "how it works" reference.
+`EntityRepository.softDelete`/`.restore`. **NOTES-05** added
+[ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline),
+recording the adoption of CodeMirror 6 as an *authoring surface only* over the
+unchanged FND-08 source-and-render pipeline, and the promotion of the writing
+editor to the shared `~/shared/markdown-editor` module. See those ADRs for the
+full design records; this document stays the "how it works" reference.
 
 ## Data ownership
 
@@ -47,7 +50,7 @@ shell:
 | --- | --- | --- |
 | `GET /notes` | page | The Notes collection. `?state=active` (default) lists live Notes; `?state=deleted` lists only soft-deleted ones. Bounded cursor pagination either way. Replaces the PX-03 placeholder. |
 | `POST /notes/new` | resource | Create a Note via `entities.create({ type: "note", title })`. Title only. |
-| `GET /notes/:noteId` | page | Canonical Note record: the "Note" tab (Markdown source editor + Source/Split/Preview) and the "Activity" tab. **404s for a soft-deleted Note** — see [Lifecycle](#lifecycle-delete-and-restore). |
+| `GET /notes/:noteId` | page | Canonical Note record: the "Note" tab (the NOTES-05 writing-first live Markdown editor + a Read toggle) and the "Activity" tab. **404s for a soft-deleted Note** — see [Lifecycle](#lifecycle-delete-and-restore). |
 | `POST /notes/:noteId/mutate` | resource | `rename` / `update_content` (verified ACTIVE-Note anchor) and `delete` / `restore` (verified anchor regardless of lifecycle state — see below). |
 | `GET /notes/:noteId/activity` | resource | One bounded DS-05 Timeline page over `activity.listForEntity(noteId)`. |
 
@@ -136,180 +139,107 @@ records. The Drawer here hosts only the "Rename" form.
 Exactly two tabs — no empty "Links"/"Settings" tab reserved for a future
 capability (DESIGN_SYSTEM.md: never ship an empty tab for later).
 
-## Editor and preview
+## Editor (NOTES-05 — the writing-first live editor)
 
-`app/modules/notes/NoteContentForm.tsx` uses the **existing** DS-06
-`MarkdownField` control for the textarea itself, unchanged in its core
-behaviour — it edits and preserves the Markdown source byte-for-byte (never
-trims, never rewrites, never normalises line endings; supports empty and
-whitespace-only content). NOTES-01C added one small, additive prop,
-`hidePreviewToggle`, so `MarkdownField`'s own built-in "Show preview"
-disclosure can be suppressed when a caller (this module) renders its own
-preview surface for the same value — the preview still renders through the
-**one** shared FND-08 pipeline (`renderMarkdownSource` → `<MarkdownContent>`),
-just composed at a different layer. No new editor dependency, no second
-parser, no second sanitiser, no second `dangerouslySetInnerHTML` sink — the
-sanctioned one stays inside `MarkdownContent`.
+`app/modules/notes/NoteContentForm.tsx` hosts the "Note" tab. NOTES-05 replaced
+NOTES-01C's desktop Source/Split/Preview and NOTES-04's textarea-plus-toolbar
+with the ONE shared **`LiveMarkdownEditor`** (`~/shared/markdown-editor`) — the
+writing-first editor used across desktop and mobile. `NoteContentForm` is now a
+thin adapter: it owns the autosave coordinator, save-state, offline detection
+and navigation guard (all unchanged from NOTES-01C, see below) and renders the
+shared editor with the note's Markdown source as a controlled value.
 
-**Save model — autosave (NOTES-01C), not explicit Save.** `NoteContentForm`
-calls the **existing** DS-06 `useAutosaveField<string>` hook — the SAME pure
-coordinator (`~/shared/forms/autosave.ts`) every other autosaving field
-uses, with no new state machine. Two Notes-specific tunings, layered on top
-of the shared hook rather than inside it:
+**Markdown source stays the single source of truth.** The editor's document IS
+the Markdown source string, byte-for-byte; `onChange` emits exactly that string.
+CodeMirror 6 is used as an *authoring surface only* — its Lezer Markdown grammar
+produces a parse tree the editor styles the source from, but it emits no HTML,
+never sanitises, and never becomes the stored representation. The ONE FND-08
+pipeline (`renderMarkdownSource` → `<MarkdownContent>`) remains the sole
+renderer and the sole sanctioned HTML sink (enforced unchanged by
+`test/unit/markdown-boundary.test.ts`). See
+[ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline)
+and [MARKDOWN_PIPELINE.md](./MARKDOWN_PIPELINE.md).
 
-- **`NOTE_AUTOSAVE_DEBOUNCE_MS = 1500`** — longer than DS-06's 800ms
-  short-field default, so continuous typing on a long document coalesces
-  into one save per pause rather than one per near-keystroke pause. A valid
-  blur still saves immediately, same as any other DS-06 autosave field.
-- **`validateNoteContentSize`** (`note-content-validation.ts`) as the
-  hook's `validate` — a pure re-use of FND-08's `markdownSourceByteLength`/
-  `MARKDOWN_SOURCE_MAX_BYTES` (no second limit). An oversized document is
-  refused **before a save is even attempted**, with an immediate inline
-  field error, rather than always waiting on a round trip to learn the same
-  thing from the server's authoritative `parseMarkdownSource` boundary,
-  which remains the real limit and the last word.
+**Live preview — decorate the source, reveal it on the caret.** The shared
+`buildLivePreviewDecorations(state)` (pure, unit-tested against an
+`EditorState` with no browser) walks the parse tree and returns CodeMirror
+decorations that style the source *in place*:
 
-The autosave coordinator's existing guarantees — proven by its own test
-suite (`test/unit/forms/autosave.test.ts`) and exercised here at
-document scale — cover the correctness surface directly: only one save ever
-in flight; a rapid edit made WHILE a save is in flight coalesces to the
-LATEST value and is saved next, never lost; a stale/late response can never
-overwrite newer local state; a failed save preserves the draft and offers
-Retry, never auto-discarding; no save is attempted while invalid (the size
-check above). `onSave` posts the identical `intent=update_content` to
-`POST /notes/:noteId/mutate` this module has always used — autosave changed
-WHEN a save fires, never the persistence path itself.
-
-**Save-state UX.** `SaveStatusIndicator` (DS-06) presents `unsaved`,
-`saving`, `saved` and `error` directly from the hook's own `status` — no
-local flag-juggling. A save failure additionally distinguishes an honestly
-**detected offline** condition (`use-online-status.ts`, wrapping
-`navigator.onLine`/`online`/`offline`) from a generic failure, and
-auto-retries the moment connectivity returns — the user should not have to
-notice and click Retry for something the browser already told the app.
-Validation failures (oversized content) surface as `MarkdownField`'s own
-field error, distinct from a save-attempt failure. No toast fires for a
-routine autosave — the inline indicator is the whole signal, quiet unless
-attention is needed.
-
-**Navigation guard.** `UnsavedChangesGuard` now arms while the latest edit
-is **not yet safely persisted** — `status` is `unsaved`, `saving` or
-`error` — and disarms the instant it is (`saved`/`idle`), rather than the
-old explicit-form `isDirty` flag. It never blocks a navigation the record's
-own Delete action triggers: `useDeleteNote` sets a `suppressGuard` flag via
-a synchronous `flushSync` immediately before navigating away, so a Note the
-user just deliberately deleted is never met with "leave with unsaved
-changes?" (React state updates are otherwise batched, which would let the
-navigation run against the PREVIOUS render's still-armed guard). The guard
-never traps the user indefinitely — Leave is always offered.
-
-**Desktop Source/Split/Preview.** A pure view-mode model
-(`note-editor-view-mode.ts`) decides what is offered and selected: Split is
-available ONLY on a wide viewport (`useIsWideViewport`, the DS-01 `md`
-breakpoint, mirroring the Inspector's own compact-viewport threshold) — it
-is OMITTED, not merely disabled, below it, and a desired Split selection
-degrades to Source (never Preview) the moment the viewport narrows. Source
-and Preview are always available and render the SAME control/pipeline
-described above; a single-pane mode gets a comfortable, centred writing
-measure, while Split uses the extra width for two real columns. The
-selected mode is never colour-only — a checkmark glyph and a distinct
-background/text-colour pairing both mark it, and `aria-pressed` carries the
-state to assistive technology.
-
-A static help line cites the shared `MARKDOWN_SOURCE_MAX_BYTES` limit (1 MiB)
-rather than a live byte counter — `MarkdownField` has no counter prop, and
-this slice does not add one.
-
-## Writing toolbar and mobile editor (NOTES-04)
-
-NOTES-04 makes Notes **writing-first on a phone** and lets a user apply common
-Markdown structures **without remembering the syntax** — while keeping the
-Markdown source the single source of truth. It is deliberately Notes-LOCAL and
-was built to run in parallel with TASKS-01 (see the boundary note below).
-
-**Mobile layout.** The record is already a full page composed from the shared
-Record Layout, and the editor's view-mode model already omits the desktop
-Split below the `md` breakpoint (degrading to Source, never a squeezed
-two-column layout), so a phone gets **one writing surface (Source) plus an
-optional Preview** — never the desktop Split. NOTES-04 adds Notes-local CSS
-(`app/styles/notes.css`) that gives the source textarea a generous share of
-the viewport (`min-block-size: max(40dvh, 12rem)` below `md`) so it never
-collapses to a tiny box, keeps the page (not a nested element) the single
-scroll surface, and renders the toolbar as a single horizontally-scrolling row
-on a phone (so the writing surface keeps the vertical space) that wraps to full
-visibility on a wide viewport. Safe-area insets are inherited from the shared
-Collection/Record/Drawer surfaces — this slice adds no new safe-area handling.
-
-**`NoteFormattingToolbar`.** `app/modules/notes/NoteFormattingToolbar.tsx` is a
-restrained row of formatting controls around the DS-06 `MarkdownField` source
-textarea. It captures the live `<textarea>` node through `MarkdownField`'s
-existing `controlRef` and, on each action, reads the current
-value/selection, computes a pure transform, pushes the result through the
-field's existing `onChange`, and restores focus + the computed selection to the
-textarea. A `flushSync` around the controlled-value update guarantees the DOM
-value has updated before the selection is restored. It is **not** a rich-text
-editor: there is no second document model here.
-
-**Syntax transformations.** The transforms live in a pure, React-free,
-independently-tested module (`markdown-transforms.ts`), catalogued by
-`note-formatting-actions.ts`:
-
-| Action | Selected text | No selection |
+| Construct | Rendered while inactive | On caret entry |
 | --- | --- | --- |
-| Heading | cycles the line's level: none → H1 → H2 → H3 → none | inserts `# ` on the line |
-| Bold / Italic / Inline code | wraps `**…**` / `_…_` / `` `…` `` (re-press unwraps) | inserts a selected placeholder (`**bold text**`) |
-| Bulleted / Numbered / Checklist / Blockquote | prefixes each selected line (`- `, `1. `, `- [ ] `, `> `); re-press toggles off | inserts the marker as a starting point |
-| Link | `[selected](url)` with the caret on `url` | `[text](url)` with `text` selected |
-| Fenced code / Table | wraps or inserts a block, blank-line separated so it parses | inserts a scaffold with a useful cell/line selected |
+| Headings (`#`..`######`, setext) | line grows to the heading scale; `#` markers concealed | raw `# …` returns |
+| Bold / italic / strikethrough / inline code | styled span; paired markers concealed | markers return |
+| Links | styled text; `[`/`]`/`(url)` concealed | full `[text](url)` returns |
+| Images | non-fetching placeholder (glyph + alt) — honours the FND-08 remote-image policy | raw `![alt](url)` returns |
+| Block quotes / callouts (`> [!type]`) | left rule + tint (type-coloured for note/warning/danger/tip) | raw `>` returns |
+| Fenced code | monospace block | raw fence returns |
+| Task items (`- [ ] `) | interactive, **labelled** checkbox (toggles the source `[ ]`↔`[x]`); bullet concealed | raw `- [ ] ` returns |
+| Thematic breaks (`---`) | rendered `<hr>` | raw `---` returns |
+| GFM tables | rendered `<table>` (hand-built DOM, plain-text cells) | raw pipe source returns |
 
-Every transform: works with a current selection **and** inserts sensible syntax
-when nothing is selected; preserves surrounding content and **line endings
-byte-for-byte** (CRLF and LF alike); never mutates its input; returns an
-explicit resulting selection/caret so typing continues (a range stays selected
-so the action is repeatable; a collapsed caret shifts with the edit); and
-**never produces malformed Markdown on repeated use** — line-prefix and
-inline-wrap actions toggle, and block insertions add exactly the blank-line
-separation the structure needs (e.g. a thematic break is never emitted as
-`above\n---`, which is a setext heading).
+A construct is "active" (shows raw source) when the selection intersects its
+range — so the user always edits real Markdown, never a rich-text proxy. This is
+Obsidian-style **Live Preview, not WYSIWYG**. Block decorations (rule/table) are
+provided from a `StateField` (CodeMirror requires this for block decorations);
+the table/rule/checkbox/image widgets build DOM with `createElement`/
+`textContent`, never an HTML-string sink, so no second sink is introduced.
 
-**Markdown-source authority — the load-bearing rule.** The toolbar only ever
-edits the SAME Markdown source string the textarea already holds. It stores no
-second representation, adds no parser, and adds no rendering sink — the one
-FND-08 pipeline (`renderMarkdownSource` → `<MarkdownContent>`) stays the only
-renderer and the only `dangerouslySetInnerHTML`, still enforced by
-`test/unit/markdown-boundary.test.ts`. Link insertion emits Markdown link
-*source* only; rendering (and its URL policy / sanitisation) is unchanged.
+**Toolbar and keyboard shortcuts — one code path.** The pure, React-free
+Markdown-source transforms (`markdown-transforms.ts`) and the formatting-action
+catalogue (`formatting-actions.ts`) were promoted **unchanged** from the
+NOTES-04 Notes-local module into `~/shared/markdown-editor` (shared code cannot
+depend on a module). The shared `EditorToolbar` (a WAI-ARIA `toolbar` with
+roving tabindex) and the editor keymap (`editor-keymap.ts`, ⌘B/⌘I/⌘E/⌘K and the
+list/quote chords) both apply the SAME transform through
+`applyMarkdownTransform`, which reads the document + selection out of the view,
+runs the transform, and dispatches ONE transaction (one undo step) that updates
+the source and restores the selection. Shortcuts are editor-scoped and never
+rebind the reserved global `⌘K` palette or `/` search. Toolbar buttons
+`preventDefault` on mousedown so a click never steals the editor's selection.
 
-**Autosave integration.** A toolbar action is just a programmatic `onChange`
-into the SAME DS-06 `useAutosaveField` coordinator typing uses — there is **no
-parallel save state machine**. A no-op action pushes no change (so it never
-marks the note unsaved). Because it flows through the one coordinator, rapid
-toolbar + typing changes coalesce, an action during an in-flight save cannot
-lose the newer content, a stale response can't overwrite it, autosave status
-stays accurate, Retry sends the latest content, offline detection stays honest,
-and the navigation guard stays armed until the latest content is safely saved.
-Regression tests cover a toolbar action made before a save, during an in-flight
-save, after a failed save, while offline, and immediately before navigation.
+**Read mode — the only alternate surface.** NOTES-05 retires persistent
+Source/Split/Preview. A single unobtrusive **Read** toggle swaps the editor for
+the note rendered through the exact FND-08 pipeline; there is no split screen and
+no persistent raw-source pane. The two-value model lives in the pure
+`editor-view-mode.ts`.
 
-**Why Notes-local (and not shared) in this PR.** NOTES-04 introduces the
-toolbar as a Notes-scoped component so it can ship in parallel with TASKS-01
-without touching shared infrastructure. The **full writing-first editor
-simplification** — one primary editor across desktop and mobile, keyboard
-shortcuts, an unobtrusive reading mode, and retiring persistent
-Source/Split/Preview as the primary interaction — is intentionally deferred to
-**NOTES-05**, at which point a genuinely reusable editor pattern (and any
-promotion to the Design System) can be designed against a second consumer.
-**Single-Note export** (`.md` and portable formats) is **NOTES-06**, aligned
-with the future whole-workspace **X-04** export; NOTES-04 records that intent
-but implements none of it (and adds no "Coming Soon" controls).
+**Save model — autosave (unchanged from NOTES-01C).** `NoteContentForm` calls
+the SAME pure DS-06 `useAutosaveField<string>` coordinator every other autosaving
+field uses. The two Notes tunings are unchanged: `NOTE_AUTOSAVE_DEBOUNCE_MS = 1500`
+(document-scale) and `validateNoteContentSize` (reusing FND-08's
+`markdownSourceByteLength`/`MARKDOWN_SOURCE_MAX_BYTES`, refusing an oversized
+document before a save is attempted). The coordinator's guarantees — one save in
+flight; a rapid edit during an in-flight save coalesces to the LATEST value and
+is never lost; a stale response can't overwrite newer state; a failed save
+preserves the draft and offers Retry; no save while invalid — are proven by
+`test/unit/forms/autosave.test.ts` and exercised here at document scale. A
+toolbar/shortcut action is just a programmatic `onChange` into the SAME
+coordinator; there is **no parallel save state machine**. `onSave` posts the
+identical `intent=update_content` to `POST /notes/:noteId/mutate`.
 
-**Accessibility.** The toolbar is a WAI-ARIA `toolbar` with roving-tabindex
-keyboard navigation (Arrow/Home/End move a single Tab stop between buttons);
-every button carries a visible, unambiguous word that IS its accessible name
-plus a longer `title` tooltip (never an unlabelled icon); controls meet the
-44px touch-target floor and are never colour-only or nested-interactive;
-activating an action returns focus to the textarea so typing continues. axe
-passes in light and dark on the editor surface.
+**Save-state UX, offline, navigation guard.** `SaveStatusIndicator` (rendered in
+the editor's top bar via its `statusSlot`) presents unsaved/saving/saved/error
+directly from the hook's status, pairing an icon glyph with words (never
+colour-only). A save failure distinguishes a detected **offline** condition
+(`use-online-status.ts`) from a generic failure and auto-retries the moment
+connectivity returns. `UnsavedChangesGuard` arms while the latest edit is not yet
+safely persisted (`unsaved`/`saving`/`error`) and disarms the instant it is; it
+never blocks the record's own Delete (`useDeleteNote` sets a `flushSync`-guarded
+`suppressGuard` and flushes the pending edit before navigating). No toast fires
+for routine autosave — the inline indicator is the whole signal.
+
+**Progressive enhancement & SSR.** CodeMirror is imported lazily and constructed
+only in a client effect; the server (and any no-JavaScript client) renders an
+accessible, controlled `<textarea>` fallback with the same label/value/onChange,
+which the editor keeps in place if CodeMirror ever fails to load — the note is
+never un-editable. The CodeMirror bundle is code-split and enters only the
+note-editor route.
+
+**Why the shared module (and not Notes-local).** NOTES-04 recorded that the full
+writing-first editor should be designed as a reusable pattern against a second
+consumer. NOTES-05 delivers it as `~/shared/markdown-editor`; the Diary entry
+body (which already reuses the FND-08 pipeline) is the intended second consumer
+and the trigger for promoting the pattern to the Design System.
 
 ## Note mutations
 
@@ -406,68 +336,82 @@ Activity reload-key pattern).
 Inherits DS-11 almost entirely from shared, already-audited primitives:
 `CollectionLayout`, `Card`, `RecordLayout`, `Drawer`/`UnsavedChangesGuard`
 (the one focus trap), `~/shared/segmented-filter`, and DS-06
-forms/`MarkdownField`/`SaveStatusIndicator`. The new NOTES-01C surfaces
-(the Active/Deleted filter, the deleted Note's Restore quick action, the
-Source/Split/Preview toolbar) follow the same conventions: real links/buttons
-with visible+accessible names, `aria-pressed` on the view-mode toggle, and
-44px touch targets on every new control (`--dh-touch-target-min`, proven by
-a dedicated `e2e/touch-targets.spec.ts` block). The collection (both states),
-create Drawer, canonical record, tabs, editor (all three view modes), rename
-Drawer, Delete's Undo flow and Activity Timeline are keyboard-operable,
-correctly labelled, focus-restoring on Drawer close, axe-clean in light and
-dark, and free of horizontal overflow from 320px through ultra-wide — proven
-end to end by `e2e/notes.spec.ts` and the shared `e2e/accessibility.spec.ts` /
-`e2e/responsive.spec.ts` sweeps (both include `/notes` and
-`/notes?state=deleted`). Save state is never colour-only — every
-`SaveStatusIndicator` state pairs an icon glyph with words, and the status
-live region is polite (never steals focus); the editor's selected view mode
-pairs a checkmark glyph with a background/text-colour pairing, never colour
-alone.
+forms/`SaveStatusIndicator`. The writing editor (`~/shared/markdown-editor`)
+follows the same conventions: the CodeMirror surface is a labelled `textbox`
+(`role="textbox"`, `aria-multiline`), the formatting `EditorToolbar` is a
+WAI-ARIA `toolbar` with roving tabindex (one Tab stop; Arrow/Home/End move
+between buttons; visible words ARE the accessible names), the Read/Write toggle
+is a real button carrying its state in its LABEL (never colour-only) plus
+`aria-pressed`, the CodeMirror host shows the shared `:focus-visible` ring on
+`:focus-within` (re-pinned under forced-colors), and every control meets the
+44px `--dh-touch-target-min` floor (proven by an `e2e/touch-targets.spec.ts`
+block). The live editor's own interactive task checkboxes ARE labelled; the
+editor's axe gate scopes to the authoring surface, since the shared FND-08
+renderer's rendered task-list checkboxes carry the
+[DEBT-26](../product/PRODUCT_DEBT.md) gap a Notes PR must not fix. The
+collection (both states), create Drawer, canonical record, tabs, editor (Write
+and Read), rename Drawer, Delete's Undo flow and Activity Timeline are
+keyboard-operable, correctly labelled, focus-restoring on Drawer close,
+axe-clean in light and dark, and free of horizontal overflow from 320px through
+ultra-wide — proven end to end by `e2e/notes.spec.ts` and the shared
+`e2e/accessibility.spec.ts` / `e2e/responsive.spec.ts` sweeps (both include
+`/notes` and `/notes?state=deleted`). Save state is never colour-only — every
+`SaveStatusIndicator` state pairs an icon glyph with words, and the status live
+region is polite (never steals focus). On a phone the writing surface takes a
+generous share of the viewport (`dvh`-based) and the toolbar scrolls
+horizontally in one row rather than wrapping, keeping the writing space tall;
+the page stays the single scroll surface.
 
 ## Testing
 
-- **Unit / pure** (`test/unit/notes`): `note-view.test.ts`
-  (`effectiveNoteUpdatedAt`'s three timestamp-ordering cases),
-  `note-activity-descriptors.test.ts` (the one Note-owned descriptor, the
-  kernel lifecycle defaults, the safe fallback for unknown types, no raw
-  payload text), `note-content-validation.test.ts` (the size check at/over
-  the limit, UTF-8 byte counting for multi-byte characters), and
-  `note-editor-view-mode.test.ts` (Split offered only when wide, Split
-  degrades to Source — never Preview — when narrow); **(NOTES-04)**
-  `markdown-transforms.test.ts` (every source transform across
+- **Unit / pure** — the writing editor's pure modules live under
+  `test/unit/markdown-editor`: `live-decorations.test.ts` (the tree-walking
+  decoration builder, run against a parsed `EditorState` with no browser: a
+  heading gets its line class and a concealed `#` when inactive but reveals it
+  on caret entry; strong/em/strike/inline-code style and conceal their markers;
+  a link styles its text and hides its destination; an image becomes a
+  placeholder widget; a blockquote and a `[!type]` callout get their classes; a
+  task item becomes a checkbox widget with the bullet concealed and the checked
+  state read correctly; thematic rules and tables become widgets when inactive
+  and show raw source when active; no class/widget carries raw HTML),
+  `table-source.test.ts` (the GFM table-source parser: cell splitting incl.
+  escaped pipes, alignments, missing-delimiter → null, CRLF),
+  `editor-commands.test.ts` (the transform→CodeMirror bridge reads the
+  document + primary selection and reports the change/selection),
+  `editor-view-mode.test.ts` (the write/read model), `editor-keymap.test.ts`
+  (shortcuts derive from the shared catalogue and never claim `/`), plus the
+  **promoted** `markdown-transforms.test.ts` (every source transform across
   selected/unselected, multi-line, empty-document, Unicode and CRLF inputs;
-  non-mutation; the resulting caret/selection; toggle/no-malformed-on-repeat;
-  the documented bullet/checklist/table examples) and
-  `note-formatting-actions.test.ts` (the toolbar catalogue has every required
-  action, unique ids, a non-empty label + hint each, and every action
-  produces Markdown SOURCE with no HTML tags — never a rich-text/rendered
-  representation). The autosave coordinator's own correctness (coalescing,
-  staleness, retry, no-save-while-invalid) is covered once, generically, by
+  non-mutation; caret/selection; toggle/no-malformed-on-repeat) and
+  `formatting-actions.test.ts` (the catalogue has every required action, unique
+  ids, a label + hint each, and produces Markdown SOURCE with no HTML tags).
+  Notes-local `test/unit/notes` keeps `note-view.test.ts`,
+  `note-activity-descriptors.test.ts` and `note-content-validation.test.ts`.
+  The autosave coordinator's own correctness (coalescing, staleness, retry,
+  no-save-while-invalid) is covered once, generically, by
   `test/unit/forms/autosave.test.ts` — Notes does not re-prove it.
-- **Component** (`test/unit/notes`): `NotesCollection.test.tsx` (card
-  rendering, honest subtitle, empty/error states, keyset "Load more" without
-  duplicates, the Active/Deleted `SegmentedFilter`, a deleted Note's
-  static-title-plus-Restore card, a successful and a failed Restore),
-  `create-forms.test.tsx` (`NewNoteForm` required-title validation,
-  duplicate-submit prevention, server-error surfacing, the success path),
-  `NoteContentForm.test.tsx` (autosave after the debounce, immediate save on
-  blur, exact whitespace/CRLF source preservation, **a rapid edit made
-  while a save is in flight coalescing to the latest value and saving
-  next**, a failed save preserving the draft with Retry recovering, offline
-  detection and auto-retry on reconnect, oversized content refused
-  client-side with no fetch call, the navigation guard armed/disarmed
-  states including `suppressGuard`, and the Source/Split/Preview view
-  modes including Split's absence on a narrow viewport; **(NOTES-04)** a
-  formatting-toolbar action triggering the SAME debounced autosave as
-  typing, coalescing during an in-flight save, preserving the draft after a
-  failed save, preserving content while offline, and arming the navigation
-  guard), **(NOTES-04)** `NoteFormattingToolbar.test.tsx` (an accessible
-  `toolbar` with a labelled button per action, roving-tabindex keyboard
-  navigation, and each action — bold/bullets/checklist/table — editing the
-  textarea value and restoring the selection),
-  `NoteOverview.test.tsx` (generic entity identity, the Rename and Delete
-  actions, the exact two-tab structure, tab switching, and Delete's
-  Undo-toast → restore flow including a failure path).
+- **Component**: `test/unit/markdown-editor/LiveMarkdownEditor.test.tsx`
+  drives the editor's accessible fallback surface (CodeMirror mounts only in a
+  real browser, so the unit env forces the controlled `<textarea>` fallback the
+  editor keeps on load failure): a labelled editing surface, exact-source
+  `onChange`, the WAI-ARIA toolbar with a single roving Tab stop, a toolbar
+  action editing the source and restoring selection, the Read toggle rendering
+  through the FND-08 pipeline and back, and polite validation messaging. In
+  `test/unit/notes`: `NotesCollection.test.tsx` (card rendering, honest
+  subtitle, empty/error states, keyset "Load more", the Active/Deleted filter,
+  a deleted Note's Restore card, a successful and a failed Restore),
+  `create-forms.test.tsx` (`NewNoteForm` validation, duplicate-submit, error
+  surfacing, success), `NoteContentForm.test.tsx` (autosave after the debounce,
+  immediate save on blur, exact whitespace/CRLF source preservation, **a rapid
+  edit coalescing during an in-flight save**, a failed save preserving the
+  draft with Retry, offline detection and auto-retry, oversized content refused
+  client-side with no fetch, the navigation guard armed/disarmed including
+  `suppressGuard`, and the NOTES-05 Read toggle rendering through the shared
+  pipeline with no Source/Split/Preview), and `NoteOverview.test.tsx` (generic
+  entity identity, Rename/Delete, the exact two-tab structure, tab switching,
+  and Delete's Undo-toast → restore flow including a failure path). These force
+  the editor's `<textarea>` fallback by mocking
+  `~/shared/markdown-editor/editor-setup`.
 - **Workers/D1 integration** (`test/kernel/notes-route.test.ts`, mirrors
   `goals-route.test.ts`): create via `/notes/new`; canonical record read;
   listing only active Notes in the bound workspace (excluding a different
@@ -490,38 +434,31 @@ alone.
   collections never leaking into each other. Also extended
   `test/kernel/entity-repository.test.ts` and `entity-cursor.test.ts` for
   the new `deletedOnly` list option and its bound cursor scope.
-- **Playwright E2E** (`e2e/notes.spec.ts`): create a uniquely test-owned
-  Note, type Markdown and let it **autosave with no Save button anywhere**,
-  confirm the sanitised Preview view mode (including that no `<script>`
-  element is ever produced), reload and confirm the exact saved source,
-  rename, confirm `note.content_updated` in Activity, Back/Forward through
-  the route-backed rename Drawer, keyboard-only creation, focus restoration
-  on Drawer close, axe (light and dark) and no horizontal overflow across
-  the full responsive matrix; a separate journey types content, lets it
-  autosave via the real debounce with no interaction, then makes a further
-  edit while a routed-delay holds a save in flight and confirms the FINAL
-  value (not the superseded one) is what reload confirms; a routed,
-  deterministic failed-save + Retry journey; a navigation-guard journey
-  (Stay cancels, Leave discards an unsaved, never-persisted draft); a
-  desktop Split-view journey plus confirming Split is never offered on a
-  narrow viewport; a full delete → Deleted view → Restore → content-intact
-  journey with Activity coverage; a dedicated 390px/320px mobile
-  journey; and **(NOTES-04)** a phone-viewport writing-toolbar journey
-  (format via the toolbar — heading, bold, italic, link, bulleted list,
-  checklist, table — autosave, reload-preserves-exact-source, a safe Preview
-  that renders the heading and table with no `<script>`, 44px toolbar touch
-  targets, roving-tabindex keyboard operation, axe in light and dark, no
-  horizontal overflow, and a repeat critical edit at 320px; the toolbar's
-  own axe gate scans the Source authoring surface, since the shared preview's
-  rendered task-list checkboxes carry the [DEBT-26](../product/PRODUCT_DEBT.md)
-  shared-renderer gap this Notes PR must not fix).
-  `e2e/touch-targets.spec.ts` gained a Notes block covering the
-  record's Rename/Delete actions, the view-mode toolbar and the Deleted
-  view's Restore action under touch emulation. Cleans up only its own
-  test-owned Notes (title-prefixed, deleted by direct `wrangler d1
-  execute --local`) after each test, mirroring
-  `areas-goals-mobile.spec.ts`'s convention.
-  `e2e/accessibility.spec.ts` and `e2e/responsive.spec.ts` now include
+- **Playwright E2E** (`e2e/notes.spec.ts`, rewritten for the live editor —
+  CodeMirror runs only in a real browser, so this is where its behaviour is
+  proven): the editor is driven as a `textbox`; the exact source is read by
+  selecting all (which reveals every concealed marker) and joining the visible
+  line text. Journeys: create a uniquely test-owned Note and **write with live
+  formatting** (a heading renders — its `#` concealed once the caret leaves the
+  line — and the `.cm-dh-h1` line carries just the heading text), **autosave
+  with no Save button**, toggle **Read** mode (the shared FND-08 render, no
+  `<script>`), reload and confirm the exact source round-trips, rename with
+  Back/Forward/Escape + focus restoration, confirm `note.content_updated` in
+  Activity, axe (light and dark) and no horizontal overflow across the matrix;
+  a dedicated **live-preview** journey (a task item becomes a checkbox, `---`
+  becomes an `<hr>`, a GFM table renders); a debounce-then-in-flight journey
+  (a later edit made while a routed save is held confirms the FINAL value
+  persists); a routed failed-save + Retry journey; a navigation-guard journey
+  (Stay cancels, Leave discards); a **toolbar + keyboard-shortcut** journey
+  (Bold via the toolbar and italic via ⌘I edit the source, autosave persists it
+  across a reload, roving tabindex, 44px touch targets, axe light/dark); a
+  delete → Deleted view → Restore → content-intact journey; keyboard-only
+  creation; and a 390px/320px mobile journey (live heading, autosave, delete,
+  no horizontal overflow, axe). `e2e/touch-targets.spec.ts`'s Notes block
+  covers the record's Rename/Delete, the formatting toolbar buttons and the
+  Read toggle, and the Deleted view's Restore under touch emulation. Cleans up
+  only its own test-owned Notes after each test.
+  `e2e/accessibility.spec.ts` and `e2e/responsive.spec.ts` include
   `/notes?state=deleted` alongside `/notes` in their route sweeps.
 
 ## Deferrals
@@ -531,37 +468,47 @@ Explicitly out of scope for this module, left to later roadmap items (see
 
 - **NOTES-02** — linking/backlinks/wikilinks.
 - **NOTES-03** — organisation, tags, Areas filtering, full content search.
-- **NOTES-05** — the full writing-first editor: ONE primary editor across
-  desktop and mobile, keyboard shortcuts, an unobtrusive rendered-reading
-  mode, and retiring persistent Source/Split/Preview as the primary
-  interaction. NOTES-04 delivered mobile completeness and the Notes-local
-  formatting toolbar, but deliberately preserved the desktop
-  Source/Split/Preview so the full simplification can be designed as a
-  reusable pattern in its own item.
 - **NOTES-06 / X-04 — export.** Single-Note `.md`/portable export (NOTES-06)
-  and whole-workspace export (X-04). NOTES-04 records the intent but
-  implements no export and adds no "Coming Soon" export controls.
-- **Offline-first editing.** NOTES-01C's autosave *detects* and honestly
-  *attributes* an offline failure and auto-retries on reconnect; it does
-  **not** queue writes for later sync while offline — a save attempted
-  offline surfaces the error state exactly as any other failure would,
-  with the user's draft intact and Retry available.
+  and whole-workspace export (X-04). Because the editor keeps Markdown source
+  canonical, export is unaffected by NOTES-05.
+- **Promoting the shared editor to a second consumer / the Design System.**
+  `~/shared/markdown-editor` is built as a reusable pattern; the Diary entry
+  body (which already reuses the FND-08 pipeline) is the intended second
+  adopter and the trigger for promoting the writing-editor pattern into
+  `DESIGN_SYSTEM.md`.
+- **Syntax-highlighted code** inside fenced blocks — deliberately not done, to
+  match the FND-08 renderer (which renders code as inert, un-highlighted text);
+  the editor styles code as a plain monospace block.
+- **Offline-first editing.** Autosave *detects* and honestly *attributes* an
+  offline failure and auto-retries on reconnect; it does **not** queue writes
+  for later sync while offline.
 - **Promoting Notes' `useOnlineStatus`/debounce tuning to DS-06 defaults.**
-  These stay Notes-local until a second full-document autosave consumer
-  exists to prove the right generally-shared shape, rather than guessing at
-  one from a single data point.
-- Attachments, Diary integration, AI features, import/export.
+  These stay Notes-local until a second full-document autosave consumer exists.
+- **Future editor directions (placeholders, not scheduled here).** The
+  writing-first editor is designed to grow into these without changing the
+  Markdown-source contract: **backlinks/wikilinks** (NOTES-02); **embeds** of
+  other DalyHub records via the EntityLink kernel; a knowledge **graph** view
+  over Note↔entity links; **export** to `.md` today (NOTES-06) and a
+  **PDF**/printable render reusing the FND-08 renderer (aligned with X-04);
+  and real-time **collaboration**. Each is a later roadmap item; NOTES-05
+  implements none of them and adds no "Coming Soon" controls — it just keeps the
+  source canonical so they remain straightforward to add.
+- Attachments, Diary integration, AI features.
 
-No migration, no new environment variable, no Wrangler configuration change
-and no new runtime dependency — NOTES-01C is entirely shared-frame UI, one
-additive kernel list option, plus tests and documentation. **NOTES-04** adds
-only Notes-local UI (the formatting toolbar and its pure source transforms)
-and Notes-local styles — no server change, no migration, no dependency, and
-no change to the shared Markdown pipeline, forms, Drawer, navigation or any
-other module (it was built to run in parallel with TASKS-01).
+**NOTES-05** adds one shared client dependency (CodeMirror 6 + the Lezer
+Markdown grammar, all MIT, code-split and lazy-loaded onto the note-editor
+route) and the shared `~/shared/markdown-editor` module — **no migration, no
+server change, no new environment variable or Wrangler change**, and no change
+to the FND-08 pipeline, the `note_details` storage, the mutate route, the
+Activity model or the autosave coordinator. It removed the retired
+Notes-local view-mode/toolbar files and `app/styles/notes.css` (the editor's
+styles now live in `app/styles/markdown-editor.css`).
 
 ## Related documents
 
+- [ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline) —
+  the NOTES-05 design record: adopting CodeMirror 6 as an authoring surface over
+  the unchanged FND-08 pipeline, and the shared `~/shared/markdown-editor` module.
 - [ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern) —
   the NOTES-01C design record: the autosave adaptation and the generic
   record-lifecycle UI pattern.
@@ -576,4 +523,4 @@ other module (it was built to run in parallel with TASKS-01).
   UX and archive-flow shape; note that Projects' archive is a *different*,
   business-specific mechanism from Notes' generic soft-delete/restore).
 - [ROADMAP_V2.md](../roadmap/ROADMAP_V2.md#phase-5--notes-notes) — NOTES-01A,
-  NOTES-01B, NOTES-01C and the later NOTES-02/03/04 items.
+  NOTES-01B, NOTES-01C, NOTES-04, NOTES-05 and the later NOTES-02/03/06 items.

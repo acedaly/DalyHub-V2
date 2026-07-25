@@ -126,7 +126,7 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     hasTouch: true,
   });
 
-  test("the record's Rename/Delete actions and the editor's view-mode toolbar meet the minimum", async ({
+  test("the record's Rename/Delete actions and the editor's formatting toolbar meet the minimum", async ({
     page,
   }) => {
     const noteTitle = `Notes e2e note touch-targets-${Date.now()}`;
@@ -141,11 +141,14 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     await expectMinTouchTarget(
       page.getByRole("button", { name: "Delete note" }),
     );
-    // Split is never offered at 320px (narrow viewports get Source/Preview
-    // only — `note-editor-view-mode.ts`), so it is intentionally excluded here.
-    for (const name of ["Source", "Preview"] as const) {
-      await expectMinTouchTarget(page.getByRole("button", { name }));
+    // NOTES-05 retired Source/Split/Preview: the writing surface exposes a
+    // formatting toolbar plus a Read toggle. Sample a toolbar button and the
+    // toggle — all share the same 44px-floor rule.
+    const toolbar = page.getByRole("toolbar", { name: "Formatting" });
+    for (const name of ["Bold", "Checklist", "Table"] as const) {
+      await expectMinTouchTarget(toolbar.getByRole("button", { name }));
     }
+    await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
 
     await page.getByRole("button", { name: "Delete note" }).click();
     await page.getByRole("link", { name: "Deleted" }).click();

@@ -16,7 +16,7 @@ import {
   tableTransform,
   type EditorSelection,
   type MarkdownTransform,
-} from "~/modules/notes/markdown-transforms";
+} from "~/shared/markdown-editor/markdown-transforms";
 
 /**
  * NOTES-04 — the pure Markdown-source transforms behind the writing toolbar.

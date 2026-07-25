@@ -139,7 +139,7 @@ The renderer runs in the **Cloudflare Workers runtime**: no Node filesystem, no 
 ## How later modules must consume it
 
 - **Notes, Diary, descriptions** store the validated `MarkdownSource`, render with the shared `renderMarkdown`, and display via `MarkdownContent`. They must **not** add another parser, sanitiser, URL/raw-HTML policy, or a second `dangerouslySetInnerHTML`.
-- **A future rich editor** may improve *authoring*, but it must still **save Markdown source** — the editor document model never becomes the source of truth.
+- **The writing-first live editor** ([NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor), `~/shared/markdown-editor`) improves *authoring* — its document IS the Markdown source, and it uses CodeMirror's Lezer grammar only to STYLE that source in place (headings grow, task items become checkboxes, tables render, …). It emits **no HTML**, adds **no second parser/sanitiser/sink**, and never becomes the source of truth: its live styling is CSS classes on source ranges plus a few hand-built-DOM widgets (`createElement`/`textContent`, never an HTML-string sink), and its Read mode renders through this exact pipeline. See [ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline).
 - Modules should **lazy-load** the renderer where appropriate so the parser bundle enters only the routes that need it.
 
 ## What FND-08 deliberately does not build
