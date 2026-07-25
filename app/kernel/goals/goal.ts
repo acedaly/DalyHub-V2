@@ -109,3 +109,31 @@ export type GoalListPage = {
   readonly items: readonly GoalListItem[];
   readonly nextCursor: string | null;
 };
+
+/**
+ * Input for the WORKSPACE-WIDE, Alignment-ordered Goal list (DEBT-23). Unlike
+ * {@link GoalListInput}, it carries the owner-calendar-derived recent-window lower
+ * bound so the repository's SQL ranking splits `active`/`neglected` using the SAME
+ * window constant/fact the pure evaluator's alignment-facts read uses.
+ */
+export type GoalAlignmentListInput = {
+  readonly limit?: number;
+  readonly cursor?: string;
+  /**
+   * The owner-calendar `recentWindowStartIso` (from `createOwnerAlignmentContext`)
+   * — the same UTC lower bound the alignment-facts read binds. A qualifying
+   * contribution at/after this instant ranks the Goal `active`, else `neglected`.
+   */
+  readonly recentWindowStartIso: string;
+};
+
+/**
+ * One page of Goals ordered by the deterministic workspace-wide Alignment
+ * precedence (`GOAL_ALIGNMENT_DISPLAY_RANK`), established BEFORE pagination
+ * (DEBT-23). Items carry the same display fields as {@link GoalListItem}; the
+ * cursor is the dedicated alignment-ordered cursor (rank + `(createdAt, id)`).
+ */
+export type GoalAlignmentListPage = {
+  readonly items: readonly GoalListItem[];
+  readonly nextCursor: string | null;
+};

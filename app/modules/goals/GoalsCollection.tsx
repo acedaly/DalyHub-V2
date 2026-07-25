@@ -24,11 +24,7 @@ import { CollectionLayout } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
-import {
-  AlignmentIndicator,
-  compareAlignmentForDisplay,
-  type GoalAlignment,
-} from "~/shared/alignment";
+import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
 
 import { goalStateLabel } from "./goal-view";
 import type { SerializedGoalListItem } from "./goal-view";
@@ -211,16 +207,11 @@ function GoalsCollection({
     goals,
     nextCursor,
   );
-  const sorted = useMemo(
-    () =>
-      [...items].sort((a, b) =>
-        compareAlignmentForDisplay(
-          { alignment: a.alignment, createdAt: a.createdAt, id: a.id },
-          { alignment: b.alignment, createdAt: b.createdAt, id: b.id },
-        ),
-      ),
-    [items],
-  );
+  // DEBT-23: the Alignment order is now established WORKSPACE-WIDE by the
+  // repository (`listGoalsByAlignment`) BEFORE pagination, so accumulated pages
+  // are already globally ordered by `GOAL_ALIGNMENT_DISPLAY_RANK` then
+  // `(createdAt, id)`. The client renders that authoritative order directly and
+  // never re-sorts Goals into a merely per-page ranking.
   const count = items.length;
   const subtitle = failed
     ? "We couldn't load your Goals."
@@ -266,7 +257,7 @@ function GoalsCollection({
         </p>
       ) : null}
       <CardCollection
-        items={sorted}
+        items={items}
         getItemId={(goal) => goal.id}
         ariaLabel="Goals"
         presentation="list"

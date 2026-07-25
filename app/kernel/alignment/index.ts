@@ -10,6 +10,8 @@
 export {
   RECENT_ACTION_WINDOW_DAYS,
   GOAL_ALIGNMENT_STATES,
+  GOAL_ALIGNMENT_DISPLAY_RANK,
+  goalAlignmentDisplayRank,
   GOAL_ALIGNMENT_REASON_CODES,
   evaluateGoalAlignment,
   composeGoalAlignmentFacts,

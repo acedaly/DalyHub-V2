@@ -18,3 +18,11 @@ export {
 } from "./identity";
 
 export { EntityIcon, type EntityIconProps } from "./EntityIcon";
+
+export {
+  entityDestination,
+  hasEntityDestination,
+  type EntityDestination,
+} from "./destination";
+
+export { EntityLink, type EntityLinkProps } from "./EntityLink";

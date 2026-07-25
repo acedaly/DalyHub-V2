@@ -5,13 +5,27 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
+import { DrawerProvider } from "~/shared/drawer";
 import {
   EntityLinkPicker,
   type EntityLinkSelection,
   type EntityLinkTargetOption,
 } from "~/shared/forms";
+
+/**
+ * The picker's existing-links display renders navigable `EntityLink`s (deliverable
+ * 4), which need a Router — and a DrawerProvider for a Task target's Drawer link.
+ */
+function renderPicker(ui: React.ReactElement) {
+  return render(
+    <MemoryRouter>
+      <DrawerProvider renderDrawer={() => null}>{ui}</DrawerProvider>
+    </MemoryRouter>,
+  );
+}
 
 const TARGETS: EntityLinkTargetOption[] = [
   { id: "n1", type: "note", title: "Creative brief" },
@@ -70,7 +84,7 @@ function Harness({
 describe("EntityLinkPicker", () => {
   it("searches and creates a link with the keyboard", async () => {
     const onLink = vi.fn(async () => {});
-    render(<Harness onLink={onLink} />);
+    renderPicker(<Harness onLink={onLink} />);
     const input = screen.getByRole("combobox", { name: "Related items" });
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "brief" } });
@@ -96,7 +110,7 @@ describe("EntityLinkPicker", () => {
 
   it("shows and removes an existing link", async () => {
     const onUnlink = vi.fn(async () => {});
-    render(
+    renderPicker(
       <Harness
         onUnlink={onUnlink}
         initial={[
@@ -120,7 +134,7 @@ describe("EntityLinkPicker", () => {
   });
 
   it("excludes an already-linked target from results", async () => {
-    render(
+    renderPicker(
       <Harness
         initial={[
           {
@@ -144,5 +158,81 @@ describe("EntityLinkPicker", () => {
     expect(
       screen.queryByRole("option", { name: /Creative brief/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders an existing record link as an accessible navigation link", () => {
+    renderPicker(
+      <Harness
+        initial={[
+          {
+            linkId: "l-n1",
+            target: TARGETS[0]!, // note → canonical record route
+            linkType: "project.supporting_note",
+            direction: "outgoing",
+          },
+        ]}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Note: Creative brief" });
+    expect(link).toHaveAttribute("href", "/notes/n1");
+    // Remove is a SEPARATE control, not nested in the link.
+    expect(
+      screen.getByRole("button", { name: /Remove link to Creative brief/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens a linked Task through the shared Drawer, not a route", () => {
+    renderPicker(
+      <Harness
+        initial={[
+          {
+            linkId: "l-t1",
+            target: { id: "t1", type: "task", title: "Write copy" },
+            linkType: "project.supporting_note",
+            direction: "outgoing",
+          },
+        ]}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Task: Write copy" });
+    expect(link.getAttribute("href")).toContain("drawer=task%3At1");
+  });
+
+  it("renders an unsupported target as plain text, never a broken link", () => {
+    renderPicker(
+      <Harness
+        initial={[
+          {
+            linkId: "l-p1",
+            target: TARGETS[1]!, // person → no implemented destination
+            linkType: "project.supporting_note",
+            direction: "outgoing",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Mel Okoye")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Mel Okoye/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("activating the title link never unlinks the record", () => {
+    const onUnlink = vi.fn(async () => {});
+    renderPicker(
+      <Harness
+        onUnlink={onUnlink}
+        initial={[
+          {
+            linkId: "l-n1",
+            target: TARGETS[0]!,
+            linkType: "project.supporting_note",
+            direction: "outgoing",
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Note: Creative brief" }));
+    expect(onUnlink).not.toHaveBeenCalled();
   });
 });

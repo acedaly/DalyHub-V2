@@ -12,7 +12,7 @@
 
 import type { ReactNode } from "react";
 
-import { EntityIcon } from "~/shared/entity";
+import { EntityIcon, EntityLink } from "~/shared/entity";
 import {
   HealthIndicator,
   ProjectHealthPanel,
@@ -101,14 +101,26 @@ export function ProjectOverview({
     headerMetadata.push({
       id: "area",
       label: "Area",
-      value: overview.area.title,
+      value: (
+        <EntityLink
+          type={overview.area.kind}
+          id={overview.area.id}
+          title={overview.area.title}
+        />
+      ),
     });
   }
   if (overview.goal) {
     headerMetadata.push({
       id: "goal",
       label: "Goal",
-      value: overview.goal.title,
+      value: (
+        <EntityLink
+          type={overview.goal.kind}
+          id={overview.goal.id}
+          title={overview.goal.title}
+        />
+      ),
     });
   }
 
@@ -120,14 +132,26 @@ export function ProjectOverview({
     summaryMetadata.push({
       id: "s-area",
       label: "Area",
-      value: overview.area.title,
+      value: (
+        <EntityLink
+          type={overview.area.kind}
+          id={overview.area.id}
+          title={overview.area.title}
+        />
+      ),
     });
   }
   if (overview.goal) {
     summaryMetadata.push({
       id: "s-goal",
       label: "Goal",
-      value: overview.goal.title,
+      value: (
+        <EntityLink
+          type={overview.goal.kind}
+          id={overview.goal.id}
+          title={overview.goal.title}
+        />
+      ),
     });
   }
   summaryMetadata.push({ id: "s-state", label: "State", value: state.label });

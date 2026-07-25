@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { DrawerProvider } from "~/shared/drawer";
 import { EntityIcon, getEntityIdentity } from "~/shared/entity";
 import {
   BooleanField,
@@ -477,25 +478,31 @@ export default function DesignFormsRoute() {
   useEffect(() => setHydrated(true), []);
 
   return (
-    <div className="forms-demo" data-hydrated={hydrated ? "true" : "false"}>
-      <header className="forms-demo__header">
-        <h1>Shared Forms &amp; field controls (DS-06)</h1>
-        <p>
-          One entity-agnostic forms system: shared field controls, inline
-          validation, a predictable save model, and the entity-agnostic
-          entity-link picker. Anchor:{" "}
-          {anchorIdentity ? (
-            <EntityIcon type={anchorIdentity.type} size={14} />
-          ) : null}{" "}
-          {DEMO_ANCHOR.title}.
-        </p>
-      </header>
+    // The EntityLinkPicker's existing links are now navigable (deliverable 4). A
+    // linked Task opens the shared Drawer, so the demo is hosted in a
+    // DrawerProvider — otherwise activating a Task link would have no drawer host.
+    // Unknown keys fall through to the built-in calm not-found panel.
+    <DrawerProvider renderDrawer={() => null}>
+      <div className="forms-demo" data-hydrated={hydrated ? "true" : "false"}>
+        <header className="forms-demo__header">
+          <h1>Shared Forms &amp; field controls (DS-06)</h1>
+          <p>
+            One entity-agnostic forms system: shared field controls, inline
+            validation, a predictable save model, and the entity-agnostic
+            entity-link picker. Anchor:{" "}
+            {anchorIdentity ? (
+              <EntityIcon type={anchorIdentity.type} size={14} />
+            ) : null}{" "}
+            {DEMO_ANCHOR.title}.
+          </p>
+        </header>
 
-      <ExplicitFormDemo />
-      <AutosaveFormDemo />
-      <StatesDemo />
+        <ExplicitFormDemo />
+        <AutosaveFormDemo />
+        <StatesDemo />
 
-      <div data-testid="page-bottom" aria-hidden="true" />
-    </div>
+        <div data-testid="page-bottom" aria-hidden="true" />
+      </div>
+    </DrawerProvider>
   );
 }

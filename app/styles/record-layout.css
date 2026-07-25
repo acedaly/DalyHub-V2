@@ -17,6 +17,19 @@
   min-width: 0;
   max-width: var(--dh-width-content);
   color: var(--dh-color-text);
+  /* Full-page records mount directly into the unpadded pane, so without this the
+   * record sits flush against the sidebar border and the top of the canvas. This
+   * gives the record deliberate breathing room from the global left navigation and
+   * the top of the pane, matching the `.dh-pane-body` rhythm the shell uses for
+   * every other page — a shared fix, never per-module padding. */
+  padding: var(--dh-space-6) var(--dh-gutter);
+}
+
+/* Inside a Drawer the body already provides its own padding and a contained panel
+ * surface, so the record must not double-pad. (The Drawer hosts the Task record via
+ * DS-02; this keeps that composition unchanged.) */
+.drawer__body .record-layout {
+  padding: 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -411,23 +424,47 @@
   font-weight: var(--dh-font-weight-semibold);
 }
 
-.record-tabs__panel {
+/* The active tab panel and the no-tabs content region are the record's main
+ * content surface. They carry the SAME contained treatment as `.record-summary`
+ * (surface + hairline border + radius + padding, all DS-01 tokens) so the header,
+ * summary, tabs and content read as one deliberate record workspace instead of the
+ * content dissolving into the page canvas (the reported production defect). This is
+ * one shared fix for every canonical record (Area, Goal, Project, Note, Task), not a
+ * per-module border. Cards inside sit on `--dh-color-surface-raised`, one shade
+ * above this `--dh-color-surface` panel, so nested cards stay distinct without
+ * doubling the boundary. */
+.record-tabs__panel,
+.record-layout__content {
   min-width: 0;
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
 }
 
 .record-tabs__panel:focus-visible {
   outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
   outline-offset: 2px;
-  border-radius: var(--dh-radius-xs);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Content region                                                             */
 /* -------------------------------------------------------------------------- */
 
-.record-layout__content,
+/* `.record-content` (the state-aware region) is used standalone (e.g. inside the
+ * Drawer) and must NOT gain the panel surface — only the tab panel / no-tabs
+ * content region above do. */
 .record-content {
   min-width: 0;
+}
+
+/* Defence against a doubled boundary: when a state slot with its own border
+ * (empty/error) is nested directly inside the now-contained content surface, drop
+ * its outer border so it reads as one contained region, not a box inside a box. */
+.record-tabs__panel > .record-content > .record-content__empty,
+.record-layout__content > .record-content > .record-content__empty {
+  border: none;
+  padding-block: var(--dh-space-4);
 }
 
 .record-content__error {

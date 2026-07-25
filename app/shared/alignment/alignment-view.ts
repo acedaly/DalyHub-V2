@@ -23,7 +23,11 @@ import type {
   GoalAlignmentEvidence,
   GoalAlignmentReason,
 } from "~/kernel/alignment";
-import { daysBetweenIsoDates, recentWindowStartIso } from "~/kernel/alignment";
+import {
+  daysBetweenIsoDates,
+  GOAL_ALIGNMENT_DISPLAY_RANK,
+  recentWindowStartIso,
+} from "~/kernel/alignment";
 
 /**
  * Build the owner-calendar evaluation context AND the SQL-facing window
@@ -84,18 +88,15 @@ export function alignmentNeedsAttention(alignment: GoalAlignment): boolean {
 }
 
 /**
- * Sort a page of Goal alignment results by state precedence (`neglected` →
- * `active` → `unreachable` → `no_structure` → `completed`), then by
- * recency/creation order within a state — ADR-040 §40.9. This sorts ONE
- * fetched page for display; it is not a workspace-wide priority ranking.
+ * Sort Goal alignment results by state precedence (`neglected` → `active` →
+ * `unreachable` → `no_structure` → `completed`), then by creation order and the
+ * immutable id within a state. The order is the ONE canonical
+ * `GOAL_ALIGNMENT_DISPLAY_RANK` (DEBT-23) — the SAME ranking the repository's
+ * `listGoalsByAlignment` establishes workspace-wide BEFORE pagination, so this
+ * comparator and the server order are one source of truth. It is used as a stable
+ * client-side tiebreak/guard over the already-globally-ordered pages.
  */
-const STATE_ORDER: Record<GoalAlignment["state"], number> = {
-  neglected: 0,
-  active: 1,
-  unreachable: 2,
-  no_structure: 3,
-  completed: 4,
-};
+const STATE_ORDER = GOAL_ALIGNMENT_DISPLAY_RANK;
 
 export function compareAlignmentForDisplay(
   a: {

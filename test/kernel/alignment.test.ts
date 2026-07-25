@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { env } from "cloudflare:test";
 
-import { recentWindowStartIso } from "~/kernel/alignment";
+import {
+  composeGoalAlignmentFacts,
+  evaluateGoalAlignment,
+  goalAlignmentDisplayRank,
+  recentWindowStartIso,
+  type AlignmentEvaluationContext,
+} from "~/kernel/alignment";
+import { ownerCalendarIso } from "~/shared/datetime";
 import {
   createAlignmentRepository,
   createGoalRepository,
@@ -13,6 +20,7 @@ import {
   makeAlignmentRepository,
   makeContext,
   makeGoalRepository,
+  makeProjectSettingsRepository,
   makeSpineRepository,
   makeTaskRepository,
   resetTables,
@@ -511,5 +519,270 @@ describe("GoalRepository.listGoalProjectContributions — batched exact contribu
     const batched = await countingRepo.listGoalProjectContributions(goalIds);
     expect(batched.size).toBe(30);
     expect(counting.prepareCount()).toBeLessThanOrEqual(2);
+  });
+});
+
+/**
+ * DEBT-23 — `GoalRepository.listGoalsByAlignment`: the workspace-wide Alignment
+ * order is established in the repository (a deterministic SQL ranking over the
+ * SAME structural facts + meaningful-activity vocabulary + recent-window bound as
+ * the pure evaluator) BEFORE pagination — so a neglected Goal can never be stranded
+ * on a later page behind lower-priority Goals, and the SQL order provably agrees
+ * with `evaluateGoalAlignment` for every state.
+ */
+describe("GoalRepository.listGoalsByAlignment — global Alignment order (DEBT-23)", () => {
+  const NOW = "2026-07-25T02:00:00.000Z";
+
+  function ctxAt(nowIso: string): {
+    ctx: AlignmentEvaluationContext;
+    windowStart: string;
+  } {
+    const now = new Date(nowIso);
+    const todayIso = ownerCalendarIso(now);
+    return {
+      ctx: {
+        now,
+        todayIso,
+        calendarIsoOf: (instant: Date) => ownerCalendarIso(instant),
+      },
+      windowStart: recentWindowStartIso(todayIso),
+    };
+  }
+
+  /** The independently-computed expected order: every Goal classified by the PURE
+   * evaluator over the SAME facts reads, sorted by display rank then
+   * `(createdAt, id)`. The repository order must match this exactly (parity). */
+  async function evaluatorOrder(
+    w: ReturnType<typeof world>,
+    windowStart: string,
+    ctx: AlignmentEvaluationContext,
+  ): Promise<{ id: string; state: string }[]> {
+    const all = await w.goals.listGoals({ limit: 100 });
+    const ids = all.items.map((g) => g.id);
+    const contributions = await w.goals.listGoalProjectContributions(ids);
+    const activity = await w.alignment.listGoalAlignmentFacts(ids, {
+      recentWindowStartIso: windowStart,
+    });
+    const evaluated = all.items.map((item) => {
+      const facts = composeGoalAlignmentFacts({
+        goalId: item.id,
+        completedAt: item.completedAt,
+        contribution: contributions.get(item.id) ?? {
+          total: 0,
+          completed: 0,
+          incomplete: 0,
+          active: 0,
+          planned: 0,
+          onHold: 0,
+          archived: 0,
+        },
+        activity: activity.get(item.id),
+      });
+      const alignment = evaluateGoalAlignment(facts, ctx);
+      return {
+        id: item.id,
+        state: alignment.state,
+        rank: goalAlignmentDisplayRank(alignment.state),
+        createdAt: item.createdAt.toISOString(),
+      };
+    });
+    evaluated.sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
+    return evaluated.map((g) => ({ id: g.id, state: g.state }));
+  }
+
+  /** Seed one Goal of each Alignment state, in a DELIBERATELY inconvenient
+   * insertion order (the `active` Goal is created BEFORE the `neglected` one, so
+   * creation order alone would strand the higher-priority neglected Goal). */
+  async function seedAllStates(w: ReturnType<typeof world>) {
+    const settings = makeProjectSettingsRepository(w.ctx, {
+      clock: w.clock.now,
+      activityIdGenerator: sequentialIds(`${WS}-ps`),
+    });
+    // active Goal — created EARLY (its Task activity is added late, below).
+    w.clock.advance(0);
+    const active = await newGoal(w, "Active");
+    // neglected Goal — created LATER, but its only Task activity is old.
+    w.clock.advance(24 * 60 * 60 * 1000); // +1 day
+    const neglected = await newGoal(w, "Neglected");
+    const nProject = await advancingProject(w, neglected.id, "N project");
+    await addTask(w, nProject.id, "N task"); // activity ~23 days before NOW
+    // completed Goal.
+    w.clock.advance(24 * 60 * 60 * 1000);
+    const completed = await newGoal(w, "Completed");
+    await w.spine.complete(completed.id);
+    // no_structure Goal — no Projects at all.
+    w.clock.advance(24 * 60 * 60 * 1000);
+    const noStructure = await newGoal(w, "No structure");
+    // unreachable Goal — its one Project is archived.
+    w.clock.advance(24 * 60 * 60 * 1000);
+    const unreachable = await newGoal(w, "Unreachable");
+    const uProject = await advancingProject(w, unreachable.id, "U project");
+    await settings.archive(uProject.id);
+    // Now give the active Goal a genuinely recent contributing Task activity by
+    // advancing the SHARED clock to 2026-07-24 (repos captured `clock.now`, so we
+    // must move that clock — never swap the reference).
+    w.clock.advance(19 * 24 * 60 * 60 * 1000); // 2026-07-05 → 2026-07-24
+    const aProject = await advancingProject(w, active.id, "A project");
+    await addTask(w, aProject.id, "A task"); // activity 1 day before NOW
+    return { active, neglected, completed, noStructure, unreachable };
+  }
+
+  it("orders the whole workspace by Alignment precedence, not by creation order", async () => {
+    const w = world(WS, "2026-07-01T00:00:00.000Z");
+    const seeded = await seedAllStates(w);
+    const { windowStart } = ctxAt(NOW);
+
+    const page = await w.goals.listGoalsByAlignment({
+      recentWindowStartIso: windowStart,
+    });
+    // neglected → active → unreachable → no_structure → completed.
+    expect(page.items.map((g) => g.id)).toEqual([
+      seeded.neglected.id,
+      seeded.active.id,
+      seeded.unreachable.id,
+      seeded.noStructure.id,
+      seeded.completed.id,
+    ]);
+    // The neglected Goal was created AFTER the active Goal, yet it leads — proving
+    // the order is global by state, not per-page creation order.
+    expect(page.items[0]!.id).toBe(seeded.neglected.id);
+  });
+
+  it("agrees with the pure evaluator for every state (SQL/evaluator parity)", async () => {
+    const w = world(WS, "2026-07-01T00:00:00.000Z");
+    await seedAllStates(w);
+    const { ctx, windowStart } = ctxAt(NOW);
+
+    const repoOrder = (
+      await w.goals.listGoalsByAlignment({ recentWindowStartIso: windowStart })
+    ).items.map((g) => g.id);
+    const expected = (await evaluatorOrder(w, windowStart, ctx)).map(
+      (g) => g.id,
+    );
+    expect(repoOrder).toEqual(expected);
+
+    // And every state is represented (so parity is proven across the matrix).
+    const states = (await evaluatorOrder(w, windowStart, ctx)).map(
+      (g) => g.state,
+    );
+    expect(new Set(states)).toEqual(
+      new Set([
+        "neglected",
+        "active",
+        "unreachable",
+        "no_structure",
+        "completed",
+      ]),
+    );
+  });
+
+  it("never strands a high-priority Goal on a later page: paginates the GLOBAL order", async () => {
+    const w = world(WS, "2026-07-01T00:00:00.000Z");
+    const seeded = await seedAllStates(w);
+    const { windowStart } = ctxAt(NOW);
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    let guard = 0;
+    do {
+      const page = await w.goals.listGoalsByAlignment({
+        recentWindowStartIso: windowStart,
+        limit: 2,
+        cursor,
+      });
+      seen.push(...page.items.map((g) => g.id));
+      cursor = page.nextCursor ?? undefined;
+      guard += 1;
+    } while (cursor && guard < 10);
+
+    // The first page (limit 2) leads with the two highest-priority Goals.
+    expect(seen.slice(0, 2)).toEqual([seeded.neglected.id, seeded.active.id]);
+    // Every Goal is reached exactly once across the boundaries (no dup, no gap).
+    expect(seen).toHaveLength(5);
+    expect(new Set(seen).size).toBe(5);
+    // And it matches the single-page global order.
+    const single = (
+      await w.goals.listGoalsByAlignment({ recentWindowStartIso: windowStart })
+    ).items.map((g) => g.id);
+    expect(seen).toEqual(single);
+  });
+
+  it("returns nextCursor=null exactly at the last page", async () => {
+    const w = world(WS, "2026-07-01T00:00:00.000Z");
+    await seedAllStates(w);
+    const { windowStart } = ctxAt(NOW);
+    const first = await w.goals.listGoalsByAlignment({
+      recentWindowStartIso: windowStart,
+      limit: 4,
+    });
+    expect(first.items).toHaveLength(4);
+    expect(first.nextCursor).toBeTruthy();
+    const last = await w.goals.listGoalsByAlignment({
+      recentWindowStartIso: windowStart,
+      limit: 4,
+      cursor: first.nextCursor!,
+    });
+    expect(last.items).toHaveLength(1);
+    expect(last.nextCursor).toBeNull();
+  });
+
+  it("rejects a malformed cursor and a cursor from another workspace's scope", async () => {
+    const w = world(WS, "2026-07-01T00:00:00.000Z");
+    await seedAllStates(w);
+    const { windowStart } = ctxAt(NOW);
+    await expect(
+      w.goals.listGoalsByAlignment({
+        recentWindowStartIso: windowStart,
+        cursor: "not-a-real-cursor",
+      }),
+    ).rejects.toThrow();
+
+    const first = await w.goals.listGoalsByAlignment({
+      recentWindowStartIso: windowStart,
+      limit: 1,
+    });
+    const otherGoals = makeGoalRepository(makeContext(OTHER));
+    await expect(
+      otherGoals.listGoalsByAlignment({
+        recentWindowStartIso: windowStart,
+        cursor: first.nextCursor!,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a creation-order (wrong-sort) cursor rather than reinterpreting it", async () => {
+    const w = world(WS, "2026-07-01T00:00:00.000Z");
+    await seedAllStates(w);
+    const { windowStart } = ctxAt(NOW);
+    // A cursor issued by the creation-order `listGoals` must not be accepted by
+    // the alignment-ordered read (different sort semantics).
+    const creationCursor = (await w.goals.listGoals({ limit: 1 })).nextCursor!;
+    await expect(
+      w.goals.listGoalsByAlignment({
+        recentWindowStartIso: windowStart,
+        cursor: creationCursor,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("stays workspace isolated", async () => {
+    const own = world(WS, "2026-07-01T00:00:00.000Z");
+    const other = world(OTHER, "2026-07-01T00:00:00.000Z");
+    const seeded = await seedAllStates(own);
+    const otherArea = await other.spine.createArea({ title: "Other" });
+    await other.spine.createGoal({ title: "Foreign", areaId: otherArea.id });
+    const { windowStart } = ctxAt(NOW);
+
+    const page = await own.goals.listGoalsByAlignment({
+      recentWindowStartIso: windowStart,
+    });
+    const ids = new Set(page.items.map((g) => g.id));
+    expect(ids.size).toBe(5);
+    expect(ids.has(seeded.neglected.id)).toBe(true);
   });
 });
