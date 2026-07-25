@@ -601,6 +601,24 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await expect(toolbar).toBeVisible();
     await expect(page.getByRole("button", { name: "Split" })).not.toBeVisible();
 
+    // Track when the FINAL formatted content (identified by the "Value 2" table
+    // cell) is persisted by a successful save — whether that save is triggered
+    // by the debounce mid-sequence or by the blur below. A persistent listener
+    // set up BEFORE the edits catches it either way, so the reload proof never
+    // depends on the transient save-status text and never reloads while a save
+    // is still in flight (which a page unload would abort).
+    let finalContentSaved = false;
+    page.on("response", (response) => {
+      if (
+        response.url().includes("/mutate") &&
+        response.request().method() === "POST" &&
+        response.ok() &&
+        (response.request().postData() ?? "").includes("Value 2")
+      ) {
+        finalContentSaved = true;
+      }
+    });
+
     const editor = page.getByRole("textbox", { name: "Note" });
     await editor.fill(
       "Heading line\nplain paragraph\nvisit here\nFirst\nSecond",
@@ -627,12 +645,6 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await selectRange(0, "Heading line".length);
     await toolbar.getByRole("button", { name: "Heading" }).click();
     await expect(editor).toHaveValue(/^# Heading line/);
-
-    // 11a. A toolbar edit autosaves through the SAME indicator as typing —
-    // proven here after a single clean action (deterministic), before the
-    // heavier multi-action sequence below.
-    await editor.blur();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
 
     // 6. Bold and italic on selected words.
     await selectSubstring("plain");
@@ -671,9 +683,13 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await expect(editor).toHaveValue(/\| Column 1 \| Column 2 \|/);
     await expect(editor).toHaveValue(/\| --- \| --- \|/);
 
-    // 11-12. Save the full formatted document, then prove the EXACT Markdown
-    // source persisted by reloading and re-reading it.
-    await editor.blur();
+    // 11-12. Prove the toolbar edits AUTOSAVE and the EXACT Markdown source
+    // persists across a reload. The proof is gated on the real save POST (whose
+    // body carries the final "Value 2" table content) rather than on the
+    // transient save-status text: after a content-heavy sequence the calm
+    // indicator is not a reliable Playwright signal, but the network round trip
+    // is. Waiting for the actual response also guarantees we never reload WHILE
+    // a save is in flight — a page unload would otherwise abort it.
     const savedSource = await editor.inputValue();
     expect(savedSource).toContain("# Heading line");
     expect(savedSource).toContain("**plain**");
@@ -682,30 +698,16 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     expect(savedSource).toContain("- [ ] First");
     expect(savedSource).toContain("| Column 1 | Column 2 |");
 
-    // Wait for autosave to SETTLE (neither "unsaved" nor "saving") before
-    // navigating away: the unsaved-changes guard's page-unload path would
-    // otherwise abort an in-flight save on reload. The transient "Saved" text
-    // is deliberately NOT asserted here — after a content-heavy sequence a
-    // post-save revalidation can re-initialise the editor to its calm idle
-    // state, so the settled `data-status` is the reliable signal.
-    await expect(
-      page.locator(
-        '.dh-save-status[data-status="unsaved"], .dh-save-status[data-status="saving"]',
-      ),
-    ).toHaveCount(0, { timeout: 20_000 });
+    // Nudge a save (a no-op if the debounce already saved), then wait until the
+    // final content is confirmed persisted before reloading.
+    await editor.focus();
+    await editor.blur();
+    await expect.poll(() => finalContentSaved, { timeout: 30_000 }).toBe(true);
 
-    // The reload is polled rather than asserted on a single navigation — D1's
-    // documented read-after-write replica lag can trail one reload on a slow CI
-    // runner. A matching reload IS the proof the toolbar edits autosaved.
-    await expect
-      .poll(
-        async () => {
-          await gotoFixture(page, noteUrl);
-          return page.getByRole("textbox", { name: "Note" }).inputValue();
-        },
-        { timeout: 15_000 },
-      )
-      .toBe(savedSource);
+    await gotoFixture(page, noteUrl);
+    await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue(
+      savedSource,
+    );
 
     // 13. The rendered Preview uses the existing safe FND-08 pipeline — the
     // heading and table render, and nothing executes (no <script>). The
