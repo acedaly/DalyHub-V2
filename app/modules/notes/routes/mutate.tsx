@@ -16,7 +16,7 @@
  * underlying `EntityRepository.softDelete`/`.restore` already guarantees, so
  * this endpoint never turns a repeat call into a spurious 404. Notes use the
  * generic, kernel-owned lifecycle directly — no second Notes-specific
- * deletion column or model (see NOTES_PERSISTENCE.md / ADR-041).
+ * deletion column or model (see NOTES_PERSISTENCE.md / ADR-042).
  *
  * Title goes through the generic `EntityRepository` (the single authority for
  * identity/title/lifecycle); Markdown content goes through the Note-owned

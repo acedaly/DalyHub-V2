@@ -15,6 +15,7 @@
 import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AreaRepository } from "~/kernel/areas";
+import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
@@ -32,6 +33,10 @@ import type {
 import { D1ActivityRepository } from "./d1-activity-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1AreaRepository } from "./d1-area-repository";
+import {
+  D1DiaryRepository,
+  type D1DiaryRepositoryOptions,
+} from "./d1-diary-repository";
 import {
   D1EntityRepository,
   type D1EntityRepositoryOptions,
@@ -93,6 +98,11 @@ export {
   D1NoteDetailsRepository,
   type D1NoteDetailsRepositoryOptions,
 } from "./d1-note-details-repository";
+export {
+  D1DiaryRepository,
+  type D1DiaryRepositoryOptions,
+  type D1DiaryCreateFault,
+} from "./d1-diary-repository";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
@@ -233,6 +243,23 @@ export function createNoteDetailsRepository(
   options?: D1NoteDetailsRepositoryOptions,
 ): NoteDetailsRepository {
   return new D1NoteDetailsRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed DiaryRepository — the DIARY-01A
+ * authoritative Diary Entry repository (ADR-041). It CREATES `diary` entities
+ * with their chronological detail slice atomically (the generic EntityRepository
+ * refuses to create one), owns entry-detail edits and the Timeline read model,
+ * and shares the trusted Activity actor. Entry identity/title/lifecycle stay the
+ * generic EntityRepository's; relationships stay FND-04 EntityLinks. Bound to a
+ * `WorkspaceContext`; there is no unscoped construction path.
+ */
+export function createDiaryRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1DiaryRepositoryOptions,
+): DiaryRepository {
+  return new D1DiaryRepository(db, context, options);
 }
 
 /**

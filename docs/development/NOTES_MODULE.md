@@ -10,7 +10,7 @@ persistence path. Replaces the PX-03 `ModuleComingSoon` placeholder at
 `/notes`.
 
 NOTES-01B needed no new ADR (a direct application of already-accepted
-patterns). NOTES-01C added [ADR-041](../decisions/ARCHITECTURE_DECISIONS.md#adr-041-notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern),
+patterns). NOTES-01C added [ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern),
 recording how the existing DS-06 autosave coordinator was adapted for a
 full document and how Notes became the first module to build a generic
 (non-Project-specific) soft-delete/restore UI on the kernel's existing
@@ -56,7 +56,7 @@ The static `/notes/new` segment is registered before `/notes/:noteId`.
 anchor with `entities.getById(id, { includeDeleted: true })`, since restore
 must be able to find an already-deleted Note and a repeated delete/restore
 must stay the idempotent no-op the repository already guarantees — these are
-deliberately two DIFFERENT anchor checks on the same route (see ADR-041 §2).
+deliberately two DIFFERENT anchor checks on the same route (see ADR-042 §2).
 Missing, wrong-type and cross-workspace Note ids fail closed with the same
 calm not-found outcome at every route and every intent. Every route resolves
 the trusted workspace and actor server-side via
@@ -248,7 +248,7 @@ NOTES-01C's first lifecycle actions are built entirely on the
 (FND-02) — Notes is simply their first product UI caller (Projects'
 "archive" is a *different*, Project-specific mechanism —
 `ProjectSettingsRepository`/`project_details.archived_at` — not this generic
-lifecycle; see ADR-041 for the full reasoning). No second Notes-specific
+lifecycle; see ADR-042 for the full reasoning). No second Notes-specific
 deletion column, no second lifecycle model.
 
 - **Delete** is a single Record Header action, immediately performing the
@@ -435,7 +435,7 @@ additive kernel list option, plus tests and documentation.
 
 ## Related documents
 
-- [ADR-041](../decisions/ARCHITECTURE_DECISIONS.md#adr-041-notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern) —
+- [ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern) —
   the NOTES-01C design record: the autosave adaptation and the generic
   record-lifecycle UI pattern.
 - [NOTES_PERSISTENCE.md](./NOTES_PERSISTENCE.md) — the NOTES-01A backend
