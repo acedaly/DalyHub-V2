@@ -64,7 +64,16 @@ export type DetailsPanelMode = "read" | "edit";
 
 export interface DiaryDetailsHostProps {
   readonly entryId: string;
-  readonly initialMode: DetailsPanelMode;
+  /**
+   * Read vs edit is derived from the Inspector URL key (`view:` vs `edit:`), NOT
+   * local state — so a refresh restores the same mode, Back/Forward is honest, and
+   * the row's direct-edit path and the panel's Edit button behave identically.
+   */
+  readonly mode: DetailsPanelMode;
+  /** Request the edit URL key (`edit:<id>`). */
+  readonly onRequestEdit: () => void;
+  /** Request the read URL key (`view:<id>`). */
+  readonly onRequestRead: () => void;
   /** Called after a successful save (to revalidate the timeline). */
   readonly onChanged: () => void;
   /** Close the panel (delegates to the Inspector). */
@@ -74,16 +83,18 @@ export interface DiaryDetailsHostProps {
 /**
  * Loads the entry, then renders the read view or edit form. Kept separate so the
  * edit form mounts with real initial values (so `useForm`'s dirty baseline is
- * correct from the first render).
+ * correct from the first render). The read/edit transition is driven through the
+ * Inspector URL key by the parent, so this component never holds mode state.
  */
 export function DiaryDetailsHost({
   entryId,
-  initialMode,
+  mode,
+  onRequestEdit,
+  onRequestRead,
   onChanged,
   onClose,
 }: DiaryDetailsHostProps) {
   const fetcher = useFetcher<DiaryEntryEditResponse>();
-  const [mode, setMode] = useState<DetailsPanelMode>(initialMode);
   // Track the LAST entry id we loaded: if the panel key changes while this
   // instance is retained, reload the new id rather than showing the stale one.
   const requestedId = useRef<string | null>(null);
@@ -91,10 +102,9 @@ export function DiaryDetailsHost({
   useEffect(() => {
     if (requestedId.current !== entryId) {
       requestedId.current = entryId;
-      setMode(initialMode);
       fetcher.load(`/diary/${encodeURIComponent(entryId)}`);
     }
-  }, [entryId, initialMode, fetcher]);
+  }, [entryId, fetcher]);
 
   const reload = useCallback(() => {
     fetcher.load(`/diary/${encodeURIComponent(entryId)}`);
@@ -112,13 +122,13 @@ export function DiaryDetailsHost({
           onSaved={() => {
             onChanged();
             reload();
-            setMode("read");
+            onRequestRead();
           }}
-          onCancel={() => setMode("read")}
+          onCancel={onRequestRead}
         />
       );
     }
-    return <DiaryReadView entry={data.entry} onEdit={() => setMode("edit")} />;
+    return <DiaryReadView entry={data.entry} onEdit={onRequestEdit} />;
   }
 
   const failed =

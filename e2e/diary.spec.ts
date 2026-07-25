@@ -164,9 +164,11 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     );
     await expect(row).toBeFocused();
 
-    // 8. Reopen, edit and save.
+    // 8. Reopen, edit and save. Edit mode is URL-synced (the key is `edit:`), so a
+    // refresh restores it and Back/Forward is honest; saving returns to `view:`.
     await row.click();
     await page.getByRole("button", { name: "Edit entry" }).click();
+    await expect(page).toHaveURL(/inspector=edit/);
     const editor = page.getByRole("form", { name: "Edit entry" });
     const renamed = `${first} (edited)`;
     await editor.getByRole("textbox", { name: /Title/ }).fill(renamed);
@@ -178,6 +180,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
         .getByRole("list", { name: "Diary timeline" })
         .getByRole("heading", { level: 3, name: renamed }),
     ).toBeVisible();
+    await expect(page).toHaveURL(/inspector=view/);
 
     // 9. Touch targets + no horizontal overflow across the matrix.
     await page.getByRole("button", { name: "New entry" }).first().click();

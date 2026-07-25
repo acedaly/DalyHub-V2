@@ -106,10 +106,7 @@ function makeRenderInspector(todayKey: string) {
       return {
         title: isEdit ? "Edit entry" : "Entry details",
         children: (
-          <DetailsHost
-            entryId={entryId}
-            initialMode={isEdit ? "edit" : "read"}
-          />
+          <DetailsHost entryId={entryId} mode={isEdit ? "edit" : "read"} />
         ),
       };
     }
@@ -145,6 +142,10 @@ function CaptureHost({ todayKey }: { readonly todayKey: string }) {
             onSelect: () => {
               const next = new URLSearchParams(searchParams);
               next.delete("cursor");
+              // These params were captured while the capture panel was open, so
+              // they still name it — drop `inspector` so viewing the day doesn't
+              // immediately reopen capture (and inert the timeline on mobile).
+              next.delete("inspector");
               if (capturedDayKey === todayKey) next.delete("date");
               else next.set("date", capturedDayKey);
               const query = next.toString();
@@ -160,20 +161,22 @@ function CaptureHost({ todayKey }: { readonly todayKey: string }) {
   return <DiaryCapture todayKey={todayKey} onCaptured={onCaptured} />;
 }
 
-/** Details host — wires read/edit to revalidate/close. */
+/** Details host — wires read/edit to the Inspector URL key + revalidate/close. */
 function DetailsHost({
   entryId,
-  initialMode,
+  mode,
 }: {
   readonly entryId: string;
-  readonly initialMode: DetailsPanelMode;
+  readonly mode: DetailsPanelMode;
 }) {
-  const { closeInspector } = useInspector();
+  const { closeInspector, replaceInspector } = useInspector();
   const revalidator = useRevalidator();
   return (
     <DiaryDetailsHost
       entryId={entryId}
-      initialMode={initialMode}
+      mode={mode}
+      onRequestEdit={() => replaceInspector(`${EDIT_PREFIX}${entryId}`)}
+      onRequestRead={() => replaceInspector(`${VIEW_PREFIX}${entryId}`)}
       onChanged={() => revalidator.revalidate()}
       onClose={closeInspector}
     />

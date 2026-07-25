@@ -51,7 +51,10 @@ export function DiaryDayNavigator({
   const isToday = selectedDate === todayKey;
 
   const go = (dayKey: string) => {
-    navigate(hrefForDate(dayKey), { replace: true, preventScrollReset: true });
+    // Push (not replace) so each viewed day is its own history entry — Back
+    // returns to the previously viewed day rather than skipping it or leaving the
+    // Diary (the URL-backed, Back/Forward-correct date contract).
+    navigate(hrefForDate(dayKey), { preventScrollReset: true });
   };
 
   return (

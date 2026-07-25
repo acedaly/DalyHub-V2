@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { RouterProvider, createMemoryRouter } from "react-router";
 import {
   fireEvent,
@@ -8,7 +9,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DiaryDetailsHost } from "~/modules/diary/DiaryDetailsPanel";
+import {
+  DiaryDetailsHost,
+  type DetailsPanelMode,
+} from "~/modules/diary/DiaryDetailsPanel";
 import type { DiaryEntryEditData } from "~/modules/diary/routes/entry";
 import { FeedbackProvider } from "~/shared/feedback";
 
@@ -38,9 +42,38 @@ function fixture(over: Partial<DiaryEntryEditData> = {}): DiaryEntryEditData {
   };
 }
 
+/**
+ * A tiny harness that stands in for the Inspector URL key: it holds the read/edit
+ * mode and wires `onRequestEdit`/`onRequestRead` to it (as `replaceInspector` does
+ * in the workspace), so the test drives the same URL-synced transition.
+ */
+function Harness({
+  requestedId,
+  initialMode,
+  onChanged,
+  onClose,
+}: {
+  requestedId: string;
+  initialMode: DetailsPanelMode;
+  onChanged: () => void;
+  onClose: () => void;
+}) {
+  const [mode, setMode] = useState<DetailsPanelMode>(initialMode);
+  return (
+    <DiaryDetailsHost
+      entryId={requestedId}
+      mode={mode}
+      onRequestEdit={() => setMode("edit")}
+      onRequestRead={() => setMode("read")}
+      onChanged={onChanged}
+      onClose={onClose}
+    />
+  );
+}
+
 function renderHost(
   entry: DiaryEntryEditData,
-  initialMode: "read" | "edit" = "read",
+  initialMode: DetailsPanelMode = "read",
   requestedId: string = entry.id,
 ) {
   const onChanged = vi.fn();
@@ -51,8 +84,8 @@ function renderHost(
         path: "/diary",
         element: (
           <FeedbackProvider>
-            <DiaryDetailsHost
-              entryId={requestedId}
+            <Harness
+              requestedId={requestedId}
               initialMode={initialMode}
               onChanged={onChanged}
               onClose={onClose}
@@ -119,6 +152,15 @@ describe("Diary details panel", () => {
     // Returns to the read state.
     expect(
       await screen.findByRole("button", { name: "Edit entry" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders edit mode directly when the URL key is edit (deep-link / refresh)", async () => {
+    renderHost(fixture(), "edit");
+    // No local mode state: the mode comes from the prop (URL key), so a refresh
+    // on edit:<id> restores the edit form rather than falling back to read.
+    expect(
+      await screen.findByRole("form", { name: "Edit entry" }),
     ).toBeInTheDocument();
   });
 
