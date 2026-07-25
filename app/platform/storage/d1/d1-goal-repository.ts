@@ -20,13 +20,19 @@ import {
   validateSpineId,
   validateSpineLimit,
 } from "~/kernel/spine";
+import { GOAL_ALIGNMENT_DISPLAY_RANK } from "~/kernel/alignment";
 import {
+  decodeGoalAlignmentCursorForScope,
   decodeGoalCursorForScope,
   decodeGoalListCursorForScope,
+  encodeGoalAlignmentCursor,
   encodeGoalCursor,
   encodeGoalListCursor,
   evaluateGoalProjectContribution,
   GoalStorageError,
+  type GoalAlignmentCursorScope,
+  type GoalAlignmentListInput,
+  type GoalAlignmentListPage,
   type GoalChildrenInput,
   type GoalCursorScope,
   type GoalListCursorScope,
@@ -40,6 +46,7 @@ import {
   type GoalProjectPage,
   type GoalRepository,
 } from "~/kernel/goals";
+import { MEANINGFUL_HEALTH_ACTIVITY_TYPES } from "~/kernel/project-health";
 import { parseProjectWorkflowStatus } from "~/kernel/project-settings";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 
@@ -88,6 +95,21 @@ interface GoalListRow {
   readonly area_id: string;
   readonly area_title: string;
 }
+
+interface GoalAlignmentListRow extends GoalListRow {
+  readonly display_rank: number;
+}
+
+/**
+ * DEBT-23 — the meaningful Activity types as a trusted, inlined SQL list, the SAME
+ * vocabulary the alignment-facts read and Project Health use (ADR-035 §35.4 /
+ * ADR-040 §40.3). Reused here so the workspace-wide ranking's active/neglected split
+ * is derived from the identical facts as the pure evaluator — never a second
+ * classification.
+ */
+const MEANINGFUL_TYPE_LIST = MEANINGFUL_HEALTH_ACTIVITY_TYPES.map(
+  (type) => `'${type}'`,
+).join(", ");
 
 /**
  * The per-query id chunk size for the batched contribution read
@@ -242,6 +264,154 @@ export class D1GoalRepository implements GoalRepository {
     const nextCursor =
       rows.length > limit && last
         ? encodeGoalListCursor(scope, {
+            createdAt: last.created_at,
+            id: last.id,
+          })
+        : null;
+    return {
+      items: pageRows.map((row) => this.#toGoalListItem(row)),
+      nextCursor,
+    };
+  }
+
+  /**
+   * DEBT-23 — the WORKSPACE-WIDE Goal list ordered by the deterministic Alignment
+   * display precedence (`GOAL_ALIGNMENT_DISPLAY_RANK`), established BEFORE
+   * pagination, then keyset-paginated over `(displayRank, createdAt, id)`.
+   *
+   * The rank is computed in ONE workspace-scoped, parameterised statement: two
+   * grouped CTEs gather each Goal's complete Project-contribution facts (total /
+   * archived) and its most-recent qualifying two-hop Task activity (the SAME
+   * structural links, meaningful-type vocabulary and `recentWindowStartIso` bound
+   * the pure evaluator's facts reads use), and a CASE assigns the exact
+   * `GOAL_ALIGNMENT_DISPLAY_RANK` integers — so the SQL order can never drift from
+   * `evaluateGoalAlignment` (proven by a parity test). No per-Goal query (no N+1);
+   * the output is strictly bounded by the page LIMIT and the statement scans only
+   * this workspace's own Goals — never an unbounded cross-workspace scan.
+   */
+  async listGoalsByAlignment(
+    input: GoalAlignmentListInput,
+  ): Promise<GoalAlignmentListPage> {
+    const limit = validateSpineLimit(input.limit);
+    // The cursor is bound to the effective ranking window, so a cursor reused
+    // under a different owner-calendar boundary (e.g. across a day rollover, when
+    // a Goal's rank could shift around the activity cutoff) is rejected — never
+    // silently reinterpreted into a duplicated or omitted page.
+    const scope: GoalAlignmentCursorScope = {
+      workspaceId: this.#workspaceId,
+      windowStartIso: input.activeBoundaryIso,
+    };
+    const cursorParams: (string | number)[] = [];
+    const cursorClause =
+      input.cursor !== undefined
+        ? (() => {
+            const position = decodeGoalAlignmentCursorForScope(
+              input.cursor!,
+              scope,
+            );
+            cursorParams.push(
+              position.rank,
+              position.rank,
+              position.createdAt,
+              position.createdAt,
+              position.id,
+            );
+            return " AND (display_rank > ? OR (display_rank = ? AND (created_at > ? OR (created_at = ? AND id > ?))))";
+          })()
+        : "";
+    const fetchLimit = limit + 1;
+    const rankCase =
+      "CASE" +
+      ` WHEN gsr.completed_at IS NOT NULL THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.completed}` +
+      ` WHEN COALESCE(c.total, 0) = 0 THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.no_structure}` +
+      ` WHEN COALESCE(c.archived, 0) = COALESCE(c.total, 0) THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.unreachable}` +
+      ` WHEN act.last_at IS NOT NULL AND act.last_at >= ? THEN ${GOAL_ALIGNMENT_DISPLAY_RANK.active}` + // ? = activeBoundaryIso (exact owner-calendar boundary)
+      ` ELSE ${GOAL_ALIGNMENT_DISPLAY_RANK.neglected}` +
+      " END";
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `WITH contrib AS (
+             SELECT pg.target_entity_id AS goal_id,
+                    COUNT(pe.id) AS total,
+                    SUM(CASE WHEN pd.archived_at IS NOT NULL THEN 1 ELSE 0 END) AS archived
+             FROM entity_links pg
+             JOIN entities pe
+               ON pe.workspace_id = pg.workspace_id AND pe.id = pg.source_entity_id
+                  AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+             LEFT JOIN project_details pd
+               ON pd.workspace_id = pe.workspace_id AND pd.entity_id = pe.id
+             WHERE pg.workspace_id = ? AND pg.type = '${PROJECT_ADVANCES_GOAL}'
+                   AND pg.deleted_at IS NULL
+             GROUP BY pg.target_entity_id
+           ),
+           activity AS (
+             SELECT ct.goal_id AS goal_id, MAX(a.occurred_at) AS last_at
+             FROM (
+               SELECT pg.target_entity_id AS goal_id, te.id AS task_id
+               FROM entity_links pg
+               JOIN entities pe
+                 ON pe.workspace_id = pg.workspace_id AND pe.id = pg.source_entity_id
+                    AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+               JOIN entity_links tl
+                 ON tl.workspace_id = pg.workspace_id AND tl.target_entity_id = pe.id
+                    AND tl.type = '${TASK_BELONGS_TO_PROJECT}' AND tl.deleted_at IS NULL
+               JOIN entities te
+                 ON te.workspace_id = tl.workspace_id AND te.id = tl.source_entity_id
+                    AND te.type = '${TASK}' AND te.deleted_at IS NULL
+               WHERE pg.workspace_id = ? AND pg.type = '${PROJECT_ADVANCES_GOAL}'
+                     AND pg.deleted_at IS NULL
+             ) ct
+             JOIN activity_subjects s
+               ON s.workspace_id = ? AND s.entity_id = ct.task_id
+             JOIN activities a
+               ON a.workspace_id = s.workspace_id AND a.id = s.activity_id
+                  AND a.type IN (${MEANINGFUL_TYPE_LIST})
+             GROUP BY ct.goal_id
+           ),
+           ranked AS (
+             SELECT ge.id AS id, ge.title AS title, ge.created_at AS created_at,
+                    ge.updated_at AS updated_at, gsr.completed_at AS completed_at,
+                    ae.id AS area_id, ae.title AS area_title,
+                    ${rankCase} AS display_rank
+             FROM entity_links gl
+             JOIN entities ge
+               ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                  AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+             JOIN spine_records gsr
+               ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
+             JOIN entities ae
+               ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
+                  AND ae.type = '${AREA}' AND ae.deleted_at IS NULL
+             LEFT JOIN contrib c ON c.goal_id = ge.id
+             LEFT JOIN activity act ON act.goal_id = ge.id
+             WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                   AND gl.deleted_at IS NULL
+           )
+           SELECT id, title, created_at, updated_at, completed_at,
+                  area_id, area_title, display_rank
+           FROM ranked
+           WHERE 1 = 1${cursorClause}
+           ORDER BY display_rank ASC, created_at ASC, id ASC
+           LIMIT ?`,
+        )
+        .bind(
+          this.#workspaceId, // contrib
+          this.#workspaceId, // activity inner
+          this.#workspaceId, // activity subjects
+          input.activeBoundaryIso, // rank CASE active/neglected boundary (exact)
+          this.#workspaceId, // ranked goals
+          ...cursorParams, // outer keyset (rank, rank, createdAt, createdAt, id)
+          fetchLimit,
+        ),
+    );
+    const rows = (result.results ?? []) as GoalAlignmentListRow[];
+    const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      rows.length > limit && last
+        ? encodeGoalAlignmentCursor(scope, {
+            rank: Number(last.display_rank),
             createdAt: last.created_at,
             id: last.id,
           })

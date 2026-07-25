@@ -218,14 +218,13 @@ describe("Goals collection (the Alignment view)", () => {
     expect(status.textContent).not.toMatch(/every open goal/i);
   });
 
-  it("sorts neglected Goals before active Goals for at-a-glance scanning", () => {
+  it("renders the authoritative server (workspace-wide alignment) order without re-sorting (DEBT-23)", () => {
+    // The repository now establishes the alignment order workspace-wide BEFORE
+    // pagination (neglected → active → …), so the collection must render the
+    // server-provided order verbatim — it must NOT re-impose a merely per-page
+    // client sort. Here the loader already supplies neglected-before-active; the
+    // collection preserves it.
     renderCollection([
-      goal({
-        id: "g-active",
-        title: "Active goal",
-        createdAt: "2026-07-01T00:00:00.000Z",
-        alignment: alignment({ state: "active" }),
-      }),
       goal({
         id: "g-neglected",
         title: "Neglected goal",
@@ -242,6 +241,12 @@ describe("Goals collection (the Alignment view)", () => {
             },
           ],
         }),
+      }),
+      goal({
+        id: "g-active",
+        title: "Active goal",
+        createdAt: "2026-07-01T00:00:00.000Z",
+        alignment: alignment({ state: "active" }),
       }),
     ]);
     const headings = screen.getAllByRole("heading", { level: 2 });

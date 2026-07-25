@@ -23,7 +23,13 @@ import type {
   GoalAlignmentEvidence,
   GoalAlignmentReason,
 } from "~/kernel/alignment";
-import { daysBetweenIsoDates, recentWindowStartIso } from "~/kernel/alignment";
+import {
+  daysBetweenIsoDates,
+  GOAL_ALIGNMENT_DISPLAY_RANK,
+  recentWindowStartIso,
+} from "~/kernel/alignment";
+
+import { recentBoundaryStartIso } from "./window";
 
 /**
  * Build the owner-calendar evaluation context AND the SQL-facing window
@@ -33,7 +39,12 @@ import { daysBetweenIsoDates, recentWindowStartIso } from "~/kernel/alignment";
  */
 export function createOwnerAlignmentContext(now: Date): {
   readonly evaluation: AlignmentEvaluationContext;
+  /** Approximate UTC-midnight lower bound for the SUPPORTING recent-count fact
+   * (ADR-040 §40.4 — a few hours of slack never flips a state). */
   readonly recentWindowStartIso: string;
+  /** EXACT owner-calendar instant separating `active` from `neglected`, used by
+   * the repository ranking so its order agrees with the evaluator (DEBT-23). */
+  readonly recentBoundaryStartIso: string;
 } {
   const todayIso = ownerCalendarIso(now);
   return {
@@ -43,6 +54,7 @@ export function createOwnerAlignmentContext(now: Date): {
       calendarIsoOf: (instant) => ownerCalendarIso(instant),
     },
     recentWindowStartIso: recentWindowStartIso(todayIso),
+    recentBoundaryStartIso: recentBoundaryStartIso(todayIso),
   };
 }
 
@@ -84,18 +96,15 @@ export function alignmentNeedsAttention(alignment: GoalAlignment): boolean {
 }
 
 /**
- * Sort a page of Goal alignment results by state precedence (`neglected` →
- * `active` → `unreachable` → `no_structure` → `completed`), then by
- * recency/creation order within a state — ADR-040 §40.9. This sorts ONE
- * fetched page for display; it is not a workspace-wide priority ranking.
+ * Sort Goal alignment results by state precedence (`neglected` → `active` →
+ * `unreachable` → `no_structure` → `completed`), then by creation order and the
+ * immutable id within a state. The order is the ONE canonical
+ * `GOAL_ALIGNMENT_DISPLAY_RANK` (DEBT-23) — the SAME ranking the repository's
+ * `listGoalsByAlignment` establishes workspace-wide BEFORE pagination, so this
+ * comparator and the server order are one source of truth. It is used as a stable
+ * client-side tiebreak/guard over the already-globally-ordered pages.
  */
-const STATE_ORDER: Record<GoalAlignment["state"], number> = {
-  neglected: 0,
-  active: 1,
-  unreachable: 2,
-  no_structure: 3,
-  completed: 4,
-};
+const STATE_ORDER = GOAL_ALIGNMENT_DISPLAY_RANK;
 
 export function compareAlignmentForDisplay(
   a: {

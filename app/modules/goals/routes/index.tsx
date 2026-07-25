@@ -9,6 +9,7 @@
 
 import { env } from "cloudflare:workers";
 
+import { InvalidSpineCursorError } from "~/kernel/spine";
 import {
   composeGoalAlignmentFacts,
   createOwnerAlignmentContext,
@@ -42,12 +43,34 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-    const page = await scope.goals.listGoals({ cursor });
+
+    const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
+      createOwnerAlignmentContext(new Date());
+
+    // DEBT-23: the collection is ordered by the deterministic workspace-wide
+    // Alignment precedence in the repository (BEFORE pagination), so the Goals
+    // most worth a look lead across the WHOLE workspace — not merely within each
+    // fetched page. The rank's active/neglected split uses the EXACT owner-calendar
+    // boundary (so the SQL order agrees with the evaluator), and the cursor is
+    // bound to that window. A stale/incompatible/cross-window cursor is reset
+    // calmly to the first page rather than surfaced as an error.
+    let page;
+    try {
+      page = await scope.goals.listGoalsByAlignment({
+        cursor,
+        activeBoundaryIso: recentBoundaryStartIso,
+      });
+    } catch (error) {
+      if (error instanceof InvalidSpineCursorError) {
+        page = await scope.goals.listGoalsByAlignment({
+          activeBoundaryIso: recentBoundaryStartIso,
+        });
+      } else {
+        throw error;
+      }
+    }
     const ids = page.items.map((item) => item.id);
 
-    const { evaluation, recentWindowStartIso } = createOwnerAlignmentContext(
-      new Date(),
-    );
     const [contributions, activityFacts] = await Promise.all([
       scope.goals.listGoalProjectContributions(ids),
       scope.alignment.listGoalAlignmentFacts(ids, { recentWindowStartIso }),

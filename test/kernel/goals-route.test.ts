@@ -7,6 +7,10 @@ import { loader as detailLoader } from "~/modules/goals/routes/detail";
 import { action as newAction } from "~/modules/goals/routes/new";
 import { action as mutateAction } from "~/modules/goals/routes/mutate";
 import { loader as activityLoader } from "~/modules/goals/routes/activity";
+import {
+  loader as projectsLoader,
+  type GoalProjectsPageData,
+} from "~/modules/goals/routes/projects";
 import type { CreateGoalResult } from "~/modules/goals/routes/new";
 import type { GoalMutationResult } from "~/modules/goals/routes/mutate";
 
@@ -92,6 +96,16 @@ async function runActivity(goalId: string): Promise<Response> {
     context: authedContext(),
     params: { goalId },
   } as unknown as Parameters<typeof activityLoader>[0]) as Promise<Response>;
+}
+
+async function runProjects(goalId: string, cursor?: string): Promise<Response> {
+  const url = new URL(`https://app.test/goals/${goalId}/projects`);
+  if (cursor !== undefined) url.searchParams.set("cursor", cursor);
+  return projectsLoader({
+    request: new Request(url),
+    context: authedContext(),
+    params: { goalId },
+  } as unknown as Parameters<typeof projectsLoader>[0]) as Promise<Response>;
 }
 
 beforeEach(async () => {
@@ -360,5 +374,83 @@ describe("Goal routes", () => {
     expect(detail.projectsNextCursor).toBeTruthy();
     // The EXACT contribution boundary still reports every Project.
     expect(detail.contribution.total).toBe(55);
+  });
+});
+
+describe("DEBT-22 — Goal Projects pagination endpoint (/goals/:goalId/projects)", () => {
+  async function seedGoalWithProjects(count: number) {
+    const s = spine();
+    const area = await s.createArea({ title: "Area" });
+    const goal = await s.createGoal({ title: "Goal", areaId: area.id });
+    for (let i = 0; i < count; i++) {
+      await s.createProject({
+        title: `Project ${String(i).padStart(3, "0")}`,
+        parent: { kind: "goal", id: goal.id },
+      });
+    }
+    return goal.id;
+  }
+
+  it("returns a single bounded page for a Goal with one page of Projects", async () => {
+    const goalId = await seedGoalWithProjects(3);
+    const response = await runProjects(goalId);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as GoalProjectsPageData;
+    expect(body.projects).toHaveLength(3);
+    expect(body.nextCursor).toBeNull();
+  });
+
+  it("reaches EVERY Project across pages with no duplicates or gaps, ending nextCursor=null", async () => {
+    const goalId = await seedGoalWithProjects(120);
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    let guard = 0;
+    do {
+      const response = await runProjects(goalId, cursor);
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as GoalProjectsPageData;
+      seen.push(...body.projects.map((p) => p.id));
+      cursor = body.nextCursor ?? undefined;
+      guard += 1;
+    } while (cursor && guard < 20);
+
+    expect(seen).toHaveLength(120);
+    expect(new Set(seen).size).toBe(120); // no duplicates across boundaries
+    // Deterministic order ends in the immutable id tiebreak (creation keyset).
+  });
+
+  it("rejects a malformed cursor with a calm 400 (never a 500)", async () => {
+    const goalId = await seedGoalWithProjects(2);
+    const response = await runProjects(goalId, "not-a-cursor");
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error?: string };
+    expect(body.error).toBe("invalid_cursor");
+  });
+
+  it("rejects a cursor issued for another Goal's scope with a calm 400", async () => {
+    const goalA = await seedGoalWithProjects(60);
+    const goalB = await seedGoalWithProjects(2);
+    const firstA = (await (
+      await runProjects(goalA)
+    ).json()) as GoalProjectsPageData;
+    expect(firstA.nextCursor).toBeTruthy();
+    // Feed Goal A's cursor to Goal B's endpoint — rejected, not reinterpreted.
+    const response = await runProjects(goalB, firstA.nextCursor!);
+    expect(response.status).toBe(400);
+  });
+
+  it("fails closed for a missing / wrong-kind / cross-workspace Goal id", async () => {
+    const area = await spine().createArea({ title: "Area" });
+    for (const goalId of ["nonexistent", area.id]) {
+      const response = await runProjects(goalId);
+      expect(response.status).toBe(404);
+    }
+    const otherGoalArea = await spine(OTHER).createArea({ title: "Other" });
+    const foreignGoal = await spine(OTHER).createGoal({
+      title: "Foreign",
+      areaId: otherGoalArea.id,
+    });
+    const response = await runProjects(foreignGoal.id);
+    expect(response.status).toBe(404);
   });
 });

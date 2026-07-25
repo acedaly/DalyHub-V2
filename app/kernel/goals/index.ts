@@ -13,6 +13,8 @@ export type {
   GoalListItem,
   GoalListInput,
   GoalListPage,
+  GoalAlignmentListInput,
+  GoalAlignmentListPage,
 } from "./goal";
 
 export {
@@ -68,3 +70,17 @@ export type {
   GoalListCursorScope,
   DecodedGoalListCursor,
 } from "./goal-list-cursor";
+
+export {
+  GOAL_ALIGNMENT_CURSOR_VERSION,
+  GOAL_ALIGNMENT_CURSOR_SORT,
+  encodeGoalAlignmentCursor,
+  decodeGoalAlignmentCursor,
+  decodeGoalAlignmentCursorForScope,
+  goalAlignmentCursorScopeMatches,
+} from "./goal-alignment-cursor";
+export type {
+  GoalAlignmentCursorPosition,
+  GoalAlignmentCursorScope,
+  DecodedGoalAlignmentCursor,
+} from "./goal-alignment-cursor";

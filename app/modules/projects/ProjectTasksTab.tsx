@@ -114,6 +114,14 @@ function useProjectTaskPagination(
   const processed = useRef<TasksPageData | null>(null);
   const prevFirstPage = useRef(firstPage);
   const prevSearch = useRef(location.search);
+  // A monotonic pagination generation, bumped on every reset. Each "Load more"
+  // captures the immutable request scope `{ gen, projectId }`; a response is
+  // applied ONLY if that scope still matches the active project and generation, so
+  // a late response from a "Load more" on project A that resolves after navigating
+  // to project B is discarded rather than appended into B. Object identity alone is
+  // insufficient — a stale response arrives as a NEW payload.
+  const generation = useRef(0);
+  const pending = useRef<{ gen: number; projectId: string } | null>(null);
 
   useEffect(() => {
     // `firstPage` is a loader-provided prop, so a new identity means the record
@@ -130,7 +138,10 @@ function useProjectTaskPagination(
       // Opening/closing the Task Drawer — keep the accumulated pages.
       return;
     }
-    // A filter change OR a mutation revalidation — reconcile from the fresh page.
+    // A filter change OR a mutation revalidation — reconcile from the fresh page,
+    // and start a NEW generation so any in-flight request's response is discarded.
+    generation.current += 1;
+    pending.current = null;
     setAppended([]);
     setCursor(initialCursor);
     setLoadFailed(false);
@@ -150,6 +161,17 @@ function useProjectTaskPagination(
       return;
     }
     processed.current = data;
+    // Discard a stale response whose project or pagination generation no longer
+    // matches the active one.
+    const scope = pending.current;
+    pending.current = null;
+    if (
+      !scope ||
+      scope.projectId !== projectId ||
+      scope.gen !== generation.current
+    ) {
+      return;
+    }
     // The endpoint returns `{ tasks, nextCursor }` on success; a 4xx JSON body has
     // neither, so treat a missing `tasks` array as a calm, retryable failure.
     if (!Array.isArray(data.tasks)) {
@@ -159,13 +181,14 @@ function useProjectTaskPagination(
     setAppended((prev) => [...prev, ...data.tasks]);
     setCursor(data.nextCursor ?? null);
     setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
+  }, [fetcher.state, fetcher.data, projectId]);
 
   const loadMore = useCallback(() => {
     if (cursor === null) {
       return;
     }
     setLoadFailed(false);
+    pending.current = { gen: generation.current, projectId };
     fetcher.load(
       `/projects/${encodeURIComponent(projectId)}/tasks?state=${encodeURIComponent(taskState)}&cursor=${encodeURIComponent(cursor)}`,
     );

@@ -122,6 +122,36 @@ export const GOAL_ALIGNMENT_STATES = [
 ] as const;
 export type GoalAlignmentState = (typeof GOAL_ALIGNMENT_STATES)[number];
 
+/**
+ * DEBT-23 — the deterministic WORKSPACE-WIDE display precedence for the Alignment
+ * collection: the Goals most worth a look lead. Lower rank = shown first
+ * (`neglected` → `active` → `unreachable` → `no_structure` → `completed`).
+ *
+ * This is the ONE source of truth for Alignment display order. The pure display
+ * comparator (`compareAlignmentForDisplay`) and the repository-level SQL ranking
+ * (`GoalRepository.listGoalsByAlignment`) BOTH derive from these exact values, so
+ * the ordering is established once, workspace-wide, BEFORE pagination — and a parity
+ * test proves the repository's SQL order agrees with the pure evaluator for every
+ * state, so the ranking can never drift from `evaluateGoalAlignment`.
+ *
+ * Note: this is DISPLAY order (which Goal appears first), distinct from the
+ * evaluator's CLASSIFICATION precedence (which state a Goal IS — §40.5).
+ */
+export const GOAL_ALIGNMENT_DISPLAY_RANK: Readonly<
+  Record<GoalAlignmentState, number>
+> = {
+  neglected: 0,
+  active: 1,
+  unreachable: 2,
+  no_structure: 3,
+  completed: 4,
+};
+
+/** The workspace-wide Alignment display rank for a state (lower = shown first). */
+export function goalAlignmentDisplayRank(state: GoalAlignmentState): number {
+  return GOAL_ALIGNMENT_DISPLAY_RANK[state];
+}
+
 /** A stable, machine-readable reason code. Every alignment result carries one
  * or more, primary first — tests assert on the code (and its structured
  * counts/days), never on display prose. */

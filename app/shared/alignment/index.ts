@@ -35,5 +35,7 @@ export {
 } from "./alignment-view";
 export type { SerializedGoalAlignmentEvidence } from "./alignment-view";
 
+export { ownerZonedMidnightUtcIso, recentBoundaryStartIso } from "./window";
+
 export { AlignmentIndicator } from "./AlignmentIndicator";
 export { GoalAlignmentPanel } from "./GoalAlignmentPanel";

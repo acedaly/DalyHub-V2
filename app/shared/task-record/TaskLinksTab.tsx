@@ -3,15 +3,15 @@
  *
  * Two parts, both using accepted shared patterns:
  *   - Relationships: the task's REAL project / goal / area, resolved from the spine
- *     hierarchy (not copied labels), shown with their Entity Identity. They are a
- *     minimal related-entity display — TODAY-02 does not build those modules' record
- *     surfaces, so they are not yet openable.
+ *     hierarchy (not copied labels), shown with their Entity Identity. Each title
+ *     opens the related record (Project/Area/Goal → canonical record) via the shared
+ *     `EntityLink`, degrading to plain text when no destination exists.
  *   - Related records: the DS-06 `EntityLinkPicker`, wired to the workspace-scoped
  *     link service through the Drawer's resource routes, so linking and unlinking
  *     respect workspace isolation (the server policy is authoritative).
  */
 
-import { EntityIcon, isEntityType } from "~/shared/entity";
+import { EntityIcon, EntityLink, isEntityType } from "~/shared/entity";
 import { EntityLinkPicker } from "~/shared/forms";
 import type {
   EntityLinkSelection,
@@ -37,9 +37,11 @@ interface TaskLinksTabProps {
 
 function RelationshipRow({
   kind,
+  id,
   title,
 }: {
   readonly kind: string;
+  readonly id: string;
   readonly title: string;
 }) {
   const label = kind.charAt(0).toUpperCase() + kind.slice(1);
@@ -47,7 +49,14 @@ function RelationshipRow({
     <li className="dh-task-drawer__relationship">
       {isEntityType(kind) ? <EntityIcon type={kind} /> : null}
       <span className="dh-task-drawer__relationship-kind">{label}</span>
-      <span className="dh-task-drawer__relationship-title">{title}</span>
+      {/* Opening a Project/Area/Goal navigates to its canonical record; a Task
+       * would open the shared Drawer. Unsupported kinds stay plain text. */}
+      <EntityLink
+        type={kind}
+        id={id}
+        title={title}
+        className="dh-task-drawer__relationship-title"
+      />
     </li>
   );
 }
@@ -73,6 +82,7 @@ export function TaskLinksTab({
               <RelationshipRow
                 key={`${relation.kind}:${relation.id}`}
                 kind={relation.kind}
+                id={relation.id}
                 title={relation.title}
               />
             ))}

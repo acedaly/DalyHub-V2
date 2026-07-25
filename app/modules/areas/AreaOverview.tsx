@@ -177,6 +177,13 @@ function projectCard(
     project.parent.kind === "goal"
       ? `Goal: ${project.parent.goal.title}`
       : "Directly in this Area";
+  // When the Project advances a Goal, its parent-Goal context is a real link to
+  // the canonical Goal record — a separate link from the card's primary open
+  // target (the Project), so no nested interactivity is created.
+  const parentHref =
+    project.parent.kind === "goal"
+      ? `/goals/${encodeURIComponent(project.parent.goal.id)}`
+      : undefined;
 
   return {
     id: project.id,
@@ -185,7 +192,7 @@ function projectCard(
     icon: <EntityIcon type="project" />,
     headingLevel: 3,
     status: projectStateLabel(project),
-    context: { label: parentLabel },
+    context: { label: parentLabel, href: parentHref },
     metadata,
     progress: tasks.has
       ? {
