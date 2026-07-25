@@ -747,8 +747,22 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await expect(toolbar).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await selectSubstring("Column 1");
+    const bolded320Saved = page.waitForResponse(
+      (response) =>
+        response.url().includes("/mutate") &&
+        response.request().method() === "POST" &&
+        response.ok() &&
+        (response.request().postData() ?? "").includes("**Column 1**"),
+      { timeout: 30_000 },
+    );
     await toolbar.getByRole("button", { name: "Bold" }).click();
     await expect(editor).toHaveValue(/\*\*Column 1\*\*/);
     await expectNoHorizontalOverflow(page);
+
+    // Let this final edit fully persist before the test ends, so the afterEach
+    // cleanup never races an in-flight save — a late save re-inserting
+    // note_details/activity rows would fail the entity-delete FK constraint.
+    await editor.blur();
+    await bolded320Saved;
   });
 });
