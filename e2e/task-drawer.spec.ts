@@ -39,7 +39,11 @@ test.describe("TODAY-02 — desktop", () => {
     await expect(priority).toBeVisible();
     await expect(priority).toContainText("P1");
     await expect(priority).toContainText("Do");
-    await expect(dialog.getByText("1 Aug 2026")).toBeVisible();
+    // The due date renders — now in both the Planning section and, since TASKS-02,
+    // the shared UrgencyChip ("Due 1 Aug 2026"); assert the chip form explicitly.
+    await expect(
+      dialog.locator(".dh-urgency").getByText("Due 1 Aug 2026"),
+    ).toBeVisible();
   });
 
   test("shows the real area relationship in the Links tab", async ({
