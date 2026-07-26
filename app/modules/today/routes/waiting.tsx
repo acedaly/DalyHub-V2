@@ -21,7 +21,8 @@ import { useSearchParams } from "react-router";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { Card, CardCollection } from "~/shared/card";
-import type { CardProps } from "~/shared/card";
+import type { CardMetaItem, CardProps } from "~/shared/card";
+import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { CollectionLayout } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -58,6 +59,17 @@ function toWaitingCardProps(
     headingLevel: 2,
     status: { label: "Waiting", tone: "warning" },
     metadata: [
+      // The shared PriorityIndicator (TASKS-02) renders on every task card — the
+      // Waiting collection included — so a P1–P4 task keeps its priority signal when
+      // the user moves from the main Today view to Waiting (Codex review, DEBT-28).
+      ...(card.priority
+        ? [
+            {
+              id: "priority",
+              value: <PriorityIndicator priority={card.priority} />,
+            } satisfies CardMetaItem,
+          ]
+        : []),
       {
         id: "waiting-for",
         label: "Waiting for",
