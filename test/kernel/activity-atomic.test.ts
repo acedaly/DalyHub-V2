@@ -281,7 +281,7 @@ describe("FND-05 atomic recording mechanisms (real D1)", () => {
 
     it("a subject-stage failure rolls back an entity link creation and its event", async () => {
       const entities = makeRepository(CTX, { idGenerator: sequentialIds("e") });
-      const a = await entities.create({ type: "meeting", title: "A" });
+      const a = await entities.create({ type: "widget", title: "A" });
       const b = await entities.create({ type: "widget", title: "B" });
       const activitiesBefore = await countActivities();
 

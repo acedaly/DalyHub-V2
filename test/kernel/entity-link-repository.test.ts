@@ -52,7 +52,10 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
 
   /** Create two active entities in workspace A and return their ids. */
   async function twoEntitiesA(): Promise<[string, string]> {
-    const a = await entitiesA.create({ type: "meeting", title: "Standup" });
+    // Both use the non-reserved `widget` type: `meeting` became a reserved type
+    // (MEET-01) that the generic EntityRepository refuses to create, and this
+    // test only needs two arbitrary linkable entities.
+    const a = await entitiesA.create({ type: "widget", title: "Standup" });
     const b = await entitiesA.create({ type: "widget", title: "Follow up" });
     return [a.id, b.id];
   }
@@ -365,7 +368,7 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
 
   describe("bidirectional queries (scenarios 1-11)", () => {
     it("returns a link as outgoing from the source and incoming from the target — same id", async () => {
-      const source = await entitiesA.create({ type: "meeting", title: "M" });
+      const source = await entitiesA.create({ type: "widget", title: "M" });
       const target = await entitiesA.create({ type: "widget", title: "T" });
       const { link } = await linksA.create({
         sourceEntityId: source.id,
@@ -439,7 +442,7 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
     });
 
     it("filters by link type", async () => {
-      const hub = await entitiesA.create({ type: "meeting", title: "Hub" });
+      const hub = await entitiesA.create({ type: "widget", title: "Hub" });
       const t1 = await entitiesA.create({ type: "widget", title: "T1" });
       const n1 = await entitiesA.create({ type: "note", title: "N1" });
       await linksA.create({
@@ -460,7 +463,7 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
     });
 
     it("excludes explicitly unlinked links", async () => {
-      const source = await entitiesA.create({ type: "meeting", title: "M" });
+      const source = await entitiesA.create({ type: "widget", title: "M" });
       const target = await entitiesA.create({ type: "widget", title: "T" });
       const { link } = await linksA.create({
         sourceEntityId: source.id,
@@ -488,7 +491,7 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
     });
 
     it("never surfaces another workspace's links and requires the anchor to be active", async () => {
-      const source = await entitiesA.create({ type: "meeting", title: "M" });
+      const source = await entitiesA.create({ type: "widget", title: "M" });
       const target = await entitiesA.create({ type: "widget", title: "T" });
       await linksA.create({
         sourceEntityId: source.id,
@@ -670,7 +673,7 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
     });
 
     it("rejects a type-filtered cursor reused without or under another type", async () => {
-      const anchor = (await entitiesA.create({ type: "meeting", title: "A" }))
+      const anchor = (await entitiesA.create({ type: "widget", title: "A" }))
         .id;
       for (let i = 0; i < 4; i++) {
         clock.advance(1_000);

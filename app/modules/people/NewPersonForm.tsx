@@ -89,7 +89,10 @@ export function NewPersonForm({ onCreated, onCancel }: NewPersonFormProps) {
       body.set("tags", JSON.stringify(values.tags));
       let data: CreatePersonResult;
       try {
-        const response = await fetch("/people/create", { method: "POST", body });
+        const response = await fetch("/people/create", {
+          method: "POST",
+          body,
+        });
         data = (await response.json()) as CreatePersonResult;
       } catch {
         return {

@@ -324,6 +324,37 @@ describe("module discovery", () => {
           moduleId: "meetings",
           file: "routes/index.tsx",
         },
+        {
+          id: "meetings.upcoming",
+          moduleId: "meetings",
+          file: "routes/upcoming.tsx",
+        },
+        {
+          id: "meetings.recent",
+          moduleId: "meetings",
+          file: "routes/recent.tsx",
+        },
+        {
+          id: "meetings.archived",
+          moduleId: "meetings",
+          file: "routes/archived.tsx",
+        },
+        { id: "meetings.new", moduleId: "meetings", file: "routes/new.tsx" },
+        {
+          id: "meetings.create",
+          moduleId: "meetings",
+          file: "routes/create.tsx",
+        },
+        {
+          id: "meetings.detail",
+          moduleId: "meetings",
+          file: "routes/detail.tsx",
+        },
+        {
+          id: "meetings.mutate",
+          moduleId: "meetings",
+          file: "routes/mutate.tsx",
+        },
         { id: "people.index", moduleId: "people", file: "routes/index.tsx" },
         {
           id: "people.recent",
@@ -383,6 +414,9 @@ describe("module discovery", () => {
         "tasks.matrix",
         "tasks.sectors",
         "tasks.someday",
+        "meetings.open",
+        "meetings.new",
+        "meetings.search",
         "people.open",
         "people.new",
         "people.search",
@@ -400,6 +434,7 @@ describe("module discovery", () => {
       expect(searchProviders.map((provider) => provider.id)).toEqual([
         "today.search",
         "tasks.search",
+        "meetings.search",
         "people.search",
       ]);
       expect(searchProviders[0]?.moduleId).toBe("today");
