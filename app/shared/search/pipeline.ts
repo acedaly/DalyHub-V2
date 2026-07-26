@@ -36,6 +36,8 @@ export type ProviderResultBatch = {
 export type AssembleOptions = {
   readonly maxResultsPerProvider?: number;
   readonly maxTotalResults?: number;
+  /** Item ids to boost within their tier (e.g. a record's directly-linked ids). */
+  readonly boostIds?: ReadonlySet<string>;
 };
 
 function deriveStatus(executed: number, failed: number): SearchOutcomeStatus {
@@ -89,7 +91,11 @@ export function assembleOutcome(
   }
 
   const unique = dedupeTagged(tagged);
-  const ranked = rankResults(query, unique);
+  const ranked = rankResults(
+    query,
+    unique,
+    options.boostIds ? { boostIds: options.boostIds } : {},
+  );
   const limited = ranked.slice(0, Math.max(0, totalLimit));
   const truncated = ranked.length > limited.length;
   const groups = groupRankedResults(limited, moduleLabels);

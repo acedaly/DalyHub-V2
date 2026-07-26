@@ -228,6 +228,23 @@ describe("rankResults", () => {
     ]);
   });
 
+  it("boosts directly-linked ids within their tier, never across tiers", () => {
+    const results: TaggedResult[] = [
+      tagged({ itemId: "plain-a", title: "Match" }),
+      tagged({ itemId: "linked", title: "Match" }),
+      tagged({ itemId: "exact", title: "match report extra long" }),
+    ];
+    // Two equal-tier "Match" results (exact title === query "match") + a longer
+    // prefix. The linked one rises above the equally-relevant plain one, but a
+    // boosted weaker match never outranks a stronger tier.
+    const ranked = rankResults("match", results, {
+      boostIds: new Set(["linked"]),
+    });
+    const order = ranked.map((r) => r.id.split("::")[2]);
+    // "linked" and "plain-a" are both exact matches (tier 5); linked comes first.
+    expect(order.indexOf("linked")).toBeLessThan(order.indexOf("plain-a"));
+  });
+
   it("is deterministic and stable for equal tiers (title then id)", () => {
     const results: TaggedResult[] = [
       tagged({ itemId: "b", title: "Alpha" }),

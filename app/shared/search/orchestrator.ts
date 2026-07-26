@@ -58,6 +58,12 @@ export type ExecuteSearchOptions = {
   readonly timeoutMs?: number;
   /** Optional caller/client cancellation — aborts every provider when fired. */
   readonly signal?: AbortSignal;
+  /**
+   * Item ids to boost within their relevance tier — typically the directly-linked
+   * entity ids of a record the search is scoped to (the Universal Relationship
+   * System). Resolved server-side; the client never supplies raw boost ids.
+   */
+  readonly boostIds?: ReadonlySet<string>;
 };
 
 type ProviderRun = {
@@ -174,5 +180,6 @@ export async function executeSearch(
   return assembleOutcome(query, batches, {
     maxResultsPerProvider: perProvider,
     maxTotalResults: options.maxTotalResults ?? MAX_TOTAL_RESULTS,
+    ...(options.boostIds ? { boostIds: options.boostIds } : {}),
   });
 }

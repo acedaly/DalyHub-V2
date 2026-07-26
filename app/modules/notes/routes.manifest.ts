@@ -27,6 +27,14 @@ const routes: readonly RouteContribution[] = [
     file: "routes/new.tsx",
   },
   {
+    // The [[Wiki Link]] resolver — a static segment registered BEFORE the dynamic
+    // `:noteId` route so it is never shadowed. Resolves a title to a record and
+    // redirects to its canonical destination.
+    id: "notes.resolve",
+    path: "notes/resolve",
+    file: "routes/resolve.tsx",
+  },
+  {
     id: "notes.detail",
     path: "notes/:noteId",
     file: "routes/detail.tsx",
