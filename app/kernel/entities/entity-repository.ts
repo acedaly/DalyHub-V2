@@ -116,6 +116,21 @@ export interface EntityRepository {
   ): Promise<EntityPage<TType>>;
 
   /**
+   * List the MOST RECENTLY CREATED active entities of a type, newest-first, in the
+   * bound workspace. A bounded, NON-paginated "recent" projection ordered by
+   * `(createdAt, id)` DESC with a hard `limit` — distinct from {@link list}, whose
+   * ascending cursor pagination cannot cheaply surface the newest records. Excludes
+   * soft-deleted rows. Used by surfaces that preview "the latest N" of a type (e.g.
+   * Today's recent-notes widget) so they show the true newest records, not the
+   * oldest page re-sorted. Returns at most `limit` records (clamped to the safe
+   * maximum); no cursor.
+   */
+  listRecentByType<TType extends EntityType = EntityType>(
+    type: TType,
+    limit: number,
+  ): Promise<readonly EntityRecord<TType>[]>;
+
+  /**
    * Soft-delete an entity in the bound workspace: set `deletedAt` and advance
    * `updatedAt`. Idempotent — deleting an already-deleted entity is a no-op
    * reported via the result's `outcome` (`already_deleted`, `changed: false`).

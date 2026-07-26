@@ -110,7 +110,10 @@ function DiaryList({
     <ul className="dh-today-list" aria-label={label}>
       {items.map((moment) => (
         <li key={moment.id} className="dh-today-list__item">
-          <Link className="dh-today-list__link" to="/diary">
+          <Link
+            className="dh-today-list__link"
+            to={`/diary/${encodeURIComponent(moment.id)}`}
+          >
             <span className="dh-today-list__title">{moment.title}</span>
             <span className="dh-today-list__meta">
               {moment.typeLabel} · {moment.timeLabel}

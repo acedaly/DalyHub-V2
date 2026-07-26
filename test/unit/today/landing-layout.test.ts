@@ -87,6 +87,43 @@ describe("TODAY-08 landing layout model", () => {
     expect(moved.order[1]).toBe(first);
   });
 
+  it("move controls and moves operate on the RENDERED sequence, not raw order", () => {
+    // Pin the last widget: it floats to the top. The first UNPINNED widget must then
+    // report isFirst (its "Move up" is a boundary no-op — it can't cross the pin
+    // boundary), even though its raw-order index is 0.
+    const layout = togglePinned(defaultTodayLayout(), "insights");
+    const visible = resolveVisibleWidgets(layout);
+    expect(visible[0]!.definition.id).toBe("insights");
+    expect(visible[0]!.isFirst).toBe(true); // first (only) pinned widget
+    const firstUnpinned = visible[1]!;
+    expect(firstUnpinned.pinned).toBe(false);
+    expect(firstUnpinned.isFirst).toBe(true); // first in the unpinned group
+
+    // Moving the first unpinned widget "up" is a clamped no-op (can't pass the pin).
+    expect(moveWidget(layout, firstUnpinned.definition.id, "up")).toEqual(
+      layout,
+    );
+
+    // Moving it "down" swaps it with the NEXT unpinned widget — a real change.
+    const moved = moveWidget(layout, firstUnpinned.definition.id, "down");
+    const movedVisible = resolveVisibleWidgets(moved);
+    expect(movedVisible[1]!.definition.id).not.toBe(
+      firstUnpinned.definition.id,
+    );
+    expect(movedVisible[2]!.definition.id).toBe(firstUnpinned.definition.id);
+  });
+
+  it("moving skips hidden widgets (swaps the adjacent VISIBLE neighbour)", () => {
+    let layout = defaultTodayLayout();
+    // Hide my-day (order: morning-brief, [my-day hidden], recent-activity, …).
+    layout = toggleHidden(layout, "my-day");
+    // Moving morning-brief down swaps it past the hidden my-day with recent-activity.
+    const moved = moveWidget(layout, "morning-brief", "down");
+    const visible = resolveVisibleWidgets(moved).map((w) => w.definition.id);
+    expect(visible[0]).toBe("recent-activity");
+    expect(visible[1]).toBe("morning-brief");
+  });
+
   it("normalises a stale snapshot: drops unknown ids and appends new widgets", () => {
     const normalised = normaliseTodayLayout({
       order: ["notes", "notes", "ghost-widget", "insights"] as never,

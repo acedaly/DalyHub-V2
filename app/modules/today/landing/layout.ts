@@ -230,23 +230,54 @@ export function togglePinned(
   };
 }
 
-/** Move a widget one step earlier/later within `order` (clamped at the ends). */
+/**
+ * The RENDERED (visible) sequence of widget ids in the SAME pin group as `id` —
+ * i.e. the sequence a Move up/down actually reorders. Because pinned widgets always
+ * float above non-pinned ones, a move only ever changes order WITHIN a group;
+ * hidden widgets are not rendered and so are skipped. Returns `null` for a hidden or
+ * unknown id (nothing to move).
+ */
+function visibleGroupOf(
+  layout: TodayLayout,
+  id: TodayWidgetId,
+): readonly TodayWidgetId[] | null {
+  const hidden = new Set(layout.hidden);
+  if (hidden.has(id) || !layout.order.includes(id)) {
+    return null;
+  }
+  const pinned = new Set(layout.pinned);
+  const sameGroup = pinned.has(id);
+  return layout.order.filter(
+    (member) => !hidden.has(member) && pinned.has(member) === sameGroup,
+  );
+}
+
+/**
+ * Move a widget one step earlier/later **within the rendered sequence** (its pin
+ * group), by swapping it with its adjacent VISIBLE, same-group neighbour in `order`.
+ * Operating on the rendered sequence — not raw `order` — means a Move up/down always
+ * produces a visible change (or is a clamped no-op at a group boundary), never a
+ * silent no-op caused by an intervening pinned or hidden widget.
+ */
 export function moveWidget(
   layout: TodayLayout,
   id: TodayWidgetId,
   direction: "up" | "down",
 ): TodayLayout {
-  const index = layout.order.indexOf(id);
-  if (index === -1) {
+  const group = visibleGroupOf(layout, id);
+  if (group === null) {
     return layout;
   }
-  const target = direction === "up" ? index - 1 : index + 1;
-  if (target < 0 || target >= layout.order.length) {
+  const withinGroup = group.indexOf(id);
+  const neighbourIndex = direction === "up" ? withinGroup - 1 : withinGroup + 1;
+  if (neighbourIndex < 0 || neighbourIndex >= group.length) {
     return layout;
   }
+  const neighbour = group[neighbourIndex]!;
   const order = [...layout.order];
-  const [moved] = order.splice(index, 1);
-  order.splice(target, 0, moved!);
+  const a = order.indexOf(id);
+  const b = order.indexOf(neighbour);
+  [order[a], order[b]] = [order[b]!, order[a]!];
   return { ...layout, order };
 }
 
@@ -274,18 +305,24 @@ export function resolveVisibleWidgets(
   const pinned = new Set(layout.pinned);
   const collapsed = new Set(layout.collapsed);
   const visible = layout.order.filter((id) => !hidden.has(id));
-  const ordered = [
-    ...visible.filter((id) => pinned.has(id)),
-    ...visible.filter((id) => !pinned.has(id)),
-  ];
-  return ordered.map((id, position) => ({
-    definition: WIDGET_BY_ID.get(id)!,
-    collapsed: collapsed.has(id),
-    pinned: pinned.has(id),
-    position,
-    isFirst: position === 0,
-    isLast: position === ordered.length - 1,
-  }));
+  const pinnedGroup = visible.filter((id) => pinned.has(id));
+  const unpinnedGroup = visible.filter((id) => !pinned.has(id));
+  const ordered = [...pinnedGroup, ...unpinnedGroup];
+  return ordered.map((id, position) => {
+    // `isFirst`/`isLast` reflect movability WITHIN the widget's pin group (a move
+    // never crosses the pin boundary), so the Move up/down controls are disabled
+    // exactly when they could not change the rendered order.
+    const group = pinned.has(id) ? pinnedGroup : unpinnedGroup;
+    const withinGroup = group.indexOf(id);
+    return {
+      definition: WIDGET_BY_ID.get(id)!,
+      collapsed: collapsed.has(id),
+      pinned: pinned.has(id),
+      position,
+      isFirst: withinGroup === 0,
+      isLast: withinGroup === group.length - 1,
+    };
+  });
 }
 
 /** The widgets currently hidden (for the "Customise" restore list), in order. */

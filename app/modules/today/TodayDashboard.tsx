@@ -483,15 +483,53 @@ export function TodayDashboard({
 
   const openHelp = useCallback(() => openRecord(HELP_DRAWER_KEY), [openRecord]);
 
+  // TODAY-08 personalisation: the remembered per-device widget arrangement, plus a
+  // "Customise" toggle that reveals each widget's move/pin/hide controls.
+  const layoutController = useTodayLayout();
+  const { layout } = layoutController;
+  const [customising, setCustomising] = useState(false);
+  const visibleWidgets = useMemo(() => resolveVisibleWidgets(layout), [layout]);
+  const hiddenWidgets = useMemo(() => resolveHiddenWidgets(layout), [layout]);
+
   const openProps = (key: string) => ({
     href: `?${withDrawerPushed(searchParams, key).toString()}`,
     onOpen: () => openRecord(key),
   });
 
+  // Quick Capture can be hidden or collapsed by the owner, yet the pane-header
+  // "Quick capture" action and Morning Brief's capture entry stay visible — so
+  // focusing must first RESTORE the widget (un-hide, expand), then focus once it is
+  // in the DOM and visible. A deferred focus (pendingCaptureFocus) waits for the
+  // layout change to render; when the widget is already available it focuses
+  // synchronously (so no perceptible delay and existing tests still see focus).
+  const [pendingCaptureFocus, setPendingCaptureFocus] = useState(false);
+  const captureHidden = layout.hidden.includes("quick-capture");
+  const captureCollapsed = layout.collapsed.includes("quick-capture");
   const focusCapture = useCallback(() => {
+    if (captureHidden) {
+      layoutController.toggleHidden("quick-capture");
+    }
+    if (captureCollapsed) {
+      layoutController.toggleCollapsed("quick-capture");
+    }
+    if (!captureHidden && !captureCollapsed) {
+      captureRef.current?.focus();
+      captureRef.current?.scrollIntoView({ block: "center" });
+    } else {
+      // Restore is in flight — focus once the widget renders (effect below).
+      setPendingCaptureFocus(true);
+    }
+  }, [captureHidden, captureCollapsed, layoutController]);
+
+  // Complete a deferred capture focus once the widget is visible and expanded.
+  useEffect(() => {
+    if (!pendingCaptureFocus || captureHidden || captureCollapsed) {
+      return;
+    }
     captureRef.current?.focus();
     captureRef.current?.scrollIntoView({ block: "center" });
-  }, []);
+    setPendingCaptureFocus(false);
+  }, [pendingCaptureFocus, captureHidden, captureCollapsed]);
 
   useEffect(() => {
     if (searchParams.get(TODAY_CAPTURE_PARAM) !== TODAY_CAPTURE_VALUE) {
@@ -526,14 +564,6 @@ export function TodayDashboard({
     }
   }, []);
 
-  // TODAY-08 personalisation: the remembered per-device widget arrangement, plus a
-  // "Customise" toggle that reveals each widget's move/pin/hide controls.
-  const layoutController = useTodayLayout();
-  const { layout } = layoutController;
-  const [customising, setCustomising] = useState(false);
-  const visibleWidgets = useMemo(() => resolveVisibleWidgets(layout), [layout]);
-  const hiddenWidgets = useMemo(() => resolveHiddenWidgets(layout), [layout]);
-
   // Render a referenced Activity record: a task opens in the SAME shared Task Drawer
   // Today already hosts; every other kind links to its canonical record route. Never
   // a fake link for a kind without a route.
@@ -549,7 +579,7 @@ export function TodayDashboard({
         case "note":
           return `/notes/${encodeURIComponent(id)}`;
         case "diary":
-          return "/diary";
+          return `/diary/${encodeURIComponent(id)}`;
         default:
           return null;
       }

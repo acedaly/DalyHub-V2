@@ -34,7 +34,6 @@ import type {
 } from "./types";
 
 /** Bounds — a landing widget previews, it never lists everything. */
-const NOTES_LIMIT = 24;
 const NOTES_SHOWN = 5;
 const DIARY_LIMIT = 12;
 const DIARY_RECENT_SHOWN = 4;
@@ -113,20 +112,15 @@ async function loadNotes(
   todayIso: string,
 ): Promise<readonly RecentNoteItem[]> {
   try {
-    const page = await scope.entities.list({
-      type: "note",
-      limit: NOTES_LIMIT,
-    });
-    // `entities.list` orders ascending by (createdAt, id); present newest-first for
-    // "continue writing". Bounded, so this is the recent set for an early workspace.
-    return [...page.items]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, NOTES_SHOWN)
-      .map((note) => ({
-        id: note.id,
-        title: note.title,
-        createdLabel: `Created ${relativeDayLabel(note.createdAt, todayIso)}`,
-      }));
+    // The TRUE newest notes (dedicated newest-first bounded projection) — never the
+    // oldest `entities.list` page re-sorted, which would be wrong once a workspace
+    // has more than `NOTES_SHOWN` notes.
+    const notes = await scope.entities.listRecentByType("note", NOTES_SHOWN);
+    return notes.map((note) => ({
+      id: note.id,
+      title: note.title,
+      createdLabel: `Created ${relativeDayLabel(note.createdAt, todayIso)}`,
+    }));
   } catch {
     return [];
   }
@@ -195,32 +189,54 @@ async function loadGoals(
       scope.goals.listGoalProjectContributions(ids),
       scope.alignment.listGoalAlignmentFacts(ids, { recentWindowStartIso }),
     ]);
-    return items
-      .map((item) => {
-        const facts = composeGoalAlignmentFacts({
-          goalId: item.id,
-          completedAt: item.completedAt,
-          contribution: contributions.get(item.id) ?? {
-            total: 0,
-            completed: 0,
-            incomplete: 0,
-            active: 0,
-            planned: 0,
-            onHold: 0,
-            archived: 0,
-          },
-          activity: activityFacts.get(item.id),
-        });
-        const alignment = evaluateGoalAlignment(facts, evaluation);
-        return {
-          id: item.id,
-          title: item.title,
-          areaLabel: item.area?.title ?? null,
-          alignmentLabel: alignment.label,
-          atRisk: alignment.state === "neglected",
-        } satisfies GoalProgressItem;
-      })
-      .slice(0, GOALS_SHOWN);
+    return (
+      items
+        .map((item) => {
+          const facts = composeGoalAlignmentFacts({
+            goalId: item.id,
+            completedAt: item.completedAt,
+            contribution: contributions.get(item.id) ?? {
+              total: 0,
+              completed: 0,
+              incomplete: 0,
+              active: 0,
+              planned: 0,
+              onHold: 0,
+              archived: 0,
+            },
+            activity: activityFacts.get(item.id),
+          });
+          const alignment = evaluateGoalAlignment(facts, evaluation);
+          return {
+            id: item.id,
+            title: item.title,
+            areaLabel: item.area?.title ?? null,
+            alignmentState: alignment.state,
+            alignmentLabel: alignment.label,
+            atRisk: alignment.state === "neglected",
+          };
+        })
+        // The widget is "Goals in progress": drop completed goals so they never fill
+        // it in a workspace with few open goals (`listGoalsByAlignment` returns
+        // completed goals too, ranked last).
+        .filter((goal) => goal.alignmentState !== "completed")
+        .map(
+          ({
+            id,
+            title,
+            areaLabel,
+            alignmentLabel,
+            atRisk,
+          }): GoalProgressItem => ({
+            id,
+            title,
+            areaLabel,
+            alignmentLabel,
+            atRisk,
+          }),
+        )
+        .slice(0, GOALS_SHOWN)
+    );
   } catch {
     return [];
   }

@@ -178,7 +178,9 @@ test.describe("DS-09 Command Palette — desktop", () => {
     const card = page.locator(".dh-card", { hasText: COMPLETE_TITLE }).first();
     await card.getByRole("button", { name: "Complete" }).click();
 
-    await page.getByText(/Completed today/).click();
+    // The My-day "Completed today" disclosure summary (scoped by its id — the
+    // Insights widget also shows a "Completed today" signal, TODAY-08).
+    await page.locator("#today-completed-label").click();
     const completed = page.getByRole("list", { name: "Tasks completed today" });
     await expect(completed.getByText(COMPLETE_TITLE)).toBeVisible();
   });
