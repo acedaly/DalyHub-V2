@@ -22,6 +22,7 @@ import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type { NoteDetailsRepository } from "~/kernel/notes";
 import type { PersonRepository } from "~/kernel/people";
+import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -60,6 +61,7 @@ import {
   D1PersonRepository,
   type D1PersonRepositoryOptions,
 } from "./d1-person-repository";
+import { D1MeetingRepository } from "./d1-meeting-repository";
 import { D1ProjectHealthRepository } from "./d1-project-health-repository";
 import { D1ProjectRepository } from "./d1-project-repository";
 import {
@@ -118,6 +120,7 @@ export {
   type D1PersonRepositoryOptions,
   type D1PersonCreateFault,
 } from "./d1-person-repository";
+export { D1MeetingRepository } from "./d1-meeting-repository";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
@@ -292,6 +295,14 @@ export function createPersonRepository(
   options?: D1PersonRepositoryOptions,
 ): PersonRepository {
   return new D1PersonRepository(db, context, options);
+}
+
+export function createMeetingRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: ConstructorParameters<typeof D1MeetingRepository>[2],
+): MeetingRepository {
+  return new D1MeetingRepository(db, context, options);
 }
 
 /**

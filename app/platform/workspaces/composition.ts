@@ -29,6 +29,7 @@ import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type { NoteDetailsRepository } from "~/kernel/notes";
 import type { PersonRepository } from "~/kernel/people";
+import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -50,6 +51,7 @@ import {
   createGoalRepository,
   createNoteDetailsRepository,
   createPersonRepository,
+  createMeetingRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -152,6 +154,7 @@ export interface WorkspaceScope {
    * repositories.
    */
   readonly people: PersonRepository;
+  readonly meetings: MeetingRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -243,6 +246,7 @@ export function bindWorkspaceRepositories(
   });
   const diary = createDiaryRepository(env.DB, context, { actorContext });
   const people = createPersonRepository(env.DB, context, { actorContext });
+  const meetings = createMeetingRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -266,6 +270,7 @@ export function bindWorkspaceRepositories(
     noteDetails,
     diary,
     people,
+    meetings,
     projectHealth,
     projectSettings,
     activity,

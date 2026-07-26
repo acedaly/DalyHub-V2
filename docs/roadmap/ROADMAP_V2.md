@@ -703,10 +703,11 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 ## Phase 6 — Meetings (`MEET`)
 
-### ☐ MEET-01 — Meeting record
+### ☑ MEET-01 — Meeting record
 - **Purpose.** Meetings capturing attendees (People), agenda, notes, and outcomes, in the Record Layout.
 - **Dependencies.** DS-02, FND-04, PEOPLE-01, NOTES-01B.
 - **Expected outcome.** Create a meeting, attach people and notes, record decisions. **P2.**
+- **Status: ☑ Done.** First-class workspace-scoped Meeting identity plus additive detail and ordered decision/outcome slices; Upcoming/Recent/Archived collection views; practical creation; canonical shared Record Layout; independent shared Markdown autosave surfaces; EntityLink attendee/context seams; structural Activity, bounded search, commands and reversible archive lifecycle. Calendar sync, invitations, AI, Task conversion (MEET-02), unified People history (MEET-03) and deeper mobile follow-up (MEET-04) remain explicitly deferred. See [`MEETINGS_MODULE.md`](../development/MEETINGS_MODULE.md).
 
 ### ☐ MEET-02 — Follow-ups → Tasks
 - **Purpose.** Turn meeting outcomes into linked tasks (manually; AI-assisted via AI-02).

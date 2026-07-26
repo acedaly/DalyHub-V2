@@ -202,3 +202,7 @@ The **application frame** these components live in is now built ([PX-02](../road
 - [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md) — the Foundation items that build this.
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — the shared layer.
 - [`docs/README.md`](../README.md) — documentation index.
+
+### Meeting module-owned slice
+
+MEET-01 follows the supporting-entity pattern: `entities(type=meeting)` supplies identity while STRICT `meeting_details` and `meeting_items` supply meeting-specific chronology, Markdown source and stable ordered decisions/outcomes. Attendees and related context remain EntityLinks; mutation history remains Activity.
