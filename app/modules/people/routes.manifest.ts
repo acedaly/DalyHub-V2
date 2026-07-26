@@ -5,9 +5,12 @@
  * a type import (erased at build time), safe for React Router's bare `routes.ts`
  * config loader and imported by `module.ts` for the runtime registry
  * (ADR-016 §5.10). `navGroup: "capture"` places People in the sidebar's capture
- * group (Notes/Diary/Meetings/People/Assets), after the spine modules; the
- * `Recent` and `Archived` sibling rows are static, parameterless routes so they
- * appear as their own navigation entries (mirrors how Today exposes sub-views).
+ * group (Notes/Diary/Meetings/People/Assets), after the spine modules. People
+ * contributes a SINGLE sidebar row ("People"); the `Recent` and `Archived`
+ * sub-views are ordinary routes with NO `navLabel`, reached through the People
+ * collection's own in-page view navigation (mirrors the Meetings module). Keeping
+ * generic labels like "Archived" out of the global sidebar avoids an ambiguous
+ * duplicate-link name with other modules' in-page "Archived" controls.
  */
 
 import type { RouteContribution } from "~/kernel/modules";
@@ -19,17 +22,11 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: { navLabel: "People", navGroup: "capture", navOrder: 130 },
   },
-  {
-    id: "people.recent",
-    path: "people/recent",
-    file: "routes/recent.tsx",
-    meta: { navLabel: "Recent", navGroup: "capture", navOrder: 131 },
-  },
+  { id: "people.recent", path: "people/recent", file: "routes/recent.tsx" },
   {
     id: "people.archived",
     path: "people/archived",
     file: "routes/archived.tsx",
-    meta: { navLabel: "Archived", navGroup: "capture", navOrder: 132 },
   },
   {
     id: "people.new",

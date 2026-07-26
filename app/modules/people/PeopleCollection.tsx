@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useNavigate } from "react-router";
+import { Link, useFetcher, useNavigate } from "react-router";
 
 import {
   Card,
@@ -448,8 +448,29 @@ function PeopleCollection({
     </div>
   );
 
+  const viewsNav = (
+    <nav className="dh-people-views" aria-label="People views">
+      <Link to="/people" aria-current={view === "all" ? "page" : undefined}>
+        All people
+      </Link>
+      <Link
+        to="/people/recent"
+        aria-current={view === "recent" ? "page" : undefined}
+      >
+        Recent
+      </Link>
+      <Link
+        to="/people/archived"
+        aria-current={view === "archived" ? "page" : undefined}
+      >
+        Archived
+      </Link>
+    </nav>
+  );
+
   const filterBar = (
     <div className="dh-people-filters">
+      {viewsNav}
       <label className="dh-people-filters__search">
         <span className="dh-visually-hidden">Search people</span>
         <input

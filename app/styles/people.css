@@ -45,6 +45,36 @@
   align-items: center;
 }
 
+/* In-page view sub-navigation (All / Recent / Archived) — the People collection
+   owns these links, so generic labels like "Archived" never enter the global
+   sidebar (mirrors the Meetings module). */
+.dh-people-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
+  flex-basis: 100%;
+}
+
+.dh-people-views a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-control-height-md);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  color: var(--dh-color-text-secondary);
+  text-decoration: none;
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-people-views a[aria-current="page"] {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+}
+
+.dh-people-views a:hover {
+  background: var(--dh-color-hover-surface);
+}
+
 .dh-people-filters__search {
   flex: 1 1 16rem;
   min-inline-size: 0;

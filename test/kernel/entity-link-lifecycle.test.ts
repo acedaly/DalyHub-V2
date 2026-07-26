@@ -44,7 +44,7 @@ describe("EntityLink lifecycle & endpoint-deletion behaviour", () => {
 
   /** Create A and B active in workspace A and an active link A→B. */
   async function linkedPair(type = "task.relates_to") {
-    const a = await entitiesA.create({ type: "meeting", title: "A" });
+    const a = await entitiesA.create({ type: "widget", title: "A" });
     const b = await entitiesA.create({ type: "widget", title: "B" });
     const { link } = await linksA.create({
       sourceEntityId: a.id,

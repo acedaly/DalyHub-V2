@@ -149,15 +149,21 @@ sensitive data — AGENTS.md §17); Activity payloads carry only structural meta
 
 ### Navigation & routes
 
-The manifest declares three `capture`-group nav rows and the record/mutation
-routes:
+The manifest declares a SINGLE `capture`-group sidebar row (**People**) plus the
+sub-view, record and mutation routes. The Recent and Archived sub-views are
+ordinary routes with **no** `navLabel`; the People collection's own in-page view
+navigation (All / Recent / Archived) links to them. This mirrors the Meetings
+module and keeps generic labels like "Archived" out of the global sidebar, where
+they would be an ambiguous duplicate-link name against other modules' in-page
+"Archived" controls.
 
 | Route | Path | Nav |
 |---|---|---|
-| `people.index` | `/people` | **People** — the collection |
-| `people.recent` | `/people/recent` | **Recent** — a bounded recent glance |
-| `people.archived` | `/people/archived` | **Archived** — archived, with Restore |
-| `people.new` | `/new/person` | — (create page + action) |
+| `people.index` | `/people` | **People** — the collection (sidebar row) |
+| `people.recent` | `/people/recent` | in-page view — a bounded recent glance |
+| `people.archived` | `/people/archived` | in-page view — archived, with Restore |
+| `people.new` | `/new/person` | — (create page) |
+| `people.create` | `/people/create` | — (create action endpoint) |
 | `people.detail` | `/person/:personId` | — (canonical record) |
 | `people.mutate` | `/person/:personId/mutate` | — (mutation endpoint) |
 | `people.activity` | `/person/:personId/activity` | — (Timeline JSON) |

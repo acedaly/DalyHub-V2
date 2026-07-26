@@ -42,7 +42,7 @@ describe("EntityLink mutation Activity events", () => {
   });
 
   async function pair() {
-    const a = await entities.create({ type: "meeting", title: "A" });
+    const a = await entities.create({ type: "widget", title: "A" });
     const b = await entities.create({ type: "widget", title: "B" });
     return { a, b };
   }

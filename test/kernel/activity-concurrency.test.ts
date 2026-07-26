@@ -51,7 +51,7 @@ describe("Activity recording under concurrency (real D1 races)", () => {
   });
 
   it("concurrent identical link create produces one link, one id, one created event", async () => {
-    const a = await entities.create({ type: "meeting", title: "A" });
+    const a = await entities.create({ type: "widget", title: "A" });
     const b = await entities.create({ type: "widget", title: "B" });
     const input = {
       sourceEntityId: a.id,
@@ -68,7 +68,7 @@ describe("Activity recording under concurrency (real D1 races)", () => {
   });
 
   it("concurrent unlink produces exactly one entity_link.unlinked event", async () => {
-    const a = await entities.create({ type: "meeting", title: "A" });
+    const a = await entities.create({ type: "widget", title: "A" });
     const b = await entities.create({ type: "widget", title: "B" });
     const { link } = await links.create({
       sourceEntityId: a.id,
@@ -83,7 +83,7 @@ describe("Activity recording under concurrency (real D1 races)", () => {
   });
 
   it("concurrent restore and concurrent create-after-unlink each produce one restored event", async () => {
-    const a = await entities.create({ type: "meeting", title: "A" });
+    const a = await entities.create({ type: "widget", title: "A" });
     const b = await entities.create({ type: "widget", title: "B" });
     const input = {
       sourceEntityId: a.id,
