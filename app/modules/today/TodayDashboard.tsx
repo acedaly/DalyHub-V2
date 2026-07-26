@@ -62,13 +62,27 @@ import {
   type TodayNavValue,
 } from "./keyboard/nav-target";
 import { useTodayRovingFocus } from "./keyboard/useTodayRovingFocus";
-import { UPCOMING_KIND } from "./fixtures";
-import type {
-  RecentNote,
-  TimelineEntry,
-  TodayData,
-  UpcomingItem,
-} from "./fixtures";
+import type { TodayData } from "./fixtures";
+import type { RenderEntityLink } from "~/shared/activity-feed";
+import type { ResolvedEntity } from "~/shared/activity-feed/model";
+import { MorningBrief } from "./landing/MorningBrief";
+import { RecentActivityWidget } from "./landing/RecentActivityWidget";
+import {
+  AreasWidget,
+  DiaryWidget,
+  FocusWidget,
+  GoalsWidget,
+  InsightsWidget,
+  NotesWidget,
+} from "./landing/widgets";
+import { TodayWidget } from "./landing/TodayWidget";
+import { useTodayLayout } from "./landing/useTodayLayout";
+import {
+  resolveHiddenWidgets,
+  resolveVisibleWidgets,
+  type TodayWidgetId,
+} from "./landing/layout";
+import type { TodayLandingData } from "./landing/types";
 import type { PlanActionData } from "./routes/plan";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type {
@@ -101,14 +115,23 @@ export type RecentProjectItem = {
 
 export type TodayDashboardProps = {
   /**
-   * Today's fixture data (the non-task demo sections). The real task data flows
-   * through `planning`; the fixture sections remain the preserved seam.
+   * Legacy fixture data. Retained for the drawer renderer's shape only; the
+   * command-centre widgets read REAL data through `landing`. No section renders
+   * from this any more (TODAY-08 retired the calendar/notes/timeline fixtures).
    */
-  readonly data: TodayData;
+  readonly data?: TodayData;
   /** The formatted current date, rendered as the pane-header subtitle. */
   readonly date: string;
   /** The owner's calendar date `YYYY-MM-DD`, for due/overdue comparisons. */
   readonly todayIso?: string;
+  /** The server's `now` (ISO), for the Recent Activity feed's relative dates. */
+  readonly nowIso?: string;
+  /**
+   * The command-centre payload (TODAY-08): Morning Brief, real Notes/Diary/Areas/
+   * Goals and derived Insights. Omitted in fixture/demo rendering — those widgets
+   * then show their calm empty state.
+   */
+  readonly landing?: TodayLandingData;
   /**
    * The planning payload (TODAY-04): the real tasks bucketed by scheduled date, the
    * calm summary and the quick-plan target dates. Omitted in fixture/demo rendering,
@@ -178,24 +201,32 @@ function TodaySection({
   id,
   label,
   count,
+  level = 2,
   children,
 }: {
   readonly id: string;
   readonly label: string;
   readonly count?: number;
+  /**
+   * The heading level. Planning sub-sections nest one level below the "My day"
+   * widget heading (`h3`); stand-alone sections stay `h2` — so the pane keeps a
+   * single, non-skipping outline under the CollectionLayout `h1`.
+   */
+  readonly level?: 2 | 3;
   readonly children: React.ReactNode;
 }) {
   const headingId = `${id}-label`;
+  const Heading = level === 3 ? "h3" : "h2";
   return (
     <section className="dh-today__section" aria-labelledby={headingId}>
       {/* `tabIndex={-1}`: not in the tab order, but a "Go to <section>" command can
           move focus here (announcing the section) without adding a tab stop. */}
-      <h2 id={headingId} tabIndex={-1} className="dh-today__section-label">
+      <Heading id={headingId} tabIndex={-1} className="dh-today__section-label">
         {label}
         {count !== undefined ? (
           <span className="dh-today__section-count"> {count}</span>
         ) : null}
-      </h2>
+      </Heading>
       {children}
     </section>
   );
@@ -238,12 +269,13 @@ function PlanningSummary({
 }
 
 export function TodayDashboard({
-  data,
   date,
   todayIso,
+  nowIso,
   planning,
   waiting,
   recentProjects = [],
+  landing,
   onCompleteTask,
   onPlan,
 }: TodayDashboardProps) {
@@ -451,24 +483,53 @@ export function TodayDashboard({
 
   const openHelp = useCallback(() => openRecord(HELP_DRAWER_KEY), [openRecord]);
 
-  const upcoming = useMemo(
-    () => [...data.upcoming].sort((a, b) => a.sortKey - b.sortKey),
-    [data.upcoming],
-  );
-  const timeline = useMemo(
-    () => [...data.timeline].sort((a, b) => a.sortKey - b.sortKey),
-    [data.timeline],
-  );
+  // TODAY-08 personalisation: the remembered per-device widget arrangement, plus a
+  // "Customise" toggle that reveals each widget's move/pin/hide controls.
+  const layoutController = useTodayLayout();
+  const { layout } = layoutController;
+  const [customising, setCustomising] = useState(false);
+  const visibleWidgets = useMemo(() => resolveVisibleWidgets(layout), [layout]);
+  const hiddenWidgets = useMemo(() => resolveHiddenWidgets(layout), [layout]);
 
   const openProps = (key: string) => ({
     href: `?${withDrawerPushed(searchParams, key).toString()}`,
     onOpen: () => openRecord(key),
   });
 
+  // Quick Capture can be hidden or collapsed by the owner, yet the pane-header
+  // "Quick capture" action and Morning Brief's capture entry stay visible — so
+  // focusing must first RESTORE the widget (un-hide, expand), then focus once it is
+  // in the DOM and visible. A deferred focus (pendingCaptureFocus) waits for the
+  // layout change to render; when the widget is already available it focuses
+  // synchronously (so no perceptible delay and existing tests still see focus).
+  const [pendingCaptureFocus, setPendingCaptureFocus] = useState(false);
+  const captureHidden = layout.hidden.includes("quick-capture");
+  const captureCollapsed = layout.collapsed.includes("quick-capture");
   const focusCapture = useCallback(() => {
+    if (captureHidden) {
+      layoutController.toggleHidden("quick-capture");
+    }
+    if (captureCollapsed) {
+      layoutController.toggleCollapsed("quick-capture");
+    }
+    if (!captureHidden && !captureCollapsed) {
+      captureRef.current?.focus();
+      captureRef.current?.scrollIntoView({ block: "center" });
+    } else {
+      // Restore is in flight — focus once the widget renders (effect below).
+      setPendingCaptureFocus(true);
+    }
+  }, [captureHidden, captureCollapsed, layoutController]);
+
+  // Complete a deferred capture focus once the widget is visible and expanded.
+  useEffect(() => {
+    if (!pendingCaptureFocus || captureHidden || captureCollapsed) {
+      return;
+    }
     captureRef.current?.focus();
     captureRef.current?.scrollIntoView({ block: "center" });
-  }, []);
+    setPendingCaptureFocus(false);
+  }, [pendingCaptureFocus, captureHidden, captureCollapsed]);
 
   useEffect(() => {
     if (searchParams.get(TODAY_CAPTURE_PARAM) !== TODAY_CAPTURE_VALUE) {
@@ -502,6 +563,57 @@ export function TodayDashboard({
       void action.run();
     }
   }, []);
+
+  // Render a referenced Activity record: a task opens in the SAME shared Task Drawer
+  // Today already hosts; every other kind links to its canonical record route. Never
+  // a fake link for a kind without a route.
+  const canonicalRouteFor = useCallback(
+    (entityType: ResolvedEntity["entityType"], id: string): string | null => {
+      switch (entityType) {
+        case "project":
+          return `/projects/${encodeURIComponent(id)}`;
+        case "goal":
+          return `/goals/${encodeURIComponent(id)}`;
+        case "area":
+          return `/areas/${encodeURIComponent(id)}`;
+        case "note":
+          return `/notes/${encodeURIComponent(id)}`;
+        case "diary":
+          return `/diary/${encodeURIComponent(id)}`;
+        default:
+          return null;
+      }
+    },
+    [],
+  );
+  const renderActivityEntityLink = useCallback<RenderEntityLink>(
+    (entity, label) => {
+      if (entity.drawerKey) {
+        const key = entity.drawerKey;
+        return (
+          <a
+            href={`?${withDrawerPushed(searchParams, key).toString()}`}
+            onClick={(event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.button !== 0
+              )
+                return;
+              event.preventDefault();
+              openRecord(key);
+            }}
+          >
+            {label}
+          </a>
+        );
+      }
+      const route = canonicalRouteFor(entity.entityType, entity.entityId);
+      return route ? <Link to={route}>{label}</Link> : <span>{label}</span>;
+    },
+    [searchParams, openRecord, canonicalRouteFor],
+  );
 
   // A flat lookup of every planning task, so a Drawer-open task can be found for its
   // contextual planning commands (TODAY-04 exposes commands; TODAY-05 owns palette).
@@ -697,7 +809,9 @@ export function TodayDashboard({
       typeLabel: "Task",
       icon: <EntityIcon type="task" />,
       accent: "accent",
-      headingLevel: 3,
+      // My day (h2) → planning section (h3) → task card title (h4): a correct,
+      // non-skipping outline under the CollectionLayout h1 (TODAY-08).
+      headingLevel: 4,
       context: item.parent ? { label: item.parent.title } : undefined,
       status: done ? { label: "Done", tone: "success" } : undefined,
       dateLabel: dueLabel
@@ -730,7 +844,7 @@ export function TodayDashboard({
     bucket: PlanBucket,
     items: readonly PlanningTaskItem[],
   ) => (
-    <TodaySection id={id} label={label} count={items.length}>
+    <TodaySection id={id} label={label} count={items.length} level={3}>
       <CardCollection
         items={items}
         getItemId={(item) => item.id}
@@ -756,26 +870,7 @@ export function TodayDashboard({
       />
     ) : undefined;
 
-  /* -- Fixture card builders (unchanged) -- */
-
-  const upcomingCard = (item: UpcomingItem): CardProps => {
-    const identity = UPCOMING_KIND[item.kind];
-    return {
-      id: item.id,
-      title: item.title,
-      typeLabel: identity.label,
-      icon: <EntityIcon type={identity.entity} />,
-      accent: "accent",
-      dateLabel: {
-        label: item.when,
-        tone: item.kind === "deadline" ? "warning" : "neutral",
-      },
-      ...(item.context ? { context: { label: item.context } } : {}),
-      density: "compact",
-      presentation: "list",
-      ...openProps(`upcoming:${item.id}`),
-    };
-  };
+  /* -- Real project card (Continue working) -- */
 
   // A real project card (PROJ-05 Slice 4): opens the canonical `/projects/:id`
   // record route through normal client navigation (a real link + SPA open) — the
@@ -823,18 +918,270 @@ export function TodayDashboard({
     };
   };
 
-  const noteCard = (note: RecentNote): CardProps => ({
-    id: note.id,
-    title: note.title,
-    typeLabel: "Note",
-    icon: <EntityIcon type="note" />,
-    accent: "accent",
-    subtitle: note.snippet,
-    dateLabel: { label: note.lastEdited },
-    density: "compact",
-    presentation: "list",
-    ...openProps(`note:${note.id}`),
-  });
+  /* -- My Day (the preserved planning + waiting execution core) -- */
+
+  const myDayBody = planning ? (
+    <>
+      <PlanningSummary summary={planning.summary} />
+
+      {/* The roving task collection (TODAY-05): ONE tab stop for every open
+                task, arrow-navigable across sections. The keyboard handler owns
+                Arrow/Home/End/Enter/Space; the direct action shortcuts (P/Shift+P/C)
+                ride the shared command dispatcher against the focused task. */}
+      <div
+        ref={roving.containerRef}
+        className="dh-today__tasklist"
+        data-today-tasklist=""
+      >
+        {planning.overdue.length > 0
+          ? planningSection(
+              "today-overdue",
+              "Overdue",
+              "overdue",
+              planning.overdue,
+            )
+          : null}
+
+        <TodaySection
+          id="today-planned"
+          label="Today"
+          count={planning.today.length}
+          level={3}
+        >
+          {planning.today.length > 0 ? (
+            <CardCollection
+              items={planning.today}
+              getItemId={(item) => item.id}
+              renderCard={(item) => <Card {...planningCard(item, "today")} />}
+              ariaLabel="Tasks planned for today"
+              presentation="list"
+              density="compact"
+            />
+          ) : (
+            <p className="dh-today__section-empty">
+              Nothing planned yet. Pull a task in from Anytime to commit to your
+              day.
+            </p>
+          )}
+        </TodaySection>
+
+        {planning.upcoming.length > 0
+          ? planningSection(
+              "today-upcoming-tasks",
+              "Upcoming",
+              "upcoming",
+              planning.upcoming,
+            )
+          : null}
+
+        {planning.anytime.length > 0
+          ? planningSection(
+              "today-anytime",
+              "Anytime",
+              "anytime",
+              planning.anytime,
+            )
+          : null}
+      </div>
+
+      {planning.completedToday.length > 0 ? (
+        <section
+          className="dh-today__section"
+          aria-labelledby="today-completed-label"
+        >
+          <details className="dh-today__completed">
+            <summary
+              id="today-completed-label"
+              className="dh-today__section-label"
+            >
+              Completed today
+              <span className="dh-today__section-count">
+                {" "}
+                {planning.completedToday.length}
+              </span>
+            </summary>
+            <CardCollection
+              items={planning.completedToday}
+              getItemId={(item) => item.id}
+              renderCard={(item) => (
+                <Card {...planningCard(item, "completedToday")} />
+              )}
+              ariaLabel="Tasks completed today"
+              presentation="list"
+              density="compact"
+            />
+          </details>
+        </section>
+      ) : null}
+
+      {/* Waiting summary (TODAY-03) — only when something is waiting, so Today
+                stays calm. A count + preview + link to the full Waiting view; waiting
+                tasks never appear in the planning sections above (ADR-029/030). */}
+      {waiting && waiting.count > 0 ? (
+        <TodaySection
+          id="today-waiting"
+          label="Waiting"
+          count={waiting.count}
+          level={3}
+        >
+          <ul className="dh-today__waiting" aria-label="Waiting tasks preview">
+            {waiting.preview.map((item) => {
+              const key = `task:${item.id}`;
+              return (
+                <li key={item.id} className="dh-today__waiting-item">
+                  <a
+                    className="dh-today__waiting-link"
+                    href={`?${withDrawerPushed(searchParams, key).toString()}`}
+                    onClick={(event) => {
+                      if (
+                        event.metaKey ||
+                        event.ctrlKey ||
+                        event.shiftKey ||
+                        event.button !== 0
+                      )
+                        return;
+                      event.preventDefault();
+                      openRecord(key);
+                    }}
+                  >
+                    <span className="dh-today__waiting-title">
+                      {item.title}
+                    </span>
+                    <span className="dh-today__waiting-meta">
+                      Waiting for {item.subjectLabel} · {item.elapsedLabel}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+          <Link className="dh-today__waiting-all" to="/today/waiting">
+            View all waiting ({waiting.count})
+          </Link>
+        </TodaySection>
+      ) : null}
+    </>
+  ) : (
+    <p className="dh-today__section-empty">
+      Your day&rsquo;s tasks will appear here.
+    </p>
+  );
+
+  /* -- Continue working (real active projects) body -- */
+
+  const projectsBody =
+    recentProjects.length > 0 ? (
+      <CardCollection
+        items={recentProjects}
+        getItemId={(project) => project.id}
+        renderCard={(project) => <Card {...projectCard(project)} />}
+        ariaLabel="Recently active projects"
+        presentation="grid"
+      />
+    ) : (
+      <p className="dh-today__section-empty">
+        No active projects to continue.
+        <br />
+        <span className="dh-today__section-empty-detail">
+          A project appears here once its workflow status is set to Active in
+          its Settings.
+        </span>
+      </p>
+    );
+
+  /* -- Quick capture body (honest fixture: nothing is saved yet, TODAY-07) -- */
+
+  const captureBody = (
+    <form className="dh-today__capture" onSubmit={onCapture}>
+      <label className="dh-visually-hidden" htmlFor="today-capture-input">
+        What needs your attention?
+      </label>
+      <textarea
+        id="today-capture-input"
+        ref={captureRef}
+        className="dh-today__capture-input"
+        rows={2}
+        placeholder="What needs your attention?"
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (captureNotice) setCaptureNotice("");
+        }}
+      />
+      <div className="dh-today__capture-row">
+        <p className="dh-today__capture-hint">
+          Just structure for now — nothing is saved yet.
+        </p>
+        <button
+          type="submit"
+          className="dh-today__secondary"
+          disabled={draft.trim() === ""}
+        >
+          Capture
+        </button>
+      </div>
+      <p className="dh-today__capture-notice" role="status" aria-live="polite">
+        {captureNotice}
+      </p>
+    </form>
+  );
+
+  /* -- The widget registry → body map (null = the widget does not render) -- */
+
+  const renderWidgetBody = (id: TodayWidgetId): React.ReactNode => {
+    switch (id) {
+      case "morning-brief":
+        return landing ? (
+          <MorningBrief data={landing.morningBrief} onCapture={focusCapture} />
+        ) : null;
+      case "my-day":
+        return myDayBody;
+      case "recent-activity":
+        // Only mount the live feed once the server `now` is present (the route
+        // provides it); the fixture/demo render omits it rather than fetching.
+        return nowIso ? (
+          <RecentActivityWidget
+            nowIso={nowIso}
+            renderEntityLink={renderActivityEntityLink}
+          />
+        ) : null;
+      case "diary":
+        return landing ? <DiaryWidget data={landing.diary} /> : null;
+      case "notes":
+        return <NotesWidget notes={landing?.notes ?? []} />;
+      case "projects":
+        return projectsBody;
+      case "areas":
+        return <AreasWidget areas={landing?.areas ?? []} />;
+      case "goals":
+        return <GoalsWidget data={landing?.goals ?? { goals: [] }} />;
+      case "focus":
+        return <FocusWidget />;
+      case "insights":
+        return <InsightsWidget signals={landing?.insights.signals ?? []} />;
+      case "quick-capture":
+        return captureBody;
+      default:
+        return null;
+    }
+  };
+
+  const widgetCountFor = (id: TodayWidgetId): number | undefined => {
+    switch (id) {
+      case "notes":
+        return landing?.notes.length;
+      case "projects":
+        return recentProjects.length;
+      case "areas":
+        return landing?.areas.length;
+      case "goals":
+        return landing?.goals.goals.length;
+      case "insights":
+        return landing?.insights.signals.length;
+      default:
+        return undefined;
+    }
+  };
 
   return (
     <CollectionLayout
@@ -852,278 +1199,74 @@ export function TodayDashboard({
       }
     >
       <div className="dh-today" data-hydrated={hydrated ? "true" : "false"}>
-        {planning ? (
-          <>
-            <PlanningSummary summary={planning.summary} />
-
-            {/* The roving task collection (TODAY-05): ONE tab stop for every open
-                task, arrow-navigable across sections. The keyboard handler owns
-                Arrow/Home/End/Enter/Space; the direct action shortcuts (P/Shift+P/C)
-                ride the shared command dispatcher against the focused task. */}
-            <div
-              ref={roving.containerRef}
-              className="dh-today__tasklist"
-              data-today-tasklist=""
+        {/* Personalisation (TODAY-08): a calm "Customise" toggle reveals each
+            widget's move/pin/hide controls; the arrangement is remembered per device.
+            Rendered only after hydration so the server markup stays stable. */}
+        {layoutController.hydrated ? (
+          <div className="dh-today__toolbar">
+            <button
+              type="button"
+              className="dh-today__secondary"
+              aria-pressed={customising}
+              onClick={() => setCustomising((value) => !value)}
             >
-              {planning.overdue.length > 0
-                ? planningSection(
-                    "today-overdue",
-                    "Overdue",
-                    "overdue",
-                    planning.overdue,
-                  )
-                : null}
-
-              <TodaySection
-                id="today-planned"
-                label="Today"
-                count={planning.today.length}
-              >
-                {planning.today.length > 0 ? (
-                  <CardCollection
-                    items={planning.today}
-                    getItemId={(item) => item.id}
-                    renderCard={(item) => (
-                      <Card {...planningCard(item, "today")} />
-                    )}
-                    ariaLabel="Tasks planned for today"
-                    presentation="list"
-                    density="compact"
-                  />
-                ) : (
-                  <p className="dh-today__section-empty">
-                    Nothing planned yet. Pull a task in from Anytime to commit
-                    to your day.
-                  </p>
-                )}
-              </TodaySection>
-
-              {planning.upcoming.length > 0
-                ? planningSection(
-                    "today-upcoming-tasks",
-                    "Upcoming",
-                    "upcoming",
-                    planning.upcoming,
-                  )
-                : null}
-
-              {planning.anytime.length > 0
-                ? planningSection(
-                    "today-anytime",
-                    "Anytime",
-                    "anytime",
-                    planning.anytime,
-                  )
-                : null}
-            </div>
-
-            {planning.completedToday.length > 0 ? (
-              <section
-                className="dh-today__section"
-                aria-labelledby="today-completed-label"
-              >
-                <details className="dh-today__completed">
-                  <summary
-                    id="today-completed-label"
-                    className="dh-today__section-label"
-                  >
-                    Completed today
-                    <span className="dh-today__section-count">
-                      {" "}
-                      {planning.completedToday.length}
-                    </span>
-                  </summary>
-                  <CardCollection
-                    items={planning.completedToday}
-                    getItemId={(item) => item.id}
-                    renderCard={(item) => (
-                      <Card {...planningCard(item, "completedToday")} />
-                    )}
-                    ariaLabel="Tasks completed today"
-                    presentation="list"
-                    density="compact"
-                  />
-                </details>
-              </section>
-            ) : null}
-          </>
-        ) : null}
-
-        {/* Waiting summary (TODAY-03) — only when something is waiting, so Today
-            stays calm. A count + preview + link to the full Waiting view; waiting
-            tasks never appear in the planning sections above (ADR-029/030). */}
-        {waiting && waiting.count > 0 ? (
-          <TodaySection
-            id="today-waiting"
-            label="Waiting"
-            count={waiting.count}
-          >
-            <ul
-              className="dh-today__waiting"
-              aria-label="Waiting tasks preview"
-            >
-              {waiting.preview.map((item) => {
-                const key = `task:${item.id}`;
-                return (
-                  <li key={item.id} className="dh-today__waiting-item">
-                    <a
-                      className="dh-today__waiting-link"
-                      href={`?${withDrawerPushed(searchParams, key).toString()}`}
-                      onClick={(event) => {
-                        if (
-                          event.metaKey ||
-                          event.ctrlKey ||
-                          event.shiftKey ||
-                          event.button !== 0
-                        )
-                          return;
-                        event.preventDefault();
-                        openRecord(key);
-                      }}
-                    >
-                      <span className="dh-today__waiting-title">
-                        {item.title}
-                      </span>
-                      <span className="dh-today__waiting-meta">
-                        Waiting for {item.subjectLabel} · {item.elapsedLabel}
-                      </span>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-            <Link className="dh-today__waiting-all" to="/today/waiting">
-              View all waiting ({waiting.count})
-            </Link>
-          </TodaySection>
-        ) : null}
-
-        {/* On your calendar (fixture meetings/reminders/deadlines) */}
-        <TodaySection
-          id="today-calendar"
-          label="On your calendar"
-          count={upcoming.length}
-        >
-          {upcoming.length > 0 ? (
-            <CardCollection
-              items={upcoming}
-              getItemId={(item) => item.id}
-              renderCard={(item) => <Card {...upcomingCard(item)} />}
-              ariaLabel="Meetings, reminders and deadlines"
-              presentation="list"
-              density="compact"
-            />
-          ) : (
-            <p className="dh-today__section-empty">Nothing scheduled ahead.</p>
-          )}
-        </TodaySection>
-
-        {/* Continue working — REAL Active projects (PROJ-05 Slice 4), opening the
-            canonical route. The count reflects Active projects only. */}
-        <TodaySection
-          id="today-projects"
-          label="Continue working"
-          count={recentProjects.length}
-        >
-          {recentProjects.length > 0 ? (
-            <CardCollection
-              items={recentProjects}
-              getItemId={(project) => project.id}
-              renderCard={(project) => <Card {...projectCard(project)} />}
-              ariaLabel="Recently active projects"
-              presentation="grid"
-            />
-          ) : (
-            <p className="dh-today__section-empty">
-              No active projects to continue.
-              <br />
-              <span className="dh-today__section-empty-detail">
-                A project appears here once its workflow status is set to Active
-                in its Settings.
-              </span>
-            </p>
-          )}
-        </TodaySection>
-
-        {/* Recent notes (fixture) */}
-        <TodaySection
-          id="today-notes"
-          label="Recent notes"
-          count={data.notes.length}
-        >
-          {data.notes.length > 0 ? (
-            <CardCollection
-              items={data.notes}
-              getItemId={(note) => note.id}
-              renderCard={(note) => <Card {...noteCard(note)} />}
-              ariaLabel="Recent notes"
-              presentation="list"
-              density="compact"
-            />
-          ) : (
-            <p className="dh-today__section-empty">No notes edited recently.</p>
-          )}
-        </TodaySection>
-
-        {/* Daily timeline (fixture) */}
-        <TodaySection id="today-timeline" label="Daily timeline">
-          {timeline.length > 0 ? (
-            <ol className="dh-today__timeline">
-              {timeline.map((entry: TimelineEntry) => (
-                <li key={entry.id} className="dh-today__timeline-row">
-                  <span className="dh-today__timeline-time">{entry.time}</span>
-                  <span className="dh-today__timeline-label">
-                    {entry.label}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="dh-today__section-empty">
-              Your day&rsquo;s timeline will appear here.
-            </p>
-          )}
-        </TodaySection>
-
-        {/* Quick capture (fixture, inert) */}
-        <TodaySection id="today-capture" label="Quick capture">
-          <form className="dh-today__capture" onSubmit={onCapture}>
-            <label className="dh-visually-hidden" htmlFor="today-capture-input">
-              What needs your attention?
-            </label>
-            <textarea
-              id="today-capture-input"
-              ref={captureRef}
-              className="dh-today__capture-input"
-              rows={2}
-              placeholder="What needs your attention?"
-              value={draft}
-              onChange={(event) => {
-                setDraft(event.target.value);
-                if (captureNotice) setCaptureNotice("");
-              }}
-            />
-            <div className="dh-today__capture-row">
-              <p className="dh-today__capture-hint">
-                Just structure for now — nothing is saved yet.
-              </p>
+              {customising ? "Done customising" : "Customise"}
+            </button>
+            {customising ? (
               <button
-                type="submit"
-                className="dh-today__secondary"
-                disabled={draft.trim() === ""}
+                type="button"
+                className="dh-today__ghost"
+                onClick={layoutController.reset}
               >
-                Capture
+                Reset layout
               </button>
-            </div>
-            <p
-              className="dh-today__capture-notice"
-              role="status"
-              aria-live="polite"
+            ) : null}
+            {customising && hiddenWidgets.length > 0 ? (
+              <div
+                className="dh-today__hidden"
+                role="group"
+                aria-label="Hidden widgets"
+              >
+                <span className="dh-today__hidden-label">Hidden:</span>
+                {hiddenWidgets.map((widget) => (
+                  <button
+                    key={widget.id}
+                    type="button"
+                    className="dh-today__ghost"
+                    onClick={() => layoutController.toggleHidden(widget.id)}
+                  >
+                    Show {widget.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {visibleWidgets.map((widget) => {
+          const body = renderWidgetBody(widget.definition.id);
+          if (body === null) {
+            return null;
+          }
+          return (
+            <TodayWidget
+              key={widget.definition.id}
+              definition={widget.definition}
+              count={widgetCountFor(widget.definition.id)}
+              collapsed={widget.collapsed}
+              pinned={widget.pinned}
+              isFirst={widget.isFirst}
+              isLast={widget.isLast}
+              customising={customising}
+              onToggleCollapsed={layoutController.toggleCollapsed}
+              onTogglePinned={layoutController.togglePinned}
+              onHide={layoutController.toggleHidden}
+              onMove={layoutController.move}
             >
-              {captureNotice}
-            </p>
-          </form>
-        </TodaySection>
+              {body}
+            </TodayWidget>
+          );
+        })}
       </div>
     </CollectionLayout>
   );

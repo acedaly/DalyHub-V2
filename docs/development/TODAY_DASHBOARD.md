@@ -427,6 +427,67 @@ shared layer (no mobile card, no parallel mobile tree) and accepted via
   selection meets 44px on touch, and the app-shell mobile bar is a `header` so its
   brand + menu toggle are in the `banner` landmark on mobile.
 
+## Command centre (TODAY-08)
+
+TODAY-08 makes Today DalyHub's primary landing page and working **command centre** —
+the surface the owner spends most of their time on, where every important signal
+across the system surfaces without clutter. It is composed ENTIRELY from the shared
+layer (ADR-045) and preserves the TODAY-02…06 execution core bit-for-bit.
+
+- **Personalisable widgets.** The surface is a set of widgets the owner can
+  **collapse, hide, pin and reorder**, with the arrangement **remembered per
+  device**. A pure, React-free model ([`landing/layout.ts`](../../app/modules/today/landing/layout.ts))
+  owns the widget catalogue and the state transitions; `useTodayLayout` persists it
+  to `localStorage` (SSR-safe — server + first client render use the default, the
+  snapshot applies post-mount; it normalises stale snapshots and fails soft). The
+  arrangement is a cosmetic per-device UI preference, deliberately **not** workspace/
+  server state (ADR-045 §2). A calm "Customise" toggle reveals each widget's
+  move/pin/hide controls ([`TodayWidget.tsx`](../../app/modules/today/landing/TodayWidget.tsx)).
+- **The widgets.** In canonical order: **Morning brief** (greeting · date · a focus
+  line · at-a-glance planned/overdue/inbox counts · honest weather + calendar
+  placeholders · a capture entry), **My day** (the preserved planning bands +
+  Waiting + roving keyboard + swipe + bulk bar — unchanged), **Recent activity**
+  (below), **Diary**, **Notes**, **Continue working** (the real Active projects),
+  **Areas**, **Goals**, **Focus** (a placeholder for focus mode / deep work /
+  Pomodoro), **Insights**, and **Capture** (the honest inert Quick Capture, TODAY-07
+  wires it). A widget with no data source in demo/fixture rendering simply does not
+  appear.
+- **Real cross-module data.** A bounded, independently-degrading loader
+  ([`landing/load.ts`](../../app/modules/today/landing/load.ts)) reads REAL Notes
+  (`entities.list({type:"note"})`), Diary (`DiaryRepository.list`), Areas
+  (`AreaRepository.listAreas`) and Goals-with-alignment (reusing the SHARED
+  `~/shared/alignment` evaluator — never a Today-only calculation), and derives the
+  Morning Brief + Insights from the planning facts. Each section catches
+  independently, so one module failing blanks only that widget. **The
+  calendar/recent-notes/daily-timeline fixtures are retired** (the 2026-07 audit
+  UXA-20): the calendar is an honest Morning-Brief placeholder, recent notes and the
+  daily timeline are the real Notes widget and the real Activity Feed. Today reads
+  other modules only through workspace-scoped repositories + the shared kernel — the
+  [module import boundary](MODULES.md) holds.
+- **Recent Activity = the workspace-wide DS-05 feed.** Today is the FIRST product
+  consumer of `activity.listForWorkspace(…)`. A resource route
+  [`/today/activity`](../../app/modules/today/routes/activity.tsx) maps the ONE FND-05
+  Activity stream through the shared `toActivityItems` (batched entity resolution, no
+  N+1) against a **Today-owned descriptor map**
+  ([`landing/activity.ts`](../../app/modules/today/landing/activity.ts)) that labels
+  cross-module event types by referencing only the KERNEL activity-type constants
+  (`~/kernel/*`, shared — not module code); unknown types fall through to the shared
+  safe generic fallback. The widget renders the shared `ActivityFeed` + the DS-07
+  `FilterBar` (event type / referenced entity / date, URL-bound), opening a
+  referenced task in the SAME Task Drawer and other records at their canonical route.
+- **Calm, enforced.** No charts, no streaks, no red badges. Insights omit every
+  zero-count signal (never "0 overdue"), frame accomplishments positively, and carry
+  a quiet accent edge with a text label (never colour-only). Placeholders state
+  honestly what will live there — they never fake data.
+- **Outline.** The pane's `h1` (CollectionLayout) → widget `h2` → the My-day planning
+  sub-sections `h3` → task card titles `h4`: a single, non-skipping outline. `/today`
+  is axe-clean (light + dark) and overflow-free from 320px to 2560px.
+- **Tests.** Pure `landing-layout`/`landing-insights` unit tests, the extended
+  `TodayDashboard` component tests, the real-D1 `today-route` integration test, and
+  Playwright coverage in [`e2e/today.spec.ts`](../../e2e/today.spec.ts) (widget
+  structure, the collapse/hide/remember personalisation journey), plus the unchanged
+  keyboard/mobile/accessibility/responsive suites.
+
 ## Deliberately NOT built
 
 TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks

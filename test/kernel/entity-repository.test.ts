@@ -641,4 +641,53 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       expect(stillThere.title).toBe("second");
     });
   });
+
+  describe("listRecentByType (newest-first bounded projection)", () => {
+    it("returns the true NEWEST records of a type when more exist than the limit", async () => {
+      const r = repoA();
+      // Create 30 notes in ascending time order (note-00 oldest … note-29 newest).
+      for (let i = 0; i < 30; i += 1) {
+        clock.advance(1000);
+        await r.create({
+          type: "note",
+          title: `note-${String(i).padStart(2, "0")}`,
+        });
+      }
+      const recent = await r.listRecentByType("note", 5);
+      // The five NEWEST (note-29 … note-25), newest first — NOT the oldest page
+      // re-sorted, which the ascending `list` query would have surfaced.
+      expect(recent.map((n) => n.title)).toEqual([
+        "note-29",
+        "note-28",
+        "note-27",
+        "note-26",
+        "note-25",
+      ]);
+    });
+
+    it("excludes soft-deleted records and is workspace-scoped", async () => {
+      const a = repoA();
+      clock.advance(1000);
+      const keep = await a.create({ type: "note", title: "keep" });
+      clock.advance(1000);
+      const gone = await a.create({ type: "note", title: "gone" });
+      await a.softDelete(gone.id);
+      // A note in another workspace must never leak in.
+      await repoB().create({ type: "note", title: "other-ws" });
+
+      const recent = await a.listRecentByType("note", 10);
+      expect(recent.map((n) => n.title)).toEqual(["keep"]);
+      expect(recent[0]!.id).toBe(keep.id);
+    });
+
+    it("clamps an over-large limit and filters by type", async () => {
+      const r = repoA();
+      clock.advance(1000);
+      await r.create({ type: "note", title: "a-note" });
+      clock.advance(1000);
+      await r.create({ type: "widget", title: "a-widget" });
+      const recent = await r.listRecentByType("note", 1_000_000);
+      expect(recent.map((n) => n.title)).toEqual(["a-note"]);
+    });
+  });
 });

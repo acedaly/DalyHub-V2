@@ -39,6 +39,14 @@ const routes: readonly RouteContribution[] = [
     path: "today/plan",
     file: "routes/plan.tsx",
   },
+  // TODAY-08 Command centre: the workspace-wide Recent Activity feed endpoint
+  // (action/loader-only resource route, no nav entry). The Recent Activity widget's
+  // shared DS-05 feed pages through this; it renders the ONE FND-05 Activity stream.
+  {
+    id: "today.activity",
+    path: "today/activity",
+    file: "routes/activity.tsx",
+  },
   // PROJ-01 / ADR-033: the task record resource routes were re-homed to the Tasks
   // module (`/tasks/:taskId*`) so a task is edited the same way from Today AND a
   // Project. The browser drawer URL (`?drawer=task:<id>`) is unchanged.
