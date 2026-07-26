@@ -52,6 +52,16 @@ describe("LiveMarkdownEditor (fallback surface)", () => {
     expect(textbox).toHaveValue("hello");
   });
 
+  it("exposes the stable readiness contract, false while on the fallback surface", () => {
+    render(<Harness initial="hello" />);
+    // CodeMirror never mounts in the unit env (its setup is mocked to throw), so
+    // the editor stays on the accessible `<textarea>` fallback and reports
+    // `data-editor-ready="false"` — the contract E2E gates on to know the live
+    // surface has (or has not yet) replaced the fallback.
+    const group = screen.getByRole("group", { name: "Note" });
+    expect(group).toHaveAttribute("data-editor-ready", "false");
+  });
+
   it("emits the exact source on edit", () => {
     render(<Harness />);
     const textbox = screen.getByRole("textbox", { name: "Note" });

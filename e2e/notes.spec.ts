@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -9,6 +7,11 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
 } from "./helpers";
+import {
+  cleanupAllNoteFixtures,
+  cleanupNoteByTitle,
+  uniqueNoteTitle,
+} from "./notes-fixtures";
 
 /**
  * NOTES-05 — the writing-first live Markdown editor.
@@ -30,72 +33,32 @@ import {
  * after a reload.
  */
 
-const NOTE_TITLE_PREFIX = "Notes e2e note ";
-
-const NOTE_ENTITY_QUERY = `
-  SELECT id FROM entities
-  WHERE workspace_id = 'local-dev-workspace'
-    AND type = 'note'
-    AND title LIKE '${NOTE_TITLE_PREFIX}%'
-`;
-const NOTE_CLEANUP_SQL = [
-  `DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${NOTE_ENTITY_QUERY});`,
-  `DELETE FROM activities WHERE workspace_id = 'local-dev-workspace' AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
-  `DELETE FROM note_details WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${NOTE_ENTITY_QUERY});`,
-  `DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND id IN (${NOTE_ENTITY_QUERY});`,
-] as const;
-
-/** Local D1's SQLite file is shared with the live dev server process, so a
- * cleanup command run immediately after a test can occasionally race an
- * in-flight request and hit `SQLITE_BUSY`. Retry briefly rather than fail the
- * whole test on purely local-tooling contention. */
-async function runD1Command(command: string): Promise<void> {
-  const attempts = 3;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    try {
-      execFileSync(
-        "pnpm",
-        [
-          "exec",
-          "wrangler",
-          "d1",
-          "execute",
-          "DB",
-          "--local",
-          "--command",
-          command,
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-          stdio: "pipe",
-        },
-      );
-      return;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (attempt === attempts || !message.includes("SQLITE_BUSY")) {
-        throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
-    }
-  }
-}
-
-async function cleanupNoteFixtures(): Promise<void> {
-  for (const command of NOTE_CLEANUP_SQL) {
-    await runD1Command(command);
-  }
+// Notes this suite creates, tracked so `afterEach` tears down only its OWN
+// test-owned Notes by their unique titles (never a broad delete). See
+// `./notes-fixtures.ts` for the FK-ordered, race-tolerant cleanup itself.
+const ownedNoteTitles = new Set<string>();
+function ownNote(title: string): string {
+  ownedNoteTitles.add(title);
+  return title;
 }
 
 // --- CodeMirror interaction helpers ---------------------------------------
 
 const editorBox = (page: Page) => page.getByRole("textbox", { name: "Note" });
 
-/** Wait for CodeMirror to finish its async client mount, so we never type into
- * the transient SSR `<textarea>` fallback that CodeMirror then replaces. */
+/** Wait for the live writing surface to be READY — i.e. CodeMirror has mounted
+ * and replaced the SSR `<textarea>` fallback — via the editor's own stable
+ * `data-editor-ready` contract rather than CodeMirror's internal `.cm-editor`
+ * class. This guarantees we never type into the transient fallback, and it does
+ * not depend on any library-internal DOM shape. */
 async function waitForEditor(page: Page): Promise<void> {
-  await page.locator(".cm-editor").waitFor({ state: "visible" });
+  // A bounded, targeted wait for the known async client mount (well within the
+  // test budget) — NOT the global timeout. The very first mount on a cold dev
+  // server compiles the code-split CodeMirror chunk; the FIRST test in this file
+  // (marked slow) absorbs that, so every later call here resolves near-instantly.
+  await expect(page.locator('[data-editor-ready="true"]')).toBeVisible({
+    timeout: 20_000,
+  });
 }
 
 async function focusEditor(page: Page): Promise<void> {
@@ -133,6 +96,7 @@ async function blurEditor(page: Page): Promise<void> {
 }
 
 async function createNote(page: Page, title: string): Promise<string> {
+  ownNote(title);
   await gotoFixture(page, "/notes");
   await page.getByRole("link", { name: "New note" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New note" });
@@ -143,15 +107,47 @@ async function createNote(page: Page, title: string): Promise<string> {
 }
 
 test.describe("NOTES-05 — writing-first live Markdown editor", () => {
-  test.beforeAll(async () => cleanupNoteFixtures());
-  test.afterEach(async () => cleanupNoteFixtures());
+  // Sweep any Notes a previously crashed run left behind under the shared
+  // prefix, then hand each test a clean slate. Per-test teardown below removes
+  // only that test's OWN Notes by their unique titles.
+  test.beforeAll(async () => cleanupAllNoteFixtures());
+  test.afterEach(async () => {
+    for (const title of ownedNoteTitles) {
+      await cleanupNoteByTitle(title);
+    }
+    ownedNoteTitles.clear();
+  });
+
+  // Regression coverage for the create → editor-ready lifecycle (the flow whose
+  // `.cm-editor` timeout was the NOTES-05 CI baseline failure). It is FIRST so
+  // it also absorbs the one-time cold client-mount of the code-split CodeMirror
+  // chunk on the dev server; `test.slow()` grants that one-time compile head
+  // room WITHOUT touching the global timeout or masking a real defect — the
+  // assertions below prove the surface genuinely transitions from the SSR
+  // fallback to the live editor.
+  test("create → the live editor becomes ready and replaces the SSR fallback", async ({
+    page,
+  }) => {
+    test.slow();
+    const noteTitle = uniqueNoteTitle("ready");
+    await createNote(page, noteTitle);
+
+    // The live surface signals readiness via the stable `data-editor-ready`
+    // contract, then the fallback textarea is gone and the CodeMirror surface is
+    // the accessible "Note" textbox.
+    await waitForEditor(page);
+    await expect(page.locator(".dh-md-editor__fallback")).toHaveCount(0);
+    await expect(editorBox(page)).toBeVisible();
+    await expect(page.locator(".cm-content")).toBeVisible();
+  });
 
   test("navigate, create, write with live formatting, autosave (no Save button), Read mode, reload, rename, Activity", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}${stamp}`;
+    const noteTitle = uniqueNoteTitle("journey");
     const renamedTitle = `${noteTitle} (renamed)`;
+    ownNote(noteTitle);
+    ownNote(renamedTitle);
 
     // 1. Navigate to Notes — the real collection replaced the PX-03 placeholder.
     await gotoFixture(page, "/notes");
@@ -251,7 +247,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("live preview: task checkboxes, thematic rules and tables render while writing", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}live-${Date.now()}`;
+    const noteTitle = uniqueNoteTitle("live");
     await createNote(page, noteTitle);
 
     // A task item becomes an interactive checkbox (its `- [ ]` concealed).
@@ -274,7 +270,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("autosaves after the real debounce with no interaction, and a later edit during an in-flight save is not lost", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}debounce-${Date.now()}`;
+    const noteTitle = uniqueNoteTitle("debounce");
     const noteUrl = await createNote(page, noteTitle);
 
     // Type and do nothing — the debounced autosave still fires.
@@ -328,7 +324,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("a failed save shows the error state with Retry, preserves the draft, and Retry recovers", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}retry-${Date.now()}`;
+    const noteTitle = uniqueNoteTitle("retry");
     await createNote(page, noteTitle);
 
     let failNext = true;
@@ -366,7 +362,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("blocks navigation while unsaved, and Leave/Stay both behave correctly", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}guard-${Date.now()}`;
+    const noteTitle = uniqueNoteTitle("guard");
     await createNote(page, noteTitle);
 
     // Hold the save in flight forever so the guard sees a genuinely unsaved state.
@@ -406,7 +402,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("formatting toolbar and keyboard shortcuts edit the Markdown source; autosave persists it", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}toolbar-${Date.now()}`;
+    const noteTitle = uniqueNoteTitle("toolbar");
     const noteUrl = await createNote(page, noteTitle);
 
     // Toolbar: select all, apply Bold → the whole line is wrapped in source.
@@ -461,7 +457,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("delete removes the Note from the active collection; Restore recovers it with content intact", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}lifecycle-${Date.now()}`;
+    const noteTitle = uniqueNoteTitle("lifecycle");
     await createNote(page, noteTitle);
 
     await clearAndType(page, "# Keep me\nsurvive delete then restore");
@@ -502,7 +498,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("keyboard-only: reach Notes, open New note, and submit with the keyboard", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}kbd-${Date.now()}`;
+    const noteTitle = ownNote(uniqueNoteTitle("kbd"));
     await gotoFixture(page, "/notes");
     const newNoteLink = page.getByRole("link", { name: "New note" }).first();
     await newNoteLink.focus();
@@ -519,7 +515,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test("mobile (390px and 320px): create, write, autosave and delete work with no horizontal overflow", async ({
     page,
   }) => {
-    const noteTitle = `${NOTE_TITLE_PREFIX}mobile-${Date.now()}`;
+    const noteTitle = uniqueNoteTitle("mobile");
 
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });

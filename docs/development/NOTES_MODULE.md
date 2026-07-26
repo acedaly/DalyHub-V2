@@ -233,7 +233,12 @@ only in a client effect; the server (and any no-JavaScript client) renders an
 accessible, controlled `<textarea>` fallback with the same label/value/onChange,
 which the editor keeps in place if CodeMirror ever fails to load — the note is
 never un-editable. The CodeMirror bundle is code-split and enters only the
-note-editor route.
+note-editor route. The editor exposes a stable, surface-agnostic readiness
+contract — `data-editor-ready="true"` on its root once the live CodeMirror
+surface has mounted and replaced the fallback (`false` until then). Consumers and
+E2E gate on that contract rather than on CodeMirror's internal `.cm-editor`
+class, so readiness is a public, deterministic signal, not a library
+implementation detail.
 
 **Why the shared module (and not Notes-local).** NOTES-04 recorded that the full
 writing-first editor should be designed as a reusable pattern against a second
@@ -456,8 +461,20 @@ the page stays the single scroll surface.
   creation; and a 390px/320px mobile journey (live heading, autosave, delete,
   no horizontal overflow, axe). `e2e/touch-targets.spec.ts`'s Notes block
   covers the record's Rename/Delete, the formatting toolbar buttons and the
-  Read toggle, and the Deleted view's Restore under touch emulation. Cleans up
-  only its own test-owned Notes after each test.
+  Read toggle, and the Deleted view's Restore under touch emulation; it waits
+  on the editor's `data-editor-ready` contract before measuring, so a control is
+  never sized before its DS-01 styling has applied.
+- **Shared E2E fixtures** (`e2e/notes-fixtures.ts`): both Notes specs create
+  uniquely-titled, test-owned Notes and tear down only their OWN Notes, by exact
+  title, through one reusable helper. Cleanup deletes dependent rows before the
+  entity in foreign-key order (`activity_subjects` → orphaned `activities` →
+  `note_details` → `entities`), runs the whole ordered sequence in a single
+  `wrangler` invocation, and retries it on `SQLITE_BUSY` or a raced
+  `FOREIGN KEY` failure — the latter happens when a debounced autosave commits a
+  fresh `note.content_updated` activity between the ordered deletes on the shared
+  local SQLite file. The sequence is idempotent, and its title scope only ever
+  matches the `Notes e2e note ` prefix, so it can never touch a developer's own
+  local Notes.
   `e2e/accessibility.spec.ts` and `e2e/responsive.spec.ts` include
   `/notes?state=deleted` alongside `/notes` in their route sweeps.
 

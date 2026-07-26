@@ -12,11 +12,10 @@
  * enlarged only on coarse pointers are exercised by their own component specs.
  */
 
-import { execFileSync } from "node:child_process";
-
 import { expect, test } from "@playwright/test";
 
 import { expectMinTouchTarget, gotoFixture } from "./helpers";
+import { cleanupNoteByTitle, uniqueNoteTitle } from "./notes-fixtures";
 
 test.describe("touch targets — shell (mobile)", () => {
   test.use({ viewport: { width: 320, height: 720 } });
@@ -129,13 +128,25 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
   test("the record's Rename/Delete actions and the editor's formatting toolbar meet the minimum", async ({
     page,
   }) => {
-    const noteTitle = `Notes e2e note touch-targets-${Date.now()}`;
+    // This is the only test in this shard that mounts the note-editor route, so
+    // it pays the one-time cold client-mount of the code-split CodeMirror chunk;
+    // `test.slow()` grants that one-time compile head room without touching the
+    // global timeout.
+    test.slow();
+    const noteTitle = uniqueNoteTitle("touch-targets");
     await gotoFixture(page, "/notes");
     await page.getByRole("link", { name: "New note" }).first().click();
     const dialog = page.getByRole("dialog", { name: "New note" });
     await dialog.getByLabel(/Title/).fill(noteTitle);
     await dialog.getByRole("button", { name: "Create note" }).click();
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
+    // Gate measurement on the note record being fully laid out: the live editor
+    // signalling ready means the record's header (Rename/Delete) and toolbar have
+    // mounted and their DS-01 sizing has applied. Measuring before this settles
+    // is what produced the transient 21px (unstyled) toolbar/action height in CI.
+    await expect(page.locator('[data-editor-ready="true"]')).toBeVisible({
+      timeout: 20_000,
+    });
 
     await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
     await expectMinTouchTarget(
@@ -160,32 +171,10 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     );
 
     // Cleanup: this fixture is not covered by e2e/notes.spec.ts's own cleanup
-    // hooks, so remove it directly. This journey deletes/restores the Note,
-    // which records `entity.deleted`/`entity.restored` Activity — those (and
-    // their `activity_subjects` rows) must go BEFORE the entity itself, or
-    // the delete fails its foreign-key constraint (mirrors the dependency
-    // order `e2e/notes.spec.ts`'s own cleanup already documents).
-    const noteQuery = `SELECT id FROM entities WHERE workspace_id = 'local-dev-workspace' AND type = 'note' AND title = '${noteTitle}'`;
-    for (const command of [
-      `DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${noteQuery});`,
-      `DELETE FROM activities WHERE workspace_id = 'local-dev-workspace' AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
-      `DELETE FROM note_details WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${noteQuery});`,
-      `DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND id IN (${noteQuery});`,
-    ]) {
-      execFileSync(
-        "pnpm",
-        [
-          "exec",
-          "wrangler",
-          "d1",
-          "execute",
-          "DB",
-          "--local",
-          "--command",
-          command,
-        ],
-        { cwd: process.cwd(), stdio: "pipe" },
-      );
-    }
+    // hooks, so remove it directly through the SAME shared, FK-ordered,
+    // race-tolerant helper (this journey deletes/restores the Note, recording
+    // `entity.deleted`/`entity.restored` Activity whose `activity_subjects` rows
+    // must go before the entity itself).
+    await cleanupNoteByTitle(noteTitle);
   });
 });
