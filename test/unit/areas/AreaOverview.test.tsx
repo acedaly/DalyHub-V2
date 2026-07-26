@@ -100,6 +100,7 @@ function renderRecord(
               onRename={over.onRename ?? (() => {})}
               onOpenGoal={over.onOpenGoal ?? (() => {})}
               onOpenProject={over.onOpenProject ?? (() => {})}
+              linkedTab={<div>linked-content</div>}
               activityTab={<div>activity-content</div>}
             />
           </DrawerProvider>

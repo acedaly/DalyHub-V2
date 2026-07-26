@@ -123,7 +123,9 @@ describe("GET /person/:id", () => {
     const data = await runDetail(id);
     expect(data.person.title).toBe("Grace Hopper");
     expect(data.person.role).toBe("Admiral");
-    expect(data.linked).toEqual([]);
+    // Linked records are now loaded client-side by the shared Linked Items
+    // section (the universal `/links` endpoint), so the detail loader no longer
+    // returns a `linked` array.
   });
 
   it("404s for a missing id", async () => {

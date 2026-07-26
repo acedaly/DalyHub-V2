@@ -29,7 +29,7 @@ function renderPicker(ui: React.ReactElement) {
 
 const TARGETS: EntityLinkTargetOption[] = [
   { id: "n1", type: "note", title: "Creative brief" },
-  { id: "p1", type: "meeting", title: "Mel Okoye" },
+  { id: "p1", type: "asset", title: "Mel Okoye" },
 ];
 
 const LINK_TYPES = [
@@ -204,7 +204,7 @@ describe("EntityLinkPicker", () => {
         initial={[
           {
             linkId: "l-p1",
-            target: TARGETS[1]!, // meeting → no implemented destination
+            target: TARGETS[1]!, // asset → no implemented destination
             linkType: "project.supporting_note",
             direction: "outgoing",
           },

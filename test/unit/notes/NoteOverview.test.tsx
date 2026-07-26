@@ -26,8 +26,9 @@ vi.mock("~/shared/markdown-editor/editor-setup", () => ({
 
 /**
  * NOTES-01B/NOTES-01C — the canonical Note record: generic entity identity
- * (title, Rename, Delete), the minimal "Note"/"Activity" tab structure (no
- * premature empty tab for a future capability), no bespoke Notes-only header,
+ * (title, Rename, Delete), the "Note"/"Linked"/"Activity" tab structure (the
+ * Linked tab is the shared Universal Relationship System's Linked Items section),
+ * no bespoke Notes-only header,
  * and the Delete action's Undo-toast lifecycle flow (soft-delete → navigate
  * to `/notes` → an Undo toast whose Undo restores the Note).
  */
@@ -74,6 +75,7 @@ describe("NoteOverview", () => {
         details={details()}
         onRename={onRename}
         onSaved={() => {}}
+        linkedTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -94,13 +96,14 @@ describe("NoteOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("exposes exactly the Note and Activity tabs — no empty tab for a future capability", () => {
+  it("exposes the Note, Linked and Activity tabs (Linked is the shared Linked Items section)", () => {
     renderInRouter(
       <NoteOverview
         overview={overview()}
         details={details()}
         onRename={() => {}}
         onSaved={() => {}}
+        linkedTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -108,7 +111,11 @@ describe("NoteOverview", () => {
     const tablist = screen.getByRole("tablist");
     const tabs = screen.getAllByRole("tab");
     expect(tablist).toBeInTheDocument();
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Note", "Activity"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Note",
+      "Linked",
+      "Activity",
+    ]);
   });
 
   it("shows the Markdown source editor in the Note tab by default", () => {
@@ -118,6 +125,7 @@ describe("NoteOverview", () => {
         details={details({ content: "# Hello" })}
         onRename={() => {}}
         onSaved={() => {}}
+        linkedTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -136,6 +144,7 @@ describe("NoteOverview", () => {
         })}
         onRename={() => {}}
         onSaved={() => {}}
+        linkedTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -151,6 +160,7 @@ describe("NoteOverview", () => {
         details={details()}
         onRename={() => {}}
         onSaved={() => {}}
+        linkedTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -177,6 +187,7 @@ describe("NoteOverview", () => {
           details={details()}
           onRename={() => {}}
           onSaved={() => {}}
+          linkedTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );
@@ -243,6 +254,7 @@ describe("NoteOverview", () => {
           details={details()}
           onRename={() => {}}
           onSaved={() => {}}
+          linkedTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );
@@ -290,6 +302,7 @@ describe("NoteOverview", () => {
           details={details({ content: "original" })}
           onRename={() => {}}
           onSaved={() => {}}
+          linkedTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );
@@ -339,6 +352,7 @@ describe("NoteOverview", () => {
           details={details({ content: "original" })}
           onRename={() => {}}
           onSaved={() => {}}
+          linkedTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );

@@ -69,6 +69,10 @@ export default [
   // render no shell, so they stay OUTSIDE the app-shell layout.
   route("commands", "routes/commands.ts"),
   route("commands/:commandId", "routes/command-execute.ts"),
+  // The Universal Relationship System — one shared, authenticated links endpoint
+  // (list/search/summary via GET, link/unlink via POST) every record's Linked
+  // Items section uses, so no module needs bespoke link routes. Renders no shell.
+  route("links", "routes/links.ts"),
   layout("routes/app-shell.tsx", { id: "app-shell" }, [
     index("routes/home.tsx"),
     ...moduleRoutes,

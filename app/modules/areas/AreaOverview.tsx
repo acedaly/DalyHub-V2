@@ -56,6 +56,8 @@ interface AreaOverviewViewProps {
   readonly onOpenGoal: (goalId: string) => void;
   readonly onOpenProject: (projectId: string) => void;
   readonly activityTab: ReactNode;
+  /** The shared Universal Relationship System Linked Items section. */
+  readonly linkedTab: ReactNode;
   /** AREA-05: the lifecycle & danger section (Archive/Restore + permanent delete). */
   readonly settingsTab?: ReactNode;
   readonly activeTabId?: string;
@@ -245,6 +247,7 @@ export function AreaOverviewView({
   onOpenGoal,
   onOpenProject,
   activityTab,
+  linkedTab,
   settingsTab,
   activeTabId,
   onTabChange,
@@ -414,6 +417,7 @@ export function AreaOverviewView({
               </>
             ),
         },
+        { id: "linked", label: "Linked", content: linkedTab },
         { id: "activity", label: "Activity", content: activityTab },
         ...(settingsTab
           ? [{ id: "settings", label: "Settings", content: settingsTab }]

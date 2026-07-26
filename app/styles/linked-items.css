@@ -1,0 +1,214 @@
+/*
+ * The Universal Relationship System — the shared Linked Items section & Hover
+ * Card, styled on DS-01 tokens only (no raw colours, sizes or motion values).
+ *
+ * The section groups a record's linked items by kind, each a navigable
+ * `EntityLink` wrapped in a `HoverCard`, with a Remove control for owned links
+ * and the DS-06 picker as the add affordance. Meaning is never colour-only; touch
+ * targets meet the shared floor; motion honours reduced-motion.
+ */
+
+.dh-linked-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-linked-items__status,
+.dh-linked-items__empty {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+  margin: 0;
+}
+
+.dh-linked-items__status--error {
+  color: var(--dh-color-danger-text);
+}
+
+.dh-linked-items__retry {
+  appearance: none;
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-accent-text);
+  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  cursor: pointer;
+  min-height: var(--dh-control-height-sm);
+}
+
+.dh-linked-items__retry:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dh-linked-items__groups,
+.dh-linked-items__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dh-linked-items__groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-linked-items__group-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text-secondary);
+  margin: 0 0 var(--dh-space-2) 0;
+}
+
+.dh-linked-items__group-icon {
+  display: inline-flex;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-linked-items__group-count {
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-linked-items__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-linked-items__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+}
+
+.dh-linked-items__item:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-linked-items__link {
+  overflow-wrap: anywhere;
+}
+
+.dh-linked-items__remove {
+  appearance: none;
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-secondary);
+  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  font-size: var(--dh-font-size-xs);
+  cursor: pointer;
+  min-height: var(--dh-control-height-sm);
+  flex: none;
+}
+
+.dh-linked-items__remove:hover {
+  border-color: var(--dh-color-danger);
+  color: var(--dh-color-danger-text);
+}
+
+.dh-linked-items__remove:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dh-linked-items__add {
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
+  padding-top: var(--dh-space-4);
+}
+
+.dh-linked-items__offline {
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  margin: 0 0 var(--dh-space-3) 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Hover Card                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-hover-card {
+  position: relative;
+  display: inline-flex;
+}
+
+.dh-hover-card__trigger {
+  display: inline-flex;
+}
+
+.dh-hover-card__panel {
+  position: absolute;
+  top: calc(100% + var(--dh-space-1));
+  left: 0;
+  z-index: 20;
+  min-width: 12rem;
+  max-width: 20rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-3);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-shadow-md);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  animation: dh-hover-card-in var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-hover-card__panel {
+    animation: none;
+  }
+}
+
+@keyframes dh-hover-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dh-hover-card__loading,
+.dh-hover-card__muted {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-linked-items__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-linked-items__summary-type {
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-linked-items__summary-title {
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-linked-items__summary-meta {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}

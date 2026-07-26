@@ -45,8 +45,15 @@ describe("entityDestination", () => {
     });
   });
 
+  it("maps a Meeting to its canonical record route", () => {
+    expect(entityDestination("meeting", "m1")).toEqual({
+      kind: "route",
+      to: "/meeting/m1",
+    });
+  });
+
   it("returns null for unsupported types and blank ids (degrades to text)", () => {
-    for (const type of ["meeting", "asset", "diary", "review", "??"]) {
+    for (const type of ["asset", "diary", "review", "??"]) {
       expect(entityDestination(type, "x")).toBeNull();
     }
     expect(entityDestination("goal", "")).toBeNull();
@@ -82,8 +89,8 @@ describe("EntityLink", () => {
   });
 
   it("renders unsupported targets as plain, non-interactive text", () => {
-    renderLink(<EntityLink type="meeting" id="me1" title="Weekly sync" />);
-    expect(screen.getByText("Weekly sync")).toBeInTheDocument();
+    renderLink(<EntityLink type="asset" id="as1" title="Budget spreadsheet" />);
+    expect(screen.getByText("Budget spreadsheet")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 

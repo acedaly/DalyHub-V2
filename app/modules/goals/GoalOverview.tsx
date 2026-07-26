@@ -59,6 +59,8 @@ interface GoalOverviewProps {
   readonly onOpenProject: (projectId: string) => void;
   readonly onOpenTask: (taskId: string) => void;
   readonly activityTab: ReactNode;
+  /** The shared Universal Relationship System Linked Items section. */
+  readonly linkedTab: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
 }
@@ -84,6 +86,7 @@ export function GoalOverview({
   onOpenProject,
   onOpenTask,
   activityTab,
+  linkedTab,
   activeTabId,
   onTabChange,
 }: GoalOverviewProps) {
@@ -244,6 +247,7 @@ export function GoalOverview({
             />
           ),
         },
+        { id: "linked", label: "Linked", content: linkedTab },
         { id: "activity", label: "Activity", content: activityTab },
       ]}
     />

@@ -9,6 +9,7 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { EntityIcon, EntityLink } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
+import { LinkedItemsTab } from "~/shared/linked-items";
 import { RecordLayout } from "~/shared/record-layout";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import { serializeMeeting } from "../meeting-view";
@@ -30,13 +31,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       .map((x) => ({
         linkId: x.link.id,
         id: x.counterpart.id,
-        title: x.counterpart.title,
-      })),
-    linked: links.items
-      .filter((x) => x.link.type !== "meeting.attendee")
-      .map((x) => ({
-        id: x.counterpart.id,
-        type: x.counterpart.type,
         title: x.counterpart.title,
       })),
     people: people.items.map((p) => ({ id: p.id, title: p.title })),
@@ -206,20 +200,15 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
           id: "linked",
           label: "Linked",
           content: (
-            <section>
-              <h2>Linked records</h2>
-              {loaderData.linked.length ? (
-                <ul>
-                  {loaderData.linked.map((l) => (
-                    <li key={l.id}>
-                      <EntityLink type={l.type} id={l.id} title={l.title} />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No linked records yet.</p>
-              )}
-            </section>
+            <LinkedItemsTab
+              anchorId={m.id}
+              anchorType="meeting"
+              readOnly={Boolean(m.archivedAt)}
+              linkCommandTarget={{
+                kind: "route",
+                to: `/meeting/${m.id}?tab=linked`,
+              }}
+            />
           ),
         },
         {

@@ -28,7 +28,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 
-import { PersonRecord, type PersonLinkedRecord } from "../PersonRecord";
+import { PersonRecord } from "../PersonRecord";
 import { RenamePersonForm } from "../RenamePersonForm";
 import { serializePerson } from "../person-view";
 import type { Route } from "./+types/detail";
@@ -49,26 +49,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  // Linked records across every module (direction-agnostic). None exist yet in the
-  // foundation, but the surface renders whatever links future modules create.
-  let linked: PersonLinkedRecord[];
-  try {
-    const page = await scope.entityLinks.listForEntity(personId, {
-      direction: "both",
-      limit: 50,
-    });
-    linked = page.items.map((view) => ({
-      id: view.counterpart.id,
-      type: view.counterpart.type,
-      title: view.counterpart.title,
-    }));
-  } catch {
-    linked = [];
-  }
-
+  // Linked records across every module are loaded client-side by the shared
+  // Linked Items section (the universal `/links` endpoint), so no per-module link
+  // loading lives here anymore.
   return {
     person: serializePerson(person),
-    linked,
   };
 }
 
@@ -139,7 +124,7 @@ function parseTab(value: string | null): TabId {
     : "summary";
 }
 
-function PersonDetail({ person, linked }: Awaited<ReturnType<typeof loader>>) {
+function PersonDetail({ person }: Awaited<ReturnType<typeof loader>>) {
   const { openDrawer } = useDrawer();
   const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -166,7 +151,6 @@ function PersonDetail({ person, linked }: Awaited<ReturnType<typeof loader>>) {
   return (
     <PersonRecord
       person={person}
-      linked={linked}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       onRename={() => openDrawer(RENAME_KEY)}

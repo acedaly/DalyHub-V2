@@ -28,3 +28,14 @@ export {
   type UnlinkRejectionReason,
   type UnlinkResult,
 } from "./entity-link-picker-service";
+
+export {
+  UNIVERSAL_RELATED_LINK,
+  UNIVERSAL_RELATED_DESCRIPTOR,
+  SUPPORTED_LINK_ENTITY_TYPES,
+  buildUniversalLinkPolicy,
+  loadLinkedItems,
+  loadLinkSummary,
+  type LinkedItem,
+  type LinkSummary,
+} from "./universal-links";

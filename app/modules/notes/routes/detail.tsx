@@ -27,6 +27,7 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { LinkedItemsTab } from "~/shared/linked-items";
 
 import { NoteActivityTab } from "../NoteActivityTab";
 import { NoteOverview } from "../NoteOverview";
@@ -114,8 +115,8 @@ function RenameDrawerHost({
   );
 }
 
-function parseTab(value: string | null): "note" | "activity" {
-  return value === "activity" ? value : "note";
+function parseTab(value: string | null): "note" | "linked" | "activity" {
+  return value === "activity" || value === "linked" ? value : "note";
 }
 
 function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
@@ -150,6 +151,16 @@ function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
       onSaved={() => revalidator.revalidate()}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
+      linkedTab={
+        <LinkedItemsTab
+          anchorId={props.overview.id}
+          anchorType="note"
+          linkCommandTarget={{
+            kind: "route",
+            to: `/notes/${props.overview.id}?tab=linked`,
+          }}
+        />
+      }
       activityTab={
         // `reloadKey` is the Note's EFFECTIVE updatedAt (the later of the
         // generic entity's own `updatedAt` and `noteDetails.contentUpdatedAt`
