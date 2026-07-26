@@ -27,6 +27,7 @@ import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type { NoteDetailsRepository } from "~/kernel/notes";
+import type { PersonRepository } from "~/kernel/people";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -46,6 +47,7 @@ import {
   createGoalDetailsRepository,
   createGoalRepository,
   createNoteDetailsRepository,
+  createPersonRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -130,6 +132,17 @@ export interface WorkspaceScope {
    * with the same trusted actor as the other mutation repositories.
    */
   readonly diary: DiaryRepository;
+  /**
+   * The PEOPLE-01 authoritative Person repository: the People collection/record
+   * read model AND capture surface. It creates `person` entities with their
+   * structured relationship detail slice atomically (the generic `entities`
+   * repository refuses to create one), owns detail edits and the archive
+   * lifecycle, and lists the workspace's People. A Person's title/soft-delete/
+   * restore stay `entities.*`; relationships stay `entityLinks`; the audit trail
+   * stays `activity`. Composes with the same trusted actor as the other mutation
+   * repositories.
+   */
+  readonly people: PersonRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -220,6 +233,7 @@ export function bindWorkspaceRepositories(
     actorContext,
   });
   const diary = createDiaryRepository(env.DB, context, { actorContext });
+  const people = createPersonRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -238,6 +252,7 @@ export function bindWorkspaceRepositories(
     goalDetails,
     noteDetails,
     diary,
+    people,
     projectHealth,
     projectSettings,
     activity,

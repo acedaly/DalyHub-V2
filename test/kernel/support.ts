@@ -10,6 +10,7 @@ import {
   createGoalDetailsRepository,
   createGoalRepository,
   createNoteDetailsRepository,
+  createPersonRepository,
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
@@ -20,6 +21,7 @@ import {
   type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
   type D1NoteDetailsRepositoryOptions,
+  type D1PersonRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
   type D1SpineRepositoryOptions,
   type D1TaskRepositoryOptions,
@@ -199,6 +201,26 @@ export function makeDiaryRepository(
 export async function countDiaryEntryRows(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM diary_entry_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * Construct a workspace-scoped D1-backed PersonRepository over the isolated test
+ * database (PEOPLE-01: the authoritative Person capture surface + collection read
+ * model, bound to a `WorkspaceContext`).
+ */
+export function makePersonRepository(
+  context: WorkspaceContext,
+  options?: D1PersonRepositoryOptions,
+) {
+  return createPersonRepository(env.DB, context, options);
+}
+
+/** Count all rows in `person_details` directly. */
+export async function countPersonRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM person_details",
   ).first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -391,6 +413,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM goal_details").run();
   await env.DB.prepare("DELETE FROM note_details").run();
   await env.DB.prepare("DELETE FROM diary_entry_details").run();
+  await env.DB.prepare("DELETE FROM person_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

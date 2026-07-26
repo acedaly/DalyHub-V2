@@ -325,6 +325,37 @@ describe("module discovery", () => {
           file: "routes/index.tsx",
         },
         { id: "people.index", moduleId: "people", file: "routes/index.tsx" },
+        {
+          id: "people.recent",
+          moduleId: "people",
+          file: "routes/recent.tsx",
+        },
+        {
+          id: "people.archived",
+          moduleId: "people",
+          file: "routes/archived.tsx",
+        },
+        { id: "people.new", moduleId: "people", file: "routes/new.tsx" },
+        {
+          id: "people.create",
+          moduleId: "people",
+          file: "routes/create.tsx",
+        },
+        {
+          id: "people.detail",
+          moduleId: "people",
+          file: "routes/detail.tsx",
+        },
+        {
+          id: "people.mutate",
+          moduleId: "people",
+          file: "routes/mutate.tsx",
+        },
+        {
+          id: "people.activity",
+          moduleId: "people",
+          file: "routes/activity.tsx",
+        },
         { id: "assets.index", moduleId: "assets", file: "routes/index.tsx" },
         {
           id: "reviews.index",
@@ -341,6 +372,7 @@ describe("module discovery", () => {
       ]);
       // DS-09: Today registers registry-discovered navigation commands; TODAY-03
       // adds "Open Waiting". TASKS-01 adds the Tasks module's navigation commands.
+      // PEOPLE-01 adds the People module's navigation commands.
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
         "today.focus_quick_capture",
@@ -351,6 +383,11 @@ describe("module discovery", () => {
         "tasks.matrix",
         "tasks.sectors",
         "tasks.someday",
+        "people.open",
+        "people.new",
+        "people.search",
+        "people.recent",
+        "people.archived",
       ]);
       expect(registry.listCommands().every((c) => c.kind === "navigate")).toBe(
         true,
@@ -363,6 +400,7 @@ describe("module discovery", () => {
       expect(searchProviders.map((provider) => provider.id)).toEqual([
         "today.search",
         "tasks.search",
+        "people.search",
       ]);
       expect(searchProviders[0]?.moduleId).toBe("today");
     });

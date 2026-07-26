@@ -14,11 +14,11 @@
  *     degrades to non-interactive text at the render layer.
  *
  * Destinations follow the accepted DalyHub conventions:
- *   - Area / Goal / Project / Note → their canonical record route.
+ *   - Area / Goal / Project / Note / Person → their canonical record route.
  *   - Task → the shared Task Drawer (a `task:<id>` drawer key, opened over the
  *     current record context — never a standalone page, matching the app-wide
  *     convention).
- *   - Every other entity type (meeting, person, asset, diary, review) → `null`,
+ *   - Every other entity type (meeting, asset, diary, review) → `null`,
  *     because no genuine canonical record destination is implemented yet. We never
  *     link to a "Coming Soon" placeholder merely because a type is registered.
  *
@@ -41,6 +41,7 @@ const CANONICAL_ROUTE: Partial<Record<string, (id: string) => string>> = {
   goal: (id) => `/goals/${encodeURIComponent(id)}`,
   project: (id) => `/projects/${encodeURIComponent(id)}`,
   note: (id) => `/notes/${encodeURIComponent(id)}`,
+  person: (id) => `/person/${encodeURIComponent(id)}`,
 };
 
 /**

@@ -1,12 +1,10 @@
 /**
- * PEOPLE-01 — the real People collection route (`/people`).
+ * PEOPLE-01 — the Archived People route (`/people/archived`).
  *
- * Replaces the PX-03 `ModuleComingSoon` placeholder. The trusted server boundary
- * for the bounded, workspace-scoped People collection: it reads the authoritative
- * `PersonRepository` through the authenticated composition boundary, then renders
- * the presentational `PeopleCollectionView`. A scope/list failure degrades to a
- * calm error state so the shell stays usable — never a 500 (mirrors
- * `~/modules/notes/routes/index.tsx`).
+ * The dedicated, explicit restore surface: it lists ONLY archived People (not
+ * deleted), newest first, with bounded cursor pagination. Each row carries a
+ * one-click "Restore" action (`PeopleCollection`). Same trusted boundary and
+ * calm-failure contract as `/people`.
  */
 
 import { env } from "cloudflare:workers";
@@ -19,48 +17,46 @@ import {
   serializePersonListItem,
   type SerializedPersonListItem,
 } from "../person-view";
-import type { Route } from "./+types/index";
+import type { Route } from "./+types/archived";
 
 export function meta() {
   return [
-    { title: "People · DalyHub" },
-    {
-      name: "description",
-      content: "The people in your life — care, not a CRM.",
-    },
+    { title: "Archived people · DalyHub" },
+    { name: "description", content: "People you have archived." },
   ];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;
-
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-    const page = await scope.people.list({ status: "active", cursor });
+    const page = await scope.people.list({ status: "archived", cursor });
     return {
       people: page.items.map(serializePersonListItem),
       nextCursor: page.nextCursor,
-      view: "all" as const,
+      view: "archived" as const,
       failed: false,
     };
   } catch {
     return {
       people: [] as SerializedPersonListItem[],
       nextCursor: null as string | null,
-      view: "all" as const,
+      view: "archived" as const,
       failed: true,
     };
   }
 }
 
-export default function PeopleRoute({ loaderData }: Route.ComponentProps) {
+export default function ArchivedPeopleRoute({
+  loaderData,
+}: Route.ComponentProps) {
   return (
     <PeopleCollectionView
       people={loaderData.people}
       nextCursor={loaderData.nextCursor}
       failed={loaderData.failed}
-      view="all"
+      view="archived"
     />
   );
 }

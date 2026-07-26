@@ -114,6 +114,26 @@ const ALIGNMENT_JOURNEY_CLEANUP_SQL = [
   `DELETE FROM entities WHERE workspace_id = '${WORKSPACE_ID}' AND id IN (${ALIGNMENT_JOURNEY_ENTITY_QUERY});`,
 ];
 
+// PEOPLE-01 people journey creates real `person` records live through the UI
+// (title prefix "People e2e "). Remove only those test-owned rows (and their
+// detail/activity subjects) before seeding so repeated local runs stay clean.
+const PEOPLE_JOURNEY_ENTITY_QUERY = `
+  SELECT id FROM entities
+  WHERE workspace_id = '${WORKSPACE_ID}'
+    AND type = 'person'
+    AND title LIKE 'People e2e %'
+`;
+const PEOPLE_JOURNEY_ACTIVITY_QUERY = `
+  SELECT DISTINCT activity_id FROM activity_subjects
+  WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${PEOPLE_JOURNEY_ENTITY_QUERY})
+`;
+const PEOPLE_JOURNEY_CLEANUP_SQL = [
+  `DELETE FROM activity_subjects WHERE workspace_id = '${WORKSPACE_ID}' AND activity_id IN (${PEOPLE_JOURNEY_ACTIVITY_QUERY});`,
+  `DELETE FROM entity_links WHERE workspace_id = '${WORKSPACE_ID}' AND (source_entity_id IN (${PEOPLE_JOURNEY_ENTITY_QUERY}) OR target_entity_id IN (${PEOPLE_JOURNEY_ENTITY_QUERY}));`,
+  `DELETE FROM person_details WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id IN (${PEOPLE_JOURNEY_ENTITY_QUERY});`,
+  `DELETE FROM entities WHERE workspace_id = '${WORKSPACE_ID}' AND id IN (${PEOPLE_JOURNEY_ENTITY_QUERY});`,
+];
+
 function wrangler(args) {
   execFileSync("pnpm", ["exec", "wrangler", ...args], {
     stdio: "inherit",
@@ -144,6 +164,9 @@ for (const statement of GOAL_JOURNEY_CLEANUP_SQL) {
   wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
 }
 for (const statement of ALIGNMENT_JOURNEY_CLEANUP_SQL) {
+  wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
+}
+for (const statement of PEOPLE_JOURNEY_CLEANUP_SQL) {
   wrangler(["d1", "execute", "DB", "--local", "--command", statement]);
 }
 
