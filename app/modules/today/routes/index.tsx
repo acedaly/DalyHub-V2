@@ -160,6 +160,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       id: item.id,
       title: item.title,
       parent: item.parent,
+      priority: item.priority,
       scheduledDate: item.scheduledDate,
       dueDate: item.dueDate,
       completed: item.completedAt !== null,

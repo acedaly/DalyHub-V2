@@ -39,9 +39,10 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { SegmentedFilter } from "~/shared/segmented-filter";
+import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import {
-  formatCalendarDate,
   timeSectorLabel,
   type SerializedTaskListItem,
 } from "~/shared/task-record/task-view";
@@ -336,32 +337,39 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
 
   const toCardProps = useCallback(
     (card: TaskCardData, headingLevel: 2 | 3): CardProps => {
-      const metadata: CardMetaItem[] = [
-        { id: "priority", label: "Priority", value: card.priorityTag },
-        { id: "sector", label: "Sector", value: card.sectorLabel },
-      ];
+      // Priority ≠ urgency ≠ display-state as THREE separable slots (TASKS-02): the
+      // display-state stays the status pill; priority and urgency render as the
+      // shared, self-describing coloured chips in the metadata row (colour is
+      // reinforcement only — each chip carries its meaning in words).
+      const metadata: CardMetaItem[] = [];
+      if (card.priority) {
+        metadata.push({
+          id: "priority",
+          value: <PriorityIndicator priority={card.priority} />,
+        });
+      }
+      if (card.dueDate || card.scheduledDate) {
+        metadata.push({
+          id: "urgency",
+          value: (
+            <UrgencyChip
+              task={{
+                completedAt: card.completed ? "done" : null,
+                dueDate: card.dueDate,
+                scheduledDate: card.scheduledDate,
+              }}
+              todayIso={data.todayIso}
+            />
+          ),
+        });
+      }
+      metadata.push({ id: "sector", label: "Sector", value: card.sectorLabel });
       if (card.delegatedTo) {
         metadata.push({
           id: "delegated",
           label: "Delegated to",
           value: card.delegatedTo,
         });
-      }
-
-      let dateLabel: CardProps["dateLabel"];
-      if (card.dueDate) {
-        const formatted = formatCalendarDate(card.dueDate);
-        if (formatted) {
-          const overdue = !card.completed && card.dueDate < data.todayIso;
-          dateLabel = overdue
-            ? { label: `Due ${formatted}`, tone: "danger" }
-            : { label: `Due ${formatted}` };
-        }
-      } else if (card.scheduledDate) {
-        const formatted = formatCalendarDate(card.scheduledDate);
-        if (formatted) {
-          dateLabel = { label: `Scheduled ${formatted}` };
-        }
       }
 
       const key = `task:${card.id}`;
@@ -373,7 +381,6 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         headingLevel,
         status: { label: card.stateLabel, tone: card.stateTone as CardTone },
         metadata,
-        dateLabel,
         context: card.parentLabel ? { label: card.parentLabel } : undefined,
         density: "comfortable",
         presentation: "list",

@@ -64,6 +64,7 @@ export function TaskDrawerContent({
           id: activeTask.id,
           title: activeTask.title,
           parent: null,
+          priority: activeTask.priority,
           scheduledDate: activeTask.scheduledDate,
           dueDate: activeTask.dueDate,
           completed: activeCompleted,

@@ -18,6 +18,12 @@ import type { SerializedTaskView } from "./task-view";
 export interface TaskDetailData {
   readonly task: SerializedTaskView;
   readonly links: readonly EntityLinkSelection[];
+  /**
+   * The owner's current calendar date `YYYY-MM-DD`, resolved server-side (ADR-022)
+   * so the Drawer's urgency chip ("Overdue" / "Due today") never derives the date in
+   * browser-local time. TASKS-02.
+   */
+  readonly todayIso: string;
 }
 
 /** The discriminated action outcomes the Drawer client consumes. */

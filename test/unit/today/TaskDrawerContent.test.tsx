@@ -93,7 +93,7 @@ function stubFetch(options: StubOptions = {}) {
       return jsonResponse({ kind: "link", ok: true });
     }
     return jsonResponse(
-      options.detail ?? { task: TASK, links: [] },
+      options.detail ?? { task: TASK, links: [], todayIso: "2026-07-20" },
       options.detailStatus ?? 200,
     );
   });
@@ -132,7 +132,10 @@ describe("task record rendering", () => {
     ).toBeInTheDocument();
     expect(document.querySelector(".record-status")).toHaveTextContent("Inbox");
     expect(screen.getByText("1 Aug 2026")).toBeInTheDocument();
-    expect(screen.getByText("P1 · Do")).toBeInTheDocument();
+    // Priority is now the shared coloured PriorityIndicator (TASKS-02): the short
+    // tag is visible and the full action word is available to assistive tech.
+    expect(screen.getByText("P1")).toBeInTheDocument();
+    expect(screen.getByText(/priority — Do/)).toBeInTheDocument();
     expect(screen.getByText("Ship V2")).toBeInTheDocument();
   });
 

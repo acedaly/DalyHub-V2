@@ -21,7 +21,6 @@ import { useSearchParams } from "react-router";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { Card, CardCollection } from "~/shared/card";
-import type { CardProps } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -30,62 +29,19 @@ import {
   type DrawerEntry,
   type DrawerRenderResult,
 } from "~/shared/drawer";
-import { EntityIcon, isEntityType } from "~/shared/entity";
+import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 
 import { formatTodayDate, ownerCalendarIso } from "../date";
 import { renderKeyboardHelpDrawer } from "../keyboard/KeyboardHelp";
 import { TaskDrawerContent } from "../task/TaskDrawerContent";
+import { toWaitingCardProps } from "../task/WaitingTaskCard";
 import {
   serializeWaitingItem,
   toWaitingCardData,
   type SerializedWaitingTaskItem,
-  type WaitingCardData,
 } from "../task/waiting-view";
 import type { Route } from "./+types/waiting";
-
-/** Build the DS-04 Card props for one waiting task (opens the shared Task Drawer). */
-function toWaitingCardProps(
-  card: WaitingCardData,
-  openProps: (key: string) => { href: string; onOpen: () => void },
-): CardProps {
-  return {
-    id: card.id,
-    title: card.title,
-    typeLabel: "Task",
-    icon: <EntityIcon type="task" />,
-    // The pane title is h1; cards are h2 so the heading order never skips a level.
-    headingLevel: 2,
-    status: { label: "Waiting", tone: "warning" },
-    metadata: [
-      {
-        id: "waiting-for",
-        label: "Waiting for",
-        value: (
-          <span className="dh-waiting-card__subject">
-            {card.subjectType && isEntityType(card.subjectType) ? (
-              <EntityIcon type={card.subjectType} />
-            ) : null}
-            <span>{card.subjectLabel}</span>
-          </span>
-        ),
-      },
-      {
-        id: "since",
-        label: "Since",
-        value: card.sinceLabel
-          ? `${card.sinceLabel} · ${card.elapsedLabel}`
-          : card.elapsedLabel,
-      },
-    ],
-    context: card.parent ? { label: card.parent.title } : undefined,
-    dateLabel: card.dateLabel ?? undefined,
-    density: "comfortable",
-    presentation: "list",
-    openAriaLabel: `Open ${card.title}`,
-    ...openProps(`task:${card.id}`),
-  };
-}
 
 export function meta() {
   return [

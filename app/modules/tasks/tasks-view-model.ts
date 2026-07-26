@@ -21,6 +21,7 @@ import {
   TASK_SORTS,
   TASK_SYSTEM_VIEWS,
   TIME_SECTORS,
+  type TaskPriority,
   type TaskSort,
   type TaskSystemView,
   type TimeSector,
@@ -97,6 +98,9 @@ export function systemViewFor(
 export interface TaskCardData {
   readonly id: string;
   readonly title: string;
+  /** The raw priority — drives the shared `PriorityIndicator` (TASKS-02). */
+  readonly priority: TaskPriority | null;
+  /** The short priority tag ("P1"…"P4" / "—"), for text-only contexts. */
   readonly priorityTag: string;
   readonly quadrant: EisenhowerQuadrant | null;
   readonly sector: TimeSector | null;
@@ -125,6 +129,7 @@ export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
   return {
     id: item.id,
     title: item.title,
+    priority: item.priority,
     priorityTag: taskPriorityTag(item.priority),
     quadrant: priorityQuadrant(item.priority),
     sector: item.timeSector,

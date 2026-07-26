@@ -38,9 +38,18 @@ test.describe("TODAY-02 — desktop", () => {
     ).toBeVisible();
     // The open stack lives in the URL (DS-03).
     await expect(page).toHaveURL(/drawer=task%3At-drawer/);
-    // Real fields render (TASKS-01: priority is now the canonical P1 · Do label).
-    await expect(dialog.getByText("P1 · Do")).toBeVisible();
-    await expect(dialog.getByText("1 Aug 2026")).toBeVisible();
+    // Real fields render (TASKS-02: priority is the shared coloured
+    // PriorityIndicator — the "P1" tag is visible and the "Do" action word is carried
+    // for assistive tech).
+    const priority = dialog.locator('.dh-priority[data-priority="p1"]');
+    await expect(priority).toBeVisible();
+    await expect(priority).toContainText("P1");
+    await expect(priority).toContainText("Do");
+    // The due date renders — now in both the Planning section and, since TASKS-02,
+    // the shared UrgencyChip ("Due 1 Aug 2026"); assert the chip form explicitly.
+    await expect(
+      dialog.locator(".dh-urgency").getByText("Due 1 Aug 2026"),
+    ).toBeVisible();
   });
 
   test("shows the real area relationship in the Links tab", async ({

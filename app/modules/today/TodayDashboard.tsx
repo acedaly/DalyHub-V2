@@ -84,7 +84,8 @@ import {
 } from "./landing/layout";
 import type { TodayLandingData } from "./landing/types";
 import type { PlanActionData } from "./routes/plan";
-import { formatCalendarDate } from "~/shared/task-record/task-view";
+import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
+import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import type {
   PlanningData,
   PlanningTaskItem,
@@ -793,16 +794,36 @@ export function TodayDashboard({
     bucket: PlanBucket,
   ): CardProps => {
     const done = isDone(item);
-    const dueLabel = item.dueDate ? formatCalendarDate(item.dueDate) : null;
-    const overdue =
-      !done &&
-      item.dueDate !== null &&
-      referenceIso !== "" &&
-      item.dueDate < referenceIso;
     // The SAME state-appropriate actions drive the visible quick actions and the
     // touch swipe tray (TODAY-06) — one identity, one execution path; the tray is an
     // accelerator over the always-available buttons, never a touch-only action.
     const actions = planQuickActions(item, bucket);
+    // Priority ≠ urgency ≠ display-state as three separable slots (TASKS-02): the
+    // shared coloured indicators now appear on Today's cards too, so priority is no
+    // longer absent from the daily execution surface (DEBT-28), and overdue/due-today
+    // carry a WORD, not just a red date (DEBT-27).
+    const metadata: CardMetaItem[] = [];
+    if (item.priority) {
+      metadata.push({
+        id: "priority",
+        value: <PriorityIndicator priority={item.priority} />,
+      });
+    }
+    if ((item.dueDate || item.scheduledDate) && referenceIso !== "") {
+      metadata.push({
+        id: "urgency",
+        value: (
+          <UrgencyChip
+            task={{
+              completedAt: done ? "done" : null,
+              dueDate: item.dueDate,
+              scheduledDate: item.scheduledDate,
+            }}
+            todayIso={referenceIso}
+          />
+        ),
+      });
+    }
     return {
       id: item.id,
       title: item.title,
@@ -814,9 +835,7 @@ export function TodayDashboard({
       headingLevel: 4,
       context: item.parent ? { label: item.parent.title } : undefined,
       status: done ? { label: "Done", tone: "success" } : undefined,
-      dateLabel: dueLabel
-        ? { label: `Due ${dueLabel}`, tone: overdue ? "danger" : "neutral" }
-        : undefined,
+      metadata: metadata.length > 0 ? metadata : undefined,
       selection:
         bucket === "completedToday"
           ? undefined

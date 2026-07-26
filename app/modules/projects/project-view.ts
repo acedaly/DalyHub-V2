@@ -29,7 +29,13 @@ import type {
   ProjectRelation,
 } from "~/kernel/projects";
 import type { CompletionRollup } from "~/kernel/spine";
-import type { TaskListItem, TaskPriority, TaskStatus } from "~/kernel/tasks";
+import type {
+  CommitmentState,
+  TaskListItem,
+  TaskPriority,
+  TaskStatus,
+  TimeSector,
+} from "~/kernel/tasks";
 
 /** JSON-serialised project collection item (Dates → ISO strings). */
 export interface SerializedProjectListItem {
@@ -255,6 +261,10 @@ export interface SerializedProjectTask {
   readonly priority: TaskPriority | null;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
+  /** Planning window — carried so the ONE `taskDisplayState` evaluator applies. */
+  readonly timeSector: TimeSector | null;
+  /** Commitment state — carried so Someday/Maybe resolves via `taskDisplayState`. */
+  readonly commitmentState: CommitmentState;
   readonly waiting: SerializedTaskWaiting | null;
 }
 
@@ -270,6 +280,8 @@ export function serializeProjectTask(
     priority: item.priority,
     dueDate: item.dueDate,
     scheduledDate: item.scheduledDate,
+    timeSector: item.timeSector,
+    commitmentState: item.commitmentState,
     waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
   };
 }

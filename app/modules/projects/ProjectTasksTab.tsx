@@ -19,10 +19,11 @@ import { EntityIcon, isEntityType } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
 import { SegmentedFilter } from "~/shared/segmented-filter";
+import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
+import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import {
   isTaskWaiting,
-  taskDateLabel,
-  taskDisplayStatus,
+  taskDisplayState,
   waitingSubjectLabel,
 } from "~/shared/task-record/task-view";
 
@@ -221,12 +222,35 @@ function toTaskCardProps(
   todayIso: string,
   openProps: (key: string) => { href: string; onOpen: () => void },
 ): CardProps {
-  const completed = task.completedAt !== null;
   const waiting = isTaskWaiting(task);
-  const status = taskDisplayStatus(completed, task.status, waiting);
-  const date = taskDateLabel(task, todayIso);
+  // The ONE canonical display-state evaluator (TASKS-02 retired the legacy
+  // `taskDisplayStatus`, so every surface now resolves state identically).
+  const status = taskDisplayState({
+    deletedAt: null,
+    completedAt: task.completedAt,
+    status: task.status,
+    commitmentState: task.commitmentState,
+    timeSector: task.timeSector,
+    scheduledDate: task.scheduledDate,
+    waiting: task.waiting,
+  });
 
+  // Priority ≠ urgency ≠ display-state as three separable slots (TASKS-02): the
+  // shared coloured indicators render on the Project's task cards too, not only in
+  // Tasks, so priority is no longer absent from this surface (DEBT-28).
   const metadata: CardMetaItem[] = [];
+  if (task.priority) {
+    metadata.push({
+      id: "priority",
+      value: <PriorityIndicator priority={task.priority} />,
+    });
+  }
+  if (task.dueDate || task.scheduledDate) {
+    metadata.push({
+      id: "urgency",
+      value: <UrgencyChip task={task} todayIso={todayIso} />,
+    });
+  }
   if (waiting && task.waiting) {
     metadata.push({
       id: "waiting-for",
@@ -254,12 +278,6 @@ function toTaskCardProps(
     headingLevel: 3,
     status: { label: status.label, tone: status.tone },
     metadata,
-    dateLabel: date
-      ? {
-          label: date.label,
-          tone: date.tone === "danger" ? "danger" : undefined,
-        }
-      : undefined,
     density: "comfortable",
     presentation: "list",
     openAriaLabel: `Open ${task.title}`,

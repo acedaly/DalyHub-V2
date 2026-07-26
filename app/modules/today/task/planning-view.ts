@@ -15,7 +15,7 @@
  * use is deterministic UTC arithmetic on a date-only value, never a timezone shift.
  */
 
-import type { TaskRelation } from "~/kernel/tasks";
+import type { TaskPriority, TaskRelation } from "~/kernel/tasks";
 
 // PROJ-01: the quick-plan date arithmetic was re-homed to the Tasks module so the
 // re-homed Task record Drawer owns it without depending on Today. Re-exported here so
@@ -33,6 +33,8 @@ export interface PlanningTaskItem {
   readonly title: string;
   /** The structural parent (Project/Area) context line, or null. */
   readonly parent: TaskRelation | null;
+  /** The Eisenhower priority — drives the shared `PriorityIndicator` (TASKS-02). */
+  readonly priority: TaskPriority | null;
   /** The scheduled (planned) date `YYYY-MM-DD`, or null when unplanned. */
   readonly scheduledDate: string | null;
   /** The due date `YYYY-MM-DD`, or null. Planning never changes this. */

@@ -114,6 +114,12 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Health is evaluated server-side and rendered as text — it refreshes through the normal loader revalidation, never a cached column. Stronger tones (`danger`/`warning`) are reserved for genuinely overdue or blocked work; ordinary inactivity is calm (`info`), never an aggressive red.
 **Rules.** Meaning is **always** text + tone, never colour alone. Reuse the shared components — do **not** add a second project-card component or invent status vocabulary that competes with open/completed or task status. Free-text waiting subjects are never surfaced.
 
+### Task signals (TASKS-02)
+**Purpose.** A shared, calm presentation of a task's **priority** and **urgency** on every task-bearing surface (Today, Projects, Tasks, the Drawer), kept as separable slots from the display-state pill so a card never becomes a wall of coloured badges (TASKS-02, [DEBT-27](../product/PRODUCT_DEBT.md)/[DEBT-28](../product/PRODUCT_DEBT.md)).
+**Anatomy.** A `PriorityIndicator` (the short "P1"–"P4" tag + a coloured dot; the full Eisenhower action word — "Do"…"Delete / Review" — is carried for assistive tech) and an `UrgencyChip` (**Overdue** / **Due today** / **Scheduled today** / a future Due or Scheduled date — icon + word). Both live in the Card `metadata` slot; the display-state stays the Card `status` pill. Driven by the canonical `taskPriorityTag`/`taskUrgency` derivations — one vocabulary everywhere.
+**Behaviour.** Priority ≠ urgency ≠ display-state — three separable slots. Colour and icon are **reinforcement only**; the tag/word always carries the meaning. Untriaged priority renders nothing in lists (opt-in "No priority" in the Drawer); no due/scheduled date renders no chip. Overdue is resolved against the owner's server-derived calendar day (ADR-022), never browser-local time.
+**Rules.** Meaning is **always** text, never colour alone — "Overdue" is a word, not a red date; "due today" is distinguishable from a future due date. Use `taskDisplayState` (the single evaluator) for state — the legacy `taskDisplayStatus` was retired. Never invent a second priority/urgency vocabulary or a `TaskCard`; render these shared components in the one Card.
+
 ### Timeline
 **Purpose.** Show an entity's history in chronological order — the "what happened, when" of any record.
 **Anatomy.** A vertical, time-ordered stream of events rendered from the [shared Activity model](../../AGENTS.md#96-shared-activity-model).
