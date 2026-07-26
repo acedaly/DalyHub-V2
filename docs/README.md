@@ -57,6 +57,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/GOALS_MODULE.md`](development/GOALS_MODULE.md) | The Goals module (AREA-02 + AREA-03 done): data ownership (spine identity/completion + the additive `goal_details` table), the target-date and definition-of-done semantics, explicit completion kept separate from derived Project-contribution progress, the exact and complete Project-contribution boundary, routes, the canonical `/goals/:goalId` record, Goal creation (title-only, via the shared `NewGoalForm`), Area/Project integration, the **AREA-03 Alignment view** (the real `/goals` collection: a derived, non-persisted Goal↔Task-activity signal — recent-action window, qualifying evidence, the five explainable states, the Goal record's Alignment panel), accessibility/responsive coverage, tests and deferrals to AREA-04. |
 | [`development/NOTES_PERSISTENCE.md`](development/NOTES_PERSISTENCE.md) | The Notes persistence & domain foundation (NOTES-01A, backend-only): ownership boundaries (identity/title/lifecycle stay `EntityRepository`; the additive `note_details` table owns only the Markdown source), the STRICT schema and no-backfill migration, no-row/empty-content semantics, exact Markdown-source preservation, validation reusing the one shared FND-08 parser, the content-timestamp contract, atomic mutation/Activity recording, workspace isolation, and what remains for the later Notes UI slice. |
 | [`development/DIARY_MODULE.md`](development/DIARY_MODULE.md) | The Diary architecture, kernel foundation (DIARY-01A) and Timeline UI (DIARY-01): the Interstitial Journal philosophy (capture first, organise later), the `diary` entity type + additive `diary_entry_details` slice, chronology-first `occurred_at` (Memory-Mode backdating), the open registration-based entry-type vocabulary, the authoritative `DiaryRepository` (reserved atomic capture + edit + the bounded/cursor-paginated Timeline read model with day/month grouping), the Activity-vs-Diary boundary, relationships via EntityLinks, the DIARY-01 Timeline screen + sub-ten-second quick capture + route-backed editor + the display-timezone seam, and the future roadmap it enables. |
+| [`development/PEOPLE_MODULE.md`](development/PEOPLE_MODULE.md) | The People foundation (PEOPLE-01): people as a first-class Spine-backed relationship entity (care, not a CRM), the `person` reserved type + additive `person_details` slice, archived-vs-deleted lifecycle, the closed relationship/contact-method/follow-up vocabularies, the authoritative `PersonRepository` (atomic reserved create + detail edits + archive/restore + the scope-bound collection read model), the People/Recent/Archived navigation and `/people` `/person/:id` `/new/person` routes, the collection (search/sort/grid-toggle/quick-add) and six-tab record (Summary/Contact/Timeline/Linked/Notes/Settings), avatars (Gravatar-ready), search + command-palette integration, and the extension points for Organisations/Meetings/reminders/sync. |
 
 ---
 
@@ -103,7 +104,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
         ├── AREAS_MODULE.md
         ├── GOALS_MODULE.md
         ├── NOTES_PERSISTENCE.md
-        └── DIARY_MODULE.md
+        ├── DIARY_MODULE.md
+        └── PEOPLE_MODULE.md
 ```
 
 > Beyond `docs/`, the repository root now also carries the application itself

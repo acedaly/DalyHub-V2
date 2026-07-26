@@ -72,10 +72,15 @@ const PRODUCT_ROUTES = [
   // editor states, are covered by `e2e/notes.spec.ts`'s own journey).
   "/notes",
   "/notes?state=deleted",
+  // PEOPLE-01 — the real People collection, its Recent/Archived sub-views and the
+  // create-person page (the record itself is covered by `e2e/people.spec.ts`).
+  "/people",
+  "/people/recent",
+  "/people/archived",
+  "/new/person",
   // PX-03 — the remaining navigation-shell Coming Soon placeholder routes.
   "/diary",
   "/meetings",
-  "/people",
   "/assets",
   "/reviews",
   "/ai",

@@ -21,6 +21,7 @@ import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type { NoteDetailsRepository } from "~/kernel/notes";
+import type { PersonRepository } from "~/kernel/people";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
@@ -55,6 +56,10 @@ import {
   D1NoteDetailsRepository,
   type D1NoteDetailsRepositoryOptions,
 } from "./d1-note-details-repository";
+import {
+  D1PersonRepository,
+  type D1PersonRepositoryOptions,
+} from "./d1-person-repository";
 import { D1ProjectHealthRepository } from "./d1-project-health-repository";
 import { D1ProjectRepository } from "./d1-project-repository";
 import {
@@ -108,6 +113,11 @@ export {
   type D1DiaryRepositoryOptions,
   type D1DiaryCreateFault,
 } from "./d1-diary-repository";
+export {
+  D1PersonRepository,
+  type D1PersonRepositoryOptions,
+  type D1PersonCreateFault,
+} from "./d1-person-repository";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
@@ -265,6 +275,23 @@ export function createDiaryRepository(
   options?: D1DiaryRepositoryOptions,
 ): DiaryRepository {
   return new D1DiaryRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed PersonRepository — the PEOPLE-01
+ * authoritative Person repository. It CREATES `person` entities with their
+ * structured relationship detail slice atomically (the generic EntityRepository
+ * refuses to create one), owns detail edits and the archive lifecycle, and shares
+ * the trusted Activity actor. A Person's identity/title/soft-delete/restore stay
+ * the generic EntityRepository's; relationships stay FND-04 EntityLinks. Bound to
+ * a `WorkspaceContext`; there is no unscoped construction path.
+ */
+export function createPersonRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1PersonRepositoryOptions,
+): PersonRepository {
+  return new D1PersonRepository(db, context, options);
 }
 
 /**

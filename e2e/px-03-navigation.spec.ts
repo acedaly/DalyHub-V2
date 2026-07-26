@@ -21,7 +21,6 @@ import { expect, test } from "@playwright/test";
 
 const SHELL_MODULES = [
   { label: "Meetings", path: "/meetings" },
-  { label: "People", path: "/people" },
   { label: "Assets", path: "/assets" },
   { label: "Reviews", path: "/reviews" },
   { label: "AI", path: "/ai" },
@@ -108,6 +107,22 @@ test.describe("PX-03 — every module shell route resolves with real content", (
     await expect(page).toHaveURL(/\/diary$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Diary" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
+  });
+
+  // PEOPLE-01: People has the real collection now — the sidebar link reaches a
+  // real, non-blank `/people` heading (the collection Pane Header, not a
+  // placeholder).
+  test("the sidebar reaches the real People collection", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "People", exact: true }).click();
+    await expect(page).toHaveURL(/\/people$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "People" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { level: 2, name: "Coming Soon" }),

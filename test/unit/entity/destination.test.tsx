@@ -38,15 +38,15 @@ describe("entityDestination", () => {
     });
   });
 
+  it("maps a Person to their canonical record route (PEOPLE-01)", () => {
+    expect(entityDestination("person", "pe1")).toEqual({
+      kind: "route",
+      to: "/person/pe1",
+    });
+  });
+
   it("returns null for unsupported types and blank ids (degrades to text)", () => {
-    for (const type of [
-      "person",
-      "meeting",
-      "asset",
-      "diary",
-      "review",
-      "??",
-    ]) {
+    for (const type of ["meeting", "asset", "diary", "review", "??"]) {
       expect(entityDestination(type, "x")).toBeNull();
     }
     expect(entityDestination("goal", "")).toBeNull();
@@ -82,8 +82,8 @@ describe("EntityLink", () => {
   });
 
   it("renders unsupported targets as plain, non-interactive text", () => {
-    renderLink(<EntityLink type="person" id="pe1" title="Mel Okoye" />);
-    expect(screen.getByText("Mel Okoye")).toBeInTheDocument();
+    renderLink(<EntityLink type="meeting" id="me1" title="Weekly sync" />);
+    expect(screen.getByText("Weekly sync")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 

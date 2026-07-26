@@ -66,6 +66,8 @@ describe("PX-03 navigation shells", () => {
       "diary.index",
       "meetings.index",
       "people.index",
+      "people.recent",
+      "people.archived",
       "assets.index",
       "reviews.index",
       "ai.index",
@@ -74,7 +76,7 @@ describe("PX-03 navigation shells", () => {
     ]);
   });
 
-  it("groups Notes/Diary/Meetings/People/Assets under 'capture'", () => {
+  it("groups Notes/Diary/Meetings/People (+ its Recent/Archived sub-views)/Assets under 'capture'", () => {
     const nav = navigation();
     const captureLabels = nav
       .filter((item) => item.group === "capture")
@@ -84,6 +86,8 @@ describe("PX-03 navigation shells", () => {
       "Diary",
       "Meetings",
       "People",
+      "Recent",
+      "Archived",
       "Assets",
     ]);
   });

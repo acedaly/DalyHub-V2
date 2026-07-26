@@ -1,0 +1,274 @@
+/**
+ * PEOPLE-01 — People module styles.
+ *
+ * Tokens only (no raw hex/px/durations); global `dh-person*` / `dh-people*`
+ * classes. Inherits the shared focus ring, reduced-motion and `.dh-visually-hidden`
+ * from base.css. Touch targets use the shared control-height token (44px); nothing
+ * overflows at 320px.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Avatar                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-person-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dh-radius-md);
+  overflow: hidden;
+  flex: none;
+  color: var(--dh-color-on-accent);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: 1;
+}
+
+.dh-person-avatar__img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dh-person-avatar__initials {
+  letter-spacing: var(--dh-letter-spacing-wide, normal);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Collection controls (search / sort / view switch)                          */
+/* -------------------------------------------------------------------------- */
+
+.dh-people-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: center;
+}
+
+.dh-people-filters__search {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+.dh-people-filters__input,
+.dh-people-filters__select {
+  inline-size: 100%;
+  min-block-size: var(--dh-control-height-md);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font: inherit;
+}
+
+.dh-people-filters__sort {
+  flex: 0 1 auto;
+}
+
+.dh-people-view-switch {
+  display: inline-flex;
+  gap: var(--dh-space-1);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-1);
+}
+
+.dh-people-view-switch__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--dh-control-height-md);
+  min-block-size: var(--dh-control-height-md);
+  border: 0;
+  border-radius: var(--dh-radius-xs);
+  background: transparent;
+  color: var(--dh-color-text-secondary);
+  cursor: pointer;
+}
+
+.dh-people-view-switch__btn[aria-pressed="true"] {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Create page                                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-person-new {
+  max-inline-size: var(--dh-width-prose, 44rem);
+  margin-inline: auto;
+  padding: var(--dh-space-5) var(--dh-gutter) var(--dh-space-8);
+}
+
+.dh-person-new__header {
+  display: flex;
+  gap: var(--dh-space-3);
+  align-items: flex-start;
+  margin-block-end: var(--dh-space-5);
+}
+
+.dh-person-new__icon {
+  color: var(--dh-entity-person-accent);
+  flex: none;
+}
+
+.dh-person-new__title {
+  margin: 0;
+  font-size: var(--dh-font-size-2xl);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-person-new__lede {
+  margin: var(--dh-space-1) 0 0;
+  color: var(--dh-color-text-secondary);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Summary tab                                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-person-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-person-summary__head {
+  display: flex;
+  gap: var(--dh-space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dh-person-summary__identity {
+  min-inline-size: 0;
+}
+
+.dh-person-summary__name {
+  margin: 0;
+  font-size: var(--dh-font-size-xl);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-person-summary__pronouns,
+.dh-person-summary__context {
+  color: var(--dh-color-text-secondary);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-person-summary__context {
+  margin: var(--dh-space-1) 0 0;
+}
+
+.dh-person-summary__relationship {
+  margin: var(--dh-space-2) 0 0;
+}
+
+.dh-person-summary__relationship-chip,
+.dh-person-summary__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-xs);
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-person-summary__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-person-summary__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--dh-space-3);
+  margin: 0;
+}
+
+.dh-person-summary__fact dt {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-person-summary__fact dd {
+  margin: var(--dh-space-1) 0 0;
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-person-summary__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dh-person-summary__edit {
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Timeline / Linked tabs                                                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-person-linked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-person-linked__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-md);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-person-linked__icon {
+  color: var(--dh-color-text-secondary);
+  display: inline-flex;
+}
+
+.dh-person-linked__count {
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-person-linked__empty {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-person-linked__list {
+  margin: 0;
+  padding-inline-start: var(--dh-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Not-found / new placeholders                                               */
+/* -------------------------------------------------------------------------- */
+
+.dh-person-not-found {
+  padding: var(--dh-space-8) var(--dh-gutter);
+}
+
+@media (max-width: 48rem) {
+  .dh-person-new {
+    padding-block: var(--dh-space-4) var(--dh-space-6);
+  }
+  .dh-people-filters__sort,
+  .dh-people-filters__search {
+    flex-basis: 100%;
+  }
+}

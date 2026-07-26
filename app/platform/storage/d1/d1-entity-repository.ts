@@ -30,6 +30,7 @@ import {
   type NewActivityEvent,
 } from "~/kernel/activity";
 import { isReservedDiaryEntityType } from "~/kernel/diary";
+import { isReservedPersonEntityType } from "~/kernel/people";
 import { RESERVED_SPINE_ENTITY_TYPES } from "~/kernel/spine";
 import {
   EntityError,
@@ -163,9 +164,14 @@ export class D1EntityRepository implements EntityRepository {
     // a bare `create` would produce a Diary Entry with no place on the Timeline
     // (ADR-041 §reservation). Only creation is reserved — a Diary Entry's rename,
     // soft-delete and restore are ordinary entity lifecycle, handled here.
+    // The `person` type is likewise reserved for the PersonRepository, which
+    // writes the Person's structured relationship detail slice ATOMICALLY with the
+    // row; a bare `create` would produce a detail-less Person, invisible to the
+    // People collection's INNER JOIN (PEOPLE-01).
     if (
       RESERVED_SPINE_ENTITY_TYPES.has(type) ||
-      isReservedDiaryEntityType(type)
+      isReservedDiaryEntityType(type) ||
+      isReservedPersonEntityType(type)
     ) {
       throw new ReservedEntityTypeError();
     }
