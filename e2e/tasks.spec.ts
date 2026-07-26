@@ -58,21 +58,20 @@ test.describe("TASKS-01 — desktop", () => {
 
     // The always-overdue seeded task (`pht-overdue`, due 2000-01-01) shows the
     // Overdue urgency chip — the WORD, not merely a red date (DEBT-28). The smart
-    // sort surfaces overdue work first, so it is on the first page.
-    const overdueCard = page
-      .locator(".dh-card")
-      .filter({ hasText: "Submit the abstract" })
-      .first();
+    // sort surfaces overdue work first, so it is on the first page. The card is
+    // pinned to its exact-named title link so the locator is unambiguous.
+    const overdueCard = page.locator(".dh-card", {
+      has: page.getByRole("link", { name: "Submit the abstract", exact: true }),
+    });
     const overdue = overdueCard.locator('.dh-urgency[data-kind="overdue"]');
     await expect(overdue).toBeVisible();
     await expect(overdue).toContainText("Overdue");
 
     // The p1 seeded task shows the coloured PriorityIndicator on its card — priority
     // is no longer an absent/colour-free grey chip (DEBT-27).
-    const p1Card = page
-      .locator(".dh-card")
-      .filter({ hasText: "Draft the proposal" })
-      .first();
+    const p1Card = page.locator(".dh-card", {
+      has: page.getByRole("link", { name: "Draft the proposal", exact: true }),
+    });
     const priority = p1Card.locator('.dh-priority[data-priority="p1"]');
     await expect(priority).toBeVisible();
     await expect(priority).toContainText("P1");
