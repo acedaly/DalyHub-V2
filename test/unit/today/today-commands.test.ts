@@ -25,6 +25,7 @@ function task(overrides: Partial<PlanningTaskItem> = {}): PlanningTaskItem {
     id: "t1",
     title: "Ship it",
     parent: null,
+    priority: null,
     scheduledDate: "2026-07-21",
     dueDate: null,
     completed: false,

@@ -1,0 +1,119 @@
+/*
+ * TASKS-02 — shared task signal presentation (PriorityIndicator + UrgencyChip).
+ *
+ * Two small, self-describing chips rendered on every task-bearing surface (Today,
+ * Projects, Tasks, the Drawer). They keep priority, urgency and display-state as
+ * THREE separable slots (the display-state pill is `.dh-card__status`). Colour is
+ * reinforcement only — the label/tag always carries the meaning (AGENTS.md §15),
+ * so both remain correct in forced-colours and for screen-reader users. Every
+ * visual value is a DS-01 token (no raw colours/sizes).
+ */
+
+/* -- Priority indicator ---------------------------------------------------- */
+
+.dh-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: 0 var(--dh-space-2);
+  min-height: var(--dh-space-5);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  white-space: nowrap;
+}
+
+.dh-priority__dot {
+  inline-size: var(--dh-space-2);
+  block-size: var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+.dh-priority__tag {
+  line-height: var(--dh-line-height-tight);
+}
+
+/* P1 · Do — the most urgent-and-important; danger triple. */
+.dh-priority[data-priority="p1"] {
+  color: var(--dh-color-danger-text);
+  background: var(--dh-color-danger-surface);
+  border-color: transparent;
+}
+/* P2 · Defer — important, not urgent; warning triple. */
+.dh-priority[data-priority="p2"] {
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-color: transparent;
+}
+/* P3 · Delegate — urgent, delegate; info triple. */
+.dh-priority[data-priority="p3"] {
+  color: var(--dh-color-info-text);
+  background: var(--dh-color-info-surface);
+  border-color: transparent;
+}
+/* P4 · Delete / Review — neither; calm/muted. */
+.dh-priority[data-priority="p4"] {
+  color: var(--dh-color-text-muted);
+  background: var(--dh-color-surface-sunken);
+  border-color: var(--dh-color-border);
+}
+/* Untriaged, rendered only when explicitly requested (e.g. the Drawer). */
+.dh-priority--none {
+  color: var(--dh-color-text-muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+/* -- Urgency chip ---------------------------------------------------------- */
+
+.dh-urgency {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: 0 var(--dh-space-2);
+  min-height: var(--dh-space-5);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-medium);
+  white-space: nowrap;
+}
+
+.dh-urgency__icon {
+  flex: none;
+}
+
+.dh-urgency__label {
+  line-height: var(--dh-line-height-tight);
+}
+
+.dh-urgency[data-tone="danger"] {
+  color: var(--dh-color-danger-text);
+  background: var(--dh-color-danger-surface);
+  border-color: transparent;
+  font-weight: var(--dh-font-weight-semibold);
+}
+.dh-urgency[data-tone="warning"] {
+  color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  border-color: transparent;
+  font-weight: var(--dh-font-weight-semibold);
+}
+.dh-urgency[data-tone="info"] {
+  color: var(--dh-color-info-text);
+  background: var(--dh-color-info-surface);
+  border-color: transparent;
+}
+.dh-urgency[data-tone="neutral"] {
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  border-color: var(--dh-color-border);
+}

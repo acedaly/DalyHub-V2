@@ -9,7 +9,6 @@ import {
   isTaskComplete,
   serializeTaskView,
   taskDateLabel,
-  taskDisplayStatus,
   taskPriorityLabel,
   taskStatusLabel,
 } from "~/shared/task-record/task-view";
@@ -67,21 +66,6 @@ describe("serializeTaskView", () => {
 });
 
 describe("display derivations", () => {
-  it("derives the status pill from completion then workflow status", () => {
-    expect(taskDisplayStatus(true, "todo")).toEqual({
-      label: "Completed",
-      tone: "success",
-    });
-    expect(taskDisplayStatus(false, "in_progress")).toEqual({
-      label: "In progress",
-      tone: "info",
-    });
-    expect(taskDisplayStatus(false, "todo")).toEqual({
-      label: "To do",
-      tone: "neutral",
-    });
-  });
-
   it("labels statuses and priorities", () => {
     expect(taskStatusLabel("in_progress")).toBe("In progress");
     expect(taskPriorityLabel("p1")).toBe("P1 · Do");
@@ -110,13 +94,13 @@ describe("formatCalendarDate", () => {
 });
 
 describe("taskDateLabel", () => {
-  it("prefers the due date and flags it overdue when past and open", () => {
+  it("prefers the due date and flags it overdue (with the WORD) when past and open", () => {
     expect(
       taskDateLabel(
         { completedAt: null, dueDate: "2026-07-10", scheduledDate: null },
         "2026-07-20",
       ),
-    ).toEqual({ label: "Due 10 Jul 2026", tone: "danger" });
+    ).toEqual({ label: "Overdue · due 10 Jul 2026", tone: "danger" });
   });
 
   it("is not overdue when completed", () => {

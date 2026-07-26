@@ -144,6 +144,34 @@ scoped, opens the canonical Drawer). The fixture-backed Today task search was
 retired so there is ONE trustworthy task search. Navigation commands: New Task ·
 Open Tasks · Open This Week · Open Matrix · Open Time Sectors · Open Someday/Maybe.
 
+## Shared signal presentation (TASKS-02)
+
+Priority, urgency and display-state are rendered as **three separable slots** on
+every task-bearing surface (Today, Projects, `/tasks`, the Drawer), so a card never
+signals by colour alone and never becomes a wall of coloured pills:
+
+- **`PriorityIndicator`** (`app/shared/task-record/PriorityIndicator.tsx`) — the
+  short `P1`–`P4` tag + a coloured dot, with the full Eisenhower action word
+  ("Do"…"Delete / Review") carried for assistive tech. Driven by the canonical
+  `taskPriorityTag`/`priorityQuadrant`. Untriaged renders nothing in lists; the
+  Drawer opts into an explicit "No priority".
+- **`UrgencyChip`** (`app/shared/task-record/UrgencyChip.tsx`) — **Overdue** / **Due
+  today** / **Scheduled today** / a future Due or Scheduled date, each an icon + a
+  WORD. Driven by the canonical `taskUrgency(task, todayIso)` evaluator in
+  `task-view.ts`; overdue is resolved against the owner's server-derived calendar day
+  (ADR-022), never browser-local time. The Drawer receives `todayIso` from the
+  task-detail loader (`TaskDetailData.todayIso`).
+
+Both live in the Card `metadata` slot; the display-state stays the Card `status`
+pill, resolved by the ONE `taskDisplayState` evaluator (the legacy `taskDisplayStatus`
+was retired in TASKS-02, so Today, Projects and `/tasks` share one state vocabulary).
+Colour and icon are reinforcement only — the tag/word always carries the meaning
+(AGENTS.md §15). Styling is token-only (`app/styles/task-signals.css`). Rendering the
+signals inside global **Search** results (which requires extending the shared
+`SearchResultItem` contract + surface and a bounded task-search projection) is a
+sanctioned follow-up (ROADMAP TASKS-02), deferred to keep this change coherent —
+Search itself is unchanged and continues to open the canonical Drawer.
+
 ## Today & Projects integration
 
 Today and Projects remain **projections** of the same task model — not parallel

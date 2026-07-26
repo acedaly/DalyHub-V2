@@ -47,6 +47,7 @@ import {
   resolveAuthenticatedWorkspaceScope,
   type WorkspaceScope,
 } from "~/platform/workspaces";
+import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
   serializeTaskView,
@@ -110,6 +111,9 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   return json({
     task: serializeTaskView(task),
     links,
+    // Server-derived owner calendar date (ADR-022) so the Drawer's urgency chip
+    // never computes "Overdue"/"Due today" in browser-local time (TASKS-02).
+    todayIso: ownerCalendarIso(new Date()),
   } satisfies TaskDetailData);
 }
 

@@ -36,6 +36,8 @@ function task(
     priority: null,
     dueDate: null,
     scheduledDate: null,
+    timeSector: null,
+    commitmentState: "active",
     waiting: null,
     ...over,
   };

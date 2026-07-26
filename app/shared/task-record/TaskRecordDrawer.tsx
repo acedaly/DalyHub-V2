@@ -45,10 +45,11 @@ import {
   TaskWaitingSection,
   type WaitingActionOutcome,
 } from "./TaskWaitingSection";
+import { PriorityIndicator } from "./PriorityIndicator";
+import { UrgencyChip } from "./UrgencyChip";
 import {
   isTaskComplete,
   taskDisplayState,
-  taskPriorityLabel,
   timeSectorLabel,
   type SerializedTaskView,
 } from "./task-view";
@@ -477,11 +478,21 @@ export function TaskRecordDrawer({
   // Scheduled + Due are shown by the Planning section (TODAY-04), so they are not
   // duplicated here; the summary metadata carries the remaining task facts.
   const metadata: RecordMetaItem[] = [];
+  // The shared coloured PriorityIndicator (TASKS-02) — `showEmpty` so an untriaged
+  // task reads "No priority" here rather than an absent field. The full action word
+  // ("Do"…"Delete / Review") is available to assistive tech.
   metadata.push({
     id: "priority",
     label: "Priority",
-    value: taskPriorityLabel(task.priority),
+    value: <PriorityIndicator priority={task.priority} showEmpty />,
   });
+  if (task.dueDate || task.scheduledDate) {
+    metadata.push({
+      id: "urgency",
+      label: "When",
+      value: <UrgencyChip task={task} todayIso={data.todayIso} />,
+    });
+  }
   metadata.push({
     id: "sector",
     label: "Time Sector",

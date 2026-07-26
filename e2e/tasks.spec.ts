@@ -36,13 +36,46 @@ test.describe("TASKS-01 — desktop", () => {
     await expect(
       dialog.getByRole("heading", { level: 3, name: "Draft the proposal" }),
     ).toBeVisible();
-    // TASKS-01: the canonical P1 · Do priority label.
-    await expect(dialog.getByText("P1 · Do")).toBeVisible();
+    // TASKS-02: the canonical priority renders as the shared coloured
+    // PriorityIndicator — the short "P1" tag is visible and the full action word
+    // "Do" is carried in the element (available to assistive tech), never colour
+    // alone.
+    const priority = dialog.locator('.dh-priority[data-priority="p1"]');
+    await expect(priority).toBeVisible();
+    await expect(priority).toContainText("P1");
+    await expect(priority).toContainText("Do");
 
     // Escape closes the Drawer and restores the Tasks context.
     await page.keyboard.press("Escape");
     await expect(page).toHaveURL(/\/tasks\?view=all$/);
     await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("renders the shared priority + urgency signals on task cards (TASKS-02)", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks?view=all");
+
+    // The always-overdue seeded task (`pht-overdue`, due 2000-01-01) shows the
+    // Overdue urgency chip — the WORD, not merely a red date (DEBT-28). The smart
+    // sort surfaces overdue work first, so it is on the first page.
+    const overdueCard = page
+      .locator(".dh-card")
+      .filter({ hasText: "Submit the abstract" })
+      .first();
+    const overdue = overdueCard.locator('.dh-urgency[data-kind="overdue"]');
+    await expect(overdue).toBeVisible();
+    await expect(overdue).toContainText("Overdue");
+
+    // The p1 seeded task shows the coloured PriorityIndicator on its card — priority
+    // is no longer an absent/colour-free grey chip (DEBT-27).
+    const p1Card = page
+      .locator(".dh-card")
+      .filter({ hasText: "Draft the proposal" })
+      .first();
+    const priority = p1Card.locator('.dh-priority[data-priority="p1"]');
+    await expect(priority).toBeVisible();
+    await expect(priority).toContainText("P1");
   });
 
   test("switches to the Eisenhower Matrix and shows the four quadrants", async ({

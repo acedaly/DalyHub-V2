@@ -159,30 +159,6 @@ export function isTaskComplete(task: {
   return task.completedAt !== null;
 }
 
-/**
- * The derived display status (a pill), by explicit precedence:
- * completion → waiting → the open-state workflow position. Waiting is a
- * first-class display state derived from the waiting record (ADR-029) — `status`
- * itself stays `todo`/`in_progress`, so the two can never contradict. Meaning is
- * carried by the label, never colour alone.
- */
-export function taskDisplayStatus(
-  completed: boolean,
-  status: TaskStatus,
-  isWaiting = false,
-): { readonly label: string; readonly tone: RecordTone } {
-  if (completed) {
-    return { label: "Completed", tone: "success" };
-  }
-  if (isWaiting) {
-    return { label: "Waiting", tone: "warning" };
-  }
-  if (status === "in_progress") {
-    return { label: "In progress", tone: "info" };
-  }
-  return { label: "To do", tone: "neutral" };
-}
-
 /** Human label for a workflow status value (edit control options). */
 export function taskStatusLabel(status: TaskStatus): string {
   switch (status) {
@@ -378,10 +354,96 @@ export function formatCalendarDate(value: string | null): string | null {
 }
 
 /**
- * The Card's date label for a task: the due date (preferred) or the scheduled
- * date, with an `overdue` tone when a due date is in the past and the task is not
- * complete. `todayIso` is the owner's current calendar date (`YYYY-MM-DD`),
- * compared as strings (lexicographic == chronological for ISO dates).
+ * The canonical task URGENCY signal (TASKS-02): what the task's dates say about
+ * *when* it needs attention, as a self-describing chip. The distinction the
+ * 2026-07 UI/UX audit found missing is made explicit here — **Overdue**, **Due
+ * today** and **Scheduled today** are their own kinds with their own WORDS, so a
+ * card never signals urgency by colour alone and "due today" is never
+ * indistinguishable from a future due date (DEBT-27).
+ *
+ * The due date (a deadline) takes precedence over the scheduled date (a planned
+ * day). `todayIso` is the owner's current calendar date (`YYYY-MM-DD`), compared
+ * as strings (lexicographic == chronological for ISO dates) and never routed
+ * through a timezone (ADR-022). Completion neutralises the tone (a completed task
+ * is not urgent) but the label is retained for context. Returns `null` when the
+ * task has neither a due nor a scheduled date (no urgency to signal).
+ *
+ * The `tone` is REINFORCEMENT only — every meaning is already stated in the label,
+ * so a colour-blind or monochrome reader loses nothing (AGENTS.md §15).
+ */
+export type TaskUrgencyKind =
+  "overdue" | "due_today" | "due" | "scheduled_today" | "scheduled";
+
+export type TaskUrgencyTone = "danger" | "warning" | "info" | "neutral";
+
+export interface TaskUrgency {
+  readonly kind: TaskUrgencyKind;
+  /** A short label that ALWAYS carries the meaning in words (never colour-only). */
+  readonly label: string;
+  /** Colour reinforcement for the label; the label alone is sufficient. */
+  readonly tone: TaskUrgencyTone;
+}
+
+/** Evaluate the deterministic urgency signal of a task (TASKS-02). */
+export function taskUrgency(
+  task: {
+    readonly completedAt: string | null;
+    readonly dueDate: string | null;
+    readonly scheduledDate: string | null;
+  },
+  todayIso: string,
+): TaskUrgency | null {
+  const complete = isTaskComplete(task);
+  if (task.dueDate !== null) {
+    const formatted = formatCalendarDate(task.dueDate);
+    if (formatted === null) {
+      return null;
+    }
+    if (!complete && task.dueDate < todayIso) {
+      return {
+        kind: "overdue",
+        label: `Overdue · due ${formatted}`,
+        tone: "danger",
+      };
+    }
+    if (task.dueDate === todayIso) {
+      return {
+        kind: "due_today",
+        label: "Due today",
+        tone: complete ? "neutral" : "warning",
+      };
+    }
+    return { kind: "due", label: `Due ${formatted}`, tone: "neutral" };
+  }
+  if (task.scheduledDate !== null) {
+    const formatted = formatCalendarDate(task.scheduledDate);
+    if (formatted === null) {
+      return null;
+    }
+    if (task.scheduledDate === todayIso) {
+      return {
+        kind: "scheduled_today",
+        label: "Scheduled today",
+        tone: complete ? "neutral" : "info",
+      };
+    }
+    return {
+      kind: "scheduled",
+      label: `Scheduled ${formatted}`,
+      tone: "neutral",
+    };
+  }
+  return null;
+}
+
+/**
+ * The Card's date label for a task, as a plain string slot (retained for the
+ * string-only `dateLabel` consumers such as the Waiting list). Delegates to the
+ * canonical {@link taskUrgency} so the WORD ("Overdue", "Due today", "Scheduled
+ * today") is present here too; the narrow `danger` tone is preserved for the
+ * overdue case, and the richer tones are reserved for the {@link taskUrgency}
+ * chip. Surfaces that can render a component should use `taskUrgency` +
+ * `UrgencyChip` instead.
  */
 export function taskDateLabel(
   task: {
@@ -391,21 +453,13 @@ export function taskDateLabel(
   },
   todayIso: string,
 ): { readonly label: string; readonly tone?: "danger" } | null {
-  if (task.dueDate !== null) {
-    const formatted = formatCalendarDate(task.dueDate);
-    if (formatted === null) {
-      return null;
-    }
-    const overdue = !isTaskComplete(task) && task.dueDate < todayIso;
-    return overdue
-      ? { label: `Due ${formatted}`, tone: "danger" }
-      : { label: `Due ${formatted}` };
+  const urgency = taskUrgency(task, todayIso);
+  if (urgency === null) {
+    return null;
   }
-  if (task.scheduledDate !== null) {
-    const formatted = formatCalendarDate(task.scheduledDate);
-    return formatted === null ? null : { label: `Scheduled ${formatted}` };
-  }
-  return null;
+  return urgency.tone === "danger"
+    ? { label: urgency.label, tone: "danger" }
+    : { label: urgency.label };
 }
 
 /* -------------------------------------------------------------------------- */

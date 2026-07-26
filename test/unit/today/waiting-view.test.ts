@@ -115,9 +115,10 @@ describe("toWaitingCardData", () => {
     expect(card.subjectType).toBe("person");
     expect(card.sinceLabel).toBe("18 Jul 2026");
     expect(card.elapsedLabel).toBe("3 days");
-    // Due 2026-07-15 is before today 2026-07-20 → overdue (danger tone).
+    // Due 2026-07-15 is before today 2026-07-20 → overdue: the WORD is carried
+    // (TASKS-02), not just the danger tone.
     expect(card.dateLabel).toEqual({
-      label: "Due 15 Jul 2026",
+      label: "Overdue · due 15 Jul 2026",
       tone: "danger",
     });
   });

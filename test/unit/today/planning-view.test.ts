@@ -22,6 +22,7 @@ function task(
     id,
     title: id,
     parent: null,
+    priority: null,
     scheduledDate: null,
     dueDate: null,
     completed: false,
