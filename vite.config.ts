@@ -42,21 +42,33 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
-  // Pre-bundle the FND-08 Markdown `unified` stack at dev-server start. The DS-06
-  // Markdown control lazy-imports `~/platform/markdown` only when its preview is
-  // opened (keeping the parser out of the initial production bundle via code
-  // splitting). Without this, that first runtime import makes Vite discover and
-  // optimise the `unified` dependency graph on the fly, triggering a full dev
-  // page reload that would reset the just-opened preview. Declaring the deps here
-  // optimises them up front, so the lazy import resolves without a reload.
+  // Pre-bundle at dev-server start the dependency graphs of the two features
+  // that lazy-import a large third-party stack only on first client use — the
+  // FND-08 Markdown render (`unified`) and the NOTES-05 writing editor
+  // (CodeMirror). Without this, that first runtime import makes Vite discover and
+  // optimise the dependency graph on the fly, triggering a full dev page reload
+  // that resets the surface being mounted — the just-opened Markdown preview, or
+  // (NOTES-05) the CodeMirror editor whose `data-editor-ready` then never settles.
+  // Declaring the deps here optimises them up front, so the lazy import resolves
+  // without a reload. Keeps the production code-split (ADR-006, ADR-044) intact —
+  // this only affects the dev server's on-the-fly optimiser.
   optimizeDeps: {
     include: [
+      // FND-08 Markdown render pipeline.
       "unified",
       "remark-parse",
       "remark-gfm",
       "remark-rehype",
       "rehype-sanitize",
       "rehype-stringify",
+      // NOTES-05 writing-first CodeMirror editor (`~/shared/markdown-editor`).
+      "@codemirror/commands",
+      "@codemirror/lang-markdown",
+      "@codemirror/language",
+      "@codemirror/state",
+      "@codemirror/view",
+      "@lezer/common",
+      "@lezer/markdown",
     ],
   },
 });

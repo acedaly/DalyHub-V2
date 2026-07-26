@@ -166,6 +166,16 @@ export function LiveMarkdownEditor({
     [label, placeholder],
   );
 
+  // When the live surface becomes ready, the container's `hidden` attribute is
+  // removed in the same render. CodeMirror measured its geometry while the
+  // container was still hidden (zero-sized), so nudge it to re-measure now that
+  // it is laid out — otherwise the surface can briefly report a zero height.
+  useEffect(() => {
+    if (editorReady) {
+      viewRef.current?.requestMeasure();
+    }
+  }, [editorReady]);
+
   // Sync an EXTERNAL value change (e.g. a programmatic reset) into the editor.
   // The common case — our own onChange echoing back — is a no-op because the
   // incoming value already equals the document.
@@ -242,6 +252,13 @@ export function LiveMarkdownEditor({
     <div
       className="dh-md-editor"
       data-mode={mode}
+      // A stable, surface-agnostic readiness contract: `true` once the live
+      // CodeMirror writing surface has mounted and replaced the SSR/no-JS
+      // `<textarea>` fallback, `false` while the fallback is still the editing
+      // surface. Callers (and E2E) can gate on this instead of reaching for
+      // CodeMirror's internal `.cm-editor` class, which is an implementation
+      // detail of the library, not of this editor's public contract.
+      data-editor-ready={editorReady ? "true" : "false"}
       role="group"
       aria-label={label}
     >
