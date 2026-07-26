@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NOTE_FORMATTING_ACTIONS } from "~/modules/notes/note-formatting-actions";
+import { MARKDOWN_FORMATTING_ACTIONS } from "~/shared/markdown-editor/formatting-actions";
 
 /**
  * NOTES-04 — the writing toolbar's action catalogue. These assert the toolbar
@@ -24,21 +24,21 @@ const REQUIRED_IDS = [
   "table",
 ];
 
-describe("NOTE_FORMATTING_ACTIONS", () => {
+describe("MARKDOWN_FORMATTING_ACTIONS", () => {
   it("includes every required formatting action", () => {
-    const ids = NOTE_FORMATTING_ACTIONS.map((action) => action.id);
+    const ids = MARKDOWN_FORMATTING_ACTIONS.map((action) => action.id);
     for (const id of REQUIRED_IDS) {
       expect(ids).toContain(id);
     }
   });
 
   it("uses unique ids", () => {
-    const ids = NOTE_FORMATTING_ACTIONS.map((action) => action.id);
+    const ids = MARKDOWN_FORMATTING_ACTIONS.map((action) => action.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("gives every action a non-empty visible label and tooltip hint", () => {
-    for (const action of NOTE_FORMATTING_ACTIONS) {
+    for (const action of MARKDOWN_FORMATTING_ACTIONS) {
       expect(action.label.trim().length).toBeGreaterThan(0);
       expect(action.hint.trim().length).toBeGreaterThan(0);
     }
@@ -46,7 +46,7 @@ describe("NOTE_FORMATTING_ACTIONS", () => {
 
   it("every transform produces Markdown source with no HTML tags or JSON", () => {
     const samples = ["", "plain", "a\nb"];
-    for (const action of NOTE_FORMATTING_ACTIONS) {
+    for (const action of MARKDOWN_FORMATTING_ACTIONS) {
       for (const value of samples) {
         const result = action.transform({
           value,
@@ -61,7 +61,7 @@ describe("NOTE_FORMATTING_ACTIONS", () => {
   });
 
   it("transforms are pure — the same input yields the same output", () => {
-    for (const action of NOTE_FORMATTING_ACTIONS) {
+    for (const action of MARKDOWN_FORMATTING_ACTIONS) {
       const input = { value: "sample", selectionStart: 0, selectionEnd: 6 };
       const a = action.transform({ ...input });
       const b = action.transform({ ...input });

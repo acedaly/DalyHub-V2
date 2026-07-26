@@ -1,6 +1,9 @@
 /**
- * NOTES-04 — pure, React-free Markdown SOURCE transformations for the Notes
- * writing toolbar.
+ * NOTES-05 — pure, React-free Markdown SOURCE transformations for the shared
+ * writing editor's toolbar and keyboard shortcuts. Promoted verbatim to
+ * `~/shared/markdown-editor` from the NOTES-04 Notes-local module so the one
+ * writing-first editor across modules (Notes now, Diary next) shares a single,
+ * exhaustively-tested set of source transforms.
  *
  * These are string-in / string-out functions over the editor's current value
  * and selection. They exist so a user can apply common Markdown structures

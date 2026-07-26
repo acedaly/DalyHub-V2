@@ -1,0 +1,437 @@
+/**
+ * NOTES-05 — the shared writing-first Markdown editor (`~/shared/markdown-editor`).
+ *
+ * Styles the ONE live editor used by Notes (and, next, the Diary body). Composes
+ * ONLY DS-01 tokens for every colour/space/size/radius/font/duration (the
+ * token-discipline test scans this file); bare geometry (0, 100%, 1ch, em
+ * indents) is layout, not design values. Light/dark/forced-colors and
+ * reduced-motion are all handled here so the CodeMirror surface matches the
+ * product exactly.
+ *
+ * The visual live-preview classes (`.cm-dh-*`) are applied to Markdown SOURCE
+ * ranges by `live-decorations.ts`; styling them here (rather than injecting a
+ * JS theme) keeps all design values in tokens and in one reviewable place.
+ */
+
+.dh-md-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+/* Top bar: formatting toolbar on the left, save status + Read/Write toggle on
+ * the right. Wraps calmly on a narrow viewport. */
+.dh-md-editor__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+}
+
+.dh-md-editor__bar-end {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  flex: 0 0 auto;
+}
+
+.dh-md-editor__reading-note {
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+/* The Read/Write toggle. Its LABEL carries the state (it reads "Read" while
+ * writing, "Write" while reading), so meaning is never colour-only; aria-pressed
+ * carries it to assistive tech. */
+.dh-md-editor__mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-touch-target-min);
+  min-inline-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-secondary);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-md-editor__mode-toggle:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-md-editor__mode-toggle[aria-pressed="true"] {
+  color: var(--dh-color-text);
+  border-color: var(--dh-color-border-strong);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Formatting toolbar. Writing-first on a phone: a SINGLE horizontally-scrolling
+ * row (never several wrapped rows that eat the vertical writing space), so every
+ * control stays reachable by swipe while the editor keeps its height. Wraps to
+ * full visibility on a wide viewport.
+ * ------------------------------------------------------------------------- */
+.dh-md-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--dh-space-1);
+  align-items: center;
+  min-inline-size: 0;
+  padding: var(--dh-space-1);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.dh-md-toolbar__button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--dh-touch-target-min);
+  min-inline-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid transparent;
+  border-radius: var(--dh-radius-sm);
+  background: transparent;
+  color: var(--dh-color-text-secondary);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    color var(--dh-duration-fast) var(--dh-ease-standard),
+    border-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-md-toolbar__button:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+  border-color: var(--dh-color-border);
+}
+
+.dh-md-toolbar__button:active {
+  background: var(--dh-color-active-surface);
+}
+
+.dh-md-toolbar__button:disabled {
+  color: var(--dh-color-text-muted);
+  cursor: default;
+}
+
+@media (min-width: 48rem) {
+  .dh-md-toolbar {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Writing surface: the SSR/no-JS fallback textarea and the CodeMirror host share
+ * the same box so enhancement doesn't shift layout.
+ * ------------------------------------------------------------------------- */
+.dh-md-editor__surface {
+  min-inline-size: 0;
+}
+
+.dh-md-editor__fallback {
+  display: block;
+  inline-size: 100%;
+  min-block-size: max(40dvh, 16rem);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-bg);
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-base);
+  line-height: var(--dh-line-height-relaxed);
+  resize: vertical;
+}
+
+/* CodeMirror host. The library injects its own structural CSS; we override only
+ * the design surface here, all through tokens. */
+.dh-md-editor__cm {
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-bg);
+  overflow: hidden;
+}
+
+.dh-md-editor__cm:focus-within {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: var(--dh-border-width-thin);
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-md-editor__cm .cm-editor {
+  background: transparent;
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-sans);
+  font-size: var(--dh-font-size-base);
+  max-block-size: 70vh;
+}
+
+.dh-md-editor__cm .cm-editor.cm-focused {
+  outline: none; /* the wrapper carries the focus ring */
+}
+
+.dh-md-editor__cm .cm-scroller {
+  font-family: var(--dh-font-sans);
+  line-height: var(--dh-line-height-relaxed);
+}
+
+.dh-md-editor__cm .cm-content {
+  padding: var(--dh-space-4);
+  caret-color: var(--dh-color-accent);
+  max-inline-size: var(--dh-width-prose);
+}
+
+.dh-md-editor__cm .cm-cursor,
+.dh-md-editor__cm .cm-dropCursor {
+  border-left-color: var(--dh-color-text);
+}
+
+.dh-md-editor__cm .cm-selectionBackground,
+.dh-md-editor__cm .cm-focused .cm-selectionBackground,
+.dh-md-editor__cm .cm-line ::selection {
+  background: var(--dh-color-selection-bg);
+}
+
+.dh-md-editor__cm .cm-placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+/* --- Live-preview construct styling (applied to source ranges) ------------ */
+
+.dh-md-editor__cm .cm-dh-heading {
+  font-weight: var(--dh-font-weight-bold);
+  line-height: var(--dh-line-height-normal);
+}
+.dh-md-editor__cm .cm-dh-h1 {
+  font-size: var(--dh-font-size-2xl);
+}
+.dh-md-editor__cm .cm-dh-h2 {
+  font-size: var(--dh-font-size-xl);
+}
+.dh-md-editor__cm .cm-dh-h3 {
+  font-size: var(--dh-font-size-lg);
+}
+.dh-md-editor__cm .cm-dh-h4 {
+  font-size: var(--dh-font-size-md);
+}
+.dh-md-editor__cm .cm-dh-h5,
+.dh-md-editor__cm .cm-dh-h6 {
+  font-size: var(--dh-font-size-base);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-md-editor__cm .cm-dh-strong {
+  font-weight: var(--dh-font-weight-bold);
+}
+.dh-md-editor__cm .cm-dh-em {
+  font-style: italic;
+}
+.dh-md-editor__cm .cm-dh-strike {
+  text-decoration: line-through;
+  color: var(--dh-color-text-secondary);
+}
+.dh-md-editor__cm .cm-dh-inline-code {
+  font-family: var(--dh-font-mono);
+  font-size: 0.9em;
+  padding: 0 var(--dh-space-1);
+  border-radius: var(--dh-radius-xs);
+  background: var(--dh-color-surface-sunken);
+}
+.dh-md-editor__cm .cm-dh-link {
+  color: var(--dh-color-accent-text);
+  text-decoration: underline;
+}
+
+.dh-md-editor__cm .cm-dh-quote {
+  padding-inline-start: var(--dh-space-3);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-border-strong);
+  color: var(--dh-color-text-secondary);
+  font-style: italic;
+}
+
+.dh-md-editor__cm .cm-dh-callout {
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-info-text);
+  background: var(--dh-color-info-surface);
+  color: var(--dh-color-info-text);
+}
+.dh-md-editor__cm .cm-dh-callout-warning,
+.dh-md-editor__cm .cm-dh-callout-caution {
+  border-inline-start-color: var(--dh-color-warning-text);
+  background: var(--dh-color-warning-surface);
+  color: var(--dh-color-warning-text);
+}
+.dh-md-editor__cm .cm-dh-callout-danger,
+.dh-md-editor__cm .cm-dh-callout-error {
+  border-inline-start-color: var(--dh-color-danger-text);
+  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-danger-text);
+}
+.dh-md-editor__cm .cm-dh-callout-tip,
+.dh-md-editor__cm .cm-dh-callout-success {
+  border-inline-start-color: var(--dh-color-success-text);
+  background: var(--dh-color-success-surface);
+  color: var(--dh-color-success-text);
+}
+
+.dh-md-editor__cm .cm-dh-code-block {
+  font-family: var(--dh-font-mono);
+  font-size: 0.9em;
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-md-editor__cm .cm-dh-hr {
+  padding-block: var(--dh-space-2);
+}
+.dh-md-editor__cm .cm-dh-hr hr {
+  margin: 0;
+  border: none;
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+}
+
+/* Interactive task checkbox replacing the `[ ]` marker. */
+.dh-md-editor__cm .cm-dh-task {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: baseline;
+}
+.dh-md-editor__cm .cm-dh-task__checkbox {
+  inline-size: 1em;
+  block-size: 1em;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--dh-color-accent);
+}
+
+/* Non-fetching image placeholder. */
+.dh-md-editor__cm .cm-dh-image {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) dashed var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-sunken);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+}
+
+/* Rendered GFM table widget. */
+.dh-md-editor__cm .cm-dh-table {
+  overflow-x: auto;
+  margin-block: var(--dh-space-2);
+}
+.dh-md-editor__cm .cm-dh-table table {
+  border-collapse: collapse;
+  inline-size: max-content;
+  max-inline-size: 100%;
+  font-size: var(--dh-font-size-sm);
+}
+.dh-md-editor__cm .cm-dh-table th,
+.dh-md-editor__cm .cm-dh-table td {
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  text-align: start;
+}
+.dh-md-editor__cm .cm-dh-table th {
+  background: var(--dh-color-surface-sunken);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Reading mode: the note rendered through the FND-08 pipeline, at a comfortable
+ * prose measure.
+ * ------------------------------------------------------------------------- */
+.dh-md-editor__reading {
+  max-inline-size: var(--dh-width-prose);
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-bg);
+  overflow-wrap: anywhere;
+}
+
+.dh-md-editor__reading-empty,
+.dh-md-editor__reading-loading,
+.dh-md-editor__reading-error {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+}
+
+/* Help + validation messages. */
+.dh-md-editor__messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+.dh-md-editor__help {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+}
+.dh-md-editor__error {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  margin: 0;
+  color: var(--dh-color-danger-text);
+  font-size: var(--dh-font-size-sm);
+}
+.dh-md-editor__error-icon {
+  font-weight: var(--dh-font-weight-bold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-md-editor__mode-toggle,
+  .dh-md-toolbar__button {
+    transition: none;
+  }
+}
+
+/* Writing-first mobile: give the surface a generous share of the viewport so it
+ * never collapses to a tiny box, while the page stays the single scroll surface.
+ * `dvh` tracks the visible viewport as the software keyboard appears. */
+@media (max-width: 47.999rem) {
+  .dh-md-editor__cm .cm-editor {
+    min-block-size: max(40dvh, 12rem);
+  }
+  .dh-md-editor__cm .cm-scroller {
+    max-block-size: 60dvh;
+  }
+}
+
+/* Forced-colors: keep construct meaning via non-colour cues (borders, weight)
+ * and let the system palette drive surfaces. */
+@media (forced-colors: active) {
+  .dh-md-editor__cm:focus-within {
+    outline-color: Highlight;
+  }
+  .dh-md-editor__cm .cm-dh-callout,
+  .dh-md-editor__cm .cm-dh-quote {
+    border-inline-start-color: CanvasText;
+  }
+}

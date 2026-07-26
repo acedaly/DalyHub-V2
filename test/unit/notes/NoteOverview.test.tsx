@@ -16,6 +16,14 @@ import type {
 } from "~/modules/notes/note-view";
 import { FeedbackProvider } from "~/shared/feedback";
 
+// Force the live editor's accessible `<textarea>` fallback in happy-dom (see the
+// note in NoteContentForm.test.tsx): CodeMirror mounts only in a real browser.
+vi.mock("~/shared/markdown-editor/editor-setup", () => ({
+  createEditorExtensions: () => {
+    throw new Error("CodeMirror is not mounted in unit tests");
+  },
+}));
+
 /**
  * NOTES-01B/NOTES-01C — the canonical Note record: generic entity identity
  * (title, Rename, Delete), the minimal "Note"/"Activity" tab structure (no

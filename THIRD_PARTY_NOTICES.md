@@ -61,6 +61,58 @@ licensed (allowed by default per the Open Source Policy).
 | `isbot`        | 5.2.1   | MIT     |
 | `jose`         | 6.2.3   | MIT     |
 
+### Live Markdown editor (NOTES-05) — CodeMirror 6
+
+The writing-first Note editor (`~/shared/markdown-editor`, [ADR-044](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline))
+is built on **CodeMirror 6** as an authoring surface only — it always saves plain
+Markdown source through the unchanged FND-08 pipeline (no second parser,
+sanitiser or HTML sink). These packages are code-split and lazy-loaded onto the
+note-editor route. The direct dependencies and their entire transitive
+`@codemirror/*` / `@lezer/*` tree are **MIT**, verified against the exact
+installed versions on **2026-07-25** and pinned in `pnpm-lock.yaml`.
+
+| Package                      | Version | Licence |
+| ---------------------------- | ------- | ------- |
+| `@codemirror/state`          | 6.7.1   | MIT     |
+| `@codemirror/view`           | 6.43.6  | MIT     |
+| `@codemirror/commands`       | 6.10.4  | MIT     |
+| `@codemirror/language`       | 6.12.4  | MIT     |
+| `@codemirror/lang-markdown`  | 6.5.1   | MIT     |
+| `@lezer/markdown`            | 1.7.2   | MIT     |
+| `@lezer/highlight`           | 1.2.3   | MIT     |
+| `@lezer/common`              | 1.5.2   | MIT     |
+
+Transitive packages pulled in by the above, also **MIT**:
+`@codemirror/autocomplete` 6.20.3, `@codemirror/lang-html` 6.4.11,
+`@codemirror/lang-css` 6.3.1, `@codemirror/lang-javascript` 6.2.5,
+`@lezer/lr` 1.4.10, `@lezer/html` 1.3.13, `@lezer/css` 1.3.4,
+`@lezer/javascript` 1.5.4, `crelt` 1.0.7, `style-mod` 4.1.3,
+`w3c-keyname` 2.2.8.
+
+```
+MIT License
+
+Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+```
+
 ---
 
 ## Toolchain (development) dependencies

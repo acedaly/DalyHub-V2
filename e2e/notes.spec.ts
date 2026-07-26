@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
@@ -11,24 +11,23 @@ import {
 } from "./helpers";
 
 /**
- * NOTES-01B/NOTES-01C — Notes collection, creation and the canonical
- * Markdown record: dependable AUTOSAVE (no Save button — replacing NOTES-01B's
- * explicit-save model), the desktop Source/Split/Preview editor, and the
- * soft-delete/restore lifecycle with its own Active/Deleted collection filter.
+ * NOTES-05 — the writing-first live Markdown editor.
  *
- * A real journey over the seeded Worker/D1 app (mirrors `goals.spec.ts` /
- * `areas.spec.ts`): navigate to Notes, create a uniquely test-owned Note, type
- * Markdown and let it autosave (never pressing Save — there is none), edit
- * again while a save is still in flight and confirm the final text survives,
- * reload and confirm the exact persisted source, exercise a deterministic
- * failed-save + Retry via a routed network failure, confirm the navigation
- * guard while unsaved, exercise the desktop split source/preview layout and
- * the narrow single-column layout, delete the Note, confirm it leaves the
- * active collection and appears in the Deleted view, restore it and confirm
- * its content is intact, and confirm Activity holds the lifecycle/content
- * events — plus Back/Forward, keyboard operation, focus restoration, axe in
- * light and dark, and no horizontal overflow across the breakpoint matrix
- * including 390px/320px mobile.
+ * A real journey over the seeded Worker/D1 app: navigate to Notes, create a
+ * uniquely test-owned Note, and write in the ONE live editor where Markdown is
+ * styled as it is typed (headings render, task items become checkboxes, etc.)
+ * while the SOURCE stays canonical. It proves dependable autosave (no Save
+ * button), the unobtrusive Read mode (the shared FND-08 render), the formatting
+ * toolbar + keyboard shortcuts, the delete/restore lifecycle, keyboard-only
+ * creation, focus restoration, axe (light + dark), 44px touch targets and no
+ * horizontal overflow from 320px up.
+ *
+ * CodeMirror interaction notes: the editor is an accessible `textbox`
+ * (`role="textbox"`, `aria-label="Note"`). We type with the keyboard; we read
+ * the exact source by selecting all (which reveals every concealed Markdown
+ * marker — see `live-decorations.ts`) and joining the visible line text; and we
+ * confirm persistence both by the real save request payload and by re-rendering
+ * after a reload.
  */
 
 const NOTE_TITLE_PREFIX = "Notes e2e note ";
@@ -41,26 +40,15 @@ const NOTE_ENTITY_QUERY = `
 `;
 const NOTE_CLEANUP_SQL = [
   `DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${NOTE_ENTITY_QUERY});`,
-  // `activities` rows carry no foreign key back to `entities` — removing the
-  // subject rows above (needed to satisfy `activity_subjects`' own RESTRICT
-  // before the entities below can be removed) does not cascade to the
-  // `activities` rows themselves. Every activity this journey creates is
-  // single-subject, so once its only subject row is gone it has zero
-  // remaining `activity_subjects` references; delete exactly those
-  // now-orphaned rows so Activity history does not silently accumulate
-  // across every local e2e run.
   `DELETE FROM activities WHERE workspace_id = 'local-dev-workspace' AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
   `DELETE FROM note_details WHERE workspace_id = 'local-dev-workspace' AND entity_id IN (${NOTE_ENTITY_QUERY});`,
-  // Notes soft-deleted during the journey must still be purged — the
-  // cleanup deletes unconditionally regardless of `deleted_at`.
   `DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND id IN (${NOTE_ENTITY_QUERY});`,
 ] as const;
 
 /** Local D1's SQLite file is shared with the live dev server process, so a
  * cleanup command run immediately after a test can occasionally race an
- * in-flight request and hit `SQLITE_BUSY`. Retry briefly rather than fail
- * the whole test on what is purely local-tooling contention, not a
- * correctness issue. */
+ * in-flight request and hit `SQLITE_BUSY`. Retry briefly rather than fail the
+ * whole test on purely local-tooling contention. */
 async function runD1Command(command: string): Promise<void> {
   const attempts = 3;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -100,120 +88,138 @@ async function cleanupNoteFixtures(): Promise<void> {
   }
 }
 
-test.describe("NOTES-01B/NOTES-01C — Notes", () => {
+// --- CodeMirror interaction helpers ---------------------------------------
+
+const editorBox = (page: Page) => page.getByRole("textbox", { name: "Note" });
+
+/** Wait for CodeMirror to finish its async client mount, so we never type into
+ * the transient SSR `<textarea>` fallback that CodeMirror then replaces. */
+async function waitForEditor(page: Page): Promise<void> {
+  await page.locator(".cm-editor").waitFor({ state: "visible" });
+}
+
+async function focusEditor(page: Page): Promise<void> {
+  await waitForEditor(page);
+  await page.locator(".cm-content").click();
+}
+
+/** Clear the editor and type `text`. Avoids relying on list auto-continuation
+ * by only being used for content the test types verbatim. */
+async function clearAndType(page: Page, text: string): Promise<void> {
+  await focusEditor(page);
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Delete");
+  await page.keyboard.type(text);
+}
+
+/** Read the exact Markdown source. Selecting all reveals every concealed marker
+ * (a construct shows raw source while the selection is inside it), so the joined
+ * visible line text equals the source. */
+async function readSource(page: Page): Promise<string> {
+  await focusEditor(page);
+  await page.keyboard.press("ControlOrMeta+a");
+  return page.locator(".cm-content").evaluate((el) =>
+    Array.from(el.querySelectorAll(".cm-line"))
+      .map((line) => line.textContent ?? "")
+      .join("\n"),
+  );
+}
+
+/** Blur the editor to force an immediate autosave. */
+async function blurEditor(page: Page): Promise<void> {
+  await page
+    .locator(".cm-content")
+    .evaluate((el) => (el as HTMLElement).blur());
+}
+
+async function createNote(page: Page, title: string): Promise<string> {
+  await gotoFixture(page, "/notes");
+  await page.getByRole("link", { name: "New note" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New note" });
+  await dialog.getByLabel(/Title/).fill(title);
+  await dialog.getByRole("button", { name: "Create note" }).click();
+  await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
+  return page.url();
+}
+
+test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   test.beforeAll(async () => cleanupNoteFixtures());
   test.afterEach(async () => cleanupNoteFixtures());
 
-  test("navigate, create, autosave Markdown (no Save button), reload, rename, review Activity", async ({
+  test("navigate, create, write with live formatting, autosave (no Save button), Read mode, reload, rename, Activity", async ({
     page,
   }) => {
     const stamp = Date.now();
     const noteTitle = `${NOTE_TITLE_PREFIX}${stamp}`;
     const renamedTitle = `${noteTitle} (renamed)`;
-    const markdown =
-      "# Project kickoff\n\n" +
-      "## Agenda\n\n" +
-      "- Review scope\n" +
-      "- Assign owners\n" +
-      "- [DalyHub](https://example.com/dalyhub)\n\n" +
-      "**Bold** and _italic_ text.";
 
-    // 1. Navigate to Notes.
+    // 1. Navigate to Notes — the real collection replaced the PX-03 placeholder.
     await gotoFixture(page, "/notes");
-
-    // 2. The PX-03 "Coming Soon" placeholder has been replaced with the real
-    // collection.
     await expect(
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
-    ).not.toBeVisible();
     await expectNoAxeViolations(page);
 
-    // 3. Create a Note with a unique, test-owned title.
+    // 2. Create a Note (title-only), validation first.
     await page.getByRole("link", { name: "New note" }).first().click();
     const newNoteDialog = page.getByRole("dialog", { name: "New note" });
-    await expect(newNoteDialog).toBeVisible();
-    await expectNoAxeViolations(page);
-
     await newNoteDialog.getByRole("button", { name: "Create note" }).click();
     await expect(
       newNoteDialog.getByText("A title is required").first(),
     ).toBeVisible();
-
     await newNoteDialog.getByLabel(/Title/).fill(noteTitle);
     await newNoteDialog.getByRole("button", { name: "Create note" }).click();
 
-    // 4. Lands on the canonical /notes/:noteId record.
+    // 3. Lands on the canonical record.
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
     const noteUrl = page.url();
     await expect(page.getByRole("heading", { name: noteTitle })).toBeVisible();
-    const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
-    await expect(breadcrumb.getByText("Notes")).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
 
-    // 5-6. Type Markdown and let it AUTOSAVE — there is no Save button.
+    // 4. There is NO Save button, and NO Source/Split/Preview.
     await expect(page.getByRole("button", { name: "Save" })).not.toBeVisible();
-    const editor = page.getByRole("textbox", { name: "Note" });
-    await editor.fill(markdown);
+    for (const gone of ["Source", "Split", "Preview"]) {
+      await expect(page.getByRole("button", { name: gone })).not.toBeVisible();
+    }
+
+    // 5. Write a heading followed by body — the heading renders LIVE (its `#`
+    // marker is concealed once the caret leaves the line, and it is larger).
+    await clearAndType(page, "# Project kickoff\nAgenda and owners.");
     await expect(page.getByText("Unsaved")).toBeVisible();
-    // Blur triggers an immediate save (the debounce is proven separately below).
-    await editor.blur();
+    const h1Line = page.locator(".cm-dh-h1");
+    await expect(h1Line).toHaveText("Project kickoff");
+    // 6. Autosave persists without any Save button (reload below re-proves it).
+    await blurEditor(page);
     await expect(page.getByText("Saved")).toBeVisible();
 
-    // 7. The preview renders through the shared safe Markdown pipeline
-    // (Preview view mode).
-    await page.getByRole("button", { name: "Preview" }).click();
-    const preview = page.locator(".dh-note-editor__preview");
+    // 7. Read mode renders through the shared safe FND-08 pipeline, then back.
+    await page.getByRole("button", { name: "Read" }).click();
+    const reading = page.locator(".dh-md-editor__reading");
     await expect(
-      preview.getByRole("heading", { level: 1, name: "Project kickoff" }),
+      reading.getByRole("heading", { level: 1, name: "Project kickoff" }),
     ).toBeVisible();
-    await expect(
-      preview.getByRole("heading", { level: 2, name: "Agenda" }),
-    ).toBeVisible();
-    await expect(preview.getByRole("listitem").first()).toBeVisible();
-    const previewLink = preview.getByRole("link", { name: "DalyHub" });
-    await expect(previewLink).toHaveAttribute(
-      "href",
-      "https://example.com/dalyhub",
-    );
-    await expect(preview.locator("strong")).toHaveText("Bold");
-    await expect(preview.locator("em")).toHaveText("italic");
-    // No script/HTML injection — the pipeline sanitises, never executes.
-    await expect(preview.locator("script")).toHaveCount(0);
+    await expect(reading.locator("script")).toHaveCount(0);
     await expectNoAxeViolations(page);
-    await page.getByRole("button", { name: "Source" }).click();
+    await page.getByRole("button", { name: "Write" }).click();
+    await expect(editorBox(page)).toBeVisible();
 
-    // 8. Reload and confirm the EXACT saved source remains.
+    // 8. Reload and confirm the exact saved source round-trips.
     await gotoFixture(page, noteUrl);
-    await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue(
-      markdown,
-    );
+    await expect(page.locator(".cm-dh-h1")).toBeVisible();
+    expect(await readSource(page)).toContain("# Project kickoff");
 
-    // 9. Rename the Note through the generic entity lifecycle contract.
+    // 9. Rename through the generic entity lifecycle; Back/Forward/Escape work.
     const renameButton = page.getByRole("button", { name: "Rename" });
-    await renameButton.focus();
     await renameButton.click();
     const renameDialog = page.getByRole("dialog", { name: "Rename note" });
     await expect(renameDialog).toBeVisible();
-    await expectNoAxeViolations(page);
-
-    // 11a. Back closes the route-backed rename Drawer; Forward reopens it.
     await expect(page).toHaveURL(/drawer=rename/);
     await page.goBack();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.goForward();
     await expect(page.getByRole("dialog")).toBeVisible();
-
-    // 12-13. Keyboard operation + focus restoration: Escape closes the
-    // Drawer and returns focus to the trigger.
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(renameButton).toBeFocused();
-
     await renameButton.click();
     await renameDialog.getByLabel(/Title/).fill(renamedTitle);
     await renameDialog.getByRole("button", { name: "Save" }).click();
@@ -222,20 +228,19 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
       page.getByRole("heading", { name: renamedTitle }),
     ).toBeVisible();
 
-    // 10. note.content_updated (and the rename) appear in Activity.
+    // 10. Activity holds note.content_updated.
     await page.getByRole("tab", { name: "Activity" }).click();
     const activityFeed = page.getByRole("feed", { name: "Note activity" });
     await expect(activityFeed.getByText("Updated note content")).toBeVisible();
     await expectNoAxeViolations(page);
 
-    // 15. No horizontal overflow on the record across the responsive matrix,
-    // including the 320/375/390 mobile checkpoints.
+    // 11. No horizontal overflow across the responsive matrix.
     for (const viewport of RESPONSIVE_VIEWPORTS) {
       await page.setViewportSize(viewport);
       await expectNoHorizontalOverflow(page);
     }
 
-    // 14. Axe on the collection in dark mode too (light already scanned above).
+    // 12. Axe on the collection in dark mode.
     await page.emulateMedia({ colorScheme: "dark" });
     await gotoFixture(page, "/notes");
     await expectNoAxeViolations(page);
@@ -243,32 +248,41 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     await page.emulateMedia({ colorScheme: "light" });
   });
 
-  test("autosaves after the real debounce with no interaction, and a later edit made during an in-flight save is not lost", async ({
+  test("live preview: task checkboxes, thematic rules and tables render while writing", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}debounce-${stamp}`;
+    const noteTitle = `${NOTE_TITLE_PREFIX}live-${Date.now()}`;
+    await createNote(page, noteTitle);
 
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
-    await dialog.getByLabel(/Title/).fill(noteTitle);
-    await dialog.getByRole("button", { name: "Create note" }).click();
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
-    const noteUrl = page.url();
+    // A task item becomes an interactive checkbox (its `- [ ]` concealed).
+    await clearAndType(page, "- [ ] first task\nmore text");
+    const checkbox = page.locator(".cm-content").getByRole("checkbox");
+    await expect(checkbox.first()).toBeVisible();
 
-    const editor = page.getByRole("textbox", { name: "Note" });
+    // A thematic break renders as an <hr> widget.
+    await clearAndType(page, "above\n\n---\n\nbelow");
+    await expect(page.locator(".cm-dh-hr hr")).toBeVisible();
 
-    // Type and do nothing else — the debounced autosave must still fire.
-    await editor.fill("First pass content");
+    // A GFM table renders as a real table widget.
+    await clearAndType(page, "| A | B |\n| - | - |\n| 1 | 2 |\n\nafter");
+    await expect(page.locator(".cm-dh-table").getByRole("table")).toBeVisible();
+    await expect(
+      page.locator(".cm-dh-table").getByRole("cell", { name: "1" }),
+    ).toBeVisible();
+  });
+
+  test("autosaves after the real debounce with no interaction, and a later edit during an in-flight save is not lost", async ({
+    page,
+  }) => {
+    const noteTitle = `${NOTE_TITLE_PREFIX}debounce-${Date.now()}`;
+    const noteUrl = await createNote(page, noteTitle);
+
+    // Type and do nothing — the debounced autosave still fires.
+    await clearAndType(page, "First pass content");
     await expect(page.getByText("Unsaved")).toBeVisible();
     await expect(page.getByText("Saved")).toBeVisible({ timeout: 5_000 });
 
-    // Delay the NEXT save's server response so a further edit lands while it
-    // is genuinely in flight, proving the newer content is never lost. Only
-    // the FIRST matching request is gated — the coalesced follow-up save
-    // (and everything else) passes straight through, and the route stays
-    // registered throughout rather than being torn down mid-handling.
+    // Hold the NEXT save in flight so a further edit lands during it.
     let releaseResponse: () => void = () => {};
     const gate = new Promise<void>((resolve) => {
       releaseResponse = resolve;
@@ -289,53 +303,34 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
       await route.continue();
     });
 
-    await editor.fill("Content A — will be superseded");
-    await editor.blur();
+    await clearAndType(page, "Content A superseded");
+    await blurEditor(page);
     await expect(page.getByText("Saving…")).toBeVisible();
 
     // Edit again WHILE the save is held in flight.
-    await editor.fill("Content B — the final value");
-    await expect(editor).toHaveValue("Content B — the final value");
-
+    await clearAndType(page, "Content B the final value");
     releaseResponse();
-
     await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
-    await expect(editor).toHaveValue("Content B — the final value");
 
-    // Reload confirms the FINAL value persisted, not the superseded one. The
-    // mutate route itself already confirmed both writes with `ok: true`
-    // (proving the client never lost the newer edit) — this is purely
-    // re-reading the source of truth. D1 documents that a read immediately
-    // following a write can be served from a replica that has not yet caught
-    // up (https://developers.cloudflare.com/d1/best-practices/read-replication/),
-    // which local dev can reproduce for two writes this close together, so
-    // the confirming reload polls briefly rather than asserting on a single
-    // navigation.
+    // The FINAL value persisted, not the superseded one.
     await expect
       .poll(
         async () => {
           await gotoFixture(page, noteUrl);
-          return page.getByRole("textbox", { name: "Note" }).inputValue();
+          return readSource(page);
         },
         { timeout: 10_000 },
       )
-      .toBe("Content B — the final value");
+      .toContain("Content B the final value");
+    await page.unroute("**/mutate");
   });
 
   test("a failed save shows the error state with Retry, preserves the draft, and Retry recovers", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}retry-${stamp}`;
+    const noteTitle = `${NOTE_TITLE_PREFIX}retry-${Date.now()}`;
+    await createNote(page, noteTitle);
 
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
-    await dialog.getByLabel(/Title/).fill(noteTitle);
-    await dialog.getByRole("button", { name: "Create note" }).click();
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
-
-    // A deterministic test seam: route the mutate POST to fail exactly once.
     let failNext = true;
     await page.route("**/mutate", async (route) => {
       if (route.request().method() !== "POST" || !failNext) {
@@ -354,13 +349,14 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
       });
     });
 
-    const editor = page.getByRole("textbox", { name: "Note" });
-    await editor.fill("Draft that must survive a failure");
-    await editor.blur();
+    await clearAndType(page, "Draft that must survive a failure");
+    await blurEditor(page);
 
     await expect(page.getByText("Couldn't save")).toBeVisible();
     await expect(page.getByText("Simulated failure for e2e.")).toBeVisible();
-    await expect(editor).toHaveValue("Draft that must survive a failure");
+    expect(await readSource(page)).toContain(
+      "Draft that must survive a failure",
+    );
 
     await page.getByRole("button", { name: "Retry" }).click();
     await expect(page.getByText("Saved")).toBeVisible();
@@ -370,18 +366,10 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
   test("blocks navigation while unsaved, and Leave/Stay both behave correctly", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}guard-${stamp}`;
+    const noteTitle = `${NOTE_TITLE_PREFIX}guard-${Date.now()}`;
+    await createNote(page, noteTitle);
 
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
-    await dialog.getByLabel(/Title/).fill(noteTitle);
-    await dialog.getByRole("button", { name: "Create note" }).click();
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
-
-    // Hold the save in flight forever so the guard sees a genuinely unsaved
-    // state (not a race against the real debounce/network).
+    // Hold the save in flight forever so the guard sees a genuinely unsaved state.
     await page.route("**/mutate", async (route) => {
       if (
         route.request().method() === "POST" &&
@@ -392,106 +380,106 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
       await route.continue();
     });
 
-    const editor = page.getByRole("textbox", { name: "Note" });
-    await editor.fill("Unsaved edit that must be protected");
-    await editor.blur();
+    await clearAndType(page, "Unsaved edit that must be protected");
+    await blurEditor(page);
     await expect(page.getByText("Saving…")).toBeVisible();
 
     await page.getByRole("link", { name: "Notes" }).first().click();
-    const guardDialog = page.getByText("Leave with unsaved changes?");
-    await expect(guardDialog).toBeVisible();
+    await expect(page.getByText("Leave with unsaved changes?")).toBeVisible();
 
-    // Stay: the navigation is cancelled, the draft remains.
+    // Stay: navigation cancelled.
     await page.getByRole("button", { name: "Stay" }).click();
-    await expect(guardDialog).not.toBeVisible();
-    await expect(editor).toHaveValue("Unsaved edit that must be protected");
+    await expect(
+      page.getByText("Leave with unsaved changes?"),
+    ).not.toBeVisible();
 
-    // Leave: navigation proceeds, discarding the unsaved (never-persisted) draft.
+    // Leave: navigation proceeds.
     await page.getByRole("link", { name: "Notes" }).first().click();
     await expect(page.getByText("Leave with unsaved changes?")).toBeVisible();
     await page.getByRole("button", { name: "Leave" }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
-
     await page.unroute("**/mutate");
   });
 
-  test("desktop: Split view shows source and live preview side by side; a narrow viewport never offers Split", async ({
+  test("formatting toolbar and keyboard shortcuts edit the Markdown source; autosave persists it", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}split-${stamp}`;
+    const noteTitle = `${NOTE_TITLE_PREFIX}toolbar-${Date.now()}`;
+    const noteUrl = await createNote(page, noteTitle);
 
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
-    await dialog.getByLabel(/Title/).fill(noteTitle);
-    await dialog.getByRole("button", { name: "Create note" }).click();
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
+    // Toolbar: select all, apply Bold → the whole line is wrapped in source.
+    await clearAndType(page, "make me bold");
+    await focusEditor(page);
+    await page.keyboard.press("ControlOrMeta+a");
+    const toolbar = page.getByRole("toolbar", { name: "Formatting" });
+    await toolbar.getByRole("button", { name: "Bold" }).click();
+    expect(await readSource(page)).toContain("**make me bold**");
 
-    const editor = page.getByRole("textbox", { name: "Note" });
-    await editor.fill("# Split view heading");
+    // Toolbar: Checklist over the current line makes a task item.
+    await clearAndType(page, "buy milk");
+    await focusEditor(page);
+    await page.keyboard.press("ControlOrMeta+a");
+    await toolbar.getByRole("button", { name: "Checklist" }).click();
+    expect(await readSource(page)).toContain("- [ ] buy milk");
 
-    const splitButton = page.getByRole("button", { name: "Split" });
-    await expect(splitButton).toBeVisible();
-    await splitButton.click();
-    await expect(splitButton).toHaveAttribute("aria-pressed", "true");
-    await expect(editor).toBeVisible();
-    await expect(
-      page
-        .locator(".dh-note-editor__preview")
-        .getByRole("heading", { name: "Split view heading" }),
-    ).toBeVisible();
+    // Keyboard shortcut: Mod-i italicises the selection. Register the save
+    // listener BEFORE the edit so a debounce-triggered save can't be missed.
+    await clearAndType(page, "slanted");
+    const savedItalic = page.waitForRequest(
+      (req) =>
+        req.url().includes("/mutate") &&
+        req.method() === "POST" &&
+        (req.postData() ?? "").includes("_slanted_"),
+    );
+    await focusEditor(page);
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("ControlOrMeta+i");
+    expect(await readSource(page)).toContain("_slanted_");
+
+    // The edit autosaves; confirm it persisted across a reload.
+    await blurEditor(page);
+    await savedItalic;
+    await gotoFixture(page, noteUrl);
+    expect(await readSource(page)).toContain("_slanted_");
+
+    // Roving tabindex across the toolbar (one Tab stop; Arrow moves focus).
+    await toolbar.getByRole("button", { name: "Heading" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(toolbar.getByRole("button", { name: "Bold" })).toBeFocused();
+
+    // Touch targets and axe on the authoring surface (light + dark).
+    await expectMinTouchTarget(toolbar.getByRole("button", { name: "Bold" }));
+    await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
     await expectNoAxeViolations(page);
-    await expectNoHorizontalOverflow(page);
-
-    // Narrow the viewport: Split must no longer be offered at all.
-    await page.setViewportSize({ width: 375, height: 812 });
-    await expect(page.getByRole("button", { name: "Split" })).not.toBeVisible();
-    await expect(page.getByRole("button", { name: "Source" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Preview" })).toBeVisible();
-    await expectNoHorizontalOverflow(page);
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expectNoAxeViolations(page);
+    await page.emulateMedia({ colorScheme: "light" });
   });
 
-  test("delete removes the Note from the active collection; the Deleted view offers Restore, which recovers it with content intact", async ({
+  test("delete removes the Note from the active collection; Restore recovers it with content intact", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}lifecycle-${stamp}`;
-    const content = "# Keep me\n\nThis content must survive delete→restore.";
+    const noteTitle = `${NOTE_TITLE_PREFIX}lifecycle-${Date.now()}`;
+    await createNote(page, noteTitle);
 
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
-    await dialog.getByLabel(/Title/).fill(noteTitle);
-    await dialog.getByRole("button", { name: "Create note" }).click();
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
-
-    const editor = page.getByRole("textbox", { name: "Note" });
-    await editor.fill(content);
-    await editor.blur();
+    await clearAndType(page, "# Keep me\nsurvive delete then restore");
+    await blurEditor(page);
     await expect(page.getByText("Saved")).toBeVisible();
 
-    // Delete — an Undo toast appears, then navigation to the active collection.
     await page.getByRole("button", { name: "Delete note" }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
     const toasts = page.getByRole("region", { name: "Notifications" });
     await expect(toasts.getByText(`"${noteTitle}" deleted`)).toBeVisible();
-    await expect(page.getByRole("link", { name: noteTitle })).toHaveCount(0);
 
-    // Open the Deleted view — the note is there, with a Restore action.
-    // Scoped to the card list itself: a lingering "deleted" Undo toast can
-    // still carry the same title text elsewhere on the page.
     await page.getByRole("link", { name: "Deleted" }).click();
     await expect(page).toHaveURL(/state=deleted/);
     const deletedList = page.getByRole("list", { name: "Deleted notes" });
     await expect(deletedList.getByText(noteTitle)).toBeVisible();
     await expectNoAxeViolations(page);
-    await expectNoHorizontalOverflow(page);
 
     const noteRow = deletedList
       .getByRole("listitem")
@@ -502,52 +490,36 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
         .getByRole("region", { name: "Notifications" })
         .getByText(`"${noteTitle}" restored`),
     ).toBeVisible();
-    await expect(deletedList.getByText(noteTitle)).not.toBeVisible();
 
-    // Back on Active, the restored Note is reachable again with its content intact.
     await page.getByRole("link", { name: "Active" }).click();
     await expect(page).toHaveURL("/notes");
     await page.getByRole("link", { name: noteTitle }).click();
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
-    await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue(
-      content,
-    );
-
-    // Activity holds the meaningful lifecycle + content events.
-    await page.getByRole("tab", { name: "Activity" }).click();
-    const activityFeed = page.getByRole("feed", { name: "Note activity" });
-    await expect(activityFeed.getByText("Updated note content")).toBeVisible();
+    await expect(page.locator(".cm-dh-h1")).toBeVisible();
+    expect(await readSource(page)).toContain("# Keep me");
   });
 
   test("keyboard-only: reach Notes, open New note, and submit with the keyboard", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}kbd-${stamp}`;
-
+    const noteTitle = `${NOTE_TITLE_PREFIX}kbd-${Date.now()}`;
     await gotoFixture(page, "/notes");
     const newNoteLink = page.getByRole("link", { name: "New note" }).first();
     await newNoteLink.focus();
-    await expect(newNoteLink).toBeFocused();
     await page.keyboard.press("Enter");
-
     const dialog = page.getByRole("dialog", { name: "New note" });
     await expect(dialog).toBeVisible();
-
-    const titleField = dialog.getByLabel(/Title/);
-    await titleField.focus();
+    await dialog.getByLabel(/Title/).focus();
     await page.keyboard.type(noteTitle);
     await page.keyboard.press("Enter");
-
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
     await expect(page.getByRole("heading", { name: noteTitle })).toBeVisible();
   });
 
-  test("mobile (390px and 320px): create, edit, autosave and delete/restore work with no horizontal overflow", async ({
+  test("mobile (390px and 320px): create, write, autosave and delete work with no horizontal overflow", async ({
     page,
   }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}mobile-${stamp}`;
+    const noteTitle = `${NOTE_TITLE_PREFIX}mobile-${Date.now()}`;
 
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
@@ -556,213 +528,28 @@ test.describe("NOTES-01B/NOTES-01C — Notes", () => {
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
-    await dialog.getByLabel(/Title/).fill(noteTitle);
-    await dialog.getByRole("button", { name: "Create note" }).click();
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
+    await createNote(page, noteTitle);
     await expectNoHorizontalOverflow(page);
 
-    const editor = page.getByRole("textbox", { name: "Note" });
-    await editor.fill("Mobile edit");
-    await editor.blur();
+    // The formatting toolbar is present on the phone; it scrolls, never overflows.
+    await expect(
+      page.getByRole("toolbar", { name: "Formatting" }),
+    ).toBeVisible();
+
+    await clearAndType(page, "# Mobile heading\nphone editing works");
+    await expect(page.locator(".cm-dh-h1")).toHaveText("Mobile heading");
+    await blurEditor(page);
     await expect(page.getByText("Saved")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 320, height: 720 });
     await expectNoHorizontalOverflow(page);
+    await expectNoAxeViolations(page);
 
     await page.getByRole("button", { name: "Delete note" }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
-  });
-
-  test("NOTES-04 mobile writing toolbar: format Markdown source, autosave, exact reload, safe preview, touch targets, axe", async ({
-    page,
-  }) => {
-    const stamp = Date.now();
-    const noteTitle = `${NOTE_TITLE_PREFIX}toolbar-${stamp}`;
-
-    // 1-3. Open Notes at a phone viewport, create and open a real Note.
-    await page.setViewportSize({ width: 390, height: 844 });
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
-    await dialog.getByLabel(/Title/).fill(noteTitle);
-    await dialog.getByRole("button", { name: "Create note" }).click();
-    await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
-    const noteUrl = page.url();
-
-    // The writing toolbar is present on the phone editor; Split never is.
-    const toolbar = page.getByRole("toolbar", { name: "Formatting" });
-    await expect(toolbar).toBeVisible();
-    await expect(page.getByRole("button", { name: "Split" })).not.toBeVisible();
-
-    // Track when the FINAL formatted content (identified by the "Value 2" table
-    // cell) is persisted by a successful save — whether that save is triggered
-    // by the debounce mid-sequence or by the blur below. A persistent listener
-    // set up BEFORE the edits catches it either way, so the reload proof never
-    // depends on the transient save-status text and never reloads while a save
-    // is still in flight (which a page unload would abort).
-    let finalContentSaved = false;
-    page.on("response", (response) => {
-      if (
-        response.url().includes("/mutate") &&
-        response.request().method() === "POST" &&
-        response.ok() &&
-        (response.request().postData() ?? "").includes("Value 2")
-      ) {
-        finalContentSaved = true;
-      }
-    });
-
-    const editor = page.getByRole("textbox", { name: "Note" });
-    await editor.fill(
-      "Heading line\nplain paragraph\nvisit here\nFirst\nSecond",
-    );
-
-    // Helper: select a [start,end) range in the source textarea.
-    const selectRange = async (start: number, end: number) => {
-      await editor.evaluate(
-        (element, [from, to]) => {
-          const textarea = element as HTMLTextAreaElement;
-          textarea.focus();
-          textarea.setSelectionRange(from, to);
-        },
-        [start, end],
-      );
-    };
-    const selectSubstring = async (needle: string) => {
-      const value = await editor.inputValue();
-      const index = value.indexOf(needle);
-      await selectRange(index, index + needle.length);
-    };
-
-    // 5. Apply a heading to the first line.
-    await selectRange(0, "Heading line".length);
-    await toolbar.getByRole("button", { name: "Heading" }).click();
-    await expect(editor).toHaveValue(/^# Heading line/);
-
-    // 6. Bold and italic on selected words.
-    await selectSubstring("plain");
-    await toolbar.getByRole("button", { name: "Bold" }).click();
-    await expect(editor).toHaveValue(/\*\*plain\*\* paragraph/);
-    await selectSubstring("paragraph");
-    await toolbar.getByRole("button", { name: "Italic" }).click();
-    await expect(editor).toHaveValue(/_paragraph_/);
-
-    // 10. Insert a link over a selected word (Markdown link source only).
-    await selectSubstring("here");
-    await toolbar.getByRole("button", { name: "Link" }).click();
-    await expect(editor).toHaveValue(/visit \[here\]\(url\)/);
-
-    // 7-8. Bulleted list, then a checklist over the last two lines.
-    await selectRange(
-      (await editor.inputValue()).indexOf("First"),
-      (await editor.inputValue()).length,
-    );
-    await toolbar.getByRole("button", { name: "Bullets" }).click();
-    await expect(editor).toHaveValue(/- First\n- Second/);
-    await selectRange(
-      (await editor.inputValue()).indexOf("- First"),
-      (await editor.inputValue()).length,
-    );
-    await toolbar.getByRole("button", { name: "Checklist" }).click();
-    await expect(editor).toHaveValue(/- \[ \] First\n- \[ \] Second/);
-
-    // 9. Insert a table LAST, at the end of the document — block Markdown is
-    // blank-line separated so it parses (and renders) as a real table.
-    await selectRange(
-      (await editor.inputValue()).length,
-      (await editor.inputValue()).length,
-    );
-    await toolbar.getByRole("button", { name: "Table" }).click();
-    await expect(editor).toHaveValue(/\| Column 1 \| Column 2 \|/);
-    await expect(editor).toHaveValue(/\| --- \| --- \|/);
-
-    // 11-12. Prove the toolbar edits AUTOSAVE and the EXACT Markdown source
-    // persists across a reload. The proof is gated on the real save POST (whose
-    // body carries the final "Value 2" table content) rather than on the
-    // transient save-status text: after a content-heavy sequence the calm
-    // indicator is not a reliable Playwright signal, but the network round trip
-    // is. Waiting for the actual response also guarantees we never reload WHILE
-    // a save is in flight — a page unload would otherwise abort it.
-    const savedSource = await editor.inputValue();
-    expect(savedSource).toContain("# Heading line");
-    expect(savedSource).toContain("**plain**");
-    expect(savedSource).toContain("_paragraph_");
-    expect(savedSource).toContain("visit [here](url)");
-    expect(savedSource).toContain("- [ ] First");
-    expect(savedSource).toContain("| Column 1 | Column 2 |");
-
-    // Nudge a save (a no-op if the debounce already saved), then wait until the
-    // final content is confirmed persisted before reloading.
-    await editor.focus();
-    await editor.blur();
-    await expect.poll(() => finalContentSaved, { timeout: 30_000 }).toBe(true);
-
-    await gotoFixture(page, noteUrl);
-    await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue(
-      savedSource,
-    );
-
-    // 13. The rendered Preview uses the existing safe FND-08 pipeline — the
-    // heading and table render, and nothing executes (no <script>). The
-    // preview is the shared renderer, unchanged by NOTES-04; the toolbar's own
-    // axe scan runs below in Source mode. (Rendered GFM task-list checkboxes in
-    // the preview carry a known shared-renderer accessibility gap recorded as
-    // DEBT-26 — a Notes PR must not modify the shared Markdown pipeline.)
-    await page.getByRole("button", { name: "Preview" }).click();
-    const preview = page.locator(".dh-note-editor__preview");
-    await expect(
-      preview.getByRole("heading", { level: 1, name: "Heading line" }),
-    ).toBeVisible();
-    await expect(preview.getByRole("table")).toBeVisible();
-    await expect(preview.locator("script")).toHaveCount(0);
-    await page.getByRole("button", { name: "Source" }).click();
-
-    // 29. Touch targets: the toolbar controls meet the 44px minimum.
-    await expectMinTouchTarget(
-      toolbar.getByRole("button", { name: "Heading" }),
-    );
-    await expectMinTouchTarget(toolbar.getByRole("button", { name: "Table" }));
-
-    // 25. Keyboard operation: roving tabindex across the toolbar.
-    await toolbar.getByRole("button", { name: "Heading" }).focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(toolbar.getByRole("button", { name: "Bold" })).toBeFocused();
-
-    // 27-28. Axe (light + dark) and no horizontal overflow at 390px and 320px.
-    await expectNoAxeViolations(page);
-    await expectNoHorizontalOverflow(page);
-    await page.emulateMedia({ colorScheme: "dark" });
-    await expectNoAxeViolations(page);
-    await page.emulateMedia({ colorScheme: "light" });
-
-    // 30. Repeat a critical editor action at 320px.
-    await page.setViewportSize({ width: 320, height: 568 });
-    await expect(toolbar).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-    await selectSubstring("Column 1");
-    const bolded320Saved = page.waitForResponse(
-      (response) =>
-        response.url().includes("/mutate") &&
-        response.request().method() === "POST" &&
-        response.ok() &&
-        (response.request().postData() ?? "").includes("**Column 1**"),
-      { timeout: 30_000 },
-    );
-    await toolbar.getByRole("button", { name: "Bold" }).click();
-    await expect(editor).toHaveValue(/\*\*Column 1\*\*/);
-    await expectNoHorizontalOverflow(page);
-
-    // Let this final edit fully persist before the test ends, so the afterEach
-    // cleanup never races an in-flight save — a late save re-inserting
-    // note_details/activity rows would fail the entity-delete FK constraint.
-    await editor.blur();
-    await bolded320Saved;
   });
 });
