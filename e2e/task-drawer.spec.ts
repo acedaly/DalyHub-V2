@@ -23,11 +23,12 @@ test.describe("TODAY-02 — desktop", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    // `.first()` = the planning card link (My day renders before the Recent
-    // Activity feed, which also links the same task by title, TODAY-08).
+    // Open from the specific My day task card — the Recent Activity feed (TODAY-08)
+    // also links the same task by title, so the opener is scoped to the My day
+    // widget region (no ordinal locator).
     await page
+      .getByRole("region", { name: "My day" })
       .getByRole("link", { name: "Draft the proposal" })
-      .first()
       .click();
 
     const dialog = page.getByRole("dialog");
@@ -136,11 +137,11 @@ test.describe("TODAY-02 — desktop", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    // The planning card link (first in DOM; the Recent Activity feed links the
-    // same task too, TODAY-08). Focus restores to this exact opener on Escape.
+    // The My day task card link (the Recent Activity feed links the same task too,
+    // TODAY-08). Focus restores to this exact opener on Escape.
     const opener = page
-      .getByRole("link", { name: "Draft the proposal" })
-      .first();
+      .getByRole("region", { name: "My day" })
+      .getByRole("link", { name: "Draft the proposal" });
     await opener.click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
@@ -151,8 +152,8 @@ test.describe("TODAY-02 — desktop", () => {
   test("Back closes the Drawer and Forward reopens it", async ({ page }) => {
     await gotoFixture(page, "/today");
     await page
+      .getByRole("region", { name: "My day" })
       .getByRole("link", { name: "Draft the proposal" })
-      .first()
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
 

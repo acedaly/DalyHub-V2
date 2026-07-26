@@ -137,8 +137,12 @@ test.describe("DS-09 Command Palette — desktop", () => {
       form: { intent: "reopen" },
     });
     await page.goto("/today");
+    // Scope to the My day widget region so the task card is unambiguous — the
+    // Recent Activity feed (TODAY-08) also mentions the task by title elsewhere.
     await expect(
-      page.locator(".dh-card", { hasText: COMPLETE_TITLE }).first(),
+      page
+        .getByRole("region", { name: "My day" })
+        .locator(".dh-card", { hasText: COMPLETE_TITLE }),
     ).toBeVisible();
   }
 
@@ -175,12 +179,19 @@ test.describe("DS-09 Command Palette — desktop", () => {
     // The card's Complete quick action IS the shared toggle action. Completing a
     // task persists it, and it moves to the collapsed "Completed today" section
     // (TODAY-04) — proving the shared action ran and persisted from the Card.
-    const card = page.locator(".dh-card", { hasText: COMPLETE_TITLE }).first();
+    // Scope the card to the My day widget region (the Recent Activity feed also
+    // mentions this task by title, TODAY-08), then complete it via its Card control.
+    const myDay = page.getByRole("region", { name: "My day" });
+    const card = myDay.locator(".dh-card", { hasText: COMPLETE_TITLE });
     await card.getByRole("button", { name: "Complete" }).click();
 
-    // The My-day "Completed today" disclosure summary (scoped by its id — the
-    // Insights widget also shows a "Completed today" signal, TODAY-08).
-    await page.locator("#today-completed-label").click();
+    // Expand the "Completed today" planning section — a labelled landmark region,
+    // semantically distinct from the Insights widget's "Completed today" signal
+    // (which is not a region), so no ordinal/`.first()` disambiguation is needed.
+    const completedSection = page.getByRole("region", {
+      name: /Completed today/,
+    });
+    await completedSection.getByText(/Completed today/).click();
     const completed = page.getByRole("list", { name: "Tasks completed today" });
     await expect(completed.getByText(COMPLETE_TITLE)).toBeVisible();
   });

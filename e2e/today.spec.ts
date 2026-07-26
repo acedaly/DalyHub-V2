@@ -49,9 +49,8 @@ test.describe("TODAY-01 — desktop", () => {
       /Insights/,
       /Capture/,
     ]) {
-      await expect(
-        page.getByRole("heading", { level: 2, name }).first(),
-      ).toBeVisible();
+      // Each widget heading name is unique, so no ordinal locator is needed.
+      await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
     }
     // The planning sub-sections nest one level below the My day widget (h3); the
     // seeded, unplanned tasks appear under Anytime.
