@@ -50,15 +50,34 @@ const editorBox = (page: Page) => page.getByRole("textbox", { name: "Note" });
  * and replaced the SSR `<textarea>` fallback — via the editor's own stable
  * `data-editor-ready` contract rather than CodeMirror's internal `.cm-editor`
  * class. This guarantees we never type into the transient fallback, and it does
- * not depend on any library-internal DOM shape. */
-async function waitForEditor(page: Page): Promise<void> {
-  // A bounded, targeted wait for the known async client mount (well within the
-  // test budget) — NOT the global timeout. The very first mount on a cold dev
-  // server compiles the code-split CodeMirror chunk; the FIRST test in this file
-  // (marked slow) absorbs that, so every later call here resolves near-instantly.
+ * not depend on any library-internal DOM shape.
+ *
+ * `timeout` is a bounded, targeted wait for the known async client mount — NOT
+ * the global timeout. The very first editor mount on a cold dev server compiles
+ * the code-split CodeMirror chunk (~525 kB), which on a loaded CI runner can
+ * take longer than a warm mount by a wide margin; the first editor-mounting test
+ * in each file pays that once (with a matching per-test timeout) and every later
+ * call resolves near-instantly against the warmed module cache. */
+async function waitForEditor(page: Page, timeout = 30_000): Promise<void> {
   await expect(page.locator('[data-editor-ready="true"]')).toBeVisible({
-    timeout: 20_000,
+    timeout,
   });
+}
+
+/** Open the "New note" dialog and let the drawer-open loader revalidation
+ * settle before we type + submit. Opening the drawer is itself a route
+ * navigation that revalidates the `/notes` loader; submitting the create form
+ * then navigates to the new record. If the create-navigation is issued while
+ * that drawer-open revalidation is still in flight (likely on a cold CI shard),
+ * the two race and the record navigation can be dropped — leaving the URL stuck
+ * on `/notes?drawer=new-note`. Waiting for the network to settle (a real
+ * condition, not a fixed delay) closes that window deterministically. */
+async function openNewNoteDialog(page: Page) {
+  await page.getByRole("link", { name: "New note" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New note" });
+  await expect(dialog).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  return dialog;
 }
 
 async function focusEditor(page: Page): Promise<void> {
@@ -98,8 +117,7 @@ async function blurEditor(page: Page): Promise<void> {
 async function createNote(page: Page, title: string): Promise<string> {
   ownNote(title);
   await gotoFixture(page, "/notes");
-  await page.getByRole("link", { name: "New note" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New note" });
+  const dialog = await openNewNoteDialog(page);
   await dialog.getByLabel(/Title/).fill(title);
   await dialog.getByRole("button", { name: "Create note" }).click();
   await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
@@ -121,21 +139,22 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
   // Regression coverage for the create → editor-ready lifecycle (the flow whose
   // `.cm-editor` timeout was the NOTES-05 CI baseline failure). It is FIRST so
   // it also absorbs the one-time cold client-mount of the code-split CodeMirror
-  // chunk on the dev server; `test.slow()` grants that one-time compile head
-  // room WITHOUT touching the global timeout or masking a real defect — the
-  // assertions below prove the surface genuinely transitions from the SSR
-  // fallback to the live editor.
+  // chunk on the dev server; the explicit per-test timeout + generous readiness
+  // wait grant that one-time compile head room WITHOUT touching the global
+  // timeout or masking a real defect — the assertions below prove the surface
+  // genuinely transitions from the SSR fallback to the live editor, and every
+  // later test then mounts against a warm module cache.
   test("create → the live editor becomes ready and replaces the SSR fallback", async ({
     page,
   }) => {
-    test.slow();
+    test.setTimeout(120_000);
     const noteTitle = uniqueNoteTitle("ready");
     await createNote(page, noteTitle);
 
     // The live surface signals readiness via the stable `data-editor-ready`
     // contract, then the fallback textarea is gone and the CodeMirror surface is
     // the accessible "Note" textbox.
-    await waitForEditor(page);
+    await waitForEditor(page, 90_000);
     await expect(page.locator(".dh-md-editor__fallback")).toHaveCount(0);
     await expect(editorBox(page)).toBeVisible();
     await expect(page.locator(".cm-content")).toBeVisible();
@@ -157,8 +176,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await expectNoAxeViolations(page);
 
     // 2. Create a Note (title-only), validation first.
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const newNoteDialog = page.getByRole("dialog", { name: "New note" });
+    const newNoteDialog = await openNewNoteDialog(page);
     await newNoteDialog.getByRole("button", { name: "Create note" }).click();
     await expect(
       newNoteDialog.getByText("A title is required").first(),
@@ -505,6 +523,9 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog", { name: "New note" });
     await expect(dialog).toBeVisible();
+    // Let the drawer-open loader revalidation settle before submitting, so the
+    // create-navigation isn't dropped racing it (see openNewNoteDialog).
+    await page.waitForLoadState("networkidle");
     await dialog.getByLabel(/Title/).focus();
     await page.keyboard.type(noteTitle);
     await page.keyboard.press("Enter");

@@ -130,13 +130,18 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
   }) => {
     // This is the only test in this shard that mounts the note-editor route, so
     // it pays the one-time cold client-mount of the code-split CodeMirror chunk;
-    // `test.slow()` grants that one-time compile head room without touching the
-    // global timeout.
-    test.slow();
+    // an explicit per-test timeout grants that one-time compile head room without
+    // touching the global timeout.
+    test.setTimeout(120_000);
     const noteTitle = uniqueNoteTitle("touch-targets");
     await gotoFixture(page, "/notes");
     await page.getByRole("link", { name: "New note" }).first().click();
     const dialog = page.getByRole("dialog", { name: "New note" });
+    await expect(dialog).toBeVisible();
+    // Let the drawer-open loader revalidation settle before submitting, so the
+    // create-navigation isn't dropped racing it (leaving the URL stuck on
+    // `/notes?drawer=new-note`, as it did on a cold CI shard).
+    await page.waitForLoadState("networkidle");
     await dialog.getByLabel(/Title/).fill(noteTitle);
     await dialog.getByRole("button", { name: "Create note" }).click();
     await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
@@ -144,8 +149,9 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     // signalling ready means the record's header (Rename/Delete) and toolbar have
     // mounted and their DS-01 sizing has applied. Measuring before this settles
     // is what produced the transient 21px (unstyled) toolbar/action height in CI.
+    // The wide timeout absorbs the one-time cold CodeMirror compile on this shard.
     await expect(page.locator('[data-editor-ready="true"]')).toBeVisible({
-      timeout: 20_000,
+      timeout: 90_000,
     });
 
     await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));

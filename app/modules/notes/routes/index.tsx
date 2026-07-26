@@ -18,6 +18,8 @@
 
 import { env } from "cloudflare:workers";
 
+import type { ShouldRevalidateFunctionArgs } from "react-router";
+
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -39,6 +41,31 @@ export function meta() {
       content: "Markdown records that document any entity in DalyHub.",
     },
   ];
+}
+
+/**
+ * Opening or closing the "New note" Drawer only toggles the `drawer` search
+ * param — which this loader does not read — yet React Router would still
+ * revalidate the collection on that navigation. That in-flight loader fetch can
+ * race, and drop, the create-form's own navigation to the freshly-created
+ * record (leaving the URL stuck on `/notes?drawer=new-note`). Skip revalidation
+ * when nothing this loader actually depends on (`state`, `cursor`, the path)
+ * changed; every real change still revalidates via the default.
+ */
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs): boolean {
+  if (
+    currentUrl.pathname === nextUrl.pathname &&
+    currentUrl.searchParams.get("state") ===
+      nextUrl.searchParams.get("state") &&
+    currentUrl.searchParams.get("cursor") === nextUrl.searchParams.get("cursor")
+  ) {
+    return false;
+  }
+  return defaultShouldRevalidate;
 }
 
 function parseState(value: string | null): NoteCollectionState {
