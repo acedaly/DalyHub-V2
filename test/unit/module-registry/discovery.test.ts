@@ -177,6 +177,12 @@ describe("module discovery", () => {
           moduleId: "today",
           file: "routes/plan.tsx",
         },
+        // TODAY-08 adds the workspace-wide Recent Activity feed endpoint (no nav).
+        {
+          id: "today.activity",
+          moduleId: "today",
+          file: "routes/activity.tsx",
+        },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
         { id: "areas.new", moduleId: "areas", file: "routes/new.tsx" },
         {

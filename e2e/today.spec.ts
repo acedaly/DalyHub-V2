@@ -32,26 +32,31 @@ test.describe("TODAY-01 — desktop", () => {
     ).toBeVisible();
   });
 
-  test("renders the planning and fixture sections", async ({ page }) => {
+  test("renders the command-centre widgets and the planning core", async ({
+    page,
+  }) => {
     await page.goto("/today");
-    // The planning summary is always present (operational awareness).
+    // The planning summary (My day) is always present (operational awareness).
     await expect(
       page.getByRole("group", { name: /Today at a glance/ }),
     ).toBeVisible();
-    // The Today commitment section + the preserved fixture sections.
+    // The personalisable command-centre widgets are labelled h2 regions (TODAY-08).
     for (const name of [
-      /^Today/,
-      /On your calendar/,
+      /Morning brief/,
+      /My day/,
+      /Recent activity/,
       /Continue working/,
-      /Recent notes/,
-      /Daily timeline/,
-      /Quick capture/,
+      /Insights/,
+      /Capture/,
     ]) {
-      await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { level: 2, name }).first(),
+      ).toBeVisible();
     }
-    // The seeded, unplanned tasks appear under Anytime.
+    // The planning sub-sections nest one level below the My day widget (h3); the
+    // seeded, unplanned tasks appear under Anytime.
     await expect(
-      page.getByRole("heading", { level: 2, name: /Anytime/ }),
+      page.getByRole("heading", { level: 3, name: /Anytime/ }),
     ).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
   });
@@ -59,17 +64,52 @@ test.describe("TODAY-01 — desktop", () => {
   test("quick capture is structured but does not persist", async ({ page }) => {
     await page.goto("/today");
     await page.locator('.dh-today[data-hydrated="true"]').waitFor();
-    const capture = page.getByRole("button", { name: "Capture", exact: true });
+    // Scope to the capture form's submit — the widget heading is also a "Capture"
+    // control, so an unscoped role query would be ambiguous (TODAY-08).
+    const capture = page.locator('.dh-today__capture button[type="submit"]');
     await expect(capture).toBeDisabled();
     await page
       .getByPlaceholder("What needs your attention?")
       .fill("Call the plumber");
     await expect(capture).toBeEnabled();
     await capture.click();
-    await expect(page.getByRole("status")).toContainText(/has not been saved/i);
+    // Scope to the capture notice — the Recent Activity feed also owns a live status
+    // region ("N events loaded"), so an unscoped role query would be ambiguous.
+    await expect(page.locator(".dh-today__capture-notice")).toContainText(
+      /has not been saved/i,
+    );
     await expect(
       page.getByPlaceholder("What needs your attention?"),
     ).toHaveValue("Call the plumber");
+  });
+
+  test("a widget can be collapsed and hidden, and the layout is remembered", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
+
+    // Collapse the Focus widget: its body hides, the heading toggle flips.
+    const focus = page.locator('[data-widget="focus"]');
+    const focusToggle = focus.getByRole("button", { name: /Focus/ });
+    await expect(focusToggle).toHaveAttribute("aria-expanded", "true");
+    await focusToggle.click();
+    await expect(focusToggle).toHaveAttribute("aria-expanded", "false");
+
+    // Enter Customise, hide Focus, and confirm it leaves the surface.
+    await page.getByRole("button", { name: "Customise" }).click();
+    await focus.getByRole("button", { name: "Hide Focus" }).click();
+    await expect(page.locator('[data-widget="focus"]')).toHaveCount(0);
+
+    // The arrangement survives a reload (per-device persistence).
+    await page.reload();
+    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
+    await expect(page.locator('[data-widget="focus"]')).toHaveCount(0);
+
+    // Restore it so the shared dev database's UI state is left clean.
+    await page.getByRole("button", { name: "Customise" }).click();
+    await page.getByRole("button", { name: "Show Focus" }).click();
+    await expect(page.locator('[data-widget="focus"]')).toBeVisible();
   });
 
   test("opens a record in the Drawer over the pane", async ({ page }) => {

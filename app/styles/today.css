@@ -470,6 +470,441 @@
   color: var(--dh-color-text);
 }
 
+/* ------------------------------------------------------------------------- */
+/* TODAY-08 — the command-centre widgets + personalisation (tokens only).     */
+/* Layout and rhythm ONLY; every visual value is a DS-01 token. No new colour, */
+/* shadow or type treatment — the chrome reuses the shared Card/list idiom.    */
+/* ------------------------------------------------------------------------- */
+
+/* The Customise toolbar row above the widgets. */
+.dh-today__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-today__ghost {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dh-control-height-sm);
+  padding: 0 var(--dh-space-3);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  background: transparent;
+  border: var(--dh-border-width-thin) solid transparent;
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-today__ghost:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-sunken);
+}
+
+@media (hover: none) {
+  .dh-today__ghost {
+    min-height: var(--dh-touch-target-min);
+  }
+}
+
+.dh-today__hidden {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-today__hidden-label {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+/* One widget = a labelled region with a collapsible body. */
+.dh-today-widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-today-widget[data-pinned="true"] {
+  /* A pinned widget carries a quiet accent edge — an identity cue, not colour-only
+     state (the "Pinned" text in the heading names it too). */
+  border-left: var(--dh-border-width-thick) solid var(--dh-color-accent);
+  padding-left: var(--dh-space-4);
+  margin-left: calc(var(--dh-border-width-thick) * -1 - var(--dh-space-4));
+}
+
+.dh-today-widget__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-2);
+}
+
+.dh-today-widget__heading {
+  margin: 0;
+}
+
+/* The collapse toggle IS the heading — a quiet, calm label in the Today rhythm. */
+.dh-today-widget__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-control-height-sm);
+  padding: 0;
+  font: inherit;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dh-today-widget__toggle:hover {
+  color: var(--dh-color-text);
+}
+
+.dh-today-widget__chevron {
+  width: 0;
+  height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transform: rotate(90deg);
+  transition: transform var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-today-widget__chevron[data-collapsed="true"] {
+  transform: rotate(0deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-today-widget__chevron {
+    transition-duration: var(--dh-duration-instant);
+  }
+}
+
+.dh-today-widget__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today-widget__pin-flag {
+  color: var(--dh-color-accent-text);
+}
+
+.dh-today-widget__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+}
+
+.dh-today-widget__control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-control-height-sm);
+  min-height: var(--dh-control-height-sm);
+  padding: 0 var(--dh-space-2);
+  font: inherit;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-today-widget__control:hover:not(:disabled) {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-today-widget__control:disabled {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.dh-today-widget__control[aria-pressed="true"] {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+  border-color: var(--dh-color-accent);
+}
+
+@media (hover: none) {
+  .dh-today-widget__control {
+    min-width: var(--dh-touch-target-min);
+    min-height: var(--dh-touch-target-min);
+  }
+}
+
+.dh-today-widget__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+/* -- Morning Brief ---------------------------------------------------------- */
+
+.dh-morning-brief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+}
+
+.dh-morning-brief__greeting {
+  margin: 0;
+  font-size: var(--dh-font-size-xl);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+.dh-morning-brief__date {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-morning-brief__focus {
+  margin: 0;
+  font-size: var(--dh-font-size-md);
+  color: var(--dh-color-text);
+}
+
+.dh-morning-brief__signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-5);
+  margin-top: var(--dh-space-1);
+}
+
+.dh-morning-brief__signal {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  margin: 0;
+}
+
+.dh-morning-brief__signal-value {
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-morning-brief__signal-label {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-morning-brief__placeholders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--dh-space-3);
+}
+
+.dh-morning-brief__placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--dh-space-3);
+  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) dashed var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-morning-brief__placeholder-label {
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-morning-brief__placeholder-note {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-morning-brief__capture {
+  align-self: flex-start;
+}
+
+/* -- Shared calm list (notes / diary / areas / goals) ----------------------- */
+
+.dh-today-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dh-today-list__item {
+  margin: 0;
+}
+
+.dh-today-list__link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+  color: inherit;
+  text-decoration: none;
+  min-height: var(--dh-touch-target-min);
+  justify-content: center;
+}
+
+.dh-today-list__link:hover {
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-today-list__title {
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.dh-today-list__meta {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-today-list__all {
+  align-self: flex-start;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+/* -- Diary widget groups ---------------------------------------------------- */
+
+.dh-diary-widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-diary-widget__nudge {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-diary-widget__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-diary-widget__group-label {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- Focus placeholder ------------------------------------------------------ */
+
+.dh-focus-widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface-sunken);
+  border: var(--dh-border-width-thin) dashed var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-focus-widget__lead {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-focus-widget__list {
+  margin: 0;
+  padding-left: var(--dh-space-5);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+/* -- Insights --------------------------------------------------------------- */
+
+.dh-insights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+}
+
+.dh-insights__item {
+  margin: 0;
+}
+
+.dh-insights__link,
+.dh-insights__static {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border-radius: var(--dh-radius-md);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+  color: inherit;
+  text-decoration: none;
+  min-height: var(--dh-touch-target-min);
+}
+
+.dh-insights__link:hover {
+  background: var(--dh-color-surface-sunken);
+}
+
+/* Attention signals carry a quiet accent edge (never a red badge); the label text
+   always names the signal, so this is never colour-only state. */
+.dh-insights__item[data-tone="attention"] .dh-insights__link,
+.dh-insights__item[data-tone="attention"] .dh-insights__static {
+  border-left: var(--dh-border-width-thick) solid var(--dh-color-warning);
+}
+
+.dh-insights__item[data-tone="positive"] .dh-insights__link,
+.dh-insights__item[data-tone="positive"] .dh-insights__static {
+  border-left: var(--dh-border-width-thick) solid var(--dh-color-success);
+}
+
+.dh-insights__count {
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-insights__label {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- Recent Activity widget ------------------------------------------------- */
+
+.dh-today-activity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
 /* -------------------------------------------------------------------------- */
 /* TASKS-01 — the /tasks workspace layout (design tokens only).                */
 /*                                                                            */

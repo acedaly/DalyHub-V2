@@ -24,10 +24,23 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import { DrawerProvider } from "~/shared/drawer";
-import { createOwnerHealthContext } from "~/shared/project-health";
+import {
+  createOwnerHealthContext,
+  healthNeedsAttention,
+} from "~/shared/project-health";
+
+import { loadTodayLanding } from "../landing/load";
+import type { TodayLandingData } from "../landing/types";
+import {
+  briefFocusLine,
+  dayPartForHour,
+  deriveInsights,
+  greetingFor,
+} from "../landing/insights";
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate, ownerCalendarIso } from "../date";
+import { OWNER_TIME_ZONE } from "~/shared/datetime";
 import { TODAY_FIXTURE } from "../fixtures";
 import {
   bucketPlanning,
@@ -76,6 +89,51 @@ const EMPTY_BUCKETS: PlanningBuckets = {
   completedToday: [],
 };
 
+/** The owner-local hour (0–23) for the greeting — never the UTC runtime hour. */
+function ownerLocalHour(now: Date): number {
+  const raw = new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    hour12: false,
+    timeZone: OWNER_TIME_ZONE,
+  }).format(now);
+  return Number.parseInt(raw, 10) % 24;
+}
+
+/**
+ * The degraded landing payload used when a workspace read fails: the calm Morning
+ * Brief (greeting + date) still renders, every data section is empty, and Insights
+ * has nothing to say — so Today is never blank and never a 500.
+ */
+function emptyLanding(now: Date, dateLong: string): TodayLandingData {
+  const input = {
+    overdueCount: 0,
+    plannedTodayCount: 0,
+    inboxCount: 0,
+    waitingCount: 0,
+    completedTodayCount: 0,
+    activeProjectCount: 0,
+    projectsNeedingAttentionCount: 0,
+    areasNeedingReviewCount: 0,
+    goalsAtRiskCount: 0,
+    hasDiaryToday: false,
+  };
+  return {
+    morningBrief: {
+      greeting: greetingFor(dayPartForHour(ownerLocalHour(now))),
+      dateLong,
+      focusLine: briefFocusLine(input),
+      plannedTodayCount: 0,
+      overdueCount: 0,
+      inboxCount: 0,
+    },
+    notes: [],
+    diary: { today: [], recent: [], capturedToday: false },
+    areas: [],
+    goals: { goals: [] },
+    insights: { signals: deriveInsights(input) },
+  };
+}
+
 export async function loader({ context }: Route.LoaderArgs) {
   // Authentication is guaranteed by the Worker boundary; re-check (401 propagates).
   const session = requireAuthenticatedSession(context);
@@ -89,6 +147,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   let buckets: PlanningBuckets;
   let waiting: WaitingSummary;
   let recentProjects: RecentProjectItem[];
+  let landing: TodayLandingData;
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     // The dedicated planning query bounds each band (scheduled work, backlog, recent
@@ -167,10 +226,31 @@ export async function loader({ context }: Route.LoaderArgs) {
         health: facts ? evaluateProjectHealth(facts, healthContext) : null,
       };
     });
+
+    // The command-centre widgets over REAL cross-module data (notes, diary, areas,
+    // goals-with-alignment) plus the Morning Brief and Insights derived from the
+    // planning facts above. Each section degrades independently inside this reader,
+    // so one module failing never blanks the rest.
+    landing = await loadTodayLanding(scope, {
+      now,
+      todayIso,
+      dateLong: date,
+      plannedTodayCount: buckets.today.length,
+      overdueCount: buckets.overdue.length,
+      inboxCount: buckets.anytime.length,
+      waitingCount: waiting.count,
+      completedTodayCount: buckets.completedToday.length,
+      activeProjectCount: recentProjects.length,
+      projectsNeedingAttentionCount: recentProjects.filter(
+        (project) =>
+          project.health !== null && healthNeedsAttention(project.health),
+      ).length,
+    });
   } catch {
     buckets = EMPTY_BUCKETS;
     waiting = EMPTY_WAITING_SUMMARY;
     recentProjects = [];
+    landing = emptyLanding(now, date);
   }
 
   const planning: PlanningData = {
@@ -186,10 +266,12 @@ export async function loader({ context }: Route.LoaderArgs) {
   return {
     date,
     todayIso,
+    nowIso: now.toISOString(),
     data: TODAY_FIXTURE,
     waiting,
     planning,
     recentProjects,
+    landing,
   };
 }
 
@@ -243,9 +325,11 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
         data={loaderData.data}
         date={loaderData.date}
         todayIso={loaderData.todayIso}
+        nowIso={loaderData.nowIso}
         waiting={loaderData.waiting}
         planning={loaderData.planning}
         recentProjects={loaderData.recentProjects}
+        landing={loaderData.landing}
         onCompleteTask={onCompleteTask}
       />
     </DrawerProvider>
