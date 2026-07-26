@@ -192,9 +192,11 @@ describe("TODAY-04 planning dashboard", () => {
 
   it("renders the planning sections keyed on the scheduled date", () => {
     renderToday();
+    // The planning sub-sections nest one level below the "My day" widget heading
+    // (TODAY-08), so they are h3 under the widget's h2.
     for (const label of [/Overdue/, /^Today/, /^Upcoming/, /Anytime/]) {
       expect(
-        screen.getByRole("heading", { level: 2, name: label }),
+        screen.getByRole("heading", { level: 3, name: label }),
       ).toBeInTheDocument();
     }
     // Completed today is a collapsed disclosure (a summary, not a heading).
@@ -284,16 +286,12 @@ describe("TODAY-04 planning dashboard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("still renders the preserved fixture sections", () => {
+  it("renders the real Continue working (projects) widget", () => {
     renderToday();
-    expect(
-      screen.getByRole("list", { name: /Meetings, reminders and deadlines/ }),
-    ).toBeInTheDocument();
+    // TODAY-08 retired the calendar/notes/timeline fixtures; the projects widget
+    // remains the real, loader-backed section.
     expect(
       screen.getByRole("list", { name: /Recently active projects/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("list", { name: /Recent notes/ }),
     ).toBeInTheDocument();
   });
 
@@ -301,7 +299,10 @@ describe("TODAY-04 planning dashboard", () => {
     renderToday();
     const textarea = screen.getByPlaceholderText("What needs your attention?");
     fireEvent.change(textarea, { target: { value: "New idea" } });
-    fireEvent.click(screen.getByRole("button", { name: "Capture" }));
+    // Scope to the capture form so the submit button is unambiguous (the widget
+    // heading is also a "Capture"-labelled control).
+    const form = textarea.closest("form")!;
+    fireEvent.click(within(form).getByRole("button", { name: "Capture" }));
     expect(
       screen.getByText(/Quick Capture is not connected yet/),
     ).toBeInTheDocument();

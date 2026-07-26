@@ -142,7 +142,7 @@ test.describe("TODAY-06 — mobile Today", () => {
       page.getByRole("group", { name: /Today at a glance/ }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 2, name: /Anytime/ }),
+      page.getByRole("heading", { level: 3, name: /Anytime/ }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });

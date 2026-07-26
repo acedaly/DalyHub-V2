@@ -390,6 +390,32 @@ export class D1EntityRepository implements EntityRepository {
     return { items, nextCursor, hasMore };
   }
 
+  async listRecentByType<TType extends EntityType = EntityType>(
+    type: TType,
+    limit: number,
+  ): Promise<readonly EntityRecord<TType>[]> {
+    // Reuse the shared type/limit validators so a bad type or an over-large limit is
+    // rejected/clamped exactly as `list` does — no second validation policy.
+    const validType = validateOptionalType(type);
+    const validLimit = validateLimit(limit);
+
+    // Newest-first over the SAME deterministic keyset `list` uses, reversed — so
+    // "recent" is the true latest records, not the oldest page re-sorted. Active
+    // rows only; workspace-scoped in SQL; hard-bounded; parameter-bound values.
+    const rows = await this.#all(
+      this.#db
+        .prepare(
+          `SELECT ${SELECT_COLUMNS} FROM entities
+           WHERE workspace_id = ? AND type = ? AND deleted_at IS NULL
+           ORDER BY created_at DESC, id DESC
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, validType, validLimit),
+    );
+
+    return rows.map(rowToEntity) as EntityRecord<TType>[];
+  }
+
   async softDelete(id: string): Promise<LifecycleResult> {
     const entityId = validateEntityId(id);
 
