@@ -10,17 +10,18 @@
  * a bespoke check.
  *
  * NOTES-01B replaced the `/notes` "Coming Soon" placeholder with a real
- * collection (`app/modules/notes/routes/index.tsx`), and DIARY-01 replaced the
- * `/diary` placeholder with the real Timeline (`app/modules/diary/routes/index.tsx`),
- * so both are EXCLUDED from `SHELL_MODULES` below — their full journeys live in
- * `e2e/notes.spec.ts` and `e2e/diary.spec.ts`. Their sidebar reachability and
- * active-state coverage stays here (against their real headings, not placeholders).
+ * collection (`app/modules/notes/routes/index.tsx`), DIARY-01 replaced the
+ * `/diary` placeholder with the real Timeline, PEOPLE-01 replaced `/people` with
+ * the real People collection, and MEET-01 replaced `/meetings` with the real
+ * Meetings collection — so all four are EXCLUDED from `SHELL_MODULES` below (their
+ * full journeys live in `e2e/notes.spec.ts`, `e2e/diary.spec.ts`,
+ * `e2e/people.spec.ts` and `e2e/meetings.spec.ts`). Their sidebar reachability
+ * stays here, checked against their real headings rather than a placeholder.
  */
 
 import { expect, test } from "@playwright/test";
 
 const SHELL_MODULES = [
-  { label: "Meetings", path: "/meetings" },
   { label: "Assets", path: "/assets" },
   { label: "Reviews", path: "/reviews" },
   { label: "AI", path: "/ai" },
@@ -123,6 +124,22 @@ test.describe("PX-03 — every module shell route resolves with real content", (
     await expect(page).toHaveURL(/\/people$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "People" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
+  });
+
+  // MEET-01: Meetings has the real collection now — the sidebar link reaches a
+  // real, non-blank `/meetings` heading (the collection Pane Header, not a
+  // placeholder).
+  test("the sidebar reaches the real Meetings collection", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "Meetings" }).click();
+    await expect(page).toHaveURL(/\/meetings$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Meetings" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { level: 2, name: "Coming Soon" }),
