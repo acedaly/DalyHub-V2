@@ -59,6 +59,15 @@ export async function action({ request, context }: Route.ActionArgs) {
         formError: "That Area is unavailable. Please try again.",
       });
     }
+    // AREA-05: an archived Area is read-only — it cannot gain new Goals. The UI
+    // hides its "New Goal" action; this refuses the mutation server-side too.
+    const settings = await scope.areaSettings.get(areaId);
+    if (settings?.archivedAt) {
+      return json({
+        ok: false,
+        formError: "That Area is archived. Restore it before adding Goals.",
+      });
+    }
     const goal = await scope.spine.createGoal({ title, areaId });
     return json({ ok: true, goalId: goal.id });
   } catch (cause) {

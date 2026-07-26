@@ -64,8 +64,11 @@ export function RenameAreaForm({
       return {
         status: "error",
         formError: failed.formError,
-        fieldErrors: failed.fieldErrors as
-          Partial<Record<keyof Values & string, string>> | undefined,
+        fieldErrors:
+          "fieldErrors" in failed
+            ? (failed.fieldErrors as
+                Partial<Record<keyof Values & string, string>> | undefined)
+            : undefined,
       };
     },
   });

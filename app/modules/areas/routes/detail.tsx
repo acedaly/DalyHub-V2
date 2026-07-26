@@ -37,6 +37,7 @@ import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { AreaActivityTab } from "../AreaActivityTab";
 import { NEW_GOAL_KEY, AreaOverviewView } from "../AreaOverview";
+import { AreaSettingsTab } from "../AreaSettingsTab";
 import { RenameAreaForm } from "../RenameAreaForm";
 import {
   serializeAreaGoalItem,
@@ -44,6 +45,7 @@ import {
   serializeAreaProjectItem,
   serializeAreaRollup,
 } from "../area-view";
+import type { AreaMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
 const RENAME_KEY = "rename";
@@ -64,7 +66,7 @@ const AREA_CHILD_PAGE_SIZE = 50;
  */
 const HEALTH_FACTS_BATCH_SIZE = 100;
 
-type AreaTab = "goals" | "projects" | "activity";
+type AreaTab = "goals" | "projects" | "activity" | "settings";
 
 export function meta() {
   return [{ title: "Area · DalyHub" }];
@@ -119,12 +121,14 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  const [rollup, goalPage, projectPage, momentumFacts] = await Promise.all([
-    scope.spine.getRollup(areaId),
-    scope.areas.listAreaGoals({ areaId, limit: AREA_CHILD_PAGE_SIZE }),
-    scope.areas.listAreaProjects({ areaId, limit: AREA_CHILD_PAGE_SIZE }),
-    scope.areas.getAreaMomentumFacts(areaId),
-  ]);
+  const [rollup, goalPage, projectPage, momentumFacts, dependencies] =
+    await Promise.all([
+      scope.spine.getRollup(areaId),
+      scope.areas.listAreaGoals({ areaId, limit: AREA_CHILD_PAGE_SIZE }),
+      scope.areas.listAreaProjects({ areaId, limit: AREA_CHILD_PAGE_SIZE }),
+      scope.areas.getAreaMomentumFacts(areaId),
+      scope.areas.getAreaDependencySummary(areaId),
+    ]);
   if (rollup.kind !== "area") {
     throw new Response("Not Found", { status: 404 });
   }
@@ -209,6 +213,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     goalsNextCursor: goalPage.nextCursor,
     projects,
     projectsNextCursor: projectPage.nextCursor,
+    dependencies,
   };
 }
 
@@ -294,14 +299,36 @@ function NewGoalDrawerHost({ areaId }: { readonly areaId: string }) {
 }
 
 function parseTab(value: string | null): AreaTab {
-  return value === "projects" || value === "activity" ? value : "goals";
+  return value === "projects" || value === "activity" || value === "settings"
+    ? value
+    : "goals";
+}
+
+async function postAreaMutation(
+  areaId: string,
+  fields: Record<string, string>,
+): Promise<AreaMutationResult> {
+  const body = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    body.set(key, value);
+  }
+  const response = await fetch(`/areas/${encodeURIComponent(areaId)}/mutate`, {
+    method: "POST",
+    body,
+    headers: { accept: "application/json" },
+  });
+  return (await response.json()) as AreaMutationResult;
 }
 
 function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
   const { openDrawer } = useDrawer();
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTabId = parseTab(searchParams.get("tab"));
+  const areaId = props.overview.id;
+  const archived = props.overview.archivedAt !== null;
+
   const onTabChange = useCallback(
     (tabId: string) => {
       setSearchParams(
@@ -320,6 +347,40 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
     [setSearchParams],
   );
 
+  const onArchive = useCallback(async () => {
+    const result = await postAreaMutation(areaId, { intent: "archive" });
+    if (!result.ok) {
+      throw new Error(
+        ("formError" in result && result.formError) ||
+          "That couldn't be saved. Please try again.",
+      );
+    }
+    revalidator.revalidate();
+  }, [areaId, revalidator]);
+
+  const onRestore = useCallback(async () => {
+    const result = await postAreaMutation(areaId, { intent: "restore" });
+    if (!result.ok) {
+      throw new Error(
+        ("formError" in result && result.formError) ||
+          "That couldn't be saved. Please try again.",
+      );
+    }
+    revalidator.revalidate();
+  }, [areaId, revalidator]);
+
+  const onDelete = useCallback(async () => {
+    const result = await postAreaMutation(areaId, { intent: "delete" });
+    if (!result.ok) {
+      throw new Error(
+        ("formError" in result && result.formError) ||
+          "That couldn't be completed. Please try again.",
+      );
+    }
+    // Redirect to the collection; the deleted Area no longer exists.
+    navigate("/areas");
+  }, [areaId, navigate]);
+
   return (
     <AreaOverviewView
       overview={props.overview}
@@ -329,6 +390,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       goalsNextCursor={props.goalsNextCursor}
       projects={props.projects}
       projectsNextCursor={props.projectsNextCursor}
+      archived={archived}
       onRename={() => openDrawer(RENAME_KEY)}
       onOpenGoal={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}
       onOpenProject={(projectId) =>
@@ -340,6 +402,15 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
         <AreaActivityTab
           areaId={props.overview.id}
           reloadKey={props.overview.updatedAt}
+        />
+      }
+      settingsTab={
+        <AreaSettingsTab
+          overview={props.overview}
+          dependencies={props.dependencies}
+          onArchive={onArchive}
+          onRestore={onRestore}
+          onDelete={onDelete}
         />
       }
     />

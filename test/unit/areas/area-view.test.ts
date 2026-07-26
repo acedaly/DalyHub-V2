@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  areaDependencyBlockers,
   areaStateLabel,
   rollupProgress,
   serializeAreaRollup,
@@ -39,6 +40,33 @@ describe("Area view model", () => {
 
   it("labels Areas as permanent, not completable", () => {
     expect(areaStateLabel()).toEqual({ label: "Permanent", tone: "neutral" });
+  });
+
+  it("labels an archived Area as Archived (state carried by text, not colour)", () => {
+    expect(areaStateLabel(true)).toEqual({
+      label: "Archived",
+      tone: "neutral",
+    });
+  });
+
+  it("builds grouped, plural-correct, non-zero dependency blockers with links where practical", () => {
+    const blockers = areaDependencyBlockers({
+      areaId: "a1",
+      goals: 1,
+      projects: 2,
+      tasks: 0,
+      notes: 3,
+      diary: 0,
+      other: 0,
+    });
+    expect(blockers.map((b) => b.label)).toEqual([
+      "1 Goal",
+      "2 Projects",
+      "3 linked Notes",
+    ]);
+    // Goals/Projects link to the Area's own tabs; a zero-count kind is omitted.
+    expect(blockers[0]?.href).toBe("/areas/a1?tab=goals");
+    expect(blockers.some((b) => b.id === "tasks")).toBe(false);
   });
 
   it("maps long Area card data with deterministic progress summaries", () => {

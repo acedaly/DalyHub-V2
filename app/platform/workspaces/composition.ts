@@ -22,6 +22,7 @@ import {
 } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AreaRepository } from "~/kernel/areas";
+import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
@@ -40,6 +41,7 @@ import {
   createActivityRepository,
   createAlignmentRepository,
   createAreaRepository,
+  createAreaSettingsRepository,
   createDiaryRepository,
   createEntityLinkRepository,
   createEntityRepository,
@@ -99,6 +101,13 @@ export interface WorkspaceScope {
    * mutations stay `spine.*`; rollups stay derived from the spine.
    */
   readonly areas: AreaRepository;
+  /**
+   * The AREA-05 Areas-owned archival slice: turns the reversible archived state on
+   * and off (`area_details.archived_at`) atomically with its Activity event,
+   * mirroring `projectSettings`. Area identity/title/soft-delete stay `spine.*`;
+   * permanent (hard) Area deletion stays `spine.permanentlyDeleteArea`.
+   */
+  readonly areaSettings: AreaSettingsRepository;
   /**
    * The AREA-02 Goal read projection: a READ-ONLY view over the spine that
    * resolves the Goal record's Area context and exact Project-contribution
@@ -224,6 +233,9 @@ export function bindWorkspaceRepositories(
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
   });
+  const areaSettings = createAreaSettingsRepository(env.DB, context, {
+    actorContext,
+  });
   const activity = createActivityRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
   return {
@@ -234,6 +246,7 @@ export function bindWorkspaceRepositories(
     tasks,
     projects,
     areas,
+    areaSettings,
     goals,
     goalDetails,
     noteDetails,

@@ -26,6 +26,7 @@ import type {
   ListSpineChildrenInput,
   MoveParentInput,
   MoveResult,
+  AreaDeletionResult,
   SpineChildPage,
   SpineLifecycleResult,
   SpineRecord,
@@ -160,6 +161,36 @@ export interface SpineRepository {
    * `entity.restored` on a real transition.
    */
   restore(id: string): Promise<SpineLifecycleResult>;
+
+  /**
+   * Permanently (HARD) delete an EMPTY Area — the only irreversible spine
+   * mutation (AREA-05). Unlike `softDelete`, it removes the Area's rows entirely,
+   * so it is guarded far more strictly:
+   *
+   *   - Refused with `SpineHasDependentsError` (carrying the blocking
+   *     {@link AreaDependencyCounts}) when ANY active link still references the
+   *     Area — child Goals/Projects/Tasks, or a linked Note/Diary/other entity
+   *     whose link would become invalid. The dependency re-check is folded into
+   *     the mutating SQL and evaluated AT COMMIT, so a child linked between page
+   *     load and submission still blocks the delete; the whole batch is
+   *     all-or-nothing (nothing is purged unless the Area is genuinely empty).
+   *   - When empty, the Area's full technical footprint is purged in ONE atomic,
+   *     FK-safe batch — its historical `entity_links`, its `activity_subjects`
+   *     associations, its `area_details` row, its `spine_records` row and the
+   *     `entities` row — and a single subject-less `area.deleted` audit event is
+   *     appended to the workspace Activity stream (its subject would be the row
+   *     being deleted). No projection/cache rows exist to orphan. Prior lifecycle
+   *     Activity rows are retained (append-only, ADR-012); only their subject
+   *     associations to the now-deleted entity are removed.
+   *   - Workspace-scoped: a cross-workspace or wrong-kind id is a calm
+   *     `SpineNotFoundError`, disclosing nothing. Idempotent: deleting an
+   *     already-gone Area reports `already_gone` rather than throwing.
+   *
+   * Only Areas are permanently deletable in AREA-05 (they are the top of the
+   * spine and own no additive detail beyond `area_details`); a non-Area id is a
+   * `SpineWrongKindError`.
+   */
+  permanentlyDeleteArea(id: string): Promise<AreaDeletionResult>;
 }
 
 /** Re-exported for convenience: the completion rollup value object. */

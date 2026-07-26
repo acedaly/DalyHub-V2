@@ -13,6 +13,7 @@ export type {
   AreaListPage,
   AreaGoalPage,
   AreaProjectPage,
+  AreaDependencySummary,
   AreaAlignedProjectFact,
   AreaDirectTaskFacts,
   AreaMomentumSourceFacts,

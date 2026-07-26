@@ -49,10 +49,15 @@ interface AreaOverviewViewProps {
   readonly goalsNextCursor: string | null;
   readonly projects: readonly SerializedAreaProjectItem[];
   readonly projectsNextCursor: string | null;
+  /** AREA-05: whether this Area is archived — drives the status label and guards
+   * the non-lifecycle actions (Rename, New Goal) that are invalid while archived. */
+  readonly archived?: boolean;
   readonly onRename: () => void;
   readonly onOpenGoal: (goalId: string) => void;
   readonly onOpenProject: (projectId: string) => void;
   readonly activityTab: ReactNode;
+  /** AREA-05: the lifecycle & danger section (Archive/Restore + permanent delete). */
+  readonly settingsTab?: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
 }
@@ -235,14 +240,16 @@ export function AreaOverviewView({
   goalsNextCursor,
   projects,
   projectsNextCursor,
+  archived = false,
   onRename,
   onOpenGoal,
   onOpenProject,
   activityTab,
+  settingsTab,
   activeTabId,
   onTabChange,
 }: AreaOverviewViewProps) {
-  const state = areaStateLabel();
+  const state = areaStateLabel(archived);
   const goalsProgress = rollupProgress(rollup.goals, "goal");
   const projectsProgress = rollupProgress(rollup.projects, "project");
   const tasksProgress = rollupProgress(rollup.tasks, "task");
@@ -288,6 +295,9 @@ export function AreaOverviewView({
     variant: "secondary",
     onSelect: onRename,
   };
+  // AREA-05: an archived Area is read-only — the Rename action is not offered
+  // (the mutation is also refused server-side). Lifecycle actions live in Settings.
+  const secondaryActions: RecordAction[] = archived ? [] : [renameAction];
 
   return (
     <RecordLayout
@@ -297,10 +307,17 @@ export function AreaOverviewView({
       breadcrumb={[{ id: "areas", label: "Areas", href: "/areas" }]}
       status={{ label: state.label, tone: state.tone }}
       metadata={headerMetadata}
-      secondaryActions={[renameAction]}
+      secondaryActions={secondaryActions}
       summary={{
         description: (
           <div className="dh-area-overview__summary">
+            {archived ? (
+              <p className="dh-area-archived-notice" role="note">
+                <strong>This Area is archived.</strong> It's hidden from your
+                active Areas and creation pickers and is read-only. Restore it
+                from the Settings tab to make changes.
+              </p>
+            ) : null}
             <p className="dh-area-overview__progress">
               <span className="dh-area-overview__progress-label">
                 Roll-up progress:
@@ -326,27 +343,35 @@ export function AreaOverviewView({
               <EmptyState
                 icon={<EntityIcon type="goal" />}
                 title="No Goals in this Area"
-                description="Goals give this Area a direction and a definition of done."
+                description={
+                  archived
+                    ? "This Area is archived. Restore it to add Goals."
+                    : "Goals give this Area a direction and a definition of done."
+                }
                 primaryAction={
-                  <DrawerTrigger
-                    drawerKey={NEW_GOAL_KEY}
-                    className="dh-btn dh-btn--primary"
-                  >
-                    New Goal
-                  </DrawerTrigger>
+                  archived ? undefined : (
+                    <DrawerTrigger
+                      drawerKey={NEW_GOAL_KEY}
+                      className="dh-btn dh-btn--primary"
+                    >
+                      New Goal
+                    </DrawerTrigger>
+                  )
                 }
               />
             ) : (
               <>
                 <h2 className="dh-visually-hidden">Goals</h2>
-                <div className="dh-area-tab-toolbar">
-                  <DrawerTrigger
-                    drawerKey={NEW_GOAL_KEY}
-                    className="dh-btn dh-btn--secondary"
-                  >
-                    New Goal
-                  </DrawerTrigger>
-                </div>
+                {archived ? null : (
+                  <div className="dh-area-tab-toolbar">
+                    <DrawerTrigger
+                      drawerKey={NEW_GOAL_KEY}
+                      className="dh-btn dh-btn--secondary"
+                    >
+                      New Goal
+                    </DrawerTrigger>
+                  </div>
+                )}
                 <CardCollection
                   items={goals}
                   getItemId={(goal) => goal.id}
@@ -390,6 +415,9 @@ export function AreaOverviewView({
             ),
         },
         { id: "activity", label: "Activity", content: activityTab },
+        ...(settingsTab
+          ? [{ id: "settings", label: "Settings", content: settingsTab }]
+          : []),
       ]}
     />
   );

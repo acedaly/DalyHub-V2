@@ -142,6 +142,41 @@ export type SpineLifecycleResult = {
   readonly changed: boolean;
 };
 
+/**
+ * Grouped counts of the records blocking a permanent Area deletion — the active
+ * links referencing the Area, classified by the counterpart entity's kind. A
+ * genuinely empty Area has every count at zero. Structural children
+ * (Goals/Projects/Tasks directly under the Area) and any other linked entity
+ * (Notes, Diary, People, …) that would be orphaned are counted separately so the
+ * UI can explain exactly what remains and where to find it.
+ */
+export type AreaDependencyCounts = {
+  readonly goals: number;
+  readonly projects: number;
+  readonly tasks: number;
+  readonly notes: number;
+  readonly diary: number;
+  /** Any other active link endpoint (non-structural link to any other entity). */
+  readonly other: number;
+  /** The sum — zero iff the Area is permanently deletable. */
+  readonly total: number;
+};
+
+/** What a `permanentlyDeleteArea` call actually did. */
+export type AreaDeletionOutcome = "deleted" | "already_gone";
+
+/**
+ * Result of a successful permanent Area deletion: the id and title of the removed
+ * Area (its rows no longer exist, so no `SpineRecord` can be returned) and whether
+ * this call performed the deletion (`false` if a concurrent racer already did).
+ */
+export type AreaDeletionResult = {
+  readonly areaId: string;
+  readonly title: string;
+  readonly outcome: AreaDeletionOutcome;
+  readonly changed: boolean;
+};
+
 /** What a `move` call actually did. */
 export type MoveOutcome = "moved" | "already_there";
 

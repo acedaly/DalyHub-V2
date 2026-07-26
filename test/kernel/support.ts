@@ -4,6 +4,7 @@ import {
   createActivityRepository,
   createAlignmentRepository,
   createAreaRepository,
+  createAreaSettingsRepository,
   createDiaryRepository,
   createEntityLinkRepository,
   createEntityRepository,
@@ -17,6 +18,7 @@ import {
   createTaskRepository,
   createWorkspaceRepository,
   type AtomicMutationFault,
+  type D1AreaSettingsRepositoryOptions,
   type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
   type D1NoteDetailsRepositoryOptions,
@@ -233,11 +235,38 @@ export function makeProjectSettingsRepository(
   return createProjectSettingsRepository(env.DB, context, options);
 }
 
+/**
+ * Construct a workspace-scoped D1-backed AreaSettingsRepository over the isolated
+ * test database (AREA-05: Area archival, bound to a `WorkspaceContext`).
+ */
+export function makeAreaSettingsRepository(
+  context: WorkspaceContext,
+  options?: D1AreaSettingsRepositoryOptions,
+) {
+  return createAreaSettingsRepository(env.DB, context, options);
+}
+
 /** Count all rows in `project_details` directly. */
 export async function countProjectDetailRows(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM project_details",
   ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count `area_details` rows, optionally scoped to a workspace. */
+export async function countAreaDetailRows(
+  workspaceId?: string,
+): Promise<number> {
+  const row = workspaceId
+    ? await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM area_details WHERE workspace_id = ?",
+      )
+        .bind(workspaceId)
+        .first<{ n: number }>()
+    : await env.DB.prepare("SELECT COUNT(*) AS n FROM area_details").first<{
+        n: number;
+      }>();
   return row?.n ?? 0;
 }
 
@@ -389,6 +418,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM task_details").run();
   await env.DB.prepare("DELETE FROM project_details").run();
   await env.DB.prepare("DELETE FROM goal_details").run();
+  await env.DB.prepare("DELETE FROM area_details").run();
   await env.DB.prepare("DELETE FROM note_details").run();
   await env.DB.prepare("DELETE FROM diary_entry_details").run();
   await env.DB.prepare("DELETE FROM entities").run();

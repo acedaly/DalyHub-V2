@@ -637,3 +637,39 @@ WHERE workspace_id = 'local-dev-workspace'
 DELETE FROM entities
 WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
   AND title LIKE 'Journey task%';
+
+-- ---------------------------------------------------------------------------
+-- AREA-05 — dedicated Area-lifecycle fixtures (archive / restore / permanent
+-- deletion). Kept separate from the shared `a-dh`/`a-health` Areas so the
+-- lifecycle journeys mutate only their own records and never disturb the other
+-- Areas/Goals/Projects specs. Mutable state (archival flag; the deletable Areas
+-- that a run may permanently delete) is reset to a known point at the end.
+-- ---------------------------------------------------------------------------
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('a-e2e-archive', 'local-dev-workspace', 'area', 'Archive Lifecycle Area', '2026-07-19T05:00:00.000Z', '2026-07-19T05:00:00.000Z', NULL),
+  ('a-e2e-blocked', 'local-dev-workspace', 'area', 'Blocked Delete Area', '2026-07-19T05:00:01.000Z', '2026-07-19T05:00:01.000Z', NULL),
+  ('a-e2e-empty', 'local-dev-workspace', 'area', 'Empty Delete Area', '2026-07-19T05:00:02.000Z', '2026-07-19T05:00:02.000Z', NULL),
+  ('a-e2e-cancel', 'local-dev-workspace', 'area', 'Cancel Delete Area', '2026-07-19T05:00:03.000Z', '2026-07-19T05:00:03.000Z', NULL),
+  ('g-e2e-archive', 'local-dev-workspace', 'goal', 'Archive Area Goal', '2026-07-19T05:01:00.000Z', '2026-07-19T05:01:00.000Z', NULL),
+  ('g-e2e-blocked', 'local-dev-workspace', 'goal', 'Blocking Goal', '2026-07-19T05:01:01.000Z', '2026-07-19T05:01:01.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'a-e2e-archive', 'area', NULL),
+  ('local-dev-workspace', 'a-e2e-blocked', 'area', NULL),
+  ('local-dev-workspace', 'a-e2e-empty', 'area', NULL),
+  ('local-dev-workspace', 'a-e2e-cancel', 'area', NULL),
+  ('local-dev-workspace', 'g-e2e-archive', 'goal', NULL),
+  ('local-dev-workspace', 'g-e2e-blocked', 'goal', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-ge2earch-area', 'local-dev-workspace', 'g-e2e-archive', 'a-e2e-archive', 'goal.belongs_to_area', '2026-07-19T05:01:00.000Z', '2026-07-19T05:01:00.000Z', NULL),
+  ('l-ge2eblk-area', 'local-dev-workspace', 'g-e2e-blocked', 'a-e2e-blocked', 'goal.belongs_to_area', '2026-07-19T05:01:01.000Z', '2026-07-19T05:01:01.000Z', NULL);
+
+-- Reset AREA-05 mutable state so every run starts deterministically. Clearing
+-- `area_details` returns any Area archived by a previous run to the active state;
+-- the INSERT OR IGNOREs above re-create any Area a previous run permanently
+-- deleted (`a-e2e-empty`).
+DELETE FROM area_details
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('a-e2e-archive', 'a-e2e-blocked', 'a-e2e-empty', 'a-e2e-cancel');
