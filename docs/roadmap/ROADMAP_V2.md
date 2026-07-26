@@ -191,6 +191,13 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 ---
 
+### ☐ DS-12 — Record Header overflow menu & Card overflow action
+- **Purpose.** The Record Layout documents a Record Header overflow (⋯) slot and the Card exposes an `overflowAction`, but neither is rendered: `RecordHeader` shows inline primary/secondary buttons only, and no module passes `overflowAction`. There is therefore no consistent home for secondary/destructive actions — the structural gap under [DEBT-29](../product/PRODUCT_DEBT.md) and the 2026-07 audit ([`UI_UX_COHERENCE_AUDIT_2026_07.md`](../product/UI_UX_COHERENCE_AUDIT_2026_07.md) §4 UXA-07). This is the shared primitive the lifecycle work (PX-04) depends on; it is separated so it can land and be reviewed on its own.
+- **Dependencies.** DS-02 (Record Layout), DS-04 (Card), DS-11 (a11y baseline).
+- **Expected outcome.** An accessible overflow menu-button + menu on the Record Header, and a menu on the Card. This requires **defining the shared overflow menu-item model first** — an ordered list of `CardAction`/`AppAction` items — because the Card's current `overflowAction` is a *single* action rendered as one button (`card/types.ts`); DS-12 generalises it to a list (`overflowActions`) while preserving the one-item case, and updates the Card contract + Design System accordingly. No lifecycle actions are wired yet — modules add archive/delete items in PX-04; DS-12 delivers the menu container + item model + a11y (focus, keyboard, `aria`), reusing the existing shared modal/focus machinery. (If generalising the Card proves larger than wanted, DS-12 may ship the `RecordHeader` menu first and defer Card-menu adoption to PX-04.)
+- **Priority.** P1.
+- **Status.** ☐ Not started. Structural shared primitive only; no lifecycle behaviour (that is PX-04).
+
 ## Phase 1b — Product Frame (`PX`)
 
 *The application shell alignment mandated by [`PRODUCT_EXPERIENCE.md`](../design/PRODUCT_EXPERIENCE.md) (the "App frame alignment" PR), built **before TODAY-01** so the first product surface inherits a premium application frame rather than pouring product concrete into a website-like shell.*
@@ -211,7 +218,7 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 ### ☐ PX-04 — Lifecycle & destructive-action consistency
 - **Purpose.** Make "how do I remove this record?" answerable everywhere, consistently. Today removal is scattered across four placements plus three absences (see [DEBT-29](../product/PRODUCT_DEBT.md)); there is no overflow (⋯) menu anywhere, and Area, Goal and Diary entries have no removal UI at all despite the kernel supporting soft-delete. Identified by the 2026-07 UI/UX coherence audit ([`UI_UX_COHERENCE_AUDIT_2026_07.md`](../product/UI_UX_COHERENCE_AUDIT_2026_07.md) §7).
-- **Dependencies.** DS-02 (Record Layout), DS-04 (Card), DS-10 (Feedback/Undo), DS-10b (Settings/DangerousAction), ADR-042 (Notes soft-delete pattern), FND-02/FND-07 (soft-delete + spine child guard).
+- **Dependencies.** DS-12 (Record Header overflow — the structural home for these actions), DS-02 (Record Layout), DS-04 (Card), DS-10 (Feedback/Undo), DS-10b (Settings/DangerousAction), ADR-042 (Notes soft-delete pattern), FND-02/FND-07 (soft-delete + spine child guard).
 - **Expected outcome.** The documented Record Header overflow (⋯) slot and the Card `overflowAction` slot are implemented and host one shared lifecycle action set (Archive/Delete/Restore). Area, Goal and Diary adopt the Notes reversible soft-delete/restore UI (single click + Undo toast; Deleted/All filter) — **no migration**, the domain already supports it. Project Archive/Restore is surfaced in the header overflow and as a collection quick action, not only in the Settings sub-tab. Hierarchy deletes are gated on the existing `SpineHasActiveChildrenError` with an explanatory confirm. No permanent delete, no cascade. Areas gain a Settings tab (Activity/Settings last).
 - **Priority.** P1.
 - **Status.** ☐ Not started. Reversible removal only; destructive/restorative actions live in one consistent place across modules.
@@ -226,8 +233,9 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 ### ☐ PX-06 — Cross-module polish & copy convention
 - **Purpose.** Remove the accumulated presentation drift the 2026-07 audit catalogued ([`UI_UX_COHERENCE_AUDIT_2026_07.md`](../product/UI_UX_COHERENCE_AUDIT_2026_07.md) §8–§10, [DEBT-31](../product/PRODUCT_DEBT.md)): Today's forked/inert empty states and primary action, Diary's duplicate entry points and Card/record fork, and terminology/capitalisation drift across collection headers, counts, empty copy and tab labels.
 - **Dependencies.** DS-04 (Card), the shared EmptyState/PaneHeader, PX-05 (helpful for the Diary card variant).
-- **Expected outcome.** Today adopts the shared `EmptyState` and create pattern (Quick Capture wired to real creation); Diary reduces to one primary entry point per viewport and, where feasible, expresses its timeline node as a Card variant so it inherits shared behaviour (its timeline visual preserved); a copy/capitalisation convention is added to `DESIGN_SYSTEM.md` and swept across every collection; tab labels converge ("Links", not "Key links").
+- **Expected outcome.** Today adopts the shared `EmptyState` and create pattern; Diary reduces to one primary entry point per viewport and, where feasible, expresses its timeline node as a Card variant so it inherits shared behaviour (its timeline visual preserved); a copy/capitalisation convention is added to `DESIGN_SYSTEM.md` and swept across every collection; tab labels converge ("Links", not "Key links").
 - **Priority.** P2.
+- **Note.** Wiring Today's Quick Capture to real creation is **not** in this item — it is the functional slice [TODAY-07](#-today-07--quick-capture-wiring); PX-06 covers the shared-EmptyState adoption, copy convention, Diary entry-point and tab-label work only.
 - **Status.** ☐ Not started. Mechanical, high-volume adoption sweep against a written convention; safe to run in parallel with PX-04/PX-05.
 
 ---
@@ -274,6 +282,13 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 ---
 
+### ☐ TODAY-07 — Quick Capture wiring
+- **Purpose.** Today's headline "Quick capture" action is currently inert — submitting keeps the draft and announces "not saved" (see [TODAY_DASHBOARD.md](../development/TODAY_DASHBOARD.md) and the 2026-07 audit UXA-13 / [DEBT-31](../product/PRODUCT_DEBT.md)). The home screen's primary action must actually create a task. Split out of PX-06 (which is presentation/copy polish) so this functional wiring has its own completable roadmap home.
+- **Dependencies.** TODAY-01, TASKS-01 (task creation), DS-06 (Forms), DS-10 (Feedback).
+- **Expected outcome.** Today's Quick Capture creates a real Task through the shared, authorised creation path (the same one `/tasks/new` uses), with optimistic feedback and Undo; the field no longer announces "not saved". Uses the shared create pattern, no bespoke capture store.
+- **Priority.** P2.
+- **Status.** ☐ Not started. Functional wiring only; the empty-state/copy polish of the same screen is PX-06.
+
 ## Phase 2b — Tasks (`TASKS`)
 
 *The workspace-wide task-management and planning system. Today and Projects remain projections of the same Task model; `/tasks` becomes the authoritative capture, planning and execution surface. Depends on the Today task slice (TODAY-02/03/04), the spine (FND-07) and the Design System.*
@@ -287,7 +302,7 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 ### ☐ TASKS-02 — Shared task signal presentation
 - **Purpose.** TASKS-01 models priority, urgency, planning and state richly, but the 2026-07 UI/UX audit ([`UI_UX_COHERENCE_AUDIT_2026_07.md`](../product/UI_UX_COHERENCE_AUDIT_2026_07.md) §6, [DEBT-27](../product/PRODUCT_DEBT.md)/[DEBT-28](../product/PRODUCT_DEBT.md)) found the *presentation* uneven: priority is a colour-free grey chip in Tasks and absent from Today/Project/Search cards; overdue is signalled by colour alone (no "Overdue" word); "due today" is indistinguishable from a future due date on a card; and task status resolves through two functions with different vocabularies.
 - **Dependencies.** TASKS-01, DS-04 (Card), DS-01 (tokens), DS-11 (no colour-only / 320px).
-- **Expected outcome.** A shared `PriorityIndicator` and an `UrgencyChip` (Overdue / Due today / Scheduled today — icon + word, colour as reinforcement only) render on every task-bearing Card (Today, Projects, Tasks, Search) and in the Drawer, driven by the canonical `taskPriorityTag`/`taskDateLabel`. The Today projection and the Tasks search payload carry priority. The legacy `taskDisplayStatus` is retired so every surface uses the single `taskDisplayState`. No wall of coloured pills; priority ≠ urgency ≠ display-state as three separable slots; useful at compact density and 320px.
+- **Expected outcome.** A shared `PriorityIndicator` and an `UrgencyChip` (Overdue / Due today / Scheduled today — icon + word, colour as reinforcement only) render on every task-bearing Card (Today, Projects, Tasks, Search) and in the Drawer, driven by the canonical `taskPriorityTag`/`taskDateLabel`. The Today projection and the Tasks search payload carry priority; because the shared search result contract (`SearchResultItem` / `SearchOption`) renders only icon/title/subtitle/type today, **rendering signals in Search also requires extending that shared search contract + surface with an optional signal slot** — that shared change is in scope for this item, not a `tasks/search.ts`-only change. Note the current Tasks search provider resolves results through `searchLinkTargets`, which yields only id/type/title, so populating priority/due/scheduled in Search also needs a **bounded, workspace-scoped task-search projection** returning those fields in one query (never a per-result `getTask` N+1). **If that projection is out of scope for this slice, drop Search from the acceptance criteria** and give it a dedicated follow-up rather than shipping an N+1 or an unpopulated signal. The legacy `taskDisplayStatus` is retired so every surface uses the single `taskDisplayState`. No wall of coloured pills; priority ≠ urgency ≠ display-state as three separable slots; useful at compact density and 320px.
 - **Priority.** P1.
 - **Status.** ☐ Not started. Presentation only — no change to the task data model.
 
