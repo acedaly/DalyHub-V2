@@ -465,3 +465,7 @@ dynamic/third-party/remote module loading. Those arrive in later roadmap items.
 - [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md#module-registry-self-registering-module-capabilities) — how the registry fits the stack.
 - [`AGENTS.md §9.1–9.2`](../../AGENTS.md#91-small-kernel-modular-userland) — small kernel, modular userland; the module registry principle.
 - [`docs/README.md`](../README.md) — documentation index.
+
+## Meetings adopter (MEET-01)
+
+The Meetings module registers its entity, routes, structural Activity vocabulary, `meeting.attendee` EntityLink, bounded search provider and three navigation commands. Its repository is composed through the authenticated workspace scope. See [`MEETINGS_MODULE.md`](MEETINGS_MODULE.md).

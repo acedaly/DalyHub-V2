@@ -30,6 +30,7 @@ import {
   type NewActivityEvent,
 } from "~/kernel/activity";
 import { isReservedDiaryEntityType } from "~/kernel/diary";
+import { MEETING_ENTITY_TYPE } from "~/kernel/meetings";
 import { isReservedPersonEntityType } from "~/kernel/people";
 import { RESERVED_SPINE_ENTITY_TYPES } from "~/kernel/spine";
 import {
@@ -171,7 +172,8 @@ export class D1EntityRepository implements EntityRepository {
     if (
       RESERVED_SPINE_ENTITY_TYPES.has(type) ||
       isReservedDiaryEntityType(type) ||
-      isReservedPersonEntityType(type)
+      isReservedPersonEntityType(type) ||
+      type === MEETING_ENTITY_TYPE
     ) {
       throw new ReservedEntityTypeError();
     }

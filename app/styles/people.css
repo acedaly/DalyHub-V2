@@ -272,3 +272,51 @@
     flex-basis: 100%;
   }
 }
+/* MEET-01 uses the shared collection/record primitives; these rules only provide module rhythm. */
+.dh-meeting-new {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+.dh-meeting-new form {
+  display: grid;
+  gap: var(--space-4);
+}
+.dh-meetings-views {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-5);
+}
+.dh-meeting-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+}
+.dh-meeting-card {
+  min-height: 44px;
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+}
+.dh-meeting-card span {
+  display: grid;
+  min-width: 0;
+}
+.dh-meeting-card small {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 30rem) {
+  .dh-meeting-new,
+  .dh-meeting-list {
+    padding: var(--space-3);
+  }
+}
