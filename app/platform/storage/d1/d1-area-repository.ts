@@ -30,6 +30,7 @@ import {
   encodeAreaCursor,
   type AreaAlignedProjectFact,
   type AreaCursorScope,
+  type AreaDependencySummary,
   type AreaGoalItem,
   type AreaGoalPage,
   type AreaListItem,
@@ -49,12 +50,30 @@ import { fromStorageTimestamp } from "./database";
 const EFFECTIVE_PROJECT_UPDATED_AT_EXPR =
   "(CASE WHEN pd.updated_at IS NOT NULL AND pd.updated_at > e.updated_at THEN pd.updated_at ELSE e.updated_at END)";
 
+/** Supporting entity-type literals used only to classify a linked dependent's
+ * kind for the AREA-05 dependency summary. These entity types are stored as-is on
+ * `entities.type` (migrations 0010 `note`, 0011 `diary`). */
+const NOTE_TYPE = "note";
+const DIARY_TYPE = "diary";
+
 interface AreaRow {
   readonly id: string;
   readonly workspace_id: string;
   readonly title: string;
   readonly created_at: string;
   readonly updated_at: string;
+  /** AREA-05: joined from `area_details` on the record read; absent on the active
+   * collection read (which excludes archived Areas entirely). */
+  readonly archived_at?: string | null;
+}
+
+interface AreaDependencyRow {
+  readonly goals: number | null;
+  readonly projects: number | null;
+  readonly tasks: number | null;
+  readonly notes: number | null;
+  readonly diary: number | null;
+  readonly other: number | null;
 }
 
 interface AreaListRow extends AreaRow {
@@ -269,7 +288,10 @@ export class D1AreaRepository implements AreaRepository {
            LEFT JOIN goal_counts gc ON gc.area_id = e.id
            LEFT JOIN project_counts pc ON pc.area_id = e.id
            LEFT JOIN task_counts tc ON tc.area_id = e.id
-           WHERE e.workspace_id = ? AND e.type = '${AREA}' AND e.deleted_at IS NULL${cursorClause}
+           LEFT JOIN area_details ad
+             ON ad.workspace_id = e.workspace_id AND ad.entity_id = e.id
+           WHERE e.workspace_id = ? AND e.type = '${AREA}' AND e.deleted_at IS NULL
+                 AND ad.archived_at IS NULL${cursorClause}
            ORDER BY e.created_at ASC, e.id ASC
            LIMIT ?`,
         )
@@ -306,10 +328,18 @@ export class D1AreaRepository implements AreaRepository {
     const result = await this.#run(
       this.#db
         .prepare(
-          `SELECT e.id, e.workspace_id, e.title, e.created_at, e.updated_at
+          // AREA-05: an ARCHIVED Area stays directly readable by its canonical
+          // URL (the record page labels it and guards its mutations), so this read
+          // deliberately does NOT filter on `area_details.archived_at` — only on
+          // soft-delete. The archival timestamp is joined so the record can render
+          // its lifecycle state.
+          `SELECT e.id, e.workspace_id, e.title, e.created_at, e.updated_at,
+                  ad.archived_at AS archived_at
            FROM entities e
            JOIN spine_records sr
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN area_details ad
+             ON ad.workspace_id = e.workspace_id AND ad.entity_id = e.id
            WHERE e.workspace_id = ? AND e.id = ? AND e.type = '${AREA}'
                  AND e.deleted_at IS NULL
            LIMIT 1`,
@@ -318,6 +348,86 @@ export class D1AreaRepository implements AreaRepository {
     );
     const row = ((result.results ?? []) as AreaRow[])[0];
     return row ? this.#toAreaOverview(row) : null;
+  }
+
+  async getAreaDependencySummary(
+    areaId: string,
+  ): Promise<AreaDependencySummary> {
+    const id = validateSpineId(areaId, "id");
+    // Count the ACTIVE links referencing the Area, grouped by what they attach.
+    // The three `*.belongs_to_area` types (Area is always the target) are the
+    // structural children; every OTHER active link is classified by its
+    // counterpart entity's type (Note / Diary / anything else). This is the SAME
+    // "genuinely empty" boundary the SpineRepository re-checks atomically at delete
+    // time — `total === 0` iff no active link references the Area — so a summary of
+    // zero and a successful delete can never disagree except across a real
+    // concurrent change (which the trusted re-check catches).
+    const structural = `'${GOAL_BELONGS_TO_AREA}', '${PROJECT_BELONGS_TO_AREA}', '${TASK_BELONGS_TO_AREA}'`;
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT
+             SUM(CASE WHEN l.type = '${GOAL_BELONGS_TO_AREA}' THEN 1 ELSE 0 END) AS goals,
+             SUM(CASE WHEN l.type = '${PROJECT_BELONGS_TO_AREA}' THEN 1 ELSE 0 END) AS projects,
+             SUM(CASE WHEN l.type = '${TASK_BELONGS_TO_AREA}' THEN 1 ELSE 0 END) AS tasks,
+             SUM(CASE WHEN l.type NOT IN (${structural}) AND ce.type = '${NOTE_TYPE}' THEN 1 ELSE 0 END) AS notes,
+             SUM(CASE WHEN l.type NOT IN (${structural}) AND ce.type = '${DIARY_TYPE}' THEN 1 ELSE 0 END) AS diary,
+             SUM(CASE WHEN l.type NOT IN (${structural})
+                       AND (ce.type IS NULL OR ce.type NOT IN ('${NOTE_TYPE}', '${DIARY_TYPE}'))
+                      THEN 1 ELSE 0 END) AS other
+           FROM entity_links l
+           LEFT JOIN entities ce
+             ON ce.workspace_id = l.workspace_id
+                AND ce.id = (CASE WHEN l.target_entity_id = ?
+                                  THEN l.source_entity_id ELSE l.target_entity_id END)
+           WHERE l.workspace_id = ? AND l.deleted_at IS NULL
+             AND (l.target_entity_id = ? OR l.source_entity_id = ?)`,
+        )
+        .bind(id, this.#workspaceId, id, id),
+    );
+    const row = ((result.results ?? []) as AreaDependencyRow[])[0];
+    const goals = Number(row?.goals ?? 0);
+    const projects = Number(row?.projects ?? 0);
+    const tasks = Number(row?.tasks ?? 0);
+    const notes = Number(row?.notes ?? 0);
+    const diary = Number(row?.diary ?? 0);
+    const other = Number(row?.other ?? 0);
+    const total = goals + projects + tasks + notes + diary + other;
+    return {
+      areaId: id,
+      goals,
+      projects,
+      tasks,
+      notes,
+      diary,
+      other,
+      total,
+      deletable: total === 0,
+    };
+  }
+
+  async listArchivedAreaIds(
+    candidateIds: readonly string[],
+  ): Promise<readonly string[]> {
+    const ids = candidateIds.filter((id) => id.length > 0);
+    if (ids.length === 0) {
+      return [];
+    }
+    const placeholders = ids.map(() => "?").join(", ");
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT ad.entity_id AS id
+           FROM area_details ad
+           JOIN entities e
+             ON e.workspace_id = ad.workspace_id AND e.id = ad.entity_id
+                AND e.type = '${AREA}' AND e.deleted_at IS NULL
+           WHERE ad.workspace_id = ? AND ad.archived_at IS NOT NULL
+             AND ad.entity_id IN (${placeholders})`,
+        )
+        .bind(this.#workspaceId, ...ids),
+    );
+    return ((result.results ?? []) as { id: string }[]).map((row) => row.id);
   }
 
   async listAreaGoals(input: {
@@ -673,6 +783,9 @@ export class D1AreaRepository implements AreaRepository {
       title: row.title,
       createdAt: fromStorageTimestamp(row.created_at),
       updatedAt: fromStorageTimestamp(row.updated_at),
+      archivedAt: row.archived_at
+        ? fromStorageTimestamp(row.archived_at)
+        : null,
     };
   }
 

@@ -39,6 +39,13 @@ export type AreaOverview = {
   readonly title: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  /**
+   * AREA-05: the archival timestamp (`area_details.archived_at`), or `null` when
+   * the Area is active. An archived Area is excluded from the active `listAreas`
+   * collection and creation pickers but stays directly readable here by its
+   * canonical URL, clearly labelled and with its non-lifecycle mutations guarded.
+   */
+  readonly archivedAt: Date | null;
 };
 
 export type AreaGoalItem = {
@@ -116,6 +123,28 @@ export type AreaDirectTaskFacts = {
 export type AreaMomentumSourceFacts = {
   readonly directTasks: AreaDirectTaskFacts;
   readonly projects: readonly AreaAlignedProjectFact[];
+};
+
+/**
+ * AREA-05 — the records blocking a permanent Area deletion, grouped by kind, for
+ * the danger-zone UI. Derived live from the active links referencing the Area
+ * (the same "genuinely empty" boundary the SpineRepository re-checks atomically at
+ * delete time): child Goals/Projects/Tasks directly under the Area, linked
+ * Notes/Diary entries with the Area as an endpoint, and any other active link that
+ * would become invalid. `deletable` is `total === 0`. This read is advisory — the
+ * trusted deletion re-checks the same condition in-SQL, so a dependent added
+ * between this read and submission still blocks the purge.
+ */
+export type AreaDependencySummary = {
+  readonly areaId: string;
+  readonly goals: number;
+  readonly projects: number;
+  readonly tasks: number;
+  readonly notes: number;
+  readonly diary: number;
+  readonly other: number;
+  readonly total: number;
+  readonly deletable: boolean;
 };
 
 export type AreaListPage = {

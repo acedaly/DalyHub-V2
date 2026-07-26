@@ -15,6 +15,7 @@
 import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AreaRepository } from "~/kernel/areas";
+import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
@@ -60,6 +61,10 @@ import {
   D1ProjectSettingsRepository,
   type D1ProjectSettingsRepositoryOptions,
 } from "./d1-project-settings-repository";
+import {
+  D1AreaSettingsRepository,
+  type D1AreaSettingsRepositoryOptions,
+} from "./d1-area-settings-repository";
 import {
   D1SpineRepository,
   type D1SpineRepositoryOptions,
@@ -329,4 +334,24 @@ export function createProjectSettingsRepository(
   options?: D1ProjectSettingsRepositoryOptions,
 ): ProjectSettingsRepository {
   return new D1ProjectSettingsRepository(db, context, options);
+}
+
+export {
+  D1AreaSettingsRepository,
+  type D1AreaSettingsRepositoryOptions,
+} from "./d1-area-settings-repository";
+
+/**
+ * Factory for the workspace-scoped D1-backed AreaSettingsRepository — the AREA-05
+ * Areas-owned archival slice. Like the other mutation repositories it is bound to
+ * a `WorkspaceContext` and a trusted Activity actor; there is no unscoped
+ * construction path. Permanent (hard) Area deletion is NOT here — it stays the
+ * SpineRepository's authority (`permanentlyDeleteArea`).
+ */
+export function createAreaSettingsRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1AreaSettingsRepositoryOptions,
+): AreaSettingsRepository {
+  return new D1AreaSettingsRepository(db, context, options);
 }

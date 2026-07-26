@@ -13,6 +13,7 @@ import {
 } from "~/shared/activity-feed/model";
 
 import {
+  AREA_ACTIVITY_DESCRIPTOR_MAP,
   AREA_ACTIVITY_PAGE_SIZE,
   type AreaActivityPage,
   type SerializedAreaActivityItem,
@@ -75,6 +76,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const items = toActivityItems(page.items, {
     resolveEntity: (id) => resolved.get(id) ?? null,
     anchorEntityId: areaId,
+    descriptors: AREA_ACTIVITY_DESCRIPTOR_MAP,
   });
   const serialized: SerializedAreaActivityItem[] = items.map((item) => ({
     ...item,

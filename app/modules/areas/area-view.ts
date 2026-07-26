@@ -53,6 +53,8 @@ export type SerializedAreaOverview = {
   readonly title: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /** AREA-05: ISO archival timestamp, or `null` when the Area is active. */
+  readonly archivedAt: string | null;
 };
 
 export type SerializedAreaGoalItem = {
@@ -147,7 +149,14 @@ export function serializeAreaOverview(
     title: overview.title,
     createdAt: overview.createdAt.toISOString(),
     updatedAt: overview.updatedAt.toISOString(),
+    archivedAt: overview.archivedAt ? overview.archivedAt.toISOString() : null,
   };
+}
+
+export function isAreaOverviewArchived(
+  overview: SerializedAreaOverview,
+): boolean {
+  return overview.archivedAt !== null;
 }
 
 export function serializeAreaGoalItem(
@@ -213,11 +222,86 @@ export function rollupProgress(
   };
 }
 
-export function areaStateLabel(): {
+export function areaStateLabel(archived = false): {
   readonly label: string;
   readonly tone: CardTone;
 } {
-  return { label: "Permanent", tone: "neutral" };
+  return archived
+    ? { label: "Archived", tone: "neutral" }
+    : { label: "Permanent", tone: "neutral" };
+}
+
+/**
+ * AREA-05 — a plain-language description of what blocks a permanent deletion,
+ * grouped by dependent kind, for the danger-zone UI. Each entry names the kind,
+ * the count and (where practical) a route to the records so the user can move,
+ * archive or delete them first. Never returns a zero-count entry.
+ */
+export type AreaDependencyBlocker = {
+  readonly id: string;
+  readonly label: string;
+  readonly count: number;
+  readonly href?: string;
+};
+
+export function areaDependencyBlockers(summary: {
+  readonly areaId: string;
+  readonly goals: number;
+  readonly projects: number;
+  readonly tasks: number;
+  readonly notes: number;
+  readonly diary: number;
+  readonly other: number;
+}): readonly AreaDependencyBlocker[] {
+  const areaHref = `/areas/${encodeURIComponent(summary.areaId)}`;
+  const blockers: AreaDependencyBlocker[] = [];
+  const plural = (n: number, one: string, many: string) =>
+    n === 1 ? one : many;
+  if (summary.goals > 0) {
+    blockers.push({
+      id: "goals",
+      label: `${summary.goals} ${plural(summary.goals, "Goal", "Goals")}`,
+      count: summary.goals,
+      href: `${areaHref}?tab=goals`,
+    });
+  }
+  if (summary.projects > 0) {
+    blockers.push({
+      id: "projects",
+      label: `${summary.projects} ${plural(summary.projects, "Project", "Projects")}`,
+      count: summary.projects,
+      href: `${areaHref}?tab=projects`,
+    });
+  }
+  if (summary.tasks > 0) {
+    blockers.push({
+      id: "tasks",
+      label: `${summary.tasks} direct ${plural(summary.tasks, "Task", "Tasks")}`,
+      count: summary.tasks,
+    });
+  }
+  if (summary.notes > 0) {
+    blockers.push({
+      id: "notes",
+      label: `${summary.notes} linked ${plural(summary.notes, "Note", "Notes")}`,
+      count: summary.notes,
+    });
+  }
+  if (summary.diary > 0) {
+    blockers.push({
+      id: "diary",
+      label: `${summary.diary} linked Diary ${plural(summary.diary, "entry", "entries")}`,
+      count: summary.diary,
+    });
+  }
+  if (summary.other > 0) {
+    blockers.push({
+      id: "other",
+      label: `${summary.other} other linked ${plural(summary.other, "record", "records")}`,
+      count: summary.other,
+    });
+  }
+  return blockers;
 }
 
 export function areaUpdatedLabel(iso: string): string | null {

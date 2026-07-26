@@ -298,18 +298,104 @@ not a second mobile layout.
   (shared `record-layout.css`) and test-only code; the existing dry-run path
   remains authoritative.
 
+## Lifecycle: Archive, Restore & permanent deletion (AREA-05)
+
+AREA-05 gives the Area record a **Settings** tab (Activity/Settings last) with a
+clearly separated lifecycle/danger section offering two *distinct* actions, so the
+owner can remove an Area without risking accidental loss of its Goals, Projects,
+Tasks, Notes, Diary entries or links. Accepted via
+[ADR-046](../decisions/ARCHITECTURE_DECISIONS.md#adr-046-area-lifecycle--reversible-archival-on-a-module-owned-slice-and-the-first-guarded-permanent-deletion-purge-with-audit-tombstone).
+
+### Archive & Restore (the normal, reversible action)
+
+- **Archive semantics.** Archiving an Area moves it out of the owner's active
+  Areas while **preserving everything inside it** — Goals, Projects, Tasks, links
+  and Activity are untouched (archive is not a delete and never cascades). It is
+  **always allowed on an active Area** (unlike a Project's archive, which is
+  blocked by unfinished direct Tasks). Archived state is stored the way every
+  other additive detail slice is: a small module-owned `area_details` table
+  (migration `0013`, the `project_details`/`goal_details` precedent) holding one
+  nullable `archived_at`, mutated only through the trusted `AreaSettingsRepository.
+  archive`/`restore`. It is **not** the spine's soft-delete (which blocks
+  non-empty containers and returns not-found), and **not** hidden UI state.
+- **Restoration semantics.** `Restore area` returns an archived Area to the active
+  collection with nothing inside it changed. Both transitions are idempotent and
+  atomic with their Activity event.
+- **Activity behaviour.** Archive appends `area.archived`; restore appends
+  `area.restored` — one atomic event each, via the shared `recordAtomicMutation`
+  seam (a no-op appends nothing).
+- **Collection visibility.** `AreaRepository.listAreas` excludes archived Areas
+  from the active collection, and the New-Project / New-Task parent pickers drop
+  archived Areas (one bounded `listArchivedAreaIds` filter) — a creation picker
+  never offers an archived Area.
+- **Direct-route behaviour.** An archived Area stays **directly readable by its
+  canonical URL** (`getAreaOverview` filters soft-delete only, never archival). The
+  record labels itself archived (status pill "Archived" + a text notice — never
+  colour alone), and its non-lifecycle mutations (Rename, New Goal) are **guarded
+  both in the UI and server-side** until it is restored.
+
+### Permanent deletion (the exceptional, guarded action)
+
+- **Eligibility & dependency guards.** `Delete area permanently` is refused while
+  the Area still has ANY active link referencing it — child Goals/Projects/Tasks
+  or a linked Note/Diary/other entity whose link would become invalid. When
+  blocked, the danger section shows a calm explanation, the counts **grouped by
+  dependent kind** (with links to the relevant tabs/records where practical), tells
+  the user to move, archive or delete them first, and offers **no delete button at
+  all** — there is no bypass or force-delete. The advisory counts come from
+  `AreaRepository.getAreaDependencySummary`.
+- **Repository enforcement.** Deletion is the SpineRepository's authority
+  (`permanentlyDeleteArea`) — the only irreversible spine mutation. It is
+  workspace-scoped (a non-Area id is wrong-kind; a cross-workspace/missing id is a
+  calm not-found), and the "genuinely empty" check is **folded into the mutating
+  SQL and evaluated at commit**, so a dependent linked between page-load and
+  submission still blocks the purge, and the batch is strictly all-or-nothing.
+  When empty, one atomic `D1Database.batch()` deletes the Area's footprint in
+  FK-safe order — `entity_links` → `activity_subjects` → `area_details` →
+  `spine_records` → `entities` — so no `ON DELETE RESTRICT` FK is violated, and no
+  detail/link/projection/activity-subject row is orphaned.
+- **Audit behaviour (the retention decision).** Because `activity_subjects.entity_id`
+  is `ON DELETE RESTRICT` (to preserve a deleted entity's Timeline) and the deletion
+  event's own subject *would be* the vanishing row, the purge removes the Area's
+  subject associations (the append-only `activities` rows are **retained** — only
+  their pointers to the deleted entity go, so nothing dangles) and appends ONE
+  **subject-less `area.deleted`** audit event carrying the Area's id and title in
+  its payload — the permanent, workspace-scoped record of the deletion, visible in
+  the workspace Activity Feed and never on any entity Timeline. This is the
+  repository-approved purge-plus-tombstone, documented in ADR-046 — no competing
+  model.
+- **UI & confirmation.** The Settings tab composes the shared DS-10b `SettingsLayout`
+  / `SettingsGroup tone="danger"` / `DangerousAction` / `ConfirmationDialog`
+  (reusing the DS-03 focus/inert/scroll-lock hooks; no `confirm()`/`prompt()`).
+  Reversible Archive/Restore uses no typed phrase; permanent Delete requires typing
+  the **exact Area title** (case- and whitespace-significant), keeps Confirm
+  disabled until it matches, redirects to `/areas` on success with success
+  feedback, and restores focus to the exact opener on cancellation.
+
+### Architectural decision / debt discovered
+
+The dependency guard blocks on *any* active link, including a soft-deleted
+(trashed) child that retains its active structural parent link — so an Area with a
+child in the trash is not "empty" and cannot yet be permanently deleted (the safe
+direction: it never orphans a trashed child's rows). Purging a trashed descendant
+is out of scope for AREA-05 and would need a child-level purge path; this is
+recorded as accepted debt in ADR-046 rather than worked around.
+
 ## Migration, deployment and deferrals
 
 AREA-01 itself required no migration. AREA-02 adds
 `migrations/0009_create_goal_details.sql` (see [`GOALS_MODULE.md`](./GOALS_MODULE.md))
 — additive and forward-only; the Areas module's `listAreaGoals` query composes
 with it (a `LEFT JOIN`) but requires no backfill or deploy-time data change.
-Production must still have the spine, project-detail and goal-detail migrations
-applied before this Worker code runs, because Areas reads compose with Projects,
-Project health and Goal details.
+**AREA-05 adds `migrations/0013_create_area_details.sql`** — additive and
+forward-only, no backfill (a missing row means "active"); the Areas reads compose
+with it via `LEFT JOIN`. Production must still have the spine, project-detail and
+goal-detail migrations applied before this Worker code runs, because Areas reads
+compose with Projects, Project health and Goal details.
 
-Deliberate deferrals: Area deletion/restore, Area settings, and
-descendant-aggregated Activity. Full Goal
+Deliberate deferrals: descendant-aggregated Activity, and a child-level purge path
+for trashed descendants (see above). Area deletion/restore and Area settings are
+**delivered by AREA-05** (this section), superseding AREA-01's deferral. Full Goal
 records and Goal-specific fields are delivered by AREA-02 — see
 [`GOALS_MODULE.md`](./GOALS_MODULE.md). Alignment/intention reporting is now
 delivered by AREA-03 as the real `/goals` collection, not an Area-record

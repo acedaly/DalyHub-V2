@@ -60,11 +60,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     },
   );
 
-  const options: SelectOption[] = targets.map((target) => ({
-    value: target.id,
-    label: target.title,
-    description: target.type === "goal" ? "Goal" : "Area",
-  }));
+  // AREA-05: never offer an ARCHIVED Area as a new Project's parent. Archived Areas
+  // are excluded from the active collection; a creation picker must match. One
+  // bounded query drops them; Goals and active Areas are unaffected.
+  const archivedAreaIds = new Set(
+    await scope.areas.listArchivedAreaIds(
+      targets.filter((t) => t.type === "area").map((t) => t.id),
+    ),
+  );
+
+  const options: SelectOption[] = targets
+    .filter((target) => !archivedAreaIds.has(target.id))
+    .map((target) => ({
+      value: target.id,
+      label: target.title,
+      description: target.type === "goal" ? "Goal" : "Area",
+    }));
 
   return json({ options } satisfies ProjectParentOptionsData);
 }

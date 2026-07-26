@@ -8,6 +8,7 @@
 
 import type {
   AreaChildrenInput,
+  AreaDependencySummary,
   AreaGoalPage,
   AreaListInput,
   AreaListPage,
@@ -44,4 +45,25 @@ export interface AreaRepository {
    * aggregate.
    */
   getAreaMomentumFacts(areaId: string): Promise<AreaMomentumSourceFacts>;
+
+  /**
+   * AREA-05 — the records blocking a permanent deletion of this Area, grouped by
+   * kind, read live from the active links referencing the Area. Advisory (the
+   * trusted deletion re-checks the same "genuinely empty" condition atomically);
+   * used to render the danger-zone blockers and decide whether to offer the
+   * exact-title deletion confirmation at all. A missing/wrong-kind/cross-workspace
+   * id returns an all-zero, `deletable: true` summary, disclosing nothing.
+   */
+  getAreaDependencySummary(areaId: string): Promise<AreaDependencySummary>;
+
+  /**
+   * AREA-05 — of the given candidate ids, return the subset that are ARCHIVED
+   * Areas in this workspace, in ONE bounded query. Creation pickers (New Project /
+   * New Task parent search) call this to drop archived Areas from their results
+   * without a per-candidate read. Non-Area, active-Area, cross-workspace and
+   * unknown ids are simply absent from the result.
+   */
+  listArchivedAreaIds(
+    candidateIds: readonly string[],
+  ): Promise<readonly string[]>;
 }

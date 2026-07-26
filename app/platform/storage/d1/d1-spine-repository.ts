@@ -30,10 +30,12 @@ import {
   buildActivityWriteModel,
   createSystemActorContext,
   secureIdGenerator as activitySecureIdGenerator,
+  serializeActivityPayload,
   type ActivityActorContext,
   type ActivityPayload,
   type NewActivityEvent,
 } from "~/kernel/activity";
+import { AREA_DELETED } from "~/kernel/area-settings";
 import {
   AREA,
   GOAL,
@@ -49,6 +51,7 @@ import {
   SpineConflictError,
   SpineError,
   SpineHasActiveChildrenError,
+  SpineHasDependentsError,
   SpineInvalidParentKindError,
   SpineNotFoundError,
   SpineParentUnavailableError,
@@ -79,6 +82,7 @@ import {
   type SpineParent,
   type SpineParentKind,
   type SpineLifecycleResult,
+  type AreaDeletionResult,
   type SpineRecord,
   type SpineRepository,
   type SpineRollup,
@@ -111,6 +115,14 @@ import {
 export type SpineCreateFault =
   "entity-activity" | "link-activity" | "spine-insert";
 
+/**
+ * Deterministic, TEST-ONLY failure injection for the permanent-delete purge batch.
+ * `"after-entities"` forces a failure immediately after the `entities` DELETE (but
+ * before the audit event), proving the whole FK-ordered purge rolls back as one
+ * transaction. Never set in production.
+ */
+export type SpineDeleteFault = "after-entities";
+
 /** Optional dependencies for the repository, injectable for deterministic tests. */
 export interface D1SpineRepositoryOptions {
   /** Clock used for domain AND Activity timestamps (one call per mutation). */
@@ -123,6 +135,8 @@ export interface D1SpineRepositoryOptions {
   readonly activityIdGenerator?: IdGenerator;
   /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
   readonly createFault?: SpineCreateFault;
+  /** TEST-ONLY deterministic permanent-delete-batch failure injection. */
+  readonly deleteFault?: SpineDeleteFault;
 }
 
 /** The entity columns a mutation returns, matching {@link EntityRow}. */
@@ -183,6 +197,7 @@ export class D1SpineRepository implements SpineRepository {
   readonly #newActivityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
   readonly #createFault?: SpineCreateFault;
+  readonly #deleteFault?: SpineDeleteFault;
 
   constructor(
     db: D1Database,
@@ -198,6 +213,7 @@ export class D1SpineRepository implements SpineRepository {
       options.activityIdGenerator ?? activitySecureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
     this.#createFault = options.createFault;
+    this.#deleteFault = options.deleteFault;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1319,6 +1335,175 @@ export class D1SpineRepository implements SpineRepository {
       throw new SpineParentUnavailableError();
     }
     throw new SpineNotFoundError();
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Permanent (hard) Area deletion — AREA-05                               */
+  /* ---------------------------------------------------------------------- */
+
+  async permanentlyDeleteArea(id: string): Promise<AreaDeletionResult> {
+    const areaId = validateSpineId(id);
+    const record = await this.getById(areaId, { includeDeleted: true });
+    if (!record) {
+      throw new SpineNotFoundError();
+    }
+    if (record.kind !== AREA) {
+      throw new SpineWrongKindError();
+    }
+
+    const now = this.#clock();
+    const changed = await this.#runAreaPurge(areaId, record.title, now);
+    if (changed) {
+      return {
+        areaId,
+        title: record.title,
+        outcome: "deleted",
+        changed: true,
+      };
+    }
+
+    // The guarded purge changed nothing: classify honestly. Either a concurrent
+    // permanent-delete already removed the Area (idempotent `already_gone`), or a
+    // dependent still references it (the atomic re-check blocked the purge — the
+    // whole batch is all-or-nothing, so nothing was removed). The blocking counts
+    // are recomputed by the route through the read-only AreaRepository, so the
+    // error itself stays cheap.
+    const still = await this.getById(areaId, { includeDeleted: true });
+    if (!still) {
+      return {
+        areaId,
+        title: record.title,
+        outcome: "already_gone",
+        changed: false,
+      };
+    }
+    throw new SpineHasDependentsError();
+  }
+
+  /**
+   * Purge an EMPTY Area's entire technical footprint in ONE atomic, FK-safe
+   * `D1Database.batch()`. Every DELETE carries the SAME "no active link references
+   * this Area" guard, so the batch is strictly all-or-nothing: if any dependent
+   * exists (evaluated AT COMMIT, closing the load→submit race), every statement
+   * matches zero rows and nothing is removed. When the Area is genuinely empty the
+   * rows are deleted child-first so no `ON DELETE RESTRICT` foreign key is ever
+   * violated:
+   *
+   *   1. `entity_links`      — the Area's remaining (soft-deleted / historical)
+   *      link rows; active ones cannot exist here, or the guard would have blocked.
+   *   2. `activity_subjects` — the Area's subject associations. The `activities`
+   *      rows themselves are RETAINED (append-only, ADR-012); only the pointers to
+   *      the vanishing entity are removed, so no FK dangles and the workspace feed
+   *      keeps its history.
+   *   3. `area_details`      — the module-owned archival row, if any.
+   *   4. `spine_records`     — the spine identity row.
+   *   5. `entities`          — the entity row itself (`RETURNING` drives the guard).
+   *   6. a single subject-less `area.deleted` audit event, guarded on the
+   *      `entities` DELETE's `changes()`, carrying the Area's id + title in its
+   *      payload (its subject would be the row just deleted).
+   *
+   * Returns whether the `entities` DELETE removed a row.
+   */
+  async #runAreaPurge(
+    areaId: string,
+    title: string,
+    now: Date,
+  ): Promise<boolean> {
+    const nowTs = toStorageTimestamp(now);
+
+    // The "genuinely empty" guard: no ACTIVE link (structural child, or any other
+    // relationship) references the Area. Soft-deleted / historical links (e.g. a
+    // child that was moved away) do NOT block. Binds (workspaceId, areaId, areaId).
+    const emptyGuard = `NOT EXISTS (
+        SELECT 1 FROM entity_links dl
+        WHERE dl.workspace_id = ? AND dl.deleted_at IS NULL
+          AND (dl.target_entity_id = ? OR dl.source_entity_id = ?)
+      )`;
+    const guardBinds = [this.#workspaceId, areaId, areaId];
+
+    const deleteLinks = this.#db
+      .prepare(
+        `DELETE FROM entity_links
+         WHERE workspace_id = ? AND (source_entity_id = ? OR target_entity_id = ?)
+           AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, areaId, areaId, ...guardBinds);
+
+    const deleteSubjects = this.#db
+      .prepare(
+        `DELETE FROM activity_subjects
+         WHERE workspace_id = ? AND entity_id = ?
+           AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, areaId, ...guardBinds);
+
+    const deleteDetails = this.#db
+      .prepare(
+        `DELETE FROM area_details
+         WHERE workspace_id = ? AND entity_id = ?
+           AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, areaId, ...guardBinds);
+
+    const deleteSpineRecord = this.#db
+      .prepare(
+        `DELETE FROM spine_records
+         WHERE workspace_id = ? AND entity_id = ?
+           AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, areaId, ...guardBinds);
+
+    const deleteEntity = this.#db
+      .prepare(
+        `DELETE FROM entities
+         WHERE workspace_id = ? AND id = ? AND type = '${AREA}'
+           AND ${emptyGuard}
+         RETURNING id, title`,
+      )
+      .bind(this.#workspaceId, areaId, ...guardBinds);
+
+    const payload: ActivityPayload = { areaId, title };
+    const payloadJson = serializeActivityPayload(payload);
+    const auditEvent = this.#db
+      .prepare(
+        `INSERT INTO activities
+           (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE changes() > 0`,
+      )
+      .bind(
+        this.#newActivityId(),
+        this.#workspaceId,
+        AREA_DELETED,
+        this.#actor.actor.type,
+        this.#actor.actor.id,
+        nowTs,
+        payloadJson,
+      );
+
+    const batch: D1PreparedStatement[] = [
+      deleteLinks,
+      deleteSubjects,
+      deleteDetails,
+      deleteSpineRecord,
+      deleteEntity,
+    ];
+    if (this.#deleteFault === "after-entities") {
+      batch.push(this.#forcedFailure());
+    }
+    batch.push(auditEvent);
+
+    try {
+      const results = await this.#db.batch(batch);
+      // The `entities` DELETE is index 4 (the fifth statement).
+      const entitiesResult = results[4];
+      return (entitiesResult?.meta?.changes ?? 0) > 0;
+    } catch (cause) {
+      if (cause instanceof SpineError) {
+        throw cause;
+      }
+      throw new SpineStorageError(undefined, { cause });
+    }
   }
 
   /* ---------------------------------------------------------------------- */

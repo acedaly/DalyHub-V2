@@ -16,6 +16,11 @@
 
 import { defineModule } from "~/kernel/modules";
 import { AREA } from "~/kernel/spine";
+import {
+  AREA_ARCHIVED,
+  AREA_DELETED,
+  AREA_RESTORED,
+} from "~/kernel/area-settings";
 
 import routes from "./routes.manifest";
 
@@ -26,4 +31,24 @@ export default defineModule({
   order: 10,
   routes,
   entityTypes: [{ type: AREA, singular: "Area", plural: "Areas" }],
+  // AREA-05: the reversible archival transitions and the irreversible permanent
+  // deletion (a subject-less workspace audit fact). Areas still never complete, so
+  // there is no completion Activity type.
+  activityTypes: [
+    {
+      type: AREA_ARCHIVED,
+      label: "Area archived",
+      description: "An area was archived.",
+    },
+    {
+      type: AREA_RESTORED,
+      label: "Area restored",
+      description: "An archived area was restored.",
+    },
+    {
+      type: AREA_DELETED,
+      label: "Area deleted",
+      description: "An area was permanently deleted.",
+    },
+  ],
 });

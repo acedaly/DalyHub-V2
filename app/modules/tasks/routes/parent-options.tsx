@@ -50,12 +50,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     limit: PARENT_OPTIONS_LIMIT,
   });
 
-  const options: TaskParentOption[] = candidates.map((candidate) => ({
-    id: candidate.id,
-    kind: candidate.kind,
-    title: candidate.title,
-    context: candidate.kind === "area" ? "Area" : "Project",
-  }));
+  // AREA-05: never offer an ARCHIVED Area as a new Task's parent. One bounded
+  // query drops archived Areas; Projects and active Areas are unaffected.
+  const archivedAreaIds = new Set(
+    await scope.areas.listArchivedAreaIds(
+      candidates.filter((c) => c.kind === "area").map((c) => c.id),
+    ),
+  );
+
+  const options: TaskParentOption[] = candidates
+    .filter((candidate) => !archivedAreaIds.has(candidate.id))
+    .map((candidate) => ({
+      id: candidate.id,
+      kind: candidate.kind,
+      title: candidate.title,
+      context: candidate.kind === "area" ? "Area" : "Project",
+    }));
 
   return json({ options } satisfies TaskParentOptionsData);
 }

@@ -14,6 +14,8 @@
  * workspaces.
  */
 
+import type { AreaDependencyCounts } from "./spine";
+
 /** Discriminator so callers can branch on error kind without `instanceof`. */
 export type SpineErrorCode =
   | "validation"
@@ -22,6 +24,7 @@ export type SpineErrorCode =
   | "parent_unavailable"
   | "invalid_parent_kind"
   | "has_active_children"
+  | "has_dependents"
   | "area_completion"
   | "invalid_cursor"
   | "conflict"
@@ -116,6 +119,30 @@ export class SpineHasActiveChildrenError extends SpineError {
     message = "This record has active children and cannot be deleted",
   ) {
     super(message);
+  }
+}
+
+/**
+ * A permanent (hard) deletion was refused because the record still has dependent
+ * records — an Area that still has any active link referencing it: child
+ * Goals/Projects/Tasks, or a linked Note/Diary/other entity whose link would
+ * become invalid. The dependents must be moved, archived or deleted first. Unlike
+ * `SpineHasActiveChildrenError` (soft-delete of a container with active children,
+ * a reversible transition), this gates the irreversible purge. Carries the
+ * blocking counts so the caller can explain what remains without a second query.
+ */
+export class SpineHasDependentsError extends SpineError {
+  readonly code = "has_dependents" as const;
+  /** The blocking counts, when the adapter could recompute them cheaply after the
+   * guarded write missed — so a caller can explain what remains without re-query. */
+  readonly counts?: AreaDependencyCounts;
+
+  constructor(
+    counts?: AreaDependencyCounts,
+    message = "This area still has dependent records and cannot be permanently deleted",
+  ) {
+    super(message);
+    this.counts = counts;
   }
 }
 

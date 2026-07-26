@@ -602,6 +602,54 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
   [AREAS_MODULE.md](../development/AREAS_MODULE.md#mobile-area-04) and
   [GOALS_MODULE.md](../development/GOALS_MODULE.md#mobile-area-04).
 
+### ☑ AREA-05 — Area archive & safe deletion lifecycle
+
+- **Purpose.** Let the owner remove an Area safely, without risking accidental
+  loss of its Goals, Projects, Tasks, Notes, Diary entries or links. Areas were
+  the one spine record with no lifecycle beyond create/rename (AREA-01 explicitly
+  deferred deletion/restore/archival and a Settings surface).
+- **Dependencies.** AREA-01, FND-07, DS-10b (Settings + dangerous-action), FND-05
+  (Activity).
+- **Expected outcome.** Two distinct lifecycle actions on a new Area **Settings**
+  tab: a normal, reversible **Archive/Restore**, and an exceptional, guarded
+  **Delete permanently**. Archived Areas leave the active collection and creation
+  pickers but stay readable by URL with a clear label and read-only mutations;
+  permanent deletion is refused (with grouped, linked dependency counts and no
+  bypass) until the Area is genuinely empty, then requires an exact-title
+  confirmation and purges the Area's whole technical footprint atomically. **P3.**
+- **Status: ☑ Done.** Archival is stored the way every other additive Area/Goal/
+  Project detail slice is (the `project_details`/`goal_details` precedent): a small
+  module-owned `area_details` table (migration `0013`) holding one nullable
+  `archived_at`, mutated only through the new trusted `AreaSettingsRepository`
+  (`archive`/`restore`, always allowed on an active Area, atomic with `area.archived`
+  /`area.restored` Activity via the shared `recordAtomicMutation` seam) — NOT the
+  spine's soft-delete, which blocks non-empty containers and returns not-found, and
+  NOT hidden UI state. `AreaRepository` now excludes archived Areas from the active
+  collection and the New-Project/New-Task parent pickers, keeps an archived Area
+  readable by its canonical URL (labelled, with Rename/New-Goal guarded server-side
+  and in the UI), and exposes a live `getAreaDependencySummary`. Permanent deletion
+  is the SpineRepository's authority (`permanentlyDeleteArea`) — the only
+  irreversible spine mutation: it is workspace-scoped, re-checks "no active link
+  references the Area" AT COMMIT (folded into the guarded SQL, all-or-nothing), and
+  purges `entity_links` → `activity_subjects` → `area_details` → `spine_records` →
+  `entities` in one atomic FK-ordered batch, appending a single subject-less
+  `area.deleted` audit tombstone (its subject would be the row being deleted; prior
+  Activity rows are retained per ADR-012, only their subject links to the vanishing
+  entity are removed). No projection/cache rows exist to orphan. The Settings tab
+  composes the shared DS-10b `SettingsLayout`/`SettingsGroup tone="danger"`/
+  `DangerousAction`/`ConfirmationDialog` — reversible Archive has no typed phrase;
+  permanent Delete requires the exact Area title. Comprehensive coverage: a real
+  Workers/D1 kernel suite (archive/restore, workspace isolation, atomic Activity,
+  active-listing exclusion, direct lookup, empty deletion, blocked-by-Goal/Project/
+  Task/link, mutation-time re-check via a moved-away link, no orphaned rows, atomic
+  rollback via fault injection); unit/component tests (active vs archived layout,
+  dependency-count presentation, exact-title gate, disabled-on-mismatch, dialog
+  semantics, focus restoration); and a Playwright journey suite (archive→collection
+  exclusion→direct-restore, grouped blockers, exact-title delete→`/areas` redirect,
+  cancel→focus-to-opener, 320px + touch targets, Back/Forward). Accepted via
+  [ADR-046](../decisions/ARCHITECTURE_DECISIONS.md#adr-046-area-lifecycle--reversible-archival-on-a-module-owned-slice-and-the-first-guarded-permanent-deletion-purge-with-audit-tombstone).
+  See [`AREAS_MODULE.md`](../development/AREAS_MODULE.md#lifecycle-archive-restore--permanent-deletion-area-05).
+
 ---
 
 ## Phase 5 — Notes (`NOTES`)
