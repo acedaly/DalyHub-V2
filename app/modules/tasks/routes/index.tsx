@@ -14,6 +14,7 @@ import { env } from "cloudflare:workers";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { serializeTaskListItem } from "~/shared/task-record/task-view";
 import {
@@ -88,13 +89,32 @@ function toKernelFilters(filters: TasksFilterState): WorkspaceTaskFilters {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const url = new URL(request.url);
-  const primaryView = resolvePrimaryView(url.searchParams.get("view"));
+  let preferredPrimaryView = DEFAULT_APP_PREFERENCES.defaultTasksView;
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    const preferenceScope = await resolveAuthenticatedWorkspaceScope(
+      env,
+      session,
+    );
+    const preferences = await preferenceScope.appPreferences.get(
+      session.user.subject,
+    );
+    preferredPrimaryView = preferences.defaultTasksView;
+    timezone = preferences.timezone;
+  } catch {
+    // The task list itself handles storage failures below; preference read failure
+    // falls back deterministically so /tasks remains reachable.
+  }
+  const primaryView = resolvePrimaryView(
+    url.searchParams.get("view"),
+    preferredPrimaryView,
+  );
   const sort = resolveSort(url.searchParams.get("sort"));
   const explicitSystem = resolveSystemView(url.searchParams.get("system"));
   const systemView = systemViewFor(primaryView, explicitSystem);
   const filters = readFilters(url);
   const cursor = url.searchParams.get("cursor");
-  const todayIso = ownerCalendarIso(new Date());
+  const todayIso = ownerCalendarIso(new Date(), timezone);
 
   const base: Omit<
     TasksPageData,

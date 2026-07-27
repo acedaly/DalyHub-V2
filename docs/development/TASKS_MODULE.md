@@ -54,8 +54,8 @@ colour alone.
 
 ## Views (`/tasks`)
 
-- **Focus** (default landing → This Week): the practical execution view; waiting
-  tasks are shown in a separate section.
+- **Focus** (built-in default landing → This Week): the practical execution
+  view; waiting tasks are shown in a separate section.
 - **Matrix**: a true 2×2 Eisenhower matrix on desktop, four stacked labelled
   sections on mobile; moving a task between quadrants updates its priority.
 - **Time Sectors**: a planning board/list (Inbox · This Week · Next Week · This
@@ -84,6 +84,11 @@ System views (`?system=`): Inbox · Today · This Week · Next Week · This Mont
 Next Month · Long Term · Someday/Maybe · Waiting · Routines · Overdue · Completed ·
 Cancelled · All. View/sort/filter/selected-task state is URL-reflected and
 Back/Forward-correct.
+
+Since SET-01, the owner/workspace preference `defaultTasksView` is used only when
+`/tasks` has no explicit valid `?view=`. The preference can choose among these
+existing primary views; it does not invent a new Tasks view or change any system
+view semantics. A URL value remains the authority for deep links and Back/Forward.
 
 ## Data model & migration
 

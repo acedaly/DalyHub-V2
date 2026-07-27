@@ -30,11 +30,14 @@ import type {
  * runtime's. The loader passes a single `now` so the SQL facts and the pure evaluator
  * agree on the same day; tests inject a fixed instant.
  */
-export function createOwnerHealthContext(now: Date): HealthEvaluationContext {
+export function createOwnerHealthContext(
+  now: Date,
+  timeZone?: string,
+): HealthEvaluationContext {
   return {
     now,
-    todayIso: ownerCalendarIso(now),
-    calendarIsoOf: (instant) => ownerCalendarIso(instant),
+    todayIso: ownerCalendarIso(now, timeZone),
+    calendarIsoOf: (instant) => ownerCalendarIso(instant, timeZone),
   };
 }
 

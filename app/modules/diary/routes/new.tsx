@@ -22,10 +22,11 @@
 import { env } from "cloudflare:workers";
 
 import { DiaryValidationError } from "~/kernel/diary";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
-import { DIARY_DISPLAY_TIME_ZONE, ownerLocalToUtc } from "../occurred-time";
+import { ownerLocalToUtc } from "../occurred-time";
 import type { Route } from "./+types/new";
 
 /** The default entry type when the quick-capture form names none — the neutral
@@ -81,7 +82,13 @@ export async function action({ request, context }: Route.ActionArgs) {
   const rawBody = String(form.get("body") ?? "");
   const body = rawBody.length > 0 ? rawBody : null;
   const whenLocal = String(form.get("when") ?? "").trim();
-  const timezone = DIARY_DISPLAY_TIME_ZONE;
+  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
+  } catch {
+    // Capture remains available with the deterministic default.
+  }
 
   // Backdating is optional: an explicit owner-local "when" is converted to the
   // UTC instant the kernel stores; an absent "when" leaves occurredAt to default
@@ -97,8 +104,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     occurredAt = converted;
   }
-
-  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
   try {
     const entry = await scope.diary.create({

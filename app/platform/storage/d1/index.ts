@@ -14,6 +14,7 @@
 
 import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type { AppPreferencesRepository } from "~/kernel/preferences";
 import type { AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
@@ -36,6 +37,10 @@ import type {
 
 import { D1ActivityRepository } from "./d1-activity-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
+import {
+  D1AppPreferencesRepository,
+  type D1AppPreferencesRepositoryOptions,
+} from "./d1-app-preferences-repository";
 import { D1AreaRepository } from "./d1-area-repository";
 import {
   D1AssetRepository,
@@ -105,6 +110,7 @@ export {
 };
 export { D1ActivityRepository };
 export { D1AlignmentRepository };
+export { D1AppPreferencesRepository, type D1AppPreferencesRepositoryOptions };
 export { D1AreaRepository };
 export {
   D1AssetRepository,
@@ -375,6 +381,14 @@ export function createAlignmentRepository(
   context: WorkspaceContext,
 ): AlignmentRepository {
   return new D1AlignmentRepository(db, context);
+}
+
+export function createAppPreferencesRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1AppPreferencesRepositoryOptions,
+): AppPreferencesRepository {
+  return new D1AppPreferencesRepository(db, context, options);
 }
 
 /**

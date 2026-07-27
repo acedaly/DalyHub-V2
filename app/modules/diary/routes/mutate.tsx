@@ -36,10 +36,11 @@ import {
   validateTimezone,
 } from "~/kernel/diary";
 import { EntityValidationError } from "~/kernel/entities";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
-import { DIARY_DISPLAY_TIME_ZONE, ownerLocalToUtc } from "../occurred-time";
+import { ownerLocalToUtc } from "../occurred-time";
 import type { Route } from "./+types/mutate";
 
 /** Which parts of an edit were persisted (for honest partial-failure reporting). */
@@ -91,6 +92,12 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const form = await request.formData();
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
+  } catch {
+    // Editing remains available with the deterministic default.
+  }
 
   // The anchor must be an ACTIVE `diary` entity in THIS workspace. `getById`
   // returns null for a missing id, a soft-deleted entity and a cross-workspace
@@ -105,7 +112,6 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const rawType = String(form.get("entryType") ?? "").trim();
   const rawBody = String(form.get("body") ?? "");
   const whenLocal = String(form.get("when") ?? "").trim();
-  const timezone = DIARY_DISPLAY_TIME_ZONE;
 
   // Validate EVERY field up front, collecting field errors, so a validation
   // failure rejects the whole edit before any write (no partial writes on a

@@ -51,10 +51,12 @@ the quick-capture draft).
 - **Frame.** The PX-02 [`CollectionLayout`](../../app/shared/collection-layout)
   owns the sticky **Pane Header** (title `Today`, subtitle = the date, one accent
   primary action **Quick capture**) and the pane's scroll + state precedence.
-- **Date.** The subtitle is the owner's *calendar* date, formatted in the owner's
-  timezone (`Australia/Sydney`, `en-AU`) by [`date.ts`](../../app/modules/today/date.ts)
-  — not the UTC Worker runtime, which would show the previous day during the
-  Australian morning. This becomes a user/workspace timezone setting at SET-01.
+- **Date.** The subtitle and owner-calendar comparisons use the persisted
+  SET-01 owner timezone (`WorkspaceScope.appPreferences.timezone`, default
+  `Australia/Sydney`) through `ownerCalendarIso(...)` / `formatTodayDate(...)` —
+  never the UTC Worker runtime, which would show the previous day during the
+  Australian morning. Stored date-only values remain `YYYY-MM-DD` dates; the
+  timezone changes grouping and interpretation, not storage.
 - **Never blank.** This is a multi-section surface, not a single filtered
   collection, so it does **not** gate itself behind the CollectionLayout empty
   slot (that would unmount Quick Capture when every data section is empty and

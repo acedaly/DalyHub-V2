@@ -216,11 +216,8 @@ describe("PX-02 AppShell — user menu relocation", () => {
     expect(signOut).toHaveAttribute("href", ACCESS_LOGOUT_PATH);
     expect(signOut).toHaveAttribute("href", "/cdn-cgi/access/logout");
 
-    // Settings is NOT wired yet (SET-01) — the frame never renders a dead link
-    // that would land on the 404 page (AGENTS.md §6 — no dead ends).
-    expect(
-      screen.queryByRole("link", { name: /settings/i }),
-    ).not.toBeInTheDocument();
+    const settings = screen.getByRole("link", { name: /settings/i });
+    expect(settings).toHaveAttribute("href", "/settings");
   });
 
   it("closes the user menu on Escape", () => {

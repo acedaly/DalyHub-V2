@@ -19,12 +19,12 @@
 import { env } from "cloudflare:workers";
 
 import { createDiaryEntryTypeRegistry, toLocalDayKey } from "~/kernel/diary";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import { resolveEntryTypeLabel } from "../diary-view";
 import {
-  DIARY_DISPLAY_TIME_ZONE,
   formatZonedDateLong,
   formatZonedDateTimeLong,
   formatZonedTime,
@@ -63,13 +63,18 @@ export type DiaryEntryEditResponse = { readonly entry: DiaryEntryEditData };
 export async function loader({ params, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  let tz = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    tz = (await scope.appPreferences.get(session.user.subject)).timezone;
+  } catch {
+    // Read view remains available with the deterministic default.
+  }
 
   const entry = await scope.diary.get(params.entryId);
   if (!entry) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  const tz = DIARY_DISPLAY_TIME_ZONE;
   const registry = createDiaryEntryTypeRegistry();
   const occurredDay = toLocalDayKey(entry.occurredAt, tz);
   const createdDay = toLocalDayKey(entry.createdAt, tz);

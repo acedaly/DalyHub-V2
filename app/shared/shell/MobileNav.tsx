@@ -36,6 +36,7 @@ export type MobileNavProps = {
   readonly email: string;
   readonly theme: ThemePreference;
   readonly navigation: readonly NavigationItem[];
+  readonly settingsHref?: string;
   /** The toggle that opened the sheet, to restore focus to on close. */
   readonly opener: HTMLElement | null;
   /** Close the sheet. */
@@ -51,6 +52,7 @@ export function MobileNav({
   email,
   theme,
   navigation,
+  settingsHref,
   opener,
   onClose,
   onOpenSearch,
@@ -100,6 +102,7 @@ export function MobileNav({
           email={email}
           theme={theme}
           navigation={navigation}
+          settingsHref={settingsHref}
           navId={MOBILE_NAV_ID}
           variant="overlay"
           onNavigate={onClose}

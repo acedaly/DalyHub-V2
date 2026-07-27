@@ -3,11 +3,9 @@
  *
  * A Diary Entry stores its occurred instant as a UTC `Date` plus the IANA zone
  * captured at occurrence (`app/kernel/diary`); the Timeline groups and labels it
- * in a DISPLAY time zone. DalyHub already has ONE accepted display-zone seam —
- * `OWNER_TIME_ZONE` (`app/shared/datetime`), documented to become the
- * user/workspace timezone setting at SET-01. DIARY-01 REUSES that seam rather
- * than inventing a second convention or hardcoding a zone in the module; when
- * SET-01 lands, the Diary Timeline follows the setting with no further change.
+ * in a DISPLAY time zone. Since SET-01 the route reads the persisted
+ * owner/workspace timezone and passes it into the grouping/window helpers. This
+ * module keeps `OWNER_TIME_ZONE` only as the deterministic default fallback.
  *
  * Capture and editing let the owner pick a LOCAL wall-clock ("when did this
  * happen?"). This module converts that owner-local wall-clock to the UTC instant
@@ -25,10 +23,7 @@
 import { OWNER_TIME_ZONE } from "~/shared/datetime";
 
 /**
- * The Diary Timeline's display time zone. Reuses the single accepted owner-zone
- * seam (`OWNER_TIME_ZONE`); when SET-01 introduces a user/workspace timezone
- * preference, `OWNER_TIME_ZONE` becomes that preference and the Diary Timeline
- * follows it unchanged.
+ * Default Diary display timezone when no persisted preference is available.
  */
 export const DIARY_DISPLAY_TIME_ZONE = OWNER_TIME_ZONE;
 

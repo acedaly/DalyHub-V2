@@ -153,6 +153,7 @@ export function AppShell({
             email={email}
             theme={theme}
             navigation={navigation}
+            settingsHref="/settings"
             navId={RAIL_NAV_ID}
             variant="rail"
             onOpenSearch={openSearch}
@@ -192,6 +193,7 @@ export function AppShell({
               email={email}
               theme={theme}
               navigation={navigation}
+              settingsHref="/settings"
               opener={toggleRef.current}
               onClose={() => setNavOpen(false)}
               onOpenSearch={openSearch}

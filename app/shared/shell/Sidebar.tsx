@@ -33,6 +33,8 @@ export type SidebarProps = {
   readonly theme: ThemePreference;
   /** The registry-driven navigation model. */
   readonly navigation: readonly NavigationItem[];
+  /** The first-class Settings route. */
+  readonly settingsHref?: string;
   /** The DOM id of this instance's primary nav (unique per instance). */
   readonly navId: string;
   /** `rail` = persistent desktop sidebar; `overlay` = mobile sheet content. */
@@ -54,6 +56,7 @@ export function Sidebar({
   email,
   theme,
   navigation,
+  settingsHref,
   navId,
   variant = "rail",
   onNavigate,
@@ -89,7 +92,7 @@ export function Sidebar({
         onNavigate={onNavigate}
       />
       <div className="dh-sidebar__spacer" />
-      <UserMenu email={email} theme={theme} />
+      <UserMenu email={email} theme={theme} settingsHref={settingsHref} />
     </div>
   );
 }

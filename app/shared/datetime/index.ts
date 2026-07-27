@@ -9,42 +9,47 @@
  * Today, Tasks (the re-homed Task record surface) and Projects all resolve the
  * owner's day — so the calendar logic must live in one place, not one module.
  *
- * DalyHub is single-owner today, so the timezone is fixed to the owner's calendar
- * zone (`Australia/Sydney`, DST-aware via the IANA database) with the `en-AU`
- * locale. When a user/workspace **timezone setting** lands (SET-01), this constant
- * becomes that preference; the formatting itself does not change.
+ * SET-01 persists the owner/workspace timezone and passes it into these helpers
+ * from server loaders. The constant below remains the deterministic application
+ * default (`Australia/Sydney`) for no-row/fallback paths.
  */
 
-/** The owner's calendar timezone. Becomes a user/workspace setting at SET-01. */
+/** The default owner-calendar timezone when no persisted preference exists. */
 export const OWNER_TIME_ZONE = "Australia/Sydney";
 
 /**
  * Format an instant as the owner's calendar date (e.g. "Sunday 19 July 2026"),
- * resolved in `OWNER_TIME_ZONE` so it is correct across the UTC/AEST/AEDT day
+ * resolved in the provided timezone so it is correct across the UTC/AEST/AEDT day
  * boundary regardless of the runtime timezone.
  */
-export function formatTodayDate(now: Date): string {
+export function formatTodayDate(
+  now: Date,
+  timeZone: string = OWNER_TIME_ZONE,
+): string {
   return new Intl.DateTimeFormat("en-AU", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: OWNER_TIME_ZONE,
+    timeZone,
   }).format(now);
 }
 
 /**
- * The owner's current calendar date as `YYYY-MM-DD`, resolved in `OWNER_TIME_ZONE`
+ * The owner's current calendar date as `YYYY-MM-DD`, resolved in the provided timezone
  * — the reference date for date-only comparisons (e.g. overdue detection), so
  * "overdue" matches the owner's day, not the UTC runtime's. Uses the `en-CA` locale
  * (which formats as `YYYY-MM-DD`), assembled from parts to stay locale-stable.
  */
-export function ownerCalendarIso(now: Date): string {
+export function ownerCalendarIso(
+  now: Date,
+  timeZone: string = OWNER_TIME_ZONE,
+): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    timeZone: OWNER_TIME_ZONE,
+    timeZone,
   }).formatToParts(now);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}`;

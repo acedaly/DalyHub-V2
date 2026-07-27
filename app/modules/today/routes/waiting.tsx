@@ -20,6 +20,7 @@ import { useSearchParams } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { Card, CardCollection } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
 import {
@@ -59,12 +60,17 @@ const WAITING_LIMIT = 100;
 export async function loader({ context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const now = new Date();
-  const date = formatTodayDate(now);
-  const todayIso = ownerCalendarIso(now);
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  let date = formatTodayDate(now, timezone);
+  let todayIso = ownerCalendarIso(now, timezone);
 
   let items: readonly SerializedWaitingTaskItem[];
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const preferences = await scope.appPreferences.get(session.user.subject);
+    timezone = preferences.timezone;
+    date = formatTodayDate(now, timezone);
+    todayIso = ownerCalendarIso(now, timezone);
     const page = await scope.tasks.listWaitingTasks({
       limit: WAITING_LIMIT,
       todayIso,
