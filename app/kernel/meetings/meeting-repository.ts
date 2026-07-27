@@ -58,8 +58,15 @@ export interface MeetingRepository {
    */
   linkFollowUpTask(input: LinkFollowUpTaskInput): Promise<MeetingFollowUpLink>;
 
-  /** Every follow-up mapping for a Meeting, oldest first (bounded by the caller). */
-  listFollowUps(meetingId: string): Promise<readonly MeetingFollowUpLink[]>;
+  /**
+   * A Meeting's follow-up mappings, NEWEST first and bounded (default/max applied by
+   * the implementation), so a bounded caller always keeps the most recent follow-ups
+   * — a freshly-created or just-converted Task can never fall outside the window.
+   */
+  listFollowUps(
+    meetingId: string,
+    options?: { readonly limit?: number },
+  ): Promise<readonly MeetingFollowUpLink[]>;
 
   /** The active mapping for a specific source item, or `null` if unconverted. */
   getFollowUpForItem(itemId: string): Promise<MeetingFollowUpLink | null>;

@@ -55,10 +55,15 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 
   // Follow-up Tasks: resolve each mapped Task through the CANONICAL Task model, so
   // grouping/state derive from the Task, never a cached Meeting field. A deleted
-  // Task simply drops out (safe degradation — no broken links or leaked ids).
-  const followUpLinks = await scope.meetings.listFollowUps(meeting.id);
+  // Task simply drops out (safe degradation — no broken links or leaked ids). The
+  // mapping read is bounded and NEWEST-first, so the most recent follow-ups are the
+  // ones shown; a single meeting exceeding the bound is not a realistic case (deeper
+  // load-more paging is a documented follow-up).
+  const followUpLinks = await scope.meetings.listFollowUps(meeting.id, {
+    limit: FOLLOW_UP_CAP,
+  });
   const followUps: FollowUpTaskEntry[] = [];
-  for (const link of followUpLinks.slice(0, FOLLOW_UP_CAP)) {
+  for (const link of followUpLinks) {
     const task = await scope.tasks.getTask(link.taskId);
     if (task) {
       followUps.push({ task: serializeTaskView(task), itemId: link.itemId });
@@ -172,11 +177,24 @@ function MeetingRecord({
   );
 
   const post = useCallback(
-    async (data: Record<string, string>) => {
+    async (data: Record<string, string>): Promise<boolean> => {
       const f = new FormData();
       Object.entries(data).forEach(([k, v]) => f.set(k, v));
-      await fetch(`/meeting/${m.id}/mutate`, { method: "POST", body: f });
-      r.revalidate();
+      try {
+        const response = await fetch(`/meeting/${m.id}/mutate`, {
+          method: "POST",
+          body: f,
+        });
+        // Only revalidate on success; a failed mutation leaves the UI (and any
+        // in-progress input text) untouched so the user can retry.
+        if (response.ok) {
+          r.revalidate();
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
     },
     [m.id, r],
   );
@@ -238,7 +256,7 @@ function MeetingRecord({
       readOnly={readOnly}
       onConvert={onConvert}
       onOpenTask={onOpenTask}
-      onAddItem={(k, body) => void post({ intent: "add_item", kind: k, body })}
+      onAddItem={(k, body) => post({ intent: "add_item", kind: k, body })}
       onRemoveItem={(itemId) => void post({ intent: "remove_item", itemId })}
     />
   );

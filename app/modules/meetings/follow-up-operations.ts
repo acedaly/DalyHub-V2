@@ -111,12 +111,13 @@ async function ensureRelatesLink(
   });
 }
 
-/** Create the canonical Task through the Task authority, applying an optional status. */
-async function createTask(
+/** Create the base canonical Task through the Task authority (status applied later,
+ * inside the compensated region — see `convert`). */
+async function createBaseTask(
   scope: WorkspaceScope,
   fields: FollowUpTaskFields,
 ): Promise<TaskView> {
-  const task = await scope.tasks.createTask({
+  return scope.tasks.createTask({
     title: fields.title,
     parent: { kind: fields.parentKind, id: fields.parentId },
     priority: fields.priority ?? null,
@@ -125,12 +126,6 @@ async function createTask(
     timeSector: fields.timeSector ?? null,
     commitmentState: fields.commitmentState ?? "active",
   });
-  // `createTask` forces `status='todo'`; a non-default status is applied through the
-  // Task authority's `updateTask`, never by writing a Task row here.
-  if (fields.status && fields.status !== "todo") {
-    await scope.tasks.updateTask(task.id, { status: fields.status });
-  }
-  return task;
 }
 
 async function loadWritableMeeting(scope: WorkspaceScope, meetingId: string) {
@@ -187,8 +182,14 @@ async function convert(
   itemKind: MeetingItemKind | undefined,
   fields: FollowUpTaskFields,
 ): Promise<ConvertResult> {
-  const task = await createTask(scope, fields);
+  const task = await createBaseTask(scope, fields);
   try {
+    // `createTask` forces `status='todo'`; a non-default status is applied through
+    // the Task authority INSIDE this compensated region, so an invalid/failed status
+    // update (like any pre-commit failure) rolls the Task back — never an orphan.
+    if (fields.status && fields.status !== "todo") {
+      await scope.tasks.updateTask(task.id, { status: fields.status });
+    }
     // COMMIT POINT: the mapping row + its structural Activity, in one batch.
     await scope.meetings.linkFollowUpTask({
       meetingId,

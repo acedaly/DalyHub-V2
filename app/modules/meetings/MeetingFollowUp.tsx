@@ -14,7 +14,7 @@
  * control clicked, so focus returns to it on close (the DrawerProvider captures it).
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRevalidator } from "react-router";
 
 import { useDrawer } from "~/shared/drawer";
@@ -155,7 +155,9 @@ interface MeetingItemsSectionProps {
   readonly readOnly: boolean;
   readonly onConvert: (itemId: string) => void;
   readonly onOpenTask: (taskId: string) => void;
-  readonly onAddItem: (kind: MeetingItemKind, body: string) => void;
+  /** Persist a new item; resolves `true` on success. The field is cleared ONLY on
+   * success, so a failed save (offline/transient) never loses the entered text. */
+  readonly onAddItem: (kind: MeetingItemKind, body: string) => Promise<boolean>;
   readonly onRemoveItem: (itemId: string) => void;
 }
 
@@ -173,6 +175,10 @@ export function MeetingItemsSection({
 }: MeetingItemsSectionProps) {
   const rows = items.filter((i) => i.kind === kind);
   const label = meetingItemKindLabel(kind).toLowerCase();
+  // Controlled so the entered text survives a failed save and is cleared only once
+  // the mutation succeeds (no `formEl.reset()` racing an async request).
+  const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
   return (
     <section className="dh-meeting-section">
       <h2>{heading}</h2>
@@ -197,19 +203,30 @@ export function MeetingItemsSection({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            const formEl = event.currentTarget;
-            const body = String(new FormData(formEl).get("body") ?? "");
-            if (body.trim()) {
-              onAddItem(kind, body);
-              formEl.reset();
-            }
+            if (!body.trim() || saving) return;
+            setSaving(true);
+            void (async () => {
+              const ok = await onAddItem(kind, body);
+              if (ok) setBody("");
+              setSaving(false);
+            })();
           }}
         >
           <label className="dh-field">
             <span className="dh-field__label">Add {label}</span>
-            <input name="body" className="dh-input" required />
+            <input
+              name="body"
+              className="dh-input"
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              required
+            />
           </label>
-          <button type="submit" className="dh-btn dh-btn--secondary">
+          <button
+            type="submit"
+            className="dh-btn dh-btn--secondary"
+            disabled={saving}
+          >
             Add {label}
           </button>
         </form>

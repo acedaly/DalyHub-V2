@@ -426,13 +426,19 @@ export class D1MeetingRepository implements MeetingRepository {
   }
   async listFollowUps(
     meetingId: string,
+    options: { readonly limit?: number } = {},
   ): Promise<readonly MeetingFollowUpLink[]> {
+    // Newest-first, so a bounded caller keeps the MOST RECENT follow-ups (a
+    // freshly-created or just-converted Task can never fall outside the window),
+    // and cap the scan so the read is never unbounded (AGENTS.md §16). The default
+    // is generous; the caller may lower it.
+    const limit = Math.max(1, Math.min(options.limit ?? 200, 500));
     const rows = (
       await this.#db
         .prepare(
-          "SELECT meeting_id,item_id,task_id,created_at FROM meeting_item_tasks WHERE workspace_id=? AND meeting_id=? ORDER BY created_at,task_id",
+          "SELECT meeting_id,item_id,task_id,created_at FROM meeting_item_tasks WHERE workspace_id=? AND meeting_id=? ORDER BY created_at DESC,task_id DESC LIMIT ?",
         )
-        .bind(this.#workspaceId, meetingId)
+        .bind(this.#workspaceId, meetingId, limit)
         .all<{
           meeting_id: string;
           item_id: string | null;

@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import type { TaskStatus } from "~/kernel/tasks";
 import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
 import {
   convertMeetingItemToTask,
@@ -322,6 +323,27 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
 
     expect(await countMeetingItemTaskRows()).toBe(0);
     expect(await countActiveTasks()).toBe(0); // compensated — no orphan
+  });
+
+  it("compensates the created Task when a bad status update fails (no orphan)", async () => {
+    const h = harness(WS);
+    const area = await seedArea(h);
+    const meeting = await seedMeeting(h);
+    const item = await h.meetings.addItem(meeting.id, "decision", "Bad status");
+
+    await expect(
+      convertMeetingItemToTask(h.scope, meeting.id, item.id, {
+        title: "Bad status",
+        parentId: area.id,
+        parentKind: "area",
+        // An invalid status is validated by the Task authority INSIDE the
+        // compensated region, so the just-created Task must be rolled back.
+        status: "not_a_real_status" as TaskStatus,
+      }),
+    ).rejects.toBeTruthy();
+
+    expect(await countMeetingItemTaskRows()).toBe(0);
+    expect(await countActiveTasks()).toBe(0);
   });
 
   it("re-converts an item whose Task was deleted (stale mapping cleared)", async () => {
