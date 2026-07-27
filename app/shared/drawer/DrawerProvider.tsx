@@ -224,6 +224,15 @@ export function DrawerProvider({
   const closeIssuedForKeyRef = useRef<string | null>(null);
   const locationKey = location.key;
 
+  // Release the guard as soon as the browser leaves the entry a close was issued
+  // against. This must be a location-change effect rather than a permanent
+  // record of the key: Forward re-enters the ORIGINAL history entry, so React
+  // Router hands back its original `key`, and a latched guard would leave a
+  // Forward-restored drawer impossible to close.
+  useEffect(() => {
+    closeIssuedForKeyRef.current = null;
+  }, [locationKey]);
+
   const closeDrawer = useCallback(() => {
     const current = readDrawerStack(searchParams, param);
     if (current.length === 0) {

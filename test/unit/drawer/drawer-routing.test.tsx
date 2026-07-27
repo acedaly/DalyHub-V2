@@ -452,7 +452,27 @@ describe("Drawer controller — Back-aware close", () => {
     expect(path()).toBe("/host");
   });
 
-  it("14) a repeated close of a deep-linked level removes the parameter once", async () => {
+  it("14) Forward-restoring a closed drawer leaves it closable again", async () => {
+    // Forward re-enters the ORIGINAL history entry, so React Router hands back
+    // its original `location.key` — the same key the close guard recorded on the
+    // way out. The guard must be released when the browser leaves the entry, or
+    // a restored drawer latches permanently open with no way to close it.
+    renderApp(["/host"]);
+    fireEvent.click(screen.getByText("open-a"));
+    await waitFor(() => expect(depth()).toBe("1"));
+
+    fireEvent.click(screen.getByText("close-top"));
+    await waitFor(() => expect(depth()).toBe("0"));
+
+    fireEvent.click(screen.getByText("browser-forward"));
+    await waitFor(() => expect(depth()).toBe("1"));
+
+    fireEvent.click(screen.getByText("close-top"));
+    await waitFor(() => expect(depth()).toBe("0"));
+    expect(path()).toBe("/host");
+  });
+
+  it("15) a repeated close of a deep-linked level removes the parameter once", async () => {
     // The replace path has the same re-entrancy window; a second replace must
     // not strip a level that is no longer there or disturb other parameters.
     renderApp([{ pathname: "/goals", search: "?status=active&drawer=a" }]);

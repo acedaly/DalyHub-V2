@@ -129,6 +129,20 @@ test.describe("DS-03 Drawer — desktop", () => {
     await expect(project).toBeVisible();
     await page.goForward();
     await expect(goal).toBeVisible();
+
+    // A level closed with ESCAPE and then restored with Forward is still
+    // closable. Escape closes a provider-opened level with a history Back, and
+    // Forward re-enters that exact entry — under its ORIGINAL `location.key`.
+    // The provider's re-entrant-close guard must therefore be released on
+    // leaving an entry rather than latched to its key, or a restored drawer
+    // would be permanently stuck open.
+    await page.keyboard.press("Escape");
+    await expect(goal).toBeHidden();
+    await page.goForward();
+    await expect(goal).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(goal).toBeHidden();
+    await expect(project).toBeVisible();
   });
 
   test("preserves background state and scroll position across open/close", async ({
