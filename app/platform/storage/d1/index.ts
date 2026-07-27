@@ -28,6 +28,7 @@ import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
+import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
 import type {
@@ -78,6 +79,10 @@ import {
   D1ProjectSettingsRepository,
   type D1ProjectSettingsRepositoryOptions,
 } from "./d1-project-settings-repository";
+import {
+  D1ReviewRepository,
+  type D1ReviewRepositoryOptions,
+} from "./d1-review-repository";
 import {
   D1AreaSettingsRepository,
   type D1AreaSettingsRepositoryOptions,
@@ -139,6 +144,8 @@ export {
 export { D1MeetingRepository } from "./d1-meeting-repository";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
+export { D1ReviewRepository, type D1ReviewRepositoryOptions };
+export { type D1ReviewCreateFault } from "./d1-review-repository";
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export { D1ActivityRecorder } from "./d1-activity-recorder";
 export {
@@ -414,6 +421,14 @@ export function createProjectSettingsRepository(
   options?: D1ProjectSettingsRepositoryOptions,
 ): ProjectSettingsRepository {
   return new D1ProjectSettingsRepository(db, context, options);
+}
+
+export function createReviewRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1ReviewRepositoryOptions,
+): ReviewRepository {
+  return new D1ReviewRepository(db, context, options);
 }
 
 export {

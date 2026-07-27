@@ -18,6 +18,7 @@ import {
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
+  createReviewRepository,
   createSpineRepository,
   createTaskRepository,
   createWorkspaceRepository,
@@ -30,6 +31,7 @@ import {
   type D1NoteDetailsRepositoryOptions,
   type D1PersonRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
+  type D1ReviewRepositoryOptions,
   type D1SpineRepositoryOptions,
   type D1TaskRepositoryOptions,
 } from "~/platform/storage/d1";
@@ -268,6 +270,33 @@ export function makeAssetRepository(
 export async function countAssetRows(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM asset_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * Construct a workspace-scoped D1-backed ReviewRepository over the isolated test
+ * database (REVIEWS-01: Review identity/detail/sections/lifecycle).
+ */
+export function makeReviewRepository(
+  context: WorkspaceContext,
+  options?: D1ReviewRepositoryOptions,
+) {
+  return createReviewRepository(env.DB, context, options);
+}
+
+/** Count all rows in `review_details` directly. */
+export async function countReviewRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM review_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count all rows in `review_sections` directly. */
+export async function countReviewSectionRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM review_sections",
   ).first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -522,6 +551,8 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM meeting_items").run();
   await env.DB.prepare("DELETE FROM meeting_details").run();
   await env.DB.prepare("DELETE FROM asset_details").run();
+  await env.DB.prepare("DELETE FROM review_sections").run();
+  await env.DB.prepare("DELETE FROM review_details").run();
   await env.DB.prepare("DELETE FROM owner_app_preferences").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();

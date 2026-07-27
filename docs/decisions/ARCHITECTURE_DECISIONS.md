@@ -1082,3 +1082,21 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
   - *A separate row per preference key.* Rejected for the core preferences — it weakens database constraints and makes a coherent owner/workspace preference read require row assembly and conflict handling for no current benefit.
   - *Store appearance in D1 too.* Rejected — the theme preference is intentionally device/browser-local and already has a flash-free server-read cookie authority.
   - *Record settings Activity by inventing a fake entity subject.* Rejected — it would corrupt the meaning of the shared Activity stream. A workspace/owner-scoped audit shape should be designed explicitly if needed.
+
+## ADR-051: First-class Reviews — durable period records, typed sections and live bounded context
+
+- **Status:** Accepted (REVIEWS-01).
+- **Context.** Reviews need to help the owner step back across a wall-calendar period without becoming a temporary dashboard, analytics cache or second task/diary/meeting model. Forces: (1) period dates are calendar concepts, not UTC instants; (2) a Review must preserve authored reflection and lifecycle history; (3) source records already have canonical owners and must not be copied wholesale; (4) Activity payloads must not leak reflection, Diary, Meeting, Task or Person content; (5) standard periods must not accidentally fork identities.
+- **Decision.**
+  1. Reviews are ordinary `review` entities plus a STRICT `review_details` detail slice and STRICT `review_sections` rows (migration `0018`). Identity/title stay in `entities`; type, period, status, template id, completion and archive live in `review_details`; authored Markdown lives in closed-vocabulary `review_sections`.
+  2. Periods are stored as wall-calendar `YYYY-MM-DD` values and compared lexically. Weekly periods use the persisted owner first-day-of-week preference; month/quarter/year use calendar boundaries.
+  3. Standard-period duplicates are prevented at storage with a partial unique index on `(workspace_id, review_type, period_start, period_end)` for weekly/monthly/quarterly/annual. Creating an archived duplicate restores and returns the existing Review. Custom Reviews may overlap.
+  4. Reviews use live bounded context from existing module repositories plus durable authored reflection and EntityLinks. REVIEWS-01 stores no whole Task, Diary, Meeting, Project, Person or Area snapshots.
+  5. Completion is reversible: `completed_at` records the current completed state and is cleared on reopen, while the historical completion remains in Activity. Archive remains a separate reversible lifecycle timestamp.
+  6. Review Activity is structural only. Payloads carry review type, period, template id, changed section identifiers, field names or status transitions — never authored body text or private source-record data.
+- **Consequences.** *Easy:* Reviews adopt the same module registry, Record Layout, Linked Items, Timeline, Markdown editor, Settings dangerous-action and search/command seams as other first-class modules. *Hard / accepted:* live context labels can change after completion because source records remain canonical; complete immutable source snapshots and richer period facts are deferred until there is a deliberate snapshot design. Today integration is also deferred to a bounded follow-up rather than widening REVIEWS-01's core persistence PR.
+- **Alternatives considered.**
+  - *Store the whole Review as JSON.* Rejected — it would make section vocabulary, migrations and future validation unsafe.
+  - *Copy Tasks, Diary entries, Meetings and People into Review storage.* Rejected — it forks ownership and risks leaking private content; Review stores authored reflection and links.
+  - *Treat archive as a status.* Rejected — `draft`/`in_progress`/`completed` is the Review workflow vocabulary; archive is lifecycle.
+  - *Allow duplicate weekly/monthly/quarterly/annual identities and reconcile in UI.* Rejected — duplicate protection belongs at storage, with deterministic restore/open behavior.

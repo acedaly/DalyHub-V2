@@ -35,6 +35,7 @@ import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
+import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
 import type {
@@ -59,6 +60,7 @@ import {
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
+  createReviewRepository,
   createSpineRepository,
   createTaskRepository,
   createWorkspaceRepository,
@@ -170,6 +172,7 @@ export interface WorkspaceScope {
    * repositories.
    */
   readonly assets: AssetRepository;
+  readonly reviews: ReviewRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -264,6 +267,7 @@ export function bindWorkspaceRepositories(
   const people = createPersonRepository(env.DB, context, { actorContext });
   const meetings = createMeetingRepository(env.DB, context, { actorContext });
   const assets = createAssetRepository(env.DB, context, { actorContext });
+  const reviews = createReviewRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -290,6 +294,7 @@ export function bindWorkspaceRepositories(
     people,
     meetings,
     assets,
+    reviews,
     projectHealth,
     projectSettings,
     activity,

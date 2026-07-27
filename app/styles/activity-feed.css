@@ -22,6 +22,11 @@
   overscroll-behavior: contain;
 }
 
+.dh-activity__viewport:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: var(--dh-space-1);
+}
+
 .dh-activity__canvas {
   position: relative;
   min-width: 0;

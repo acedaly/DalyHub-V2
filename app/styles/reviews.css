@@ -1,0 +1,204 @@
+.dh-reviews-views,
+.dh-reviews-filters,
+.dh-review-new__period-controls,
+.dh-review-new__actions,
+.dh-review-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  align-items: center;
+}
+
+.dh-reviews-views__link {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  color: var(--dh-color-text-muted);
+  text-decoration: none;
+}
+
+.dh-reviews-views__link[aria-current="page"] {
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  box-shadow: inset 0 0 0 1px var(--dh-color-border);
+}
+
+.dh-reviews-filters__field,
+.dh-review-date-grid label,
+.dh-review-title-field {
+  display: grid;
+  gap: var(--dh-space-1);
+}
+
+.dh-reviews-filters__label,
+.dh-review-date-grid span {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-reviews-next {
+  padding-block: var(--dh-space-4);
+}
+
+.dh-review-new {
+  width: min(58rem, 100%);
+  margin-inline: auto;
+  padding: var(--dh-space-6);
+}
+
+.dh-review-new__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--dh-space-4);
+  align-items: flex-start;
+  margin-bottom: var(--dh-space-6);
+}
+
+.dh-review-new__eyebrow,
+.dh-review-muted,
+.dh-review-new__help,
+.dh-review-context-note {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-review-new__form,
+.dh-review-tab-stack {
+  display: grid;
+  gap: var(--dh-space-5);
+  min-width: 0;
+}
+
+.dh-review-new__section {
+  display: grid;
+  gap: var(--dh-space-3);
+  padding-block: var(--dh-space-4);
+  border-top: 1px solid var(--dh-color-border);
+}
+
+.dh-review-new__section-header,
+.dh-review-section__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  align-items: center;
+}
+
+.dh-review-type-grid,
+.dh-review-date-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--dh-space-2);
+}
+
+.dh-review-type-option {
+  min-height: 3rem;
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  text-align: left;
+  padding: var(--dh-space-3);
+}
+
+.dh-review-type-option[data-selected="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-surface);
+}
+
+.dh-review-period-preview {
+  font-weight: 600;
+}
+
+.dh-review-form-error {
+  color: var(--dh-color-danger);
+}
+
+.dh-review-section {
+  display: grid;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-review-section .dh-md-editor {
+  min-width: 0;
+}
+
+.dh-review-section-readonly {
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-sunken);
+  padding: var(--dh-space-4);
+}
+
+.dh-review-section-readonly pre {
+  white-space: pre-wrap;
+  margin: 0;
+  font: inherit;
+  color: var(--dh-color-text);
+}
+
+.dh-review-context-list {
+  display: grid;
+  gap: var(--dh-space-3);
+}
+
+.dh-review-context-list ul {
+  display: grid;
+  gap: var(--dh-space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dh-review-context-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  align-items: center;
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-3);
+}
+
+.dh-review-context-link {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-accent-text);
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dh-review-inline-form {
+  max-width: min(100%, 42rem);
+}
+
+.dh-review-inline-form .dh-input {
+  min-width: min(22rem, 100%);
+}
+
+@media (max-width: 640px) {
+  .dh-review-new {
+    padding: var(--dh-space-4);
+  }
+
+  .dh-review-new__header,
+  .dh-review-new__section-header,
+  .dh-review-section__header,
+  .dh-review-context-list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dh-review-inline-form,
+  .dh-reviews-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
