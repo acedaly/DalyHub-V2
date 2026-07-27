@@ -26,6 +26,8 @@ const search: SearchExecutor = async (query, context) => {
   });
   return page.items.map<SearchResultItem>((m) => ({
     id: `meeting:${m.id}`,
+    // The canonical, unprefixed kernel id — so linked-record boosting matches.
+    entityId: m.id,
     title: m.title,
     subtitle: m.location ?? undefined,
     entityType: "meeting",

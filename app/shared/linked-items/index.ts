@@ -26,6 +26,7 @@ export {
   type LinkedItem,
   type LinkSummary,
   type LinkedItemGroup,
+  type LinkedItemsPage,
 } from "./linked-items-model";
 export {
   UNIVERSAL_RELATED_LINK,

@@ -11,7 +11,11 @@
 
 import type { EntityLinkTargetOption } from "~/shared/forms/model";
 
-import type { LinkedItem, LinkSummary } from "./linked-items-model";
+import type {
+  LinkedItem,
+  LinkedItemsPage,
+  LinkSummary,
+} from "./linked-items-model";
 
 /** The shared links resource route. */
 export const LINKS_ENDPOINT = "/links";
@@ -43,12 +47,20 @@ function decodeLinkedItem(value: unknown): LinkedItem | null {
   };
 }
 
-/** Fetch the anchor's Linked Items. Throws on a non-OK/invalid response. */
+/**
+ * Fetch one page of the anchor's Linked Items. Throws on a non-OK/invalid
+ * response. Pass the previous page's `nextCursor` as `cursor` to load the next
+ * page — so a record with many structural links still reaches its later
+ * `link.related` relationships (server-side filtering paginates correctly).
+ */
 export async function fetchLinkedItems(
   anchorId: string,
   signal: AbortSignal,
-): Promise<readonly LinkedItem[]> {
-  const url = `${LINKS_ENDPOINT}?op=list&anchor=${encodeURIComponent(anchorId)}`;
+  cursor?: string,
+): Promise<LinkedItemsPage> {
+  const params = new URLSearchParams({ op: "list", anchor: anchorId });
+  if (cursor) params.set("cursor", cursor);
+  const url = `${LINKS_ENDPOINT}?${params.toString()}`;
   const response = await fetch(url, {
     method: "GET",
     signal,
@@ -59,9 +71,14 @@ export async function fetchLinkedItems(
   if (!isRecord(body) || !Array.isArray(body.items)) {
     throw new Error("invalid links response");
   }
-  return body.items
+  const items = body.items
     .map(decodeLinkedItem)
     .filter((item): item is LinkedItem => item !== null);
+  const nextCursor =
+    typeof body.nextCursor === "string" && body.nextCursor.length > 0
+      ? body.nextCursor
+      : null;
+  return { items, nextCursor };
 }
 
 /** Search for link-target candidates for the anchor. */

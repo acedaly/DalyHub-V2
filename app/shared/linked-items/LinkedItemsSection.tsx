@@ -23,6 +23,7 @@ import {
 import { useFeedback } from "~/shared/feedback";
 import { EntityLinkPicker } from "~/shared/forms";
 import type { EntityLinkTargetOption } from "~/shared/forms/model";
+import { LoadMore } from "~/shared/load-more";
 
 import { HoverCard } from "./HoverCard";
 import { UNIVERSAL_RELATED_DESCRIPTOR } from "./constants";
@@ -97,7 +98,11 @@ export function LinkedItemsSection({
     items,
     status,
     online,
+    hasMore,
+    loadingMore,
+    loadMoreFailed,
     reload,
+    loadMore,
     searchTargets,
     loadSummary,
     link,
@@ -232,6 +237,15 @@ export function LinkedItemsSection({
           ))}
         </ul>
       )}
+
+      {status === "ready" && hasMore ? (
+        <LoadMore
+          loading={loadingMore}
+          loadFailed={loadMoreFailed}
+          onLoadMore={loadMore}
+          label="Load more linked items"
+        />
+      ) : null}
 
       {!readOnly ? (
         <div className="dh-linked-items__add">

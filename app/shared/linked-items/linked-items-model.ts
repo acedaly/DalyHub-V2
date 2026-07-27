@@ -52,6 +52,17 @@ export interface LinkedItemGroup {
 }
 
 /**
+ * One bounded page of a record's Linked Items. `nextCursor` is an opaque,
+ * scope-bound continuation token (from the underlying EntityLink pagination); it
+ * is non-null whenever more relationships remain beyond this page — so a record
+ * with many structural links never silently hides its later `link.related` links.
+ */
+export interface LinkedItemsPage {
+  readonly items: readonly LinkedItem[];
+  readonly nextCursor: string | null;
+}
+
+/**
  * The stable display order for grouped Linked Items — the supported entity types
  * first (matching the picker's target order), then any other type alphabetically.
  * Duplicated from the platform list deliberately: this module must not import the

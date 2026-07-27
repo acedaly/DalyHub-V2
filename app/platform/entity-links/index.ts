@@ -33,9 +33,11 @@ export {
   UNIVERSAL_RELATED_LINK,
   UNIVERSAL_RELATED_DESCRIPTOR,
   SUPPORTED_LINK_ENTITY_TYPES,
+  DEFAULT_LINKED_ITEMS_LIMIT,
   buildUniversalLinkPolicy,
   loadLinkedItems,
   loadLinkSummary,
   type LinkedItem,
+  type LinkedItemsPage,
   type LinkSummary,
 } from "./universal-links";

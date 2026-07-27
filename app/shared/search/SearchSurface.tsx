@@ -27,6 +27,7 @@ import { useInertBackground } from "~/shared/drawer/use-inert-background";
 import { Highlight } from "./HighlightText";
 import type { SearchFn } from "./client";
 import { buildResultDestination, destinationHref } from "./navigation";
+import { recordAnchorFromPath } from "./record-anchor";
 import { useSearchController } from "./useSearchController";
 import type { RankedSearchResult, SearchResultGroup } from "./types";
 
@@ -74,12 +75,17 @@ export default function SearchSurface({
   search,
   debounceMs,
 }: SearchSurfaceProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // When Search is opened from a record page, boost that record's directly-linked
+  // entities. Derived from the current path (the inverse of the canonical record
+  // routes); null on a non-record surface, so Search runs unboosted as before.
+  const boostLinkedTo = recordAnchorFromPath(location.pathname);
   const controller = useSearchController({
     ...(search ? { search } : {}),
     ...(debounceMs !== undefined ? { debounceMs } : {}),
+    ...(boostLinkedTo ? { boostLinkedTo } : {}),
   });
-  const navigate = useNavigate();
-  const location = useLocation();
 
   // The modal ROOT is the inertness exclusion boundary — `useInertBackground`
   // makes every sibling of this node inert. It must be the root (which contains

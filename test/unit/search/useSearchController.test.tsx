@@ -484,4 +484,30 @@ describe("useSearchController — stale active selection", () => {
       vi.useRealTimers();
     }
   });
+
+  it("passes the record anchor (boostLinkedTo) through to the search transport", async () => {
+    // Regression for Codex thread PRRT_kwDOTbatJs6T6Oym: the surface supplies the
+    // current record's anchor and the controller must forward it to the transport.
+    const search = vi.fn<SearchFn>(async (q) => outcomeWith(q, "X"));
+    const { result } = renderHook(() =>
+      useSearchController({ search, debounceMs: 0, boostLinkedTo: "note-42" }),
+    );
+    act(() => result.current.setQuery("hello"));
+    await waitFor(() => expect(search).toHaveBeenCalled());
+    expect(search).toHaveBeenCalledWith("hello", expect.any(AbortSignal), {
+      boostLinkedTo: "note-42",
+    });
+  });
+
+  it("invokes the transport with just query + signal when no anchor is supplied", async () => {
+    const search = vi.fn<SearchFn>(async (q) => outcomeWith(q, "X"));
+    const { result } = renderHook(() =>
+      useSearchController({ search, debounceMs: 0 }),
+    );
+    act(() => result.current.setQuery("hello"));
+    await waitFor(() => expect(search).toHaveBeenCalled());
+    // A plain two-argument call — no trailing options object.
+    expect(search.mock.calls[0]).toHaveLength(2);
+    expect(search).toHaveBeenCalledWith("hello", expect.any(AbortSignal));
+  });
 });

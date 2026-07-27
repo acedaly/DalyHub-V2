@@ -49,7 +49,12 @@ import type { Route } from "./+types/links";
 
 /** The GET responses, discriminated by the requested `op`. */
 export type LinksLoaderData =
-  | { readonly op: "list"; readonly items: readonly LinkedItem[] }
+  | {
+      readonly op: "list";
+      readonly items: readonly LinkedItem[];
+      /** Non-null when more relationships remain (pass back as `cursor`). */
+      readonly nextCursor: string | null;
+    }
   | {
       readonly op: "search";
       readonly options: readonly EntityLinkTargetOption[];
@@ -116,8 +121,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     }
     case "list":
     default: {
-      const items = await loadLinkedItems(pickerDeps(scope), anchor);
-      return json({ op: "list", items } satisfies LinksLoaderData);
+      const cursor = url.searchParams.get("cursor") ?? undefined;
+      const page = await loadLinkedItems(pickerDeps(scope), anchor, {
+        ...(cursor ? { cursor } : {}),
+      });
+      return json({
+        op: "list",
+        items: page.items,
+        nextCursor: page.nextCursor,
+      } satisfies LinksLoaderData);
     }
   }
 }

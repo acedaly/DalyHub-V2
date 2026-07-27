@@ -20,9 +20,8 @@ import { entityDestination } from "~/shared/entity/destination";
 
 import type { Route } from "./+types/resolve";
 
-/** How many entities to scan for a title match before giving up (bounded work). */
+/** How many entities to read per page while scanning for a title match. */
 const SCAN_PAGE_SIZE = 100;
-const MAX_PAGES = 5;
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
@@ -33,11 +32,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
+  // Scan through ALL cursor pages — there is deliberately NO page cutoff. Entity
+  // listing is ordered by creation time, so a fixed page cap would make an
+  // exact-title target created later in a large workspace unreachable (it would
+  // wrongly fall back to `/notes`). We stop early the instant a NOTE match is
+  // found (the common wiki-link case); a non-note match is remembered and used
+  // only after the whole workspace is scanned, so notes remain preferred without
+  // an arbitrary correctness limit. Reviewer: resolve wiki links beyond the first
+  // 500 entities.
   let noteMatch: { type: string; id: string } | null = null;
   let anyMatch: { type: string; id: string } | null = null;
   let cursor: string | undefined;
 
-  for (let page = 0; page < MAX_PAGES; page += 1) {
+  do {
     const listed = await scope.entities.list({
       limit: SCAN_PAGE_SIZE,
       ...(cursor ? { cursor } : {}),
@@ -53,9 +60,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       anyMatch ??= { type: entity.type, id: entity.id };
     }
     if (noteMatch) break;
-    if (!listed.nextCursor) break;
-    cursor = listed.nextCursor;
-  }
+    cursor = listed.nextCursor ?? undefined;
+  } while (cursor);
 
   const match = noteMatch ?? anyMatch;
   if (!match) return redirect("/notes");

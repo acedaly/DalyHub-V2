@@ -117,6 +117,13 @@ export type UseSearchControllerOptions = {
   readonly search?: SearchFn;
   /** Debounce in ms (default {@link SEARCH_DEBOUNCE_MS}). */
   readonly debounceMs?: number;
+  /**
+   * The anchor entity id of the record the search is opened from, if any. Carried
+   * through to the transport so the server boosts that record's directly-linked
+   * entities. Read at request time (a ref), so navigating between records updates
+   * it without re-running the current query.
+   */
+  readonly boostLinkedTo?: string;
 };
 
 export function useSearchController(
@@ -138,6 +145,10 @@ export function useSearchController(
   const abortRef = useRef<AbortController | null>(null);
   const searchRef = useRef<SearchFn>(search);
   searchRef.current = search;
+  // The record anchor is read at request time so a navigation that changes it does
+  // not itself re-run the in-flight query (only a query change dispatches a run).
+  const boostLinkedToRef = useRef<string | undefined>(options.boostLinkedTo);
+  boostLinkedToRef.current = options.boostLinkedTo;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -163,7 +174,13 @@ export function useSearchController(
     const controller = new AbortController();
     abortRef.current = controller;
 
-    searchRef.current(normalised, controller.signal).then(
+    const boostLinkedTo = boostLinkedToRef.current;
+    // Pass the options object ONLY when there is a record anchor, so the common
+    // (unboosted) call stays a plain two-argument invocation.
+    const request = boostLinkedTo
+      ? searchRef.current(normalised, controller.signal, { boostLinkedTo })
+      : searchRef.current(normalised, controller.signal);
+    request.then(
       (outcome) => {
         if (!mountedRef.current || generation !== generationRef.current) {
           return; // stale generation or unmounted — never replace newer results

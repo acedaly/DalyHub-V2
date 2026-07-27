@@ -1,12 +1,18 @@
 /**
  * The Universal Relationship System — the Linked Items controller.
  *
- * Owns the client state for a record's Linked Items: the loaded list, an
- * optimistic add/remove path with rollback, offline awareness, and the bound
- * `searchTargets` / `loadSummary` loaders the section and hover cards use. The
- * transport is injectable so the controller is testable without the network
+ * Owns the client state for a record's Linked Items: the accumulated (paginated)
+ * list, an optimistic add/remove path with rollback, offline awareness, and the
+ * bound `searchTargets` / `loadSummary` loaders the section and hover cards use.
+ * The transport is injectable so the controller is testable without the network
  * (the default is the real `/links` client). Feedback (toasts, Undo) is left to
  * the section, so this hook stays free of the FeedbackProvider.
+ *
+ * Pagination matters here: the server filters reserved structural spine links out
+ * of the underlying link pages, so a record with many structural links spreads its
+ * `link.related` relationships across several server pages. The controller loads a
+ * first page and exposes `loadMore`/`hasMore` (a "Load more" affordance) so every
+ * later relationship is reachable — never silently omitted.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,7 +30,11 @@ import {
   searchLinkTargets as defaultSearchTargets,
   type LinkMutationOutcome,
 } from "./linked-items-client";
-import type { LinkedItem, LinkSummary } from "./linked-items-model";
+import type {
+  LinkedItem,
+  LinkedItemsPage,
+  LinkSummary,
+} from "./linked-items-model";
 import { UNIVERSAL_RELATED_LINK } from "./constants";
 import { useOnlineStatus } from "./use-online-status";
 
@@ -33,7 +43,8 @@ export interface LinkedItemsTransport {
   readonly fetchItems: (
     anchorId: string,
     signal: AbortSignal,
-  ) => Promise<readonly LinkedItem[]>;
+    cursor?: string,
+  ) => Promise<LinkedItemsPage>;
   readonly searchTargets: (
     anchorId: string,
     query: string,
@@ -69,7 +80,14 @@ export interface UseLinkedItemsResult {
   readonly status: LinkedItemsStatus;
   readonly items: readonly LinkedItem[];
   readonly online: boolean;
+  /** True when more relationships remain beyond the loaded pages. */
+  readonly hasMore: boolean;
+  /** True while a `loadMore` page fetch is in flight. */
+  readonly loadingMore: boolean;
+  /** True when the last `loadMore` failed (retryable via `loadMore`). */
+  readonly loadMoreFailed: boolean;
   readonly reload: () => void;
+  readonly loadMore: () => void;
   readonly searchTargets: (
     query: string,
     signal: AbortSignal,
@@ -103,9 +121,16 @@ export function useLinkedItems(params: {
   const [status, setStatus] = useState<LinkedItemsStatus>(
     initialItems ? "ready" : "loading",
   );
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+
   const mountedRef = useRef(true);
   const reloadSeq = useRef(0);
   const tempSeq = useRef(0);
+  // The cursor is mirrored in a ref so `loadMore` reads the latest value without
+  // being re-created (and re-triggering effects) on every page.
+  const cursorRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -114,15 +139,22 @@ export function useLinkedItems(params: {
     };
   }, []);
 
+  const applyCursor = useCallback((cursor: string | null) => {
+    cursorRef.current = cursor;
+    setNextCursor(cursor);
+  }, []);
+
   const reload = useCallback(() => {
     const seq = reloadSeq.current + 1;
     reloadSeq.current = seq;
     const controller = new AbortController();
     setStatus("loading");
+    setLoadMoreFailed(false);
     transport.fetchItems(anchorId, controller.signal).then(
-      (loaded) => {
+      (page) => {
         if (!mountedRef.current || reloadSeq.current !== seq) return;
-        setItems(loaded);
+        setItems(page.items);
+        applyCursor(page.nextCursor);
         setStatus("ready");
       },
       () => {
@@ -130,12 +162,41 @@ export function useLinkedItems(params: {
         setStatus("error");
       },
     );
-  }, [anchorId, transport]);
+  }, [anchorId, transport, applyCursor]);
+
+  const loadMore = useCallback(() => {
+    const cursor = cursorRef.current;
+    if (!cursor || loadingMore) return;
+    // A load-more is scoped to the CURRENT reload generation: a reload that lands
+    // mid-fetch invalidates this page so it can't append onto a fresh list.
+    const seq = reloadSeq.current;
+    const controller = new AbortController();
+    setLoadingMore(true);
+    setLoadMoreFailed(false);
+    transport.fetchItems(anchorId, controller.signal, cursor).then(
+      (page) => {
+        if (!mountedRef.current || reloadSeq.current !== seq) return;
+        // De-duplicate by linkId in case a boundary link repeats across pages.
+        setItems((current) => {
+          const seen = new Set(current.map((i) => i.linkId));
+          return [...current, ...page.items.filter((i) => !seen.has(i.linkId))];
+        });
+        applyCursor(page.nextCursor);
+        setLoadingMore(false);
+      },
+      () => {
+        if (!mountedRef.current || reloadSeq.current !== seq) return;
+        setLoadingMore(false);
+        setLoadMoreFailed(true);
+      },
+    );
+  }, [anchorId, transport, loadingMore, applyCursor]);
 
   // Load on mount / when the anchor changes, unless the caller supplied items.
   useEffect(() => {
     if (initialItems) {
       setItems(initialItems);
+      applyCursor(null);
       setStatus("ready");
       return;
     }
@@ -217,7 +278,11 @@ export function useLinkedItems(params: {
     status,
     items,
     online,
+    hasMore: nextCursor !== null,
+    loadingMore,
+    loadMoreFailed,
     reload,
+    loadMore,
     searchTargets,
     loadSummary,
     link,

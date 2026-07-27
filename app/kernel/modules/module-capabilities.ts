@@ -359,6 +359,18 @@ export type SearchResultTarget =
 export type SearchResultItem = {
   /** Stable id of the result item, unique within the contributing provider. */
   readonly id: string;
+  /**
+   * Optional CANONICAL kernel entity id this result corresponds to, WITHOUT any
+   * provider-local prefix. A repository-backed provider derives its `id` from the
+   * entity id but often prefixes it (`person:<id>`, `task:<id>`) to keep it unique
+   * within the provider; those prefixed ids do not match a raw entity id. Setting
+   * `entityId` to the bare kernel id lets relationship-aware features — e.g. the
+   * Universal Relationship System's linked-record boosting (DS-08 `boostIds`) —
+   * match a result against a set of entity ids regardless of the provider's id
+   * scheme. Omit for a result that is not a single kernel entity (e.g. an
+   * aggregate/preview row).
+   */
+  readonly entityId?: string;
   /** Human-readable title. */
   readonly title: string;
   /** Optional secondary text (a concise subtitle or preview). */

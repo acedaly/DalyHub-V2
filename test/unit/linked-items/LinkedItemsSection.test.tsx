@@ -29,7 +29,10 @@ function makeTransport(
   overrides: Partial<LinkedItemsTransport> = {},
 ): LinkedItemsTransport {
   return {
-    fetchItems: vi.fn(async () => [noteItem("n1", "Creative brief")]),
+    fetchItems: vi.fn(async () => ({
+      items: [noteItem("n1", "Creative brief")],
+      nextCursor: null,
+    })),
     searchTargets: vi.fn(async () => [
       { id: "n2", type: "note", title: "Research doc" },
     ]),
@@ -117,6 +120,52 @@ describe("LinkedItemsSection", () => {
     expect(
       screen.queryByText(/Search your workspace to relate/),
     ).not.toBeInTheDocument();
+  });
+
+  it("paginates: shows Load more when a page has a cursor, then appends the next page", async () => {
+    // The first page fills but signals more remain (nextCursor); the second page
+    // holds a later relationship. Regression for structural-link filtering
+    // truncating the linked list (Codex thread PRRT_kwDOTbatJs6T6Oyq).
+    const fetchItems = vi
+      .fn<LinkedItemsTransport["fetchItems"]>()
+      .mockResolvedValueOnce({
+        items: [noteItem("n1", "Creative brief")],
+        nextCursor: "cursor-page-2",
+      })
+      .mockResolvedValueOnce({
+        items: [noteItem("n2", "Later relationship")],
+        nextCursor: null,
+      });
+    renderSection(makeTransport({ fetchItems }));
+
+    await screen.findByRole("link", { name: /Creative brief/ });
+    // The later relationship is not shown yet, but a Load more control is.
+    expect(
+      screen.queryByRole("link", { name: /Later relationship/ }),
+    ).not.toBeInTheDocument();
+    const loadMore = screen.getByRole("button", {
+      name: /Load more linked items/,
+    });
+
+    fireEvent.click(loadMore);
+
+    // The second page appends and its cursor was passed to the transport.
+    await screen.findByRole("link", { name: /Later relationship/ });
+    expect(
+      screen.getByRole("link", { name: /Creative brief/ }),
+    ).toBeInTheDocument();
+    expect(fetchItems).toHaveBeenNthCalledWith(
+      2,
+      "anchor-1",
+      expect.anything(),
+      "cursor-page-2",
+    );
+    // Load more disappears once the last page has no cursor.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: /Load more linked items/ }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("shows an error state with retry when loading fails", async () => {

@@ -60,6 +60,8 @@ const searchTasks: SearchExecutor = async (query, context) => {
 
   return targets.map<SearchResultItem>((target) => ({
     id: `task:${target.id}`,
+    // The canonical, unprefixed kernel id — so linked-record boosting matches.
+    entityId: target.id,
     title: target.title,
     entityType: "task",
     target: {
