@@ -56,6 +56,8 @@ const searchPeople: SearchExecutor = async (query, context) => {
     );
     return {
       id: `person:${person.id}`,
+      // The canonical, unprefixed kernel id — so linked-record boosting matches.
+      entityId: person.id,
       title: person.title,
       subtitle:
         subtitleParts.length > 0 ? subtitleParts.join(" · ") : undefined,

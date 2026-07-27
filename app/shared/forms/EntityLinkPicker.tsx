@@ -62,6 +62,12 @@ export interface EntityLinkPickerProps {
   readonly renderTargetIcon?: (type: string) => ReactNode;
   readonly disabled?: boolean;
   readonly readOnly?: boolean;
+  /**
+   * Suppress the built-in flat list of existing links (still used for duplicate
+   * detection). The shared Linked Items section renders its own grouped,
+   * hover-carded list and uses the picker purely as the search/add affordance.
+   */
+  readonly hideExistingList?: boolean;
   readonly error?: string | null;
   /** Ceiling on async result size. */
   readonly maxResults?: number;
@@ -86,6 +92,7 @@ export function EntityLinkPicker({
   renderTargetIcon,
   disabled = false,
   readOnly = false,
+  hideExistingList = false,
   error,
   maxResults,
   placeholder = "Search to link…",
@@ -259,7 +266,7 @@ export function EntityLinkPicker({
 
       <div className="dh-field__control" ref={wrapperRef} onBlur={handleBlur}>
         {/* Existing links */}
-        {existingLinks.length > 0 ? (
+        {!hideExistingList && existingLinks.length > 0 ? (
           <ul className="dh-link-picker__links">
             {existingLinks.map((link) => (
               <li key={link.linkId} className="dh-link-picker__link">

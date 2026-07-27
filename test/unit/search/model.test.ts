@@ -177,6 +177,24 @@ describe("validateResultItem", () => {
     expect(result!.providerScore).toBe(1);
     expect(result!.title.length).toBeLessThanOrEqual(200);
   });
+
+  it("carries a canonical entityId through, and drops a blank one", () => {
+    // Regression for Codex thread PRRT_kwDOTbatJs6T6Oyo: the canonical entity id
+    // must survive validation so linked-record boosting can match it.
+    const withId = validateResultItem(
+      item({ id: "person:e1", entityId: "e1" }),
+      "people",
+      "people.search",
+    );
+    expect(withId!.entityId).toBe("e1");
+
+    const blank = validateResultItem(
+      item({ id: "person:e2", entityId: "   " }),
+      "people",
+      "people.search",
+    );
+    expect(blank!.entityId).toBeUndefined();
+  });
 });
 
 describe("dedupeTagged", () => {
@@ -226,6 +244,55 @@ describe("rankResults", () => {
       "fuzzy",
       "subtitle",
     ]);
+  });
+
+  it("boosts directly-linked ids within their tier, never across tiers", () => {
+    const results: TaggedResult[] = [
+      tagged({ itemId: "plain-a", title: "Match" }),
+      tagged({ itemId: "linked", title: "Match" }),
+      tagged({ itemId: "exact", title: "match report extra long" }),
+    ];
+    // Two equal-tier "Match" results (exact title === query "match") + a longer
+    // prefix. The linked one rises above the equally-relevant plain one, but a
+    // boosted weaker match never outranks a stronger tier.
+    const ranked = rankResults("match", results, {
+      boostIds: new Set(["linked"]),
+    });
+    const order = ranked.map((r) => r.id.split("::")[2]);
+    // "linked" and "plain-a" are both exact matches (tier 5); linked comes first.
+    expect(order.indexOf("linked")).toBeLessThan(order.indexOf("plain-a"));
+  });
+
+  it("boosts by the CANONICAL entityId even when the provider prefixes its itemId", () => {
+    // Regression for Codex thread PRRT_kwDOTbatJs6T6Oyo: repository-backed
+    // providers prefix their itemId (`person:<id>`), so a raw entity-id boost set
+    // must match the unprefixed `entityId`, not the prefixed itemId.
+    const results: TaggedResult[] = [
+      tagged({ itemId: "person:plain", entityId: "plain", title: "Match" }),
+      tagged({ itemId: "person:e1", entityId: "e1", title: "Match" }),
+    ];
+    const ranked = rankResults("match", results, {
+      // The boost set holds the RAW entity id, as `/search` resolves it.
+      boostIds: new Set(["e1"]),
+    });
+    const order = ranked.map((r) => r.id.split("::")[2]);
+    expect(order.indexOf("person:e1")).toBeLessThan(
+      order.indexOf("person:plain"),
+    );
+  });
+
+  it("does NOT boost when the set only holds the prefixed itemId (never matches)", () => {
+    const results: TaggedResult[] = [
+      tagged({ itemId: "person:a", entityId: "a", title: "Match" }),
+      tagged({ itemId: "person:b", entityId: "b", title: "Match" }),
+    ];
+    // A prefixed value is not a canonical entity id, so nothing is boosted; the
+    // order falls back to the deterministic id tie-break (person:a before person:b).
+    const ranked = rankResults("match", results, {
+      boostIds: new Set(["person:b"]),
+    });
+    const order = ranked.map((r) => r.id.split("::")[2]);
+    expect(order).toEqual(["person:a", "person:b"]);
   });
 
   it("is deterministic and stable for equal tiers (title then id)", () => {

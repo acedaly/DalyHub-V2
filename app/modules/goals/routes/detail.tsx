@@ -27,6 +27,7 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { LinkedItemsTab } from "~/shared/linked-items";
 import { useFeedback } from "~/shared/feedback";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
@@ -213,8 +214,8 @@ function DetailsDrawerHost({
   );
 }
 
-function parseTab(value: string | null): "projects" | "activity" {
-  return value === "activity" ? value : "projects";
+function parseTab(value: string | null): "projects" | "linked" | "activity" {
+  return value === "activity" || value === "linked" ? value : "projects";
 }
 
 function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
@@ -315,6 +316,16 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       onOpenTask={(taskId) => openDrawer(`task:${taskId}`)}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
+      linkedTab={
+        <LinkedItemsTab
+          anchorId={props.overview.id}
+          anchorType="goal"
+          linkCommandTarget={{
+            kind: "route",
+            to: `/goals/${props.overview.id}?tab=linked`,
+          }}
+        />
+      }
       activityTab={
         // `reloadKey` is the Goal's EFFECTIVE updatedAt (the later of the spine
         // entity's own `updated_at` and `goal_details.updated_at` — mirrors

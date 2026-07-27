@@ -140,17 +140,37 @@ type Scored = {
   readonly result: TaggedResult;
   readonly tier: number;
   readonly strength: number;
+  readonly boosted: boolean;
   readonly titleMatches: readonly MatchRange[];
   readonly subtitleMatches: readonly MatchRange[];
   readonly foldedTitle: string;
 };
 
+/** Options for {@link rankResults}. */
+export interface RankOptions {
+  /**
+   * CANONICAL kernel entity ids to boost. A boosted result is ordered ABOVE
+   * equally-relevant non-boosted results (within the same relevance tier), so a
+   * record's directly-linked entities surface first when a record context supplies
+   * its linked ids — without ever letting a weak match outrank a stronger one.
+   *
+   * Matching is against each result's `entityId` (the unprefixed kernel id a
+   * provider supplies) falling back to its `itemId`. This is deliberate: providers
+   * prefix their `itemId` (`person:<id>`, `task:<id>`, …), so comparing the raw
+   * entity-id boost set against `itemId` alone would never match. See
+   * `docs/development/RELATIONSHIPS.md`.
+   */
+  readonly boostIds?: ReadonlySet<string>;
+}
+
 /** Rank validated results against the query. Deterministic, stable ordering. */
 export function rankResults(
   query: string,
   results: readonly TaggedResult[],
+  options: RankOptions = {},
 ): RankedSearchResult[] {
   const foldedQuery = foldText(query);
+  const boostIds = options.boostIds;
 
   const scored: Scored[] = results.map((result) => {
     const foldedTitle = foldText(result.title);
@@ -168,6 +188,10 @@ export function rankResults(
       result,
       tier,
       strength: signal.strength,
+      // Match on the canonical entity id (unprefixed) when the provider supplied
+      // one, else the provider-local itemId — so a raw entity-id boost set matches
+      // regardless of the provider's id prefix scheme.
+      boosted: boostIds?.has(result.entityId ?? result.itemId) ?? false,
       titleMatches: signal.titleMatches,
       subtitleMatches,
       foldedTitle: foldCase(result.title),
@@ -177,6 +201,10 @@ export function rankResults(
   scored.sort((a, b) => {
     if (a.tier !== b.tier) {
       return b.tier - a.tier;
+    }
+    // Within a tier, a directly-linked (boosted) result comes first.
+    if (a.boosted !== b.boosted) {
+      return a.boosted ? -1 : 1;
     }
     if (a.strength !== b.strength) {
       return b.strength - a.strength;

@@ -57,8 +57,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // result. `requireAuthenticatedSession` throws a 401 Response, which propagates.
   const session = requireAuthenticatedSession(context);
 
-  const rawQuery =
-    new URL(request.url).searchParams.get(SEARCH_QUERY_PARAM) ?? "";
+  const url = new URL(request.url);
+  const rawQuery = url.searchParams.get(SEARCH_QUERY_PARAM) ?? "";
+  // The Universal Relationship System: when a record scopes the search, boost that
+  // record's directly-linked entities so they surface first (server-resolved; the
+  // client only names the anchor record, never the boost ids themselves).
+  const boostLinkedTo = url.searchParams.get("boostLinkedTo");
 
   try {
     // The trusted, request-free, D1-verified workspace scope. The client cannot
@@ -66,10 +70,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const registry = discoverModuleRegistry();
 
+    let boostIds: ReadonlySet<string> | undefined;
+    if (boostLinkedTo) {
+      try {
+        const page = await scope.entityLinks.listForEntity(boostLinkedTo, {
+          direction: "both",
+          limit: 100,
+        });
+        boostIds = new Set(page.items.map((view) => view.counterpart.id));
+      } catch {
+        // A missing/invalid anchor simply means no boost — never a search failure.
+        boostIds = undefined;
+      }
+    }
+
     const outcome = await executeSearch({
       providers: registry.listSearchProviders(),
       context: { workspace: scope.context },
       rawQuery,
+      ...(boostIds && boostIds.size > 0 ? { boostIds } : {}),
     });
     return json(outcome);
   } catch {

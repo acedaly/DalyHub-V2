@@ -187,8 +187,11 @@ The shared DS-02 `RecordLayout` with six tabs:
   phone), key dates and tags.
 - **Contact** — the full structured detail editor (DS-06 forms).
 - **Timeline** — the relationship history via the DS-05 Timeline.
-- **Linked** — records linked to the person, grouped by kind, with empty
-  placeholders for kinds with no links yet.
+- **Linked** — the shared **Universal Relationship System** Linked Items section
+  ([`RELATIONSHIPS.md`](RELATIONSHIPS.md)): records linked to the person, grouped by
+  kind, each navigable with a hover-card summary, plus search-to-add and remove
+  (read-only for an archived Person). Replaces PEOPLE-01's read-only
+  `PersonLinkedTab`; no Person-specific link surface remains.
 - **Notes** — a free-text field for what to remember.
 - **Settings** — Rename, Archive/Restore and Delete, via the DS-10b Settings
   system.

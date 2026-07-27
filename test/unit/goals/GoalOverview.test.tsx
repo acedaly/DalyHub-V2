@@ -136,6 +136,7 @@ function renderGoal(
       onEditDetails={over.onEditDetails ?? (() => {})}
       onOpenProject={over.onOpenProject ?? (() => {})}
       onOpenTask={over.onOpenTask ?? (() => {})}
+      linkedTab={<div>linked-content</div>}
       activityTab={<div>activity-content</div>}
     />,
   );

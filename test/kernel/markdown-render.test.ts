@@ -196,3 +196,28 @@ describe("performance envelope (bounded, not wall-clock)", () => {
     expect(html.length).toBeGreaterThan(source.length / 2);
   });
 });
+
+describe("inline [[wiki links]] (NOTES-02 seam)", () => {
+  it("renders [[Title]] as an internal resolver link", () => {
+    const html = render("See [[Design System]] for details.");
+    expect(html).toContain('href="/notes/resolve?title=Design%20System"');
+    expect(html).toContain(">Design System</a>");
+  });
+
+  it("uses the alias for [[Title|Alias]] but resolves by title", () => {
+    const html = render("See [[Design System|the DS]].");
+    expect(html).toContain('href="/notes/resolve?title=Design%20System"');
+    expect(html).toContain(">the DS</a>");
+  });
+
+  it("does not turn [[...]] inside inline code into a link", () => {
+    const html = render("Use `[[not a link]]` literally.");
+    expect(html).not.toContain("/notes/resolve");
+    expect(html).toContain("<code>[[not a link]]</code>");
+  });
+
+  it("never emits a script or unsafe attribute for a crafted title", () => {
+    const html = render("[[<script>alert(1)</script>]]");
+    expect(html).not.toContain("<script>");
+  });
+});

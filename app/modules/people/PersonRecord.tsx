@@ -14,6 +14,7 @@ import { useNavigate } from "react-router";
 
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
+import { LinkedItemsTab } from "~/shared/linked-items";
 import {
   RecordLayout,
   type RecordAction,
@@ -21,7 +22,6 @@ import {
 } from "~/shared/record-layout";
 
 import { PersonContactForm } from "./PersonContactForm";
-import { PersonLinkedTab } from "./PersonLinkedTab";
 import { PersonNotesForm } from "./PersonNotesForm";
 import { PersonSettingsTab } from "./PersonSettingsTab";
 import { PersonSummary } from "./PersonSummary";
@@ -29,16 +29,8 @@ import { PersonTimelineTab } from "./PersonTimelineTab";
 import type { SerializedPerson } from "./person-view";
 import type { PersonMutationResult } from "./routes/mutate";
 
-/** A record linked to this person, resolved by the loader. */
-export type PersonLinkedRecord = {
-  readonly id: string;
-  readonly type: string;
-  readonly title: string;
-};
-
 interface PersonRecordProps {
   readonly person: SerializedPerson;
-  readonly linked: readonly PersonLinkedRecord[];
   readonly activeTabId: string;
   readonly onTabChange: (tabId: string) => void;
   readonly onRename: () => void;
@@ -47,7 +39,6 @@ interface PersonRecordProps {
 
 export function PersonRecord({
   person,
-  linked,
   activeTabId,
   onTabChange,
   onRename,
@@ -181,7 +172,17 @@ export function PersonRecord({
         {
           id: "linked",
           label: "Linked",
-          content: <PersonLinkedTab linked={linked} />,
+          content: (
+            <LinkedItemsTab
+              anchorId={person.id}
+              anchorType="person"
+              readOnly={person.archived}
+              linkCommandTarget={{
+                kind: "route",
+                to: `/person/${person.id}?tab=linked`,
+              }}
+            />
+          ),
         },
         {
           id: "notes",

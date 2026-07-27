@@ -37,6 +37,7 @@ interface NoteOverviewProps {
   readonly details: SerializedNoteDetails;
   readonly onRename: () => void;
   readonly onSaved: () => void;
+  readonly linkedTab: ReactNode;
   readonly activityTab: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
@@ -51,6 +52,7 @@ export function NoteOverview({
   details,
   onRename,
   onSaved,
+  linkedTab,
   activityTab,
   activeTabId,
   onTabChange,
@@ -125,6 +127,7 @@ export function NoteOverview({
             />
           ),
         },
+        { id: "linked", label: "Linked", content: linkedTab },
         { id: "activity", label: "Activity", content: activityTab },
       ]}
     />

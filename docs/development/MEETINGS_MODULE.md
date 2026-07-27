@@ -14,7 +14,7 @@ Attendees are real Person entities connected with the `meeting.attendee` EntityL
 
 ## Product surface
 
-The module contributes Upcoming, Recent and Archived collection views; a fast creation route; a canonical Record Layout with Summary, Agenda, Notes, Decisions, Outcomes, Linked, Activity and Settings; bounded global search; and Open/Create/Search commands. Agenda and notes reuse `LiveMarkdownEditor` and the DS-06 autosave coordinator independently, including coalescing, retry state and navigation protection.
+The module contributes Upcoming, Recent and Archived collection views; a fast creation route; a canonical Record Layout with Summary, Agenda, Notes, Decisions, Outcomes, Linked, Activity and Settings; bounded global search; and Open/Create/Search commands. The **Linked** tab is the shared **Universal Relationship System** Linked Items section (REL-01, [`RELATIONSHIPS.md`](RELATIONSHIPS.md)) — interactive add/remove/search/navigate with hover cards, replacing MEET-01's read-only linked list; attendee (`meeting.attendee`) links still appear there, read-only. Agenda and notes reuse `LiveMarkdownEditor` and the DS-06 autosave coordinator independently, including coalescing, retry state and navigation protection.
 
 ## Deliberate deferrals
 

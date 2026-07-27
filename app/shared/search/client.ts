@@ -16,18 +16,39 @@ export const SEARCH_ENDPOINT = "/search";
 /** The query-string parameter carrying the bounded query text. */
 export const SEARCH_QUERY_PARAM = "q";
 
+/**
+ * The query-string parameter naming the RECORD the search is scoped to, so the
+ * server boosts that record's directly-linked entities (the Universal
+ * Relationship System). Carries only an anchor entity id; the server resolves the
+ * boost set — the client never sends raw boost ids. See `RELATIONSHIPS.md`.
+ */
+export const SEARCH_BOOST_PARAM = "boostLinkedTo";
+
+/** Per-request options the surface threads to the transport. */
+export type SearchRequestOptions = {
+  /** The current record's anchor entity id, when the search is opened from one. */
+  readonly boostLinkedTo?: string;
+};
+
 /** A function that resolves a query to an outcome; injectable for tests/demos. */
 export type SearchFn = (
   query: string,
   signal: AbortSignal,
+  options?: SearchRequestOptions,
 ) => Promise<SearchOutcome>;
 
 /** Fetch results from the server endpoint. Throws on a non-OK response. */
 export async function fetchSearch(
   query: string,
   signal: AbortSignal,
+  options?: SearchRequestOptions,
 ): Promise<SearchOutcome> {
-  const url = `${SEARCH_ENDPOINT}?${SEARCH_QUERY_PARAM}=${encodeURIComponent(query)}`;
+  const params = new URLSearchParams({ [SEARCH_QUERY_PARAM]: query });
+  const boostLinkedTo = options?.boostLinkedTo?.trim();
+  if (boostLinkedTo) {
+    params.set(SEARCH_BOOST_PARAM, boostLinkedTo);
+  }
+  const url = `${SEARCH_ENDPOINT}?${params.toString()}`;
   const response = await fetch(url, {
     method: "GET",
     signal,

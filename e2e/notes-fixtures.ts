@@ -74,6 +74,11 @@ function cleanupSql(entityPredicate: string): string {
   return [
     `DELETE FROM activity_subjects WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${noteSelection});`,
     `DELETE FROM activities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+    // Universal Relationship System: a test-owned Note may be an endpoint of a
+    // `link.related` EntityLink. `entity_links` endpoints are ON DELETE RESTRICT,
+    // so its rows must go before the entity row (either endpoint matching a
+    // test-owned note). Non-linked notes match nothing here — harmless.
+    `DELETE FROM entity_links WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND (source_entity_id IN (${noteSelection}) OR target_entity_id IN (${noteSelection}));`,
     `DELETE FROM note_details WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND entity_id IN (${noteSelection});`,
     `DELETE FROM entities WHERE workspace_id = ${sqlLiteral(WORKSPACE_ID)} AND id IN (${noteSelection});`,
   ].join("\n");

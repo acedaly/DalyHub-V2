@@ -4,7 +4,7 @@
  * Turns validated `MarkdownSource` into `SanitizedMarkdownHtml` through a single
  * `unified` pipeline (ADR-015 §14). The flow is:
  *
- *   remark-parse ─▶ remark-gfm ─▶ strip footnotes ─▶ remark-rehype
+ *   remark-parse ─▶ remark-gfm ─▶ strip footnotes ─▶ wiki links ─▶ remark-rehype
  *     ─▶ safe-content transform ─▶ rehype-sanitize ─▶ rehype-stringify
  *
  * Key safety properties, all enforced here and nowhere else:
@@ -42,6 +42,7 @@ import {
 
 import { MARKDOWN_SANITISATION_SCHEMA } from "./sanitisation-schema";
 import { isSafeMarkdownUrl } from "./markdown-url-policy";
+import { remarkWikiLinks } from "./wikilinks";
 
 /**
  * Minimal structural view of an mdast node — enough to strip footnote nodes
@@ -160,6 +161,8 @@ const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkStripFootnotes)
+  // Inline [[Wiki Links]] → internal resolver links (deterministic; no DB lookup).
+  .use(remarkWikiLinks)
   .use(remarkRehype, { allowDangerousHtml: false })
   .use(rehypeDalyhubSafeContent)
   .use(rehypeSanitize, MARKDOWN_SANITISATION_SCHEMA)

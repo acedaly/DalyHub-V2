@@ -32,6 +32,7 @@ import {
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { NewGoalForm } from "~/shared/goal-creation/NewGoalForm";
+import { LinkedItemsTab } from "~/shared/linked-items";
 import { createOwnerHealthContext } from "~/shared/project-health";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
@@ -66,7 +67,7 @@ const AREA_CHILD_PAGE_SIZE = 50;
  */
 const HEALTH_FACTS_BATCH_SIZE = 100;
 
-type AreaTab = "goals" | "projects" | "activity" | "settings";
+type AreaTab = "goals" | "projects" | "linked" | "activity" | "settings";
 
 export function meta() {
   return [{ title: "Area · DalyHub" }];
@@ -299,7 +300,10 @@ function NewGoalDrawerHost({ areaId }: { readonly areaId: string }) {
 }
 
 function parseTab(value: string | null): AreaTab {
-  return value === "projects" || value === "activity" || value === "settings"
+  return value === "projects" ||
+    value === "linked" ||
+    value === "activity" ||
+    value === "settings"
     ? value
     : "goals";
 }
@@ -398,6 +402,17 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       }
       activeTabId={activeTabId}
       onTabChange={onTabChange}
+      linkedTab={
+        <LinkedItemsTab
+          anchorId={props.overview.id}
+          anchorType="area"
+          readOnly={archived}
+          linkCommandTarget={{
+            kind: "route",
+            to: `/areas/${props.overview.id}?tab=linked`,
+          }}
+        />
+      }
       activityTab={
         <AreaActivityTab
           areaId={props.overview.id}

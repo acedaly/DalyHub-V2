@@ -29,6 +29,13 @@ export type MatchRange = {
 export type TaggedResult = {
   /** Provider-local result id (already validated + bounded). */
   readonly itemId: string;
+  /**
+   * Optional canonical kernel entity id (unprefixed), when the provider supplied
+   * one. Used only for relationship-aware ranking (linked-record boosting) so a
+   * raw entity id matches regardless of the provider's `itemId` prefix scheme; it
+   * is never part of the result's public identity.
+   */
+  readonly entityId?: string;
   /** The registered provider's namespaced id (e.g. `today.search`). */
   readonly providerId: string;
   /** The owning module's id (e.g. `today`). */

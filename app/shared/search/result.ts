@@ -93,9 +93,19 @@ export function validateResultItem(
 
   const entityType = normaliseEntityType(item.entityType);
   const providerScore = normaliseScore(item.score);
+  // The optional canonical entity id (unprefixed). Validated/bounded like the id;
+  // a blank or oversized value is dropped (the field is simply absent).
+  const rawEntityId = item.entityId;
+  const entityId =
+    typeof rawEntityId === "string" &&
+    rawEntityId.trim().length > 0 &&
+    rawEntityId.length <= MAX_RESULT_ID_LENGTH
+      ? rawEntityId
+      : undefined;
 
   return {
     itemId: id,
+    ...(entityId === undefined ? {} : { entityId }),
     providerId,
     moduleId,
     title: clampCodePoints(trimmedTitle, MAX_TITLE_LENGTH),
