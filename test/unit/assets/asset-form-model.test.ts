@@ -51,7 +51,12 @@ describe("newAssetFieldsForType", () => {
   });
 
   it("never shows the whole slice at once", () => {
-    for (const type of ["vehicle", "licence", "subscription", "other"] as const) {
+    for (const type of [
+      "vehicle",
+      "licence",
+      "subscription",
+      "other",
+    ] as const) {
       expect(newAssetFieldsForType(type).length).toBeLessThanOrEqual(6);
     }
   });

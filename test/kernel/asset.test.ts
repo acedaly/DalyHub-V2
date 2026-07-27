@@ -99,10 +99,18 @@ describe("create", () => {
       }),
     ).rejects.toBeInstanceOf(AssetValidationError);
     await expect(
-      assets().create({ title: "X", assetType: "vehicle", warrantyExpiry: "2026-13-40" }),
+      assets().create({
+        title: "X",
+        assetType: "vehicle",
+        warrantyExpiry: "2026-13-40",
+      }),
     ).rejects.toBeInstanceOf(AssetValidationError);
     await expect(
-      assets().create({ title: "X", assetType: "vehicle", url: "javascript:alert(1)" }),
+      assets().create({
+        title: "X",
+        assetType: "vehicle",
+        url: "javascript:alert(1)",
+      }),
     ).rejects.toBeInstanceOf(AssetValidationError);
     expect(await countRows()).toBe(0);
     expect(await countAssetRows()).toBe(0);
@@ -128,7 +136,10 @@ describe("create", () => {
 describe("read + isolation", () => {
   it("fails closed: missing / wrong-type / cross-workspace read as null", async () => {
     const repo = assets();
-    const asset = await repo.create({ title: "Laptop", assetType: "electronics" });
+    const asset = await repo.create({
+      title: "Laptop",
+      assetType: "electronics",
+    });
     expect(await repo.get("nope")).toBeNull();
     // Same id in another workspace is invisible here.
     expect(await assets(OTHER).get(asset.id)).toBeNull();
@@ -190,7 +201,10 @@ describe("archive lifecycle", () => {
 
   it("archived assets leave the active collection but keep a direct read", async () => {
     const repo = assets();
-    const asset = await repo.create({ title: "Old TV", assetType: "electronics" });
+    const asset = await repo.create({
+      title: "Old TV",
+      assetType: "electronics",
+    });
     await repo.archive(asset.id);
     expect((await repo.list({ view: "all" })).items).toHaveLength(0);
     expect((await repo.list({ view: "archived" })).items).toHaveLength(1);
@@ -266,9 +280,15 @@ describe("date-driven views + filters", () => {
     const repo = assets();
     await repo.create({ title: "Car", assetType: "vehicle", status: "loaned" });
     await repo.create({ title: "Book", assetType: "document" });
-    const byType = await repo.list({ view: "all", filters: { type: "vehicle" } });
+    const byType = await repo.list({
+      view: "all",
+      filters: { type: "vehicle" },
+    });
     expect(byType.items.map((a) => a.title)).toEqual(["Car"]);
-    const byStatus = await repo.list({ view: "all", filters: { status: "loaned" } });
+    const byStatus = await repo.list({
+      view: "all",
+      filters: { status: "loaned" },
+    });
     expect(byStatus.items.map((a) => a.title)).toEqual(["Car"]);
   });
 });

@@ -763,10 +763,11 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 ## Phase 8 — Assets (`ASSET`)
 
-### ☐ ASSET-01 — Asset record
+### ☑ ASSET-01 — Asset record — **Done**
 - **Purpose.** Track things of value (physical/digital/financial) with type-specific metadata, in the Record Layout.
 - **Dependencies.** DS-02, FND-04.
 - **Expected outcome.** Create/edit assets with metadata and links. **P3.**
+- **Status (Done).** Assets are first-class `asset` entities with a dedicated STRICT `asset_details` slice (migration `0016`), created/edited/archived/restored through the authoritative workspace-bound `AssetRepository` (atomic reserved create, partial detail updates, real-world status transitions distinct from record archive, and guarded permanent deletion). Money is stored as integer minor units + an ISO-4217 currency code (never a float — ADR-049); dates are wall-calendar `YYYY-MM-DD` strings compared as integers in the owner timezone. A controlled-but-extensible type vocabulary (Vehicle … Other) with per-type subtype icons, a small status vocabulary, a first-class `/assets` collection (All / Recently updated / Expiring soon / Service due / Archived views with full-collection filtering, sorting and cursor pagination), the canonical Record Layout (Summary / Details / Dates / Linked / Activity / Settings), a progressive New Asset flow, shared Linked Items (asset is now a supported relationship endpoint), the shared Timeline, search and command-palette integration, and one canonical date-status evaluator shared by the collection and record. Sensitive values (serial/policy numbers, prices, private notes) never reach a collection card, a search snippet or an Activity payload (§17). Deferred work (real file attachments, R2, OCR, barcode scanning, recurring reminders, service-history logbooks, depreciation, receipt/email ingestion, external subscription sync, AI extraction) is recorded as product debt — see [`docs/development/ASSETS_MODULE.md`](../development/ASSETS_MODULE.md) and [`docs/product/PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md). `pnpm run format:check`, `lint`, `typecheck`, `test:unit`, `test:kernel`, `build` and `deploy:dry-run` all green.
 
 ### ☐ ASSET-02 — History & renewals
 - **Purpose.** Track maintenance, value changes, warranties, and renewal reminders.

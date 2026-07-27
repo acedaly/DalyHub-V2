@@ -110,8 +110,7 @@
 }
 
 .dh-assets-filters select:focus-visible {
-  outline: var(--dh-border-width-thick) solid
-    var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
   outline-offset: 2px;
 }
 

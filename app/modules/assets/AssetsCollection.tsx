@@ -80,6 +80,7 @@ function toCard(item: SerializedAssetListItem, today: string): CardProps {
   return {
     id: item.id,
     title: item.title,
+    headingLevel: 2,
     typeLabel: item.assetTypeLabel,
     icon: <Icon />,
     accent: "neutral",

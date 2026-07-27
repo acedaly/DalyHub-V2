@@ -89,7 +89,9 @@ describe("EntityLink", () => {
   });
 
   it("renders unsupported targets as plain, non-interactive text", () => {
-    renderLink(<EntityLink type="review" id="rv1" title="Budget spreadsheet" />);
+    renderLink(
+      <EntityLink type="review" id="rv1" title="Budget spreadsheet" />,
+    );
     expect(screen.getByText("Budget spreadsheet")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });

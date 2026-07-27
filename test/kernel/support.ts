@@ -271,7 +271,9 @@ export async function countAssetRows(): Promise<number> {
 }
 
 /** Read the raw `payload_json` for the newest activity of a given type. */
-export async function latestActivityPayload(type: string): Promise<string | null> {
+export async function latestActivityPayload(
+  type: string,
+): Promise<string | null> {
   const row = await env.DB.prepare(
     "SELECT payload_json FROM activities WHERE type = ? ORDER BY occurred_at DESC, id DESC LIMIT 1",
   )

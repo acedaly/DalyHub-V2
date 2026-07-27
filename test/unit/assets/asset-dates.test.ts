@@ -61,18 +61,30 @@ describe("nextMeaningfulDate", () => {
   it("phrases overdue and future explicitly (never colour alone)", () => {
     expect(
       nextMeaningfulDate(
-        { warrantyExpiry: "2026-07-10", renewalDate: null, nextServiceDate: null },
+        {
+          warrantyExpiry: "2026-07-10",
+          renewalDate: null,
+          nextServiceDate: null,
+        },
         TODAY,
       )?.text,
     ).toBe("Warranty expired");
     expect(
       nextMeaningfulDate(
-        { warrantyExpiry: null, renewalDate: null, nextServiceDate: "2026-07-01" },
+        {
+          warrantyExpiry: null,
+          renewalDate: null,
+          nextServiceDate: "2026-07-01",
+        },
         TODAY,
       )?.text,
     ).toBe("Service overdue");
     const future = nextMeaningfulDate(
-      { warrantyExpiry: null, renewalDate: "2027-09-12", nextServiceDate: null },
+      {
+        warrantyExpiry: null,
+        renewalDate: "2027-09-12",
+        nextServiceDate: null,
+      },
       TODAY,
     );
     expect(future?.status).toBe("future");
