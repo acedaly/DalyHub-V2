@@ -37,6 +37,16 @@ const routes: readonly RouteContribution[] = [
     path: "meeting/:meetingId/mutate",
     file: "routes/mutate.tsx",
   },
+  {
+    id: "meetings.follow_up",
+    path: "meeting/:meetingId/follow-up",
+    file: "routes/follow-up.tsx",
+  },
+  {
+    id: "meetings.activity",
+    path: "meeting/:meetingId/activity",
+    file: "routes/activity.tsx",
+  },
 ];
 
 export default routes;

@@ -7,10 +7,18 @@ export const MEETING_ARCHIVED = "meeting.archived";
 export const MEETING_RESTORED = "meeting.restored";
 export const MEETING_ATTENDEE_LINK = "meeting.attendee";
 
+// MEET-02 structural follow-through Activity types. Payloads carry ONLY structural
+// metadata (item kind, ids) — never agenda/notes/decision/outcome content (§17).
+export const MEETING_ITEM_CONVERTED_TO_TASK = "meeting.item_converted_to_task";
+export const MEETING_FOLLOW_UP_CREATED = "meeting.follow_up_created";
+
 export type MeetingStatus = "planned" | "completed" | "cancelled";
 export type MeetingMode = "in_person" | "phone" | "online";
 export type MeetingView = "upcoming" | "recent" | "archived";
-export type MeetingItemKind = "decision" | "outcome";
+// MEET-02 widens the structured-item vocabulary with `agenda`, so an agenda item
+// gains the same stable identity a decision/outcome already has and can be converted
+// to a Task without parsing the free-form agenda Markdown.
+export type MeetingItemKind = "agenda" | "decision" | "outcome";
 
 export interface MeetingItem {
   readonly id: string;
@@ -63,4 +71,27 @@ export interface MeetingPage {
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
   readonly total: number;
+}
+
+/**
+ * MEET-02 — one durable source-item → Task mapping row. `itemId` is the stable
+ * `MeetingItem.id` that produced the Task, or `null` for a direct meeting follow-up
+ * (source is the Meeting itself). This is the smallest seam that records WHICH item
+ * was converted; the navigable relationship is a separate `task.relates_to`
+ * EntityLink, never replaced by this table.
+ */
+export interface MeetingFollowUpLink {
+  readonly meetingId: string;
+  readonly itemId: string | null;
+  readonly taskId: string;
+  readonly createdAt: Date;
+}
+
+/** Input to durably record a Meeting → Task conversion (MEET-02). */
+export interface LinkFollowUpTaskInput {
+  readonly meetingId: string;
+  readonly itemId: string | null;
+  readonly taskId: string;
+  /** The source item's kind, recorded only in the structural Activity payload. */
+  readonly itemKind?: MeetingItemKind;
 }

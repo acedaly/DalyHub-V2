@@ -188,6 +188,17 @@ only ever names the anchor record; it never supplies raw boost ids.
 
 ---
 
+## Adopter note — Meeting follow-up Tasks (MEET-02)
+
+A follow-up Task created from a Meeting links back with the task-owned
+`task.relates_to` type (source Task → target Meeting), so it appears in the Task
+Drawer's existing Linked section (outgoing `task.relates_to`) AND — read-only — in the
+Meeting's universal Linked Items, one row navigable both ways. The Universal
+Relationship contracts are unchanged; MEET-02 adds no relationship model. Which
+specific agenda item / decision / outcome produced the Task is recorded by a narrow,
+module-owned mapping table (`meeting_item_tasks`) that **supplements** this link — it
+never replaces it. See [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048--meeting-follow-through-task-conversion-orchestration-and-the-source-item-mapping).
+
 ## Activity
 
 Relationship creation and removal are recorded automatically by the FND-04 kernel

@@ -360,6 +360,16 @@ describe("module discovery", () => {
           moduleId: "meetings",
           file: "routes/mutate.tsx",
         },
+        {
+          id: "meetings.follow_up",
+          moduleId: "meetings",
+          file: "routes/follow-up.tsx",
+        },
+        {
+          id: "meetings.activity",
+          moduleId: "meetings",
+          file: "routes/activity.tsx",
+        },
         { id: "people.index", moduleId: "people", file: "routes/index.tsx" },
         {
           id: "people.recent",

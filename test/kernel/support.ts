@@ -10,6 +10,7 @@ import {
   createEntityRepository,
   createGoalDetailsRepository,
   createGoalRepository,
+  createMeetingRepository,
   createNoteDetailsRepository,
   createPersonRepository,
   createProjectHealthRepository,
@@ -223,6 +224,34 @@ export function makePersonRepository(
 export async function countPersonRows(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM person_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * Construct a workspace-scoped D1-backed MeetingRepository over the isolated test
+ * database (MEET-01/MEET-02: meeting details, structured items and the follow-up
+ * Task mapping, bound to a `WorkspaceContext`).
+ */
+export function makeMeetingRepository(
+  context: WorkspaceContext,
+  options?: RepositoryTestOptions,
+) {
+  return createMeetingRepository(env.DB, context, options);
+}
+
+/** Count all rows in `meeting_details` directly. */
+export async function countMeetingRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM meeting_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count all rows in `meeting_item_tasks` (the MEET-02 source-item mapping). */
+export async function countMeetingItemTaskRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM meeting_item_tasks",
   ).first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -444,6 +473,11 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM note_details").run();
   await env.DB.prepare("DELETE FROM diary_entry_details").run();
   await env.DB.prepare("DELETE FROM person_details").run();
+  // Meeting children first (both cascade from meeting_details); meeting_details FK
+  // to entities is ON DELETE RESTRICT so it must clear before entities.
+  await env.DB.prepare("DELETE FROM meeting_item_tasks").run();
+  await env.DB.prepare("DELETE FROM meeting_items").run();
+  await env.DB.prepare("DELETE FROM meeting_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

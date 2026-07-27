@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   isRouteErrorResponse,
   useRevalidator,
@@ -7,13 +7,41 @@ import {
 } from "react-router";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import {
+  useRegisterContextualActions,
+  type AppAction,
+} from "~/shared/commands";
+import {
+  DrawerProvider,
+  useDrawer,
+  type DrawerEntry,
+  type DrawerRenderResult,
+} from "~/shared/drawer";
 import { EntityIcon, EntityLink } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import { RecordLayout } from "~/shared/record-layout";
+import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import { serializeTaskView } from "~/shared/task-record/task-view";
 import { MeetingMarkdown } from "../MeetingMarkdown";
+import {
+  DIRECT_FOLLOW_UP_DRAWER_KEY,
+  MeetingFollowUpFormHost,
+  MeetingFollowUpTab,
+  MeetingItemsSection,
+} from "../MeetingFollowUp";
+import { MeetingTimelineTab } from "../MeetingTimelineTab";
 import { serializeMeeting } from "../meeting-view";
+import type { FollowUpTaskEntry } from "../follow-up-view";
 import type { Route } from "./+types/detail";
+
+/** A bound on how many follow-up Tasks a single meeting record resolves at once. */
+const FOLLOW_UP_CAP = 100;
+
+export function meta() {
+  return [{ title: "Meeting · DalyHub" }];
+}
+
 export async function loader({ context, params }: Route.LoaderArgs) {
   const s = requireAuthenticatedSession(context),
     scope = await resolveAuthenticatedWorkspaceScope(env, s),
@@ -24,6 +52,24 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     limit: 50,
   });
   const people = await scope.people.list({ status: "active", limit: 50 });
+
+  // Follow-up Tasks: resolve each mapped Task through the CANONICAL Task model, so
+  // grouping/state derive from the Task, never a cached Meeting field. A deleted
+  // Task simply drops out (safe degradation — no broken links or leaked ids). The
+  // mapping read is bounded and NEWEST-first, so the most recent follow-ups are the
+  // ones shown; a single meeting exceeding the bound is not a realistic case (deeper
+  // load-more paging is a documented follow-up).
+  const followUpLinks = await scope.meetings.listFollowUps(meeting.id, {
+    limit: FOLLOW_UP_CAP,
+  });
+  const followUps: FollowUpTaskEntry[] = [];
+  for (const link of followUpLinks) {
+    const task = await scope.tasks.getTask(link.taskId);
+    if (task) {
+      followUps.push({ task: serializeTaskView(task), itemId: link.itemId });
+    }
+  }
+
   return {
     meeting: serializeMeeting(meeting),
     attendees: links.items
@@ -34,10 +80,13 @@ export async function loader({ context, params }: Route.LoaderArgs) {
         title: x.counterpart.title,
       })),
     people: people.items.map((p) => ({ id: p.id, title: p.title })),
+    followUps,
   };
 }
+
 const tabs = [
   "summary",
+  "follow-up",
   "agenda",
   "notes",
   "decisions",
@@ -46,63 +95,175 @@ const tabs = [
   "activity",
   "settings",
 ];
+
 export default function Detail({ loaderData }: Route.ComponentProps) {
-  const { meeting: m } = loaderData,
+  const { meeting } = loaderData;
+  const renderDrawer = useCallback(
+    (entry: DrawerEntry): DrawerRenderResult | null => {
+      const sep = entry.key.indexOf(":");
+      const kind = sep === -1 ? entry.key : entry.key.slice(0, sep);
+      const id = sep === -1 ? "" : entry.key.slice(sep + 1);
+      if (kind === "task" && id) {
+        return {
+          title: "Task",
+          description: "Task record",
+          children: <TaskRecordDrawer taskId={id} />,
+        };
+      }
+      if (kind === "follow-up" && id) {
+        const item = meeting.items.find((i) => i.id === id);
+        return {
+          title: "New follow-up task",
+          description: "Convert this meeting item into a task.",
+          children: (
+            <MeetingFollowUpFormHost
+              meetingId={meeting.id}
+              itemId={id}
+              initialTitle={item?.bodyMarkdown ?? ""}
+            />
+          ),
+        };
+      }
+      if (entry.key === DIRECT_FOLLOW_UP_DRAWER_KEY) {
+        return {
+          title: "New follow-up task",
+          description: "Capture a follow-up from this meeting.",
+          children: (
+            <MeetingFollowUpFormHost
+              meetingId={meeting.id}
+              itemId={null}
+              initialTitle={`Follow up: ${meeting.title}`}
+            />
+          ),
+        };
+      }
+      return null;
+    },
+    [meeting],
+  );
+
+  return (
+    <DrawerProvider renderDrawer={renderDrawer}>
+      <MeetingRecord loaderData={loaderData} />
+    </DrawerProvider>
+  );
+}
+
+function MeetingRecord({
+  loaderData,
+}: {
+  loaderData: Route.ComponentProps["loaderData"];
+}) {
+  const { meeting: m, followUps } = loaderData,
     r = useRevalidator(),
+    { openDrawer } = useDrawer(),
     [sp, setSp] = useSearchParams(),
     active = tabs.includes(sp.get("tab") ?? "") ? sp.get("tab")! : "summary";
+  const readOnly = Boolean(m.archivedAt);
+
   const change = useCallback(
-    (id: string) =>
-      setSp(id === "summary" ? {} : { tab: id }, { replace: true }),
+    (id: string) => {
+      setSp(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (id === "summary") next.delete("tab");
+          else next.set("tab", id);
+          return next;
+        },
+        { replace: true },
+      );
+    },
     [setSp],
   );
-  async function post(data: Record<string, string>) {
-    const f = new FormData();
-    Object.entries(data).forEach(([k, v]) => f.set(k, v));
-    await fetch(`/meeting/${m.id}/mutate`, { method: "POST", body: f });
-    r.revalidate();
-  }
-  const itemTab = (kind: "decision" | "outcome") => (
-    <section>
-      <h2>{kind === "decision" ? "Decisions" : "Outcomes"}</h2>
-      <ul>
-        {m.items
-          .filter((i) => i.kind === kind)
-          .map((i) => (
-            <li key={i.id}>
-              <span>{i.bodyMarkdown}</span>{" "}
-              {!m.archivedAt && (
-                <button
-                  aria-label={`Remove ${kind}`}
-                  onClick={() => post({ intent: "remove_item", itemId: i.id })}
-                >
-                  Remove
-                </button>
-              )}
-            </li>
-          ))}
-      </ul>
-      {!m.archivedAt && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const f = e.currentTarget;
-            void post({
-              intent: "add_item",
-              kind,
-              body: String(new FormData(f).get("body")),
-            }).then(() => f.reset());
-          }}
-        >
-          <label>
-            Add {kind}
-            <input name="body" required />
-          </label>
-          <button>Add</button>
-        </form>
-      )}
-    </section>
+
+  const post = useCallback(
+    async (data: Record<string, string>): Promise<boolean> => {
+      const f = new FormData();
+      Object.entries(data).forEach(([k, v]) => f.set(k, v));
+      try {
+        const response = await fetch(`/meeting/${m.id}/mutate`, {
+          method: "POST",
+          body: f,
+        });
+        // Only revalidate on success; a failed mutation leaves the UI (and any
+        // in-progress input text) untouched so the user can retry.
+        if (response.ok) {
+          r.revalidate();
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    },
+    [m.id, r],
   );
+
+  const onOpenTask = useCallback(
+    (taskId: string) => openDrawer(`task:${taskId}`),
+    [openDrawer],
+  );
+  const onConvert = useCallback(
+    (itemId: string) => openDrawer(`follow-up:${itemId}`),
+    [openDrawer],
+  );
+  const onAddFollowUp = useCallback(
+    () => openDrawer(DIRECT_FOLLOW_UP_DRAWER_KEY),
+    [openDrawer],
+  );
+
+  const liveTasks = useMemo(() => {
+    const map = new Map<string, (typeof followUps)[number]["task"]>();
+    for (const entry of followUps) {
+      if (entry.itemId) map.set(entry.itemId, entry.task);
+    }
+    return map;
+  }, [followUps]);
+
+  // A meeting-aware ⌘K action: "New meeting follow-up" navigates to this meeting's
+  // Follow-up tab with the direct follow-up drawer open (a `navigate` action, never
+  // a focus-moving `run`, per COMMAND_PALETTE.md). Hidden on an archived meeting.
+  const followUpActions = useMemo<AppAction[]>(
+    () =>
+      readOnly
+        ? []
+        : [
+            {
+              id: `meetings.follow_up.${m.id}`,
+              title: "New meeting follow-up",
+              subtitle: "Capture a follow-up task from this meeting",
+              keywords: ["follow up", "task", "convert", "action item"],
+              kind: "navigate",
+              target: {
+                kind: "route",
+                to: `/meeting/${m.id}?tab=follow-up&drawer=${DIRECT_FOLLOW_UP_DRAWER_KEY}`,
+              },
+            },
+          ],
+    [m.id, readOnly],
+  );
+  useRegisterContextualActions(followUpActions);
+
+  const itemSection = (
+    kind: "agenda" | "decision" | "outcome",
+    heading: string,
+  ) => (
+    <MeetingItemsSection
+      kind={kind}
+      heading={heading}
+      items={m.items}
+      liveTasks={liveTasks}
+      readOnly={readOnly}
+      onConvert={onConvert}
+      onOpenTask={onOpenTask}
+      onAddItem={(k, body) => post({ intent: "add_item", kind: k, body })}
+      onRemoveItem={(itemId) => void post({ intent: "remove_item", itemId })}
+    />
+  );
+
+  const attendeeIds = new Set(loaderData.attendees.map((a) => a.id));
+  const addablePeople = loaderData.people.filter((p) => !attendeeIds.has(p.id));
+
   return (
     <RecordLayout
       title={m.title}
@@ -136,22 +297,9 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
           id: "summary",
           label: "Summary",
           content: (
-            <div>
+            <section className="dh-meeting-section">
               <h2>Meeting details</h2>
               <dl>
-                <dt>Attendees</dt>
-                <dd>
-                  {loaderData.attendees.length
-                    ? loaderData.attendees.map((a) => (
-                        <EntityLink
-                          key={a.id}
-                          type="person"
-                          id={a.id}
-                          title={a.title}
-                        />
-                      ))
-                    : "No attendees yet"}
-                </dd>
                 <dt>Status</dt>
                 <dd>{m.status}</dd>
                 {m.meetingUrl && (
@@ -165,20 +313,97 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
                   </>
                 )}
               </dl>
-            </div>
+              <h3>Attendees</h3>
+              {loaderData.attendees.length ? (
+                <ul className="dh-meeting-attendees">
+                  {loaderData.attendees.map((a) => (
+                    <li key={a.id} className="dh-meeting-attendee">
+                      <EntityLink type="person" id={a.id} title={a.title} />
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          className="dh-btn dh-btn--ghost"
+                          aria-label={`Remove attendee ${a.title}`}
+                          onClick={() =>
+                            void post({
+                              intent: "remove_attendee",
+                              linkId: a.linkId,
+                            })
+                          }
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="dh-follow-up-empty">No attendees yet.</p>
+              )}
+              {!readOnly && addablePeople.length > 0 && (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const personId = String(
+                      new FormData(event.currentTarget).get("personId") ?? "",
+                    );
+                    if (personId)
+                      void post({ intent: "add_attendee", personId });
+                  }}
+                >
+                  <label className="dh-field">
+                    <span className="dh-field__label">Add attendee</span>
+                    <select
+                      name="personId"
+                      className="dh-input"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Choose a person…
+                      </option>
+                      {addablePeople.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit" className="dh-btn dh-btn--secondary">
+                    Add attendee
+                  </button>
+                </form>
+              )}
+            </section>
+          ),
+        },
+        {
+          id: "follow-up",
+          label: "Follow-up",
+          content: (
+            <MeetingFollowUpTab
+              items={m.items}
+              followUps={followUps}
+              readOnly={readOnly}
+              onConvert={onConvert}
+              onOpenTask={onOpenTask}
+              onAddFollowUp={onAddFollowUp}
+            />
           ),
         },
         {
           id: "agenda",
           label: "Agenda",
           content: (
-            <MeetingMarkdown
-              meetingId={m.id}
-              field="agendaMarkdown"
-              label="Agenda"
-              initial={m.agendaMarkdown}
-              onSaved={() => r.revalidate()}
-            />
+            <div className="dh-meeting-section">
+              <MeetingMarkdown
+                meetingId={m.id}
+                field="agendaMarkdown"
+                label="Agenda"
+                initial={m.agendaMarkdown}
+                onSaved={() => r.revalidate()}
+              />
+              {itemSection("agenda", "Agenda items")}
+            </div>
           ),
         },
         {
@@ -194,8 +419,16 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
             />
           ),
         },
-        { id: "decisions", label: "Decisions", content: itemTab("decision") },
-        { id: "outcomes", label: "Outcomes", content: itemTab("outcome") },
+        {
+          id: "decisions",
+          label: "Decisions",
+          content: itemSection("decision", "Decisions"),
+        },
+        {
+          id: "outcomes",
+          label: "Outcomes",
+          content: itemSection("outcome", "Outcomes"),
+        },
         {
           id: "linked",
           label: "Linked",
@@ -203,7 +436,7 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
             <LinkedItemsTab
               anchorId={m.id}
               anchorType="meeting"
-              readOnly={Boolean(m.archivedAt)}
+              readOnly={readOnly}
               linkCommandTarget={{
                 kind: "route",
                 to: `/meeting/${m.id}?tab=linked`,
@@ -215,23 +448,24 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
           id: "activity",
           label: "Activity",
           content: (
-            <p>Meeting changes are recorded in the shared Activity stream.</p>
+            <MeetingTimelineTab meetingId={m.id} reloadKey={m.updatedAt} />
           ),
         },
         {
           id: "settings",
           label: "Settings",
           content: (
-            <section>
+            <section className="dh-meeting-section">
               <h2>Meeting settings</h2>
               <p>
                 Archiving removes this record from active meeting views without
-                deleting its history.
+                deleting its history. Follow-up tasks stay accessible and are
+                never archived or deleted with the meeting.
               </p>
               <button
-                className="dh-btn"
+                className="dh-btn dh-btn--secondary"
                 onClick={() =>
-                  post({ intent: m.archivedAt ? "restore" : "archive" })
+                  void post({ intent: m.archivedAt ? "restore" : "archive" })
                 }
               >
                 {m.archivedAt ? "Restore meeting" : "Archive meeting"}
@@ -243,6 +477,7 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
     />
   );
 }
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error) && error.status === 404)
     return (

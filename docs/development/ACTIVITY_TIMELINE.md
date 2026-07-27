@@ -277,9 +277,20 @@ SAME `Timeline` given a different record-scoped `loadPage`, never a forked compo
   descriptor yet (they render via the shared safe generic fallback, humanized from
   the type string); dedicated descriptors are left to the PROJ-05 Settings UI slice.
 
-All four prove the intended shape: a module owns a small resource route over
+- **The Meeting record's Activity tab** (MEET-02, [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048--meeting-follow-through-task-conversion-orchestration-and-the-source-item-mapping)) —
+  [`MeetingTimelineTab`](../../app/modules/meetings/MeetingTimelineTab.tsx) fetching the
+  module-owned [`/meeting/:meetingId/activity`](../../app/modules/meetings/routes/activity.tsx)
+  resource route (replacing MEET-01's placeholder paragraph). The module registers
+  descriptors for the lifecycle types plus MEET-02's two structural follow-through
+  types — `meeting.item_converted_to_task` and `meeting.follow_up_created` — each
+  recording the Meeting AND the created Task as subjects and carrying ONLY the item
+  kind in its payload (never agenda/notes/decision/outcome text). Attendee
+  `meeting.attendee` `entity_link.created` events render via the shared kernel default
+  on both the meeting and the attendee's People Timeline.
+
+All prove the intended shape: a module owns a small resource route over
 `activity.listForEntity`, maps records server-side, and drops a `<Timeline>` into its
-DS-02 Activity tab (Activity last). Neither adds an event store, a migration, a
+DS-02 Activity tab (Activity last). None adds an event store, a migration, a
 dependency or a second renderer.
 
 ---

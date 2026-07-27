@@ -20,7 +20,7 @@
  * Every entered value survives a validation or server failure (useForm contract).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   DateField,
@@ -39,6 +39,7 @@ import {
   interpretationIsMeaningful,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
+import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 import {
   taskPriorityLabel,
   timeSectorLabel,
@@ -49,7 +50,7 @@ import {
   TIME_SECTORS,
 } from "~/kernel/tasks";
 
-import type { TaskParentOption, TasksCreateResult } from "./tasks-contract";
+import type { TasksCreateResult } from "./tasks-contract";
 
 type Values = {
   readonly title: string;
@@ -95,90 +96,6 @@ export interface NewTaskFormProps {
   readonly onCreated: (taskId: string) => void;
   /** Called when the user cancels. */
   readonly onCancel: () => void;
-}
-
-/**
- * The FREE-parent search: query the bounded `/tasks/parent-options?q=` endpoint,
- * mapping each {@link TaskParentOption} to a `SelectOption` and remembering every
- * option's KIND (Area/Project) so the create submit can send the correct
- * `parentKind`. In-flight searches are aborted so a slow earlier response can't
- * clobber a newer one; a previously-known option (including the current selection)
- * is retained so its label always resolves once it scrolls out of the result page.
- */
-function useTaskParentSearch() {
-  const [options, setOptions] = useState<readonly SelectOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const kinds = useRef<Map<string, "area" | "project">>(new Map());
-  const known = useRef<Map<string, SelectOption>>(new Map());
-  const abort = useRef<AbortController | null>(null);
-
-  const search = useCallback((query: string) => {
-    abort.current?.abort();
-    const controller = new AbortController();
-    abort.current = controller;
-    setLoading(true);
-    void (async () => {
-      try {
-        const url = new URL("/tasks/parent-options", window.location.origin);
-        url.searchParams.set("q", query);
-        const response = await fetch(url, {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        if (!response.ok) {
-          setLoading(false);
-          return;
-        }
-        const body = (await response.json()) as {
-          readonly options?: readonly TaskParentOption[];
-        };
-        if (!Array.isArray(body.options)) {
-          setLoading(false);
-          return;
-        }
-        const mapped = body.options.map((option): SelectOption => {
-          kinds.current.set(option.id, option.kind);
-          const selectOption: SelectOption = {
-            value: option.id,
-            label: option.title,
-            description: option.context ?? undefined,
-          };
-          known.current.set(option.id, selectOption);
-          return selectOption;
-        });
-        setOptions(mapped);
-        setLoading(false);
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setLoading(false);
-        }
-      }
-    })();
-  }, []);
-
-  // Seed the picker with a first, unfiltered page so it is usable before typing.
-  useEffect(() => {
-    search("");
-    return () => abort.current?.abort();
-  }, [search]);
-
-  const kindOf = useCallback(
-    (id: string): "area" | "project" | null => kinds.current.get(id) ?? null,
-    [],
-  );
-
-  const withSelected = useCallback(
-    (value: string): readonly SelectOption[] => {
-      if (value.length === 0 || options.some((o) => o.value === value)) {
-        return options;
-      }
-      const selected = known.current.get(value);
-      return selected ? [selected, ...options] : options;
-    },
-    [options],
-  );
-
-  return { options, loading, search, kindOf, withSelected };
 }
 
 export function NewTaskForm({

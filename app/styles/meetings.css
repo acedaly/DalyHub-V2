@@ -1,0 +1,144 @@
+/* MEET-02 — Meeting follow-up, structured items and attendees. Token-only; state is
+ * carried by text (never colour alone); long text wraps; 44px touch targets. */
+
+.dh-meeting-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-meeting-section__intro {
+  color: var(--dh-color-text-muted);
+  max-inline-size: 60ch;
+}
+
+/* Structured item list (agenda / decisions / outcomes / unconverted). */
+.dh-meeting-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-meeting-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+}
+
+.dh-meeting-item__body {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+/* Wrap long item text without widening the page. */
+.dh-meeting-item__text {
+  overflow-wrap: anywhere;
+}
+
+.dh-meeting-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  align-items: center;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-meeting-item__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--dh-space-2);
+  min-block-size: 1.5rem;
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-meeting-item__actions {
+  display: flex;
+  gap: var(--dh-space-2);
+  flex: 0 0 auto;
+}
+
+/* Follow-up grouping. */
+.dh-follow-up-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-follow-up-group__heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+}
+
+.dh-follow-up-group__count {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-regular);
+}
+
+.dh-follow-up-empty {
+  color: var(--dh-color-text-muted);
+  margin: 0;
+}
+
+.dh-follow-up-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-follow-up-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+}
+
+.dh-follow-up-row__title {
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-follow-up-row__state {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  white-space: nowrap;
+}
+
+.dh-meeting-attendees {
+  list-style: none;
+  margin: 0 0 var(--dh-space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-meeting-attendee {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  flex-wrap: wrap;
+}

@@ -172,6 +172,19 @@ signals inside global **Search** results (which requires extending the shared
 sanctioned follow-up (ROADMAP TASKS-02), deferred to keep this change coherent —
 Search itself is unchanged and continues to open the canonical Drawer.
 
+## Meetings integration (MEET-02)
+
+Meetings create follow-up Tasks through the SAME authority — `TaskRepository.createTask`
+(and `updateTask` for a non-default status) — never a second Task model, table or
+status/priority vocabulary. The searchable parent picker is the shared
+`useTaskParentSearch` hook (`app/shared/task-record/use-task-parent-search.ts`, backing
+the bounded `/tasks/parent-options` endpoint), extracted from `NewTaskForm` so the
+`/tasks` quick-create and the meeting follow-up form share ONE implementation. A
+follow-up Task links back to its meeting with a `task.relates_to` EntityLink, so the
+Meeting shows in the Task Drawer's existing Linked section and the Task opens from the
+Meeting's Linked Items — no Task-side change was needed. See
+[`MEETINGS_MODULE.md`](MEETINGS_MODULE.md) and [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048--meeting-follow-through-task-conversion-orchestration-and-the-source-item-mapping).
+
 ## Today & Projects integration
 
 Today and Projects remain **projections** of the same task model — not parallel
