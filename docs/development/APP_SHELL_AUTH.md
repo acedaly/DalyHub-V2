@@ -121,10 +121,11 @@ live in `app/platform/auth`.
 
 ## Why there is no users / sessions table
 
-Identity is derived from the Access token per request and held only in memory;
-theme is a cookie. FND-09 adds **no** migration and persists **no** JWT or
-session. A persisted user/profile model is introduced only when the product
-needs editable profile state or multiple users.
+Identity is derived from the Access token per request and held only in memory.
+Theme remains a device/browser-local cookie. SET-01 adds owner/workspace
+application preferences (`owner_app_preferences`) keyed by authenticated subject,
+but it still persists **no** JWT or session. A persisted user/profile model is
+introduced only when the product needs editable profile state or multiple users.
 
 ## Authenticated workspace resolution & Activity actor
 
@@ -159,9 +160,11 @@ pnpm run dev                     # react-router dev reads .dev.vars
 ```
 
 `pnpm run dev` runs the development authenticator and serves the authenticated
-shell as the fixed local identity. The FND-09 shell, home and module routes read
-no database, so no workspace row is required to reach the shell; provision the
-local workspace when you begin building data-backed product features.
+shell as the fixed local identity. Since SET-01, the authenticated shell and `/`
+root route read the active workspace preference row, so the configured workspace
+must exist in local D1. The e2e setup provisions `local-dev-workspace`
+automatically; for manual development use `pnpm run db:migrate:local` and the
+workspace insert documented in [`DATA_KERNEL.md`](DATA_KERNEL.md#creating-a-local-workspace).
 
 ## Logout
 
@@ -186,6 +189,16 @@ from the same route metadata (`meta.navLabel`, `navOrder`, `navGroup`). Adding a
 navigable module route requires only a manifest entry plus the route file —
 **never** editing `app/routes.ts`, a central navigation array or any switch.
 
+SET-01 layers owner/workspace navigation visibility over that registry-derived
+canonical list. The shell resolves `WorkspaceScope.appPreferences`, normalises
+hidden module ids against `getPrimaryNavigation()`, keeps Today and Settings
+visible, and renders the same filtered list on desktop and mobile. Hidden modules
+remain reachable by direct URL and search; route composition is unchanged.
+
+The authenticated index route (`/`) also reads the same preference record and
+redirects to the preferred existing destination. Invalid or unavailable stored
+values fall back to `/today`; deep links to every other route bypass this logic.
+
 ### FND-06 route-contract refinement
 
 FND-06 modelled a route's module reference as a lazy `() => import(...)` thunk.
@@ -199,15 +212,15 @@ and [MODULES.md](./MODULES.md).
 
 ## Theme preference behaviour
 
-`system` / `light` / `dark`, default `system`. The preference is stored in a
-same-site, HttpOnly, bounded cookie (`Secure` in non-development environments)
-and read server-side, so the root layout renders `<html data-theme>` correctly
-on the first byte — no light-to-dark flash, no client cookie reading, no
-`localStorage`, no state library. Invalid values fall back to `system`. Changing
-the theme is a POST to `/preferences/theme` that sets the cookie and redirects
-back (same-origin, validated). Theme changes touch no database and record no
-Activity. DS-01 later replaces the minimal shell CSS variables with the full
-design-token system.
+`system` / `light` / `dark`, default `system`. The preference is intentionally
+device/browser-local and is stored in a same-site, HttpOnly, bounded cookie
+(`Secure` in non-development environments). The root layout reads it server-side,
+so `<html data-theme>` is correct on the first byte — no light-to-dark flash, no
+client cookie reading, no `localStorage`, no state library. Invalid values fall
+back to `system`. Changing the theme is a POST to `/preferences/theme` that sets
+the cookie and redirects back (same-origin, validated). Theme changes touch no
+database and record no Activity. The `/settings?section=appearance` route reuses
+this exact authority; it does not duplicate theme state in D1.
 
 ## Security headers
 

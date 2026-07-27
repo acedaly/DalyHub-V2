@@ -13,7 +13,26 @@
  */
 
 import { redirect } from "react-router";
+import { env } from "cloudflare:workers";
 
-export function loader() {
-  return redirect("/today");
+import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
+import { requireAuthenticatedSession } from "~/platform/request";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { resolveDefaultLandingPath } from "~/kernel/preferences";
+
+import type { Route } from "./+types/home";
+
+export async function loader({ context }: Route.LoaderArgs) {
+  const session = requireAuthenticatedSession(context);
+  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  const preferences = await scope.appPreferences.get(session.user.subject);
+  const availablePaths = new Set(
+    getPrimaryNavigation().map((item) => item.href),
+  );
+  return redirect(
+    resolveDefaultLandingPath(
+      preferences.defaultLandingDestination,
+      availablePaths,
+    ),
+  );
 }

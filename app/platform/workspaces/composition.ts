@@ -21,6 +21,7 @@ import {
   type ActivityRepository,
 } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type { AppPreferencesRepository } from "~/kernel/preferences";
 import type { AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
@@ -43,6 +44,7 @@ import type {
 import {
   createActivityRepository,
   createAlignmentRepository,
+  createAppPreferencesRepository,
   createAreaRepository,
   createAssetRepository,
   createAreaSettingsRepository,
@@ -187,6 +189,7 @@ export interface WorkspaceScope {
    * Goal completion / Project contribution stay `goals`' authority.
    */
   readonly alignment: AlignmentRepository;
+  readonly appPreferences: AppPreferencesRepository;
 }
 
 /**
@@ -270,6 +273,7 @@ export function bindWorkspaceRepositories(
   });
   const activity = createActivityRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
+  const appPreferences = createAppPreferencesRepository(env.DB, context);
   return {
     context,
     entities,
@@ -290,5 +294,6 @@ export function bindWorkspaceRepositories(
     projectSettings,
     activity,
     alignment,
+    appPreferences,
   };
 }

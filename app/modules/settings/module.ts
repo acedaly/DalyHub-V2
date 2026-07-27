@@ -12,6 +12,7 @@
 
 import { defineModule } from "~/kernel/modules";
 
+import { settingsCommands } from "./commands";
 import routes from "./routes.manifest";
 
 export default defineModule({
@@ -20,4 +21,5 @@ export default defineModule({
   description: "App, workspace and account configuration.",
   order: 300,
   routes,
+  commands: settingsCommands,
 });

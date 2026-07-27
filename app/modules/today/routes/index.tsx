@@ -22,6 +22,7 @@ import { useFetcher } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import { DrawerProvider } from "~/shared/drawer";
 import {
@@ -40,7 +41,6 @@ import {
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate, ownerCalendarIso } from "../date";
-import { OWNER_TIME_ZONE } from "~/shared/datetime";
 import { TODAY_FIXTURE } from "../fixtures";
 import {
   bucketPlanning,
@@ -90,11 +90,11 @@ const EMPTY_BUCKETS: PlanningBuckets = {
 };
 
 /** The owner-local hour (0–23) for the greeting — never the UTC runtime hour. */
-function ownerLocalHour(now: Date): number {
+function ownerLocalHour(now: Date, timeZone: string): number {
   const raw = new Intl.DateTimeFormat("en-AU", {
     hour: "numeric",
     hour12: false,
-    timeZone: OWNER_TIME_ZONE,
+    timeZone,
   }).format(now);
   return Number.parseInt(raw, 10) % 24;
 }
@@ -104,7 +104,11 @@ function ownerLocalHour(now: Date): number {
  * Brief (greeting + date) still renders, every data section is empty, and Insights
  * has nothing to say — so Today is never blank and never a 500.
  */
-function emptyLanding(now: Date, dateLong: string): TodayLandingData {
+function emptyLanding(
+  now: Date,
+  dateLong: string,
+  timeZone: string,
+): TodayLandingData {
   const input = {
     overdueCount: 0,
     plannedTodayCount: 0,
@@ -119,7 +123,7 @@ function emptyLanding(now: Date, dateLong: string): TodayLandingData {
   };
   return {
     morningBrief: {
-      greeting: greetingFor(dayPartForHour(ownerLocalHour(now))),
+      greeting: greetingFor(dayPartForHour(ownerLocalHour(now, timeZone))),
       dateLong,
       focusLine: briefFocusLine(input),
       plannedTodayCount: 0,
@@ -138,9 +142,10 @@ export async function loader({ context }: Route.LoaderArgs) {
   // Authentication is guaranteed by the Worker boundary; re-check (401 propagates).
   const session = requireAuthenticatedSession(context);
   const now = new Date();
-  const date = formatTodayDate(now);
-  const todayIso = ownerCalendarIso(now);
-  const targets = planTargets(todayIso);
+  let timeZone = DEFAULT_APP_PREFERENCES.timezone;
+  let date = formatTodayDate(now, timeZone);
+  let todayIso = ownerCalendarIso(now, timeZone);
+  let targets = planTargets(todayIso);
 
   // Real, workspace-scoped tasks, bucketed into the planning sections. A scope/list
   // failure degrades to empty sections so Today still renders — never a 500.
@@ -150,6 +155,11 @@ export async function loader({ context }: Route.LoaderArgs) {
   let landing: TodayLandingData;
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const preferences = await scope.appPreferences.get(session.user.subject);
+    timeZone = preferences.timezone;
+    date = formatTodayDate(now, timeZone);
+    todayIso = ownerCalendarIso(now, timeZone);
+    targets = planTargets(todayIso);
     // The dedicated planning query bounds each band (scheduled work, backlog, recent
     // completions) INDEPENDENTLY, so a large unscheduled backlog can never crowd out
     // the owner's planned/overdue/today tasks or today's completions. Waiting tasks
@@ -168,7 +178,9 @@ export async function loader({ context }: Route.LoaderArgs) {
       // today" matches the owner's day, not the UTC runtime's (consistent with the
       // pane-header date and overdue comparisons).
       completedDate:
-        item.completedAt !== null ? ownerCalendarIso(item.completedAt) : null,
+        item.completedAt !== null
+          ? ownerCalendarIso(item.completedAt, timeZone)
+          : null,
     }));
     buckets = bucketPlanning(items, todayIso);
 
@@ -211,7 +223,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     });
     // The SAME shared derived health model Projects uses — never a Today-only
     // calculation. Facts for the whole bounded set are gathered in one N+1-free read.
-    const healthContext = createOwnerHealthContext(now);
+    const healthContext = createOwnerHealthContext(now, timeZone);
     const healthFacts = await scope.projectHealth.listProjectHealthFacts(
       projectPage.items.map((project) => project.id),
       todayIso,
@@ -234,6 +246,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     // so one module failing never blanks the rest.
     landing = await loadTodayLanding(scope, {
       now,
+      timezone: timeZone,
       todayIso,
       dateLong: date,
       plannedTodayCount: buckets.today.length,
@@ -251,7 +264,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     buckets = EMPTY_BUCKETS;
     waiting = EMPTY_WAITING_SUMMARY;
     recentProjects = [];
-    landing = emptyLanding(now, date);
+    landing = emptyLanding(now, date, timeZone);
   }
 
   const planning: PlanningData = {

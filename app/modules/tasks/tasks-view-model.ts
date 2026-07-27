@@ -49,8 +49,11 @@ export function isPrimaryView(value: string | null): value is TasksPrimaryView {
 export const DEFAULT_PRIMARY_VIEW: TasksPrimaryView = "focus";
 
 /** Resolve the `?view=` param to a primary view, defaulting safely. */
-export function resolvePrimaryView(value: string | null): TasksPrimaryView {
-  return isPrimaryView(value) ? value : DEFAULT_PRIMARY_VIEW;
+export function resolvePrimaryView(
+  value: string | null,
+  fallback: TasksPrimaryView = DEFAULT_PRIMARY_VIEW,
+): TasksPrimaryView {
+  return isPrimaryView(value) ? value : fallback;
 }
 
 /** Resolve the `?system=` param to a kernel system view, or null. */

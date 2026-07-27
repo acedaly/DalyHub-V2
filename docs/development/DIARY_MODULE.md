@@ -34,8 +34,8 @@ delivers both:
 - **Chronology is the primary organising principle.** A Diary Entry is anchored
   to _when the moment occurred_, not when the row was written (§3.3).
 - **Capture-first defaults.** The minimum viable capture is a **type and a
-  title**; the occurred instant defaults to now, the timezone to UTC, the source
-  to `manual`.
+  title**; the occurred instant defaults to now, the timezone to the persisted
+  owner timezone, the source to `manual`.
 
 ---
 
@@ -355,16 +355,15 @@ single-purpose composition (the same pattern the shared control itself came
 from), not a competing generic abstraction. If a future shared filter grows an
 explicit "reset these params on change" contract, Diary can revisit this.
 
-### 7.5 Display timezone — reusing the accepted seam
+### 7.5 Display timezone — persisted owner preference
 
 The Timeline groups and labels entries in a **display timezone** that is
-explicit and hydration-safe (never UTC, never machine-local). DalyHub already
-has one accepted display-zone seam — `OWNER_TIME_ZONE` in `app/shared/datetime`,
-documented to become the user/workspace timezone setting at **SET-01**. DIARY-01
-**reuses** it (`DIARY_DISPLAY_TIME_ZONE = OWNER_TIME_ZONE` in
-`app/modules/diary/occurred-time.ts`) rather than inventing a second convention
-or hardcoding a zone; when SET-01 lands, the Diary Timeline follows the setting
-unchanged. `occurred-time.ts` adds the small DST-aware owner-local ⇄ UTC
+explicit and hydration-safe (never UTC, never machine-local). Since SET-01 the
+Diary route reads `WorkspaceScope.appPreferences.timezone` (default
+`Australia/Sydney`) and uses it for Day-mode windows, Timeline grouping and new
+entry capture defaults. An explicit `?mode=day` or `?mode=timeline` still wins
+over the default Diary mode preference; the Diary's URL-backed state architecture
+is unchanged. `occurred-time.ts` keeps the small DST-aware owner-local ⇄ UTC
 conversion the capture/edit "when" control needs (each conversion done against an
 explicit IANA zone via `Intl.DateTimeFormat`), tested across both offsets, local
 midnight and both daylight-saving transitions. A converted instant must

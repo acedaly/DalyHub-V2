@@ -23,6 +23,7 @@
 
 import { env } from "cloudflare:workers";
 
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { SpineParentUnavailableError } from "~/kernel/spine";
 import {
   TaskNotFoundError,
@@ -95,6 +96,12 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   const taskId = params.taskId;
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
+  } catch {
+    // Keep the record reachable with the deterministic default.
+  }
   const task = await scope.tasks.getTask(taskId);
   if (!task) {
     // A missing, soft-deleted, non-task or cross-workspace id — the calm 404 the
@@ -113,7 +120,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     links,
     // Server-derived owner calendar date (ADR-022) so the Drawer's urgency chip
     // never computes "Overdue"/"Due today" in browser-local time (TASKS-02).
-    todayIso: ownerCalendarIso(new Date()),
+    todayIso: ownerCalendarIso(new Date(), timezone),
   } satisfies TaskDetailData);
 }
 

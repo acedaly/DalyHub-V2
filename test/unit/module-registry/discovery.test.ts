@@ -472,6 +472,9 @@ describe("module discovery", () => {
         "assets.expiring",
         "assets.service_due",
         "assets.archived",
+        "settings.open",
+        "settings.date_time",
+        "settings.appearance",
       ]);
       expect(registry.listCommands().every((c) => c.kind === "navigate")).toBe(
         true,

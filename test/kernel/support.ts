@@ -3,6 +3,7 @@ import { env } from "cloudflare:test";
 import {
   createActivityRepository,
   createAlignmentRepository,
+  createAppPreferencesRepository,
   createAreaRepository,
   createAreaSettingsRepository,
   createAssetRepository,
@@ -21,6 +22,7 @@ import {
   createTaskRepository,
   createWorkspaceRepository,
   type AtomicMutationFault,
+  type D1AppPreferencesRepositoryOptions,
   type D1AreaSettingsRepositoryOptions,
   type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
@@ -308,6 +310,13 @@ export function makeAlignmentRepository(context: WorkspaceContext) {
   return createAlignmentRepository(env.DB, context);
 }
 
+export function makeAppPreferencesRepository(
+  context: WorkspaceContext,
+  options?: D1AppPreferencesRepositoryOptions,
+) {
+  return createAppPreferencesRepository(env.DB, context, options);
+}
+
 /**
  * Construct a workspace-scoped D1-backed ProjectSettingsRepository over the
  * isolated test database (PROJ-05: workflow status + archival, bound to a
@@ -513,6 +522,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM meeting_items").run();
   await env.DB.prepare("DELETE FROM meeting_details").run();
   await env.DB.prepare("DELETE FROM asset_details").run();
+  await env.DB.prepare("DELETE FROM owner_app_preferences").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

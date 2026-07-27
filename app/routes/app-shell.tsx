@@ -10,20 +10,39 @@
  */
 
 import { Outlet } from "react-router";
+import { env } from "cloudflare:workers";
 
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
-import { getDisplayIdentity } from "~/platform/request";
+import {
+  getDisplayIdentity,
+  requireAuthenticatedSession,
+} from "~/platform/request";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { resolveNavigationPreferences } from "~/kernel/preferences";
 import { AppShell } from "~/shared/shell/AppShell";
 import { readThemePreference } from "~/shared/shell/theme";
 
 import type { Route } from "./+types/app-shell";
 
-export function loader({ request, context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const session = requireAuthenticatedSession(context);
   const { email } = getDisplayIdentity(context);
+  const navigation = getPrimaryNavigation();
+  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  const preferences = await scope.appPreferences.get(session.user.subject);
+  const resolvedNavigation = resolveNavigationPreferences(
+    preferences.navigation,
+    navigation.map((item) => ({ moduleId: item.moduleId, label: item.label })),
+  );
+  const hiddenModuleIds = new Set(
+    resolvedNavigation.preferences.hiddenModuleIds,
+  );
   return {
     email,
     theme: readThemePreference(request.headers.get("Cookie")),
-    navigation: getPrimaryNavigation(),
+    navigation: navigation.filter(
+      (item) => !hiddenModuleIds.has(item.moduleId),
+    ),
   };
 }
 

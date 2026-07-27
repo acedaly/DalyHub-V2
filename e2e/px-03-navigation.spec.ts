@@ -12,20 +12,19 @@
  * NOTES-01B replaced the `/notes` "Coming Soon" placeholder with a real
  * collection (`app/modules/notes/routes/index.tsx`), DIARY-01 replaced the
  * `/diary` placeholder with the real Timeline, PEOPLE-01 replaced `/people` with
- * the real People collection, and MEET-01 replaced `/meetings` with the real
- * Meetings collection — so all four are EXCLUDED from `SHELL_MODULES` below (their
- * full journeys live in `e2e/notes.spec.ts`, `e2e/diary.spec.ts`,
- * `e2e/people.spec.ts` and `e2e/meetings.spec.ts`). Their sidebar reachability
- * stays here, checked against their real headings rather than a placeholder.
+ * the real People collection, MEET-01 replaced `/meetings` with the real Meetings
+ * collection, ASSET-01 replaced `/assets` with the real Assets collection, and
+ * SET-01 replaced `/settings` with the real Settings route — so those routes are
+ * EXCLUDED from `SHELL_MODULES` below. Their full journeys live in their own specs;
+ * sidebar reachability stays here, checked against real headings rather than a
+ * placeholder.
  */
 
 import { expect, test } from "@playwright/test";
 
 const SHELL_MODULES = [
-  { label: "Assets", path: "/assets" },
   { label: "Reviews", path: "/reviews" },
   { label: "AI", path: "/ai" },
-  { label: "Settings", path: "/settings" },
   { label: "Help", path: "/help" },
 ] as const;
 
@@ -140,6 +139,32 @@ test.describe("PX-03 — every module shell route resolves with real content", (
     await expect(page).toHaveURL(/\/meetings$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Meetings" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
+  });
+
+  test("the sidebar reaches the real Assets collection", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "Assets" }).click();
+    await expect(page).toHaveURL(/\/assets$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Assets" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
+  });
+
+  test("the sidebar reaches the real Settings route", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "Settings" }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Settings" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { level: 2, name: "Coming Soon" }),

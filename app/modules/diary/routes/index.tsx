@@ -25,6 +25,7 @@
 import { env } from "cloudflare:workers";
 
 import { toLocalDayKey } from "~/kernel/diary";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -35,7 +36,6 @@ import {
   type SerializedDayGroup,
 } from "../diary-view";
 import {
-  DIARY_DISPLAY_TIME_ZONE,
   endOfLocalDayUtc,
   isValidDayKey,
   startOfLocalDayUtc,
@@ -64,36 +64,50 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor") ?? undefined;
   const entryTypes = parseEntryTypeFilter(url.searchParams.getAll("type"));
+  let displayTimeZone = DEFAULT_APP_PREFERENCES.timezone;
+  let preferredMode = DEFAULT_APP_PREFERENCES.defaultDiaryMode;
+  let scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>;
+  try {
+    scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const preferences = await scope.appPreferences.get(session.user.subject);
+    displayTimeZone = preferences.timezone;
+    preferredMode = preferences.defaultDiaryMode;
+  } catch {
+    scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  }
+  const explicitMode = url.searchParams.get("mode");
   const mode: DiaryMode =
-    url.searchParams.get("mode") === "timeline" ? "timeline" : "day";
+    explicitMode === "timeline"
+      ? "timeline"
+      : explicitMode === "day"
+        ? "day"
+        : preferredMode;
 
   const now = new Date();
-  const todayKey = toLocalDayKey(now, DIARY_DISPLAY_TIME_ZONE);
+  const todayKey = toLocalDayKey(now, displayTimeZone);
 
   // Day mode is anchored to a single valid local day. An absent or malformed
   // `?date=` degrades to today rather than a broken range (safe degradation).
   const dateParam = url.searchParams.get("date") ?? "";
   const selectedDate =
-    mode === "day" &&
-    dateParam &&
-    isValidDayKey(dateParam, DIARY_DISPLAY_TIME_ZONE)
+    mode === "day" && dateParam && isValidDayKey(dateParam, displayTimeZone)
       ? dateParam
       : todayKey;
 
   const occurredFrom =
     mode === "day"
-      ? (startOfLocalDayUtc(selectedDate, DIARY_DISPLAY_TIME_ZONE) ?? undefined)
+      ? (startOfLocalDayUtc(selectedDate, displayTimeZone) ?? undefined)
       : undefined;
   const occurredTo =
     mode === "day"
-      ? (endOfLocalDayUtc(selectedDate, DIARY_DISPLAY_TIME_ZONE) ?? undefined)
+      ? (endOfLocalDayUtc(selectedDate, displayTimeZone) ?? undefined)
       : undefined;
 
   const isFiltered = entryTypes !== undefined;
 
   const base = {
     mode,
-    displayTimeZone: DIARY_DISPLAY_TIME_ZONE,
+    displayTimeZone,
     nowIso: now.toISOString(),
     todayKey,
     selectedDate,
@@ -102,7 +116,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   };
 
   try {
-    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const page = await scope.diary.list({
       order: "newest",
       limit: DIARY_TIMELINE_PAGE_SIZE,
@@ -124,7 +137,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
     return {
       ...base,
-      groups: serializeTimelinePage(page.items, DIARY_DISPLAY_TIME_ZONE),
+      groups: serializeTimelinePage(page.items, displayTimeZone),
       nextCursor: page.nextCursor,
       typeCounts,
       failed: false,

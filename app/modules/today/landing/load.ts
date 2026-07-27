@@ -16,7 +16,7 @@ import {
   createOwnerAlignmentContext,
   evaluateGoalAlignment,
 } from "~/shared/alignment";
-import { OWNER_TIME_ZONE, ownerCalendarIso } from "~/shared/datetime";
+import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
   briefFocusLine,
@@ -44,6 +44,7 @@ const GOALS_SHOWN = 6;
 /** Operational facts already computed by the main loader from the planning read. */
 export interface TodayLandingFacts {
   readonly now: Date;
+  readonly timezone: string;
   readonly todayIso: string;
   readonly dateLong: string;
   readonly plannedTodayCount: number;
@@ -56,28 +57,32 @@ export interface TodayLandingFacts {
 }
 
 /** The owner-local hour (0–23), for the greeting — never the UTC runtime hour. */
-function ownerLocalHour(now: Date): number {
+function ownerLocalHour(now: Date, timeZone: string): number {
   const raw = new Intl.DateTimeFormat("en-AU", {
     hour: "numeric",
     hour12: false,
-    timeZone: OWNER_TIME_ZONE,
+    timeZone,
   }).format(now);
   return Number.parseInt(raw, 10) % 24;
 }
 
 /** The owner-local wall-clock time of an instant ("11:15"). */
-function ownerLocalTime(instant: Date): string {
+function ownerLocalTime(instant: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-AU", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: OWNER_TIME_ZONE,
+    timeZone,
   }).format(instant);
 }
 
 /** A calm relative label for how recently a record was created. */
-function relativeDayLabel(instant: Date, todayIso: string): string {
-  const iso = ownerCalendarIso(instant);
+function relativeDayLabel(
+  instant: Date,
+  todayIso: string,
+  timeZone: string,
+): string {
+  const iso = ownerCalendarIso(instant, timeZone);
   if (iso === todayIso) {
     return "Today";
   }
@@ -95,7 +100,7 @@ function relativeDayLabel(instant: Date, todayIso: string): string {
   return new Intl.DateTimeFormat("en-AU", {
     day: "numeric",
     month: "short",
-    timeZone: OWNER_TIME_ZONE,
+    timeZone,
   }).format(instant);
 }
 
@@ -110,6 +115,7 @@ function humaniseType(entryType: string): string {
 async function loadNotes(
   scope: WorkspaceScope,
   todayIso: string,
+  timeZone: string,
 ): Promise<readonly RecentNoteItem[]> {
   try {
     // The TRUE newest notes (dedicated newest-first bounded projection) — never the
@@ -119,7 +125,7 @@ async function loadNotes(
     return notes.map((note) => ({
       id: note.id,
       title: note.title,
-      createdLabel: `Created ${relativeDayLabel(note.createdAt, todayIso)}`,
+      createdLabel: `Created ${relativeDayLabel(note.createdAt, todayIso, timeZone)}`,
     }));
   } catch {
     return [];
@@ -129,6 +135,7 @@ async function loadNotes(
 async function loadDiary(
   scope: WorkspaceScope,
   todayIso: string,
+  timeZone: string,
 ): Promise<DiaryWidgetData> {
   try {
     const page = await scope.diary.list({
@@ -139,8 +146,8 @@ async function loadDiary(
       id: entry.id,
       title: entry.title,
       typeLabel: humaniseType(entry.entryType),
-      timeLabel: ownerLocalTime(entry.occurredAt),
-      isToday: ownerCalendarIso(entry.occurredAt) === todayIso,
+      timeLabel: ownerLocalTime(entry.occurredAt, timeZone),
+      isToday: ownerCalendarIso(entry.occurredAt, timeZone) === todayIso,
     }));
     const today = moments.filter((moment) => moment.isToday);
     const recent = moments
@@ -252,8 +259,8 @@ export async function loadTodayLanding(
   facts: TodayLandingFacts,
 ): Promise<TodayLandingData> {
   const [notes, diary, areas, goals] = await Promise.all([
-    loadNotes(scope, facts.todayIso),
-    loadDiary(scope, facts.todayIso),
+    loadNotes(scope, facts.todayIso, facts.timezone),
+    loadDiary(scope, facts.todayIso, facts.timezone),
     loadAreas(scope),
     loadGoals(scope, facts.now),
   ]);
@@ -278,7 +285,9 @@ export async function loadTodayLanding(
 
   return {
     morningBrief: {
-      greeting: greetingFor(dayPartForHour(ownerLocalHour(facts.now))),
+      greeting: greetingFor(
+        dayPartForHour(ownerLocalHour(facts.now, facts.timezone)),
+      ),
       dateLong: facts.dateLong,
       focusLine: briefFocusLine(insightsInput),
       plannedTodayCount: facts.plannedTodayCount,

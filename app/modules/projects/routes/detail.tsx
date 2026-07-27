@@ -23,6 +23,7 @@ import {
 import { listActiveLinks } from "~/platform/entity-links";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -82,9 +83,14 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const taskState = parseTaskState(
     new URL(request.url).searchParams.get("tasks"),
   );
-  const todayIso = ownerCalendarIso(new Date());
-
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
+  } catch {
+    // Keep the project reachable with the deterministic owner-calendar default.
+  }
+  const todayIso = ownerCalendarIso(new Date(), timezone);
 
   const overview = await scope.projects.getProjectOverview(projectId);
   if (!overview) {
@@ -103,7 +109,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   // The DERIVED health signal (PROJ-02): gather this project's facts and evaluate
   // with the owner-calendar clock. Facts are read live (never cached) so health
   // cannot drift from tasks, Activity or the rollup.
-  const healthContext = createOwnerHealthContext(new Date());
+  const healthContext = createOwnerHealthContext(new Date(), timezone);
   const healthFacts = await scope.projectHealth.getProjectHealthFacts(
     projectId,
     healthContext.todayIso,

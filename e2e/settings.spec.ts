@@ -1,229 +1,213 @@
+import { execFileSync } from "node:child_process";
+
 import { expect, test, type Page } from "@playwright/test";
 
-const DEMO_PATH = "/design/settings";
+import {
+  expectNoAxeViolations,
+  expectNoHorizontalOverflow,
+  gotoFixture,
+} from "./helpers";
 
-async function hasNoHorizontalOverflow(page: Page) {
-  return page.evaluate(() => {
-    const doc = document.documentElement;
-    return doc.scrollWidth <= doc.clientWidth + 1;
-  });
+const WORKSPACE_ID = "local-dev-workspace";
+const OWNER_ID = "local-development-user";
+
+function d1Execute(command: string): void {
+  execFileSync(
+    "pnpm",
+    [
+      "exec",
+      "wrangler",
+      "d1",
+      "execute",
+      "DB",
+      "--local",
+      "--command",
+      command,
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
+      stdio: "pipe",
+    },
+  );
 }
 
-/** Navigate and wait for React to hydrate so handlers are attached before we act. */
-async function gotoFixture(page: Page) {
-  await page.goto(DEMO_PATH);
-  await expect(page.locator('[data-hydrated="true"]')).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Settings layout" }),
-  ).toBeVisible();
+function resetPreferences(): void {
+  d1Execute(
+    `DELETE FROM owner_app_preferences WHERE workspace_id = '${WORKSPACE_ID}' AND owner_id = '${OWNER_ID}';`,
+  );
 }
 
-test.describe("DS-10b settings layout — desktop", () => {
-  test.beforeEach(async ({ page }) => {
-    await gotoFixture(page);
-  });
+function forceInvalidLandingDestination(): void {
+  d1Execute(
+    [
+      "PRAGMA ignore_check_constraints = ON;",
+      `UPDATE owner_app_preferences SET default_landing_destination = 'assets', version = version + 1, updated_at = '2026-07-27T00:00:00.000Z' WHERE workspace_id = '${WORKSPACE_ID}' AND owner_id = '${OWNER_ID}';`,
+      "PRAGMA ignore_check_constraints = OFF;",
+    ].join(" "),
+  );
+}
 
-  test("changes an immediate toggle and confirms via a toast", async ({
+async function choose(page: Page, label: string, value: string): Promise<void> {
+  await page.getByLabel(label).selectOption(value);
+  await expect(page.getByText("Saved").first()).toBeVisible();
+}
+
+test.describe("SETTINGS-01A — application settings", () => {
+  test.beforeEach(() => resetPreferences());
+  test.afterEach(() => resetPreferences());
+
+  test("opens from navigation and persists owner/workspace preferences", async ({
     page,
   }) => {
-    const toggle = page.getByRole("switch", { name: "Compact mode" });
-    await expect(toggle).not.toBeChecked();
-    await toggle.click();
-    await expect(toggle).toBeChecked();
-    await expect(
-      page.getByRole("group", { name: "Preference saved" }),
-    ).toBeVisible();
-  });
-
-  test("changes an immediate select and confirms via a toast", async ({
-    page,
-  }) => {
-    const select = page.getByRole("combobox", { name: "Default view" });
-    await select.selectOption("board");
-    await expect(
-      page.getByRole("group", { name: "Default view updated" }),
-    ).toBeVisible();
-    await expect(select).toHaveValue("board");
-  });
-
-  test("edits and saves an explicit-save setting", async ({ page }) => {
-    const field = page.getByRole("textbox", { name: "Display name" });
-    await field.fill("Grace Hopper");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(
-      page.getByRole("group", { name: "Display name saved" }),
-    ).toBeVisible();
-    // Current value reflects the save.
-    await expect(page.getByText("Grace Hopper").first()).toBeVisible();
-  });
-
-  test("cancels a dirty explicit setting, reverting the value", async ({
-    page,
-  }) => {
-    const field = page.getByRole("textbox", { name: "Display name" });
-    await field.fill("Temporary edit");
-    await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(field).toHaveValue("Ada Lovelace");
-  });
-
-  test("shows a validation error and blocks save", async ({ page }) => {
-    const field = page.getByRole("textbox", { name: "Display name" });
-    await field.fill("");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Enter a display name.").first()).toBeVisible();
-  });
-
-  test("simulates a save failure then retries to success", async ({ page }) => {
-    await page.getByTestId("toggle-simulate-failure").click();
-    const field = page.getByRole("textbox", { name: "Display name" });
-    await field.fill("Katherine Johnson");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(
-      page.getByText("The server rejected the change. Please try again."),
-    ).toBeVisible();
-    // Turn off the simulated failure and retry — the draft is preserved.
-    await page.getByTestId("toggle-simulate-failure").click();
-    await expect(field).toHaveValue("Katherine Johnson");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(
-      page.getByRole("group", { name: "Display name saved" }),
-    ).toBeVisible();
-  });
-
-  test("completes a dangerous confirmation with typed confirmation and retry", async ({
-    page,
-  }) => {
-    await page.getByRole("button", { name: "Delete workspace…" }).click();
-    const dialog = page.getByRole("dialog", { name: "Delete workspace?" });
-    await expect(dialog).toBeVisible();
-
-    const confirm = dialog.getByRole("button", { name: "Delete workspace" });
-    await expect(confirm).toBeDisabled();
-    await dialog.getByRole("textbox").fill("DELETE");
-    await expect(confirm).toBeEnabled();
-
-    // First attempt fails (simulated) — an inline alert appears, dialog stays open.
-    await confirm.click();
-    await expect(dialog.getByRole("alert")).toBeVisible();
-    await expect(dialog).toBeVisible();
-    // Retry succeeds — the dialog closes and a success toast appears.
-    await dialog.getByRole("button", { name: "Delete workspace" }).click();
-    await expect(dialog).toBeHidden();
-    await expect(
-      page.getByRole("group", { name: "Workspace deleted" }),
-    ).toBeVisible();
-  });
-
-  test("cancels a dangerous confirmation without acting", async ({ page }) => {
-    await page.getByRole("button", { name: "Reset settings" }).click();
-    const dialog = page.getByRole("dialog", { name: "Reset all settings?" });
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-    await expect(dialog).toBeHidden();
-    // No success toast was raised.
-    await expect(
-      page.getByRole("group", { name: "Settings reset to defaults" }),
-    ).toBeHidden();
-  });
-
-  test("cancels a dangerous confirmation by clicking outside (the scrim)", async ({
-    page,
-  }) => {
-    await page.getByRole("button", { name: "Reset settings" }).click();
-    const dialog = page.getByRole("dialog", { name: "Reset all settings?" });
-    await expect(dialog).toBeVisible();
-    // Click the scrim away from the centred panel. The scrim must stay
-    // interactive (not inerted) for outside-click cancellation to work.
+    await gotoFixture(page, "/today");
     await page
-      .getByRole("button", { name: "Dismiss dialog" })
-      .click({ position: { x: 4, y: 4 } });
-    await expect(dialog).toBeHidden();
+      .getByRole("navigation", { name: "Primary" })
+      .getByRole("link", { name: "Settings" })
+      .click();
+    await expect(page).toHaveURL(/\/settings$/);
     await expect(
-      page.getByRole("group", { name: "Settings reset to defaults" }),
-    ).toBeHidden();
+      page.getByRole("heading", { level: 1, name: "Settings" }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "Date & time" }).click();
+    await expect(page).toHaveURL(/section=date-time/);
+    await choose(page, "Owner timezone", "Europe/London");
+    await page.reload();
+    await expect(page.getByLabel("Owner timezone")).toHaveValue(
+      "Europe/London",
+    );
+    await expect(
+      page.getByText(/Timezone affects date grouping, Today, due-date/),
+    ).toBeVisible();
+
+    await choose(page, "Date display", "dmy_slash");
+    await page.reload();
+    await expect(page.getByText("Example: 27/07/2026")).toBeVisible();
+
+    await choose(page, "First day of week", "sunday");
+    await page.reload();
+    await expect(page.getByText("Week views start on Sunday.")).toBeVisible();
+
+    await page.getByRole("link", { name: "General" }).click();
+    await choose(page, "Default landing page", "tasks");
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/tasks$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Tasks" }),
+    ).toBeVisible();
+
+    forceInvalidLandingDestination();
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/today$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Today" }),
+    ).toBeVisible();
+
+    await gotoFixture(page, "/settings");
+    await choose(page, "Default Tasks view", "matrix");
+    await gotoFixture(page, "/tasks");
+    await expect(
+      page.getByRole("heading", { name: "P1 · Do" }).first(),
+    ).toBeVisible();
+
+    await gotoFixture(page, "/settings");
+    await choose(page, "Default Diary mode", "timeline");
+    await gotoFixture(page, "/diary");
+    await expect(page.getByRole("link", { name: "Timeline" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await gotoFixture(page, "/diary?mode=day");
+    await expect(
+      page
+        .getByRole("group", { name: "Diary view" })
+        .getByRole("link", { name: "Day", exact: true }),
+    ).toHaveAttribute("aria-current", "true");
   });
 
-  test("is keyboard operable end to end and restores focus on close", async ({
+  test("keeps appearance device-local, navigation recoverable and sections history-backed", async ({
     page,
   }) => {
-    const trigger = page.getByRole("button", { name: "Delete workspace…" });
-    await trigger.press("Enter");
-    const dialog = page.getByRole("dialog", { name: "Delete workspace?" });
-    await expect(dialog).toBeVisible();
-    // Typed-confirmation input receives initial focus.
-    await expect(dialog.getByRole("textbox")).toBeFocused();
-    // Escape cancels and focus returns to the trigger.
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    await expect(trigger).toBeFocused();
+    await gotoFixture(page, "/settings?section=appearance");
+
+    await page.getByRole("button", { name: "Light" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+    await page.getByRole("button", { name: "Dark" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expectNoAxeViolations(page);
+
+    await page.getByRole("button", { name: "System" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
+
+    await page.getByRole("link", { name: "Navigation" }).click();
+    await expect(page).toHaveURL(/section=navigation/);
+    const helpToggle = page.getByRole("checkbox", { name: "Help" });
+    await expect(helpToggle).toBeChecked();
+    await helpToggle.uncheck();
+    await expect(page.getByText("Saved").first()).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("checkbox", { name: "Help" }),
+    ).not.toBeChecked();
+    await expect(
+      page
+        .getByRole("navigation", { name: "Primary" })
+        .getByRole("link", { name: "Help" }),
+    ).toHaveCount(0);
+    await gotoFixture(page, "/help");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Help" }),
+    ).toBeVisible();
+
+    await gotoFixture(page, "/settings?section=navigation");
+    await expect(page.getByRole("checkbox", { name: "Today" })).toBeDisabled();
+    await expect(
+      page.getByRole("checkbox", { name: "Settings" }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: "Reset navigation" }).click();
+    await expect(page.getByText("Saved").first()).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("checkbox", { name: "Help" })).toBeChecked();
+
+    await page.getByRole("link", { name: "Privacy & data" }).click();
+    await expect(page).toHaveURL(/section=privacy-data/);
+    await expect(page.getByText("Deferred data tools")).toBeVisible();
+    await page.getByRole("link", { name: "About" }).click();
+    await expect(page).toHaveURL(/section=about/);
+    await expect(page.getByText("Not configured")).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/section=privacy-data/);
+    await page.goForward();
+    await expect(page).toHaveURL(/section=about/);
   });
 
-  test("has no horizontal overflow with a confirmation open", async ({
+  test("is accessible and responsive from 320px through wide desktop", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Reset settings" }).click();
-    await expect(
-      page.getByRole("dialog", { name: "Reset all settings?" }),
-    ).toBeVisible();
-    await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
-  });
-});
+    for (const width of [320, 375, 390, 768, 1440, 2560]) {
+      await page.setViewportSize({ width, height: width >= 768 ? 900 : 820 });
+      await gotoFixture(page, "/settings?section=date-time");
+      await expectNoHorizontalOverflow(page);
+    }
 
-test.describe("DS-10b settings layout — 320px mobile", () => {
-  test.use({ viewport: { width: 320, height: 720 } });
+    await gotoFixture(page, "/settings");
+    await expectNoAxeViolations(page);
+    await gotoFixture(page, "/settings?section=appearance");
+    await page.getByRole("button", { name: "Dark" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expectNoAxeViolations(page);
 
-  test("stacks rows cleanly with no horizontal overflow", async ({ page }) => {
-    await gotoFixture(page);
-    await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
-  });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoFixture(page, "/settings?section=navigation");
+    await expectNoHorizontalOverflow(page);
+    await expect(page.getByRole("link", { name: "General" })).toBeVisible();
 
-  test("operates an immediate toggle on a phone", async ({ page }) => {
-    await gotoFixture(page);
-    const toggle = page.getByRole("switch", { name: "Compact mode" });
-    await toggle.click();
-    await expect(toggle).toBeChecked();
-    await expect(
-      page.getByRole("group", { name: "Preference saved" }),
-    ).toBeVisible();
-    await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
-  });
-
-  test("completes a dangerous confirmation on a phone with no overflow", async ({
-    page,
-  }) => {
-    await gotoFixture(page);
-    await page.getByRole("button", { name: "Reset settings" }).click();
-    const dialog = page.getByRole("dialog", { name: "Reset all settings?" });
-    await expect(dialog).toBeVisible();
-    await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
-    await dialog.getByRole("button", { name: "Reset settings" }).click();
-    await expect(dialog).toBeHidden();
-    await expect(
-      page.getByRole("group", { name: "Settings reset to defaults" }),
-    ).toBeVisible();
-  });
-});
-
-test.describe("DS-10b settings layout — theme & motion", () => {
-  test("works in dark theme", async ({ page }) => {
-    await page.emulateMedia({ colorScheme: "dark" });
-    await gotoFixture(page);
-    const toggle = page.getByRole("switch", { name: "Compact mode" });
-    await toggle.click();
-    await expect(toggle).toBeChecked();
-    await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
-  });
-
-  test("confirmation works with reduced motion", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await gotoFixture(page);
-    await page.getByRole("button", { name: "Reset settings" }).click();
-    const dialog = page.getByRole("dialog", { name: "Reset all settings?" });
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "Reset settings" }).click();
-    await expect(dialog).toBeHidden();
-    await expect(
-      page.getByRole("group", { name: "Settings reset to defaults" }),
-    ).toBeVisible();
+    await page.setViewportSize({ width: 320, height: 720 });
+    await gotoFixture(page, "/settings?section=privacy-data");
+    await expectNoHorizontalOverflow(page);
   });
 });
