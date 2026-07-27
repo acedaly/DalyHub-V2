@@ -14,12 +14,17 @@ import {
   MEETING_ARCHIVED,
   MEETING_CREATED,
   MEETING_ENTITY_TYPE,
+  MEETING_FOLLOW_UP_CREATED,
+  MEETING_ITEM_CONVERTED_TO_TASK,
   MEETING_RESTORED,
   MEETING_UPDATED,
+  MeetingFollowUpConflictError,
   validateCreateMeeting,
   validateUpdateMeeting,
   type CreateMeetingInput,
+  type LinkFollowUpTaskInput,
   type Meeting,
+  type MeetingFollowUpLink,
   type MeetingItem,
   type MeetingItemKind,
   type MeetingPage,
@@ -91,6 +96,20 @@ export class D1MeetingRepository implements MeetingRepository {
   #event(type: string, id: string, now: Date) {
     const model = buildActivityWriteModel(
       { type, subjects: [{ entityId: id, role: "subject" }], payload: {} },
+      this.#actor.actor,
+      this.#activityId(),
+      now,
+    );
+    return this.#recorder.buildAppendStatements(this.#workspaceId, model);
+  }
+  #eventWith(
+    type: string,
+    subjects: readonly { entityId: string; role: string }[],
+    payload: Record<string, string>,
+    now: Date,
+  ) {
+    const model = buildActivityWriteModel(
+      { type, subjects, payload },
       this.#actor.actor,
       this.#activityId(),
       now,
@@ -354,6 +373,110 @@ export class D1MeetingRepository implements MeetingRepository {
       ...this.#event(archive ? MEETING_ARCHIVED : MEETING_RESTORED, id, now),
     ]);
     return true;
+  }
+  async linkFollowUpTask(
+    input: LinkFollowUpTaskInput,
+  ): Promise<MeetingFollowUpLink> {
+    const now = this.#clock(),
+      ts = toStorageTimestamp(now);
+    const type =
+      input.itemId === null
+        ? MEETING_FOLLOW_UP_CREATED
+        : MEETING_ITEM_CONVERTED_TO_TASK;
+    // Structural metadata ONLY — never item body/agenda/notes content (§17).
+    const payload: Record<string, string> = {};
+    if (input.itemKind) payload.itemKind = input.itemKind;
+    try {
+      await this.#db.batch([
+        this.#db
+          .prepare(
+            "INSERT INTO meeting_item_tasks (workspace_id,meeting_id,item_id,task_id,created_at) VALUES (?,?,?,?,?)",
+          )
+          .bind(
+            this.#workspaceId,
+            input.meetingId,
+            input.itemId,
+            input.taskId,
+            ts,
+          ),
+        ...this.#eventWith(
+          type,
+          [
+            { entityId: input.meetingId, role: "subject" },
+            { entityId: input.taskId, role: "target" },
+          ],
+          payload,
+          now,
+        ),
+      ]);
+    } catch (cause) {
+      // A UNIQUE-index violation means a concurrent conversion already claimed this
+      // source item; surface it as the typed conflict the orchestration recovers from.
+      if (input.itemId !== null && /unique|constraint/i.test(String(cause))) {
+        throw new MeetingFollowUpConflictError(input.itemId);
+      }
+      throw cause;
+    }
+    return {
+      meetingId: input.meetingId,
+      itemId: input.itemId,
+      taskId: input.taskId,
+      createdAt: now,
+    };
+  }
+  async listFollowUps(
+    meetingId: string,
+  ): Promise<readonly MeetingFollowUpLink[]> {
+    const rows = (
+      await this.#db
+        .prepare(
+          "SELECT meeting_id,item_id,task_id,created_at FROM meeting_item_tasks WHERE workspace_id=? AND meeting_id=? ORDER BY created_at,task_id",
+        )
+        .bind(this.#workspaceId, meetingId)
+        .all<{
+          meeting_id: string;
+          item_id: string | null;
+          task_id: string;
+          created_at: string;
+        }>()
+    ).results;
+    return rows.map((r) => ({
+      meetingId: r.meeting_id,
+      itemId: r.item_id,
+      taskId: r.task_id,
+      createdAt: fromStorageTimestamp(r.created_at),
+    }));
+  }
+  async getFollowUpForItem(
+    itemId: string,
+  ): Promise<MeetingFollowUpLink | null> {
+    const row = await this.#db
+      .prepare(
+        "SELECT meeting_id,item_id,task_id,created_at FROM meeting_item_tasks WHERE workspace_id=? AND item_id=? LIMIT 1",
+      )
+      .bind(this.#workspaceId, itemId)
+      .first<{
+        meeting_id: string;
+        item_id: string | null;
+        task_id: string;
+        created_at: string;
+      }>();
+    if (!row) return null;
+    return {
+      meetingId: row.meeting_id,
+      itemId: row.item_id,
+      taskId: row.task_id,
+      createdAt: fromStorageTimestamp(row.created_at),
+    };
+  }
+  async removeFollowUpTask(taskId: string): Promise<boolean> {
+    const result = await this.#db
+      .prepare(
+        "DELETE FROM meeting_item_tasks WHERE workspace_id=? AND task_id=?",
+      )
+      .bind(this.#workspaceId, taskId)
+      .run();
+    return result.meta.changes > 0;
   }
   #map(r: Row, items: MeetingItem[]): Meeting {
     return {

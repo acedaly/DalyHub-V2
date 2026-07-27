@@ -16,6 +16,8 @@ import {
   MEETING_ARCHIVED,
   MEETING_ATTENDEE_LINK,
   MEETING_CREATED,
+  MEETING_FOLLOW_UP_CREATED,
+  MEETING_ITEM_CONVERTED_TO_TASK,
   MEETING_RESTORED,
   MEETING_UPDATED,
 } from "~/kernel/meetings";
@@ -47,6 +49,17 @@ export default defineModule({
       type: MEETING_RESTORED,
       label: "Meeting restored",
       description: "The meeting was restored.",
+    },
+    {
+      type: MEETING_ITEM_CONVERTED_TO_TASK,
+      label: "Meeting item converted to task",
+      description:
+        "An agenda item, decision or outcome became a follow-up task.",
+    },
+    {
+      type: MEETING_FOLLOW_UP_CREATED,
+      label: "Follow-up task created",
+      description: "A follow-up task was created from the meeting.",
     },
   ],
   entityLinkTypes: [

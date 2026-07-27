@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { MEETING_ATTENDEE_LINK, type MeetingItemKind } from "~/kernel/meetings";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import type { Route } from "./+types/mutate";
@@ -18,11 +19,22 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     else if (intent === "add_item")
       await scope.meetings.addItem(
         id,
-        String(f.get("kind")) as "decision" | "outcome",
+        String(f.get("kind")) as MeetingItemKind,
         String(f.get("body") ?? ""),
       );
     else if (intent === "remove_item")
       await scope.meetings.removeItem(id, String(f.get("itemId")));
+    else if (intent === "add_attendee")
+      // A Person attends the Meeting: the `meeting.attendee` link. Both endpoints
+      // become subjects of the atomic `entity_link.created`, so the event appears
+      // on the attendee's People Timeline too (MEET-02 → People seam).
+      await scope.entityLinks.create({
+        sourceEntityId: id,
+        targetEntityId: String(f.get("personId") ?? ""),
+        type: MEETING_ATTENDEE_LINK,
+      });
+    else if (intent === "remove_attendee")
+      await scope.entityLinks.unlink(String(f.get("linkId") ?? ""));
     else {
       const changes: Record<string, string | null> = {};
       for (const k of [
