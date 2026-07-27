@@ -154,6 +154,135 @@ test.describe("DS-10 feedback & inspector — mobile", () => {
   });
 });
 
+/**
+ * DEBT-38 — the notification region's pointer contract, proven at both the
+ * desktop anchor (bottom-right column) and the mobile one (bottom, full-width,
+ * safe-area inset). Both overlay the page, so both must be click-through.
+ */
+for (const layout of [
+  { name: "desktop", viewport: { width: 1280, height: 720 } },
+  { name: "mobile", viewport: { width: 390, height: 780 } },
+] as const) {
+  test.describe(`DS-10 feedback — pointer contract (${layout.name})`, () => {
+    test.use({ viewport: layout.viewport });
+
+    /**
+     * DEBT-38 — the notification region is `position: fixed` over the bottom-right
+     * of every page, which is where record lifecycle controls (Archive / Restore /
+     * Delete) sit. It must therefore be transparent to the pointer everywhere
+     * except its own controls, or a stack of transient confirmations silently eats
+     * the next click aimed at the page beneath it. Asserted by real hit-testing —
+     * `elementFromPoint` is exactly what the browser (and Playwright's
+     * actionability check) uses — so this cannot be satisfied by CSS that only
+     * looks right.
+     */
+    test("the notification stack never intercepts clicks meant for the page", async ({
+      page,
+    }) => {
+      await page.goto(DEMO_PATH);
+      // Build a stack that exercises every kind of control the region can show:
+      // a warning, a sticky error, and an ACTIONABLE toast (the Undo offered by
+      // an optimistic delete). More than one notification also brings up the
+      // dismiss-all toolbar, whose full-width empty area was the deterministic
+      // half of DEBT-38.
+      await page.getByRole("button", { name: "Warning", exact: true }).click();
+      await expect(
+        page.getByRole("group", { name: "Storage almost full" }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Error", exact: true }).click();
+      await expect(
+        page.getByRole("group", { name: "Couldn’t save" }),
+      ).toBeVisible();
+      await page
+        .getByTestId("undo-panel")
+        .getByRole("button", { name: "Delete" })
+        .first()
+        .click();
+      const undo = page.getByRole("button", { name: "Undo" });
+      await expect(undo).toBeVisible();
+
+      // Focusing a control in the stack pauses auto-dismiss (DS-10). That freezes
+      // the stack for the audit below — and proves the focus-pause contract
+      // survived the pointer change, since focus never depended on hit-testing.
+      await undo.focus();
+      await expect(page.locator(".dh-toast")).toHaveCount(3);
+      await expect(page.locator(".dh-feedback__toolbar")).toBeVisible();
+
+      const audit = await page.evaluate(() => {
+        const region = document.querySelector<HTMLElement>(".dh-feedback");
+        if (!region) return { error: "no region" };
+        // The only elements permitted to take pointer input inside the region.
+        const controls = Array.from(
+          region.querySelectorAll<HTMLElement>(
+            ".dh-feedback__dismiss-all, .dh-toast__action, .dh-toast__close",
+          ),
+        );
+        const isAllowed = (node: Element | null) =>
+          node !== null && controls.some((control) => control.contains(node));
+
+        const box = region.getBoundingClientRect();
+        const blockers: string[] = [];
+        // Sample the whole region on a fine grid; every point that hits the region
+        // without landing on a control is a pixel that would swallow a click.
+        for (let y = box.top + 1; y < box.bottom - 1; y += 4) {
+          for (let x = box.left + 1; x < box.right - 1; x += 4) {
+            const hit = document.elementFromPoint(x, y);
+            if (hit && region.contains(hit) && !isAllowed(hit)) {
+              blockers.push(
+                `${Math.round(x)},${Math.round(y)} → ${hit.className}`,
+              );
+            }
+          }
+        }
+
+        // …and the controls themselves must still be hit-testable at their centre.
+        const unreachable = controls
+          .map((control) => {
+            const r = control.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              r.x + r.width / 2,
+              r.y + r.height / 2,
+            );
+            return hit && control.contains(hit)
+              ? null
+              : `${control.className} unreachable`;
+          })
+          .filter((entry): entry is string => entry !== null);
+
+        return {
+          controls: controls.length,
+          actions: region.querySelectorAll(".dh-toast__action").length,
+          blockers,
+          unreachable,
+        };
+      });
+
+      expect(audit.error).toBeUndefined();
+      // dismiss-all + three closes + the Undo action.
+      expect(audit.controls).toBe(5);
+      expect(audit.actions, "the actionable toast keeps its action").toBe(1);
+      expect(
+        audit.blockers?.slice(0, 8),
+        "notification region pixels that would absorb a page click",
+      ).toEqual([]);
+      expect(
+        audit.unreachable,
+        "notification controls must stay operable",
+      ).toEqual([]);
+
+      // The controls are not merely hit-testable — they still work, with an
+      // ordinary click (no force, no coordinates). The actionable toast first:
+      await undo.click();
+      await expect(
+        page.getByTestId("undo-panel").getByText("Draft launch plan"),
+      ).toBeVisible();
+      // …then the dismiss-all control at the top of the region.
+      await page.getByRole("button", { name: "Dismiss all" }).click();
+      await expect(page.locator(".dh-toast")).toHaveCount(0);
+    });
+  });
+}
+
 test.describe("DS-10 feedback — reduced motion", () => {
   test("notifications and the Inspector still work with reduced motion", async ({
     page,

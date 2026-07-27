@@ -75,10 +75,46 @@ function Example() {
 - **Bounded stack.** At most `MAX_NOTIFICATIONS`; on overflow the **oldest
   auto-dismissing** entry is retired first, so a sticky error is never dropped by
   a burst of successes.
-- **Pause on hover/focus.** Hovering or focusing anywhere in the centre freezes
-  every dismissal timer; leaving resumes with the remaining time.
+- **Pause on hover/focus.** Focusing anywhere in the centre — or hovering any of
+  its controls — freezes every dismissal timer; leaving resumes with the
+  remaining time. Hover-pause is scoped to the controls because the rest of the
+  region is click-through (see the pointer contract below): a pointer crossing a
+  surface it can click straight through is interacting with the page, not
+  reading the toast.
 - **Placement.** Bottom-right on desktop, bottom full-width (safe-area aware) on
-  mobile — anchored so it never covers primary UI.
+  mobile. It **overlays** the page — that is what `position: fixed` means — so
+  the pointer contract below, not the anchor, is what keeps it out of the way.
+
+### Pointer contract (DEBT-38)
+
+The region is `position: fixed` over the bottom-right of every page. That is
+precisely where a record's lifecycle controls (Archive / Restore / Delete) and
+other bottom-anchored actions sit, and a sequence of actions leaves a stack of
+transient confirmations hovering over them for seconds at a time. So:
+
+> **Nothing in the notification region takes pointer input except its own
+> controls.**
+
+Concretely, in [`feedback.css`](../../app/styles/feedback.css): `.dh-feedback`,
+`.dh-feedback__toolbar` and `.dh-toast` are all `pointer-events: none`, and only
+`.dh-feedback__dismiss-all`, `.dh-toast__action` and `.dh-toast__close` opt back
+in with `pointer-events: auto`. A notification therefore stays fully visible and
+its Undo / Retry / Cancel / Dismiss controls stay operable, while every other
+pixel of the region — the gaps between toasts, the dismiss-all row's empty
+width, a toast's own text surface — passes the click through to the page.
+
+Before this, the dismiss-all row alone was a 24rem-wide click-absorbing strip
+containing one small button, and each toast absorbed clicks across its whole box.
+A user performing two actions in a row could find the next control silently
+unresponsive, and `e2e/reviews.spec.ts` failed on most runs unable to click
+*Restore review*.
+
+The contract is guarded at two levels: a source-level rule check in
+[`test/unit/feedback/notification-pointer-events.test.ts`](../../test/unit/feedback/notification-pointer-events.test.ts),
+and real browser hit-testing (`document.elementFromPoint` over the whole region,
+at desktop and mobile widths) in `e2e/feedback.spec.ts`. Neither can be satisfied
+by a test-only override, a forced click or a coordinate click — none of which are
+used anywhere in the suite.
 
 ### Accessibility
 

@@ -7,7 +7,9 @@
  *     deep-linkable, shareable, refresh-proof and Back/Forward-correct;
  *   - exposes an imperative controller (`useDrawer`) whose every mutation is a real
  *     navigation (open pushes a tagged history entry; close uses Back only for a
- *     level this provider actually pushed, else removes the top parameter in place);
+ *     level this provider actually pushed, else removes the top parameter in place),
+ *     with close guarded against re-entry so a repeated Escape can never pop past
+ *     the record the drawer was opened from;
  *   - renders the underlying page (`children`) and, when open, the drawer stack as
  *     a sibling so the stack can make the page — and the whole app shell — inert.
  *
@@ -208,11 +210,30 @@ export function DrawerProvider({
     [searchParams, param, navigateWithSearch],
   );
 
+  // The history entry a close has already been issued against. A close is a real
+  // navigation (Back, for a level we pushed), and a navigation does not land
+  // synchronously — `searchParams` and `location` still describe the pre-close
+  // entry until React Router re-renders. Without this guard a second close
+  // request arriving inside that window (Escape pressed twice in quick
+  // succession, or Escape racing the close button) reads the same stale,
+  // non-empty stack and issues a SECOND `navigate(-1)` — popping past the record
+  // the drawer was opened from and throwing the user off the page they were on.
+  // Keying on `location.key` is exact: every history entry has a distinct key, so
+  // the guard clears the moment the close actually lands and never blocks a
+  // legitimate close of the next level down.
+  const closeIssuedForKeyRef = useRef<string | null>(null);
+  const locationKey = location.key;
+
   const closeDrawer = useCallback(() => {
     const current = readDrawerStack(searchParams, param);
     if (current.length === 0) {
       return;
     }
+    if (closeIssuedForKeyRef.current === locationKey) {
+      // A close for this exact history entry is already in flight.
+      return;
+    }
+    closeIssuedForKeyRef.current = locationKey;
     const token = readPushToken(locationStateRef.current);
     const openedByProvider =
       token !== undefined && providerPushTokens.current.has(token);
@@ -230,7 +251,7 @@ export function DrawerProvider({
         state: locationStateRef.current,
       });
     }
-  }, [searchParams, param, navigate, navigateWithSearch]);
+  }, [searchParams, param, navigate, navigateWithSearch, locationKey]);
 
   const closeAll = useCallback(() => {
     navigateWithSearch(withAllDrawersRemoved(searchParams, param), {

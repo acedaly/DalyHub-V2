@@ -151,14 +151,39 @@ jobs:
           if-no-files-found: error
 
   playwright:
-    name: Playwright E2E (shard ${{ matrix.shard }}/3)
+    # `strategy.job-total` is the size of the matrix below, so the shard COUNT
+    # has exactly one source of truth — the `shard:` list. Adding or removing an
+    # entry rebalances the suite with no other edit and no chance of a
+    # `--shard=n/N` that disagrees with the matrix.
+    name: Playwright E2E (shard ${{ matrix.shard }}/${{ strategy.job-total }})
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Budget headroom, sized from measurement rather than guesswork (DEBT-41).
+    # On run 30310393566 (3 shards) the slowest shard spent 14.0 min in tests and
+    # 14m34s in the job — 26 seconds inside the old 15-minute budget. It had no
+    # slack at all, so on a marginally slower runner the job was cancelled, and a
+    # CANCELLED job skips the report/trace upload steps: the failures that
+    # mattered left no artefacts behind.
+    #
+    # Two independent changes fix that, and the order matters:
+    #   1. Five shards instead of three, so the expected worst shard is ~8-9 min
+    #      of tests rather than ~14 (the suite splits at individual-test
+    #      granularity — see the run step below — and the measured 3-way spread
+    #      was only 11.7-14.0 min, so a count-based split stays even).
+    #   2. Playwright's own `globalTimeout` (15 min, playwright.config.ts) fires
+    #      BEFORE this job timeout, so an overrunning shard is stopped by
+    #      Playwright — which writes its report and traces and exits non-zero —
+    #      instead of by GitHub, which cancels and destroys them.
+    # This value is therefore a backstop for the whole job (install, browser,
+    # artifact download, servers, teardown) around a run Playwright already
+    # bounds, not the mechanism that bounds the tests.
+    timeout-minutes: 20
     strategy:
+      # Never cancel sibling shards on a failure: every shard's result is
+      # reported, so one red shard does not hide the state of the other four.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -194,7 +219,8 @@ jobs:
         # executes tests.
         run: pnpm exec playwright install --with-deps --only-shell chromium
 
-      - name: Playwright E2E, accessibility & responsive regression (shard ${{ matrix.shard }}/3)
+      - name: Playwright E2E, accessibility & responsive regression (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+        id: e2e
         # Runs this shard's slice of the full Playwright suite — functional
         # journeys, auth fail-closed checks, the DS-11 axe WCAG 2.2 AA scans,
         # dark mode, mobile/touch-target and responsive-overflow coverage,
@@ -204,7 +230,7 @@ jobs:
         # verified) each independent test is its own group — so shards split
         # at individual-test granularity, not whole spec files; a single spec
         # file's tests can land on different shards/runners. The union of all
-        # 3 shards still runs the entire suite exactly once — no test is
+        # shards still runs the entire suite exactly once — no test is
         # skipped or excluded. This is safe here because every test creates
         # and tears down its own fixtures (unique per-test titles/prefixes,
         # `afterEach` cleanup) rather than depending on a preceding test's
@@ -214,22 +240,29 @@ jobs:
         # local D1), not intra-runner workers.
         #
         # PLAYWRIGHT_SKIP_BUILD reuses the build/ artifact downloaded above
-        # instead of letting the production-mode webServer rebuild it a second
-        # (and, across 3 shards, a fourth/fifth/sixth) time.
+        # instead of letting the production-mode webServer rebuild it once per
+        # shard.
         env:
           PLAYWRIGHT_SKIP_BUILD: "1"
-        run: pnpm exec playwright test --shard=${{ matrix.shard }}/3
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
-      - name: Upload Playwright HTML report (shard ${{ matrix.shard }}) on failure
-        if: failure()
+      # Both uploads are conditioned on the RUN STEP's own outcome, not on
+      # `failure()`. `failure()` is false when a job is cancelled — which is
+      # exactly what a `timeout-minutes` overrun produces — so the old condition
+      # skipped the uploads in the one case where the evidence was most needed
+      # (DEBT-41). `always()` plus an explicit `outcome != 'success'` uploads on a
+      # failed, timed-out or cancelled shard and stays skipped on a green one.
+      - name: Upload Playwright HTML report (shard ${{ matrix.shard }})
+        if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-shard-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
 
-      - name: Upload Playwright traces & screenshots (shard ${{ matrix.shard }}) on failure
-        if: failure()
+      - name: Upload Playwright traces & screenshots (shard ${{ matrix.shard }})
+        if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-results-shard-${{ matrix.shard }}
@@ -248,10 +281,24 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check all required jobs succeeded
+        # `needs.<job>.result` collapses a whole matrix to one value, and it is
+        # never "success" unless EVERY shard succeeded — a cancelled shard
+        # (a `timeout-minutes` overrun) reports "cancelled", a failed one
+        # "failure", and a job that never ran "skipped". All three fail the gate.
+        # The result of each dependency is printed by name so the reason is
+        # legible from the gate alone, rather than only from whichever job
+        # happens to be red in the run summary.
         run: |
-          echo '${{ toJson(needs) }}' | tee needs.json
-          if jq -e 'to_entries[] | select(.value.result != "success")' needs.json > /dev/null; then
-            echo "One or more required jobs did not succeed."
+          set -euo pipefail
+          echo '${{ toJson(needs) }}' > needs.json
+          {
+            echo "| Required job | Result |"
+            echo "| --- | --- |"
+            jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"' needs.json
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          failed="$(jq -r 'to_entries[] | select(.value.result != "success") | .key' needs.json)"
+          if [ -n "$failed" ]; then
+            echo "::error::CI Gate failed. Not successful: $(echo "$failed" | tr '\n' ' ')"
             exit 1
           fi
           echo "All required jobs succeeded."

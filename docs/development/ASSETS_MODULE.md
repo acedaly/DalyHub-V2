@@ -198,6 +198,14 @@ passes in light and dark; Back/Forward and refresh preserve collection filters a
 the record tab. Covered by `e2e/assets.spec.ts` and the shared
 `e2e/accessibility.spec.ts` / `e2e/responsive.spec.ts` sweeps.
 
+**Corrected 2026-07-27.** `e2e/assets.spec.ts` asserted the saved manufacturer
+with an unscoped `getByText("Toyota")`, which resolves to **two** elements under
+Playwright strict mode: the record header's "Make & model" metadata chip and the
+Summary tab's identity line. The product is correct — an Asset's make
+legitimately appears in both places — so the assertion is now scoped to each of
+them explicitly (the `Summary` tab panel and the `Record metadata` list) rather
+than relying on accidental text uniqueness. No Assets code changed.
+
 ---
 
 ## 7. Not implemented (by design)

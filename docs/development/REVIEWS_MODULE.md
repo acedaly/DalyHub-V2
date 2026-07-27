@@ -94,7 +94,7 @@ Coverage added in REVIEWS-01:
 
 E2E coverage exists and is broader than this section originally stated (corrected 2026-07-27): [`e2e/reviews.spec.ts`](../../e2e/reviews.spec.ts) covers the weekly creation/editing/linking/lifecycle journey, search, the command palette, axe in **light and dark** on the record, and no horizontal overflow at 320px and 390px including the Settings tab; `/reviews` is also in the [`e2e/accessibility.spec.ts`](../../e2e/accessibility.spec.ts) sweep. What remains deferred is the *mobile-completion* journey ([REVIEW-04](../roadmap/ROADMAP_V2.md#-review-04--mobile)), not baseline accessibility coverage.
 
-**The lifecycle journey fails on most runs** — `e2e/reviews.spec.ts:89` cannot click *Restore review* because the shared notification stack intercepts the pointer event ([DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1)). Across three runs of an identical test set it failed **twice** (runs 30306499933 and 30310393566) and passed once, with a byte-identical interception mechanism both times. It is timing-dependent rather than a hard failure, so a green run is not evidence it is fixed — but it is the most reproducible failure in the suite and the best first target. See [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) for the full picture.
+**The lifecycle journey is now verified (2026-07-27).** It previously failed on most runs — `e2e/reviews.spec.ts:89` could not click *Restore review* because the shared DS-10 notification region intercepted the pointer event. That was a shared feedback-layer defect, never a Reviews one, and it is fixed at source: the region now takes pointer input only on its own controls ([DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1), closed). Because a single green run was explicitly *not* accepted as evidence for a timing-dependent failure, the journey was re-run with `--repeat-each=3` alongside the other previously-unreliable specs: **87/87 passed**, archive and restore included, through ordinary user interactions with no forced clicks and no test-only CSS.
 
 ## Deferred Scope
 
@@ -104,7 +104,7 @@ Deferred deliberately: AI-generated summaries, recommendations, user-designed te
 
 ## Status (2026-07-27 reconciliation)
 
-**Current status.** Delivered and in production use as [REVIEWS-01](../roadmap/ROADMAP_V2.md#-reviews-01--dalyhub-reviews-foundation) (merged as #73), **but not cleanly verified** — see Known limitations.
+**Current status.** Delivered and in production use as [REVIEWS-01](../roadmap/ROADMAP_V2.md#-reviews-01--dalyhub-reviews-foundation) (merged as #73), and **cleanly verified as of 2026-07-27** — the blocking [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) occlusion is fixed in the shared feedback layer and the full Reviews journey passes on repeat runs (see E2E coverage above). Reviews is **not** newly complete: REVIEWS-01 was already delivered; only its verification caveat is lifted.
 
 **Delivered capabilities.**
 
@@ -120,7 +120,6 @@ Deferred deliberately: AI-generated summaries, recommendations, user-designed te
 
 **Known limitations.**
 
-- **Its Playwright journey fails on most runs.** `e2e/reviews.spec.ts:89` fails clicking *Restore review* because the shared DS-10 notification stack intercepts the pointer event — twice in three runs of an identical test set, with the same mechanism each time. This is a shared-feedback-layer timing defect, not a Reviews modelling defect — [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1). It is one of several unrelated E2E failures keeping `main` red ([DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1)).
 - Period context is a **bounded live helper**, not a complete aggregation: it reads Tasks, Diary and Meetings, but **not Projects updated in the period**, and does not paginate beyond its bounds — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2).
 - Source labels stay live. A completed Review preserves what the owner **wrote and linked**, but a linked record renamed later shows its new title; no immutable snapshot is stored.
 - No Today entry point for "start or continue this week's Review".
@@ -130,4 +129,4 @@ Deferred deliberately: AI-generated summaries, recommendations, user-designed te
 
 **Relevant roadmap items.** [REVIEWS-01](../roadmap/ROADMAP_V2.md#-reviews-01--dalyhub-reviews-foundation) ☑ · [REVIEW-02](../roadmap/ROADMAP_V2.md#-review-02--weekly-review) ☐ · [REVIEW-03](../roadmap/ROADMAP_V2.md#-review-03--insights--alignment) ☐ · [REVIEW-04](../roadmap/ROADMAP_V2.md#-review-04--mobile) ☐.
 
-**Relevant product-debt items.** [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) (blocking) · [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3) (lands under REVIEW-03) · [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1).
+**Relevant product-debt items.** [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) (resolved 2026-07-27) · [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3) (lands under REVIEW-03) · [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1).

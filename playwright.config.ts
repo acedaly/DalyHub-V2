@@ -37,10 +37,36 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: process.env.CI
-    ? [["list"], ["html", { open: "never" }]]
+    ? [
+        ["list"],
+        ["html", { open: "never" }],
+        // Machine-readable per-test durations, written INSIDE the HTML report
+        // directory so the single "playwright-report" artifact carries both the
+        // human report and the numbers a future shard rebalance needs.
+        ["json", { outputFile: "playwright-report/results.json" }],
+      ]
     : [["list"]],
   timeout: 30_000,
   expect: { timeout: 5_000 },
+  /*
+   * Slow-file visibility (DEBT-41). Printed at the end of EVERY run, green or
+   * red, so a spec quietly growing towards the shard budget is visible before it
+   * blows it. The `list` reporter already prints each individual test's duration.
+   */
+  reportSlowTests: { max: 10, threshold: 30_000 },
+  /*
+   * A self-imposed ceiling in CI, deliberately set BELOW the workflow job's
+   * `timeout-minutes` (see `.github/workflows/ci.yml`). It exists so a runaway
+   * shard is terminated by Playwright — which then writes its HTML report,
+   * traces and screenshots and exits non-zero — rather than by GitHub, which
+   * cancels the job and destroys that evidence. Sized against the measured
+   * worst shard: run 30310393566 shard 1 spent 14.0 min on tests across THREE
+   * shards; the matrix is now five, so a shard is expected to take ~8-9 min and
+   * 15 min leaves ample room for runner variance while still catching a hang.
+   * Unset outside CI so a full local suite run (all shards in one process) is
+   * never killed mid-way.
+   */
+  globalTimeout: process.env.CI ? 15 * 60_000 : undefined,
   use: {
     baseURL,
     trace: "retain-on-failure",
