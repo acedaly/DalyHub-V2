@@ -38,6 +38,10 @@ import type { Route } from "./+types/detail";
 /** A bound on how many follow-up Tasks a single meeting record resolves at once. */
 const FOLLOW_UP_CAP = 100;
 
+export function meta() {
+  return [{ title: "Meeting · DalyHub" }];
+}
+
 export async function loader({ context, params }: Route.LoaderArgs) {
   const s = requireAuthenticatedSession(context),
     scope = await resolveAuthenticatedWorkspaceScope(env, s),

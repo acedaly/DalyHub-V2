@@ -222,10 +222,12 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
   });
   await closeDrawer(page);
 
-  // Archive from Settings.
+  // Archive from Settings (the button flips to Restore once archived).
   await page.getByRole("tab", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Archive meeting" }).click();
-  await expect(page.getByText("Archived")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Restore meeting" }),
+  ).toBeVisible();
 
   // Creation controls are gone; the linked Task is still openable.
   await page.getByRole("tab", { name: "Follow-up" }).click();

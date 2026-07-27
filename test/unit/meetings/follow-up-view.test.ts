@@ -56,7 +56,10 @@ describe("followUpGroupOf", () => {
       followUpGroupOf(
         task({
           id: "d",
-          waiting: { since: "2026-07-27T00:00:00.000Z", subject: null },
+          waiting: {
+            since: "2026-07-27T00:00:00.000Z",
+            subject: { kind: "text", note: "Sarah" },
+          },
         }),
       ),
     ).toBe("waiting");

@@ -15,6 +15,11 @@ VALUES
 INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
 VALUES
   ('p-sarah', 'local-dev-workspace', 'person', 'Sarah Chen', '2026-07-19T00:00:04.000Z', '2026-07-19T00:00:04.000Z', NULL);
+-- PEOPLE-01 requires every Person to have a detail row (reads INNER-JOIN it); without
+-- it Sarah is invisible to the People collection and the MEET-02 attendee picker.
+INSERT OR IGNORE INTO person_details (workspace_id, entity_id, updated_at)
+VALUES
+  ('local-dev-workspace', 'p-sarah', '2026-07-19T00:00:04.000Z');
 INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
 VALUES
   ('local-dev-workspace', 'a-dh', 'area', NULL),
