@@ -19,7 +19,7 @@ on. It is split into a storage-independent contract and a D1 adapter:
 | Entity contract | `app/kernel/entities/` | Typed `EntityRecord`, inputs, domain errors, the workspace-bound `EntityRepository` interface, validation and cursor logic. No D1/Cloudflare types. |
 | EntityLink contract | `app/kernel/entity-links/` | Branded `EntityLinkType`, `EntityLinkRecord`/`EntityLinkView`, inputs, domain errors, the workspace-bound `EntityLinkRepository` interface, validation and a dedicated cursor. No D1/Cloudflare types. ([FND-04](../roadmap/ROADMAP_V2.md#-fnd-04--entitylinks)) |
 | Activity contract | `app/kernel/activity/` | Branded `ActivityType`, `ActivityRecord`, `ActivityActor`/`ActivitySubject`, payload rules + shared JSON serialiser, domain errors, a dedicated cursor, the **read-only** `ActivityRepository`, and the storage-independent recording seam (actor context + `buildActivityWriteModel`). No D1/Cloudflare types or JSON strings. ([FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model)) |
-| Application preferences | `app/kernel/preferences/` | Typed owner/workspace app preference contract: timezone, date display, first day of week, default landing, Tasks/Diary defaults and validated navigation visibility. No D1/Cloudflare types. ([SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings)) |
+| Application preferences | `app/kernel/preferences/` | Typed owner/workspace app preference contract: timezone, date display, first day of week, default landing, Tasks/Diary defaults and validated navigation visibility. No D1/Cloudflare types. ([SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences)) |
 | Workspace kernel | `app/kernel/workspaces/` | Branded `WorkspaceId`, `WorkspaceRecord`, `WorkspaceContext`, the `WorkspaceContextResolver` interface and the low-level `WorkspaceRepository` contract. No D1/Cloudflare types. |
 | D1 adapter | `app/platform/storage/d1/` | Implements the contracts over prepared, parameterised D1 statements; converts rows ⇄ domain records; hosts the atomic recording seam (`d1-activity-recorder`, `d1-atomic-mutation`). The only place SQL lives. |
 | Composition | `app/platform/workspaces/` | The server-side `environment → resolver → WorkspaceContext → scoped repository` boundary (`resolveWorkspaceScope`). |
@@ -75,7 +75,7 @@ FND-05 is deployed, and no history is fabricated for records created before 0004
 The Workers Vitest integration applies all migrations automatically; apply them
 to your local database with `pnpm run db:migrate:local`.
 
-Migration `0017_create_owner_app_preferences.sql` ([SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings))
+Migration `0017_create_owner_app_preferences.sql` ([SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences))
 creates the STRICT `owner_app_preferences` table. It is keyed by
 `(workspace_id, owner_id)`, references `workspaces(id)` with `ON DELETE
 RESTRICT`, and stores core behavioural preferences as explicit typed columns

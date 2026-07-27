@@ -10,7 +10,7 @@ Task activity has contributed to each Goal — see [Alignment
 (AREA-03)](#alignment-area-03) below.
 
 Accepted via
-[ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
+[ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
 (AREA-02) and
 [ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection)
 (AREA-03).
@@ -143,7 +143,7 @@ cross-workspace Project immediately stops contributing, because the query
 requires an active link AND an active Project entity in the bound workspace.
 
 **The displayed Projects tab and the contribution boundary are two independent
-reads**, mirroring [ADR-038 §38.7](ARCHITECTURE_DECISIONS.md)'s corrected Area
+reads**, mirroring [ADR-038 §38.7](../decisions/ARCHITECTURE_DECISIONS.md)'s corrected Area
 momentum boundary precedent exactly: `listGoalProjects` stays bounded and
 cursor-paginated (`GOAL_PROJECT_PAGE_SIZE = 50`); `getGoalProjectContribution`
 never truncates. A Goal with more than 50 linked Projects still reports the exact
@@ -586,5 +586,5 @@ since:** the Goal record's Projects tab now has an interactive "Load more"
 - [`PROJECTS_MODULE.md`](./PROJECTS_MODULE.md)
 - [`ACTIVITY_TIMELINE.md`](./ACTIVITY_TIMELINE.md)
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
-- [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
+- [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
   / [ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection)

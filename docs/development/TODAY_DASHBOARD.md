@@ -232,7 +232,7 @@ or link system.
   completion → waiting → open-state status — so `status` (`todo`/`in_progress`)
   and completion can never visibly contradict.
 - **Task Drawer.** A **waiting control** lives in the DS-02 Summary beside
-  completion ([`TaskWaitingSection.tsx`](../../app/modules/today/task/TaskWaitingSection.tsx)):
+  completion ([`TaskWaitingSection.tsx`](../../app/shared/task-record/TaskWaitingSection.tsx)):
   a calm read-only state ("Waiting for X · Since 18 Jul 2026 · 3 days") and an
   explicit-save editor with two modes — a DS-06 async `SelectField` picker over the
   waiting-target search, or a free-text `TextField` — with server-authoritative
@@ -283,7 +283,7 @@ migration, no second store and no second planning model.
   today / Tomorrow / Clear). Multi-select drives a **bulk action bar** in the PX-02
   CollectionLayout selection slot (Plan today / Tomorrow / Next week / Clear plan /
   inline custom date). The DS-02 Task Drawer gains a **Planning section**
-  ([`TaskPlanningSection.tsx`](../../app/modules/today/task/TaskPlanningSection.tsx))
+  ([`TaskPlanningSection.tsx`](../../app/shared/task-record/TaskPlanningSection.tsx))
   showing Scheduled + Due and the full quick actions with an inline DS-06 date
   control — no modal-in-modal.
 - **Routes.** Single-task planning posts `plan`/`clear_plan` intents to the existing
@@ -593,3 +593,26 @@ change.
   overflow, swipe a task to reveal the tray → plan it → persisted after revalidation,
   the task Drawer as a full-height sheet + Back/Forward, mobile selection + bulk bar,
   the Waiting view, and axe-clean with the swipe tray open.
+
+---
+
+## Status (2026-07-27 reconciliation)
+
+**Current status.** Today is the app's landing surface and is substantially complete: [TODAY-01](../roadmap/ROADMAP_V2.md#-today-01--today-dashboard) through [TODAY-06](../roadmap/ROADMAP_V2.md#-today-06--mobile) and [TODAY-08](../roadmap/ROADMAP_V2.md#-today-08--today-as-the-command-centre) are ☑. **[TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) — Quick Capture wiring — remains ☐**, so the screen's most prominent action still creates nothing.
+
+**Delivered capabilities.** The personalisable command-centre landing over real cross-module reads; the planning workspace (scheduled date as commitment, kept distinct from due date) with single and bulk mutations; Waiting as a real persisted workflow; the canonical shared Task Drawer; full keyboard operation through the one shared command dispatcher; and touch swipe quick actions on a phone.
+
+**Known limitations.**
+
+- **Quick Capture does not create a Task.** `onCapture` shows *"Quick Capture is not connected yet. Your draft has not been saved."* and writes nothing. The copy is honest, but the action is inert — [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring). Its dependency is now unblocked: TASKS-01 ships the atomic creation path and the quick-capture parser to wire into.
+- **Today is the only surface not using the shared `EmptyState`.** Every other module adopted it; `TodayDashboard.tsx` and `landing/widgets.tsx` render bare inline paragraphs — [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2).
+- **The Today search provider is still fixture-backed.** It no longer contributes fake *task* results (TASKS-01 replaced those with a real provider), but it still returns invented `upcoming:`, `project:` and `note:` results that open placeholder Drawers — [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1), [DEBT-19](../product/PRODUCT_DEBT.md#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3).
+- **On-hold tasks appear in the planning buckets** with no label, though `/tasks` excludes them — [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2).
+- Widget arrangement is per-device `localStorage`, not synced — [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3). A deliberate first cut.
+- A "Continue working" Project card's parent Area is an inert label — [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3).
+
+**Deferred work.** Wiring Quick Capture; a Reviews entry point ("start or continue this week's Review", [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)); an Assets "expiring soon / service due" widget over the existing read seam ([ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals)); synced widget arrangement.
+
+**Relevant roadmap items.** [TODAY-01](../roadmap/ROADMAP_V2.md#-today-01--today-dashboard)…[TODAY-06](../roadmap/ROADMAP_V2.md#-today-06--mobile) ☑ · [TODAY-08](../roadmap/ROADMAP_V2.md#-today-08--today-as-the-command-centre) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐ · [PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention) ☐.
+
+**Relevant product-debt items.** [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) · [DEBT-19](../product/PRODUCT_DEBT.md#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3) · [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3) · [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3) · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3).

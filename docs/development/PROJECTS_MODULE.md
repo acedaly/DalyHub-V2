@@ -79,7 +79,7 @@ same pattern the shared task record surface uses).
 
 - **Collection** — [`ProjectsCollection.tsx`](../../app/modules/projects/ProjectsCollection.tsx):
   PX-02 `CollectionLayout`, the one DS-04 `Card`, a restrained URL-reflected state
-  segment ([`SegmentedFilter`](../../app/modules/projects/SegmentedFilter.tsx):
+  segment ([`SegmentedFilter`](../../app/shared/segmented-filter/SegmentedFilter.tsx):
   All/Open/Completed/**Archived**, PROJ-05), the shared `EmptyState` (empty vs filtered-empty vs error), and
   the shared [`LoadMore`](../../app/shared/load-more) affordance. A card opens the
   overview through **normal client navigation** (a real `<a href="/projects/:id">` + SPA
@@ -679,7 +679,7 @@ integration, and PROJ-06 mobile are complete. Deferred refinements are tracked i
 ### PROJ-05 foundation (slice 1) + corrective hardening (slice 2)
 Migration `0008_create_project_details.sql` adds the Projects-owned, workspace-scoped `project_details` table. It owns only the open-work workflow status (`planned`, `active`, `on_hold`) and reversible `archived_at` state; missing rows resolve to `planned` (both pre-existing OPEN and pre-existing COMPLETED Projects were intentionally backfilled `active` at migration time — completed Projects carry no visible status until reopened, but reopening should not surprise the owner with a reset-to-Planned project). Identity/title, parentage, completion, links and roll-ups remain authoritative in the spine.
 
-`ProjectSettingsRepository` is workspace-bound and records real status/archive/restore transitions atomically in shared Activity (`project.status_changed`, `project.archived`, `project.restored`) — accepted and detailed in [ADR-037](../decisions/ARCHITECTURE_DECISIONS.md#adr-037-project-operational-details-remain-module-owned):
+`ProjectSettingsRepository` is workspace-bound and records real status/archive/restore transitions atomically in shared Activity (`project.status_changed`, `project.archived`, `project.restored`) — accepted and detailed in [ADR-037](../decisions/ARCHITECTURE_DECISIONS.md#adr-037--project-operational-details-remain-module-owned):
 
 - **Atomic, race-proof transitions.** Every transition folds its precondition (the observed prior status, "not archived", or "no active unfinished direct Task") directly into the domain statement itself — never a separate precondition read — so a concurrent Task creation/reopening or a competing transition is evaluated at the write's own commit. The domain write and its Activity append share ONE `D1Database.batch()` via the same `recordAtomicMutation` seam the Entity/EntityLink repositories use. A no-op appends no Activity; a guard miss re-reads the fresh state rather than assuming success; an Activity-insert failure rolls the domain write back too.
 - **Archive is blocked (and stays race-proof) while any active incomplete direct Task exists** — the check is a `NOT EXISTS` folded into the SAME write, closing the TOCTOU the initial slice had.

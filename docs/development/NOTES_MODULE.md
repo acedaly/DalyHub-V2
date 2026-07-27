@@ -550,3 +550,26 @@ styles now live in `app/styles/markdown-editor.css`).
   business-specific mechanism from Notes' generic soft-delete/restore).
 - [ROADMAP_V2.md](../roadmap/ROADMAP_V2.md#phase-5--notes-notes) — NOTES-01A,
   NOTES-01B, NOTES-01C, NOTES-04, NOTES-05 and the later NOTES-02/03/06 items.
+
+---
+
+## Status (2026-07-27 reconciliation)
+
+**Current status.** The Notes *record* is complete and genuinely good; Notes *findability* is the weakest area in the product. [NOTES-01A](../roadmap/ROADMAP_V2.md#-notes-01a--notes-persistence-and-domain-foundation)/[01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record)/[01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish), [NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile) and [NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) are ☑. [NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks) is ◑; [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search) and [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability) are ☐.
+
+**Delivered capabilities.** Creation, editing and dependable autosave with honest offline/retry states; the writing-first CodeMirror 6 live editor whose document **is** the Markdown source byte-for-byte; the shared FND-08 pipeline as the sole renderer and `MarkdownContent` as the sole HTML sink; soft-delete with an Active/Deleted collection filter; the shared Linked Items section; inline `[[Wiki Links]]`; and mobile ergonomics for writing on a phone.
+
+**The canonical-source architecture is preserved and must stay that way.** A Note is stored as exact, validated `MarkdownSource` ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)); rendering always goes through the one sanitising pipeline; the editor is an *authoring surface*, never a second representation. Any future organisation, search or export work must read that same source — never a parallel copy, and never re-rendered HTML presented as the note.
+
+**Known limitations.**
+
+- **No organisation and no search.** `/notes` offers only the Active/Deleted filter — no title search, no content search, no tags, no folders, no Area scoping. The Notes manifest registers **neither a search provider nor any commands**, so a Note cannot be found from global Search or the Command Palette either — while the Today fixture provider still returns invented `note:` results. [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search), [DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2), [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1).
+- **Backlinks are incomplete in two distinct ways.** There is no grouped "Referenced by" presentation (direction is carried as data but never surfaced), and `[[Wiki Links]]` **create no EntityLink at all** — they resolve at navigation time, so a wiki-linked record never learns it was referenced. The resolver also scans the whole workspace with a deliberate no-page-cutoff. [NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks), [DEBT-39](../product/PRODUCT_DEBT.md#-debt-39--wiki-links-create-no-entitylink-and-the-resolver-scans-the-whole-workspace--p2).
+- **No export.** A Note cannot be exported, despite being stored as portable Markdown source — [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability).
+- Rendered GFM task-list checkboxes have no accessible label — a shared pipeline concern, [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
+
+**Deferred work.** Tags/folders and content search; a backlinks view; single-Note export (deliberately **before** the whole-workspace [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability), as the small provable proof of the export contract); the project-scoped knowledge view ([PROJ-03](../roadmap/ROADMAP_V2.md#-proj-03--knowledge)).
+
+**Relevant roadmap items.** [NOTES-01A/01B/01C](../roadmap/ROADMAP_V2.md#-notes-01a--notes-persistence-and-domain-foundation) ☑ · [NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile) ☑ · [NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) ☑ · [REL-01](../roadmap/ROADMAP_V2.md#-rel-01--universal-relationship-system-shared-linked-items) ☑ · [NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks) ◑ · [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search) ☐ · [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability) ☐.
+
+**Relevant product-debt items.** [DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2) · [DEBT-39](../product/PRODUCT_DEBT.md#-debt-39--wiki-links-create-no-entitylink-and-the-resolver-scans-the-whole-workspace--p2) · [DEBT-08](../product/PRODUCT_DEBT.md#-debt-08--ad-hoc-cross-entity-links--p2) · [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) · [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).

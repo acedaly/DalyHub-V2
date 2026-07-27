@@ -74,3 +74,24 @@ The module contributes Upcoming, Recent and Archived collection views; a fast cr
 - **MEET-03 / PEOPLE-02:** the unified relationship-history projection and meaning-specific meeting events on People Timelines. The attendee EntityLink seam is in place.
 - **MEET-04:** deeper capture-specific mobile optimisation (MEET-02 inherits the responsive baseline and is verified 320–2560px).
 - Calendar synchronisation, invitations, conferencing creation, reminders, recurring series, automated reminders, notifications, AI-generated summaries, autonomous action-item extraction from prose, email ingestion and attachments remain out of scope. No dead settings or placeholder controls for these are added.
+
+---
+
+## Status (2026-07-27 reconciliation)
+
+**Current status.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) and [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) are ☑. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) and [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) are ☐.
+
+**Delivered capabilities.** First-class workspace-scoped Meeting identity with an additive detail slice and ordered decision/outcome/agenda items; Upcoming / Recent / Archived collection views; the canonical shared Record Layout; independent shared Markdown autosave surfaces; a real `meeting.attendee` EntityLink type wired to add/remove attendees; the Follow-up tab converting agenda items, decisions and outcomes into **canonical DalyHub Tasks** through `scope.tasks.createTask` (no second Task model), with stable structured identity (`meeting_items`, migration `0015`); structural Activity; a **real, repository-backed** search provider and three commands; and a reversible archive lifecycle.
+
+**Known limitations.**
+
+- **Meetings do not yet contribute to attendee history.** The attendee *link* exists and its creation event reaches the person's timeline, but the meeting's substance — its date, decisions, outcomes and follow-up Tasks — does not, so "what did we discuss" is unanswerable from a Person record. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration).
+- **The collection forks the shared Card.** `MeetingsCollection.tsx` renders a hand-rolled `dh-meeting-card` anchor rather than the DS-04 Card, so it does not inherit selection, quick actions, density or swipe behaviour — [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1).
+- **Lifecycle placement diverges.** Archive/Restore is an inline button in the record body, not the Settings-tab pattern Projects/Areas/People/Assets/Reviews use, and not a shared overflow menu (none exists) — [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1).
+- Mobile coverage is partial: the follow-up surface has axe (light and dark) and 390/320px overflow assertions, and `/meetings` is in the accessibility sweep, but the collection and record have no dedicated mobile journey.
+
+**Deferred work.** People/history integration; mobile completion (especially capture **during** a meeting on a phone); calendar sync and invitations; AI-proposed tasks and notes from meeting content ([AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals), which layers a review step over the existing MEET-02 conversion authority rather than replacing it).
+
+**Relevant roadmap items.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) ☑ · [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐ · [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) ☐ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☐ (blocks MEET-03) · [AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals) ☐.
+
+**Relevant product-debt items.** [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2).

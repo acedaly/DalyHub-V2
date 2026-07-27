@@ -15,7 +15,7 @@ Notes are first-class DalyHub entities but are deliberately **not** part of the 
 | Rendered HTML | Nobody. It is derived, disposable output computed on demand by the FND-08 renderer and **never persisted**, here or anywhere. |
 | Backlinks, tags, organisation, folders, EntityLinks to other records | Out of scope for this slice — later NOTES-02/03 work. |
 
-This mirrors the established additive-detail-table pattern already used by [Goal Details](../roadmap/ROADMAP_V2.md#-area-02--goal-records) (`goal_details`) and [Project Settings](../roadmap/ROADMAP_V2.md#-proj-05--project-settings) (`project_details`): the base `entities` table stays a generic substrate (ADR-009); a small, additively-attached table owns exactly the domain-specific field(s) the base table deliberately does not model.
+This mirrors the established additive-detail-table pattern already used by [Goal Details](../roadmap/ROADMAP_V2.md#-area-02--goals) (`goal_details`) and [Project Settings](../roadmap/ROADMAP_V2.md#-proj-05--settings) (`project_details`): the base `entities` table stays a generic substrate (ADR-009); a small, additively-attached table owns exactly the domain-specific field(s) the base table deliberately does not model.
 
 Generic Note creation, title updates, soft-delete and restore go through the existing `EntityRepository` unchanged — `note` is **not** a reserved spine entity type, so nothing new was needed there. This slice adds no second identity repository and no generic-CRUD duplication.
 

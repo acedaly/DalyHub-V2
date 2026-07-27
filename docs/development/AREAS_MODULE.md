@@ -6,7 +6,7 @@ momentum, rename it, and review direct Area Activity. It is composed from the
 shared design system and the FND-07 spine — no second Area model, no migration.
 
 Accepted via
-[ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview--read-only-spine-projection-and-derived-momentum).
+[ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038--area-overview-read-only-spine-projection-and-derived-momentum).
 
 ## Data ownership
 
@@ -74,7 +74,7 @@ Area momentum is derived, not stored. The pure evaluator (`app/kernel/areas/area
 accepts authoritative facts and an injected clock, returns accessible labels, a
 summary and transparent reasons, and has no React or persistence imports.
 
-**Corrected post-merge (see [ADR-038's dated amendment](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview--read-only-spine-projection-and-derived-momentum)).**
+**Corrected post-merge (see [ADR-038's dated amendment](../decisions/ARCHITECTURE_DECISIONS.md#adr-038--area-overview-read-only-spine-projection-and-derived-momentum)).**
 The original AREA-01 merge derived momentum from the same bounded first Project
 page the record displays (`AREA_CHILD_PAGE_SIZE = 50`) and from TOTAL rather than
 UNFINISHED counts. Both are corrected:
@@ -304,7 +304,7 @@ AREA-05 gives the Area record a **Settings** tab (Activity/Settings last) with a
 clearly separated lifecycle/danger section offering two *distinct* actions, so the
 owner can remove an Area without risking accidental loss of its Goals, Projects,
 Tasks, Notes, Diary entries or links. Accepted via
-[ADR-046](../decisions/ARCHITECTURE_DECISIONS.md#adr-046-area-lifecycle--reversible-archival-on-a-module-owned-slice-and-the-first-guarded-permanent-deletion-purge-with-audit-tombstone).
+[ADR-046](../decisions/ARCHITECTURE_DECISIONS.md#adr-046-area-lifecycle--reversible-archival-on-a-module-owned-slice-and-the-first-guarded-permanent-deletion-purge-with-an-audit-tombstone).
 
 ### Archive & Restore (the normal, reversible action)
 
@@ -413,5 +413,5 @@ inherently cross-Area and belongs on the workspace-wide collection instead.
 - [`PROJECTS_MODULE.md`](./PROJECTS_MODULE.md)
 - [`ACTIVITY_TIMELINE.md`](./ACTIVITY_TIMELINE.md)
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
-- [`ARCHITECTURE_DECISIONS.md` ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview--read-only-spine-projection-and-derived-momentum)
-- [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
+- [`ARCHITECTURE_DECISIONS.md` ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038--area-overview-read-only-spine-projection-and-derived-momentum)
+- [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
