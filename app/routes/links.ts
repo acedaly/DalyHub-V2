@@ -50,13 +50,20 @@ import type { Route } from "./+types/links";
 /** The GET responses, discriminated by the requested `op`. */
 export type LinksLoaderData =
   | { readonly op: "list"; readonly items: readonly LinkedItem[] }
-  | { readonly op: "search"; readonly options: readonly EntityLinkTargetOption[] }
+  | {
+      readonly op: "search";
+      readonly options: readonly EntityLinkTargetOption[];
+    }
   | { readonly op: "summary"; readonly summary: LinkSummary | null };
 
 /** The POST responses, discriminated by intent. */
 export type LinksActionData =
   | { readonly intent: "link"; readonly ok: boolean; readonly message?: string }
-  | { readonly intent: "unlink"; readonly ok: boolean; readonly message?: string };
+  | {
+      readonly intent: "unlink";
+      readonly ok: boolean;
+      readonly message?: string;
+    };
 
 function pickerDeps(scope: WorkspaceScope): EntityLinkPickerDeps {
   return { entities: scope.entities, entityLinks: scope.entityLinks };

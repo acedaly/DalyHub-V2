@@ -99,9 +99,7 @@ export function useLinkedItems(params: {
   const transport = params.transport ?? DEFAULT_TRANSPORT;
   const online = useOnlineStatus();
 
-  const [items, setItems] = useState<readonly LinkedItem[]>(
-    initialItems ?? [],
-  );
+  const [items, setItems] = useState<readonly LinkedItem[]>(initialItems ?? []);
   const [status, setStatus] = useState<LinkedItemsStatus>(
     initialItems ? "ready" : "loading",
   );

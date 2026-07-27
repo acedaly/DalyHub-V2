@@ -590,6 +590,48 @@ Form            <form> wrapper (owns nothing but layout + aria-busy)
 
 ---
 
+## Linked Items & Hover Card
+
+The **Universal Relationship System** realises "everything is connected"
+([`AGENTS.md §2`](../../AGENTS.md#2-product-philosophy)) as ONE reusable surface,
+in [`app/shared/linked-items`](../../app/shared/linked-items) — there is no
+`ProjectLinksTab`/`PersonLinkedTab`/bespoke-per-module linked list; a hand-rolled
+one is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. Accepted in
+[ADR-047](../decisions/ARCHITECTURE_DECISIONS.md#adr-047-the-universal-relationship-system--one-shared-linked-items-surface-a-generic-links-endpoint-wiki-links-and-linked-boosting); full guide: [`RELATIONSHIPS.md`](../development/RELATIONSHIPS.md).
+
+**Linked Items section.** Every record's detail page mounts `LinkedItemsTab`
+(anchor id + type). It renders the record's related items grouped by kind — each a
+navigable [EntityLink](#cards) wrapped in a **Hover Card** — with a Remove control
+for the generic links the user owns, and the shared DS-06 [EntityLinkPicker](#shared-forms--field-controls-ds-06)
+as the **search-to-add** affordance. It builds on the FND-04 EntityLink kernel and
+the DS-06 policy service through the one shared `/links` endpoint; it never adds a
+second relationship model or a per-module link route. Add/remove are **optimistic**
+with a DS-10 **Undo** toast, **offline-aware**, and keyboard-complete; structural
+spine links are shown by the hierarchy, not here.
+
+**Command Palette.** Mounting the tab registers a `⌘K` **navigate** action ("Link a
+record to this …") that opens the Linked tab — a navigation action, never a
+focus-moving `run` ([`COMMAND_PALETTE.md`](../development/COMMAND_PALETTE.md)).
+
+**Hover Card.** `HoverCard` shows a linked record's summary on pointer hover **and**
+keyboard focus (never hover-only). It is a non-interactive `role="tooltip"`
+associated with its trigger via `aria-describedby`, opens after a short intent
+delay, closes on blur/pointer-leave/Escape, lazily fetches its summary once, and
+respects `prefers-reduced-motion`. Summaries carry only non-sensitive structural
+metadata — safe for People and Diary.
+
+**Wiki links.** Markdown supports inline `[[Title]]` / `[[Title|Alias]]`, rendered
+through the ONE FND-08 pipeline (a pure transform → an internal resolver link — no
+second parser or HTML sink) and resolved to a record at navigation time. See
+[`RELATIONSHIPS.md`](../development/RELATIONSHIPS.md).
+
+**Extension rules.** Add an affordance to the one shared system (and document it
+here) only when a real record needs it; never fork the section, hover card, or link
+endpoint per module. Linked meetings/notes/etc. become navigable by extending the
+shared `entityDestination`, never a per-module route `switch`.
+
+---
+
 ## Global Interaction Layer (DS-10)
 
 The product-wide interaction layer every module inherits: **notifications, undo, background operations** (one Feedback platform) and the shared **Inspector**. There is **one implementation for the entire application** — no module renders a toast or builds its own edit drawer. Accepted via [ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector). Full guide: [`FEEDBACK_AND_INSPECTOR.md`](../development/FEEDBACK_AND_INSPECTOR.md).

@@ -17,7 +17,10 @@ import {
 import { getEntityIdentity } from "~/shared/entity";
 import type { SearchResultTarget } from "~/kernel/modules";
 
-import { LinkedItemsSection, type LinkedItemsSectionProps } from "./LinkedItemsSection";
+import {
+  LinkedItemsSection,
+  type LinkedItemsSectionProps,
+} from "./LinkedItemsSection";
 
 export interface LinkedItemsTabProps extends LinkedItemsSectionProps {
   /**
@@ -37,8 +40,9 @@ export function LinkedItemsTab({
   const actions = useMemo<AppAction[]>(() => {
     if (!linkCommandTarget || readOnly) return [];
     const label =
-      (anchorType ? getEntityIdentity(anchorType)?.label.toLowerCase() : null) ??
-      "record";
+      (anchorType
+        ? getEntityIdentity(anchorType)?.label.toLowerCase()
+        : null) ?? "record";
     return [
       {
         id: `linked-items.link.${sectionProps.anchorId}`,

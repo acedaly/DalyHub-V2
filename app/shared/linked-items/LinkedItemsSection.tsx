@@ -14,18 +14,24 @@
 
 import { useMemo } from "react";
 
-import { EntityIcon, EntityLink, getEntityIdentity, isEntityType } from "~/shared/entity";
+import {
+  EntityIcon,
+  EntityLink,
+  getEntityIdentity,
+  isEntityType,
+} from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { EntityLinkPicker } from "~/shared/forms";
 import type { EntityLinkTargetOption } from "~/shared/forms/model";
 
 import { HoverCard } from "./HoverCard";
 import { UNIVERSAL_RELATED_DESCRIPTOR } from "./constants";
-import { groupLinkedItems, type LinkedItem, type LinkSummary } from "./linked-items-model";
 import {
-  useLinkedItems,
-  type LinkedItemsTransport,
-} from "./use-linked-items";
+  groupLinkedItems,
+  type LinkedItem,
+  type LinkSummary,
+} from "./linked-items-model";
+import { useLinkedItems, type LinkedItemsTransport } from "./use-linked-items";
 
 export interface LinkedItemsSectionProps {
   /** The anchor record's id. */
@@ -87,8 +93,16 @@ export function LinkedItemsSection({
     ...(transport ? { transport } : {}),
     ...(initialItems ? { initialItems } : {}),
   });
-  const { items, status, online, reload, searchTargets, loadSummary, link, unlink } =
-    controller;
+  const {
+    items,
+    status,
+    online,
+    reload,
+    searchTargets,
+    loadSummary,
+    link,
+    unlink,
+  } = controller;
 
   const groups = useMemo(() => groupLinkedItems(items), [items]);
 
@@ -129,7 +143,9 @@ export function LinkedItemsSection({
         onUndo: async () => {
           const restore = await link(item.target, item.direction);
           if (!restore.ok) {
-            feedback.notifyError(restore.message ?? "Couldn't restore the link.");
+            feedback.notifyError(
+              restore.message ?? "Couldn't restore the link.",
+            );
           }
         },
       });
@@ -159,14 +175,18 @@ export function LinkedItemsSection({
         </p>
       ) : groups.length === 0 ? (
         <p className="dh-linked-items__empty">
-          Nothing linked yet. {readOnly ? null : "Search below to link a record."}
+          Nothing linked yet.{" "}
+          {readOnly ? null : "Search below to link a record."}
         </p>
       ) : (
         <ul className="dh-linked-items__groups">
           {groups.map((group) => (
             <li key={group.type} className="dh-linked-items__group">
               <h3 className="dh-linked-items__group-heading">
-                <span className="dh-linked-items__group-icon" aria-hidden="true">
+                <span
+                  className="dh-linked-items__group-icon"
+                  aria-hidden="true"
+                >
                   {isEntityType(group.type) ? (
                     <EntityIcon type={group.type} />
                   ) : null}
@@ -181,7 +201,9 @@ export function LinkedItemsSection({
                 {group.items.map((item) => (
                   <li key={item.linkId} className="dh-linked-items__item">
                     <HoverCard
-                      loadSummary={(signal) => loadSummary(item.target.id, signal)}
+                      loadSummary={(signal) =>
+                        loadSummary(item.target.id, signal)
+                      }
                       renderSummary={(summary) => (
                         <LinkSummaryBody summary={summary} />
                       )}

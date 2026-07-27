@@ -6,7 +6,10 @@
  * exported for tests and non-UI code. See `docs/development/RELATIONSHIPS.md`.
  */
 
-export { LinkedItemsSection, type LinkedItemsSectionProps } from "./LinkedItemsSection";
+export {
+  LinkedItemsSection,
+  type LinkedItemsSectionProps,
+} from "./LinkedItemsSection";
 export { LinkedItemsTab, type LinkedItemsTabProps } from "./LinkedItemsTab";
 export { HoverCard, type HoverCardProps } from "./HoverCard";
 export {

@@ -301,6 +301,11 @@ describe("module discovery", () => {
         { id: "notes.index", moduleId: "notes", file: "routes/index.tsx" },
         { id: "notes.new", moduleId: "notes", file: "routes/new.tsx" },
         {
+          id: "notes.resolve",
+          moduleId: "notes",
+          file: "routes/resolve.tsx",
+        },
+        {
           id: "notes.detail",
           moduleId: "notes",
           file: "routes/detail.tsx",

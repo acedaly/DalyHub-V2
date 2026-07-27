@@ -40,11 +40,7 @@ describe("remarkWikiLinks", () => {
   it("splits [[Title]] into a link node with a resolver url", () => {
     const tree = run(paragraph({ type: "text", value: "See [[Notes]] now" }));
     const para = tree.children![0]!;
-    expect(para.children!.map((c) => c.type)).toEqual([
-      "text",
-      "link",
-      "text",
-    ]);
+    expect(para.children!.map((c) => c.type)).toEqual(["text", "link", "text"]);
     const link = para.children![1]!;
     expect(link.url).toBe(`${WIKILINK_RESOLVE_PATH}?title=Notes`);
     expect(link.children![0]!.value).toBe("Notes");
@@ -68,7 +64,11 @@ describe("remarkWikiLinks", () => {
     const tree = run(
       paragraph(
         { type: "inlineCode", value: "[[nope]]" },
-        { type: "link", url: "/x", children: [{ type: "text", value: "[[nope]]" }] },
+        {
+          type: "link",
+          url: "/x",
+          children: [{ type: "text", value: "[[nope]]" }],
+        },
       ),
     );
     const [code, link] = tree.children![0]!.children!;

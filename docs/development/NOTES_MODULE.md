@@ -50,7 +50,7 @@ shell:
 | --- | --- | --- |
 | `GET /notes` | page | The Notes collection. `?state=active` (default) lists live Notes; `?state=deleted` lists only soft-deleted ones. Bounded cursor pagination either way. Replaces the PX-03 placeholder. |
 | `POST /notes/new` | resource | Create a Note via `entities.create({ type: "note", title })`. Title only. |
-| `GET /notes/:noteId` | page | Canonical Note record: the "Note" tab (the NOTES-05 writing-first live Markdown editor + a Read toggle) and the "Activity" tab. **404s for a soft-deleted Note** — see [Lifecycle](#lifecycle-delete-and-restore). |
+| `GET /notes/:noteId` | page | Canonical Note record: the "Note" tab (the NOTES-05 writing-first live Markdown editor + a Read toggle), the "Linked" tab (the shared REL-01 Linked Items section) and the "Activity" tab. **404s for a soft-deleted Note** — see [Lifecycle](#lifecycle-delete-and-restore). |
 | `POST /notes/:noteId/mutate` | resource | `rename` / `update_content` (verified ACTIVE-Note anchor) and `delete` / `restore` (verified anchor regardless of lifecycle state — see below). |
 | `GET /notes/:noteId/activity` | resource | One bounded DS-05 Timeline page over `activity.listForEntity(noteId)`. |
 
@@ -132,12 +132,16 @@ records. The Drawer here hosts only the "Rename" form.
   Note has no workflow state).
 - **"Note" tab** — `NoteContentForm.tsx`: the Markdown source editor (see
   below).
+- **"Linked" tab** — the shared **Universal Relationship System** Linked Items
+  section (REL-01, [`RELATIONSHIPS.md`](RELATIONSHIPS.md)): a real, populated tab
+  (never an empty placeholder), reachable at `?tab=linked`.
 - **"Activity" tab** — the shared DS-05 Timeline over `activity.listForEntity`,
   reloading on the Note's *effective* `updatedAt` (see
   [Activity](#activity) below).
 
-Exactly two tabs — no empty "Links"/"Settings" tab reserved for a future
-capability (DESIGN_SYSTEM.md: never ship an empty tab for later).
+Three tabs, all populated — no empty "Settings" tab reserved for a future
+capability (DESIGN_SYSTEM.md: never ship an empty tab for later). The Linked tab
+became a real capability with REL-01.
 
 ## Editor (NOTES-05 — the writing-first live editor)
 
@@ -483,7 +487,12 @@ the page stays the single scroll surface.
 Explicitly out of scope for this module, left to later roadmap items (see
 `ROADMAP_V2.md`):
 
-- **NOTES-02** — linking/backlinks/wikilinks.
+- **NOTES-02** — a dedicated backlinks *presentation* (grouped "referenced by").
+  The shared **Universal Relationship System** ([REL-01](../roadmap/ROADMAP_V2.md#-rel-01--universal-relationship-system-shared-linked-items),
+  [`RELATIONSHIPS.md`](RELATIONSHIPS.md)) already gives the Note record a **Linked**
+  tab (the shared Linked Items section) and inline `[[Wiki Links]]`, and — because
+  EntityLinks are bidirectional — a note linked from another record already appears
+  in that tab; only the grouped "referenced by" view remains.
 - **NOTES-03** — organisation, tags, Areas filtering, full content search.
 - **NOTES-06 / X-04 — export.** Single-Note `.md`/portable export (NOTES-06)
   and whole-workspace export (X-04). Because the editor keeps Markdown source

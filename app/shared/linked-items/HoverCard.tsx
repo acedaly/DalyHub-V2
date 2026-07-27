@@ -70,11 +70,7 @@ export function HoverCard({
     loadSummary(controller.signal).then(
       (summary) => {
         if (!mountedRef.current || controller.signal.aborted) return;
-        setState(
-          summary
-            ? { status: "ready", summary }
-            : { status: "empty" },
-        );
+        setState(summary ? { status: "ready", summary } : { status: "empty" });
       },
       () => {
         if (!mountedRef.current || controller.signal.aborted) return;
@@ -116,6 +112,13 @@ export function HoverCard({
   const rootClassName = ["dh-hover-card", className].filter(Boolean).join(" ");
 
   return (
+    // This wrapper is a hover/focus CONTAINER, not an interactive control — the
+    // actual interactive element is the nested link (children). The handlers only
+    // manage the supplementary tooltip's open state and Escape-to-dismiss (the
+    // tooltip is non-interactive and focus never leaves the link), so a role/tabbing
+    // affordance would be misleading. This mirrors the codebase's documented pattern
+    // of a targeted a11y disable for a non-interactive container.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <span
       className={rootClassName}
       onMouseEnter={scheduleOpen}
