@@ -1,6 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoAxeViolations, expectNoHorizontalOverflow, gotoFixture } from "./helpers";
+import {
+  expectNoAxeViolations,
+  expectNoHorizontalOverflow,
+  gotoFixture,
+} from "./helpers";
 import {
   cleanupAllNoteFixtures,
   cleanupNoteByTitle,
@@ -71,7 +75,9 @@ test.describe("REL-01 — shared Linked Items", () => {
     await option.click();
 
     // The linked target appears as a navigable link (optimistic, then reconciled).
-    const linkedLink = page.getByRole("link", { name: new RegExp(targetTitle) });
+    const linkedLink = page.getByRole("link", {
+      name: new RegExp(targetTitle),
+    });
     await expect(linkedLink).toBeVisible();
     await expectNoAxeViolations(page);
 
@@ -116,7 +122,9 @@ test.describe("REL-01 — shared Linked Items", () => {
     });
     await page.locator(".cm-content").click();
     await page.keyboard.type(`See [[${targetTitle}]]`);
-    await page.locator(".cm-content").evaluate((el) => (el as HTMLElement).blur());
+    await page
+      .locator(".cm-content")
+      .evaluate((el) => (el as HTMLElement).blur());
     await page.waitForLoadState("networkidle");
 
     // In Read mode the wiki link renders as an internal resolver link.
