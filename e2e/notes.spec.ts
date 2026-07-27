@@ -439,13 +439,15 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     expect(await readSource(page)).toContain("- [ ] buy milk");
 
     // Keyboard shortcut: Mod-i italicises the selection. Register the save
-    // listener BEFORE the edit so a debounce-triggered save can't be missed.
+    // response listener BEFORE the edit so a debounce-triggered save can't be
+    // missed, and wait for the commit before reloading.
     await clearAndType(page, "slanted");
-    const savedItalic = page.waitForRequest(
-      (req) =>
-        req.url().includes("/mutate") &&
-        req.method() === "POST" &&
-        (req.postData() ?? "").includes("_slanted_"),
+    const savedItalic = page.waitForResponse(
+      (response) =>
+        response.ok() &&
+        response.url().includes("/mutate") &&
+        response.request().method() === "POST" &&
+        (response.request().postData() ?? "").includes("_slanted_"),
     );
     await focusEditor(page);
     await page.keyboard.press("ControlOrMeta+a");

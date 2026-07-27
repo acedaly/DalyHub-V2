@@ -487,7 +487,11 @@ export function TodayDashboard({
   // TODAY-08 personalisation: the remembered per-device widget arrangement, plus a
   // "Customise" toggle that reveals each widget's move/pin/hide controls.
   const layoutController = useTodayLayout();
-  const { layout } = layoutController;
+  const {
+    layout,
+    toggleHidden: toggleWidgetHidden,
+    toggleCollapsed: toggleWidgetCollapsed,
+  } = layoutController;
   const [customising, setCustomising] = useState(false);
   const visibleWidgets = useMemo(() => resolveVisibleWidgets(layout), [layout]);
   const hiddenWidgets = useMemo(() => resolveHiddenWidgets(layout), [layout]);
@@ -508,10 +512,10 @@ export function TodayDashboard({
   const captureCollapsed = layout.collapsed.includes("quick-capture");
   const focusCapture = useCallback(() => {
     if (captureHidden) {
-      layoutController.toggleHidden("quick-capture");
+      toggleWidgetHidden("quick-capture");
     }
     if (captureCollapsed) {
-      layoutController.toggleCollapsed("quick-capture");
+      toggleWidgetCollapsed("quick-capture");
     }
     if (!captureHidden && !captureCollapsed) {
       captureRef.current?.focus();
@@ -520,7 +524,12 @@ export function TodayDashboard({
       // Restore is in flight — focus once the widget renders (effect below).
       setPendingCaptureFocus(true);
     }
-  }, [captureHidden, captureCollapsed, layoutController]);
+  }, [
+    captureHidden,
+    captureCollapsed,
+    toggleWidgetHidden,
+    toggleWidgetCollapsed,
+  ]);
 
   // Complete a deferred capture focus once the widget is visible and expanded.
   useEffect(() => {

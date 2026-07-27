@@ -33,6 +33,7 @@ import { isReservedAssetEntityType } from "~/kernel/assets";
 import { isReservedDiaryEntityType } from "~/kernel/diary";
 import { MEETING_ENTITY_TYPE } from "~/kernel/meetings";
 import { isReservedPersonEntityType } from "~/kernel/people";
+import { isReservedReviewEntityType } from "~/kernel/reviews";
 import { RESERVED_SPINE_ENTITY_TYPES } from "~/kernel/spine";
 import {
   EntityError,
@@ -175,6 +176,7 @@ export class D1EntityRepository implements EntityRepository {
       isReservedDiaryEntityType(type) ||
       isReservedPersonEntityType(type) ||
       isReservedAssetEntityType(type) ||
+      isReservedReviewEntityType(type) ||
       type === MEETING_ENTITY_TYPE
     ) {
       throw new ReservedEntityTypeError();

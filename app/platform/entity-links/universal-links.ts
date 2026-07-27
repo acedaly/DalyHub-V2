@@ -4,7 +4,7 @@
  * DalyHub already ships the FND-04 EntityLink kernel, its D1 adapter and the
  * DS-06 policy-enforcing picker service (`entity-link-picker-service.ts`). What
  * was missing was ONE reusable way for EVERY record — Area, Goal, Project, Task,
- * Note, Diary entry, Meeting, Person — to relate to any other record from a
+ * Note, Diary entry, Meeting, Person, Asset, Review — to relate to any other record from a
  * shared "Linked Items" section, instead of each module hand-rolling its own
  * "Linked" tab (People/Meetings rendered a read-only list; Projects/Tasks each
  * wired their own picker + routes).
@@ -75,6 +75,7 @@ export const SUPPORTED_LINK_ENTITY_TYPES = [
   "meeting",
   "person",
   "asset",
+  "review",
 ] as const;
 
 /**

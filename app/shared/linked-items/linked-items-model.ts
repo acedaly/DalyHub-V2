@@ -77,6 +77,8 @@ export const LINKED_ITEM_TYPE_ORDER: readonly string[] = [
   "diary",
   "meeting",
   "person",
+  "asset",
+  "review",
 ];
 
 /**

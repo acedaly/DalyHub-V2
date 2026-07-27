@@ -224,9 +224,12 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
 
   return (
     <section className="dh-activity" data-scope={scope}>
+      {/* Keyboard users need a focus target for the bounded scroll region; axe enforces it. */}
+      {/* eslint-disable jsx-a11y/no-noninteractive-tabindex */}
       <div
         ref={scrollRef}
         className="dh-activity__viewport"
+        tabIndex={0}
         style={{ maxHeight }}
         {...(showingFeed
           ? {
@@ -236,6 +239,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
             }
           : { "aria-label": ariaLabel })}
       >
+        {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
         {initialError ? (
           <div className="dh-activity__state" role="alert">
             <p className="dh-activity__error-text">

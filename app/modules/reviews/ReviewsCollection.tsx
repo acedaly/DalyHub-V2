@@ -1,0 +1,260 @@
+import { Link, useSearchParams } from "react-router";
+
+import {
+  REVIEW_TYPES,
+  type ReviewType,
+  type ReviewView,
+} from "~/kernel/reviews";
+import { Card, CardCollection, type CardMetaItem } from "~/shared/card";
+import { CollectionLayout } from "~/shared/collection-layout";
+import { EmptyState } from "~/shared/empty-state";
+import { EntityIcon } from "~/shared/entity";
+
+import type { ReviewsCollectionData } from "./review-collection-data";
+import { REVIEW_TYPE_LABELS } from "./review-view";
+
+const VIEWS: readonly { readonly view: ReviewView; readonly label: string }[] =
+  [
+    { view: "current", label: "Current" },
+    { view: "in_progress", label: "In progress" },
+    { view: "completed", label: "Completed" },
+    { view: "archived", label: "Archived" },
+  ];
+
+const SORTS = [
+  { value: "recent", label: "Recently updated" },
+  { value: "period", label: "Period" },
+] as const;
+
+function hrefFor(
+  searchParams: URLSearchParams,
+  changes: Record<string, string | null>,
+): string {
+  const next = new URLSearchParams(searchParams);
+  for (const [key, value] of Object.entries(changes)) {
+    if (value) next.set(key, value);
+    else next.delete(key);
+  }
+  next.delete("cursor");
+  const qs = next.toString();
+  return qs ? `/reviews?${qs}` : "/reviews";
+}
+
+function cardMeta(
+  review: ReviewsCollectionData["reviews"][number],
+): CardMetaItem[] {
+  const metadata: CardMetaItem[] = [
+    { id: "period", label: "Period", value: review.periodLabel },
+    { id: "updated", label: "Updated", value: review.updatedLabel },
+  ];
+  if (review.completedAt) {
+    metadata.push({
+      id: "completed",
+      label: "Completed",
+      value: review.completedLabel,
+    });
+  }
+  metadata.push({
+    id: "authored",
+    label: "Reflection",
+    value: review.completionLabel,
+  });
+  return metadata;
+}
+
+export function ReviewsCollectionView({
+  data,
+}: {
+  readonly data: ReviewsCollectionData;
+}) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtersActive =
+    data.view !== "current" || data.query.length > 0 || data.type !== "all";
+
+  const viewSwitcher = (
+    <nav className="dh-reviews-views" aria-label="Review views">
+      {VIEWS.map((view) => (
+        <Link
+          key={view.view}
+          to={hrefFor(searchParams, {
+            view: view.view === "current" ? null : view.view,
+          })}
+          className="dh-reviews-views__link"
+          aria-current={data.view === view.view ? "page" : undefined}
+        >
+          {view.label}
+        </Link>
+      ))}
+    </nav>
+  );
+
+  const filterBar = (
+    <div className="dh-reviews-filters">
+      <label className="dh-reviews-filters__field">
+        <span className="dh-visually-hidden">Search reviews</span>
+        <input
+          type="search"
+          className="dh-input"
+          placeholder="Search reviews..."
+          defaultValue={data.query}
+          aria-label="Search reviews"
+          onChange={(event) => {
+            setSearchParams(
+              (prev) => {
+                const next = new URLSearchParams(prev);
+                const value = event.currentTarget.value.trim();
+                if (value) next.set("q", value);
+                else next.delete("q");
+                next.delete("cursor");
+                return next;
+              },
+              { replace: true, preventScrollReset: true },
+            );
+          }}
+        />
+      </label>
+      <label className="dh-reviews-filters__field">
+        <span className="dh-reviews-filters__label">Type</span>
+        <select
+          className="dh-select"
+          value={data.type}
+          onChange={(event) =>
+            setSearchParams(
+              (prev) => {
+                const next = new URLSearchParams(prev);
+                if (event.currentTarget.value === "all") next.delete("type");
+                else next.set("type", event.currentTarget.value);
+                next.delete("cursor");
+                return next;
+              },
+              { replace: true, preventScrollReset: true },
+            )
+          }
+        >
+          <option value="all">All types</option>
+          {REVIEW_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {REVIEW_TYPE_LABELS[type as ReviewType]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="dh-reviews-filters__field">
+        <span className="dh-reviews-filters__label">Sort</span>
+        <select
+          className="dh-select"
+          value={data.sort}
+          onChange={(event) =>
+            setSearchParams(
+              (prev) => {
+                const next = new URLSearchParams(prev);
+                if (event.currentTarget.value === "recent") next.delete("sort");
+                else next.set("sort", event.currentTarget.value);
+                next.delete("cursor");
+                return next;
+              },
+              { replace: true, preventScrollReset: true },
+            )
+          }
+        >
+          {SORTS.map((sort) => (
+            <option key={sort.value} value={sort.value}>
+              {sort.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+
+  const nextHref = data.nextCursor
+    ? hrefFor(searchParams, { cursor: data.nextCursor })
+    : null;
+
+  return (
+    <CollectionLayout
+      title="Reviews"
+      entityType="review"
+      subtitle="Reflect on the period, close loops and plan what matters next."
+      viewSwitcher={viewSwitcher}
+      primaryAction={
+        <Link className="dh-btn dh-btn--primary" to="/reviews/new">
+          New Review
+        </Link>
+      }
+      filterBar={filterBar}
+      error={
+        data.failed ? (
+          <EmptyState
+            icon={<EntityIcon type="review" />}
+            title="Reviews could not be loaded"
+            description="Try again in a moment."
+          />
+        ) : undefined
+      }
+      isEmpty={!data.failed && data.reviews.length === 0 && !filtersActive}
+      emptySlot={
+        <EmptyState
+          icon={<EntityIcon type="review" />}
+          title="No reviews yet"
+          description="Start a weekly, monthly, quarterly, annual or custom review."
+          primaryAction={
+            <Link className="dh-btn dh-btn--primary" to="/reviews/new">
+              New Review
+            </Link>
+          }
+        />
+      }
+      isFilteredEmpty={
+        !data.failed && data.reviews.length === 0 && filtersActive
+      }
+      filteredEmptySlot={
+        <EmptyState
+          icon={<EntityIcon type="review" />}
+          title="No matching reviews"
+          description="Adjust the search or filters to widen the view."
+        />
+      }
+      className="dh-reviews"
+    >
+      <CardCollection
+        ariaLabel="Reviews"
+        items={data.reviews}
+        getItemId={(review) => review.id}
+        renderCard={(review) => (
+          <Card
+            key={review.id}
+            id={review.id}
+            title={review.title}
+            headingLevel={2}
+            typeLabel={review.typeLabel}
+            icon={<EntityIcon type="review" />}
+            subtitle={review.periodLabel}
+            status={{
+              label: review.archived
+                ? `Archived · ${review.statusLabel}`
+                : review.statusLabel,
+              tone: review.archived
+                ? "warning"
+                : review.status === "completed"
+                  ? "success"
+                  : review.status === "in_progress"
+                    ? "info"
+                    : "neutral",
+            }}
+            metadata={cardMeta(review)}
+            href={`/reviews/${encodeURIComponent(review.id)}`}
+            openAriaLabel={`Open ${review.title}`}
+          />
+        )}
+      />
+      {nextHref ? (
+        <div className="dh-reviews-next">
+          <Link className="dh-btn dh-btn--secondary" to={nextHref}>
+            Next page
+          </Link>
+        </div>
+      ) : null}
+    </CollectionLayout>
+  );
+}

@@ -436,6 +436,26 @@ describe("module discovery", () => {
           moduleId: "reviews",
           file: "routes/index.tsx",
         },
+        {
+          id: "reviews.new",
+          moduleId: "reviews",
+          file: "routes/new.tsx",
+        },
+        {
+          id: "reviews.detail",
+          moduleId: "reviews",
+          file: "routes/detail.tsx",
+        },
+        {
+          id: "reviews.mutate",
+          moduleId: "reviews",
+          file: "routes/mutate.tsx",
+        },
+        {
+          id: "reviews.activity",
+          moduleId: "reviews",
+          file: "routes/activity.tsx",
+        },
         { id: "ai.index", moduleId: "ai", file: "routes/index.tsx" },
         {
           id: "settings.index",
@@ -446,7 +466,8 @@ describe("module discovery", () => {
       ]);
       // DS-09: Today registers registry-discovered navigation commands; TODAY-03
       // adds "Open Waiting". TASKS-01 adds the Tasks module's navigation commands.
-      // PEOPLE-01 adds the People module's navigation commands.
+      // PEOPLE-01 adds the People module's navigation commands; REVIEWS-01 adds
+      // Reviews navigation/create commands.
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
         "today.focus_quick_capture",
@@ -472,6 +493,8 @@ describe("module discovery", () => {
         "assets.expiring",
         "assets.service_due",
         "assets.archived",
+        "reviews.open",
+        "reviews.new",
         "settings.open",
         "settings.date_time",
         "settings.appearance",
@@ -490,6 +513,7 @@ describe("module discovery", () => {
         "meetings.search",
         "people.search",
         "assets.search",
+        "reviews.search",
       ]);
       expect(searchProviders[0]?.moduleId).toBe("today");
     });

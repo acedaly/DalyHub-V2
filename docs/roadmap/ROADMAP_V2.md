@@ -818,10 +818,11 @@ Legend: **☐** not started **◐** in progress **☑** done **⊘** deferred
 
 ## Phase 10 — Review (`REVIEW`)
 
-### ☐ REVIEW-01 — Review ritual framework
-- **Purpose.** Daily/weekly/monthly/quarterly review flows operating over the whole system.
+### ☑ REVIEWS-01 — DalyHub Reviews foundation
+- **Purpose.** Weekly/monthly/quarterly/annual/custom review records operating over the whole system.
 - **Dependencies.** TODAY-01, PROJ-01, AREA-02.
 - **Expected outcome.** Guided review sessions that surface what to process, celebrate, and re-plan. **P2.**
+- **Status: ☑ Done.** Reviews are first-class `review` entities with a typed `review_details` slice and structured `review_sections` (migration `0018`), storage-enforced duplicate protection for standard periods, internal versioned templates, `/reviews` collection views, `/reviews/new`, canonical `/reviews/:reviewId` record tabs, shared Markdown editing, Linked Items, Activity Timeline, Settings lifecycle, search and command-palette contributions. Period context is bounded and live from source repositories; no source records are copied or snapshotted. Today integration and full immutable source snapshots remain deferred. See [`REVIEWS_MODULE.md`](../development/REVIEWS_MODULE.md) and ADR-051.
 
 ### ☐ REVIEW-02 — Weekly review
 - **Purpose.** The flagship weekly review: inbox to zero, project check, goal alignment.
