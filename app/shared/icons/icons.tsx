@@ -270,3 +270,123 @@ export const BrandMark = createIcon(
     <path d="M12 6.25v3.25M12 14.5v3.25M6.5 8.9 10 11M17.5 8.9 14 11M6.5 15.1 10 13M17.5 15.1 14 13" />
   </>,
 );
+
+/* -------------------------------------------------------------------------- */
+/* Asset subtype icons (ASSET-01 — one per Asset type, consumed via the        */
+/* module-local asset-type icon registry, never hand-picked at a call site).   */
+/* -------------------------------------------------------------------------- */
+
+/** Vehicle — a car silhouette. */
+export const VehicleIcon = createIcon(
+  "VehicleIcon",
+  <>
+    <path d="M3 13.5 5 8.5a2 2 0 0 1 1.9-1.3h10.2A2 2 0 0 1 19 8.5l2 5" />
+    <path d="M3 13.5h18v4a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1H6.5v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4Z" />
+    <circle cx="7" cy="15.5" r="0.75" fill="currentColor" stroke="none" />
+    <circle cx="17" cy="15.5" r="0.75" fill="currentColor" stroke="none" />
+  </>,
+);
+
+/** Trailer or camper — a towed caravan. */
+export const TrailerIcon = createIcon(
+  "TrailerIcon",
+  <>
+    <path d="M3 8h13a2 2 0 0 1 2 2v6H3V8Z" />
+    <path d="M18 12h2l1 2v2h-3" />
+    <circle cx="8" cy="17.5" r="1.5" />
+    <path d="M3 16h1.5M11.5 16H18" />
+  </>,
+);
+
+/** Equipment — a gear (machinery). */
+export const EquipmentIcon = createIcon(
+  "EquipmentIcon",
+  <>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 3v2.5M12 18.5V21M4.2 7.5l2.1 1.2M17.7 15.3l2.1 1.2M4.2 16.5l2.1-1.2M17.7 8.7l2.1-1.2" />
+  </>,
+);
+
+/** Appliance — a boxy machine with a control. */
+export const ApplianceIcon = createIcon(
+  "ApplianceIcon",
+  <>
+    <rect x="5" y="3.5" width="14" height="17" rx="1.5" />
+    <path d="M5 8h14" />
+    <circle cx="15.5" cy="5.75" r="0.6" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="14" r="3" />
+  </>,
+);
+
+/** Electronics — a monitor/screen. */
+export const ElectronicsIcon = createIcon(
+  "ElectronicsIcon",
+  <>
+    <rect x="3" y="5" width="18" height="11" rx="1.5" />
+    <path d="M9 20h6M12 16v4" />
+  </>,
+);
+
+/** Tool — a wrench. */
+export const ToolIcon = createIcon(
+  "ToolIcon",
+  <>
+    <path d="M14.5 6a3.5 3.5 0 0 0-4.6 4.3L4 16.2 6.8 19l5.9-5.9A3.5 3.5 0 0 0 17 8.5l-2.2 2.2-1.5-1.5L15.5 7" />
+  </>,
+);
+
+/** Property item — a house. */
+export const PropertyIcon = createIcon(
+  "PropertyIcon",
+  <>
+    <path d="M4 11 12 4l8 7" />
+    <path d="M6 10v9h12v-9" />
+    <path d="M10 19v-5h4v5" />
+  </>,
+);
+
+/** Document — a page with lines. */
+export const DocumentIcon = createIcon(
+  "DocumentIcon",
+  <>
+    <path d="M6 3h8l4 4v14H6V3Z" />
+    <path d="M14 3v4h4" />
+    <path d="M9 12h6M9 15.5h6" />
+  </>,
+);
+
+/** Licence — an ID card. */
+export const LicenceIcon = createIcon(
+  "LicenceIcon",
+  <>
+    <rect x="3" y="6" width="18" height="12" rx="1.5" />
+    <circle cx="8" cy="11" r="1.75" />
+    <path d="M5.5 15.5a2.75 2.75 0 0 1 5 0M14 10h4M14 13h3" />
+  </>,
+);
+
+/** Insurance — a shield (protection). */
+export const ShieldIcon = createIcon(
+  "ShieldIcon",
+  <>
+    <path d="M12 3.5 5 6v5c0 4.4 3 7.6 7 9.5 4-1.9 7-5.1 7-9.5V6l-7-2.5Z" />
+    <path d="m9 12 2 2 4-4" />
+  </>,
+);
+
+/** Subscription — a repeat/renew cycle. */
+export const SubscriptionIcon = createIcon(
+  "SubscriptionIcon",
+  <>
+    <path d="M4.5 9A8 8 0 0 1 19 7.5M19.5 15A8 8 0 0 1 5 16.5" />
+    <path d="M19 4v3.5h-3.5M5 20v-3.5h3.5" />
+  </>,
+);
+
+/** Software — angle brackets (a licence key / code). */
+export const SoftwareIcon = createIcon(
+  "SoftwareIcon",
+  <>
+    <path d="m9 8-4 4 4 4M15 8l4 4-4 4M13 6l-2 12" />
+  </>,
+);

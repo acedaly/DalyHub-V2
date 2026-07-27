@@ -5,6 +5,7 @@ import {
   createAlignmentRepository,
   createAreaRepository,
   createAreaSettingsRepository,
+  createAssetRepository,
   createDiaryRepository,
   createEntityLinkRepository,
   createEntityRepository,
@@ -21,6 +22,7 @@ import {
   createWorkspaceRepository,
   type AtomicMutationFault,
   type D1AreaSettingsRepositoryOptions,
+  type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
   type D1NoteDetailsRepositoryOptions,
@@ -246,6 +248,36 @@ export async function countMeetingRows(): Promise<number> {
     "SELECT COUNT(*) AS n FROM meeting_details",
   ).first<{ n: number }>();
   return row?.n ?? 0;
+}
+
+/**
+ * Construct a workspace-scoped D1-backed AssetRepository over the isolated test
+ * database (ASSET-01: the authoritative Asset capture surface + collection read
+ * model, bound to a `WorkspaceContext`).
+ */
+export function makeAssetRepository(
+  context: WorkspaceContext,
+  options?: D1AssetRepositoryOptions,
+) {
+  return createAssetRepository(env.DB, context, options);
+}
+
+/** Count all rows in `asset_details` directly. */
+export async function countAssetRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM asset_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Read the raw `payload_json` for the newest activity of a given type. */
+export async function latestActivityPayload(type: string): Promise<string | null> {
+  const row = await env.DB.prepare(
+    "SELECT payload_json FROM activities WHERE type = ? ORDER BY occurred_at DESC, id DESC LIMIT 1",
+  )
+    .bind(type)
+    .first<{ payload_json: string }>();
+  return row?.payload_json ?? null;
 }
 
 /** Count all rows in `meeting_item_tasks` (the MEET-02 source-item mapping). */
@@ -478,6 +510,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM meeting_item_tasks").run();
   await env.DB.prepare("DELETE FROM meeting_items").run();
   await env.DB.prepare("DELETE FROM meeting_details").run();
+  await env.DB.prepare("DELETE FROM asset_details").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

@@ -53,7 +53,7 @@ describe("entityDestination", () => {
   });
 
   it("returns null for unsupported types and blank ids (degrades to text)", () => {
-    for (const type of ["asset", "diary", "review", "??"]) {
+    for (const type of ["diary", "review", "??"]) {
       expect(entityDestination(type, "x")).toBeNull();
     }
     expect(entityDestination("goal", "")).toBeNull();
@@ -89,7 +89,7 @@ describe("EntityLink", () => {
   });
 
   it("renders unsupported targets as plain, non-interactive text", () => {
-    renderLink(<EntityLink type="asset" id="as1" title="Budget spreadsheet" />);
+    renderLink(<EntityLink type="review" id="rv1" title="Budget spreadsheet" />);
     expect(screen.getByText("Budget spreadsheet")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });

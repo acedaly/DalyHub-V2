@@ -21,6 +21,7 @@ import {
   type ActivityRepository,
 } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type { AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
@@ -43,6 +44,7 @@ import {
   createActivityRepository,
   createAlignmentRepository,
   createAreaRepository,
+  createAssetRepository,
   createAreaSettingsRepository,
   createDiaryRepository,
   createEntityLinkRepository,
@@ -155,6 +157,17 @@ export interface WorkspaceScope {
    */
   readonly people: PersonRepository;
   readonly meetings: MeetingRepository;
+  /**
+   * The ASSET-01 authoritative Asset repository: the Assets collection/record read
+   * model AND capture surface. It creates `asset` entities with their structured
+   * detail slice atomically (the generic `entities` repository refuses to create
+   * one), owns detail edits, the real-world status and the archive lifecycle, and
+   * guards permanent deletion behind active relationships. Title/soft-delete/
+   * restore stay `entities.*`; relationships stay `entityLinks`; the audit trail
+   * stays `activity`. Composes with the same trusted actor as the other mutation
+   * repositories.
+   */
+  readonly assets: AssetRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
@@ -247,6 +260,7 @@ export function bindWorkspaceRepositories(
   const diary = createDiaryRepository(env.DB, context, { actorContext });
   const people = createPersonRepository(env.DB, context, { actorContext });
   const meetings = createMeetingRepository(env.DB, context, { actorContext });
+  const assets = createAssetRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
@@ -271,6 +285,7 @@ export function bindWorkspaceRepositories(
     diary,
     people,
     meetings,
+    assets,
     projectHealth,
     projectSettings,
     activity,

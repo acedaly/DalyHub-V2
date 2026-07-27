@@ -74,6 +74,7 @@ export const SUPPORTED_LINK_ENTITY_TYPES = [
   "diary",
   "meeting",
   "person",
+  "asset",
 ] as const;
 
 /**

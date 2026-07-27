@@ -1,0 +1,299 @@
+/**
+ * ASSET-01 — Assets module styles.
+ *
+ * Tokens only (no raw hex/px/durations); global `dh-asset*` / `dh-assets*` classes.
+ * Inherits the shared focus ring, reduced-motion and `.dh-visually-hidden` from
+ * base.css, and `.dh-btn` / `.dh-input` from forms.css. Touch targets use the shared
+ * control-height token; nothing overflows at 320px (long serial numbers, URLs and
+ * titles wrap via `overflow-wrap`). Status/date meaning is ALWAYS carried by text —
+ * tone is only a reinforcement, never the sole signal.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Status / date badges (text + tone; never colour alone)                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-asset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  background: var(--dh-color-surface-sunken);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-badge--accent {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+}
+.dh-asset-badge--success {
+  background: var(--dh-color-success-surface);
+  color: var(--dh-color-success-text);
+}
+.dh-asset-badge--warning {
+  background: var(--dh-color-warning-surface);
+  color: var(--dh-color-warning-text);
+}
+.dh-asset-badge--danger {
+  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-danger-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* In-page view sub-navigation                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-assets-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
+  flex-basis: 100%;
+}
+
+.dh-assets-views__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dh-control-height-lg);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border-radius: var(--dh-radius-md);
+  color: var(--dh-color-text-muted);
+  text-decoration: none;
+}
+
+.dh-assets-views__link:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-assets-views__link[aria-current="page"] {
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Filter bar                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-assets-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: end;
+  inline-size: 100%;
+}
+
+.dh-assets-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-inline-size: 0;
+  flex: 1 1 10rem;
+}
+
+.dh-assets-filters__label {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-assets-filters select {
+  min-height: var(--dh-control-height-lg);
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  max-inline-size: 100%;
+}
+
+.dh-assets-filters select:focus-visible {
+  outline: var(--dh-border-width-thick) solid
+    var(--dh-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Summary tab                                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-asset-summary__head {
+  display: flex;
+  gap: var(--dh-space-3);
+  align-items: center;
+}
+
+.dh-asset-summary__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  flex: none;
+}
+
+.dh-asset-summary__type {
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-asset-summary__model {
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-asset-summary__status {
+  margin-block-start: var(--dh-space-1);
+}
+
+.dh-asset-summary__next {
+  margin-block-start: var(--dh-space-3);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-asset-summary__next--overdue {
+  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-danger-text);
+}
+.dh-asset-summary__next--due_soon,
+.dh-asset-summary__next--today {
+  background: var(--dh-color-warning-surface);
+  color: var(--dh-color-warning-text);
+}
+
+.dh-asset-summary__facts {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) 1fr;
+  gap: var(--dh-space-1) var(--dh-space-3);
+  margin-block-start: var(--dh-space-4);
+}
+
+.dh-asset-summary__fact {
+  display: contents;
+}
+
+.dh-asset-summary__fact dt {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-summary__fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-asset-summary__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1);
+  list-style: none;
+  margin: var(--dh-space-4) 0 0;
+  padding: 0;
+}
+
+.dh-asset-summary__tag {
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-asset-summary__edit {
+  margin-block-start: var(--dh-space-4);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dates tab                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.dh-asset-dates__empty {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-dates__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-dates__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  align-items: baseline;
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-asset-dates__row--overdue {
+  border-inline-start-color: var(--dh-color-danger);
+}
+.dh-asset-dates__row--due_soon,
+.dh-asset-dates__row--today {
+  border-inline-start-color: var(--dh-color-warning);
+}
+.dh-asset-dates__row--future {
+  border-inline-start-color: var(--dh-color-accent);
+}
+
+.dh-asset-dates__label {
+  font-weight: var(--dh-font-weight-medium);
+  flex: 1 1 8rem;
+}
+
+.dh-asset-dates__value {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-dates__status {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* New asset page                                                             */
+/* -------------------------------------------------------------------------- */
+
+.dh-asset-new {
+  max-inline-size: 40rem;
+  margin-inline: auto;
+  padding: var(--dh-space-4);
+}
+
+.dh-asset-new__header {
+  display: flex;
+  gap: var(--dh-space-3);
+  align-items: center;
+  margin-block-end: var(--dh-space-4);
+}
+
+.dh-asset-new__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  flex: none;
+}
+
+.dh-asset-new__lede {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-not-found {
+  padding: var(--dh-space-6);
+}

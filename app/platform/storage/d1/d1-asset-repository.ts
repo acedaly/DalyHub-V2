@@ -1,0 +1,996 @@
+/**
+ * ASSET-01 Assets — D1 implementation of the authoritative, workspace-bound
+ * `AssetRepository`.
+ *
+ * Implements the storage-independent Assets contract over Cloudflare D1 (SQLite)
+ * using prepared, parameterised statements only. Constructed with a single
+ * `WorkspaceContext`; every statement constrains `workspace_id = ?` and no method
+ * accepts a `workspaceId` (ADR-010). No caller value is ever interpolated into SQL
+ * (AGENTS.md §17) — the only inlined literal is the trusted kernel constant
+ * `'asset'` and the trusted column-name constants used to build partial-update
+ * statements (every VALUE stays bound).
+ *
+ * Atomicity (ADR-012): `create` writes the `entities` row, the `asset_details`
+ * row and one `asset.created` event in ONE `D1Database.batch()`. `update`,
+ * `archive`, `restore` fold their precondition and change-detection into the
+ * mutating SQL, atomic with their Activity append via `recordAtomicMutation`.
+ *
+ * Activity payloads carry ONLY structural metadata — which field NAMES changed and
+ * the new status vocabulary term — NEVER an Asset's serial/policy numbers, prices
+ * or private notes (AGENTS.md §5, §17).
+ */
+
+import {
+  ActivityError,
+  buildActivityWriteModel,
+  createSystemActorContext,
+  secureIdGenerator as activitySecureIdGenerator,
+  type ActivityActorContext,
+  type NewActivityEvent,
+} from "~/kernel/activity";
+import {
+  ASSET_ARCHIVED,
+  ASSET_CREATED,
+  ASSET_DISPOSED,
+  ASSET_ENTITY_TYPE,
+  ASSET_RESTORED,
+  ASSET_SCALAR_FIELDS,
+  ASSET_STATUS_CHANGED,
+  ASSET_UPDATED,
+  AssetConflictError,
+  AssetError,
+  AssetNotFoundError,
+  AssetStorageError,
+  decodeAssetCursorForScope,
+  encodeAssetCursor,
+  normaliseQuery,
+  validateAssetDetails,
+  validateAssetFilters,
+  validateAssetId,
+  validateAssetsLimit,
+  validateAssetSort,
+  validateAssetTitle,
+  validateAssetView,
+  validateToday,
+  type Asset,
+  type AssetChangeResult,
+  type AssetCursorScope,
+  type AssetDeleteResult,
+  type AssetLifecycleResult,
+  type AssetPage,
+  type AssetRepository,
+  type AssetScalarField,
+  type AssetStatus,
+  type AssetType,
+  type CreateAssetInput,
+  type ListAssetsInput,
+  type UpdateAssetInput,
+} from "~/kernel/assets";
+import {
+  systemClock,
+  secureIdGenerator,
+  type Clock,
+  type IdGenerator,
+} from "~/kernel/entities";
+import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
+import { ownerCalendarIso } from "~/shared/datetime";
+
+import { fromStorageTimestamp, toStorageTimestamp } from "./database";
+import { D1ActivityRecorder } from "./d1-activity-recorder";
+import {
+  recordAtomicMutation,
+  type AtomicMutationFault,
+} from "./d1-atomic-mutation";
+
+/** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
+export type D1AssetCreateFault = "after-entity" | "after-details";
+
+export interface D1AssetRepositoryOptions {
+  readonly clock?: Clock;
+  readonly idGenerator?: IdGenerator;
+  readonly actorContext?: ActivityActorContext;
+  readonly activityIdGenerator?: IdGenerator;
+  /** TEST-ONLY create-batch fault (proves the whole create rolls back). */
+  readonly createFault?: D1AssetCreateFault;
+  /** TEST-ONLY mutation-batch fault (proves the detail write + event roll back). */
+  readonly mutationFault?: AtomicMutationFault;
+}
+
+const SUBJECT_ROLE = "subject";
+
+/** How far out the date-driven collection views look (owner-calendar days). */
+const EXPIRING_HORIZON_DAYS = 60;
+const SERVICE_HORIZON_DAYS = 60;
+
+/** A far-future sentinel so NULL dates sort LAST under ascending date order. */
+const DATE_SENTINEL = "9999-12-31";
+
+/** The DB column for each scalar detail field. Trusted identifiers, never caller
+ * data, so they may be interpolated into a dynamic partial-update statement while
+ * every VALUE stays bound. */
+const SCALAR_COLUMN: Record<AssetScalarField, string> = {
+  description: "description",
+  manufacturer: "manufacturer",
+  model: "model",
+  serialNumber: "serial_number",
+  referenceCode: "reference_code",
+  ownerPersonId: "owner_person_id",
+  responsiblePersonId: "responsible_person_id",
+  location: "location",
+  areaId: "area_id",
+  acquisitionDate: "acquisition_date",
+  currencyCode: "currency_code",
+  supplier: "supplier",
+  disposalDate: "disposal_date",
+  disposalNotes: "disposal_notes",
+  warrantyExpiry: "warranty_expiry",
+  serviceInterval: "service_interval",
+  lastServiceDate: "last_service_date",
+  nextServiceDate: "next_service_date",
+  serviceProvider: "service_provider",
+  maintenanceNotes: "maintenance_notes",
+  issuer: "issuer",
+  referenceNumber: "reference_number",
+  issueDate: "issue_date",
+  renewalDate: "renewal_date",
+  url: "url",
+  documentNotes: "document_notes",
+};
+
+/** Column → domain field, for building the (name-only) Activity payload and
+ * reading current values during change detection. */
+const COLUMN_FIELD: ReadonlyMap<string, string> = new Map([
+  ...ASSET_SCALAR_FIELDS.map((f) => [SCALAR_COLUMN[f], f] as const),
+  ["asset_type", "assetType"] as const,
+  ["status", "status"] as const,
+  ["purchase_price_minor", "purchasePriceMinor"] as const,
+  ["replacement_value_minor", "replacementValueMinor"] as const,
+  ["tags", "tags"] as const,
+]);
+
+/** Every editable detail column a create INSERT writes, in a stable order. */
+const DETAIL_COLUMNS: readonly string[] = [
+  "asset_type",
+  "status",
+  ...ASSET_SCALAR_FIELDS.map((f) => SCALAR_COLUMN[f]),
+  "purchase_price_minor",
+  "replacement_value_minor",
+  "tags",
+];
+
+/** The full ordered detail-column list the create INSERT writes. */
+const CREATE_COLUMNS: readonly string[] = [
+  ...DETAIL_COLUMNS,
+  "archived_at",
+  "updated_at",
+];
+
+const ENTITY_RETURNING =
+  "id, workspace_id, type, title, created_at, updated_at, deleted_at";
+
+/** The joined columns every read selects. */
+const READ_COLUMNS = `
+  e.id AS id,
+  e.workspace_id AS workspace_id,
+  e.title AS title,
+  e.created_at AS created_at,
+  e.deleted_at AS deleted_at,
+  d.asset_type AS asset_type,
+  d.status AS status,
+  d.description AS description,
+  d.manufacturer AS manufacturer,
+  d.model AS model,
+  d.serial_number AS serial_number,
+  d.reference_code AS reference_code,
+  d.tags AS tags,
+  d.owner_person_id AS owner_person_id,
+  d.responsible_person_id AS responsible_person_id,
+  d.location AS location,
+  d.area_id AS area_id,
+  d.acquisition_date AS acquisition_date,
+  d.purchase_price_minor AS purchase_price_minor,
+  d.currency_code AS currency_code,
+  d.supplier AS supplier,
+  d.replacement_value_minor AS replacement_value_minor,
+  d.disposal_date AS disposal_date,
+  d.disposal_notes AS disposal_notes,
+  d.warranty_expiry AS warranty_expiry,
+  d.service_interval AS service_interval,
+  d.last_service_date AS last_service_date,
+  d.next_service_date AS next_service_date,
+  d.service_provider AS service_provider,
+  d.maintenance_notes AS maintenance_notes,
+  d.issuer AS issuer,
+  d.reference_number AS reference_number,
+  d.issue_date AS issue_date,
+  d.renewal_date AS renewal_date,
+  d.url AS url,
+  d.document_notes AS document_notes,
+  d.archived_at AS archived_at,
+  CASE WHEN e.updated_at >= d.updated_at THEN e.updated_at ELSE d.updated_at END
+    AS effective_updated_at`;
+
+interface AssetJoinedRow {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly title: string;
+  readonly created_at: string;
+  readonly deleted_at: string | null;
+  readonly asset_type: string;
+  readonly status: string;
+  readonly description: string | null;
+  readonly manufacturer: string | null;
+  readonly model: string | null;
+  readonly serial_number: string | null;
+  readonly reference_code: string | null;
+  readonly tags: string;
+  readonly owner_person_id: string | null;
+  readonly responsible_person_id: string | null;
+  readonly location: string | null;
+  readonly area_id: string | null;
+  readonly acquisition_date: string | null;
+  readonly purchase_price_minor: number | null;
+  readonly currency_code: string | null;
+  readonly supplier: string | null;
+  readonly replacement_value_minor: number | null;
+  readonly disposal_date: string | null;
+  readonly disposal_notes: string | null;
+  readonly warranty_expiry: string | null;
+  readonly service_interval: string | null;
+  readonly last_service_date: string | null;
+  readonly next_service_date: string | null;
+  readonly service_provider: string | null;
+  readonly maintenance_notes: string | null;
+  readonly issuer: string | null;
+  readonly reference_number: string | null;
+  readonly issue_date: string | null;
+  readonly renewal_date: string | null;
+  readonly url: string | null;
+  readonly document_notes: string | null;
+  readonly archived_at: string | null;
+  readonly effective_updated_at: string;
+  /** The view/sort's primary ordering value, projected for the cursor. */
+  readonly sort_primary?: string;
+}
+
+interface CreatedEntityRow {
+  readonly id: string;
+  readonly title: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/** Escape LIKE wildcards so a query character is matched literally. */
+function likeContains(value: string): string {
+  const escaped = value.replace(/[\\%_]/g, (c) => `\\${c}`);
+  return `%${escaped.toLocaleLowerCase()}%`;
+}
+
+/** Parse stored tags JSON defensively (a corrupt value yields no tags). */
+function parseTags(value: string): readonly string[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
+
+/** Add `days` to a wall-calendar `YYYY-MM-DD` string (UTC math, zone-free). */
+function addDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map((p) => Number.parseInt(p, 10));
+  const date = new Date(Date.UTC(y, m - 1, d + days));
+  const yy = date.getUTCFullYear().toString().padStart(4, "0");
+  const mm = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+  const dd = date.getUTCDate().toString().padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+/** The primary ordering SQL expression for a view/sort, projected as `sort_primary`. */
+function primaryExpr(view: string, sort: string): string {
+  if (view === "expiring") {
+    return `min(coalesce(d.warranty_expiry,'${DATE_SENTINEL}'), coalesce(d.renewal_date,'${DATE_SENTINEL}'))`;
+  }
+  if (view === "service_due") {
+    return "d.next_service_date";
+  }
+  switch (sort) {
+    case "title":
+      return "lower(e.title)";
+    case "type":
+      return "d.asset_type";
+    case "next_date":
+      return `min(coalesce(d.warranty_expiry,'${DATE_SENTINEL}'), coalesce(d.renewal_date,'${DATE_SENTINEL}'), coalesce(d.next_service_date,'${DATE_SENTINEL}'))`;
+    case "recent":
+    default:
+      return "e.updated_at";
+  }
+}
+
+/** Whether the view/sort orders ascending (else descending). */
+function isAscending(view: string, sort: string): boolean {
+  if (view === "expiring" || view === "service_due") return true;
+  return sort !== "recent";
+}
+
+export class D1AssetRepository implements AssetRepository {
+  readonly #db: D1Database;
+  readonly #workspaceId: string;
+  readonly #clock: Clock;
+  readonly #newId: IdGenerator;
+  readonly #actor: ActivityActorContext;
+  readonly #newActivityId: IdGenerator;
+  readonly #recorder: D1ActivityRecorder;
+  readonly #createFault?: D1AssetCreateFault;
+  readonly #mutationFault?: AtomicMutationFault;
+
+  constructor(
+    db: D1Database,
+    context: WorkspaceContext,
+    options: D1AssetRepositoryOptions = {},
+  ) {
+    this.#db = db;
+    this.#workspaceId = context.workspaceId;
+    this.#clock = options.clock ?? systemClock;
+    this.#newId = options.idGenerator ?? secureIdGenerator;
+    this.#actor = options.actorContext ?? createSystemActorContext();
+    this.#newActivityId =
+      options.activityIdGenerator ?? activitySecureIdGenerator;
+    this.#recorder = new D1ActivityRecorder(db);
+    this.#createFault = options.createFault;
+    this.#mutationFault = options.mutationFault;
+  }
+
+  /** A statement guaranteed to fail at execution, aborting/rolling back the batch. */
+  #forcedFailure(): D1PreparedStatement {
+    return this.#db.prepare("SELECT 1 FROM __dalyhub_asset_forced_fault__");
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Create                                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  async create(input: CreateAssetInput): Promise<Asset> {
+    const title = validateAssetTitle(input.title);
+    const v = validateAssetDetails(input, "create");
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const id = this.#newId();
+
+    const entityStmt = this.#db
+      .prepare(
+        `INSERT INTO entities
+           (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+         VALUES (?, ?, '${ASSET_ENTITY_TYPE}', ?, ?, ?, NULL)
+         RETURNING ${ENTITY_RETURNING}`,
+      )
+      .bind(id, this.#workspaceId, title, nowTs, nowTs);
+
+    const detailValues: (string | number | null)[] = [
+      v.assetType ?? "other",
+      v.status ?? "active",
+      ...ASSET_SCALAR_FIELDS.map((f) => v.scalars.get(f) ?? null),
+      v.money.get("purchasePriceMinor") ?? null,
+      v.money.get("replacementValueMinor") ?? null,
+      JSON.stringify(v.tags),
+      null, // archived_at
+      nowTs, // updated_at
+    ];
+    const detailsStmt = this.#db
+      .prepare(
+        `INSERT INTO asset_details
+           (workspace_id, entity_id, ${CREATE_COLUMNS.join(", ")})
+         VALUES (?, ?, ${CREATE_COLUMNS.map(() => "?").join(", ")})`,
+      )
+      .bind(this.#workspaceId, id, ...detailValues);
+
+    const event: NewActivityEvent = {
+      type: ASSET_CREATED,
+      subjects: [{ entityId: id, role: SUBJECT_ROLE }],
+      payload: {},
+    };
+
+    let model;
+    try {
+      model = buildActivityWriteModel(
+        event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+    } catch (cause) {
+      if (cause instanceof AssetError || cause instanceof ActivityError)
+        throw cause;
+      throw new AssetStorageError({ cause });
+    }
+    const append = this.#recorder.buildAppendStatements(
+      this.#workspaceId,
+      model,
+    );
+
+    const batch: D1PreparedStatement[] = [entityStmt];
+    if (this.#createFault === "after-entity") batch.push(this.#forcedFailure());
+    batch.push(detailsStmt);
+    if (this.#createFault === "after-details")
+      batch.push(this.#forcedFailure());
+    batch.push(...append);
+
+    try {
+      await this.#db.batch<CreatedEntityRow>(batch);
+    } catch (cause) {
+      throw new AssetStorageError({ cause });
+    }
+
+    const created = await this.get(id);
+    if (!created) throw new AssetStorageError();
+    return created;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Read                                                                   */
+  /* ---------------------------------------------------------------------- */
+
+  async get(
+    id: string,
+    options: { includeDeleted?: boolean } = {},
+  ): Promise<Asset | null> {
+    const assetId = validateAssetId(id);
+    const deletedClause = options.includeDeleted
+      ? ""
+      : " AND e.deleted_at IS NULL";
+    let row: AssetJoinedRow | null;
+    try {
+      row = await this.#db
+        .prepare(
+          `SELECT ${READ_COLUMNS}
+           FROM entities e
+           JOIN asset_details d
+             ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
+           WHERE e.workspace_id = ? AND e.id = ? AND e.type = '${ASSET_ENTITY_TYPE}'${deletedClause}
+           LIMIT 1`,
+        )
+        .bind(this.#workspaceId, assetId)
+        .first<AssetJoinedRow>();
+    } catch (cause) {
+      throw new AssetStorageError({ cause });
+    }
+    return row ? this.#rowToAsset(row) : null;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* List                                                                   */
+  /* ---------------------------------------------------------------------- */
+
+  async list(input: ListAssetsInput = {}): Promise<AssetPage> {
+    const view = validateAssetView(input.view);
+    const sort = validateAssetSort(input.sort);
+    const limit = validateAssetsLimit(input.limit);
+    const query = normaliseQuery(input.query);
+    const filters = validateAssetFilters(input.filters);
+    const today = validateToday(input.today) ?? ownerCalendarIso(this.#clock());
+
+    const scope: AssetCursorScope = {
+      workspaceId: this.#workspaceId,
+      view,
+      sort,
+      query,
+      filters,
+    };
+
+    const conditions: string[] = [
+      "e.workspace_id = ?",
+      `e.type = '${ASSET_ENTITY_TYPE}'`,
+      "e.deleted_at IS NULL",
+    ];
+    const params: unknown[] = [this.#workspaceId];
+
+    // Archived partition.
+    if (view === "archived") {
+      conditions.push("d.archived_at IS NOT NULL");
+    } else {
+      conditions.push("d.archived_at IS NULL");
+    }
+
+    // Date-driven views: bound by the owner-calendar horizon.
+    if (view === "expiring") {
+      const horizon = addDays(today, EXPIRING_HORIZON_DAYS);
+      conditions.push(
+        `min(coalesce(d.warranty_expiry,'${DATE_SENTINEL}'), coalesce(d.renewal_date,'${DATE_SENTINEL}')) <= ?`,
+      );
+      params.push(horizon);
+    } else if (view === "service_due") {
+      const horizon = addDays(today, SERVICE_HORIZON_DAYS);
+      conditions.push("d.next_service_date IS NOT NULL");
+      conditions.push("d.next_service_date <= ?");
+      params.push(horizon);
+    }
+
+    // Structured filters (full-collection, in SQL).
+    if (filters.type) {
+      conditions.push("d.asset_type = ?");
+      params.push(filters.type);
+    }
+    if (filters.status) {
+      conditions.push("d.status = ?");
+      params.push(filters.status);
+    }
+    if (filters.areaId) {
+      conditions.push("d.area_id = ?");
+      params.push(filters.areaId);
+    }
+    if (filters.personId) {
+      conditions.push("(d.owner_person_id = ? OR d.responsible_person_id = ?)");
+      params.push(filters.personId, filters.personId);
+    }
+    if (filters.tag) {
+      conditions.push("lower(d.tags) LIKE ? ESCAPE '\\'");
+      params.push(likeContains(`"${filters.tag}"`));
+    }
+
+    // Non-sensitive text query.
+    if (query !== null) {
+      const like = likeContains(query);
+      conditions.push(
+        `(lower(e.title) LIKE ? ESCAPE '\\'
+          OR lower(coalesce(d.manufacturer,'')) LIKE ? ESCAPE '\\'
+          OR lower(coalesce(d.model,'')) LIKE ? ESCAPE '\\'
+          OR lower(coalesce(d.location,'')) LIKE ? ESCAPE '\\'
+          OR lower(coalesce(d.supplier,'')) LIKE ? ESCAPE '\\'
+          OR lower(coalesce(d.issuer,'')) LIKE ? ESCAPE '\\'
+          OR lower(coalesce(d.service_provider,'')) LIKE ? ESCAPE '\\'
+          OR lower(d.tags) LIKE ? ESCAPE '\\')`,
+      );
+      params.push(like, like, like, like, like, like, like, like);
+    }
+
+    const expr = primaryExpr(view, sort);
+    const asc = isAscending(view, sort);
+    const dir = asc ? "ASC" : "DESC";
+    const cmp = asc ? ">" : "<";
+
+    if (input.cursor !== undefined) {
+      const position = decodeAssetCursorForScope(input.cursor, scope);
+      conditions.push(`(${expr} ${cmp} ? OR (${expr} = ? AND e.id ${cmp} ?))`);
+      params.push(position.primary, position.primary, position.id);
+    }
+
+    const fetchLimit = limit + 1;
+    params.push(fetchLimit);
+
+    let rows: AssetJoinedRow[];
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT ${READ_COLUMNS}, ${expr} AS sort_primary
+           FROM entities e
+           JOIN asset_details d
+             ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
+           WHERE ${conditions.join(" AND ")}
+           ORDER BY ${expr} ${dir}, e.id ${dir}
+           LIMIT ?`,
+        )
+        .bind(...params)
+        .all<AssetJoinedRow>();
+      rows = result.results;
+    } catch (cause) {
+      if (cause instanceof AssetError) throw cause;
+      throw new AssetStorageError({ cause });
+    }
+
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const items = pageRows.map((row) => this.#rowToAsset(row));
+    const last = pageRows.at(-1);
+    const nextCursor =
+      hasMore && last
+        ? encodeAssetCursor(scope, {
+            primary: last.sort_primary ?? "",
+            id: last.id,
+          })
+        : null;
+
+    return { items, nextCursor, hasMore };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Update                                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  async update(
+    id: string,
+    changes: UpdateAssetInput,
+  ): Promise<AssetChangeResult> {
+    const assetId = validateAssetId(id);
+    const v = validateAssetDetails(changes, "update");
+
+    const current = await this.get(assetId);
+    if (!current) throw new AssetNotFoundError();
+
+    const desired = new Map<string, string | number | null>();
+    for (const field of ASSET_SCALAR_FIELDS) {
+      if (v.scalars.has(field)) {
+        desired.set(SCALAR_COLUMN[field], v.scalars.get(field) ?? null);
+      }
+    }
+    if (v.assetType !== undefined) desired.set("asset_type", v.assetType);
+    if (v.status !== undefined) desired.set("status", v.status);
+    if (v.money.has("purchasePriceMinor")) {
+      desired.set(
+        "purchase_price_minor",
+        v.money.get("purchasePriceMinor") ?? null,
+      );
+    }
+    if (v.money.has("replacementValueMinor")) {
+      desired.set(
+        "replacement_value_minor",
+        v.money.get("replacementValueMinor") ?? null,
+      );
+    }
+    if (v.tagsProvided) desired.set("tags", JSON.stringify(v.tags));
+
+    const changed = [...desired.keys()].filter(
+      (column) => desired.get(column) !== currentColumnValue(current, column),
+    );
+    if (changed.length === 0) {
+      return { asset: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const setSql = changed.map((column) => `${column} = ?`).join(", ");
+    const guardSql = changed.map((column) => `${column} IS NOT ?`).join(" OR ");
+    const domainStatement = this.#db
+      .prepare(
+        `UPDATE asset_details
+            SET ${setSql}, updated_at = ?
+          WHERE workspace_id = ? AND entity_id = ?
+            AND EXISTS (
+                  SELECT 1 FROM entities
+                  WHERE workspace_id = ? AND id = ? AND type = '${ASSET_ENTITY_TYPE}'
+                        AND deleted_at IS NULL
+                )
+            AND (${guardSql})
+          RETURNING entity_id`,
+      )
+      .bind(
+        ...changed.map((column) => desired.get(column) ?? null),
+        nowTs,
+        this.#workspaceId,
+        assetId,
+        this.#workspaceId,
+        assetId,
+        ...changed.map((column) => desired.get(column) ?? null),
+      );
+
+    // Payload: field NAMES only (never values), plus the new status vocabulary
+    // term when the status changed (a term, not a private value) — §17.
+    const changedFields = changed
+      .map((column) => COLUMN_FIELD.get(column))
+      .filter((f): f is string => f !== undefined);
+    const statusChanged = changed.includes("status");
+    const newStatus = v.status;
+    const payload: { fields: string[]; status?: string } = {
+      fields: changedFields,
+    };
+    let eventType = ASSET_UPDATED;
+    if (statusChanged && newStatus) {
+      payload.status = newStatus;
+      eventType =
+        newStatus === "disposed" ? ASSET_DISPOSED : ASSET_STATUS_CHANGED;
+    }
+
+    const event: NewActivityEvent = {
+      type: eventType,
+      subjects: [{ entityId: assetId, role: SUBJECT_ROLE }],
+      payload,
+    };
+
+    let result;
+    try {
+      const model = buildActivityWriteModel(
+        event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      result = await recordAtomicMutation<{ entity_id: string }>({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        domainStatement,
+        recorder: this.#recorder,
+        model,
+        fault: this.#mutationFault,
+      });
+    } catch (cause) {
+      if (cause instanceof AssetError || cause instanceof ActivityError)
+        throw cause;
+      throw new AssetStorageError({ cause });
+    }
+
+    if (result.changed) {
+      const refreshed = await this.get(assetId);
+      if (!refreshed) throw new AssetStorageError();
+      return { asset: refreshed, changed: true };
+    }
+
+    // The gate matched nothing: reconcile honestly (mirrors People/Note).
+    const refreshed = await this.get(assetId);
+    if (!refreshed) throw new AssetNotFoundError();
+    if (
+      changed.every(
+        (column) =>
+          currentColumnValue(refreshed, column) === desired.get(column),
+      )
+    ) {
+      return { asset: refreshed, changed: false };
+    }
+    throw new AssetConflictError();
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Archive lifecycle                                                      */
+  /* ---------------------------------------------------------------------- */
+
+  async archive(id: string): Promise<AssetLifecycleResult> {
+    return this.#setArchived(id, true);
+  }
+
+  async restore(id: string): Promise<AssetLifecycleResult> {
+    return this.#setArchived(id, false);
+  }
+
+  async #setArchived(
+    id: string,
+    archived: boolean,
+  ): Promise<AssetLifecycleResult> {
+    const assetId = validateAssetId(id);
+    const current = await this.get(assetId);
+    if (!current) throw new AssetNotFoundError();
+
+    const isArchived = current.archivedAt !== null;
+    if (isArchived === archived) {
+      return {
+        asset: current,
+        outcome: archived ? "already_archived" : "already_active",
+        changed: false,
+      };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const archivedValue = archived ? nowTs : null;
+    const guard = archived ? "archived_at IS NULL" : "archived_at IS NOT NULL";
+
+    const domainStatement = this.#db
+      .prepare(
+        `UPDATE asset_details
+            SET archived_at = ?, updated_at = ?
+          WHERE workspace_id = ? AND entity_id = ?
+            AND EXISTS (
+                  SELECT 1 FROM entities
+                  WHERE workspace_id = ? AND id = ? AND type = '${ASSET_ENTITY_TYPE}'
+                        AND deleted_at IS NULL
+                )
+            AND ${guard}
+          RETURNING entity_id`,
+      )
+      .bind(
+        archivedValue,
+        nowTs,
+        this.#workspaceId,
+        assetId,
+        this.#workspaceId,
+        assetId,
+      );
+
+    const event: NewActivityEvent = {
+      type: archived ? ASSET_ARCHIVED : ASSET_RESTORED,
+      subjects: [{ entityId: assetId, role: SUBJECT_ROLE }],
+      payload: {},
+    };
+
+    let result;
+    try {
+      const model = buildActivityWriteModel(
+        event,
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      );
+      result = await recordAtomicMutation<{ entity_id: string }>({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        domainStatement,
+        recorder: this.#recorder,
+        model,
+        fault: this.#mutationFault,
+      });
+    } catch (cause) {
+      if (cause instanceof AssetError || cause instanceof ActivityError)
+        throw cause;
+      throw new AssetStorageError({ cause });
+    }
+
+    if (result.changed) {
+      const refreshed = await this.get(assetId);
+      if (!refreshed) throw new AssetStorageError();
+      return {
+        asset: refreshed,
+        outcome: archived ? "archived" : "restored",
+        changed: true,
+      };
+    }
+
+    const refreshed = await this.get(assetId);
+    if (!refreshed) throw new AssetNotFoundError();
+    const nowArchived = refreshed.archivedAt !== null;
+    if (nowArchived === archived) {
+      return {
+        asset: refreshed,
+        outcome: archived ? "already_archived" : "already_active",
+        changed: false,
+      };
+    }
+    throw new AssetConflictError();
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Permanent (hard) deletion — guarded                                    */
+  /* ---------------------------------------------------------------------- */
+
+  async permanentlyDelete(id: string): Promise<AssetDeleteResult> {
+    const assetId = validateAssetId(id);
+    const existing = await this.get(assetId, { includeDeleted: true });
+    if (!existing) {
+      // Already gone: idempotent success (nothing to remove).
+      return { deleted: false, blockedReason: undefined, linkCount: 0 };
+    }
+
+    // Guard: refuse while any ACTIVE relationship references the Asset, so linked
+    // Notes/Tasks/People are never silently orphaned (the caller unlinks first).
+    let linkCount: number;
+    try {
+      const row = await this.#db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM entity_links
+           WHERE workspace_id = ? AND deleted_at IS NULL
+             AND (source_entity_id = ? OR target_entity_id = ?)`,
+        )
+        .bind(this.#workspaceId, assetId, assetId)
+        .first<{ n: number }>();
+      linkCount = row?.n ?? 0;
+    } catch (cause) {
+      throw new AssetStorageError({ cause });
+    }
+    if (linkCount > 0) {
+      return { deleted: false, blockedReason: "has_links", linkCount };
+    }
+
+    // Purge the Asset's footprint child-first in ONE atomic, FK-safe batch, each
+    // DELETE carrying the SAME "no active link" guard so the batch is strictly
+    // all-or-nothing at commit (closes the read→submit race). Retained: the
+    // `activities` rows themselves (append-only, ADR-012) — only their subject
+    // pointers to the vanishing entity are removed.
+    const emptyGuard = `NOT EXISTS (
+        SELECT 1 FROM entity_links gl
+        WHERE gl.workspace_id = ? AND gl.deleted_at IS NULL
+          AND (gl.source_entity_id = ? OR gl.target_entity_id = ?)
+      )`;
+    const g = [this.#workspaceId, assetId, assetId];
+
+    const deleteLinks = this.#db
+      .prepare(
+        `DELETE FROM entity_links
+         WHERE workspace_id = ? AND (source_entity_id = ? OR target_entity_id = ?)
+           AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, assetId, assetId, ...g);
+    const deleteSubjects = this.#db
+      .prepare(
+        `DELETE FROM activity_subjects
+         WHERE workspace_id = ? AND entity_id = ? AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, assetId, ...g);
+    const deleteDetails = this.#db
+      .prepare(
+        `DELETE FROM asset_details
+         WHERE workspace_id = ? AND entity_id = ? AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, assetId, ...g);
+    const deleteEntity = this.#db
+      .prepare(
+        `DELETE FROM entities
+         WHERE workspace_id = ? AND id = ? AND type = '${ASSET_ENTITY_TYPE}'
+           AND ${emptyGuard}
+         RETURNING id`,
+      )
+      .bind(this.#workspaceId, assetId, ...g);
+
+    try {
+      const results = await this.#db.batch([
+        deleteLinks,
+        deleteSubjects,
+        deleteDetails,
+        deleteEntity,
+      ]);
+      const entityResult = results[3];
+      const removed = (entityResult?.meta?.changes ?? 0) > 0;
+      if (removed) return { deleted: true };
+      // The guard blocked at commit (a concurrent link appeared): report it.
+      return { deleted: false, blockedReason: "has_links", linkCount: 1 };
+    } catch (cause) {
+      throw new AssetStorageError({ cause });
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Internals                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  #rowToAsset(row: AssetJoinedRow): Asset {
+    try {
+      return {
+        id: row.id,
+        workspaceId: parseWorkspaceId(row.workspace_id),
+        title: row.title,
+        assetType: row.asset_type as AssetType,
+        status: row.status as AssetStatus,
+        description: row.description,
+        manufacturer: row.manufacturer,
+        model: row.model,
+        serialNumber: row.serial_number,
+        referenceCode: row.reference_code,
+        tags: parseTags(row.tags),
+        ownerPersonId: row.owner_person_id,
+        responsiblePersonId: row.responsible_person_id,
+        location: row.location,
+        areaId: row.area_id,
+        acquisitionDate: row.acquisition_date,
+        purchasePriceMinor: row.purchase_price_minor,
+        currencyCode: row.currency_code,
+        supplier: row.supplier,
+        replacementValueMinor: row.replacement_value_minor,
+        disposalDate: row.disposal_date,
+        disposalNotes: row.disposal_notes,
+        warrantyExpiry: row.warranty_expiry,
+        serviceInterval: row.service_interval,
+        lastServiceDate: row.last_service_date,
+        nextServiceDate: row.next_service_date,
+        serviceProvider: row.service_provider,
+        maintenanceNotes: row.maintenance_notes,
+        issuer: row.issuer,
+        referenceNumber: row.reference_number,
+        issueDate: row.issue_date,
+        renewalDate: row.renewal_date,
+        url: row.url,
+        documentNotes: row.document_notes,
+        createdAt: fromStorageTimestamp(row.created_at),
+        updatedAt: fromStorageTimestamp(row.effective_updated_at),
+        deletedAt:
+          row.deleted_at === null ? null : fromStorageTimestamp(row.deleted_at),
+        archivedAt:
+          row.archived_at === null
+            ? null
+            : fromStorageTimestamp(row.archived_at),
+      };
+    } catch (cause) {
+      if (cause instanceof AssetError) throw cause;
+      throw new AssetStorageError({ cause });
+    }
+  }
+}
+
+/** Read a column's current value from an Asset record, for update reconciliation. */
+function currentColumnValue(
+  asset: Asset,
+  column: string,
+): string | number | null {
+  if (column === "tags") return JSON.stringify(asset.tags);
+  const field = COLUMN_FIELD.get(column);
+  if (field === undefined) return null;
+  const value = (asset as unknown as Record<string, unknown>)[field];
+  if (value === undefined || value === null) return null;
+  return value as string | number;
+}
