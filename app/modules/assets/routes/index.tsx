@@ -1,12 +1,18 @@
 /**
- * PX-03 — the Assets module route (Coming Soon placeholder).
+ * ASSET-01 — the Assets collection route (`/assets`, the "All" view).
  *
- * Module-owned route referenced declaratively by the Assets manifest. It renders
- * the shared PX-03 "Coming Soon" scaffold only; the Assets product experience is a
- * later roadmap item (ASSET-01 → ASSET-03).
+ * Replaces the PX-03 `ModuleComingSoon` placeholder. The trusted server boundary for
+ * the bounded, workspace-scoped Assets collection: it reads the authoritative
+ * `AssetRepository` through the shared collection loader (full-collection filtering,
+ * sorting and cursor pagination in SQL), then renders the presentational
+ * `AssetsCollectionView`. Degrades to a calm error state, never a 500.
  */
 
-import { ModuleComingSoon } from "~/shared/shell/ModuleComingSoon";
+import { requireAuthenticatedSession } from "~/platform/request";
+
+import { AssetsCollectionView } from "../AssetsCollection";
+import { loadAssetsCollection } from "../assets-collection-data";
+import type { Route } from "./+types/index";
 
 export function meta() {
   return [
@@ -18,19 +24,11 @@ export function meta() {
   ];
 }
 
-export default function AssetsRoute() {
-  return (
-    <ModuleComingSoon
-      name="Assets"
-      entityType="asset"
-      summary="Things of value — physical, digital or financial."
-      fit="Assets track the things of value in your life — physical, digital or financial — so their history, warranties and renewals live in the same place as the rest of what you're responsible for."
-      roadmapStatus="It's planned for Phase 8 — Assets (ASSET-01 → ASSET-03) of the DalyHub V2 roadmap."
-      capabilities={[
-        "Create and edit assets with type-specific metadata and links",
-        "See an asset's history, warranties and upcoming renewals as calm reminders",
-        "A mobile-complete Assets experience",
-      ]}
-    />
-  );
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const session = requireAuthenticatedSession(context);
+  return loadAssetsCollection(request, session, "all");
+}
+
+export default function AssetsRoute({ loaderData }: Route.ComponentProps) {
+  return <AssetsCollectionView data={loaderData} />;
 }

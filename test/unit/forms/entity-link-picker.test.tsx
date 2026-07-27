@@ -29,7 +29,7 @@ function renderPicker(ui: React.ReactElement) {
 
 const TARGETS: EntityLinkTargetOption[] = [
   { id: "n1", type: "note", title: "Creative brief" },
-  { id: "p1", type: "asset", title: "Mel Okoye" },
+  { id: "p1", type: "review", title: "Mel Okoye" },
 ];
 
 const LINK_TYPES = [

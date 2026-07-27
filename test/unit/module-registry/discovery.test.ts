@@ -402,7 +402,35 @@ describe("module discovery", () => {
           moduleId: "people",
           file: "routes/activity.tsx",
         },
+        // ASSET-01 adds the collection + its date-driven sub-views, the create/
+        // record/mutate/activity resource routes (only the index carries a nav
+        // entry; the sub-views are reached from the collection's view switcher).
         { id: "assets.index", moduleId: "assets", file: "routes/index.tsx" },
+        { id: "assets.recent", moduleId: "assets", file: "routes/recent.tsx" },
+        {
+          id: "assets.expiring",
+          moduleId: "assets",
+          file: "routes/expiring.tsx",
+        },
+        {
+          id: "assets.service_due",
+          moduleId: "assets",
+          file: "routes/service-due.tsx",
+        },
+        {
+          id: "assets.archived",
+          moduleId: "assets",
+          file: "routes/archived.tsx",
+        },
+        { id: "assets.new", moduleId: "assets", file: "routes/new.tsx" },
+        { id: "assets.create", moduleId: "assets", file: "routes/create.tsx" },
+        { id: "assets.detail", moduleId: "assets", file: "routes/detail.tsx" },
+        { id: "assets.mutate", moduleId: "assets", file: "routes/mutate.tsx" },
+        {
+          id: "assets.activity",
+          moduleId: "assets",
+          file: "routes/activity.tsx",
+        },
         {
           id: "reviews.index",
           moduleId: "reviews",
@@ -437,6 +465,13 @@ describe("module discovery", () => {
         "people.search",
         "people.recent",
         "people.archived",
+        // ASSET-01 navigation commands (open / new / expiring / service-due /
+        // archived), ordered after People by the module order.
+        "assets.open",
+        "assets.new",
+        "assets.expiring",
+        "assets.service_due",
+        "assets.archived",
       ]);
       expect(registry.listCommands().every((c) => c.kind === "navigate")).toBe(
         true,
@@ -451,6 +486,7 @@ describe("module discovery", () => {
         "tasks.search",
         "meetings.search",
         "people.search",
+        "assets.search",
       ]);
       expect(searchProviders[0]?.moduleId).toBe("today");
     });

@@ -31,7 +31,10 @@ Relationship System closes that gap with:
 - Activity recording of relationship create/remove (already emitted by the kernel).
 
 Supported endpoints: **Area, Goal, Project, Task, Note, Day Diary entry, Meeting,
-Person** — every type with a canonical destination.
+Person, Asset** — every type with a canonical destination. (ASSET-01 adds `asset`
+to `SUPPORTED_LINK_ENTITY_TYPES`, the shared entity-destination map `/asset/:id`
+and the record-anchor inverse, so an Asset is a first-class link target and its
+directly-linked records boost in Search.)
 
 ---
 

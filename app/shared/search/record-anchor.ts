@@ -6,7 +6,7 @@
  * This helper derives the anchor entity id from the current pathname, so the
  * browser can carry it to the `/search` endpoint (`boostLinkedTo`) without any
  * component owning a route table. It is the inverse of the canonical record routes
- * in `~/shared/entity/destination` (Area/Goal/Project/Note/Person/Meeting); a task
+ * in `~/shared/entity/destination` (Area/Goal/Project/Note/Person/Meeting/Asset); a task
  * has no standalone record path (it opens in a Drawer), so it has no anchor here.
  *
  * It only recognises a bare `/<segment>/<id>` record path — never a nested,
@@ -23,6 +23,7 @@ const RECORD_PATH_PREFIXES: readonly string[] = [
   "/notes/",
   "/person/",
   "/meeting/",
+  "/asset/",
 ];
 
 /**

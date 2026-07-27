@@ -29,6 +29,7 @@ import {
   type ActivityActorContext,
   type NewActivityEvent,
 } from "~/kernel/activity";
+import { isReservedAssetEntityType } from "~/kernel/assets";
 import { isReservedDiaryEntityType } from "~/kernel/diary";
 import { MEETING_ENTITY_TYPE } from "~/kernel/meetings";
 import { isReservedPersonEntityType } from "~/kernel/people";
@@ -173,6 +174,7 @@ export class D1EntityRepository implements EntityRepository {
       RESERVED_SPINE_ENTITY_TYPES.has(type) ||
       isReservedDiaryEntityType(type) ||
       isReservedPersonEntityType(type) ||
+      isReservedAssetEntityType(type) ||
       type === MEETING_ENTITY_TYPE
     ) {
       throw new ReservedEntityTypeError();

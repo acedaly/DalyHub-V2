@@ -78,10 +78,17 @@ const PRODUCT_ROUTES = [
   "/people/recent",
   "/people/archived",
   "/new/person",
+  // ASSET-01 — the Assets collection, its date-driven sub-views and the create
+  // page (the record itself is covered by `e2e/assets.spec.ts`).
+  "/assets",
+  "/assets/recent",
+  "/assets/expiring",
+  "/assets/service-due",
+  "/assets/archived",
+  "/new/asset",
   // PX-03 — the remaining navigation-shell Coming Soon placeholder routes.
   "/diary",
   "/meetings",
-  "/assets",
   "/reviews",
   "/ai",
   "/settings",

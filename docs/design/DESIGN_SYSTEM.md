@@ -786,6 +786,8 @@ Pane: --dh-color-bg. Grid: var(--dh-shell-nav-width) 1fr.
 
 **Rules.** Every accent has a light **and** dark value (parity + ≥3:1 contrast, both tested). Accents are used at **identity sites only** (icon, card edge, chip) — never as text colour ([PRODUCT_EXPERIENCE Part III §5](PRODUCT_EXPERIENCE.md)). Icons are decorative (`aria-hidden`); a text label always names the entity. Cards, Record Headers, the sidebar, empty states and (later) Search/Command Palette all consume this one map — never a hand-picked icon at a call site.
 
+**Subtype icons.** A module whose entity has meaningful *sub-kinds* may add one stable icon **per subtype**, drawn from the same shared `app/shared/icons` set (never a one-off SVG or a hand-picked icon at a call site), through a small module-local registry with a safe fallback to the entity glyph. Precedent: the Diary entry-type icons ([`app/modules/diary/diary-icons.tsx`](../../app/modules/diary/diary-icons.tsx)) and the Asset type icons ([`app/modules/assets/asset-icons.tsx`](../../app/modules/assets/asset-icons.tsx), one per Asset type — vehicle, appliance, licence, insurance shield, subscription, software, …). Subtype icons keep the same rules: `currentColor` (design tokens, light/dark parity), decorative, always paired with text, consistent in the collection, record, search and Linked Items.
+
 ### Collection Layout (PX-02)
 
 **Purpose.** The product's commonest screen — "a filtered collection of Cards with a Filter bar, opening records in a Drawer" — as a named, entity-agnostic scaffold. This is to screens what the [Record Layout](#shared-record-layout-ds-02) is to records.

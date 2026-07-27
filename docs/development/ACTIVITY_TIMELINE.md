@@ -288,6 +288,15 @@ SAME `Timeline` given a different record-scoped `loadPage`, never a forked compo
   `meeting.attendee` `entity_link.created` events render via the shared kernel default
   on both the meeting and the attendee's People Timeline.
 
+- **Assets** (ASSET-01) register six lifecycle descriptors — `asset.created`,
+  `asset.updated`, `asset.status_changed`, `asset.archived`, `asset.restored` and
+  `asset.disposed` — served over the module-owned
+  [`/asset/:assetId/activity`](../../app/modules/assets/routes/activity.tsx) route.
+  Payloads carry ONLY structural metadata: the NAMES of the fields that changed and
+  the new status vocabulary term — NEVER a serial/policy number, price or private
+  note (§17). A status change to `disposed` emits `asset.disposed`; any other status
+  change emits `asset.status_changed`; any other detail edit emits `asset.updated`.
+
 All prove the intended shape: a module owns a small resource route over
 `activity.listForEntity`, maps records server-side, and drops a `<Timeline>` into its
 DS-02 Activity tab (Activity last). None adds an event store, a migration, a

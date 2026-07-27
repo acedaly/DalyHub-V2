@@ -123,6 +123,11 @@
 - **Desired future state.** Search resolves real projects and targets the canonical `/projects/:id` route (folded into the DEBT-17 real-search work). This does not block PROJ-01's calm single-owner surface. *(Today's "Continue working" already selects the most-recently-updated projects at the database via `orderBy: "recent"`, so the earlier loader-side recency approximation is resolved.)*
 - **Related roadmap item.** [PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview); [DS-08](../roadmap/ROADMAP_V2.md#-ds-08--shared-search); [PROJ-02](../roadmap/ROADMAP_V2.md) (richer project filtering reuses the DS-07 clause-builder the state segment defers).
 
+### ☐ DEBT-33 — Assets: deferred capabilities (attachments, reminders, logbooks, ingestion, AI) — P3
+- **Current issue.** ASSET-01 ships a deliberately complete-but-bounded first version: no real file attachments, no external object storage (R2), no OCR, no barcode/QR scanning, no recurring reminders or automated warranty/renewal alerts, no service-history logbook, no depreciation/tax or insurance-claims workflow, no receipt/email ingestion, no external subscription sync, no AI extraction, and no household sharing beyond current workspace rules. These are intentionally absent (no dead UI ships for any of them), but they are the natural next capabilities users will expect. The kernel already stores the queryable warranty/renewal/service dates and exposes `AssetRepository.list({ view: "expiring" | "service_due" })` as the bounded read seam a future Today widget / reminder engine will consume.
+- **Desired future state.** ASSET-02 adds history & renewals (maintenance log, value-over-time, calm renewal reminders reading the existing dates) and a Today "expiring soon / service due" widget over the existing read seam; a later attachments story adds real object storage (R2) with OCR/barcode as optional enrichment — all reusing the shared seams, never a bespoke fork, and each documented with an ADR where it introduces a genuine new decision.
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals); [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile).
+
 ---
 
 ## Entry template

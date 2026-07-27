@@ -14,6 +14,7 @@
 
 import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
+import type { AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
@@ -36,6 +37,10 @@ import type {
 import { D1ActivityRepository } from "./d1-activity-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1AreaRepository } from "./d1-area-repository";
+import {
+  D1AssetRepository,
+  type D1AssetRepositoryOptions,
+} from "./d1-asset-repository";
 import {
   D1DiaryRepository,
   type D1DiaryRepositoryOptions,
@@ -101,6 +106,11 @@ export {
 export { D1ActivityRepository };
 export { D1AlignmentRepository };
 export { D1AreaRepository };
+export {
+  D1AssetRepository,
+  type D1AssetRepositoryOptions,
+  type D1AssetCreateFault,
+} from "./d1-asset-repository";
 export { D1GoalRepository };
 export {
   D1GoalDetailsRepository,
@@ -303,6 +313,24 @@ export function createMeetingRepository(
   options?: ConstructorParameters<typeof D1MeetingRepository>[2],
 ): MeetingRepository {
   return new D1MeetingRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed AssetRepository — the ASSET-01
+ * authoritative Asset repository. It CREATES `asset` entities with their
+ * structured detail slice atomically (the generic EntityRepository refuses to
+ * create one), owns detail edits, the real-world status and the archive lifecycle,
+ * guards permanent deletion behind active relationships, and shares the trusted
+ * Activity actor. An Asset's identity/title/soft-delete/restore stay the generic
+ * EntityRepository's; relationships stay FND-04 EntityLinks. Bound to a
+ * `WorkspaceContext`; there is no unscoped construction path.
+ */
+export function createAssetRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1AssetRepositoryOptions,
+): AssetRepository {
+  return new D1AssetRepository(db, context, options);
 }
 
 /**

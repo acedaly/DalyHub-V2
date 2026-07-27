@@ -39,4 +39,17 @@ export {
   SignOutIcon,
   InboxIcon,
   BrandMark,
+  // Asset subtype icons
+  VehicleIcon,
+  TrailerIcon,
+  EquipmentIcon,
+  ApplianceIcon,
+  ElectronicsIcon,
+  ToolIcon,
+  PropertyIcon,
+  DocumentIcon,
+  LicenceIcon,
+  ShieldIcon,
+  SubscriptionIcon,
+  SoftwareIcon,
 } from "./icons";
