@@ -238,13 +238,13 @@ SAME `Timeline` given a different record-scoped `loadPage`, never a forked compo
 
 - **The task record's Activity tab** (TODAY-02, [ADR-028](../decisions/ARCHITECTURE_DECISIONS.md#adr-028-task-drawer-persistence-and-composition--the-additive-task-detail-slice)) —
   `TaskTimelineTab` fetching the module-owned `/tasks/:taskId/activity` resource route.
-- **The Area record's Activity tab** (AREA-01, [ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview-read-only-spine-projection-and-derived-momentum)) —
+- **The Area record's Activity tab** (AREA-01, [ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038--area-overview-read-only-spine-projection-and-derived-momentum)) —
   [`AreaActivityTab`](../../app/modules/areas/AreaActivityTab.tsx) fetching the
   module-owned [`/areas/:areaId/activity`](../../app/modules/areas/routes/activity.tsx)
   resource route. Areas have no completion Activity types of their own, so no
   module descriptors are registered — every event renders via the shared kernel
   defaults.
-- **The Goal record's Activity tab** (AREA-02, [ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039-goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)) —
+- **The Goal record's Activity tab** (AREA-02, [ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)) —
   [`GoalActivityTab`](../../app/modules/goals/GoalActivityTab.tsx) fetching the
   module-owned [`/goals/:goalId/activity`](../../app/modules/goals/routes/activity.tsx)
   resource route. The module registers descriptors for `goal.completed`,
@@ -277,7 +277,7 @@ SAME `Timeline` given a different record-scoped `loadPage`, never a forked compo
   descriptor yet (they render via the shared safe generic fallback, humanized from
   the type string); dedicated descriptors are left to the PROJ-05 Settings UI slice.
 
-- **The Meeting record's Activity tab** (MEET-02, [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048--meeting-follow-through-task-conversion-orchestration-and-the-source-item-mapping)) —
+- **The Meeting record's Activity tab** (MEET-02, [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048-meeting-follow-through--task-conversion-orchestration-and-the-source-item-mapping)) —
   [`MeetingTimelineTab`](../../app/modules/meetings/MeetingTimelineTab.tsx) fetching the
   module-owned [`/meeting/:meetingId/activity`](../../app/modules/meetings/routes/activity.tsx)
   resource route (replacing MEET-01's placeholder paragraph). The module registers

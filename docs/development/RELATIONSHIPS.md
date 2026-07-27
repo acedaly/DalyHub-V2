@@ -200,7 +200,7 @@ Meeting's universal Linked Items, one row navigable both ways. The Universal
 Relationship contracts are unchanged; MEET-02 adds no relationship model. Which
 specific agenda item / decision / outcome produced the Task is recorded by a narrow,
 module-owned mapping table (`meeting_item_tasks`) that **supplements** this link — it
-never replaces it. See [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048--meeting-follow-through-task-conversion-orchestration-and-the-source-item-mapping).
+never replaces it. See [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048-meeting-follow-through--task-conversion-orchestration-and-the-source-item-mapping).
 
 ## Activity
 

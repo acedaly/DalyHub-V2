@@ -220,3 +220,26 @@ household sharing/permissions beyond current workspace rules.
 - [`PEOPLE_MODULE.md`](PEOPLE_MODULE.md) / [`MEETINGS_MODULE.md`](MEETINGS_MODULE.md) — the supporting-entity pattern Assets follows.
 - [`MODULES.md`](MODULES.md) — the module registry.
 - [`ACCESSIBILITY_RESPONSIVE.md`](ACCESSIBILITY_RESPONSIVE.md) — the a11y/responsive contract.
+
+---
+
+## Status (2026-07-27 reconciliation)
+
+**Current status.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) is ☑. [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) and [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) are ☐.
+
+**Delivered capabilities.** Assets as first-class entities with a STRICT `asset_details` slice (migration `0016`); an authoritative workspace-bound `AssetRepository` with atomic reserved create, partial updates, real-world status transitions kept distinct from record archive, and guarded permanent deletion; money as integer minor units plus an ISO-4217 code (never a float, [ADR-049](../decisions/ARCHITECTURE_DECISIONS.md#adr-049-first-class-assets--the-asset_details-slice-integer-minor-unit-money-and-the-real-world-status-vs-record-archive-split)); wall-calendar dates compared as integers in the owner timezone; a controlled-but-extensible type vocabulary with per-type subtype icons; the `/assets` collection with All / Recently updated / Expiring soon / Service due / Archived views, filtering, sorting and cursor pagination; the canonical Record Layout; a **real, repository-backed** search provider and five commands. DS-11 baseline proven — axe in light and dark, no horizontal overflow at 390px and 320px.
+
+**More of ASSET-02 already exists than the roadmap item's summary implies.** The queryable warranty, renewal and next-service dates are stored; `AssetRepository.list({ view: "expiring" | "service_due" })` is the bounded read seam a Today widget or reminder engine will consume; and the **calm due/expiry indicators are already implemented** as a pure evaluator in [`asset-dates.ts`](../../app/modules/assets/asset-dates.ts) — `evaluateDueDate` returns `overdue` / `due_soon` / `today` / `future` / `historical`, rendered with word-bearing phrasings ("Warranty expired", "Renewal due in N days", "Service overdue"), never colour alone. Scope ASSET-02 against what exists rather than rebuilding it.
+
+**Known limitations.**
+
+- **No history of any kind.** There is no service/maintenance log, no warranty or renewal history (only a single next-date per kind), and no value-change history — so an asset shows its current state but not its life. [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals).
+- **The `expiring` / `service_due` seam is not surfaced outside `/assets`.** A renewal is only noticed by visiting the module.
+- The module maintains a private subtype-icon map ([`asset-icons.tsx`](../../app/modules/assets/asset-icons.tsx)) — the second such fork after Diary's, which a shared subtype-icon registry should absorb ([DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2)).
+- Mobile completion (phone-first capture, date entry, type/subtype picking at narrow widths) remains — [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile).
+
+**Deferred work.** ASSET-02's scope is service/maintenance history, warranty and renewal tracking over time, value changes, and surfacing the existing due/expiry seam. **Explicitly outside ASSET-02** and retained as future debt under [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3): OCR, barcode/QR scanning, receipt or email ingestion, financial depreciation/tax workflows, insurance-claims workflows, external subscription sync, and real file attachments with R2 object storage.
+
+**Relevant roadmap items.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ · [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) ☐ · [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) ☐.
+
+**Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) · [DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1).

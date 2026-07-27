@@ -266,3 +266,25 @@ the EntityLink primitive without changing the Person record.
 
 No external APIs, Google Contacts, Outlook, meeting scheduler, calendar, email
 sending or SMS. This PR is the DalyHub foundation only.
+
+---
+
+## Status (2026-07-27 reconciliation)
+
+**Current status.** The foundation is complete — [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) is ☑. The relationship *content* is not: [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline), [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) and [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) are all ☐.
+
+**Delivered capabilities.** Person as a first-class reserved-type entity plus a `person_details` slice (migration `0013_create_person_details.sql`); closed relationship / contact-method / follow-up-frequency vocabularies; a reversible archive distinct from soft-delete; the People / Recent / Archived collection; a six-tab record (Summary / Contact / Timeline / Linked / Notes / Settings); avatars; a **real, repository-backed** search provider and five commands; the shared DS-05 Timeline over bounded, cursor-paginated `GET /person/:personId/activity` reads; and PII kept out of Activity payloads. DS-11 baseline proven — axe, 44px touch targets and no horizontal overflow from 320px up.
+
+**Known limitations.**
+
+- **The "Timeline" tab is a record-event stream, not yet a relationship history.** [`PersonTimelineTab.tsx`](../../app/modules/people/PersonTimelineTab.tsx) renders `GET /person/:personId/activity`, which reads `scope.activity.listForEntity(personId)` — so it shows `person.created`/`.updated`/`.archived`/`.restored`, kernel lifecycle events and link events where the person is a subject. It does **not** yet show meetings attended, notes about the person, or commitments made. [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline).
+- **Stay-in-touch has an input but no signal.** The follow-up-frequency field is persisted and editable, but nothing derives last-contact, due or overdue state from it, and nothing surfaces it. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals).
+- Some record quick actions (Diary / Meeting / New note) are honest placeholders rather than wired flows.
+
+**Deferred work.** The unified relationship timeline; Meetings contributing to it; stay-in-touch signals; mobile completion beyond the DS-11 baseline; and all external integrations (Google Contacts, Microsoft 365, calendar, email/SMS) — the kernel is designed to accept these without an API break.
+
+**Build order — read this before starting PEOPLE-02.** There must be exactly **one** Person history surface and **one** endpoint behind it. PEOPLE-02 extends the existing `/person/:personId/activity` stream; [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) then contributes meeting participation to that same stream; PEOPLE-03 derives its signal from it; mobile comes last. A separate "Meetings" or "Interactions" tab on the Person record would fork the model and re-create [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) inside V2.
+
+**Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☐ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ · [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) ☐ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐.
+
+**Relevant product-debt items.** [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3) (this module owns one of the two `0013` migrations — always cite it by full filename).

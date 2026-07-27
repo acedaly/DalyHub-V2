@@ -92,8 +92,42 @@ Coverage added in REVIEWS-01:
 - D1/kernel tests for atomic create, duplicate protection, custom overlaps, workspace isolation, lifecycle, archived mutation protection, deletion/link safety, rollback and Activity privacy
 - existing shared destination, picker and registry tests updated for Review route support
 
-E2E coverage for the complete mobile/accessibility Reviews journey is still deferred and tracked as product debt.
+E2E coverage exists and is broader than this section originally stated (corrected 2026-07-27): [`e2e/reviews.spec.ts`](../../e2e/reviews.spec.ts) covers the weekly creation/editing/linking/lifecycle journey, search, the command palette, axe in **light and dark** on the record, and no horizontal overflow at 320px and 390px including the Settings tab; `/reviews` is also in the [`e2e/accessibility.spec.ts`](../../e2e/accessibility.spec.ts) sweep. What remains deferred is the *mobile-completion* journey ([REVIEW-04](../roadmap/ROADMAP_V2.md#-review-04--mobile)), not baseline accessibility coverage.
+
+**The lifecycle journey fails on most runs** — `e2e/reviews.spec.ts:89` cannot click *Restore review* because the shared notification stack intercepts the pointer event ([DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1)). Across three runs of an identical test set it failed **twice** (runs 30306499933 and 30310393566) and passed once, with a byte-identical interception mechanism both times. It is timing-dependent rather than a hard failure, so a green run is not evidence it is fixed — but it is the most reproducible failure in the suite and the best first target. See [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) for the full picture.
 
 ## Deferred Scope
 
 Deferred deliberately: AI-generated summaries, recommendations, user-designed templates, notifications/reminders, external integrations, PDF export, immutable source-record snapshots, charts/scores, Today reminder widgets beyond the clean module seam, and full unbounded period aggregation.
+
+---
+
+## Status (2026-07-27 reconciliation)
+
+**Current status.** Delivered and in production use as [REVIEWS-01](../roadmap/ROADMAP_V2.md#-reviews-01--dalyhub-reviews-foundation) (merged as #73), **but not cleanly verified** — see Known limitations.
+
+**Delivered capabilities.**
+
+- First-class `review` entities with a typed `review_details` slice and structured `review_sections` (migration `0018`).
+- Weekly / monthly / quarterly / annual / custom types over wall-calendar periods, honouring the owner's first-day-of-week preference.
+- Storage-enforced duplicate protection for standard periods; custom periods may overlap.
+- Internal versioned templates (`review.<type>.v1`) with per-type section prompts.
+- `/reviews` collection views, `/reviews/new`, and the canonical `/reviews/:reviewId` record on the shared Record Layout.
+- Shared Markdown authoring, Linked Items, the DS-05 Activity Timeline, and Settings-tab lifecycle (complete/reopen, reversible archive, guarded permanent deletion).
+- A **real, repository-backed** search provider and `Open Reviews` / `New Review` commands — Reviews is one of only five modules that registers a real search provider.
+- Bounded live period context for Tasks, Diary entries and Meetings.
+- Activity payloads carry structural metadata only — never reflection text, Diary content, Meeting notes, Task titles or Person details.
+
+**Known limitations.**
+
+- **Its Playwright journey fails on most runs.** `e2e/reviews.spec.ts:89` fails clicking *Restore review* because the shared DS-10 notification stack intercepts the pointer event — twice in three runs of an identical test set, with the same mechanism each time. This is a shared-feedback-layer timing defect, not a Reviews modelling defect — [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1). It is one of several unrelated E2E failures keeping `main` red ([DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1)).
+- Period context is a **bounded live helper**, not a complete aggregation: it reads Tasks, Diary and Meetings, but **not Projects updated in the period**, and does not paginate beyond its bounds — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2).
+- Source labels stay live. A completed Review preserves what the owner **wrote and linked**, but a linked record renamed later shows its new title; no immutable snapshot is stored.
+- No Today entry point for "start or continue this week's Review".
+- Lifecycle actions live in a record Settings tab, matching Projects/Areas/People/Assets — but there is still no shared Record Header overflow menu anywhere in the product ([DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1)).
+
+**Deferred work.** AI-generated summaries and recommendations; user-designed templates; notifications and reminders; external integrations; PDF export; immutable source-record snapshots; charts, scores and streaks; the guided weekly flow ([REVIEW-02](../roadmap/ROADMAP_V2.md#-review-02--weekly-review)); derived reflection insights ([REVIEW-03](../roadmap/ROADMAP_V2.md#-review-03--insights--alignment)); and mobile completion beyond the DS-11 baseline ([REVIEW-04](../roadmap/ROADMAP_V2.md#-review-04--mobile)).
+
+**Relevant roadmap items.** [REVIEWS-01](../roadmap/ROADMAP_V2.md#-reviews-01--dalyhub-reviews-foundation) ☑ · [REVIEW-02](../roadmap/ROADMAP_V2.md#-review-02--weekly-review) ☐ · [REVIEW-03](../roadmap/ROADMAP_V2.md#-review-03--insights--alignment) ☐ · [REVIEW-04](../roadmap/ROADMAP_V2.md#-review-04--mobile) ☐.
+
+**Relevant product-debt items.** [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) (blocking) · [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3) (lands under REVIEW-03) · [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1).

@@ -54,7 +54,7 @@
 
 ### Things 3 — 🔴 study-only (closed source)
 - **Why chosen.** Exemplary personal task UX: calm, focused, beautifully restrained "Today" experience.
-- **What DalyHub should learn.** The [Today/Execution](../roadmap/ROADMAP_V2.md#-today-01--execution-workspace) surface; Areas→Projects→Tasks structure (a direct cousin of our spine); gentle, non-nagging tone.
+- **What DalyHub should learn.** The [Today/Execution](../roadmap/ROADMAP_V2.md#-today-01--today-dashboard) surface; Areas→Projects→Tasks structure (a direct cousin of our spine); gentle, non-nagging tone.
 - **Relevant modules.** Today, Areas/Goals, Projects, Tasks.
 - **Repository / licence.** Closed source. Product inspiration only.
 - **Reusable patterns.** "Today" as the daily home, the Areas/Projects hierarchy, quiet completion feedback.
@@ -549,7 +549,7 @@ Candidates considered for a shared forms system: **form/validation** — React H
 ## AREA-01 — Areas overview reuse assessment
 
 > The reuse evaluation behind
-> [ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038-area-overview--read-only-spine-projection-and-derived-momentum).
+> [ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038--area-overview-read-only-spine-projection-and-derived-momentum).
 > **No new runtime or dev dependency was added** — AREA-01 is pure composition of
 > the existing spine, read-projection pattern, DS-02 Record Layout, PX-02 Collection
 > Layout, DS-03 Drawer, DS-04 Card, DS-05 Timeline and DS-06 Forms. No third-party
