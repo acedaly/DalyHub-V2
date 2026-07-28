@@ -39,6 +39,11 @@
 @import "./styles/skeleton.css";
 @import "./styles/record-layout.css";
 @import "./styles/drawer.css";
+/* MOBILE-01 — the one shared phone sheet surface, and the shared Quick Capture
+ * presentation layered on it. Imported after the Drawer because both live in the
+ * same overlay band and the sheet is the newer, narrower surface. */
+@import "./styles/sheet.css";
+@import "./styles/capture.css";
 @import "./styles/card.css";
 @import "./styles/overflow-menu.css";
 @import "./styles/filters.css";

@@ -111,6 +111,25 @@
   /* Responsive gutter: grows with the viewport, bounded at both ends. */
   --dh-gutter: clamp(1rem, 4vw, 2rem);
 
+  /* MOBILE-01 — the phone shell's two structural insets.
+   *
+   * `--dh-keyboard-inset` is the height of the on-screen keyboard, published by
+   * the ONE shared Visual Viewport observer (`app/shared/viewport`). It is `0px`
+   * on desktop, on browsers without the API, and whenever no keyboard is up, so
+   * every rule that consumes it is a no-op the rest of the time. Surfaces that
+   * must stay above the keyboard (sheet footers, sticky Save, the Meeting capture
+   * bar) subtract it; the bottom navigation translates by it to get out of the way.
+   *
+   * `--dh-bottomnav-height` is the space the phone bottom bar occupies (set on
+   * `.dh-app` inside the phone media query, `0px` elsewhere) so scrolling
+   * surfaces and bottom-anchored controls can reserve it and never sit underneath
+   * the bar. */
+  --dh-keyboard-inset: 0px;
+  --dh-bottomnav-height: 0px;
+
+  /* The phone bottom bar's own height, before safe-area padding. */
+  --dh-bottomnav-bar-height: 3.5rem;
+
   /* ---------------------------------------------------------------------- */
   /* Shape & border                                                         */
   /* ---------------------------------------------------------------------- */

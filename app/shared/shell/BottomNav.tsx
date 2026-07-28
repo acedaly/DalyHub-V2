@@ -1,0 +1,166 @@
+/**
+ * MOBILE-01 — the phone bottom navigation bar.
+ *
+ * Replaces hamburger-ONLY phone navigation (PX-02 left the menu toggle as the sole
+ * route to every destination). The bar is persistent at phone widths and carries
+ * the product's most frequent daily moves within thumb reach:
+ *
+ *     Today · Tasks · Capture · Diary · More
+ *
+ * Nothing in that list is hard-coded here. The destinations are DERIVED from the
+ * registry-driven navigation model by `buildBottomNavigation` — a module earns a
+ * slot by declaring `meta.mobilePrimaryOrder` in its own route manifest — and
+ * "More" opens the SAME complete navigation sheet the hamburger opened, so every
+ * module (including any future one) is still one tap away and nothing appears in a
+ * second, drifting list.
+ *
+ * Accessibility contract:
+ *   - a labelled `navigation` landmark, distinct from the sidebar's, so a screen
+ *     reader user can jump straight to it;
+ *   - the active destination carries `aria-current="page"` AND is marked visually
+ *     by an indicator bar, a filled icon treatment and a semibold label — never by
+ *     colour alone (AGENTS.md §15);
+ *   - every control is a real button/link with a permanently visible text label
+ *     beneath its icon (no icon-only targets) and meets the 44px minimum;
+ *   - the bar sits above the home indicator via `env(safe-area-inset-bottom)` and
+ *     hides itself while the on-screen keyboard is up (`--dh-keyboard-inset`), so
+ *     it can never cover a focused field or an error message;
+ *   - it is `display: none` at `md` and above, so desktop is untouched.
+ *
+ * Browser Back is ordinary link navigation: destinations are real `Link`s, so Back
+ * returns to the previous destination and the Capture/More sheets — which are not
+ * routes — close without adding a history entry.
+ */
+
+import { useRef } from "react";
+import { Link, useLocation } from "react-router";
+
+import { EntityIcon, isEntityType } from "~/shared/entity";
+import { MoreIcon, PlusIcon } from "~/shared/icons";
+
+import type { NavigationItem } from "~/platform/modules/navigation-adapter";
+
+import {
+  activeDestinationHref,
+  buildBottomNavigation,
+  resolveMobilePrimaryDestinations,
+} from "./mobile-navigation";
+
+export type BottomNavProps = {
+  /** The registry-driven navigation model, already filtered by SET-01 preferences. */
+  readonly navigation: readonly NavigationItem[];
+  /** Open the shared Quick Capture sheet. */
+  readonly onOpenCapture: (opener: HTMLElement) => void;
+  /** Open the complete registry-driven navigation sheet. */
+  readonly onOpenMore: (opener: HTMLElement) => void;
+  /** Whether the More sheet is currently open (for `aria-expanded`). */
+  readonly moreOpen: boolean;
+};
+
+/** The destination glyph: its entity identity when the module declares one. */
+function DestinationIcon({ item }: { readonly item: NavigationItem }) {
+  if (item.entityType !== undefined && isEntityType(item.entityType)) {
+    return <EntityIcon type={item.entityType} />;
+  }
+  // A module with no declared entity type still gets a real, non-empty glyph.
+  return <span className="dh-bottomnav__dot" />;
+}
+
+export function BottomNav({
+  navigation,
+  onOpenCapture,
+  onOpenMore,
+  moreOpen,
+}: BottomNavProps) {
+  const location = useLocation();
+  const captureRef = useRef<HTMLButtonElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+
+  const destinations = resolveMobilePrimaryDestinations(navigation);
+  const slots = buildBottomNavigation(navigation);
+  const activeHref = activeDestinationHref(destinations, location.pathname);
+
+  return (
+    // Named DISTINCTLY from the sidebar's "Primary" navigation landmark: both are
+    // in the DOM at once (each is `display:none` at the other's viewport), and two
+    // same-named landmarks are ambiguous to a screen-reader user browsing by
+    // landmark. "Quick navigation" is also honest — this bar is the frequent
+    // destinations; the COMPLETE navigation lives behind More.
+    <nav
+      className="dh-bottomnav"
+      aria-label="Quick navigation"
+      data-testid="bottom-nav"
+    >
+      <ul className="dh-bottomnav__list">
+        {slots.map((slot) => {
+          if (slot.kind === "capture") {
+            return (
+              <li key="capture" className="dh-bottomnav__item">
+                <button
+                  type="button"
+                  ref={captureRef}
+                  className="dh-bottomnav__control dh-bottomnav__control--capture"
+                  onClick={() => {
+                    if (captureRef.current) {
+                      onOpenCapture(captureRef.current);
+                    }
+                  }}
+                >
+                  <span className="dh-bottomnav__icon" aria-hidden="true">
+                    <PlusIcon />
+                  </span>
+                  <span className="dh-bottomnav__label">Capture</span>
+                </button>
+              </li>
+            );
+          }
+
+          if (slot.kind === "more") {
+            return (
+              <li key="more" className="dh-bottomnav__item">
+                <button
+                  type="button"
+                  ref={moreRef}
+                  className="dh-bottomnav__control"
+                  aria-expanded={moreOpen}
+                  aria-controls="primary-navigation-mobile"
+                  onClick={() => {
+                    if (moreRef.current) {
+                      onOpenMore(moreRef.current);
+                    }
+                  }}
+                >
+                  <span className="dh-bottomnav__icon" aria-hidden="true">
+                    <MoreIcon />
+                  </span>
+                  <span className="dh-bottomnav__label">More</span>
+                </button>
+              </li>
+            );
+          }
+
+          const { item } = slot;
+          const active = item.href === activeHref;
+          return (
+            <li key={item.id} className="dh-bottomnav__item">
+              <Link
+                to={item.href}
+                className="dh-bottomnav__control"
+                aria-current={active ? "page" : undefined}
+                data-active={active ? "true" : "false"}
+              >
+                {/* The indicator is a SHAPE, so the active destination is still
+                    obvious under forced colours and to a colour-blind user. */}
+                <span className="dh-bottomnav__indicator" aria-hidden="true" />
+                <span className="dh-bottomnav__icon" aria-hidden="true">
+                  <DestinationIcon item={item} />
+                </span>
+                <span className="dh-bottomnav__label">{item.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}

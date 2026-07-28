@@ -19,7 +19,9 @@ const routes: readonly RouteContribution[] = [
     id: "today.index",
     path: "today",
     file: "routes/index.tsx",
-    meta: { navLabel: "Today", navOrder: 5 },
+    // MOBILE-01: Today is the first phone bottom-navigation destination. The
+    // shell derives the bar from this capability — it holds no module list.
+    meta: { navLabel: "Today", navOrder: 5, mobilePrimaryOrder: 10 },
   },
   // TODAY-03 Waiting: a real sub-view of Today listing tasks blocked on someone or
   // something else. It has no sidebar nav entry (no `navLabel`) — it is reached from

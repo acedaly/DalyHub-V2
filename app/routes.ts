@@ -73,6 +73,10 @@ export default [
   // (list/search/summary via GET, link/unlink via POST) every record's Linked
   // Items section uses, so no module needs bespoke link routes. Renders no shell.
   route("links", "routes/links.ts"),
+  // MOBILE-01 shared Quick Capture context — the owner timezone, today's calendar
+  // date and the re-verified default Task capture parent the shared capture sheet
+  // needs. A shell-owned JSON resource route; it renders no shell.
+  route("capture/context", "routes/capture-context.ts"),
   layout("routes/app-shell.tsx", { id: "app-shell" }, [
     index("routes/home.tsx"),
     ...moduleRoutes,

@@ -79,6 +79,12 @@ export {
   type SubmitOutcome,
 } from "./use-form";
 export {
+  useOptionSearch,
+  OPTION_SEARCH_DEBOUNCE_MS,
+  type UseOptionSearchOptions,
+  type UseOptionSearchResult,
+} from "./use-option-search";
+export {
   useAutosaveField,
   DEFAULT_AUTOSAVE_DEBOUNCE_MS,
   type UseAutosaveFieldOptions,

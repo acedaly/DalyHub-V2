@@ -1,0 +1,159 @@
+/*
+ * MOBILE-01 — the shared Quick Capture presentation, in design tokens only.
+ *
+ * Capture is deliberately the SHORTEST form in the product, so its styling does
+ * three things and nothing else:
+ *   - keeps the create action sticky at the bottom of the sheet's scroll region,
+ *     so it stays above the phone keyboard and never needs scrolling to;
+ *   - renders optional classification as one-tap CHIPS rather than selects, so
+ *     adding a priority or a due date costs a single tap;
+ *   - gives the post-capture confirmation a calm, three-choice layout.
+ */
+
+.dh-capture-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+/* The resolved default capture parent / capture day — a statement, not a field.
+ * It is shown, never hidden, so the user always knows where a capture lands. */
+.dh-capture-parent {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-capture-parent strong {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+/* -------------------------------------------------------------------------- */
+/* One-tap classification chips                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-capture-chips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-capture-chips__label {
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-muted);
+}
+
+/* Chips WRAP rather than scroll: a hidden option the thumb has to discover by
+ * swiping is not a reachable control. */
+.dh-capture-chips__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-capture-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-capture-chip:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+/* Selected: aria-pressed (semantic) + accent border + weight — never colour alone. */
+.dh-capture-chip[aria-pressed="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-surface);
+  font-weight: var(--dh-font-weight-semibold);
+  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+}
+
+.dh-capture-chip__icon {
+  display: inline-flex;
+  line-height: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The sticky create action                                                    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Sticky within the sheet's scrolling body, so "Create" is always on screen —
+ * including when the keyboard is open, because the sheet's own height already
+ * subtracts `--dh-keyboard-inset`.
+ */
+.dh-capture-actions {
+  position: sticky;
+  bottom: calc(-1 * var(--dh-space-4));
+  display: flex;
+  justify-content: stretch;
+  margin: 0 calc(-1 * var(--dh-space-4)) calc(-1 * var(--dh-space-4));
+  padding: var(--dh-space-3) var(--dh-space-4);
+  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  background: var(--dh-color-surface-raised);
+}
+
+.dh-capture-actions > * {
+  flex: 1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The post-capture confirmation                                               */
+/* -------------------------------------------------------------------------- */
+
+.dh-capture-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-capture-result__message {
+  margin: 0;
+  font-size: var(--dh-font-size-md);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+/* Stacked full-width choices: on a phone three side-by-side buttons are all below
+ * the comfortable target width. "Add another" is first because repeated capture
+ * is the common case. */
+.dh-capture-result__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-capture-result__actions > * {
+  inline-size: 100%;
+  min-block-size: var(--dh-touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 30rem) {
+  .dh-capture-result__actions {
+    flex-direction: row;
+  }
+
+  .dh-capture-result__actions > * {
+    inline-size: auto;
+    flex: 1;
+  }
+}

@@ -33,6 +33,13 @@ export type NavigationItem = {
   /** Optional grouping key the shell may use to cluster entries. */
   readonly group?: string;
   /**
+   * MOBILE-01 — the module-declared phone primary-placement order, when this
+   * destination opts in to a bottom-navigation slot (`meta.mobilePrimaryOrder`).
+   * The shell reads it; it never maintains a second list of phone destinations.
+   * See `app/shared/shell/mobile-navigation.ts`.
+   */
+  readonly mobilePrimaryOrder?: number;
+  /**
    * The owning module's primary entity-type slug (PX-02), if declared, so the
    * sidebar can render the type's identity icon + accent (app/shared/entity). It
    * is DERIVED from the module's own `entityTypes` manifest — the module declares
@@ -143,6 +150,9 @@ export function buildNavigationModel(
       ...(route.meta?.navGroup === undefined
         ? {}
         : { group: route.meta.navGroup }),
+      ...(route.meta?.mobilePrimaryOrder === undefined
+        ? {}
+        : { mobilePrimaryOrder: route.meta.mobilePrimaryOrder }),
       ...(entityType === undefined ? {} : { entityType }),
     };
     items.push({ item, listIndex });
