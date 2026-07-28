@@ -11,7 +11,11 @@
  *     respect workspace isolation (the server policy is authoritative).
  */
 
-import { EntityIcon, EntityLink, isEntityType } from "~/shared/entity";
+import {
+  EntityIcon,
+  EntityRelationshipRow,
+  isEntityType,
+} from "~/shared/entity";
 import { EntityLinkPicker } from "~/shared/forms";
 import type {
   EntityLinkSelection,
@@ -35,32 +39,6 @@ interface TaskLinksTabProps {
   readonly onUnlink: (link: EntityLinkSelection) => Promise<void>;
 }
 
-function RelationshipRow({
-  kind,
-  id,
-  title,
-}: {
-  readonly kind: string;
-  readonly id: string;
-  readonly title: string;
-}) {
-  const label = kind.charAt(0).toUpperCase() + kind.slice(1);
-  return (
-    <li className="dh-task-drawer__relationship">
-      {isEntityType(kind) ? <EntityIcon type={kind} /> : null}
-      <span className="dh-task-drawer__relationship-kind">{label}</span>
-      {/* Opening a Project/Area/Goal navigates to its canonical record; a Task
-       * would open the shared Drawer. Unsupported kinds stay plain text. */}
-      <EntityLink
-        type={kind}
-        id={id}
-        title={title}
-        className="dh-task-drawer__relationship-title"
-      />
-    </li>
-  );
-}
-
 export function TaskLinksTab({
   task,
   links,
@@ -73,13 +51,13 @@ export function TaskLinksTab({
   );
 
   return (
-    <div className="dh-task-drawer__links">
-      <section aria-label="Relationships" className="dh-task-drawer__section">
-        <h4 className="dh-task-drawer__section-label">Relationships</h4>
+    <div className="dh-record-stack">
+      <section aria-label="Relationships" className="dh-record-section">
+        <h4 className="dh-record-section__label">Relationships</h4>
         {relationships.length > 0 ? (
-          <ul className="dh-task-drawer__relationships">
+          <ul className="dh-entity-relationships">
             {relationships.map((relation) => (
-              <RelationshipRow
+              <EntityRelationshipRow
                 key={`${relation.kind}:${relation.id}`}
                 kind={relation.kind}
                 id={relation.id}
@@ -88,13 +66,13 @@ export function TaskLinksTab({
             ))}
           </ul>
         ) : (
-          <p className="dh-task-drawer__muted">
-            This task isn&rsquo;t linked to a project, goal or area yet.
+          <p className="dh-record-muted">
+            This task isn’t linked to a project, goal or area yet.
           </p>
         )}
       </section>
 
-      <section aria-label="Related records" className="dh-task-drawer__section">
+      <section aria-label="Related records" className="dh-record-section">
         <EntityLinkPicker
           label="Related records"
           help="Link this task to other records in your workspace."

@@ -203,6 +203,14 @@
   background: var(--dh-color-surface);
 }
 
+/* PX-05 — the chip's subtype glyph: decorative, subordinate to the label, and
+ * sized to the surrounding text so it scales with OS text scaling. */
+.dh-diary-filter__icon {
+  display: inline-flex;
+  flex: none;
+  font-size: var(--dh-font-size-md);
+}
+
 .dh-diary-filter__option:hover {
   background: var(--dh-color-hover-surface);
   color: var(--dh-color-text);
@@ -703,6 +711,15 @@
 
 .dh-diary-fab {
   display: none;
+}
+
+/* PX-06 — exactly ONE primary create action per viewport. On desktop the Pane
+ * Header button is it; below `md` the floating action takes over and the header
+ * button is withdrawn, so the two never appear together. */
+@media (max-width: 48rem) {
+  .dh-diary-header-create {
+    display: none;
+  }
 }
 
 @media (max-width: 48rem) {

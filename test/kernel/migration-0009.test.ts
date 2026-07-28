@@ -147,7 +147,7 @@ describe("migration 0008 → 0009 (goal_details, additive, existing-data safe)",
     expect(threw).toBe(true);
   });
 
-  it("rerunning the application's upsert path does not create duplicate rows (idempotent PK)", async () => {
+  it("rerunning the application’s upsert path does not create duplicate rows (idempotent PK)", async () => {
     await DB.prepare(
       `INSERT INTO goal_details (workspace_id, entity_id, target_date, definition_of_done, updated_at)
        VALUES ('ws_m9', 'goal_m9', '2026-01-01', 'Finish it.', ?)

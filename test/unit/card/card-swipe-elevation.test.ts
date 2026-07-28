@@ -45,7 +45,7 @@ describe("swipe wrapper elevation (regression)", () => {
     );
   });
 
-  it("suppresses the clipped article's own shadow so it never renders clipped", () => {
+  it("suppresses the clipped article’s own shadow so it never renders clipped", () => {
     // The `.dh-card` inside the wrapper must not paint a shadow that the clip eats.
     expect(cardCss).toMatch(
       /\.dh-card-swipe\s*>\s*\.dh-card[^{]*\{[^}]*box-shadow:\s*none/,

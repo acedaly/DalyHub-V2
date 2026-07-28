@@ -49,7 +49,7 @@ describe("addCalendarDays", () => {
 });
 
 describe("planTargets", () => {
-  it("resolves today, tomorrow and next week from the owner's day", () => {
+  it("resolves today, tomorrow and next week from the owner’s day", () => {
     expect(planTargets(TODAY)).toEqual({
       today: "2026-07-19",
       tomorrow: "2026-07-20",

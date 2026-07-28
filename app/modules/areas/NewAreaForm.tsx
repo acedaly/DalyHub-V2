@@ -1,5 +1,5 @@
 /**
- * AREA-01 — the "New area" form (hosted in the shared DS-03 Drawer).
+ * AREA-01 — the "New Area" form (hosted in the shared DS-03 Drawer).
  *
  * Uses DS-06 explicit form controls and posts to the trusted `/areas/new` action.
  * The server creates through `SpineRepository.createArea`, so the client never
@@ -43,7 +43,7 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
       } catch {
         return {
           status: "error",
-          formError: "That Area couldn't be created. Please try again.",
+          formError: "That Area couldn’t be created. Please try again.",
         };
       }
       if (data.ok) {
@@ -63,7 +63,7 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
 
   return (
     <Form
-      aria-label="New area"
+      aria-label="New Area"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >

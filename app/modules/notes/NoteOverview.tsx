@@ -22,6 +22,7 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NoteContentForm } from "./NoteContentForm";
@@ -93,43 +94,54 @@ export function NoteOverview({
     variant: "secondary",
     onSelect: onRename,
   };
-  const deleteAction: RecordAction = {
-    id: "delete",
-    label: "Delete note",
-    variant: "secondary",
-    disabled: deletePending,
-    onSelect: deleteNote,
-  };
+  // PX-04: Notes were the reference lifecycle (header button + Undo toast), but
+  // the button lived beside Rename while every other module's removal was
+  // somewhere else. The behaviour is unchanged — a single click, optimistic, with
+  // a DS-10 Undo toast — it has simply moved into the ONE shared overflow slot so
+  // the mental model transfers (ADR-042 + PX-04).
+  const lifecycle = useRecordLifecycle({
+    entityType: "note",
+    title: overview.title,
+    deleteMode: "reversible",
+    pending: deletePending,
+    onDelete: async () => {
+      deleteNote();
+    },
+  });
 
   return (
-    <RecordLayout
-      title={overview.title}
-      typeLabel="Note"
-      icon={<EntityIcon type="note" />}
-      breadcrumb={[{ id: "notes", label: "Notes", href: "/notes" }]}
-      secondaryActions={[renameAction, deleteAction]}
-      summary={
-        summaryMetadata.length > 0 ? { metadata: summaryMetadata } : undefined
-      }
-      activeTabId={activeTabId}
-      onTabChange={onTabChange}
-      tabs={[
-        {
-          id: "note",
-          label: "Note",
-          content: (
-            <NoteContentForm
-              noteId={overview.id}
-              initialContent={details.content}
-              onSaved={onSaved}
-              suppressGuard={deleted}
-              flushRef={flushContentRef}
-            />
-          ),
-        },
-        { id: "linked", label: "Linked", content: linkedTab },
-        { id: "activity", label: "Activity", content: activityTab },
-      ]}
-    />
+    <>
+      <RecordLayout
+        title={overview.title}
+        typeLabel="Note"
+        icon={<EntityIcon type="note" />}
+        breadcrumb={[{ id: "notes", label: "Notes", href: "/notes" }]}
+        secondaryActions={[renameAction]}
+        overflowActions={lifecycle.overflowActions}
+        summary={
+          summaryMetadata.length > 0 ? { metadata: summaryMetadata } : undefined
+        }
+        activeTabId={activeTabId}
+        onTabChange={onTabChange}
+        tabs={[
+          {
+            id: "note",
+            label: "Note",
+            content: (
+              <NoteContentForm
+                noteId={overview.id}
+                initialContent={details.content}
+                onSaved={onSaved}
+                suppressGuard={deleted}
+                flushRef={flushContentRef}
+              />
+            ),
+          },
+          { id: "linked", label: "Linked", content: linkedTab },
+          { id: "activity", label: "Activity", content: activityTab },
+        ]}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }

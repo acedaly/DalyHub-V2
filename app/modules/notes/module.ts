@@ -35,7 +35,7 @@ export default defineModule({
     {
       type: NOTE_CONTENT_UPDATED,
       label: "Note content updated",
-      description: "A note's Markdown content changed.",
+      description: "A note’s Markdown content changed.",
     },
   ],
 });

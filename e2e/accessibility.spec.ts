@@ -47,6 +47,8 @@ const PRODUCT_ROUTES = [
   // AREA-03 — the real Goals collection (the Alignment view) + a real Goal
   // record with the derived Alignment Summary panel.
   "/goals",
+  // PX-04 — the Goals "Deleted" lifecycle view (the durable restore surface).
+  "/goals?state=deleted",
   "/goals/g-launch",
   "/goals/g-launch?tab=activity",
   "/projects",
@@ -57,7 +59,7 @@ const PRODUCT_ROUTES = [
   // PROJ-06 — the complete Projects mobile-facing record tabs are swept by the
   // existing route matrix instead of a separate scanner.
   "/projects/pr-website?tasks=all",
-  "/projects/pr-website?tab=links",
+  "/projects/pr-website?tab=linked",
   "/projects/pr-website?tab=activity",
   "/tasks",
   // PROJ-05 Slice 4 — the Settings tab (an active, non-archived project), the
@@ -150,8 +152,8 @@ test.describe("automated accessibility — open overlays", () => {
   // PROJ-06 — real Projects overlays: the create sheet and shared task Drawer.
   test("Projects new-project sheet has no violations", async ({ page }) => {
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New project" }).first().click();
-    await page.getByRole("dialog", { name: "New project" }).waitFor();
+    await page.getByRole("link", { name: "New Project" }).first().click();
+    await page.getByRole("dialog", { name: "New Project" }).waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");
   });
@@ -185,6 +187,16 @@ test.describe("automated accessibility — open overlays", () => {
     await gotoFixture(page, "/goals/g-launch");
     await page.getByRole("button", { name: "Edit details" }).click();
     await page.getByRole("dialog", { name: "Goal details" }).waitFor();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press("Escape");
+  });
+
+  // DS-12 — the shared overflow (⋯) menu, open, on a real record. It is the ONE
+  // home for lifecycle actions, so it is scanned like every other overlay.
+  test("record overflow menu has no violations", async ({ page }) => {
+    await gotoFixture(page, "/projects/pr-website");
+    await page.getByRole("button", { name: /^More actions for / }).click();
+    await page.getByRole("menu").waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");
   });

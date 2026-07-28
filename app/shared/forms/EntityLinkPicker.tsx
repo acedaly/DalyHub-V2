@@ -196,7 +196,7 @@ export function EntityLinkPicker({
     } catch {
       if (!mountedRef.current) return;
       setActionError(
-        `Couldn't link ${target.title}. It may have changed — try searching again.`,
+        `Couldn’t link ${target.title}. It may have changed — try searching again.`,
       );
     } finally {
       if (mountedRef.current) setPendingTargetId(null);
@@ -213,7 +213,7 @@ export function EntityLinkPicker({
       setAnnounce(`Removed link to ${link.target.title}.`);
     } catch {
       if (!mountedRef.current) return;
-      setActionError(`Couldn't remove the link to ${link.target.title}.`);
+      setActionError(`Couldn’t remove the link to ${link.target.title}.`);
     } finally {
       if (mountedRef.current) setPendingUnlinkId(null);
     }

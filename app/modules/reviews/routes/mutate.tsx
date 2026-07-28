@@ -128,7 +128,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       {
         kind: intent === "delete" ? "delete" : "lifecycle",
         ok: false,
-        formError: "That change couldn't be saved. Please try again.",
+        formError: "That change couldn’t be saved. Please try again.",
       },
       500,
     );

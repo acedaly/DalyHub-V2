@@ -162,7 +162,7 @@ describe("health visibility (PROJ-05 §8 / ADR-037)", () => {
     ).toBe(true);
   });
 
-  it("hides health for Planned (work hasn't started — no stalled warning)", () => {
+  it("hides health for Planned (work hasn’t started — no stalled warning)", () => {
     expect(
       isHealthVisible({
         status: "planned",
@@ -204,7 +204,7 @@ describe("health visibility (PROJ-05 §8 / ADR-037)", () => {
 });
 
 describe("serialisation", () => {
-  it("serialises a list item's Dates to ISO strings", () => {
+  it("serialises a list item’s Dates to ISO strings", () => {
     const s = serializeProjectListItem(
       listItem({ taskTotal: 5, taskCompleted: 2 }),
       stubHealth(),
@@ -235,7 +235,7 @@ describe("serialisation", () => {
     expect(s.healthVisible).toBe(false);
   });
 
-  it("serialises a project task's waiting state (which the generic serializer omits)", () => {
+  it("serialises a project task’s waiting state (which the generic serializer omits)", () => {
     const task: TaskListItem = {
       id: "t1",
       workspaceId: WS,

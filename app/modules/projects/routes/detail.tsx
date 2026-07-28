@@ -203,7 +203,7 @@ export default function ProjectDetailRoute({
  * ARCHIVED project is read-only (PROJ-05 §5): a Task record itself stays
  * readable (its OWN Drawer still opens — the shared task surface already
  * communicates a rejected mutation calmly, no second error path is built here),
- * but the "New task" and "Rename" forms are never rendered — even for a stale or
+ * but the "New Task" and "Rename" forms are never rendered — even for a stale or
  * hand-edited `?drawer=` deep link — because every mutation they'd attempt is
  * rejected server-side anyway. A calm read-only panel explains why instead.
  */
@@ -230,7 +230,7 @@ function createProjectDrawerRenderer(overview: SerializedProjectOverview) {
         };
       }
       return {
-        title: "New task",
+        title: "New Task",
         description: `Add a task to ${overview.title}.`,
         children: <NewTaskDrawerHost projectId={overview.id} />,
       };
@@ -263,8 +263,8 @@ function createProjectDrawerRenderer(overview: SerializedProjectOverview) {
 function ArchivedDrawerNotice({ action }: { readonly action: string }) {
   return (
     <p className="dh-project-archived-notice">
-      This project is archived and read-only, so you can&rsquo;t {action}
-      right now. Open the project&rsquo;s Settings tab to restore it first.
+      This project is archived and read-only, so you can’t {action}
+      right now. Open the project’s Settings tab to restore it first.
     </p>
   );
 }
@@ -342,7 +342,7 @@ function ProjectDetail({
   // `?drawer=` state, and replaces history (no per-click Back stop).
   const requestedTab = searchParams.get("tab");
   const activeTabId =
-    requestedTab === "links" ||
+    requestedTab === "linked" ||
     requestedTab === "activity" ||
     requestedTab === "settings"
       ? requestedTab
@@ -381,7 +381,7 @@ function ProjectDetail({
 
   /** A calm, generic failure message for a settings mutation whose route did
    * not itself return one (e.g. a network failure, or a malformed response). */
-  const SETTINGS_GENERIC_ERROR = "That couldn't be saved. Please try again.";
+  const SETTINGS_GENERIC_ERROR = "That couldn’t be saved. Please try again.";
 
   const onSetStatus = useCallback(
     async (status: ProjectWorkflowStatus, signal: AbortSignal) => {
@@ -474,7 +474,7 @@ function ProjectDetail({
       try {
         const ok = await submitCompletion(complete ? "complete" : "reopen");
         if (!ok) {
-          notifyError("That couldn't be saved. Please try again.");
+          notifyError("That couldn’t be saved. Please try again.");
           return;
         }
         if (complete) {
@@ -486,7 +486,7 @@ function ProjectDetail({
           notifySuccess("Project reopened.");
         }
       } catch {
-        notifyError("That couldn't be saved. Please try again.");
+        notifyError("That couldn’t be saved. Please try again.");
       } finally {
         setCompletionPending(false);
       }
@@ -533,7 +533,7 @@ function ProjectDetail({
         throw new Error(
           result.kind === "link" && result.message
             ? result.message
-            : "That link couldn't be created.",
+            : "That link couldn’t be created.",
         );
       }
       revalidator.revalidate();
@@ -548,7 +548,7 @@ function ProjectDetail({
       body.set("linkId", link.linkId);
       const result = await postMutation(body);
       if (!(result.kind === "unlink" && result.ok)) {
-        throw new Error("That link couldn't be removed.");
+        throw new Error("That link couldn’t be removed.");
       }
       revalidator.revalidate();
     },
@@ -601,6 +601,8 @@ function ProjectDetail({
           reloadKey={overview.updatedAt}
         />
       }
+      onArchive={onArchive}
+      onRestore={onRestore}
       settingsTab={
         // PROJ-05 Slice 3 — the shared DS-10b Settings surface. Always the final
         // tab (DESIGN_SYSTEM.md → Tabs).
@@ -622,7 +624,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <div className="dh-project-not-found">
         <EmptyState
           icon={<EntityIcon type="project" />}
-          title="We couldn't find that project"
+          title="We couldn’t find that project"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
             <a className="dh-btn dh-btn--primary" href="/projects">
@@ -637,7 +639,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     <div className="dh-project-not-found">
       <EmptyState
         title="Something went wrong"
-        description="We couldn't load this project. Please try again."
+        description="We couldn’t load this project. Please try again."
         primaryAction={
           <a className="dh-btn dh-btn--primary" href="/projects">
             Back to Projects

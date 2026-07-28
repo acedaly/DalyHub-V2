@@ -24,6 +24,7 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 import type { AreaMomentum } from "~/kernel/areas";
 
@@ -60,6 +61,12 @@ interface AreaOverviewViewProps {
   readonly linkedTab: ReactNode;
   /** AREA-05: the lifecycle & danger section (Archive/Restore + permanent delete). */
   readonly settingsTab?: ReactNode;
+  /** PX-04: the shared lifecycle actions, also surfaced in the header overflow. */
+  readonly onArchive?: () => Promise<void>;
+  readonly onRestore?: () => Promise<void>;
+  readonly onDelete?: () => Promise<void>;
+  /** Whether this Area is empty enough to delete permanently (spine child guard). */
+  readonly deletable?: boolean;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
 }
@@ -116,7 +123,7 @@ function goalCard(
     {
       id: "projects",
       label: "Projects",
-      value: projects.has ? projects.summary : "No projects yet",
+      value: projects.has ? projects.summary : "No Projects yet",
     },
   ];
   if (!tasks.has) {
@@ -249,6 +256,10 @@ export function AreaOverviewView({
   activityTab,
   linkedTab,
   settingsTab,
+  onArchive,
+  onRestore,
+  onDelete,
+  deletable = false,
   activeTabId,
   onTabChange,
 }: AreaOverviewViewProps) {
@@ -269,7 +280,7 @@ export function AreaOverviewView({
       label: "Projects",
       value: projectsProgress.has
         ? projectsProgress.summary
-        : "No projects yet",
+        : "No Projects yet",
     },
   ];
   if (tasksProgress.has) {
@@ -299,130 +310,153 @@ export function AreaOverviewView({
     onSelect: onRename,
   };
   // AREA-05: an archived Area is read-only — the Rename action is not offered
-  // (the mutation is also refused server-side). Lifecycle actions live in Settings.
+  // (the mutation is also refused server-side).
   const secondaryActions: RecordAction[] = archived ? [] : [renameAction];
 
+  // PX-04: Archive/Restore/Delete now ALSO live in the shared header overflow, in
+  // the same place and wording as every other record. The Settings tab keeps the
+  // full explanation and the dependency detail; the overflow is the discoverable
+  // entry point the audit found missing (UXA-06).
+  const lifecycle = useRecordLifecycle({
+    entityType: "area",
+    title: overview.title,
+    archived,
+    onArchive,
+    onRestore,
+    onDelete,
+    deleteBlockedReason: deletable
+      ? undefined
+      : "Move or remove everything inside this Area first.",
+  });
+
   return (
-    <RecordLayout
-      title={overview.title}
-      typeLabel="Area"
-      icon={<EntityIcon type="area" />}
-      breadcrumb={[{ id: "areas", label: "Areas", href: "/areas" }]}
-      status={{ label: state.label, tone: state.tone }}
-      metadata={headerMetadata}
-      secondaryActions={secondaryActions}
-      summary={{
-        description: (
-          <div className="dh-area-overview__summary">
-            {archived ? (
-              <p className="dh-area-archived-notice" role="note">
-                <strong>This Area is archived.</strong> It's hidden from your
-                active Areas and creation pickers and is read-only. Restore it
-                from the Settings tab to make changes.
+    <>
+      <RecordLayout
+        title={overview.title}
+        typeLabel="Area"
+        icon={<EntityIcon type="area" />}
+        breadcrumb={[{ id: "areas", label: "Areas", href: "/areas" }]}
+        status={{ label: state.label, tone: state.tone }}
+        metadata={headerMetadata}
+        secondaryActions={secondaryActions}
+        overflowActions={lifecycle.overflowActions}
+        summary={{
+          description: (
+            <div className="dh-area-overview__summary">
+              {archived ? (
+                <p className="dh-area-archived-notice" role="note">
+                  <strong>This Area is archived.</strong> It’s hidden from your
+                  active Areas and creation pickers and is read-only. Restore it
+                  from the Settings tab to make changes.
+                </p>
+              ) : null}
+              <p className="dh-area-overview__progress">
+                <span className="dh-area-overview__progress-label">
+                  Roll-up progress:
+                </span>{" "}
+                {tasksProgress.has
+                  ? `${tasksProgress.percent}% — ${tasksProgress.summary} complete`
+                  : "No active tasks yet."}
               </p>
-            ) : null}
-            <p className="dh-area-overview__progress">
-              <span className="dh-area-overview__progress-label">
-                Roll-up progress:
-              </span>{" "}
-              {tasksProgress.has
-                ? `${tasksProgress.percent}% — ${tasksProgress.summary} complete`
-                : "No active tasks yet."}
-            </p>
-            <MomentumPanel momentum={momentum} />
-          </div>
-        ),
-        metadata: summaryMetadata,
-      }}
-      activeTabId={activeTabId}
-      onTabChange={onTabChange}
-      tabs={[
-        {
-          id: "goals",
-          label: "Goals",
-          badge: rollup.goals.total,
-          content:
-            goals.length === 0 ? (
-              <EmptyState
-                icon={<EntityIcon type="goal" />}
-                title="No Goals in this Area"
-                description={
-                  archived
-                    ? "This Area is archived. Restore it to add Goals."
-                    : "Goals give this Area a direction and a definition of done."
-                }
-                primaryAction={
-                  archived ? undefined : (
-                    <DrawerTrigger
-                      drawerKey={NEW_GOAL_KEY}
-                      className="dh-btn dh-btn--primary"
-                    >
-                      New Goal
-                    </DrawerTrigger>
-                  )
-                }
-              />
-            ) : (
-              <>
-                <h2 className="dh-visually-hidden">Goals</h2>
-                {archived ? null : (
-                  <div className="dh-area-tab-toolbar">
-                    <DrawerTrigger
-                      drawerKey={NEW_GOAL_KEY}
-                      className="dh-btn dh-btn--secondary"
-                    >
-                      New Goal
-                    </DrawerTrigger>
-                  </div>
-                )}
-                <CardCollection
-                  items={goals}
-                  getItemId={(goal) => goal.id}
-                  ariaLabel="Area Goals"
-                  presentation="list"
-                  density="comfortable"
-                  renderCard={(goal) => (
-                    <Card {...goalCard(goal, onOpenGoal)} />
-                  )}
+              <MomentumPanel momentum={momentum} />
+            </div>
+          ),
+          metadata: summaryMetadata,
+        }}
+        activeTabId={activeTabId}
+        onTabChange={onTabChange}
+        tabs={[
+          {
+            id: "goals",
+            label: "Goals",
+            badge: rollup.goals.total,
+            content:
+              goals.length === 0 ? (
+                <EmptyState
+                  icon={<EntityIcon type="goal" />}
+                  title="No Goals in this Area"
+                  description={
+                    archived
+                      ? "This Area is archived. Restore it to add Goals."
+                      : "Goals give this Area a direction and a definition of done."
+                  }
+                  primaryAction={
+                    archived ? undefined : (
+                      <DrawerTrigger
+                        drawerKey={NEW_GOAL_KEY}
+                        className="dh-btn dh-btn--primary"
+                      >
+                        New Goal
+                      </DrawerTrigger>
+                    )
+                  }
                 />
-                <BoundedNote kind="Goals" nextCursor={goalsNextCursor} />
-              </>
-            ),
-        },
-        {
-          id: "projects",
-          label: "Projects",
-          badge: rollup.projects.total,
-          content:
-            projects.length === 0 ? (
-              <EmptyState
-                icon={<EntityIcon type="project" />}
-                title="No Projects in this Area"
-                description="Direct Projects and Projects advancing this Area's Goals will appear here."
-              />
-            ) : (
-              <>
-                <h2 className="dh-visually-hidden">Projects</h2>
-                <CardCollection
-                  items={projects}
-                  getItemId={(project) => project.id}
-                  ariaLabel="Area Projects"
-                  presentation="list"
-                  density="comfortable"
-                  renderCard={(project) => (
-                    <Card {...projectCard(project, onOpenProject)} />
+              ) : (
+                <>
+                  <h2 className="dh-visually-hidden">Goals</h2>
+                  {archived ? null : (
+                    <div className="dh-area-tab-toolbar">
+                      <DrawerTrigger
+                        drawerKey={NEW_GOAL_KEY}
+                        className="dh-btn dh-btn--secondary"
+                      >
+                        New Goal
+                      </DrawerTrigger>
+                    </div>
                   )}
+                  <CardCollection
+                    items={goals}
+                    getItemId={(goal) => goal.id}
+                    ariaLabel="Area Goals"
+                    presentation="list"
+                    density="comfortable"
+                    renderCard={(goal) => (
+                      <Card {...goalCard(goal, onOpenGoal)} />
+                    )}
+                  />
+                  <BoundedNote kind="Goals" nextCursor={goalsNextCursor} />
+                </>
+              ),
+          },
+          {
+            id: "projects",
+            label: "Projects",
+            badge: rollup.projects.total,
+            content:
+              projects.length === 0 ? (
+                <EmptyState
+                  icon={<EntityIcon type="project" />}
+                  title="No Projects in this Area"
+                  description="Direct Projects and Projects advancing this Area’s Goals will appear here."
                 />
-                <BoundedNote kind="Projects" nextCursor={projectsNextCursor} />
-              </>
-            ),
-        },
-        { id: "linked", label: "Linked", content: linkedTab },
-        { id: "activity", label: "Activity", content: activityTab },
-        ...(settingsTab
-          ? [{ id: "settings", label: "Settings", content: settingsTab }]
-          : []),
-      ]}
-    />
+              ) : (
+                <>
+                  <h2 className="dh-visually-hidden">Projects</h2>
+                  <CardCollection
+                    items={projects}
+                    getItemId={(project) => project.id}
+                    ariaLabel="Area Projects"
+                    presentation="list"
+                    density="comfortable"
+                    renderCard={(project) => (
+                      <Card {...projectCard(project, onOpenProject)} />
+                    )}
+                  />
+                  <BoundedNote
+                    kind="Projects"
+                    nextCursor={projectsNextCursor}
+                  />
+                </>
+              ),
+          },
+          { id: "linked", label: "Linked", content: linkedTab },
+          { id: "activity", label: "Activity", content: activityTab },
+          ...(settingsTab
+            ? [{ id: "settings", label: "Settings", content: settingsTab }]
+            : []),
+        ]}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }

@@ -406,8 +406,11 @@
   cursor: not-allowed;
 }
 
+/* DS-12: the card's overflow trigger is the shared `OverflowMenu` button, sized
+ * to sit in the card's action row. Its appearance is otherwise inherited from
+ * overflow-menu.css, so a card menu and a record menu look identical. */
 .dh-card__action--overflow {
-  padding: var(--dh-space-1);
+  font-size: var(--dh-font-size-xs);
 }
 
 .dh-card__action-icon {
@@ -501,6 +504,14 @@
 
 .dh-card-swipe:hover {
   box-shadow: var(--dh-shadow-md);
+}
+
+/* DS-12: a swipe-enabled card still gets the shared overflow menu. The clip that
+ * hides the swipe tray would otherwise cut the open panel off, so the wrapper
+ * un-clips only while a menu is open. The tray is covered by the card surface
+ * (z-index, not the clip), so nothing leaks. */
+.dh-card-swipe:has(.dh-overflow-menu[data-open="true"]) {
+  overflow: visible;
 }
 
 /* The article inside the clip must NOT paint its own (clipped, invisible)

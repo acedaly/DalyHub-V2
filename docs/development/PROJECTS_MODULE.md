@@ -689,3 +689,23 @@ Migration `0008_create_project_details.sql` adds the Projects-owned, workspace-s
 - **Today's "Continue working" is Active-only (ADR-037 §37.7/§37.8, PROJ-05 Slice 4 — done).** Slice 3 shipped the Settings UI that lets an owner move a Project to `"active"`; Slice 4 wired Today's loader to `workflowStatus: "active"` (alongside the existing `state: "open"`) and closed the accessibility/responsive/E2E gaps across the whole PROJ-05 surface. See the ["Today integration (PROJ-05 Slice 4)"](#today-integration-proj-05-slice-4) section above for the full behaviour and tests.
 
 Slice 3 (see the "Settings, archival and the Archived collection" section above) wires the shared Settings UI and the `/projects?state=archived` collection UI onto exactly these repository/route contracts — no new migration, no new route, no repository change. Slice 4 (Today integration + full accessibility/responsive/E2E closure) is now done — see [ROADMAP_V2 PROJ-05](../roadmap/ROADMAP_V2.md#-proj-05--settings). **PROJ-05 (all four slices) is complete.**
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**Archive/Restore is discoverable.** It was reachable only through the Settings sub-tab — the
+commonest removal in the product was the hardest to find. It now also sits in the Record Header
+overflow (⋯) with the derived wording `Archive Project`/`Restore Project`, driving the SAME
+handlers; Settings keeps the fuller explanation but is no longer the only entry.
+
+**Tab label.** The relationship tab is `Linked` (id `linked`) everywhere, retiring "Key links";
+the Task Drawer's "Links" converged on the same word in the same change.
+
+**Shared section rhythm.** The links tab previously styled itself with the Task Drawer's private
+`dh-task-drawer__*` classes. Those became the shared `.dh-record-stack`/`.dh-record-section`
+primitives in `record-layout.css`, so no module borrows another's namespace.
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

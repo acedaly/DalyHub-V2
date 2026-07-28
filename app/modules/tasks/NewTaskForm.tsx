@@ -1,5 +1,5 @@
 /**
- * TASKS-01 — the "New task" quick-capture form (hosted in the shared DS-03 Drawer).
+ * TASKS-01 — the "New Task" quick-capture form (hosted in the shared DS-03 Drawer).
  *
  * Built entirely from DS-06 shared controls (`useForm`, `TextField`, `SelectField`,
  * `DateField`, `Form`, `FormActions`, `FormButton`) with explicit Save/Cancel,
@@ -181,7 +181,7 @@ export function NewTaskForm({
         return {
           status: "error",
           formError:
-            "That task couldn't be created. Your text is safe — try again.",
+            "That task couldn’t be created. Your text is safe — try again.",
         };
       }
       if (data.ok) {
@@ -222,7 +222,7 @@ export function NewTaskForm({
 
   return (
     <Form
-      aria-label="New task"
+      aria-label="New Task"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >

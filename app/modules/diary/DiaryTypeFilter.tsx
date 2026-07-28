@@ -23,6 +23,8 @@
 
 import { Link, useSearchParams } from "react-router";
 
+import { SubtypeIcon } from "~/shared/entity";
+
 import { entryTypeOptions } from "./diary-view";
 
 export interface DiaryTypeFilterProps {
@@ -84,6 +86,14 @@ export function DiaryTypeFilter({
               className="dh-diary-filter__option"
               aria-current={activeType === option.value ? "true" : undefined}
             >
+              {/* PX-05: the SAME subtype glyph the capture picker and the timeline
+               * node show — the chips were the one Diary surface that omitted it.
+               * Decorative; the label beside it carries the meaning. */}
+              <SubtypeIcon
+                entityType="diary"
+                subtype={option.value}
+                className="dh-diary-filter__icon"
+              />
               <span className="dh-diary-filter__text">{option.label}</span>
               {count !== undefined ? (
                 <span className="dh-diary-filter__count">{count}</span>

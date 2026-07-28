@@ -92,7 +92,7 @@ describe("EntityLink lifecycle & endpoint-deletion behaviour", () => {
       expect(await entitiesA.getById(b.id)).toEqual(beforeB);
     });
 
-    it("throws not-found for an unknown id and never discloses another workspace's link", async () => {
+    it("throws not-found for an unknown id and never discloses another workspace’s link", async () => {
       const { link } = await linkedPair();
       await expect(linksA.unlink("nope")).rejects.toBeInstanceOf(
         EntityLinkNotFoundError,

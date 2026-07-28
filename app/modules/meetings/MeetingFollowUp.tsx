@@ -180,7 +180,7 @@ export function MeetingItemsSection({
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   return (
-    <section className="dh-meeting-section">
+    <section className="dh-record-section">
       <h2>{heading}</h2>
       {rows.length === 0 ? (
         <p className="dh-follow-up-empty">No {label}s yet.</p>
@@ -260,7 +260,7 @@ export function MeetingFollowUpTab({
   const allDone = allFollowUpsComplete(followUps);
 
   return (
-    <section className="dh-meeting-section">
+    <section className="dh-record-section">
       <div className="dh-follow-up-group__heading">
         <h2>Follow-up</h2>
         {!readOnly ? (
@@ -277,7 +277,7 @@ export function MeetingFollowUpTab({
       {noneYet ? (
         <EmptyState
           icon={<EntityIcon type="task" />}
-          title="No follow-up tasks yet."
+          title="No follow-up Tasks yet"
           description="Convert a decision or outcome into a task when it needs action."
         />
       ) : allDone ? (

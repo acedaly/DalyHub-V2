@@ -13,7 +13,11 @@
 
 import { env } from "cloudflare:workers";
 
-import { SpineValidationError } from "~/kernel/spine";
+import {
+  SpineHasActiveChildrenError,
+  SpineParentUnavailableError,
+  SpineValidationError,
+} from "~/kernel/spine";
 import { GoalDetailsValidationError } from "~/kernel/goals";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -46,6 +50,15 @@ export type GoalMutationResult =
       readonly ok: false;
       readonly formError?: string;
     }
+  | { readonly kind: "delete"; readonly ok: true }
+  | {
+      readonly kind: "delete";
+      readonly ok: false;
+      readonly blocked: boolean;
+      readonly formError: string;
+    }
+  | { readonly kind: "restore"; readonly ok: true }
+  | { readonly kind: "restore"; readonly ok: false; readonly formError: string }
   | {
       readonly kind: "unknown";
       readonly ok: false;
@@ -77,6 +90,25 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const intent = String(form.get("intent") ?? "");
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+
+  // PX-04 — reversible removal. `delete`/`restore` anchor on the Goal REGARDLESS
+  // of its current lifecycle state (`includeDeleted: true`), exactly as Notes do
+  // (ADR-042): Undo must be able to restore an already-deleted Goal, and a
+  // repeated call must stay the idempotent no-op `SpineRepository.softDelete`/
+  // `.restore` already guarantee — never a spurious 404. Missing, wrong-kind and
+  // cross-workspace ids still fail closed with the same calm not-found.
+  //
+  // No new kernel capability and NO MIGRATION: the spine has supported soft-
+  // delete and restore since FND-07; only the UI was missing. The child guard is
+  // the kernel's own — a Goal with active Projects is refused, never cascaded.
+  if (intent === "delete" || intent === "restore") {
+    const anchor = await scope.spine.getById(goalId, { includeDeleted: true });
+    if (!anchor || anchor.kind !== "goal") {
+      throw new Response("Not Found", { status: 404 });
+    }
+    return handleLifecycle(scope, goalId, intent);
+  }
+
   const goal = await scope.spine.getById(goalId);
   if (!goal || goal.kind !== "goal") {
     throw new Response("Not Found", { status: 404 });
@@ -97,7 +129,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "rename",
         ok: false,
-        formError: "That couldn't be saved. Please try again.",
+        formError: "That couldn’t be saved. Please try again.",
       });
     }
   }
@@ -120,7 +152,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "update_details",
         ok: false,
-        formError: "That couldn't be saved. Please try again.",
+        formError: "That couldn’t be saved. Please try again.",
       });
     }
   }
@@ -140,7 +172,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "completion",
         ok: false,
-        formError: "That couldn't be saved. Please try again.",
+        formError: "That couldn’t be saved. Please try again.",
       });
     }
   }
@@ -149,4 +181,54 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     { kind: "unknown", ok: false, formError: "Unknown action." },
     400,
   );
+}
+
+type Scope = Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>;
+
+async function handleLifecycle(
+  scope: Scope,
+  goalId: string,
+  intent: "delete" | "restore",
+): Promise<Response> {
+  try {
+    if (intent === "delete") {
+      await scope.spine.softDelete(goalId);
+      return json({ kind: "delete", ok: true });
+    }
+    await scope.spine.restore(goalId);
+    return json({ kind: "restore", ok: true });
+  } catch (cause) {
+    if (cause instanceof SpineHasActiveChildrenError) {
+      // The precondition is explained, never silently swallowed, and nothing is
+      // cascaded or orphaned (AGENTS.md §6 — every error names a recovery).
+      return json({
+        kind: "delete",
+        ok: false,
+        blocked: true,
+        formError:
+          "This Goal still has active Projects. Move, complete or remove them first, then try again.",
+      });
+    }
+    if (cause instanceof SpineParentUnavailableError) {
+      return json({
+        kind: "restore",
+        ok: false,
+        formError:
+          "This Goal’s Area is no longer available, so it can’t be restored.",
+      });
+    }
+    if (intent === "restore") {
+      return json({
+        kind: "restore",
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+    return json({
+      kind: "delete",
+      ok: false,
+      blocked: false,
+      formError: "That couldn’t be completed. Please try again.",
+    });
+  }
 }

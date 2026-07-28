@@ -2,7 +2,7 @@
  * PEOPLE-01 — the People collection view (presentation, no server imports).
  *
  * Composed entirely from the shared PX-02 Collection Layout, the DS-04 Card, the
- * DS-03 Drawer (hosting the "New person" quick-add form) and shared empty states.
+ * DS-03 Drawer (hosting the "New Person" quick-add form) and shared empty states.
  * It adds the collection controls the People module needs — instant client-side
  * search, sort, and a list/grid presentation toggle over the loaded page — plus
  * bounded "Load more" pagination. Each active Card opens the canonical person
@@ -21,7 +21,10 @@ import {
   type CardMetaItem,
   type CardProps,
 } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import {
   DrawerProvider,
   DrawerTrigger,
@@ -94,7 +97,7 @@ export function PeopleCollectionView({
         return null;
       }
       return {
-        title: "New person",
+        title: "New Person",
         description: "Add someone to People. You can add more detail after.",
         children: (
           <NewPersonFormHost
@@ -293,7 +296,7 @@ function useRestorePerson() {
             setRestoredIds((prev) => new Set(prev).add(personId));
             feedback.notifySuccess(`"${title}" restored`);
           } else {
-            feedback.notifyError(`Couldn't restore "${title}". Try again.`);
+            feedback.notifyError(`Couldn’t restore "${title}". Try again.`);
           }
         })
         .catch(() => {
@@ -302,7 +305,7 @@ function useRestorePerson() {
             next.delete(personId);
             return next;
           });
-          feedback.notifyError(`Couldn't restore "${title}". Try again.`);
+          feedback.notifyError(`Couldn’t restore "${title}". Try again.`);
         });
     },
     [feedback],
@@ -391,7 +394,7 @@ function PeopleCollection({
   const canQuickAdd = view !== "archived";
   const count = visible.length;
   const subtitle = failed
-    ? `We couldn't load your ${noun}.`
+    ? `We couldn’t load your ${noun}.`
     : normalisedQuery.length > 0
       ? `${count} of ${items.length} match "${query.trim()}"`
       : hasMore
@@ -405,7 +408,7 @@ function PeopleCollection({
       drawerKey={NEW_PERSON_KEY}
       className="dh-btn dh-btn--primary"
     >
-      New person
+      New Person
     </DrawerTrigger>
   ) : undefined;
 
@@ -500,8 +503,13 @@ function PeopleCollection({
     </div>
   );
 
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title={title}
       subtitle={subtitle}
       entityType="person"
@@ -511,7 +519,7 @@ function PeopleCollection({
       error={
         failed ? (
           <EmptyState
-            title={`We couldn't load your ${noun}`}
+            title={`We couldn’t load your ${noun}`}
             description="Something went wrong. Please try again."
           />
         ) : undefined
@@ -520,14 +528,14 @@ function PeopleCollection({
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="person" />}
-          title="No people yet"
+          title="No People yet"
           description="People are the relationships in your life — friends, family, colleagues. Add the first person to start remembering what matters to them."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_PERSON_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New person
+              New Person
             </DrawerTrigger>
           }
         />

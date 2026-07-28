@@ -26,6 +26,7 @@ import { Card, CardCollection, closeActiveSwipeTray } from "~/shared/card";
 import type { CardAction, CardMetaItem, CardProps } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
+import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import {
   HealthIndicator,
@@ -986,10 +987,17 @@ export function TodayDashboard({
               density="compact"
             />
           ) : (
-            <p className="dh-today__section-empty">
-              Nothing planned yet. Pull a task in from Anytime to commit to your
-              day.
-            </p>
+            // PX-06: the SHARED EmptyState, not a bare paragraph — Today was
+            // the last surface in the product still rendering its own. Every
+            // quiet section now carries an entity glyph, a heading and (where
+            // one exists) the next action, exactly like every other module.
+            <EmptyState
+              size="compact"
+              headingLevel={3}
+              icon={<EntityIcon type="task" />}
+              title="Nothing planned yet"
+              description="Pull a Task in from Anytime to commit to your day."
+            />
           )}
         </TodaySection>
 
@@ -1090,9 +1098,13 @@ export function TodayDashboard({
       ) : null}
     </>
   ) : (
-    <p className="dh-today__section-empty">
-      Your day&rsquo;s tasks will appear here.
-    </p>
+    <EmptyState
+      size="compact"
+      headingLevel={3}
+      icon={<EntityIcon type="task" />}
+      title="No Tasks yet"
+      description="Your day’s tasks will appear here once you capture or plan one."
+    />
   );
 
   /* -- Continue working (real active projects) body -- */
@@ -1107,14 +1119,18 @@ export function TodayDashboard({
         presentation="grid"
       />
     ) : (
-      <p className="dh-today__section-empty">
-        No active projects to continue.
-        <br />
-        <span className="dh-today__section-empty-detail">
-          A project appears here once its workflow status is set to Active in
-          its Settings.
-        </span>
-      </p>
+      <EmptyState
+        size="compact"
+        headingLevel={3}
+        icon={<EntityIcon type="project" />}
+        title="Nothing to continue"
+        description="A Project appears here once its workflow status is set to Active in its Settings."
+        primaryAction={
+          <Link className="dh-btn dh-btn--secondary" to="/projects">
+            Browse Projects
+          </Link>
+        }
+      />
     );
 
   /* -- Quick capture body (honest fixture: nothing is saved yet, TODAY-07) -- */
@@ -1228,7 +1244,7 @@ export function TodayDashboard({
     >
       <div className="dh-today" data-hydrated={hydrated ? "true" : "false"}>
         {/* Personalisation (TODAY-08): a calm "Customise" toggle reveals each
-            widget's move/pin/hide controls; the arrangement is remembered per device.
+            widget’s move/pin/hide controls; the arrangement is remembered per device.
             Rendered only after hydration so the server markup stays stable. */}
         {layoutController.hydrated ? (
           <div className="dh-today__toolbar">

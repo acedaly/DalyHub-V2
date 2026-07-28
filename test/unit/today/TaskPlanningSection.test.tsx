@@ -76,7 +76,7 @@ describe("TaskPlanningSection", () => {
     await waitFor(() => expect(onPlan).toHaveBeenCalledWith("2026-09-15"));
   });
 
-  it("shows a completed task's plan read-only (no plan actions)", () => {
+  it("shows a completed task’s plan read-only (no plan actions)", () => {
     setup({ scheduledDate: "2026-07-21", completed: true });
     expect(screen.getByText("21 Jul 2026")).toBeInTheDocument();
     expect(

@@ -45,8 +45,8 @@ test.describe("AREA-03 — Alignment view", () => {
     const goalUrl = page.url();
 
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New project" }).first().click();
-    const newProjectDialog = page.getByRole("dialog", { name: "New project" });
+    await page.getByRole("link", { name: "New Project" }).first().click();
+    const newProjectDialog = page.getByRole("dialog", { name: "New Project" });
     const combo = newProjectDialog.getByRole("combobox", {
       name: /Area or Goal/,
     });
@@ -62,7 +62,7 @@ test.describe("AREA-03 — Alignment view", () => {
     await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
 
     await page.getByRole("link", { name: "Add task" }).first().click();
-    const newTaskDialog = page.getByRole("dialog", { name: "New task" });
+    const newTaskDialog = page.getByRole("dialog", { name: "New Task" });
     await newTaskDialog.getByLabel(/Title/).fill(taskTitle);
     await newTaskDialog.getByRole("button", { name: "Add task" }).click();
     await expect(

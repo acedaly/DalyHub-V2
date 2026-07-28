@@ -137,7 +137,7 @@ describe("stale async field validation (P2)", () => {
     );
   }
 
-  it("ignores a pending validator's result once its field has changed", async () => {
+  it("ignores a pending validator’s result once its field has changed", async () => {
     const resolvers = new Map<string, (ok: boolean) => void>();
     const validateAsync: AsyncValidator<string> = (value) =>
       new Promise((r) =>
@@ -159,7 +159,7 @@ describe("stale async field validation (P2)", () => {
     expect(screen.queryByText("A bad")).not.toBeInTheDocument();
   });
 
-  it("out-of-order resolutions: only the current value's result applies", async () => {
+  it("out-of-order resolutions: only the current value’s result applies", async () => {
     const resolvers = new Map<string, (ok: boolean) => void>();
     const validateAsync: AsyncValidator<string> = (value) =>
       new Promise((r) =>

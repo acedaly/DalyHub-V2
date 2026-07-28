@@ -445,3 +445,21 @@ sending or SMS. This PR is the DalyHub foundation only.
 **Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ · [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) ☐ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐.
 
 **Relevant product-debt items.** [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3) (this module owns one of the two `0013` migrations — always cite it by full filename).
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**Lifecycle in the shared overflow.** Archive/Restore and the guarded permanent delete now also
+appear in the Record Header overflow (⋯), driving the same handlers as the Settings tab; the
+success messages come from the shared lifecycle vocabulary so the two surfaces cannot drift.
+
+**Tab vocabulary.** The person's history tab was named `Timeline` and sat mid-strip, so the
+shared rule ("Activity and Settings last, in that order") did not hold on this record. The
+content is unchanged — the PEOPLE-02 relationship timeline — but the tab is now `Activity`
+(`?tab=activity`) in its correct position: Summary · Contact · Linked · Notes · Activity ·
+Settings.
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

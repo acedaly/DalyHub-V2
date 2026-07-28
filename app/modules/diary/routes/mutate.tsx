@@ -46,6 +46,9 @@ import type { Route } from "./+types/mutate";
 /** Which parts of an edit were persisted (for honest partial-failure reporting). */
 export type DiarySavedPart = "title" | "detail";
 
+/** PX-04 — the reversible lifecycle intents (soft-delete and its mirror). */
+export type DiaryLifecycleIntent = "delete" | "restore";
+
 /** The discriminated edit outcome the editor consumes. */
 export type DiaryMutationResult =
   | { readonly ok: true }
@@ -92,6 +95,36 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const form = await request.formData();
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+
+  // PX-04 — reversible removal. A Diary entry had NO removal path at all, though
+  // the generic `EntityRepository` has supported soft-delete since FND-02. The
+  // lifecycle intents anchor with `includeDeleted: true` (exactly as Notes do,
+  // ADR-042) so Undo can restore an already-deleted entry and a repeated call
+  // stays the idempotent no-op the repository already guarantees. No migration,
+  // no Diary-specific deletion model.
+  const intent = String(form.get("intent") ?? "");
+  if (intent === "delete" || intent === "restore") {
+    const anchor = await scope.entities.getById(entryId, {
+      includeDeleted: true,
+    });
+    if (!anchor || anchor.type !== "diary") {
+      throw new Response("Not Found", { status: 404 });
+    }
+    try {
+      if (intent === "delete") {
+        await scope.entities.softDelete(entryId);
+      } else {
+        await scope.entities.restore(entryId);
+      }
+      return json({ ok: true });
+    } catch {
+      return json({
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+  }
+
   let timezone = DEFAULT_APP_PREFERENCES.timezone;
   try {
     timezone = (await scope.appPreferences.get(session.user.subject)).timezone;
@@ -178,7 +211,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
       return json({
         ok: false,
-        formError: "That entry couldn't be saved. Please try again.",
+        formError: "That entry couldn’t be saved. Please try again.",
       });
     }
   }
@@ -222,7 +255,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     }
     return json({
       ok: false,
-      formError: "The details couldn't be saved. Please try again.",
+      formError: "The details couldn’t be saved. Please try again.",
       ...(savedParts.length > 0 ? { savedParts } : {}),
     });
   }

@@ -163,7 +163,7 @@ describe("MeetingFollowUpTab", () => {
         onAddFollowUp={onAddFollowUp}
       />,
     );
-    expect(screen.getByText("No follow-up tasks yet.")).toBeInTheDocument();
+    expect(screen.getByText("No follow-up Tasks yet")).toBeInTheDocument();
     expect(screen.getByText("Decision A")).toBeInTheDocument();
     expect(screen.getByText("Outcome B")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Add follow-up task" }));

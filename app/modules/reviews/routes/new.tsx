@@ -72,7 +72,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return json(
       {
         ok: false,
-        message: "That review couldn't be created. Please try again.",
+        message: "That review couldn’t be created. Please try again.",
       },
       500,
     );

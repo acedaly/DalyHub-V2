@@ -161,7 +161,7 @@ export function AppShell({
           />
 
           <div className="dh-main-col">
-            {/* A `header` so the mobile bar's brand + menu toggle are contained by a
+            {/* A `header` so the mobile bar’s brand + menu toggle are contained by a
                 landmark (the `banner`) on mobile, where the rail sidebar banner is
                 hidden — otherwise its content sits outside every landmark (WCAG
                 region, DS-11). On desktop this bar is `display:none` and ignored. */}

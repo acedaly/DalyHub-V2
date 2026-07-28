@@ -153,7 +153,7 @@ export function HoverCard({
             </span>
           ) : state.status === "error" ? (
             <span className="dh-hover-card__muted">
-              Couldn&rsquo;t load a preview.
+              Couldn’t load a preview.
             </span>
           ) : null}
         </span>

@@ -58,7 +58,7 @@ describe("PX-02 entity identity map", () => {
 });
 
 describe("PX-02 EntityIcon", () => {
-  it("renders the type's glyph in its accent, decorative by default", () => {
+  it("renders the type’s glyph in its accent, decorative by default", () => {
     const { container } = render(<EntityIcon type="project" />);
     const wrapper = container.querySelector(".dh-entity-icon");
     expect(wrapper).not.toBeNull();

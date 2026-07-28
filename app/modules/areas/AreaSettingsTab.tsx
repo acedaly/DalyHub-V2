@@ -179,7 +179,7 @@ function DeleteBlockedGroup({
   return (
     <SettingsGroup
       title="Delete permanently"
-      description="This Area still contains records, so it can't be permanently deleted yet."
+      description="This Area still contains records, so it can’t be permanently deleted yet."
       tone="danger"
     >
       <div className="dh-area-delete-blocked">
@@ -232,7 +232,7 @@ function DeleteGroup({
               action <strong>cannot be undone</strong>.
             </p>
             <p>
-              To confirm, type the Area's exact name below. Deletion stays
+              To confirm, type the Area’s exact name below. Deletion stays
               disabled until it matches.
             </p>
           </>

@@ -29,7 +29,7 @@ const LABELS: Record<AutosaveStatus, string> = {
   unsaved: "Unsaved",
   saving: "Saving…",
   saved: "Saved",
-  error: "Couldn't save",
+  error: "Couldn’t save",
 };
 
 const ICONS: Record<AutosaveStatus, string> = {

@@ -78,7 +78,7 @@ function createPersonDrawerRenderer(personId: string, title: string) {
     if (entry.key === RENAME_KEY) {
       return {
         title: "Rename person",
-        description: "Update this person's display name.",
+        description: "Update this person’s display name.",
         children: <RenameDrawerHost personId={personId} currentTitle={title} />,
       };
     }
@@ -111,9 +111,9 @@ function RenameDrawerHost({
 const TAB_IDS = [
   "summary",
   "contact",
-  "timeline",
   "linked",
   "notes",
+  "activity",
   "settings",
 ] as const;
 type TabId = (typeof TAB_IDS)[number];
@@ -165,7 +165,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <div className="dh-person-not-found">
         <EmptyState
           icon={<EntityIcon type="person" />}
-          title="We couldn't find that person"
+          title="We couldn’t find that person"
           description="They may have been deleted, or the link is out of date."
           primaryAction={
             <a className="dh-btn dh-btn--primary" href="/people">

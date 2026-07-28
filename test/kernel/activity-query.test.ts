@@ -125,7 +125,7 @@ describe("Activity queries", () => {
     }
   });
 
-  it("keeps a soft-deleted entity's Timeline queryable", async () => {
+  it("keeps a soft-deleted entity’s Timeline queryable", async () => {
     const [id] = await createN(1);
     await entities.softDelete(id!);
     // The entity is gone from normal reads, but its Timeline still resolves.
@@ -137,7 +137,7 @@ describe("Activity queries", () => {
     ]);
   });
 
-  it("never returns another workspace's events, and cannot query its entity", async () => {
+  it("never returns another workspace’s events, and cannot query its entity", async () => {
     await createN(2);
     const otherEntities = makeRepository(CTX_OTHER, {
       idGenerator: sequentialIds("o"),

@@ -25,6 +25,7 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { GoalProjectsTab } from "./GoalProjectsTab";
@@ -56,6 +57,9 @@ interface GoalOverviewProps {
   readonly onToggleComplete: (complete: boolean) => void;
   readonly onRename: () => void;
   readonly onEditDetails: () => void;
+  /** PX-04: reversible removal (soft-delete + Undo), from the header overflow. */
+  readonly onDelete?: () => Promise<void>;
+  readonly deletePending?: boolean;
   readonly onOpenProject: (projectId: string) => void;
   readonly onOpenTask: (taskId: string) => void;
   readonly activityTab: ReactNode;
@@ -83,6 +87,8 @@ export function GoalOverview({
   onToggleComplete,
   onRename,
   onEditDetails,
+  onDelete,
+  deletePending = false,
   onOpenProject,
   onOpenTask,
   activityTab,
@@ -162,94 +168,110 @@ export function GoalOverview({
     onSelect: onEditDetails,
   };
 
+  // PX-04: a Goal had NO removal path at all, despite the spine supporting
+  // soft-delete since FND-07. It now uses the same reversible removal as Notes —
+  // one click, an Undo toast, and a durable "Deleted" collection view — housed in
+  // the same shared overflow slot as every other record.
+  const lifecycle = useRecordLifecycle({
+    entityType: "goal",
+    title: overview.title,
+    deleteMode: "reversible",
+    pending: deletePending,
+    onDelete,
+  });
+
   return (
-    <RecordLayout
-      title={overview.title}
-      typeLabel="Goal"
-      icon={<EntityIcon type="goal" />}
-      breadcrumb={[
-        { id: "areas", label: "Areas", href: "/areas" },
-        {
-          id: "area",
-          label: overview.area.title,
-          href: `/areas/${encodeURIComponent(overview.area.id)}`,
-        },
-      ]}
-      status={{ label: state.label, tone: state.tone }}
-      metadata={headerMetadata}
-      primaryAction={completed ? undefined : primaryAction}
-      secondaryActions={
-        completed
-          ? [primaryAction, renameAction, editDetailsAction]
-          : [renameAction, editDetailsAction]
-      }
-      summary={{
-        description: (
-          <div className="dh-goal-overview__summary">
-            <div className="dh-goal-overview__definition">
-              <h2 className="dh-goal-overview__definition-heading">
-                Definition of done
-              </h2>
-              {details.definitionOfDone ? (
-                <p className="dh-goal-overview__definition-text">
-                  {details.definitionOfDone}
-                </p>
-              ) : (
-                <p className="dh-goal-overview__definition-empty">
-                  {NO_DEFINITION_OF_DONE_TEXT}
-                </p>
-              )}
+    <>
+      <RecordLayout
+        title={overview.title}
+        typeLabel="Goal"
+        icon={<EntityIcon type="goal" />}
+        breadcrumb={[
+          { id: "areas", label: "Areas", href: "/areas" },
+          {
+            id: "area",
+            label: overview.area.title,
+            href: `/areas/${encodeURIComponent(overview.area.id)}`,
+          },
+        ]}
+        status={{ label: state.label, tone: state.tone }}
+        metadata={headerMetadata}
+        primaryAction={completed ? undefined : primaryAction}
+        secondaryActions={
+          completed
+            ? [primaryAction, renameAction, editDetailsAction]
+            : [renameAction, editDetailsAction]
+        }
+        overflowActions={lifecycle.overflowActions}
+        summary={{
+          description: (
+            <div className="dh-goal-overview__summary">
+              <div className="dh-goal-overview__definition">
+                <h2 className="dh-goal-overview__definition-heading">
+                  Definition of done
+                </h2>
+                {details.definitionOfDone ? (
+                  <p className="dh-goal-overview__definition-text">
+                    {details.definitionOfDone}
+                  </p>
+                ) : (
+                  <p className="dh-goal-overview__definition-empty">
+                    {NO_DEFINITION_OF_DONE_TEXT}
+                  </p>
+                )}
+              </div>
+              <p className="dh-goal-overview__progress">
+                <span className="dh-goal-overview__progress-label">
+                  Project contribution:
+                </span>{" "}
+                {progress.has
+                  ? `${progress.percent}% — ${progress.summary}`
+                  : progress.summary}
+              </p>
+              <div className="dh-goal-overview__alignment">
+                <h2
+                  id={alignmentHeadingId}
+                  className="dh-goal-overview__alignment-heading"
+                >
+                  Alignment
+                </h2>
+                <GoalAlignmentPanel
+                  alignment={alignment}
+                  evidence={alignmentEvidence}
+                  evidenceHasMore={alignmentEvidenceHasMore}
+                  todayIso={todayIso}
+                  headingId={alignmentHeadingId}
+                  onOpenTask={onOpenTask}
+                />
+              </div>
             </div>
-            <p className="dh-goal-overview__progress">
-              <span className="dh-goal-overview__progress-label">
-                Project contribution:
-              </span>{" "}
-              {progress.has
-                ? `${progress.percent}% — ${progress.summary}`
-                : progress.summary}
-            </p>
-            <div className="dh-goal-overview__alignment">
-              <h2
-                id={alignmentHeadingId}
-                className="dh-goal-overview__alignment-heading"
-              >
-                Alignment
-              </h2>
-              <GoalAlignmentPanel
-                alignment={alignment}
-                evidence={alignmentEvidence}
-                evidenceHasMore={alignmentEvidenceHasMore}
-                todayIso={todayIso}
-                headingId={alignmentHeadingId}
-                onOpenTask={onOpenTask}
-              />
-            </div>
-          </div>
-        ),
-        metadata: summaryMetadata,
-      }}
-      activeTabId={activeTabId}
-      onTabChange={onTabChange}
-      tabs={[
-        {
-          id: "projects",
-          label: "Projects",
-          // The badge is the EXACT, complete contribution total
-          // (`getGoalProjectContribution`) — never the loaded page's length — so a
-          // Goal with more Projects than one page still reports the true total.
-          badge: contribution.total,
-          content: (
-            <GoalProjectsTab
-              goalId={overview.id}
-              projects={projects}
-              nextCursor={projectsNextCursor}
-              onOpenProject={onOpenProject}
-            />
           ),
-        },
-        { id: "linked", label: "Linked", content: linkedTab },
-        { id: "activity", label: "Activity", content: activityTab },
-      ]}
-    />
+          metadata: summaryMetadata,
+        }}
+        activeTabId={activeTabId}
+        onTabChange={onTabChange}
+        tabs={[
+          {
+            id: "projects",
+            label: "Projects",
+            // The badge is the EXACT, complete contribution total
+            // (`getGoalProjectContribution`) — never the loaded page's length — so a
+            // Goal with more Projects than one page still reports the true total.
+            badge: contribution.total,
+            content: (
+              <GoalProjectsTab
+                goalId={overview.id}
+                projects={projects}
+                nextCursor={projectsNextCursor}
+                onOpenProject={onOpenProject}
+              />
+            ),
+          },
+          { id: "linked", label: "Linked", content: linkedTab },
+          { id: "activity", label: "Activity", content: activityTab },
+        ]}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }

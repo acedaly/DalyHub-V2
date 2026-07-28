@@ -416,7 +416,7 @@ describe("composeGoalAlignmentFacts", () => {
 });
 
 describe("deduplicateGoalIds", () => {
-  it("removes duplicate ids while preserving first-seen order — defence in depth for the spine's one-active-parent invariant", () => {
+  it("removes duplicate ids while preserving first-seen order — defence in depth for the spine’s one-active-parent invariant", () => {
     // The spine's partial unique index makes "one Project advancing two
     // Goals" structurally impossible (SPINE_MODEL.md), so this scenario never
     // occurs with real data; this proves the evaluator layer never trusts

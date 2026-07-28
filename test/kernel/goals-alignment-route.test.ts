@@ -147,7 +147,7 @@ describe("/goals collection loader (the Alignment view)", () => {
     ).toBe(true);
   });
 
-  it("keeps workspace isolation — another workspace's Goals never appear", async () => {
+  it("keeps workspace isolation — another workspace’s Goals never appear", async () => {
     const own = spine(WS);
     const other = spine(OTHER);
     const ownArea = await own.createArea({ title: "Own" });

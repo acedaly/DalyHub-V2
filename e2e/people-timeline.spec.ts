@@ -98,8 +98,8 @@ const ownedNoteTitles = new Set<string>();
 async function createNote(page: Page, title: string): Promise<void> {
   ownedNoteTitles.add(title);
   await gotoFixture(page, "/notes");
-  await page.getByRole("link", { name: "New note" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New note" });
+  await page.getByRole("link", { name: "New Note" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New Note" });
   await expect(dialog).toBeVisible();
   await page.waitForLoadState("networkidle");
   await dialog.getByLabel(/Title/).fill(title);
@@ -109,8 +109,8 @@ async function createNote(page: Page, title: string): Promise<void> {
 
 async function createPerson(page: Page, name: string): Promise<string> {
   await gotoFixture(page, "/people");
-  await page.getByRole("link", { name: "New person" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New person" });
+  await page.getByRole("link", { name: "New Person" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New Person" });
   await dialog.getByRole("textbox", { name: /^Name/ }).fill(name);
   await dialog.getByRole("button", { name: "Create person" }).click();
   await expect(page).toHaveURL(/\/person\/[^/?#]+$/);
@@ -118,7 +118,7 @@ async function createPerson(page: Page, name: string): Promise<string> {
 }
 
 async function openTimeline(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Timeline" }).click();
+  await page.getByRole("tab", { name: "Activity" }).click();
   await page.waitForLoadState("networkidle");
 }
 
@@ -223,10 +223,13 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
     await createPerson(page, name);
 
     // The record tabs are reachable and operable from the keyboard alone.
+    // Summary → Contact → Linked → Notes → Activity (PX-06 tab vocabulary:
+    // Activity and Settings sit last, in that order, on every record).
     await page.getByRole("tab", { name: "Summary" }).focus();
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("tab", { name: "Timeline" })).toBeFocused();
+    for (let i = 0; i < 4; i += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+    await expect(page.getByRole("tab", { name: "Activity" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("feed", { name: "Person timeline" }),
@@ -250,7 +253,7 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
     ).toBeVisible();
 
     // The tab that reaches the timeline meets the shared 44px target floor.
-    await expectMinTouchTarget(page.getByRole("tab", { name: "Timeline" }));
+    await expectMinTouchTarget(page.getByRole("tab", { name: "Activity" }));
 
     // The stream announces loaded events politely.
     await expect(

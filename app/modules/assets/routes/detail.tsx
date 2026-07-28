@@ -112,7 +112,7 @@ function createAssetDrawerRenderer(assetId: string, title: string) {
     if (entry.key === RENAME_KEY) {
       return {
         title: "Rename asset",
-        description: "Update this asset's display name.",
+        description: "Update this asset’s display name.",
         children: <RenameDrawerHost assetId={assetId} currentTitle={title} />,
       };
     }
@@ -209,7 +209,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <div className="dh-asset-not-found">
         <EmptyState
           icon={<EntityIcon type="asset" />}
-          title="We couldn't find that asset"
+          title="We couldn’t find that asset"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
             <a className="dh-btn dh-btn--primary" href="/assets">

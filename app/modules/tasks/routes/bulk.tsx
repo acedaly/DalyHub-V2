@@ -78,7 +78,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     return json(
       fail(
-        "The bulk action couldn't be completed. Nothing was changed — try again.",
+        "The bulk action couldn’t be completed. Nothing was changed — try again.",
       ),
       500,
     );

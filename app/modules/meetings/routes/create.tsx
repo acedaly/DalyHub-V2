@@ -33,7 +33,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       formError:
         e instanceof MeetingValidationError
           ? undefined
-          : "That meeting couldn't be created. Please try again.",
+          : "That meeting couldn’t be created. Please try again.",
     });
   }
 }

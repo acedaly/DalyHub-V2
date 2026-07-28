@@ -4,7 +4,7 @@
  *
  * Replaces the PX-03 "Coming Soon" placeholder with the shared PX-02
  * Collection Layout and DS-04 Card. Composed ENTIRELY from the shared frame —
- * the DS-03 Drawer (hosting the DS-06 "New note" form), the shared
+ * the DS-03 Drawer (hosting the DS-06 "New Note" form), the shared
  * `~/shared/segmented-filter` Active/Deleted lifecycle filter (NOTES-01C,
  * mirroring `~/modules/projects/ProjectsCollection.tsx`'s state segment), a
  * restrained state segment, and bounded "Load more" pagination. Each ACTIVE
@@ -26,7 +26,10 @@ import {
   type CardMetaItem,
   type CardProps,
 } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import {
   DrawerProvider,
   DrawerTrigger,
@@ -36,8 +39,8 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { useFeedback } from "~/shared/feedback";
 import { LoadMore } from "~/shared/load-more";
+import { useCollectionRestore } from "~/shared/record-lifecycle";
 import {
   SegmentedFilter,
   type SegmentedFilterOption,
@@ -96,7 +99,7 @@ export function NotesCollectionView({
         return null;
       }
       return {
-        title: "New note",
+        title: "New Note",
         description: "Give your note a title. You can write its content next.",
         children: (
           <NewNoteFormHost
@@ -290,50 +293,22 @@ function useNotePagination(
 /** Restore a Note from the Deleted view. Not a Drawer/confirmation flow — the
  * Deleted collection IS the deliberate, explicit restore surface (spec §C);
  * one click, an honest success toast, no second confirmation step for an
- * action the user came here specifically to take. */
+ * action the user came here specifically to take. PX-04 moved the in-flight
+ * bookkeeping into the shared `useCollectionRestore`, so every Deleted view
+ * behaves identically; only the endpoint stays here. */
 function useRestoreNote() {
-  const feedback = useFeedback();
-  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
-  const [restoredIds, setRestoredIds] = useState<ReadonlySet<string>>(
-    new Set(),
-  );
+  const post = useCallback(async (noteId: string) => {
+    const body = new FormData();
+    body.set("intent", "restore");
+    const response = await fetch(
+      `/notes/${encodeURIComponent(noteId)}/mutate`,
+      { method: "POST", body },
+    );
+    const result = (await response.json()) as NoteMutationResult;
+    return result.kind === "restore" && result.ok;
+  }, []);
 
-  const restore = useCallback(
-    (noteId: string, title: string) => {
-      setPendingIds((prev) => new Set(prev).add(noteId));
-      const body = new FormData();
-      body.set("intent", "restore");
-      void fetch(`/notes/${encodeURIComponent(noteId)}/mutate`, {
-        method: "POST",
-        body,
-      })
-        .then((response) => response.json() as Promise<NoteMutationResult>)
-        .then((result) => {
-          setPendingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(noteId);
-            return next;
-          });
-          if (result.kind === "restore" && result.ok) {
-            setRestoredIds((prev) => new Set(prev).add(noteId));
-            feedback.notifySuccess(`"${title}" restored`);
-          } else {
-            feedback.notifyError(`Couldn't restore "${title}". Try again.`);
-          }
-        })
-        .catch(() => {
-          setPendingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(noteId);
-            return next;
-          });
-          feedback.notifyError(`Couldn't restore "${title}". Try again.`);
-        });
-    },
-    [feedback],
-  );
-
-  return { restore, pendingIds, restoredIds };
+  return useCollectionRestore({ post });
 }
 
 function NotesCollection({
@@ -366,7 +341,7 @@ function NotesCollection({
   // say how many are "loaded" so far, not how many exist.
   const noun = state === "deleted" ? "deleted notes" : "notes";
   const subtitle = failed
-    ? `We couldn't load your ${state === "deleted" ? "deleted notes" : "notes"}.`
+    ? `We couldn’t load your ${state === "deleted" ? "deleted notes" : "notes"}.`
     : hasMore
       ? `${count} ${noun} loaded`
       : count === 1
@@ -375,8 +350,13 @@ function NotesCollection({
           : "1 note"
         : `${count} ${noun}`;
 
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Notes"
       subtitle={subtitle}
       entityType="note"
@@ -394,14 +374,14 @@ function NotesCollection({
             drawerKey={NEW_NOTE_KEY}
             className="dh-btn dh-btn--primary"
           >
-            New note
+            New Note
           </DrawerTrigger>
         ) : undefined
       }
       error={
         failed ? (
           <EmptyState
-            title={`We couldn't load your ${state === "deleted" ? "deleted notes" : "notes"}`}
+            title={`We couldn’t load your ${state === "deleted" ? "deleted notes" : "notes"}`}
             description="Something went wrong. Please try again."
           />
         ) : undefined
@@ -410,14 +390,14 @@ function NotesCollection({
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="note" />}
-          title="No notes yet"
+          title="No Notes yet"
           description="Notes hold what you know and think — references, drafts, research, ideas. Create your first one to get started."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_NOTE_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New note
+              New Note
             </DrawerTrigger>
           }
         />
@@ -428,7 +408,7 @@ function NotesCollection({
       filteredEmptySlot={
         <EmptyState
           icon={<EntityIcon type="note" />}
-          title="No deleted notes"
+          title="No deleted Notes"
           description="Notes you delete appear here, and can be restored at any time."
         />
       }

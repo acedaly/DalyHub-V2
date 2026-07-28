@@ -80,7 +80,7 @@ export function GoalDetailsForm({
       } catch {
         return {
           status: "error",
-          formError: "That couldn't be saved. Please try again.",
+          formError: "That couldn’t be saved. Please try again.",
         };
       }
       if (data.kind === "update_details" && data.ok) {
@@ -114,7 +114,7 @@ export function GoalDetailsForm({
       />
       <DateField
         label="Target date"
-        help="When you're aiming to reach this Goal. Optional — never used to mark it done automatically."
+        help="When you’re aiming to reach this Goal. Optional — never used to mark it done automatically."
         {...form.field("targetDate")}
       />
       <TextField

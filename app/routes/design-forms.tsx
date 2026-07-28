@@ -173,7 +173,7 @@ function ExplicitFormDemo() {
         return {
           status: "error",
           formError:
-            "The server couldn't save this project right now. Your draft is safe — try again.",
+            "The server couldn’t save this project right now. Your draft is safe — try again.",
         };
       }
       setSaved(values);
@@ -367,7 +367,7 @@ function AutosaveFieldDemo({
   const field = useAutosaveField<string>({
     initialValue: initial,
     debounceMs: 400,
-    validate: required("This can't be empty."),
+    validate: required("This can’t be empty."),
     onSave: async (value) => {
       await new Promise((resolve) => setTimeout(resolve, 300));
       if (failOn && value.toLocaleLowerCase().includes(failOn)) {
@@ -428,7 +428,7 @@ function StatesDemo() {
       <div className="forms-demo__grid">
         <TextField
           label="Disabled"
-          value="Can't edit this"
+          value="Can’t edit this"
           onChange={() => {}}
           disabled
         />
@@ -442,7 +442,7 @@ function StatesDemo() {
           label="With an error"
           value="oops"
           onChange={() => {}}
-          error="This value isn't allowed."
+          error="This value isn’t allowed."
         />
         <TextField
           label={

@@ -299,7 +299,7 @@ describe("TODAY-05 contextual commands", () => {
     expect(ids).toContain("today.cmd.select_all");
   });
 
-  it("exposes the focused task's commands after it gains focus", () => {
+  it("exposes the focused task’s commands after it gains focus", () => {
     renderToday();
     // No task command before anything is focused.
     expect(contextual.some((a) => a.id.startsWith("today.task."))).toBe(false);
@@ -312,7 +312,7 @@ describe("TODAY-05 contextual commands", () => {
     expect(planToday?.shortcut).toEqual({ key: "p" });
   });
 
-  it("exposes the open task's commands (Close) while its Drawer is open, with no dashboard duplicate", async () => {
+  it("exposes the open task’s commands (Close) while its Drawer is open, with no dashboard duplicate", async () => {
     renderToday(["/today?drawer=task:t-a"]);
     // The Drawer content (isOpen: true) owns the open task's commands — it emits
     // "Close task", never "Open task". They register once the task loads.

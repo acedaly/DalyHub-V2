@@ -51,7 +51,7 @@ const CONTENT_HELP = `Markdown — headings, lists, checklists, quotes, tables a
 const NOTE_AUTOSAVE_DEBOUNCE_MS = 1500;
 
 const OFFLINE_MESSAGE =
-  "You're offline. Your changes are safe here and will save automatically once you're back online.";
+  "You’re offline. Your changes are safe here and will save automatically once you’re back online.";
 
 export interface NoteContentFormProps {
   readonly noteId: string;

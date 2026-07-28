@@ -163,7 +163,7 @@ describe("migration 0007 → 0008 (project_details, additive, existing-data safe
     expect(threw).toBe(true);
   });
 
-  it("rerunning the application's upsert path does not create duplicate rows (idempotent PK)", async () => {
+  it("rerunning the application’s upsert path does not create duplicate rows (idempotent PK)", async () => {
     await DB.prepare(
       `INSERT INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
        VALUES ('ws_m8', 'open_m8', 'on_hold', NULL, ?)

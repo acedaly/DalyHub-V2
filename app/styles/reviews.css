@@ -64,11 +64,7 @@
 }
 
 .dh-review-new__form,
-.dh-review-tab-stack {
-  display: grid;
-  gap: var(--dh-space-5);
-  min-width: 0;
-}
+/* PX-06: a Review's tab stack is the SHARED `.dh-record-stack` (record-layout.css). */
 
 .dh-review-new__section {
   display: grid;

@@ -1,5 +1,8 @@
 import { Link } from "react-router";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 
@@ -15,14 +18,19 @@ export function MeetingsCollection({
   failed: boolean;
   total: number;
 }) {
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Meetings"
       entityType="meeting"
       subtitle={`${meetings.length} of ${total} loaded`}
       primaryAction={
         <Link className="dh-btn dh-btn--primary" to="/new/meeting">
-          New meeting
+          New Meeting
         </Link>
       }
     >
@@ -34,7 +42,7 @@ export function MeetingsCollection({
       {failed ? (
         <EmptyState
           icon={<EntityIcon type="meeting" />}
-          title="Meetings couldn't be loaded"
+          title="Meetings couldn’t be loaded"
           description="Try again in a moment."
         />
       ) : meetings.length === 0 ? (

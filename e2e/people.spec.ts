@@ -79,8 +79,8 @@ async function cleanup(): Promise<void> {
 
 async function createPerson(page: Page, name: string): Promise<string> {
   await gotoFixture(page, "/people");
-  await page.getByRole("link", { name: "New person" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New person" });
+  await page.getByRole("link", { name: "New Person" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New Person" });
   // DS-06 marks a required field's accessible name "<label> (required)".
   await dialog.getByRole("textbox", { name: /^Name/ }).fill(name);
   await dialog.getByRole("button", { name: "Create person" }).click();
@@ -111,8 +111,9 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     await page.getByRole("button", { name: "Save details" }).click();
     await expect(page.getByText("Trusted friend").first()).toBeVisible();
 
-    // 4. The Timeline records the person's history.
-    await page.getByRole("tab", { name: "Timeline" }).click();
+    // 4. The Activity tab records the person's history (PX-06 renamed it from
+    // "Timeline" so the shared tab vocabulary holds on every record).
+    await page.getByRole("tab", { name: "Activity" }).click();
     await expect(
       page.getByRole("feed", { name: "Person timeline" }),
     ).toBeVisible();
@@ -160,7 +161,7 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/new\/person$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "New person" }),
+      page.getByRole("heading", { level: 1, name: "New Person" }),
     ).toBeVisible();
   });
 

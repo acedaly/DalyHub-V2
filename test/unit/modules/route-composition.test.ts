@@ -70,7 +70,7 @@ describe("the real app/routes.ts composition", () => {
 });
 
 describe("composeModuleRouteConfig", () => {
-  it("adds a new module's routes with NO central list change (glob-driven)", () => {
+  it("adds a new module’s routes with NO central list change (glob-driven)", () => {
     // Simulate the glob discovering an extra module manifest. No edit to any
     // central array is needed — a new manifest simply appears.
     const entries = composeModuleRouteConfig({

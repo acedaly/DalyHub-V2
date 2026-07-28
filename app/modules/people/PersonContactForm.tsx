@@ -143,7 +143,7 @@ export function PersonContactForm({ person, onSaved }: PersonContactFormProps) {
       } catch {
         return {
           status: "error",
-          formError: "That couldn't be saved. Please try again.",
+          formError: "That couldn’t be saved. Please try again.",
         };
       }
       if (data.kind === "update" && data.ok) {

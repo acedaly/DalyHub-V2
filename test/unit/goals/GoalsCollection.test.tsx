@@ -2,6 +2,8 @@ import { RouterProvider, createMemoryRouter } from "react-router";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { FeedbackProvider } from "~/shared/feedback";
+
 import {
   GoalsCollectionView,
   type SerializedGoalWithAlignment,
@@ -66,7 +68,11 @@ function renderCollection(
     ],
     { initialEntries: ["/goals"] },
   );
-  return render(<RouterProvider router={router} />);
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 describe("Goals collection (the Alignment view)", () => {
@@ -101,7 +107,7 @@ describe("Goals collection (the Alignment view)", () => {
 
   it("shows a retryable failure state without fabricated totals", () => {
     renderCollection([], { failed: true });
-    expect(screen.getByText("We couldn't load your Goals")).toBeInTheDocument();
+    expect(screen.getByText("We couldn’t load your Goals")).toBeInTheDocument();
   });
 
   it("says loaded count, not total, when another page exists (correctly pluralised)", () => {

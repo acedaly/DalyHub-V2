@@ -36,7 +36,7 @@ export default defineModule({
     {
       type: DIARY_ENTRY_UPDATED,
       label: "Diary entry updated",
-      description: "A diary entry's details changed.",
+      description: "A diary entry’s details changed.",
     },
   ],
 });

@@ -182,7 +182,7 @@ export function TaskWaitingSection({
         null;
       setFieldError(fieldMessage);
       setFormError(
-        fieldMessage ? null : (outcome.formError ?? "That couldn't be saved."),
+        fieldMessage ? null : (outcome.formError ?? "That couldn’t be saved."),
       );
     } finally {
       setPending(false);
@@ -195,7 +195,7 @@ export function TaskWaitingSection({
     try {
       const outcome = await onClear();
       if (!outcome.ok) {
-        setFormError(outcome.formError ?? "That couldn't be saved.");
+        setFormError(outcome.formError ?? "That couldn’t be saved.");
       } else {
         setEditing(false);
       }
@@ -254,7 +254,7 @@ export function TaskWaitingSection({
           />
         ) : (
           <TextField
-            label="What it's waiting on"
+            label="What it’s waiting on"
             placeholder="e.g. finance confirmation"
             help="What or whom is this task waiting on?"
             value={note}

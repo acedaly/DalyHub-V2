@@ -479,7 +479,7 @@ describe("POST /projects/:projectId/mutate — PROJ-05 settings intents", () => 
       }
     });
 
-    it("resolves a project's Area live through its Goal (never a copied title)", async () => {
+    it("resolves a project’s Area live through its Goal (never a copied title)", async () => {
       const { area, goal } = await seedParents(WS);
       const project = await spine(WS).createProject({
         title: "Via goal",
@@ -1003,7 +1003,7 @@ describe("GET /projects/:projectId/tasks (pagination endpoint)", () => {
     expect(response.status).toBe(400);
   });
 
-  it("does not disclose another workspace's tasks (empty page)", async () => {
+  it("does not disclose another workspace’s tasks (empty page)", async () => {
     const { projectId } = await seedProjectWithTasks(3);
     // Same endpoint, but the caller is authenticated to WS; a project that lives in
     // OTHER simply yields no tasks. Here we prove an in-WS project returns rows and a

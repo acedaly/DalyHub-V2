@@ -54,7 +54,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         (link.sourceEntityId !== id && link.targetEntityId !== id)
       ) {
         return Response.json(
-          { ok: false, error: "That attendee link can't be removed." },
+          { ok: false, error: "That attendee link can’t be removed." },
           { status: 400 },
         );
       }
@@ -78,7 +78,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     return Response.json({ ok: true });
   } catch {
     return Response.json(
-      { ok: false, error: "That change couldn't be saved." },
+      { ok: false, error: "That change couldn’t be saved." },
       { status: 400 },
     );
   }

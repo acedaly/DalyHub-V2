@@ -494,3 +494,31 @@ floating capture action, integrated with the existing shell.
 | `app/modules/diary/diary-icons.tsx` | Entry-type → shared-icon map for timeline nodes / chooser. |
 | `app/modules/diary/occurred-time.ts` | Adds day-key helpers (add days, validate, long/medium labels, zoned date labels). |
 | `app/styles/diary.css` | Rebuilt timeline workspace styles (DS-01 tokens only). |
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**A Diary entry can finally be removed, and Diary stopped forking two shared things.**
+`POST /diary/:entryId/mutate` accepts `delete`/`restore` over the generic `EntityRepository`
+(no migration, no Diary-specific deletion model); the details panel carries the shared overflow
+(⋯) with `Delete Diary` — one click, an Undo toast, the timeline preserved (closing drops only
+the `inspector` parameter, so the selected day survives).
+
+**Subtype icons became shared.** `diary-icons.tsx` is now a *consumer* of the shared
+subtype-icon registry rather than a private map, and no entry type wears an entity glyph any
+more — the `meeting` subtype in particular had been using the Meeting **entity** icon, making a
+diary entry and a Meeting record indistinguishable. The type-filter chips gained the same
+subtype glyphs the capture picker and timeline nodes already showed.
+
+**One primary entry point per viewport.** The header create button lost its `+` glyph (the only
+create button in the product carrying one), reads `New Diary entry`, and is hidden below `md`
+where the floating action takes over — the two never appear together.
+
+**The timeline node stays a deliberate fork.** It is the strongest scanning surface in the
+product; every Card-variant shape considered lost some of that for no user-visible gain, so the
+visual was preserved exactly and Diary was pulled onto the shared pieces that genuinely fit.
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

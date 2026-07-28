@@ -10,12 +10,28 @@
  * class, so an unsupported/unavailable target reads as ordinary text.
  */
 
+.dh-entity-link,
+.dh-entity-link__text {
+  /* PX-05: the link is inline-flow with a leading identity glyph. `inline` (not
+   * inline-flex) keeps a long title wrapping naturally across lines inside a
+   * sentence, with the glyph attached to the first line — the same rule AREA-04
+   * established for breadcrumb crumbs. */
+  display: inline;
+  /* Long titles wrap safely instead of forcing horizontal overflow. */
+  overflow-wrap: anywhere;
+}
+
 .dh-entity-link {
   color: var(--dh-color-accent-text);
   text-decoration: none;
   border-radius: var(--dh-radius-xs);
-  /* Long titles wrap safely instead of forcing horizontal overflow. */
-  overflow-wrap: anywhere;
+}
+
+/* The leading entity glyph: decorative, subordinate to the label, and sized to
+ * the surrounding text so it scales with OS text scaling. */
+.dh-entity-link__icon {
+  margin-inline-end: var(--dh-space-1);
+  vertical-align: -0.15em;
 }
 
 .dh-entity-link:hover {
@@ -26,4 +42,39 @@
   outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
   outline-offset: 2px;
   text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- */
+/* PX-05 — the shared structural-relationship row (`EntityRelationshipRow`).   */
+/* One rhythm for "Area · Home" wherever a record shows its place in the spine; */
+/* Tasks and Projects previously each carried a private copy of these rules.    */
+/* -------------------------------------------------------------------------- */
+
+.dh-entity-relationships {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-entity-relationship {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-touch-target-min);
+  flex-wrap: wrap;
+}
+
+.dh-entity-relationship__kind {
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-entity-relationship__title {
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
 }

@@ -15,7 +15,7 @@ import { NewAssetForm } from "../NewAssetForm";
 
 export function meta() {
   return [
-    { title: "New asset · DalyHub" },
+    { title: "New Asset · DalyHub" },
     { name: "description", content: "Add something of value to Assets." },
   ];
 }
@@ -29,7 +29,7 @@ export default function NewAssetRoute() {
           <EntityIcon type="asset" />
         </span>
         <div>
-          <h1 className="dh-asset-new__title">New asset</h1>
+          <h1 className="dh-asset-new__title">New Asset</h1>
           <p className="dh-asset-new__lede">
             Start with a name and a type. You can add more detail once it
             exists.

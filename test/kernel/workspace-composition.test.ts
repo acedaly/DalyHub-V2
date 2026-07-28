@@ -69,7 +69,7 @@ describe("resolveWorkspaceScope (composition boundary)", () => {
     ).rejects.toThrow(WorkspaceNotFoundError);
   });
 
-  it("two composed scopes cannot see each other's entities", async () => {
+  it("two composed scopes cannot see each other’s entities", async () => {
     const wsA = "compose-a";
     const wsB = "compose-b";
     const repo = makeWorkspaceRepository();

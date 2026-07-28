@@ -22,7 +22,7 @@ export function useCompletionFailureFeedback(
   useEffect(() => {
     if (result?.kind === "completion" && result.ok === false) {
       notifyError(
-        result.message ?? "That couldn't be saved. Please try again.",
+        result.message ?? "That couldn’t be saved. Please try again.",
       );
     }
   }, [result, notifyError]);

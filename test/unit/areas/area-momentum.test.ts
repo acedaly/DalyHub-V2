@@ -275,7 +275,7 @@ describe("Area momentum", () => {
     expect(momentum.reasons[0]?.code).toBe("stale_projects");
   });
 
-  it("ignores a completed Project's warning facts entirely", () => {
+  it("ignores a completed Project’s warning facts entirely", () => {
     const momentum = evaluateAreaMomentum(
       facts({
         projects: [
@@ -294,7 +294,7 @@ describe("Area momentum", () => {
     ]);
   });
 
-  it("ignores an archived Project's warning facts entirely", () => {
+  it("ignores an archived Project’s warning facts entirely", () => {
     const momentum = evaluateAreaMomentum(
       facts({
         projects: [

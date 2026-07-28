@@ -114,7 +114,7 @@ describe("navigation adapter", () => {
     expect(Object.isFrozen(nav)).toBe(true);
   });
 
-  it("attaches the module's entity type when a resolver supplies one (PX-02)", () => {
+  it("attaches the module’s entity type when a resolver supplies one (PX-02)", () => {
     const registry = createModuleRegistry([
       defineModule({
         id: "projects",

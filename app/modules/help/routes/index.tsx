@@ -23,11 +23,11 @@ export default function HelpRoute() {
     <ModuleComingSoon
       name="Help"
       summary="Guidance for how DalyHub works."
-      fit="Help is planned to become DalyHub's in-app guidance — how the Area → Goal → Project → Task model fits together, and a reference for every keyboard shortcut and command — so support never means leaving the app."
-      roadmapStatus="Help isn't a dedicated phase on the DalyHub V2 roadmap yet; it will grow alongside each module as it ships."
+      fit="Help is planned to become DalyHub’s in-app guidance — how the Area → Goal → Project → Task model fits together, and a reference for every keyboard shortcut and command — so support never means leaving the app."
+      roadmapStatus="Help isn’t a dedicated phase on the DalyHub V2 roadmap yet; it will grow alongside each module as it ships."
       capabilities={[
         "The keyboard-shortcut reference already shipped for Today (TODAY-05) — press “?” while on Today, or find “Keyboard shortcuts” in the Command Palette (⌘K) there",
-        "Guidance for DalyHub's Area → Goal → Project → Task model as it grows",
+        "Guidance for DalyHub’s Area → Goal → Project → Task model as it grows",
       ]}
     />
   );

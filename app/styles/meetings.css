@@ -1,16 +1,8 @@
 /* MEET-02 — Meeting follow-up, structured items and attendees. Token-only; state is
  * carried by text (never colour alone); long text wraps; 44px touch targets. */
 
-.dh-meeting-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-4);
-}
-
-.dh-meeting-section__intro {
-  color: var(--dh-color-text-muted);
-  max-inline-size: 60ch;
-}
+/* PX-06: a meeting's tab sections use the SHARED `.dh-record-section` rhythm
+ * (record-layout.css); only the intro paragraph is meeting-specific. */
 
 /* Structured item list (agenda / decisions / outcomes / unconverted). */
 .dh-meeting-items {

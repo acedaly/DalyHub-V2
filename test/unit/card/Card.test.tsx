@@ -188,13 +188,37 @@ describe("Card — quick actions", () => {
     expect(archive).not.toHaveBeenCalled();
   });
 
-  it("names an icon-only overflow action accessibly", () => {
+  // DS-12: the overflow is now the ONE shared menu (the Record Header uses the
+  // same one), so the trigger names the record it acts on and the action itself
+  // is a `menuitem` inside the opened menu.
+  it("renders the overflow as an accessible menu button naming its record", () => {
     renderCard({
-      overflowAction: { id: "more", label: "More actions", onSelect: () => {} },
+      overflowActions: [
+        { id: "archive", label: "Archive Project", onSelect: () => {} },
+      ],
     });
+    const trigger = screen.getByRole("button", {
+      name: "More actions for Website relaunch",
+    });
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(
-      screen.getByRole("button", { name: "More actions" }),
+      screen.getByRole("menuitem", { name: "Archive Project" }),
     ).toBeInTheDocument();
+  });
+
+  it("normalises the single `overflowAction` into the same one-item menu", () => {
+    const onSelect = vi.fn();
+    renderCard({
+      overflowAction: { id: "more", label: "More actions", onSelect },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions for Website relaunch" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "More actions" }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -270,10 +294,9 @@ describe("Card — roving tabindex (DS-09 keyboard collections)", () => {
       "tabindex",
       "-1",
     );
-    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute(
-      "tabindex",
-      "-1",
-    );
+    expect(
+      screen.getByRole("button", { name: "More actions for Website relaunch" }),
+    ).toHaveAttribute("tabindex", "-1");
   });
 
   it("takes the whole inactive card out of the tab order (primary = -1)", () => {

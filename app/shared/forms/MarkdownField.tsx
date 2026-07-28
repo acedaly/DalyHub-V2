@@ -89,7 +89,7 @@ export function MarkdownField({
           setPreview({
             kind: "error",
             message:
-              "This content can't be previewed. Check for unusually long text or unusual characters.",
+              "This content can’t be previewed. Check for unusually long text or unusual characters.",
           });
         }
       })

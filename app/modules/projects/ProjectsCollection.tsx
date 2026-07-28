@@ -14,7 +14,10 @@ import { useFetcher, useNavigate, useRevalidator } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import {
   DrawerProvider,
   DrawerTrigger,
@@ -97,7 +100,7 @@ export function ProjectsCollectionView({
         return null;
       }
       return {
-        title: "New project",
+        title: "New Project",
         description: "Create a project under an Area or a Goal.",
         children: (
           <NewProjectFormHost
@@ -314,15 +317,20 @@ function ProjectsCollection({
   // Never present the loaded-row count as the TOTAL while more pages remain — say
   // how many are "loaded" so far, not how many exist.
   const subtitle = failed
-    ? "We couldn't load your projects."
+    ? "We couldn’t load your projects."
     : hasMore
       ? `${count} projects loaded`
       : count === 1
         ? "1 project"
         : `${count} projects`;
 
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Projects"
       subtitle={subtitle}
       entityType="project"
@@ -331,7 +339,7 @@ function ProjectsCollection({
           drawerKey={NEW_PROJECT_KEY}
           className="dh-btn dh-btn--primary"
         >
-          New project
+          New Project
         </DrawerTrigger>
       }
       filterBar={
@@ -345,7 +353,7 @@ function ProjectsCollection({
       error={
         failed ? (
           <EmptyState
-            title="We couldn't load your projects"
+            title="We couldn’t load your projects"
             description="Something went wrong. Please try again."
           />
         ) : undefined
@@ -372,7 +380,7 @@ function ProjectsCollection({
                 drawerKey={NEW_PROJECT_KEY}
                 className="dh-btn dh-btn--primary"
               >
-                New project
+                New Project
               </DrawerTrigger>
             )
           }
@@ -382,14 +390,14 @@ function ProjectsCollection({
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="project" />}
-          title="No projects yet"
+          title="No Projects yet"
           description="Projects are the finite bodies of work you run under an Area or a Goal. Create your first one to get started."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_PROJECT_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New project
+              New Project
             </DrawerTrigger>
           }
         />

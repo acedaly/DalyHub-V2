@@ -94,7 +94,7 @@ describe("cross-module descriptors from the module registry", () => {
     { type: "bad.one", label: "" },
   ]);
 
-  it("labels another module's event without importing that module", () => {
+  it("labels another module’s event without importing that module", () => {
     const completed = item(
       "task.completed",
       [{ entityId: "task-1", role: "subject" }],
@@ -116,7 +116,7 @@ describe("cross-module descriptors from the module registry", () => {
     ).toBe(true);
   });
 
-  it("emits NO payload metadata for another module's event (privacy)", () => {
+  it("emits NO payload metadata for another module’s event (privacy)", () => {
     const completed = item(
       "task.completed",
       [{ entityId: "task-1", role: "subject" }],
@@ -127,7 +127,7 @@ describe("cross-module descriptors from the module registry", () => {
     expect(JSON.stringify(completed.presentation)).not.toContain("biopsy");
   });
 
-  it("keeps the People-owned line for the Person's own events", () => {
+  it("keeps the People-owned line for the Person’s own events", () => {
     const updated = item(
       "person.updated",
       [{ entityId: PERSON, role: "subject" }],
@@ -218,7 +218,7 @@ describe("relationship categories", () => {
     ).toBe("person");
   });
 
-  it("classifies an unfamiliar module's record as Other, never throwing", () => {
+  it("classifies an unfamiliar module’s record as Other, never throwing", () => {
     expect(
       personTimelineCategory(
         item("asset.disposed", [{ entityId: "asset-1", role: "subject" }]),

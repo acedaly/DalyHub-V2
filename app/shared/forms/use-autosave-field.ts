@@ -32,7 +32,7 @@ import { runValidator } from "./validation";
 export const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 800;
 
 const DEFAULT_SAVE_ERROR =
-  "Couldn't save. Your changes are still here — try again.";
+  "Couldn’t save. Your changes are still here — try again.";
 
 export interface UseAutosaveFieldOptions<TValue> {
   /** The committed initial value. */

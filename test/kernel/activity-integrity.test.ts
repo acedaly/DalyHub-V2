@@ -123,7 +123,7 @@ describe("Activity direct database integrity (real D1)", () => {
     );
   });
 
-  it("deleting an activity's subject does not delete or modify the entity", async () => {
+  it("deleting an activity’s subject does not delete or modify the entity", async () => {
     await insertActivity("a1", WS);
     await insertSubject(WS, "a1", "e1");
     // Removing the subject association first releases the RESTRICT, then the

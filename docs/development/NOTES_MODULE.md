@@ -573,3 +573,20 @@ styles now live in `app/styles/markdown-editor.css`).
 **Relevant roadmap items.** [NOTES-01A/01B/01C](../roadmap/ROADMAP_V2.md#-notes-01a--notes-persistence-and-domain-foundation) ☑ · [NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile) ☑ · [NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) ☑ · [REL-01](../roadmap/ROADMAP_V2.md#-rel-01--universal-relationship-system-shared-linked-items) ☑ · [NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks) ◑ · [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search) ☐ · [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability) ☐.
 
 **Relevant product-debt items.** [DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2) · [DEBT-39](../product/PRODUCT_DEBT.md#-debt-39--wiki-links-create-no-entitylink-and-the-resolver-scans-the-whole-workspace--p2) · [DEBT-08](../product/PRODUCT_DEBT.md#-debt-08--ad-hoc-cross-entity-links--p2) · [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) · [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**Delete moved into the shared overflow, and its machinery became shared.** The behaviour is
+unchanged — one click, a real soft-delete, a redirect to `/notes`, a DS-10 **Undo** toast, and
+the Deleted view as the durable path back — but it now lives in the ONE overflow (⋯) slot every
+record uses, with the derived label `Delete Note`. `useDeleteNote` is a thin wrapper over the
+shared `useReversibleDelete`; only the genuinely Note-specific concern stays local (flushing the
+Markdown editor's latest edit before deleting, so Undo restores what the user last wrote). The
+Deleted collection's restore is the shared `useCollectionRestore`. Notes was the reference
+pattern; it is now the shared one, with Goals and Diary running on it.
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

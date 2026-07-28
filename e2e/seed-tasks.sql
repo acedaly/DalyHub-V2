@@ -678,3 +678,29 @@ VALUES
 DELETE FROM area_details
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('a-e2e-archive', 'a-e2e-blocked', 'a-e2e-empty', 'a-e2e-cancel');
+
+-- ---------------------------------------------------------------------------
+-- PX-04 — a dedicated, EMPTY Goal for the shared record-lifecycle journey.
+--
+-- The journey deletes it, undoes, deletes again and restores it from the
+-- Deleted view, so it must own no active Projects (the spine's child guard
+-- would otherwise refuse the delete, correctly). It is deliberately separate
+-- from `g-launch`, which advances a real Project other specs depend on.
+--
+-- The reset below returns it to the ACTIVE state at the start of every run, so
+-- a previous run that left it soft-deleted cannot make the next one flaky.
+-- ---------------------------------------------------------------------------
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('g-e2e-lifecycle', 'local-dev-workspace', 'goal', 'Lifecycle Goal', '2026-07-19T05:02:00.000Z', '2026-07-19T05:02:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'g-e2e-lifecycle', 'goal', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-ge2elc-area', 'local-dev-workspace', 'g-e2e-lifecycle', 'a-e2e-archive', 'goal.belongs_to_area', '2026-07-19T05:02:00.000Z', '2026-07-19T05:02:00.000Z', NULL);
+
+UPDATE entities
+SET deleted_at = NULL
+WHERE workspace_id = 'local-dev-workspace'
+  AND id = 'g-e2e-lifecycle';

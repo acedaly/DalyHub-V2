@@ -427,7 +427,7 @@ describe("DEBT-22 — Goal Projects pagination endpoint (/goals/:goalId/projects
     expect(body.error).toBe("invalid_cursor");
   });
 
-  it("rejects a cursor issued for another Goal's scope with a calm 400", async () => {
+  it("rejects a cursor issued for another Goal’s scope with a calm 400", async () => {
     const goalA = await seedGoalWithProjects(60);
     const goalB = await seedGoalWithProjects(2);
     const firstA = (await (
@@ -452,5 +452,109 @@ describe("DEBT-22 — Goal Projects pagination endpoint (/goals/:goalId/projects
     });
     const response = await runProjects(foreignGoal.id);
     expect(response.status).toBe(404);
+  });
+});
+
+/**
+ * PX-04 — reversible Goal removal over the real Worker/D1 runtime.
+ *
+ * A Goal had no removal path at all despite the spine supporting soft-delete
+ * since FND-07. These assert the BEHAVIOUR the user gets: the record leaves the
+ * active surfaces, Undo genuinely brings it back, a repeat call is a no-op rather
+ * than an error, a Goal that still owns active Projects is refused with an
+ * explanation (never cascaded), and neither intent can be aimed at another
+ * workspace or another kind of record.
+ */
+describe("PX-04 — Goal delete/restore", () => {
+  it("soft-deletes a Goal, hides it from its Area, and restores it exactly", async () => {
+    const area = await spine().createArea({ title: "Health" });
+    const goal = await spine().createGoal({
+      title: "Run a half-marathon",
+      areaId: area.id,
+    });
+
+    const deleted = (await (
+      await runMutate(goal.id, formData({ intent: "delete" }))
+    ).json()) as GoalMutationResult;
+    expect(deleted).toEqual({ kind: "delete", ok: true });
+
+    // Gone from the active reads: the canonical record 404s, exactly as a
+    // deleted Note does.
+    await expect(runDetail(goal.id)).rejects.toMatchObject({ status: 404 });
+
+    const restored = (await (
+      await runMutate(goal.id, formData({ intent: "restore" }))
+    ).json()) as GoalMutationResult;
+    expect(restored).toEqual({ kind: "restore", ok: true });
+
+    const detail = await runDetail(goal.id);
+    expect("overview" in detail && detail.overview.title).toBe(
+      "Run a half-marathon",
+    );
+    expect("overview" in detail && detail.overview.area.id).toBe(area.id);
+  });
+
+  it("is idempotent, so a repeated delete or restore never becomes a spurious 404", async () => {
+    const area = await spine().createArea({ title: "Health" });
+    const goal = await spine().createGoal({
+      title: "Ship v2",
+      areaId: area.id,
+    });
+
+    await runMutate(goal.id, formData({ intent: "delete" }));
+    const again = (await (
+      await runMutate(goal.id, formData({ intent: "delete" }))
+    ).json()) as GoalMutationResult;
+    expect(again).toEqual({ kind: "delete", ok: true });
+
+    await runMutate(goal.id, formData({ intent: "restore" }));
+    const restoredAgain = (await (
+      await runMutate(goal.id, formData({ intent: "restore" }))
+    ).json()) as GoalMutationResult;
+    expect(restoredAgain).toEqual({ kind: "restore", ok: true });
+  });
+
+  it("refuses to delete a Goal that still owns an active Project, and explains why", async () => {
+    const area = await spine().createArea({ title: "Health" });
+    const goal = await spine().createGoal({
+      title: "Run a half-marathon",
+      areaId: area.id,
+    });
+    await spine().createProject({
+      title: "12-week plan",
+      parent: { kind: "goal", id: goal.id },
+    });
+
+    const blocked = (await (
+      await runMutate(goal.id, formData({ intent: "delete" }))
+    ).json()) as GoalMutationResult;
+    expect(blocked.kind).toBe("delete");
+    expect(blocked.ok).toBe(false);
+    if (blocked.kind === "delete" && !blocked.ok) {
+      expect(blocked.blocked).toBe(true);
+      expect(blocked.formError).toMatch(/active Projects/);
+    }
+
+    // Nothing was cascaded or orphaned — the Goal is still there.
+    const detail = await runDetail(goal.id);
+    expect("overview" in detail && detail.overview.title).toBe(
+      "Run a half-marathon",
+    );
+  });
+
+  it("fails closed for a cross-workspace Goal and for a non-Goal id", async () => {
+    const foreignArea = await spine(OTHER).createArea({ title: "Theirs" });
+    const foreignGoal = await spine(OTHER).createGoal({
+      title: "Theirs",
+      areaId: foreignArea.id,
+    });
+    await expect(
+      runMutate(foreignGoal.id, formData({ intent: "delete" })),
+    ).rejects.toMatchObject({ status: 404 });
+
+    const area = await spine().createArea({ title: "Health" });
+    await expect(
+      runMutate(area.id, formData({ intent: "delete" })),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

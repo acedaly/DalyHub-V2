@@ -23,6 +23,7 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import {
@@ -50,6 +51,10 @@ interface ProjectOverviewProps {
   readonly activityTab: ReactNode;
   /** The PROJ-05 Settings tab (DS-10b) — always the FINAL tab. */
   readonly settingsTab: ReactNode;
+  /** PX-04: the shared lifecycle actions, surfaced in the header overflow too.
+   * A Project archives rather than deletes (PROJ-05), so no delete is offered. */
+  readonly onArchive?: () => Promise<void>;
+  readonly onRestore?: () => Promise<void>;
   /** Controlled active tab (deep-linked via the Record Layout). */
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
@@ -67,6 +72,8 @@ export function ProjectOverview({
   linksTab,
   activityTab,
   settingsTab,
+  onArchive,
+  onRestore,
   activeTabId,
   onTabChange,
 }: ProjectOverviewProps) {
@@ -194,52 +201,71 @@ export function ProjectOverview({
     onSelect: onRename,
   };
 
+  // PX-04: Archive/Restore was reachable ONLY through the Settings sub-tab — the
+  // commonest removal in the product was the hardest to find (UXA-06). It now
+  // also sits in the shared header overflow, in the same slot as every other
+  // record's lifecycle actions. Settings keeps the full explanation.
+  const lifecycle = useRecordLifecycle({
+    entityType: "project",
+    title: overview.title,
+    archived,
+    onArchive,
+    onRestore,
+  });
+
   return (
-    <RecordLayout
-      title={overview.title}
-      typeLabel="Project"
-      icon={<EntityIcon type="project" />}
-      breadcrumb={[{ id: "projects", label: "Projects", href: "/projects" }]}
-      status={{ label: state.label, tone: state.tone }}
-      metadata={headerMetadata}
-      primaryAction={primaryAction}
-      secondaryActions={archived ? [] : [renameAction]}
-      summary={{
-        description: (
-          <div className="dh-project-overview__summary">
-            {archived ? (
-              <p className="dh-project-overview__archived-banner" role="status">
-                This project is archived and read-only. Open{" "}
-                <strong>Settings</strong> to restore it.
+    <>
+      <RecordLayout
+        title={overview.title}
+        typeLabel="Project"
+        icon={<EntityIcon type="project" />}
+        breadcrumb={[{ id: "projects", label: "Projects", href: "/projects" }]}
+        status={{ label: state.label, tone: state.tone }}
+        metadata={headerMetadata}
+        primaryAction={primaryAction}
+        secondaryActions={archived ? [] : [renameAction]}
+        overflowActions={lifecycle.overflowActions}
+        summary={{
+          description: (
+            <div className="dh-project-overview__summary">
+              {archived ? (
+                <p
+                  className="dh-project-overview__archived-banner"
+                  role="status"
+                >
+                  This project is archived and read-only. Open{" "}
+                  <strong>Settings</strong> to restore it.
+                </p>
+              ) : null}
+              <p className="dh-project-overview__progress">
+                <span className="dh-project-overview__progress-label">
+                  Roll-up progress:
+                </span>{" "}
+                {progress.has
+                  ? `${progress.percent}% — ${progress.summary} complete`
+                  : "No tasks yet."}
               </p>
-            ) : null}
-            <p className="dh-project-overview__progress">
-              <span className="dh-project-overview__progress-label">
-                Roll-up progress:
-              </span>{" "}
-              {progress.has
-                ? `${progress.percent}% — ${progress.summary} complete`
-                : "No tasks yet."}
-            </p>
-            {overview.healthVisible ? (
-              <ProjectHealthPanel health={health} />
-            ) : null}
-          </div>
-        ),
-        metadata: summaryMetadata,
-      }}
-      activeTabId={activeTabId}
-      onTabChange={onTabChange}
-      tabs={[
-        { id: "tasks", label: "Tasks", content: tasksTab },
-        { id: "links", label: "Key links", content: linksTab },
-        { id: "activity", label: "Activity", content: activityTab },
-        // Settings is the FINAL tab, per the shared tab vocabulary
-        // (DESIGN_SYSTEM.md → Tabs: Activity and Settings always sit last, in
-        // that order).
-        { id: "settings", label: "Settings", content: settingsTab },
-      ]}
-    />
+              {overview.healthVisible ? (
+                <ProjectHealthPanel health={health} />
+              ) : null}
+            </div>
+          ),
+          metadata: summaryMetadata,
+        }}
+        activeTabId={activeTabId}
+        onTabChange={onTabChange}
+        tabs={[
+          { id: "tasks", label: "Tasks", content: tasksTab },
+          { id: "linked", label: "Linked", content: linksTab },
+          { id: "activity", label: "Activity", content: activityTab },
+          // Settings is the FINAL tab, per the shared tab vocabulary
+          // (DESIGN_SYSTEM.md → Tabs: Activity and Settings always sit last, in
+          // that order).
+          { id: "settings", label: "Settings", content: settingsTab },
+        ]}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }
 

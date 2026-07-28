@@ -56,7 +56,7 @@ function ProjectRecordDemo() {
     isEmpty: overviewState === "empty",
     error:
       overviewState === "error"
-        ? "Couldn't load the overview — you're offline. We'll retry."
+        ? "Couldn’t load the overview — you’re offline. We’ll retry."
         : undefined,
     children: (
       <p className="demo-prose">
@@ -102,7 +102,7 @@ function ProjectRecordDemo() {
       content: (
         <RecordContent label="Project tasks">
           <p className="demo-prose">
-            A record's depth lives in tabs; the active panel is the content
+            A record’s depth lives in tabs; the active panel is the content
             region. This tab is a placeholder — DS-02 builds the scaffold, not
             the Tasks module.
           </p>

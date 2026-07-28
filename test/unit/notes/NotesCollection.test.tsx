@@ -20,11 +20,11 @@ import { FeedbackProvider } from "~/shared/feedback";
 /**
  * NOTES-01B/NOTES-01C — the Notes collection as behaviour: cards render as
  * canonical links, the honest subtitle/count, the empty vs error states are
- * calm and distinct, the "New note" affordance is present, the keyset "Load
+ * calm and distinct, the "New Note" affordance is present, the keyset "Load
  * more" affordance appends the next page without duplicating cards or
  * claiming a false total (mirrors `test/unit/projects/ProjectsCollection.test.tsx`),
  * and NOTES-01C's Active/Deleted lifecycle filter: the Deleted view has no
- * "New note" action, a distinct empty state, and each row offers a one-click
+ * "New Note" action, a distinct empty state, and each row offers a one-click
  * Restore instead of an open link (its canonical route 404s once deleted).
  */
 
@@ -127,18 +127,18 @@ describe("Notes collection", () => {
     const link = screen.getByRole("link", { name: "Open Reading list" });
     expect(link).toHaveAttribute("href", "/notes/n1");
     expect(screen.getByText("1 note")).toBeInTheDocument();
-    expect(screen.getAllByText("New note").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("New Note").length).toBeGreaterThan(0);
   });
 
   it("shows a genuinely-empty state when there are no notes at all", () => {
     renderCollection({ notes: [], nextCursor: null, failed: false });
-    expect(screen.getByText("No notes yet")).toBeInTheDocument();
+    expect(screen.getByText("No Notes yet")).toBeInTheDocument();
   });
 
   it("shows a calm, retryable error state distinct from empty", () => {
     renderCollection({ notes: [], nextCursor: null, failed: true });
-    expect(screen.getByText("We couldn't load your notes")).toBeInTheDocument();
-    expect(screen.queryByText("No notes yet")).not.toBeInTheDocument();
+    expect(screen.getByText("We couldn’t load your notes")).toBeInTheDocument();
+    expect(screen.queryByText("No Notes yet")).not.toBeInTheDocument();
   });
 
   it("does not claim a total, then appends the next keyset page without duplicates", async () => {
@@ -196,17 +196,17 @@ describe("Notes collection", () => {
   });
 
   describe("Deleted Notes view (NOTES-01C)", () => {
-    it("shows no 'New note' action and a distinct filtered-empty state", () => {
+    it("shows no 'New Note' action and a distinct filtered-empty state", () => {
       renderCollection({
         notes: [],
         nextCursor: null,
         state: "deleted",
         failed: false,
       });
-      expect(screen.getByText("No deleted notes")).toBeInTheDocument();
-      expect(screen.queryByText("New note")).not.toBeInTheDocument();
-      // The generic "No notes yet" empty state must never leak into this view.
-      expect(screen.queryByText("No notes yet")).not.toBeInTheDocument();
+      expect(screen.getByText("No deleted Notes")).toBeInTheDocument();
+      expect(screen.queryByText("New Note")).not.toBeInTheDocument();
+      // The generic "No Notes yet" empty state must never leak into this view.
+      expect(screen.queryByText("No Notes yet")).not.toBeInTheDocument();
     });
 
     it("renders a deleted Note as a static title with a Restore action, not an open link", () => {
@@ -288,7 +288,7 @@ describe("Notes collection", () => {
       });
       await waitFor(() =>
         expect(
-          within(toasts).getByText('Couldn\'t restore "Old draft". Try again.'),
+          within(toasts).getByText('Couldn’t restore "Old draft". Try again.'),
         ).toBeInTheDocument(),
       );
       // The row stays — nothing was actually restored.
@@ -352,7 +352,7 @@ describe("Notes collection", () => {
           failed: false,
         });
       });
-      expect(screen.getByText("No deleted notes")).toBeInTheDocument();
+      expect(screen.getByText("No deleted Notes")).toBeInTheDocument();
 
       // NOW the stale Active-state page resolves.
       releaseStalePage();
@@ -371,7 +371,7 @@ describe("Notes collection", () => {
       expect(
         screen.queryByRole("button", { name: "Load more deleted notes" }),
       ).not.toBeInTheDocument();
-      expect(screen.getByText("No deleted notes")).toBeInTheDocument();
+      expect(screen.getByText("No deleted Notes")).toBeInTheDocument();
     });
 
     it("keeps Load More reachable when restoring every currently-visible Deleted note leaves more pages unloaded", async () => {
@@ -407,7 +407,7 @@ describe("Notes collection", () => {
       // The only loaded row is gone, but more deleted notes exist on the
       // server (a truthy cursor) — must NOT claim the collection is empty,
       // and Load More must still be there to reach them.
-      expect(screen.queryByText("No deleted notes")).not.toBeInTheDocument();
+      expect(screen.queryByText("No deleted Notes")).not.toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "Load more deleted notes" }),
       ).toBeInTheDocument();

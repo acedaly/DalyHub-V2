@@ -65,7 +65,7 @@ describe("TODAY-08 insights", () => {
 });
 
 describe("TODAY-08 focus line", () => {
-  it("leads with the day's commitment when something is planned", () => {
+  it("leads with the day’s commitment when something is planned", () => {
     expect(briefFocusLine({ ...BASE, plannedTodayCount: 2 })).toMatch(
       /2 tasks planned/,
     );

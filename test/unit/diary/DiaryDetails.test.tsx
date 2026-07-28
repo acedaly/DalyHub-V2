@@ -67,6 +67,8 @@ function Harness({
       onRequestRead={() => setMode("read")}
       onChanged={onChanged}
       onClose={onClose}
+      deleteRedirectTo="?"
+      onDeleted={onChanged}
     />
   );
 }
@@ -164,7 +166,7 @@ describe("Diary details panel", () => {
     ).toBeInTheDocument();
   });
 
-  it("degrades calmly when the loaded entry doesn't match the requested id", async () => {
+  it("degrades calmly when the loaded entry doesn’t match the requested id", async () => {
     renderHost(fixture({ id: "someone-else" }), "read", "e1");
     expect(
       await screen.findByText("That entry is no longer available."),

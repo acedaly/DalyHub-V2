@@ -115,7 +115,7 @@ describe("migration 0009 → 0010 (note_details, additive, existing-data safe)",
     expect(threw).toBe(true);
   });
 
-  it("rerunning the application's upsert path does not create duplicate rows (idempotent PK)", async () => {
+  it("rerunning the application’s upsert path does not create duplicate rows (idempotent PK)", async () => {
     await DB.prepare(
       `INSERT INTO note_details (workspace_id, entity_id, content, updated_at)
        VALUES ('ws_m10', 'note_m10', 'Hello, world.', ?)

@@ -221,7 +221,7 @@ describe("concurrent structural mutations never break the invariants", () => {
     expect([areaA.id, areaB.id]).toContain(parent?.id);
   });
 
-  it("a move racing a child deletion leaves the child's retained parent link intact", async () => {
+  it("a move racing a child deletion leaves the child’s retained parent link intact", async () => {
     const spine = repo();
     const area = await spine.createArea({ title: "A" });
     const project = await spine.createProject({

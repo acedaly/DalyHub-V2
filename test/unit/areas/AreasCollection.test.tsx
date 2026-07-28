@@ -2,6 +2,8 @@ import { RouterProvider, createMemoryRouter } from "react-router";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { FeedbackProvider } from "~/shared/feedback";
+
 import { AreasCollectionView } from "~/modules/areas/AreasCollection";
 import type { SerializedAreaListItem } from "~/modules/areas/area-view";
 
@@ -44,7 +46,11 @@ function renderCollection(
     ],
     { initialEntries: ["/areas"] },
   );
-  return render(<RouterProvider router={router} />);
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 describe("Areas collection", () => {
@@ -79,9 +85,9 @@ describe("Areas collection", () => {
 
   it("shows retryable failure state without fabricated totals", () => {
     renderCollection([], { failed: true });
-    expect(screen.getByText("We couldn't load your Areas")).toBeInTheDocument();
+    expect(screen.getByText("We couldn’t load your Areas")).toBeInTheDocument();
     expect(
-      screen.getByText("We couldn't load your Areas."),
+      screen.getByText("We couldn’t load your Areas."),
     ).toBeInTheDocument();
   });
 

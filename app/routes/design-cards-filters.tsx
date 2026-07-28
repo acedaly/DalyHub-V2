@@ -199,7 +199,7 @@ const RECORDS: readonly FixtureRecord[] = [
     type: "task",
     typeLabel: "Task",
     accent: "success",
-    title: "Archive last year's assets",
+    title: "Archive last year’s assets",
     status: "done",
     statusLabel: "Done",
     statusTone: "success",
@@ -789,10 +789,10 @@ function RecordDrawerBody({ record }: { record: FixtureRecord }) {
     >
       <RecordContent label={`${record.typeLabel} overview`}>
         <p className="cf-demo__drawer-prose">
-          This is the same shared Card&apos;s record, opened in the DS-03
-          Drawer. Your active filters remain in the URL while this is open;
-          close it and the filtered collection and scroll position are exactly
-          as you left them.
+          This is the same shared Card’s record, opened in the DS-03 Drawer.
+          Your active filters remain in the URL while this is open; close it and
+          the filtered collection and scroll position are exactly as you left
+          them.
         </p>
       </RecordContent>
     </RecordLayout>

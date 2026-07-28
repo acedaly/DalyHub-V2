@@ -209,7 +209,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return json(
       {
         ok: false,
-        message: "That setting couldn't be saved. Please try again.",
+        message: "That setting couldn’t be saved. Please try again.",
       },
       500,
     );

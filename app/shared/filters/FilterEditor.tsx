@@ -35,7 +35,7 @@ interface FilterEditorProps {
 const REASON_MESSAGES: Record<string, string> = {
   "unknown-field": "Choose a field.",
   "unknown-operator": "Choose a condition.",
-  "operator-not-allowed": "That condition isn't available for this field.",
+  "operator-not-allowed": "That condition isn’t available for this field.",
   "invalid-value": "Enter a value for this condition.",
 };
 

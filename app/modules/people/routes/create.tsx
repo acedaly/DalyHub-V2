@@ -78,7 +78,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     return json({
       ok: false,
-      formError: "That person couldn't be created. Please try again.",
+      formError: "That person couldn’t be created. Please try again.",
     });
   }
 }

@@ -285,7 +285,7 @@ export function buildLivePreviewDecorations(state: EditorState): DecorationSet {
         break;
       case "Table":
         handleTable(node);
-        return; // don't descend into cells — the widget owns the whole block
+        return; // don’t descend into cells — the widget owns the whole block
       case "ListItem":
         handleListItem(node);
         break;

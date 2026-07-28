@@ -75,7 +75,7 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       expect(await r.getById("id_0001")).toEqual(created);
     });
 
-    it("always assigns the repository's bound workspace, never another", async () => {
+    it("always assigns the repository’s bound workspace, never another", async () => {
       const created = await repoA().create({ type: "widget", title: "mine" });
       expect(created.workspaceId).toBe(WS_A);
     });
@@ -118,7 +118,7 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       expect(await repoA().getById("nope")).toBeNull();
     });
 
-    it("workspace A cannot retrieve workspace B's entity (no existence disclosure)", async () => {
+    it("workspace A cannot retrieve workspace B’s entity (no existence disclosure)", async () => {
       const created = await repoA().create({ type: "widget", title: "secret" });
       // Workspace B sees exactly what it would see for a non-existent id: null.
       // There is no signal that the entity exists elsewhere.
@@ -210,7 +210,7 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       );
     });
 
-    it("workspace A cannot update workspace B's entity", async () => {
+    it("workspace A cannot update workspace B’s entity", async () => {
       const created = await repoB().create({ type: "widget", title: "T" });
       // Same generic not-found the caller would get for a truly missing id.
       await expect(
@@ -293,7 +293,7 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       await expect(r.restore("nope")).rejects.toThrow(EntityNotFoundError);
     });
 
-    it("workspace A cannot soft-delete or restore workspace B's entity", async () => {
+    it("workspace A cannot soft-delete or restore workspace B’s entity", async () => {
       const created = await repoB().create({ type: "widget", title: "theirs" });
       await expect(repoA().softDelete(created.id)).rejects.toThrow(
         EntityNotFoundError,
@@ -407,7 +407,7 @@ describe("D1EntityRepository (workspace-scoped)", () => {
       expect(tasks.items.every((e) => e.type === "widget")).toBe(true);
     });
 
-    it("a workspace list never returns another workspace's records", async () => {
+    it("a workspace list never returns another workspace’s records", async () => {
       await repoA().create({ type: "widget", title: "mine" });
       await repoB().create({ type: "widget", title: "theirs" });
 

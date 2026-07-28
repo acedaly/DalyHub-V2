@@ -99,7 +99,7 @@ describe("GET /person/:personId/activity — the unified relationship timeline",
     links = makeLinkRepository(CTX);
   });
 
-  it("serves the Person's own record events for an unlinked Person", async () => {
+  it("serves the Person’s own record events for an unlinked Person", async () => {
     const personId = await createPerson("Ada");
     const { status, body } = await readTimeline(personId);
 
@@ -110,18 +110,18 @@ describe("GET /person/:personId/activity — the unified relationship timeline",
     expect(body.relatedRecordsTruncated).toBe(false);
   });
 
-  it("includes a linked record's OWN events, by reference not by copy", async () => {
+  it("includes a linked record’s OWN events, by reference not by copy", async () => {
     const personId = await createPerson("Ada");
     const note = await entities.create({
       type: "note",
-      title: "Ada's preferences",
+      title: "Ada’s preferences",
     });
     await links.create({
       sourceEntityId: note.id,
       targetEntityId: personId,
       type: "link.related",
     });
-    await entities.update(note.id, { title: "Ada's preferences (v2)" });
+    await entities.update(note.id, { title: "Ada’s preferences (v2)" });
 
     const { body } = await readTimeline(personId);
 
@@ -143,7 +143,7 @@ describe("GET /person/:personId/activity — the unified relationship timeline",
         item.type === "entity.created" &&
         item.subjects.some((subject) => subject.entityId === note.id),
     );
-    expect(created?.subjects[0]?.entity?.label).toBe("Ada's preferences (v2)");
+    expect(created?.subjects[0]?.entity?.label).toBe("Ada’s preferences (v2)");
     expect(created?.subjects[0]?.entity?.entityType).toBe("note");
   });
 
@@ -172,7 +172,7 @@ describe("GET /person/:personId/activity — the unified relationship timeline",
     );
   });
 
-  it("drops a record's events when the relationship is removed", async () => {
+  it("drops a record’s events when the relationship is removed", async () => {
     const personId = await createPerson("Ada");
     const note = await entities.create({ type: "note", title: "Shared note" });
     const link = await links.create({
@@ -199,7 +199,7 @@ describe("GET /person/:personId/activity — the unified relationship timeline",
     ).toHaveLength(0);
   });
 
-  it("drops a linked record's events when the record is soft-deleted", async () => {
+  it("drops a linked record’s events when the record is soft-deleted", async () => {
     const personId = await createPerson("Ada");
     const note = await entities.create({ type: "note", title: "Shared note" });
     await links.create({
@@ -213,7 +213,7 @@ describe("GET /person/:personId/activity — the unified relationship timeline",
     expect(body.relatedRecordCount).toBe(0);
   });
 
-  it("still serves a soft-deleted Person's own history", async () => {
+  it("still serves a soft-deleted Person’s own history", async () => {
     const personId = await createPerson("Ada");
     await entities.softDelete(personId);
 
@@ -223,7 +223,7 @@ describe("GET /person/:personId/activity — the unified relationship timeline",
     expect(body.relatedRecordCount).toBe(0);
   });
 
-  it("never leaks another workspace's records into the stream", async () => {
+  it("never leaks another workspace’s records into the stream", async () => {
     const personId = await createPerson("Ada");
     const foreign = makeRepository(CTX_OTHER);
     const theirNote = await foreign.create({

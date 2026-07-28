@@ -93,10 +93,10 @@ describe("autosave coordinator", () => {
     const failed = apply(s, {
       type: "rejected",
       seq: 1,
-      message: "Couldn't save.",
+      message: "Couldn’t save.",
     });
     expect(failed.state.status).toBe("error");
-    expect(failed.state.error).toBe("Couldn't save.");
+    expect(failed.state.error).toBe("Couldn’t save.");
     expect(failed.state.committed).toBe("a"); // NOT advanced
     expect(failed.state.current).toBe("ab"); // input preserved
 

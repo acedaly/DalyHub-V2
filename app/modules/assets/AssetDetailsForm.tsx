@@ -194,7 +194,7 @@ export function AssetDetailsForm({
       } catch {
         return {
           status: "error",
-          formError: "That couldn't be saved. Please try again.",
+          formError: "That couldn’t be saved. Please try again.",
         };
       }
       if (data.kind === "update" && data.ok) {
@@ -238,7 +238,7 @@ export function AssetDetailsForm({
           label="Status"
           required
           options={STATUS_OPTIONS}
-          help="The asset's real-world state — separate from archiving the record."
+          help="The asset’s real-world state — separate from archiving the record."
           {...form.field("status")}
         />
         <TextField

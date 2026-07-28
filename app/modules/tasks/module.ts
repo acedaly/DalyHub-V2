@@ -87,12 +87,12 @@ export default defineModule({
     {
       type: TASK_WAITING_CHANGED,
       label: "Changed waiting",
-      description: "A waiting task's subject was changed.",
+      description: "A waiting task’s subject was changed.",
     },
     {
       type: TASK_WAITING_CLEARED,
       label: "Stopped waiting",
-      description: "A task's waiting state was cleared.",
+      description: "A task’s waiting state was cleared.",
     },
     {
       type: TASK_PLANNED,
@@ -107,7 +107,7 @@ export default defineModule({
     {
       type: TASK_PLAN_CLEARED,
       label: "Plan cleared",
-      description: "A task's plan (scheduled date) was removed.",
+      description: "A task’s plan (scheduled date) was removed.",
     },
   ],
 });

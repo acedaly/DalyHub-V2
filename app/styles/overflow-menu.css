@@ -1,0 +1,161 @@
+/*
+ * DS-12 — the shared overflow (⋯) menu.
+ *
+ * One appearance for every overflow surface (Record Header, Card). Values are
+ * DS-01 tokens only, so the menu is correct in light and dark with no per-surface
+ * override. A destructive item is distinguished by its icon and wording first —
+ * the tone is reinforcement, never the only cue.
+ */
+
+.dh-overflow-menu {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.dh-overflow-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--dh-control-height-sm);
+  min-width: var(--dh-control-height-sm);
+  padding: var(--dh-space-1);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-overflow-menu__trigger:hover {
+  color: var(--dh-color-text);
+  background: var(--dh-color-hover-surface);
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-overflow-menu[data-open="true"] .dh-overflow-menu__trigger {
+  color: var(--dh-color-text);
+  background: var(--dh-color-active-surface);
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-overflow-menu__glyph {
+  display: inline-flex;
+  font-size: var(--dh-font-size-lg);
+  line-height: 1;
+}
+
+.dh-overflow-menu__panel {
+  position: absolute;
+  top: calc(100% + var(--dh-space-1));
+  z-index: var(--dh-z-dropdown);
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 13rem;
+  max-inline-size: min(20rem, calc(100vw - var(--dh-space-6)));
+  padding: var(--dh-space-1);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-shadow-md);
+}
+
+.dh-overflow-menu__panel[data-align="end"] {
+  inset-inline-end: 0;
+}
+
+.dh-overflow-menu__panel[data-align="start"] {
+  inset-inline-start: 0;
+}
+
+.dh-overflow-menu__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-2);
+  width: 100%;
+  padding: var(--dh-space-2);
+  font-family: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-snug);
+  text-align: start;
+  text-decoration: none;
+  color: var(--dh-color-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-overflow-menu__item:hover,
+.dh-overflow-menu__item:focus-visible {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-overflow-menu__item[data-tone="danger"] {
+  color: var(--dh-color-danger-text);
+}
+
+.dh-overflow-menu__item[data-tone="danger"]:hover,
+.dh-overflow-menu__item[data-tone="danger"]:focus-visible {
+  background: var(--dh-color-danger-surface);
+}
+
+.dh-overflow-menu__item[aria-disabled="true"] {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.dh-overflow-menu__item[aria-disabled="true"]:hover {
+  background: transparent;
+}
+
+/* A decorative group break — the label wording always carries the grouping too. */
+.dh-overflow-menu__item[data-separator="true"] {
+  margin-block-start: var(--dh-space-1);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-radius: 0 0 var(--dh-radius-sm) var(--dh-radius-sm);
+  padding-block-start: calc(var(--dh-space-2) + var(--dh-space-1));
+}
+
+.dh-overflow-menu__icon {
+  display: inline-flex;
+  flex: none;
+  margin-block-start: 0.1em;
+  font-size: var(--dh-font-size-md);
+  color: currentcolor;
+}
+
+.dh-overflow-menu__labels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+  min-width: 0;
+}
+
+.dh-overflow-menu__label {
+  overflow-wrap: anywhere;
+}
+
+.dh-overflow-menu__description {
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-regular);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Touch: comfortable targets for the trigger and every item. */
+@media (hover: none) {
+  .dh-overflow-menu__trigger,
+  .dh-overflow-menu__item {
+    min-height: var(--dh-touch-target-min);
+  }
+
+  .dh-overflow-menu__trigger {
+    min-width: var(--dh-touch-target-min);
+  }
+
+  .dh-overflow-menu__item {
+    align-items: center;
+  }
+}

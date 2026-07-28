@@ -32,7 +32,7 @@ function Field({
   );
 }
 export function meta() {
-  return [{ title: "New meeting · DalyHub" }];
+  return [{ title: "New Meeting · DalyHub" }];
 }
 export default function NewMeeting() {
   const nav = useNavigate(),
@@ -55,9 +55,9 @@ export default function NewMeeting() {
   }
   return (
     <main className="dh-meeting-new">
-      <h1>New meeting</h1>
+      <h1>New Meeting</h1>
       <p>Capture enough to prepare; everything else can be added later.</p>
-      <form onSubmit={submit} aria-label="New meeting">
+      <form onSubmit={submit} aria-label="New Meeting">
         <Field name="title" label="Title" required error={errors.title} />
         <Field
           name="startsAt"

@@ -105,7 +105,7 @@ export interface UseLinkedItemsResult {
 
 const OFFLINE_OUTCOME: LinkMutationOutcome = {
   ok: false,
-  message: "You're offline — reconnect to change links.",
+  message: "You’re offline — reconnect to change links.",
 };
 
 export function useLinkedItems(params: {

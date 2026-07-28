@@ -1,5 +1,5 @@
 /**
- * ASSET-01 — the "New asset" form (hosted in the DS-03 Drawer or the `/new/asset`
+ * ASSET-01 — the "New Asset" form (hosted in the DS-03 Drawer or the `/new/asset`
  * page). Uses DS-06 explicit form controls and posts to the trusted `/assets/create`
  * action, which creates through `AssetRepository.create` — the client never supplies
  * workspace or actor data. It starts with title + type and PROGRESSIVELY reveals the
@@ -145,7 +145,7 @@ export function NewAssetForm({ onCreated, onCancel }: NewAssetFormProps) {
       } catch {
         return {
           status: "error",
-          formError: "That asset couldn't be created. Please try again.",
+          formError: "That asset couldn’t be created. Please try again.",
         };
       }
       if (data.ok) {
@@ -167,7 +167,7 @@ export function NewAssetForm({ onCreated, onCancel }: NewAssetFormProps) {
 
   return (
     <Form
-      aria-label="New asset"
+      aria-label="New Asset"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >

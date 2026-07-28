@@ -44,7 +44,7 @@ export function meta() {
 }
 
 /**
- * Opening or closing the "New note" Drawer only toggles the `drawer` search
+ * Opening or closing the "New Note" Drawer only toggles the `drawer` search
  * param — which this loader does not read — yet React Router would still
  * revalidate the collection on that navigation. That in-flight loader fetch can
  * race, and drop, the create-form's own navigation to the freshly-created

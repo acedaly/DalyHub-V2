@@ -134,7 +134,7 @@ describe("PX-03 navigation shells", () => {
     expect(byLabel.get("Today")?.entityType).toBeUndefined();
   });
 
-  it("resolves every new module's href to its expected path", () => {
+  it("resolves every new module’s href to its expected path", () => {
     const nav = navigation();
     const byLabel = new Map(nav.map((item) => [item.label, item.href]));
     expect(byLabel.get("Notes")).toBe("/notes");

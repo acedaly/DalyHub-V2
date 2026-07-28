@@ -149,13 +149,13 @@ export function TaskDetailsTab({
   const updatedLabel = formatCalendarDate(task.updatedAt.slice(0, 10));
 
   return (
-    <div className="dh-task-drawer__details">
-      <section aria-label="Description" className="dh-task-drawer__section">
-        <h4 className="dh-task-drawer__section-label">Description</h4>
+    <div className="dh-record-stack">
+      <section aria-label="Description" className="dh-record-section">
+        <h4 className="dh-record-section__label">Description</h4>
         {task.description ? (
           <MarkdownView source={task.description} />
         ) : (
-          <p className="dh-task-drawer__muted">No description yet.</p>
+          <p className="dh-record-muted">No description yet.</p>
         )}
       </section>
 

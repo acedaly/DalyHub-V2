@@ -79,7 +79,7 @@ describe("useAutosaveField", () => {
     fireEvent.blur(input);
 
     await waitFor(() =>
-      expect(screen.getByText("Couldn't save")).toBeInTheDocument(),
+      expect(screen.getByText("Couldn’t save")).toBeInTheDocument(),
     );
     expect(input).toHaveValue("edited"); // input preserved
 
@@ -172,7 +172,7 @@ describe("useAutosaveField", () => {
       fireEvent.click(screen.getByRole("button", { name: "Flush" }));
       await waitFor(() => expect(onFlushed).toHaveBeenCalledWith(false));
       expect(input).toHaveValue("will fail");
-      expect(screen.getByText("Couldn't save")).toBeInTheDocument();
+      expect(screen.getByText("Couldn’t save")).toBeInTheDocument();
     });
 
     it("resolves false for an invalid value without attempting a save", async () => {

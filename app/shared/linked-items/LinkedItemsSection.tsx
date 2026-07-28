@@ -138,7 +138,7 @@ export function LinkedItemsSection({
       return;
     }
     // Reject so the picker preserves the input and shows its inline error.
-    throw new Error(outcome.message ?? "Couldn't link that item.");
+    throw new Error(outcome.message ?? "Couldn’t link that item.");
   };
 
   const handleRemove = async (item: LinkedItem) => {
@@ -149,13 +149,13 @@ export function LinkedItemsSection({
           const restore = await link(item.target, item.direction);
           if (!restore.ok) {
             feedback.notifyError(
-              restore.message ?? "Couldn't restore the link.",
+              restore.message ?? "Couldn’t restore the link.",
             );
           }
         },
       });
     } else {
-      feedback.notifyError(outcome.message ?? "Couldn't remove the link.");
+      feedback.notifyError(outcome.message ?? "Couldn’t remove the link.");
     }
   };
 
@@ -169,7 +169,7 @@ export function LinkedItemsSection({
         </p>
       ) : status === "error" ? (
         <p className="dh-linked-items__status dh-linked-items__status--error">
-          Couldn&rsquo;t load linked items.{" "}
+          Couldn’t load linked items.{" "}
           <button
             type="button"
             className="dh-linked-items__retry"
@@ -251,7 +251,7 @@ export function LinkedItemsSection({
         <div className="dh-linked-items__add">
           {!online ? (
             <p className="dh-linked-items__offline" role="status">
-              You&rsquo;re offline — linking is paused until you reconnect.
+              You’re offline — linking is paused until you reconnect.
             </p>
           ) : null}
           <EntityLinkPicker

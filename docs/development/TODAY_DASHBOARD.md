@@ -616,3 +616,22 @@ change.
 **Relevant roadmap items.** [TODAY-01](../roadmap/ROADMAP_V2.md#-today-01--today-dashboard)…[TODAY-06](../roadmap/ROADMAP_V2.md#-today-06--mobile) ☑ · [TODAY-08](../roadmap/ROADMAP_V2.md#-today-08--today-as-the-command-centre) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐ · [PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention) ☐.
 
 **Relevant product-debt items.** [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) · [DEBT-19](../product/PRODUCT_DEBT.md#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3) · [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3) · [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3) · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3).
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**Today adopted the shared `EmptyState` — it was the last surface in the product rendering its
+own.** Every quiet section and widget now shows the entity glyph, a heading, one calm sentence
+and (where one exists) the next action, through a new `size="compact"` variant sized for a
+widget rather than a full page. The bare `<p class="dh-today__section-empty">` paragraphs are
+gone.
+
+**Still open, by design:** Quick Capture remains inert pending
+[TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) — PX-06 covered the shared
+`EmptyState` adoption and the copy convention only, and deliberately did not make the capture
+field functional.
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

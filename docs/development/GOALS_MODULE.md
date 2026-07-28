@@ -588,3 +588,24 @@ since:** the Goal record's Projects tab now has an interactive "Load more"
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
 - [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
   / [ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection)
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**A Goal can finally be removed.** Goals had no removal UI at all, though the spine has
+supported soft-delete since FND-07. `POST /goals/:goalId/mutate` now accepts `delete` and
+`restore`, anchored with `includeDeleted: true` (exactly as Notes are, ADR-042) so Undo can
+restore an already-deleted Goal and a repeated call stays the idempotent no-op the repository
+already guarantees — never a spurious 404. **No migration and no new kernel capability**: the
+child guard is the spine's own, so a Goal that still owns active Projects is refused with an
+explanatory message and nothing is cascaded or orphaned.
+
+The record's overflow (⋯) carries `Delete Goal` — one click, a real server soft-delete, a redirect
+to `/goals` and a DS-10 **Undo** toast, all through the shared `useReversibleDelete`. The durable
+second path back is `/goals?state=deleted`: an honest Deleted view with a one-click Restore,
+served by the **generic** entity list (a spine record IS an entity, so it needed no new query).
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

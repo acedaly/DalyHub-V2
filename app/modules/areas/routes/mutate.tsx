@@ -115,7 +115,7 @@ async function handleRename(
     return json({
       kind: "rename",
       ok: false,
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     });
   }
 }
@@ -128,7 +128,7 @@ async function handleArchive(scope: Scope, areaId: string): Promise<Response> {
     return json({
       kind: "archive",
       ok: false,
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     });
   }
 }
@@ -141,7 +141,7 @@ async function handleRestore(scope: Scope, areaId: string): Promise<Response> {
     return json({
       kind: "restore",
       ok: false,
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     });
   }
 }
@@ -174,7 +174,7 @@ async function handleDelete(scope: Scope, areaId: string): Promise<Response> {
       kind: "delete",
       ok: false,
       blocked: false,
-      formError: "That couldn't be completed. Please try again.",
+      formError: "That couldn’t be completed. Please try again.",
     });
   }
 }

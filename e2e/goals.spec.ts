@@ -118,8 +118,8 @@ test.describe("AREA-02 — Goals", () => {
     // created through AREA-02 is a valid Project parent with no second
     // Goal-selection model.
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New project" }).first().click();
-    const newProjectDialog = page.getByRole("dialog", { name: "New project" });
+    await page.getByRole("link", { name: "New Project" }).first().click();
+    const newProjectDialog = page.getByRole("dialog", { name: "New Project" });
     const combo = newProjectDialog.getByRole("combobox", {
       name: /Area or Goal/,
     });

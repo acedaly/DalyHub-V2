@@ -368,7 +368,7 @@ describe("reads & field preservation", () => {
     });
   });
 
-  it("resolves the entity target's CURRENT title (a rename is reflected)", async () => {
+  it("resolves the entity target’s CURRENT title (a rename is reflected)", async () => {
     const { task } = await seedTask(WS);
     await seedEntity(WS, "proj-alpha", {
       type: "project",
@@ -500,7 +500,7 @@ describe("the Waiting list", () => {
 });
 
 describe("workspace isolation", () => {
-  it("does not surface another workspace's waiting tasks and rejects its ids", async () => {
+  it("does not surface another workspace’s waiting tasks and rejects its ids", async () => {
     const { task } = await seedTask(WS);
     await taskRepo(WS).setWaiting(task.id, {
       target: { kind: "text", note: "x" },

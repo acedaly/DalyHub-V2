@@ -4,7 +4,7 @@
  * The at-a-glance relationship view: a large avatar, name/pronouns, organisation
  * and role, relationship, quick actions, direct contact buttons, and the key
  * dates (last interaction, next follow-up, birthday) and tags. Quick actions that
- * depend on a not-yet-built module (Diary entry, Meeting, New note) are honest
+ * depend on a not-yet-built module (Diary entry, Meeting, New Note) are honest
  * placeholders — they explain what they will do rather than dead-ending
  * (AGENTS.md §6). Call / Email / Copy work today.
  */
@@ -35,7 +35,7 @@ export function PersonSummary({ person, onEditContact }: PersonSummaryProps) {
         await navigator.clipboard.writeText(value);
         feedback.notifySuccess(`${label} copied`);
       } catch {
-        feedback.notifyError(`Couldn't copy the ${label.toLowerCase()}.`);
+        feedback.notifyError(`Couldn’t copy the ${label.toLowerCase()}.`);
       }
     },
     [feedback],
@@ -162,7 +162,7 @@ export function PersonSummary({ person, onEditContact }: PersonSummaryProps) {
           className="dh-btn dh-btn--secondary"
           onClick={() => placeholder("Writing a linked note")}
         >
-          New note
+          New Note
         </button>
         <button
           type="button"

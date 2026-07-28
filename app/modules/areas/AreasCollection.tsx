@@ -15,7 +15,10 @@ import {
   type CardMetaItem,
   type CardProps,
 } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import {
   DrawerProvider,
   DrawerTrigger,
@@ -99,7 +102,7 @@ function toCardProps(
     {
       id: "projects",
       label: "Projects",
-      value: card.projects.has ? card.projects.summary : "No projects yet",
+      value: card.projects.has ? card.projects.summary : "No Projects yet",
     },
   ];
   if (!card.tasks.has) {
@@ -222,15 +225,20 @@ function AreasCollection({
   );
   const count = items.length;
   const subtitle = failed
-    ? "We couldn't load your Areas."
+    ? "We couldn’t load your Areas."
     : hasMore
       ? `${count} Areas loaded`
       : count === 1
         ? "1 Area"
         : `${count} Areas`;
 
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Areas"
       subtitle={subtitle}
       entityType="area"
@@ -245,7 +253,7 @@ function AreasCollection({
       error={
         failed ? (
           <EmptyState
-            title="We couldn't load your Areas"
+            title="We couldn’t load your Areas"
             description="Something went wrong. Please try again."
           />
         ) : undefined

@@ -219,7 +219,7 @@ describe("ReorderableCardCollection — mid-drag collection changes", () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it("cancels when an item's reorderable/pinned state changes during a drag", () => {
+  it("cancels when an item’s reorderable/pinned state changes during a drag", () => {
     const onReorder = vi.fn();
     const { rerender } = render(<Coll items={BASE} onReorder={onReorder} />);
     pickUpBravo();

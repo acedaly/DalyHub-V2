@@ -37,6 +37,11 @@ import {
   type SubmitOutcome,
 } from "~/shared/forms";
 import { MarkdownContent } from "~/shared/markdown";
+import { OverflowMenu } from "~/shared/overflow-menu";
+import {
+  useRecordLifecycle,
+  useReversibleDelete,
+} from "~/shared/record-lifecycle";
 
 import { entryTypeOptions } from "./diary-view";
 import { WhenField } from "./WhenField";
@@ -78,6 +83,14 @@ export interface DiaryDetailsHostProps {
   readonly onChanged: () => void;
   /** Close the panel (delegates to the Inspector). */
   readonly onClose: () => void;
+  /**
+   * PX-04 — where to navigate once the entry is deleted. For Diary that is the
+   * SAME page with the `inspector` parameter dropped, so the timeline and the
+   * selected day survive the removal.
+   */
+  readonly deleteRedirectTo: string;
+  /** Called after a successful delete (to revalidate the timeline). */
+  readonly onDeleted: () => void;
 }
 
 /**
@@ -93,6 +106,8 @@ export function DiaryDetailsHost({
   onRequestRead,
   onChanged,
   onClose,
+  deleteRedirectTo,
+  onDeleted,
 }: DiaryDetailsHostProps) {
   const fetcher = useFetcher<DiaryEntryEditResponse>();
   // Track the LAST entry id we loaded: if the panel key changes while this
@@ -113,6 +128,35 @@ export function DiaryDetailsHost({
   const data = fetcher.data;
   const matchesCurrent = data?.entry.id === entryId;
 
+  // PX-04 — reversible removal through the ONE shared implementation. A Diary
+  // entry previously had no removal path at all despite the kernel supporting
+  // soft-delete; it now behaves exactly like a Note (one click, Undo toast).
+  const postLifecycle = useCallback(
+    async (intent: "delete" | "restore") => {
+      const body = new FormData();
+      body.set("intent", intent);
+      const response = await fetch(
+        `/diary/${encodeURIComponent(entryId)}/mutate`,
+        { method: "POST", body },
+      );
+      const result = (await response.json()) as DiaryMutationResult;
+      return result.ok;
+    },
+    [entryId],
+  );
+
+  const { remove, pending: deletePending } = useReversibleDelete({
+    entityType: "diary",
+    title: data?.entry.title ?? "",
+    post: postLifecycle,
+    redirectTo: deleteRedirectTo,
+  });
+
+  const onDelete = useCallback(async () => {
+    await remove();
+    onDeleted();
+  }, [remove, onDeleted]);
+
   if (data && matchesCurrent) {
     if (mode === "edit") {
       return (
@@ -128,7 +172,14 @@ export function DiaryDetailsHost({
         />
       );
     }
-    return <DiaryReadView entry={data.entry} onEdit={onRequestEdit} />;
+    return (
+      <DiaryReadView
+        entry={data.entry}
+        onEdit={onRequestEdit}
+        onDelete={onDelete}
+        deletePending={deletePending}
+      />
+    );
   }
 
   const failed =
@@ -159,10 +210,24 @@ export function DiaryDetailsHost({
 function DiaryReadView({
   entry,
   onEdit,
+  onDelete,
+  deletePending,
 }: {
   readonly entry: DiaryEntryEditData;
   readonly onEdit: () => void;
+  readonly onDelete: () => Promise<void>;
+  readonly deletePending: boolean;
 }) {
+  // The SAME shared overflow menu and the SAME lifecycle wording every record
+  // uses — a Diary entry is removed exactly like a Note (PX-04/DS-12).
+  const lifecycle = useRecordLifecycle({
+    entityType: "diary",
+    title: entry.title,
+    deleteMode: "reversible",
+    pending: deletePending,
+    onDelete,
+  });
+
   return (
     <div className="dh-diary-detail">
       <h3 className="dh-diary-detail__title">{entry.title}</h3>
@@ -214,7 +279,12 @@ function DiaryReadView({
         <FormButton type="button" variant="primary" onClick={onEdit}>
           Edit entry
         </FormButton>
+        <OverflowMenu
+          items={lifecycle.overflowActions}
+          label={`More actions for ${entry.title}`}
+        />
       </div>
+      {lifecycle.dialogs}
     </div>
   );
 }
@@ -310,7 +380,7 @@ function DiaryEditForm({
       } catch {
         return {
           status: "error",
-          formError: "That entry couldn't be saved. Please try again.",
+          formError: "That entry couldn’t be saved. Please try again.",
         };
       }
       if (data.ok) {

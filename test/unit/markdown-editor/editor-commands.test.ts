@@ -46,7 +46,7 @@ describe("computeTransformChange", () => {
     expect(change.value.startsWith("## ")).toBe(true);
   });
 
-  it("operates on the primary selection's from/to", () => {
+  it("operates on the primary selection’s from/to", () => {
     const state = stateFor("abc", 1, 1); // collapsed caret after "a"
     const change = computeTransformChange(state, boldTransform);
     // No selection → inserts a bold placeholder at the caret.

@@ -64,7 +64,7 @@ async function waitForEditor(page: Page, timeout = 30_000): Promise<void> {
   });
 }
 
-/** Open the "New note" dialog and let the drawer-open loader revalidation
+/** Open the "New Note" dialog and let the drawer-open loader revalidation
  * settle before we type + submit. Opening the drawer is itself a route
  * navigation that revalidates the `/notes` loader; submitting the create form
  * then navigates to the new record. If the create-navigation is issued while
@@ -73,8 +73,8 @@ async function waitForEditor(page: Page, timeout = 30_000): Promise<void> {
  * on `/notes?drawer=new-note`. Waiting for the network to settle (a real
  * condition, not a fixed delay) closes that window deterministically. */
 async function openNewNoteDialog(page: Page) {
-  await page.getByRole("link", { name: "New note" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New note" });
+  await page.getByRole("link", { name: "New Note" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New Note" });
   await expect(dialog).toBeVisible();
   await page.waitForLoadState("networkidle");
   return dialog;
@@ -122,6 +122,16 @@ async function createNote(page: Page, title: string): Promise<string> {
   await dialog.getByRole("button", { name: "Create note" }).click();
   await expect(page).toHaveURL(/\/notes\/[^/?#]+$/);
   return page.url();
+}
+
+/**
+ * PX-04 — Delete now lives in the ONE shared overflow (⋯) menu every record uses,
+ * with the derived label "Delete Note". The behaviour is unchanged (one click,
+ * a real soft-delete, an Undo toast); only its home is now shared.
+ */
+async function deleteFromOverflow(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /^More actions for / }).click();
+  await page.getByRole("menuitem", { name: "Delete Note" }).click();
 }
 
 test.describe("NOTES-05 — writing-first live Markdown editor", () => {
@@ -484,7 +494,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await blurEditor(page);
     await expect(page.getByText("Saved")).toBeVisible();
 
-    await page.getByRole("button", { name: "Delete note" }).click();
+    await deleteFromOverflow(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();
@@ -515,15 +525,15 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     expect(await readSource(page)).toContain("# Keep me");
   });
 
-  test("keyboard-only: reach Notes, open New note, and submit with the keyboard", async ({
+  test("keyboard-only: reach Notes, open New Note, and submit with the keyboard", async ({
     page,
   }) => {
     const noteTitle = ownNote(uniqueNoteTitle("kbd"));
     await gotoFixture(page, "/notes");
-    const newNoteLink = page.getByRole("link", { name: "New note" }).first();
+    const newNoteLink = page.getByRole("link", { name: "New Note" }).first();
     await newNoteLink.focus();
     await page.keyboard.press("Enter");
-    const dialog = page.getByRole("dialog", { name: "New note" });
+    const dialog = page.getByRole("dialog", { name: "New Note" });
     await expect(dialog).toBeVisible();
     // Let the drawer-open loader revalidation settle before submitting, so the
     // create-navigation isn't dropped racing it (see openNewNoteDialog).
@@ -565,7 +575,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
 
-    await page.getByRole("button", { name: "Delete note" }).click();
+    await deleteFromOverflow(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Notes" }),
     ).toBeVisible();

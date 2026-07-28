@@ -78,7 +78,7 @@ describe("editing", () => {
     const { onSetWaiting } = renderSection();
     fireEvent.click(screen.getByRole("button", { name: /mark as waiting/i }));
     fireEvent.click(screen.getByLabelText(/something else/i));
-    fireEvent.change(screen.getByLabelText(/what it's waiting on/i), {
+    fireEvent.change(screen.getByLabelText(/what it’s waiting on/i), {
       target: { value: "replacement parts" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
@@ -107,7 +107,7 @@ describe("editing", () => {
     renderSection({ onSetWaiting });
     fireEvent.click(screen.getByRole("button", { name: /mark as waiting/i }));
     fireEvent.click(screen.getByLabelText(/something else/i));
-    fireEvent.change(screen.getByLabelText(/what it's waiting on/i), {
+    fireEvent.change(screen.getByLabelText(/what it’s waiting on/i), {
       target: { value: "x" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
@@ -115,7 +115,7 @@ describe("editing", () => {
       expect(screen.getByText("Too long.")).toBeInTheDocument(),
     );
     // Still editing (the field control is present).
-    expect(screen.getByLabelText(/what it's waiting on/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/what it’s waiting on/i)).toBeInTheDocument();
   });
 
   it("clears waiting via the callback", async () => {

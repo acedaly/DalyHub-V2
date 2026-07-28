@@ -356,7 +356,7 @@ describe("Notes routes", () => {
       expect(deleted.notes.map((n) => n.id)).not.toContain(note.id);
     });
 
-    it("a deleted Note's canonical route fails closed (404) — never editable through it", async () => {
+    it("a deleted Note’s canonical route fails closed (404) — never editable through it", async () => {
       const note = await entities().create({ type: "note", title: "Gone" });
       await runMutate(note.id, formData({ intent: "delete" }));
 

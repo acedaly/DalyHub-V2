@@ -152,7 +152,7 @@ async function postLink(form: FormData): Promise<LinkMutationOutcome> {
       ...(typeof body.message === "string" ? { message: body.message } : {}),
     };
   }
-  return { ok: false, message: "That couldn't be saved. Please try again." };
+  return { ok: false, message: "That couldn’t be saved. Please try again." };
 }
 
 /** Create a `link.related` link from the anchor to a target. */

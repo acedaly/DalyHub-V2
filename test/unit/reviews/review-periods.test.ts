@@ -18,7 +18,7 @@ import {
 import { reviewPeriodLabel } from "~/modules/reviews/review-view";
 
 describe("Review periods", () => {
-  it("calculates weeks from the owner's first-day preference", () => {
+  it("calculates weeks from the owner’s first-day preference", () => {
     expect(weeklyPeriod("2026-07-27", "monday")).toEqual({
       start: "2026-07-27",
       end: "2026-08-02",

@@ -118,7 +118,7 @@ describe("resolvePersonTimelineAnchors", () => {
     expect(anchors.relatedIds).toEqual(["note-a"]);
   });
 
-  it("degrades to the Person's own history when their record is deleted", async () => {
+  it("degrades to the Person’s own history when their record is deleted", async () => {
     const anchors = await resolvePersonTimelineAnchors(
       fakeLinks(() => {
         throw new EntityLinkEndpointNotFoundError();

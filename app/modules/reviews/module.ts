@@ -31,7 +31,7 @@ export default defineModule({
     {
       type: REVIEW_UPDATED,
       label: "Review updated",
-      description: "A Review's structural details or sections changed.",
+      description: "A Review’s structural details or sections changed.",
     },
     {
       type: REVIEW_STATUS_CHANGED,

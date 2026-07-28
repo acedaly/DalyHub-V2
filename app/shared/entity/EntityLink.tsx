@@ -26,8 +26,9 @@ import { Link } from "react-router";
 
 import { DrawerTrigger } from "~/shared/drawer";
 
+import { EntityIcon } from "./EntityIcon";
 import { entityDestination } from "./destination";
-import { getEntityIdentity } from "./identity";
+import { getEntityIdentity, isEntityType } from "./identity";
 
 export interface EntityLinkProps {
   /** The related record's entity type slug (e.g. "goal", "task"). */
@@ -39,6 +40,16 @@ export interface EntityLinkProps {
   readonly className?: string;
   /** Visible content override; defaults to the plain title. */
   readonly children?: ReactNode;
+  /**
+   * PX-05 — the leading entity-identity glyph, **on by default**. Related-record
+   * rows used to drift between iconned (a Links tab that hand-composed an
+   * `EntityIcon`) and bare text (a record summary that didn't), so relationships
+   * — "DalyHub's value is in the links" — looked inconsistent. The icon now lives
+   * in the shared link, and call sites no longer compose their own. Pass `false`
+   * only where the surrounding line already carries the entity's identity (an
+   * inline sentence, a row whose own icon column shows the same type).
+   */
+  readonly showIcon?: boolean;
 }
 
 export function EntityLink({
@@ -47,15 +58,34 @@ export function EntityLink({
   title,
   className,
   children,
+  showIcon = true,
 }: EntityLinkProps) {
   const destination = entityDestination(type, id);
   const identity = getEntityIdentity(type);
   const accessibleName = identity ? `${identity.label}: ${title}` : title;
-  const content = children ?? title;
+  // The glyph is decorative: the accessible name above already says the type.
+  const icon =
+    showIcon && isEntityType(type) ? (
+      <EntityIcon type={type} className="dh-entity-link__icon" />
+    ) : null;
+  const content = (
+    <>
+      {icon}
+      <span className="dh-entity-link__label">{children ?? title}</span>
+    </>
+  );
 
   // No genuine destination → plain, non-interactive text (no link affordance).
   if (!destination) {
-    return <span className={className}>{content}</span>;
+    return (
+      <span
+        className={["dh-entity-link__text", className]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {content}
+      </span>
+    );
   }
 
   // The `dh-entity-link` base class carries the shared link affordance (colour,

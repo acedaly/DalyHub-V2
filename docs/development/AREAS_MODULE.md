@@ -415,3 +415,18 @@ inherently cross-Area and belongs on the workspace-wide collection instead.
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
 - [`ARCHITECTURE_DECISIONS.md` ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038--area-overview-read-only-spine-projection-and-derived-momentum)
 - [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**AREA-05's lifecycle gained a discoverable entry point.** Archive/Restore and the guarded
+permanent delete now also appear in the Record Header overflow (⋯), with wording derived from
+the identity map, driving the SAME handlers as the Settings tab. When the Area still has
+dependents, `Delete Area permanently` stays **visible and disabled** with its precondition
+stated ("Move or remove everything inside this Area first") rather than vanishing — the
+capability is never hidden, and the trusted repository re-check remains the real gate.
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

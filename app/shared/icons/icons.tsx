@@ -247,6 +247,131 @@ export const SignOutIcon = createIcon(
   </>,
 );
 
+/** More — the overflow (⋯) affordance (DS-12). Horizontal, never vertical. */
+export const MoreIcon = createIcon(
+  "MoreIcon",
+  <>
+    <circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.1" fill="currentColor" stroke="none" />
+  </>,
+);
+
+/** Archive — a lidded box. The reversible "move it out of the way" lifecycle act. */
+export const ArchiveIcon = createIcon(
+  "ArchiveIcon",
+  <>
+    <path d="M3.5 7h17v2.5a.5.5 0 0 1-.5.5H4a.5.5 0 0 1-.5-.5V7Z" />
+    <path d="M5 10v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8" />
+    <path d="M10 13.5h4" />
+  </>,
+);
+
+/** Restore — a counter-clockwise arrow returning a record to its active life. */
+export const RestoreIcon = createIcon(
+  "RestoreIcon",
+  <>
+    <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+    <path d="M4 4.5V9h4.5" />
+  </>,
+);
+
+/** Trash — deletion. Always paired with the word "Delete", never colour alone. */
+export const TrashIcon = createIcon(
+  "TrashIcon",
+  <>
+    <path d="M4.5 6.5h15" />
+    <path d="M9.5 6.5V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5" />
+    <path d="M6.5 6.5 7.4 19a1 1 0 0 0 1 .9h7.2a1 1 0 0 0 1-.9l.9-12.5" />
+    <path d="M10.5 10v6M13.5 10v6" />
+  </>,
+);
+
+/** Pencil — an edit/rename action. */
+export const EditIcon = createIcon(
+  "EditIcon",
+  <>
+    <path d="m14.5 5.5 4 4" />
+    <path d="M6 18.5H4.5V17L16 5.5a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L6 20" />
+  </>,
+);
+
+/** Check — completion. */
+export const CheckIcon = createIcon(
+  "CheckIcon",
+  <path d="m5 12.5 4.5 4.5L19 7" />,
+);
+
+/* -------------------------------------------------------------------------- */
+/* Subtype glyphs (PX-05). Distinct from the ENTITY glyphs above: a subtype is  */
+/* subordinate to its entity's identity and must never wear another entity's    */
+/* icon (a Diary "meeting" entry is not a Meeting record).                      */
+/* -------------------------------------------------------------------------- */
+
+/** Chat — a conversation. */
+export const ChatIcon = createIcon(
+  "ChatIcon",
+  <>
+    <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4 3.5V16H5.5A1.5 1.5 0 0 1 4 14.5Z" />
+  </>,
+);
+
+/** Calendar — a scheduled moment (a Diary meeting/event entry). */
+export const CalendarIcon = createIcon(
+  "CalendarIcon",
+  <>
+    <rect x="4" y="5.5" width="16" height="14" rx="1.5" />
+    <path d="M4 9.5h16" />
+    <path d="M8.5 3.5v4M15.5 3.5v4" />
+  </>,
+);
+
+/** Lightbulb — an idea. */
+export const IdeaIcon = createIcon(
+  "IdeaIcon",
+  <>
+    <path d="M9 17a5.5 5.5 0 1 1 6 0v1.5a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1Z" />
+    <path d="M10 21h4" />
+  </>,
+);
+
+/** Signpost — a decision taken. */
+export const DecisionIcon = createIcon(
+  "DecisionIcon",
+  <>
+    <path d="M12 3.5v17" />
+    <path d="M6 6.5h10l2.5 2.5L16 11.5H6Z" />
+    <path d="M18 14.5H8l-2.5 2.5L8 19.5h10Z" />
+  </>,
+);
+
+/** Plane — travel. */
+export const TravelIcon = createIcon(
+  "TravelIcon",
+  <>
+    <path d="M10.5 4.5a1.5 1.5 0 0 1 3 0V10l7 4v2l-7-2v3.5l2 1.5v1.5l-3.5-1-3.5 1V19l2-1.5V14l-7 2v-2l7-4Z" />
+  </>,
+);
+
+/** Eye — an observation. */
+export const ObservationIcon = createIcon(
+  "ObservationIcon",
+  <>
+    <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="2.5" />
+  </>,
+);
+
+/** Ripple — a reflection (looking back on something). */
+export const ReflectionIcon = createIcon(
+  "ReflectionIcon",
+  <>
+    <path d="M3.5 15.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 2 1.2 3.5 0" />
+    <path d="M3.5 19.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 2 1.2 3.5 0" />
+    <circle cx="12" cy="7" r="3" />
+  </>,
+);
+
 /** Inbox — the default empty-state glyph. */
 export const InboxIcon = createIcon(
   "InboxIcon",

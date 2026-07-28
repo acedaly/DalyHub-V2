@@ -188,7 +188,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <div className="dh-note-not-found">
         <EmptyState
           icon={<EntityIcon type="note" />}
-          title="We couldn't find that note"
+          title="We couldn’t find that note"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
             <a className="dh-btn dh-btn--primary" href="/notes">
