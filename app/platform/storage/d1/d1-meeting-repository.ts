@@ -11,18 +11,25 @@ import {
   type IdGenerator,
 } from "~/kernel/entities";
 import {
+  MAX_MEETING_HELD_ATTENDEE_SUBJECTS,
   MEETING_ARCHIVED,
+  MEETING_ATTENDEE_LINK,
+  MEETING_ATTENDEE_SUBJECT_ROLE,
   MEETING_CREATED,
   MEETING_ENTITY_TYPE,
   MEETING_FOLLOW_UP_CREATED,
+  MEETING_HELD,
   MEETING_ITEM_CONVERTED_TO_TASK,
   MEETING_RESTORED,
   MEETING_UPDATED,
+  MeetingArchivedError,
   MeetingFollowUpConflictError,
+  MeetingNotFoundError,
   validateCreateMeeting,
   validateUpdateMeeting,
   type CreateMeetingInput,
   type LinkFollowUpTaskInput,
+  type MarkMeetingHeldResult,
   type Meeting,
   type MeetingFollowUpLink,
   type MeetingItem,
@@ -36,6 +43,10 @@ import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
+import {
+  recordAtomicMutation,
+  type AtomicMutationFault,
+} from "./d1-atomic-mutation";
 
 interface Row {
   id: string;
@@ -54,6 +65,7 @@ interface Row {
   agenda_markdown: string;
   notes_markdown: string;
   archived_at: string | null;
+  held_at: string | null;
   detail_updated_at: string;
 }
 interface ItemRow {
@@ -65,7 +77,7 @@ interface ItemRow {
   updated_at: string;
 }
 
-const COLUMNS = `e.id,e.workspace_id,e.title,e.created_at,e.updated_at,e.deleted_at,d.starts_at,d.ends_at,d.timezone,d.location,d.mode,d.meeting_url,d.status,d.agenda_markdown,d.notes_markdown,d.archived_at,d.updated_at detail_updated_at`;
+const COLUMNS = `e.id,e.workspace_id,e.title,e.created_at,e.updated_at,e.deleted_at,d.starts_at,d.ends_at,d.timezone,d.location,d.mode,d.meeting_url,d.status,d.agenda_markdown,d.notes_markdown,d.archived_at,d.held_at,d.updated_at detail_updated_at`;
 
 export class D1MeetingRepository implements MeetingRepository {
   readonly #db: D1Database;
@@ -75,6 +87,12 @@ export class D1MeetingRepository implements MeetingRepository {
   readonly #actor: ActivityActorContext;
   readonly #activityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
+  /**
+   * TEST-ONLY deterministic Activity-append failure injection, used to prove the
+   * `meeting.held` domain mutation is rolled back when its append fails. Never set
+   * in production (mirrors `D1EntityRepositoryOptions.activityFault`).
+   */
+  readonly #activityFault?: AtomicMutationFault;
   constructor(
     db: D1Database,
     context: WorkspaceContext,
@@ -83,6 +101,7 @@ export class D1MeetingRepository implements MeetingRepository {
       idGenerator?: IdGenerator;
       actorContext?: ActivityActorContext;
       activityIdGenerator?: IdGenerator;
+      activityFault?: AtomicMutationFault;
     } = {},
   ) {
     this.#db = db;
@@ -92,6 +111,7 @@ export class D1MeetingRepository implements MeetingRepository {
     this.#actor = options.actorContext ?? createSystemActorContext();
     this.#activityId = options.activityIdGenerator ?? activityId;
     this.#recorder = new D1ActivityRecorder(db);
+    this.#activityFault = options.activityFault;
   }
   #event(type: string, id: string, now: Date) {
     const model = buildActivityWriteModel(
@@ -374,6 +394,170 @@ export class D1MeetingRepository implements MeetingRepository {
     ]);
     return true;
   }
+  /**
+   * MEET-03 — the server-authoritative attendee set for a `meeting.held` event.
+   *
+   * Derived here, in ONE parameterised query, from the ACTIVE `meeting.attendee`
+   * EntityLinks of this meeting whose target is a live `person` entity in the
+   * bound workspace. Nothing about it can be supplied, named or influenced by a
+   * caller: `markHeld` has no attendee parameter at all.
+   *
+   * The filters are each load-bearing:
+   *   - `l.workspace_id = ?` and the join on the SAME workspace — a link or a
+   *     Person from another workspace can never enter the subject set;
+   *   - `l.deleted_at IS NULL` — an attendee unlinked before the meeting was
+   *     marked held did not attend, so they are not recorded;
+   *   - `p.type = 'person'` — the kernel enforces link ENDPOINT EXISTENCE but not
+   *     entity type, so a link pointing at a Task or Note is refused here too
+   *     (the same defence the add-attendee route applies on the write side);
+   *   - `p.deleted_at IS NULL` — a soft-deleted Person is not a live subject.
+   *
+   * Ordered by `(created_at, id)` so the recorded subjects are deterministic and
+   * the bound below keeps the EARLIEST-linked attendees rather than an arbitrary
+   * slice. The scan is bounded one past the cap so an over-cap meeting can be
+   * reported honestly without counting an unbounded set.
+   */
+  async #activeAttendeeIds(
+    meetingId: string,
+  ): Promise<{ ids: string[]; total: number }> {
+    const rows = (
+      await this.#db
+        .prepare(
+          `SELECT l.target_entity_id person_id
+             FROM entity_links l
+             JOIN entities p
+               ON p.workspace_id = l.workspace_id AND p.id = l.target_entity_id
+            WHERE l.workspace_id = ?
+              AND l.source_entity_id = ?
+              AND l.type = ?
+              AND l.deleted_at IS NULL
+              AND p.type = 'person'
+              AND p.deleted_at IS NULL
+            ORDER BY l.created_at, l.id
+            LIMIT ?`,
+        )
+        .bind(
+          this.#workspaceId,
+          meetingId,
+          MEETING_ATTENDEE_LINK,
+          MAX_MEETING_HELD_ATTENDEE_SUBJECTS + 1,
+        )
+        .all<{ person_id: string }>()
+    ).results;
+    return {
+      ids: rows
+        .slice(0, MAX_MEETING_HELD_ATTENDEE_SUBJECTS)
+        .map((r) => r.person_id),
+      total: rows.length,
+    };
+  }
+
+  async markHeld(id: string): Promise<MarkMeetingHeldResult> {
+    // Read the meeting through the SAME workspace-scoped, type-checked,
+    // soft-delete-aware path every other operation uses, so a missing, deleted,
+    // wrong-type or cross-workspace id fails closed and identically.
+    const meeting = await this.get(id);
+    if (!meeting) throw new MeetingNotFoundError();
+    if (meeting.archivedAt) throw new MeetingArchivedError();
+    if (meeting.heldAt) {
+      // Already held: report the ORIGINAL facts and write nothing. The attendee
+      // counts are re-derived for the caller's message only — the recorded event
+      // and its subjects are untouched, so later attendee changes never rewrite
+      // history.
+      const { ids, total } = await this.#activeAttendeeIds(id);
+      return {
+        outcome: "already_held",
+        heldAt: meeting.heldAt,
+        attendeeCount: total,
+        attendeesRecorded: ids.length,
+      };
+    }
+
+    const attendees = await this.#activeAttendeeIds(id);
+    const now = this.#clock(),
+      ts = toStorageTimestamp(now);
+
+    // Structural metadata ONLY (AGENTS.md §17): the source action, the meeting's
+    // scheduled start instant and its display timezone, and attendee COUNTS.
+    // Never agenda, notes, decision, outcome or task text, and never a Person's
+    // name, contact detail or note.
+    const payload: Record<string, string | number | boolean> = {
+      source: "mark_held",
+      startsAt: toStorageTimestamp(meeting.startsAt),
+      timezone: meeting.timezone,
+      attendeeCount: attendees.total,
+      attendeesRecorded: attendees.ids.length,
+    };
+    if (attendees.total > attendees.ids.length) {
+      // Never a silent cap — the event itself says the subject list is partial.
+      payload.attendeesTruncated = true;
+    }
+
+    const model = buildActivityWriteModel(
+      {
+        type: MEETING_HELD,
+        subjects: [
+          { entityId: id, role: "subject" },
+          ...attendees.ids.map((personId) => ({
+            entityId: personId,
+            role: MEETING_ATTENDEE_SUBJECT_ROLE,
+          })),
+        ],
+        payload,
+      },
+      this.#actor.actor,
+      this.#activityId(),
+      now,
+    );
+
+    // The commit point. The conditional UPDATE is what makes this idempotent AND
+    // concurrency-safe without a lock: only the first caller to see `held_at IS
+    // NULL` changes a row, and the append statements are guarded on that
+    // statement's `changes()`, so a retry or a losing racer appends NOTHING.
+    // `archived_at IS NULL` is re-asserted in SQL so a meeting archived between
+    // the read above and this write cannot acquire a held state.
+    const result = await recordAtomicMutation<{ held_at: string }>({
+      db: this.#db,
+      workspaceId: this.#workspaceId,
+      domainStatement: this.#db
+        .prepare(
+          `UPDATE meeting_details
+              SET held_at = ?, updated_at = ?
+            WHERE workspace_id = ? AND entity_id = ?
+              AND archived_at IS NULL
+              AND held_at IS NULL
+        RETURNING held_at`,
+        )
+        .bind(ts, ts, this.#workspaceId, id),
+      recorder: this.#recorder,
+      model,
+      ...(this.#activityFault ? { fault: this.#activityFault } : {}),
+    });
+
+    if (!result.changed) {
+      // Someone else won, or the meeting was archived in between. Re-read and
+      // report the truth rather than claiming a success that never happened.
+      const current = await this.get(id);
+      if (!current) throw new MeetingNotFoundError();
+      if (current.heldAt) {
+        return {
+          outcome: "already_held",
+          heldAt: current.heldAt,
+          attendeeCount: attendees.total,
+          attendeesRecorded: attendees.ids.length,
+        };
+      }
+      throw new MeetingArchivedError();
+    }
+
+    return {
+      outcome: "recorded",
+      heldAt: now,
+      attendeeCount: attendees.total,
+      attendeesRecorded: attendees.ids.length,
+    };
+  }
+
   async linkFollowUpTask(
     input: LinkFollowUpTaskInput,
   ): Promise<MeetingFollowUpLink> {
@@ -505,6 +689,7 @@ export class D1MeetingRepository implements MeetingRepository {
       agendaMarkdown: r.agenda_markdown,
       notesMarkdown: r.notes_markdown,
       archivedAt: r.archived_at ? fromStorageTimestamp(r.archived_at) : null,
+      heldAt: r.held_at ? fromStorageTimestamp(r.held_at) : null,
       items,
     };
   }

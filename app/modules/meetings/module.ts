@@ -17,6 +17,7 @@ import {
   MEETING_ATTENDEE_LINK,
   MEETING_CREATED,
   MEETING_FOLLOW_UP_CREATED,
+  MEETING_HELD,
   MEETING_ITEM_CONVERTED_TO_TASK,
   MEETING_RESTORED,
   MEETING_UPDATED,
@@ -49,6 +50,16 @@ export default defineModule({
       type: MEETING_RESTORED,
       label: "Meeting restored",
       description: "The meeting was restored.",
+    },
+    {
+      // MEET-03 — the meaning-specific interaction event. Declaring it HERE, with
+      // a calm human label, is the whole People-side integration: the FND-06
+      // registry is the cross-module descriptor seam, so this line alone gives the
+      // event a readable, payload-free line on every attendee's existing Person
+      // Activity timeline — with no People-module change, no import and no switch.
+      type: MEETING_HELD,
+      label: "Meeting held",
+      description: "The meeting took place, with the people who attended it.",
     },
     {
       type: MEETING_ITEM_CONVERTED_TO_TASK,

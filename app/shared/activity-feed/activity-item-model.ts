@@ -22,6 +22,7 @@ import type {
 import {
   buildFallbackPresentation,
   resolveActivityDescriptor,
+  selectReferenceSubject,
 } from "./activity-type-registry";
 import type {
   ActivityBaseItem,
@@ -136,20 +137,25 @@ export function toActivityItem(
     presentation = descriptor.describe(base, context);
   } else if (descriptor) {
     // A registered type with a label but no custom renderer: a calm default line.
+    // This is the line every REGISTRY-DERIVED cross-module event gets — the one a
+    // Person's unified timeline shows for another module's events — so it links
+    // the record the event is ABOUT rather than the anchor the reader is already
+    // on (see `selectReferenceSubject`).
+    const reference = selectReferenceSubject(context);
     presentation = {
       segments: [
         { kind: "actor" },
         { kind: "text", text: " · " },
         { kind: "emphasis", text: descriptor.label },
-        ...(primarySubject
+        ...(reference
           ? ([
               { kind: "text", text: " — " },
-              { kind: "entity", entityId: primarySubject.entityId },
+              { kind: "entity", entityId: reference.entityId },
             ] as const)
           : []),
       ],
       tone: descriptor.tone,
-      entityType: descriptor.entityType ?? primarySubject?.entity?.entityType,
+      entityType: descriptor.entityType ?? reference?.entity?.entityType,
     };
   } else {
     presentation = buildFallbackPresentation(base, context);
