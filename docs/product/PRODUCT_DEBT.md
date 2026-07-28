@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-42**.
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-43**.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
 ---
@@ -270,6 +270,15 @@
 - **A fifth defect, found *by* the repaired gate.** `projects-mobile.spec.ts:166` failed once on run 30314899655 — a test the audit never saw, on a spec nobody had touched. It did not reproduce locally (6/6 green). It was diagnosed from the **uploaded trace**, which the old `if: failure()` condition would have discarded: the "Open" task-filter link was clicked at t=559904ms and "Add task" at t=559932ms — **28ms later, with no wait between them**. The second click superseded the in-flight filter navigation, so "Add task" carried `?tasks=completed`, and the *open* task created next was correctly absent from a completed-only list. Fixed by waiting on the filter having actually applied (URL settled **and** the completed task gone) — a stronger assertion than before, not a weaker one. This is the gate working as intended: a real race, previously invisible, now diagnosable from artefacts alone.
 - **What remains.** (a) `main` has not yet run this configuration — the closing condition. (b) Shard 2's 11m09s is the number to watch; it is the one shard with less than a third of the Playwright ceiling to spare. (c) The standing discipline this entry asked for still applies: treat a red trunk as stop-the-line, no item marked ☑ while `main`'s CI Gate is failing, and roadmap status entries say which commit their verification refers to.
 - **Related roadmap item.** [FND-01](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold) (the CI gate) and the [IMPLEMENTATION_WORKFLOW](IMPLEMENTATION_WORKFLOW.md) Definition of Done.
+
+---
+
+### ☐ DEBT-42 — Keyset paginators can consume a revalidated fetcher page after a scope reset — P3
+- **Current issue.** Every "Load more" collection paginator follows the same shape: a `useFetcher`, an `appended` accumulator, and a `processed` ref that de-dupes by **object identity** so one response is applied once. Identity alone is not sufficient. React Router revalidates an *active* fetcher after a navigation, so a scope change (an Active ⇄ Deleted filter switch, a new cursor scope) can deliver a **newly-identified copy of the page last loaded** in the very render where the reset effect has just cleared `processed`. The stale page is then appended on top of the new first page and the cursor advances past everything in between — silently stranding the records in the skipped pages.
+- **Where it stands.** Fixed in [`useDeletedGoalPagination`](../../app/modules/goals/GoalsCollection.tsx) (PX-04 follow-up), which now consumes only data it actually requested since the last reset. The **same shape remains** in the three older paginators it was modelled on: `useGoalPagination` (same file), `useNotePagination` ([`NotesCollection.tsx`](../../app/modules/notes/NotesCollection.tsx)) and `useProjectPagination` ([`ProjectsCollection.tsx`](../../app/modules/projects/ProjectsCollection.tsx)). Their exposure is lower — Notes and Projects reset on a lifecycle/state switch, which is exactly the trigger — but the defect is structurally identical and was simply never hit.
+- **Why it was not swept here.** The PX-04 follow-up fixed the paginator it introduced. Refactoring three untouched collection surfaces in a bug-fix PR would have widened it well past its scope and past what its tests cover.
+- **Desired future state.** One shared keyset-pagination hook the collections configure, rather than four near-identical copies — the same "shared over bespoke" move DS-04 made for Cards. Failing that, apply the request-scoped guard to the three remaining copies. Either way the rule to encode: **a page is consumed only if it was asked for since the current scope began.**
+- **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) (where collection-wide list behaviour is next revisited); tracked alongside [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1) as another per-module duplication of one idea.
 
 ---
 

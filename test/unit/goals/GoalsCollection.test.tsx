@@ -331,6 +331,31 @@ describe("Goals collection — the Deleted view", () => {
     expect(screen.getByText("1 deleted Goals loaded")).toBeInTheDocument();
   });
 
+  it("starts a new scope from its own first page, carrying nothing over", () => {
+    // Half of the stale-page guard, at the level this test can reach: changing
+    // the pagination scope resets the accumulated list. The other half — refusing
+    // a page the fetcher REVALIDATED after a navigation, which arrives with a new
+    // identity just as the reset clears the de-dupe ref — is guarded by
+    // construction in `useDeletedGoalPagination` (only data requested since the
+    // last reset is consumed) and is not reachable from a component test without
+    // simulating React Router's fetcher revalidation.
+    const first = renderCollection([], {
+      state: "deleted",
+      deletedGoals: [deletedGoal("g-1", "Page one goal")],
+      nextCursor: "cursor-2",
+    });
+    expect(screen.getByText("Page one goal")).toBeInTheDocument();
+    first.unmount();
+
+    renderCollection([], {
+      state: "deleted",
+      deletedGoals: [deletedGoal("g-9", "A different page one")],
+      nextCursor: null,
+    });
+    expect(screen.getByText("A different page one")).toBeInTheDocument();
+    expect(screen.queryByText("Page one goal")).not.toBeInTheDocument();
+  });
+
   it("shows the filtered-empty state only when there is genuinely nothing more", () => {
     renderCollection([], { state: "deleted", deletedGoals: [] });
     expect(screen.getByText("No deleted Goals")).toBeInTheDocument();

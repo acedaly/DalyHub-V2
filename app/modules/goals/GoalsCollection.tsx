@@ -160,12 +160,22 @@ function useDeletedGoalPagination(
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [loadFailed, setLoadFailed] = useState(false);
   const processed = useRef<DeletedGoalsPageData | null>(null);
+  // Whether a page load issued SINCE the last reset is still awaiting its
+  // result. Identity alone is not enough to tell a fresh page from a stale one:
+  // React Router revalidates an active fetcher after a navigation, so switching
+  // Active ⇄ Deleted hands this effect a NEWLY-identified copy of the page that
+  // was last loaded — which, with `processed` just cleared, would be appended on
+  // top of the new first page and would advance the cursor past every page in
+  // between, quietly stranding those deleted Goals. Only data we actually asked
+  // for after the current reset is consumed.
+  const awaitingPage = useRef(false);
 
   useEffect(() => {
     setAppended([]);
     setCursor(initialCursor);
     setLoadFailed(false);
     processed.current = null;
+    awaitingPage.current = false;
   }, [initialCursor]);
 
   useEffect(() => {
@@ -173,10 +183,11 @@ function useDeletedGoalPagination(
       return;
     }
     const data = fetcher.data;
-    if (processed.current === data) {
+    if (processed.current === data || !awaitingPage.current) {
       return;
     }
     processed.current = data;
+    awaitingPage.current = false;
     if (data.failed) {
       setLoadFailed(true);
       return;
@@ -191,6 +202,7 @@ function useDeletedGoalPagination(
       return;
     }
     setLoadFailed(false);
+    awaitingPage.current = true;
     fetcher.load(`/goals?state=deleted&cursor=${encodeURIComponent(cursor)}`);
   }, [cursor, fetcher]);
 
