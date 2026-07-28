@@ -1014,6 +1014,24 @@ Accessibility is a **requirement** of every pattern above, not a separate track.
 
 Accessibility acceptance is part of the [Definition of Done](../../AGENTS.md#18-definition-of-done) for any UI work.
 
+### Progressive form sections
+
+Long create/edit forms should expose the minimum viable creation fields first and
+place optional planning or operational fields in a native, keyboard-accessible
+`details` disclosure labelled `More details` or `Edit details`. UX-01 applies this
+to Task capture, Meeting creation, Meeting detail editing and Meeting follow-up
+Task creation. Disclosures must preserve entered values on validation/network
+failure, remain usable at 320px, and must not hide required fields unless another
+trusted context has already resolved them.
+
+### Owner-local date/time inputs
+
+When a `datetime-local` control represents an owner-local wall-clock time rather
+than an already-stored UTC instant, use the shared `LocalDateTimeField` anatomy and
+convert with `~/shared/datetime` on the trusted server/action path. The accepted
+timezone is the owner/workspace IANA timezone from Application preferences, not
+the browser timezone.
+
 ---
 
 ## Accessibility & Responsive Baseline (DS-11)

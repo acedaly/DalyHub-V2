@@ -125,6 +125,7 @@ describe("meetingItemKindLabel", () => {
     expect(meetingItemKindLabel("agenda")).toBe("Agenda item");
     expect(meetingItemKindLabel("decision")).toBe("Decision");
     expect(meetingItemKindLabel("outcome")).toBe("Outcome");
+    expect(meetingItemKindLabel("action")).toBe("Action item");
   });
 });
 

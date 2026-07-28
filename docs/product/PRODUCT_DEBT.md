@@ -21,6 +21,12 @@
 ## Debt register
 
 ### ◐ DEBT-01 — Duplicate card implementations per module — P1
+
+- **Partly resolved by UX-01 (2026-07-28).** Meetings no longer uses the bespoke
+  `dh-meeting-card` collection; `/meetings` now composes `CollectionLayout`,
+  `CardCollection` and the shared DS-04 `Card` with bounded search/sort/pagination.
+  Diary's timeline treatment and any remaining specialised cards keep this debt
+  open until audited separately.
 - **Current issue.** V1 grew a bespoke card per module; the same entity looks and behaves differently in different places.
 - **Desired future state.** One configurable shared [Card](../design/DESIGN_SYSTEM.md#cards); every entity renders through it.
 - **Progress (2026-07-27 audit).** [DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards) shipped the one entity-agnostic Card ([`app/shared/card`](../../app/shared/card)) and Areas, Assets, Goals, Notes, People, Projects, Reviews, Tasks and Today all render through it. **Two V2 forks remain:** the Diary timeline node is a hand-rolled `dh-diary-entry` element ([`app/modules/diary`](../../app/modules/diary)) and the Meetings collection renders a hand-rolled `dh-meeting-card` anchor ([`MeetingsCollection.tsx`](../../app/modules/meetings/MeetingsCollection.tsx)) — neither imports `~/shared/card`, so neither inherits selection, quick actions, density, swipe or the shared a11y behaviour. Kept ◐ rather than resolved: the shared Card exists and is dominant, but the product is not yet card-uniform.

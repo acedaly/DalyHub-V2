@@ -121,3 +121,34 @@ rhythm.
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+## UX-01 workflow consolidation (2026-07-28)
+
+Meeting creation now uses the shared DS-06 form system and defaults to Title,
+Start date/time and Attendees, with end time, location, mode and meeting link
+behind `More details`. Native `datetime-local` values are interpreted in the
+owner/workspace application timezone and stored as UTC instants; the browser's
+local timezone is not trusted. The same conversion is used by the Meeting details
+editor, and invalid DST gap times fail validation instead of being silently
+normalised.
+
+The Meeting record now has five top-level tabs: Overview, Meeting, Follow-up,
+Activity and Settings. Legacy deep links for `?tab=agenda`, `?tab=notes`,
+`?tab=decisions` and `?tab=outcomes` resolve to the new Meeting workspace. That
+workspace combines the Agenda and Notes autosave editors with structured Agenda
+items, Decisions, Outcomes and explicit **Action items**. Action items are the only
+structured Meeting item kind treated as unconverted follow-up work by default;
+Agenda items, Decisions and Outcomes still expose contextual Create task actions
+without implying every one must become a Task.
+
+Follow-up Task creation remains canonical: it creates Tasks through the Tasks
+authority, keeps the source-item mapping and `task.relates_to` EntityLink, then
+opens the shared Task Drawer. The default follow-up form is short by default
+(title, parent, due date, priority), with status, scheduled date, time sector and
+commitment under `More details`.
+
+The collection now composes `CollectionLayout` and DS-04 Cards, supports Upcoming,
+Recent and Archived views, bounded text search, start/updated/title sorting and
+cursor-backed Load more pagination. Attendees are added through a bounded
+workspace-scoped server search over active People rather than an initial fixed
+select.

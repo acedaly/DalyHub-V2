@@ -1,97 +1,238 @@
-import { useState } from "react";
+import { env } from "cloudflare:workers";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-function Field({
-  name,
-  label,
-  type = "text",
-  error,
-  required = false,
-}: {
-  name: string;
-  label: string;
-  type?: string;
-  error?: string;
-  required?: boolean;
-}) {
-  return (
-    <label>
-      {label}
-      <input
-        name={name}
-        type={type}
-        required={required}
-        aria-invalid={!!error}
-        aria-describedby={error ? `${name}-error` : undefined}
-      />
-      {error && (
-        <span id={`${name}-error`} role="alert">
-          {error}
-        </span>
-      )}
-    </label>
-  );
-}
+
+import { requireAuthenticatedSession } from "~/platform/request";
+import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import {
+  Form,
+  FormActions,
+  FormButton,
+  FormErrorSummary,
+  LocalDateTimeField,
+  SelectField,
+  TextField,
+  required,
+  useForm,
+  type SubmitOutcome,
+} from "~/shared/forms";
+
+import { useAttendeeSearch } from "../use-attendee-search";
+import type { Route } from "./+types/new";
+
+type Values = {
+  readonly title: string;
+  readonly startsAtLocal: string;
+  readonly attendeeIds: readonly string[];
+  readonly endsAtLocal: string;
+  readonly location: string;
+  readonly mode: string;
+  readonly meetingUrl: string;
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  title: "Title",
+  startsAtLocal: "Start date and time",
+  attendeeIds: "Attendees",
+  endsAtLocal: "End time",
+  location: "Location",
+  mode: "Mode",
+  meetingUrl: "Meeting link",
+};
+
 export function meta() {
-  return [{ title: "New Meeting · DalyHub" }];
+  return [{ title: "New meeting · DalyHub" }];
 }
-export default function NewMeeting() {
-  const nav = useNavigate(),
-    [errors, setErrors] = useState<Record<string, string>>({}),
-    [busy, setBusy] = useState(false);
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setBusy(true);
-    const data = (await fetch("/meetings/create", {
-      method: "POST",
-      body: new FormData(e.currentTarget),
-    }).then((r) => r.json())) as {
-      ok: boolean;
-      meetingId?: string;
-      fieldErrors?: Record<string, string>;
-    };
-    setBusy(false);
-    if (data.ok) nav(`/meeting/${data.meetingId}`);
-    else setErrors(data.fieldErrors ?? {});
-  }
+
+export async function loader({ context }: Route.LoaderArgs) {
+  const session = requireAuthenticatedSession(context);
+  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  const preferences = await scope.appPreferences.get(session.user.subject);
+  return { timezone: preferences.timezone };
+}
+
+export default function NewMeeting({ loaderData }: Route.ComponentProps) {
+  const navigate = useNavigate();
+  const attendeeSearch = useAttendeeSearch();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+
+  const form = useForm<Values>({
+    initialValues: {
+      title: "",
+      startsAtLocal: "",
+      attendeeIds: [],
+      endsAtLocal: "",
+      location: "",
+      mode: "",
+      meetingUrl: "",
+    },
+    fields: {
+      title: { validate: required("Enter a meeting title.") },
+      startsAtLocal: {
+        validate: required("Enter the start date and time."),
+      },
+    },
+    fieldOrder: [
+      "title",
+      "startsAtLocal",
+      "attendeeIds",
+      "endsAtLocal",
+      "location",
+      "mode",
+      "meetingUrl",
+    ],
+    onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
+      const body = new FormData();
+      body.set("title", values.title);
+      body.set("startsAtLocal", values.startsAtLocal);
+      if (values.endsAtLocal) body.set("endsAtLocal", values.endsAtLocal);
+      if (values.location) body.set("location", values.location);
+      if (values.mode) body.set("mode", values.mode);
+      if (values.meetingUrl) body.set("meetingUrl", values.meetingUrl);
+      for (const attendeeId of values.attendeeIds) {
+        body.append("attendeeIds", attendeeId);
+      }
+
+      try {
+        const response = await fetch("/meetings/create", {
+          method: "POST",
+          body,
+        });
+        const data = (await response.json()) as {
+          readonly ok: boolean;
+          readonly meetingId?: string;
+          readonly fieldErrors?: Record<string, string>;
+          readonly formError?: string;
+        };
+        if (data.ok && data.meetingId) {
+          navigate(`/meeting/${data.meetingId}?tab=meeting`);
+          return { status: "success" };
+        }
+        return {
+          status: "error",
+          formError: data.formError,
+          fieldErrors: data.fieldErrors as Partial<
+            Record<keyof Values, string>
+          >,
+        };
+      } catch {
+        return {
+          status: "error",
+          formError:
+            "That meeting couldn’t be created. Your text is safe — try again.",
+        };
+      }
+    },
+  });
+
+  useEffect(() => {
+    titleInputRef.current?.focus();
+  }, []);
+
+  const titleField = form.field("title");
+  const attendeeField = form.field("attendeeIds");
+  const attendeeOptions = attendeeSearch.optionsWithSelected(
+    attendeeField.value,
+  );
+
   return (
     <main className="dh-meeting-new">
-      <h1>New Meeting</h1>
-      <p>Capture enough to prepare; everything else can be added later.</p>
-      <form onSubmit={submit} aria-label="New Meeting">
-        <Field name="title" label="Title" required error={errors.title} />
-        <Field
-          name="startsAt"
-          label="Starts"
-          type="datetime-local"
+      <h1>New meeting</h1>
+      <p>
+        Times are interpreted in {loaderData.timezone}. Details can be filled in
+        after creation.
+      </p>
+      <Form
+        aria-label="New meeting"
+        busy={form.isSubmitting}
+        onSubmit={form.handleSubmit}
+      >
+        <FormErrorSummary
+          formError={form.formError}
+          fieldErrors={form.fieldErrors}
+          order={form.fieldOrder as string[]}
+          labels={FIELD_LABELS}
+          onFocusField={form.focusField}
+        />
+
+        <TextField
+          label="Title"
           required
-          error={errors.startsAt}
+          maxLength={240}
+          autoComplete="off"
+          {...titleField}
+          controlRef={(node) => {
+            titleField.controlRef?.(node);
+            titleInputRef.current =
+              node instanceof HTMLInputElement ? node : null;
+          }}
         />
-        <Field
-          name="endsAt"
-          label="Ends (optional)"
-          type="datetime-local"
-          error={errors.endsAt}
+        <LocalDateTimeField
+          label="Start date and time"
+          required
+          {...form.field("startsAtLocal")}
         />
-        <input type="hidden" name="timezone" value="UTC" />
-        <Field name="location" label="Location" />
-        <label>
-          Mode
-          <select name="mode">
-            <option value="">Not set</option>
-            <option value="in_person">In person</option>
-            <option value="phone">Phone</option>
-            <option value="online">Online</option>
-          </select>
-        </label>
-        <Field name="meetingUrl" label="Meeting link" type="url" />
-        <label>
-          Agenda
-          <textarea name="agendaMarkdown" rows={8} />
-        </label>
-        <button className="dh-btn dh-btn--primary" disabled={busy}>
-          {busy ? "Creating…" : "Create meeting"}
-        </button>
-      </form>
+        <SelectField
+          label="Attendees"
+          multiple
+          placeholder="Search People"
+          options={attendeeOptions}
+          onSearch={attendeeSearch.search}
+          loading={attendeeSearch.loading}
+          emptyMessage="No matching People"
+          {...attendeeField}
+          onChange={(ids) => {
+            attendeeField.onChange(ids);
+            attendeeSearch.rememberSelected(ids);
+          }}
+        />
+
+        <details
+          className="dh-progressive-section"
+          open={detailsOpen}
+          onToggle={(event) =>
+            setDetailsOpen((event.currentTarget as HTMLDetailsElement).open)
+          }
+        >
+          <summary>More details</summary>
+          <LocalDateTimeField label="End time" {...form.field("endsAtLocal")} />
+          <TextField label="Location" {...form.field("location")} />
+          <SelectField
+            label="Mode"
+            options={[
+              { value: "", label: "Not set" },
+              { value: "in_person", label: "In person" },
+              { value: "phone", label: "Phone" },
+              { value: "online", label: "Online" },
+            ]}
+            {...form.field("mode")}
+          />
+          <TextField
+            label="Meeting link"
+            type="url"
+            {...form.field("meetingUrl")}
+          />
+        </details>
+
+        <FormActions>
+          <FormButton
+            type="button"
+            variant="secondary"
+            onClick={() => navigate("/meetings")}
+            disabled={form.isSubmitting}
+          >
+            Cancel
+          </FormButton>
+          <FormButton
+            type="submit"
+            variant="primary"
+            pending={form.isSubmitting}
+          >
+            Create meeting
+          </FormButton>
+        </FormActions>
+      </Form>
     </main>
   );
 }

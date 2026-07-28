@@ -15,17 +15,32 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const page = await scope.meetings.list({
       view: "upcoming",
       query: u.searchParams.get("q") ?? undefined,
+      sort: parseMeetingSort(u.searchParams.get("sort")),
       cursor: u.searchParams.get("cursor") ?? undefined,
     });
     return {
       meetings: page.items.map(serializeMeeting),
       total: page.total,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
       failed: false,
     };
   } catch {
-    return { meetings: [], total: 0, failed: true };
+    return {
+      meetings: [],
+      total: 0,
+      nextCursor: null,
+      hasMore: false,
+      failed: true,
+    };
   }
 }
 export default function RouteView({ loaderData }: Route.ComponentProps) {
   return <MeetingsCollection {...loaderData} view="upcoming" />;
+}
+
+function parseMeetingSort(value: string | null) {
+  return value === "updated" || value === "title" || value === "start"
+    ? value
+    : undefined;
 }

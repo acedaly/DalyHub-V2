@@ -3,8 +3,8 @@
  *
  * Renders (1) the Follow-up tab (canonical Tasks related to the meeting, grouped
  * Open / Waiting-or-delegated / Completed from the CANONICAL Task display state,
- * plus the still-unconverted structured items and an "Add follow-up task" action),
- * (2) the structured-item sections (agenda / decisions / outcomes) each showing item
+ * plus unconverted explicit Action items and an "Add follow-up task" action),
+ * (2) the structured-item sections (agenda / decisions / outcomes / actions) each showing item
  * text, a stable textual kind tag, whether it has a linked Task, and a single
  * Create-task / Open-task control, and (3) the drawer form host.
  *
@@ -120,7 +120,9 @@ export function MeetingItemRow({
           {convertedTask ? (
             <span>Linked task · {convertedTask.title}</span>
           ) : (
-            <span>Not yet converted</span>
+            <span>
+              {item.kind === "action" ? "Action item" : "No task linked"}
+            </span>
           )}
         </span>
       </div>
@@ -161,7 +163,7 @@ interface MeetingItemsSectionProps {
   readonly onRemoveItem: (itemId: string) => void;
 }
 
-/** An agenda / decisions / outcomes section: list + add form + conversion controls. */
+/** An agenda / decisions / outcomes / actions section: list + add form + conversion controls. */
 export function MeetingItemsSection({
   kind,
   heading,
@@ -255,7 +257,9 @@ export function MeetingFollowUpTab({
 }: FollowUpTabProps) {
   const groups = useMemo(() => groupFollowUps(followUps), [followUps]);
   const liveTasks = useMemo(() => liveTaskByItem(followUps), [followUps]);
-  const unconverted = items.filter((item) => !liveTasks.has(item.id));
+  const unconvertedActions = items.filter(
+    (item) => item.kind === "action" && !liveTasks.has(item.id),
+  );
   const noneYet = hasNoFollowUps(followUps);
   const allDone = allFollowUpsComplete(followUps);
 
@@ -277,8 +281,8 @@ export function MeetingFollowUpTab({
       {noneYet ? (
         <EmptyState
           icon={<EntityIcon type="task" />}
-          title="No follow-up Tasks yet"
-          description="Convert a decision or outcome into a task when it needs action."
+          title="No follow-up tasks yet"
+          description="Add an action item or follow-up task when this meeting creates work."
         />
       ) : allDone ? (
         <p className="dh-follow-up-empty">
@@ -321,14 +325,14 @@ export function MeetingFollowUpTab({
         : null}
 
       <div className="dh-follow-up-group">
-        <h3>Not yet converted</h3>
-        {unconverted.length === 0 ? (
+        <h3>Unconverted action items</h3>
+        {unconvertedActions.length === 0 ? (
           <p className="dh-follow-up-empty">
-            Every agenda item, decision and outcome has a task.
+            No explicit action items are waiting to become tasks.
           </p>
         ) : (
           <ul className="dh-meeting-items">
-            {unconverted.map((item) => (
+            {unconvertedActions.map((item) => (
               <MeetingItemRow
                 key={item.id}
                 item={item}

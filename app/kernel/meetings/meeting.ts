@@ -15,10 +15,11 @@ export const MEETING_FOLLOW_UP_CREATED = "meeting.follow_up_created";
 export type MeetingStatus = "planned" | "completed" | "cancelled";
 export type MeetingMode = "in_person" | "phone" | "online";
 export type MeetingView = "upcoming" | "recent" | "archived";
-// MEET-02 widens the structured-item vocabulary with `agenda`, so an agenda item
-// gains the same stable identity a decision/outcome already has and can be converted
-// to a Task without parsing the free-form agenda Markdown.
-export type MeetingItemKind = "agenda" | "decision" | "outcome";
+export type MeetingSort = "start" | "updated" | "title";
+// UX-01 keeps preparation/capture notes separate from explicit follow-through work:
+// action items are the only structured item kind considered unfinished follow-up by
+// default, though any item may still be converted into a canonical Task.
+export type MeetingItemKind = "agenda" | "decision" | "outcome" | "action";
 
 export interface MeetingItem {
   readonly id: string;
@@ -55,6 +56,7 @@ export interface CreateMeetingInput {
 }
 
 export interface UpdateMeetingInput {
+  readonly title?: string;
   readonly startsAt?: string;
   readonly endsAt?: string | null;
   readonly timezone?: string;

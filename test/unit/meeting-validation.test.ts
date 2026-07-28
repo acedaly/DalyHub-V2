@@ -35,4 +35,12 @@ describe("meeting validation", () => {
         notesMarkdown: "Notes",
       }),
     ).toMatchObject({ agendaMarkdown: "Agenda", notesMarkdown: "Notes" }));
+  it("validates editable titles on update", () => {
+    expect(validateUpdateMeeting({ title: "  Updated plan  " })).toMatchObject({
+      title: "Updated plan",
+    });
+    expect(() => validateUpdateMeeting({ title: " " })).toThrow(
+      MeetingValidationError,
+    );
+  });
 });

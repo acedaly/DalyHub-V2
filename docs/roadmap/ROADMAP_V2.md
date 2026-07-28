@@ -1035,6 +1035,21 @@ Items not listed keep the status and sequencing recorded in their own entries �
 
 ## Change log for this roadmap
 
+- **2026-07-28 — UX-01 Tasks/Meetings usability slice.** Implemented the first
+  functional slice of the requested usability overhaul: fast Task capture with a
+  validated default capture parent preference, removable deterministic
+  quick-capture chips, concise everyday priority labels and an Upcoming Tasks
+  system view; Meeting creation on shared forms with configured-timezone
+  `datetime-local` conversion, editable core details/status actions, searchable
+  attendees, a five-tab Meeting record, explicit Action items and Action-only
+  Follow-up semantics, plus shared-card Meetings collection search/sort/pagination.
+  Migration `0020_ux01_tasks_meetings_usability.sql` adds the Task capture parent
+  preference columns and widens `meeting_items.kind` to include `action`. Remaining
+  UX-01 requests not completed in this slice stay open: persisted saved Task views,
+  the full Tasks Filter/Sort/Group/Display toolbar, all date-derived filters,
+  generalized authoritative grouping, complete Task quick-edit popovers and full
+  Playwright/manual screenshot evidence.
+
 When you complete, split, add, or defer an item, note it here (newest first) so the roadmap's evolution is legible.
 
 - **2026-07-28 — [NOTES-02](#-notes-02--linking--backlinks), [NOTES-03](#-notes-03--organisation--search), [NOTES-06](#-notes-06--note-export-and-portability) and [PROJ-03](#-proj-03--knowledge) ☑ — the Notes knowledge completion (step 6).** Shipped as ONE change because the four items are one user-visible outcome: a Note you can find by anything inside it, that knows what points at it and what it points at, that a Project can gather, and that you can take with you. Accepted via [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-wiki-link-is-a-persisted-reference-and-knowledge-relationships-stay-entitylinks). One additive migration (`0019_notes_knowledge.sql`), no backfill, no new dependency.

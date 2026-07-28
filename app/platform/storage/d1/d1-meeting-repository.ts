@@ -19,6 +19,8 @@ import {
   MEETING_RESTORED,
   MEETING_UPDATED,
   MeetingFollowUpConflictError,
+  MeetingValidationError,
+  meetingItemKinds,
   validateCreateMeeting,
   validateUpdateMeeting,
   type CreateMeetingInput,
@@ -29,6 +31,7 @@ import {
   type MeetingItemKind,
   type MeetingPage,
   type MeetingRepository,
+  type MeetingSort,
   type MeetingView,
   type UpdateMeetingInput,
 } from "~/kernel/meetings";
@@ -182,11 +185,13 @@ export class D1MeetingRepository implements MeetingRepository {
     input: {
       view?: MeetingView;
       query?: string;
+      sort?: MeetingSort;
       limit?: number;
       cursor?: string;
     } = {},
   ): Promise<MeetingPage> {
     const view = input.view ?? "upcoming",
+      sort = input.sort ?? "start",
       limit = Math.max(1, Math.min(input.limit ?? 30, 50)),
       now = toStorageTimestamp(this.#clock());
     const where = ["e.workspace_id=?", "e.type=?", "e.deleted_at IS NULL"];
@@ -208,18 +213,26 @@ export class D1MeetingRepository implements MeetingRepository {
       values.push(q, q);
     }
     if (input.cursor) {
-      let c: { at: string; id: string };
+      let c: { value: string; id: string };
       try {
-        c = JSON.parse(atob(input.cursor)) as { at: string; id: string };
+        c = JSON.parse(atob(input.cursor)) as { value: string; id: string };
       } catch {
         throw new Error("Invalid meeting cursor");
       }
-      where.push(
-        view === "upcoming"
-          ? "(d.starts_at > ? OR (d.starts_at=? AND e.id>?))"
-          : "(d.starts_at < ? OR (d.starts_at=? AND e.id<?))",
-      );
-      values.push(c.at, c.at, c.id);
+      if (sort === "title") {
+        where.push("(lower(e.title) > ? OR (lower(e.title)=? AND e.id>?))");
+        values.push(c.value, c.value, c.id);
+      } else if (sort === "updated") {
+        where.push("(e.updated_at < ? OR (e.updated_at=? AND e.id<?))");
+        values.push(c.value, c.value, c.id);
+      } else {
+        where.push(
+          view === "upcoming"
+            ? "(d.starts_at > ? OR (d.starts_at=? AND e.id>?))"
+            : "(d.starts_at < ? OR (d.starts_at=? AND e.id<?))",
+        );
+        values.push(c.value, c.value, c.id);
+      }
     }
     const count = await this.#db
       .prepare(
@@ -228,10 +241,16 @@ export class D1MeetingRepository implements MeetingRepository {
       .bind(...values.slice(0, input.cursor ? -3 : undefined))
       .first<{ total: number }>();
     const order = view === "upcoming" ? "ASC" : "DESC";
+    const orderBy =
+      sort === "title"
+        ? "lower(e.title) ASC,e.id ASC"
+        : sort === "updated"
+          ? "e.updated_at DESC,e.id DESC"
+          : `d.starts_at ${order},e.id ${order}`;
     const rows = (
       await this.#db
         .prepare(
-          `SELECT ${COLUMNS} FROM entities e JOIN meeting_details d ON d.workspace_id=e.workspace_id AND d.entity_id=e.id WHERE ${where.join(" AND ")} ORDER BY d.starts_at ${order},e.id ${order} LIMIT ?`,
+          `SELECT ${COLUMNS} FROM entities e JOIN meeting_details d ON d.workspace_id=e.workspace_id AND d.entity_id=e.id WHERE ${where.join(" AND ")} ORDER BY ${orderBy} LIMIT ?`,
         )
         .bind(...values, limit + 1)
         .all<Row>()
@@ -248,7 +267,17 @@ export class D1MeetingRepository implements MeetingRepository {
       total: count?.total ?? 0,
       nextCursor:
         hasMore && last
-          ? btoa(JSON.stringify({ at: last.starts_at, id: last.id }))
+          ? btoa(
+              JSON.stringify({
+                value:
+                  sort === "title"
+                    ? last.title.toLowerCase()
+                    : sort === "updated"
+                      ? last.updated_at
+                      : last.starts_at,
+                id: last.id,
+              }),
+            )
           : null,
     };
   }
@@ -257,6 +286,7 @@ export class D1MeetingRepository implements MeetingRepository {
     if (!current || current.archivedAt) throw new Error("Meeting not found");
     const v = validateUpdateMeeting(input);
     const merged = {
+      title: v.title ?? current.title,
       startsAt: v.startsAt ?? current.startsAt.toISOString(),
       endsAt:
         v.endsAt === undefined
@@ -279,6 +309,7 @@ export class D1MeetingRepository implements MeetingRepository {
     const same =
       JSON.stringify(merged) ===
       JSON.stringify({
+        title: current.title,
         startsAt: current.startsAt.toISOString(),
         endsAt: current.endsAt?.toISOString() ?? null,
         timezone: current.timezone,
@@ -293,6 +324,11 @@ export class D1MeetingRepository implements MeetingRepository {
     const now = this.#clock(),
       ts = toStorageTimestamp(now);
     await this.#db.batch([
+      this.#db
+        .prepare(
+          "UPDATE entities SET title=?,updated_at=? WHERE workspace_id=? AND id=? AND type=? AND deleted_at IS NULL",
+        )
+        .bind(merged.title, ts, this.#workspaceId, id, MEETING_ENTITY_TYPE),
       this.#db
         .prepare(
           "UPDATE meeting_details SET starts_at=?,ends_at=?,timezone=?,location=?,mode=?,meeting_url=?,status=?,agenda_markdown=?,notes_markdown=?,updated_at=? WHERE workspace_id=? AND entity_id=? AND archived_at IS NULL",
@@ -318,6 +354,9 @@ export class D1MeetingRepository implements MeetingRepository {
   async addItem(id: string, kind: MeetingItemKind, bodyMarkdown: string) {
     const meeting = await this.get(id);
     if (!meeting || meeting.archivedAt) throw new Error("Meeting not found");
+    if (!meetingItemKinds.has(kind)) {
+      throw new MeetingValidationError("kind", "Choose a valid item type.");
+    }
     const body = bodyMarkdown.trim();
     if (!body) throw new Error("Item cannot be empty");
     const id2 = this.#id(),

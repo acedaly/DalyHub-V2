@@ -550,3 +550,15 @@ adjusted so the **overflow menu (structural) lands before the lifecycle work tha
 extends) · [`PRODUCT_DEBT.md`](PRODUCT_DEBT.md) (confirmed inconsistencies added below DEBT-26) ·
 [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md) (new PX-04/PX-05/PX-06 and TASKS-02 homes) ·
 [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md).*
+
+## Post-audit implementation note (2026-07-28)
+
+UX-01 implements a substantial Tasks/Meetings usability slice after this audit was
+written. See [`UX_01_IMPLEMENTATION_NOTE_2026_07_28.md`](UX_01_IMPLEMENTATION_NOTE_2026_07_28.md)
+for the exact completed and remaining scope. In short: Tasks gained fast capture,
+validated default capture parent preferences, removable deterministic chips,
+concise priority labels and an Upcoming system view; Meetings gained shared
+creation forms, owner-timezone datetime conversion, searchable attendees, a
+five-tab record, explicit Action items, Action-only Follow-up semantics and shared
+Cards in the collection. The larger audit backlog remains active where not named
+in that note.

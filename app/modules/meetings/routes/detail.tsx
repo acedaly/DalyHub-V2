@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   isRouteErrorResponse,
   useRevalidator,
@@ -25,9 +25,22 @@ import {
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { EmptyState } from "~/shared/empty-state";
 import { LinkedItemsTab } from "~/shared/linked-items";
+import {
+  Form,
+  FormActions,
+  FormButton,
+  FormErrorSummary,
+  LocalDateTimeField,
+  SelectField,
+  TextField,
+  required,
+  useForm,
+  type SubmitOutcome,
+} from "~/shared/forms";
 import { RecordLayout } from "~/shared/record-layout";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { serializeTaskView } from "~/shared/task-record/task-view";
+import { utcToOwnerLocal } from "~/shared/datetime";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import {
   DIRECT_FOLLOW_UP_DRAWER_KEY,
@@ -37,6 +50,7 @@ import {
 } from "../MeetingFollowUp";
 import { MeetingTimelineTab } from "../MeetingTimelineTab";
 import { serializeMeeting } from "../meeting-view";
+import { useAttendeeSearch } from "../use-attendee-search";
 import type { FollowUpTaskEntry } from "../follow-up-view";
 import type { Route } from "./+types/detail";
 
@@ -56,7 +70,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     direction: "both",
     limit: 50,
   });
-  const people = await scope.people.list({ status: "active", limit: 50 });
 
   // Follow-up Tasks: resolve each mapped Task through the CANONICAL Task model, so
   // grouping/state derive from the Task, never a cached Meeting field. A deleted
@@ -84,22 +97,12 @@ export async function loader({ context, params }: Route.LoaderArgs) {
         id: x.counterpart.id,
         title: x.counterpart.title,
       })),
-    people: people.items.map((p) => ({ id: p.id, title: p.title })),
     followUps,
   };
 }
 
-const tabs = [
-  "summary",
-  "follow-up",
-  "agenda",
-  "notes",
-  "decisions",
-  "outcomes",
-  "linked",
-  "activity",
-  "settings",
-];
+const tabs = ["overview", "meeting", "follow-up", "activity", "settings"];
+const legacyMeetingTabs = new Set(["agenda", "notes", "decisions", "outcomes"]);
 
 export default function Detail({ loaderData }: Route.ComponentProps) {
   const { meeting } = loaderData;
@@ -163,7 +166,12 @@ function MeetingRecord({
     r = useRevalidator(),
     { openDrawer } = useDrawer(),
     [sp, setSp] = useSearchParams(),
-    active = tabs.includes(sp.get("tab") ?? "") ? sp.get("tab")! : "summary";
+    rawTab = sp.get("tab"),
+    active = legacyMeetingTabs.has(rawTab ?? "")
+      ? "meeting"
+      : tabs.includes(rawTab ?? "")
+        ? rawTab!
+        : "overview";
   const readOnly = Boolean(m.archivedAt);
 
   const change = useCallback(
@@ -171,7 +179,7 @@ function MeetingRecord({
       setSp(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (id === "summary") next.delete("tab");
+          if (id === "overview") next.delete("tab");
           else next.set("tab", id);
           return next;
         },
@@ -250,7 +258,7 @@ function MeetingRecord({
   useRegisterContextualActions(followUpActions);
 
   const itemSection = (
-    kind: "agenda" | "decision" | "outcome",
+    kind: "agenda" | "decision" | "outcome" | "action",
     heading: string,
   ) => (
     <MeetingItemsSection
@@ -272,6 +280,41 @@ function MeetingRecord({
     entityType: "meeting",
     title: m.title,
     archived: Boolean(m.archivedAt),
+    leadingItems: readOnly
+      ? []
+      : [
+          ...(m.status !== "completed"
+            ? [
+                {
+                  id: "meeting-complete",
+                  label: "Mark completed",
+                  onSelect: () => void post({ intent: "complete" }),
+                },
+              ]
+            : [
+                {
+                  id: "meeting-reopen",
+                  label: "Reopen meeting",
+                  onSelect: () => void post({ intent: "reopen" }),
+                },
+              ]),
+          ...(m.status !== "cancelled"
+            ? [
+                {
+                  id: "meeting-cancel",
+                  label: "Cancel meeting",
+                  tone: "danger" as const,
+                  onSelect: () => void post({ intent: "cancel" }),
+                },
+              ]
+            : [
+                {
+                  id: "meeting-reactivate",
+                  label: "Return to planned",
+                  onSelect: () => void post({ intent: "reopen" }),
+                },
+              ]),
+        ],
     onArchive: async () => {
       const ok = await post({ intent: "archive" });
       if (!ok) throw new Error("Couldn’t archive this meeting.");
@@ -281,9 +324,6 @@ function MeetingRecord({
       if (!ok) throw new Error("Couldn’t restore this meeting.");
     },
   });
-
-  const attendeeIds = new Set(loaderData.attendees.map((a) => a.id));
-  const addablePeople = loaderData.people.filter((p) => !attendeeIds.has(p.id));
 
   return (
     <>
@@ -317,14 +357,18 @@ function MeetingRecord({
         onTabChange={change}
         tabs={[
           {
-            id: "summary",
-            label: "Summary",
+            id: "overview",
+            label: "Overview",
             content: (
               <section className="dh-record-section">
                 <h2>Meeting details</h2>
                 <dl>
                   <dt>Status</dt>
                   <dd>{m.status}</dd>
+                  <dt>Duration</dt>
+                  <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
+                  <dt>Timezone</dt>
+                  <dd>{m.timezone}</dd>
                   {m.meetingUrl && (
                     <>
                       <dt>Meeting link</dt>
@@ -336,66 +380,52 @@ function MeetingRecord({
                     </>
                   )}
                 </dl>
-                <h3>Attendees</h3>
-                {loaderData.attendees.length ? (
-                  <ul className="dh-meeting-attendees">
-                    {loaderData.attendees.map((a) => (
-                      <li key={a.id} className="dh-meeting-attendee">
-                        <EntityLink type="person" id={a.id} title={a.title} />
-                        {!readOnly && (
-                          <button
-                            type="button"
-                            className="dh-btn dh-btn--ghost"
-                            aria-label={`Remove attendee ${a.title}`}
-                            onClick={() =>
-                              void post({
-                                intent: "remove_attendee",
-                                linkId: a.linkId,
-                              })
-                            }
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="dh-follow-up-empty">No attendees yet.</p>
-                )}
-                {!readOnly && addablePeople.length > 0 && (
-                  <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const personId = String(
-                        new FormData(event.currentTarget).get("personId") ?? "",
-                      );
-                      if (personId)
-                        void post({ intent: "add_attendee", personId });
-                    }}
-                  >
-                    <label className="dh-field">
-                      <span className="dh-field__label">Add attendee</span>
-                      <select
-                        name="personId"
-                        className="dh-input"
-                        defaultValue=""
-                      >
-                        <option value="" disabled>
-                          Choose a person…
-                        </option>
-                        {addablePeople.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button type="submit" className="dh-btn dh-btn--secondary">
-                      Add attendee
-                    </button>
-                  </form>
-                )}
+                {!readOnly ? (
+                  <MeetingDetailsEditor meeting={m} onSave={post} />
+                ) : null}
+                <MeetingAttendees
+                  meetingId={m.id}
+                  attendees={loaderData.attendees}
+                  readOnly={readOnly}
+                  onPost={post}
+                />
+                <LinkedItemsTab
+                  anchorId={m.id}
+                  anchorType="meeting"
+                  readOnly={readOnly}
+                  linkCommandTarget={{
+                    kind: "route",
+                    to: `/meeting/${m.id}`,
+                  }}
+                />
+              </section>
+            ),
+          },
+          {
+            id: "meeting",
+            label: "Meeting",
+            content: (
+              <section className="dh-record-section">
+                <div className="dh-meeting-workspace">
+                  <MeetingMarkdown
+                    meetingId={m.id}
+                    field="agendaMarkdown"
+                    label="Agenda"
+                    initial={m.agendaMarkdown}
+                    onSaved={() => r.revalidate()}
+                  />
+                  <MeetingMarkdown
+                    meetingId={m.id}
+                    field="notesMarkdown"
+                    label="Notes"
+                    initial={m.notesMarkdown}
+                    onSaved={() => r.revalidate()}
+                  />
+                </div>
+                {itemSection("agenda", "Agenda items")}
+                {itemSection("decision", "Decisions")}
+                {itemSection("outcome", "Outcomes")}
+                {itemSection("action", "Actions")}
               </section>
             ),
           },
@@ -410,60 +440,6 @@ function MeetingRecord({
                 onConvert={onConvert}
                 onOpenTask={onOpenTask}
                 onAddFollowUp={onAddFollowUp}
-              />
-            ),
-          },
-          {
-            id: "agenda",
-            label: "Agenda",
-            content: (
-              <div className="dh-record-section">
-                <MeetingMarkdown
-                  meetingId={m.id}
-                  field="agendaMarkdown"
-                  label="Agenda"
-                  initial={m.agendaMarkdown}
-                  onSaved={() => r.revalidate()}
-                />
-                {itemSection("agenda", "Agenda items")}
-              </div>
-            ),
-          },
-          {
-            id: "notes",
-            label: "Notes",
-            content: (
-              <MeetingMarkdown
-                meetingId={m.id}
-                field="notesMarkdown"
-                label="Notes"
-                initial={m.notesMarkdown}
-                onSaved={() => r.revalidate()}
-              />
-            ),
-          },
-          {
-            id: "decisions",
-            label: "Decisions",
-            content: itemSection("decision", "Decisions"),
-          },
-          {
-            id: "outcomes",
-            label: "Outcomes",
-            content: itemSection("outcome", "Outcomes"),
-          },
-          {
-            id: "linked",
-            label: "Linked",
-            content: (
-              <LinkedItemsTab
-                anchorId={m.id}
-                anchorType="meeting"
-                readOnly={readOnly}
-                linkCommandTarget={{
-                  kind: "route",
-                  to: `/meeting/${m.id}?tab=linked`,
-                }}
               />
             ),
           },
@@ -522,6 +498,274 @@ function MeetingRecord({
       />
       {lifecycle.dialogs}
     </>
+  );
+}
+
+function formatMeetingDuration(
+  startsAt: string,
+  endsAt: string | null,
+): string {
+  if (!endsAt) return "Not set";
+  const minutes = Math.max(
+    0,
+    Math.round((Date.parse(endsAt) - Date.parse(startsAt)) / 60000),
+  );
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+}
+
+type MeetingDetailsValues = {
+  readonly title: string;
+  readonly startsAtLocal: string;
+  readonly endsAtLocal: string;
+  readonly timezone: string;
+  readonly location: string;
+  readonly mode: string;
+  readonly meetingUrl: string;
+};
+
+const MEETING_DETAILS_LABELS: Record<string, string> = {
+  title: "Title",
+  startsAtLocal: "Start date and time",
+  endsAtLocal: "End time",
+  timezone: "Timezone",
+  location: "Location",
+  mode: "Mode",
+  meetingUrl: "Meeting link",
+};
+
+function MeetingDetailsEditor({
+  meeting,
+  onSave,
+}: {
+  readonly meeting: Route.ComponentProps["loaderData"]["meeting"];
+  readonly onSave: (data: Record<string, string>) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<MeetingDetailsValues>({
+    initialValues: {
+      title: meeting.title,
+      startsAtLocal:
+        utcToOwnerLocal(new Date(meeting.startsAt), meeting.timezone) ?? "",
+      endsAtLocal: meeting.endsAt
+        ? (utcToOwnerLocal(new Date(meeting.endsAt), meeting.timezone) ?? "")
+        : "",
+      timezone: meeting.timezone,
+      location: meeting.location ?? "",
+      mode: meeting.mode ?? "",
+      meetingUrl: meeting.meetingUrl ?? "",
+    },
+    fields: {
+      title: { validate: required("Enter a meeting title.") },
+      startsAtLocal: {
+        validate: required("Enter the start date and time."),
+      },
+      timezone: { validate: required("Choose a timezone.") },
+    },
+    fieldOrder: [
+      "title",
+      "startsAtLocal",
+      "endsAtLocal",
+      "timezone",
+      "location",
+      "mode",
+      "meetingUrl",
+    ],
+    onSubmit: async (values): Promise<SubmitOutcome<MeetingDetailsValues>> => {
+      const ok = await onSave({
+        intent: "update_details",
+        title: values.title,
+        startsAtLocal: values.startsAtLocal,
+        endsAtLocal: values.endsAtLocal,
+        timezone: values.timezone,
+        location: values.location,
+        mode: values.mode,
+        meetingUrl: values.meetingUrl,
+      });
+      if (ok) {
+        setOpen(false);
+        return { status: "success" };
+      }
+      return {
+        status: "error",
+        formError: "Those meeting details couldn’t be saved.",
+      };
+    },
+  });
+  const timezoneOptions = [meeting.timezone, "Australia/Sydney", "UTC"].filter(
+    (value, index, values) => values.indexOf(value) === index,
+  );
+
+  return (
+    <details
+      className="dh-progressive-section"
+      open={open}
+      onToggle={(event) =>
+        setOpen((event.currentTarget as HTMLDetailsElement).open)
+      }
+    >
+      <summary>Edit details</summary>
+      <Form
+        aria-label="Edit meeting details"
+        busy={form.isSubmitting}
+        onSubmit={form.handleSubmit}
+      >
+        <FormErrorSummary
+          formError={form.formError}
+          fieldErrors={form.fieldErrors}
+          order={form.fieldOrder as string[]}
+          labels={MEETING_DETAILS_LABELS}
+          onFocusField={form.focusField}
+        />
+        <TextField
+          label="Title"
+          required
+          maxLength={240}
+          {...form.field("title")}
+        />
+        <LocalDateTimeField
+          label="Start date and time"
+          required
+          {...form.field("startsAtLocal")}
+        />
+        <LocalDateTimeField label="End time" {...form.field("endsAtLocal")} />
+        <SelectField
+          label="Timezone"
+          required
+          options={timezoneOptions.map((value) => ({ value, label: value }))}
+          {...form.field("timezone")}
+        />
+        <TextField label="Location" {...form.field("location")} />
+        <SelectField
+          label="Mode"
+          options={[
+            { value: "", label: "Not set" },
+            { value: "in_person", label: "In person" },
+            { value: "phone", label: "Phone" },
+            { value: "online", label: "Online" },
+          ]}
+          {...form.field("mode")}
+        />
+        <TextField
+          label="Meeting link"
+          type="url"
+          {...form.field("meetingUrl")}
+        />
+        <FormActions>
+          <FormButton
+            type="button"
+            variant="secondary"
+            disabled={form.isSubmitting}
+            onClick={() => setOpen(false)}
+          >
+            Cancel
+          </FormButton>
+          <FormButton
+            type="submit"
+            variant="primary"
+            pending={form.isSubmitting}
+          >
+            Save details
+          </FormButton>
+        </FormActions>
+      </Form>
+    </details>
+  );
+}
+
+function MeetingAttendees({
+  meetingId,
+  attendees,
+  readOnly,
+  onPost,
+}: {
+  readonly meetingId: string;
+  readonly attendees: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly linkId: string;
+  }[];
+  readonly readOnly: boolean;
+  readonly onPost: (data: Record<string, string>) => Promise<boolean>;
+}) {
+  const [selected, setSelected] = useState<readonly string[]>([]);
+  const attendeeSearch = useAttendeeSearch({
+    meetingId,
+    excludeIds: attendees.map((attendee) => attendee.id),
+  });
+  const options = attendeeSearch.optionsWithSelected(selected);
+
+  return (
+    <section className="dh-record-section">
+      <h3>Attendees</h3>
+      {attendees.length ? (
+        <ul className="dh-meeting-attendees">
+          {attendees.map((attendee) => (
+            <li key={attendee.id} className="dh-meeting-attendee">
+              <EntityLink
+                type="person"
+                id={attendee.id}
+                title={attendee.title}
+              />
+              {!readOnly ? (
+                <button
+                  type="button"
+                  className="dh-btn dh-btn--ghost"
+                  aria-label={`Remove attendee ${attendee.title}`}
+                  onClick={() =>
+                    void onPost({
+                      intent: "remove_attendee",
+                      linkId: attendee.linkId,
+                    })
+                  }
+                >
+                  Remove
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="dh-follow-up-empty">No attendees yet.</p>
+      )}
+      {!readOnly ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void (async () => {
+              for (const personId of selected) {
+                await onPost({ intent: "add_attendee", personId });
+              }
+              setSelected([]);
+            })();
+          }}
+        >
+          <SelectField
+            label="Add attendees"
+            multiple
+            placeholder="Search People"
+            options={options}
+            onSearch={attendeeSearch.search}
+            loading={attendeeSearch.loading}
+            emptyMessage="No matching People"
+            value={selected}
+            onChange={(ids) => {
+              setSelected(ids);
+              attendeeSearch.rememberSelected(ids);
+            }}
+          />
+          <button
+            type="submit"
+            className="dh-btn dh-btn--secondary"
+            disabled={selected.length === 0}
+          >
+            Add selected
+          </button>
+        </form>
+      ) : null}
+    </section>
   );
 }
 
