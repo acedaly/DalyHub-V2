@@ -22,6 +22,25 @@ import { useFeedback } from "~/shared/feedback";
 
 import { entityPluralLabel } from "./lifecycle-copy";
 
+/**
+ * What a lifecycle post reports back. A bare `boolean` is the simple case; the
+ * object form lets a module surface the SPECIFIC recovery its route already
+ * returned — "This Goal still has active Projects…" — instead of collapsing it to
+ * a generic "try again" the user cannot act on (AGENTS.md §6: every error names a
+ * recovery).
+ */
+export type LifecyclePostResult =
+  boolean | { readonly ok: boolean; readonly error?: string };
+
+function resolveOutcome(result: LifecyclePostResult): {
+  ok: boolean;
+  error?: string;
+} {
+  return typeof result === "boolean"
+    ? { ok: result }
+    : { ok: result.ok, error: result.error };
+}
+
 export interface ReversibleDeleteOptions {
   /** The record's entity type — the source of every label in the messages. */
   readonly entityType: EntityType;
@@ -29,10 +48,11 @@ export interface ReversibleDeleteOptions {
   readonly title: string;
   /**
    * POST one lifecycle intent to the module's trusted mutation route and report
-   * whether it succeeded. The caller owns the endpoint and the result shape, so
-   * this hook imports no route or repository.
+   * the outcome. The caller owns the endpoint and the result shape, so this hook
+   * imports no route or repository. Return the object form to carry the route's
+   * own recovery message through to the user.
    */
-  readonly post: (intent: "delete" | "restore") => Promise<boolean>;
+  readonly post: (intent: "delete" | "restore") => Promise<LifecyclePostResult>;
   /** Where to go once the record is gone (usually its collection). */
   readonly redirectTo: string;
   /**
@@ -78,45 +98,67 @@ export function useReversibleDelete({
     pendingRef.current = true;
     setPending(true);
 
-    const proceed = (await beforeDelete?.()) ?? true;
-    if (!proceed) {
+    // Everything that can reject lives inside this try, and `finally` ALWAYS
+    // clears the pending flags. Without it a network fault or a non-JSON
+    // response left the record's Delete action disabled until a page reload —
+    // and, because the reversible path fires this without awaiting, produced an
+    // unhandled rejection as well.
+    try {
+      const proceed = (await beforeDelete?.()) ?? true;
+      if (!proceed) {
+        feedback.notifyError(
+          beforeDeleteError ??
+            `Couldn’t save your latest changes, so "${title}" wasn’t deleted. Fix the save error, then try again.`,
+        );
+        return;
+      }
+
+      const outcome = resolveOutcome(await post("delete"));
+      if (!outcome.ok) {
+        // The route's own explanation wins when it has one: a blocked delete
+        // tells the user what to do first, never a bare "try again" they cannot
+        // act on.
+        feedback.notifyError(
+          outcome.error ?? `Couldn’t delete "${title}". Please try again.`,
+        );
+        return;
+      }
+
+      // `flushSync` so an unsaved-changes guard sees `deleted` before `navigate`
+      // runs — React would otherwise batch the update and the guard would still be
+      // armed for a departure the user deliberately asked for.
+      flushSync(() => {
+        setDeleted(true);
+      });
+      navigate(redirectTo);
+      feedback.notifyUndo(`"${title}" deleted`, {
+        onUndo: async () => {
+          // Undo runs long after `remove` returned, so it owns its own failure
+          // handling — a rejection here must surface the durable path back, not
+          // vanish as an unhandled rejection.
+          try {
+            const restored = resolveOutcome(await post("restore"));
+            if (restored.ok) {
+              feedback.notifySuccess(`"${title}" restored`);
+              return;
+            }
+            feedback.notifyError(
+              restored.error ??
+                `Couldn’t restore "${title}". Find it in Deleted ${plural} and restore it from there.`,
+            );
+          } catch {
+            feedback.notifyError(
+              `Couldn’t restore "${title}". Find it in Deleted ${plural} and restore it from there.`,
+            );
+          }
+        },
+      });
+    } catch {
+      feedback.notifyError(`Couldn’t delete "${title}". Please try again.`);
+    } finally {
       pendingRef.current = false;
       setPending(false);
-      feedback.notifyError(
-        beforeDeleteError ??
-          `Couldn’t save your latest changes, so "${title}" wasn’t deleted. Fix the save error, then try again.`,
-      );
-      return;
     }
-
-    const ok = await post("delete");
-    pendingRef.current = false;
-    setPending(false);
-
-    if (!ok) {
-      feedback.notifyError(`Couldn’t delete "${title}". Please try again.`);
-      return;
-    }
-
-    // `flushSync` so an unsaved-changes guard sees `deleted` before `navigate`
-    // runs — React would otherwise batch the update and the guard would still be
-    // armed for a departure the user deliberately asked for.
-    flushSync(() => {
-      setDeleted(true);
-    });
-    navigate(redirectTo);
-    feedback.notifyUndo(`"${title}" deleted`, {
-      onUndo: async () => {
-        const restored = await post("restore");
-        if (restored) {
-          feedback.notifySuccess(`"${title}" restored`);
-        } else {
-          feedback.notifyError(
-            `Couldn’t restore "${title}". Find it in Deleted ${plural} and restore it from there.`,
-          );
-        }
-      },
-    });
   }, [
     beforeDelete,
     beforeDeleteError,

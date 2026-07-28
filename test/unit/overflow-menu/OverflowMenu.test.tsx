@@ -101,6 +101,46 @@ describe("OverflowMenu", () => {
     expect(trigger()).toHaveFocus();
   });
 
+  // Regression: the menu used to run `onSelect` BEFORE closing, so a handler
+  // that opened a dialog captured the menu item as its opener — an element that
+  // was already unmounting — and cancelling the dialog dropped focus to the top
+  // of the page instead of back on the ⋯ button.
+  it("focuses its persistent trigger BEFORE running a handler, so a dialog gets a live opener", () => {
+    let activeWhenHandlerRan: Element | null = null;
+    renderMenu([
+      {
+        id: "archive",
+        label: "Archive Project",
+        onSelect: () => {
+          activeWhenHandlerRan = document.activeElement;
+        },
+      },
+    ]);
+    const button = trigger();
+    fireEvent.click(button);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Archive Project" }));
+
+    expect(activeWhenHandlerRan).toBe(button);
+    expect(document.body.contains(activeWhenHandlerRan)).toBe(true);
+  });
+
+  it("does NOT steal focus back when the item is a link about to navigate", () => {
+    let activeWhenHandlerRan: Element | null = null;
+    renderMenu([
+      {
+        id: "open",
+        label: "Open in Settings",
+        href: "/settings",
+        onSelect: () => {
+          activeWhenHandlerRan = document.activeElement;
+        },
+      },
+    ]);
+    fireEvent.click(trigger());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open in Settings" }));
+    expect(activeWhenHandlerRan).not.toBe(trigger());
+  });
+
   it("closes on Escape and restores focus, without disturbing anything above it", () => {
     renderMenu();
     fireEvent.click(trigger());

@@ -301,7 +301,16 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       const body = new FormData();
       body.set("intent", intent);
       const result = await postMutation(body);
-      return result.kind === intent && result.ok;
+      if (result.kind === intent && result.ok) {
+        return { ok: true };
+      }
+      // The route already explains what to do first — a Goal that still owns
+      // active Projects, or one whose Area is gone — so pass that recovery
+      // through rather than collapsing it to a generic "try again" the user
+      // cannot act on (AGENTS.md §6).
+      const error =
+        result.kind === intent && !result.ok ? result.formError : undefined;
+      return { ok: false, error };
     },
     [postMutation],
   );
