@@ -15,10 +15,8 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import { PeopleCollectionView } from "../PeopleCollection";
-import {
-  serializePersonListItem,
-  type SerializedPersonListItem,
-} from "../person-view";
+import { serializePeoplePage } from "../person-collection-relationships";
+import { type SerializedPersonListItem } from "../person-view";
 import type { Route } from "./+types/index";
 
 export function meta() {
@@ -38,8 +36,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const page = await scope.people.list({ status: "active", cursor });
+    // PEOPLE-03 — ONE batched relationship read for the WHOLE page (never one per
+    // card); see `person-collection-relationships.ts`.
     return {
-      people: page.items.map(serializePersonListItem),
+      people: await serializePeoplePage(
+        scope.relationships,
+        scope.appPreferences,
+        session.user.subject,
+        page.items,
+      ),
       nextCursor: page.nextCursor,
       view: "all" as const,
       failed: false,

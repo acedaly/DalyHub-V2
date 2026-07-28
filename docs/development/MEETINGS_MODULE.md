@@ -1,14 +1,14 @@
-# MEETINGS_MODULE.md — Meeting records (MEET-01) & follow-through (MEET-02)
+# MEETINGS_MODULE.md — Meeting records (MEET-01), follow-through (MEET-02) & people history (MEET-03)
 
 ## Architecture
 
-A Meeting is an ordinary workspace-scoped `entities` record of type `meeting` plus one mandatory `meeting_details` row. Identity, title and generic soft deletion remain kernel concerns. Operational `planned`, `completed`, and `cancelled` status is independent of the reversible `archived_at` collection lifecycle.
+A Meeting is an ordinary workspace-scoped `entities` record of type `meeting` plus one mandatory `meeting_details` row. Identity, title and generic soft deletion remain kernel concerns. Operational `planned`, `completed`, and `cancelled` status is independent of the reversible `archived_at` collection lifecycle, and both are independent of MEET-03's write-once `held_at` occurrence fact ([held-state authority](#held-state-authority-meet-03)).
 
 The module uses the authenticated workspace composition boundary; callers cannot provide a workspace or Activity actor. Creation batches entity identity, details, and `meeting.created`. Detail and lifecycle writes are parameterised and append structural Activity without agenda, notes, decision, outcome, or contact content.
 
 ## Data model
 
-`meeting_details` stores UTC start/end instants, the owner's IANA display timezone, optional location/mode/HTTPS meeting URL, status, canonical agenda and notes Markdown source, archive state, and update time. Rendered HTML is never persisted. `meeting_items` stores stable, ordered `agenda`, `decision` and `outcome` children — MEET-02 widened the MEET-01 `decision`/`outcome` vocabulary with `agenda` (migration `0015`) so an agenda item gains the same stable identity a decision/outcome already has and can be converted to a Task **without** parsing the free-form `agenda_markdown` prose. The free-form agenda Markdown field is unchanged; the Agenda tab keeps it (agenda narrative) and adds a structured, convertible "Agenda items" list beside it.
+`meeting_details` stores UTC start/end instants, the owner's IANA display timezone, optional location/mode/HTTPS meeting URL, status, canonical agenda and notes Markdown source, archive state, MEET-03's `held_at` occurrence instant (migration `0020`), and update time. Rendered HTML is never persisted. `meeting_items` stores stable, ordered `agenda`, `decision` and `outcome` children — MEET-02 widened the MEET-01 `decision`/`outcome` vocabulary with `agenda` (migration `0015`) so an agenda item gains the same stable identity a decision/outcome already has and can be converted to a Task **without** parsing the free-form `agenda_markdown` prose. The free-form agenda Markdown field is unchanged; the Agenda tab keeps it (agenda narrative) and adds a structured, convertible "Agenda items" list beside it.
 
 Attendees are real Person entities connected with the `meeting.attendee` EntityLink type; MEET-02 adds the write path (add/remove an attendee from the Summary tab) that MEET-01 only read. Because the kernel records a link's `entity_link.created` with **both** endpoints as subjects, attending a meeting already surfaces on the attendee's People Timeline (see People seam below).
 
@@ -52,20 +52,115 @@ The mapping **supplements** the Universal Relationship System; it never replaces
 
 ## Activity
 
-The Meeting Activity tab is a real DS-05 Timeline (`/meeting/:id/activity`), replacing MEET-01's placeholder. Descriptors (`meeting-activity.ts`) cover the lifecycle types plus MEET-02's two structural events — `meeting.item_converted_to_task` and `meeting.follow_up_created` — both recording the Meeting and the created Task as subjects. **Payloads carry only structural metadata (the item kind); never agenda, notes, decision or outcome text** (AGENTS.md §17).
+The Meeting Activity tab is a real DS-05 Timeline (`/meeting/:id/activity`), replacing MEET-01's placeholder. Descriptors (`meeting-activity.ts`) cover the lifecycle types plus MEET-02's two structural events — `meeting.item_converted_to_task` and `meeting.follow_up_created` — both recording the Meeting and the created Task as subjects — and MEET-03's `meeting.held`. **Payloads carry only structural metadata (item kinds, counts, dates); never agenda, notes, decision or outcome text** (AGENTS.md §17).
 
-## People timeline seam (MEET-03)
+---
 
-**Since [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) (☑), an attended Meeting's own record events already appear on the attendee's Person Timeline.** The Person Timeline reads the one FND-05 Activity stream across the Person AND the records they are linked to, and a `meeting.attendee` link makes the Meeting one of those records — so `meeting.created`, `meeting.updated`, `meeting.item_converted_to_task` and the rest surface on every attendee's history, filed under the **Conversations** category, with no Meetings change and no People-specific shadow history model.
+## People history (MEET-03)
 
-**What MEET-03 still owes** is the meeting's *substance scoped to the attendee* — which decisions and outcomes concerned them, what they committed to. The seam is additive and is specified in [`PEOPLE_MODULE.md → The MEET-03 integration seam`](PEOPLE_MODULE.md#the-meet-03-integration-seam):
+> Decision & rationale: [ADR-055](../decisions/ARCHITECTURE_DECISIONS.md#adr-055-a-meetings-occurrence-is-a-durable-write-once-fact-and-attendee-history-is-one-multi-subject-activity-event).
+> The receiving surface: [`PEOPLE_MODULE.md → §4a`](PEOPLE_MODULE.md#4a-the-unified-relationship-timeline-people-02).
 
-1. Emit meaning-specific Meeting Activity naming the attendee **Person as a subject** (e.g. `meeting.held` recording the Meeting AND each attendee), so the event belongs to the person in their own right and survives an attendee link being removed later.
-2. Declare the new types in this module's manifest `activityTypes` with a human label — that alone gives them a readable, payload-free line on every attendee's timeline, with **no People-module change, no import and no switch case**.
-3. Optionally register a `describe` in [`meeting-activity.ts`](../../app/modules/meetings/meeting-activity.ts) if the Meeting record's own Timeline wants a richer line; the People surface deliberately keeps the label-only rendering, because a registry-derived descriptor emits no payload metadata (the privacy boundary).
-4. Keep payloads **structural** — item kinds, counts, dates; never agenda, notes, decision or outcome text (AGENTS.md §17), exactly as MEET-02 already does.
+A Meeting now contributes **semantic interaction history** to each attendee's existing unified Person Activity timeline. There is still exactly one Activity kernel, one Person Activity endpoint, one Person Activity tab, one Meeting record and one set of attendee EntityLinks — MEET-03 contributes through those seams and adds no surface of its own.
 
-Do **not** add a Meetings-specific timeline to the Person record, a second Person history surface, or a copied meeting history: there is exactly one Person history surface and one endpoint behind it ([DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2)).
+### The event model
+
+**One new Meeting-owned Activity type: `meeting.held`.** It records, as subjects of a **single** event:
+
+| Subject | Role |
+|---|---|
+| the Meeting | `subject` |
+| every active attendee Person | `attendee` |
+
+It is one multi-subject event, never a copy per person — the same FND-05 mechanism that lets one `entity_link.created` appear in both endpoints' timelines. Because the Person is an Activity **subject in their own right**, the interaction belongs to their history permanently: it survives the attendee link being removed later and stays on a soft-deleted Person's own stream.
+
+**Why only one type.** Per-attendee `meeting.decision_recorded` / `meeting.outcome_recorded` / `meeting.commitment_recorded` events were reviewed against the existing schema and deliberately **not** shipped: `meeting_items` stores `kind`, `body_markdown` and `position` and carries **no Person reference at all**, and a follow-up Task's delegation is plain text (ADR-043 §7), not a Person entity. Nothing in the model can structurally assign a decision or outcome to a Person by stable entity id, and the only ways to invent one — name matching in Markdown, NLP, title matching — are the confident-but-wrong inference AGENTS.md §8 forbids. The limitation is recorded in [Known limitations](#status-2026-07-28-reconciliation), not worked around.
+
+### Held-state authority (MEET-03)
+
+`meeting_details.held_at` (nullable UTC instant, migration `0020`) is the durable, **write-once** fact that the meeting took place. Nothing else in the model could stand in for it:
+
+| Candidate | Why it cannot prove occurrence |
+|---|---|
+| `status = 'completed'` | Freely re-settable with no UI writer; a `completed → planned → completed` cycle would emit duplicate historical events, and it can be set before the meeting starts. |
+| `starts_at` has passed | A clock fact, not an occurrence fact — a skipped or cancelled meeting would fabricate history on a real person's record. |
+| `archived_at` | A reversible collection state, orthogonal to occurrence. |
+
+So the authority is an **explicit, truthful domain action**: `scope.meetings.markHeld(meetingId)`, surfaced as **Mark as held** in the shared DS-12 Record Header overflow. A UTC instant (not a wall-calendar date) matches every other instant on the table; the meeting's own calendar day stays derivable from `starts_at` + `timezone`. The migration is additive with **no backfill** — inventing a held state for historical rows would fabricate exactly the attendee history this item exists to make trustworthy.
+
+There is deliberately **no "un-mark"**: Activity is append-only, and a recorded interaction should not be un-said.
+
+### Attendee snapshot behaviour
+
+`markHeld` takes **no attendee argument**. The set is derived inside the repository from the active `meeting.attendee` EntityLinks whose target is a live `person` entity in the bound workspace — one parameterised query, filtered on workspace, `deleted_at IS NULL`, `type = 'person'` and the link's own active state. A crafted `personId`/`attendees` field in a submission is never read, because there is no parameter to read it into. (Entity type is re-checked there because the link kernel enforces endpoint existence but not type.)
+
+The recorded subjects are a **snapshot as at the commit**, and history is never rewritten:
+
+| Situation | Behaviour |
+|---|---|
+| The meeting has **no attendees** | A valid, truthful `meeting.held` event on the Meeting alone. `attendeeCount: 0`, and the action says so in words. |
+| An attendee is **removed before** it is marked held | They did not attend, so they are not a subject. |
+| An attendee is **added after** it was marked held | Not retroactively added. The event is a historical fact; the new link still joins the Person's timeline through the ordinary PEOPLE-02 anchor path. |
+| A Person is later **archived or soft-deleted** | The subject row stands. Their own history stays readable (the kernel permits a deleted anchor). |
+| A Person is soft-deleted **before** it is marked held | Not a live subject; excluded. |
+| The Meeting is later **archived or soft-deleted** | The event stands on every attendee's history. Archiving makes the meeting read-only (see below). |
+| The **same action is submitted concurrently** | Exactly one submission records; every other reports `already_held` with the ORIGINAL instant and the winner's recorded counts. One event, always. |
+
+**Subject bound, disclosed.** FND-05 bounds one event at 32 subjects, leaving 31 attendees. A larger meeting records the earliest-linked 31 and sets `attendeesTruncated` in the payload. `attendeeCount` is the **true** total (a `COUNT(*) OVER ()` window in the same bounded query, so it never saturates at the cap and 33 attendees is distinguishable from 300), `attendeesRecorded` is how many became subjects, and the success message names the number of timelines **actually reached** plus what was left out — never a silent cap, and never a claim that people received history they did not (AGENTS.md §6).
+
+**A retry reports the ORIGINAL facts.** `already_held` returns the counts recorded on the immutable `meeting.held` event, read back from its payload — not the current attendee links, which may have changed since. Otherwise a retry after an attendee was added or removed would return numbers contradicting the event it is reporting on.
+
+### Failure and concurrency behaviour
+
+The state change and its Activity event are **one atomic, self-guarding write** — a conditional `UPDATE … WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NULL AND held_at IS NULL … RETURNING`, whose `changes()` guards the Activity append in the SAME `D1Database.batch()` (ADR-012, `recordAtomicMutation`). One construct, four guarantees, no lock and no read-then-write:
+
+- **Atomic** — an Activity or subject insert failure rolls the `held_at` write back. A retry is clean.
+- **Idempotent / retry-safe** — a repeat changes no row, so nothing is appended and `already_held` is returned with the original facts. There is never a second event.
+- **Concurrency-safe** — of N simultaneous submissions exactly one changes a row; the losers append nothing and report the truth.
+- **Lifecycle-safe** — `archived_at IS NULL` is re-asserted in SQL, so a meeting archived between the read and the write cannot acquire a held state.
+
+Errors fail closed and disclose nothing: `MeetingNotFoundError` (missing, soft-deleted, wrong type or another workspace — all indistinguishable) → `404`; `MeetingArchivedError` → `409` with the recovery named. Both now live in the kernel beside the contract that throws them, and `follow-up-operations.ts` re-exports them so MEET-02's importers are unaffected.
+
+### Privacy rules
+
+The `meeting.held` payload carries **structural metadata only** — `source`, the meeting's `startsAt` instant, its `timezone`, `attendeeCount`, `attendeesRecorded` and (when capped) `attendeesTruncated`. Never agenda Markdown, meeting notes, decision text, outcome text, task titles, a Person's contact details or a Person's notes.
+
+That discipline is load-bearing rather than merely tidy: the PEOPLE-02 page shape serialises each event's raw `payload` alongside its presentation — **for every module, not just this one** — so a structural payload is the actual guarantee, and it is asserted as such in the route tests. What is *rendered* is narrower still: the Person timeline labels the event from the FND-06 registry, and a registry-derived descriptor has a label but **no `describe`**, so it emits no payload metadata at all.
+
+### How it reaches the Person timeline
+
+Integration is **one line** in the Meetings manifest's `activityTypes` (`{ type: MEETING_HELD, label: "Meeting held", … }`). That alone gives the event a readable, payload-free line on every attendee's existing Activity tab, filed under **Conversations** (the category function keys on the `meeting.*` event-type domain). The People module gains **no import, no switch case and no Meetings knowledge** — an architectural test asserts exactly that.
+
+`meeting-activity.ts` additionally registers a warmer `describe` for the **Meeting's own** Timeline ("recorded this meeting as held"); the People surface deliberately keeps the label-only rendering.
+
+### The Mark as held action
+
+Placement and behaviour are entirely shared patterns — no new visual language, no redesign of the Meeting record:
+
+- It lives in the DS-12 **Record Header overflow (⋯)**, in the module slot `useRecordLifecycle` already provides (above Archive/Restore, separated by the shared hairline).
+- Offered **only where contextually valid**: absent entirely on an archived meeting (read-only).
+- **Visibly idempotent**: once held it stays *visible but disabled*, reading `Marked as held` with `Recorded on <date>. A meeting is only recorded as held once.` The Summary tab states the same thing in words (`Recorded as held on …` / `Not recorded as held yet`) — never colour alone.
+- Outcome reported through the shared DS-10 feedback platform, truthfully: a repeat submission says *"This meeting was already marked as held"*, not a fresh success.
+- No confirmation dialog: the operation is additive, truthful and low-stakes, and friction here would be noise (AGENTS.md §7). Its irreversibility is stated in the item's own description instead.
+- Keyboard-complete through the shared menu, 44px targets on coarse pointers, axe-clean in light and dark, no overflow at 390px or 320px.
+
+The pure rules live in [`meeting-held-action.ts`](../../app/modules/meetings/meeting-held-action.ts) (React-free, directly testable); the record composes them.
+
+### One shared DS-05 fix this exposed
+
+`meeting.held` is the first multi-subject cross-module event where the anchor Person is *itself* a subject, which made DS-05's calm label-only line link the reader back to the page they were already on. Fixed **in the shared seam, once**: `selectReferenceSubject` prefers the non-anchor subject, and `ResolvedEntity.href` (resolved through the one shared `entityDestination` helper) makes that reference a real route. The Person timeline previously hand-rolled a Task-only destination, so this also made every other linked record — Notes, Assets, Meetings, Reviews — navigable from a Person's history. See [`ACTIVITY_TIMELINE.md`](ACTIVITY_TIMELINE.md).
+
+### The PEOPLE-03 read seam
+
+**`meeting.held` is the Activity type that qualifies as meaningful Person contact**, and today it is the only one. It qualifies because it is the sole event asserting that *a real interaction with this specific Person occurred*, recorded by an explicit human act rather than derived from a record edit. Everything else on a Person's timeline is record maintenance: `person.updated` is the owner editing a field, `entity_link.created` is a relationship being filed, `meeting.created` is a meeting being *scheduled*, and treating any of them as contact would be dishonest (the exact trap [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) names).
+
+The seam PEOPLE-03 reads is therefore the existing kernel call, with **nothing new to build and nothing persisted**:
+
+```ts
+scope.activity.listForEntity(personId)   // filter to `meeting.held` → last meaningful contact
+```
+
+No shared classification constant is introduced here, because there is no ownership location for one that does not create the coupling this item forbids: a `MEANINGFUL_CONTACT_TYPES` list in People would be a Meetings-specific switch by another name, and one in Meetings would have to be imported by People. When PEOPLE-03 needs more than one qualifying type, the correct mechanism is the FND-06 registry that already carries every module's declarations — each module declaring its own contribution, read without an import. MEET-03 deliberately persists **no `lastContactAt`**, adds no reminder date, computes no overdue state, and adds no badge, streak, guilt language or CRM scoring.
 
 ## Product surface
 
@@ -73,39 +168,41 @@ The module contributes Upcoming, Recent and Archived collection views; a fast cr
 
 ## Lifecycle
 
-- **Archived meeting** — readable; linked Tasks stay accessible and navigable; existing relationships stay visible; **new** conversions are rejected (`MeetingArchivedError`) and creation controls disappear; existing Tasks are never archived or deleted.
+- **Archived meeting** — readable; linked Tasks stay accessible and navigable; existing relationships stay visible; **new** conversions are rejected (`MeetingArchivedError`) and creation controls disappear; existing Tasks are never archived or deleted. **Mark as held** is not offered and is refused server-side (`409`); an already-recorded `meeting.held` event stands and stays on every attendee's history.
 - **Completed / cancelled Task** — stays mapped and linked, appears under the Completed follow-up band, remains openable.
 - **Deleted Task** — the follow-up read resolves through the canonical Task model and drops a deleted Task safely (no broken links, no leaked ids); the item becomes convertible again.
 - **Meeting deletion** — follows the existing Meeting lifecycle; it never cascade-deletes canonical Tasks.
 
 ## Deliberate deferrals
 
-- **MEET-03:** meaning-specific meeting events on People Timelines. PEOPLE-02 has built the unified relationship-history projection they contribute to, and the attendee EntityLink seam is in place — see [People timeline seam](#people-timeline-seam-meet-03).
-- **MEET-04:** deeper capture-specific mobile optimisation (MEET-02 inherits the responsive baseline and is verified 320–2560px).
+- **Per-attendee decision / outcome / commitment events.** Not structurally supportable today — `meeting_items` names no Person, and Task delegation is plain text. See [The event model](#the-event-model); it is a schema question, not an effort question.
+- **MEET-04:** deeper capture-specific mobile optimisation (MEET-02/MEET-03 inherit the responsive baseline and are verified 320–2560px).
 - Calendar synchronisation, invitations, conferencing creation, reminders, recurring series, automated reminders, notifications, AI-generated summaries, autonomous action-item extraction from prose, email ingestion and attachments remain out of scope. No dead settings or placeholder controls for these are added.
 
 ---
 
-## Status (2026-07-27 reconciliation)
+## Status (2026-07-28 reconciliation)
 
-**Current status.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) and [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) are ☑. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) and [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) are ☐.
+**Current status.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record), [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) and [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) are ☑. [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) is ☐.
 
-**Delivered capabilities.** First-class workspace-scoped Meeting identity with an additive detail slice and ordered decision/outcome/agenda items; Upcoming / Recent / Archived collection views; the canonical shared Record Layout; independent shared Markdown autosave surfaces; a real `meeting.attendee` EntityLink type wired to add/remove attendees; the Follow-up tab converting agenda items, decisions and outcomes into **canonical DalyHub Tasks** through `scope.tasks.createTask` (no second Task model), with stable structured identity (`meeting_items`, migration `0015`); structural Activity; a **real, repository-backed** search provider and three commands; and a reversible archive lifecycle.
+**Delivered capabilities.** First-class workspace-scoped Meeting identity with an additive detail slice and ordered decision/outcome/agenda items; Upcoming / Recent / Archived collection views; the canonical shared Record Layout; independent shared Markdown autosave surfaces; a real `meeting.attendee` EntityLink type wired to add/remove attendees; the Follow-up tab converting agenda items, decisions and outcomes into **canonical DalyHub Tasks** through `scope.tasks.createTask` (no second Task model), with stable structured identity (`meeting_items`, migration `0015`); **MEET-03's `meeting.held` interaction event** — a durable write-once `held_at` state (migration `0020`), an explicit *Mark as held* action in the shared overflow, server-derived attendee subjects, and one atomic, idempotent, concurrency-safe write that puts the meeting on every attendee's existing Person Activity timeline ([People history](#people-history-meet-03)); structural Activity throughout; a **real, repository-backed** search provider and three commands; and a reversible archive lifecycle.
 
 **Known limitations.**
 
-- **Meetings contribute structurally to attendee history, not semantically.** Since PEOPLE-02 an attended Meeting's own record events appear on the attendee's Person Timeline (the attendee link makes the Meeting an anchor of that unified stream), but the meeting's substance *scoped to the attendee* — which decisions and outcomes concerned them — does not, so "what did we discuss" is still not fully answerable from a Person record. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration), seam documented above.
+- **A meeting's substance is still not scoped to individual attendees.** `meeting.held` truthfully answers *"did we meet, and who was there"*, but not *"which decision concerned them, and what did they commit to"*. That is a schema limitation, not a deferred effort: `meeting_items` carries no Person reference and a follow-up Task's delegation is plain text, so no honest per-Person assignment exists to record. Closing it needs a structural way to name a Person on an item — never text inference ([The event model](#the-event-model)).
+- **Marking a meeting as held is manual, and one-way.** There is no reliable automatic occurrence signal to derive it from, and Activity is append-only, so there is no "un-mark". Both are deliberate ([Held-state authority](#held-state-authority-meet-03)).
+- **A meeting with more than 31 attendees records a disclosed subset.** The FND-05 32-subject bound leaves 31 attendee subjects; the payload and the action's result both say so.
+- **A sub-millisecond snapshot window.** Attendees are read immediately before the commit, and that read is not inside the commit's transaction. So an attendee added inside that window may miss the snapshot, and — the converse — an attendee removed inside it can still be written into the permanent history. Closing it would mean deriving the subjects in SQL inside the batch, bypassing the shared `D1ActivityRecorder` seam (and the payload counts still could not be computed there), so it is accepted and disclosed rather than hidden — the same class of documented residual as MEET-02's conversion window. The held state itself is still exactly-once regardless.
 - **The collection forks the shared Card.** `MeetingsCollection.tsx` renders a hand-rolled `dh-meeting-card` anchor rather than the DS-04 Card, so it does not inherit selection, quick actions, density or swipe behaviour — [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1).
-- **Lifecycle placement diverges.** Archive/Restore is an inline button in the record body, not the Settings-tab pattern Projects/Areas/People/Assets/Reviews use, and not a shared overflow menu (none exists) — [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1).
-- Mobile coverage is partial: the follow-up surface has axe (light and dark) and 390/320px overflow assertions, and `/meetings` is in the accessibility sweep, but the collection and record have no dedicated mobile journey.
+- Mobile coverage is partial: the follow-up surface and the MEET-03 held action each have axe (light and dark), 390/320px overflow and touch-target assertions, and `/meetings` is in the accessibility sweep, but the collection and record have no dedicated mobile journey ([MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile)).
 
 **Corrected 2026-07-27 — the follow-up journey's E2E failure was never a Meetings defect.** `e2e/meetings-follow-up.spec.ts` failed consistently in CI, timing out looking for the record's Agenda or Settings tab, and [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) flagged it as the likeliest genuine product or fixture defect. The page snapshot from a local reproduction showed the browser sitting on **`/new/meeting`** — it had navigated back off the record entirely. The cause is in the shared DS-03 Drawer: closing a provider-opened level is `navigate(-1)`, a history pop that does not land synchronously, and the spec's `closeDrawer` helper pressed Escape again after a fixed 120ms if a dialog was still present. A second Escape inside that window read the same stale stack and popped a *second* time, past the meeting record. Fixed in the shared provider (close is now idempotent per history entry, so a repeated Escape can never over-pop) plus the helper, which now waits on one-fewer-dialog rather than a fixed delay. The Agenda and Settings tabs were correct throughout; no Meetings code changed.
 
-**Deferred work.** People/history integration; mobile completion (especially capture **during** a meeting on a phone); calendar sync and invitations; AI-proposed tasks and notes from meeting content ([AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals), which layers a review step over the existing MEET-02 conversion authority rather than replacing it).
+**Deferred work.** Per-attendee decision/outcome semantics (blocked on the item model, not on effort); mobile completion (especially capture **during** a meeting on a phone); calendar sync and invitations; AI-proposed tasks and notes from meeting content ([AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals), which layers a review step over the existing MEET-02 conversion authority rather than replacing it).
 
-**Relevant roadmap items.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) ☑ · [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐ (now unblocked) · [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) ☐ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals) ☐.
+**Relevant roadmap items.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) ☑ · [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ · [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) ☐ (now unblocked — there is real attendee history to capture against) · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ (now unblocked — see [the read seam](#the-people-03-read-seam)) · [AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals) ☐.
 
-**Relevant product-debt items.** [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2).
+**Relevant product-debt items.** [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1) · [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2).
 
 ---
 

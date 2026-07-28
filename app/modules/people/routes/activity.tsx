@@ -38,6 +38,7 @@ import {
   toActivityItems,
   type ResolvedEntity,
 } from "~/shared/activity-feed/model";
+import { entityDestination } from "~/shared/entity/destination";
 
 import {
   buildPersonTimelineDescriptors,
@@ -149,13 +150,21 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const entities = await scope.entities.getByIds([...ids], {
     includeDeleted: true,
   });
+  // Where each referenced record opens comes from the ONE shared destination
+  // helper, so a Meeting, Note, Asset or Task on this timeline is navigable back
+  // to its canonical record without this module knowing any other module's
+  // routes, and a type with no genuine destination degrades to plain text.
   const resolved = new Map<string, ResolvedEntity>();
   for (const [id, entity] of entities) {
+    const destination = entityDestination(entity.type, id);
     resolved.set(id, {
       entityId: id,
       entityType: entity.type,
       label: entity.title,
-      drawerKey: entity.type === "task" ? `task:${id}` : undefined,
+      ...(destination?.kind === "drawer"
+        ? { drawerKey: destination.drawerKey }
+        : {}),
+      ...(destination?.kind === "route" ? { href: destination.to } : {}),
     });
   }
 

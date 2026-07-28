@@ -243,14 +243,14 @@ household sharing/permissions beyond current workspace rules.
 
 - **No history of any kind.** There is no service/maintenance log, no warranty or renewal history (only a single next-date per kind), and no value-change history — so an asset shows its current state but not its life. [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals).
 - **The `expiring` / `service_due` seam is not surfaced outside `/assets`.** A renewal is only noticed by visiting the module.
-- The module maintains a private subtype-icon map ([`asset-icons.tsx`](../../app/modules/assets/asset-icons.tsx)) — the second such fork after Diary's, which a shared subtype-icon registry should absorb ([DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2)).
+- The module maintains a private subtype-icon map ([`asset-icons.tsx`](../../app/modules/assets/asset-icons.tsx)) — the second such fork after Diary's, which a shared subtype-icon registry should absorb ([DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2--resolved-2026-07-28)).
 - Mobile completion (phone-first capture, date entry, type/subtype picking at narrow widths) remains — [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile).
 
 **Deferred work.** ASSET-02's scope is service/maintenance history, warranty and renewal tracking over time, value changes, and surfacing the existing due/expiry seam. **Explicitly outside ASSET-02** and retained as future debt under [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3): OCR, barcode/QR scanning, receipt or email ingestion, financial depreciation/tax workflows, insurance-claims workflows, external subscription sync, and real file attachments with R2 object storage.
 
 **Relevant roadmap items.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ · [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) ☐ · [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) ☐.
 
-**Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) · [DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1).
+**Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) · [DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2--resolved-2026-07-28) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28).
 
 ---
 

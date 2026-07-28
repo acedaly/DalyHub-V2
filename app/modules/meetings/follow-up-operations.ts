@@ -38,7 +38,9 @@
  */
 
 import {
+  MeetingArchivedError,
   MeetingFollowUpConflictError,
+  MeetingNotFoundError,
   type MeetingItemKind,
 } from "~/kernel/meetings";
 import type {
@@ -70,19 +72,14 @@ export interface ConvertResult {
   readonly created: boolean;
 }
 
-export class MeetingNotFoundError extends Error {
-  constructor() {
-    super("Meeting not found.");
-    this.name = "MeetingNotFoundError";
-  }
-}
-
-export class MeetingArchivedError extends Error {
-  constructor() {
-    super("This meeting is archived — restore it to create follow-up tasks.");
-    this.name = "MeetingArchivedError";
-  }
-}
+/**
+ * MEET-03 moved these two to the kernel (`~/kernel/meetings`), beside the
+ * repository contract that now also throws them, so the module orchestration and
+ * the repository share ONE error family rather than two identically-named ones
+ * that could drift. Re-exported here so existing importers are unaffected; the
+ * follow-up throw site keeps its own, more specific archived message.
+ */
+export { MeetingArchivedError, MeetingNotFoundError };
 
 export class MeetingItemNotFoundError extends Error {
   constructor() {
@@ -131,7 +128,10 @@ async function createBaseTask(
 async function loadWritableMeeting(scope: WorkspaceScope, meetingId: string) {
   const meeting = await scope.meetings.get(meetingId);
   if (!meeting) throw new MeetingNotFoundError();
-  if (meeting.archivedAt) throw new MeetingArchivedError();
+  if (meeting.archivedAt)
+    throw new MeetingArchivedError(
+      "This meeting is archived — restore it to create follow-up tasks.",
+    );
   return meeting;
 }
 

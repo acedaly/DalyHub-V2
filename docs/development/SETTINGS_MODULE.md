@@ -85,7 +85,7 @@ JSON dumping ground for core settings. `navigation_config` is the one versioned
 structured field because its valid values come from the module registry and must
 forward-normalise as modules are added.
 
-Migration `0020_ux01_tasks_meetings_usability.sql` adds the default Task capture
+Migration `0021_ux01_tasks_meetings_usability.sql` adds the default Task capture
 parent columns. The Settings action validates the selected id through the existing
 bounded Task parent authority before saving, and the Tasks loader safely ignores a
 stored parent that later becomes invalid or unavailable.

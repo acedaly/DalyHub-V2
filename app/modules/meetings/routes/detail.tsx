@@ -18,6 +18,9 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { EntityIcon, EntityLink } from "~/shared/entity";
+import { useFeedback } from "~/shared/feedback";
+import { CheckIcon } from "~/shared/icons";
+import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   lifecycleActionLabel,
   useRecordLifecycle,
@@ -48,6 +51,11 @@ import {
   MeetingFollowUpTab,
   MeetingItemsSection,
 } from "../MeetingFollowUp";
+import {
+  MEETING_HELD_ERROR_MESSAGE,
+  meetingHeldActionItem,
+  meetingHeldSuccessMessage,
+} from "../meeting-held-action";
 import { MeetingTimelineTab } from "../MeetingTimelineTab";
 import { serializeMeeting } from "../meeting-view";
 import { useAttendeeSearch } from "../use-attendee-search";
@@ -56,6 +64,24 @@ import type { Route } from "./+types/detail";
 
 /** A bound on how many follow-up Tasks a single meeting record resolves at once. */
 const FOLLOW_UP_CAP = 100;
+
+/** MEET-03 — the shape `POST /meeting/:id/mutate` returns for `mark_held`. */
+interface MarkHeldPayload {
+  readonly ok?: boolean;
+  readonly outcome?: "recorded" | "already_held";
+  readonly heldAt?: string;
+  readonly attendeeCount?: number;
+  readonly attendeesRecorded?: number;
+  readonly error?: string;
+}
+
+/** Render an instant in the meeting's own display timezone (MEET-01 semantics). */
+function formatInMeetingZone(instant: string, timezone: string): string {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeZone: timezone,
+  }).format(new Date(instant));
+}
 
 export function meta() {
   return [{ title: "Meeting · DalyHub" }];
@@ -165,6 +191,7 @@ function MeetingRecord({
   const { meeting: m, followUps } = loaderData,
     r = useRevalidator(),
     { openDrawer } = useDrawer(),
+    feedback = useFeedback(),
     [sp, setSp] = useSearchParams(),
     rawTab = sp.get("tab"),
     active = legacyMeetingTabs.has(rawTab ?? "")
@@ -173,6 +200,7 @@ function MeetingRecord({
         ? rawTab!
         : "overview";
   const readOnly = Boolean(m.archivedAt);
+  const [markingHeld, setMarkingHeld] = useState(false);
 
   const change = useCallback(
     (id: string) => {
@@ -211,6 +239,72 @@ function MeetingRecord({
     },
     [m.id, r],
   );
+
+  /**
+   * MEET-03 — "Mark as held": the explicit, truthful domain action that records
+   * that this meeting took place and contributes it to every attendee's existing
+   * Person Activity timeline.
+   *
+   * The client sends ONLY the intent. Attendees, workspace and actor are all
+   * derived server-side, so this handler cannot influence who the event names. The
+   * server is idempotent, so a double click, a retry after a dropped connection or
+   * a second tab can never produce a second event — and the message below tells the
+   * truth about which of those happened rather than always claiming success.
+   */
+  const onMarkHeld = useCallback(async () => {
+    if (markingHeld) return;
+    setMarkingHeld(true);
+    try {
+      const body = new FormData();
+      body.set("intent", "mark_held");
+      const response = await fetch(`/meeting/${m.id}/mutate`, {
+        method: "POST",
+        body,
+      });
+      const payload = (await response
+        .json()
+        .catch(() => ({}))) as MarkHeldPayload;
+      if (!response.ok || !payload.ok) {
+        feedback.notifyError(payload.error ?? MEETING_HELD_ERROR_MESSAGE);
+        return;
+      }
+      const { title, message } = meetingHeldSuccessMessage({
+        outcome: payload.outcome ?? "recorded",
+        attendeeCount: payload.attendeeCount ?? 0,
+        attendeesRecorded:
+          payload.attendeesRecorded ?? payload.attendeeCount ?? 0,
+      });
+      feedback.notifySuccess(title, message ? { message } : undefined);
+      r.revalidate();
+    } catch {
+      feedback.notifyError(MEETING_HELD_ERROR_MESSAGE);
+    } finally {
+      setMarkingHeld(false);
+    }
+  }, [feedback, m.id, markingHeld, r]);
+
+  /**
+   * The action's home is the shared DS-12 Record Header overflow, above the
+   * lifecycle group — never a bespoke button. It is offered only where it is
+   * contextually valid (an active meeting), and once the meeting is held it stays
+   * VISIBLE but disabled, stating in words when it was recorded: repeated
+   * completion is therefore visibly idempotent, and the state is never conveyed by
+   * colour alone (DESIGN_SYSTEM.md → Shared overflow menu).
+   */
+  const heldMenuItems = useMemo<OverflowMenuItem[]>(() => {
+    const item = meetingHeldActionItem(
+      { heldAt: m.heldAt, archived: readOnly, pending: markingHeld },
+      (instant) => formatInMeetingZone(instant, m.timezone),
+    );
+    if (!item) return [];
+    return [
+      {
+        ...item,
+        icon: <CheckIcon />,
+        ...(item.disabled ? {} : { onSelect: () => void onMarkHeld() }),
+      },
+    ];
+  }, [m.heldAt, m.timezone, markingHeld, onMarkHeld, readOnly]);
 
   const onOpenTask = useCallback(
     (taskId: string) => openDrawer(`task:${taskId}`),
@@ -280,41 +374,48 @@ function MeetingRecord({
     entityType: "meeting",
     title: m.title,
     archived: Boolean(m.archivedAt),
-    leadingItems: readOnly
-      ? []
-      : [
-          ...(m.status !== "completed"
-            ? [
-                {
-                  id: "meeting-complete",
-                  label: "Mark completed",
-                  onSelect: () => void post({ intent: "complete" }),
-                },
-              ]
-            : [
-                {
-                  id: "meeting-reopen",
-                  label: "Reopen meeting",
-                  onSelect: () => void post({ intent: "reopen" }),
-                },
-              ]),
-          ...(m.status !== "cancelled"
-            ? [
-                {
-                  id: "meeting-cancel",
-                  label: "Cancel meeting",
-                  tone: "danger" as const,
-                  onSelect: () => void post({ intent: "cancel" }),
-                },
-              ]
-            : [
-                {
-                  id: "meeting-reactivate",
-                  label: "Return to planned",
-                  onSelect: () => void post({ intent: "reopen" }),
-                },
-              ]),
-        ],
+    // MEET-03's action sits in the module slot the shared hook already provides,
+    // above the lifecycle group and separated from it by the shared hairline. The
+    // UX-01 operational status actions live in the same overflow slot, so status,
+    // held-state and archive state remain separate without adding local buttons.
+    leadingItems: [
+      ...heldMenuItems,
+      ...(readOnly
+        ? []
+        : [
+            ...(m.status !== "completed"
+              ? [
+                  {
+                    id: "meeting-complete",
+                    label: "Mark completed",
+                    onSelect: () => void post({ intent: "complete" }),
+                  },
+                ]
+              : [
+                  {
+                    id: "meeting-reopen",
+                    label: "Reopen meeting",
+                    onSelect: () => void post({ intent: "reopen" }),
+                  },
+                ]),
+            ...(m.status !== "cancelled"
+              ? [
+                  {
+                    id: "meeting-cancel",
+                    label: "Cancel meeting",
+                    tone: "danger" as const,
+                    onSelect: () => void post({ intent: "cancel" }),
+                  },
+                ]
+              : [
+                  {
+                    id: "meeting-reactivate",
+                    label: "Return to planned",
+                    onSelect: () => void post({ intent: "reopen" }),
+                  },
+                ]),
+          ]),
+    ],
     onArchive: async () => {
       const ok = await post({ intent: "archive" });
       if (!ok) throw new Error("Couldn’t archive this meeting.");
@@ -369,6 +470,17 @@ function MeetingRecord({
                   <dd>{formatMeetingDuration(m.startsAt, m.endsAt)}</dd>
                   <dt>Timezone</dt>
                   <dd>{m.timezone}</dd>
+                  {/*
+                    MEET-03 — the held state, stated in words on the record itself
+                    so it is legible without opening a menu, and so the outcome of
+                    "Mark as held" is visible rather than implied.
+                  */}
+                  <dt>Held</dt>
+                  <dd>
+                    {m.heldAt
+                      ? `Recorded as held on ${formatInMeetingZone(m.heldAt, m.timezone)}`
+                      : "Not recorded as held yet"}
+                  </dd>
                   {m.meetingUrl && (
                     <>
                       <dt>Meeting link</dt>

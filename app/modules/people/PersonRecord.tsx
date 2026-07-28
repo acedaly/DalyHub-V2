@@ -12,9 +12,11 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 
+import type { PersonRelationship } from "~/kernel/relationships";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { LinkedItemsTab } from "~/shared/linked-items";
+import { StayInTouchIndicator } from "~/shared/relationships";
 import {
   RecordLayout,
   type RecordAction,
@@ -35,6 +37,8 @@ import type { PersonMutationResult } from "./routes/mutate";
 
 interface PersonRecordProps {
   readonly person: SerializedPerson;
+  /** The PEOPLE-03 derived relationship, evaluated server-side on every load. */
+  readonly relationship: PersonRelationship;
   readonly activeTabId: string;
   readonly onTabChange: (tabId: string) => void;
   readonly onRename: () => void;
@@ -43,6 +47,7 @@ interface PersonRecordProps {
 
 export function PersonRecord({
   person,
+  relationship,
   activeTabId,
   onTabChange,
   onRename,
@@ -133,6 +138,14 @@ export function PersonRecord({
       value: person.relationshipLabel,
     });
   }
+  // PEOPLE-03 — the derived stay-in-touch state, in the header's existing metadata
+  // slot rather than as a new badge or a second card. The label always carries the
+  // meaning; the tone only reinforces it.
+  headerMetadata.push({
+    id: "stay-in-touch",
+    label: "Staying in touch",
+    value: <StayInTouchIndicator relationship={relationship} />,
+  });
 
   // PX-04: the SAME lifecycle actions, in the SAME shared overflow slot, as every
   // other record. The Settings tab keeps the full explanation and the
@@ -172,6 +185,7 @@ export function PersonRecord({
             content: (
               <PersonSummary
                 person={person}
+                relationship={relationship}
                 onEditContact={() => onTabChange("contact")}
               />
             ),
