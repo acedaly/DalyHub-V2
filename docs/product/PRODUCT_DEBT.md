@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-43**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-46**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
 ---
@@ -293,10 +293,11 @@
 - **Desired future state.** ONE shared helper for building a bounded, escaped LIKE pattern (the Notes implementation, promoted), used by every repository-backed search, with the truncation documented at the search surfaces. Truncation must never leave a trailing unpaired escape character, which SQLite rejects in its own right.
 - **Related roadmap item.** [X-01](../roadmap/ROADMAP_V2.md#-x-01--global-search-maturity); [DS-08](../roadmap/ROADMAP_V2.md#-ds-08--shared-search).
 
-### ☐ DEBT-43 — `project-activity.spec.ts` asserts a stale Project tab set — P3
+### ☑ DEBT-43 — `project-activity.spec.ts` asserts a stale Project tab set — P3
 - **Current issue.** Two tests in [`e2e/project-activity.spec.ts`](../../e2e/project-activity.spec.ts) fail on `main`: *"opens Activity from the project record and shows the real timeline"* asserts the tab strip is exactly `Tasks / Linked / Activity / Settings`, and *"is keyboard operable: reach and open the Activity tab"* presses ArrowRight a fixed number of times to land on Activity. [PROJ-03](../roadmap/ROADMAP_V2.md#-proj-03--knowledge) added a **Knowledge** tab to the Project record, so the strip is now five tabs and both assertions are one short.
 - **Why it is recorded here.** Found while verifying [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration), and **reproduced against clean `origin/main` (`b342142`) before being attributed** — it is not a MEET-03 regression and was not dismissed as flaky. It is a stale test, not a product defect: the Project record is correct and the Knowledge tab is intended.
-- **Impact.** Two red E2E tests on trunk, which is exactly the "is the gate trustworthy?" problem [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) exists to prevent. Left for the Projects/Notes owner rather than fixed opportunistically here, so this PR stays one roadmap item (AGENTS.md §13).
+- **Impact.** Two red E2E tests on trunk, which is exactly the "is the gate trustworthy?" problem [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) exists to prevent.
+- **Resolved 2026-07-28.** Fixed while returning trunk to green rather than deferred again: a red trunk is the one condition under which the next person cannot tell their own breakage from someone else's, and this entry was the only thing left holding it red. The strip now asserts all five tabs, and — per the desired state below — the keyboard test arrows to Activity **by name**, bounded by the live tab count, so adding a sixth tab cannot silently break it a second time. Test-only; no product code touched.
 - **Desired future state.** The spec asserts the current five-tab strip, and the keyboard test navigates by tab **name** rather than a fixed number of key presses, so a future tab addition cannot silently break it again.
 - **Related roadmap item.** [PROJ-03](../roadmap/ROADMAP_V2.md#-proj-03--knowledge); [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1).
 
@@ -314,6 +315,15 @@
 - **Current issue.** Two related identity gaps in the shared FND-05 Activity stream as it appears in production: **actor names** are not resolved to a real person in production the way they are in development, and **unrecognised activity event types** fall through to the generic descriptor rather than being caught as a registration gap.
 - **Desired future state.** Production Activity shows a truthful actor for every event, and an unregistered event type is a detectable defect (a failing check) rather than a silently-generic timeline row. Investigate before designing: the specifics need to be re-established against current production behaviour rather than assumed from this summary.
 - **Related roadmap item.** [FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model); [ACTIVITY_TIMELINE.md](../development/ACTIVITY_TIMELINE.md).
+
+---
+
+### ☐ DEBT-45 — Keyset paginators can consume a revalidated fetcher page after a scope reset — P3
+- **Current issue.** Every "Load more" collection paginator follows the same shape: a `useFetcher`, an `appended` accumulator, and a `processed` ref that de-dupes by **object identity** so one response is applied once. Identity alone is not sufficient. React Router revalidates an *active* fetcher after a navigation, so a scope change (an Active ⇄ Deleted filter switch, a new cursor scope) can deliver a **newly-identified copy of the page last loaded** in the very render where the reset effect has just cleared `processed`. The stale page is then appended on top of the new first page and the cursor advances past everything in between — silently stranding the records in the skipped pages.
+- **Where it stands.** Fixed in [`useDeletedGoalPagination`](../../app/modules/goals/GoalsCollection.tsx) (PX-04 follow-up), which now consumes only data it actually requested since the last reset. The **same shape remains** in the three older paginators it was modelled on: `useGoalPagination` (same file), `useNotePagination` ([`NotesCollection.tsx`](../../app/modules/notes/NotesCollection.tsx)) and `useProjectPagination` ([`ProjectsCollection.tsx`](../../app/modules/projects/ProjectsCollection.tsx)). Their exposure is lower — Notes and Projects reset on a lifecycle/state switch, which is exactly the trigger — but the defect is structurally identical and was simply never hit.
+- **Why it was not swept here.** The PX-04 follow-up fixed the paginator it introduced. Refactoring three untouched collection surfaces in a bug-fix PR would have widened it well past its scope and past what its tests cover.
+- **Desired future state.** One shared keyset-pagination hook the collections configure, rather than four near-identical copies — the same "shared over bespoke" move DS-04 made for Cards. Failing that, apply the request-scoped guard to the three remaining copies. Either way the rule to encode: **a page is consumed only if it was asked for since the current scope began.**
+- **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) (where collection-wide list behaviour is next revisited); tracked alongside [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1) as another per-module duplication of one idea.
 
 ---
 

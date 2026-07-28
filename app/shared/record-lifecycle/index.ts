@@ -9,6 +9,7 @@
 export { useRecordLifecycle } from "./useRecordLifecycle";
 export { useReversibleDelete } from "./use-reversible-delete";
 export type {
+  LifecyclePostResult,
   ReversibleDelete,
   ReversibleDeleteOptions,
 } from "./use-reversible-delete";

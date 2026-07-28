@@ -121,7 +121,7 @@ async function normaliseUnplanned(page: Page) {
 }
 
 test.describe("TODAY-06 — mobile Today", () => {
-  test("emulates a touch-first phone (the swipe layer's precondition)", async ({
+  test("emulates a touch-first phone (the swipe layer’s precondition)", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");

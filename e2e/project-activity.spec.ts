@@ -34,10 +34,17 @@ test.describe("PROJ-04 project Activity tab", () => {
       page.getByRole("heading", { name: "Activity showcase" }),
     ).toBeVisible();
 
-    // Tabs follow the shared vocabulary: Tasks, Linked, Activity, then
-    // Settings LAST (PROJ-05 Slice 3).
+    // Tabs follow the shared vocabulary: the module's own tabs first, then
+    // Activity and Settings LAST, in that order (PROJ-05 Slice 3). Knowledge
+    // joined the module's own tabs in PROJ-03.
     const tabs = page.getByRole("tab");
-    await expect(tabs).toHaveText(["Tasks", "Linked", "Activity", "Settings"]);
+    await expect(tabs).toHaveText([
+      "Tasks",
+      "Knowledge",
+      "Linked",
+      "Activity",
+      "Settings",
+    ]);
 
     await page.getByRole("tab", { name: "Activity" }).click();
     const feed = page.getByRole("feed", { name: "Project activity" });
@@ -160,10 +167,24 @@ test.describe("PROJ-04 project Activity tab", () => {
   }) => {
     await gotoFixture(page, RECORD);
     // Focus the Tasks tab, then arrow to Activity (WAI-ARIA Tabs pattern) and it
-    // activates on focus.
+    // activates on focus. Arrow by NAME rather than a fixed number of presses:
+    // a count silently breaks the moment a tab is added ahead of Activity, which
+    // is exactly what PROJ-03's Knowledge tab did to this test.
+    // Derive the distance from the live tab strip by the tabs' stable ids, so
+    // adding a tab shifts the count automatically instead of silently breaking
+    // the test — and do it without polling `aria-selected`, which lags a press.
+    const ids = await page
+      .getByRole("tab")
+      .evaluateAll((els) => els.map((el) => el.id));
+    const from = ids.findIndex((id) => id.endsWith("-tab-tasks"));
+    const to = ids.findIndex((id) => id.endsWith("-tab-activity"));
+    expect(from, "Tasks tab present").toBeGreaterThanOrEqual(0);
+    expect(to, "Activity tab sits after Tasks").toBeGreaterThan(from);
+
     await page.getByRole("tab", { name: "Tasks" }).focus();
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
+    for (let step = 0; step < to - from; step += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
     await expect(page.getByRole("tab", { name: "Activity" })).toHaveAttribute(
       "aria-selected",
       "true",

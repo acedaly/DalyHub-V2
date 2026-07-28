@@ -105,9 +105,12 @@ export function useRecordLifecycle(
   const [confirming, setConfirming] = useState<LifecycleAction | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
 
-  // The trigger is a menu item that unmounts with the menu, so capture the
-  // element that was focused when it was chosen; `ConfirmationDialog` restores
-  // focus there on close rather than dropping it to <body>.
+  // Capture the opener so `ConfirmationDialog` can restore focus to it on close.
+  // The shared `OverflowMenu` closes and refocuses its persistent ⋯ trigger
+  // BEFORE running an item's handler, so the element read here is that live
+  // trigger — not the menu item, which is already unmounting. Getting that order
+  // wrong dropped the keyboard user at the top of the page after cancelling a
+  // confirmation (AGENTS.md §15 — no lost focus).
   const requestConfirm = useCallback((action: LifecycleAction) => {
     setOpener(
       typeof document === "undefined"
@@ -177,7 +180,11 @@ export function useRecordLifecycle(
           if (deleteMode === "reversible") {
             // Reversible removal is Undo-first: no dialog, the caller's DS-10
             // Undo toast is the recovery (ADR-042, the Notes reference pattern).
-            void onDelete();
+            // Fired without awaiting, so a handler that rejects must not become
+            // an unhandled rejection — the shared `useReversibleDelete` already
+            // reports its own failures, and this guards a module that supplies
+            // its own handler.
+            void Promise.resolve(onDelete()).catch(() => {});
             return;
           }
           requestConfirm("delete-permanently");

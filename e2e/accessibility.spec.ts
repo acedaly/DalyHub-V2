@@ -236,7 +236,7 @@ test.describe("automated accessibility — open overlays", () => {
     await page.keyboard.press("Escape");
   });
 
-  test("a blocked archive's inline alert has no violations", async ({
+  test("a blocked archive’s inline alert has no violations", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-archive-blocked-demo?tab=settings");

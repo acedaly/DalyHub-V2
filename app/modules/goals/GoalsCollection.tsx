@@ -78,6 +78,12 @@ type GoalsPageData = {
   readonly failed: boolean;
 };
 
+type DeletedGoalsPageData = {
+  readonly deletedGoals: readonly SerializedDeletedGoalItem[];
+  readonly nextCursor: string | null;
+  readonly failed: boolean;
+};
+
 export function GoalsCollectionView({
   goals,
   deletedGoals = [],
@@ -131,6 +137,94 @@ function toDeletedCardProps(
     density: "comfortable",
     presentation: "list",
     quickActions: [restoreAction],
+  };
+}
+
+/**
+ * Accumulate pages of DELETED Goals behind "Load more".
+ *
+ * It cannot reuse `useGoalPagination`: that paginator loads `/goals?cursor=` —
+ * the ACTIVE alignment scope — and accumulates alignment-carrying items, so a
+ * deleted-scope cursor replayed through it would fetch the wrong records. The
+ * cursor is bound to its scope, so the Deleted view carries `state=deleted`
+ * through every page. Without this, a workspace with more deleted Goals than one
+ * page could never reach — or restore — anything past the first (a dead end of
+ * exactly the kind PX-04 exists to remove).
+ */
+function useDeletedGoalPagination(
+  firstPage: readonly SerializedDeletedGoalItem[],
+  initialCursor: string | null,
+) {
+  const fetcher = useFetcher<DeletedGoalsPageData>();
+  const [appended, setAppended] = useState<SerializedDeletedGoalItem[]>([]);
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const processed = useRef<DeletedGoalsPageData | null>(null);
+  // Whether a page load issued SINCE the last reset is still awaiting its
+  // result. Identity alone is not enough to tell a fresh page from a stale one:
+  // React Router revalidates an active fetcher after a navigation, so switching
+  // Active ⇄ Deleted hands this effect a NEWLY-identified copy of the page that
+  // was last loaded — which, with `processed` just cleared, would be appended on
+  // top of the new first page and would advance the cursor past every page in
+  // between, quietly stranding those deleted Goals. Only data we actually asked
+  // for after the current reset is consumed.
+  const awaitingPage = useRef(false);
+
+  useEffect(() => {
+    setAppended([]);
+    setCursor(initialCursor);
+    setLoadFailed(false);
+    processed.current = null;
+    awaitingPage.current = false;
+  }, [initialCursor]);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) {
+      return;
+    }
+    const data = fetcher.data;
+    if (processed.current === data || !awaitingPage.current) {
+      return;
+    }
+    processed.current = data;
+    awaitingPage.current = false;
+    if (data.failed) {
+      setLoadFailed(true);
+      return;
+    }
+    setAppended((prev) => [...prev, ...data.deletedGoals]);
+    setCursor(data.nextCursor);
+    setLoadFailed(false);
+  }, [fetcher.state, fetcher.data]);
+
+  const loadMore = useCallback(() => {
+    if (cursor === null) {
+      return;
+    }
+    setLoadFailed(false);
+    awaitingPage.current = true;
+    fetcher.load(`/goals?state=deleted&cursor=${encodeURIComponent(cursor)}`);
+  }, [cursor, fetcher]);
+
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const out: SerializedDeletedGoalItem[] = [];
+    for (const goal of [...firstPage, ...appended]) {
+      if (seen.has(goal.id)) {
+        continue;
+      }
+      seen.add(goal.id);
+      out.push(goal);
+    }
+    return out;
+  }, [firstPage, appended]);
+
+  return {
+    items,
+    hasMore: cursor !== null,
+    loading: fetcher.state !== "idle",
+    loadFailed,
+    loadMore,
   };
 }
 
@@ -305,7 +399,13 @@ function GoalsCollection({
   // previous list on screen with no feedback.
   const isReloading = useCollectionLoading();
   const { restore, pendingIds, restoredIds } = useRestoreGoal();
-  const deleted = deletedGoals.filter((goal) => !restoredIds.has(goal.id));
+  const deletedPages = useDeletedGoalPagination(
+    deletedGoals,
+    state === "deleted" ? nextCursor : null,
+  );
+  const deleted = deletedPages.items.filter(
+    (goal) => !restoredIds.has(goal.id),
+  );
 
   if (state === "deleted") {
     return (
@@ -315,9 +415,11 @@ function GoalsCollection({
         subtitle={
           failed
             ? "We couldn’t load your deleted Goals."
-            : deleted.length === 1
-              ? "1 deleted Goal"
-              : `${deleted.length} deleted Goals`
+            : deletedPages.hasMore
+              ? `${deleted.length} deleted Goals loaded`
+              : deleted.length === 1
+                ? "1 deleted Goal"
+                : `${deleted.length} deleted Goals`
         }
         entityType="goal"
         filterBar={
@@ -336,7 +438,9 @@ function GoalsCollection({
             />
           ) : undefined
         }
-        isFilteredEmpty={!failed && deleted.length === 0}
+        isFilteredEmpty={
+          !failed && deleted.length === 0 && !deletedPages.hasMore
+        }
         filteredEmptySlot={
           <EmptyState
             icon={<EntityIcon type="goal" />}
@@ -357,6 +461,14 @@ function GoalsCollection({
             />
           )}
         />
+        {!failed && deletedPages.hasMore ? (
+          <LoadMore
+            loading={deletedPages.loading}
+            loadFailed={deletedPages.loadFailed}
+            onLoadMore={deletedPages.loadMore}
+            label="Load more deleted Goals"
+          />
+        ) : null}
       </CollectionLayout>
     );
   }

@@ -42,7 +42,7 @@ test.describe("PROJ-01 — Projects", () => {
     await expect(page.getByText("DalyHub V2").first()).toBeVisible();
   });
 
-  test("resolves a goal-advancing project's Goal and Area", async ({
+  test("resolves a goal-advancing project’s Goal and Area", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-launch");
@@ -140,7 +140,7 @@ test.describe("PROJ-01 — Projects", () => {
     ).toBeVisible();
   });
 
-  test("Today's Continue working opens the SAME canonical project record", async ({
+  test("Today’s Continue working opens the SAME canonical project record", async ({
     page,
   }) => {
     // Continue working is bounded (RECENT_PROJECTS_COUNT) and Active-only
