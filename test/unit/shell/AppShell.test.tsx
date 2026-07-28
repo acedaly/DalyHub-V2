@@ -141,21 +141,47 @@ describe("PX-02 AppShell — frame & landmarks", () => {
   });
 
   it("offers Search and Command Palette entries in the sidebar", () => {
-    renderShell();
-    expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
+    const { container } = renderShell();
+    // MOBILE-01 adds a SECOND Search affordance (the compact phone top bar), so
+    // this assertion is scoped to the sidebar rather than relying on there being
+    // exactly one Search control in the document. Both remain real, labelled
+    // controls; only one is visible per viewport.
+    const sidebar = container.querySelector(".dh-sidebar--rail");
+    expect(sidebar).not.toBeNull();
     expect(
-      screen.getByRole("button", { name: /command palette/i }),
+      within(sidebar as HTMLElement).getByRole("button", { name: /search/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(sidebar as HTMLElement).getByRole("button", {
+        name: /command palette/i,
+      }),
     ).toBeInTheDocument();
   });
 
-  it("exposes a mobile navigation toggle with accessible name and expanded state", () => {
+  it("exposes the phone navigation sheet toggle with accessible name and expanded state", () => {
     renderShell();
-    const toggle = screen.getByRole("button", { name: /open navigation/i });
+    // MOBILE-01 moved the complete-navigation toggle from a top-left hamburger to
+    // the bottom bar's "More" control — reachable one-handed. The sheet it opens,
+    // and therefore this control's `aria-controls` target, is unchanged.
+    const toggle = screen.getByRole("button", { name: /more/i });
     expect(toggle).toHaveAttribute(
       "aria-controls",
       "primary-navigation-mobile",
     );
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("renders the phone quick-navigation bar as a distinct landmark", () => {
+    renderShell();
+    const quick = screen.getByRole("navigation", { name: "Quick navigation" });
+    // Capture and More are always present; registry destinations appear only for
+    // modules that declare `meta.mobilePrimaryOrder` (none in this fixture).
+    expect(
+      within(quick).getByRole("button", { name: /capture/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(quick).getByRole("button", { name: /more/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders the routed module placeholder content inside the pane", () => {

@@ -475,6 +475,78 @@
 }
 
 /* -------------------------------------------------------------------------- */
+/* MOBILE-01 — the compact phone card                                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A phone card is scanned, not read. The preset therefore prioritises, in order:
+ * the leading state/completion control, the title, one line of context, the
+ * high-value signals, and the overflow — and gives everything else less weight.
+ *
+ * Two deliberate non-goals:
+ *   - nothing is REMOVED. Low-priority metadata is de-emphasised into a single
+ *     supporting run (module-declared, never a selector keyed to an entity type);
+ *     it stays readable and stays in the accessibility tree.
+ *   - the title is never truncated. A record's name is the one thing the user is
+ *     scanning for, so it wraps; it is the SUBTITLE that clamps.
+ *
+ * Interactive targets keep their 44px minimum (the `(hover: none)` block above),
+ * and selection remains a separate control from opening, so a thumb aiming at the
+ * checkbox never opens the record.
+ */
+@media (max-width: 48rem) {
+  .dh-card {
+    padding: var(--dh-space-3);
+    gap: var(--dh-space-2);
+  }
+
+  .dh-card--compact {
+    padding: var(--dh-space-2) var(--dh-space-3);
+  }
+
+  /* The card body's row gap is deliberately NOT tightened here.
+   *
+   * The title and the context breadcrumb are both links, and both are short text
+   * targets (19px and 14px tall). WCAG 2.2 target size (2.5.8) is satisfied for an
+   * undersized target by SPACING, so the vertical gap between those two links is
+   * load-bearing: closing it to a hairline left the breadcrumb with 23.2px of safe
+   * clickable space against a 24px minimum, and axe failed `/goals` at phone width.
+   * The shared `--dh-space-1` gap keeps it at 29.2px. Three pixels of vertical
+   * density is not worth a target a thumb misses. */
+
+  /* One line of context, not a paragraph. */
+  .dh-card__subtitle {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* The title WRAPS — critical information is never truncated on a phone. */
+  .dh-card__title {
+    overflow-wrap: anywhere;
+  }
+
+  /* Signals first, supporting detail second, in one wrapped run rather than a
+   * stack of chip rows. */
+  .dh-card__metadata {
+    gap: var(--dh-space-1) var(--dh-space-2);
+    margin-top: var(--dh-space-1);
+  }
+
+  .dh-card__meta[data-priority="low"] {
+    font-size: var(--dh-font-size-2xs);
+    color: var(--dh-color-text-muted);
+  }
+
+  /* High-priority signals sort ahead of supporting detail without the module
+   * having to order the array by hand. */
+  .dh-card__meta[data-priority="high"] {
+    order: -1;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* TODAY-06 — touch swipe quick actions                                        */
 /*                                                                             */
 /* A clip/position wrapper holds the revealed action tray BEHIND the card      */

@@ -1033,6 +1033,87 @@ The gesture DECISION logic (intent, thresholds, offset clamping, the open/closed
 
 ---
 
+## Mobile platform (MOBILE-01)
+
+DS-11 established the responsive/accessibility **baseline** — nothing overflows, everything is reachable, every target is 44px. MOBILE-01 is the layer above it: the shared surfaces that make a phone genuinely *quick*, rather than merely fitting. They live in the shared layer, so a module inherits them by composing the same components it already composes.
+
+**One product, not two.** There is no mobile component tree, no mobile data model, no mobile route and no mobile mutation. Every surface below is the SAME component, the SAME repository and the SAME URL state adapting its presentation.
+
+### Phone bottom navigation
+
+At phone widths the sidebar rail is replaced by a persistent bottom bar within thumb reach:
+
+```
+Today · Tasks · Capture · Diary · More
+```
+
+Contract:
+
+- **Registry-derived, never a second list.** A route earns a slot by declaring `meta.mobilePrimaryOrder` in its own `routes.manifest.ts` — a validated `RouteMeta` capability. The shell reads it through the same navigation model the desktop rail renders and keeps at most `MOBILE_PRIMARY_DESTINATION_LIMIT` (3), so the bar can never exceed its five-control budget. A module hidden by the SET-01 navigation preference disappears from the bar for free. See [ADR-058](../decisions/ARCHITECTURE_DECISIONS.md#adr-058-registry-driven-phone-navigation-and-quick-capture-as-a-shared-shell-framework).
+- **More is the complete navigation.** It opens the SAME registry-driven sheet the hamburger opened, so every module — including any future one — is one tap away and nothing appears in two competing lists.
+- **Active state is never colour alone.** `aria-current="page"` plus an indicator bar, a filled icon treatment and a semibold label. Exactly one destination is active for any path (longest match wins); a route that is not a destination marks none.
+- **Its own landmark.** Labelled `Quick navigation`, distinct from the sidebar's `Primary`, because both are in the DOM at once.
+- **Out of the way when it must be.** It clears the home indicator (`env(safe-area-inset-bottom)`) and translates off-screen while the keyboard is up (`--dh-keyboard-inset`), so it can never cover a focused field or an error. Scrolling surfaces reserve `--dh-bottomnav-height`.
+- **`display: none` from `md` up.** Desktop is untouched.
+
+A compact top bar keeps the **route title** (not the workspace name — content before chrome), a contextual Back, Search and the route's overflow actions. Routes publish their title through `useSetMobileTopBar`.
+
+### Shared Quick Capture
+
+ONE capture surface for **Task, Diary entry, Meeting and Note**, opened from the bottom bar, Today, the Command Palette or any module's empty state via `useCapture()`.
+
+- **Canonical authorities only.** Each panel posts to the module's own creation route (`/tasks/new`, `/diary/new`, `/meetings/create`, `/notes/new`). There is no capture-only store, validator or create path.
+- **Least information that can work.** A Task is a title; a valid default capture parent (UX-01) makes *title + Enter* the whole interaction. Optional classification is one-tap chips, never a collapsed form section.
+- **The same three next steps** after every capture: Done · Open *record* · Add another. "Add another" clears the form and refocuses the first field, so repeated capture needs no navigation.
+- **Text survives a recoverable failure** (the DS-06 `useForm` contract), and saves are announced through a live region.
+- **Session-remembered type**, with "Change type" always one tap away, so remembering never makes another type harder to reach.
+- **Lazy-loaded.** The sheet and every panel load on first open; the shell carries only a context and a lazy boundary.
+
+`GET /capture/context` is the shell-owned endpoint serving the owner timezone, today's calendar date and the re-verified default capture parent — so the bottom bar costs no workspace read.
+
+### The shared Sheet
+
+Every phone-scale overlay MOBILE-01 introduces (Quick Capture, the collection sheet, the More navigation) is one `Sheet`. It composes the **DS-03 modal hooks** (`useDrawerFocus`, `useInertBackground`, `useBodyScrollLock`) — there is never a second focus trap. Its body is the only scroll container (`overscroll-behavior: contain`), its footer is sticky and keyboard-safe, `Escape` closes only the topmost surface, and its height subtracts `--dh-keyboard-inset`. On tablet and desktop the same component renders as a centred dialog.
+
+### Full-screen phone Drawer
+
+The [Drawer](#drawer) becomes the record's whole screen below `md` — the same implementation, preserving URL state, the history stack, nested opening, focus trapping and restoration, the unsaved-change guard and the canonical Task Drawer content. Additions:
+
+- `stickyActions` — a keyboard-safe region pinned outside the scrolling body for the record's PRIMARY commitment. Not a second toolbar: secondary and destructive actions stay in the overflow menu (PX-04).
+- `headerActions` — contextual actions in the Drawer's own compact header, so a phone record needs only one row of chrome.
+- `titleInHeaderOnly` — collapses the record's repeated title when the Drawer header already carries it.
+
+### Mobile Record tabs
+
+Above `md` every tab renders inline, exactly as before. Below it, a record with more than `MAX_INLINE_TABS` (4) shows its most important tabs inline and moves the rest into a labelled **More sections** menu (the shared DS-12 menu, outside the `tablist`). The ACTIVE tab always swaps into the inline strip; nothing is hidden permanently; every deep link and selected-tab URL state is preserved; selecting from the menu moves focus onto the now-visible tab. The gate is the shared `useCompactViewport`, which is desktop-first on the server, so a JavaScript-free render gets the complete strip.
+
+### Mobile collection controls
+
+A phone collection shows ONE row of chrome: a **Filter** button carrying its active count, plus a visible summary of what is applied. Filters, sort, grouping, display density and saved views move into one shared `CollectionControls` sheet consumed by every collection module.
+
+- Every control is **URL-backed**, so state stays shareable, restorable and Back/Forward-correct — the sheet is a different way to reach the same state, not a second store.
+- The sheet edits a **draft**: tapping options fires no navigation and closing without applying discards nothing committed.
+- **Apply writes the URL exactly once** and clears pagination. **Reset** is explicit and complete.
+- The badge counts only controls that genuinely narrow the collection — sorting differently does not make a list filtered.
+- Large data pickers stay **server-backed**; the sheet never loads a collection to filter it locally.
+
+### Compact phone Cards
+
+The phone Card preset prioritises the leading state/completion control, the title, one line of context, the high-value signals and the overflow. Two rules are absolute: **the title wraps, never truncates** (it is what the user is scanning for), and **nothing is removed at any width**. `CardMetaItem.priority` (`high` | `low`) lets the MODULE declare what its record leads with — low-priority detail is de-emphasised into a supporting run, still readable and still in the accessibility tree. This replaces hiding data through CSS selectors keyed to entity types.
+
+### Keyboard & safe-area rules
+
+- **`--dh-keyboard-inset`** is published by the ONE Visual Viewport observer in the product (`app/shared/viewport`, mounted once by the AppShell). Surfaces consume it in **CSS**; no form ever adds its own resize listener. A noise threshold ignores a collapsing URL bar, so sticky controls never jitter while scrolling.
+- **`--dh-bottomnav-height`** is the space the phone bar occupies (`0px` elsewhere), reserved by scrolling surfaces and bottom-anchored controls.
+- Touch text inputs are raised to **16px**, because a smaller focused field makes a mobile browser zoom the page and leave it zoomed. The desktop type scale is unchanged.
+- `FormActions sticky` pins a long form's commitment above the keyboard, the safe area and the bottom bar — using tokens, never measurement. Do not use it on a short form.
+
+### Meeting capture bar
+
+While the Meeting workspace is open, a sticky bar captures **Note · Action · Decision · Outcome** without switching tabs or opening a drawer: choose a type, type, submit, stay put with the input cleared and focused. Actions, decisions and outcomes save through the canonical `add_item`; a note is appended to the meeting's canonical `notesMarkdown` through the same authority the Notes editor autosaves through.
+
+---
+
 ## Motion & feedback timing
 
 - **Fast and few.** Transitions ~120–200ms, easing that feels natural. Motion shows causality (this became that, this came from there), never decoration.

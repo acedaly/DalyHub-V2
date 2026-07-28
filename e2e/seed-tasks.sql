@@ -704,3 +704,36 @@ UPDATE entities
 SET deleted_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
   AND id = 'g-e2e-lifecycle';
+
+-- ---------------------------------------------------------------------------
+-- MOBILE-01 — the owner's DEFAULT TASK CAPTURE PARENT (UX-01 preference).
+--
+-- The mobile acceptance criterion "open capture, type a title, press Enter,
+-- Task created" holds only WHEN A VALID DEFAULT PARENT EXISTS — that is the
+-- whole point of the UX-01 preference. Without this row the phone journey
+-- would exercise the fallback (the parent picker) while claiming to prove the
+-- fast path, so the seed provisions the preference explicitly against the
+-- development identity the E2E run signs in as.
+--
+-- `a-dh` is an existing seeded Area, so the parent passes the server's
+-- re-verification (an archived or missing target is refused and the picker is
+-- shown instead — the behaviour the panel is designed to degrade to).
+--
+-- Idempotent, and the UPDATE re-asserts the columns if the row already exists
+-- from a previous run that changed them through Settings.
+-- ---------------------------------------------------------------------------
+INSERT OR IGNORE INTO owner_app_preferences (
+  workspace_id, owner_id, created_at, updated_at
+)
+VALUES (
+  'local-dev-workspace',
+  'local-development-user',
+  '2026-07-19T00:00:00.000Z',
+  '2026-07-19T00:00:00.000Z'
+);
+
+UPDATE owner_app_preferences
+SET default_task_capture_parent_id = 'a-dh',
+    default_task_capture_parent_kind = 'area'
+WHERE workspace_id = 'local-dev-workspace'
+  AND owner_id = 'local-development-user';

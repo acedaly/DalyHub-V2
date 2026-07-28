@@ -20,6 +20,22 @@ body {
   padding: 0;
 }
 
+/* MOBILE-01 — the document scroller must know about the phone bottom bar.
+ *
+ * `scrollIntoView`, keyboard focus scrolling and anchor jumps all stop at the
+ * viewport edge, which on a phone is UNDERNEATH the fixed bottom navigation. A
+ * card or control scrolled to the last row therefore lands beneath the bar and
+ * cannot be clicked or seen — which is exactly what happened to the last cards in
+ * the Notes collection. `scroll-padding` is the standard mechanism for telling the
+ * scroller that a band at the end of the viewport is spoken for, and it is stated
+ * with the same token the bar's own height comes from, so nothing is measured or
+ * guessed. `0px` on desktop, where the bar does not exist. */
+html {
+  scroll-padding-block-end: calc(
+    var(--dh-bottomnav-height, 0px) + var(--dh-space-2)
+  );
+}
+
 body {
   background: var(--dh-color-bg);
   color: var(--dh-color-text);

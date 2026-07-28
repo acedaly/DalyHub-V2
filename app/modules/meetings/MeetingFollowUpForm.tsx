@@ -239,7 +239,9 @@ export function MeetingFollowUpForm({
         />
       </details>
 
-      <FormActions>
+      {/* MOBILE-01: sticky, so "Create task" stays above the phone keyboard
+          in the full-screen Drawer rather than at the end of a scroll. */}
+      <FormActions sticky>
         <FormButton
           type="button"
           variant="secondary"

@@ -1,0 +1,293 @@
+/*
+ * MOBILE-01 — the ONE shared phone sheet surface, in design tokens only.
+ *
+ * A bottom-anchored modal panel used by Quick Capture, the collection
+ * filter/sort/view sheet and any future phone-scale overlay. It is layered on the
+ * Drawer's z-index band (it is the same kind of surface) and reuses the DS-03
+ * motion tokens, so reduced-motion collapses it to instant via base.css.
+ *
+ * The three structural rules that make it usable on a real phone:
+ *   1. its height is capped by the KEYBOARD inset, so an open keyboard shrinks the
+ *      sheet instead of burying its footer;
+ *   2. the BODY is the only scroll container, with `overscroll-behavior: contain`
+ *      so scrolling the sheet never scrolls the page behind it;
+ *   3. the FOOTER is sticky and safe-area padded, so the primary action is always
+ *      reachable without scrolling to the end of a long form.
+ *
+ * On tablet and desktop the same component renders as a centred dialog — the
+ * surfaces that use it are phone-first, but they must not look broken if a wide
+ * viewport opens one.
+ */
+
+.dh-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dh-z-drawer);
+}
+
+.dh-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--dh-color-overlay);
+  animation: dh-sheet-scrim-in var(--dh-duration-base) var(--dh-ease-standard);
+}
+
+.dh-sheet {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  /* The keyboard inset is subtracted from the available height, so the panel is
+   * bounded by the space actually visible rather than by the layout viewport. */
+  max-block-size: calc(92dvh - var(--dh-keyboard-inset, 0px));
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  border-top-left-radius: var(--dh-radius-xl);
+  border-top-right-radius: var(--dh-radius-xl);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-bottom: none;
+  box-shadow: var(--dh-shadow-lg);
+  animation: dh-sheet-in var(--dh-duration-base) var(--dh-ease-emphasized);
+}
+
+/* The `full` variant is for longer capture flows, where a half sheet would make
+ * the form scroll immediately. */
+.dh-sheet[data-variant="full"] {
+  top: 0;
+  max-block-size: none;
+  block-size: calc(100dvh - var(--dh-keyboard-inset, 0px));
+  border-radius: 0;
+  border: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Header                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.dh-sheet__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-2);
+  padding: max(var(--dh-space-3), env(safe-area-inset-top)) var(--dh-space-4)
+    var(--dh-space-3);
+  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-sheet__heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dh-sheet__title {
+  margin: 0;
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.dh-sheet__description {
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-sheet__leading {
+  flex: 0 0 auto;
+  order: -1;
+  inline-size: 100%;
+}
+
+.dh-sheet__leading-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: none;
+  background: transparent;
+  color: var(--dh-color-accent-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  cursor: pointer;
+}
+
+/* The shared right-chevron mirrored into a back affordance — no one-off glyph. */
+.dh-sheet__leading-icon {
+  display: inline-flex;
+  transform: scaleX(-1);
+}
+
+.dh-sheet__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--dh-touch-target-min);
+  min-block-size: var(--dh-touch-target-min);
+  border: var(--dh-border-width-thin) solid transparent;
+  border-radius: var(--dh-radius-md);
+  background: transparent;
+  color: var(--dh-color-text-secondary);
+  cursor: pointer;
+}
+
+.dh-sheet__close:hover {
+  background: var(--dh-color-hover-surface);
+  color: var(--dh-color-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Body & footer                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Scrolling the sheet must never chain to the page behind the scrim. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--dh-space-4);
+  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
+}
+
+.dh-sheet__footer {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
+  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  background: var(--dh-color-surface-raised);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Option rows                                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-sheet-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-sheet-option {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  inline-size: 100%;
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-sheet-option:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-sheet-option[aria-pressed="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-surface);
+}
+
+.dh-sheet-option[aria-pressed="true"] .dh-sheet-option__label {
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-sheet-option__icon {
+  display: inline-flex;
+  flex: none;
+  font-size: var(--dh-font-size-xl);
+  line-height: 0;
+}
+
+.dh-sheet-option__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+}
+
+.dh-sheet-option__label {
+  font-size: var(--dh-font-size-md);
+}
+
+.dh-sheet-option__description {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+/* Selection is a check MARK (shape) as well as the pressed state — never colour
+ * alone. The slot is reserved so choosing an option does not reflow the row. */
+.dh-sheet-option__check {
+  flex: none;
+  inline-size: 1rem;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--dh-color-accent-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tablet / desktop — the same component as a centred dialog                   */
+/* -------------------------------------------------------------------------- */
+
+@media (min-width: 48.0625rem) {
+  .dh-sheet,
+  .dh-sheet[data-variant="full"] {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    inline-size: min(var(--dh-width-narrow), calc(100vw - var(--dh-space-8)));
+    block-size: auto;
+    max-block-size: min(85dvh, 48rem);
+    border-radius: var(--dh-radius-lg);
+    border: var(--dh-border-width-thin) solid var(--dh-color-border);
+    animation-name: dh-sheet-dialog-in;
+  }
+}
+
+@keyframes dh-sheet-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dh-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes dh-sheet-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}

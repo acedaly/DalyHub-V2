@@ -45,6 +45,18 @@ export interface MarkdownFormattingAction {
    * `Mod-b`. Actions without one are toolbar-only.
    */
   readonly shortcut?: string;
+  /**
+   * MOBILE-01 — whether this action is offered DIRECTLY in the toolbar.
+   *
+   * Only the formatting a writer reaches for constantly earns a permanent
+   * button; the rest sit one tap away behind the toolbar's "More" toggle. A
+   * permanently visible row of eleven controls is chrome that costs a phone the
+   * rows it needs for writing — and makes the frequent commands harder to hit,
+   * not easier, because every one is further along a scrolling row.
+   *
+   * Defaults to false (secondary).
+   */
+  readonly primary?: boolean;
   /** The pure Markdown-source transform this action applies. */
   readonly transform: MarkdownTransform;
 }
@@ -53,17 +65,25 @@ export interface MarkdownFormattingAction {
  * The catalogue, in reading/keyboard order: emphasis first (the most common
  * quick formatting), then block structures, then insertions. This ordering is
  * also the roving-tabindex order in the toolbar.
+ *
+ * MOBILE-01 marks six of them `primary`. Those render directly; the remaining
+ * five (Numbered, Quote, Code, Code block, Table) sit behind the toolbar's
+ * "More" toggle — still in the same toolbar, still one Tab stop, still fully
+ * keyboard-reachable, but no longer occupying a phone's writing space by
+ * default.
  */
 export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
   [
     {
       id: "heading",
+      primary: true,
       label: "Heading",
       hint: "Turn the line into a heading (cycles heading level)",
       transform: headingTransform,
     },
     {
       id: "bold",
+      primary: true,
       label: "Bold",
       hint: "Bold the selected text (**text**)",
       shortcut: "Mod-b",
@@ -71,6 +91,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
     },
     {
       id: "italic",
+      primary: true,
       label: "Italic",
       hint: "Italicise the selected text (_text_)",
       shortcut: "Mod-i",
@@ -78,6 +99,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
     },
     {
       id: "bulleted-list",
+      primary: true,
       label: "Bullets",
       hint: "Make a bulleted list",
       transform: bulletListTransform,
@@ -90,6 +112,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
     },
     {
       id: "checklist",
+      primary: true,
       label: "Checklist",
       hint: "Make a checklist (- [ ] item)",
       shortcut: "Mod-Shift-9",
@@ -104,6 +127,7 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
     },
     {
       id: "link",
+      primary: true,
       label: "Link",
       hint: "Insert a Markdown link",
       shortcut: "Mod-k",
@@ -129,3 +153,11 @@ export const MARKDOWN_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
       transform: tableTransform,
     },
   ];
+
+/** The actions offered directly in the toolbar (MOBILE-01). */
+export const PRIMARY_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
+  MARKDOWN_FORMATTING_ACTIONS.filter((action) => action.primary === true);
+
+/** The actions behind the toolbar's "More" toggle (MOBILE-01). */
+export const SECONDARY_FORMATTING_ACTIONS: readonly MarkdownFormattingAction[] =
+  MARKDOWN_FORMATTING_ACTIONS.filter((action) => action.primary !== true);

@@ -1,5 +1,5 @@
 /**
- * PX-02 application frame.
+ * PX-02 application frame, with the MOBILE-01 phone shell.
  *
  * The premium application shell that replaces FND-09's website-like top bar
  * (PRODUCT_EXPERIENCE #1, #2): a persistent left sidebar owning identity and
@@ -9,9 +9,18 @@
  *
  * - Desktop/laptop/tablet: the sidebar is a persistent rail; the pane scrolls
  *   independently so Pane Headers and filter bars can pin (PRODUCT_EXPERIENCE #11).
- * - Mobile: the rail is hidden; a slim bar exposes a menu toggle that opens the
- *   sidebar as an animated, focus-trapped overlay sheet (see MobileNav). No content
- *   jumps — the sheet is viewport-fixed.
+ *   MOBILE-01 changes NOTHING here.
+ * - Phone (MOBILE-01): the rail is hidden and navigation becomes a persistent
+ *   BOTTOM bar within thumb reach — `Today · Tasks · Capture · Diary · More` —
+ *   derived from the registry (see `mobile-navigation.ts`). "More" opens the same
+ *   complete navigation sheet the hamburger used to (MobileNav), so every module
+ *   stays one tap away and there is no second module list. A compact top bar keeps
+ *   the route title, a contextual Back and Search.
+ *
+ * The shell also mounts, exactly once each: the shared Quick Capture provider (so
+ * any surface opens the ONE capture sheet) and the shared keyboard-inset observer
+ * (the only Visual Viewport listener in the product). Both are cheap: capture is
+ * lazy-loaded and the observer publishes a single CSS custom property.
  *
  * It stays keyboard-complete with a preserved skip link and correct landmarks: the
  * sidebar brand is the `banner`, primary navigation is a labelled `navigation`, and
@@ -30,9 +39,13 @@ import { CommandShortcutLayer } from "~/shared/commands/CommandShortcutLayer";
 import type { ShortcutBinding } from "~/shared/commands/useCommandShortcuts";
 
 import { FeedbackProvider } from "~/shared/feedback";
+import { CaptureProvider, useCapture } from "~/shared/capture";
+import { useKeyboardInset } from "~/shared/viewport";
 
+import { BottomNav } from "./BottomNav";
 import { MobileNav } from "./MobileNav";
-import { MenuIcon } from "~/shared/icons";
+import { MobileTopBar } from "./MobileTopBar";
+import { MobileTopBarProvider } from "./mobile-top-bar-context";
 import { Sidebar } from "./Sidebar";
 import type { ThemePreference } from "./theme";
 
@@ -47,6 +60,33 @@ const RAIL_NAV_ID = "primary-navigation";
  */
 const SearchSurface = lazy(() => import("~/shared/search/SearchSurface"));
 const CommandPalette = lazy(() => import("~/shared/commands/CommandPalette"));
+
+/**
+ * The phone bar, wired to the shared capture surface.
+ *
+ * A thin inner component because `useCapture()` must be read BENEATH the
+ * `CaptureProvider` the shell itself mounts. `BottomNav` stays a pure,
+ * prop-driven component so it can be tested without either provider.
+ */
+function ShellBottomNav({
+  navigation,
+  onOpenMore,
+  moreOpen,
+}: {
+  readonly navigation: readonly NavigationItem[];
+  readonly onOpenMore: (opener: HTMLElement) => void;
+  readonly moreOpen: boolean;
+}) {
+  const capture = useCapture();
+  return (
+    <BottomNav
+      navigation={navigation}
+      onOpenCapture={(opener) => capture?.openCapture(undefined, opener)}
+      onOpenMore={onOpenMore}
+      moreOpen={moreOpen}
+    />
+  );
+}
 
 export type AppShellProps = {
   /** The current workspace's display name (server-derived, safe text). */
@@ -71,7 +111,14 @@ export function AppShell({
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
-  const toggleRef = useRef<HTMLButtonElement>(null);
+  // The control that opened the complete-navigation sheet ("More" on the phone
+  // bar), so focus returns to it on close.
+  const [navOpener, setNavOpener] = useState<HTMLElement | null>(null);
+
+  // The ONE Visual Viewport listener in DalyHub. It publishes
+  // `--dh-keyboard-inset`, which every keyboard-aware surface styles against —
+  // there is never a per-form resize listener (MOBILE-01 §B3).
+  useKeyboardInset();
   // The element focus returns to when each surface closes — whatever opened it.
   const searchOpenerRef = useRef<HTMLElement | null>(null);
   const commandOpenerRef = useRef<HTMLElement | null>(null);
@@ -139,86 +186,92 @@ export function AppShell({
     [toggleCommand, openSearch],
   );
 
+  const openMoreNavigation = useCallback((opener: HTMLElement) => {
+    setNavOpener(opener);
+    setNavOpen(true);
+  }, []);
+  const closeMoreNavigation = useCallback(() => setNavOpen(false), []);
+
   return (
     <FeedbackProvider>
       <CommandContextProvider>
-        <CommandShortcutLayer reserved={reservedShortcuts} />
-        <div className="dh-app">
-          <a className="skip-link" href="#main-content">
-            Skip to main content
-          </a>
+        <CaptureProvider>
+          <MobileTopBarProvider>
+            <CommandShortcutLayer reserved={reservedShortcuts} />
+            <div className="dh-app">
+              <a className="skip-link" href="#main-content">
+                Skip to main content
+              </a>
 
-          <Sidebar
-            workspaceName={workspaceName}
-            email={email}
-            theme={theme}
-            navigation={navigation}
-            settingsHref="/settings"
-            navId={RAIL_NAV_ID}
-            variant="rail"
-            onOpenSearch={openSearch}
-            onOpenCommand={openCommand}
-          />
+              <Sidebar
+                workspaceName={workspaceName}
+                email={email}
+                theme={theme}
+                navigation={navigation}
+                settingsHref="/settings"
+                navId={RAIL_NAV_ID}
+                variant="rail"
+                onOpenSearch={openSearch}
+                onOpenCommand={openCommand}
+              />
 
-          <div className="dh-main-col">
-            {/* A `header` so the mobile bar’s brand + menu toggle are contained by a
+              <div className="dh-main-col">
+                {/* A `header` so the phone bar’s title and actions are contained by a
                 landmark (the `banner`) on mobile, where the rail sidebar banner is
                 hidden — otherwise its content sits outside every landmark (WCAG
                 region, DS-11). On desktop this bar is `display:none` and ignored. */}
-            <header className="dh-mobilebar">
-              <button
-                type="button"
-                className="dh-mobilebar__toggle"
-                ref={toggleRef}
-                aria-expanded={navOpen}
-                aria-controls="primary-navigation-mobile"
-                onClick={() => setNavOpen(true)}
-              >
-                <span className="dh-mobilebar__toggle-icon" aria-hidden="true">
-                  <MenuIcon />
-                </span>
-                <span className="dh-visually-hidden">Open navigation</span>
-              </button>
-              <span className="dh-mobilebar__brand">{workspaceName}</span>
-            </header>
+                <MobileTopBar
+                  workspaceName={workspaceName}
+                  onOpenSearch={openSearch}
+                />
 
-            <main id="main-content" className="dh-pane" tabIndex={-1}>
-              {children}
-            </main>
-          </div>
+                <main id="main-content" className="dh-pane" tabIndex={-1}>
+                  {children}
+                </main>
+              </div>
 
-          {navOpen ? (
-            <MobileNav
-              workspaceName={workspaceName}
-              email={email}
-              theme={theme}
-              navigation={navigation}
-              settingsHref="/settings"
-              opener={toggleRef.current}
-              onClose={() => setNavOpen(false)}
-              onOpenSearch={openSearch}
-              onOpenCommand={openCommand}
-            />
-          ) : null}
-
-          {searchOpen ? (
-            <Suspense fallback={null}>
-              <SearchSurface
-                onClose={closeSearch}
-                opener={searchOpenerRef.current}
+              {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
+              desktop rail experience is byte-for-byte unchanged. */}
+              <ShellBottomNav
+                navigation={navigation}
+                onOpenMore={openMoreNavigation}
+                moreOpen={navOpen}
               />
-            </Suspense>
-          ) : null}
 
-          {commandOpen ? (
-            <Suspense fallback={null}>
-              <CommandPalette
-                onClose={closeCommand}
-                opener={commandOpenerRef.current}
-              />
-            </Suspense>
-          ) : null}
-        </div>
+              {navOpen ? (
+                <MobileNav
+                  workspaceName={workspaceName}
+                  email={email}
+                  theme={theme}
+                  navigation={navigation}
+                  settingsHref="/settings"
+                  opener={navOpener}
+                  onClose={closeMoreNavigation}
+                  onOpenSearch={openSearch}
+                  onOpenCommand={openCommand}
+                />
+              ) : null}
+
+              {searchOpen ? (
+                <Suspense fallback={null}>
+                  <SearchSurface
+                    onClose={closeSearch}
+                    opener={searchOpenerRef.current}
+                  />
+                </Suspense>
+              ) : null}
+
+              {commandOpen ? (
+                <Suspense fallback={null}>
+                  <CommandPalette
+                    onClose={closeCommand}
+                    opener={commandOpenerRef.current}
+                  />
+                </Suspense>
+              ) : null}
+            </div>
+          </MobileTopBarProvider>
+        </CaptureProvider>
       </CommandContextProvider>
     </FeedbackProvider>
   );

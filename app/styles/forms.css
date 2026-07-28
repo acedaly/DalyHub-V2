@@ -67,6 +67,46 @@
   align-items: center;
 }
 
+/*
+ * MOBILE-01 — the keyboard-safe sticky commitment row.
+ *
+ * Opt-in (`<FormActions sticky>`): the form's Save/Create row pins to the bottom
+ * of its scroll container so a long form's primary action never requires
+ * scrolling to the end — and, crucially, never ends up underneath the on-screen
+ * keyboard or the phone bottom navigation.
+ *
+ * Both are handled by tokens rather than measurement: `--dh-keyboard-inset` is
+ * published by the ONE shared Visual Viewport observer, and
+ * `--dh-bottomnav-height` is the space the phone bar occupies (both `0px` when
+ * they do not apply, so this rule is inert on desktop).
+ */
+.dh-form-actions--sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--dh-z-raised);
+  justify-content: flex-end;
+  margin-inline: calc(-1 * var(--dh-space-4));
+  padding: var(--dh-space-3) var(--dh-space-4);
+  padding-bottom: max(
+    var(--dh-space-3),
+    calc(
+      env(safe-area-inset-bottom) + var(--dh-keyboard-inset, 0px) +
+        var(--dh-bottomnav-height, 0px)
+    )
+  );
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  background: var(--dh-color-bg);
+}
+
+/* On a phone the commitment fills the row: a half-width primary button at the
+ * bottom of a form is a smaller target than it needs to be. */
+@media (max-width: 48rem) {
+  .dh-form-actions--sticky > * {
+    flex: 1 1 auto;
+    min-block-size: var(--dh-touch-target-min);
+  }
+}
+
 /* ------------------------------------------------------------------ Field anatomy */
 
 .dh-field {
@@ -624,6 +664,23 @@
   .dh-combobox__input,
   .dh-link-picker__type-select {
     min-block-size: var(--dh-touch-target-min);
+  }
+
+  /*
+   * MOBILE-01 — never trigger the mobile browser's automatic zoom.
+   *
+   * iOS Safari zooms the page whenever a focused field's computed font-size is
+   * BELOW 16px, then leaves the page zoomed — which is how a phone form ends up
+   * horizontally scrolled with its Save button off-screen. DalyHub's body scale
+   * is 15px and its Markdown source scale is 13px, so on a touch device every
+   * text-entry control is raised to exactly 16px. This is a TOUCH-only rule: the
+   * desktop type scale is unchanged, and 16px is a floor, never a shrink.
+   */
+  .dh-input,
+  .dh-input--markdown,
+  .dh-combobox__input,
+  .dh-tags__input {
+    font-size: max(var(--dh-font-size-md), 1rem);
   }
 
   .dh-tags__chip-remove,

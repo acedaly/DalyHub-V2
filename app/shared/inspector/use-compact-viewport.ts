@@ -6,26 +6,14 @@
  * the real value is resolved after mount, so there is no hydration mismatch — the
  * sheet-only modal behaviour (focus trap, scroll lock, inert background) is gated
  * on this and only ever engages on the client.
+ *
+ * MOBILE-01 promoted the implementation to `~/shared/viewport` so the Record
+ * Layout's tab overflow uses the SAME signal rather than growing a second copy.
+ * This module stays as the Inspector's named entry point; the behaviour and the
+ * breakpoint are unchanged.
  */
 
-import { useEffect, useState } from "react";
-
-/** The DS-01 `md` breakpoint (48rem = 768px). */
-export const INSPECTOR_COMPACT_QUERY = "(max-width: 48rem)";
-
-export function useCompactViewport(): boolean {
-  const [compact, setCompact] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) {
-      return;
-    }
-    const mql = window.matchMedia(INSPECTOR_COMPACT_QUERY);
-    const update = () => setCompact(mql.matches);
-    update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
-  }, []);
-
-  return compact;
-}
+export {
+  COMPACT_VIEWPORT_QUERY as INSPECTOR_COMPACT_QUERY,
+  useCompactViewport,
+} from "~/shared/viewport/use-compact-viewport";

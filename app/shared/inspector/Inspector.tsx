@@ -82,6 +82,10 @@ export function Inspector({
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [compact, onRequestClose]);
 
+  // See the comment on the container below: the element type follows the
+  // semantics rather than a role being layered onto a fixed one.
+  const Container = (compact ? "div" : "aside") as "aside";
+
   return (
     <>
       {compact ? (
@@ -92,7 +96,17 @@ export function Inspector({
           onClick={onRequestClose}
         />
       ) : null}
-      <aside
+      {/*
+       * The element TYPE follows the semantics, rather than a role being layered
+       * onto a fixed one: docked, the Inspector is genuinely complementary
+       * content beside the record, so it is an `aside`; compact, it is a modal
+       * sheet, so it is a plain `div` carrying `role="dialog"`.
+       *
+       * `role="dialog"` on an `aside` is an `aria-allowed-role` violation —
+       * surfaced by MOBILE-01's first axe scan of a phone-width Inspector sheet,
+       * which is the only configuration where the compact branch renders.
+       */}
+      <Container
         ref={containerRef}
         className="dh-inspector"
         data-compact={compact ? "true" : "false"}
@@ -131,7 +145,7 @@ export function Inspector({
         {result.footer ? (
           <footer className="dh-inspector__footer">{result.footer}</footer>
         ) : null}
-      </aside>
+      </Container>
     </>
   );
 }

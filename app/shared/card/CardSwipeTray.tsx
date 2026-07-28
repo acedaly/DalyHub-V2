@@ -47,6 +47,8 @@ export function CardSwipeTray({
               className="dh-card__swipe-action"
               href={action.href}
               tabIndex={-1}
+              target={action.external ? "_blank" : undefined}
+              rel={action.external ? "noreferrer" : undefined}
               onClick={(event) => {
                 stop(event);
                 onActionFired();

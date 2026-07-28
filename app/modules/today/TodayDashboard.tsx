@@ -25,6 +25,7 @@ import { Link, useFetcher, useNavigate, useSearchParams } from "react-router";
 import { Card, CardCollection, closeActiveSwipeTray } from "~/shared/card";
 import type { CardAction, CardMetaItem, CardProps } from "~/shared/card";
 import { CollectionLayout } from "~/shared/collection-layout";
+import { CAPTURE_TYPE_DESCRIPTORS, useCapture } from "~/shared/capture";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
@@ -296,7 +297,12 @@ export function TodayDashboard({
     },
     [openDrawer],
   );
-  const captureRef = useRef<HTMLTextAreaElement>(null);
+  // The first Quick Capture entry — the focus target for the PX-03 "Focus Quick
+  // Capture" command and Morning Brief's capture link.
+  const captureRef = useRef<HTMLButtonElement>(null);
+  // The ONE shared capture surface (MOBILE-01). Null outside the AppShell (a
+  // fixture render), in which case the entries simply do nothing.
+  const capture = useCapture();
   const planFetcher = useFetcher<PlanActionData>();
 
   const targets: PlanTargets | undefined = planning?.targets;
@@ -312,9 +318,6 @@ export function TodayDashboard({
   const [pendingPlan, setPendingPlan] = useState<ReadonlySet<string>>(
     new Set(),
   );
-  const [draft, setDraft] = useState("");
-  const [captureNotice, setCaptureNotice] = useState("");
-
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
@@ -748,16 +751,6 @@ export function TodayDashboard({
 
   useRegisterContextualActions(contextualActions);
 
-  const onCapture = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (draft.trim() === "") {
-      return;
-    }
-    setCaptureNotice(
-      "Quick Capture is not connected yet. Your draft has not been saved.",
-    );
-  };
-
   /* -- Planning card + section rendering -- */
 
   const planQuickActions = (
@@ -1133,41 +1126,43 @@ export function TodayDashboard({
       />
     );
 
-  /* -- Quick capture body (honest fixture: nothing is saved yet, TODAY-07) -- */
-
+  /*
+   * Quick capture (TODAY-07, delivered by MOBILE-01).
+   *
+   * This was an honest fixture — a textarea that saved nothing and said so.
+   * It is now the SHARED Quick Capture surface: each entry opens the one capture
+   * sheet on that type, which posts to the module's canonical creation route.
+   * Today therefore has no capture path of its own to keep in step, and the same
+   * flow is reached from the phone bottom bar, the Command Palette and here.
+   */
   const captureBody = (
-    <form className="dh-today__capture" onSubmit={onCapture}>
-      <label className="dh-visually-hidden" htmlFor="today-capture-input">
-        What needs your attention?
-      </label>
-      <textarea
-        id="today-capture-input"
-        ref={captureRef}
-        className="dh-today__capture-input"
-        rows={2}
-        placeholder="What needs your attention?"
-        value={draft}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          if (captureNotice) setCaptureNotice("");
-        }}
-      />
-      <div className="dh-today__capture-row">
-        <p className="dh-today__capture-hint">
-          Just structure for now — nothing is saved yet.
-        </p>
-        <button
-          type="submit"
-          className="dh-today__secondary"
-          disabled={draft.trim() === ""}
-        >
-          Capture
-        </button>
-      </div>
-      <p className="dh-today__capture-notice" role="status" aria-live="polite">
-        {captureNotice}
+    <div className="dh-today__capture" role="group" aria-label="Quick capture">
+      <p className="dh-today__capture-hint">
+        Capture it now; organise it later.
       </p>
-    </form>
+      <div className="dh-today__capture-types">
+        {CAPTURE_TYPE_DESCRIPTORS.map((descriptor, index) => (
+          <button
+            key={descriptor.type}
+            type="button"
+            className="dh-today__capture-type"
+            // The first entry is the focus target for the "Focus Quick Capture"
+            // command and Morning Brief's capture link, preserving PX-03's
+            // keyboard route into capture.
+            ref={index === 0 ? captureRef : undefined}
+            onClick={(event) =>
+              capture?.openCapture(descriptor.type, event.currentTarget)
+            }
+            data-testid={`today-capture-${descriptor.type}`}
+          >
+            <span className="dh-today__capture-type-icon" aria-hidden="true">
+              <EntityIcon type={descriptor.entityType} />
+            </span>
+            {descriptor.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 
   /* -- The widget registry → body map (null = the widget does not render) -- */

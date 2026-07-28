@@ -42,7 +42,7 @@ describe("Diary capture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Capture" }));
 
     await waitFor(() =>
-      expect(onCaptured).toHaveBeenCalledWith("new-1", "2026-07-20"),
+      expect(onCaptured).toHaveBeenCalledWith("new-1", "2026-07-20", false),
     );
     expect(fetchMock).toHaveBeenCalledWith(
       "/diary/new",
@@ -69,7 +69,7 @@ describe("Diary capture", () => {
     fireEvent.change(title, { target: { value: "Keyboard" } });
     fireEvent.keyDown(title, { key: "Enter", ctrlKey: true });
     await waitFor(() =>
-      expect(onCaptured).toHaveBeenCalledWith("kbd-1", "2026-07-20"),
+      expect(onCaptured).toHaveBeenCalledWith("kbd-1", "2026-07-20", false),
     );
   });
 
@@ -86,7 +86,52 @@ describe("Diary capture", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Capture" }));
     await waitFor(() =>
-      expect(onCaptured).toHaveBeenCalledWith("memory-1", "2020-01-15"),
+      expect(onCaptured).toHaveBeenCalledWith("memory-1", "2020-01-15", false),
+    );
+  });
+
+  it("keeps the panel open and clears the form for a repeated capture (MOBILE-01)", async () => {
+    mockCaptureOk("burst-1");
+    const onCaptured = vi.fn();
+    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+
+    const title = () => screen.getByRole("textbox", { name: /Title/ });
+    fireEvent.change(title(), { target: { value: "First thought" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save and add another" }),
+    );
+
+    // The workspace is told to KEEP the panel open, so a burst of entries costs
+    // one re-open rather than one per entry.
+    await waitFor(() =>
+      expect(onCaptured).toHaveBeenCalledWith("burst-1", "2026-07-20", true),
+    );
+    // …and the form is cleared and refocused, so the next entry is type-and-save.
+    await waitFor(() => expect((title() as HTMLInputElement).value).toBe(""));
+    expect(title()).toHaveFocus();
+  });
+
+  it("returns to the close-on-save path for the next ordinary capture", async () => {
+    mockCaptureOk("burst-2");
+    const onCaptured = vi.fn();
+    render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);
+    const title = () => screen.getByRole("textbox", { name: /Title/ });
+
+    fireEvent.change(title(), { target: { value: "One" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save and add another" }),
+    );
+    await waitFor(() => expect(onCaptured).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(title(), { target: { value: "Two" } });
+    fireEvent.click(screen.getByRole("button", { name: "Capture" }));
+    // The add-another intent does not stick — the plain Capture still closes.
+    await waitFor(() =>
+      expect(onCaptured).toHaveBeenLastCalledWith(
+        "burst-2",
+        "2026-07-20",
+        false,
+      ),
     );
   });
 

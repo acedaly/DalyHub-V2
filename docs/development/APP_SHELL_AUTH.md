@@ -199,6 +199,62 @@ The authenticated index route (`/`) also reads the same preference record and
 redirects to the preferred existing destination. Invalid or unavailable stored
 values fall back to `/today`; deep links to every other route bypass this logic.
 
+### MOBILE-01 phone navigation (the registry capability)
+
+MOBILE-01 replaces hamburger-only phone navigation with a persistent bottom bar —
+`Today · Tasks · Capture · Diary · More` — WITHOUT introducing a second module
+list. The bar is derived from the same registry-driven navigation model the
+desktop rail renders.
+
+A route earns a bottom-bar slot by declaring a new, validated `RouteMeta`
+capability in its OWN manifest:
+
+```ts
+// app/modules/today/routes.manifest.ts
+{
+  id: "today.index",
+  path: "today",
+  file: "routes/index.tsx",
+  meta: { navLabel: "Today", navOrder: 5, mobilePrimaryOrder: 10 },
+}
+```
+
+- `mobilePrimaryOrder` is validated like any other ordering hint, so a malformed
+  manifest **fails composition (and the build)** rather than silently dropping a
+  destination. It additionally requires `navLabel` — a phone primary destination
+  must be a navigable route.
+- The pure model in
+  [`app/shared/shell/mobile-navigation.ts`](../../app/shared/shell/mobile-navigation.ts)
+  sorts by `mobilePrimaryOrder`, then `navOrder`, then registry position, and caps
+  the result at `MOBILE_PRIMARY_DESTINATION_LIMIT` (3) so the bar can never exceed
+  its five-control budget. Capture sits mid-bar; More is always last.
+- The shell passes the **already SET-01-filtered** navigation in, so a module the
+  owner hid disappears from the bar for free.
+- **More opens the SAME complete navigation sheet** (`MobileNav`) the hamburger
+  opened, so every module — including any future one — stays one tap away.
+
+Adding, removing or reordering a phone destination is therefore a one-line
+manifest edit in the owning module. The shell holds no module list and cannot
+drift from the registry. See
+[ADR-058](../decisions/ARCHITECTURE_DECISIONS.md#adr-058-registry-driven-phone-navigation-and-quick-capture-as-a-shared-shell-framework).
+
+### MOBILE-01 shell-mounted providers
+
+The AppShell mounts, exactly once each and in addition to the DS-09/DS-10
+providers it already carried:
+
+| Provider | Purpose | Cost to the initial bundle |
+| --- | --- | --- |
+| `CaptureProvider` | The ONE shared Quick Capture surface, opened from anywhere via `useCapture()` | A context and a lazy boundary — the sheet and every panel are `lazy()` |
+| `MobileTopBarProvider` | Lets a route publish its phone top-bar title, Back target and contextual actions | State only |
+| `useKeyboardInset` | The ONLY Visual Viewport listener in the product; publishes `--dh-keyboard-inset` | One listener, one CSS custom property |
+
+`GET /capture/context` is a shell-owned JSON resource route (alongside `/search`,
+`/commands` and `/links`) serving the owner timezone, today's calendar date and
+the re-verified default Task capture parent. It is fetched **on demand** when a
+capture panel needs it — deliberately not from the app-shell loader, which runs on
+every navigation and would add a workspace read just to draw the bar.
+
 ### FND-06 route-contract refinement
 
 FND-06 modelled a route's module reference as a lazy `() => import(...)` thunk.

@@ -198,3 +198,37 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — phone Reviews                                                   */
+/*                                                                             */
+/* A review is long-form reflection, which is the hardest thing to do on a      */
+/* phone. The layout therefore gives the writing surface the viewport and keeps */
+/* progress visible, instead of presenting a wide dashboard grid.               */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* Type and date choices become full-width rows: an auto-fit grid at 320px
+   * produces one narrow column anyway, but with an awkward minimum. */
+  .dh-review-type-grid,
+  .dh-review-date-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dh-review-type-option {
+    min-block-size: var(--dh-touch-target-min);
+  }
+
+  /* Reflection prompts get the width; their editors keep a generous share of
+   * the viewport so writing never happens in a two-line box. */
+  .dh-review-prompt textarea,
+  .dh-review-prompt .dh-input--multiline {
+    min-block-size: max(30dvh, 8rem);
+  }
+
+  /* Clear the phone bottom navigation so the last prompt is reachable. */
+  .dh-reviews-page,
+  .dh-review-tab-stack {
+    padding-bottom: var(--dh-bottomnav-height, 0px);
+  }
+}

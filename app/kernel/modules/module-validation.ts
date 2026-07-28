@@ -624,7 +624,22 @@ export function validateRouteContribution(
       `${field}.meta.navOrder`,
       moduleId,
     );
-    meta = { navLabel, navGroup, navOrder };
+    // MOBILE-01: the phone primary-placement capability. Validated like any other
+    // ordering hint so a malformed manifest fails composition (and the build)
+    // rather than silently dropping a bottom-navigation destination.
+    const mobilePrimaryOrder = validateOptionalOrder(
+      rawMeta.mobilePrimaryOrder,
+      `${field}.meta.mobilePrimaryOrder`,
+      moduleId,
+    );
+    if (mobilePrimaryOrder !== undefined && navLabel === undefined) {
+      throw new ModuleDefinitionError(
+        `${field}.meta.mobilePrimaryOrder`,
+        "requires meta.navLabel — a phone primary destination must be a navigable route",
+        moduleId,
+      );
+    }
+    meta = { navLabel, navGroup, navOrder, mobilePrimaryOrder };
   }
 
   return {

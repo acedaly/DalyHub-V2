@@ -1260,3 +1260,78 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
   Time conversion is deterministic and testable, but any local datetime form must
   route through the trusted server conversion path rather than serialising browser
   local assumptions.
+
+---
+
+## ADR-058: Registry-driven phone navigation, and Quick Capture as a shared shell framework
+
+- **Date.** 2026-07-28 (MOBILE-01).
+- **Status.** Accepted.
+- **Context.** Phone navigation was hamburger-only: every destination, including
+  the three the owner visits daily, sat behind a top-left toggle that a thumb
+  cannot reach one-handed. Separately, "capture" had drifted — Today's Quick
+  Capture was an honest fixture that saved nothing (TODAY-07), Diary had its own
+  capture inspector, Tasks had a Drawer form, Notes and Meetings had create
+  routes, and the Person record offered three placeholder buttons that only
+  raised a toast. A phone user had no single fast way to put something into the
+  system, and each module was free to invent another one.
+
+  Two obvious implementations were rejected outright. A **hard-coded bottom-bar
+  module list** in the shell would be a second navigation source of truth
+  alongside the module registry — precisely the central switch statement
+  ADR-016 §5.9 exists to prevent, and it would silently drift the first time a
+  module was added, renamed or hidden. A **capture surface per module** would
+  multiply create paths, validators and Activity semantics across seven modules.
+
+- **Decision.**
+  1. **A phone destination is a MODULE CAPABILITY, not shell configuration.** A
+     navigable route opts into the bottom bar by declaring `meta.mobilePrimaryOrder`
+     in its own `routes.manifest.ts`. It is validated with the other ordering
+     hints (a malformed value fails composition and therefore the build) and
+     additionally requires `navLabel`. The shell derives the bar from the SAME
+     registry-driven navigation model the desktop rail renders, sorts by the
+     declared order and caps the result at three destinations so the bar cannot
+     exceed its five-control budget. "More" opens the unchanged, complete
+     registry-driven navigation sheet, so no module is reachable only through a
+     second list. Because the shell receives the already-SET-01-filtered
+     navigation, a hidden module leaves the bar with no extra logic.
+  2. **Quick Capture is ONE shared shell framework over the modules' canonical
+     creation authorities.** A `CaptureProvider` mounted once by the AppShell
+     exposes `useCapture()`; every panel posts to the module's own trusted
+     creation route (`/tasks/new`, `/diary/new`, `/meetings/create`,
+     `/notes/new`) and, where a capture writes prose, to that module's own
+     mutation. There is no capture-only store, validator, create route or
+     Activity path. The sheet and every panel are lazy-loaded, so the framework
+     costs the initial bundle a context and a lazy boundary.
+  3. **The capture sheet's trusted context is a SHELL resource route.** `GET
+     /capture/context` serves the owner timezone, today's calendar date and the
+     re-verified default Task capture parent. It lives at the shell, not inside
+     Tasks, because the capture sheet serves four modules and a module route
+     serving another module's context would breach the module import boundary.
+     It is fetched on demand rather than from the app-shell loader, so drawing
+     the bottom bar costs no workspace read.
+  4. **One phone overlay surface, over the existing modal machinery.** Every
+     phone-scale sheet MOBILE-01 introduces composes the DS-03 hooks
+     (`useDrawerFocus`, `useInertBackground`, `useBodyScrollLock`). There is still
+     exactly one focus-trap implementation in DalyHub.
+  5. **Keyboard-aware layout is one listener and one token.** The Visual Viewport
+     API is read in exactly one place, which publishes `--dh-keyboard-inset`;
+     every keyboard-aware surface is styled in CSS against it. A form never adds
+     its own resize listener.
+
+- **Consequences.** Adding, removing or reordering a phone destination is a
+  one-line manifest edit in the owning module, and the bar cannot drift from the
+  registry. Adding a capture type is a change in one place that every surface
+  gains at once, and a module's creation rules can never be bypassed by capturing.
+  The costs are real and accepted: the shell now owns a small amount of phone
+  presentation (a bar, a top bar, a capture provider) that did not previously
+  exist; a fourth module wanting phone primary placement will be refused a slot by
+  the cap and must argue for displacing an existing one; and the capture panels
+  couple the shell to four modules' HTTP contracts (not their code) — which is the
+  same coupling the Command Palette already accepts, and is what keeps the
+  authorities canonical.
+
+  Deliberately NOT decided here: pre-linking a captured record to the context it
+  was captured from (a Person, a Project). That needs a link-intent contract the
+  capture framework does not yet have, and is recorded as outstanding rather than
+  approximated.

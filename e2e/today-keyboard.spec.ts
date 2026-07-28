@@ -122,13 +122,24 @@ test.describe("TODAY-05 — shortcut boundary", () => {
     page,
   }) => {
     await openTodayList(page);
-    const capture = page.getByPlaceholder("What needs your attention?");
-    await capture.click();
-    await capture.type("prep");
-    // 'p' and other letters are typed, not swallowed as a plan/complete shortcut,
-    // and no Drawer/help overlay opened.
+    // TODAY-07 retired the fixture textarea this used to type into. The field a
+    // user actually types into from Today is now the shared capture sheet's
+    // title, so the boundary is proven against that instead — the rule under
+    // test ("letters reach the field, they do not fire task shortcuts") is
+    // unchanged, only the field it is proven on.
+    await page.getByTestId("today-capture-task").click();
+    const capture = page.getByLabel("Title");
+    await expect(capture).toBeFocused();
+    await capture.pressSequentially("prep");
+
+    // 'p' and the rest are typed, not swallowed as plan/complete shortcuts...
     await expect(capture).toHaveValue("prep");
-    await expect(page.getByRole("dialog")).toBeHidden();
+    // ...and nothing behind the sheet was completed or replanned. (The sheet
+    // itself is a dialog and is SUPPOSED to be open, so the old blanket
+    // "no dialog" assertion is replaced by the specific side effects that would
+    // mean a shortcut had fired.)
+    await expect(page.getByText(/Task completed/i)).toHaveCount(0);
+    await expect(page.getByText(/Plan updated|tasks planned/i)).toHaveCount(0);
   });
 
   test("a task shortcut does not fire behind the keyboard-help Drawer", async ({

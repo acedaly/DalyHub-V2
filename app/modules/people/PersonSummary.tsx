@@ -6,8 +6,13 @@
  * do we interact, and what have we shared. It renders, in order:
  *
  *   1. identity — avatar, name/pronouns, organisation and role, relationship;
- *   2. quick actions (Call / Email / Copy work today; the rest are honest
- *      placeholders that explain what they will do rather than dead-ending);
+ *   2. quick actions — Call / Email / Copy act on real contact data through
+ *      standard `tel:`/`mailto:` URIs (never a fake integration), and, since
+ *      MOBILE-01, New Task / Diary entry / New Meeting / New Note open the SHARED
+ *      capture sheet so each creates a real record through its module's canonical
+ *      route instead of dead-ending in a toast. Pre-linking the created record to
+ *      this Person is deliberately still outstanding — the labels name the record,
+ *      not the person, so nothing is implied that does not happen;
  *   3. the PEOPLE-03 **relationship summary** — DS-13 shared summary cards over the
  *      derived aggregate, every card leading to the surface that opens the records
  *      behind it;
@@ -21,6 +26,7 @@
 import { useCallback } from "react";
 
 import type { PersonRelationship } from "~/kernel/relationships";
+import { useCapture } from "~/shared/capture";
 import { useFeedback } from "~/shared/feedback";
 import { StayInTouchPanel } from "~/shared/relationships";
 import { SummaryCards } from "~/shared/summary-cards";
@@ -49,6 +55,9 @@ export function PersonSummary({
   onEditContact,
 }: PersonSummaryProps) {
   const feedback = useFeedback();
+  // The ONE shared capture surface. Null outside the AppShell (an isolated render),
+  // where the entries simply do nothing rather than throwing.
+  const capture = useCapture();
   const phone = person.mobile ?? person.workPhone;
 
   const copy = useCallback(
@@ -172,24 +181,41 @@ export function PersonSummary({
         >
           Email
         </a>
+        {/* MOBILE-01 — these three were honest placeholders that dead-ended in a
+            toast. They now open the SHARED capture sheet on the right type, so
+            each creates a real record through its module's canonical route.
+            The created record is NOT yet pre-linked to this Person — that is
+            recorded as deliberately outstanding rather than implied by the
+            wording, which is why each label names the record, not the person. */}
         <button
           type="button"
           className="dh-btn dh-btn--secondary"
-          onClick={() => placeholder("Logging a diary entry for this person")}
+          onClick={(event) => capture?.openCapture("task", event.currentTarget)}
+        >
+          New Task
+        </button>
+        <button
+          type="button"
+          className="dh-btn dh-btn--secondary"
+          onClick={(event) =>
+            capture?.openCapture("diary", event.currentTarget)
+          }
         >
           Diary entry
         </button>
         <button
           type="button"
           className="dh-btn dh-btn--secondary"
-          onClick={() => placeholder("Scheduling a meeting with this person")}
+          onClick={(event) =>
+            capture?.openCapture("meeting", event.currentTarget)
+          }
         >
-          Meeting
+          New Meeting
         </button>
         <button
           type="button"
           className="dh-btn dh-btn--secondary"
-          onClick={() => placeholder("Writing a linked note")}
+          onClick={(event) => capture?.openCapture("note", event.currentTarget)}
         >
           New Note
         </button>

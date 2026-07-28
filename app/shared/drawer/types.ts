@@ -71,6 +71,37 @@ export interface DrawerRenderResult {
    * Drawer focuses its close button, then the first focusable control.
    */
   readonly initialFocusRef?: RefObject<HTMLElement | null>;
+  /**
+   * MOBILE-01 — contextual actions rendered in the Drawer's own header, beside
+   * Close. On a phone the Drawer IS the record's screen, so its overflow menu and
+   * one or two record actions belong in the chrome rather than in a second header
+   * below it. Keep this to an overflow menu plus at most one action; anything more
+   * belongs in the record body.
+   */
+  readonly headerActions?: ReactNode;
+  /**
+   * MOBILE-01 — a sticky action region pinned to the bottom of the Drawer.
+   *
+   * Use it for the record's PRIMARY commitment (Save, Complete, Add) so it stays
+   * reachable without scrolling a long record to its end. The region is
+   * keyboard-aware: it sits above the on-screen keyboard via the shared
+   * `--dh-keyboard-inset` token and above the home indicator via the safe-area
+   * inset, so it can never cover the field being typed into.
+   *
+   * It is NOT a place for secondary or destructive actions — those stay in the
+   * overflow menu (PX-04), so the sticky region never becomes a second toolbar.
+   */
+  readonly stickyActions?: ReactNode;
+  /**
+   * MOBILE-01 — suppress the record's own repeated title inside the body.
+   *
+   * The Drawer header already names the record. A record that renders a full
+   * DS-02 Record Header beneath it shows the SAME title twice, which costs a
+   * phone the most valuable rows on the screen. A consumer sets this and passes
+   * `compactHeader` to its Record Layout; the Drawer surfaces it as a data
+   * attribute so the styling is one rule rather than a prop threaded everywhere.
+   */
+  readonly titleInHeaderOnly?: boolean;
 }
 
 /**

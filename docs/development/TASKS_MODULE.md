@@ -249,3 +249,63 @@ the Do/Defer/Delegate/Delete wording where it is specifically methodological.
 `/tasks?system=upcoming` is a bounded, server-authoritative system view for open
 non-terminal work scheduled or due after the owner-calendar day. Existing Matrix
 and Time Sectors deep links remain valid.
+
+## Phone workspace (MOBILE-01)
+
+MOBILE-01 changes the CHROME above the list and adds one-tap edits to the rows.
+It changes no query, no view model, no mutation and no URL contract.
+
+### One row of controls, one shared sheet
+
+At phone widths the desktop system-view rail, the view switcher and the All-view
+sort select collapse into a single row — a **Filter** button carrying its active
+count, plus a visible summary of what is applied — with everything else in the ONE
+shared collection sheet (`CollectionControls`, see
+[`DESIGN_SYSTEM.md → Mobile platform`](../design/DESIGN_SYSTEM.md#mobile-platform-mobile-01)).
+
+The sheet's groups write the SAME URL parameters the desktop controls write:
+
+| Group | Parameter | Kind |
+| --- | --- | --- |
+| View | `?system=` | `view` (the system views are the product's saved views today; X-02's user-defined ones extend this group) |
+| Priority | `?priority=` | `filter` |
+| Time sector | `?sector=` | `filter` |
+| Layout | `?view=` | `group` |
+| Sort | `?sort=` | `sort` |
+
+So the phone sheet is a different way to reach the same state, never a second
+filter model: deep links, Back/Forward and sharing behave identically. The badge
+counts only the `filter` groups — changing the sort or the layout does not make a
+list filtered, and a badge that claimed otherwise would be useless.
+
+### One-tap edits from the list
+
+A task row offers **Complete/Reopen** and **Plan today** as visible, labelled
+44px quick actions, with priority changes and "Clear scheduled date" in the shared
+overflow menu. Every one posts to a canonical route — completion to
+`POST /tasks/:taskId` (`intent=complete|reopen`, the atomic task-domain operation
+of ADR-029 that the Task Drawer's own button uses), field changes to the trusted
+`/tasks/bulk` mutation with a single id. **There is no list-only mutation.** The
+loader is revalidated after each change, so a row reflects the server rather than
+an optimistic guess that could disagree with it.
+
+The swipe tray (TODAY-06 / ADR-032) reveals exactly these `quickActions`, so it
+remains an accelerator and nothing is gesture-only.
+
+### Card metadata priority
+
+Task cards declare `priority` on their metadata: the shared `PriorityIndicator`
+and `UrgencyChip` are `high` (the signals a user scans for), while the time sector
+and the delegate are `low` — de-emphasised on a narrow card, still readable, still
+in the accessibility tree. This is the module declaring what its record leads
+with, replacing any temptation to hide fields with entity-specific CSS.
+
+### What was ALREADY correct
+
+Recorded so it is not re-litigated: the **Matrix and Time Sectors views have been
+mobile-first stacked since TASKS-01** — the 2×2 grid and the multi-column sectors
+are opt-in above `md`, so a phone has never seen a compressed grid. Likewise the
+**Task Drawer already surfaces** completion, waiting, scheduled and due dates,
+priority, urgency, parent and sector in its Summary, so those common properties
+never required opening the Details edit form. MOBILE-01 verified both rather than
+rebuilding them.

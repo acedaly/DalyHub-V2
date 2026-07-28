@@ -14,7 +14,11 @@
 
 import { expect, test } from "@playwright/test";
 
-import { expectMinTouchTarget, gotoFixture } from "./helpers";
+import {
+  expectMinTouchTarget,
+  gotoFixture,
+  mobileNavigationOpener,
+} from "./helpers";
 import { cleanupNoteByTitle, uniqueNoteTitle } from "./notes-fixtures";
 
 test.describe("touch targets — shell (mobile)", () => {
@@ -24,16 +28,14 @@ test.describe("touch targets — shell (mobile)", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    await expectMinTouchTarget(
-      page.getByRole("button", { name: /open navigation/i }),
-    );
+    await expectMinTouchTarget(mobileNavigationOpener(page));
   });
 
   test("the mobile navigation sheet’s close control meets the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
-    await page.getByRole("button", { name: /open navigation/i }).click();
+    await mobileNavigationOpener(page).click();
     await page.getByRole("dialog", { name: /navigation/i }).waitFor();
     await expectMinTouchTarget(
       page.getByRole("button", { name: /close navigation/i }),
@@ -170,9 +172,15 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     // formatting toolbar plus a Read toggle. Sample a toolbar button and the
     // toggle — all share the same 44px-floor rule.
     const toolbar = page.getByRole("toolbar", { name: "Formatting" });
-    for (const name of ["Bold", "Checklist", "Table"] as const) {
+    for (const name of ["Bold", "Checklist"] as const) {
       await expectMinTouchTarget(toolbar.getByRole("button", { name }));
     }
+    // MOBILE-01 moved the low-frequency commands behind "More" INSIDE the same
+    // toolbar, so a phone is not given a permanent row of every command. They are
+    // still toolbar buttons held to the same 44px floor — reveal and measure one.
+    await expectMinTouchTarget(toolbar.getByRole("button", { name: "More" }));
+    await toolbar.getByRole("button", { name: "More" }).click();
+    await expectMinTouchTarget(toolbar.getByRole("button", { name: "Table" }));
     await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
 
     // Removal itself now runs through the same overflow menu measured above —

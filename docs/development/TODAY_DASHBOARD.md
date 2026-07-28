@@ -429,6 +429,48 @@ shared layer (no mobile card, no parallel mobile tree) and accepted via
   selection meets 44px on touch, and the app-shell mobile bar is a `header` so its
   brand + menu toggle are in the `banner` landmark on mobile.
 
+## Phone shell & Quick Capture (MOBILE-01, and TODAY-07 delivered)
+
+MOBILE-01 completes Today's phone story on top of TODAY-06's touch work. Nothing
+below replaces the swipe accelerator or the adapted composition described above.
+
+### Quick Capture is now real (this delivers TODAY-07)
+
+The Quick Capture widget was an honest fixture: a textarea that saved nothing and
+said so. It is now the **shared capture surface**
+([`app/shared/capture`](../../app/shared/capture)) — four typed entries (Task,
+Diary entry, Meeting, Note), each opening the one capture sheet that posts to the
+module's canonical creation route. Today therefore has **no capture path of its
+own** to keep in step with the modules, and the same flow is reached from the
+phone bottom bar, the Command Palette and this widget.
+
+The PX-03 keyboard route into capture is unchanged: the module's registered
+`today.focus_quick_capture` NAVIGATE command, the `c` shortcut and Morning
+Brief's capture link all still restore/expand the widget and land focus — now on
+the first capture entry rather than the retired textarea.
+
+### One capture affordance per viewport
+
+At phone width the pane-header **"Quick capture" button is hidden**, because the
+bottom bar's Capture control opens the same sheet. Two controls for one action is
+exactly the "button competing with a floating action" the mobile principles
+forbid. Nothing becomes unreachable: the bottom bar carries it, and the in-page
+widget with its four typed entries is untouched. Above `md`, where there is no
+bottom bar, the header button is the entry point exactly as before.
+
+### Phone scanning
+
+The first viewport is meant to answer *what must I do*, *what is due*, and *what
+am I waiting on*. On a phone the vertical rhythm tightens and section labels take
+real weight — on a long scroll they are the only orientation the user has. The
+planning sections, priority/urgency signals, one-tap completion and the Waiting
+summary (which names who or what each item waits on) are the TODAY-03/04/06
+components unchanged; the customise toolbar drops to the end of the page so a
+low-frequency control stops competing with the day's work.
+
+Collections and the pane reserve `--dh-bottomnav-height`, so the last card is
+never trapped under the bar, and the bulk-action bar sits above it.
+
 ## Command centre (TODAY-08)
 
 TODAY-08 makes Today DalyHub's primary landing page and working **command centre** —

@@ -14,7 +14,8 @@ const routes: readonly RouteContribution[] = [
     id: "tasks.index",
     path: "tasks",
     file: "routes/index.tsx",
-    meta: { navLabel: "Tasks", navOrder: 40 },
+    // MOBILE-01: Tasks is the second phone bottom-navigation destination.
+    meta: { navLabel: "Tasks", navOrder: 40, mobilePrimaryOrder: 20 },
   },
   // TASKS-01: workspace-level resource routes. Static segments are declared BEFORE
   // the dynamic `tasks/:taskId` so they never shadow a real task id. `bulk` runs

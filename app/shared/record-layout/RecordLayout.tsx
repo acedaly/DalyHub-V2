@@ -14,6 +14,8 @@
 
 import { useId } from "react";
 
+import { useSetMobileTopBar } from "~/shared/shell/mobile-top-bar-context";
+
 import { RecordHeader } from "./RecordHeader";
 import { RecordSummary } from "./RecordSummary";
 import { RecordTabs } from "./RecordTabs";
@@ -47,6 +49,19 @@ export function RecordLayout({
   const generatedId = useId();
   const resolvedTitleId = titleId ?? `record-title-${generatedId}`;
   const hasTabs = tabs !== undefined && tabs.length > 0;
+
+  // MOBILE-01 — the phone bar says which RECORD you are in, and its Back goes
+  // where the breadcrumb already says this record lives, so the bar needs no
+  // navigation knowledge of its own. Every record view composes this layout, so
+  // one call here covers the product rather than one per module. Desktop is
+  // unaffected: the bar it feeds is `display: none` above `md`.
+  useSetMobileTopBar({
+    title,
+    // The last step is often the record itself and hrefless, so Back goes to the
+    // nearest ancestor that IS a destination.
+    backTo:
+      [...(breadcrumb ?? [])].reverse().find((step) => step.href)?.href ?? null,
+  });
 
   return (
     <article className="record-layout" aria-labelledby={resolvedTitleId}>

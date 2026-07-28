@@ -41,9 +41,128 @@
   border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
 }
 
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — the phone collection controls & sheet                           */
+/* -------------------------------------------------------------------------- */
+
+/* Rendered at every width but only SHOWN on a phone (see the media query below),
+ * so the swap is server-correct with no viewport sniffing. */
+.dh-collection__mobile-controls {
+  display: none;
+}
+
+.dh-collection-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.dh-collection-controls__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  flex: none;
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+}
+
+/* The active-filter count: a TEXT badge, so it is legible without colour and
+ * announced with its own visually-hidden explanation. */
+.dh-collection-controls__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.25rem;
+  padding: 0 var(--dh-space-1);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* What is applied, before the sheet is opened — a filtered list is never
+ * silently short. */
+.dh-collection-controls__summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-collection-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-collection-sheet__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-collection-sheet__label {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-muted);
+}
+
 @media (max-width: 48rem) {
   .dh-collection__content {
     padding-block: var(--dh-space-4) var(--dh-space-6);
+    /* Clear the phone bottom navigation so the last card is never trapped
+     * underneath it. */
+    padding-bottom: calc(var(--dh-space-6) + var(--dh-bottomnav-height, 0px));
+  }
+
+  /* On a phone the ONE control row replaces the desktop filter bar and view
+   * switcher — content before chrome. */
+  .dh-collection--has-mobile-controls .dh-collection__filters,
+  .dh-collection--has-mobile-controls .dh-pane-header__views {
+    display: none;
+  }
+
+  .dh-collection__mobile-controls {
+    display: block;
+    padding: var(--dh-space-2) var(--dh-gutter) var(--dh-space-3);
+    border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  }
+
+  /* A compact pane header: the title and its count on one line, the primary
+   * action beside them — one row, not three. */
+  .dh-collection .dh-pane-header {
+    gap: var(--dh-space-2);
+    padding: var(--dh-space-3) var(--dh-gutter);
+    align-items: center;
+  }
+
+  .dh-collection .dh-pane-header__title {
+    font-size: var(--dh-font-size-xl);
+  }
+
+  /* Bulk actions sit ABOVE the bottom navigation, never under it. */
+  .dh-collection__selection {
+    bottom: var(--dh-bottomnav-height, 0px);
+    padding-block-end: var(--dh-space-3);
   }
 
   /* TODAY-06: when the mobile bar has scrolled away and the pane header pins to
@@ -56,5 +175,23 @@
    * safe-area contract). */
   .dh-collection__sticky {
     top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* MOBILE-01 — below `md` the collection header does NOT stick.
+ *
+ * With a fixed bottom bar now occupying the other end of the viewport, a sticky
+ * filter header leaves a thin clickable band between the two, and a card scrolled
+ * into that band lands under one layer or the other. In the Notes collection that
+ * made list rows genuinely unclickable — Playwright reported the sticky form and
+ * the bottom bar alternately intercepting the same link for 150 seconds.
+ *
+ * A phone has too little height to spend a permanent slice of it on filter chrome
+ * anyway (PRODUCT_EXPERIENCE: content before chrome), so the header scrolls away
+ * with the content and the bottom bar keeps navigation always reachable. Above
+ * `md` the sticky header is unchanged. */
+@media (max-width: 48rem) {
+  .dh-collection__sticky {
+    position: static;
   }
 }

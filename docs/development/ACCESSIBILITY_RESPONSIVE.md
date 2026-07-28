@@ -84,7 +84,10 @@ same vocabulary, adapted layout.
 
 - **No horizontal overflow, ever, from 320px up.** Metadata wraps, long tokens
   break, nothing forces a fixed width wider than the smallest supported viewport.
-  Enforced automatically (see below) at 320 / 375 / 390 / 768 / 1024 / 1440 / 2560.
+  Enforced automatically (see below) across the canonical matrix — 320 / 375 /
+  390 / 430 / **844×390 phone landscape** / 768 / 1024 / 1440 / 2560. MOBILE-01
+  added the last two of those: the large-phone width most current handsets report,
+  and the first entry where HEIGHT is the binding dimension.
 - **Breakpoints are tokens.** `--dh-breakpoint-sm … 2xl` in
   [`tokens.css`](../../app/styles/tokens.css), mirrored as numbers in
   [`app/shared/tokens/tokens.ts`](../../app/shared/tokens/tokens.ts) (a test keeps
@@ -209,6 +212,129 @@ adapted layouts) on top of this inherited baseline — not about re-establishing
 
 ---
 
+## The MOBILE-01 phone platform
+
+MOBILE-01 sits ON this baseline. DS-11 guarantees a phone screen is *usable*;
+MOBILE-01 makes the daily workflows *quick*. The accessibility rules below are
+additions to the contract above, not replacements — everything in this document
+still holds.
+
+### Keyboard-aware layout: one listener, one token
+
+The on-screen keyboard does not resize the layout viewport in most mobile
+browsers; it overlays it. Anything anchored to the bottom of the viewport — a
+sheet's Save button, a Drawer's sticky actions, the Meeting capture bar, the
+bottom navigation — therefore ends up UNDER the keyboard unless the app knows how
+tall it is. The Visual Viewport API is the only reliable source.
+
+DalyHub reads it in **exactly one place**: `useKeyboardInset`
+([`app/shared/viewport`](../../app/shared/viewport)), mounted once by the
+AppShell. It publishes the resolved height as **`--dh-keyboard-inset`** on the
+document element, and every keyboard-aware surface is then styled purely in CSS
+against that token.
+
+- **A form never measures anything.** Per-form resize listeners are the
+  layout-thrashing pattern the performance budget forbids; a form opts in by
+  consuming the token (or by setting `FormActions sticky`), never by observing.
+- **A noise threshold** (96px) ignores a collapsing URL bar or a rubber-band
+  scroll, so sticky controls do not jitter while the user scrolls.
+- **Updates are coalesced** into one `requestAnimationFrame` and written only when
+  the value actually changes, so a keyboard opening costs one style write.
+- It is **SSR-safe** and degrades to `0px` where the API is absent — there the
+  layout viewport really does resize and `100dvh` is already correct.
+
+**`--dh-bottomnav-height`** is the companion token: the space the phone bottom bar
+occupies (`0px` at every other width), reserved by scrolling surfaces and
+bottom-anchored controls so nothing is trapped underneath it.
+
+### Mobile browser zoom
+
+A focused text input whose computed `font-size` is below **16px** makes iOS Safari
+zoom the page — and leave it zoomed, which is how a phone form ends up
+horizontally scrolled with its Save button off-screen. DalyHub's body scale is
+15px and its Markdown source scale 13px, so under `(hover: none)` every
+text-entry control is raised to exactly 16px. This is a **touch-only floor**: the
+desktop type scale is unchanged and nothing ever shrinks.
+
+### Landmarks and the second navigation
+
+The phone bottom bar is its own `navigation` landmark labelled **`Quick
+navigation`**, deliberately distinct from the sidebar's `Primary`. Both are in the
+DOM at once (each is `display: none` at the other's viewport), and two same-named
+landmarks are ambiguous to a screen-reader user browsing by landmark. Its active
+destination carries `aria-current="page"` **and** an indicator bar, a filled icon
+treatment and a semibold label — never colour alone — and exactly one destination
+is active for any path.
+
+Every bottom-bar control keeps a permanently visible text label. There are no
+icon-only controls in primary navigation, at any width.
+
+### Sheets reuse the modal machinery
+
+The one shared `Sheet` ([`app/shared/sheet`](../../app/shared/sheet)) — used by
+Quick Capture, the collection filter/sort/view sheet and the More navigation —
+composes the **same DS-03 hooks** listed above. There is still exactly ONE
+focus-trap implementation in DalyHub. A sheet:
+
+- traps focus, inerts the background, locks body scroll and restores focus to its
+  opener, all through those hooks;
+- stops `Escape` propagation, so a sheet opened over a Drawer closes only itself —
+  never both;
+- makes its BODY the only scroll container with `overscroll-behavior: contain`, so
+  there is no nested scroll trap and scrolling never chains to the page behind it;
+- caps its height by `--dh-keyboard-inset`, so its sticky footer is above the
+  keyboard rather than under it.
+
+### Command-button rows and tab strips, revisited
+
+The NOTES-04 toolbar lesson above still stands — a command row is a
+`role="toolbar"` with roving tabindex and exactly ONE Tab stop. MOBILE-01 adds
+that a row should not carry every low-frequency command permanently: the writing
+toolbar offers six common actions directly and reveals the rest behind a "More"
+toggle **inside the same toolbar**, so the single-Tab-stop guarantee and
+Arrow/Home/End navigation across everything on screen are preserved rather than
+traded for a second focus surface.
+
+The Record Layout's tab strip takes the same shape for a different reason: below
+`md`, a record with more than four tabs moves the surplus into a labelled
+**"More sections"** menu (the shared DS-12 menu, placed OUTSIDE the `tablist`,
+which may contain only tabs). The active tab always swaps into the inline strip;
+Arrow keys move within what is visible, so focus never lands on a control the user
+cannot see; selecting from the menu moves focus onto the now-inline tab; and
+nothing — including Activity and Settings — is hidden permanently. Above `md`
+every tab renders inline exactly as before.
+
+### Nothing is hidden to look tidy
+
+Two rules the phone presets hold to:
+
+- A **card title wraps, never truncates** — it is the one thing the user is
+  scanning for. It is the subtitle that clamps.
+- **Low-priority metadata is de-emphasised, not removed.** `CardMetaItem.priority`
+  is a MODULE declaration of what its record leads with; low-priority items stay
+  rendered, readable and in the accessibility tree at every width.
+
+### Gestures remain accelerators
+
+Unchanged from TODAY-06 / ADR-032, and re-asserted for every surface MOBILE-01
+touches: a swipe may accelerate an action, but the action must also exist as an
+ordinary, visible, keyboard-accessible control. The Tasks list's swipe tray
+reveals exactly the `quickActions` already rendered on the card.
+
+### Extra verification MOBILE-01 adds
+
+- `e2e/mobile-shell.spec.ts` — the phone shell driven end to end at 390px, 320px
+  and phone landscape with touch emulation: the bottom bar's contract, one-tap
+  navigation and Back, the 44px targets, the More sheet's completeness and focus
+  restoration, Search within two taps, the full Quick Capture flow (including
+  title-plus-Enter and repeated capture), Escape with no nested trap, axe in light
+  and dark with the sheet open, and 200% zoom.
+- `RESPONSIVE_VIEWPORTS` gains **phone landscape (844×390)**, which the matrix
+  previously had no coverage for — a real orientation with a genuinely different
+  constraint (a very short viewport with sticky top and bottom chrome).
+
+---
+
 ## Related documents
 
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — the patterns and their
@@ -218,3 +344,39 @@ adapted layouts) on top of this inherited baseline — not about re-establishing
 - [`ROADMAP_V2.md → DS-11`](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
 - [`AGENTS.md §15`](../../AGENTS.md#15-accessibility-requirements) — the requirement.
 - [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) — the axe-core reuse assessment.
+
+### Measured bundle cost (MOBILE-01)
+
+Production `pnpm run build`, client JS, measured before and after the change on
+the same machine. Chunk names are normalised (the content hash stripped) and
+sizes aggregated per name, because Rolldown re-splits chunks between builds.
+
+| | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| Total client JS | 1,684,143 B | 1,720,997 B | **+36,854 B (+2.2%)** |
+| Chunks | 160 | 168 | +8 |
+| `entry.client` | 182,473 B | 182,473 B | **0** |
+
+**The initial application bundle is byte-for-byte unchanged.** That is the number
+that matters: everything MOBILE-01 adds is either lazy or tiny.
+
+New chunks, all lazy or shell-level:
+
+| Chunk | Size | When it loads |
+| --- | ---: | --- |
+| `CaptureSheet` | 13,871 B | First time Quick Capture is opened |
+| `sheet` | 2,663 B | With the first sheet |
+| `capture` | 2,372 B | Split across the capture panels |
+| `quick` | 2,031 B | The shared quick-capture parser, with the Task panel |
+| `viewport` | 994 B | The shell (the keyboard-inset observer) |
+
+The largest per-route growth is `app` (+3,757 B — the shell's bottom bar, top bar
+and providers) and `collection` (+3,131 B — the shared controls and filter sheet).
+`manifest` grows 2,011 B because there is one more route (`/capture/context`).
+No route chunk shrank or grew materially otherwise, and route-level code splitting
+is unchanged.
+
+Search and the Command Palette remain lazy (`SearchSurface` and `CommandPalette`
+are still separate chunks and did not move into the shell), the bottom bar loads
+no module code to render itself, and the capture context is fetched on demand
+rather than in the app-shell loader.

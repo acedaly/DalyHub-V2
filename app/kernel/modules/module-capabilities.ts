@@ -70,6 +70,20 @@ export type RouteMeta = {
   readonly navGroup?: string;
   /** Optional ordering hint within a navigation group. */
   readonly navOrder?: number;
+  /**
+   * MOBILE-01 — the phone primary-placement capability. When a navigable route
+   * declares a finite `mobilePrimaryOrder`, it OPTS IN to a slot in the phone
+   * bottom navigation bar, ordered by this value (ties broken by `navOrder`,
+   * then registry position). The shell keeps at most
+   * `MOBILE_PRIMARY_DESTINATION_LIMIT` of them so the bar never exceeds its
+   * five-control budget; the rest stay in the registry-driven "More" sheet.
+   *
+   * This is deliberately a MODULE-DECLARED capability rather than a hard-coded
+   * shell list: adding, removing or reordering a phone destination is a manifest
+   * edit in the owning module, so the bar can never drift from the registry.
+   * See ADR-046 and `app/shared/shell/mobile-navigation.ts`.
+   */
+  readonly mobilePrimaryOrder?: number;
 };
 
 /**

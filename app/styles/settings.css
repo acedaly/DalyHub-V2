@@ -663,3 +663,55 @@
     min-height: var(--dh-touch-target-min);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — phone Settings                                                  */
+/*                                                                             */
+/* Settings is low-frequency on a phone but must stay COMPLETE. The section     */
+/* navigation already collapses to a scrolling row and the page to one column   */
+/* (above); what remains is the ROW itself, which was a two-column              */
+/* label-then-control layout that squeezes both at 320px.                       */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* A setting row stacks: the label and its description get the full width,
+   * then the control below at a comfortable size. Nothing is hidden — the
+   * description is what makes a preference understandable. */
+  .dh-settings-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--dh-space-2);
+  }
+
+  .dh-settings-row__control {
+    inline-size: 100%;
+  }
+
+  /* Selects and search pickers fill the row and meet the touch target, so a
+   * preference is never a 2mm-tall control at the edge of the screen. */
+  .dh-settings-row__control select,
+  .dh-settings-row__control .dh-input,
+  .dh-settings-row__control .dh-combobox,
+  .dh-settings-row__control .dh-btn {
+    inline-size: 100%;
+    min-block-size: var(--dh-touch-target-min);
+  }
+
+  /* A switch stays its natural size and aligns to the start of the stacked row
+   * rather than stretching into an odd wide toggle. */
+  .dh-settings-row__control:has(.dh-settings-switch) {
+    inline-size: auto;
+    align-self: flex-start;
+  }
+
+  /* The destructive region keeps its clear separation on a phone: the border and
+   * the heading do the work, so it is never just "the last row". */
+  .dh-settings-group--danger {
+    padding-inline: var(--dh-space-4);
+  }
+
+  /* Clear the phone bottom navigation. */
+  .dh-settings-page {
+    padding-bottom: calc(var(--dh-space-6) + var(--dh-bottomnav-height, 0px));
+  }
+}

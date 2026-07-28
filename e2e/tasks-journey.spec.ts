@@ -248,8 +248,15 @@ test.describe("TASKS-01 — full journey", () => {
 
     // Bulk complete → it appears in the Completed view and leaves the active Matrix.
     await selectTask(page, "Journey task Charlie");
+    // Scoped to the bulk bar and matched EXACTLY: Playwright matches an
+    // accessible name as a case-insensitive substring by default, and MOBILE-01
+    // gave every task card a one-tap "Complete <title>" action — so an unscoped
+    // { name: "Complete" } now resolves to the bar's button AND every row's.
     await runBulk(page, () =>
-      page.getByRole("button", { name: "Complete" }).click(),
+      page
+        .getByRole("group", { name: "Bulk task actions" })
+        .getByRole("button", { name: "Complete", exact: true })
+        .click(),
     );
     await gotoFixture(page, "/tasks?system=completed");
     await page
@@ -317,6 +324,14 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
   test("no horizontal overflow across views after creating a task", async ({
     page,
   }) => {
+    // This test creates a task and then performs SIXTEEN full navigations (four
+    // views × four widths), each a real server render followed by hydration. On a
+    // green local run it measures 31.7s — past the 30s default, which was sized
+    // when the shell was lighter. The budget is raised to match the measured work;
+    // not one assertion is relaxed and no wait is inserted, so a genuine overflow
+    // still fails the poll exactly as before.
+    test.setTimeout(90_000);
+
     await gotoFixture(page, "/tasks?view=all");
     await createJourneyTask(page, {
       title: "Journey task Echo",

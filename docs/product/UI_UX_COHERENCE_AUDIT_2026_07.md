@@ -562,3 +562,37 @@ creation forms, owner-timezone datetime conversion, searchable attendees, a
 five-tab record, explicit Action items, Action-only Follow-up semantics and shared
 Cards in the collection. The larger audit backlog remains active where not named
 in that note.
+
+## Post-audit implementation note (MOBILE-01, 2026-07-28)
+
+MOBILE-01 followed UX-01 and closed several audit findings from the *mobile*
+direction. Recorded here so the audit backlog stays honest about what remains.
+
+**Closed by MOBILE-01:**
+
+- **Today's inert Quick Capture (UXA-13 / TODAY-07).** The fixture textarea that
+  announced "not saved" is gone. Today's capture is the shared capture surface,
+  posting to each module's canonical creation route. The audit's concern — the
+  app's most prominent action creating no record — no longer applies.
+- **Duplicate primary entry points on Diary.** PX-06 reduced Diary to one primary
+  create action per viewport by pairing a desktop header button with a phone
+  floating action. MOBILE-01 retired the floating action entirely (a bottom
+  navigation bar with its own Capture control makes a FAB a second accent button
+  in the same corner) and shows the header button at every width. Diary now has
+  one in-page primary create action, full stop, rather than one per viewport.
+- **Capture drift across modules.** Seven surfaces were free to invent their own
+  "create something quickly". There is now ONE shared framework over the modules'
+  canonical authorities; a module adding a capture type changes one place.
+- **Placeholder actions on the Person record.** Three quick actions that only
+  raised a toast now create real records.
+
+**Explicitly NOT closed, and why:**
+
+- **DEBT-01, Diary half.** The hand-rolled day-timeline node was left as-is and
+  re-scoped to [DEBT-46](PRODUCT_DEBT.md) — a timeline node is a genuinely
+  different presentation from a Card, and converting it to close a debt entry
+  would be worse product on the surface the mobile pass exists to serve. The
+  Meetings half was already resolved by UX-01.
+- **Capture context.** Capturing from a record does not link the created record to
+  it. Recorded as [DEBT-45](PRODUCT_DEBT.md) in the same change that created the
+  gap.

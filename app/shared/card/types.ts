@@ -30,12 +30,29 @@ export type CardDensity = "comfortable" | "compact";
 /** The presentation context. The SAME component adapts spacing/placement. */
 export type CardPresentation = "list" | "board" | "grid";
 
+/**
+ * MOBILE-01 — how much a metadata entry earns on a small card.
+ *
+ * `high` (the default) is a SIGNAL the user scans for — a task's priority or
+ * urgency, a project's health. `low` is supporting detail: still shown, still in
+ * the accessibility tree, but rendered as a de-emphasised run so a phone card does
+ * not become five rows of competing chips.
+ *
+ * This is deliberately a MODULE DECLARATION rather than a CSS selector keyed to an
+ * entity type: the module that knows what its record means decides what matters,
+ * and the shared Card renders that decision the same way everywhere. Nothing is
+ * removed at any width — de-prioritising is not hiding.
+ */
+export type CardMetaPriority = "high" | "low";
+
 /** A small metadata entry shown on the card. */
 export interface CardMetaItem {
   readonly id: string;
   /** Optional label; when present it precedes the value (e.g. "Owner: Aidan"). */
   readonly label?: string;
   readonly value: ReactNode;
+  /** Scanning priority on a small card. Defaults to `high`. */
+  readonly priority?: CardMetaPriority;
 }
 
 /** A status pill: a tone plus an always-present text label. */
@@ -92,6 +109,12 @@ export interface CardAction {
   /** Hide the visible label (icon-only). The accessible name is kept via aria. */
   readonly iconOnly?: boolean;
   readonly href?: string;
+  /**
+   * The `href` leaves DalyHub (a conferencing link, a vendor page), so it opens in
+   * a new tab with `rel="noreferrer"` rather than replacing the application.
+   * Only meaningful with `href`; in-app links must stay same-window so Back works.
+   */
+  readonly external?: boolean;
   readonly onSelect?: () => void;
   readonly disabled?: boolean;
   /** Pending shows a busy state and blocks activation (generic; no mutation here). */

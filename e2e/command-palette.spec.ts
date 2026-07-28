@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { mobileNavigationOpener } from "./helpers";
+
 /**
  * DS-09 Command Palette — driven end to end against the development-auth server.
  *
@@ -99,9 +101,11 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await expect(matches.first()).toBeVisible();
     await input.press("Enter");
     await expect(page).toHaveURL(/\/today/);
-    await expect(
-      page.getByPlaceholder("What needs your attention?"),
-    ).toBeFocused();
+    // TODAY-07 replaced the fixture textarea with the shared capture entries, so
+    // the command's focus target is now the FIRST of those entries. The contract
+    // the test protects is unchanged: the palette command lands keyboard focus on
+    // Quick Capture rather than merely navigating to Today.
+    await expect(page.getByTestId("today-capture-task")).toBeFocused();
     // The capture intent is cleaned from the URL (no Back-button trap).
     await expect(page).toHaveURL(/\/today$/);
   });
@@ -245,8 +249,11 @@ test.describe("DS-09 Command Palette — mobile 320px", () => {
   }) => {
     await page.goto("/today");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Open navigation" }).click();
-    await commandTrigger(page).click();
+    await mobileNavigationOpener(page).click();
+    await page
+      .getByRole("dialog", { name: "Navigation" })
+      .getByRole("button", { name: "Command palette", exact: true })
+      .click();
     const input = palette(page);
     await expect(input).toBeVisible();
     await input.fill("today");
@@ -407,8 +414,11 @@ test.describe("DS-09 Command Palette — touch targets (mobile 44px)", () => {
   test("the close control has a 44×44px touch target", async ({ page }) => {
     await page.goto("/today");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Open navigation" }).click();
-    await commandTrigger(page).click();
+    await mobileNavigationOpener(page).click();
+    await page
+      .getByRole("dialog", { name: "Navigation" })
+      .getByRole("button", { name: "Command palette", exact: true })
+      .click();
     await expect(palette(page)).toBeVisible();
     await expectMin44(
       page.getByRole("button", { name: "Close command palette" }),

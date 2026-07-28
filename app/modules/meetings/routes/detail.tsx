@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isRouteErrorResponse,
   useRevalidator,
@@ -44,6 +44,7 @@ import { RecordLayout } from "~/shared/record-layout";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { serializeTaskView } from "~/shared/task-record/task-view";
 import { utcToOwnerLocal } from "~/shared/datetime";
+import { MeetingCaptureBar } from "../MeetingCaptureBar";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import {
   DIRECT_FOLLOW_UP_DRAWER_KEY,
@@ -351,6 +352,60 @@ function MeetingRecord({
   );
   useRegisterContextualActions(followUpActions);
 
+  /**
+   * The notes value this component last wrote, held until the loader catches up.
+   *
+   * `notesMarkdown` is a whole-field update, so appending means read-modify-write —
+   * and the "read" is a loader snapshot that only refreshes after revalidation.
+   * Capturing two notes in quick succession (exactly what the capture bar is FOR)
+   * would otherwise build the second append from the pre-first-note snapshot and
+   * overwrite the first note. Remembering what we wrote makes the second append
+   * build on it.
+   */
+  const pendingNotesRef = useRef<string | null>(null);
+
+  // Drop the remembered value once the loader has caught up with it, so the
+  // component goes back to trusting the server as its base.
+  useEffect(() => {
+    if (pendingNotesRef.current === m.notesMarkdown) {
+      pendingNotesRef.current = null;
+    }
+  }, [m.notesMarkdown]);
+
+  /**
+   * MOBILE-01 — append a captured note to the meeting's canonical notes Markdown.
+   *
+   * The SAME `intent=update` / `notesMarkdown` authority the Notes editor
+   * autosaves through, so a note captured from the bar and a note typed in the
+   * editor are one field, one Markdown source and one Activity trail. The line is
+   * appended (never overwritten) so a capture during a meeting can never destroy
+   * notes already written.
+   */
+  const appendNote = useCallback(
+    async (line: string): Promise<boolean> => {
+      const pending = pendingNotesRef.current;
+      // Trust the remembered value only while it is still an EXTENSION of what the
+      // server has. If the loader value is not a prefix of it, something else —
+      // the Notes editor autosaving, another tab — has written the field, and the
+      // remembered value would clobber that write. Then the server wins.
+      const base =
+        pending !== null && pending.startsWith(m.notesMarkdown)
+          ? pending
+          : m.notesMarkdown;
+      const existing = base.trimEnd();
+      const next = existing.length > 0 ? `${existing}\n\n${line}` : line;
+
+      pendingNotesRef.current = next;
+      const ok = await post({ intent: "update", notesMarkdown: next });
+      if (!ok) {
+        // A failed append must not become the base for the next one.
+        pendingNotesRef.current = pending;
+      }
+      return ok;
+    },
+    [m.notesMarkdown, post],
+  );
+
   const itemSection = (
     kind: "agenda" | "decision" | "outcome" | "action",
     heading: string,
@@ -535,9 +590,9 @@ function MeetingRecord({
                   />
                 </div>
                 {itemSection("agenda", "Agenda items")}
+                {itemSection("action", "Actions")}
                 {itemSection("decision", "Decisions")}
                 {itemSection("outcome", "Outcomes")}
-                {itemSection("action", "Actions")}
               </section>
             ),
           },
@@ -608,6 +663,22 @@ function MeetingRecord({
           },
         ]}
       />
+
+      {/*
+       * MOBILE-01 — the sticky capture bar, shown only while the Meeting tab is
+       * open (that IS the live-meeting workspace; a bar over the Settings tab
+       * would be chrome). It saves through the canonical authorities and leaves
+       * the user exactly where they were, so capturing several items during a
+       * meeting never means switching tabs or opening a drawer.
+       */}
+      {active === "meeting" ? (
+        <MeetingCaptureBar
+          readOnly={readOnly}
+          onAddItem={(kind, body) => post({ intent: "add_item", kind, body })}
+          onAppendNote={appendNote}
+        />
+      ) : null}
+
       {lifecycle.dialogs}
     </>
   );

@@ -20,6 +20,7 @@ import {
   RESPONSIVE_VIEWPORTS,
   expectNoHorizontalOverflow,
   gotoFixture,
+  mobileNavigationOpener,
 } from "./helpers";
 
 const DESIGN_FIXTURES = [
@@ -276,7 +277,7 @@ test.describe("responsive — mobile navigation overlay", () => {
   }) => {
     await gotoFixture(page, "/today");
     // Below `md` the rail collapses to the mobile bar; open the overlay.
-    await page.getByRole("button", { name: /open navigation/i }).click();
+    await mobileNavigationOpener(page).click();
     await page.getByRole("dialog", { name: /navigation/i }).waitFor();
     await expectNoHorizontalOverflow(page);
     // Escape closes it and returns focus to the toggle.

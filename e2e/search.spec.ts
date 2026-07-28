@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+
+import { mobileNavigationOpener } from "./helpers";
 import type { Page } from "@playwright/test";
 
 /**
@@ -105,8 +107,13 @@ test.describe("DS-08 Shared Search — mobile 320px", () => {
   }) => {
     await page.goto("/today");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Open navigation" }).click();
-    await searchTrigger(page).click();
+    // MOBILE-01 moved the sheet's opener to the bottom bar's More, and put a
+    // Search control in the phone top bar as well. Both are now in the DOM, so
+    // the trigger is scoped to the SHEET — this test is about reaching Search
+    // from the navigation, and the top bar's copy sits inert behind the modal.
+    await mobileNavigationOpener(page).click();
+    const sheet = page.getByRole("dialog", { name: "Navigation" });
+    await sheet.getByRole("button", { name: "Search", exact: true }).click();
     const input = page.getByRole("combobox", { name: "Search everything" });
     await expect(input).toBeVisible();
     await input.fill("Finish");

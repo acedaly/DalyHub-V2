@@ -190,9 +190,60 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Narrow viewport — full-height sheet                                        */
+/* Header actions & the sticky action region (MOBILE-01)                       */
 /* -------------------------------------------------------------------------- */
 
+.drawer__header-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+}
+
+/*
+ * The record's primary commitment, pinned outside the scrolling body.
+ *
+ * Keyboard-safe by construction: the panel's height already subtracts
+ * `--dh-keyboard-inset` (below), so this region rides above the on-screen
+ * keyboard instead of under it, and the safe-area inset keeps it clear of the
+ * home indicator. It is intentionally a SINGLE row — secondary and destructive
+ * actions stay in the overflow menu (PX-04).
+ */
+.drawer__sticky-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-3) var(--dh-space-5);
+  padding-inline-start: max(var(--dh-space-5), env(safe-area-inset-left));
+  padding-inline-end: max(var(--dh-space-5), env(safe-area-inset-right));
+  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  background: var(--dh-color-surface-raised);
+}
+
+.drawer__sticky-actions > * {
+  min-block-size: var(--dh-touch-target-min);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phone — the full-screen record sheet (MOBILE-01)                            */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * At phone widths the SAME Drawer becomes the record's whole screen. It is still
+ * one implementation — same focus trap, same URL/history contract, same nested
+ * opening, same unsaved-change guard — only its presentation adapts.
+ *
+ * Three things make it usable one-handed:
+ *   1. the panel's height subtracts the measured keyboard inset, so its sticky
+ *      action region is never buried by the on-screen keyboard;
+ *   2. the header is COMPACT (one row of chrome, not a title block), and a record
+ *      that already names itself in that header collapses its own repeated
+ *      header rather than spending two more rows on the same words;
+ *   3. it covers the bottom navigation deliberately — a modal record owns the
+ *      screen, and Close/Back returns you to the list with its scroll intact.
+ */
 @media (max-width: 48rem) {
   .drawer,
   .drawer[data-size="wide"] {
@@ -200,6 +251,8 @@
     max-width: 100vw;
     border-inline-start: none;
     animation-name: drawer-sheet-in;
+    /* Shrink to the space the keyboard leaves rather than being overlaid by it. */
+    height: calc(100dvh - var(--dh-keyboard-inset, 0px));
   }
 
   /* Sheets fill the viewport, so prior levels are not offset (nothing peeks). */
@@ -207,14 +260,57 @@
     transform: none;
   }
 
+  /* A compact single-row header: title + actions + close, no description block. */
   .drawer__header {
-    padding-inline: max(var(--dh-space-4), env(safe-area-inset-left))
-      max(var(--dh-space-4), env(safe-area-inset-right));
+    align-items: center;
+    gap: var(--dh-space-2);
+    padding-block: max(var(--dh-space-2), env(safe-area-inset-top))
+      var(--dh-space-2);
+    padding-inline: max(var(--dh-space-3), env(safe-area-inset-left))
+      max(var(--dh-space-3), env(safe-area-inset-right));
+  }
+
+  .drawer__title {
+    font-size: var(--dh-font-size-md);
+    /* A long title wraps to at most two lines and then ellipses, so it can never
+     * push the Close control off the screen. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* The description is chrome, not content: on a phone the record itself says
+   * what it is, so the extra line is dropped rather than shrunk. It remains in
+   * the accessibility tree via `aria-describedby`. */
+  .drawer__description {
+    display: none;
   }
 
   .drawer__body {
     padding-inline: max(var(--dh-space-4), env(safe-area-inset-left))
       max(var(--dh-space-4), env(safe-area-inset-right));
+  }
+
+  /* With a sticky region present the body no longer needs bottom breathing room
+   * for the safe area — the region owns it. */
+  .drawer:has(.drawer__sticky-actions) .drawer__body {
+    padding-bottom: var(--dh-space-4);
+  }
+
+  .drawer__sticky-actions {
+    padding-inline: max(var(--dh-space-4), env(safe-area-inset-left))
+      max(var(--dh-space-4), env(safe-area-inset-right));
+  }
+
+  .drawer__sticky-actions > * {
+    flex: 1;
+  }
+
+  /* The record named itself in the Drawer header — do not say it twice. The
+   * record's own header keeps its status, metadata and actions. */
+  .drawer[data-title-in-header="true"] .record-header__title {
+    display: none;
   }
 }
 
