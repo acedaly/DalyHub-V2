@@ -183,7 +183,22 @@ jobs:
     # This value is therefore a backstop for the whole job (install, browser,
     # artifact download, servers, teardown) around a run Playwright already
     # bounds, not the mechanism that bounds the tests.
-    timeout-minutes: 20
+    #
+    # 2026-07-28 — raised 20 → 30, because the invariant in (2) was not actually
+    # holding. It requires `timeout-minutes` > globalTimeout + setup, so at 20 it
+    # only held while setup stayed under 5 minutes. Setup is not that stable: the
+    # `--with-deps` step installs fonts through apt, and on a slow
+    # azure.archive.ubuntu.com mirror single packages stalled 101s, 165s, 87s and
+    # 217s — about 9.5 minutes of setup, against 15 seconds on a good run.
+    # Whenever that happened GitHub reached its cap first and cancelled the job,
+    # which is the exact outcome (2) exists to prevent: no report, no traces, and
+    # a "cancelled" that has to be told apart from a real failure by hand. It cost
+    # two runs in a row (shard 1, then shard 2) with every test passing.
+    # 30 = 15 (Playwright's ceiling) + ~10 (worst observed setup) + margin, so
+    # Playwright still fires first and keeps its evidence. It does NOT loosen what
+    # bounds the tests: globalTimeout is untouched, so a genuinely hung suite is
+    # still stopped at 15 minutes and still reports.
+    timeout-minutes: 30
     strategy:
       # Never cancel sibling shards on a failure: every shard's result is
       # reported, so one red shard does not hide the state of the other four.
