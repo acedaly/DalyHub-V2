@@ -67,7 +67,7 @@ import {
   type TaskCardData,
 } from "./tasks-view-model";
 
-/** The drawer key that opens the "New Task" quick-capture form. */
+/** The drawer key that opens the "New task" quick-capture form. */
 const NEW_TASK_KEY = "new-task";
 
 /** The primary view switcher options (URL `?view=`). */
@@ -82,11 +82,12 @@ const VIEW_OPTIONS = [
 const SYSTEM_VIEW_LABELS: Record<TaskSystemView, string> = {
   inbox: "Inbox",
   today: "Today",
-  this_week: "This Week",
-  next_week: "Next Week",
-  this_month: "This Month",
-  next_month: "Next Month",
-  long_term: "Long Term",
+  upcoming: "Upcoming",
+  this_week: "This week",
+  next_week: "Next week",
+  this_month: "This month",
+  next_month: "Next month",
+  long_term: "Long term",
   someday: "Someday / Maybe",
   waiting: "Waiting",
   routines: "Routines",
@@ -127,14 +128,16 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
       }
       if (entry.key === NEW_TASK_KEY) {
         return {
-          title: "New Task",
+          title: "New task",
           description: "Capture a task under a Project or an Area.",
-          children: <NewTaskDrawerHost />,
+          children: (
+            <NewTaskDrawerHost defaultParent={data.defaultCaptureParent} />
+          ),
         };
       }
       return null;
     };
-  }, []);
+  }, [data.defaultCaptureParent]);
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>
@@ -144,11 +147,16 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
 }
 
 /** Hosts the create form: reflects the new task, then opens it in the shared Drawer. */
-function NewTaskDrawerHost() {
+function NewTaskDrawerHost({
+  defaultParent,
+}: {
+  readonly defaultParent: TasksPageData["defaultCaptureParent"];
+}) {
   const { closeDrawer, replaceDrawer } = useDrawer();
   const revalidator = useRevalidator();
   return (
     <NewTaskForm
+      defaultParent={defaultParent}
       onCreated={(taskId) => {
         revalidator.revalidate();
         replaceDrawer(`task:${taskId}`);
@@ -461,7 +469,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           drawerKey={NEW_TASK_KEY}
           className="dh-btn dh-btn--primary"
         >
-          New Task
+          New task
         </DrawerTrigger>
       }
       viewSwitcher={
@@ -485,14 +493,14 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="task" />}
-          title="No Tasks yet"
+          title="No tasks yet"
           description="Capture a task, or choose a different view or system list above."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_TASK_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New Task
+              New task
             </DrawerTrigger>
           }
         />
@@ -732,10 +740,10 @@ function SectorsView({
 
 const BULK_PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "", label: "Set priority…" },
-  { value: "p1", label: "P1 · Do" },
-  { value: "p2", label: "P2 · Defer" },
-  { value: "p3", label: "P3 · Delegate" },
-  { value: "p4", label: "P4 · Delete / Review" },
+  { value: "p1", label: "P1 · Urgent" },
+  { value: "p2", label: "P2 · High" },
+  { value: "p3", label: "P3 · Normal" },
+  { value: "p4", label: "P4 · Low" },
   { value: "__none", label: "No priority" },
 ];
 

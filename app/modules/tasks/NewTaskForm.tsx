@@ -20,7 +20,7 @@
  * Every entered value survives a validation or server failure (useForm contract).
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DateField,
@@ -92,6 +92,12 @@ export interface NewTaskFormProps {
    * is hidden and the parent kind is `project`.
    */
   readonly projectId?: string;
+  /** Resolved owner/workspace default capture parent, if still valid. */
+  readonly defaultParent?: {
+    readonly id: string;
+    readonly kind: "area" | "project";
+    readonly title: string;
+  } | null;
   /** Called with the new task's id after a successful create. */
   readonly onCreated: (taskId: string) => void;
   /** Called when the user cancels. */
@@ -100,21 +106,24 @@ export interface NewTaskFormProps {
 
 export function NewTaskForm({
   projectId,
+  defaultParent = null,
   onCreated,
   onCancel,
 }: NewTaskFormProps) {
   const fixedParent = projectId !== undefined;
+  const resolvedParent = fixedParent ? null : defaultParent;
   const parentSearch = useTaskParentSearch();
+  const titleRef = useRef<HTMLInputElement | null>(null);
 
   const fieldOrder = useMemo<ReadonlyArray<keyof Values & string>>(
     () =>
-      fixedParent
+      fixedParent || resolvedParent
         ? [
             "title",
             "priority",
+            "dueDate",
             "timeSector",
             "commitmentState",
-            "dueDate",
             "scheduledDate",
           ]
         : [
@@ -126,13 +135,13 @@ export function NewTaskForm({
             "dueDate",
             "scheduledDate",
           ],
-    [fixedParent],
+    [fixedParent, resolvedParent],
   );
 
   const form = useForm<Values>({
     initialValues: {
       title: "",
-      parentId: "",
+      parentId: resolvedParent?.id ?? "",
       priority: "",
       timeSector: "",
       commitmentState: "active",
@@ -141,16 +150,20 @@ export function NewTaskForm({
     },
     fields: {
       title: { validate: required("A title is required") },
-      ...(fixedParent
+      ...(fixedParent || resolvedParent
         ? {}
         : { parentId: { validate: required("Choose a Project or an Area") } }),
     },
     fieldOrder,
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
-      const parentIdValue = fixedParent ? projectId : values.parentId;
+      const parentIdValue = fixedParent
+        ? projectId
+        : (resolvedParent?.id ?? values.parentId);
       const parentKind = fixedParent
         ? "project"
-        : parentSearch.kindOf(values.parentId);
+        : resolvedParent?.kind
+          ? resolvedParent.kind
+          : parentSearch.kindOf(values.parentId);
       if (!parentKind || !parentIdValue) {
         return {
           status: "error",
@@ -162,13 +175,20 @@ export function NewTaskForm({
 
       const body = new FormData();
       body.set("intent", "create");
-      body.set("title", values.title);
+      const parsedTitle = interpretation.title.trim();
+      body.set("title", parsedTitle.length > 0 ? parsedTitle : values.title);
       body.set("parentId", parentIdValue);
       body.set("parentKind", parentKind);
-      if (values.priority) body.set("priority", values.priority);
-      if (values.timeSector) body.set("timeSector", values.timeSector);
-      if (values.commitmentState && values.commitmentState !== "active") {
-        body.set("commitmentState", values.commitmentState);
+      const priority = values.priority || interpretation.priority || "";
+      const timeSector = values.timeSector || interpretation.timeSector || "";
+      const commitmentState =
+        values.commitmentState !== "active"
+          ? values.commitmentState
+          : interpretation.commitmentState;
+      if (priority) body.set("priority", priority);
+      if (timeSector) body.set("timeSector", timeSector);
+      if (commitmentState && commitmentState !== "active") {
+        body.set("commitmentState", commitmentState);
       }
       if (values.dueDate) body.set("dueDate", values.dueDate);
       if (values.scheduledDate) body.set("scheduledDate", values.scheduledDate);
@@ -200,29 +220,27 @@ export function NewTaskForm({
   const titleField = form.field("title");
   const parentField = form.field("parentId");
 
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
   // The deterministic quick-capture preview. Recomputed from the current title on
   // every render; shown only when it materially changes the task AND the user has
   // not dismissed this exact text.
-  const [dismissedText, setDismissedText] = useState<string | null>(null);
+  const [ignoredTokenIds, setIgnoredTokenIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const interpretation = useMemo(
-    () => parseQuickCapture(titleField.value),
-    [titleField.value],
+    () => parseQuickCapture(titleField.value, { ignoredTokenIds }),
+    [titleField.value, ignoredTokenIds],
   );
   const showPreview =
     interpretationIsMeaningful(interpretation) &&
-    dismissedText !== titleField.value;
-
-  const applyInterpretation = () => {
-    form.setValue("title", interpretation.title);
-    form.setValue("priority", interpretation.priority ?? "");
-    form.setValue("timeSector", interpretation.timeSector ?? "");
-    form.setValue("commitmentState", interpretation.commitmentState);
-    setDismissedText(null);
-  };
+    interpretation.title !== titleField.value.trim();
 
   return (
     <Form
-      aria-label="New Task"
+      aria-label="New task"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >
@@ -239,8 +257,12 @@ export function NewTaskForm({
         required
         maxLength={512}
         placeholder="Capture a task — try “Draft the brief p1 next week”"
-        help="Recognised words like p1–p4, this week or someday can be applied below."
+        help="Recognised words like p1, next week or someday are interpreted as removable chips."
         {...titleField}
+        controlRef={(node) => {
+          titleRef.current = node instanceof HTMLInputElement ? node : null;
+          titleField.controlRef?.(node);
+        }}
       />
 
       {showPreview ? (
@@ -250,39 +272,38 @@ export function NewTaskForm({
           aria-label="Quick-capture interpretation"
         >
           <p className="dh-tasks-capture__title">
-            <span className="dh-tasks-capture__label">Interpreted as</span>{" "}
+            <span className="dh-tasks-capture__label">Title preview</span>{" "}
             {interpretation.title}
           </p>
           <ul className="dh-tasks-capture__tokens">
             {interpretation.tokens.map((token) => (
-              <li
-                key={`${token.kind}:${token.raw}`}
-                className="dh-tasks-capture__token"
-              >
+              <li key={token.id} className="dh-tasks-capture__token">
                 {token.label}
+                <button
+                  type="button"
+                  className="dh-tasks-capture__remove"
+                  aria-label={`Treat ${token.raw} as task title text`}
+                  onClick={() =>
+                    setIgnoredTokenIds((prev) => {
+                      const next = new Set(prev);
+                      next.add(token.id);
+                      return next;
+                    })
+                  }
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
               </li>
             ))}
           </ul>
-          <div className="dh-tasks-capture__actions">
-            <FormButton
-              type="button"
-              variant="secondary"
-              onClick={applyInterpretation}
-            >
-              Apply
-            </FormButton>
-            <FormButton
-              type="button"
-              variant="ghost"
-              onClick={() => setDismissedText(titleField.value)}
-            >
-              Ignore
-            </FormButton>
-          </div>
         </div>
       ) : null}
 
-      {fixedParent ? null : (
+      {fixedParent ? null : resolvedParent ? (
+        <p className="dh-tasks-capture__parent">
+          Project or Area: <strong>{resolvedParent.title}</strong>
+        </p>
+      ) : (
         <SelectField
           label="Project or Area"
           help="A task belongs to exactly one Project or Area."
@@ -298,21 +319,26 @@ export function NewTaskForm({
 
       <SelectField
         label="Priority"
+        help="Optional."
         options={PRIORITY_OPTIONS}
         {...form.field("priority")}
       />
-      <SelectField
-        label="Time sector"
-        options={SECTOR_OPTIONS}
-        {...form.field("timeSector")}
-      />
-      <SelectField
-        label="Commitment"
-        options={COMMITMENT_OPTIONS}
-        {...form.field("commitmentState")}
-      />
       <DateField label="Due date" {...form.field("dueDate")} />
-      <DateField label="Scheduled date" {...form.field("scheduledDate")} />
+
+      <details className="dh-progressive-section">
+        <summary>More details</summary>
+        <SelectField
+          label="Time sector"
+          options={SECTOR_OPTIONS}
+          {...form.field("timeSector")}
+        />
+        <SelectField
+          label="Commitment"
+          options={COMMITMENT_OPTIONS}
+          {...form.field("commitmentState")}
+        />
+        <DateField label="Scheduled date" {...form.field("scheduledDate")} />
+      </details>
 
       <FormActions>
         <FormButton

@@ -227,3 +227,25 @@ canonical Drawer. All three surfaces read the one shared display-state evaluator
 **Relevant roadmap items.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) ☑ · [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) ☑ · [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) ☐ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐.
 
 **Relevant product-debt items.** [DEBT-16](../product/PRODUCT_DEBT.md#-debt-16--minimal-task-detail-model-richer-workflow-status-deferred--p3) ☑ (closed by TASKS-01) · [DEBT-27](../product/PRODUCT_DEBT.md#-debt-27--task-overdue-urgency-is-signalled-by-colour-alone--p1) ☑ · [DEBT-28](../product/PRODUCT_DEBT.md#-debt-28--task-priority-is-invisible-where-triage-happens-and-status-resolves-three-different-ways--p2) ☑ · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) ☐ · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3) ☐ · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) ☐.
+
+## UX-01 usability pass (2026-07-28)
+
+The default Task capture drawer is now a fast-capture surface over the same
+canonical `TaskRepository.createTask` authority. It starts with title, resolved
+parent context, priority and due date; the full planning fields remain under
+`More details`. Parent resolution is deterministic: a fixed Project/Area context
+wins, then the owner/workspace-scoped default capture parent from Application
+preferences, then the shared server-backed Project/Area picker. The preference
+validates against an active Area or non-archived Project and safely falls back to
+the picker when the stored entity is unavailable.
+
+The deterministic quick-capture parser still has no AI or natural-language
+guessing. Recognised tokens are applied automatically as removable chips; removing
+a chip treats that token as literal title text, and token interpretation is dropped
+if it would create an empty title. Priority labels on everyday surfaces are now
+concise (`P1 · Urgent`, `P2 · High`, `P3 · Normal`, `P4 · Low`); the Matrix keeps
+the Do/Defer/Delegate/Delete wording where it is specifically methodological.
+
+`/tasks?system=upcoming` is a bounded, server-authoritative system view for open
+non-terminal work scheduled or due after the owner-calendar day. Existing Matrix
+and Time Sectors deep links remain valid.

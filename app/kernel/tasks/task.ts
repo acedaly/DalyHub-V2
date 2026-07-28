@@ -462,6 +462,7 @@ export type WaitingTaskPage = {
 export const TASK_SYSTEM_VIEWS = [
   "inbox",
   "today",
+  "upcoming",
   "this_week",
   "next_week",
   "this_month",

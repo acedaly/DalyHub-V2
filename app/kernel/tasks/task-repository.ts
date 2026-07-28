@@ -175,6 +175,13 @@ export interface TaskRepository {
   ): Promise<readonly TaskParentCandidate[]>;
 
   /**
+   * Resolve one candidate capture parent by id, using the same active Area /
+   * non-archived Project rule as `searchTaskParents`. Returns null when the id is
+   * missing, wrong-kind, archived, deleted or outside the bound workspace.
+   */
+  getTaskParentCandidate(id: string): Promise<TaskParentCandidate | null>;
+
+  /**
    * Activate or change a task's waiting state (TODAY-03) ATOMICALLY: one batch
    * writes the `waiting_since`/`waiting_note` state, replaces the active
    * `task.waiting_on` link (for an entity subject), and appends exactly one

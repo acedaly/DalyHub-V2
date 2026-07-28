@@ -121,6 +121,33 @@ export function parseTaskDefaultView(value: unknown): TaskDefaultView {
   );
 }
 
+export function parseTaskCaptureParentId(value: unknown): string | null {
+  if (value === null || value === "") return null;
+  if (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    /^[A-Za-z0-9:_-]+$/.test(value)
+  ) {
+    return value;
+  }
+  throw new AppPreferencesValidationError(
+    "defaultTaskCaptureParentId",
+    "Choose a valid default capture parent.",
+  );
+}
+
+export function parseTaskCaptureParentKind(
+  value: unknown,
+): "area" | "project" | null {
+  if (value === null || value === "") return null;
+  if (value === "area" || value === "project") return value;
+  throw new AppPreferencesValidationError(
+    "defaultTaskCaptureParentKind",
+    "Choose a valid default capture parent.",
+  );
+}
+
 export function parseDiaryDefaultMode(value: unknown): DiaryDefaultMode {
   return parseEnum(
     "defaultDiaryMode",
@@ -187,6 +214,23 @@ export function validateAppPreferencesPatch(
     );
   if (patch.defaultTasksView !== undefined)
     out.defaultTasksView = parseTaskDefaultView(patch.defaultTasksView);
+  if (patch.defaultTaskCaptureParentId !== undefined)
+    out.defaultTaskCaptureParentId = parseTaskCaptureParentId(
+      patch.defaultTaskCaptureParentId,
+    );
+  if (patch.defaultTaskCaptureParentKind !== undefined)
+    out.defaultTaskCaptureParentKind = parseTaskCaptureParentKind(
+      patch.defaultTaskCaptureParentKind,
+    );
+  if (
+    (out.defaultTaskCaptureParentId === null &&
+      out.defaultTaskCaptureParentKind !== undefined) ||
+    (out.defaultTaskCaptureParentKind === null &&
+      out.defaultTaskCaptureParentId !== undefined)
+  ) {
+    out.defaultTaskCaptureParentId = null;
+    out.defaultTaskCaptureParentKind = null;
+  }
   if (patch.defaultDiaryMode !== undefined)
     out.defaultDiaryMode = parseDiaryDefaultMode(patch.defaultDiaryMode);
   if (patch.navigation !== undefined)
@@ -200,6 +244,8 @@ export function normaliseStoredPreferences(input: {
   readonly firstDayOfWeek: unknown;
   readonly defaultLandingDestination: unknown;
   readonly defaultTasksView: unknown;
+  readonly defaultTaskCaptureParentId?: unknown;
+  readonly defaultTaskCaptureParentKind?: unknown;
   readonly defaultDiaryMode: unknown;
   readonly navigation: unknown;
 }): AppPreferences {
@@ -231,6 +277,26 @@ export function normaliseStoredPreferences(input: {
       (TASK_DEFAULT_VIEWS as readonly string[]).includes(input.defaultTasksView)
         ? (input.defaultTasksView as TaskDefaultView)
         : DEFAULT_APP_PREFERENCES.defaultTasksView,
+    defaultTaskCaptureParentId: (() => {
+      try {
+        return parseTaskCaptureParentId(
+          (input as { readonly defaultTaskCaptureParentId?: unknown })
+            .defaultTaskCaptureParentId,
+        );
+      } catch {
+        return DEFAULT_APP_PREFERENCES.defaultTaskCaptureParentId;
+      }
+    })(),
+    defaultTaskCaptureParentKind: (() => {
+      try {
+        return parseTaskCaptureParentKind(
+          (input as { readonly defaultTaskCaptureParentKind?: unknown })
+            .defaultTaskCaptureParentKind,
+        );
+      } catch {
+        return DEFAULT_APP_PREFERENCES.defaultTaskCaptureParentKind;
+      }
+    })(),
     defaultDiaryMode:
       typeof input.defaultDiaryMode === "string" &&
       (DIARY_DEFAULT_MODES as readonly string[]).includes(
