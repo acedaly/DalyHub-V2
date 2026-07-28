@@ -219,8 +219,7 @@ export function DrawerProvider({
   // non-empty stack and issues a SECOND `navigate(-1)` — popping past the record
   // the drawer was opened from and throwing the user off the page they were on.
   // Keying on `location.key` is exact: every history entry has a distinct key, so
-  // the guard clears the moment the close actually lands and never blocks a
-  // legitimate close of the next level down.
+  // the guard never blocks a legitimate close of the next level down.
   const closeIssuedForKeyRef = useRef<string | null>(null);
   const locationKey = location.key;
 

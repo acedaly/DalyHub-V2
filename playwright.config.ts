@@ -60,9 +60,9 @@ export default defineConfig({
    * shard is terminated by Playwright — which then writes its HTML report,
    * traces and screenshots and exits non-zero — rather than by GitHub, which
    * cancels the job and destroys that evidence. Sized against the measured
-   * worst shard: run 30310393566 shard 1 spent 14.0 min on tests across THREE
-   * shards; the matrix is now five, so a shard is expected to take ~8-9 min and
-   * 15 min leaves ample room for runner variance while still catching a hang.
+   * worst shard: on run 30314062657 (five shards, all green) the slowest spent
+   * 11m09s on tests, so 15 minutes leaves roughly a third again in headroom for
+   * runner variance while still catching a hang before the job backstop.
    * Unset outside CI so a full local suite run (all shards in one process) is
    * never killed mid-way.
    */

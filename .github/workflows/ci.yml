@@ -166,10 +166,16 @@ jobs:
     # mattered left no artefacts behind.
     #
     # Two independent changes fix that, and the order matters:
-    #   1. Five shards instead of three, so the expected worst shard is ~8-9 min
-    #      of tests rather than ~14 (the suite splits at individual-test
-    #      granularity — see the run step below — and the measured 3-way spread
-    #      was only 11.7-14.0 min, so a count-based split stays even).
+    #   1. Five shards instead of three. MEASURED on run 30314062657 (all five
+    #      green): tests took 8m40s / 11m09s / 5m24s / 5m03s / 7m53s, so the
+    #      worst shard is 11m09s of tests and 11m55s of job — 74% of the
+    #      Playwright ceiling below and 60% of this job budget, against 97% of
+    #      the old budget before. Note the spread is WIDER than at three shards
+    #      (5.0-11.2 min vs 11.7-14.0): Playwright shards by test COUNT, and the
+    #      finer the split the more per-test duration variance shows through.
+    #      That is acceptable — the worst shard is what the budget must cover —
+    #      and `playwright-report/results.json` now carries the per-test
+    #      durations needed to revisit the split if shard 2 keeps growing.
     #   2. Playwright's own `globalTimeout` (15 min, playwright.config.ts) fires
     #      BEFORE this job timeout, so an overrunning shard is stopped by
     #      Playwright — which writes its report and traces and exits non-zero —
