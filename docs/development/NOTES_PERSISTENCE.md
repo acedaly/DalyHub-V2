@@ -44,6 +44,46 @@ CREATE TABLE note_details (
 - **Composite foreign key, type-constrained attachment.** `(workspace_id, entity_id, entity_type) → entities (workspace_id, id, type)` — the same technique `spine_records.kind`, `task_details.entity_type`, `project_details.entity_type` and `goal_details.entity_type` use. Because `entity_type` is CHECK-constrained to the literal `'note'`, a row can only ever attach to an `entities` row that is *also* typed `note` in the *same* workspace — a non-Note entity, or a Note in a different workspace, cannot receive a row at the database level. `ON DELETE RESTRICT` — the database refuses to delete an `entities` row this table still references (soft-delete is used instead; see below).
 - **No rendered HTML, excerpt cache, editor JSON, or duplicated title.** `content` is the one and only payload column: the exact Markdown source. There is no cached HTML column, no search-excerpt column, no proprietary editor document column, and no copy of `entities.title`.
 - **No blank-content CHECK.** Unlike `goal_details.definition_of_done` (which forbids a blank string because `null` already means "unset"), `note_details.content` has **no** non-empty/non-blank constraint: the empty string — and a whitespace-only string — are valid, meaningful Markdown and must be storable exactly as submitted.
+### NOTES-03 additions (migration `0019_notes_knowledge.sql`)
+
+Two additive columns, and nothing else about the table changed:
+
+```sql
+ALTER TABLE note_details ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE note_details ADD COLUMN archived_at TEXT;
+```
+
+- **`tags`** — a JSON array of normalised (trimmed, whitespace-collapsed,
+  case-folded, de-duplicated, **sorted**) tag strings, matching the
+  `person_details.tags` / `asset_details.tags` convention. It is **not** a
+  comma-separated id list: tags are labels, never references. The kernel
+  validates and bounds the set (`MAX_NOTE_TAGS`, `MAX_NOTE_TAG_LENGTH`); a
+  corrupt stored value degrades to "no tags" on read rather than failing it.
+  Sorting makes the value canonical, so an unchanged set is byte-identical and
+  a re-save is a genuine no-op.
+- **`archived_at`** — the reversible "put away" state, deliberately DISTINCT
+  from the entity's own `deleted_at` (exactly as `person_details.archived_at`
+  and `area_details.archived_at` already are). `NULL` means active.
+- **Idempotency.** Every index in the migration is `IF NOT EXISTS`. SQLite/D1 has
+  no `ADD COLUMN IF NOT EXISTS`, so the two `ALTER`s rely on the migration ledger
+  Wrangler maintains — the same guarantee every earlier DalyHub migration
+  depends on. Both columns have safe defaults, so **no backfill pass runs** and
+  no existing row is rewritten.
+- **Relationships are NOT modelled here.** Note↔Project knowledge associations
+  and `[[Wiki Link]]` references are ordinary FND-04 `entity_links` rows. See
+  [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-wiki-link-is-a-persisted-reference-and-knowledge-relationships-stay-entitylinks).
+
+### Indexes
+
+`0019` adds three partial/covering indexes on `note_details` — active notes,
+archived notes, and the workspace+updated pair the `recent` ordering and the
+effective-updated computation read. It deliberately does **not** add a full-text
+index over `content`: a leading-wildcard `LIKE` cannot use a B-tree index in any
+case, and FTS5 would require a shadow virtual table kept in sync by triggers —
+a second, derived representation of the canonical Markdown source, which
+ADR-015 exists to prevent. The trade-off is recorded in the migration itself and
+in [`SHARED_SEARCH.md`](SHARED_SEARCH.md).
+
 - **No backfill.** The migration performs no `INSERT ... SELECT` over existing data (contrast `0008_create_project_details.sql`, which *did* backfill because every pre-existing Project needed an operational status). There is nothing to backfill: every `note`-typed entity is created fresh, after this migration exists, with no prior content to migrate. An existing Note simply has no `note_details` row until first edited.
 
 ## No-row / empty-content semantics
@@ -83,7 +123,11 @@ import { parseMarkdownSource } from "~/kernel/markdown";
 
 ## Content-timestamp contract ("effective last updated")
 
-A Note has **two** independent timestamps once it has been edited:
+A Note has **two** independent timestamps once it has been edited (a tag or
+archive change deliberately advances NEITHER, so it does not reorder the
+`recent` view; the one edge is that a Note whose first-ever `note_details` row is
+created by a tag/archive change takes that moment as its content timestamp,
+representing its empty content):
 
 - `entities.updated_at` — advances when the Note's `title` changes (owned by `EntityRepository`).
 - `note_details.updated_at` — advances when the Note's `content` changes (owned by `NoteDetailsRepository`), surfaced as `NoteDetailsRecord.contentUpdatedAt` (`null` when there is no row yet).

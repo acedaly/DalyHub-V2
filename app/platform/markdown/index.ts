@@ -20,3 +20,30 @@ export {
 export { MARKDOWN_SANITISATION_SCHEMA } from "./sanitisation-schema";
 
 export { isSafeMarkdownUrl, SAFE_URL_SCHEMES } from "./markdown-url-policy";
+
+export {
+  WIKILINK_RESOLVE_PATH,
+  matchWikiLinks,
+  wikiLinkHref,
+  type WikiLinkMatch,
+} from "./wikilinks";
+
+export {
+  dalyhubReferenceUrl,
+  distinctReferenceTitles,
+  excerptAroundMatch,
+  excerptAtOffset,
+  extractHeadings,
+  extractReferences,
+  headingAtOffset,
+  markdownToPlainText,
+  offsetIsInHeading,
+  transformReferencesForExport,
+  MAX_EXCERPT_LENGTH,
+  MAX_NOTE_REFERENCES,
+  type NoteHeading,
+  type NoteReference,
+  type ReferenceExportMode,
+  type ReferenceResolver,
+  type ResolvedReference,
+} from "./note-document";

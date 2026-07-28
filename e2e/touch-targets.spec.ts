@@ -155,9 +155,17 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     });
 
     await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
+    // PX-04/DS-12 moved every lifecycle action into the ONE shared overflow (⋯),
+    // so Delete is a MENU ITEM behind that trigger, not a header button. This
+    // spec still looked for the retired button and so could never pass — measure
+    // the real controls the user touches: the overflow trigger and its items.
+    const overflow = page.getByRole("button", { name: /^More actions for / });
+    await expectMinTouchTarget(overflow);
+    await overflow.click();
     await expectMinTouchTarget(
-      page.getByRole("button", { name: "Delete note" }),
+      page.getByRole("menuitem", { name: "Delete Note" }),
     );
+    await page.keyboard.press("Escape");
     // NOTES-05 retired Source/Split/Preview: the writing surface exposes a
     // formatting toolbar plus a Read toggle. Sample a toolbar button and the
     // toggle — all share the same 44px-floor rule.
@@ -167,7 +175,8 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     }
     await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
 
-    await page.getByRole("button", { name: "Delete note" }).click();
+    await overflow.click();
+    await page.getByRole("menuitem", { name: "Delete Note" }).click();
     await page.getByRole("link", { name: "Deleted" }).click();
     // Scoped to this test's own card — an orphaned Deleted Note left behind
     // by an earlier failed run would otherwise make "Restore" ambiguous.

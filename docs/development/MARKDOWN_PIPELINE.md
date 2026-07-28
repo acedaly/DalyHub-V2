@@ -153,3 +153,47 @@ Persistence tables/migrations, product routes, a module manifest, an editor/tool
 - [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md#markdown-pipeline-evaluation-fnd-08) — the dependency evaluation and licences.
 - [`AGENTS.md §17`](../../AGENTS.md#17-security-requirements) — security requirements this satisfies.
 - [`docs/README.md`](../README.md) — documentation index.
+
+---
+
+## The document analyser (NOTES-02/03/06)
+
+FND-08 owns Markdown **validation** (`parseMarkdownSource`) and **rendering**
+(`renderMarkdown`). Everything else the knowledge features need to know about a
+Note's source lives in exactly one more place:
+[`app/platform/markdown/note-document.ts`](../../app/platform/markdown/note-document.ts).
+
+It is PURE and DETERMINISTIC — same source in, same result out — performs no
+database lookup (resolution is always supplied by the caller as a
+`(title) => target | null` function), and walks the SAME `remark-parse` +
+`remark-gfm` tree the renderer uses, so its idea of "a code block" is the
+renderer's idea of a code block.
+
+| Capability | Used by |
+| --- | --- |
+| `extractReferences` / `distinctReferenceTitles` | reconciling `[[…]]` into EntityLinks |
+| `extractHeadings` / `headingAtOffset` / `offsetIsInHeading` | search match sources |
+| `markdownToPlainText` | `.txt` export, excerpt cleaning |
+| `excerptAtOffset` / `excerptAroundMatch` | search excerpts, backlink context, card excerpts |
+| `transformReferencesForExport` | `.md` and `.txt` export |
+
+**The rules it exists to enforce.**
+
+- **ONE wiki-link regular expression in the codebase.** `matchWikiLinks` in
+  [`wikilinks.ts`](../../app/platform/markdown/wikilinks.ts) is the only
+  tokeniser; the remark transform, the reference extractor and the export
+  transformer all go through it. No route, repository or component may declare a
+  Markdown pattern of its own.
+- **Link-like text inside code is never a relationship.** Reference extraction
+  excludes the source ranges of `code`, `inlineCode`, `link`, `linkReference`,
+  `definition`, `image` and `html` nodes, so a `[[…]]` in a sample never becomes
+  a link — and a reference is never nested inside an existing one.
+- **Malformed input yields nothing, never an error.** `[[]]`, `[[   ]]` and an
+  unterminated `[[` simply produce no reference.
+- **Every excerpt is bounded, block-scoped and syntax-free.** It never spans past
+  a blank-line boundary (so unrelated content is not exposed), it is re-parsed to
+  plain text (so no half-open construct is rendered), and it truncates
+  deterministically with an explicit ellipsis.
+- **Export transformation is byte-exact everywhere else.** Only the `[[…]]`
+  ranges are rewritten; the rest of the source — including line endings and the
+  contents of code fences — is returned unchanged.

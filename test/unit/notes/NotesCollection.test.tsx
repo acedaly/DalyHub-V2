@@ -36,9 +36,26 @@ function note(
     title: "Reading list",
     createdAt: "2026-07-18T09:00:00.000Z",
     updatedAt: "2026-07-20T10:00:00.000Z",
+    effectiveUpdatedAt: "2026-07-20T10:00:00.000Z",
+    tags: [],
+    archived: false,
+    excerpt: "",
+    linkCount: 0,
     ...over,
   };
 }
+
+/** The NOTES-03 filter defaults — an unfiltered collection. */
+const NO_FILTERS = {
+  q: "",
+  tag: "",
+  project: "",
+  area: "",
+  links: "all",
+  sort: "created",
+} as const;
+
+const NO_OPTIONS = { tags: [], projects: [], areas: [] } as const;
 
 type LoaderData = {
   notes: readonly SerializedNoteListItem[];
@@ -62,6 +79,8 @@ function renderCollection(
               notes={data.notes}
               nextCursor={data.nextCursor}
               state={data.state ?? "active"}
+              filters={NO_FILTERS}
+              options={NO_OPTIONS}
               failed={data.failed}
             />
           </FeedbackProvider>
@@ -94,6 +113,8 @@ function renderStatefulCollection(
         notes={data.notes}
         nextCursor={data.nextCursor}
         state={data.state ?? "active"}
+        filters={NO_FILTERS}
+        options={NO_OPTIONS}
         failed={data.failed}
       />
     );

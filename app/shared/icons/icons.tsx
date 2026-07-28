@@ -302,6 +302,25 @@ export const CheckIcon = createIcon(
   <path d="m5 12.5 4.5 4.5L19 7" />,
 );
 
+/** Download — taking a copy of a record out of DalyHub (NOTES-06 export). */
+export const DownloadIcon = createIcon(
+  "DownloadIcon",
+  <>
+    <path d="M12 4v10" />
+    <path d="m8 10.5 4 4 4-4" />
+    <path d="M4.5 17.5v1A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5v-1" />
+  </>,
+);
+
+/** Tag — a lightweight organisational label (NOTES-03 note tags). */
+export const TagIcon = createIcon(
+  "TagIcon",
+  <>
+    <path d="M4.5 11.2V5.5a1 1 0 0 1 1-1h5.7a1 1 0 0 1 .7.3l7 7a1 1 0 0 1 0 1.4l-5.7 5.7a1 1 0 0 1-1.4 0l-7-7a1 1 0 0 1-.3-.7Z" />
+    <path d="M8.5 8.5h.01" />
+  </>,
+);
+
 /* -------------------------------------------------------------------------- */
 /* Subtype glyphs (PX-05). Distinct from the ENTITY glyphs above: a subtype is  */
 /* subordinate to its entity's identity and must never wear another entity's    */

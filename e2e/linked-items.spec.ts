@@ -36,8 +36,15 @@ async function createNote(page: Page, title: string): Promise<string> {
   return page.url();
 }
 
+/**
+ * NOTES-02 split the Note record's relationship tabs by DIRECTION: "Backlinks"
+ * (what points at this note) and "Links" (what this note points at). The shared
+ * REL-01 Linked Items section — the surface this spec exercises — lives in its
+ * own labelled section inside the "Links" tab.
+ */
 async function openLinkedTab(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Linked" }).click();
+  // `exact` matters: "Backlinks" also contains "Links".
+  await page.getByRole("tab", { name: "Links", exact: true }).click();
   await page.waitForLoadState("networkidle");
 }
 
@@ -75,9 +82,12 @@ test.describe("REL-01 — shared Linked Items", () => {
     await option.click();
 
     // The linked target appears as a navigable link (optimistic, then reconciled).
-    const linkedLink = page.getByRole("link", {
-      name: new RegExp(targetTitle),
-    });
+    // Scoped to the Linked Items section: the NOTES-02 outgoing-links list in the
+    // same tab shows the SAME relationship read from the other side, so an
+    // unscoped locator legitimately matches twice.
+    const linkedLink = page
+      .getByRole("link", { name: new RegExp(targetTitle) })
+      .first();
     await expect(linkedLink).toBeVisible();
     await expectNoAxeViolations(page);
 

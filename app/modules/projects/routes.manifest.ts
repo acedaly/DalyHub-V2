@@ -49,6 +49,13 @@ const routes: readonly RouteContribution[] = [
     file: "routes/tasks.tsx",
   },
   {
+    // PROJ-03 — the project's Knowledge tab: further pages, the note picker's
+    // search, and the add/create/remove mutations.
+    id: "projects.knowledge",
+    path: "projects/:projectId/knowledge",
+    file: "routes/knowledge.tsx",
+  },
+  {
     id: "projects.activity",
     path: "projects/:projectId/activity",
     file: "routes/activity.tsx",

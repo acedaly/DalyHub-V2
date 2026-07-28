@@ -37,12 +37,16 @@ import {
   type NewActivityEvent,
 } from "~/kernel/activity";
 import {
+  NOTE_ARCHIVED,
   NOTE_CONTENT_UPDATED,
   NOTE_ENTITY_TYPE,
+  NOTE_TAGS_UPDATED,
+  NOTE_UNARCHIVED,
   NoteDetailsConflictError,
   NoteDetailsNotFoundError,
   NoteDetailsStorageError,
   validateNoteContent,
+  validateNoteTags,
   type NoteDetailsChangeResult,
   type NoteDetailsRecord,
   type NoteDetailsRepository,
@@ -60,7 +64,28 @@ import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 interface NoteDetailsRow {
   readonly content: string;
   readonly updated_at: string;
+  readonly tags: string | null;
+  readonly archived_at: string | null;
 }
+
+/**
+ * Parse the stored tags JSON defensively — a corrupt value yields no tags rather
+ * than failing a read (mirrors `D1PersonRepository.parseTags`). The kernel is
+ * the only writer and always stores a validated, sorted array.
+ */
+function parseStoredTags(value: string | null): readonly string[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
+
+/** Every stored column an upsert returns, so one row shape serves every write. */
+const DETAIL_RETURNING = "content, updated_at, tags, archived_at";
 
 export type D1NoteDetailsRepositoryOptions = {
   readonly actorContext?: ActivityActorContext;
@@ -97,7 +122,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
   async get(id: string): Promise<NoteDetailsRecord | null> {
     const row = await this.#row(id);
     if (!row) return null;
-    return this.#record(id, row.content, row.updated_at);
+    return this.#record(id, row);
   }
 
   async update(id: string, content: string): Promise<NoteDetailsChangeResult> {
@@ -125,7 +150,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
            content = excluded.content,
            updated_at = excluded.updated_at
          WHERE note_details.content != excluded.content
-         RETURNING content, updated_at`,
+         RETURNING ${DETAIL_RETURNING}`,
       )
       .bind(this.#workspaceId, id, validated, nowTs, this.#workspaceId, id);
 
@@ -142,10 +167,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     );
 
     if (result.changed && result.row) {
-      return {
-        details: this.#record(id, result.row.content, result.row.updated_at),
-        changed: true,
-      };
+      return { details: this.#record(id, result.row), changed: true };
     }
 
     // The gate failed. Two distinct causes look identical here — the Note was
@@ -166,9 +188,126 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     throw new NoteDetailsConflictError();
   }
 
+  /**
+   * Replace the Note's tag set. The validated set is canonical (sorted,
+   * de-duplicated), so an unchanged set serialises byte-identically and the
+   * `WHERE note_details.tags != excluded.tags` predicate makes the write — and
+   * therefore the Activity append — a genuine no-op. Same ACTIVE-Note SQL gate
+   * as `update`, so a Note deleted mid-flight cannot commit an orphaned row.
+   */
+  async setTags(
+    id: string,
+    tags: readonly string[],
+  ): Promise<NoteDetailsChangeResult> {
+    const current = await this.#require(id);
+    const validated = validateNoteTags(tags);
+    const encoded = JSON.stringify(validated);
+
+    if (encoded === JSON.stringify(current.tags)) {
+      return { details: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    const domainStatement = this.#db
+      .prepare(
+        `INSERT INTO note_details
+           (workspace_id, entity_id, content, updated_at, tags)
+         SELECT ?, ?, '', ?, ?
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND type = '${NOTE_ENTITY_TYPE}'
+                       AND deleted_at IS NULL
+               )
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           tags = excluded.tags
+         WHERE note_details.tags != excluded.tags
+         RETURNING ${DETAIL_RETURNING}`,
+      )
+      .bind(this.#workspaceId, id, nowTs, encoded, this.#workspaceId, id);
+
+    return this.#applyDetailChange(id, domainStatement, now, {
+      type: NOTE_TAGS_UPDATED,
+      subjects: [{ entityId: id, role: "subject" }],
+      // Counts only — a tag may name something private, so the text never
+      // enters the Activity stream (mirrors `note.content_updated`'s payload).
+      payload: { count: validated.length },
+    });
+  }
+
+  /**
+   * Archive or unarchive the Note. Idempotent (the SQL predicate compares the
+   * desired state), reversible, and deliberately NOT the entity's soft-delete:
+   * an archived Note keeps its canonical route, its content and every
+   * relationship.
+   */
+  async setArchived(
+    id: string,
+    archived: boolean,
+  ): Promise<NoteDetailsChangeResult> {
+    const current = await this.#require(id);
+    if ((current.archivedAt !== null) === archived) {
+      return { details: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const archivedAt = archived ? nowTs : null;
+
+    const domainStatement = this.#db
+      .prepare(
+        `INSERT INTO note_details
+           (workspace_id, entity_id, content, updated_at, archived_at)
+         SELECT ?, ?, '', ?, ?
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND type = '${NOTE_ENTITY_TYPE}'
+                       AND deleted_at IS NULL
+               )
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           archived_at = excluded.archived_at
+         WHERE (note_details.archived_at IS NULL) != (excluded.archived_at IS NULL)
+         RETURNING ${DETAIL_RETURNING}`,
+      )
+      .bind(this.#workspaceId, id, nowTs, archivedAt, this.#workspaceId, id);
+
+    return this.#applyDetailChange(id, domainStatement, now, {
+      type: archived ? NOTE_ARCHIVED : NOTE_UNARCHIVED,
+      subjects: [{ entityId: id, role: "subject" }],
+      payload: {},
+    });
+  }
+
   /* ---------------------------------------------------------------------- */
   /* Internals                                                              */
   /* ---------------------------------------------------------------------- */
+
+  /**
+   * Run a guarded `note_details` upsert atomically with its Activity event and
+   * reconcile the outcome exactly as `update` does: a gate failure is
+   * re-inspected rather than assumed, so "the Note vanished" and "a concurrent
+   * writer already applied this exact change" stay distinguishable, and the
+   * latter reports the idempotent success it genuinely is.
+   */
+  async #applyDetailChange(
+    id: string,
+    domainStatement: D1PreparedStatement,
+    now: Date,
+    event: NewActivityEvent,
+  ): Promise<NoteDetailsChangeResult> {
+    const result = await this.#runAtomic<NoteDetailsRow>(
+      event,
+      domainStatement,
+      now,
+    );
+    if (result.changed && result.row) {
+      return { details: this.#record(id, result.row), changed: true };
+    }
+    const refreshed = await this.get(id);
+    if (!refreshed) throw new NoteDetailsNotFoundError();
+    return { details: refreshed, changed: false };
+  }
 
   async #require(id: string): Promise<NoteDetailsRecord> {
     const value = await this.get(id);
@@ -182,7 +321,8 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     try {
       const row = await this.#db
         .prepare(
-          `SELECT d.content AS content, d.updated_at AS updated_at
+          `SELECT d.content AS content, d.updated_at AS updated_at,
+                  d.tags AS tags, d.archived_at AS archived_at
            FROM entities e
            LEFT JOIN note_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -200,20 +340,16 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
 
   /**
    * Build a `NoteDetailsRecord` from a stored row — never an unchecked cast. A
-   * Note with no `note_details` row (both columns `NULL` from the LEFT JOIN)
-   * reads back as validated empty content with no content timestamp. A
-   * malformed stored `content` value (impossible under `parseMarkdownSource`
-   * except for genuinely corrupt storage state) fails honestly as a storage
-   * error rather than being silently coerced.
+   * Note with no `note_details` row (every column `NULL` from the LEFT JOIN)
+   * reads back as validated empty content, no tags, not archived and no content
+   * timestamp. A malformed stored `content` value (impossible under
+   * `parseMarkdownSource` except for genuinely corrupt storage state) fails
+   * honestly as a storage error rather than being silently coerced.
    */
-  #record(
-    id: string,
-    content: string | null,
-    updatedAt: string | null,
-  ): NoteDetailsRecord {
+  #record(id: string, row: NoteDetailsRow | null): NoteDetailsRecord {
     let validatedContent;
     try {
-      validatedContent = validateNoteContent(content ?? "");
+      validatedContent = validateNoteContent(row?.content ?? "");
     } catch (cause) {
       throw new NoteDetailsStorageError({ cause });
     }
@@ -221,7 +357,13 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
       id,
       workspaceId: parseWorkspaceId(this.#workspaceId),
       content: validatedContent,
-      contentUpdatedAt: updatedAt ? fromStorageTimestamp(updatedAt) : null,
+      contentUpdatedAt: row?.updated_at
+        ? fromStorageTimestamp(row.updated_at)
+        : null,
+      tags: parseStoredTags(row?.tags ?? null),
+      archivedAt: row?.archived_at
+        ? fromStorageTimestamp(row.archived_at)
+        : null,
     };
   }
 

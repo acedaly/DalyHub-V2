@@ -18,8 +18,55 @@
 /** The resolver route a wiki link points at; `?title=` carries the raw title. */
 export const WIKILINK_RESOLVE_PATH = "/notes/resolve";
 
-/** `[[Target]]` or `[[Target|Alias]]` — target and alias exclude `[`, `]`, `|`. */
+/**
+ * `[[Target]]` or `[[Target|Alias]]` — target and alias exclude `[`, `]`, `|`.
+ *
+ * This is the ONE wiki-link regular expression in DalyHub (NOTES-05 knowledge
+ * completion §13): the remark transform below, the reference extractor and the
+ * export transformer in `note-document.ts` all tokenise through
+ * {@link matchWikiLinks} rather than re-declaring a pattern of their own.
+ */
 const WIKILINK_PATTERN = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
+
+/** One `[[…]]` occurrence located in a string. */
+export interface WikiLinkMatch {
+  /** The referenced record title, trimmed. Never empty. */
+  readonly target: string;
+  /** The display label — the alias when present, otherwise the target. */
+  readonly label: string;
+  /** Code-unit offset of the first `[`. */
+  readonly start: number;
+  /** Code-unit offset just past the final `]`. */
+  readonly end: number;
+}
+
+/**
+ * Tokenise every `[[…]]` occurrence in a string, in source order.
+ *
+ * Deliberately syntax-only and deterministic: it resolves nothing, and a
+ * malformed occurrence (`[[ ]]`, `[[]]`, an unterminated `[[`) simply yields no
+ * match rather than an error. Callers that must respect Markdown structure
+ * (never treating `[[…]]` inside a fenced code block as a reference) filter the
+ * results by node ranges — see `note-document.ts`.
+ */
+export function matchWikiLinks(value: string): readonly WikiLinkMatch[] {
+  WIKILINK_PATTERN.lastIndex = 0;
+  const out: WikiLinkMatch[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = WIKILINK_PATTERN.exec(value)) !== null) {
+    const [whole, rawTarget, rawAlias] = match;
+    const target = rawTarget!.trim();
+    if (target === "") continue; // `[[ ]]` is not a link
+    const label = (rawAlias ?? rawTarget)!.trim();
+    out.push({
+      target,
+      label: label === "" ? target : label,
+      start: match.index,
+      end: match.index + whole.length,
+    });
+  }
+  return out;
+}
 
 /** Build the internal resolver href for a wiki-link target title. */
 export function wikiLinkHref(title: string): string {
@@ -46,26 +93,21 @@ const SKIP_TYPES = new Set(["link", "linkReference", "code", "inlineCode"]);
 
 /** Split one text node's value into text + link nodes for each `[[...]]`. */
 function splitTextNode(value: string): MdNode[] {
-  WIKILINK_PATTERN.lastIndex = 0;
+  const matches = matchWikiLinks(value);
+  if (matches.length === 0) return [{ type: "text", value }];
   const out: MdNode[] = [];
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = WIKILINK_PATTERN.exec(value)) !== null) {
-    const [whole, rawTarget, rawAlias] = match;
-    const target = rawTarget!.trim();
-    if (target === "") continue; // `[[ ]]` is not a link
-    if (match.index > lastIndex) {
-      out.push({ type: "text", value: value.slice(lastIndex, match.index) });
+  for (const match of matches) {
+    if (match.start > lastIndex) {
+      out.push({ type: "text", value: value.slice(lastIndex, match.start) });
     }
-    const label = (rawAlias ?? rawTarget)!.trim();
     out.push({
       type: "link",
-      url: wikiLinkHref(target),
-      children: [{ type: "text", value: label }],
+      url: wikiLinkHref(match.target),
+      children: [{ type: "text", value: match.label }],
     } as unknown as MdNode);
-    lastIndex = match.index + whole.length;
+    lastIndex = match.end;
   }
-  if (out.length === 0) return [{ type: "text", value }];
   if (lastIndex < value.length) {
     out.push({ type: "text", value: value.slice(lastIndex) });
   }
