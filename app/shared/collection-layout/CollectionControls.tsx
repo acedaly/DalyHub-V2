@@ -57,6 +57,16 @@ export type CollectionControlsProps = {
   readonly label?: string;
   /** Extra params to clear on Apply (pagination is always cleared). */
   readonly resetParams?: readonly string[];
+  /**
+   * The trigger's visible text. Defaults to "Filter". A collection whose sheet also
+   * carries sort and grouping can say so ("Filter & sort") rather than under-selling
+   * what the button opens.
+   */
+  readonly triggerLabel?: string;
+  /** Test id for the trigger. Defaults to the shared collection-control id. */
+  readonly triggerTestId?: string;
+  /** Hide the inline applied-summary line (e.g. when a chip row already shows it). */
+  readonly hideSummary?: boolean;
 };
 
 export function CollectionControls({
@@ -64,6 +74,9 @@ export function CollectionControls({
   children,
   label = "Filter and sort",
   resetParams,
+  triggerLabel = "Filter",
+  triggerTestId = "collection-filter-trigger",
+  hideSummary = false,
 }: CollectionControlsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [open, setOpen] = useState(false);
@@ -107,9 +120,9 @@ export function CollectionControls({
           className="dh-collection-controls__trigger"
           aria-expanded={open}
           onClick={openSheet}
-          data-testid="collection-filter-trigger"
+          data-testid={triggerTestId}
         >
-          Filter
+          {triggerLabel}
           {/* The count is TEXT, so an active filter is legible without colour and
               audible to a screen reader. */}
           {filterCount > 0 ? (
@@ -120,7 +133,7 @@ export function CollectionControls({
           ) : null}
         </button>
 
-        {summary.length > 0 ? (
+        {summary.length > 0 && !hideSummary ? (
           <p className="dh-collection-controls__summary">
             {summary.join(" · ")}
           </p>

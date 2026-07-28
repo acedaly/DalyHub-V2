@@ -20,22 +20,40 @@ import {
   type MarkdownSource,
 } from "~/kernel/markdown";
 
-import { TaskValidationError } from "./task-errors";
+import {
+  TaskValidationError,
+  type TaskValidationField,
+} from "./task-errors";
 import {
   COMMITMENT_STATES,
+  TASK_COMPLETED_VISIBILITIES,
+  TASK_DUE_STATES,
+  TASK_PARENT_KINDS,
+  TASK_PLANNED_STATES,
   TASK_PRIORITIES,
+  TASK_RECENCY_WINDOWS,
+  TASK_RECENCY_WINDOW_DAYS,
   TASK_SORTS,
+  TASK_SORT_DIRECTIONS,
   TASK_STATUSES,
   TASK_SYSTEM_VIEWS,
   TIME_SECTORS,
+  WORKSPACE_TASK_GROUP_DIMENSIONS,
   type CommitmentState,
+  type TaskCompletedVisibility,
   type TaskDelegation,
   type TaskDelegationInput,
+  type TaskDueState,
+  type TaskParentKind,
+  type TaskPlannedState,
   type TaskPriority,
+  type TaskRecencyWindow,
   type TaskSort,
+  type TaskSortDirection,
   type TaskStatus,
   type TaskSystemView,
   type TimeSector,
+  type WorkspaceTaskGroupDimension,
 } from "./task";
 import {
   DELEGATE_TO_MAX_LENGTH,
@@ -317,6 +335,116 @@ export function validateTaskSort(value: unknown): TaskSort {
   return value as TaskSort;
 }
 
+/**
+ * TASKS-03 — one generic closed-set validator, so every new filter dimension is
+ * checked the SAME way instead of growing a hand-written function per value type.
+ * An absent/empty value means "no filter" and returns `undefined`; anything not in
+ * the closed set throws, so a hostile URL or a stale saved view can never reach SQL
+ * with an unrecognised token.
+ */
+function validateClosedSet<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  field: TaskValidationField,
+  description: string,
+): T | undefined {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) {
+    throw new TaskValidationError(field, description);
+  }
+  return value as T;
+}
+
+/** Validate the sort DIRECTION. Defaults to each sort's natural direction. */
+export function validateTaskSortDirection(value: unknown): TaskSortDirection {
+  return (
+    validateClosedSet(
+      value,
+      TASK_SORT_DIRECTIONS,
+      "direction",
+      "is not a known sort direction",
+    ) ?? "natural"
+  );
+}
+
+/** Validate a derived due-state filter (`undefined` = no filter). */
+export function validateTaskDueState(value: unknown): TaskDueState | undefined {
+  return validateClosedSet(
+    value,
+    TASK_DUE_STATES,
+    "dueState",
+    "is not a known due state",
+  );
+}
+
+/** Validate a derived planned-state filter (`undefined` = no filter). */
+export function validateTaskPlannedState(
+  value: unknown,
+): TaskPlannedState | undefined {
+  return validateClosedSet(
+    value,
+    TASK_PLANNED_STATES,
+    "plannedState",
+    "is not a known planned state",
+  );
+}
+
+/** Validate a structural parent-kind filter (`undefined` = no filter). */
+export function validateTaskParentKind(
+  value: unknown,
+): TaskParentKind | undefined {
+  return validateClosedSet(
+    value,
+    TASK_PARENT_KINDS,
+    "parentKind",
+    "is not a known parent kind",
+  );
+}
+
+/** Validate a created/updated recency window (`undefined` = no filter). */
+export function validateTaskRecencyWindow(
+  value: unknown,
+): TaskRecencyWindow | undefined {
+  return validateClosedSet(
+    value,
+    TASK_RECENCY_WINDOWS,
+    "recencyWindow",
+    "is not a known recency window",
+  );
+}
+
+/** Validate completed/terminal visibility. Defaults to the system view's own rule. */
+export function validateTaskCompletedVisibility(
+  value: unknown,
+): TaskCompletedVisibility {
+  return (
+    validateClosedSet(
+      value,
+      TASK_COMPLETED_VISIBILITIES,
+      "completedVisibility",
+      "is not a known completed visibility",
+    ) ?? "default"
+  );
+}
+
+/** Validate a server-side grouping dimension. */
+export function validateTaskGroupDimension(
+  value: unknown,
+): WorkspaceTaskGroupDimension {
+  const dimension = validateClosedSet(
+    value,
+    WORKSPACE_TASK_GROUP_DIMENSIONS,
+    "dimension",
+    "is not a known grouping",
+  );
+  if (dimension === undefined) {
+    throw new TaskValidationError("dimension", "is not a known grouping");
+  }
+  return dimension;
+}
+
 /** A strict date-only `YYYY-MM-DD` shape, validated further for calendar validity. */
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -546,4 +674,51 @@ export function validateTaskLimit(value: unknown): number {
     throw new TaskValidationError("limit", "must be at least 1");
   }
   return Math.min(value, MAX_TASK_PAGE_SIZE);
+}
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-03 — pure calendar-window arithmetic                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Shift a date-only `YYYY-MM-DD` by whole days, returning date-only text.
+ *
+ * Deliberately computed through UTC midnight and re-formatted by hand: a date-only
+ * value is a CALENDAR day, never an instant, so it must never be routed through a
+ * timezone (ADR-022). The owner's calendar day is already resolved server-side
+ * before it reaches here; this only moves it along the calendar.
+ */
+export function shiftCalendarDate(isoDate: string, days: number): string {
+  const match = DATE_ONLY_PATTERN.exec(isoDate);
+  if (!match) {
+    throw new TaskValidationError("scheduledDate", "must be a YYYY-MM-DD date");
+  }
+  const base = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const shifted = new Date(base + days * 86_400_000);
+  const year = String(shifted.getUTCFullYear()).padStart(4, "0");
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(shifted.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * The inclusive END of the rolling "this week" window: `todayIso + 6` days.
+ *
+ * A ROLLING seven-day window (rather than "until Sunday") is deliberate: it needs
+ * no first-day-of-week preference, so a shared `/tasks` link means the same thing
+ * to any viewer, and "due this week" never collapses to "due today" on a Saturday.
+ */
+export function weekWindowEnd(todayIso: string): string {
+  return shiftCalendarDate(todayIso, 6);
+}
+
+/**
+ * The INCLUSIVE start of a recency window — the earliest calendar day a task may
+ * have been created/updated on to still count as recent. `1d` is today alone.
+ */
+export function recencyWindowStart(
+  todayIso: string,
+  window: TaskRecencyWindow,
+): string {
+  return shiftCalendarDate(todayIso, -(TASK_RECENCY_WINDOW_DAYS[window] - 1));
 }

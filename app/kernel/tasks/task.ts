@@ -499,8 +499,87 @@ export const TASK_SORTS = [
   "created",
   "updated",
   "title",
+  /**
+   * TASKS-03: order by the structural parent's title (tasks with no parent last),
+   * so a list can be read Project-by-Project without switching to a grouped view.
+   */
+  "parent",
 ] as const;
 export type TaskSort = (typeof TASK_SORTS)[number];
+
+/**
+ * TASKS-03 — the explicit sort DIRECTION. Every sort declares a natural direction
+ * (`smart` is always most-relevant-first; `due_date` ascending; `updated`
+ * descending); `direction` flips it where flipping is meaningful. It is bound into
+ * the pagination cursor because it changes ordering.
+ */
+export const TASK_SORT_DIRECTIONS = ["natural", "asc", "desc"] as const;
+export type TaskSortDirection = (typeof TASK_SORT_DIRECTIONS)[number];
+
+/**
+ * TASKS-03 — the DERIVED due state, resolved against the owner's calendar day
+ * (never browser-local time, ADR-022). "This week" is the rolling seven-day window
+ * `todayIso … todayIso + 6`, so it never depends on a week-start preference and is
+ * stable for a shared link. `overdue` means an OPEN task due strictly before today;
+ * due-today is deliberately NOT overdue (the same rule the `smart` sort uses).
+ */
+export const TASK_DUE_STATES = [
+  "overdue",
+  "due_today",
+  "due_this_week",
+  "due_later",
+  "no_due_date",
+] as const;
+export type TaskDueState = (typeof TASK_DUE_STATES)[number];
+
+/**
+ * TASKS-03 — the DERIVED planned state over the SCHEDULED date (the owner's
+ * "I intend to work on this that day" commitment, ADR-030). Distinct from the due
+ * state: a task can be planned today and due next month, or overdue and unplanned.
+ */
+export const TASK_PLANNED_STATES = [
+  "planned_today",
+  "planned_this_week",
+  "planned_earlier",
+  "planned_later",
+  "unplanned",
+] as const;
+export type TaskPlannedState = (typeof TASK_PLANNED_STATES)[number];
+
+/** TASKS-03 — filter by the KIND of structural parent a task hangs from. */
+export const TASK_PARENT_KINDS = ["project", "area", "none"] as const;
+export type TaskParentKind = (typeof TASK_PARENT_KINDS)[number];
+
+/**
+ * TASKS-03 — the closed set of created/updated recency windows. A closed set (not
+ * a free-form day count) keeps the URL, the cursor signature and the saved-view
+ * config validatable and bounded.
+ */
+export const TASK_RECENCY_WINDOWS = ["1d", "7d", "30d", "90d"] as const;
+export type TaskRecencyWindow = (typeof TASK_RECENCY_WINDOWS)[number];
+
+/** The number of days each recency window looks back, inclusive of today. */
+export const TASK_RECENCY_WINDOW_DAYS: Record<TaskRecencyWindow, number> = {
+  "1d": 1,
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+};
+
+/**
+ * TASKS-03 — completed/terminal visibility, applied ON TOP of the system view.
+ * The system view decides the population; this decides whether the finished work
+ * inside it is shown, hidden or shown alone. `default` leaves the view's own rule
+ * untouched (so `all` still includes completed and `this_week` still excludes it).
+ */
+export const TASK_COMPLETED_VISIBILITIES = [
+  "default",
+  "hide",
+  "include",
+  "only",
+] as const;
+export type TaskCompletedVisibility =
+  (typeof TASK_COMPLETED_VISIBILITIES)[number];
 
 /**
  * The filters the workspace-wide read model applies SERVER-SIDE (never by loading
@@ -523,6 +602,28 @@ export type WorkspaceTaskFilters = {
   readonly delegatedOnly?: boolean;
   /** Only waiting tasks. */
   readonly waitingOnly?: boolean;
+
+  /* ---- TASKS-03 additions. Every one is resolved SERVER-side and bound into --
+     the cursor signature, so a page-two cursor can never survive a filter change. */
+
+  /** The derived due state against the owner's calendar day. */
+  readonly dueState?: TaskDueState;
+  /** The derived planned (scheduled-date) state against the owner's calendar day. */
+  readonly plannedState?: TaskPlannedState;
+  /** The kind of structural parent (`none` = a task whose parent link is gone). */
+  readonly parentKind?: TaskParentKind;
+  /**
+   * Restrict to tasks delegated to exactly this person/label. Delegation is
+   * plain text today (ADR-043 §7) and this compares the stored value verbatim —
+   * it is never interpolated into SQL.
+   */
+  readonly delegatedTo?: string;
+  /** Only tasks created within this window (inclusive of today). */
+  readonly createdWithin?: TaskRecencyWindow;
+  /** Only tasks updated within this window (inclusive of today). */
+  readonly updatedWithin?: TaskRecencyWindow;
+  /** Completed/terminal visibility applied on top of the system view. */
+  readonly completedVisibility?: TaskCompletedVisibility;
 };
 
 /** Options for the bounded, cursor-paginated workspace-wide Tasks query. */
@@ -533,6 +634,8 @@ export type ListWorkspaceTasksInput = {
   readonly filters?: WorkspaceTaskFilters;
   /** Sort order (default `smart`). */
   readonly sort?: TaskSort;
+  /** Sort direction (default `natural` — each sort's documented direction). */
+  readonly direction?: TaskSortDirection;
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */
   readonly limit?: number;
   /**
@@ -561,10 +664,28 @@ export type WorkspaceTaskListPage = {
 };
 
 /**
- * The dimension the active-planning collection is grouped by, server-side, for the
- * Matrix (`quadrant`) and Sectors (`sector`) views (ADR-043 §11 / decision 12).
+ * The dimension the collection is grouped by, SERVER-side (ADR-043 decision 12,
+ * widened by TASKS-03). `quadrant` and `sector` back the Eisenhower Matrix and the
+ * Time Sectors views; the rest back the optional grouping of the ordinary List and
+ * Board views. Every dimension is a TRUSTED column expression chosen from this
+ * closed set — a caller never supplies SQL.
+ *
+ * `quadrant` and `priority` bucket identically (by `task_details.priority`); they
+ * are separate names because they are PRESENTED differently — the Matrix labels a
+ * bucket with its Eisenhower action word, a grouped list labels it `P1 · Urgent`.
  */
-export type WorkspaceTaskGroupDimension = "quadrant" | "sector";
+export const WORKSPACE_TASK_GROUP_DIMENSIONS = [
+  "quadrant",
+  "sector",
+  "priority",
+  "due_state",
+  "planned",
+  "status",
+  "parent",
+  "delegate",
+] as const;
+export type WorkspaceTaskGroupDimension =
+  (typeof WORKSPACE_TASK_GROUP_DIMENSIONS)[number];
 
 /**
  * One server-computed bucket of the ACTIVE planning collection. The `count` is the
@@ -584,6 +705,13 @@ export type WorkspaceTaskGroup = {
   readonly count: number;
   readonly items: readonly TaskListItem[];
   readonly hasMore: boolean;
+  /**
+   * TASKS-03 — the human label for an OPEN-ENDED bucket key whose text the caller
+   * cannot derive from a closed vocabulary: the parent's current title (`parent`)
+   * or the delegatee (`delegate`). `null` for closed dimensions, whose labels are
+   * owned by the presentation layer.
+   */
+  readonly label: string | null;
 };
 
 /** The full server-authoritative grouping of the active planning collection. */
@@ -592,11 +720,22 @@ export type WorkspaceTaskGrouping = {
   readonly groups: readonly WorkspaceTaskGroup[];
 };
 
-/** Options for the bounded, server-grouped active-planning query (Matrix/Sectors). */
+/** Options for the bounded, server-grouped query (Matrix / Sectors / grouped list). */
 export type ListWorkspaceTaskGroupsInput = {
   readonly dimension: WorkspaceTaskGroupDimension;
+  /**
+   * The system view that defines the POPULATION being grouped. Defaults to
+   * `active` — the actionable-now planning scope the Matrix and Sectors use. A
+   * grouped List/Board view passes its own current view, so grouping never
+   * silently re-scopes what the user is looking at.
+   */
+  readonly view?: TaskSystemView;
+  /** The same filters the flat query applies, so grouping honours them exactly. */
+  readonly filters?: WorkspaceTaskFilters;
   /** Within-bucket sort (default `smart` — overdue-first, then priority, then due). */
   readonly sort?: TaskSort;
+  /** Within-bucket sort direction (default `natural`). */
+  readonly direction?: TaskSortDirection;
   /** Bounded records returned per bucket; clamped to a safe maximum. */
   readonly bucketLimit?: number;
   /** The owner's calendar date `YYYY-MM-DD` — drives the `smart` overdue ranking. */

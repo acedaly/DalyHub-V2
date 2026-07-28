@@ -1,36 +1,36 @@
 /**
- * TASKS-01 — the `/tasks` workspace surface (presentation, no server imports).
+ * TASKS-01 / TASKS-03 — the `/tasks` workspace surface (presentation, no server
+ * imports).
  *
- * The authoritative workspace-wide Tasks planning and execution surface (ADR-043),
- * composed ENTIRELY from the shared frame — the PX-02 CollectionLayout, the ONE
- * DS-04 Card + CardCollection, the shared EmptyState, LoadMore, SegmentedFilter and
- * the DS-03 Drawer (hosting the shared Task record and the DS-06 create form). No
- * bespoke primitives, no second drawer.
+ * The authoritative workspace-wide Tasks planning and execution surface (ADR-043,
+ * ADR-059), composed ENTIRELY from the shared frame — the PX-02 CollectionLayout,
+ * the ONE DS-04 Card + CardCollection, the shared EmptyState, LoadMore, the
+ * MOBILE-01 CollectionControls sheet and chip row, and the DS-03 Drawer (hosting
+ * the shared Task record and the DS-06 create form). No bespoke primitives, no
+ * second drawer, no Tasks-only filter system.
  *
- * Four primary views over the SAME loaded cards (the server sorts and filters; the
- * view-model groups): Focus (a flat execution list with Waiting split out), the
- * Eisenhower Matrix (a 2×2 grid on desktop, stacked on mobile), the Time Sectors,
- * and a flat All list with a sort control. A secondary row of system-view links
- * (Inbox, Today, …) re-scopes the query. Bulk actions post to `/tasks/bulk`; the
- * task record itself opens in the ONE canonical shared Task Drawer.
+ * TASKS-03 makes the LIST the primary workspace. The Eisenhower Matrix and the Time
+ * Sectors are retained as OPTIONAL presentations of the same query, chosen from the
+ * same control surface as any other layout — neither is presented as the way to
+ * manage tasks. Every presentation, filter combination, sort and grouping reads the
+ * one loader payload; there is no per-view query.
+ *
+ * Every mutation reachable from a row goes to a CANONICAL route: completion to
+ * `POST /tasks/:taskId`, field changes to `/tasks/bulk`, creation to `/tasks/new`,
+ * saved views to `/tasks/views`. There is no list-only mutation anywhere here.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import {
-  Link,
-  useFetcher,
-  useRevalidator,
-  useSearchParams,
-} from "react-router";
+import { Link, useFetcher, useRevalidator, useSearchParams } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps, CardTone } from "~/shared/card";
 import {
   CollectionControls,
+  CollectionFilterChips,
   CollectionLayout,
   useCollectionLoading,
-  type CollectionControlGroup,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -43,7 +43,6 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
-import { SegmentedFilter } from "~/shared/segmented-filter";
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
@@ -52,143 +51,25 @@ import {
   timeSectorLabel,
   type SerializedTaskListItem,
 } from "~/shared/task-record/task-view";
-import {
-  TASK_PRIORITIES,
-  TASK_SORTS,
-  TASK_SYSTEM_VIEWS,
-  TIME_SECTORS,
-  type TaskSort,
-  type TaskSystemView,
-} from "~/kernel/tasks";
+import { TASK_PRIORITIES, TIME_SECTORS } from "~/kernel/tasks";
+import { taskViewFilterCount } from "~/kernel/task-views";
 
 import { NewTaskForm } from "./NewTaskForm";
+import { TasksQuickAdd } from "./TasksQuickAdd";
+import { TasksViewSwitcher } from "./TasksViewSwitcher";
+import { buildTasksControlGroups } from "./tasks-controls";
 import type { TasksBulkResult, TasksPageData } from "./tasks-contract";
+import { GROUP_BY_LABELS, PRESENTATION_LABELS } from "./tasks-presentation";
+import { TASKS_FILTER_PARAM_NAMES, effectiveGroupBy } from "./tasks-url-state";
 import {
-  resolveMatrixSections,
-  resolveSectorSections,
+  resolveGroupedSections,
   toTaskCardData,
   type GroupedSection,
   type TaskCardData,
 } from "./tasks-view-model";
 
-/** The drawer key that opens the "New task" quick-capture form. */
+/** The drawer key that opens the "New task" capture form. */
 const NEW_TASK_KEY = "new-task";
-
-/** The primary view switcher options (URL `?view=`). */
-const VIEW_OPTIONS = [
-  { value: "focus", label: "Focus" },
-  { value: "matrix", label: "Matrix" },
-  { value: "sectors", label: "Sectors" },
-  { value: "all", label: "All" },
-] as const;
-
-/** The secondary system-view chips (URL `?system=`), in planning order. */
-const SYSTEM_VIEW_LABELS: Record<TaskSystemView, string> = {
-  inbox: "Inbox",
-  today: "Today",
-  upcoming: "Upcoming",
-  this_week: "This week",
-  next_week: "Next week",
-  this_month: "This month",
-  next_month: "Next month",
-  long_term: "Long term",
-  someday: "Someday / Maybe",
-  waiting: "Waiting",
-  routines: "Routines",
-  overdue: "Overdue",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  active: "Active",
-  all: "All",
-};
-
-const SORT_LABELS: Record<TaskSort, string> = {
-  smart: "Smart",
-  due_date: "Due date",
-  scheduled_date: "Scheduled date",
-  priority: "Priority",
-  created: "Created",
-  updated: "Updated",
-  title: "Title",
-};
-
-/**
- * MOBILE-01 — the phone control groups, fed to the ONE shared collection sheet.
- *
- * These are the SAME URL parameters the desktop system-view rail, the view
- * switcher and the sort select write (`?system=`, `?priority=`, `?sector=`,
- * `?view=`, `?sort=`), so the phone sheet is a different way to reach the same
- * state — not a second filter model. Saved views appear as the "View" group: the
- * system views ARE the product's saved views today, and when X-02 adds
- * user-defined ones they extend this same group.
- *
- * Everything here is a small, closed option set. A filter over a searched record
- * (a specific Project) stays a server-backed picker on the desktop filter bar —
- * the sheet never loads a collection to filter it locally.
- */
-const MOBILE_CONTROL_GROUPS: readonly CollectionControlGroup[] = [
-  {
-    id: "system",
-    label: "View",
-    param: "system",
-    kind: "view",
-    options: [
-      { value: "", label: "Default for this view" },
-      ...TASK_SYSTEM_VIEWS.map((view) => ({
-        value: view,
-        label: SYSTEM_VIEW_LABELS[view],
-      })),
-    ],
-  },
-  {
-    id: "priority",
-    label: "Priority",
-    param: "priority",
-    options: [
-      { value: "", label: "Any priority" },
-      { value: "p1", label: "P1 · Urgent" },
-      { value: "p2", label: "P2 · High" },
-      { value: "p3", label: "P3 · Normal" },
-      { value: "p4", label: "P4 · Low" },
-      { value: "__none", label: "No priority" },
-    ],
-  },
-  {
-    id: "sector",
-    label: "Time sector",
-    param: "sector",
-    options: [
-      { value: "", label: "Any sector" },
-      { value: "__none", label: "Inbox (no sector)" },
-      ...TIME_SECTORS.map((sector) => ({
-        value: sector,
-        label: timeSectorLabel(sector),
-      })),
-    ],
-  },
-  {
-    id: "layout",
-    label: "Layout",
-    param: "view",
-    kind: "group",
-    defaultValue: "focus",
-    options: VIEW_OPTIONS.map((option) => ({
-      value: option.value,
-      label: option.label,
-    })),
-  },
-  {
-    id: "sort",
-    label: "Sort",
-    param: "sort",
-    kind: "sort",
-    defaultValue: "smart",
-    options: TASK_SORTS.map((sort) => ({
-      value: sort,
-      label: SORT_LABELS[sort],
-    })),
-  },
-];
 
 /* -------------------------------------------------------------------------- */
 /* Provider + drawer wiring                                                    */
@@ -256,9 +137,8 @@ function NewTaskDrawerHost({
  * Accumulate keyset pages WITHOUT navigating (so the `?drawer=` param and scroll
  * position survive). The loader's first page seeds the list; each "Load more" runs
  * the SAME `/tasks` loader through a fetcher with the next `cursor`, and the rows
- * are appended. A filter/view/sort change (the `resetKey`) or a loader re-run
- * (a new first cursor) RESETS the accumulation. Duplicate ids are collapsed
- * defensively. Modelled on Projects' `useProjectPagination`.
+ * are appended. A configuration change (the `resetKey`) or a loader re-run (a new
+ * first page) RESETS the accumulation. Duplicate ids are collapsed defensively.
  */
 function useTaskPagination(
   firstPage: readonly SerializedTaskListItem[],
@@ -272,13 +152,6 @@ function useTaskPagination(
   const [loadFailed, setLoadFailed] = useState(false);
   const processed = useRef<TasksPageData | null>(null);
 
-  // Reset the accumulation whenever the query scope changes (`resetKey`) OR the
-  // loader re-runs (a new `firstPage` reference — e.g. a revalidation after a bulk
-  // mutation, even if the cursor/scope is unchanged). Keying to the loader RESULT,
-  // not only the cursor, prevents stale appended rows — e.g. a completed task
-  // lingering in This Week — after a mutation (review feedback). `firstPage` is
-  // `loaderData.items`, whose reference is stable across renders and only changes
-  // when the loader actually re-runs.
   useEffect(() => {
     setAppended([]);
     setCursor(initialCursor);
@@ -335,27 +208,28 @@ function useTaskPagination(
 }
 
 /* -------------------------------------------------------------------------- */
-/* The surface                                                                 */
+/* Quick edits — always through the canonical routes                           */
 /* -------------------------------------------------------------------------- */
 
 /**
- * MOBILE-01 — one-tap task edits from the list, through the CANONICAL routes.
+ * List-level quick edits, through the CANONICAL routes.
  *
  * Completion posts `intent=complete`/`reopen` to `POST /tasks/:taskId` — the same
- * atomic task-domain operation the Task Drawer's Complete button uses (ADR-029),
- * so completing from a list and completing from the record are one execution
- * path with one Activity trail. Priority and date changes go through the trusted
- * `/tasks/bulk` field mutation with a single id, again the same authority the bulk
- * bar uses. There is no list-only mutation anywhere in this file.
+ * atomic task-domain operation the Task Drawer's Complete button uses (ADR-029), so
+ * completing from a list and completing from the record are ONE execution path with
+ * ONE Activity trail. Every field change goes through the trusted `/tasks/bulk`
+ * mutation with a single id — again the same authority the bulk bar uses.
  *
- * The loader is revalidated after each change so the row reflects reality
- * (a completed task leaving an active view, a re-sorted list) rather than an
- * optimistic guess that could disagree with the server.
+ * The loader is revalidated after each change so a row reflects the server (a
+ * completed task leaving an active view, a re-sorted list) rather than an optimistic
+ * guess that could disagree with it. Every outcome is announced.
  */
 function useTaskQuickMutation() {
   const fetcher = useFetcher();
   const revalidator = useRevalidator();
   const settled = useRef<unknown>(null);
+  const [announcement, setAnnouncement] = useState<string | null>(null);
+  const pendingLabel = useRef<string | null>(null);
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) {
@@ -365,11 +239,23 @@ function useTaskQuickMutation() {
       return;
     }
     settled.current = fetcher.data;
+    const result = fetcher.data as { readonly ok?: boolean; readonly formError?: string };
+    if (result.ok === false) {
+      setAnnouncement(
+        result.formError ?? "That change couldn’t be saved. Nothing was changed.",
+      );
+    } else if (pendingLabel.current) {
+      setAnnouncement(pendingLabel.current);
+    }
+    pendingLabel.current = null;
     revalidator.revalidate();
   }, [fetcher.state, fetcher.data, revalidator]);
 
   const setCompleted = useCallback(
-    (taskId: string, completed: boolean) => {
+    (taskId: string, completed: boolean, title: string) => {
+      pendingLabel.current = completed
+        ? `Completed ${title}.`
+        : `Reopened ${title}.`;
       const body = new FormData();
       body.set("intent", completed ? "complete" : "reopen");
       fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
@@ -378,7 +264,8 @@ function useTaskQuickMutation() {
   );
 
   const setField = useCallback(
-    (taskId: string, fields: Record<string, string>) => {
+    (taskId: string, fields: Record<string, string>, label: string) => {
+      pendingLabel.current = label;
       const body = new FormData();
       body.append("id", taskId);
       for (const [key, value] of Object.entries(fields)) {
@@ -389,24 +276,34 @@ function useTaskQuickMutation() {
     [fetcher],
   );
 
-  return { setCompleted, setField, busy: fetcher.state !== "idle" };
+  return {
+    setCompleted,
+    setField,
+    busy: fetcher.state !== "idle",
+    announcement,
+  };
 }
 
+/* -------------------------------------------------------------------------- */
+/* The surface                                                                 */
+/* -------------------------------------------------------------------------- */
+
 function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { openDrawer } = useDrawer();
   const quick = useTaskQuickMutation();
+  const config = data.config;
 
-  const resetKey = useMemo(
+  const controlGroups = useMemo(
     () =>
-      JSON.stringify({
-        view: data.primaryView,
-        system: data.systemView,
-        sort: data.sort,
-        filters: data.filters,
+      buildTasksControlGroups({
+        delegates: data.delegates.map((value) => ({ value, label: value })),
+        parents: data.parents,
       }),
-    [data.primaryView, data.systemView, data.sort, data.filters],
+    [data.delegates, data.parents],
   );
+
+  const resetKey = useMemo(() => JSON.stringify(config), [config]);
 
   const loadHref = useCallback(
     (cursor: string): string => {
@@ -430,34 +327,32 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     [items],
   );
 
-  // The Matrix and Sectors views render from the SERVER grouping (authoritative
-  // per-bucket counts + bounded records), not from the accumulated flat page. A
-  // loader re-run (revalidation after a mutation) replaces `data.grouping` wholesale,
-  // so stale bucket data can never linger (ADR-043 §11 / decision 12).
+  // A grouped view renders from the SERVER grouping (authoritative per-bucket
+  // counts + bounded records), not from the accumulated flat page. A loader re-run
+  // replaces `data.grouping` wholesale, so stale bucket data can never linger.
   const grouping = data.grouping;
   const isGrouped = grouping !== null;
-  const groupedSections = useMemo<GroupedSection[]>(() => {
-    if (!grouping) return [];
-    return grouping.dimension === "quadrant"
-      ? resolveMatrixSections(grouping)
-      : resolveSectorSections(grouping);
-  }, [grouping]);
+  const groupedSections = useMemo<GroupedSection[]>(
+    () => resolveGroupedSections(grouping),
+    [grouping],
+  );
   const groupedTotal = useMemo(
     () => (grouping ? grouping.groups.reduce((n, g) => n + g.count, 0) : 0),
     [grouping],
   );
 
-  // Build the "view all in this bucket" link: the flat All list scoped to the SAME
-  // active-planning population as the bucket (`system=active`) plus the bucket's
-  // priority/sector filter, so the overflow of a bucket paginates independently on
-  // its own cursor without an unbounded read.
+  // "View all N" links to the FLAT list scoped to the same population plus the
+  // bucket's own filter, so an overflowing bucket paginates independently on its own
+  // cursor without an unbounded read — and lands on exactly the records it counted.
   const viewAllHref = useCallback(
-    (section: GroupedSection): string => {
+    (section: GroupedSection): string | null => {
+      if (section.filterParam === null || section.filterKey === null) {
+        return null;
+      }
       const next = new URLSearchParams(searchParams);
-      next.set("view", "all");
-      next.set("system", "active");
+      next.set("view", "list");
+      next.delete("group");
       next.set(section.filterParam, section.filterKey);
-      next.delete(section.filterParam === "priority" ? "sector" : "priority");
       next.delete("cursor");
       next.delete("drawer");
       return `/tasks?${next.toString()}`;
@@ -483,12 +378,14 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     });
   }, []);
 
+  const density = config.density;
+
   const toCardProps = useCallback(
     (card: TaskCardData, headingLevel: 2 | 3): CardProps => {
       // Priority ≠ urgency ≠ display-state as THREE separable slots (TASKS-02): the
       // display-state stays the status pill; priority and urgency render as the
-      // shared, self-describing coloured chips in the metadata row (colour is
-      // reinforcement only — each chip carries its meaning in words).
+      // shared, self-describing chips in the metadata row — colour is reinforcement
+      // only, each chip carries its meaning in words.
       const metadata: CardMetaItem[] = [];
       if (card.priority) {
         metadata.push({
@@ -511,9 +408,9 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           ),
         });
       }
-      // MOBILE-01: the module declares what a small card should lead with.
-      // Priority and urgency are SIGNALS the user scans for; the sector and the
-      // delegate are supporting detail — de-emphasised on a phone, never hidden.
+      // The module declares what a small card leads with: priority and urgency are
+      // the SIGNALS a user scans for; the sector, the delegate and the waiting
+      // subject are supporting detail — de-emphasised, never hidden.
       metadata.push({
         id: "sector",
         label: "Sector",
@@ -528,19 +425,25 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           priority: "low",
         });
       }
+      if (card.waiting) {
+        metadata.push({
+          id: "waiting",
+          label: "Waiting",
+          value: "Blocked on someone else",
+          priority: "low",
+        });
+      }
 
-      // MOBILE-01: one-tap completion straight from the list, and one-tap
-      // scheduling — the two things a phone user does most and previously had to
-      // open the record for. Both are ordinary, labelled, keyboard-reachable
-      // buttons; the swipe tray below is only an accelerator over the same
-      // actions (TODAY-06 / ADR-032), never gesture-only functionality.
+      // The two things a user does most from a list, as visible, labelled 44px
+      // buttons. The swipe tray below reveals the SAME actions, so nothing is
+      // gesture-only and a non-touch device behaves identically.
       const completeAction = {
         id: "complete",
         label: card.completed ? "Reopen" : "Complete",
         ariaLabel: card.completed
           ? `Reopen ${card.title}`
           : `Complete ${card.title}`,
-        onSelect: () => quick.setCompleted(card.id, !card.completed),
+        onSelect: () => quick.setCompleted(card.id, !card.completed, card.title),
         disabled: quick.busy,
       };
       const planTodayAction = card.completed
@@ -550,37 +453,95 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             label: "Today",
             ariaLabel: `Plan ${card.title} for today`,
             onSelect: () =>
-              quick.setField(card.id, {
-                intent: "plan",
-                scheduledDate: data.todayIso,
-              }),
+              quick.setField(
+                card.id,
+                { intent: "plan", scheduledDate: data.todayIso },
+                `Planned ${card.title} for today.`,
+              ),
             disabled: quick.busy,
           };
       const quickActions = [completeAction, planTodayAction].filter(
         (action) => action !== null,
       );
 
-      // The long tail of quick edits (priority, clearing a plan) stays in the
-      // one shared overflow menu rather than adding buttons to every row.
+      // The long tail of quick edits stays in the ONE shared overflow menu rather
+      // than turning every row into a spreadsheet. Archive/restore/delete keep the
+      // shared lifecycle placement: a Task's removal is a status change made in the
+      // canonical Drawer, so the menu POINTS there rather than forking a second
+      // lifecycle path (PX-04).
       const overflowActions = card.completed
-        ? []
+        ? [
+            {
+              id: "open-record",
+              label: "Open task record",
+              onSelect: () => openDrawer(`task:${card.id}`),
+            },
+          ]
         : [
             ...TASK_PRIORITIES.map((priority) => ({
               id: `priority-${priority}`,
               label: `Set ${taskPriorityLabel(priority)}`,
               disabled: quick.busy || card.priority === priority,
               onSelect: () =>
-                quick.setField(card.id, {
-                  intent: "set_priority",
-                  priority,
-                }),
+                quick.setField(
+                  card.id,
+                  { intent: "set_priority", priority },
+                  `${card.title} set to ${taskPriorityLabel(priority)}.`,
+                ),
             })),
             {
-              id: "clear-plan",
-              label: "Clear scheduled date",
+              id: "due-today",
+              label: "Due today",
               separatorBefore: true,
+              disabled: quick.busy || card.dueDate === data.todayIso,
+              onSelect: () =>
+                quick.setField(
+                  card.id,
+                  { intent: "set_due", dueDate: data.todayIso },
+                  `${card.title} is due today.`,
+                ),
+            },
+            {
+              id: "clear-due",
+              label: "Clear due date",
+              disabled: quick.busy || card.dueDate === null,
+              onSelect: () =>
+                quick.setField(
+                  card.id,
+                  { intent: "set_due", dueDate: "" },
+                  `Cleared the due date on ${card.title}.`,
+                ),
+            },
+            {
+              id: "clear-plan",
+              label: "Clear planned date",
               disabled: quick.busy || card.scheduledDate === null,
-              onSelect: () => quick.setField(card.id, { intent: "clear_plan" }),
+              onSelect: () =>
+                quick.setField(
+                  card.id,
+                  { intent: "clear_plan" },
+                  `Cleared the planned date on ${card.title}.`,
+                ),
+            },
+            {
+              id: "someday",
+              label: "Move to Someday / Maybe",
+              separatorBefore: true,
+              disabled: quick.busy,
+              onSelect: () =>
+                quick.setField(
+                  card.id,
+                  { intent: "set_commitment", commitment: "someday" },
+                  `${card.title} moved to Someday / Maybe.`,
+                ),
+            },
+            {
+              id: "open-record",
+              label: "Open task record",
+              description:
+                "For the parent, delegation, waiting and removal.",
+              separatorBefore: true,
+              onSelect: () => openDrawer(`task:${card.id}`),
             },
           ];
 
@@ -594,15 +555,13 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         status: { label: card.stateLabel, tone: card.stateTone as CardTone },
         metadata,
         context: card.parentLabel ? { label: card.parentLabel } : undefined,
-        density: "comfortable",
+        density,
         presentation: "list",
         href: `?${withDrawerPushed(searchParams, key).toString()}`,
         onOpen: () => openDrawer(key),
         openAriaLabel: `Open ${card.title}`,
         quickActions,
         overflowActions,
-        // The accelerator reveals the SAME actions, so nothing here is
-        // gesture-only and a non-touch device behaves exactly as before.
         swipeActions: quickActions,
         selection: {
           selected: selected.has(card.id),
@@ -611,7 +570,15 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         },
       };
     },
-    [data.todayIso, searchParams, openDrawer, selected, toggleSelected, quick],
+    [
+      data.todayIso,
+      searchParams,
+      openDrawer,
+      selected,
+      toggleSelected,
+      quick,
+      density,
+    ],
   );
 
   const renderCollection = useCallback(
@@ -621,14 +588,15 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         getItemId={(card) => card.id}
         ariaLabel={ariaLabel}
         presentation="list"
-        density="comfortable"
+        density={density}
         renderCard={(card) => <Card {...toCardProps(card, headingLevel)} />}
       />
     ),
-    [toCardProps],
+    [toCardProps, density],
   );
 
   const count = isGrouped ? groupedTotal : items.length;
+  const filterCount = taskViewFilterCount(config);
   const subtitle = data.failed
     ? "We couldn’t load your tasks."
     : isGrouped
@@ -641,35 +609,47 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           ? "1 task"
           : `${count} tasks`;
 
-  const onSortChange = useCallback(
-    (value: string) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (value === "smart") {
-            next.delete("sort");
-          } else {
-            next.set("sort", value);
-          }
-          next.delete("cursor");
-          return next;
-        },
-        { replace: true, preventScrollReset: true },
-      );
-    },
-    [setSearchParams],
-  );
-
-  // PX-06: the ONE shared collection loading signal — a same-route navigation
-  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
-  // previous list on screen with no feedback.
   const isReloading = useCollectionLoading();
+  const currentQuery = useMemo(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("drawer");
+    next.delete("cursor");
+    return next.toString();
+  }, [searchParams]);
+  const shareUrl =
+    typeof window === "undefined"
+      ? `/tasks?${currentQuery}`
+      : `${window.location.origin}/tasks${currentQuery.length > 0 ? `?${currentQuery}` : ""}`;
+
+  // Classification carried for the session by the quick-add row: a task added while
+  // looking at a filtered view lands in that view rather than somewhere the user
+  // then has to go and find.
+  const sessionDefaults = useMemo(() => {
+    const defaults: {
+      priority?: string;
+      timeSector?: string;
+      scheduledDate?: string;
+    } = {};
+    const priority = config.filters.priority;
+    if (priority && priority !== "__none") defaults.priority = priority;
+    const sector = config.filters.timeSector;
+    if (sector && sector !== "__none") defaults.timeSector = sector;
+    else if ((TIME_SECTORS as readonly string[]).includes(config.systemView)) {
+      defaults.timeSector = config.systemView;
+    }
+    if (config.systemView === "today" || config.filters.plannedState === "planned_today") {
+      defaults.scheduledDate = data.todayIso;
+    }
+    return defaults;
+  }, [config, data.todayIso]);
+
   return (
     <CollectionLayout
       isLoading={isReloading}
       title="Tasks"
       subtitle={subtitle}
       entityType="task"
+      density={density}
       primaryAction={
         <DrawerTrigger
           drawerKey={NEW_TASK_KEY}
@@ -678,19 +658,45 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           New task
         </DrawerTrigger>
       }
-      viewSwitcher={
-        <SegmentedFilter
-          param="view"
-          options={VIEW_OPTIONS}
-          value={data.primaryView}
-          label="Choose a task view"
+      filterBar={
+        <TasksViewSwitcher
+          views={data.views}
+          activeViewId={data.activeViewId}
+          modified={data.viewModified}
+          currentQuery={currentQuery}
+          shareUrl={shareUrl}
         />
       }
-      filterBar={<SystemViewChips searchParams={searchParams} />}
-      // MOBILE-01: on a phone the desktop system-view rail, view switcher and
-      // sort select collapse into ONE row plus the shared sheet, so the first
-      // task is visible without scrolling past three rows of chrome.
-      mobileControls={<CollectionControls groups={MOBILE_CONTROL_GROUPS} />}
+      // ONE control surface at every width (TASKS-03): the shared sheet carries all
+      // sixteen filter dimensions, the sorts, the groupings and the density, and the
+      // shared chip row keeps what is applied visible without reopening it.
+      persistentControls
+      mobileControls={
+        <>
+          <div className="dh-tasks-controls">
+            <CollectionControls
+              groups={controlGroups}
+              triggerLabel="Filter & sort"
+              hideSummary
+              resetParams={[...TASKS_FILTER_PARAM_NAMES]}
+            />
+            <p className="dh-tasks-controls__summary">
+              {PRESENTATION_LABELS[config.presentation]}
+              {effectiveGroupBy(config) !== "none"
+                ? ` · Grouped by ${GROUP_BY_LABELS[effectiveGroupBy(config)].toLowerCase()}`
+                : ""}
+              {filterCount > 0
+                ? ` · ${filterCount} ${filterCount === 1 ? "filter" : "filters"}`
+                : ""}
+            </p>
+          </div>
+          <CollectionFilterChips
+            groups={controlGroups}
+            params={searchParams}
+            basePath="/tasks"
+          />
+        </>
+      }
       error={
         data.failed ? (
           <EmptyState
@@ -699,12 +705,20 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           />
         ) : undefined
       }
-      isEmpty={!data.failed && count === 0}
+      isEmpty={!data.failed && count === 0 && filterCount === 0}
+      isFilteredEmpty={!data.failed && count === 0 && filterCount > 0}
+      filteredEmptySlot={
+        <EmptyState
+          icon={<EntityIcon type="task" />}
+          title="No tasks match these filters"
+          description="Nothing is hidden permanently — remove a filter above, or reset them all, to see your tasks again."
+        />
+      }
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="task" />}
           title="No tasks yet"
-          description="Capture a task, or choose a different view or system list above."
+          description="Capture a task, or choose a different view."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_TASK_KEY}
@@ -725,44 +739,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         ) : undefined
       }
     >
-      {data.primaryView === "matrix" ? (
-        <MatrixView
+      <TasksQuickAdd
+        defaultParent={data.defaultCaptureParent}
+        sessionDefaults={sessionDefaults}
+        onOpenFullForm={() => openDrawer(NEW_TASK_KEY)}
+      />
+
+      {isGrouped ? (
+        <GroupedView
+          presentation={config.presentation}
           sections={groupedSections}
           renderCollection={renderCollection}
           viewAllHref={viewAllHref}
         />
-      ) : data.primaryView === "sectors" ? (
-        <SectorsView
-          sections={groupedSections}
-          renderCollection={renderCollection}
-          viewAllHref={viewAllHref}
-        />
-      ) : data.primaryView === "all" ? (
-        <>
-          <div className="dh-tasks-sort">
-            <label
-              className="dh-tasks-sort__label"
-              htmlFor="dh-tasks-sort-select"
-            >
-              Sort by
-            </label>
-            <select
-              id="dh-tasks-sort-select"
-              className="dh-input dh-tasks-sort__select"
-              value={data.sort}
-              onChange={(event) => onSortChange(event.target.value)}
-            >
-              {TASK_SORTS.map((sort) => (
-                <option key={sort} value={sort}>
-                  {SORT_LABELS[sort]}
-                </option>
-              ))}
-            </select>
-          </div>
-          {renderCollection(cards, "All tasks", 2)}
-        </>
       ) : (
-        <FocusView cards={cards} renderCollection={renderCollection} />
+        renderCollection(cards, "Tasks", 2)
       )}
 
       {!data.failed && !isGrouped && hasMore ? (
@@ -773,49 +764,17 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           label="Load more tasks"
         />
       ) : null}
+
+      {/* Every list-level mutation announces its outcome once, politely. */}
+      <p className="dh-visually-hidden" role="status" aria-live="polite">
+        {quick.announcement ?? ""}
+      </p>
     </CollectionLayout>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* System-view chips                                                           */
-/* -------------------------------------------------------------------------- */
-
-function SystemViewChips({
-  searchParams,
-}: {
-  readonly searchParams: URLSearchParams;
-}) {
-  const active = searchParams.get("system");
-  const hrefFor = (view: TaskSystemView): string => {
-    const next = new URLSearchParams(searchParams);
-    next.set("system", view);
-    next.delete("cursor");
-    return `?${next.toString()}`;
-  };
-  return (
-    <nav className="dh-tasks-systems" aria-label="System views">
-      <ul className="dh-tasks-systems__list">
-        {TASK_SYSTEM_VIEWS.map((view) => (
-          <li key={view} className="dh-tasks-systems__item">
-            <Link
-              to={hrefFor(view)}
-              replace
-              preventScrollReset
-              className="dh-tasks-systems__link"
-              aria-current={active === view ? "true" : undefined}
-            >
-              {SYSTEM_VIEW_LABELS[view]}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Views                                                                       */
+/* Grouped presentations                                                       */
 /* -------------------------------------------------------------------------- */
 
 type RenderCollection = (
@@ -824,38 +783,11 @@ type RenderCollection = (
   headingLevel: 2 | 3,
 ) => ReactNode;
 
-function FocusView({
-  cards,
-  renderCollection,
-}: {
-  readonly cards: readonly TaskCardData[];
-  readonly renderCollection: RenderCollection;
-}) {
-  const waiting = cards.filter((card) => card.waiting);
-  const main = cards.filter((card) => !card.waiting);
-  return (
-    <div className="dh-tasks-focus">
-      {main.length > 0 ? renderCollection(main, "Focus tasks", 2) : null}
-      {waiting.length > 0 ? (
-        <section
-          className="dh-tasks-section"
-          aria-labelledby="dh-tasks-waiting-heading"
-        >
-          <h2 id="dh-tasks-waiting-heading" className="dh-tasks-section__label">
-            Waiting
-          </h2>
-          {renderCollection(waiting, "Waiting tasks", 3)}
-        </section>
-      ) : null}
-    </div>
-  );
-}
-
 /**
- * A single grouped bucket (a Matrix quadrant or a Time Sector column). Renders the
- * AUTHORITATIVE server count in its heading, the bounded slice of cards the loader
- * returned, and a "View all N →" link to the equivalent filtered list when the bucket
- * holds more than the loaded slice (ADR-043 §11 / decision 12).
+ * One grouped bucket. Renders the AUTHORITATIVE server count in its heading, the
+ * bounded slice the loader returned, and a "View all N" link when the bucket holds
+ * more than the slice — pointing at the filtered flat list that isolates exactly
+ * those records.
  */
 function GroupedBucket({
   section,
@@ -866,25 +798,25 @@ function GroupedBucket({
   readonly section: GroupedSection;
   readonly className: string;
   readonly renderCollection: RenderCollection;
-  readonly viewAllHref: (section: GroupedSection) => string;
+  readonly viewAllHref: (section: GroupedSection) => string | null;
 }) {
+  const href = section.hasMore ? viewAllHref(section) : null;
   return (
-    <section className={className} aria-label={section.title}>
+    <section className={className} aria-label={`${section.title} — ${section.count} tasks`}>
       <h2 className="dh-tasks-section__label">
         {section.title}
         <span className="dh-tasks-section__count"> ({section.count})</span>
       </h2>
+      {section.subtitle ? (
+        <p className="dh-tasks-section__subtitle">{section.subtitle}</p>
+      ) : null}
       {section.cards.length > 0 ? (
         renderCollection(section.cards, `${section.title} tasks`, 3)
       ) : (
         <p className="dh-tasks-section__empty">Nothing here.</p>
       )}
-      {section.hasMore ? (
-        <Link
-          to={viewAllHref(section)}
-          className="dh-tasks-section__more"
-          preventScrollReset
-        >
+      {href ? (
+        <Link className="dh-tasks-section__more" to={href} preventScrollReset>
           View all {section.count} in {section.title}
         </Link>
       ) : null}
@@ -892,50 +824,51 @@ function GroupedBucket({
   );
 }
 
-function MatrixView({
+/**
+ * The grouped presentations. All three — Matrix, Sectors and an ordinary grouped
+ * List/Board — render the SAME sections through the SAME bucket component; only the
+ * container layout differs, and that difference is CSS. There is no per-view
+ * grouping logic and no per-view query.
+ */
+function GroupedView({
+  presentation,
   sections,
   renderCollection,
   viewAllHref,
 }: {
+  readonly presentation: string;
   readonly sections: readonly GroupedSection[];
   readonly renderCollection: RenderCollection;
-  readonly viewAllHref: (section: GroupedSection) => string;
+  readonly viewAllHref: (section: GroupedSection) => string | null;
 }) {
+  const containerClass =
+    presentation === "matrix"
+      ? "dh-tasks-matrix"
+      : presentation === "sectors"
+        ? "dh-tasks-sectors"
+        : presentation === "board"
+          ? "dh-tasks-board"
+          : "dh-tasks-grouped";
+  const bucketClass =
+    presentation === "matrix"
+      ? "dh-tasks-matrix__cell"
+      : presentation === "sectors"
+        ? "dh-tasks-sectors__column"
+        : presentation === "board"
+          ? "dh-tasks-board__column"
+          : "dh-tasks-grouped__section";
+
   return (
-    <div className="dh-tasks-matrix">
+    <div className={containerClass}>
       {sections.map((section) => (
         <GroupedBucket
           key={section.key}
           section={section}
           className={
-            section.key === "untriaged"
-              ? "dh-tasks-matrix__cell dh-tasks-matrix__cell--untriaged"
-              : "dh-tasks-matrix__cell"
+            presentation === "matrix" && section.key === "untriaged"
+              ? `${bucketClass} dh-tasks-matrix__cell--untriaged`
+              : bucketClass
           }
-          renderCollection={renderCollection}
-          viewAllHref={viewAllHref}
-        />
-      ))}
-    </div>
-  );
-}
-
-function SectorsView({
-  sections,
-  renderCollection,
-  viewAllHref,
-}: {
-  readonly sections: readonly GroupedSection[];
-  readonly renderCollection: RenderCollection;
-  readonly viewAllHref: (section: GroupedSection) => string;
-}) {
-  return (
-    <div className="dh-tasks-sectors">
-      {sections.map((section) => (
-        <GroupedBucket
-          key={section.key}
-          section={section}
-          className="dh-tasks-sectors__column"
           renderCollection={renderCollection}
           viewAllHref={viewAllHref}
         />

@@ -55,6 +55,19 @@ export type CollectionLayoutProps = {
    * the existing behaviour, unchanged.
    */
   readonly mobileControls?: ReactNode;
+  /**
+   * TASKS-03 — keep the shared control row visible at EVERY width, instead of only
+   * on a phone.
+   *
+   * A collection with a genuinely rich control surface (Tasks: sixteen filter
+   * dimensions, eight sorts, eight groupings, saved views) should not fork into a
+   * desktop control bar and a phone sheet — that is two things to learn, two things
+   * to keep in step and two places for a filter to hide. Opting in here means the
+   * ONE shared sheet, its active count and its chip row are the control surface at
+   * every width; the desktop `filterBar` then carries only what genuinely benefits
+   * from always being visible.
+   */
+  readonly persistentControls?: boolean;
 
   /* -- State slots (precedence: error → loading → filtered-empty → empty) -- */
   readonly error?: ReactNode;
@@ -88,6 +101,7 @@ export function CollectionLayout({
   primaryAction,
   filterBar,
   mobileControls,
+  persistentControls = false,
   error,
   isLoading = false,
   loadingSlot,
@@ -106,6 +120,7 @@ export function CollectionLayout({
     "dh-collection",
     // Drives the phone/desktop control swap in CSS (see collection-layout.css).
     mobileControls ? "dh-collection--has-mobile-controls" : null,
+    persistentControls ? "dh-collection--persistent-controls" : null,
     className,
   ]
     .filter(Boolean)

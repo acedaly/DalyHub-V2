@@ -51,6 +51,86 @@
   display: none;
 }
 
+/* TASKS-03 — a collection may opt the ONE shared control row into every width,
+ * rather than forking into a desktop control bar and a phone sheet. */
+.dh-collection--persistent-controls .dh-collection__mobile-controls {
+  display: block;
+  padding: var(--dh-space-3) var(--dh-gutter);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+/* The shared active-filter chips: every applied filter as a labelled, removable
+ * chip plus one explicit reset, so a short list always explains itself. State is
+ * carried by the WORDS in the chip; the surface tint is reinforcement only. */
+.dh-filter-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin-top: var(--dh-space-2);
+}
+
+.dh-filter-chips__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-filter-chips__item {
+  display: flex;
+}
+
+.dh-filter-chips__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-1) var(--dh-space-1) var(--dh-space-1)
+    var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text-primary);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-tight);
+}
+
+.dh-filter-chips__label {
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-filter-chips__value {
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-filter-chips__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-touch-target-min);
+  min-height: var(--dh-touch-target-min);
+  margin-inline-start: var(--dh-space-1);
+  border-radius: var(--dh-radius-full);
+  color: var(--dh-color-text-secondary);
+  text-decoration: none;
+}
+
+.dh-filter-chips__remove:hover {
+  color: var(--dh-color-text-primary);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-filter-chips__reset {
+  min-height: var(--dh-touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--dh-space-2);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+}
+
 .dh-collection-controls {
   display: flex;
   align-items: center;

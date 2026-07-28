@@ -79,10 +79,19 @@ import {
   validateTaskLimit,
   validateTaskPriority,
   validateTaskSort,
+  validateTaskSortDirection,
   validateTaskStatus,
   validateTaskSystemView,
   validateTaskTitle,
   validateTimeSector,
+  validateTaskCompletedVisibility,
+  validateTaskDueState,
+  validateTaskGroupDimension,
+  validateTaskParentKind,
+  validateTaskPlannedState,
+  validateTaskRecencyWindow,
+  recencyWindowStart,
+  weekWindowEnd,
   type BulkFieldResult,
   type BulkPlanResult,
   type ClearPlanResult,
@@ -122,7 +131,9 @@ import {
   type WaitingTaskListItem,
   type WaitingTaskPage,
   type WorkspaceTaskCursorScope,
+  type WorkspaceTaskFilters,
   type WorkspaceTaskGroup,
+  type WorkspaceTaskGroupDimension,
   type WorkspaceTaskGrouping,
   type WorkspaceTaskListPage,
 } from "~/kernel/tasks";
@@ -223,6 +234,72 @@ const WORKSPACE_GROUP_BUCKET_MAX = 200;
 /** Default and hard-max results for the bounded task-parent title search (ADR-043 §9). */
 const TASK_PARENT_SEARCH_LIMIT = 25;
 const TASK_PARENT_SEARCH_MAX = 50;
+
+/**
+ * TASKS-03 — the DERIVED due-state predicates, over the calendar day and the
+ * rolling week end joined once as `cal`. They are constant SQL text (no bind
+ * placeholders and no caller data), selected by an already-validated closed-set
+ * key, so a due filter can never widen the statement.
+ *
+ * `overdue` requires the task to still be OPEN: a task completed last week is
+ * finished, not overdue — the same rule the `smart` sort and the `overdue` system
+ * view apply, so the three can never disagree.
+ */
+const WORKSPACE_DUE_STATE_WHERE: Record<string, string> = {
+  overdue:
+    "sr.completed_at IS NULL AND td.due_date IS NOT NULL AND td.due_date < cal.today_iso",
+  due_today: "td.due_date = cal.today_iso",
+  due_this_week:
+    "td.due_date IS NOT NULL AND td.due_date >= cal.today_iso AND td.due_date <= cal.week_end",
+  due_later: "td.due_date IS NOT NULL AND td.due_date > cal.week_end",
+  no_due_date: "td.due_date IS NULL",
+};
+
+/** TASKS-03 — the DERIVED planned-state predicates over the SCHEDULED date. */
+const WORKSPACE_PLANNED_STATE_WHERE: Record<string, string> = {
+  planned_today: "td.scheduled_date = cal.today_iso",
+  planned_this_week:
+    "td.scheduled_date IS NOT NULL AND td.scheduled_date >= cal.today_iso AND td.scheduled_date <= cal.week_end",
+  planned_earlier:
+    "td.scheduled_date IS NOT NULL AND td.scheduled_date < cal.today_iso",
+  planned_later:
+    "td.scheduled_date IS NOT NULL AND td.scheduled_date > cal.week_end",
+  unplanned: "td.scheduled_date IS NULL",
+};
+
+/**
+ * TASKS-03 — the bucket-key expression per grouping dimension. Trusted, constant
+ * SQL keyed by an already-validated dimension; a caller supplies the dimension
+ * NAME, never an expression.
+ *
+ * The derived buckets (`due_state`, `planned`) mirror the filter predicates above
+ * exactly, so "group by due state, then filter to Overdue" always lands on the same
+ * records the Overdue bucket counted.
+ */
+const WORKSPACE_GROUP_BUCKET_EXPR: Record<WorkspaceTaskGroupDimension, string> =
+  {
+    quadrant: "COALESCE(td.priority, 'untriaged')",
+    priority: "COALESCE(td.priority, 'untriaged')",
+    sector: "COALESCE(td.time_sector, 'inbox')",
+    status:
+      "CASE WHEN sr.completed_at IS NOT NULL THEN 'completed'" +
+      " ELSE COALESCE(td.status, 'todo') END",
+    due_state:
+      "CASE WHEN td.due_date IS NULL THEN 'no_due_date'" +
+      " WHEN sr.completed_at IS NULL AND td.due_date < cal.today_iso THEN 'overdue'" +
+      " WHEN td.due_date < cal.today_iso THEN 'due_later'" +
+      " WHEN td.due_date = cal.today_iso THEN 'due_today'" +
+      " WHEN td.due_date <= cal.week_end THEN 'due_this_week'" +
+      " ELSE 'due_later' END",
+    planned:
+      "CASE WHEN td.scheduled_date IS NULL THEN 'unplanned'" +
+      " WHEN td.scheduled_date < cal.today_iso THEN 'planned_earlier'" +
+      " WHEN td.scheduled_date = cal.today_iso THEN 'planned_today'" +
+      " WHEN td.scheduled_date <= cal.week_end THEN 'planned_this_week'" +
+      " ELSE 'planned_later' END",
+    parent: "COALESCE(pl.target_entity_id, '__none')",
+    delegate: "COALESCE(td.delegate_to, '__none')",
+  };
 
 /**
  * TEST-ONLY deterministic failure injection points for `completeTask`'s atomic
@@ -789,14 +866,25 @@ export class D1TaskRepository implements TaskRepository {
   /* Workspace-wide read model (TASKS-01)                                    */
   /* ---------------------------------------------------------------------- */
 
-  async listWorkspaceTasks(
-    input: ListWorkspaceTasksInput,
-  ): Promise<WorkspaceTaskListPage> {
-    const view = validateTaskSystemView(input.view);
-    const sort = validateTaskSort(input.sort);
-    const limit = validateTaskLimit(input.limit);
-    const filters = input.filters ?? {};
-    const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+  /**
+   * TASKS-03 — the ONE resolved query scope both workspace reads share.
+   *
+   * The flat list and the grouped query must agree exactly: a grouped view showing
+   * counts that a filtered list then contradicts is worse than no counts at all. So
+   * the view membership, every filter and the completed-visibility override are
+   * built ONCE here and consumed by both. Every caller value is validated against a
+   * closed set first and then BOUND — nothing is interpolated into SQL.
+   */
+  #resolveWorkspaceScope(
+    view: string,
+    filters: WorkspaceTaskFilters,
+    todayIso: string,
+  ): { whereParts: string[]; params: (string | number)[] } {
+    const whereParts: string[] = [];
+    const params: (string | number)[] = [];
+
+    // View membership (ADR-043 §5–§6). `todayIso` is bound where a view needs it.
+    this.#appendViewClause(view, todayIso, whereParts, params);
 
     // Normalise/validate filter values that reach SQL (still bound, never inlined).
     const filterPriority =
@@ -823,23 +911,19 @@ export class D1TaskRepository implements TaskRepository {
       filters.goalId === undefined ? undefined : validateTaskId(filters.goalId);
     const filterAreaId =
       filters.areaId === undefined ? undefined : validateTaskId(filters.areaId);
+    const filterDueState = validateTaskDueState(filters.dueState);
+    const filterPlannedState = validateTaskPlannedState(filters.plannedState);
+    const filterParentKind = validateTaskParentKind(filters.parentKind);
+    const filterCreatedWithin = validateTaskRecencyWindow(filters.createdWithin);
+    const filterUpdatedWithin = validateTaskRecencyWindow(filters.updatedWithin);
+    const filterCompletedVisibility = validateTaskCompletedVisibility(
+      filters.completedVisibility,
+    );
+    const filterDelegatedTo =
+      filters.delegatedTo === undefined || filters.delegatedTo === null
+        ? undefined
+        : String(filters.delegatedTo);
 
-    const scope: WorkspaceTaskCursorScope = {
-      workspaceId: this.#workspaceId,
-      view,
-      sort,
-      todayIso,
-      filtersSignature: workspaceTaskFiltersSignature(filters),
-    };
-
-    const sortSpec = this.#workspaceSortSpec(sort);
-    const whereParts: string[] = [];
-    const params: (string | number)[] = [];
-
-    // View membership (ADR-043 §5–§6). `todayIso` is bound where a view needs it.
-    this.#appendViewClause(view, todayIso, whereParts, params);
-
-    // Additional filters on top of the view.
     if (filterPriority !== undefined) {
       if (filterPriority === null) {
         whereParts.push("td.priority IS NULL");
@@ -866,6 +950,13 @@ export class D1TaskRepository implements TaskRepository {
     }
     if (filters.delegatedOnly) {
       whereParts.push("td.delegate_to IS NOT NULL");
+    }
+    if (filterDelegatedTo !== undefined) {
+      // Delegation is plain text today (ADR-043 §7). The value is compared as a
+      // BOUND parameter, so a delegatee containing quotes or SQL-looking text is
+      // just text — and this stays EntityLink-ready for a future Person target.
+      whereParts.push("td.delegate_to = ?");
+      params.push(filterDelegatedTo);
     }
     if (filters.waitingOnly) {
       whereParts.push("td.waiting_since IS NOT NULL");
@@ -909,6 +1000,75 @@ export class D1TaskRepository implements TaskRepository {
       );
       params.push(filterGoalId);
     }
+    if (filterParentKind !== undefined) {
+      // `pl` is the LEFT-JOINed structural parent link. `none` is a real, reachable
+      // state (a task whose parent was deleted), not an impossible one.
+      whereParts.push(
+        filterParentKind === "none"
+          ? "pl.type IS NULL"
+          : filterParentKind === "project"
+            ? `pl.type = '${TASK_BELONGS_TO_PROJECT}'`
+            : `pl.type = '${TASK_BELONGS_TO_AREA}'`,
+      );
+    }
+    // The derived DUE state, resolved against the owner's calendar day joined once
+    // as `cal` — the same day the `smart` sort and the `overdue` view use, so the
+    // three can never disagree about what "overdue" means.
+    if (filterDueState !== undefined) {
+      whereParts.push(WORKSPACE_DUE_STATE_WHERE[filterDueState]);
+    }
+    if (filterPlannedState !== undefined) {
+      whereParts.push(WORKSPACE_PLANNED_STATE_WHERE[filterPlannedState]);
+    }
+    if (filterCreatedWithin !== undefined) {
+      // `created_at` is a full ISO timestamp; comparing against the window's start
+      // DAY (as a date-only prefix boundary) keeps the comparison index-friendly
+      // and free of any timezone conversion.
+      whereParts.push("e.created_at >= ?");
+      params.push(`${recencyWindowStart(todayIso, filterCreatedWithin)}T00:00:00.000Z`);
+    }
+    if (filterUpdatedWithin !== undefined) {
+      whereParts.push("e.updated_at >= ?");
+      params.push(`${recencyWindowStart(todayIso, filterUpdatedWithin)}T00:00:00.000Z`);
+    }
+    // Completed visibility is applied LAST and on top of the view, so it can widen
+    // (`include` on an execution view) or narrow (`hide` on `all`) without the view
+    // and the filter fighting each other.
+    if (filterCompletedVisibility === "hide") {
+      whereParts.push("sr.completed_at IS NULL");
+    } else if (filterCompletedVisibility === "only") {
+      whereParts.push("sr.completed_at IS NOT NULL");
+    }
+
+    return { whereParts, params };
+  }
+
+  async listWorkspaceTasks(
+    input: ListWorkspaceTasksInput,
+  ): Promise<WorkspaceTaskListPage> {
+    const view = validateTaskSystemView(input.view);
+    const sort = validateTaskSort(input.sort);
+    const direction = validateTaskSortDirection(input.direction);
+    const limit = validateTaskLimit(input.limit);
+    const filters = input.filters ?? {};
+    const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+    const weekEnd = todayIso.length > 0 ? weekWindowEnd(todayIso) : "";
+
+    const scope: WorkspaceTaskCursorScope = {
+      workspaceId: this.#workspaceId,
+      view,
+      sort,
+      direction,
+      todayIso,
+      filtersSignature: workspaceTaskFiltersSignature(filters),
+    };
+
+    const sortSpec = this.#workspaceSortSpec(sort, direction);
+    const { whereParts, params } = this.#resolveWorkspaceScope(
+      view,
+      filters,
+      todayIso,
+    );
 
     // Keyset cursor over (sort_value <dir>, created_at ASC, id ASC).
     if (input.cursor !== undefined) {
@@ -950,12 +1110,12 @@ export class D1TaskRepository implements TaskRepository {
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.deleted_at IS NULL
          ${WAITING_TARGET_JOIN}
-         CROSS JOIN (SELECT ? AS today_iso) cal
+         CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
          ORDER BY sort_value ${sortSpec.dir}, e.created_at ASC, e.id ASC
          LIMIT ?`,
       )
-      .bind(todayIso, this.#workspaceId, ...params, fetchLimit);
+      .bind(todayIso, weekEnd, this.#workspaceId, ...params, fetchLimit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as (TaskListRow & {
@@ -983,12 +1143,16 @@ export class D1TaskRepository implements TaskRepository {
   async listWorkspaceTaskGroups(
     input: ListWorkspaceTaskGroupsInput,
   ): Promise<WorkspaceTaskGrouping> {
-    const dimension = input.dimension;
-    if (dimension !== "quadrant" && dimension !== "sector") {
-      throw new TaskValidationError("dimension", "is not a known grouping");
-    }
+    const dimension = validateTaskGroupDimension(input.dimension);
     const sort = validateTaskSort(input.sort);
+    const direction = validateTaskSortDirection(input.direction);
     const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+    const weekEnd = todayIso.length > 0 ? weekWindowEnd(todayIso) : "";
+    // The Matrix and Sectors views group the ACTIVE planning scope; a grouped List
+    // or Board view passes its OWN view and filters, so grouping never silently
+    // re-scopes what the user is looking at (TASKS-03).
+    const view = validateTaskSystemView(input.view ?? "active");
+    const filters = input.filters ?? {};
     // Bounded records per bucket (never unbounded); overflow is reached through the
     // equivalent filtered `all` view, which paginates that bucket on its own cursor.
     const bucketLimit = Math.min(
@@ -996,21 +1160,24 @@ export class D1TaskRepository implements TaskRepository {
       WORKSPACE_GROUP_BUCKET_MAX,
     );
 
-    const sortSpec = this.#workspaceSortSpec(sort);
-    // The bucket key is a trusted column expression (never caller data): the priority
-    // (→ 'untriaged' when null) for the Matrix, the time sector (→ 'inbox' when null)
-    // for the Sectors view.
-    const bucketExpr =
-      dimension === "quadrant"
-        ? "COALESCE(td.priority, 'untriaged')"
-        : "COALESCE(td.time_sector, 'inbox')";
+    const sortSpec = this.#workspaceSortSpec(sort, direction);
+    // The bucket key is a TRUSTED column expression chosen from a closed set of
+    // dimensions (never caller data), so a grouping can never inject SQL.
+    const bucketExpr = WORKSPACE_GROUP_BUCKET_EXPR[dimension];
+    const { whereParts, params } = this.#resolveWorkspaceScope(
+      view,
+      filters,
+      todayIso,
+    );
+    const whereSql =
+      whereParts.length > 0 ? ` AND ${whereParts.join(" AND ")}` : "";
 
-    // ONE query: scope to active-planning work, compute each row's bucket + smart
-    // sort value, then window over the buckets for the AUTHORITATIVE per-bucket total
-    // (`COUNT(*) OVER`) and a deterministic within-bucket rank (`ROW_NUMBER() OVER`),
-    // finally keeping only the top `bucketLimit` rows per bucket. Counts are computed
-    // over the whole scope, independent of the returned slice — so empty states and
-    // quadrant/sector counts are correct before any paging (ADR-043 decision 12).
+    // ONE query: scope the population, compute each row's bucket + sort value, then
+    // window over the buckets for the AUTHORITATIVE per-bucket total (`COUNT(*)
+    // OVER`) and a deterministic within-bucket rank (`ROW_NUMBER() OVER`), finally
+    // keeping only the top `bucketLimit` rows per bucket. Counts are computed over
+    // the whole scope, independent of the returned slice — so empty states and
+    // bucket counts are correct before any paging (ADR-043 decision 12).
     const statement = this.#db
       .prepare(
         `WITH scoped AS (
@@ -1033,9 +1200,8 @@ export class D1TaskRepository implements TaskRepository {
              ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
                 AND pe.deleted_at IS NULL
            ${WAITING_TARGET_JOIN}
-           CROSS JOIN (SELECT ? AS today_iso) cal
-           WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
-             AND ${this.#activePlanningWhere}
+           CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
+           WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
          ),
          ranked AS (
            SELECT *,
@@ -1048,7 +1214,7 @@ export class D1TaskRepository implements TaskRepository {
          )
          SELECT * FROM ranked WHERE rn <= ? ORDER BY bucket ASC, rn ASC`,
       )
-      .bind(todayIso, this.#workspaceId, bucketLimit);
+      .bind(todayIso, weekEnd, this.#workspaceId, ...params, bucketLimit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as (TaskListRow & {
@@ -1061,12 +1227,23 @@ export class D1TaskRepository implements TaskRepository {
     // authoritative total, and `hasMore` compares it to the bounded slice length.
     const byBucket = new Map<
       string,
-      { count: number; items: TaskListItem[] }
+      { count: number; items: TaskListItem[]; label: string | null }
     >();
     for (const row of rows) {
       let group = byBucket.get(row.bucket);
       if (!group) {
-        group = { count: row.bucket_count, items: [] };
+        group = {
+          count: row.bucket_count,
+          items: [],
+          // Open-ended buckets carry their own label from the row, so the caller
+          // never needs a second query (or an N+1) to name a Project column.
+          label:
+            dimension === "parent"
+              ? (row.parent_title ?? null)
+              : dimension === "delegate"
+                ? (row.delegate_to ?? null)
+                : null,
+        };
         byBucket.set(row.bucket, group);
       }
       group.items.push(this.#toTaskListItem(row));
@@ -1078,10 +1255,32 @@ export class D1TaskRepository implements TaskRepository {
         count: g.count,
         items: g.items,
         hasMore: g.count > g.items.length,
+        label: g.label,
       }),
     );
 
     return { dimension, groups };
+  }
+
+  async listTaskDelegates(limit = 50): Promise<readonly string[]> {
+    const bounded = Math.min(Math.max(1, limit), 200);
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT DISTINCT td.delegate_to AS delegate
+           FROM task_details td
+           JOIN entities e
+             ON e.workspace_id = td.workspace_id AND e.id = td.entity_id
+                AND e.type = '${TASK}' AND e.deleted_at IS NULL
+           WHERE td.workspace_id = ? AND td.delegate_to IS NOT NULL
+           ORDER BY lower(td.delegate_to) ASC
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, bounded),
+    );
+    return ((result.results ?? []) as { readonly delegate: string }[]).map(
+      (row) => row.delegate,
+    );
   }
 
   async searchTaskParents(
@@ -1165,24 +1364,56 @@ export class D1TaskRepository implements TaskRepository {
       : null;
   }
 
-  /** The single primary sort expression + direction for a workspace-tasks sort. */
-  #workspaceSortSpec(sort: string): { expr: string; dir: "ASC" | "DESC" } {
+  /**
+   * The single primary sort expression + direction for a workspace-tasks sort.
+   *
+   * TASKS-03 adds an explicit `direction`. `natural` keeps each sort's documented
+   * default (due-date ascending, updated descending, smart most-relevant-first);
+   * `asc`/`desc` override it. `smart` deliberately IGNORES a requested reversal —
+   * "least relevant first" is not a useful order, and silently producing one would
+   * make the default view unpredictable — so a reversal is offered in the UI only
+   * for the sorts where it is meaningful.
+   */
+  #workspaceSortSpec(
+    sort: string,
+    direction: "natural" | "asc" | "desc" = "natural",
+  ): { expr: string; dir: "ASC" | "DESC" } {
+    const oriented = (
+      expr: string,
+      natural: "ASC" | "DESC",
+    ): { expr: string; dir: "ASC" | "DESC" } => ({
+      expr,
+      dir:
+        direction === "asc"
+          ? "ASC"
+          : direction === "desc"
+            ? "DESC"
+            : natural,
+    });
     switch (sort) {
       case "due_date":
-        return { expr: "COALESCE(td.due_date, '9999-99-99')", dir: "ASC" };
+        return oriented("COALESCE(td.due_date, '9999-99-99')", "ASC");
       case "scheduled_date":
-        return {
-          expr: "COALESCE(td.scheduled_date, '9999-99-99')",
-          dir: "ASC",
-        };
+        return oriented("COALESCE(td.scheduled_date, '9999-99-99')", "ASC");
       case "priority":
-        return { expr: "COALESCE(td.priority, 'p9')", dir: "ASC" };
+        return oriented("COALESCE(td.priority, 'p9')", "ASC");
       case "created":
-        return { expr: "e.created_at", dir: "ASC" };
+        return oriented("e.created_at", "ASC");
       case "updated":
-        return { expr: "e.updated_at", dir: "DESC" };
+        return oriented("e.updated_at", "DESC");
       case "title":
-        return { expr: "lower(e.title)", dir: "ASC" };
+        return oriented("lower(e.title)", "ASC");
+      case "parent": {
+        // Parent title, with UNPARENTED tasks last under BOTH directions: the
+        // sentinel flips with the direction, so reversing A→Z never promotes "no
+        // parent" to the top of the list where it would read as a group heading.
+        const dir = direction === "desc" ? "DESC" : "ASC";
+        const sentinel = dir === "DESC" ? "" : "￿";
+        return {
+          expr: `lower(COALESCE(pe.title, '${sentinel}'))`,
+          dir,
+        };
+      }
       case "smart":
       default:
         // Smart order, as ONE comparable string so it keysets as a single column
@@ -2104,6 +2335,24 @@ export class D1TaskRepository implements TaskRepository {
     });
   }
 
+  async setDueDateMany(
+    ids: readonly string[],
+    dueDate: string | null,
+  ): Promise<BulkFieldResult> {
+    // The DUE date is a deadline and is kept strictly separate from the scheduled
+    // (planned) date (ADR-043 §3): this writes `due_date` only and can never
+    // silently move a task's plan. It runs through the SAME atomic, guarded bulk
+    // path as every other field, so a list-level "Due today" produces exactly the
+    // Activity the Drawer's own due-date edit produces.
+    const value = validateTaskDate(dueDate, "dueDate");
+    return this.#bulkSetField(ids, {
+      column: "due_date",
+      changesKey: "dueDate",
+      value,
+      currentOf: (t) => t.dueDate,
+    });
+  }
+
   /**
    * The shared bulk single-field path (TASKS-01). Validates the id list, resolves
    * EVERY id to a task in this workspace (rejecting the WHOLE operation if any is
@@ -2116,7 +2365,11 @@ export class D1TaskRepository implements TaskRepository {
     ids: readonly string[],
     field: {
       readonly column:
-        "priority" | "time_sector" | "commitment_state" | "status";
+        | "priority"
+        | "time_sector"
+        | "commitment_state"
+        | "status"
+        | "due_date";
       readonly changesKey: string;
       readonly value: string | null;
       readonly currentOf: (task: TaskView) => string | null;
@@ -2197,7 +2450,12 @@ export class D1TaskRepository implements TaskRepository {
    */
   #fieldUpsertStatement(
     current: TaskView,
-    column: "priority" | "time_sector" | "commitment_state" | "status",
+    column:
+      | "priority"
+      | "time_sector"
+      | "commitment_state"
+      | "status"
+      | "due_date",
     value: string | null,
     nowTs: string,
   ): D1PreparedStatement {
@@ -2209,6 +2467,7 @@ export class D1TaskRepository implements TaskRepository {
         column === "commitment_state"
           ? (value ?? "active")
           : current.commitmentState,
+      dueDate: column === "due_date" ? value : current.dueDate,
     };
     return this.#db
       .prepare(
@@ -2228,7 +2487,7 @@ export class D1TaskRepository implements TaskRepository {
         current.id,
         after.status,
         after.priority,
-        current.dueDate,
+        after.dueDate,
         current.scheduledDate,
         after.timeSector,
         after.commitmentState,

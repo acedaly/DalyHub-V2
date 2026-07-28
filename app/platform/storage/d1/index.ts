@@ -15,6 +15,7 @@
 import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
+import type { TaskViewRepository } from "~/kernel/task-views";
 import type { AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
@@ -47,6 +48,10 @@ import {
   type D1AppPreferencesRepositoryOptions,
 } from "./d1-app-preferences-repository";
 import { D1AreaRepository } from "./d1-area-repository";
+import {
+  D1TaskViewRepository,
+  type D1TaskViewRepositoryOptions,
+} from "./d1-task-view-repository";
 import {
   D1AssetRepository,
   type D1AssetRepositoryOptions,
@@ -410,6 +415,21 @@ export function createAlignmentRepository(
 ): AlignmentRepository {
   return new D1AlignmentRepository(db, context);
 }
+
+/**
+ * Factory for the TASKS-03 saved-view repository, bound to a `WorkspaceContext`.
+ * There is no unscoped construction path: workspace AND owner scoping are enforced
+ * inside every statement.
+ */
+export function createTaskViewRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1TaskViewRepositoryOptions,
+): TaskViewRepository {
+  return new D1TaskViewRepository(db, context, options);
+}
+
+export { D1TaskViewRepository, type D1TaskViewRepositoryOptions };
 
 export function createAppPreferencesRepository(
   db: D1Database,

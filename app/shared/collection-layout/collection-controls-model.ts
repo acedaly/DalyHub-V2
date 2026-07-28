@@ -183,3 +183,95 @@ export function activeSummary(
   }
   return out;
 }
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-03 — the SAME model, driving removable chips on the desktop bar        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One applied control, resolved for display. This is what a removable chip renders
+ * from, so the desktop chip bar and the phone sheet are two presentations of ONE
+ * control model rather than two independent filter surfaces.
+ */
+export type ActiveCollectionControl = {
+  readonly groupId: string;
+  readonly param: string;
+  /** The group heading, e.g. "Priority". */
+  readonly label: string;
+  /** The raw applied value (what is in the URL). */
+  readonly value: string;
+  /** The option's human label, falling back to the raw value. */
+  readonly valueLabel: string;
+  readonly kind: CollectionControlKind;
+};
+
+/**
+ * Every control currently narrowing or shaping the collection, in group order.
+ *
+ * `kinds` restricts the result — a chip row usually shows only `filter` controls,
+ * because a chip saying "Sort: Due date" invites the user to "remove" their sort,
+ * which is not a thing a sort can be.
+ */
+export function activeControls(
+  groups: readonly CollectionControlGroup[],
+  params: URLSearchParams,
+  kinds: readonly CollectionControlKind[] = ["filter"],
+): readonly ActiveCollectionControl[] {
+  const out: ActiveCollectionControl[] = [];
+  for (const group of groups) {
+    const kind = group.kind ?? "filter";
+    if (!kinds.includes(kind)) continue;
+    const value = currentValue(group, params);
+    if (value === null) continue;
+    const option = group.options.find((entry) => entry.value === value);
+    out.push({
+      groupId: group.id,
+      param: group.param,
+      label: group.label,
+      value,
+      valueLabel: option?.label ?? value,
+      kind,
+    });
+  }
+  return out;
+}
+
+/**
+ * The params with ONE control removed — what a chip's remove control navigates to.
+ * Pagination is cleared because the result set widens.
+ */
+export function withoutControl(
+  params: URLSearchParams,
+  param: string,
+  options: { readonly resetParams?: readonly string[] } = {},
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete(param);
+  for (const extra of options.resetParams ?? ["cursor"]) {
+    next.delete(extra);
+  }
+  return next;
+}
+
+/**
+ * The params with EVERY control of the given kinds removed — the explicit "Reset
+ * filters" action. Defaults to clearing filters only, so a reset never silently
+ * throws away the presentation or the sort the user deliberately chose.
+ */
+export function withoutControls(
+  groups: readonly CollectionControlGroup[],
+  params: URLSearchParams,
+  kinds: readonly CollectionControlKind[] = ["filter"],
+  options: { readonly resetParams?: readonly string[] } = {},
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  for (const group of groups) {
+    if (kinds.includes(group.kind ?? "filter")) {
+      next.delete(group.param);
+    }
+  }
+  for (const extra of options.resetParams ?? ["cursor"]) {
+    next.delete(extra);
+  }
+  return next;
+}

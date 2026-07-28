@@ -137,6 +137,28 @@ export function parseTaskCaptureParentId(value: unknown): string | null {
   );
 }
 
+/**
+ * TASKS-03 — the owner's default Tasks view id: a built-in view id or a saved-view
+ * id. Shape-validated only (bounded, id-safe characters); whether it still RESOLVES
+ * to a real view is checked at read time, because a saved view can be deleted after
+ * the preference was written.
+ */
+export function parseDefaultTaskViewId(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    /^[A-Za-z0-9:_-]+$/.test(value)
+  ) {
+    return value;
+  }
+  throw new AppPreferencesValidationError(
+    "defaultTaskViewId",
+    "Choose a valid default Tasks view.",
+  );
+}
+
 export function parseTaskCaptureParentKind(
   value: unknown,
 ): "area" | "project" | null {
@@ -214,6 +236,8 @@ export function validateAppPreferencesPatch(
     );
   if (patch.defaultTasksView !== undefined)
     out.defaultTasksView = parseTaskDefaultView(patch.defaultTasksView);
+  if (patch.defaultTaskViewId !== undefined)
+    out.defaultTaskViewId = parseDefaultTaskViewId(patch.defaultTaskViewId);
   if (patch.defaultTaskCaptureParentId !== undefined)
     out.defaultTaskCaptureParentId = parseTaskCaptureParentId(
       patch.defaultTaskCaptureParentId,
@@ -244,6 +268,7 @@ export function normaliseStoredPreferences(input: {
   readonly firstDayOfWeek: unknown;
   readonly defaultLandingDestination: unknown;
   readonly defaultTasksView: unknown;
+  readonly defaultTaskViewId?: unknown;
   readonly defaultTaskCaptureParentId?: unknown;
   readonly defaultTaskCaptureParentKind?: unknown;
   readonly defaultDiaryMode: unknown;
@@ -277,6 +302,15 @@ export function normaliseStoredPreferences(input: {
       (TASK_DEFAULT_VIEWS as readonly string[]).includes(input.defaultTasksView)
         ? (input.defaultTasksView as TaskDefaultView)
         : DEFAULT_APP_PREFERENCES.defaultTasksView,
+    defaultTaskViewId: (() => {
+      try {
+        return parseDefaultTaskViewId(
+          (input as { readonly defaultTaskViewId?: unknown }).defaultTaskViewId,
+        );
+      } catch {
+        return DEFAULT_APP_PREFERENCES.defaultTaskViewId;
+      }
+    })(),
     defaultTaskCaptureParentId: (() => {
       try {
         return parseTaskCaptureParentId(

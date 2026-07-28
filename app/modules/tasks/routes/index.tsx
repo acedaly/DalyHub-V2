@@ -1,109 +1,154 @@
 /**
- * TASKS-01 — the `/tasks` module route: the authoritative workspace-wide Tasks
- * planning and execution surface (ADR-043).
+ * TASKS-01 / TASKS-03 — the `/tasks` module route: the authoritative workspace-wide
+ * Tasks planning and execution surface (ADR-043, ADR-059).
  *
- * The loader reads the bounded, cursor-paginated workspace read model
- * (`scope.tasks.listWorkspaceTasks`) for the resolved system view; the action
- * creates a task through the trusted spine (parent bound server-side) and applies
- * the quick-capture planning fields through the workspace-bound TaskRepository. The
- * component composes the shared frame (CollectionLayout, Card, Drawer) — the task
- * record itself opens in the ONE canonical shared Task Drawer.
+ * The loader resolves ONE validated {@link TaskViewConfig} from the URL (falling
+ * back to the owner's chosen default view), then reads the bounded, cursor-
+ * paginated workspace projection — flat for a list, server-grouped for a grouped or
+ * specialist view. There is exactly one task query path: every presentation, every
+ * filter combination and every saved view goes through `scope.tasks`, so no view
+ * can invent its own definition of what a task is.
+ *
+ * Everything the surface needs to EXPLAIN itself is resolved here too — the view
+ * switcher's system and saved views, the closed option sets for the delegate and
+ * parent filters — each from one bounded query, never per-record.
  */
 
 import { env } from "cloudflare:workers";
+import { redirect } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
-import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import {
+  resolveAuthenticatedWorkspaceScope,
+  type WorkspaceScope,
+} from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { serializeTaskListItem } from "~/shared/task-record/task-view";
 import {
-  type CommitmentState,
-  type TaskPriority,
-  type TaskStatus,
-  type TimeSector,
-  type WorkspaceTaskFilters,
-} from "~/kernel/tasks";
+  DEFAULT_TASK_VIEW_CONFIG,
+  TASK_SYSTEM_VIEW_DEFINITIONS,
+  findTaskSystemView,
+  taskViewConfigsEqual,
+  type TaskSavedView,
+  type TaskViewConfig,
+} from "~/kernel/task-views";
 
 import type { Route } from "./+types/index";
+import { migrateLegacyViewParams } from "../tasks-view-model";
 import {
-  resolvePrimaryView,
-  resolveSort,
-  resolveSystemView,
-  systemViewFor,
-} from "../tasks-view-model";
-import type { TasksFilterState, TasksPageData } from "../tasks-contract";
+  configFromParams,
+  groupDimensionFor,
+  paramsFromConfig,
+  TASKS_PARAMS,
+  toWorkspaceFilters,
+} from "../tasks-url-state";
+import type { TasksPageData, TasksViewOption } from "../tasks-contract";
 import { TasksWorkspace } from "../TasksWorkspace";
 
 export function meta() {
   return [{ title: "Tasks · DalyHub" }];
 }
 
-/** Read the applied filters from the URL search params. */
-function readFilters(url: URL): TasksFilterState {
-  const get = (k: string): string | null => {
-    const v = url.searchParams.get(k);
-    return v !== null && v.length > 0 ? v : null;
-  };
-  return {
-    priority: get("priority"),
-    timeSector: get("sector"),
-    commitmentState: get("commitment"),
-    status: get("status"),
-    projectId: get("project"),
-    goalId: get("goal"),
-    areaId: get("area"),
-    delegatedOnly: url.searchParams.get("delegated") === "1",
-    waitingOnly: url.searchParams.get("waiting") === "1",
-  };
+/** How many delegatees / parents the filter option sets offer. Bounded, not "all". */
+const DELEGATE_OPTION_LIMIT = 50;
+const PARENT_OPTION_LIMIT = 50;
+
+/**
+ * Resolve the view switcher's options: the DERIVED system views first, then the
+ * owner's saved views. Each carries the query string that applies it, so selecting
+ * a view is an ordinary navigation — shareable, bookmarkable and Back/Forward-safe.
+ */
+function buildViewOptions(
+  saved: readonly TaskSavedView[],
+  defaultViewId: string | null,
+): readonly TasksViewOption[] {
+  const system: TasksViewOption[] = TASK_SYSTEM_VIEW_DEFINITIONS.map(
+    (definition) => ({
+      id: definition.id,
+      name: definition.name,
+      description: definition.description,
+      kind: "system" as const,
+      query: viewQuery(definition.id, definition.config),
+      isDefault: defaultViewId === definition.id,
+    }),
+  );
+  const user: TasksViewOption[] = saved.map((view) => ({
+    id: view.id,
+    name: view.name,
+    description: null,
+    kind: "user" as const,
+    query: viewQuery(view.id, view.config),
+    isDefault: defaultViewId === view.id,
+  }));
+  return [...system, ...user];
+}
+
+/** The full query string that selects a view: its config plus the view id. */
+function viewQuery(viewId: string, config: TaskViewConfig): string {
+  const params = paramsFromConfig(config);
+  if (viewId !== "default") params.set(TASKS_PARAMS.savedView, viewId);
+  return params.toString();
 }
 
 /**
- * Build the kernel filter object from the URL filter state. Values are passed
- * through as-is; the repository validates them at the boundary (a malformed value
- * throws, which the loader degrades to the calm error state).
+ * The configuration a bare `/tasks` starts from: the owner's chosen default view
+ * when it still resolves, otherwise the standard workspace. A default that no
+ * longer resolves (a deleted saved view) degrades to the standard workspace rather
+ * than to an error — a preference is a starting point, never a lock.
  */
-function toKernelFilters(filters: TasksFilterState): WorkspaceTaskFilters {
-  const out: {
-    -readonly [K in keyof WorkspaceTaskFilters]: WorkspaceTaskFilters[K];
-  } = {};
-  // `__none` is the explicit "no priority / no sector" filter behind a Matrix
-  // Unprioritised or Sectors Inbox "view all" link — distinct from "no filter"
-  // (undefined). It maps to an explicit null so the repository queries `IS NULL`.
-  if (filters.priority === "__none") out.priority = null;
-  else if (filters.priority) out.priority = filters.priority as TaskPriority;
-  if (filters.timeSector === "__none") out.timeSector = null;
-  else if (filters.timeSector)
-    out.timeSector = filters.timeSector as TimeSector;
-  if (filters.commitmentState)
-    out.commitmentState = filters.commitmentState as CommitmentState;
-  if (filters.status) out.status = filters.status as TaskStatus;
-  if (filters.projectId) out.projectId = filters.projectId;
-  if (filters.goalId) out.goalId = filters.goalId;
-  if (filters.areaId) out.areaId = filters.areaId;
-  if (filters.delegatedOnly) out.delegatedOnly = true;
-  if (filters.waitingOnly) out.waitingOnly = true;
-  return out;
+function resolveFallbackConfig(
+  defaultViewId: string | null,
+  saved: readonly TaskSavedView[],
+): { config: TaskViewConfig; viewId: string | null } {
+  if (defaultViewId === null) {
+    return { config: DEFAULT_TASK_VIEW_CONFIG, viewId: null };
+  }
+  const system = findTaskSystemView(defaultViewId);
+  if (system) return { config: system.config, viewId: system.id };
+  const own = saved.find((view) => view.id === defaultViewId);
+  if (own) return { config: own.config, viewId: own.id };
+  return { config: DEFAULT_TASK_VIEW_CONFIG, viewId: null };
+}
+
+/** The config the explicitly-selected `?saved=` view carries, when it resolves. */
+function selectedViewConfig(
+  selectedId: string | null,
+  saved: readonly TaskSavedView[],
+): TaskViewConfig | null {
+  if (selectedId === null) return null;
+  const system = findTaskSystemView(selectedId);
+  if (system) return system.config;
+  return saved.find((view) => view.id === selectedId)?.config ?? null;
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const url = new URL(request.url);
-  let preferredPrimaryView = DEFAULT_APP_PREFERENCES.defaultTasksView;
+
+  // TASKS-01's `?view=focus|all` were a system view and a filter wearing a layout
+  // switcher's clothes. Redirect them ONCE into the TASKS-03 vocabulary rather than
+  // reinterpreting them silently, so the address bar always states what is applied.
+  const migrated = migrateLegacyViewParams(url.searchParams);
+  if (migrated) {
+    throw redirect(`/tasks?${migrated.toString()}`);
+  }
+
   let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  let defaultViewId: string | null = DEFAULT_APP_PREFERENCES.defaultTaskViewId;
   let defaultCaptureParent: TasksPageData["defaultCaptureParent"] = null;
+  let saved: readonly TaskSavedView[] = [];
+  let delegates: readonly string[] = [];
+  let parents: TasksPageData["parents"] = [];
+  let scope: WorkspaceScope | null = null;
+
   try {
-    const preferenceScope = await resolveAuthenticatedWorkspaceScope(
-      env,
-      session,
-    );
-    const preferences = await preferenceScope.appPreferences.get(
-      session.user.subject,
-    );
-    preferredPrimaryView = preferences.defaultTasksView;
+    scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const preferences = await scope.appPreferences.get(session.user.subject);
     timezone = preferences.timezone;
+    defaultViewId = preferences.defaultTaskViewId;
     if (preferences.defaultTaskCaptureParentId) {
-      const parent = await preferenceScope.tasks.getTaskParentCandidate(
+      const parent = await scope.tasks.getTaskParentCandidate(
         preferences.defaultTaskCaptureParentId,
       );
       if (parent) {
@@ -116,48 +161,94 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       }
     }
   } catch {
-    // The task list itself handles storage failures below; preference read failure
-    // falls back deterministically so /tasks remains reachable.
+    // The task list itself handles storage failures below; a preference read
+    // failure falls back deterministically so /tasks stays reachable.
   }
-  const primaryView = resolvePrimaryView(
-    url.searchParams.get("view"),
-    preferredPrimaryView,
-  );
-  const sort = resolveSort(url.searchParams.get("sort"));
-  const explicitSystem = resolveSystemView(url.searchParams.get("system"));
-  const systemView = systemViewFor(primaryView, explicitSystem);
-  const filters = readFilters(url);
-  const cursor = url.searchParams.get("cursor");
+
+  if (scope) {
+    try {
+      saved = await scope.taskViews.list(session.user.subject);
+    } catch {
+      // A saved-view read failure must not take the task list down: the workspace
+      // still works, it simply offers the system views only.
+      saved = [];
+    }
+    try {
+      // Two bounded aggregates, once per page load — never one per record.
+      [delegates, parents] = await Promise.all([
+        scope.tasks.listTaskDelegates(DELEGATE_OPTION_LIMIT),
+        scope.tasks
+          .searchTaskParents({ limit: PARENT_OPTION_LIMIT })
+          .then((candidates) =>
+            candidates.map((candidate) => ({
+              id: candidate.id,
+              kind: candidate.kind,
+              title: candidate.title,
+            })),
+          ),
+      ]);
+    } catch {
+      delegates = [];
+      parents = [];
+    }
+  }
+
+  const selectedId = url.searchParams.get(TASKS_PARAMS.savedView);
+  const selectedConfig = selectedViewConfig(selectedId, saved);
+  const fallback =
+    selectedConfig !== null
+      ? { config: selectedConfig, viewId: selectedId }
+      : resolveFallbackConfig(defaultViewId, saved);
+
+  // An explicit URL parameter ALWAYS wins over the selected view and over the
+  // owner's default, so a deep link, a shared URL and Back/Forward stay
+  // authoritative — a preference never overrides an address the user is looking at.
+  const config = configFromParams(url.searchParams, fallback.config);
+  const activeViewId = selectedConfig !== null ? selectedId : fallback.viewId;
+  const viewModified =
+    selectedConfig !== null && !taskViewConfigsEqual(selectedConfig, config);
+
+  const views = buildViewOptions(saved, defaultViewId);
   const todayIso = ownerCalendarIso(new Date(), timezone);
+  const cursor = url.searchParams.get(TASKS_PARAMS.cursor);
+  const groupDimension = groupDimensionFor(config);
 
   const base: Omit<
     TasksPageData,
     "items" | "nextCursor" | "grouping" | "failed"
   > = {
-    primaryView,
-    systemView,
-    sort,
-    filters,
+    config,
+    activeViewId,
+    viewModified,
+    views,
+    delegates,
+    parents,
     todayIso,
     defaultCaptureParent,
   };
 
-  // The Matrix and Sectors views render from a SERVER-AUTHORITATIVE grouping —
-  // accurate per-bucket counts + bounded per-bucket records — never from a single
-  // global page grouped in the client (ADR-043 §11 / decision 12).
-  const groupDimension =
-    primaryView === "matrix"
-      ? "quadrant"
-      : primaryView === "sectors"
-        ? "sector"
-        : null;
+  if (!scope) {
+    return {
+      ...base,
+      items: [],
+      nextCursor: null,
+      grouping: null,
+      failed: true,
+    } satisfies TasksPageData;
+  }
 
+  const filters = toWorkspaceFilters(config);
   try {
-    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     if (groupDimension !== null) {
+      // A grouped view renders from a SERVER-AUTHORITATIVE grouping — accurate
+      // per-bucket counts over the whole filtered scope plus a bounded per-bucket
+      // slice — never from one global page re-bucketed in the client.
       const grouping = await scope.tasks.listWorkspaceTaskGroups({
         dimension: groupDimension,
-        sort,
+        view: config.systemView,
+        filters,
+        sort: config.sort,
+        direction: config.direction,
         todayIso,
       });
       return {
@@ -170,6 +261,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
             key: group.key,
             count: group.count,
             hasMore: group.hasMore,
+            label: group.label,
             items: group.items.map(serializeTaskListItem),
           })),
         },
@@ -177,9 +269,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       } satisfies TasksPageData;
     }
     const page = await scope.tasks.listWorkspaceTasks({
-      view: systemView,
-      sort,
-      filters: toKernelFilters(filters),
+      view: config.systemView,
+      sort: config.sort,
+      direction: config.direction,
+      filters,
       todayIso,
       cursor: cursor ?? undefined,
     });
