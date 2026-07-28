@@ -45,7 +45,8 @@ export type ActivityValidationField =
   | "subjects"
   | "payload"
   | "limit"
-  | "cursor";
+  | "cursor"
+  | "anchors";
 
 /** A value that failed kernel-boundary validation. */
 export class ActivityValidationError extends ActivityError {

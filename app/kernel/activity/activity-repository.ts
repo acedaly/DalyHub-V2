@@ -19,6 +19,7 @@
 import type {
   ActivityPage,
   ActivityRecord,
+  ListEntitiesActivityInput,
   ListEntityActivityInput,
   ListWorkspaceActivityInput,
 } from "./activity";
@@ -79,5 +80,34 @@ export interface ActivityRepository {
   listForEntity(
     entityId: string,
     input?: ListEntityActivityInput,
+  ): Promise<ActivityPage>;
+
+  /**
+   * List the events of a BOUNDED SET of anchor entities as ONE stream — the
+   * multi-anchor generalisation of {@link listForEntity}, and the read a unified
+   * relationship history is built from (a Person plus the records they are linked
+   * to).
+   *
+   * It reads the same single Activity stream at a wider scope; it introduces no
+   * second event model, table or projection. Semantics:
+   *   - an event is returned when ANY anchor is one of its subjects, EXACTLY ONCE
+   *     even when several anchors are subjects of it (no duplicates to dedupe);
+   *   - every returned event carries ALL of its subjects, not only the matched
+   *     ones, so the caller can describe it fully with no N+1;
+   *   - ordering is the same total newest-first `(occurredAt, id)` order, so a
+   *     merged history is deterministic even for equal timestamps;
+   *   - EVERY anchor must exist in the bound workspace (active or soft-deleted);
+   *     a nonexistent or cross-workspace anchor surfaces as
+   *     `ActivitySubjectUnavailableError`, disclosing nothing;
+   *   - the anchor set is deduped, order-insensitive and bounded by
+   *     `MAX_ACTIVITY_ANCHORS`; an empty or oversized set is an
+   *     `ActivityValidationError`;
+   *   - the cursor is bound to the anchor SET (via `activityAnchorKey`), so a
+   *     cursor cannot be replayed against a different set and silently skip
+   *     events — the caller must page with a STABLE anchor set.
+   */
+  listForEntities(
+    entityIds: readonly string[],
+    input?: ListEntitiesActivityInput,
   ): Promise<ActivityPage>;
 }

@@ -391,23 +391,40 @@ is **read-only**:
 const { activity } = await resolveWorkspaceScope(env);
 await activity.listForWorkspace({ type?, limit?, cursor? });   // Activity Feed
 await activity.listForEntity(entityId, { type?, limit?, cursor? }); // Timeline
+await activity.listForEntities(entityIds, { type?, limit?, cursor? }); // relationship Timeline
 await activity.getById(id);
 ```
 
-Both listings are workspace-isolated, ordered **newest-first** by
+All three listings are workspace-isolated, ordered **newest-first** by
 `(occurredAt, id)`, bounded, cursor-paginated, and return each event with **all**
 its subjects via a single `IN (...)` query (no N+1). `listForEntity` requires the
 anchor entity to exist in the workspace but allows it to be **soft-deleted** — a
 deleted entity's Timeline stays queryable. A cross-workspace anchor is
 indistinguishable from a nonexistent one.
 
+`listForEntities` is the **set generalisation** of `listForEntity`, added by
+[PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) /
+[ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)
+so a record whose history is genuinely the history of a RELATIONSHIP (a Person plus
+the records they are linked to) can be read as ONE correctly-ordered stream instead
+of N merged queries. It returns an event matching ANY anchor **exactly once** with
+all of its subjects, requires **every** anchor to exist in the bound workspace
+(failing the whole read closed otherwise), and bounds the anchor set at
+`MAX_ACTIVITY_ANCHORS` (deduped and order-insensitive). It is still a READ over the
+one stream: no table, migration, index, event type or projection is added, and
+deriving the anchor set is the calling module's job, never the kernel's.
+
 ### Cursor behaviour
 
 Activity uses its **own** versioned cursor (never the entity or link cursor),
-bound to `(version, workspaceId, scope-kind, entityId?, type-filter, occurredAt,
+bound to `(version, workspaceId, scope-kind, anchor-key?, type-filter, occurredAt,
 activityId)`. A workspace cursor is rejected on an entity Timeline (and vice
 versa), an entity-A cursor is rejected for entity B, and a filtered cursor is
-rejected under another filter. Contents are untrusted (base64url over UTF-8,
+rejected under another filter. For a multi-anchor listing the scope kind is
+`entities` and the anchor key is a stable digest of the sorted anchor SET
+(`activityAnchorKey`), so a cursor issued for `{A,B}` is rejected against `{A,B,C}`
+rather than silently skipping events — a multi-anchor caller must page with a
+**stable** anchor set. Contents are untrusted (base64url over UTF-8,
 fatal decoding), validated on decode; every value reaching SQL is bound.
 
 ### No per-module history tables; no backfill

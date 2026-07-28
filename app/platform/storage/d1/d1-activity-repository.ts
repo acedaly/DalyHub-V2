@@ -18,6 +18,7 @@
 import {
   ActivityStorageError,
   ActivitySubjectUnavailableError,
+  validateActivityAnchorIds,
   validateActivityId,
   validateActivityLimit,
   validateOptionalActivityType,
@@ -25,10 +26,12 @@ import {
   type ActivityPage,
   type ActivityRecord,
   type ActivityRepository,
+  type ListEntitiesActivityInput,
   type ListEntityActivityInput,
   type ListWorkspaceActivityInput,
 } from "~/kernel/activity";
 import {
+  activityAnchorKey,
   decodeActivityCursorForScope,
   encodeActivityCursor,
   type ActivityCursorPosition,
@@ -163,6 +166,64 @@ export class D1ActivityRepository implements ActivityRepository {
     return this.#assemblePage(rows, limit, scope);
   }
 
+  async listForEntities(
+    entityIds: readonly string[],
+    input: ListEntitiesActivityInput = {},
+  ): Promise<ActivityPage> {
+    // Deduped + sorted, so the anchor set (and therefore the cursor scope) does
+    // not depend on the order the caller happened to supply.
+    const anchors = validateActivityAnchorIds(entityIds);
+    const type = validateOptionalActivityType(input.type);
+    const limit = validateActivityLimit(input.limit);
+
+    // EVERY anchor must exist in the bound workspace (active or soft-deleted, as
+    // for a single-entity Timeline). One query, not N — and a cross-workspace or
+    // nonexistent anchor is reported identically, disclosing nothing.
+    await this.#requireEntitiesExist(anchors);
+
+    const scope: ActivityCursorScope = {
+      workspaceId: this.#workspaceId,
+      scope: "entities",
+      entityId: activityAnchorKey(anchors),
+      type: type ?? null,
+    };
+
+    const placeholders = anchors.map(() => "?").join(", ");
+    const conditions: string[] = [
+      "s.workspace_id = ?",
+      `s.entity_id IN (${placeholders})`,
+    ];
+    const params: unknown[] = [this.#workspaceId, ...anchors];
+    if (type !== undefined) {
+      conditions.push("a.type = ?");
+      params.push(type);
+    }
+    this.#applyKeyset(input.cursor, scope, conditions, params, "a.");
+
+    const fetchLimit = limit + 1;
+    params.push(fetchLimit);
+
+    // DISTINCT collapses the duplicate join rows an event with SEVERAL matching
+    // subjects would otherwise produce (e.g. a link between the Person and one of
+    // their linked records is a subject of BOTH anchors) — every selected column
+    // comes from `activities`, whose `id` is unique, so nothing else is merged.
+    const rows = await this.#allActivities(
+      this.#db
+        .prepare(
+          `SELECT DISTINCT ${ACTIVITY_COLUMNS_A}
+           FROM activity_subjects s
+           JOIN activities a
+             ON a.workspace_id = s.workspace_id AND a.id = s.activity_id
+           WHERE ${conditions.join(" AND ")}
+           ORDER BY a.occurred_at DESC, a.id DESC
+           LIMIT ?`,
+        )
+        .bind(...params),
+    );
+
+    return this.#assemblePage(rows, limit, scope);
+  }
+
   /** Append the newest-first keyset predicate for a cursor, if present. `prefix`
    * qualifies the columns (e.g. `"a."`) when they come from a joined table. */
   #applyKeyset(
@@ -260,6 +321,31 @@ export class D1ActivityRepository implements ActivityRepository {
       throw new ActivityStorageError(undefined, { cause });
     }
     if (!present) {
+      throw new ActivitySubjectUnavailableError();
+    }
+  }
+
+  /**
+   * Require EVERY id in a bounded anchor set to exist (active or soft-deleted) in
+   * the bound workspace, in ONE query. Any missing or cross-workspace anchor
+   * fails the whole listing closed with the same indistinguishable error.
+   */
+  async #requireEntitiesExist(entityIds: readonly string[]): Promise<void> {
+    const placeholders = entityIds.map(() => "?").join(", ");
+    let found: number;
+    try {
+      const row = await this.#db
+        .prepare(
+          `SELECT COUNT(*) AS found FROM entities
+           WHERE workspace_id = ? AND id IN (${placeholders})`,
+        )
+        .bind(this.#workspaceId, ...entityIds)
+        .first<{ found: number }>();
+      found = row?.found ?? 0;
+    } catch (cause) {
+      throw new ActivityStorageError(undefined, { cause });
+    }
+    if (found !== entityIds.length) {
       throw new ActivitySubjectUnavailableError();
     }
   }
