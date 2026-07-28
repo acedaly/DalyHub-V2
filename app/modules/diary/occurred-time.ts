@@ -20,7 +20,13 @@
  * the Activity Feed's deterministic heading approach.
  */
 
-import { OWNER_TIME_ZONE } from "~/shared/datetime";
+import {
+  OWNER_TIME_ZONE,
+  ownerLocalToUtc,
+  partsInTimeZone,
+} from "~/shared/datetime";
+
+export { ownerLocalToUtc, utcToOwnerLocal } from "~/shared/datetime";
 
 /**
  * Default Diary display timezone when no persisted preference is available.
@@ -52,128 +58,18 @@ const WEEKDAYS = [
   "Saturday",
 ] as const;
 
-/** A local wall-clock, as the value a native `datetime-local` control uses. */
-const LOCAL_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
-
 /** A local calendar day key, `YYYY-MM-DD`. */
 const DAY_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-type ZonedParts = {
-  readonly year: string;
-  readonly month: string;
-  readonly day: string;
-  readonly hour: string;
-  readonly minute: string;
-  readonly second: string;
-};
-
-/**
- * The `{year…second}` an instant reads as on the wall clock of `timeZone`. Built
- * with an explicit zone and `hourCycle: "h23"` (so midnight is `00`, never `24`),
- * assembled from numeric parts so the result never depends on a locale's ordering
- * or separators.
- */
-function partsInZone(instant: Date, timeZone: string): ZonedParts {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const map: Record<string, string> = {};
-  for (const part of formatter.formatToParts(instant)) {
-    if (part.type !== "literal") map[part.type] = part.value;
-  }
-  return {
-    year: map.year ?? "0000",
-    month: map.month ?? "01",
-    day: map.day ?? "01",
-    hour: map.hour ?? "00",
-    minute: map.minute ?? "00",
-    second: map.second ?? "00",
-  };
-}
-
-/** The offset of `timeZone` (minutes east of UTC) in effect at `instant`. */
-function zoneOffsetMinutes(instant: Date, timeZone: string): number {
-  const parts = partsInZone(instant, timeZone);
-  const asUtc = Date.UTC(
-    Number(parts.year),
-    Number(parts.month) - 1,
-    Number(parts.day),
-    Number(parts.hour),
-    Number(parts.minute),
-    Number(parts.second),
-  );
-  return Math.round((asUtc - instant.getTime()) / 60_000);
-}
-
-/**
- * Convert an owner-local wall-clock (`YYYY-MM-DDTHH:MM`, as a `datetime-local`
- * control yields) in `timeZone` to the UTC instant the kernel stores. DST-aware:
- * the offset is resolved at the target instant, then re-resolved once in case the
- * naive guess landed on the wrong side of a transition. Returns `null` for a
- * syntactically invalid or out-of-range value, an invalid calendar date, or a
- * nonexistent spring-forward local time — none of which can round-trip to the
- * entered wall-clock — so the caller surfaces its field error (see the exact
- * round-trip check below). An autumn overlap time round-trips and is accepted.
- */
-export function ownerLocalToUtc(local: string, timeZone: string): Date | null {
-  const match = LOCAL_DATETIME_PATTERN.exec(local);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const hour = Number(match[4]);
-  const minute = Number(match[5]);
-  if (month < 1 || month > 12) return null;
-  if (day < 1 || day > 31) return null;
-  if (hour > 23 || minute > 59) return null;
-
-  const naiveUtc = Date.UTC(year, month - 1, day, hour, minute);
-  const firstOffset = zoneOffsetMinutes(new Date(naiveUtc), timeZone);
-  let utcMs = naiveUtc - firstOffset * 60_000;
-  const secondOffset = zoneOffsetMinutes(new Date(utcMs), timeZone);
-  if (secondOffset !== firstOffset) {
-    utcMs = naiveUtc - secondOffset * 60_000;
-  }
-  const result = new Date(utcMs);
-  if (Number.isNaN(result.getTime())) return null;
-  // Require the instant to round-trip EXACTLY to the entered wall-clock. This
-  // rejects two classes of input that cannot faithfully represent what the user
-  // typed: an invalid calendar date (JS normalises `2026-02-31T10:00` to March),
-  // and a nonexistent spring-forward local time (`2026-10-04T02:30` in Sydney,
-  // which the two-offset resolution shifts to 03:30). Both return null so the
-  // route surfaces the existing "valid date and time" field error. An autumn
-  // OVERLAP time round-trips to itself, so it is accepted deterministically at
-  // the standard-time (post-transition) occurrence — see the tests.
-  if (utcToOwnerLocal(result, timeZone) !== local) return null;
-  return result;
-}
-
-/**
- * The inverse of {@link ownerLocalToUtc}: the owner-local wall-clock
- * (`YYYY-MM-DDTHH:MM`) an instant reads as in `timeZone` — used to seed the
- * editor's "when" control from a stored UTC `occurredAt`.
- */
-export function utcToOwnerLocal(instant: Date, timeZone: string): string {
-  const parts = partsInZone(instant, timeZone);
-  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
-}
-
 /** The local `HH:MM` time an instant reads as in `timeZone` (24-hour). */
 export function formatZonedTime(instant: Date, timeZone: string): string {
-  const parts = partsInZone(instant, timeZone);
+  const parts = partsInTimeZone(instant, timeZone);
   return `${parts.hour}:${parts.minute}`;
 }
 
 /** An absolute `"20 May 2024"` for an instant, resolved in `timeZone`. */
 export function formatZonedDateLong(instant: Date, timeZone: string): string {
-  const parts = partsInZone(instant, timeZone);
+  const parts = partsInTimeZone(instant, timeZone);
   const month = MONTHS[Number(parts.month) - 1] ?? parts.month;
   return `${Number(parts.day)} ${month} ${parts.year}`;
 }
