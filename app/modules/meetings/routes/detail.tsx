@@ -57,6 +57,7 @@ interface MarkHeldPayload {
   readonly outcome?: "recorded" | "already_held";
   readonly heldAt?: string;
   readonly attendeeCount?: number;
+  readonly attendeesRecorded?: number;
   readonly error?: string;
 }
 
@@ -262,6 +263,8 @@ function MeetingRecord({
       const { title, message } = meetingHeldSuccessMessage({
         outcome: payload.outcome ?? "recorded",
         attendeeCount: payload.attendeeCount ?? 0,
+        attendeesRecorded:
+          payload.attendeesRecorded ?? payload.attendeeCount ?? 0,
       });
       feedback.notifySuccess(title, message ? { message } : undefined);
       r.revalidate();
