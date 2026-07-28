@@ -48,6 +48,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
+import { SegmentedFilter } from "~/shared/segmented-filter";
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
@@ -64,8 +65,16 @@ import { TasksQuickAdd } from "./TasksQuickAdd";
 import { TasksViewSwitcher } from "./TasksViewSwitcher";
 import { buildTasksControlGroups } from "./tasks-controls";
 import type { TasksBulkResult, TasksPageData } from "./tasks-contract";
-import { GROUP_BY_LABELS, PRESENTATION_LABELS } from "./tasks-presentation";
-import { TASKS_FILTER_PARAM_NAMES, effectiveGroupBy } from "./tasks-url-state";
+import {
+  GROUP_BY_LABELS,
+  PRESENTATION_LABELS,
+  PRESENTATION_OPTIONS,
+} from "./tasks-presentation";
+import {
+  TASKS_PARAMS,
+  effectiveGroupBy,
+  paramsFromConfig,
+} from "./tasks-url-state";
 import {
   resolveGroupedSections,
   toTaskCardData,
@@ -313,6 +322,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   );
 
   const resetKey = useMemo(() => JSON.stringify(config), [config]);
+
+  /**
+   * The CANONICAL parameters for this page: exactly the configuration the server
+   * actually applied, written back over the parameters the module does not own.
+   *
+   * The controls and the chips read from THIS, not from the raw URL, so what they
+   * claim is applied is always what the query applied. A value the kernel rejected
+   * — a hand-typed nonsense filter, a dimension a later build removed — is gone
+   * from the badge, gone from the chips, and gone from anything an Apply writes
+   * back, instead of quietly describing a narrower list than the one on screen.
+   */
+  const canonicalParams = useMemo(
+    () => paramsFromConfig(config, searchParams),
+    [config, searchParams],
+  );
 
   const loadHref = useCallback(
     (cursor: string): string => {
@@ -670,6 +694,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           New task
         </DrawerTrigger>
       }
+      // The shared PX-02 view switcher stays in the pane header on desktop, so
+      // changing presentation is ONE click rather than a trip through the sheet.
+      // It writes the same `?view=` parameter the sheet's Layout group writes —
+      // one control model, two affordances, never two states.
+      viewSwitcher={
+        <SegmentedFilter
+          param={TASKS_PARAMS.presentation}
+          options={PRESENTATION_OPTIONS.map((presentation) => ({
+            value: presentation,
+            label: PRESENTATION_LABELS[presentation],
+          }))}
+          value={config.presentation}
+          label="Choose a task layout"
+        />
+      }
       filterBar={
         <TasksViewSwitcher
           views={data.views}
@@ -690,7 +729,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
               groups={controlGroups}
               triggerLabel="Filter & sort"
               hideSummary
-              resetParams={[...TASKS_FILTER_PARAM_NAMES]}
+              params={canonicalParams}
             />
             <p className="dh-tasks-controls__summary">
               {PRESENTATION_LABELS[config.presentation]}
@@ -704,7 +743,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           </div>
           <CollectionFilterChips
             groups={controlGroups}
-            params={searchParams}
+            params={canonicalParams}
             basePath="/tasks"
           />
         </>
@@ -813,11 +852,11 @@ function GroupedBucket({
   readonly viewAllHref: (section: GroupedSection) => string | null;
 }) {
   const href = section.hasMore ? viewAllHref(section) : null;
+  // The region is named by the bucket ALONE: its heading already carries the
+  // authoritative count, and repeating it in the landmark name would make a screen
+  // reader announce the number twice.
   return (
-    <section
-      className={className}
-      aria-label={`${section.title} — ${section.count} tasks`}
-    >
+    <section className={className} aria-label={section.title}>
       <h2 className="dh-tasks-section__label">
         {section.title}
         <span className="dh-tasks-section__count"> ({section.count})</span>

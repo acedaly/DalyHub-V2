@@ -111,6 +111,22 @@ function resolveFallbackConfig(
   return { config: DEFAULT_TASK_VIEW_CONFIG, viewId: null };
 }
 
+/**
+ * The id of the view whose configuration EQUALS this one, if any. Built-in views
+ * are checked first so a configuration that happens to match both is named by the
+ * one the product defines rather than the one the owner happened to save.
+ */
+function findMatchingViewId(
+  config: TaskViewConfig,
+  saved: readonly TaskSavedView[],
+): string | undefined {
+  return (
+    TASK_SYSTEM_VIEW_DEFINITIONS.find((definition) =>
+      taskViewConfigsEqual(definition.config, config),
+    )?.id ?? saved.find((view) => taskViewConfigsEqual(view.config, config))?.id
+  );
+}
+
 /** The config the explicitly-selected `?saved=` view carries, when it resolves. */
 function selectedViewConfig(
   selectedId: string | null,
@@ -204,7 +220,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // owner's default, so a deep link, a shared URL and Back/Forward stay
   // authoritative — a preference never overrides an address the user is looking at.
   const config = configFromParams(url.searchParams, fallback.config);
-  const activeViewId = selectedConfig !== null ? selectedId : fallback.viewId;
+  // When nothing is explicitly selected, recognise a configuration that MATCHES a
+  // view and name it — a bare `/tasks` is the standard workspace, not a "Custom"
+  // one, and the switcher should say what you are LOOKING AT rather than merely
+  // what you last clicked. Matching by configuration also means a shared link and
+  // the view it came from report themselves identically.
+  const activeViewId =
+    selectedConfig !== null
+      ? selectedId
+      : (findMatchingViewId(config, saved) ?? null);
   const viewModified =
     selectedConfig !== null && !taskViewConfigsEqual(selectedConfig, config);
 

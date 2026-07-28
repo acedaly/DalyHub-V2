@@ -309,3 +309,149 @@ are opt-in above `md`, so a phone has never seen a compressed grid. Likewise the
 priority, urgency, parent and sector in its Summary, so those common properties
 never required opening the Details edit form. MOBILE-01 verified both rather than
 rebuilding them.
+
+## The completed collection experience (TASKS-03, 2026-07-28)
+
+TASKS-03 finishes the main Tasks workspace: it makes the LIST the primary surface,
+completes filtering, sorting and grouping, and adds persistent saved views. It is
+accepted via
+[ADR-059](../decisions/ARCHITECTURE_DECISIONS.md#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration).
+
+**It changes no Task authority.** The spine still owns identity, completion and
+parentage; `task_details` still owns the additive fields; the shared Task Drawer is
+still the canonical detail/edit surface; Activity is still the one audit stream.
+Every mutation reachable from a row goes to a canonical route.
+
+### One declarative configuration
+
+The workspace has exactly ONE state model: a validated
+[`TaskViewConfig`](../../app/kernel/task-views/task-view-config.ts) — a
+presentation, a system view, a sort + direction, a grouping, a density and a set of
+filter dimensions from closed sets. That same shape IS the URL
+([`tasks-url-state.ts`](../../app/modules/tasks/tasks-url-state.ts)), the loader
+payload and the persisted saved view, so a saved view and a copied link can never
+mean different things.
+
+A configuration names DIMENSIONS, never fields, columns, operators or SQL. Parsing
+is total and lenient — an unknown key or a value from a future build is dropped and
+the rest is kept — and what is written is the canonical re-serialised result.
+
+### Presentations, and where the specialist views now sit
+
+| Presentation | What it is |
+| --- | --- |
+| **List** (default) | One calm, ordered list. Optionally grouped. |
+| **Board** | The same query as grouped columns (grouped by priority unless told otherwise — a one-column board is a list with extra chrome). |
+| **Matrix** | The Eisenhower 2×2. **Optional**, not the primary way to manage tasks. |
+| **Sectors** | The Time Sectors planning board. **Optional**. |
+
+TASKS-01's `?view=focus` and `?view=all` were never layouts — one was a system view
+and the other the absence of a filter. They now **redirect once** into the new
+vocabulary (`view=list` plus the equivalent `system=`), so an existing bookmark
+lands on the same records and the address bar stays honest about what is applied.
+
+### Filters
+
+| Dimension | Parameter | Notes |
+| --- | --- | --- |
+| Status | `status` | The open-state workflow position. |
+| Priority / Eisenhower quadrant | `priority` | **One axis, not two** — they are the same stored field (ADR-043 §2). The filter's labels carry both vocabularies (`P1 · Urgent — Do`). `__none` = untriaged. |
+| Due state | `due` | Derived: overdue · due today · due this week · due later · no due date. |
+| Planned state | `planned` | Derived over the SCHEDULED date: planned today · this week · earlier · later · unplanned. |
+| Time Sector | `sector` | `__none` = the derived Inbox. |
+| Parent type | `parentType` | `project` · `area` · `none` (a task whose parent link is gone). |
+| Project / Area / Goal | `project` · `area` · `goal` | Real, workspace-scoped option sets; the Goal filter resolves through the Project link. |
+| Delegated person | `person` | The distinct delegatees actually present, from ONE bounded aggregate. |
+| Delegated / Waiting / Someday | `delegated` · `waiting` · `someday` | Flags. Someday maps to the COMMITMENT state, never a status. |
+| Created / updated recency | `created` · `updated` | Closed windows: today · 7 · 30 · 90 days. |
+| Completed visibility | `completed` | `hide` · `include` · `only`, applied ON TOP of the system view. |
+
+"This week" is a **rolling seven-day window** (`today … today + 6`), so it needs no
+first-day-of-week preference and a shared link means the same thing to any viewer.
+"Overdue" means an OPEN task due strictly before the owner's calendar day — the
+same rule the `smart` sort and the `overdue` system view use, so the three can
+never disagree.
+
+**Tasks have no tag field**, so there is no tag filter. Inventing one would be a
+data-model change wearing a filter's clothes — recorded as
+[DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3).
+
+All filtering is server-side, URL-backed, bookmarkable, Back/Forward-safe,
+workspace-scoped, bounded, and bound into the pagination cursor. Nothing loads the
+collection into the browser to filter it.
+
+### Sorting and grouping
+
+Sorts: `smart` · due date · planned date · priority · created · updated · title ·
+**parent**. `?dir=asc|desc` reverses where reversing is meaningful; `smart`
+deliberately ignores a reversal, because "least relevant first" is not a useful
+order. Unparented tasks sort last under BOTH directions of the parent sort. Order
+is total — `(sort value, created_at, id)` — so it is stable across reloads and
+pages.
+
+Grouping (`?group=`): priority · due state · planned date · status · parent ·
+delegated person · time sector. Every grouped view — including the Matrix and the
+Sectors — resolves through the ONE server grouping query and the ONE
+`resolveGroupedSections`. Counts are **authoritative**: `COUNT(*) OVER (PARTITION
+BY bucket)` over the whole filtered scope, never the loaded slice. A closed
+dimension renders in its declared order; **empty buckets are hidden** except in the
+Matrix and the Sectors, where a missing quadrant or window would itself be
+misleading. "View all N" links to the flat list filtered to exactly that bucket.
+
+Crucially, filtering and grouping share ONE resolved scope
+(`#resolveWorkspaceScope`), so a grouped total can never contradict the equivalent
+filtered list.
+
+### Saved views
+
+`task_saved_views` (migration `0022`, additive) stores a NAME plus the canonical
+configuration, scoped to the workspace AND the authenticated owner. Users can save,
+update, rename, duplicate, delete (with confirmation), choose a default, return to
+the standard view, and copy the current configuration's link without saving.
+
+The BUILT-IN views — Inbox · Today · Upcoming · Overdue · Waiting · Delegated ·
+Someday/Maybe · Completed, plus the standard "All active" — are **derived in code**
+([`task-system-views.ts`](../../app/kernel/task-views/task-system-views.ts)), not
+seeded rows. They cost no storage, exist on day one, and cannot be deleted or
+silently mutated. The switcher separates them under "Built-in views" and "Your
+views", with the built-in group carrying an explicit note that it cannot be changed
+— the distinction is carried by WORDS, never colour.
+
+The switcher is a compact menu, deliberately **not** a permanent secondary sidebar:
+a rail would take horizontal space from the task list on every ordinary screen to
+show a list touched a few times a day. It names the ACTIVE view (matching by
+configuration, so a bare `/tasks` reads "All active" rather than "Custom") and
+marks an unsaved change with the word "Modified".
+
+### Capture and quick editing
+
+An in-workspace **quick add** row keeps the field available after a save, clears it,
+refocuses it, and carries the session's parent and classification (a task added
+while looking at "This week / P1" lands there). Entered text is never discarded
+after a recoverable failure, and every outcome is announced. It posts to the
+canonical `/tasks/new`; MOBILE-01's title-and-Enter Quick Capture is unchanged.
+
+A row offers **Complete/Reopen** and **Plan today** as visible 44px actions, with
+priority, **Due today / Clear due date**, Clear planned date, Someday/Maybe and
+"Open task record" in the ONE shared overflow menu. Removal stays the canonical
+Drawer's job (PX-04) and the menu points there rather than forking a second
+lifecycle path. `setDueDateMany` is new on the repository and runs the same atomic,
+guarded path as every other bulk field — the due date is a deadline and never
+overwrites the planned date.
+
+### Density
+
+Compact and comfortable use the SHARED DS-04 collection-density contract, passed
+through as a prop to `Card`, `CardCollection` and `CollectionLayout`. There is no
+Tasks-only CSS density fork, and nothing is hidden at any width.
+
+### One control model
+
+The MOBILE-01 `CollectionControlGroup[]` declaration
+([`tasks-controls.ts`](../../app/modules/tasks/tasks-controls.ts)) is the single
+source for the phone sheet, the desktop chip row, the active-filter badge and the
+reset. The chips and the badge read the CANONICAL parameters — the configuration
+the server actually applied — so they can never describe a narrower list than the
+one on screen. The sheet is visible at every width (`CollectionLayout
+persistentControls`), so there is one control surface to learn rather than a
+desktop bar and a phone sheet to keep in step.

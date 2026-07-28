@@ -67,6 +67,17 @@ export type CollectionControlsProps = {
   readonly triggerTestId?: string;
   /** Hide the inline applied-summary line (e.g. when a chip row already shows it). */
   readonly hideSummary?: boolean;
+  /**
+   * The COMMITTED state to read from and apply over, when it is not simply the
+   * URL's raw parameters.
+   *
+   * A collection that validates its URL state (Tasks does) must hand the
+   * CANONICAL parameters here. Otherwise a value the query rejected — a stale
+   * saved view's removed dimension, a hand-typed nonsense filter — would still
+   * count on the Filter badge and still survive an Apply, so the controls would
+   * describe a narrower collection than the one on screen. Defaults to the URL.
+   */
+  readonly params?: URLSearchParams;
 };
 
 export function CollectionControls({
@@ -77,8 +88,10 @@ export function CollectionControls({
   triggerLabel = "Filter",
   triggerTestId = "collection-filter-trigger",
   hideSummary = false,
+  params,
 }: CollectionControlsProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [urlParams, setSearchParams] = useSearchParams();
+  const searchParams = params ?? urlParams;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<CollectionControlsDraft>(() =>
     draftFromParams(groups, searchParams),

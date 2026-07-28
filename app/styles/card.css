@@ -586,6 +586,22 @@
   overflow: visible;
 }
 
+/* A card creates its own STACKING CONTEXT (the swipe surface is positioned with a
+ * z-index so the tray can sit behind it), which caps the open overflow panel
+ * inside it: the panel's `--dh-z-dropdown` is resolved against its card, not
+ * against the page. In a long collection the next card — and the sticky header —
+ * therefore paint OVER an open menu, and its items become unclickable.
+ *
+ * So while a menu is open, the CARD is raised to the dropdown layer. That lifts
+ * the whole context above its siblings and above the sticky chrome, without
+ * changing the panel's own z-index or the tray's position behind the surface.
+ * Only one menu can be open at a time, so exactly one card is ever raised. */
+.dh-card-swipe:has(.dh-overflow-menu[data-open="true"]),
+.dh-card:has(.dh-overflow-menu[data-open="true"]) {
+  position: relative;
+  z-index: var(--dh-z-dropdown);
+}
+
 /* The article inside the clip must NOT paint its own (clipped, invisible)
  * shadow — the wrapper owns elevation now. Hover border-color, selection and
  * focus treatments remain on the shared Card. */

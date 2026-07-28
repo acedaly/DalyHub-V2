@@ -161,6 +161,22 @@ export const SECTOR_LABELS: Record<string, string> = {
 };
 
 /**
+ * The Eisenhower QUADRANT headings, used only by the Matrix.
+ *
+ * This is why `quadrant` and `priority` are separate grouping dimensions over the
+ * same stored field: the Matrix is a method, and its quadrants are named by the
+ * ACTION they prescribe. Everywhere else the same field reads as an everyday
+ * priority, because "Delete / Review" is not a useful heading for a list.
+ */
+export const QUADRANT_LABELS: Record<string, string> = {
+  p1: "P1 · Do",
+  p2: "P2 · Defer",
+  p3: "P3 · Delegate",
+  p4: "P4 · Delete / Review",
+  untriaged: "Unprioritised",
+};
+
+/**
  * The human label for a server bucket key, given the grouping dimension. Open-ended
  * dimensions (parent, delegate) carry their label on the group itself, resolved by
  * the repository from the row — never by a second query.
@@ -172,6 +188,7 @@ export function groupBucketLabel(
 ): string {
   switch (dimension) {
     case "quadrant":
+      return QUADRANT_LABELS[key] ?? key;
     case "priority":
       return PRIORITY_SHORT_LABELS[key] ?? key;
     case "sector":

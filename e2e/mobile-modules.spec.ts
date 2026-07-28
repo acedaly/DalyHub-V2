@@ -98,7 +98,7 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     // wrong here — a completed task correctly LEAVES the active population, so
     // the row would vanish rather than update.) The task is restored below, so
     // other journeys see seeded state.
-    await gotoFixture(page, "/tasks?view=all&system=all");
+    await gotoFixture(page, "/tasks?view=list&system=all");
 
     const card = page.locator(".dh-card").first();
     await expect(card).toBeVisible();
@@ -127,7 +127,7 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
   test("opens a task as a full-screen record and returns to the list", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all&system=all");
+    await gotoFixture(page, "/tasks?view=list&system=all");
 
     await page.locator(".dh-card__open").first().click();
 
