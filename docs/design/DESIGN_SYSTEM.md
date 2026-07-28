@@ -705,6 +705,28 @@ second relationship model or a per-module link route. Add/remove are **optimisti
 with a DS-10 **Undo** toast, **offline-aware**, and keyboard-complete; structural
 spine links are shown by the hierarchy, not here.
 
+**References — reading the graph directionally (NOTES-02).** Linked Items answers
+*what is this related to?* as one editable list. A knowledge record needs a second
+question answered: **who points at me, and who do I point at.** That is
+[`app/shared/references`](../../app/shared/references) — a separate, isolated
+shared contract that READS the same FND-04 graph; it never creates or removes a
+relationship, and Linked Items stays the one place relationships are edited. Use
+it whenever a record's own detail page should distinguish the two directions.
+
+- **Backlinks and Outgoing links are separate surfaces, never one merged list.**
+  Merging them produces an ambiguous "related" pile that answers neither question.
+- **A backlink is an explicit typed relationship or a supported entity reference
+  — never a text coincidence.** Writing a record's title in prose creates nothing.
+  Say so in the surface, not only in the docs.
+- **`ReferenceList` is the one row treatment**: the counterpart's identity glyph
+  (decorative), its **type in words**, the **relationship name in words**, an
+  optional bounded **context** line, the linked date, and the title as the shared
+  navigable `EntityLink`. Archive state is a **word**, never colour or a glyph
+  alone. Grouping by counterpart type is opt-in, in first-seen order.
+- **Context is bounded, deterministic and safe**: block-scoped, syntax-free,
+  truncated with an explicit ellipsis, and absent rather than guessed when the
+  source type cannot supply it.
+
 **Command Palette.** Mounting the tab registers a `⌘K` **navigate** action ("Link a
 record to this …") that opens the Linked tab — a navigation action, never a
 focus-moving `run` ([`COMMAND_PALETTE.md`](../development/COMMAND_PALETTE.md)).

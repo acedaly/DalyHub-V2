@@ -240,7 +240,7 @@ describe("Note relationship tabs", () => {
       screen.getByRole("heading", { name: "Projects this note documents" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Links from this note" }),
+      screen.getByRole("heading", { name: "Referenced in this note" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Manage relationships" }),

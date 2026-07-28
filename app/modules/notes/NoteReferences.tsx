@@ -28,6 +28,13 @@ import {
   type ReferencePage,
 } from "~/shared/references";
 
+/**
+ * The module-agnostic "related to" link type the shared REL-01 picker creates
+ * and removes. Declared here as a plain constant rather than imported from the
+ * platform layer, which a component must not depend on.
+ */
+const UNIVERSAL_RELATED_LINK = "link.related";
+
 /** Fetch a further page of references for the shared "Load more" affordance. */
 function useReferencePages(
   noteId: string,
@@ -121,6 +128,14 @@ export function NoteLinksTab({ noteId, page, linkedItems }: NoteLinksTabProps) {
     page,
   );
   const projects = referencesOfType(items, "project");
+  // The body-derived references — everything EXCEPT the `link.related` links the
+  // shared picker below owns. Showing those in both places would put the same
+  // relationship on screen twice with two different removal models (one
+  // optimistic and editable, one server-rendered and read-only), which is
+  // exactly the ambiguity §4 asks these sections to avoid.
+  const written = items.filter(
+    (reference) => reference.linkType !== UNIVERSAL_RELATED_LINK,
+  );
 
   return (
     <div className="dh-note-references">
@@ -138,20 +153,21 @@ export function NoteLinksTab({ noteId, page, linkedItems }: NoteLinksTabProps) {
 
       <section aria-labelledby="note-outgoing">
         <h2 id="note-outgoing" className="dh-note-references__heading">
-          Links from this note
+          Referenced in this note
         </h2>
         <p className="dh-note-references__help">
-          Records this note points at, grouped by kind. References written as{" "}
-          <code>[[wiki links]]</code> in the body are kept in step with the text
-          every time the note is saved.
+          Records this note points at from its own text, grouped by kind. A{" "}
+          <code>[[wiki link]]</code> in the body becomes a real relationship,
+          and is kept in step with the text every time the note is saved. Links
+          you add by hand are managed below.
         </p>
         <ReferenceList
-          references={items}
+          references={written}
           groupByType
           groupHeadingLevel={3}
-          label="Records this note links to"
-          emptyTitle="This note links to nothing yet"
-          emptyDescription="Write [[a record title]] in the note, or add a relationship below."
+          label="Records this note references"
+          emptyTitle="This note references nothing yet"
+          emptyDescription="Write [[a record title]] in the note to link it, or add a relationship by hand below."
         />
         {hasMore ? (
           <LoadMore

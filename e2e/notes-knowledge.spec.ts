@@ -108,7 +108,7 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     // The source note's Links tab reports what it points at…
     await page.goto(`${sourceUrl}?tab=linked`);
     await expect(
-      page.getByRole("heading", { name: "Links from this note" }),
+      page.getByRole("heading", { name: "Referenced in this note" }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: new RegExp(targetTitle) }).first(),

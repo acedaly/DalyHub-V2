@@ -37,7 +37,7 @@ foundation and the kernel's existing generic lifecycle:
 
 `entities.softDelete`/`.restore` (FND-02) already existed before NOTES-01C;
 Notes is simply their first product UI caller (see
-[Lifecycle: delete and restore](#lifecycle-delete-and-restore)). Backlinks,
+[Lifecycle: delete and restore](#lifecycle-archive-delete-and-restore)). Backlinks,
 tags, folders, Areas filtering and full-text search remain out of scope (see
 [Deferrals](#deferrals)).
 
@@ -48,11 +48,13 @@ shell:
 
 | Route | Kind | Responsibility |
 | --- | --- | --- |
-| `GET /notes` | page | The Notes collection. `?state=active` (default) lists live Notes; `?state=deleted` lists only soft-deleted ones. Bounded cursor pagination either way. Replaces the PX-03 placeholder. |
+| `GET /notes` | page | The Notes collection. `?state=active` (default) / `archived` / `deleted`, plus `?q=`, `?tag=`, `?project=`, `?area=`, `?links=linked\|unlinked` and `?sort=recent`. Bounded cursor pagination; each filter combination is its own bound cursor scope. Replaces the PX-03 placeholder. |
 | `POST /notes/new` | resource | Create a Note via `entities.create({ type: "note", title })`. Title only. |
-| `GET /notes/:noteId` | page | Canonical Note record: the "Note" tab (the NOTES-05 writing-first live Markdown editor + a Read toggle), the "Linked" tab (the shared REL-01 Linked Items section) and the "Activity" tab. **404s for a soft-deleted Note** — see [Lifecycle](#lifecycle-delete-and-restore). |
+| `GET /notes/:noteId` | page | Canonical Note record: the "Note" tab (the NOTES-05 writing-first live Markdown editor + a Read toggle), the "Linked" tab (the shared REL-01 Linked Items section) and the "Activity" tab. **404s for a soft-deleted Note** — see [Lifecycle](#lifecycle-archive-delete-and-restore). |
 | `POST /notes/:noteId/mutate` | resource | `rename` / `update_content` (verified ACTIVE-Note anchor) and `delete` / `restore` (verified anchor regardless of lifecycle state — see below). |
 | `GET /notes/:noteId/activity` | resource | One bounded DS-05 Timeline page over `activity.listForEntity(noteId)`. |
+| `GET /notes/:noteId/references` | resource | Further pages of the Note's backlinks (`?direction=incoming`) or outgoing links (`?direction=outgoing`). The FIRST page is server-rendered by the record route. |
+| `GET /notes/:noteId/export` | resource | The single-Note download, `?format=md\|txt`. Returns an attachment; never a page. |
 
 The static `/notes/new` segment is registered before `/notes/:noteId`.
 `rename`/`update_content` verify an ACTIVE-Note anchor
@@ -77,10 +79,10 @@ ever accepted.
 - an honest "N notes loaded" / "N notes" subtitle (or "N deleted notes" on
   the Deleted view) — never claims a total while a bounded page remains,
   matching every other DalyHub collection;
-- an **Active/Deleted** `SegmentedFilter` (`~/shared/segmented-filter`,
+- an **Active/Archived/Deleted** `SegmentedFilter` (`~/shared/segmented-filter`,
   promoted from Projects' PROJ-01-local component in NOTES-01C — the
-  identical `?state=` URL-param pattern, now used by two modules) driving
-  `entities.list({ type: "note", deletedOnly })`;
+  identical `?state=` URL-param pattern) plus the NOTES-03
+  [filter bar](#organisation-notes-03), driving `scope.notes.list(...)`;
 - a "New note" primary action opening the shared DS-03 Drawer — hidden on
   the Deleted view, matching Projects' archived-view convention;
 - loading (the default `CollectionLayout` skeleton), the genuine empty
@@ -89,7 +91,7 @@ ever accepted.
 - a keyset "Load more" affordance (`LoadMore`) that accumulates pages without
   navigating, de-duplicating overlapping boundaries, and resets whenever
   EITHER the cursor scope OR the Active/Deleted state changes (they are
-  different bound cursor scopes — see [Lifecycle](#lifecycle-delete-and-restore));
+  different bound cursor scopes — see [Lifecycle](#lifecycle-archive-delete-and-restore));
 - deterministic ordering, inherited unchanged from
   `EntityRepository.list`'s `(createdAt, id)` order;
 - an ACTIVE Note's Card links to the canonical `/notes/:noteId` record via
@@ -132,16 +134,27 @@ records. The Drawer here hosts only the "Rename" form.
   Note has no workflow state).
 - **"Note" tab** — `NoteContentForm.tsx`: the Markdown source editor (see
   below).
-- **"Linked" tab** — the shared **Universal Relationship System** Linked Items
-  section (REL-01, [`RELATIONSHIPS.md`](RELATIONSHIPS.md)): a real, populated tab
-  (never an empty placeholder), reachable at `?tab=linked`.
+- **"Backlinks" tab** — every record that explicitly links TO this Note
+  (`?tab=backlinks`). See [Backlinks and outgoing links](#backlinks-and-outgoing-links-notes-02).
+- **"Links" tab** — what this Note points AT (`?tab=linked`), in three
+  non-overlapping sections: the **Projects** it documents, the records
+  **referenced in its own text** (body-derived `note.references`, read-only —
+  edit the text to change them), and the shared **Universal Relationship
+  System** Linked Items surface (REL-01, [`RELATIONSHIPS.md`](RELATIONSHIPS.md))
+  where hand-made relationships are *managed*. The hand-made `link.related`
+  links are deliberately NOT repeated in the referenced-in-this-note list: one
+  relationship must not appear twice with two different removal models.
 - **"Activity" tab** — the shared DS-05 Timeline over `activity.listForEntity`,
   reloading on the Note's *effective* `updatedAt` (see
   [Activity](#activity) below).
 
-Three tabs, all populated — no empty "Settings" tab reserved for a future
+Four tabs, all populated — no empty "Settings" tab reserved for a future
 capability (DESIGN_SYSTEM.md: never ship an empty tab for later). The Linked tab
-became a real capability with REL-01.
+became a real capability with REL-01; NOTES-02 split the two link DIRECTIONS
+apart, because "who points at me" and "what do I point at" are different
+questions and merging them produces one ambiguous list (§4 of the knowledge
+brief). Tags, Export, Archive and Delete all live in the ONE shared DS-12
+overflow (⋯) — there is no Notes-only action bar.
 
 ## Editor (NOTES-05 — the writing-first live editor)
 
@@ -267,15 +280,158 @@ and the trigger for promoting the pattern to the Design System.
 - `restore` (NOTES-01C) → `entities.restore(noteId)`. Same
   `includeDeleted: true` anchor (must be able to find an already-deleted
   Note); also idempotent.
+- `set_tags` (NOTES-03) → `noteDetails.setTags(noteId, …)`. Accepts the JSON
+  array the shared DS-06 `TagsField` posts (and, defensively, a comma list).
+  Validation/normalisation is the kernel's `parseNoteTagInput` — one rule, not
+  a component's. Idempotent; the Activity payload carries a COUNT only.
+- `archive` / `unarchive` (NOTES-03) → `noteDetails.setArchived(noteId, …)`.
+  Reversible, idempotent, and DISTINCT from `delete` (see
+  [Lifecycle](#lifecycle-archive-delete-and-restore)).
+
+`update_content` additionally reconciles the Note's `[[Wiki Link]]` references
+into real EntityLinks after the content write (see
+[Backlinks and outgoing links](#backlinks-and-outgoing-links-notes-02)). That
+reconciliation NEVER fails the save: the Markdown source is the canonical record,
+and a workspace hiccup writing derived relationships must not cost the user their
+writing. The next save reconciles from the same source, so nothing drifts
+permanently.
 
 An unknown intent gets a typed `400`. Mutation outcomes are typed
 discriminated unions (`NoteMutationResult`); success revalidates the record
 loader — no hard reload.
 
-## Lifecycle: delete and restore
+## Backlinks and outgoing links (NOTES-02)
 
-NOTES-01C's first lifecycle actions are built entirely on the
-**already-existing** generic `EntityRepository.softDelete`/`.restore`
+**A backlink is an explicit typed relationship or a supported entity reference —
+never a text coincidence.** Writing a Note's title in a sentence creates nothing;
+writing `[[That note]]`, or linking the two records, does. The UI says so, not
+just this document.
+
+### `[[Wiki Links]]` are now REAL relationships
+
+Before NOTES-02, a wiki link was resolved at *navigation* time and wrote nothing,
+so a referenced record never learned it had been referenced ([DEBT-39]). Now,
+every time a Note's content is saved, `reconcileNoteReferences`
+([`app/platform/entity-links/note-references.ts`](../../app/platform/entity-links/note-references.ts))
+makes the Note's **`note.references`** EntityLinks exactly match the `[[…]]`
+references in its body:
+
+| Situation | Outcome |
+| --- | --- |
+| `[[Atlas]]` written and saved | ONE `note.references` link, note → Atlas |
+| `[[Atlas]]` written five times | still ONE link (kernel relationship identity) |
+| `[[Atlas]]` inside a fenced or inline code block | **no link** — sample text is not a relationship |
+| `[[ ]]`, `[[]]`, an unterminated `[[` | no link, no error |
+| a `[[Title]]` matching nothing in the workspace | no link; reported as unresolved, save still succeeds |
+| `[[Own title]]` (a self-reference) | no link — a record cannot relate to itself |
+| the last `[[Atlas]]` removed from the text | the link is unlinked |
+| `[[Atlas]]` written again later | the SAME link id is **restored in place** — never a duplicate |
+| Atlas is **renamed** | the relationship survives — it is stored by stable id, not by title |
+| Atlas is **soft-deleted** | the row stops appearing (kernel `listForEntity` contract) and returns intact if Atlas is restored |
+
+Reconciliation only ever touches `note.references` links whose SOURCE is this
+Note, so a user-created `link.related`, a `meeting.attendee` or an INCOMING
+reference is never disturbed. Title resolution is ONE bounded, indexed query
+(`notes.resolveReferenceTargets`) — never the whole-workspace scan DEBT-39
+recorded — preferring a Note, then the earliest-created record, when several
+records share a title.
+
+### Reading the graph
+
+`~/shared/references` is a NEW, ISOLATED shared contract that reads the FND-04
+graph **directionally**. It does not replace `~/shared/linked-items`: that
+surface owns CREATING and REMOVING relationships, this one owns reading them.
+Both read the same kernel — there is no second relationship store and no second
+timeline representation.
+
+- **Backlinks (incoming)** come from every module, not just Notes — a Project,
+  Task, Diary entry, Meeting, Person, Review, Area or Goal that links to this
+  Note appears here, labelled with its own relationship type
+  (`Related`, `Mentioned in note`, `Meeting attendee`, …).
+- **Outgoing** links are grouped by counterpart type, with linked **Projects**
+  called out in their own section.
+- Reserved **structural spine links** are excluded from both directions, exactly
+  as `loadLinkedItems` excludes them — the hierarchy renders those itself.
+
+### Context
+
+Where it is practical and bounded, a reference shows WHY it exists:
+
+- **incoming from a Note** — the block of the source note containing
+  `[[this note's title]]`, fetched for the WHOLE page in ONE batched query
+  (`notes.loadContextWindows`), never one query per row;
+- **outgoing from this Note** — the block of THIS note containing the reference,
+  computed from the source the route already holds (no extra query).
+
+Extraction is deterministic and defensive: the window is cut in SQL around
+`instr(...)`, wiki-link syntax collapses to its label so the user never sees
+`[[…]]`, the shared analyser strips the remaining Markdown so no half-open
+construct is rendered, the excerpt never spans past a blank-line block boundary
+(so unrelated content is never exposed), and it is truncated to a fixed maximum
+with a deterministic ellipsis. **Known limitation:** context is provided for
+**note** sources only; every other source type shows its relationship name
+instead. Extending it (task descriptions, diary entries, meeting notes) is a
+straightforward addition to the same batched shape.
+
+## Organisation (NOTES-03)
+
+`/notes` gained the organisation it was missing, without a Notes-only filtering
+system: the lifecycle state stays the shared `SegmentedFilter`, and everything
+else is ONE ordinary GET `<form>` of native `<input>`/`<select>` controls
+(`NotesFilterBar.tsx`).
+
+| Filter | Param | Meaning |
+| --- | --- | --- |
+| Search | `?q=` | case-insensitive substring over title, Markdown body and tags |
+| Tag | `?tag=` | exact tag token (tags are normalised, so case never matters) |
+| Project | `?project=` | Notes explicitly linked to that Project |
+| Area | `?area=` | Notes explicitly linked to that Area |
+| Links | `?links=linked\|unlinked` | has, or has no, active non-structural relationship |
+| Sort | `?sort=recent` | most recently updated first (default: newest created) |
+| State | `?state=archived\|deleted` | the lifecycle slice |
+
+Native controls are a deliberate accessibility and mobile choice: a real
+on-screen keyboard and native picker on a phone, keyboard-complete for free, and
+no custom widget semantics. There is **no auto-submit on change** — arrowing
+through a `<select>` must not navigate away under a keyboard user; "Apply" is the
+single predictable commit, and "Clear" appears only when something is set. Every
+filter lives in the URL, so a filtered view is shareable, Back/Forward-correct
+and restorable, and **each filter combination is its own bound cursor scope** —
+a cursor issued under one filter set is rejected under another (and the loader
+then honestly serves the first page of the newly-chosen scope rather than an
+error).
+
+**Tags** are stored on `note_details.tags` as a JSON array of normalised
+(trimmed, whitespace-collapsed, case-folded, de-duplicated, sorted) strings —
+the same convention `person_details.tags` and `asset_details.tags` already use.
+Sorting makes the stored value canonical, so an unchanged set is byte-identical
+and never records a spurious Activity event. They are edited through the shared
+DS-06 `TagsField` in a Drawer, reached from the shared overflow.
+
+## Lifecycle: archive, delete and restore
+
+NOTES-03 added a second, DISTINCT lifecycle state — **archive** — alongside the
+existing soft-delete. They are not synonyms:
+
+| act | canonical route | content | relationships | collection view |
+| --- | --- | --- | --- | --- |
+| **Archive** (`note_details.archived_at`) | still opens | kept | all kept | `?state=archived` |
+| **Delete** (`entities.deleted_at`) | 404s | kept | kept | `?state=deleted` |
+
+Archiving is an organisational act — *put this away but keep it* — and mirrors
+`person_details.archived_at` / `area_details.archived_at` exactly; deleting is a
+removal. Both are reversible, so Notes now run the SAME shared
+`useRecordLifecycle` vocabulary as Projects, Areas, People and Assets
+(ADR-053): archive gets the shared confirm-and-announce (the record leaves the
+active list), delete keeps its Undo-toast path (ADR-042). An archived Note is
+still **findable in global Search**, labelled "Archived" — archiving means "out
+of the way", not "unfindable" — and it is still readable at its canonical route.
+Archiving a Note is deliberately independent of deleting it: a Note that is both
+archived and deleted appears only in the Deleted view, and restoring it returns
+it to the Archived view with its archive state intact.
+
+The rest of this section is unchanged from NOTES-01C. Its lifecycle actions are
+built entirely on the **already-existing** generic `EntityRepository.softDelete`/`.restore`
 (FND-02) — Notes is simply their first product UI caller (Projects'
 "archive" is a *different*, Project-specific mechanism —
 `ProjectSettingsRepository`/`project_details.archived_at` — not this generic
@@ -321,8 +477,15 @@ deletion column, no second lifecycle model.
 
 ## Activity
 
-`app/modules/notes/note-activity.ts` registers exactly one descriptor —
-`note.content_updated` → "Updated note content" — layered over the seven
+`app/modules/notes/note-activity.ts` registers `note.content_updated` →
+"Updated note content", and the manifest adds `note.tags_updated`,
+`note.archived` and `note.unarchived` (NOTES-03). Every payload is
+**non-sensitive by construction** — the tag event carries a COUNT, never the tag
+text, mirroring how `note.content_updated` carries only `{ empty }`. Relationship
+changes need no Notes-specific event: the FND-04 kernel already records
+`entity_link.created` / `.unlinked` / `.restored` atomically on BOTH endpoints,
+so a `[[wiki link]]` appearing or disappearing shows on both records' Timelines.
+These descriptors are layered layered over the seven
 kernel-reserved lifecycle defaults (`entity.created`, `entity.updated`, …),
 mirroring `~/modules/goals/goal-activity.ts`'s pattern exactly. Note creation
 and rename already render through the kernel defaults with no Notes-specific
@@ -339,6 +502,52 @@ route passes this as the Activity tab's `reloadKey`, so either a rename or a
 content save revalidates the Timeline in place with the new event visible
 immediately — no tab switch, no page reload (mirrors ADR-037 §37.2's Project
 Activity reload-key pattern).
+
+## Export (NOTES-06)
+
+A Note is stored as EXACT, byte-for-byte validated Markdown source (ADR-015), so
+exporting it is a **serve what is stored** operation with no conversion and no
+lossy step. Two formats, both reachable from the ONE shared overflow (⋯):
+
+| Format | Body |
+| --- | --- |
+| **Markdown `.md`** | YAML front matter (`title`, `created`, `updated`, `tags`, `archived` when true, `source: DalyHub`), then the title as an H1, then the canonical source with its references rewritten. Headings, lists, tables, links, code fences and line endings are preserved byte-for-byte. |
+| **Plain text `.txt`** | A readable header, then the shared analyser's plain-text projection: structure survives as layout (headings on their own line, `-`/`1.` list markers, tab-separated table rows, verbatim code) with no Markdown punctuation. |
+
+**No format goes through the renderer.** Re-rendered HTML is never exported as if
+it were the note, so there is no second HTML sink and the FND-08 boundary is
+untouched.
+
+**Entity links in an export.** A `[[Title]]` reference becomes
+`[Label](dalyhub://type/id)` when it resolves — a real Markdown link whose
+destination is an unambiguous DalyHub record reference rather than a
+host-specific URL that would rot the moment the deployment moves — and plain
+`Label` when it does not. Neither case leaves broken internal syntax in the file.
+In `.txt` every reference collapses to its label.
+
+**Filenames** are conservative by construction: only `[a-z0-9]` plus single
+hyphens survive, bounded to 60 characters, so the name can never contain a path
+separator, a control character or a quote that would break the
+`Content-Disposition` header; a title with no usable characters falls back to
+`note`. When another ACTIVE note in the workspace would export to the same stem,
+a short **stable** suffix from the note's own id disambiguates it — the same note
+always exports to the same name, and two same-titled notes never collide.
+
+**The route is the authorisation boundary.** `GET /notes/:noteId/export` requires
+an authenticated session, derives the workspace from trusted server
+configuration, and requires the anchor to be an ACTIVE `note` in it — missing,
+deleted, wrong-type and cross-workspace ids all fail closed with the same calm
+404. An unsupported `?format=` is a typed 400. Only that one note's data crosses
+the boundary.
+
+**The UX** fetches rather than following a link, deliberately: a plain link gives
+the user nothing when the export fails, whereas fetching lets a failure become a
+real, ANNOUNCED error through the DS-10 Feedback platform and a success an
+announced confirmation. The download is triggered from an object URL, so the
+record — and any unsaved editor state — is untouched, on desktop and phone alike.
+The client never invents a filename; it reads the server's
+`Content-Disposition`, so the safe-filename and duplicate rules live in exactly
+one place. Bulk export stays out of scope (X-04).
 
 ## Accessibility and responsive behaviour
 
@@ -481,22 +690,86 @@ the page stays the single scroll surface.
   local Notes.
   `e2e/accessibility.spec.ts` and `e2e/responsive.spec.ts` include
   `/notes?state=deleted` alongside `/notes` in their route sweeps.
+- **The knowledge completion (NOTES-02/03/06 + PROJ-03)** adds:
+  - **Pure unit** — `test/unit/markdown/note-document.test.ts` (the ONE analyser:
+    references extracted with aliases and order; a reference inside a fenced or
+    inline code block, or inside an existing link, is NEVER a relationship;
+    malformed occurrences yield nothing; duplicates collapse to one distinct
+    target; headings extracted with level and as plain text; the heading an
+    offset sits under; plain text renders structure as layout with no Markdown
+    punctuation and drops raw HTML; excerpts are bounded, deterministic, block-
+    scoped and syntax-free; export rewrites a resolvable reference to
+    `dalyhub://…`, degrades an unresolvable one to readable text, collapses to
+    labels in text mode, and leaves the rest of the source byte-for-byte
+    untouched including inside code fences).
+    `test/unit/notes/note-organisation.test.ts` (tag normalisation, case-variant
+    de-duplication, canonical sort ordering, bounds, both wire forms, and the
+    cursor's scope binding — a cursor is rejected under a different workspace,
+    state, query, tag, project, area, link filter OR sort, and a tampered cursor
+    is rejected rather than repaired). `test/unit/notes/note-export.test.ts`
+    (safe filename stems including path-escape attempts, the fallback name, the
+    length bound, stable disambiguation, front matter, verbatim body
+    preservation, reference rewriting, YAML escaping, "never emits HTML", and
+    the client's `Content-Disposition` parsing).
+  - **Component** — `test/unit/references/references.test.tsx` (relationship
+    labels including the readable fallback for an unknown module-owned type,
+    first-seen grouping, and the row's accessibility contract: type,
+    relationship and archive state in WORDS, a named list, a real link) and
+    `test/unit/notes/notes-knowledge-ui.test.tsx` (the filter form's labelled
+    native controls, the three-state segment, state carried through the form,
+    Clear only when set; the two DISTINCT link tabs and their empty states; the
+    Project Knowledge tab's unlink-worded remove, archived flag, read-only
+    project, and empty state).
+  - **Workers/D1 integration** — `test/kernel/notes-knowledge.test.ts` (59
+    cases through the REAL loaders/actions): full-content search by title, body,
+    heading and tag with the match source and heading reported; readable
+    excerpts; deleted always excluded and archived only on request; workspace
+    isolation; determinism, bounds, LIKE-metacharacter literalness and an
+    over-long query; the registry-discovered provider's result shape; every
+    collection filter and their non-leaking lifecycle views; recency ordering by
+    the EFFECTIVE updated moment; tag/archive idempotency, payload minimalism,
+    typed validation errors and fail-closed anchors; archive vs delete as
+    distinct states; wiki-link reconciliation (one link per duplicate, none from
+    a code block, unlink on removal, restore-in-place on re-add, survival of a
+    rename, self- and cross-workspace references ignored, idempotency);
+    backlinks from every module with block-bounded context, hidden-on-delete and
+    restored, archived-source flagging, structural links excluded, both
+    directions server-rendered, and an N+1-free page; Project Knowledge
+    add/create/remove with no duplicate association, restoration of the same
+    association, archived shown and deleted hidden, notes-only listing and
+    picker search, and fail-closed anchors; and export's headers, formats,
+    reference rewriting, filename disambiguation, format rejection and
+    fail-closed authorisation.
+  - **Playwright E2E** — `e2e/notes-knowledge.spec.ts`: a `[[wiki link]]`
+    becoming a real backlink with the mentioning sentence and a working open
+    action; a plain title mention and a code block creating nothing; global
+    Search finding a note by its BODY; the collection's search/tag/archived
+    filters with the URL carrying them and an archived note keeping its route;
+    the filter form driven by keyboard; `.md` and `.txt` export with real
+    downloads, announced success and no navigation; the Project Knowledge
+    add → open → unlink journey proving the note survives; creating a note from
+    a Project keeping the relationship; a 390px/320px phone pass (readable
+    tables and code, 44px targets, axe, no horizontal overflow, export from the
+    phone overflow); and axe over both relationship tabs in light and dark.
 
 ## Deferrals
 
 Explicitly out of scope for this module, left to later roadmap items (see
 `ROADMAP_V2.md`):
 
-- **NOTES-02** — a dedicated backlinks *presentation* (grouped "referenced by").
-  The shared **Universal Relationship System** ([REL-01](../roadmap/ROADMAP_V2.md#-rel-01--universal-relationship-system-shared-linked-items),
-  [`RELATIONSHIPS.md`](RELATIONSHIPS.md)) already gives the Note record a **Linked**
-  tab (the shared Linked Items section) and inline `[[Wiki Links]]`, and — because
-  EntityLinks are bidirectional — a note linked from another record already appears
-  in that tab; only the grouped "referenced by" view remains.
-- **NOTES-03** — organisation, tags, Areas filtering, full content search.
-- **NOTES-06 / X-04 — export.** Single-Note `.md`/portable export (NOTES-06)
-  and whole-workspace export (X-04). Because the editor keeps Markdown source
-  canonical, export is unaffected by NOTES-05.
+- **X-04 — whole-workspace export.** Single-Note `.md`/`.txt` export shipped
+  with NOTES-06 (see [Export](#export-notes-06)); the bulk/portable
+  whole-workspace export is still X-04, and should generalise the same contract.
+- **Folder hierarchy.** Tags are the organisation model; nested folders are
+  deliberately not built.
+- **Aliases.** A Note has one title. Alias search is not supported (a
+  `[[Title|Alias]]` alias is display text, not a second title).
+- **Backlink context for non-Note sources.** Context is extracted for note
+  sources only; a Task, Diary entry or Meeting backlink shows its relationship
+  name instead. The batched shape extends to them without redesign.
+- **PDF / printable export.** Deliberately not built: every shipped format
+  serves the stored source, and a PDF would be the first *rendered* export. It
+  belongs with X-04, reusing the FND-08 renderer.
 - **Promoting the shared editor to a second consumer / the Design System.**
   `~/shared/markdown-editor` is built as a reusable pattern; the Diary entry
   body (which already reuses the FND-08 pipeline) is the intended second
@@ -519,7 +792,12 @@ Explicitly out of scope for this module, left to later roadmap items (see
   and real-time **collaboration**. Each is a later roadmap item; NOTES-05
   implements none of them and adds no "Coming Soon" controls — it just keeps the
   source canonical so they remain straightforward to add.
-- Attachments, Diary integration, AI features.
+- **Full-text search infrastructure.** The D1-native LIKE/`instr`/`substr`
+  strategy is a documented trade-off, not an oversight — see
+  [`SHARED_SEARCH.md`](SHARED_SEARCH.md) and ADR-054 §7.
+- Attachments, Diary integration, note transclusion, a graph view, collaborative
+  editing, public sharing, and AI features (summaries, semantic/vector search,
+  automatic relationship inference from arbitrary text).
 
 **NOTES-05** adds one shared client dependency (CodeMirror 6 + the Lezer
 Markdown grammar, all MIT, code-split and lazy-loaded onto the note-editor
@@ -553,26 +831,75 @@ styles now live in `app/styles/markdown-editor.css`).
 
 ---
 
-## Status (2026-07-27 reconciliation)
+## Status (2026-07-28 — the knowledge completion)
 
-**Current status.** The Notes *record* is complete and genuinely good; Notes *findability* is the weakest area in the product. [NOTES-01A](../roadmap/ROADMAP_V2.md#-notes-01a--notes-persistence-and-domain-foundation)/[01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record)/[01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish), [NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile) and [NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) are ☑. [NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks) is ◑; [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search) and [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability) are ☐.
+**Current status.** Notes is now a complete knowledge module rather than a
+markdown record type. [NOTES-01A](../roadmap/ROADMAP_V2.md#-notes-01a--notes-persistence-and-domain-foundation)/[01B](../roadmap/ROADMAP_V2.md#-notes-01b--notes-collection-and-canonical-markdown-record)/[01C](../roadmap/ROADMAP_V2.md#-notes-01c--notes-autosave-lifecycle--editor-polish),
+[NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks),
+[NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search),
+[NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile),
+[NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) and
+[NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability) are ☑,
+as is [PROJ-03](../roadmap/ROADMAP_V2.md#-proj-03--knowledge).
 
-**Delivered capabilities.** Creation, editing and dependable autosave with honest offline/retry states; the writing-first CodeMirror 6 live editor whose document **is** the Markdown source byte-for-byte; the shared FND-08 pipeline as the sole renderer and `MarkdownContent` as the sole HTML sink; soft-delete with an Active/Deleted collection filter; the shared Linked Items section; inline `[[Wiki Links]]`; and mobile ergonomics for writing on a phone.
+**Delivered capabilities.** Creation, editing and dependable autosave with honest
+offline/retry states; the writing-first CodeMirror 6 live editor whose document
+**is** the Markdown source byte-for-byte; the shared FND-08 pipeline as the sole
+renderer and `MarkdownContent` as the sole HTML sink; **`[[Wiki Links]]` that
+create real, typed, stable-id EntityLinks**; **Backlinks and Outgoing Links as
+two distinct surfaces with bounded context**; **full-content global Search over
+title, body, headings and tags**, with commands in the palette; **tags, archive,
+and Project/Area/link/recency filters**; **single-Note `.md`/`.txt` export**; the
+**Project Knowledge tab**; and mobile ergonomics throughout.
 
-**The canonical-source architecture is preserved and must stay that way.** A Note is stored as exact, validated `MarkdownSource` ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)); rendering always goes through the one sanitising pipeline; the editor is an *authoring surface*, never a second representation. Any future organisation, search or export work must read that same source — never a parallel copy, and never re-rendered HTML presented as the note.
+**The canonical-source architecture is preserved and must stay that way.** A Note
+is stored as exact, validated `MarkdownSource` ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline));
+rendering always goes through the one sanitising pipeline; the editor is an
+*authoring surface*, never a second representation. Search reads that same
+source; export SERVES that same source; nothing here introduced a derived copy.
 
-**Known limitations.**
+**Known limitations (all deliberate and documented).**
 
-- **No organisation and no search.** `/notes` offers only the Active/Deleted filter — no title search, no content search, no tags, no folders, no Area scoping. The Notes manifest registers **neither a search provider nor any commands**, so a Note cannot be found from global Search or the Command Palette either — while the Today fixture provider still returns invented `note:` results. [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search), [DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2), [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1).
-- **Backlinks are incomplete in two distinct ways.** There is no grouped "Referenced by" presentation (direction is carried as data but never surfaced), and `[[Wiki Links]]` **create no EntityLink at all** — they resolve at navigation time, so a wiki-linked record never learns it was referenced. The resolver also scans the whole workspace with a deliberate no-page-cutoff. [NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks), [DEBT-39](../product/PRODUCT_DEBT.md#-debt-39--wiki-links-create-no-entitylink-and-the-resolver-scans-the-whole-workspace--p2).
-- **No export.** A Note cannot be exported, despite being stored as portable Markdown source — [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability).
-- Rendered GFM task-list checkboxes have no accessible label — a shared pipeline concern, [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
+- **Backlink context is note-source only.** Other source types show their
+  relationship name. See [Context](#context).
+- **Reference reconciliation is best-effort.** It runs after the content write
+  and never fails the save, so a transient failure leaves the reference set stale
+  until the next save.
+- **Search is a bounded LIKE scan, not FTS5.** A leading-wildcard LIKE cannot use
+  an index; the candidate set is narrowed by workspace + type + active first, and
+  a query longer than D1's 50-byte LIKE-pattern limit degrades to matching its
+  opening characters rather than erroring. ADR-054 §7, [`SHARED_SEARCH.md`](SHARED_SEARCH.md).
+- **Case folding is SQLite's, i.e. ASCII-only**, in both the LIKE match and the
+  excerpt offsets — consistent with every other DalyHub search.
+- **Tag and archive changes do not advance the content timestamp**, so they do
+  not reorder the `recent` view. A Note whose FIRST-EVER `note_details` row is
+  created by a tag or archive change gets that moment as its content timestamp,
+  representing its empty content.
+- **Title resolution prefers a Note, then the earliest-created record**, when
+  several records share a title. Renaming a target leaves the referring note's
+  prose reading the old title — the relationship survives; the words are the
+  user's and are never rewritten.
+- Rendered GFM task-list checkboxes have no accessible label — a shared pipeline
+  concern, [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
 
-**Deferred work.** Tags/folders and content search; a backlinks view; single-Note export (deliberately **before** the whole-workspace [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability), as the small provable proof of the export contract); the project-scoped knowledge view ([PROJ-03](../roadmap/ROADMAP_V2.md#-proj-03--knowledge)).
+**Deferred work.** Whole-workspace export ([X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability)),
+a printable/PDF render, folder hierarchy, aliases, attachments, a graph view and
+note transclusion — see [Deferrals](#deferrals).
 
-**Relevant roadmap items.** [NOTES-01A/01B/01C](../roadmap/ROADMAP_V2.md#-notes-01a--notes-persistence-and-domain-foundation) ☑ · [NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile) ☑ · [NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) ☑ · [REL-01](../roadmap/ROADMAP_V2.md#-rel-01--universal-relationship-system-shared-linked-items) ☑ · [NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks) ◑ · [NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search) ☐ · [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability) ☐.
+**Relevant roadmap items.** [NOTES-01A/01B/01C](../roadmap/ROADMAP_V2.md#-notes-01a--notes-persistence-and-domain-foundation) ☑ ·
+[NOTES-02](../roadmap/ROADMAP_V2.md#-notes-02--linking--backlinks) ☑ ·
+[NOTES-03](../roadmap/ROADMAP_V2.md#-notes-03--organisation--search) ☑ ·
+[NOTES-04](../roadmap/ROADMAP_V2.md#-notes-04--mobile) ☑ ·
+[NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) ☑ ·
+[NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability) ☑ ·
+[REL-01](../roadmap/ROADMAP_V2.md#-rel-01--universal-relationship-system-shared-linked-items) ☑ ·
+[PROJ-03](../roadmap/ROADMAP_V2.md#-proj-03--knowledge) ☑.
 
-**Relevant product-debt items.** [DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2) · [DEBT-39](../product/PRODUCT_DEBT.md#-debt-39--wiki-links-create-no-entitylink-and-the-resolver-scans-the-whole-workspace--p2) · [DEBT-08](../product/PRODUCT_DEBT.md#-debt-08--ad-hoc-cross-entity-links--p2) · [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) · [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
+**Relevant product-debt items.** [DEBT-39](../product/PRODUCT_DEBT.md#-debt-39--wiki-links-create-no-entitylink-and-the-resolver-scans-the-whole-workspace--p2) ☑ ·
+[DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2) ◐ (Notes closed; Projects/Areas/Goals/Diary remain) ·
+[DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) ◐ (the fixture `note:` results are now shadowed by real ones, but the fixture provider is still registered) ·
+[DEBT-08](../product/PRODUCT_DEBT.md#-debt-08--ad-hoc-cross-entity-links--p2) ·
+[DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
 
 ---
 

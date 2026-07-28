@@ -642,12 +642,73 @@ ergonomics and proof across the whole journey.
   configuration change and no new dependency. Deployment implication is CSS/route
   code only; the existing dry-run path remains authoritative.
 
-## What remains for PROJ-03
+## Knowledge (PROJ-03, ADR-054)
 
-PROJ-03 (notes/knowledge, blocked on NOTES-01B) is **not started**. PROJ-01
-overview, PROJ-02 health, PROJ-04 Activity, PROJ-05 settings/archival/Today
-integration, and PROJ-06 mobile are complete. Deferred refinements are tracked in
-[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
+The **Knowledge** tab is the project's notes, gathered in the project. It sits
+between Tasks and Linked, before Activity and Settings (the shared tab
+vocabulary keeps Activity and Settings last, in that order).
+
+### The relationship model — no new store
+
+A Note belongs to a Project's knowledge when there is an **ACTIVE, non-structural
+`entity_links` row between them, in either direction**. There is deliberately no
+`project_notes` join table and no `note.project_id` column, because
+`entity_links` already provides — correctly — everything such a table would have
+to re-implement:
+
+| Requirement | Provided by |
+| --- | --- |
+| many-to-many (a Note may document several Projects) | the link table itself |
+| uniqueness | `UNIQUE (workspace_id, source, target, type)`, spanning unlinked rows |
+| restoration never duplicates | re-linking **restores the same link id in place** |
+| workspace isolation | composite FKs into `entities (workspace_id, id)` — enforced by the database |
+| stable ids, never titles | link endpoints are entity ids |
+| audit trail | `entity_link.created`/`.unlinked`/`.restored`, atomic, on BOTH records |
+
+**Cardinality: many-to-many**, with at most one association per
+`(Project, Note, link type)`; the tab de-duplicates by Note, so a pair joined by
+two different types still shows exactly one row. Adding uses the module-agnostic
+`link.related` type, so a Note added here is the SAME relationship the shared
+Linked Items surface shows on both records — not a private Projects-only
+association the rest of the app cannot see.
+
+### Behaviour
+
+| Action | What happens |
+| --- | --- |
+| **Add an existing note** | one `link.related` link. Idempotent by construction — adding twice cannot produce a second row. |
+| **New note** | the Note AND the link are written in the SAME server request, so the Project relationship is preserved automatically and a failure can never leave an orphaned note to re-attach. |
+| **Remove from project** | **unlinks only.** The Note keeps its content, title, tags, other relationships and its place in `/notes`. It is neither deleted nor archived — and the confirmation says so. |
+| **Open** | the Note's canonical record, through normal SPA navigation with a real `href`. |
+
+An **archived** Note appears, flagged "Archived" in words — archiving is "put
+away", not "removed", and hiding it would silently drop knowledge the Project
+still owns. A **soft-deleted** Note disappears (the kernel's `listForEntity`
+counterpart join is active-only) without its link row being touched, and returns
+with the association intact if it is restored.
+
+The tab is composed entirely from shared surfaces — DS-04 `Card`/`CardCollection`
+rows, the DS-06 `EntityLinkPicker` for search-to-add, DS-06 `Form` primitives for
+"New note", `LoadMore`, and the DS-10 Feedback platform for outcomes. Its picker
+searches **notes only**, through `/projects/:projectId/knowledge?op=search`, so it
+can never offer a task or a person as project knowledge. An **archived Project**
+is read-only here as everywhere else: no add, no create, no remove.
+
+### Server boundary
+
+`GET|POST /projects/:projectId/knowledge` re-derives the workspace server-side and
+re-verifies the anchor is an ACTIVE `project` in it before dispatching any intent,
+so a crafted note id, a cross-workspace id, a wrong-type id or a deleted project
+all fail closed. The client names ids — never a workspace, and never a link type.
+The first page is server-rendered by the record loader (so the tab is populated
+without JavaScript); this route serves further pages, the picker's search, and
+the three mutations.
+
+## What remains for the Projects module
+
+PROJ-01 overview, PROJ-02 health, **PROJ-03 knowledge**, PROJ-04 Activity, PROJ-05
+settings/archival/Today integration, and PROJ-06 mobile are complete. Deferred
+refinements are tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 
 ## Health testing (PROJ-02)
 

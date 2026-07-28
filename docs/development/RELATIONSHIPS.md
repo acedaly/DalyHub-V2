@@ -228,6 +228,50 @@ Consequences worth knowing when you touch this system:
   [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)
   and [`PEOPLE_MODULE.md → §4a`](PEOPLE_MODULE.md#4a-the-unified-relationship-timeline-people-02).
 
+## Adopter note — Note references and backlinks (NOTES-02)
+
+NOTES-02 makes `[[Wiki Links]]` **persist**, closing the substantive half of
+DEBT-39, and adds the first surface that reads the graph *directionally*.
+
+- **A `[[Wiki Link]]` in a SAVED note is a typed EntityLink** —
+  `note.references`, source = the Note, target = the referenced record —
+  reconciled against the body on every content save
+  ([`note-references.ts`](../../app/platform/entity-links/note-references.ts)).
+  Titles are matched ONCE, at save time; the relationship is stored by **stable
+  id**, so renaming the target keeps it. Duplicates collapse to one row, a
+  reference inside code is never a relationship, removing the last mention
+  unlinks, and re-adding restores the SAME link id. Reconciliation only touches
+  `note.references` links whose source is that Note, so a user-created
+  `link.related` or a module-owned type is never disturbed.
+- **Resolution is now ONE bounded, indexed query** (`resolveReferenceTargets`),
+  not the whole-workspace page-scan the navigation-time resolver used —
+  the performance half of DEBT-39. It prefers a Note, then the earliest-created
+  record, when several records share a title.
+- **`~/shared/references` reads the graph, `~/shared/linked-items` edits it.**
+  The new shared surface is deliberately ISOLATED rather than an extension of
+  `linked-items-model.ts`: the two answer different questions, and REL-01's model
+  is a wire contract for a picker. Both read the SAME kernel — there is no second
+  relationship store and no second timeline representation (the PEOPLE-02 rule).
+- **The definitions, stated once.**
+  - **Backlink** — an *incoming*, non-structural, active EntityLink: another
+    record explicitly links to this one. A plain-text occurrence of a record's
+    title is **never** a backlink.
+  - **Outgoing link** — the same, in the *outgoing* direction.
+  - Reserved **structural spine links** are excluded from both, exactly as
+    `loadLinkedItems` excludes them.
+  - A **deleted** counterpart simply stops appearing (the kernel's own
+    `listForEntity` contract) and returns intact when restored; link rows are
+    never rewritten by a lifecycle change.
+- **Project Knowledge (PROJ-03) is the same graph, filtered to notes** — no
+  `project_notes` join table and no `note.project_id` column. Cardinality is
+  **many-to-many**, uniqueness is the kernel's
+  `(workspace, source, target, type)` identity, and "Remove from project"
+  unlinks without touching the Note. See
+  [`project-knowledge.ts`](../../app/platform/entity-links/project-knowledge.ts)
+  and [`PROJECTS_MODULE.md`](PROJECTS_MODULE.md).
+
+Full reasoning: [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-wiki-link-is-a-persisted-reference-and-knowledge-relationships-stay-entitylinks).
+
 ## Activity
 
 Relationship creation and removal are recorded automatically by the FND-04 kernel
