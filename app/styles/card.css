@@ -504,9 +504,15 @@
     padding: var(--dh-space-2) var(--dh-space-3);
   }
 
-  .dh-card__body {
-    gap: var(--dh-space-px);
-  }
+  /* The card body's row gap is deliberately NOT tightened here.
+   *
+   * The title and the context breadcrumb are both links, and both are short text
+   * targets (19px and 14px tall). WCAG 2.2 target size (2.5.8) is satisfied for an
+   * undersized target by SPACING, so the vertical gap between those two links is
+   * load-bearing: closing it to a hairline left the breadcrumb with 23.2px of safe
+   * clickable space against a 24px minimum, and axe failed `/goals` at phone width.
+   * The shared `--dh-space-1` gap keeps it at 29.2px. Three pixels of vertical
+   * density is not worth a target a thumb misses. */
 
   /* One line of context, not a paragraph. */
   .dh-card__subtitle {

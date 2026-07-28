@@ -117,7 +117,7 @@ export function NewTaskForm({
 
   const fieldOrder = useMemo<ReadonlyArray<keyof Values & string>>(
     () =>
-      fixedParent || resolvedParent
+      fixedParent
         ? [
             "title",
             "priority",
@@ -135,7 +135,7 @@ export function NewTaskForm({
             "dueDate",
             "scheduledDate",
           ],
-    [fixedParent, resolvedParent],
+    [fixedParent],
   );
 
   const form = useForm<Values>({
@@ -150,20 +150,19 @@ export function NewTaskForm({
     },
     fields: {
       title: { validate: required("A title is required") },
-      ...(fixedParent || resolvedParent
+      ...(fixedParent
         ? {}
         : { parentId: { validate: required("Choose a Project or an Area") } }),
     },
     fieldOrder,
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
-      const parentIdValue = fixedParent
-        ? projectId
-        : (resolvedParent?.id ?? values.parentId);
+      const parentIdValue = fixedParent ? projectId : values.parentId;
       const parentKind = fixedParent
         ? "project"
-        : resolvedParent?.kind
-          ? resolvedParent.kind
-          : parentSearch.kindOf(values.parentId);
+        : (parentSearch.kindOf(values.parentId) ??
+          (values.parentId === resolvedParent?.id
+            ? resolvedParent.kind
+            : null));
       if (!parentKind || !parentIdValue) {
         return {
           status: "error",
@@ -219,6 +218,27 @@ export function NewTaskForm({
 
   const titleField = form.field("title");
   const parentField = form.field("parentId");
+
+  // The picker resolves an option's label from what it has searched. The default
+  // capture parent is selected before any search has returned, so it is offered
+  // explicitly — otherwise the field would open showing a bare id.
+  const parentOptions = useMemo(() => {
+    const searched = parentSearch.withSelected(parentField.value);
+    if (
+      !resolvedParent ||
+      searched.some((o) => o.value === resolvedParent.id)
+    ) {
+      return searched;
+    }
+    return [
+      {
+        value: resolvedParent.id,
+        label: resolvedParent.title,
+        description: resolvedParent.kind === "project" ? "Project" : "Area",
+      },
+      ...searched,
+    ];
+  }, [parentSearch, parentField.value, resolvedParent]);
 
   useEffect(() => {
     titleRef.current?.focus();
@@ -299,17 +319,19 @@ export function NewTaskForm({
         </div>
       ) : null}
 
-      {fixedParent ? null : resolvedParent ? (
-        <p className="dh-tasks-capture__parent">
-          Project or Area: <strong>{resolvedParent.title}</strong>
-        </p>
-      ) : (
+      {/* The owner's default capture parent PRE-SELECTS this field; it does not
+       * replace it. A saved preference is a starting point, not a lock — filing a
+       * task somewhere else has to stay possible without a detour through
+       * Settings, and the field keeps its label, its help text and its keyboard
+       * behaviour either way. Only `projectId` (opened from a Project record, so
+       * the parent is genuinely fixed by context) hides the picker. */}
+      {fixedParent ? null : (
         <SelectField
           label="Project or Area"
           help="A task belongs to exactly one Project or Area."
           placeholder="Search Projects and Areas"
           required
-          options={parentSearch.withSelected(parentField.value)}
+          options={parentOptions}
           onSearch={parentSearch.search}
           loading={parentSearch.loading}
           emptyMessage="No matching Projects or Areas"

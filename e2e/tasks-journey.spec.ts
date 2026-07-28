@@ -324,6 +324,14 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
   test("no horizontal overflow across views after creating a task", async ({
     page,
   }) => {
+    // This test creates a task and then performs SIXTEEN full navigations (four
+    // views × four widths), each a real server render followed by hydration. On a
+    // green local run it measures 31.7s — past the 30s default, which was sized
+    // when the shell was lighter. The budget is raised to match the measured work;
+    // not one assertion is relaxed and no wait is inserted, so a genuine overflow
+    // still fails the poll exactly as before.
+    test.setTimeout(90_000);
+
     await gotoFixture(page, "/tasks?view=all");
     await createJourneyTask(page, {
       title: "Journey task Echo",

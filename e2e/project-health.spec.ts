@@ -137,6 +137,14 @@ test.describe("PROJ-02 — Project health", () => {
   test("is axe-clean and free of horizontal overflow across the responsive matrix", async ({
     page,
   }) => {
+    // Two axe scans plus TWO navigations per viewport. MOBILE-01 grew
+    // `RESPONSIVE_VIEWPORTS` from seven checkpoints to nine (a large phone at 430px
+    // and a phone in landscape, where height is the binding dimension), so this loop
+    // now performs 18 full page loads instead of 14 — roughly a third more work than
+    // the 30s default was sized for, and it began timing out mid-loop in CI. The
+    // budget is raised to match the added coverage; every assertion is unchanged.
+    test.setTimeout(90_000);
+
     // The collection with its health cards is axe-clean.
     await gotoFixture(page, "/projects");
     await expectNoAxeViolations(page);
