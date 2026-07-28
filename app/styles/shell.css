@@ -760,13 +760,22 @@
 /* -------------------------------------------------------------------------- */
 
 @media (max-width: 48rem) {
-  .dh-app {
-    grid-template-columns: 1fr;
-    /* The height the bottom bar occupies, consumed by every scrolling surface so
-     * content is never trapped beneath it. */
+  /* The height the bottom bar occupies, consumed by every scrolling surface so
+   * content is never trapped beneath it.
+   *
+   * Published on `:root`, NOT on `.dh-app`. Custom properties inherit downward
+   * only, so a value set on `.dh-app` is invisible to `html` — and `html` is the
+   * document scroll container, which needs it for `scroll-padding` (base.css) so
+   * `scrollIntoView` and keyboard focus never park an element beneath the bar.
+   * Everything under `:root` — `.dh-app` included — still inherits it unchanged. */
+  :root {
     --dh-bottomnav-height: calc(
       var(--dh-bottomnav-bar-height) + env(safe-area-inset-bottom)
     );
+  }
+
+  .dh-app {
+    grid-template-columns: 1fr;
   }
 
   .dh-sidebar--rail {
