@@ -114,6 +114,12 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Health is evaluated server-side and rendered as text — it refreshes through the normal loader revalidation, never a cached column. Stronger tones (`danger`/`warning`) are reserved for genuinely overdue or blocked work; ordinary inactivity is calm (`info`), never an aggressive red.
 **Rules.** Meaning is **always** text + tone, never colour alone. Reuse the shared components — do **not** add a second project-card component or invent status vocabulary that competes with open/completed or task status. Free-text waiting subjects are never surfaced.
 
+### Stay-in-touch signal (PEOPLE-03)
+**Purpose.** A restrained, reusable presentation of a **derived** relationship state (PEOPLE-03, [ADR-056](../decisions/ARCHITECTURE_DECISIONS.md#adr-056-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream)) — calm, honest, explained, and never a nudge.
+**Anatomy.** A toned **pill** (`StayInTouchIndicator`: a decorative dot + state label + optional primary reason) for the Card `metadata` slot and the Record header; a **`StayInTouchPanel`** (state pill + reason list + a cadence-facts `dl`) for the record Summary. The vocabulary is `No shared history yet` · `Recently connected` · `In touch` · `Due for follow-up` · `It’s been a while`.
+**Behaviour.** Evaluated server-side and rendered as text; it refreshes through ordinary loader revalidation, never a cached column. The tone set is deliberately narrower than [Health](#health-signal-proj-02)'s — `neutral`/`success`/`info` only. There is **no `warning` and no `danger`**: a relationship is never an error state.
+**Rules.** *Care, not a CRM* ([AGENTS.md §5](../../AGENTS.md#5-relationship-philosophy)): no scores, streaks, badges or percentages; a long silence is stated once, with its date, never as a failure. Meaning is **always** text + tone, never colour alone. Reuse the shared components — a collection card and a record must never grow two different pills. Do not add notifications to this pattern; it exposes the calculated state only.
+
 ### Task signals (TASKS-02)
 **Purpose.** A shared, calm presentation of a task's **priority** and **urgency** on every task-bearing surface (Today, Projects, Tasks, the Drawer), kept as separable slots from the display-state pill so a card never becomes a wall of coloured badges (TASKS-02, [DEBT-27](../product/PRODUCT_DEBT.md)/[DEBT-28](../product/PRODUCT_DEBT.md)).
 **Anatomy.** A `PriorityIndicator` (the short "P1"–"P4" tag + a coloured dot; the full Eisenhower action word — "Do"…"Delete / Review" — is carried for assistive tech) and an `UrgencyChip` (**Overdue** / **Due today** / **Scheduled today** / a future Due or Scheduled date — icon + word). Both live in the Card `metadata` slot; the display-state stays the Card `status` pill. Driven by the canonical `taskPriorityTag`/`taskUrgency` derivations — one vocabulary everywhere.
@@ -192,7 +198,7 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 ### Success Feedback
 **Purpose.** Confirm an action landed, quietly. Built as the DS-10 [Feedback platform](#global-interaction-layer-ds-10) ([`app/shared/feedback`](../../app/shared/feedback)) — modules call `useFeedback().notifySuccess(...)`/`notifyUndo(...)`, never render a toast themselves.
 **Anatomy.** A brief toast/inline confirmation, ideally carrying an **Undo**.
-**Behaviour.** Non-blocking, auto-dismissing (success/info linger briefly, warnings longer, errors are sticky), coalescing (repeats with a `dedupeKey` merge — no spam), pause on focus or on hovering a toast's controls, announced to assistive tech via ARIA live regions. Optimistic — the UI already reflects the change; the toast confirms and offers reversal. **Non-blocking is literal:** the notification region is transparent to the pointer everywhere except its own controls, so a toast can never absorb a click meant for the page beneath it (see [Feedback](#feedback)).
+**Behaviour.** Non-blocking, auto-dismissing (success/info linger briefly, warnings longer, errors are sticky), coalescing (repeats with a `dedupeKey` merge — no spam), pause on focus or on hovering a toast's controls, announced to assistive tech via ARIA live regions. Optimistic — the UI already reflects the change; the toast confirms and offers reversal. **Non-blocking is literal:** the notification region is transparent to the pointer everywhere except its own controls, so a toast can never absorb a click meant for the page beneath it (see [Feedback](#feedback-platform)).
 **Rules.** Prefer undo over up-front confirmation. Don't celebrate the mundane — feedback is calm, not confetti (see [product feelings](../product/PRODUCT_PRINCIPLES.md#how-users-should-feel)). One implementation for the whole app; no module owns a notification implementation.
 
 ### Error Feedback
@@ -522,7 +528,7 @@ Success messages (`<Entity> archived` / `restored` / `deleted`) come from the sa
 
 ### Reversible removal, shared
 
-`useReversibleDelete` is the Notes pattern ([ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042-notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern)) generalised: one deliberate click → a REAL server soft-delete → a redirect back to the collection → an **Undo** toast whose handler calls the mirror `restore` intent. `useCollectionRestore` is the other half — the one-click restore, with in-flight bookkeeping, that a "Deleted" collection view needs. Notes, Goals and Diary all run on these; no module re-implements them.
+`useReversibleDelete` is the Notes pattern ([ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern)) generalised: one deliberate click → a REAL server soft-delete → a redirect back to the collection → an **Undo** toast whose handler calls the mirror `restore` intent. `useCollectionRestore` is the other half — the one-click restore, with in-flight bookkeeping, that a "Deleted" collection view needs. Notes, Goals and Diary all run on these; no module re-implements them.
 
 ### Where the actions live
 
@@ -615,7 +621,7 @@ The [Timeline](#timeline) and [Activity Feed](#activity-feed) patterns above are
 
 **Filtering (reuses DS-07).** DS-05 builds no timeline-only filter UI. `createActivityFilterFields` produces DS-07 `FilterFieldDefinition`s over the `ActivityItem` view-model — at minimum **event type**, plus **actor type**, **referenced entity type** and **date** — handed to the shared [`FilterBar`](#shared-filters-ds-07). A module may also register its OWN DS-07 field over the same view-model when a coarser, more human control fits its surface better (the Person Timeline's relationship categories, [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline)) — that is ordinary DS-07 adoption, not a DS-05 fork, provided the accessor stays pure and adds no operator. The DS-07 evaluator matches over loaded items, and filter state follows the DS-07 URL contract, preserving unrelated params **including the DS-03 `drawer` params**. It adds no product-specific operator and does not expand DS-07.
 
-**Drawer integration (reuses DS-03).** A referenced entity opens through the [DS-03 Drawer](#shared-drawer-ds-03) (a `DrawerTrigger` by default) — **no bespoke modal, no second drawer** — preserving current filters and page context, keyboard-accessible. An entity that is deleted, inaccessible or no longer resolvable degrades to calm non-link text and discloses nothing (no cross-workspace leakage).
+**Entity destinations (reuses DS-03 and the shared destination map).** A referenced entity opens **wherever that record type actually opens**, resolved by the ONE shared `entityDestination` helper ([Entity Identity](#entity-identity-px-02)): a Task through the [DS-03 Drawer](#shared-drawer-ds-03) over the current context, every other routable record through its canonical record route. A loader may still supply an explicit `drawerKey` and it wins. **No bespoke modal, no second drawer**, filters and page context preserved, keyboard-accessible. An entity that is deleted, inaccessible or has no implemented destination degrades to calm non-link text and discloses nothing (no cross-workspace leakage). *(Before PEOPLE-03 only an explicit `drawerKey` produced a link, so every timeline could open Tasks and nothing else — a Person's relationship history named the meeting or note an event came from but gave no way to open it.)*
 
 **Pagination.** The stream integrates cursor-based paging: initial load, next cursor, load another page, end-of-feed, retry after failure, **deduplication by stable activity id** and deterministic page merging. Retrieval uses an accessible **Load more** control (not automatic infinite scroll as the only path); there are no unbounded "load everything" queries.
 
@@ -634,6 +640,30 @@ The [Timeline](#timeline) and [Activity Feed](#activity-feed) patterns above are
 - ❌ Fork a separate Timeline and Feed; pass a repository/D1/binding into the component; build a product switch over entity/event types; dump raw payload JSON; add a virtualisation or drawer/modal dependency; select the workspace from client input; convey event meaning by colour alone.
 
 **Extension rules.** A new module renders its event types by **registering descriptors** (and, if needed, adding filter options) — never by editing DS-05. Add a value type/affordance to the shared system only when a real surface needs it, and document it here; never fork per module. Real product Timelines/Feeds arrive when a module adopts DS-05 (e.g. [PROJ-04](../roadmap/ROADMAP_V2.md#-proj-04--activity)); DS-05 ships the system plus a development fixture only. See [`ACTIVITY_TIMELINE.md`](../development/ACTIVITY_TIMELINE.md).
+
+---
+
+## Shared summary cards (DS-13)
+
+The at-a-glance aggregates a record's [Summary Panel](#summary-panel) shows are realised by ONE reusable, entity-agnostic grid: **Shared summary cards** ([DS-13](../roadmap/ROADMAP_V2.md#-ds-13--shared-summary-cards)), in [`app/shared/summary-cards`](../../app/shared/summary-cards). Introduced by [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals), which needed "one fact per tile" for a Person's relationship summary and found three near-identical hand-rolled versions already in the product (Projects, Assets, Today's widgets) — the shape [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1) warns about.
+
+**Purpose.** Present a small set of already-derived facts — a label, a value, an optional supporting detail — so a record answers its headline questions without a click, and so **no aggregate dead-ends on a number**.
+
+**Anatomy.** A responsive grid (`auto-fill` + `minmax`, reflowing to a single column) of tiles. Each tile carries: an uppercase **label** (what the value is), the **value**, an optional **detail** line, an optional decorative icon, and an optional `tone` (`neutral`/`success`/`info`) that tints the value only.
+
+**Navigation.** A tile with an `href` becomes **ONE link for the whole card** — never a card wrapping a separate link, which would give one target two tab stops. Its accessible name defaults to `"<label>: <value>"`, so a screen-reader user hears what they are following before they follow it.
+
+**Semantics.** The grid is a `<ul>` of `<li>`s with an accessible name (`label`, or `labelledBy` pointing at a visible heading), so assistive tech announces "list, N items". The label always states the meaning; colour never carries it. Every tile clears the shared 44px touch target (`--dh-control-height-lg`) at every width, and the grid never produces horizontal overflow from 320px up (DS-11).
+
+**Boundaries.** DS-13 lays out; it does **not** fetch, derive, format or decide. Callers pass already-derived, already-formatted strings — a loader evaluates the model server-side (see [Health](#health-signal-proj-02) and [Stay-in-touch](#stay-in-touch-signal-people-03)) and a pure module view-model maps it to `SummaryCardItem[]`.
+
+**Correct vs incorrect usage.**
+
+- ✅ Compose a Summary region as a heading + `SummaryCards` with `labelledBy` pointing at it; give each aggregate a destination in the surface that opens the records behind it.
+- ✅ Omit a card whose count is zero when the absence reads better as an invitation than as a scoreboard entry — but always keep the cards whose absence IS the answer.
+- ❌ Fork a module-specific stat grid; compute or format inside the component; nest an extra link inside a linked tile; convey meaning by tone alone; render a `0` for every empty aggregate.
+
+**Extension rules.** Add a slot to the shared component when a real surface needs it, and document it here — never a per-module variant. The tone vocabulary stays a strict subset of the shared one.
 
 ---
 

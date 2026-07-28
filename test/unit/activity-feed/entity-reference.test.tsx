@@ -41,6 +41,10 @@ const MEETING = "meeting-1";
 const PERSON = "person-1";
 const TASK = "task-1";
 const DIARY = "diary-1";
+// An UNREGISTERED entity type: PEOPLE-03 gave the Diary entry its canonical route
+// (`/diary/:entryId`), which DIARY-01A had shipped without registering in the
+// shared destination map — so `diary` is no longer an example of "no destination".
+const UNROUTABLE = "widget-1";
 
 function subject(
   entityId: string,
@@ -121,6 +125,7 @@ const LABELS: Readonly<Record<string, { type: string; label: string }>> = {
   [PERSON]: { type: "person", label: "Ada" },
   [TASK]: { type: "task", label: "Send the notes" },
   [DIARY]: { type: "diary", label: "Tuesday" },
+  [UNROUTABLE]: { type: "widget", label: "Tuesday" },
 };
 
 /** Resolve exactly as a product route does — through the shared helper. */
@@ -197,8 +202,17 @@ describe("rendering an entity reference", () => {
     expect(trigger).toHaveAttribute("href", "/?drawer=task%3Atask-1");
   });
 
-  it("renders plain text for a type with no genuine destination", () => {
+  it("links a Diary entry to its canonical record route", () => {
     renderItem([{ entityId: DIARY, role: "subject" }], DIARY);
+
+    expect(screen.getByRole("link", { name: "Tuesday" })).toHaveAttribute(
+      "href",
+      "/diary/diary-1",
+    );
+  });
+
+  it("renders plain text for a type with no genuine destination", () => {
+    renderItem([{ entityId: UNROUTABLE, role: "subject" }], UNROUTABLE);
 
     expect(screen.getByText("Tuesday")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();

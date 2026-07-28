@@ -1,19 +1,32 @@
 /**
- * PEOPLE-01 — the Person "Summary" tab.
+ * PEOPLE-01 / PEOPLE-03 — the Person "Summary" tab.
  *
- * The at-a-glance relationship view: a large avatar, name/pronouns, organisation
- * and role, relationship, quick actions, direct contact buttons, and the key
- * dates (last interaction, next follow-up, birthday) and tags. Quick actions that
- * depend on a not-yet-built module (Diary entry, Meeting, New Note) are honest
- * placeholders — they explain what they will do rather than dead-ending
- * (AGENTS.md §6). Call / Email / Copy work today.
+ * The at-a-glance relationship view, and the surface that answers the questions the
+ * Person record exists to answer: who is this, when did we last interact, how often
+ * do we interact, and what have we shared. It renders, in order:
+ *
+ *   1. identity — avatar, name/pronouns, organisation and role, relationship;
+ *   2. quick actions (Call / Email / Copy work today; the rest are honest
+ *      placeholders that explain what they will do rather than dead-ending);
+ *   3. the PEOPLE-03 **relationship summary** — DS-13 shared summary cards over the
+ *      derived aggregate, every card leading to the surface that opens the records
+ *      behind it;
+ *   4. the PEOPLE-03 **stay-in-touch** panel — the derived rhythm, explained;
+ *   5. the Person's own key dates and tags.
+ *
+ * Nothing in 3 or 4 is computed here: the loader evaluates the kernel model
+ * server-side and this component only lays it out.
  */
 
 import { useCallback } from "react";
 
+import type { PersonRelationship } from "~/kernel/relationships";
 import { useFeedback } from "~/shared/feedback";
+import { StayInTouchPanel } from "~/shared/relationships";
+import { SummaryCards } from "~/shared/summary-cards";
 
 import { PersonAvatar } from "./PersonAvatar";
+import { personRelationshipCards } from "./person-relationship-view";
 import {
   formatBirthday,
   formatPersonDate,
@@ -22,10 +35,19 @@ import {
 
 interface PersonSummaryProps {
   readonly person: SerializedPerson;
+  /** The PEOPLE-03 derived relationship, evaluated server-side on every load. */
+  readonly relationship: PersonRelationship;
   readonly onEditContact: () => void;
 }
 
-export function PersonSummary({ person, onEditContact }: PersonSummaryProps) {
+const RELATIONSHIP_HEADING_ID = "dh-person-relationship-heading";
+const STAY_IN_TOUCH_HEADING_ID = "dh-person-stay-in-touch-heading";
+
+export function PersonSummary({
+  person,
+  relationship,
+  onEditContact,
+}: PersonSummaryProps) {
   const feedback = useFeedback();
   const phone = person.mobile ?? person.workPhone;
 
@@ -49,12 +71,19 @@ export function PersonSummary({ person, onEditContact }: PersonSummaryProps) {
   );
 
   const facts: { id: string; label: string; value: string }[] = [];
-  const lastInteraction = formatPersonDate(person.lastInteraction);
-  if (lastInteraction) {
+  // PEOPLE-03 — the hand-entered `lastInteraction` field is now a FALLBACK, shown
+  // only while nothing has actually been recorded. Once the relationship has real
+  // history the derived "Last interaction" card above is the honest answer, and two
+  // fields of the same name that can disagree would be worse than one.
+  const noteworthyLastInteraction =
+    relationship.summary.lastInteractionDate === null
+      ? formatPersonDate(person.lastInteraction)
+      : null;
+  if (noteworthyLastInteraction) {
     facts.push({
       id: "last",
-      label: "Last interaction",
-      value: lastInteraction,
+      label: "Last interaction (noted)",
+      value: noteworthyLastInteraction,
     });
   }
   const nextFollowUp = formatPersonDate(person.nextFollowUp);
@@ -180,6 +209,37 @@ export function PersonSummary({ person, onEditContact }: PersonSummaryProps) {
         >
           Copy phone
         </button>
+      </div>
+
+      {/* Each region is labelled EXACTLY once: the heading labels the shared
+       * component itself (the DS-13 list, the stay-in-touch section), never a
+       * wrapper as well — two nested landmarks with the same name is a screen-reader
+       * dead end, not extra structure. */}
+      <div className="dh-person-summary__section">
+        <h3
+          className="dh-person-summary__section-heading"
+          id={RELATIONSHIP_HEADING_ID}
+        >
+          Relationship
+        </h3>
+        <SummaryCards
+          items={personRelationshipCards(relationship)}
+          label="Relationship"
+          labelledBy={RELATIONSHIP_HEADING_ID}
+        />
+      </div>
+
+      <div className="dh-person-summary__section">
+        <h3
+          className="dh-person-summary__section-heading"
+          id={STAY_IN_TOUCH_HEADING_ID}
+        >
+          Staying in touch
+        </h3>
+        <StayInTouchPanel
+          relationship={relationship}
+          headingId={STAY_IN_TOUCH_HEADING_ID}
+        />
       </div>
 
       {facts.length > 0 ? (

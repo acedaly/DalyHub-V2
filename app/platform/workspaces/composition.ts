@@ -37,6 +37,7 @@ import type { PersonRepository } from "~/kernel/people";
 import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
+import type { RelationshipRepository } from "~/kernel/relationships";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
 import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
@@ -64,6 +65,7 @@ import {
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
+  createRelationshipRepository,
   createReviewRepository,
   createSpineRepository,
   createTaskRepository,
@@ -194,6 +196,15 @@ export interface WorkspaceScope {
    * pure `evaluateProjectHealth`; nothing here is cached.
    */
   readonly projectHealth: ProjectHealthRepository;
+  /**
+   * The PEOPLE-03 relationship-facts projection: a READ-ONLY, non-persisted view
+   * over a Person's FND-04 EntityLinks and the FND-05 Activity stream those linked
+   * records write to, resolving the shared-record inventory and the interaction
+   * history a relationship summary and stay-in-touch signal are DERIVED from — for
+   * a whole bounded page of People in a fixed number of grouped queries (no N+1).
+   * The rules stay the pure `evaluatePersonRelationship`; nothing here is cached.
+   */
+  readonly relationships: RelationshipRepository;
   readonly activity: ActivityRepository;
   /**
    * The AREA-03 Alignment activity-facts projection (ADR-040): a READ-ONLY,
@@ -282,6 +293,7 @@ export function bindWorkspaceRepositories(
   const assets = createAssetRepository(env.DB, context, { actorContext });
   const reviews = createReviewRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
+  const relationships = createRelationshipRepository(env.DB, context);
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
   });
@@ -310,6 +322,7 @@ export function bindWorkspaceRepositories(
     assets,
     reviews,
     projectHealth,
+    relationships,
     projectSettings,
     activity,
     alignment,

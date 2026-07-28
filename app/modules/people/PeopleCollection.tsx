@@ -37,6 +37,11 @@ import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { GridIcon, ListIcon } from "~/shared/icons";
 import { LoadMore } from "~/shared/load-more";
+import {
+  StayInTouchIndicator,
+  formatRelationshipDate,
+  relativeDayPhrase,
+} from "~/shared/relationships";
 
 import { NewPersonForm } from "./NewPersonForm";
 import { PersonAvatar } from "./PersonAvatar";
@@ -139,13 +144,38 @@ function metaFor(person: SerializedPersonListItem): CardMetaItem[] {
       value: person.relationshipLabel,
     });
   }
-  const lastInteraction = formatPersonDate(person.lastInteraction);
-  if (lastInteraction) {
+  // PEOPLE-03 — the DERIVED stay-in-touch state, rendered through the SAME shared
+  // indicator the Person record uses (never a second collection-only pill). The
+  // pill is non-interactive, so it adds no tab stop inside the card's own link.
+  if (person.stayInTouch) {
+    metadata.push({
+      id: "stay-in-touch",
+      label: "Staying in touch",
+      value: <StayInTouchIndicator relationship={person.stayInTouch} />,
+    });
+  }
+  // The last interaction is DERIVED from the relationship timeline when there is
+  // one, and only falls back to the hand-entered `lastInteraction` field when
+  // nothing has been recorded — the derived value is the one that cannot go stale.
+  const derivedLast = person.stayInTouch?.daysSinceLastInteraction ?? null;
+  if (derivedLast !== null) {
     metadata.push({
       id: "last-interaction",
-      label: "Last spoke",
-      value: lastInteraction,
+      label: "Last interaction",
+      value:
+        formatRelationshipDate(
+          person.stayInTouch?.lastInteractionDate ?? null,
+        ) ?? relativeDayPhrase(derivedLast),
     });
+  } else {
+    const lastInteraction = formatPersonDate(person.lastInteraction);
+    if (lastInteraction) {
+      metadata.push({
+        id: "last-interaction",
+        label: "Last spoke",
+        value: lastInteraction,
+      });
+    }
   }
   const nextFollowUp = formatPersonDate(person.nextFollowUp);
   if (nextFollowUp) {

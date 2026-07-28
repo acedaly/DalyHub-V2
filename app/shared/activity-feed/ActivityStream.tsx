@@ -222,6 +222,22 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
     return null;
   }
 
+  /**
+   * The viewport is ALWAYS a labelled region, never a bare labelled div:
+   * `aria-label` on an element with no role is prohibited (axe
+   * `aria-prohibited-attr`, serious) and the accessible name is simply dropped by
+   * assistive tech. It is a `feed` while it is showing articles, and a plain
+   * labelled `group` while it is empty, loading or errored — so the bounded,
+   * focusable scroll region keeps its name in every state.
+   */
+  const viewportRegionProps = showingFeed
+    ? {
+        role: "feed",
+        "aria-label": ariaLabel,
+        "aria-busy": stream.isLoadingMore || undefined,
+      }
+    : { role: "group", "aria-label": ariaLabel };
+
   return (
     <section className="dh-activity" data-scope={scope}>
       {/* Keyboard users need a focus target for the bounded scroll region; axe enforces it. */}
@@ -231,13 +247,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
         className="dh-activity__viewport"
         tabIndex={0}
         style={{ maxHeight }}
-        {...(showingFeed
-          ? {
-              role: "feed",
-              "aria-label": ariaLabel,
-              "aria-busy": stream.isLoadingMore || undefined,
-            }
-          : { "aria-label": ariaLabel })}
+        {...viewportRegionProps}
       >
         {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
         {initialError ? (

@@ -105,6 +105,79 @@ describe("People collection", () => {
     expect(screen.getByText("No People yet")).toBeInTheDocument();
   });
 
+  // PEOPLE-03 — the derived stay-in-touch signal on a collection card, rendered
+  // through the SAME shared indicator the Person record uses.
+  it("shows the derived stay-in-touch state as text on the card", () => {
+    renderCollection([
+      personItem({
+        stayInTouch: {
+          state: "due_for_follow_up",
+          label: "Due for follow-up",
+          tone: "info",
+          reasons: [],
+          lastInteractionDate: "2026-05-01",
+          daysSinceLastInteraction: 60,
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(within(card).getByText("Due for follow-up")).toBeInTheDocument();
+  });
+
+  it("prefers the DERIVED last interaction over the hand-entered field", () => {
+    renderCollection([
+      personItem({
+        lastInteraction: "2020-01-01",
+        stayInTouch: {
+          state: "recently_connected",
+          label: "Recently connected",
+          tone: "success",
+          reasons: [],
+          lastInteractionDate: "2026-07-25",
+          daysSinceLastInteraction: 3,
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(within(card).getByText("25 July 2026")).toBeInTheDocument();
+    expect(within(card).queryByText(/1 January 2020/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the hand-entered date when nothing has been recorded", () => {
+    renderCollection([
+      personItem({
+        lastInteraction: "2020-01-01",
+        stayInTouch: {
+          state: "no_history",
+          label: "No shared history yet",
+          tone: "neutral",
+          reasons: [],
+          lastInteractionDate: null,
+          daysSinceLastInteraction: null,
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(within(card).getByText("1 January 2020")).toBeInTheDocument();
+  });
+
+  it("adds no extra tab stop inside the card for the signal", () => {
+    renderCollection([
+      personItem({
+        stayInTouch: {
+          state: "in_touch",
+          label: "In touch",
+          tone: "neutral",
+          reasons: [],
+          lastInteractionDate: "2026-06-01",
+          daysSinceLastInteraction: 40,
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: /Ada Lovelace/ });
+    expect(within(card).getAllByRole("link")).toHaveLength(1);
+  });
+
   it("shows a Restore action for an archived person in the Archived view", () => {
     renderCollection([personItem({ archived: true })], { view: "archived" });
     const card = screen.getByRole("article", { name: /Ada Lovelace/ });
