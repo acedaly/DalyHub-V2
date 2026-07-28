@@ -52,7 +52,9 @@ export function CollectionFilterChips({
     return null;
   }
 
-  const options = resetParams ? { resetParams: ["cursor", ...resetParams] } : {};
+  const options = resetParams
+    ? { resetParams: ["cursor", ...resetParams] }
+    : {};
   const href = (next: URLSearchParams): string =>
     `${basePath}?${next.toString()}`;
 

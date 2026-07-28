@@ -914,8 +914,12 @@ export class D1TaskRepository implements TaskRepository {
     const filterDueState = validateTaskDueState(filters.dueState);
     const filterPlannedState = validateTaskPlannedState(filters.plannedState);
     const filterParentKind = validateTaskParentKind(filters.parentKind);
-    const filterCreatedWithin = validateTaskRecencyWindow(filters.createdWithin);
-    const filterUpdatedWithin = validateTaskRecencyWindow(filters.updatedWithin);
+    const filterCreatedWithin = validateTaskRecencyWindow(
+      filters.createdWithin,
+    );
+    const filterUpdatedWithin = validateTaskRecencyWindow(
+      filters.updatedWithin,
+    );
     const filterCompletedVisibility = validateTaskCompletedVisibility(
       filters.completedVisibility,
     );
@@ -1025,11 +1029,15 @@ export class D1TaskRepository implements TaskRepository {
       // DAY (as a date-only prefix boundary) keeps the comparison index-friendly
       // and free of any timezone conversion.
       whereParts.push("e.created_at >= ?");
-      params.push(`${recencyWindowStart(todayIso, filterCreatedWithin)}T00:00:00.000Z`);
+      params.push(
+        `${recencyWindowStart(todayIso, filterCreatedWithin)}T00:00:00.000Z`,
+      );
     }
     if (filterUpdatedWithin !== undefined) {
       whereParts.push("e.updated_at >= ?");
-      params.push(`${recencyWindowStart(todayIso, filterUpdatedWithin)}T00:00:00.000Z`);
+      params.push(
+        `${recencyWindowStart(todayIso, filterUpdatedWithin)}T00:00:00.000Z`,
+      );
     }
     // Completed visibility is applied LAST and on top of the view, so it can widen
     // (`include` on an execution view) or narrow (`hide` on `all`) without the view
@@ -1384,11 +1392,7 @@ export class D1TaskRepository implements TaskRepository {
     ): { expr: string; dir: "ASC" | "DESC" } => ({
       expr,
       dir:
-        direction === "asc"
-          ? "ASC"
-          : direction === "desc"
-            ? "DESC"
-            : natural,
+        direction === "asc" ? "ASC" : direction === "desc" ? "DESC" : natural,
     });
     switch (sort) {
       case "due_date":
@@ -2365,11 +2369,7 @@ export class D1TaskRepository implements TaskRepository {
     ids: readonly string[],
     field: {
       readonly column:
-        | "priority"
-        | "time_sector"
-        | "commitment_state"
-        | "status"
-        | "due_date";
+        "priority" | "time_sector" | "commitment_state" | "status" | "due_date";
       readonly changesKey: string;
       readonly value: string | null;
       readonly currentOf: (task: TaskView) => string | null;
@@ -2451,11 +2451,7 @@ export class D1TaskRepository implements TaskRepository {
   #fieldUpsertStatement(
     current: TaskView,
     column:
-      | "priority"
-      | "time_sector"
-      | "commitment_state"
-      | "status"
-      | "due_date",
+      "priority" | "time_sector" | "commitment_state" | "status" | "due_date",
     value: string | null,
     nowTs: string,
   ): D1PreparedStatement {

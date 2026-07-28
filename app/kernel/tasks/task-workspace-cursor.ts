@@ -101,7 +101,10 @@ export function workspaceTaskFiltersSignature(
   if (filters.delegatedTo != null) parts.push(`dt=${filters.delegatedTo}`);
   if (filters.createdWithin != null) parts.push(`cw=${filters.createdWithin}`);
   if (filters.updatedWithin != null) parts.push(`uw=${filters.updatedWithin}`);
-  if (filters.completedVisibility != null && filters.completedVisibility !== "default") {
+  if (
+    filters.completedVisibility != null &&
+    filters.completedVisibility !== "default"
+  ) {
     parts.push(`cv=${filters.completedVisibility}`);
   }
   return parts.join("&");

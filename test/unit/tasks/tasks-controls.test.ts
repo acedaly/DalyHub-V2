@@ -1,0 +1,140 @@
+/**
+ * TASKS-03 — the Tasks control-group declaration.
+ *
+ * The whole "one filter system" claim rests on this being the SINGLE declaration
+ * that drives the sheet, the chips and the badge. These tests pin what it must
+ * offer, what it must never offer, and the badge honesty rule.
+ */
+
+import { describe, expect, it } from "vitest";
+
+import {
+  activeControls,
+  activeFilterCount,
+} from "~/shared/collection-layout/collection-controls-model";
+import { buildTasksControlGroups } from "~/modules/tasks/tasks-controls";
+
+const groups = buildTasksControlGroups({
+  delegates: [{ value: "Sam", label: "Sam" }],
+  parents: [
+    { id: "p-1", kind: "project", title: "Alpha" },
+    { id: "a-1", kind: "area", title: "Work" },
+  ],
+});
+
+const byId = (id: string) => groups.find((group) => group.id === id);
+const params = (search: string) => new URLSearchParams(search);
+
+describe("the declared filter dimensions", () => {
+  it("covers every dimension the Tasks workspace promises", () => {
+    for (const id of [
+      "status",
+      "priority",
+      "due",
+      "planned",
+      "sector",
+      "parentType",
+      "project",
+      "area",
+      "person",
+      "delegated",
+      "waiting",
+      "someday",
+      "created",
+      "updated",
+      "completed",
+    ]) {
+      expect(byId(id), `missing control group: ${id}`).toBeDefined();
+    }
+  });
+
+  it("presents priority AND the Eisenhower quadrant as ONE axis", () => {
+    // They are the same stored field (ADR-043 §2). Offering both as separate
+    // filters would imply two fields and let a user build a contradiction.
+    expect(byId("quadrant")).toBeUndefined();
+    const labels = byId("priority")?.options.map((o) => o.label) ?? [];
+    // …so the one filter carries BOTH vocabularies.
+    expect(labels.join(" ")).toContain("P1");
+    expect(labels.join(" ")).toContain("Do");
+    expect(labels.join(" ")).toContain("Delegate");
+  });
+
+  it("offers an explicit empty-field option where absence is meaningful", () => {
+    expect(byId("priority")?.options.map((o) => o.value)).toContain("__none");
+    expect(byId("sector")?.options.map((o) => o.value)).toContain("__none");
+  });
+
+  it("offers a due and a planned filter as SEPARATE dimensions", () => {
+    expect(byId("due")?.param).toBe("due");
+    expect(byId("planned")?.param).toBe("planned");
+    expect(byId("due")?.options.map((o) => o.value)).toContain("overdue");
+    expect(byId("planned")?.options.map((o) => o.value)).toContain(
+      "planned_today",
+    );
+  });
+
+  it("only offers a parent or delegate filter when the workspace HAS them", () => {
+    const empty = buildTasksControlGroups({ delegates: [], parents: [] });
+    expect(empty.find((g) => g.id === "project")).toBeUndefined();
+    expect(empty.find((g) => g.id === "area")).toBeUndefined();
+    expect(empty.find((g) => g.id === "person")).toBeUndefined();
+    // A control that could not narrow anything is not shown at all.
+    expect(empty.find((g) => g.id === "priority")).toBeDefined();
+  });
+
+  it("builds the parent options from REAL workspace records", () => {
+    expect(byId("project")?.options.map((o) => o.label)).toEqual([
+      "Any Project",
+      "Alpha",
+    ]);
+    expect(byId("area")?.options.map((o) => o.label)).toEqual([
+      "Any Area",
+      "Work",
+    ]);
+    expect(byId("person")?.options.map((o) => o.label)).toEqual([
+      "Anyone",
+      "Sam",
+    ]);
+  });
+});
+
+describe("shaping controls are not filters", () => {
+  it("declares layout, grouping, sort, order and density as non-filter kinds", () => {
+    expect(byId("layout")?.kind).toBe("group");
+    expect(byId("group")?.kind).toBe("group");
+    expect(byId("sort")?.kind).toBe("sort");
+    expect(byId("direction")?.kind).toBe("sort");
+    expect(byId("density")?.kind).toBe("display");
+  });
+
+  it("keeps them out of the active-filter badge and the chip row", () => {
+    const search =
+      "view=board&group=status&sort=title&dir=desc&density=compact";
+    expect(activeFilterCount(groups, params(search))).toBe(0);
+    expect(activeControls(groups, params(search))).toEqual([]);
+  });
+
+  it("counts genuine filters, and only once each", () => {
+    expect(
+      activeFilterCount(groups, params("priority=p1&due=overdue&sort=title")),
+    ).toBe(2);
+  });
+});
+
+describe("URL parameter contract", () => {
+  it("writes the documented parameter for each dimension", () => {
+    expect(byId("due")?.param).toBe("due");
+    expect(byId("parentType")?.param).toBe("parentType");
+    expect(byId("person")?.param).toBe("person");
+    expect(byId("completed")?.param).toBe("completed");
+    expect(byId("layout")?.param).toBe("view");
+    expect(byId("group")?.param).toBe("group");
+    expect(byId("direction")?.param).toBe("dir");
+  });
+
+  it("treats the view's own completion rule as the default, writing no URL state", () => {
+    expect(byId("completed")?.defaultValue).toBe("default");
+    expect(activeFilterCount(groups, params("completed=default"))).toBe(0);
+    expect(activeFilterCount(groups, params("completed=only"))).toBe(1);
+  });
+});

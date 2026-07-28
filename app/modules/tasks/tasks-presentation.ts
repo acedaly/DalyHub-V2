@@ -185,7 +185,9 @@ export function groupBucketLabel(
     case "parent":
       return key === "__none" ? "No parent" : (labelFromServer ?? "Parent");
     case "delegate":
-      return key === "__none" ? "Not delegated" : (labelFromServer ?? "Delegated");
+      return key === "__none"
+        ? "Not delegated"
+        : (labelFromServer ?? "Delegated");
     default:
       return key;
   }
@@ -199,7 +201,9 @@ export function groupBucketLabel(
  * most-urgent→least — so it is declared here rather than left to whatever order the
  * database returned.
  */
-export function declaredBucketOrder(dimension: string): readonly string[] | null {
+export function declaredBucketOrder(
+  dimension: string,
+): readonly string[] | null {
   switch (dimension) {
     case "quadrant":
     case "priority":

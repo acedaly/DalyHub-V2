@@ -49,35 +49,36 @@ function derived(
  * The built-in views, in the order they are offered. `default` is the standard
  * unfiltered workspace — the always-available way back to normal.
  */
-export const TASK_SYSTEM_VIEW_DEFINITIONS: readonly TaskSystemViewDefinition[] = [
-  derived("default", "All active", "Everything actionable right now.", {}),
-  derived("inbox", "Inbox", "Captured, not yet planned.", {
-    systemView: "inbox",
-  }),
-  derived("today", "Today", "Planned for today.", { systemView: "today" }),
-  derived("upcoming", "Upcoming", "Planned or due after today.", {
-    systemView: "upcoming",
-    sort: "scheduled_date",
-  }),
-  derived("overdue", "Overdue", "Past its date and still open.", {
-    systemView: "overdue",
-    sort: "due_date",
-  }),
-  derived("waiting", "Waiting", "Blocked on someone or something else.", {
-    systemView: "waiting",
-  }),
-  derived("delegated", "Delegated", "Handed to someone else.", {
-    systemView: "all",
-    filters: { delegated: true, completed: "hide" },
-  }),
-  derived("someday", "Someday / Maybe", "Parked, not committed to.", {
-    systemView: "someday",
-  }),
-  derived("completed", "Completed", "Finished work, most recent first.", {
-    systemView: "completed",
-    sort: "updated",
-  }),
-];
+export const TASK_SYSTEM_VIEW_DEFINITIONS: readonly TaskSystemViewDefinition[] =
+  [
+    derived("default", "All active", "Everything actionable right now.", {}),
+    derived("inbox", "Inbox", "Captured, not yet planned.", {
+      systemView: "inbox",
+    }),
+    derived("today", "Today", "Planned for today.", { systemView: "today" }),
+    derived("upcoming", "Upcoming", "Planned or due after today.", {
+      systemView: "upcoming",
+      sort: "scheduled_date",
+    }),
+    derived("overdue", "Overdue", "Past its date and still open.", {
+      systemView: "overdue",
+      sort: "due_date",
+    }),
+    derived("waiting", "Waiting", "Blocked on someone or something else.", {
+      systemView: "waiting",
+    }),
+    derived("delegated", "Delegated", "Handed to someone else.", {
+      systemView: "all",
+      filters: { delegated: true, completed: "hide" },
+    }),
+    derived("someday", "Someday / Maybe", "Parked, not committed to.", {
+      systemView: "someday",
+    }),
+    derived("completed", "Completed", "Finished work, most recent first.", {
+      systemView: "completed",
+      sort: "updated",
+    }),
+  ];
 
 /** Look up a built-in view by id. */
 export function findTaskSystemView(

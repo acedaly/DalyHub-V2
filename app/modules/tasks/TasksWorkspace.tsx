@@ -22,7 +22,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useFetcher, useRevalidator, useSearchParams } from "react-router";
+import {
+  Link,
+  useFetcher,
+  useRevalidator,
+  useSearchParams,
+} from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps, CardTone } from "~/shared/card";
@@ -239,10 +244,14 @@ function useTaskQuickMutation() {
       return;
     }
     settled.current = fetcher.data;
-    const result = fetcher.data as { readonly ok?: boolean; readonly formError?: string };
+    const result = fetcher.data as {
+      readonly ok?: boolean;
+      readonly formError?: string;
+    };
     if (result.ok === false) {
       setAnnouncement(
-        result.formError ?? "That change couldn’t be saved. Nothing was changed.",
+        result.formError ??
+          "That change couldn’t be saved. Nothing was changed.",
       );
     } else if (pendingLabel.current) {
       setAnnouncement(pendingLabel.current);
@@ -443,7 +452,8 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         ariaLabel: card.completed
           ? `Reopen ${card.title}`
           : `Complete ${card.title}`,
-        onSelect: () => quick.setCompleted(card.id, !card.completed, card.title),
+        onSelect: () =>
+          quick.setCompleted(card.id, !card.completed, card.title),
         disabled: quick.busy,
       };
       const planTodayAction = card.completed
@@ -538,8 +548,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             {
               id: "open-record",
               label: "Open task record",
-              description:
-                "For the parent, delegation, waiting and removal.",
+              description: "For the parent, delegation, waiting and removal.",
               separatorBefore: true,
               onSelect: () => openDrawer(`task:${card.id}`),
             },
@@ -637,7 +646,10 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     else if ((TIME_SECTORS as readonly string[]).includes(config.systemView)) {
       defaults.timeSector = config.systemView;
     }
-    if (config.systemView === "today" || config.filters.plannedState === "planned_today") {
+    if (
+      config.systemView === "today" ||
+      config.filters.plannedState === "planned_today"
+    ) {
       defaults.scheduledDate = data.todayIso;
     }
     return defaults;
@@ -802,7 +814,10 @@ function GroupedBucket({
 }) {
   const href = section.hasMore ? viewAllHref(section) : null;
   return (
-    <section className={className} aria-label={`${section.title} — ${section.count} tasks`}>
+    <section
+      className={className}
+      aria-label={`${section.title} — ${section.count} tasks`}
+    >
       <h2 className="dh-tasks-section__label">
         {section.title}
         <span className="dh-tasks-section__count"> ({section.count})</span>

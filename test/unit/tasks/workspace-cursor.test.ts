@@ -14,6 +14,7 @@ const scope: WorkspaceTaskCursorScope = {
   workspaceId: "ws_1",
   view: "all",
   sort: "smart",
+  direction: "natural",
   todayIso: "2026-07-25",
   filtersSignature: "p=p1",
 };
@@ -45,6 +46,35 @@ describe("workspaceTaskFiltersSignature", () => {
   it("distinguishes different filter sets", () => {
     expect(workspaceTaskFiltersSignature({ priority: "p1" })).not.toBe(
       workspaceTaskFiltersSignature({ priority: "p2" }),
+    );
+  });
+
+  it("binds every TASKS-03 filter dimension, so a page-two cursor cannot survive one", () => {
+    const base = workspaceTaskFiltersSignature({});
+    for (const filters of [
+      { dueState: "overdue" as const },
+      { plannedState: "planned_today" as const },
+      { parentKind: "project" as const },
+      { delegatedTo: "Sam" },
+      { createdWithin: "7d" as const },
+      { updatedWithin: "30d" as const },
+      { completedVisibility: "include" as const },
+    ]) {
+      expect(workspaceTaskFiltersSignature(filters)).not.toBe(base);
+    }
+    // Explicitly leaving completed visibility at the view's own rule adds no state,
+    // so an existing link keeps producing the signature it always produced.
+    expect(
+      workspaceTaskFiltersSignature({ completedVisibility: "default" }),
+    ).toBe(base);
+  });
+
+  it("distinguishes the same dimension at different values", () => {
+    expect(workspaceTaskFiltersSignature({ dueState: "overdue" })).not.toBe(
+      workspaceTaskFiltersSignature({ dueState: "due_today" }),
+    );
+    expect(workspaceTaskFiltersSignature({ delegatedTo: "Sam" })).not.toBe(
+      workspaceTaskFiltersSignature({ delegatedTo: "Alex" }),
     );
   });
 });
@@ -89,6 +119,18 @@ describe("workspace task cursor", () => {
     ).toThrow(InvalidSpineCursorError);
   });
 
+  it("rejects a cursor issued for the OPPOSITE sort direction", () => {
+    // A reversed sort is a different ordering: reinterpreting a cursor across it
+    // would silently skip or repeat rows.
+    const cursor = encodeWorkspaceTaskCursor(scope, position);
+    expect(() =>
+      decodeWorkspaceTaskCursorForScope(cursor, {
+        ...scope,
+        direction: "desc",
+      }),
+    ).toThrow(InvalidSpineCursorError);
+  });
+
   it("rejects a cross-workspace cursor", () => {
     const cursor = encodeWorkspaceTaskCursor(scope, position);
     expect(() =>
@@ -115,6 +157,9 @@ describe("workspace task cursor", () => {
     expect(workspaceTaskCursorScopeMatches(scope, { ...scope })).toBe(true);
     expect(
       workspaceTaskCursorScopeMatches(scope, { ...scope, view: "inbox" }),
+    ).toBe(false);
+    expect(
+      workspaceTaskCursorScopeMatches(scope, { ...scope, direction: "asc" }),
     ).toBe(false);
   });
 });

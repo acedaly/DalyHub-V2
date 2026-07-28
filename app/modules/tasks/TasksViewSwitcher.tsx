@@ -173,7 +173,9 @@ export function TasksViewSwitcher({
         void navigator.clipboard
           ?.writeText(shareUrl)
           .then(() => setStatus("Link copied."))
-          .catch(() => setStatus("Couldn’t copy the link. Copy it from the address bar."));
+          .catch(() =>
+            setStatus("Couldn’t copy the link. Copy it from the address bar."),
+          );
       },
     },
     ...(active && active.kind === "user"
@@ -242,13 +244,9 @@ export function TasksViewSwitcher({
                 });
                 setNaming(null);
               }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.stopPropagation();
-                  setNaming(null);
-                  triggerRef.current?.focus();
-                }
-              }}
+              /* Escape cancels naming without leaving the panel. It is bound on
+                 the INPUT (a real interactive element) rather than the form, so the
+                 handler sits where the keyboard focus actually is. */
             >
               <label className="dh-tasks-views__name-label" htmlFor={nameId}>
                 {naming.label}
@@ -262,6 +260,13 @@ export function TasksViewSwitcher({
                 defaultValue={naming.initial}
                 maxLength={80}
                 required
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.stopPropagation();
+                    setNaming(null);
+                    triggerRef.current?.focus();
+                  }
+                }}
                 data-testid="tasks-view-name-input"
               />
               <div className="dh-tasks-views__name-actions">
@@ -320,15 +325,16 @@ export function TasksViewSwitcher({
         opener={triggerRef.current}
         onClose={() => setPendingDelete(null)}
         onConfirm={async () => {
-          if (pendingDelete) submit({ intent: "delete", viewId: pendingDelete.id });
+          if (pendingDelete)
+            submit({ intent: "delete", viewId: pendingDelete.id });
           setPendingDelete(null);
         }}
         title={`Delete “${pendingDelete?.name ?? ""}”?`}
         confirmLabel="Delete view"
         busyLabel="Deleting…"
       >
-        This deletes the saved view only. Your tasks are not affected, and you can
-        save the same configuration again at any time.
+        This deletes the saved view only. Your tasks are not affected, and you
+        can save the same configuration again at any time.
       </ConfirmationDialog>
     </div>
   );

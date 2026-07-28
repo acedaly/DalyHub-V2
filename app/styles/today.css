@@ -1002,21 +1002,224 @@
   }
 }
 
-/* The All-view sort control row. */
-.dh-tasks-sort {
+/* -------------------------------------------------------------------------- */
+/* TASKS-03 — the completed collection experience (design tokens only).        */
+/*                                                                            */
+/* Layout and rhythm ONLY, and NO Tasks-only density fork: compact/comfortable */
+/* remain the shared DS-04 collection-density contract, passed through as a    */
+/* prop. Nothing here hides a field at any width.                             */
+/* -------------------------------------------------------------------------- */
+
+/* An ordinary grouped list: sections stacked, same rhythm as the specialist
+ * views, so grouping is a presentation of one query rather than a new screen. */
+.dh-tasks-grouped {
   display: flex;
-  align-items: center;
-  gap: var(--dh-space-2);
-  margin-bottom: var(--dh-space-4);
+  flex-direction: column;
+  gap: var(--dh-space-6);
 }
 
-.dh-tasks-sort__label {
+.dh-tasks-grouped__section,
+.dh-tasks-board__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+/* A board is columns where the viewport can afford them, and a stack where it
+ * cannot — never a horizontally-scrolling document. */
+.dh-tasks-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-6);
+}
+
+.dh-tasks-section__subtitle {
+  margin: 0;
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-text-muted);
 }
 
-.dh-tasks-sort__select {
-  width: auto;
+/* The control row: the shared sheet trigger plus a plain-text summary of the
+ * current presentation, grouping and filter count. Text, never a coloured dot. */
+.dh-tasks-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+}
+
+.dh-tasks-controls__summary {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* The in-workspace quick add row: title first, everything else optional. */
+.dh-tasks-quickadd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin-bottom: var(--dh-space-4);
+}
+
+.dh-tasks-quickadd__input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  min-height: var(--dh-touch-target-min);
+}
+
+.dh-tasks-quickadd__submit,
+.dh-tasks-quickadd__more {
+  min-height: var(--dh-touch-target-min);
+}
+
+.dh-tasks-quickadd__error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-danger-text);
+}
+
+/* The compact view switcher. A menu, never a permanent secondary sidebar — the
+ * task list keeps its full width on an ordinary screen. */
+.dh-tasks-views {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-tasks-views__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-touch-target-min);
+  padding-inline: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-tasks-views__label {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-views__name {
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-tasks-views__modified {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-views__panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--dh-space-2));
+  inset-inline-start: 0;
+  width: min(22rem, calc(100vw - 2 * var(--dh-gutter)));
+  max-height: min(28rem, 60vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface-raised);
+  box-shadow: var(--dh-shadow-md);
+}
+
+.dh-tasks-views__group + .dh-tasks-views__group {
+  margin-top: var(--dh-space-4);
+}
+
+.dh-tasks-views__heading {
+  margin: 0 0 var(--dh-space-1);
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-views__note,
+.dh-tasks-views__empty {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-views__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-tasks-views__item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+  color: var(--dh-color-text);
+  text-decoration: none;
+}
+
+.dh-tasks-views__item:hover {
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-tasks-views__item[aria-current="true"] {
+  background: var(--dh-color-surface-sunken);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-tasks-views__item-note {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-views__badge {
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-full);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-tasks-views__name-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  margin-bottom: var(--dh-space-4);
+  padding-bottom: var(--dh-space-3);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-tasks-views__name-label {
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-tasks-views__name-actions {
+  display: flex;
+  gap: var(--dh-space-2);
+  justify-content: flex-end;
+}
+
+@media (min-width: 60rem) {
+  /* Board columns appear only where there is genuinely room for them. */
+  .dh-tasks-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--dh-space-5);
+    align-items: start;
+  }
 }
 
 /* The deterministic quick-capture interpretation preview. */

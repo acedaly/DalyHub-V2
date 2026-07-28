@@ -20,10 +20,7 @@ import {
   type MarkdownSource,
 } from "~/kernel/markdown";
 
-import {
-  TaskValidationError,
-  type TaskValidationField,
-} from "./task-errors";
+import { TaskValidationError, type TaskValidationField } from "./task-errors";
 import {
   COMMITMENT_STATES,
   TASK_COMPLETED_VISIBILITIES,
@@ -351,7 +348,10 @@ function validateClosedSet<T extends string>(
   if (value === null || value === undefined || value === "") {
     return undefined;
   }
-  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) {
+  if (
+    typeof value !== "string" ||
+    !(allowed as readonly string[]).includes(value)
+  ) {
     throw new TaskValidationError(field, description);
   }
   return value as T;
@@ -693,7 +693,11 @@ export function shiftCalendarDate(isoDate: string, days: number): string {
   if (!match) {
     throw new TaskValidationError("scheduledDate", "must be a YYYY-MM-DD date");
   }
-  const base = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const base = Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
   const shifted = new Date(base + days * 86_400_000);
   const year = String(shifted.getUTCFullYear()).padStart(4, "0");
   const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");

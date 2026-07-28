@@ -14,7 +14,12 @@
  * than breaking the page.
  */
 
-import { secureIdGenerator, systemClock, type Clock, type IdGenerator } from "~/kernel/spine";
+import {
+  secureIdGenerator,
+  systemClock,
+  type Clock,
+  type IdGenerator,
+} from "~/kernel/spine";
 import {
   MAX_TASK_SAVED_VIEWS,
   TASK_VIEW_CONFIG_VERSION,
@@ -173,7 +178,9 @@ export class D1TaskViewRepository implements TaskViewRepository {
     if (!current) throw new TaskViewNotFoundError();
 
     const name =
-      patch.name === undefined ? current.name : validateTaskViewName(patch.name);
+      patch.name === undefined
+        ? current.name
+        : validateTaskViewName(patch.name);
     const config =
       patch.config === undefined
         ? current.config

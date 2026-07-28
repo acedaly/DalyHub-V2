@@ -22,11 +22,7 @@ import {
   timeSectorLabel,
   type EisenhowerQuadrant,
 } from "~/shared/task-record/task-view";
-import type {
-  TaskPriority,
-  TaskSystemView,
-  TimeSector,
-} from "~/kernel/tasks";
+import type { TaskPriority, TaskSystemView, TimeSector } from "~/kernel/tasks";
 import type { TaskPresentation } from "~/kernel/task-views";
 
 import type { TasksGrouping } from "./tasks-contract";
@@ -177,7 +173,10 @@ const BUCKET_FILTERS: Record<
     param: "sector",
     value: (key) => (key === "inbox" ? "__none" : key),
   },
-  status: { param: "status", value: (key) => (key === "completed" ? null : key) },
+  status: {
+    param: "status",
+    value: (key) => (key === "completed" ? null : key),
+  },
   due_state: { param: "due", value: (key) => key },
   planned: { param: "planned", value: (key) => key },
   delegate: {
@@ -261,9 +260,7 @@ export function resolveGroupedSections(
 
   return [...byKey.entries()]
     .map(([key]) => build(key))
-    .sort(
-      (a, b) => b.count - a.count || a.title.localeCompare(b.title) || 0,
-    );
+    .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title) || 0);
 }
 
 /**

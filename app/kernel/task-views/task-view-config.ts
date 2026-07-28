@@ -54,7 +54,12 @@ export const TASK_VIEW_CONFIG_VERSION = 1;
  * `sectors` are the OPTIONAL specialist planning views retained from TASKS-01 —
  * neither is the primary way to manage tasks.
  */
-export const TASK_PRESENTATIONS = ["list", "board", "matrix", "sectors"] as const;
+export const TASK_PRESENTATIONS = [
+  "list",
+  "board",
+  "matrix",
+  "sectors",
+] as const;
 export type TaskPresentation = (typeof TASK_PRESENTATIONS)[number];
 
 /**
@@ -146,7 +151,8 @@ function member<T extends string>(
   value: unknown,
   allowed: readonly T[],
 ): T | undefined {
-  return typeof value === "string" && (allowed as readonly string[]).includes(value)
+  return typeof value === "string" &&
+    (allowed as readonly string[]).includes(value)
     ? (value as T)
     : undefined;
 }

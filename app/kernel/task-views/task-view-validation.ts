@@ -5,9 +5,7 @@
  * is touched, so invalid input can never be written (AGENTS.md §17).
  */
 
-import {
-  TaskViewValidationError,
-} from "./task-view-errors";
+import { TaskViewValidationError } from "./task-view-errors";
 import { parseTaskViewConfig, type TaskViewConfig } from "./task-view-config";
 import { TASK_VIEW_NAME_MAX_LENGTH } from "./task-view";
 
@@ -83,7 +81,10 @@ export function validateTaskViewName(value: unknown): string {
  */
 export function validateTaskViewConfigForWrite(value: unknown): TaskViewConfig {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new TaskViewValidationError("config", "must be a configuration object");
+    throw new TaskViewValidationError(
+      "config",
+      "must be a configuration object",
+    );
   }
   return parseTaskViewConfig(value);
 }

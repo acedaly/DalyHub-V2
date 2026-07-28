@@ -276,6 +276,8 @@ describe("module discovery", () => {
           moduleId: "tasks",
           file: "routes/parent-options.tsx",
         },
+        // TASKS-03 adds the saved-view mutation endpoint (no nav entry).
+        { id: "tasks.views", moduleId: "tasks", file: "routes/views.tsx" },
         // PROJ-01 / ADR-033 re-homed the task record resource routes to the Tasks
         // module (previously `today.task*`): the task Drawer's data endpoint, its
         // Activity Timeline page, the link-target search and the waiting-target

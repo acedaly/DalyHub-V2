@@ -54,6 +54,7 @@ export function TasksQuickAdd({
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refocus, setRefocus] = useState(false);
   const fieldId = useId();
   const errorId = useId();
 
@@ -75,7 +76,8 @@ export function TasksQuickAdd({
       body.set("title", trimmed);
       body.set("parentId", defaultParent.id);
       body.set("parentKind", defaultParent.kind);
-      if (sessionDefaults.priority) body.set("priority", sessionDefaults.priority);
+      if (sessionDefaults.priority)
+        body.set("priority", sessionDefaults.priority);
       if (sessionDefaults.timeSector) {
         body.set("timeSector", sessionDefaults.timeSector);
       }
@@ -100,7 +102,10 @@ export function TasksQuickAdd({
         setTitle("");
         setStatus(`Added “${trimmed}”.`);
         revalidator.revalidate();
-        inputRef.current?.focus();
+        // Refocus is requested, not performed here: the field is still DISABLED in
+        // the DOM until React commits `busy: false`, and focusing a disabled input
+        // silently does nothing. The effect below runs after that commit.
+        setRefocus(true);
         return;
       }
       setError(
@@ -112,7 +117,16 @@ export function TasksQuickAdd({
     [title, defaultParent, busy, sessionDefaults, revalidator],
   );
 
-  // The field keeps focus after a failure too, so a correction is immediate.
+  // Return focus to the field once it is interactive again, so the next task is one
+  // keystroke away. The field keeps focus after a FAILURE too, so a correction is
+  // immediate and the user never has to find the input again.
+  useEffect(() => {
+    if (refocus && !busy) {
+      inputRef.current?.focus();
+      setRefocus(false);
+    }
+  }, [refocus, busy]);
+
   useEffect(() => {
     if (error) inputRef.current?.focus();
   }, [error]);

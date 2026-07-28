@@ -92,7 +92,7 @@
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-full);
   background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text-primary);
+  color: var(--dh-color-text);
   font-size: var(--dh-font-size-sm);
   line-height: var(--dh-line-height-tight);
 }
@@ -118,7 +118,7 @@
 }
 
 .dh-filter-chips__remove:hover {
-  color: var(--dh-color-text-primary);
+  color: var(--dh-color-text);
   background: var(--dh-color-surface-sunken);
 }
 

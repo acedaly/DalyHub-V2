@@ -18,6 +18,9 @@
 import {
   DEFAULT_TASK_VIEW_CONFIG,
   parseTaskViewConfig,
+  TASK_DENSITIES,
+  TASK_GROUP_BYS,
+  TASK_PRESENTATIONS,
   TASK_VIEW_FILTER_KEYS,
   type TaskGroupBy,
   type TaskPresentation,
@@ -26,6 +29,9 @@ import {
 } from "~/kernel/task-views";
 import {
   TASK_RECENCY_WINDOW_DAYS,
+  TASK_SORTS,
+  TASK_SORT_DIRECTIONS,
+  TASK_SYSTEM_VIEWS,
   type TaskPriority,
   type WorkspaceTaskFilters,
   type WorkspaceTaskGroupDimension,
@@ -76,9 +82,8 @@ export const TASKS_OWNED_PARAMS: readonly string[] = [
 ];
 
 /** The parameters a FILTER reset clears (never the presentation, sort or view). */
-export const TASKS_FILTER_PARAM_NAMES: readonly string[] = Object.values(
-  TASKS_FILTER_PARAMS,
-);
+export const TASKS_FILTER_PARAM_NAMES: readonly string[] =
+  Object.values(TASKS_FILTER_PARAMS);
 
 function read(params: URLSearchParams, name: string): string | null {
   const value = params.get(name);
@@ -111,13 +116,40 @@ export function configFromParams(
     rawFilters[key] = value;
   }
 
+  // A scalar dimension has no "unset" state, so an INVALID URL value must degrade
+  // to the fallback (the owner's default view) rather than to the global default —
+  // otherwise a typo in a shared link would silently discard their preference.
+  // Validity is checked against the kernel's closed sets, never guessed.
+  const scalar = <T extends string>(
+    param: string,
+    allowed: readonly T[],
+    fallbackValue: T,
+  ): T => {
+    const raw = read(params, param);
+    return raw !== null && (allowed as readonly string[]).includes(raw)
+      ? (raw as T)
+      : fallbackValue;
+  };
+
   return parseTaskViewConfig({
-    presentation: read(params, TASKS_PARAMS.presentation) ?? fallback.presentation,
-    systemView: read(params, TASKS_PARAMS.systemView) ?? fallback.systemView,
-    sort: read(params, TASKS_PARAMS.sort) ?? fallback.sort,
-    direction: read(params, TASKS_PARAMS.direction) ?? fallback.direction,
-    groupBy: read(params, TASKS_PARAMS.groupBy) ?? fallback.groupBy,
-    density: read(params, TASKS_PARAMS.density) ?? fallback.density,
+    presentation: scalar(
+      TASKS_PARAMS.presentation,
+      TASK_PRESENTATIONS,
+      fallback.presentation,
+    ),
+    systemView: scalar(
+      TASKS_PARAMS.systemView,
+      TASK_SYSTEM_VIEWS,
+      fallback.systemView,
+    ),
+    sort: scalar(TASKS_PARAMS.sort, TASK_SORTS, fallback.sort),
+    direction: scalar(
+      TASKS_PARAMS.direction,
+      TASK_SORT_DIRECTIONS,
+      fallback.direction,
+    ),
+    groupBy: scalar(TASKS_PARAMS.groupBy, TASK_GROUP_BYS, fallback.groupBy),
+    density: scalar(TASKS_PARAMS.density, TASK_DENSITIES, fallback.density),
     filters: rawFilters,
   });
 }
@@ -248,9 +280,8 @@ export function effectiveGroupBy(config: TaskViewConfig): TaskGroupBy {
 
 /** Human text for a recency window, used in chips and option labels. */
 export function recencyWindowLabel(window: string): string {
-  const days = TASK_RECENCY_WINDOW_DAYS[
-    window as keyof typeof TASK_RECENCY_WINDOW_DAYS
-  ];
+  const days =
+    TASK_RECENCY_WINDOW_DAYS[window as keyof typeof TASK_RECENCY_WINDOW_DAYS];
   if (days === undefined) return window;
   if (days === 1) return "Today";
   return `Last ${days} days`;
