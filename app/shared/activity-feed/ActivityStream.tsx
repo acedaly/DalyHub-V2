@@ -236,7 +236,13 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
         "aria-label": ariaLabel,
         "aria-busy": stream.isLoadingMore || undefined,
       }
-    : { role: "group", "aria-label": ariaLabel };
+    : {
+        role: "group",
+        "aria-label": ariaLabel,
+        // A labelled region that is busy should say so — otherwise the initial
+        // load is silent to assistive tech.
+        "aria-busy": showInitialLoading || undefined,
+      };
 
   return (
     <section className="dh-activity" data-scope={scope}>

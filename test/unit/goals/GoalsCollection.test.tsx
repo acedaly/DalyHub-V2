@@ -6,6 +6,7 @@ import { FeedbackProvider } from "~/shared/feedback";
 
 import {
   GoalsCollectionView,
+  type SerializedDeletedGoalItem,
   type SerializedGoalWithAlignment,
 } from "~/modules/goals/GoalsCollection";
 import type { GoalAlignment } from "~/kernel/alignment";
@@ -51,8 +52,14 @@ function goal(
 
 function renderCollection(
   goals: readonly SerializedGoalWithAlignment[],
-  opts: { nextCursor?: string | null; failed?: boolean } = {},
+  opts: {
+    nextCursor?: string | null;
+    failed?: boolean;
+    deletedGoals?: readonly SerializedDeletedGoalItem[];
+    state?: "active" | "deleted";
+  } = {},
 ) {
+  const state = opts.state ?? "active";
   const router = createMemoryRouter(
     [
       {
@@ -60,19 +67,27 @@ function renderCollection(
         element: (
           <GoalsCollectionView
             goals={goals}
+            deletedGoals={opts.deletedGoals ?? []}
             nextCursor={opts.nextCursor ?? null}
+            state={state}
             failed={opts.failed ?? false}
           />
         ),
       },
     ],
-    { initialEntries: ["/goals"] },
+    {
+      initialEntries: [state === "deleted" ? "/goals?state=deleted" : "/goals"],
+    },
   );
   return render(
     <FeedbackProvider>
       <RouterProvider router={router} />
     </FeedbackProvider>,
   );
+}
+
+function deletedGoal(id: string, title: string): SerializedDeletedGoalItem {
+  return { id, title, updatedAt: "2026-07-20T10:00:00.000Z" };
 }
 
 describe("Goals collection (the Alignment view)", () => {
@@ -280,5 +295,72 @@ describe("Goals collection (the Alignment view)", () => {
       }),
     ]);
     expect(screen.getByText("Completed")).toBeInTheDocument();
+  });
+});
+
+/**
+ * PX-04 — the Deleted Goals view is the DURABLE path back from a reversible
+ * removal, so it must not become a dead end of its own.
+ */
+describe("Goals collection — the Deleted view", () => {
+  it("lists deleted Goals with a one-click Restore and no open target", () => {
+    renderCollection([], {
+      state: "deleted",
+      deletedGoals: [deletedGoal("g-old", "Old goal")],
+    });
+    expect(screen.getByText("Old goal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
+    // A deleted record's canonical route 404s, so it is never a link.
+    expect(
+      screen.queryByRole("link", { name: /Old goal/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers Load more when more deleted Goals exist beyond the first page", () => {
+    // Regression: the Deleted branch returned before the pagination control, so
+    // in a workspace with more deleted Goals than one page, everything past the
+    // first was unreachable — and therefore unrestorable.
+    renderCollection([], {
+      state: "deleted",
+      deletedGoals: [deletedGoal("g-old", "Old goal")],
+      nextCursor: "cursor-next",
+    });
+    expect(
+      screen.getByRole("button", { name: "Load more deleted Goals" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 deleted Goals loaded")).toBeInTheDocument();
+  });
+
+  it("starts a new scope from its own first page, carrying nothing over", () => {
+    // Half of the stale-page guard, at the level this test can reach: changing
+    // the pagination scope resets the accumulated list. The other half — refusing
+    // a page the fetcher REVALIDATED after a navigation, which arrives with a new
+    // identity just as the reset clears the de-dupe ref — is guarded by
+    // construction in `useDeletedGoalPagination` (only data requested since the
+    // last reset is consumed) and is not reachable from a component test without
+    // simulating React Router's fetcher revalidation.
+    const first = renderCollection([], {
+      state: "deleted",
+      deletedGoals: [deletedGoal("g-1", "Page one goal")],
+      nextCursor: "cursor-2",
+    });
+    expect(screen.getByText("Page one goal")).toBeInTheDocument();
+    first.unmount();
+
+    renderCollection([], {
+      state: "deleted",
+      deletedGoals: [deletedGoal("g-9", "A different page one")],
+      nextCursor: null,
+    });
+    expect(screen.getByText("A different page one")).toBeInTheDocument();
+    expect(screen.queryByText("Page one goal")).not.toBeInTheDocument();
+  });
+
+  it("shows the filtered-empty state only when there is genuinely nothing more", () => {
+    renderCollection([], { state: "deleted", deletedGoals: [] });
+    expect(screen.getByText("No deleted Goals")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Load more deleted Goals" }),
+    ).not.toBeInTheDocument();
   });
 });

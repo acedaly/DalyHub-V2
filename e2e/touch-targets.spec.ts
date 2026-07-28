@@ -31,7 +31,7 @@ test.describe("touch targets — shell (mobile)", () => {
     await expectMinTouchTarget(mobileNavigationOpener(page));
   });
 
-  test("the mobile navigation sheet's close control meets the minimum", async ({
+  test("the mobile navigation sheet’s close control meets the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
@@ -93,7 +93,7 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
     hasTouch: true,
   });
 
-  test("the Areas collection's primary action and record tabs meet the minimum", async ({
+  test("the Areas collection’s primary action and record tabs meet the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/areas");
@@ -108,7 +108,7 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
     }
   });
 
-  test("the Goal record's actions and the Alignment evidence control meet the minimum", async ({
+  test("the Goal record’s actions and the Alignment evidence control meet the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/goals/g-launch");
@@ -127,7 +127,7 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     hasTouch: true,
   });
 
-  test("the record's Rename/Delete actions and the editor's formatting toolbar meet the minimum", async ({
+  test("the record’s Rename/Delete actions and the editor’s formatting toolbar meet the minimum", async ({
     page,
   }) => {
     // This is the only test in this shard that mounts the note-editor route, so
@@ -183,6 +183,10 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     await expectMinTouchTarget(toolbar.getByRole("button", { name: "Table" }));
     await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
 
+    // Removal itself now runs through the same overflow menu measured above —
+    // there is no longer a Delete button in the record header (PX-04). Notes are
+    // `deleteMode: "reversible"`, so the item deletes on a single activation and
+    // offers Undo; there is no confirmation step to clear here.
     await overflow.click();
     await page.getByRole("menuitem", { name: "Delete Note" }).click();
     await page.getByRole("link", { name: "Deleted" }).click();

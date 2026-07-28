@@ -51,7 +51,7 @@ async function addEventTypeFilter(page: Page, valueLabel: string) {
 }
 
 test.describe("DS-05 — desktop", () => {
-  test("Timeline shows a record's history grouped by day", async ({ page }) => {
+  test("Timeline shows a record’s history grouped by day", async ({ page }) => {
     await gotoFixture(page);
     const timeline = page.getByTestId("af-timeline").getByRole("feed");
     await expect(timeline.getByRole("article").first()).toBeVisible();

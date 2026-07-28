@@ -376,13 +376,17 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await clearAndType(page, "Draft that must survive a failure");
     await blurEditor(page);
 
-    await expect(page.getByText("Couldn't save")).toBeVisible();
+    await expect(page.getByText("Couldn’t save")).toBeVisible();
     await expect(page.getByText("Simulated failure for e2e.")).toBeVisible();
     expect(await readSource(page)).toContain(
       "Draft that must survive a failure",
     );
 
-    await page.getByRole("button", { name: "Retry" }).click();
+    // `exact` matters here: Playwright matches accessible names by
+    // case-insensitive SUBSTRING, and the DS-12 overflow trigger is named after
+    // the record ("More actions for Notes e2e note retry-…"), so a loose "Retry"
+    // now matches the trigger as well as the save-status control.
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
     await expect(page.getByText("Saved")).toBeVisible();
     await page.unroute("**/mutate");
   });

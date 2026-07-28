@@ -168,11 +168,18 @@ export function OverflowMenu({
     if (!isActionable(item)) {
       return;
     }
-    // A link navigates on its own; a button runs its handler. Either way the menu
-    // closes — but focus is only pulled back to the trigger for a button, since a
-    // link is about to move the user somewhere else.
-    item.onSelect?.();
+    // Close FIRST, then run the handler. The order is load-bearing: closing
+    // focuses the persistent trigger, so a handler that opens a dialog (every
+    // lifecycle action does) sees a LIVE `document.activeElement` to return focus
+    // to. Running the handler first would hand the dialog the menu item that is
+    // about to unmount, and closing it would drop the keyboard user at the top of
+    // the page instead of back on the ⋯ button they started from (AGENTS.md §15 —
+    // no lost focus).
+    //
+    // A link is exempt: it is about to navigate, so pulling focus back would
+    // fight the navigation.
     close(!isLink);
+    item.onSelect?.();
   };
 
   return (

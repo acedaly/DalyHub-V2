@@ -52,7 +52,7 @@ test.describe("TODAY-02 — desktop", () => {
     ).toBeVisible();
   });
 
-  test("shows the real area relationship in the Links tab", async ({
+  test("shows the real area relationship in the Linked tab", async ({
     page,
   }) => {
     await gotoFixture(page, DRAWER_URL);

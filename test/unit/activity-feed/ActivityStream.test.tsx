@@ -311,6 +311,19 @@ describe("states", () => {
     expect(screen.getByRole("group", { name: "Activity" })).toBeInTheDocument();
   });
 
+  // The state the sibling assertions above do NOT reach, and the reason this
+  // defect stayed hidden: while the FIRST page is loading the viewport is also
+  // roleless-but-labelled, so whether a scan catches the violation depends on
+  // whether it wins a race against the load. It is the only non-feed state that
+  // is genuinely busy, so it is also the one that must say so.
+  it("stays a labelled, busy group while the first page is still loading", () => {
+    // A loader that never settles holds the component in `showInitialLoading`.
+    renderStream({ loadPage: () => new Promise<ActivityStreamPage>(() => {}) });
+    const region = screen.getByRole("group", { name: "Activity" });
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByRole("feed")).not.toBeInTheDocument();
+  });
+
   it("becomes a labelled feed once it has articles to show", async () => {
     renderStream({
       loadPage: async () => ({

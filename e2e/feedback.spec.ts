@@ -135,7 +135,7 @@ test.describe("DS-10 feedback & inspector — mobile", () => {
     await expect(sheet).toBeHidden();
   });
 
-  test("notifications remain usable and don't cause overflow", async ({
+  test("notifications remain usable and don’t cause overflow", async ({
     page,
   }) => {
     await page.goto(DEMO_PATH);
