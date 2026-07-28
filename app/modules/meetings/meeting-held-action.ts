@@ -23,6 +23,9 @@
 /** The instant formatter the record supplies (meeting-timezone aware). */
 export type HeldDateFormatter = (isoInstant: string) => string;
 
+/** Mirrored from the kernel so this stays a pure, dependency-light module. */
+export { MAX_MEETING_HELD_ATTENDEE_SUBJECTS } from "~/kernel/meetings";
+
 export interface MeetingHeldActionState {
   /** The meeting's `heldAt` instant, or null when it has not been recorded. */
   readonly heldAt: string | null;
@@ -86,10 +89,21 @@ export function meetingHeldActionItem(
 /** The response the record's mark-as-held submission expects back. */
 export interface MeetingHeldOutcome {
   readonly outcome: "recorded" | "already_held";
+  /** Attendees linked at the moment it was marked held. */
   readonly attendeeCount: number;
+  /** How many of those actually became Activity subjects (the bounded set). */
+  readonly attendeesRecorded: number;
 }
 
-/** The success feedback wording — truthful about which outcome actually occurred. */
+/**
+ * The success feedback wording — truthful about which outcome actually occurred,
+ * and about how many timelines were ACTUALLY reached.
+ *
+ * The two counts differ only when a meeting exceeds
+ * {@link MAX_MEETING_HELD_ATTENDEE_SUBJECTS}; claiming the larger number would
+ * tell the owner that people received a history entry when they did not. A cap is
+ * disclosed, never applied silently (AGENTS.md §6).
+ */
 export function meetingHeldSuccessMessage(result: MeetingHeldOutcome): {
   readonly title: string;
   readonly message?: string;
@@ -98,13 +112,22 @@ export function meetingHeldSuccessMessage(result: MeetingHeldOutcome): {
     // A repeat submission is not a fresh success, and is not reported as one.
     return { title: "This meeting was already marked as held." };
   }
-  const n = result.attendeeCount;
+  const recorded = result.attendeesRecorded;
+  const total = result.attendeeCount;
+  if (total === 0) {
+    return {
+      title: "Meeting marked as held.",
+      message:
+        "No attendees are linked yet, so it was recorded on the meeting only.",
+    };
+  }
+  const reached = `Added to the timeline of ${recorded} ${recorded === 1 ? "attendee" : "attendees"}.`;
   return {
     title: "Meeting marked as held.",
     message:
-      n === 0
-        ? "No attendees are linked yet, so it was recorded on the meeting only."
-        : `Added to the timeline of ${n} ${n === 1 ? "attendee" : "attendees"}.`,
+      total > recorded
+        ? `${reached} This meeting has ${total} attendees — one event can name ${recorded}, so the rest are not on their own timelines.`
+        : reached,
   };
 }
 

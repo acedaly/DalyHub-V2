@@ -286,6 +286,56 @@ describe("states", () => {
     expect(await screen.findByText("No activity yet")).toBeInTheDocument();
   });
 
+  // Regression: the viewport used to carry `aria-label` with NO role while it was
+  // empty, loading or errored — a serious axe `aria-prohibited-attr` violation, and
+  // an accessible name assistive tech simply drops. It is a `feed` while showing
+  // articles and a labelled `group` otherwise, but it is NEVER an unlabelled or
+  // roleless region.
+  it("keeps the viewport a labelled region in EVERY state", async () => {
+    const { unmount } = renderStream({
+      loadPage: async () => ({ items: [], nextCursor: null, hasMore: false }),
+    });
+    expect(await screen.findByText("No activity yet")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Activity" })).toBeInTheDocument();
+    expect(screen.queryByRole("feed")).not.toBeInTheDocument();
+    unmount();
+
+    renderStream({
+      loadPage: async () => {
+        throw new Error("boom");
+      },
+    });
+    expect(
+      await screen.findByRole("button", { name: "Try again" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Activity" })).toBeInTheDocument();
+  });
+
+  // The state the sibling assertions above do NOT reach, and the reason this
+  // defect stayed hidden: while the FIRST page is loading the viewport is also
+  // roleless-but-labelled, so whether a scan catches the violation depends on
+  // whether it wins a race against the load. It is the only non-feed state that
+  // is genuinely busy, so it is also the one that must say so.
+  it("stays a labelled, busy group while the first page is still loading", () => {
+    // A loader that never settles holds the component in `showInitialLoading`.
+    renderStream({ loadPage: () => new Promise<ActivityStreamPage>(() => {}) });
+    const region = screen.getByRole("group", { name: "Activity" });
+    expect(region).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByRole("feed")).not.toBeInTheDocument();
+  });
+
+  it("becomes a labelled feed once it has articles to show", async () => {
+    renderStream({
+      loadPage: async () => ({
+        items: toActivityItems([rec({ id: "a" })], { resolveEntity }),
+        nextCursor: null,
+        hasMore: false,
+      }),
+    });
+    expect(await screen.findByRole("article")).toBeInTheDocument();
+    expect(screen.getByRole("feed", { name: "Activity" })).toBeInTheDocument();
+  });
+
   it("shows an error and retries", async () => {
     let attempt = 0;
     const loadPage = vi.fn(async (): Promise<ActivityStreamPage> => {
@@ -395,58 +445,5 @@ describe("DS-07 filtering — empty vs filtered-empty", () => {
     const clear = screen.getByRole("button", { name: /clear/i });
     fireEvent.click(clear);
     expect(onClearFilters).toHaveBeenCalled();
-  });
-});
-
-describe("DS-11 — the viewport never carries a prohibited aria-label", () => {
-  // Regression: the scroll viewport dropped `role="feed"` in every non-feed
-  // state but kept its `aria-label`, and `aria-label` is prohibited on a generic
-  // div. It was a serious axe violation (`aria-prohibited-attr`) that only
-  // surfaced when a scan caught the stream in one of those states — the loading
-  // window in particular is a race, so it presented as an intermittent failure
-  // rather than a reproducible one.
-  const viewport = (): HTMLElement => {
-    const el = document.querySelector(".dh-activity__viewport");
-    if (!el) throw new Error("viewport not rendered");
-    return el as HTMLElement;
-  };
-
-  const expectNamedWithARole = () => {
-    const el = viewport();
-    expect(el).toHaveAttribute("aria-label", "Activity");
-    // The name is only legal because a role that permits it is present.
-    expect(el.getAttribute("role")).toBeTruthy();
-  };
-
-  it("names the region via role=group while the first page is still loading", () => {
-    // Never resolves — holds the component in `showInitialLoading`.
-    renderStream({ loadPage: () => new Promise<ActivityStreamPage>(() => {}) });
-    expectNamedWithARole();
-    expect(viewport()).toHaveAttribute("role", "group");
-    expect(viewport()).toHaveAttribute("aria-busy", "true");
-  });
-
-  it("names the region via role=group when there is genuinely no activity", async () => {
-    renderStream({ loadPage: pageLoaderFor([]) });
-    await waitFor(() => expect(viewport()).toHaveAttribute("role", "group"));
-    expectNamedWithARole();
-  });
-
-  it("names the region via role=group when the initial load fails", async () => {
-    renderStream({
-      loadPage: async () => {
-        throw new Error("boom");
-      },
-    });
-    await screen.findByRole("button", { name: "Try again" });
-    expectNamedWithARole();
-    expect(viewport()).toHaveAttribute("role", "group");
-  });
-
-  it("uses role=feed once there is activity to own", async () => {
-    renderStream({ loadPage: pageLoaderFor([rec({ id: "a" })]) });
-    await screen.findByRole("article");
-    expect(viewport()).toHaveAttribute("role", "feed");
-    expectNamedWithARole();
   });
 });

@@ -17,6 +17,7 @@ import {
   createNoteRepository,
   createPersonRepository,
   createProjectHealthRepository,
+  createRelationshipRepository,
   createProjectRepository,
   createProjectSettingsRepository,
   createReviewRepository,
@@ -347,6 +348,15 @@ export function makeProjectHealthRepository(context: WorkspaceContext) {
  */
 export function makeAlignmentRepository(context: WorkspaceContext) {
   return createAlignmentRepository(env.DB, context);
+}
+
+/**
+ * Construct a workspace-scoped, read-only D1-backed RelationshipRepository over
+ * the isolated test database (PEOPLE-03: the derived relationship-facts
+ * projection, bound to a `WorkspaceContext`).
+ */
+export function makeRelationshipRepository(context: WorkspaceContext) {
+  return createRelationshipRepository(env.DB, context);
 }
 
 export function makeAppPreferencesRepository(

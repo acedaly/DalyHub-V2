@@ -147,27 +147,6 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
   const showingFeed =
     !genuinelyEmpty && !filteredEmpty && !initialError && !showInitialLoading;
 
-  /*
-   * The viewport is a focusable scroll region in BOTH states, so it keeps its
-   * name in both — but `aria-label` is prohibited on a generic div, so the
-   * non-feed state has to carry a role that permits one. `group` is that role:
-   * the region still exists and is still worth naming, it just owns an
-   * empty/error/loading state instead of a set of articles. Emitting a bare
-   * `aria-label` here was a serious `aria-prohibited-attr` violation that only
-   * surfaced when a scan caught the stream in one of those states.
-   */
-  const viewportAria = showingFeed
-    ? {
-        role: "feed",
-        "aria-label": ariaLabel,
-        "aria-busy": stream.isLoadingMore || undefined,
-      }
-    : {
-        role: "group",
-        "aria-label": ariaLabel,
-        "aria-busy": showInitialLoading || undefined,
-      };
-
   const renderRow = (row: ActivityRow): ReactNode => {
     if (row.kind === "heading") {
       return (
@@ -243,6 +222,28 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
     return null;
   }
 
+  /**
+   * The viewport is ALWAYS a labelled region, never a bare labelled div:
+   * `aria-label` on an element with no role is prohibited (axe
+   * `aria-prohibited-attr`, serious) and the accessible name is simply dropped by
+   * assistive tech. It is a `feed` while it is showing articles, and a plain
+   * labelled `group` while it is empty, loading or errored — so the bounded,
+   * focusable scroll region keeps its name in every state.
+   */
+  const viewportRegionProps = showingFeed
+    ? {
+        role: "feed",
+        "aria-label": ariaLabel,
+        "aria-busy": stream.isLoadingMore || undefined,
+      }
+    : {
+        role: "group",
+        "aria-label": ariaLabel,
+        // A labelled region that is busy should say so — otherwise the initial
+        // load is silent to assistive tech.
+        "aria-busy": showInitialLoading || undefined,
+      };
+
   return (
     <section className="dh-activity" data-scope={scope}>
       {/* Keyboard users need a focus target for the bounded scroll region; axe enforces it. */}
@@ -252,7 +253,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
         className="dh-activity__viewport"
         tabIndex={0}
         style={{ maxHeight }}
-        {...viewportAria}
+        {...viewportRegionProps}
       >
         {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
         {initialError ? (

@@ -40,6 +40,10 @@ export {
   MAX_PAGE_SIZE,
   ENTITY_TYPE_PATTERN,
   validateEntityType,
+  // Exposed for read-only cross-module projections that take already-authorised
+  // entity ids (e.g. the PEOPLE-03 relationship-facts repository) and must reject a
+  // malformed id at the boundary rather than binding it into a query.
+  validateEntityId,
 } from "./entity-validation";
 
 export type { CursorPosition } from "./entity-cursor";

@@ -413,9 +413,13 @@ export class D1MeetingRepository implements MeetingRepository {
    *   - `p.deleted_at IS NULL` — a soft-deleted Person is not a live subject.
    *
    * Ordered by `(created_at, id)` so the recorded subjects are deterministic and
-   * the bound below keeps the EARLIEST-linked attendees rather than an arbitrary
-   * slice. The scan is bounded one past the cap so an over-cap meeting can be
-   * reported honestly without counting an unbounded set.
+   * the bound keeps the EARLIEST-linked attendees rather than an arbitrary slice.
+   *
+   * `COUNT(*) OVER ()` is deliberate: SQLite evaluates a window function over the
+   * whole matched set BEFORE `LIMIT`, so ONE round trip yields both the bounded
+   * subject list and the TRUE attendee total. Counting separately would either
+   * saturate at the limit (under-reporting a 300-person meeting as 32) or race
+   * the id read and disagree with it. The row scan stays bounded either way.
    */
   async #activeAttendeeIds(
     meetingId: string,
@@ -423,7 +427,7 @@ export class D1MeetingRepository implements MeetingRepository {
     const rows = (
       await this.#db
         .prepare(
-          `SELECT l.target_entity_id person_id
+          `SELECT l.target_entity_id person_id, COUNT(*) OVER () total
              FROM entity_links l
              JOIN entities p
                ON p.workspace_id = l.workspace_id AND p.id = l.target_entity_id
@@ -440,16 +444,56 @@ export class D1MeetingRepository implements MeetingRepository {
           this.#workspaceId,
           meetingId,
           MEETING_ATTENDEE_LINK,
-          MAX_MEETING_HELD_ATTENDEE_SUBJECTS + 1,
+          MAX_MEETING_HELD_ATTENDEE_SUBJECTS,
         )
-        .all<{ person_id: string }>()
+        .all<{ person_id: string; total: number }>()
     ).results;
     return {
-      ids: rows
-        .slice(0, MAX_MEETING_HELD_ATTENDEE_SUBJECTS)
-        .map((r) => r.person_id),
-      total: rows.length,
+      ids: rows.map((r) => r.person_id),
+      total: rows[0]?.total ?? 0,
     };
+  }
+
+  /**
+   * The attendee counts recorded on the meeting's ORIGINAL `meeting.held` event.
+   *
+   * `MarkMeetingHeldResult`'s counts describe the moment the meeting was marked
+   * held, so the `already_held` path must report the historical facts — not the
+   * CURRENT attendee links, which may have changed since. The immutable event is
+   * the record of that moment, so read them back from its payload. Total: a
+   * missing or unparseable payload degrades to zeroes rather than throwing, since
+   * a retry must never fail on presentation metadata.
+   */
+  async #recordedHeldCounts(
+    meetingId: string,
+  ): Promise<{ attendeeCount: number; attendeesRecorded: number }> {
+    const row = await this.#db
+      .prepare(
+        `SELECT a.payload_json
+           FROM activities a
+           JOIN activity_subjects s
+             ON s.workspace_id = a.workspace_id AND s.activity_id = a.id
+          WHERE a.workspace_id = ? AND a.type = ? AND s.entity_id = ?
+          ORDER BY a.occurred_at, a.id
+          LIMIT 1`,
+      )
+      .bind(this.#workspaceId, MEETING_HELD, meetingId)
+      .first<{ payload_json: string }>();
+    try {
+      const payload = JSON.parse(row?.payload_json ?? "{}") as Record<
+        string,
+        unknown
+      >;
+      const count =
+        typeof payload.attendeeCount === "number" ? payload.attendeeCount : 0;
+      const recorded =
+        typeof payload.attendeesRecorded === "number"
+          ? payload.attendeesRecorded
+          : 0;
+      return { attendeeCount: count, attendeesRecorded: recorded };
+    } catch {
+      return { attendeeCount: 0, attendeesRecorded: 0 };
+    }
   }
 
   async markHeld(id: string): Promise<MarkMeetingHeldResult> {
@@ -460,16 +504,14 @@ export class D1MeetingRepository implements MeetingRepository {
     if (!meeting) throw new MeetingNotFoundError();
     if (meeting.archivedAt) throw new MeetingArchivedError();
     if (meeting.heldAt) {
-      // Already held: report the ORIGINAL facts and write nothing. The attendee
-      // counts are re-derived for the caller's message only — the recorded event
-      // and its subjects are untouched, so later attendee changes never rewrite
-      // history.
-      const { ids, total } = await this.#activeAttendeeIds(id);
+      // Already held: report the ORIGINAL facts and write nothing. The counts come
+      // from the recorded event, NOT from the current attendee links — a retry
+      // after an attendee was added or removed must still describe the moment the
+      // meeting was marked held, exactly as the result contract promises.
       return {
         outcome: "already_held",
         heldAt: meeting.heldAt,
-        attendeeCount: total,
-        attendeesRecorded: ids.length,
+        ...(await this.#recordedHeldCounts(id)),
       };
     }
 
@@ -540,11 +582,12 @@ export class D1MeetingRepository implements MeetingRepository {
       const current = await this.get(id);
       if (!current) throw new MeetingNotFoundError();
       if (current.heldAt) {
+        // The winner's event is the record of that moment — report ITS counts,
+        // not this losing caller's own (already superseded) attendee read.
         return {
           outcome: "already_held",
           heldAt: current.heldAt,
-          attendeeCount: attendees.total,
-          attendeesRecorded: attendees.ids.length,
+          ...(await this.#recordedHeldCounts(id)),
         };
       }
       throw new MeetingArchivedError();

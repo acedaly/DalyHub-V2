@@ -292,15 +292,68 @@ describe("MEET-03 — attendee derivation is server-side and honest", () => {
     const result = await r.meetings.markHeld(meeting.id);
 
     expect(result.attendeesRecorded).toBe(MAX_MEETING_HELD_ATTENDEE_SUBJECTS);
-    expect(result.attendeeCount).toBeGreaterThan(result.attendeesRecorded);
+    // The TRUE total, not the bounded scan's row count — a caller must be able to
+    // tell 33 attendees from 300, so the count must never saturate at the cap.
+    expect(result.attendeeCount).toBe(total);
     const payload = JSON.parse(
       (await latestActivityPayload(MEETING_HELD)) ?? "{}",
     ) as Record<string, unknown>;
+    expect(payload.attendeeCount).toBe(total);
+    expect(payload.attendeesRecorded).toBe(MAX_MEETING_HELD_ATTENDEE_SUBJECTS);
     expect(payload.attendeesTruncated).toBe(true);
+    // And only the capped number of Person subjects were actually written.
+    expect(await heldSubjects()).toHaveLength(
+      MAX_MEETING_HELD_ATTENDEE_SUBJECTS + 1,
+    );
+  });
+
+  it("reports the true total for a meeting far beyond the cap", async () => {
+    const r = repos();
+    const meeting = await seedMeeting(r);
+    const total = MAX_MEETING_HELD_ATTENDEE_SUBJECTS + 17;
+    for (let i = 0; i < total; i += 1) {
+      const person = await seedPerson(r, `Crowd ${i}`);
+      await attend(r, meeting.id, person.id);
+    }
+
+    const result = await r.meetings.markHeld(meeting.id);
+
+    expect(result.attendeeCount).toBe(total);
+    expect(result.attendeesRecorded).toBe(MAX_MEETING_HELD_ATTENDEE_SUBJECTS);
   });
 });
 
 describe("MEET-03 — idempotency, concurrency and atomicity", () => {
+  it("reports the ORIGINAL counts on a retry, even after attendees changed", async () => {
+    const r = repos();
+    const meeting = await seedMeeting(r);
+    const ada = await seedPerson(r, "Ada");
+    const grace = await seedPerson(r, "Grace");
+    const adaLink = await attend(r, meeting.id, ada.id);
+    await attend(r, meeting.id, grace.id);
+
+    const first = await r.meetings.markHeld(meeting.id);
+    expect(first.attendeeCount).toBe(2);
+
+    // Churn the attendee links AFTER the fact: remove one, add two more.
+    await r.links.unlink(adaLink.link.id);
+    for (const name of ["Later A", "Later B"]) {
+      const person = await seedPerson(r, name);
+      await attend(r, meeting.id, person.id);
+    }
+
+    const retry = await r.meetings.markHeld(meeting.id);
+
+    // The result describes the MOMENT IT WAS MARKED HELD, per the contract — not
+    // the current links (which now total 3). Otherwise a retry would report facts
+    // that contradict the immutable event.
+    expect(retry.outcome).toBe("already_held");
+    expect(retry.heldAt.toISOString()).toBe(first.heldAt.toISOString());
+    expect(retry.attendeeCount).toBe(2);
+    expect(retry.attendeesRecorded).toBe(2);
+    expect(await countActivitiesOfType(MEETING_HELD)).toBe(1);
+  });
+
   it("is idempotent: a repeated call writes nothing and reports already_held", async () => {
     const r = repos();
     const meeting = await seedMeeting(r);

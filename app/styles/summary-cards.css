@@ -1,0 +1,97 @@
+/*
+ * DS-13 — the shared summary-card grid.
+ *
+ * A responsive "one fact per card" grid for a record Summary. Expressed entirely in
+ * DS-01 tokens; no raw hex, px or duration. The grid reflows from a single column
+ * upward via `auto-fill` + `minmax`, so it never produces horizontal overflow — a
+ * DS-11 requirement from 320px up. Every card clears the shared 44px minimum touch
+ * target, and a linked card carries the ordinary shared link affordance (hover
+ * elevation + the global visible focus ring) rather than inventing one.
+ */
+
+.dh-summary-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--dh-space-2);
+}
+
+.dh-summary-cards__item {
+  min-width: 0;
+  display: flex;
+}
+
+.dh-summary-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+  min-height: var(--dh-control-height-lg);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  text-decoration: none;
+  color: inherit;
+}
+
+.dh-summary-card__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-summary-card__label {
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-summary-card__value {
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-tight);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+/* Tone tints the value only; the label above always states what the number is, so
+ * meaning is never carried by colour alone (DS-11 / WCAG 2.2 AA). */
+.dh-summary-card__value[data-tone="success"] {
+  color: var(--dh-color-success-text);
+}
+.dh-summary-card__value[data-tone="info"] {
+  color: var(--dh-color-info-text);
+}
+
+.dh-summary-card__detail {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dh-summary-card--link {
+  transition: border-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-summary-card--link:hover {
+  border-color: var(--dh-color-border-strong);
+  background: var(--dh-color-surface-raised);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-summary-card--link {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .dh-summary-card {
+    border-color: CanvasText;
+  }
+}

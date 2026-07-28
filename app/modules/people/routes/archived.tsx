@@ -31,9 +31,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    // Deliberately NO PEOPLE-03 stay-in-touch signal here. Archiving a Person is a
+    // reversible "put away"; telling the owner that someone they filed away is due
+    // for a catch-up would be exactly the nagging AGENTS.md §5 rules out. The
+    // relationship is still fully derived on the record itself.
     const page = await scope.people.list({ status: "archived", cursor });
     return {
-      people: page.items.map(serializePersonListItem),
+      people: page.items.map((person) => serializePersonListItem(person)),
       nextCursor: page.nextCursor,
       view: "archived" as const,
       failed: false,
