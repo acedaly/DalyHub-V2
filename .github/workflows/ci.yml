@@ -201,10 +201,28 @@ jobs:
     timeout-minutes: 30
     strategy:
       # Never cancel sibling shards on a failure: every shard's result is
-      # reported, so one red shard does not hide the state of the other four.
+      # reported, so one red shard does not hide the state of the others.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        # 2026-07-28 — five shards became seven, which is the revisit the note
+        # above anticipated ("if shard 2 keeps growing"). It did: shard 2 hit
+        # Playwright's own 900s globalTimeout with 148 passed, 0 failed and 3
+        # never run. That is not a flaky test and not a slow machine — the slice
+        # simply no longer fits the ceiling. Five feature PRs landed the same day
+        # (#79-#83), each adding specs, and MEASURED on run 30364653396 the five
+        # slices came to ~49 min of tests with the worst at 15m+.
+        #
+        # Seven puts the average near 7 min and the worst around 10-11, which is
+        # the same ~70% of the ceiling the split was originally tuned to. Raising
+        # globalTimeout instead was the alternative and is rejected: it would
+        # keep the worst shard pinned against whatever the new ceiling is, and
+        # each raise also has to drag `timeout-minutes` up with it to preserve
+        # the ordering above. Splitting finer fixes the cause; raising the
+        # ceiling only moves the line the cause is measured against.
+        #
+        # `strategy.job-total` derives from this list, so `--shard=N/total` and
+        # the job names follow automatically — this array is the only knob.
+        shard: [1, 2, 3, 4, 5, 6, 7]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
