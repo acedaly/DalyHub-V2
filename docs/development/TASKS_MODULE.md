@@ -455,3 +455,33 @@ the server actually applied — so they can never describe a narrower list than 
 one on screen. The sheet is visible at every width (`CollectionLayout
 persistentControls`), so there is one control surface to learn rather than a
 desktop bar and a phone sheet to keep in step.
+
+### Performance and bundle (TASKS-03, measured)
+
+Every read stays server-side, bounded and N+1-free. A page load runs a fixed
+number of queries regardless of how many tasks exist: one flat page **or** one
+grouped window query, plus two bounded aggregates for the delegate and parent
+filter option sets, plus one bounded saved-view list. Group labels for
+open-ended dimensions (parent, delegate) come from the row itself, so a grouped
+view costs no per-bucket lookup. The specialist views and the capture drawer stay
+lazily loaded.
+
+**Bundle, measured against `main` at `b14aa19`** (`pnpm run build`, byte sizes of
+`build/client/assets`):
+
+| | Baseline | TASKS-03 | Δ |
+|---|---|---|---|
+| **`entry.client` (the initial bundle)** | 182,473 | 182,473 | **0** |
+| All client assets | 1,964,952 | 1,987,919 | +22,967 (+1.17%) |
+
+The **initial bundle is byte-identical**: everything TASKS-03 adds lands in the
+lazily-loaded `/tasks` route chunk and the shared collection chunk, plus ~5 KB of
+token-only CSS. Nothing was added to the app shell.
+
+The E2E suite now runs against a seeded **80-task** collection dataset
+([`e2e/seed-tasks.sql`](../../e2e/seed-tasks.sql)) spanning every priority
+(including untriaged), every Time Sector (including the derived Inbox), every
+workflow status, delegated and waiting work, Someday/Maybe, completed records and
+a wide spread of due and planned dates — with the dimensions assigned from
+independent deterministic streams, so a combined filter cannot pass for the wrong
+reason.
