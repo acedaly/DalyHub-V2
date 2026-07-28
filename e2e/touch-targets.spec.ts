@@ -173,7 +173,12 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     }
     await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
 
-    await page.getByRole("button", { name: "Delete note" }).click();
+    // Removal itself now runs through the same overflow menu measured above —
+    // there is no longer a Delete button in the record header (PX-04). Notes are
+    // `deleteMode: "reversible"`, so the item deletes on a single activation and
+    // offers Undo; there is no confirmation step to clear here.
+    await overflow.click();
+    await page.getByRole("menuitem", { name: "Delete Note" }).click();
     await page.getByRole("link", { name: "Deleted" }).click();
     // Scoped to this test's own card — an orphaned Deleted Note left behind
     // by an earlier failed run would otherwise make "Restore" ambiguous.
