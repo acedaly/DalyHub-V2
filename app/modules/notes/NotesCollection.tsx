@@ -41,32 +41,37 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
-import {
-  SegmentedFilter,
-  type SegmentedFilterOption,
-} from "~/shared/segmented-filter";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NewNoteForm } from "./NewNoteForm";
-import type { SerializedNoteListItem } from "./note-view";
+import { NotesFilterBar, hasActiveFilters } from "./NotesFilterBar";
+import type {
+  NoteCollectionState,
+  NoteFilterOption,
+  NoteFilterValues,
+  SerializedNoteListItem,
+} from "./note-view";
 import type { NoteMutationResult } from "./routes/mutate";
 
 /** The drawer key hosting the create form. */
 const NEW_NOTE_KEY = "new-note";
 
-/** NOTES-01C lifecycle filter states — mirrors Projects' `ProjectState`. */
-export type NoteCollectionState = "active" | "deleted";
+export type { NoteCollectionState };
 
-const STATE_OPTIONS: readonly SegmentedFilterOption[] = [
-  { value: "active", label: "Active" },
-  { value: "deleted", label: "Deleted" },
-];
+/** The bounded option lists the filter selects offer. */
+export interface NoteFilterOptions {
+  readonly tags: readonly NoteFilterOption[];
+  readonly projects: readonly NoteFilterOption[];
+  readonly areas: readonly NoteFilterOption[];
+}
 
 export interface NotesCollectionViewProps {
   readonly notes: readonly SerializedNoteListItem[];
   /** Opaque cursor for the next page from the loader, or null when exhausted. */
   readonly nextCursor: string | null;
   readonly state: NoteCollectionState;
+  readonly filters: NoteFilterValues;
+  readonly options: NoteFilterOptions;
   readonly failed: boolean;
 }
 
@@ -89,6 +94,8 @@ export function NotesCollectionView({
   notes,
   nextCursor,
   state,
+  filters,
+  options,
   failed,
 }: NotesCollectionViewProps) {
   const navigate = useNavigate();
@@ -116,6 +123,8 @@ export function NotesCollectionView({
         notes={notes}
         nextCursor={nextCursor}
         state={state}
+        filters={filters}
+        options={options}
         failed={failed}
         onOpenNote={(id) => navigate(`/notes/${encodeURIComponent(id)}`)}
       />
@@ -144,9 +153,26 @@ function toCardProps(
   onOpenNote: (id: string) => void,
 ): CardProps {
   const metadata: CardMetaItem[] = [];
-  const updated = formatCalendarDate(note.updatedAt.slice(0, 10));
+  const updated = formatCalendarDate(note.effectiveUpdatedAt.slice(0, 10));
   if (updated) {
     metadata.push({ id: "updated", label: "Updated", value: updated });
+  }
+  if (note.tags.length > 0) {
+    metadata.push({
+      id: "tags",
+      label: "Tags",
+      value: note.tags.join(", "),
+    });
+  }
+  metadata.push({
+    id: "links",
+    label: "Links",
+    value: note.linkCount === 0 ? "None" : String(note.linkCount),
+  });
+  // Archive is state, not decoration — it is stated in WORDS, never by colour
+  // or a glyph alone, so it survives forced-colours and a screen reader.
+  if (note.archived) {
+    metadata.push({ id: "state", label: "State", value: "Archived" });
   }
 
   return {
@@ -155,6 +181,9 @@ function toCardProps(
     typeLabel: "Note",
     icon: <EntityIcon type="note" />,
     headingLevel: 2,
+    // The excerpt is the shared analyser's syntax-free reading of the body, so a
+    // card never shows `##` or half a code fence (§5).
+    ...(note.excerpt ? { subtitle: note.excerpt } : {}),
     metadata,
     density: "comfortable",
     presentation: "list",
@@ -215,6 +244,7 @@ function useNotePagination(
   firstPage: readonly SerializedNoteListItem[],
   initialCursor: string | null,
   state: NoteCollectionState,
+  filterKey: string,
 ) {
   const fetcher = useFetcher<NotesPageData>();
   const [appended, setAppended] = useState<SerializedNoteListItem[]>([]);
@@ -222,12 +252,14 @@ function useNotePagination(
   const [loadFailed, setLoadFailed] = useState(false);
   const processed = useRef<NotesPageData | null>(null);
 
+  // Every filter combination is its OWN bound cursor scope, so accumulated rows
+  // must be dropped whenever ANY dimension changes — not just the state segment.
   useEffect(() => {
     setAppended([]);
     setCursor(initialCursor);
     setLoadFailed(false);
     processed.current = null;
-  }, [initialCursor, state]);
+  }, [initialCursor, state, filterKey]);
 
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) {
@@ -265,8 +297,13 @@ function useNotePagination(
       return;
     }
     setLoadFailed(false);
-    fetcher.load(`/notes?cursor=${encodeURIComponent(cursor)}&state=${state}`);
-  }, [cursor, fetcher, state]);
+    // The next page MUST be requested under the same filter scope the cursor was
+    // issued for; `filterKey` is the serialised scope, so this can never ask the
+    // server to resume one result set inside another.
+    fetcher.load(
+      `/notes?${filterKey}${filterKey ? "&" : ""}state=${state}&cursor=${encodeURIComponent(cursor)}`,
+    );
+  }, [cursor, fetcher, state, filterKey]);
 
   const items = useMemo(() => {
     const seen = new Set<string>();
@@ -311,23 +348,41 @@ function useRestoreNote() {
   return useCollectionRestore({ post });
 }
 
+/** The filter dimensions, serialised as a query string — the cursor's scope. */
+function filterQueryKey(filters: NoteFilterValues): string {
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
+  if (filters.tag) params.set("tag", filters.tag);
+  if (filters.project) params.set("project", filters.project);
+  if (filters.area) params.set("area", filters.area);
+  if (filters.links !== "all") params.set("links", filters.links);
+  if (filters.sort !== "created") params.set("sort", filters.sort);
+  return params.toString();
+}
+
 function NotesCollection({
   notes,
   nextCursor,
   state,
+  filters,
+  options,
   failed,
   onOpenNote,
 }: {
   readonly notes: readonly SerializedNoteListItem[];
   readonly nextCursor: string | null;
   readonly state: NoteCollectionState;
+  readonly filters: NoteFilterValues;
+  readonly options: NoteFilterOptions;
   readonly failed: boolean;
   readonly onOpenNote: (id: string) => void;
 }) {
+  const filterKey = filterQueryKey(filters);
   const { items, hasMore, loading, loadFailed, loadMore } = useNotePagination(
     notes,
     nextCursor,
     state,
+    filterKey,
   );
   const { restore, pendingIds, restoredIds } = useRestoreNote();
 
@@ -337,17 +392,27 @@ function NotesCollection({
       : items;
 
   const count = visibleItems.length;
+  const filtered = hasActiveFilters(filters);
   // Never present the loaded-row count as the TOTAL while more pages remain —
   // say how many are "loaded" so far, not how many exist.
-  const noun = state === "deleted" ? "deleted notes" : "notes";
+  const noun =
+    state === "deleted"
+      ? "deleted notes"
+      : state === "archived"
+        ? "archived notes"
+        : "notes";
+  const singular =
+    state === "deleted"
+      ? "1 deleted note"
+      : state === "archived"
+        ? "1 archived note"
+        : "1 note";
   const subtitle = failed
-    ? `We couldn’t load your ${state === "deleted" ? "deleted notes" : "notes"}.`
+    ? `We couldn\u2019t load your ${noun}.`
     : hasMore
       ? `${count} ${noun} loaded`
       : count === 1
-        ? state === "deleted"
-          ? "1 deleted note"
-          : "1 note"
+        ? singular
         : `${count} ${noun}`;
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
@@ -361,11 +426,12 @@ function NotesCollection({
       subtitle={subtitle}
       entityType="note"
       filterBar={
-        <SegmentedFilter
-          param="state"
-          options={STATE_OPTIONS}
-          value={state}
-          label="Filter notes by state"
+        <NotesFilterBar
+          state={state}
+          filters={filters}
+          tags={options.tags}
+          projects={options.projects}
+          areas={options.areas}
         />
       }
       primaryAction={
@@ -381,17 +447,19 @@ function NotesCollection({
       error={
         failed ? (
           <EmptyState
-            title={`We couldn’t load your ${state === "deleted" ? "deleted notes" : "notes"}`}
+            title={`We couldn\u2019t load your ${noun}`}
             description="Something went wrong. Please try again."
           />
         ) : undefined
       }
-      isEmpty={!failed && count === 0 && !hasMore && state === "active"}
+      isEmpty={
+        !failed && count === 0 && !hasMore && state === "active" && !filtered
+      }
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="note" />}
           title="No Notes yet"
-          description="Notes hold what you know and think — references, drafts, research, ideas. Create your first one to get started."
+          description="Notes hold what you know and think \u2014 references, drafts, research, ideas. Create your first one to get started."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_NOTE_KEY}
@@ -403,20 +471,38 @@ function NotesCollection({
         />
       }
       isFilteredEmpty={
-        !failed && count === 0 && !hasMore && state === "deleted"
+        !failed && count === 0 && !hasMore && (state !== "active" || filtered)
       }
       filteredEmptySlot={
         <EmptyState
           icon={<EntityIcon type="note" />}
-          title="No deleted Notes"
-          description="Notes you delete appear here, and can be restored at any time."
+          title={
+            state === "deleted"
+              ? "No deleted Notes"
+              : state === "archived"
+                ? "No archived Notes"
+                : "No Notes match these filters"
+          }
+          description={
+            state === "deleted"
+              ? "Notes you delete appear here, and can be restored at any time."
+              : state === "archived"
+                ? "Notes you archive appear here. Archiving keeps a note and every link it has \u2014 it just leaves the active list."
+                : "Try a different search, tag, project or area \u2014 or clear the filters to see every note."
+          }
         />
       }
     >
       <CardCollection
         items={visibleItems}
         getItemId={(note) => note.id}
-        ariaLabel={state === "deleted" ? "Deleted notes" : "Notes"}
+        ariaLabel={
+          state === "deleted"
+            ? "Deleted notes"
+            : state === "archived"
+              ? "Archived notes"
+              : "Notes"
+        }
         presentation="list"
         density="comfortable"
         renderCard={(note) =>
@@ -434,9 +520,7 @@ function NotesCollection({
           loading={loading}
           loadFailed={loadFailed}
           onLoadMore={loadMore}
-          label={
-            state === "deleted" ? "Load more deleted notes" : "Load more notes"
-          }
+          label={`Load more ${noun}`}
         />
       ) : null}
     </CollectionLayout>

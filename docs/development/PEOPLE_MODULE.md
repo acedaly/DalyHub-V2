@@ -1,8 +1,9 @@
 # PEOPLE_MODULE.md — The People foundation
 
-> **Status:** PEOPLE-01 and PEOPLE-02 implemented. People are a first-class
-> Spine-backed entity in DalyHub, comparable to Areas, Goals, Projects, Notes and
-> Day Diary, and the Person record carries a **unified relationship timeline**.
+> **Status:** PEOPLE-01 and PEOPLE-02 implemented, and MEET-03 now contributes real
+> meeting history to them. People are a first-class Spine-backed entity in DalyHub,
+> comparable to Areas, Goals, Projects, Notes and Day Diary, and the Person record
+> carries a **unified relationship timeline**.
 >
 > Related: relationship philosophy in [`AGENTS.md §5`](../../AGENTS.md#5-relationship-philosophy) ·
 > entity kernel in [`DATA_KERNEL.md`](DATA_KERNEL.md) · module registry in
@@ -263,9 +264,10 @@ and canonical links, so it always tells the truth and never needs cleaning up.
 | A linked **Note**'s / **Diary entry**'s own events | the record is an anchor | Notes / Diary |
 | Any other linked record (Asset, Project, Goal, Area, Review …) | the record is an anchor | Other records |
 
-Meetings therefore appear **through the existing generic relationship** already
-created by MEET-01/MEET-02 attendee linking. The richer, meaning-specific Meeting
-history is MEET-03 — see the seam below.
+Meetings appear twice over, deliberately: **through the existing generic
+relationship** created by attendee linking (a Meeting's own record events, because
+it is an anchor), and — since MEET-03 — through `meeting.held`, which names the
+Person as a subject directly. See [How Meetings contribute](#how-meetings-contribute-meet-03).
 
 ### Event presentation, and why it is also the privacy boundary
 
@@ -324,32 +326,92 @@ are ordered by creation, so a long-standing relationship never crowds out this
 month's — and the tab shows an honest note above the stream naming how many are
 covered and pointing at the Linked tab. A cap is never applied silently.
 
-### The MEET-03 integration seam
+### How Meetings contribute (MEET-03)
 
-MEET-03 contributes the *substance* of a meeting to the attendee's history. It has
-exactly one place to do that, and needs **no** change to this surface:
+**Meetings contribute through this one timeline, and the seam held exactly as
+specified — the People module was not changed to receive them.** MEET-03 emits a
+`meeting.held` Activity event naming the Meeting **and every attendee Person** as
+subjects of one multi-subject event, and declares the type in the *Meetings*
+manifest with the label `Meeting held`. That single declaration is the whole
+integration:
 
-1. **Emit meaning-specific Meeting Activity that names the attendee Person as a
-   subject** — e.g. `meeting.held` recording the Meeting AND each attendee Person.
-   The Person is then an Activity subject in their own right, so the event appears
-   even if the attendee link is later removed, and it survives on a soft-deleted
-   Person's own history.
-2. **Declare the new types in the Meetings manifest** (`activityTypes`, with a human
-   label). That alone gives them a readable, payload-free line here — the People
-   module needs no edit, no import and no switch case.
-3. **Optionally register a `describe` for them in the Meetings module's own
-   descriptor map** if the Meeting record's Timeline wants a richer line; the
-   People surface deliberately keeps the label-only rendering (payload privacy).
-4. **Keep payloads structural** — item kinds, counts, dates; never agenda, notes,
-   decision or outcome text (§17), exactly as MEET-02 already does.
-5. **Category:** any `meeting.*` type classifies as **Conversations** automatically
-   (the category function keys on the event-type domain), so the new events are
-   filterable on arrival with no People change.
+| What was needed | Where it happened |
+|---|---|
+| A meaning-specific event that names the Person | Meetings — `meeting.held`, one event, many subjects |
+| A readable line on this timeline | The FND-06 registry, via `buildPersonTimelineDescriptors` — **no People edit** |
+| Filing under **Conversations** | `personTimelineCategory` keys on the `meeting.*` domain — **already true** |
+| No payload exposure | A registry-derived descriptor has a label but no `describe` — **already true** |
+| Navigation to the canonical Meeting | The shared DS-05 entity reference (see below) |
 
-What MEET-03 must NOT do: add a second Person history surface or endpoint, copy
-meeting content into a People-side table, or introduce a Meetings-specific
-timeline component. See [`MEETINGS_MODULE.md`](MEETINGS_MODULE.md) and
-[MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration).
+Because the Person is an Activity **subject in their own right**, a held meeting
+belongs to their history permanently: it appears even after the attendee link is
+removed (when the Meeting is no longer an anchor at all), and it survives on a
+soft-deleted Person's own stream. That is strictly stronger than the anchor-derived
+appearance PEOPLE-02 already gave a Meeting's record events, which both remain.
+
+There is still exactly **one** Person history surface, **one** endpoint, **one**
+Activity kernel and **one** set of attendee EntityLinks. No Meetings tab, no
+interactions table, no `person_details` interaction count, no last-contact column,
+no copied meeting summaries. Full semantics — held-state authority, the attendee
+snapshot rules, privacy and concurrency — are in
+[`MEETINGS_MODULE.md → People history`](MEETINGS_MODULE.md#people-history-meet-03)
+and [ADR-055](../decisions/ARCHITECTURE_DECISIONS.md#adr-055-a-meetings-occurrence-is-a-durable-write-once-fact-and-attendee-history-is-one-multi-subject-activity-event).
+
+An architectural test asserts the boundary rather than trusting it: the People
+timeline files import no Meetings code, hard-code no `meeting.*` identifier, and
+contain no Meetings-specific branch.
+
+#### One shared fix MEET-03 exposed
+
+`meeting.held` is the first multi-subject cross-module event where the anchor
+Person is *itself* a subject. DS-05's calm registry-derived line linked its
+**primary** subject — which, on a Person's own page, is the Person: a link back to
+where the reader already stood, with no route to the record the event was about.
+Fixed in the shared seam, once (`selectReferenceSubject` prefers the non-anchor
+subject), together with `ResolvedEntity.href`. This endpoint had also been
+hand-rolling a Task-only destination; it now resolves every reference through the
+ONE shared `entityDestination` helper, so a Note, Asset, Meeting or Review on a
+Person's timeline is navigable to its canonical record and a type with no genuine
+destination still degrades to plain text.
+
+### The meaningful-contact seam for PEOPLE-03
+
+**`meeting.held` is the Activity type that qualifies as meaningful Person contact,
+and today it is the only one.** It qualifies because it is the sole event asserting
+that *a real interaction with this specific Person occurred*, recorded by an
+explicit human act rather than inferred from a record edit. Everything else on this
+timeline is record maintenance, and treating any of it as contact would be
+dishonest — the exact trap
+[PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) names when
+it says deriving last-contact from `person.updated` today would be a lie:
+
+| Event | Why it is NOT contact |
+|---|---|
+| `person.created` / `person.updated` / `.archived` / `.restored` | The owner editing a record, not talking to anyone. |
+| `entity_link.created` / `.unlinked` | Filing a relationship. |
+| `meeting.created` / `.updated` | A meeting being **scheduled** or edited — it may never happen. |
+| `meeting.item_converted_to_task`, `note.*`, `task.*` | Work about a person, not an interaction with them. |
+
+The read seam is the existing kernel call — nothing new to build:
+
+```ts
+// The Person is a subject of `meeting.held`, so their own stream carries it.
+scope.activity.listForEntity(personId)   // → newest `meeting.held` = last meaningful contact
+```
+
+MEET-03 deliberately **persists nothing** for this: no `lastContactAt` column, no
+reminder date, no overdue calculation, no badge, streak, guilt language or CRM
+score. `person_details.follow_up_frequency` remains an input with no signal until
+PEOPLE-03 derives one, in the established derived-never-cached shape (PROJ-02
+health, AREA-03 alignment).
+
+No shared classification constant is introduced, because there is no ownership
+location for one that does not create the coupling this module's boundary forbids:
+a `MEANINGFUL_CONTACT_TYPES` list here would be a Meetings-specific switch by
+another name, and one in Meetings would have to be imported here. When PEOPLE-03
+needs more than one qualifying type, the correct mechanism is the same FND-06
+registry that already carries every module's declarations — each module declaring
+its own contribution, read without an import, exactly as labels are today.
 
 ### Files
 
@@ -398,14 +460,16 @@ The `person.linked_*` EntityLink types and the `person.*` Activity types are
 declared in the manifest today so the Timeline and Links surfaces label them the
 moment a future module starts creating them.
 
-### Meeting integration (MEET-03)
+### Meeting integration (MEET-03, ☑)
 
 A Meeting is its own entity, linked to its attendees with the MEET-01
-`meeting.attendee` EntityLink type. Because PEOPLE-02 reads the Activity stream
-across a Person's linked records, an attended Meeting's own record events ALREADY
-appear on the attendee's Timeline. MEET-03 adds the meeting's *substance* by
-emitting meaning-specific events that name the attendee as a subject — the exact
-seam is specified in [§4a → The MEET-03 integration seam](#the-meet-03-integration-seam).
+`meeting.attendee` EntityLink type. PEOPLE-02 reads the Activity stream across a
+Person's linked records, so an attended Meeting's own record events already
+appeared on the attendee's Timeline; MEET-03 added the meaning-specific
+`meeting.held` event, which names each attendee as a **subject** and so belongs to
+their history in its own right. Delivered exactly through the documented seam, with
+no change to this module — see
+[§4a → How Meetings contribute](#how-meetings-contribute-meet-03).
 
 ### Relationship model (planned depth)
 
@@ -424,25 +488,25 @@ sending or SMS. This PR is the DalyHub foundation only.
 
 ## Status (2026-07-28 reconciliation)
 
-**Current status.** The foundation and the relationship history are complete — [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) and [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) are ☑. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) and [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) remain ☐.
+**Current status.** The foundation, the relationship history and Meetings' contribution to it are complete — [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) and [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) are ☑. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) and [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) remain ☐.
 
-**Delivered capabilities (PEOPLE-02).** The Person Timeline is now a genuine relationship history: the ONE `/person/:personId/activity` endpoint reads the ONE FND-05 stream across the Person AND the records they are linked to, via an additive kernel multi-anchor read (`activity.listForEntities`) — no second timeline, no relationship-event store, no copied content. Cross-module events are labelled from the FND-06 module registry (so no module imports and no product switch), which is also the privacy boundary: another module's Activity payload is never rendered here. Adds DS-07 relationship-category filtering, an honest disclosure when a Person holds more relationships than one read covers, a snapshot-stable page cursor, and the documented MEET-03 seam. See [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream).
+**Delivered capabilities (PEOPLE-02).** The Person Timeline is now a genuine relationship history: the ONE `/person/:personId/activity` endpoint reads the ONE FND-05 stream across the Person AND the records they are linked to, via an additive kernel multi-anchor read (`activity.listForEntities`) — no second timeline, no relationship-event store, no copied content. Cross-module events are labelled from the FND-06 module registry (so no module imports and no product switch), which is also the privacy boundary: another module's Activity payload is never rendered here. Adds DS-07 relationship-category filtering, an honest disclosure when a Person holds more relationships than one read covers, a snapshot-stable page cursor, and the MEET-03 seam that has since been delivered against unchanged. See [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream).
 
 **Delivered capabilities (PEOPLE-01).** Person as a first-class reserved-type entity plus a `person_details` slice (migration `0013_create_person_details.sql`); closed relationship / contact-method / follow-up-frequency vocabularies; a reversible archive distinct from soft-delete; the People / Recent / Archived collection; a six-tab record (Summary / Contact / Timeline / Linked / Notes / Settings); avatars; a **real, repository-backed** search provider and five commands; the shared DS-05 Timeline over bounded, cursor-paginated `GET /person/:personId/activity` reads; and PII kept out of Activity payloads. DS-11 baseline proven — axe, 44px touch targets and no horizontal overflow from 320px up.
 
 **Known limitations.**
 
-- **Meetings contribute structurally, not semantically.** An attended Meeting's own record events appear (it is a linked record), but the meeting's substance — its decisions, outcomes and follow-through, scoped to the attendee — does not. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration), whose seam is specified in [§4a](#the-meet-03-integration-seam).
+- **A meeting's substance is still not scoped to the individual attendee.** [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ answers *"did we meet, and who was there"* through `meeting.held`, but not *"which decision concerned them, and what did they commit to"*. That is a Meetings **schema** limitation — `meeting_items` names no Person and Task delegation is plain text — not a People one, and closing it must never be done by inferring people from prose ([`MEETINGS_MODULE.md`](MEETINGS_MODULE.md#the-event-model)).
 - **A very well-connected Person sees a bounded history.** One read anchors at most 40 linked records; beyond that the tab discloses the bound rather than hiding it.
 - **Filtering matches over loaded pages**, per the shared DS-05/DS-07 contract — narrowing a long history is filter + Load more, not a server-side query.
 - **Stay-in-touch has an input but no signal.** The follow-up-frequency field is persisted and editable, but nothing derives last-contact, due or overdue state from it, and nothing surfaces it. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals).
 - Some record quick actions (Diary / Meeting / New note) are honest placeholders rather than wired flows.
 
-**Deferred work.** Meetings contributing their substance ([MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration)); stay-in-touch signals; mobile completion beyond the DS-11 baseline; and all external integrations (Google Contacts, Microsoft 365, calendar, email/SMS) — the kernel is designed to accept these without an API break.
+**Deferred work.** Per-attendee meeting substance (blocked on the Meetings item model); stay-in-touch signals ([PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals), now unblocked — [read seam](#the-meaningful-contact-seam-for-people-03)); mobile completion beyond the DS-11 baseline; and all external integrations (Google Contacts, Microsoft 365, calendar, email/SMS) — the kernel is designed to accept these without an API break.
 
-**Build order — still binding.** There is exactly **one** Person history surface and **one** endpoint behind it. PEOPLE-02 widened `/person/:personId/activity` into the unified relationship history; [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) contributes meeting participation to that same stream (seam: [§4a](#the-meet-03-integration-seam)); PEOPLE-03 derives its signal from it; mobile comes last. A separate "Meetings" or "Interactions" tab on the Person record would fork the model and re-create [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) inside V2.
+**Build order — still binding.** There is exactly **one** Person history surface and **one** endpoint behind it. PEOPLE-02 widened `/person/:personId/activity` into the unified relationship history; [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ contributed meeting participation to that same stream, through the documented seam and with no change to this module ([§4a](#how-meetings-contribute-meet-03)); PEOPLE-03 derives its signal from it ([read seam](#the-meaningful-contact-seam-for-people-03)); mobile comes last. A separate "Meetings" or "Interactions" tab on the Person record would fork the model and re-create [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) inside V2.
 
-**Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ · [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) ☐ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐.
+**Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ (now unblocked) · [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) ☐.
 
 **Relevant product-debt items.** [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3) (this module owns one of the two `0013` migrations — always cite it by full filename).
 

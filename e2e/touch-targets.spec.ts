@@ -155,8 +155,10 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     });
 
     await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
-    // PX-04: Delete now lives in the ONE shared overflow menu every record uses,
-    // so both the trigger and the item it reveals must meet the floor.
+    // PX-04/DS-12 moved every lifecycle action into the ONE shared overflow (⋯),
+    // so Delete is a MENU ITEM behind that trigger, not a header button. This
+    // spec still looked for the retired button and so could never pass — measure
+    // the real controls the user touches: the overflow trigger and its items.
     const overflow = page.getByRole("button", { name: /^More actions for / });
     await expectMinTouchTarget(overflow);
     await overflow.click();

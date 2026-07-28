@@ -1,22 +1,28 @@
 /**
- * NOTES-01B/NOTES-01C — the canonical Note record, composed through the
+ * NOTES-01B/01C/02/03/06 — the canonical Note record, composed through the
  * shared DS-02 Record Layout.
  *
- * Presentation only: the header (generic entity identity — title, Rename,
- * Delete — never a bespoke Notes-only header), the "Note" tab (the Markdown
- * source editor/preview, `NoteContentForm`) and the "Activity" tab. Data
+ * Presentation only: the header (generic entity identity — title, Rename, and
+ * the ONE shared DS-12 overflow holding Tags, Export, Archive and Delete), the
+ * "Note" tab (the writing editor), "Backlinks", "Links" and "Activity". Data
  * loading and mutations live in the route; this component only renders them.
- * Deliberately has no third "Settings"/"Links" tab — Delete lives as a Record
- * Header action (via `useDeleteNote`'s Undo-toast flow) rather than a Settings
- * tab, since a deleted Note's canonical route 404s (soft-deleted entities read
- * as "not found" everywhere in the kernel) and there is nothing else on this
- * record that would justify a Settings tab existing just for one action
- * (DESIGN_SYSTEM.md: never an empty tab for a future capability).
+ *
+ * The knowledge completion added three things here and nothing else:
+ *   - two relationship tabs, because "who points at this" and "what does this
+ *     point at" are different questions (§4) — they are NOT merged into one
+ *     ambiguous list, and neither replaces the shared REL-01 Linked Items
+ *     surface, which stays the place relationships are *edited*;
+ *   - tags and archive state in the shared Summary (in WORDS, never colour or a
+ *     glyph alone), with their actions in the shared overflow;
+ *   - Export in that same overflow — one lifecycle/overflow vocabulary, no
+ *     Notes-only action bar (DS-12/PX-04).
  */
 
 import { useRef, type ReactNode } from "react";
 
 import { EntityIcon } from "~/shared/entity";
+import { DownloadIcon, TagIcon } from "~/shared/icons";
+import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   RecordLayout,
   type RecordAction,
@@ -26,7 +32,9 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { NoteContentForm } from "./NoteContentForm";
+import { useArchiveNote } from "./use-archive-note";
 import { useDeleteNote } from "./use-delete-note";
+import { useNoteExport } from "./use-note-export";
 import {
   effectiveNoteUpdatedAt,
   type SerializedNoteDetails,
@@ -37,8 +45,10 @@ interface NoteOverviewProps {
   readonly overview: SerializedNoteOverview;
   readonly details: SerializedNoteDetails;
   readonly onRename: () => void;
+  readonly onEditTags: () => void;
   readonly onSaved: () => void;
-  readonly linkedTab: ReactNode;
+  readonly backlinksTab: ReactNode;
+  readonly linksTab: ReactNode;
   readonly activityTab: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
@@ -52,8 +62,10 @@ export function NoteOverview({
   overview,
   details,
   onRename,
+  onEditTags,
   onSaved,
-  linkedTab,
+  backlinksTab,
+  linksTab,
   activityTab,
   activeTabId,
   onTabChange,
@@ -67,6 +79,7 @@ export function NoteOverview({
   const updated = dateLabel(
     effectiveNoteUpdatedAt(overview.updatedAt, details.contentUpdatedAt),
   );
+  const archived = details.archivedAt !== null;
 
   const summaryMetadata: RecordMetaItem[] = [];
   if (created) {
@@ -74,6 +87,15 @@ export function NoteOverview({
   }
   if (updated) {
     summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
+  }
+  summaryMetadata.push({
+    id: "tags",
+    label: "Tags",
+    value: details.tags.length > 0 ? details.tags.join(", ") : "None",
+  });
+  if (archived) {
+    // State in words — never a colour-only or icon-only signal (AGENTS.md §15).
+    summaryMetadata.push({ id: "state", label: "State", value: "Archived" });
   }
 
   // Handed to `NoteContentForm` (which sets it during render, alongside its
@@ -87,6 +109,15 @@ export function NoteOverview({
     pending: deletePending,
     deleted,
   } = useDeleteNote(overview.id, overview.title, flushContentRef);
+  const {
+    archiveNote,
+    unarchiveNote,
+    pending: archivePending,
+  } = useArchiveNote(overview.id);
+  const { exportNote, pending: exportPending } = useNoteExport(
+    overview.id,
+    overview.title,
+  );
 
   const renameAction: RecordAction = {
     id: "rename",
@@ -94,16 +125,48 @@ export function NoteOverview({
     variant: "secondary",
     onSelect: onRename,
   };
+
+  // The module's own items sit ABOVE the shared lifecycle group in the ONE
+  // overflow, exactly as `useRecordLifecycle` documents — so "where do I find
+  // the other things I can do to this record?" has the same answer everywhere.
+  const leadingItems: readonly OverflowMenuItem[] = [
+    {
+      id: "note-tags",
+      label: "Edit tags",
+      icon: <TagIcon />,
+      onSelect: onEditTags,
+    },
+    {
+      id: "note-export-md",
+      label: "Export as Markdown (.md)",
+      icon: <DownloadIcon />,
+      disabled: exportPending,
+      onSelect: () => void exportNote("md"),
+    },
+    {
+      id: "note-export-txt",
+      label: "Export as plain text (.txt)",
+      icon: <DownloadIcon />,
+      disabled: exportPending,
+      onSelect: () => void exportNote("txt"),
+    },
+  ];
+
   // PX-04: Notes were the reference lifecycle (header button + Undo toast), but
   // the button lived beside Rename while every other module's removal was
   // somewhere else. The behaviour is unchanged — a single click, optimistic, with
   // a DS-10 Undo toast — it has simply moved into the ONE shared overflow slot so
-  // the mental model transfers (ADR-042 + PX-04).
+  // the mental model transfers (ADR-042 + PX-04). NOTES-03 adds Archive/Restore
+  // to the same group, using the SAME shared vocabulary as Projects and Areas.
   const lifecycle = useRecordLifecycle({
     entityType: "note",
     title: overview.title,
+    archived,
     deleteMode: "reversible",
-    pending: deletePending,
+    pending: deletePending || archivePending,
+    leadingItems,
+    onArchive: archiveNote,
+    onRestore: archived ? unarchiveNote : undefined,
     onDelete: async () => {
       deleteNote();
     },
@@ -137,7 +200,8 @@ export function NoteOverview({
               />
             ),
           },
-          { id: "linked", label: "Linked", content: linkedTab },
+          { id: "backlinks", label: "Backlinks", content: backlinksTab },
+          { id: "linked", label: "Links", content: linksTab },
           { id: "activity", label: "Activity", content: activityTab },
         ]}
       />

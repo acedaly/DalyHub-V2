@@ -1,12 +1,17 @@
 /**
- * NOTES-01B — canonical Note record route (`/notes/:noteId`).
+ * NOTES-01B/NOTES-02/NOTES-03 — canonical Note record route (`/notes/:noteId`).
  *
  * A full-page route, NOT a Drawer — long-form Note editing is
  * DESIGN_SYSTEM.md's flagged exception that warrants the full Record Layout
  * surface (mirrors how `~/modules/goals/routes/detail.tsx` and
  * `~/modules/projects/routes/detail.tsx` already host their canonical
- * records). The Drawer here hosts ONLY the "Rename" form, exactly like
- * Goals/Projects.
+ * records). The Drawer here hosts the "Rename" and "Edit tags" forms.
+ *
+ * The loader server-renders the FIRST page of the note's backlinks and outgoing
+ * links, so the relationship tabs are populated without JavaScript and without a
+ * loading flash; `/notes/:noteId/references` serves any further page. Both go
+ * through the same trusted composition, and an archived note still opens (only a
+ * DELETED note 404s — the kernel's own contract).
  */
 
 import { env } from "cloudflare:workers";
@@ -17,6 +22,10 @@ import {
   useSearchParams,
 } from "react-router";
 
+import {
+  DEFAULT_REFERENCE_PAGE,
+  loadNoteReferences,
+} from "~/platform/entity-links/note-references";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -28,9 +37,12 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LinkedItemsTab } from "~/shared/linked-items";
+import type { ReferencePage } from "~/shared/references";
 
 import { NoteActivityTab } from "../NoteActivityTab";
+import { NoteBacklinksTab, NoteLinksTab } from "../NoteReferences";
 import { NoteOverview } from "../NoteOverview";
+import { NoteTagsForm } from "../NoteTagsForm";
 import { RenameNoteForm } from "../RenameNoteForm";
 import {
   effectiveNoteUpdatedAt,
@@ -40,6 +52,7 @@ import {
 import type { Route } from "./+types/detail";
 
 const RENAME_KEY = "rename";
+const TAGS_KEY = "tags";
 
 export function meta() {
   return [{ title: "Note · DalyHub" }];
@@ -56,10 +69,29 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   }
 
   const details = await scope.noteDetails.get(noteId);
+  const content = details?.content ?? "";
+
+  // Both directions in parallel. Each is one bounded EntityLink page plus (for
+  // note counterparts) ONE batched context query — never a query per row.
+  // A relationship failure must not cost the user their note, so each degrades
+  // to an empty page and the tab shows its calm empty state.
+  const [backlinks, outgoing] = await Promise.all([
+    loadNoteReferences(scope, noteId, "incoming", {
+      limit: DEFAULT_REFERENCE_PAGE,
+      anchorTitle: entity.title,
+    }).catch<ReferencePage>(() => ({ items: [], nextCursor: null })),
+    loadNoteReferences(scope, noteId, "outgoing", {
+      limit: DEFAULT_REFERENCE_PAGE,
+      anchorTitle: entity.title,
+      anchorSource: content,
+    }).catch<ReferencePage>(() => ({ items: [], nextCursor: null })),
+  ]);
 
   return {
     overview: serializeNoteOverview(entity),
     details: serializeNoteDetails(details),
+    backlinks,
+    outgoing,
   };
 }
 
@@ -69,8 +101,13 @@ export default function NoteDetailRoute({ loaderData }: Route.ComponentProps) {
       createNoteDrawerRenderer(
         loaderData.overview.id,
         loaderData.overview.title,
+        loaderData.details.tags,
       ),
-    [loaderData.overview.id, loaderData.overview.title],
+    [
+      loaderData.overview.id,
+      loaderData.overview.title,
+      loaderData.details.tags,
+    ],
   );
 
   return (
@@ -80,13 +117,24 @@ export default function NoteDetailRoute({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function createNoteDrawerRenderer(noteId: string, title: string) {
+function createNoteDrawerRenderer(
+  noteId: string,
+  title: string,
+  tags: readonly string[],
+) {
   return function render(entry: DrawerEntry): DrawerRenderResult | null {
     if (entry.key === RENAME_KEY) {
       return {
         title: "Rename note",
         description: "Give this note a clearer title.",
         children: <RenameDrawerHost noteId={noteId} currentTitle={title} />,
+      };
+    }
+    if (entry.key === TAGS_KEY) {
+      return {
+        title: "Edit tags",
+        description: "Tags group notes across projects and areas.",
+        children: <TagsDrawerHost noteId={noteId} currentTags={tags} />,
       };
     }
     return null;
@@ -115,8 +163,34 @@ function RenameDrawerHost({
   );
 }
 
-function parseTab(value: string | null): "note" | "linked" | "activity" {
-  return value === "activity" || value === "linked" ? value : "note";
+function TagsDrawerHost({
+  noteId,
+  currentTags,
+}: {
+  readonly noteId: string;
+  readonly currentTags: readonly string[];
+}) {
+  const { closeDrawer } = useDrawer();
+  const revalidator = useRevalidator();
+  return (
+    <NoteTagsForm
+      noteId={noteId}
+      currentTags={currentTags}
+      onDone={() => {
+        revalidator.revalidate();
+        closeDrawer();
+      }}
+      onCancel={closeDrawer}
+    />
+  );
+}
+
+function parseTab(
+  value: string | null,
+): "note" | "backlinks" | "linked" | "activity" {
+  return value === "activity" || value === "linked" || value === "backlinks"
+    ? value
+    : "note";
 }
 
 function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
@@ -148,17 +222,28 @@ function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
       overview={props.overview}
       details={props.details}
       onRename={() => openDrawer(RENAME_KEY)}
+      onEditTags={() => openDrawer(TAGS_KEY)}
       onSaved={() => revalidator.revalidate()}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
-      linkedTab={
-        <LinkedItemsTab
-          anchorId={props.overview.id}
-          anchorType="note"
-          linkCommandTarget={{
-            kind: "route",
-            to: `/notes/${props.overview.id}?tab=linked`,
-          }}
+      backlinksTab={
+        <NoteBacklinksTab noteId={props.overview.id} page={props.backlinks} />
+      }
+      linksTab={
+        <NoteLinksTab
+          noteId={props.overview.id}
+          page={props.outgoing}
+          linkedItems={
+            <LinkedItemsTab
+              anchorId={props.overview.id}
+              anchorType="note"
+              readOnly={props.details.archivedAt !== null}
+              linkCommandTarget={{
+                kind: "route",
+                to: `/notes/${props.overview.id}?tab=linked`,
+              }}
+            />
+          }
         />
       }
       activityTab={

@@ -117,6 +117,24 @@ stays readable, shows the humanised event type (`widget.frobnicated` → "Widget
 frobnicated"), the actor, the time and available subjects, never crashes, and emits
 **no** payload metadata. `ActivityItem.isKnownType` is `false` for these.
 
+### Which record a label-only line refers to
+
+A descriptor with a **label but no `describe`** — every registry-derived
+cross-module descriptor, which is how a Person's unified timeline labels other
+modules' events — renders the calm default line `actor · Label — <record>`, and the
+same rule drives the unknown-type fallback. The `<record>` is chosen by
+`selectReferenceSubject`: the most meaningful subject that is **not the anchor**
+(a `subject`-role one first, then any), falling back to the primary subject when
+the anchor is the only subject there is.
+
+The distinction only bites for a **multi-subject** event that the anchor is itself
+a subject of — MEET-03's `meeting.held`, which names the Meeting and every attendee
+Person. Without it, that event on Ada's own page would link back to Ada. For a
+single-subject event, or one the anchor is not a subject of, this resolves to
+exactly what primary-subject selection already gave.
+
+A descriptor with its own `describe` chooses its own segments and is unaffected.
+
 ---
 
 ## Wiring a route
@@ -172,10 +190,15 @@ pass it straight back into the same listing.
   `filterFields`/`filterExpression`/`onClearFilters` to the stream. Filter state
   follows the DS-07 URL contract and preserves unrelated params (including DS-03
   `drawer` params).
-- **Opening an entity** reuses the DS-03 Drawer. A `ResolvedEntity` with a
-  `drawerKey` renders as a `DrawerTrigger` link by default; mount the stream inside a
-  `DrawerProvider` whose `renderDrawer` maps the key to a DS-02 Record Layout.
-  Override with `renderEntityLink` if you must — but never build a bespoke modal.
+- **Opening an entity** follows the record's own canonical destination, resolved
+  through the ONE shared `entityDestination(type, id)` helper (`~/shared/entity`) —
+  never a per-module route map. A `ResolvedEntity` with a `drawerKey` renders as a
+  `DrawerTrigger` (mount the stream inside a `DrawerProvider` whose `renderDrawer`
+  maps the key to a DS-02 Record Layout); one with an `href` renders as an ordinary
+  `Link` to its canonical record page; one with neither renders as plain,
+  non-interactive text — the correct degradation for an unresolvable record or a
+  type with no genuine destination. Override with `renderEntityLink` if you must —
+  but never build a bespoke modal.
 - **States** are built in and reuse the shared components: initial loading
   (Skeleton), genuinely-empty (EmptyState), filtered-empty (DS-07 FilterEmptyState),
   loading-more, page-load failure + retry, end-of-feed, unknown type, unresolved
