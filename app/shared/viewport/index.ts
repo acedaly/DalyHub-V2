@@ -13,3 +13,7 @@ export {
 } from "./keyboard-inset";
 export type { KeyboardInsetInput } from "./keyboard-inset";
 export { useKeyboardInset } from "./use-keyboard-inset";
+export {
+  COMPACT_VIEWPORT_QUERY,
+  useCompactViewport,
+} from "./use-compact-viewport";

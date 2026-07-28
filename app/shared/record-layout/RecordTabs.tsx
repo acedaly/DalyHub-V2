@@ -10,12 +10,16 @@
  *
  * Controlled (`activeTabId` + `onTabChange`) or uncontrolled (`defaultTabId`).
  *
- * **Overflow (MOBILE-01).** Up to {@link MAX_INLINE_TABS} tabs render inline and
- * the strip scrolls horizontally — the established DS-02 behaviour. BEYOND that
- * the strip stops being scannable on a phone: a six- or seven-tab record turns
- * into a swipe-hunt where the tab you want is always just off-screen. So a record
- * with more tabs shows its most important ones inline and moves the rest into a
- * labelled "More sections" menu.
+ * **Overflow (MOBILE-01).** On a PHONE, a five-, six- or seven-tab record turns
+ * the strip into a swipe-hunt where the tab you want is always just off-screen.
+ * So at compact viewports a record with more than {@link MAX_INLINE_TABS} tabs
+ * shows its most important ones inline and moves the rest into a labelled "More
+ * sections" menu.
+ *
+ * It is gated on the shared compact-viewport signal, which is desktop-first on the
+ * server: **wide viewports render every tab inline, exactly as before**, so no
+ * desktop or keyboard workflow changes and a JavaScript-free render gets the
+ * complete strip. Below `md` the strip scrolls and the surplus collapses.
  *
  * Three rules keep that honest:
  *   - the ACTIVE tab is always inline, swapping into the last inline slot when it
@@ -33,6 +37,7 @@
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 
 import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
+import { useCompactViewport } from "~/shared/viewport";
 
 import type { RecordTab, RecordTabsProps } from "./types";
 
@@ -131,9 +136,15 @@ export function RecordTabs({
 
   // The inline strip and the "More sections" overflow. Computed from the RESOLVED
   // active id so the active tab is always inline.
+  // Desktop-first: `false` on the server and on a wide viewport, so every tab
+  // renders inline exactly as before and only a phone collapses the surplus.
+  const compact = useCompactViewport();
   const { inline, overflow } = useMemo(
-    () => splitTabsForOverflow(shown, activeId),
-    [shown, activeId],
+    () =>
+      compact
+        ? splitTabsForOverflow(shown, activeId)
+        : { inline: shown, overflow: [] as readonly RecordTab[] },
+    [compact, shown, activeId],
   );
 
   /**

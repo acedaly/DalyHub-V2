@@ -44,6 +44,7 @@ import { RecordLayout } from "~/shared/record-layout";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { serializeTaskView } from "~/shared/task-record/task-view";
 import { utcToOwnerLocal } from "~/shared/datetime";
+import { MeetingCaptureBar } from "../MeetingCaptureBar";
 import { MeetingMarkdown } from "../MeetingMarkdown";
 import {
   DIRECT_FOLLOW_UP_DRAWER_KEY,
@@ -351,6 +352,24 @@ function MeetingRecord({
   );
   useRegisterContextualActions(followUpActions);
 
+  /**
+   * MOBILE-01 — append a captured note to the meeting's canonical notes Markdown.
+   *
+   * The SAME `intent=update` / `notesMarkdown` authority the Notes editor
+   * autosaves through, so a note captured from the bar and a note typed in the
+   * editor are one field, one Markdown source and one Activity trail. The line is
+   * appended (never overwritten) so a capture during a meeting can never destroy
+   * notes already written.
+   */
+  const appendNote = useCallback(
+    async (line: string): Promise<boolean> => {
+      const existing = m.notesMarkdown.trimEnd();
+      const next = existing.length > 0 ? `${existing}\n\n${line}` : line;
+      return post({ intent: "update", notesMarkdown: next });
+    },
+    [m.notesMarkdown, post],
+  );
+
   const itemSection = (
     kind: "agenda" | "decision" | "outcome" | "action",
     heading: string,
@@ -535,9 +554,9 @@ function MeetingRecord({
                   />
                 </div>
                 {itemSection("agenda", "Agenda items")}
+                {itemSection("action", "Actions")}
                 {itemSection("decision", "Decisions")}
                 {itemSection("outcome", "Outcomes")}
-                {itemSection("action", "Actions")}
               </section>
             ),
           },
@@ -608,6 +627,22 @@ function MeetingRecord({
           },
         ]}
       />
+
+      {/*
+       * MOBILE-01 — the sticky capture bar, shown only while the Meeting tab is
+       * open (that IS the live-meeting workspace; a bar over the Settings tab
+       * would be chrome). It saves through the canonical authorities and leaves
+       * the user exactly where they were, so capturing several items during a
+       * meeting never means switching tabs or opening a drawer.
+       */}
+      {active === "meeting" ? (
+        <MeetingCaptureBar
+          readOnly={readOnly}
+          onAddItem={(kind, body) => post({ intent: "add_item", kind, body })}
+          onAppendNote={appendNote}
+        />
+      ) : null}
+
       {lifecycle.dialogs}
     </>
   );

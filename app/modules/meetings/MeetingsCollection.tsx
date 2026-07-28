@@ -168,6 +168,7 @@ export function MeetingsCollection({
                 metadata={meetingMetadata(meeting)}
                 href={`/meeting/${meeting.id}`}
                 openAriaLabel={`Open meeting ${meeting.title}`}
+                quickActions={joinActions(meeting)}
                 density="compact"
                 presentation="list"
               />
@@ -189,6 +190,7 @@ function meetingMetadata(meeting: SerializedMeeting): CardMetaItem[] {
     {
       id: "when",
       label: "When",
+      // MOBILE-01: when a meeting IS is the thing you scan a meeting list for.
       value: new Intl.DateTimeFormat("en", {
         dateStyle: "medium",
         timeStyle: "short",
@@ -201,7 +203,41 @@ function meetingMetadata(meeting: SerializedMeeting): CardMetaItem[] {
       id: "where",
       label: "Where",
       value: meeting.location ?? meeting.mode,
+      // Supporting detail: useful, but not what you scan for.
+      priority: "low",
     });
   }
   return metadata;
+}
+
+/**
+ * MOBILE-01 — joining an online meeting is a ONE-TAP card action.
+ *
+ * Previously the meeting link lived inside the record's details, so joining from
+ * a phone thirty seconds before a call meant opening the record, finding the
+ * Overview tab and hunting for a URL. It is now a visible, labelled quick action
+ * on the card itself, for meetings that actually have a link and are still
+ * upcoming — a "Join" button on last month's completed meeting is noise.
+ *
+ * It is an ordinary Card quick action, so it is a labelled 44px control that
+ * stops propagation and never opens the record instead.
+ */
+function joinActions(meeting: SerializedMeeting) {
+  const joinable =
+    meeting.meetingUrl !== null &&
+    meeting.meetingUrl.length > 0 &&
+    meeting.archivedAt === null &&
+    meeting.heldAt === null &&
+    meeting.status === "planned";
+  if (!joinable) {
+    return undefined;
+  }
+  return [
+    {
+      id: "join",
+      label: "Join",
+      ariaLabel: `Join ${meeting.title}`,
+      href: meeting.meetingUrl as string,
+    },
+  ];
 }

@@ -8,7 +8,7 @@
  */
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RecordTabs } from "~/shared/record-layout/RecordTabs";
 import {
@@ -24,6 +24,27 @@ function tabs(...labels: readonly string[]): RecordTab[] {
     content: <p>{label} panel</p>,
   }));
 }
+
+/**
+ * Drive the shared compact-viewport signal. The overflow is PHONE behaviour: on a
+ * wide viewport every tab stays inline, so the rendering tests state which
+ * viewport they are exercising rather than relying on a default.
+ */
+function setCompactViewport(compact: boolean): void {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: compact,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }));
+}
+
+beforeEach(() => setCompactViewport(true));
+afterEach(() => vi.unstubAllGlobals());
 
 const SEVEN = tabs(
   "Summary",
@@ -90,6 +111,13 @@ describe("splitTabsForOverflow", () => {
 });
 
 describe("RecordTabs overflow rendering", () => {
+  it("keeps every tab inline on a wide viewport — desktop is unchanged", () => {
+    setCompactViewport(false);
+    render(<RecordTabs tabs={SEVEN} label="Sections" />);
+    expect(screen.getAllByRole("tab")).toHaveLength(SEVEN.length);
+    expect(screen.queryByTestId("record-tabs-more")).not.toBeInTheDocument();
+  });
+
   it("renders no overflow trigger for a short record", () => {
     render(<RecordTabs tabs={tabs("Summary", "Tasks")} label="Sections" />);
     expect(screen.queryByTestId("record-tabs-more")).not.toBeInTheDocument();

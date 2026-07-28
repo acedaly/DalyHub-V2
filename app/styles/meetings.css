@@ -134,3 +134,136 @@
   gap: var(--dh-space-3);
   flex-wrap: wrap;
 }
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — the sticky Meeting capture bar                                  */
+/*                                                                             */
+/* Pinned to the bottom of the Meeting workspace so a note, action, decision    */
+/* or outcome can be captured DURING a meeting without switching tabs, opening  */
+/* a drawer or scrolling to a section's own add field.                          */
+/*                                                                             */
+/* Both insets are tokens, so nothing here measures anything:                   */
+/*   - `--dh-keyboard-inset` (the ONE shared Visual Viewport observer) keeps the */
+/*     bar above the phone keyboard rather than under it;                       */
+/*   - `--dh-bottomnav-height` keeps it above the phone navigation bar.         */
+/* Both are `0px` on desktop, where the bar simply pins to the viewport bottom. */
+/* -------------------------------------------------------------------------- */
+
+.dh-meeting-capturebar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--dh-keyboard-inset, 0px) + var(--dh-bottomnav-height, 0px));
+  z-index: var(--dh-z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-3) var(--dh-gutter);
+  padding-inline-start: max(var(--dh-gutter), env(safe-area-inset-left));
+  padding-inline-end: max(var(--dh-gutter), env(safe-area-inset-right));
+  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
+  background: var(--dh-color-surface);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
+  box-shadow: var(--dh-shadow-md);
+  transition: bottom var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+/* When the keyboard is up the safe-area padding is meaningless (the home
+ * indicator is covered by the keyboard), so it collapses and the bar sits flush
+ * on top of the keyboard. */
+.dh-meeting-capturebar:focus-within {
+  padding-bottom: var(--dh-space-3);
+}
+
+/* The four types WRAP rather than scroll: a capture type the user has to swipe
+ * to find is not reachable mid-meeting. */
+.dh-meeting-capturebar__types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-meeting-capturebar__type {
+  flex: 1 1 auto;
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+}
+
+.dh-meeting-capturebar__type:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+/* Selected: aria-pressed (semantic) + accent border + weight — never colour
+ * alone. */
+.dh-meeting-capturebar__type[aria-pressed="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-surface);
+  font-weight: var(--dh-font-weight-semibold);
+  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+}
+
+.dh-meeting-capturebar__form {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-meeting-capturebar__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dh-meeting-capturebar__save {
+  flex: none;
+  min-block-size: var(--dh-touch-target-min);
+}
+
+/* The live region reserves no space when empty, so an announcement never shifts
+ * the input the user is typing into. */
+.dh-meeting-capturebar__status {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-meeting-capturebar__status:empty {
+  display: none;
+}
+
+/* The bar overlays the end of the record, so the record reserves its height. */
+.dh-record-section:has(~ .dh-meeting-capturebar),
+.record-layout:has(~ .dh-meeting-capturebar) {
+  padding-bottom: var(--dh-space-16);
+}
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — the phone Meeting record                                        */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* The live-meeting order: identity and time (the record header), attendees,
+   * agenda, notes, then actions, decisions and outcomes. The workspace stack
+   * already renders in that order; on a phone it tightens so more of it fits. */
+  .dh-meeting-workspace {
+    gap: var(--dh-space-4);
+  }
+
+  /* A meeting's detail list must never become a fixed-width two-column table on
+   * a phone — the values wrap under their labels instead. */
+  .dh-record-section dl {
+    display: block;
+  }
+
+  .dh-record-section dd {
+    margin-inline-start: 0;
+    margin-block-end: var(--dh-space-2);
+    overflow-wrap: anywhere;
+  }
+}
