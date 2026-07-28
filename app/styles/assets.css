@@ -296,3 +296,45 @@
 .dh-asset-not-found {
   padding: var(--dh-space-6);
 }
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — phone Assets                                                    */
+/*                                                                             */
+/* The two questions an Asset answers on a phone are "which one is this" and    */
+/* "when is the next thing due". Both stay prominent; the rest becomes a        */
+/* stacked list rather than a fixed-width two-column table that squeezes long   */
+/* serial numbers and URLs.                                                     */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* The facts list stacks: a label above its value, so a long serial number or
+   * a URL has the full width and wraps instead of overflowing. */
+  .dh-asset-summary__facts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dh-space-2);
+  }
+
+  .dh-asset-summary__fact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dh-space-px);
+  }
+
+  .dh-asset-summary__fact dt {
+    font-size: var(--dh-font-size-xs);
+  }
+
+  /* Long identifiers and links break rather than forcing the page wide. */
+  .dh-asset-summary__fact dd {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* The next renewal / service date keeps its prominence — it is the reason to
+   * open an Asset on a phone at all. */
+  .dh-asset-summary__next {
+    display: block;
+    font-size: var(--dh-font-size-md);
+  }
+}

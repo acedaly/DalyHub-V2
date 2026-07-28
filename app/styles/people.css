@@ -407,3 +407,35 @@
   border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface-sunken);
 }
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — phone People                                                    */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* The summary grid stacks rather than forcing a 12rem minimum column that
+   * overflows a 320px phone. */
+  .dh-person-summary__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Quick actions fill the row so each is a comfortable thumb target, and they
+   * wrap rather than scroll — an action the user has to swipe to find is not a
+   * quick action. */
+  .dh-person-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--dh-space-2);
+  }
+
+  .dh-person-quick-actions > * {
+    flex: 1 1 9rem;
+    justify-content: center;
+    min-block-size: var(--dh-touch-target-min);
+  }
+
+  /* Timeline entries stay readable: the rail narrows, the prose keeps the width. */
+  .dh-person-timeline {
+    --person-tl-rail: 2.5rem;
+  }
+}
