@@ -51,6 +51,17 @@ export interface ResolvedEntity {
    * omitted the entity renders as plain (non-interactive) text.
    */
   readonly drawerKey?: string;
+  /**
+   * The canonical in-app record route for this entity, for the types whose
+   * destination is a PAGE rather than the shared Drawer (a Meeting, Note, Person,
+   * Asset …). Resolve it with the one shared `entityDestination` helper rather
+   * than rebuilding a per-module route map.
+   *
+   * `drawerKey` wins when both are present. When neither is set the entity
+   * renders as plain, non-interactive text — the safe default for an entity type
+   * with no genuine destination, and for an unresolvable record.
+   */
+  readonly href?: string;
 }
 
 /** The trusted actor, mapped for presentation. Preserves the kernel fields. */

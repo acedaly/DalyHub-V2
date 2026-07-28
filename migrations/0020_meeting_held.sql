@@ -1,0 +1,60 @@
+-- Migration number: 0020 	 2026-07-28
+--
+-- MEET-03: the durable "this meeting actually happened" state.
+--
+-- MEET-03 contributes semantic interaction history to every attendee's ONE Person
+-- Activity timeline by emitting a `meeting.held` event that names the Meeting AND
+-- each attendee Person as Activity subjects. For that event to be truthful it needs
+-- a point in the Meeting lifecycle that PROVES the meeting occurred, and for it to
+-- be emitted exactly once it needs that point to be a durable, concurrency-safe
+-- database state — not a derived guess.
+--
+-- Why the existing model could not supply one (checked before adding anything):
+--
+--   * `meeting_details.status` ('planned' | 'completed' | 'cancelled') is a freely
+--     re-settable operational status with no UI writer today. It can move
+--     completed → planned → completed, so keying a once-only historical event off
+--     it would emit duplicates, and setting it is a read-then-write with no atomic
+--     transition guard. It also does not mean "it happened" — a meeting can be
+--     marked completed before it starts.
+--   * `starts_at` passing is a clock fact, not an occurrence fact: a meeting that
+--     was silently skipped would fabricate history on somebody's Person record.
+--   * `archived_at` is a reversible collection state, orthogonal to occurrence.
+--
+-- So this migration adds the SMALLEST additive slice: one nullable column.
+--
+--   `held_at` — the UTC instant at which the owner recorded that the meeting took
+--               place, or NULL when they have not. Set exactly once, by the
+--               explicit "Mark as held" domain action, through a conditional
+--               `UPDATE ... WHERE held_at IS NULL` whose `changes()` result guards
+--               the Activity append in the SAME `D1Database.batch()` — so the
+--               state change and its event are atomic, the operation is idempotent
+--               and safe to retry, and two concurrent submissions can only ever
+--               produce one event (ADR-012, ADR-054).
+--
+-- A UTC instant (not a wall-calendar date) is the consistent choice: every other
+-- instant on this table — `starts_at`, `ends_at`, `archived_at`, `updated_at` — is
+-- an ISO-8601 UTC instant, with the owner's IANA display timezone stored alongside
+-- in `timezone` for rendering. `held_at` records WHEN the fact was recorded, so it
+-- is an instant by nature; the meeting's own calendar day is already derivable
+-- from `starts_at` + `timezone`.
+--
+-- ADDITIVE and NON-DESTRUCTIVE: no table is rebuilt, no row is rewritten, no
+-- backfill is performed (every existing meeting is correctly "not recorded as
+-- held" — inventing a held state for historical rows would fabricate exactly the
+-- attendee history MEET-03 exists to make trustworthy). The column inherits
+-- `meeting_details`' existing workspace scope, composite
+-- `(workspace_id, entity_id, entity_type) → entities` foreign key and
+-- `CHECK (entity_type = 'meeting')`, so workspace scope and Meeting type stay
+-- enforced AT THE DATABASE BOUNDARY with no new constraint needed.
+--
+-- No index is added: the only access path is the existing primary key
+-- `(workspace_id, entity_id)`. `held_at` is never a query predicate — the
+-- attendee history lives in the Activity stream, which has its own access paths.
+--
+-- Idempotency: SQLite/D1 has no `ADD COLUMN IF NOT EXISTS`, so this relies on the
+-- migration ledger Wrangler maintains (`wrangler d1 migrations apply`, local and
+-- production alike), which applies each numbered file exactly once — the same
+-- guarantee migration 0019 already depends on.
+
+ALTER TABLE meeting_details ADD COLUMN held_at TEXT;

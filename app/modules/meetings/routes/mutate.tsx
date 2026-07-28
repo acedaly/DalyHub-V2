@@ -1,8 +1,28 @@
 import { env } from "cloudflare:workers";
-import { MEETING_ATTENDEE_LINK, type MeetingItemKind } from "~/kernel/meetings";
+import {
+  MEETING_ATTENDEE_LINK,
+  MeetingArchivedError,
+  MeetingNotFoundError,
+  type MeetingItemKind,
+} from "~/kernel/meetings";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import type { Route } from "./+types/mutate";
+
+/**
+ * MEET-03 — the JSON shape the "Mark as held" submission answers with. `outcome`
+ * is the truthful distinction between "this call recorded it" and "it was already
+ * held", so the UI can say what actually happened rather than reporting a fresh
+ * success for a repeat submission. Counts are structural only.
+ */
+export interface MarkHeldResponse {
+  readonly ok: true;
+  readonly outcome: "recorded" | "already_held";
+  readonly heldAt: string;
+  readonly attendeeCount: number;
+  readonly attendeesRecorded: number;
+}
+
 export async function action({ request, context, params }: Route.ActionArgs) {
   if (request.method !== "POST")
     throw new Response("Method Not Allowed", { status: 405 });
@@ -16,7 +36,22 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     const intent = String(f.get("intent"));
     if (intent === "archive") await scope.meetings.archive(id);
     else if (intent === "restore") await scope.meetings.restore(id);
-    else if (intent === "add_item")
+    else if (intent === "mark_held") {
+      // MEET-03. The workspace comes from the authenticated session, the meeting
+      // from the route, and the ATTENDEE SET is derived server-side inside the
+      // repository — this handler forwards no attendee input, so a crafted
+      // `personId`/`attendees` field in the submission is simply ignored and can
+      // never become an Activity subject. The operation is idempotent, so a
+      // double submission is safe and reports `already_held`.
+      const result = await scope.meetings.markHeld(id);
+      return Response.json({
+        ok: true,
+        outcome: result.outcome,
+        heldAt: result.heldAt.toISOString(),
+        attendeeCount: result.attendeeCount,
+        attendeesRecorded: result.attendeesRecorded,
+      } satisfies MarkHeldResponse);
+    } else if (intent === "add_item")
       await scope.meetings.addItem(
         id,
         String(f.get("kind")) as MeetingItemKind,
@@ -76,7 +111,24 @@ export async function action({ request, context, params }: Route.ActionArgs) {
       await scope.meetings.update(id, changes);
     }
     return Response.json({ ok: true });
-  } catch {
+  } catch (cause) {
+    // Calm, non-disclosing errors: the archived case is the one a user can act on,
+    // so it is named. Everything else stays generic — no storage detail, no ids,
+    // no meeting content (AGENTS.md §17).
+    if (cause instanceof MeetingArchivedError) {
+      return Response.json(
+        { ok: false, error: cause.message },
+        { status: 409 },
+      );
+    }
+    if (cause instanceof MeetingNotFoundError) {
+      return Response.json(
+        { ok: false, error: "Meeting not found." },
+        {
+          status: 404,
+        },
+      );
+    }
     return Response.json(
       { ok: false, error: "That change couldn’t be saved." },
       { status: 400 },

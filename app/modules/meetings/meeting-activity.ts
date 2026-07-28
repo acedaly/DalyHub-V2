@@ -8,12 +8,19 @@
  * descriptors; these layer on top via `createActivityDescriptorMap`. No descriptor
  * ever surfaces private meeting content — the payloads carry only structural
  * metadata (AGENTS.md §17).
+ *
+ * MEET-03 adds `meeting.held` here so the MEETING's own Timeline reads warmly. The
+ * attendee-facing rendering is deliberately NOT defined here: a Person's Timeline
+ * labels the event from the FND-06 module registry, whose descriptors carry a
+ * label but no `describe`, which is what keeps every payload field off that
+ * surface (PEOPLE_MODULE.md §4a). This map is never imported by the People module.
  */
 
 import {
   MEETING_ARCHIVED,
   MEETING_CREATED,
   MEETING_FOLLOW_UP_CREATED,
+  MEETING_HELD,
   MEETING_ITEM_CONVERTED_TO_TASK,
   MEETING_RESTORED,
   MEETING_UPDATED,
@@ -112,6 +119,11 @@ export const MEETING_ACTIVITY_DESCRIPTORS: ActivityDescriptorMap =
       "Restored",
       "restored this meeting",
       "info",
+    ),
+    [MEETING_HELD]: meetingEvent(
+      "Meeting held",
+      "recorded this meeting as held",
+      "success",
     ),
     [MEETING_ITEM_CONVERTED_TO_TASK]: conversionEvent(
       "Converted to task",

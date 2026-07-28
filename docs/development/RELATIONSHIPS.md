@@ -228,6 +228,39 @@ Consequences worth knowing when you touch this system:
   [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)
   and [`PEOPLE_MODULE.md → §4a`](PEOPLE_MODULE.md#4a-the-unified-relationship-timeline-people-02).
 
+### `meeting.attendee` — what the link means, and what it does NOT (MEET-03)
+
+MEET-03 made a distinction worth stating plainly, because the two are easy to
+conflate and only one of them is history.
+
+- **An active `meeting.attendee` link means "this Person is currently listed as an
+  attendee of this Meeting."** It is a *current* fact and is fully editable: adding
+  or removing an attendee is an ordinary link create/unlink, with the usual
+  both-endpoints `entity_link.created` / `.unlinked` events. As a relationship it
+  makes the Meeting an anchor of the Person's timeline, so the Meeting's own record
+  events appear there — and stop appearing when the link is removed.
+- **It does NOT, by itself, mean "this Person attended a meeting that happened."**
+  That is a historical fact, and MEET-03 records it separately as a `meeting.held`
+  Activity event naming each attendee as a **subject** at the moment the meeting was
+  marked held.
+
+The consequences are deliberate and worth remembering:
+
+- The attendee link is the **authority** for who attends — `meeting.held` derives
+  its subjects from the active links, server-side, and accepts no attendee input.
+- Once recorded, the event does **not** track the links any more. Removing an
+  attendee afterwards does not erase the interaction from their history; adding one
+  afterwards does not retroactively insert them. **Editing a relationship never
+  rewrites a historical fact.**
+- So a Person can hold a `meeting.held` event for a Meeting they are no longer
+  linked to. That is correct, not a leak: the event names them as a subject, which
+  is a stronger and more durable claim than an anchor-derived appearance.
+
+No link type, table or semantic was added — this section clarifies the existing
+`meeting.attendee` type against the new event. See
+[ADR-055](../decisions/ARCHITECTURE_DECISIONS.md#adr-055-a-meetings-occurrence-is-a-durable-write-once-fact-and-attendee-history-is-one-multi-subject-activity-event)
+and [`MEETINGS_MODULE.md → People history`](MEETINGS_MODULE.md#people-history-meet-03).
+
 ## Adopter note — Note references and backlinks (NOTES-02)
 
 NOTES-02 makes `[[Wiki Links]]` **persist**, closing the substantive half of

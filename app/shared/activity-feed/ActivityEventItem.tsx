@@ -8,6 +8,7 @@
  */
 
 import { memo, type ReactNode } from "react";
+import { Link } from "react-router";
 
 import { isEntityType, EntityIcon } from "~/shared/entity";
 import { DrawerTrigger } from "~/shared/drawer";
@@ -76,17 +77,31 @@ function DefaultEntityLink({
   entity: ResolvedEntity;
   label: string;
 }): ReactNode {
-  if (!entity.drawerKey) {
-    return <span className="dh-activity-item__entity">{label}</span>;
+  // A Drawer-opening record (a Task) keeps its Drawer; a record whose canonical
+  // destination is a PAGE gets an ordinary link, so an event on a timeline is a
+  // real route back to the record it is about rather than inert text. Neither →
+  // plain text (an unresolvable record, or a type with no genuine destination).
+  if (entity.drawerKey) {
+    return (
+      <DrawerTrigger
+        drawerKey={entity.drawerKey}
+        className="dh-activity-item__entity dh-activity-item__entity--link"
+      >
+        {label}
+      </DrawerTrigger>
+    );
   }
-  return (
-    <DrawerTrigger
-      drawerKey={entity.drawerKey}
-      className="dh-activity-item__entity dh-activity-item__entity--link"
-    >
-      {label}
-    </DrawerTrigger>
-  );
+  if (entity.href) {
+    return (
+      <Link
+        to={entity.href}
+        className="dh-activity-item__entity dh-activity-item__entity--link"
+      >
+        {label}
+      </Link>
+    );
+  }
+  return <span className="dh-activity-item__entity">{label}</span>;
 }
 
 export const ActivityEventItem = memo(function ActivityEventItem({
