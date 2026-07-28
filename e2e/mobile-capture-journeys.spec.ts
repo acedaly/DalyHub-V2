@@ -76,9 +76,12 @@ test.describe("MOBILE-01 Diary on a phone", () => {
     await gotoFixture(page, "/diary");
     await headerCreate(page).click();
 
-    // The capture panel is the Inspector's modal sheet on a phone; scoping to it
-    // keeps the field lookup unambiguous against the timeline behind it.
-    const panel = page.getByRole("dialog").last();
+    // Scoped to the capture FORM itself (`aria-label="Quick capture"`), not to
+    // the Inspector around it: the Inspector is a docked panel or a modal sheet
+    // depending on width, so its role is not a stable anchor — whereas the form
+    // is the same element either way. Scoping also disambiguates "Capture", which
+    // is now also the phone bottom bar's control.
+    const panel = page.locator(".dh-diary-capture");
     const title = panel.getByLabel("Title");
     await expect(title).toBeVisible({ timeout: 15_000 });
 
@@ -94,7 +97,7 @@ test.describe("MOBILE-01 Diary on a phone", () => {
     await panel.getByRole("button", { name: "Capture", exact: true }).click();
 
     // The plain Capture still closes, and the day behind it shows both entries.
-    await expect(panel).toBeHidden({ timeout: 15_000 });
+    await expect(panel).toHaveCount(0, { timeout: 15_000 });
     await expect(page.getByText("Phone diary entry two")).toBeVisible({
       timeout: 15_000,
     });
@@ -107,7 +110,7 @@ test.describe("MOBILE-01 Diary on a phone", () => {
     await gotoFixture(page, "/diary");
     await headerCreate(page).click();
     await expect(
-      page.getByRole("dialog").last().getByLabel("Title"),
+      page.locator(".dh-diary-capture").getByLabel("Title"),
     ).toBeVisible({ timeout: 15_000 });
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
