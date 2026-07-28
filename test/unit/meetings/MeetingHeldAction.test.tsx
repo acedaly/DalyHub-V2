@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  MAX_MEETING_HELD_ATTENDEE_SUBJECTS,
   MEETING_HELD_ACTION_ID,
   MEETING_HELD_ERROR_MESSAGE,
   meetingHeldActionItem,
@@ -92,28 +93,55 @@ describe("when the action is offered", () => {
 describe("what the action says afterwards", () => {
   it("reports a real recording, and how many timelines it reached", () => {
     expect(
-      meetingHeldSuccessMessage({ outcome: "recorded", attendeeCount: 3 }),
+      meetingHeldSuccessMessage({
+        outcome: "recorded",
+        attendeeCount: 3,
+        attendeesRecorded: 3,
+      }),
     ).toEqual({
       title: "Meeting marked as held.",
       message: "Added to the timeline of 3 attendees.",
     });
     expect(
-      meetingHeldSuccessMessage({ outcome: "recorded", attendeeCount: 1 })
-        .message,
+      meetingHeldSuccessMessage({
+        outcome: "recorded",
+        attendeeCount: 1,
+        attendeesRecorded: 1,
+      }).message,
     ).toBe("Added to the timeline of 1 attendee.");
   });
 
   it("is honest when there were no attendees to reach", () => {
     expect(
-      meetingHeldSuccessMessage({ outcome: "recorded", attendeeCount: 0 })
-        .message,
+      meetingHeldSuccessMessage({
+        outcome: "recorded",
+        attendeeCount: 0,
+        attendeesRecorded: 0,
+      }).message,
     ).toMatch(/No attendees are linked yet/);
+  });
+
+  it("counts the timelines ACTUALLY reached, and discloses the rest", () => {
+    // Beyond the subject cap, claiming `attendeeCount` timelines would tell the
+    // owner that people received a history entry when they did not.
+    const message = meetingHeldSuccessMessage({
+      outcome: "recorded",
+      attendeeCount: 40,
+      attendeesRecorded: MAX_MEETING_HELD_ATTENDEE_SUBJECTS,
+    }).message!;
+    expect(message).toContain(
+      `Added to the timeline of ${MAX_MEETING_HELD_ATTENDEE_SUBJECTS} attendees.`,
+    );
+    expect(message).toContain("40 attendees");
+    expect(message).toMatch(/not on their own timelines/);
+    expect(message).not.toContain("Added to the timeline of 40");
   });
 
   it("does NOT claim a fresh success for a repeat submission", () => {
     const result = meetingHeldSuccessMessage({
       outcome: "already_held",
       attendeeCount: 2,
+      attendeesRecorded: 2,
     });
     expect(result.title).toBe("This meeting was already marked as held.");
     expect(result.message).toBeUndefined();
@@ -139,8 +167,11 @@ function Host({
       if (ok) {
         setHeldAt(HELD_AT);
         setStatus(
-          meetingHeldSuccessMessage({ outcome: "recorded", attendeeCount: 1 })
-            .title,
+          meetingHeldSuccessMessage({
+            outcome: "recorded",
+            attendeeCount: 1,
+            attendeesRecorded: 1,
+          }).title,
         );
       } else {
         setStatus(MEETING_HELD_ERROR_MESSAGE);
