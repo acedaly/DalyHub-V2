@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { mobileNavigationOpener } from "./helpers";
+
 /**
  * PX-02 — the application frame, driven end to end against the development-auth
  * server (where the dev-only Collection Layout fixture is mounted). Deliberately
@@ -113,7 +115,7 @@ test.describe("PX-02 frame — mobile (320px)", () => {
     await page.goto("/");
 
     // The persistent rail is hidden; the mobile bar's menu toggle opens the sheet.
-    const toggle = page.getByRole("button", { name: /open navigation/i });
+    const toggle = mobileNavigationOpener(page);
     await expect(toggle).toBeVisible();
     await toggle.click();
 

@@ -13,21 +13,22 @@
  * **Overflow (MOBILE-01).** On a PHONE, a five-, six- or seven-tab record turns
  * the strip into a swipe-hunt where the tab you want is always just off-screen.
  * So at compact viewports a record with more than {@link MAX_INLINE_TABS} tabs
- * shows its most important ones inline and moves the rest into a labelled "More
- * sections" menu.
+ * grows a labelled "More sections" menu offering the surplus tabs directly.
  *
- * It is gated on the shared compact-viewport signal, which is desktop-first on the
- * server: **wide viewports render every tab inline, exactly as before**, so no
- * desktop or keyboard workflow changes and a JavaScript-free render gets the
- * complete strip. Below `md` the strip scrolls and the surplus collapses.
+ * The menu is an ACCELERATOR, not a replacement: **every tab stays in the
+ * `tablist`**, and the strip scrolls. That is deliberate. Removing tabs from the
+ * strip would mean a tab that exists at 1440px does not exist at 375px — the
+ * roving-tabindex model, the arrow-key order and every deep link would differ by
+ * viewport, and a control the rest of the product can address by role would
+ * silently vanish on a phone. Keeping the strip complete means one tab model at
+ * every width; the menu just removes the swiping.
  *
  * Three rules keep that honest:
- *   - the ACTIVE tab is always inline, swapping into the last inline slot when it
- *     lives in the overflow, so you can always see where you are;
- *   - nothing is hidden permanently — Activity and Settings are reachable in one
- *     tap from the menu, and every tab keeps its deep link and URL state;
- *   - selecting from the menu moves focus to the now-inline tab, so a keyboard or
- *     screen-reader user lands on the control that reflects their choice.
+ *   - nothing is hidden at any width — Activity and Settings remain tabs, and are
+ *     additionally one tap away in the menu;
+ *   - every tab keeps its deep link, URL state and keyboard position;
+ *   - selecting from the menu moves focus to the tab it activates, so a keyboard
+ *     or screen-reader user lands on the control that reflects their choice.
  *
  * The menu button sits OUTSIDE the `tablist` (a tablist may contain only tabs) and
  * reuses the ONE shared DS-12 overflow menu — there is no second menu component,
@@ -42,9 +43,9 @@ import { useCompactViewport } from "~/shared/viewport";
 import type { RecordTab, RecordTabsProps } from "./types";
 
 /**
- * How many tabs render inline before the rest move into the "More sections" menu.
- * Four is the point at which a phone tab strip stops being scannable; below it the
- * strip simply scrolls, as DS-02 always did.
+ * How many tabs a compact record shows before it also offers a "More sections"
+ * menu. Four is the point at which a phone tab strip stops being scannable. At or
+ * below it the strip simply scrolls, as DS-02 always did, and no menu appears.
  */
 export const MAX_INLINE_TABS = 4;
 
@@ -54,35 +55,26 @@ function visibleTabs(tabs: readonly RecordTab[]): readonly RecordTab[] {
 }
 
 /**
- * Split the visible tabs into the inline strip and the overflow menu.
+ * The tabs a compact record offers in its "More sections" menu.
  *
- * Pure and exported so the split — especially the active-tab swap — is unit-tested
- * without a DOM. With `MAX_INLINE_TABS` or fewer tabs the overflow is empty and
- * every tab is inline, so short records are completely unaffected.
+ * Pure and exported so the rule is unit-tested without a DOM. These are the tabs
+ * beyond the first `maxInline` — the ones a phone user would otherwise have to
+ * scroll the strip to reach. They are *also* still in the strip: this list decides
+ * what the menu contains, never what the `tablist` contains.
+ *
+ * The ACTIVE tab is never listed, because the menu's purpose is "go somewhere you
+ * cannot currently see", and with `maxInline` or fewer tabs the list is empty so
+ * short records get no menu at all.
  */
-export function splitTabsForOverflow(
+export function tabsForOverflowMenu(
   tabs: readonly RecordTab[],
   activeId: string | undefined,
   maxInline: number = MAX_INLINE_TABS,
-): {
-  readonly inline: readonly RecordTab[];
-  readonly overflow: readonly RecordTab[];
-} {
+): readonly RecordTab[] {
   if (tabs.length <= maxInline) {
-    return { inline: tabs, overflow: [] };
+    return [];
   }
-  // One inline slot is reserved for the active tab when it would otherwise be in
-  // the overflow, so the strip always shows where you are.
-  const head = tabs.slice(0, maxInline - 1);
-  const tail = tabs.slice(maxInline - 1);
-  const activeInTail = tail.find((tab) => tab.id === activeId);
-  if (activeInTail) {
-    return {
-      inline: [...head, activeInTail],
-      overflow: tail.filter((tab) => tab.id !== activeInTail.id),
-    };
-  }
-  return { inline: [...head, tail[0]], overflow: tail.slice(1) };
+  return tabs.slice(maxInline).filter((tab) => tab.id !== activeId);
 }
 
 /** The first selectable (visible, enabled) tab id, or undefined. */
@@ -134,29 +126,36 @@ export function RecordTabs({
     [select],
   );
 
-  // The inline strip and the "More sections" overflow. Computed from the RESOLVED
-  // active id so the active tab is always inline.
-  // Desktop-first: `false` on the server and on a wide viewport, so every tab
-  // renders inline exactly as before and only a phone collapses the surplus.
+  // Every tab renders in the strip at every width. `overflow` only decides what
+  // the compact "More sections" menu offers as a shortcut.
+  // Desktop-first: `false` on the server and on a wide viewport, so a wide record
+  // is byte-for-byte what it was before MOBILE-01 — no menu at all.
   const compact = useCompactViewport();
-  const { inline, overflow } = useMemo(
-    () =>
-      compact
-        ? splitTabsForOverflow(shown, activeId)
-        : { inline: shown, overflow: [] as readonly RecordTab[] },
+  const inline = shown;
+  const overflow = useMemo(
+    () => (compact ? tabsForOverflowMenu(shown, activeId) : []),
     [compact, shown, activeId],
   );
 
   /**
-   * Select a tab from the overflow menu and move focus onto it. The tab becomes
-   * inline in the same render (it is now active), so focus lands on a control the
-   * user can see — never on a button that just disappeared.
+   * Select a tab from the "More sections" menu and bring it into view.
+   *
+   * It deliberately does NOT take focus: the shared DS-12 menu returns focus to
+   * its trigger on close, which is the correct menu-button behaviour, and a
+   * component that fights its own menu for focus is a race, not a contract. The
+   * tab is always in the strip, so scrolling is all that is needed for the user to
+   * see the choice they just made.
    */
   const selectFromOverflow = useCallback(
     (tabId: string) => {
       select(tabId);
-      // Defer to the render that promotes the tab into the inline strip.
-      window.requestAnimationFrame(() => tabRefs.current.get(tabId)?.focus());
+      // Defer to the render that marks the tab active before scrolling to it.
+      window.requestAnimationFrame(() => {
+        tabRefs.current.get(tabId)?.scrollIntoView?.({
+          block: "nearest",
+          inline: "nearest",
+        });
+      });
     },
     [select],
   );
@@ -174,9 +173,8 @@ export function RecordTabs({
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, currentId: string) => {
-      // Arrow keys move within the INLINE strip (the visible composite widget).
-      // Overflow tabs are reached through the menu, which has its own keyboard
-      // model — so there is no invisible focus stop.
+      // Arrow keys move across the whole strip, which holds every tab at every
+      // width — so the keyboard order does not change with the viewport.
       const selectable = inline.filter((tab) => tab.disabled !== true);
       if (selectable.length === 0) {
         return;

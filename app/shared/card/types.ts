@@ -109,6 +109,12 @@ export interface CardAction {
   /** Hide the visible label (icon-only). The accessible name is kept via aria. */
   readonly iconOnly?: boolean;
   readonly href?: string;
+  /**
+   * The `href` leaves DalyHub (a conferencing link, a vendor page), so it opens in
+   * a new tab with `rel="noreferrer"` rather than replacing the application.
+   * Only meaningful with `href`; in-app links must stay same-window so Back works.
+   */
+  readonly external?: boolean;
   readonly onSelect?: () => void;
   readonly disabled?: boolean;
   /** Pending shows a busy state and blocks activation (generic; no mutation here). */

@@ -67,6 +67,10 @@ export function CardActionButton({
         title={action.description}
         aria-keyshortcuts={action.shortcut}
         tabIndex={tabIndex}
+        // An external destination opens in a new tab, so activating it never
+        // discards the user's place in DalyHub.
+        target={action.external ? "_blank" : undefined}
+        rel={action.external ? "noreferrer" : undefined}
         onClick={stop}
       >
         {label}

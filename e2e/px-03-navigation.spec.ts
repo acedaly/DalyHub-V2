@@ -23,6 +23,8 @@
 
 import { expect, test } from "@playwright/test";
 
+import { mobileNavigationOpener } from "./helpers";
+
 const SHELL_MODULES = [
   { label: "AI", path: "/ai" },
   { label: "Help", path: "/help" },
@@ -231,7 +233,11 @@ test.describe("PX-03 — mobile overlay reaches a shell module", () => {
     page,
   }) => {
     await page.goto("/today");
-    await page.getByRole("button", { name: /open navigation/i }).click();
+    // MOBILE-01 moved the opener from a top-left hamburger to "More" in the phone
+    // bottom bar — within thumb reach. It opens the SAME complete, registry-driven
+    // navigation sheet, so everything this test asserts about the overlay is
+    // unchanged; only the control that opens it moved.
+    await mobileNavigationOpener(page).click();
     const dialog = page.getByRole("dialog", { name: "Navigation" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("link", { name: "Help" }).click();

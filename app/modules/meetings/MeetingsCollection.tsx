@@ -238,6 +238,10 @@ function joinActions(meeting: SerializedMeeting) {
       label: "Join",
       ariaLabel: `Join ${meeting.title}`,
       href: meeting.meetingUrl as string,
+      // The conferencing site is not DalyHub: joining opens a new tab, exactly as
+      // the canonical meeting-link control on the record does, so the user's place
+      // in the application survives the call.
+      external: true,
     },
   ];
 }

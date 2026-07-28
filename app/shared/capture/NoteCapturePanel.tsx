@@ -20,7 +20,7 @@
  * empty Note (not a lost one) and says so, rather than silently discarding words.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import {
@@ -60,6 +60,10 @@ export function NoteCapturePanel({
   const navigate = useNavigate();
   const [handingOff, setHandingOff] = useState(false);
 
+  /** The note created by an earlier attempt, so a retry resumes it. */
+
+  const createdNoteIdRef = useRef<string | null>(null);
+
   const form = useForm<Values>({
     initialValues: { title: "", opening: "" },
     fields: { title: { validate: required("A note needs a title") } },
@@ -69,26 +73,32 @@ export function NoteCapturePanel({
       body.set("title", values.title);
 
       let data: CreateNoteResponse;
-      try {
-        const response = await fetch("/notes/new", { method: "POST", body });
-        data = (await response.json()) as CreateNoteResponse;
-      } catch {
-        return {
-          status: "error",
-          formError:
-            "That note couldn’t be created. Your text is safe — try again.",
-        };
+      // A retry after a failed CONTENT write must not create a second note. The
+      // note already exists, so this submission resumes it rather than starting
+      // again — otherwise an outage leaves a trail of blank duplicates.
+      let noteId = createdNoteIdRef.current;
+      if (noteId === null) {
+        try {
+          const response = await fetch("/notes/new", { method: "POST", body });
+          data = (await response.json()) as CreateNoteResponse;
+        } catch {
+          return {
+            status: "error",
+            formError:
+              "That note couldn’t be created. Your text is safe — try again.",
+          };
+        }
+        if (!data.ok) {
+          return {
+            status: "error",
+            formError: data.formError,
+            fieldErrors: data.fieldErrors as
+              Partial<Record<keyof Values & string, string>> | undefined,
+          };
+        }
+        noteId = data.noteId;
+        createdNoteIdRef.current = noteId;
       }
-      if (!data.ok) {
-        return {
-          status: "error",
-          formError: data.formError,
-          fieldErrors: data.fieldErrors as
-            Partial<Record<keyof Values & string, string>> | undefined,
-        };
-      }
-
-      const noteId = data.noteId;
       const opening = values.opening.trim();
       if (opening.length > 0) {
         // The Note's OWN canonical content mutation — the same authority the
@@ -106,12 +116,12 @@ export function NoteCapturePanel({
             throw new Error("Note content write failed");
           }
         } catch {
-          // The Note exists; only the opening line failed. Say so honestly and
-          // keep the text on screen rather than pretending it saved.
+          // The Note exists; only the opening line failed. Say so honestly, keep
+          // the text on screen, and make clear a retry finishes THIS note.
           return {
             status: "error",
             formError:
-              "The note was created, but its opening line didn’t save. Open the note and paste it in.",
+              "The note was created, but its opening line didn’t save. Try again — this finishes that note rather than creating another.",
           };
         }
       }

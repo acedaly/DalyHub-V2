@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isRouteErrorResponse,
   useRevalidator,
@@ -353,6 +353,26 @@ function MeetingRecord({
   useRegisterContextualActions(followUpActions);
 
   /**
+   * The notes value this component last wrote, held until the loader catches up.
+   *
+   * `notesMarkdown` is a whole-field update, so appending means read-modify-write —
+   * and the "read" is a loader snapshot that only refreshes after revalidation.
+   * Capturing two notes in quick succession (exactly what the capture bar is FOR)
+   * would otherwise build the second append from the pre-first-note snapshot and
+   * overwrite the first note. Remembering what we wrote makes the second append
+   * build on it.
+   */
+  const pendingNotesRef = useRef<string | null>(null);
+
+  // Drop the remembered value once the loader has caught up with it, so the
+  // component goes back to trusting the server as its base.
+  useEffect(() => {
+    if (pendingNotesRef.current === m.notesMarkdown) {
+      pendingNotesRef.current = null;
+    }
+  }, [m.notesMarkdown]);
+
+  /**
    * MOBILE-01 — append a captured note to the meeting's canonical notes Markdown.
    *
    * The SAME `intent=update` / `notesMarkdown` authority the Notes editor
@@ -363,9 +383,25 @@ function MeetingRecord({
    */
   const appendNote = useCallback(
     async (line: string): Promise<boolean> => {
-      const existing = m.notesMarkdown.trimEnd();
+      const pending = pendingNotesRef.current;
+      // Trust the remembered value only while it is still an EXTENSION of what the
+      // server has. If the loader value is not a prefix of it, something else —
+      // the Notes editor autosaving, another tab — has written the field, and the
+      // remembered value would clobber that write. Then the server wins.
+      const base =
+        pending !== null && pending.startsWith(m.notesMarkdown)
+          ? pending
+          : m.notesMarkdown;
+      const existing = base.trimEnd();
       const next = existing.length > 0 ? `${existing}\n\n${line}` : line;
-      return post({ intent: "update", notesMarkdown: next });
+
+      pendingNotesRef.current = next;
+      const ok = await post({ intent: "update", notesMarkdown: next });
+      if (!ok) {
+        // A failed append must not become the base for the next one.
+        pendingNotesRef.current = pending;
+      }
+      return ok;
     },
     [m.notesMarkdown, post],
   );

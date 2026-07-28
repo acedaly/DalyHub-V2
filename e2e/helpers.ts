@@ -117,6 +117,20 @@ export async function waitForInteractive(page: Page): Promise<void> {
 }
 
 /**
+ * The control that opens the complete phone navigation sheet.
+ *
+ * MOBILE-01 moved this from a top-left hamburger into the bottom bar's **More** —
+ * the same registry-driven sheet, from a control a thumb can actually reach. It
+ * lives here so the specs that care about the SHEET (its focus trap, its links,
+ * its close control) do not each encode which button opens it.
+ */
+export function mobileNavigationOpener(page: Page): Locator {
+  return page
+    .locator("[data-testid='bottom-nav']")
+    .getByRole("button", { name: "More" });
+}
+
+/**
  * Assert an interactive control meets the WCAG 2.2 (2.5.8) minimum target size.
  *
  * The measurement RETRIES, like every other web-first assertion in Playwright,

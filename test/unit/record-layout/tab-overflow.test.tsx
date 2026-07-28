@@ -1,10 +1,16 @@
 /**
  * MOBILE-01 — Record Layout tab overflow.
  *
- * A record with more than four sections must stay usable on a phone WITHOUT
- * hiding anything: the important tabs stay inline, the rest move into a labelled
- * "More sections" menu, and the ACTIVE tab is always visible so the user can see
- * where they are.
+ * A record with more than four sections must stay usable on a phone without
+ * turning the strip into a swipe-hunt. The answer is an ADDITIVE one: the strip
+ * keeps every tab and scrolls, and a labelled "More sections" menu offers the ones
+ * that are off-screen directly.
+ *
+ * The tests below pin the property that matters most and is easiest to lose:
+ * **the set of tabs is identical at every viewport.** A record whose Settings tab
+ * exists at 1440px but not at 375px would give the same product two different
+ * keyboard models, two different arrow-key orders and two different sets of
+ * addressable controls.
  */
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -13,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RecordTabs } from "~/shared/record-layout/RecordTabs";
 import {
   MAX_INLINE_TABS,
-  splitTabsForOverflow,
+  tabsForOverflowMenu,
 } from "~/shared/record-layout/RecordTabs";
 import type { RecordTab } from "~/shared/record-layout/types";
 
@@ -26,9 +32,9 @@ function tabs(...labels: readonly string[]): RecordTab[] {
 }
 
 /**
- * Drive the shared compact-viewport signal. The overflow is PHONE behaviour: on a
- * wide viewport every tab stays inline, so the rendering tests state which
- * viewport they are exercising rather than relying on a default.
+ * Drive the shared compact-viewport signal. The menu is PHONE behaviour: on a wide
+ * viewport there is no menu at all, so the rendering tests state which viewport
+ * they are exercising rather than relying on a default.
  */
 function setCompactViewport(compact: boolean): void {
   vi.stubGlobal("matchMedia", (query: string) => ({
@@ -56,74 +62,53 @@ const SEVEN = tabs(
   "Settings",
 );
 
-describe("splitTabsForOverflow", () => {
-  it("leaves a short record entirely inline", () => {
+describe("tabsForOverflowMenu", () => {
+  it("offers nothing for a short record", () => {
     const short = tabs("Summary", "Tasks", "Activity");
-    const split = splitTabsForOverflow(short, "summary");
-    expect(split.inline).toHaveLength(3);
-    expect(split.overflow).toHaveLength(0);
+    expect(tabsForOverflowMenu(short, "summary")).toHaveLength(0);
   });
 
-  it("keeps exactly MAX_INLINE_TABS inline at the boundary", () => {
+  it("offers nothing at the boundary", () => {
     const four = tabs("A", "B", "C", "D");
     expect(four).toHaveLength(MAX_INLINE_TABS);
-    expect(splitTabsForOverflow(four, "a").overflow).toHaveLength(0);
+    expect(tabsForOverflowMenu(four, "a")).toHaveLength(0);
   });
 
-  it("moves the surplus into the overflow beyond the boundary", () => {
-    const split = splitTabsForOverflow(SEVEN, "summary");
-    expect(split.inline.map((tab) => tab.label)).toEqual([
-      "Summary",
-      "Tasks",
-      "Knowledge",
-      "Links",
-    ]);
-    expect(split.overflow.map((tab) => tab.label)).toEqual([
-      "Timeline",
-      "Activity",
-      "Settings",
-    ]);
+  it("offers the tabs past the boundary — the ones that need scrolling to", () => {
+    expect(
+      tabsForOverflowMenu(SEVEN, "summary").map((tab) => tab.label),
+    ).toEqual(["Timeline", "Activity", "Settings"]);
   });
 
-  it("swaps an active overflow tab into the inline strip", () => {
-    const split = splitTabsForOverflow(SEVEN, "settings");
-    expect(split.inline.map((tab) => tab.label)).toEqual([
-      "Summary",
-      "Tasks",
-      "Knowledge",
-      "Settings",
-    ]);
-    // Nothing is lost by the swap — the displaced tab moves to the overflow.
-    expect(split.overflow.map((tab) => tab.label)).toEqual([
-      "Links",
-      "Timeline",
-      "Activity",
-    ]);
-  });
-
-  it("never loses or duplicates a tab", () => {
-    for (const active of SEVEN.map((tab) => tab.id)) {
-      const split = splitTabsForOverflow(SEVEN, active);
-      const ids = [...split.inline, ...split.overflow].map((tab) => tab.id);
-      expect(new Set(ids).size).toBe(SEVEN.length);
-    }
+  it("never offers the active tab, which is not somewhere to go", () => {
+    expect(
+      tabsForOverflowMenu(SEVEN, "settings").map((tab) => tab.label),
+    ).toEqual(["Timeline", "Activity"]);
   });
 });
 
 describe("RecordTabs overflow rendering", () => {
-  it("keeps every tab inline on a wide viewport — desktop is unchanged", () => {
+  it("renders every tab at a wide viewport, with no menu — desktop is unchanged", () => {
     setCompactViewport(false);
     render(<RecordTabs tabs={SEVEN} label="Sections" />);
     expect(screen.getAllByRole("tab")).toHaveLength(SEVEN.length);
     expect(screen.queryByTestId("record-tabs-more")).not.toBeInTheDocument();
   });
 
-  it("renders no overflow trigger for a short record", () => {
+  it("renders EVERY tab at a compact viewport too — the menu adds, never removes", () => {
+    render(<RecordTabs tabs={SEVEN} label="Sections" />);
+    expect(screen.getAllByRole("tab")).toHaveLength(SEVEN.length);
+    // The two a phone is most likely to need and most at risk of being dropped.
+    expect(screen.getByRole("tab", { name: "Settings" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "Activity" })).toBeVisible();
+  });
+
+  it("renders no menu for a short record", () => {
     render(<RecordTabs tabs={tabs("Summary", "Tasks")} label="Sections" />);
     expect(screen.queryByTestId("record-tabs-more")).not.toBeInTheDocument();
   });
 
-  it("exposes overflow tabs through a labelled menu, not by hiding them", () => {
+  it("offers the off-screen sections through a labelled menu", () => {
     render(<RecordTabs tabs={SEVEN} label="Project sections" />);
     const trigger = within(screen.getByTestId("record-tabs-more")).getByRole(
       "button",
@@ -131,7 +116,6 @@ describe("RecordTabs overflow rendering", () => {
     expect(trigger).toHaveAccessibleName(/more sections in project sections/i);
 
     fireEvent.click(trigger);
-    // Activity and Settings are reachable in one tap — never permanently hidden.
     expect(screen.getByRole("menuitem", { name: "Activity" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Settings" })).toBeVisible();
   });
@@ -144,38 +128,39 @@ describe("RecordTabs overflow rendering", () => {
     }
   });
 
-  it("selecting from the menu activates the tab and shows it inline", () => {
+  it("selecting from the menu activates the tab and scrolls it into view", () => {
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
       return 0;
     });
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
     render(<RecordTabs tabs={SEVEN} label="Sections" />);
 
-    fireEvent.click(
-      within(screen.getByTestId("record-tabs-more")).getByRole("button"),
+    const trigger = within(screen.getByTestId("record-tabs-more")).getByRole(
+      "button",
     );
+    fireEvent.click(trigger);
     fireEvent.click(screen.getByRole("menuitem", { name: "Settings" }));
 
     const settings = screen.getByRole("tab", { name: "Settings" });
     expect(settings).toHaveAttribute("aria-selected", "true");
-    // It is now part of the inline strip, so the user can see where they are.
-    expect(
-      within(screen.getByRole("tablist")).getByRole("tab", {
-        name: "Settings",
-      }),
-    ).toBe(settings);
     expect(screen.getByText("Settings panel")).toBeVisible();
+    // Brought into view rather than focused: the shared DS-12 menu returns focus
+    // to its own trigger, and this component does not race it for focus.
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(trigger).toHaveFocus();
     vi.unstubAllGlobals();
   });
 
-  it("arrow keys move within the inline strip without reaching a hidden tab", () => {
+  it("keeps one arrow-key order at every viewport", () => {
     render(<RecordTabs tabs={SEVEN} label="Sections" />);
     const first = screen.getByRole("tab", { name: "Summary" });
     first.focus();
     fireEvent.keyDown(first, { key: "ArrowLeft" });
-    // Wrapping backwards lands on the LAST inline tab, never on an overflow tab
-    // the user cannot see.
-    expect(screen.getByRole("tab", { name: "Links" })).toHaveAttribute(
+    // Wrapping backwards lands on the last tab of the record — the same tab it
+    // would land on at 1440px, because the strip is the same strip.
+    expect(screen.getByRole("tab", { name: "Settings" })).toHaveAttribute(
       "aria-selected",
       "true",
     );

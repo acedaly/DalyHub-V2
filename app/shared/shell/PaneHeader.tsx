@@ -19,6 +19,8 @@ import type { ReactNode } from "react";
 import type { EntityType } from "~/shared/entity";
 import { EntityIcon } from "~/shared/entity";
 
+import { useSetMobileTopBar } from "./mobile-top-bar-context";
+
 export type PaneHeaderProps = {
   /** The page title (required). */
   readonly title: string;
@@ -49,6 +51,13 @@ export function PaneHeader({
 }: PaneHeaderProps) {
   const Heading = `h${headingLevel}` as const;
   const classes = ["dh-pane-header", className].filter(Boolean).join(" ");
+
+  // MOBILE-01 — a phone screen says which COLLECTION it is showing, not the
+  // workspace name it would otherwise repeat everywhere. Only the pane's own
+  // heading publishes: a nested `h2` header inside a pane is a section, not the
+  // screen. A record opened over the pane publishes on top of this and restores
+  // it on close.
+  useSetMobileTopBar({ title: headingLevel === 1 ? title : null });
 
   return (
     <div className={classes}>

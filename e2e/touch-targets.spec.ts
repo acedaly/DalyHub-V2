@@ -24,16 +24,14 @@ test.describe("touch targets — shell (mobile)", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    await expectMinTouchTarget(
-      page.getByRole("button", { name: /open navigation/i }),
-    );
+    await expectMinTouchTarget(mobileNavigationOpener(page));
   });
 
   test("the mobile navigation sheet's close control meets the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
-    await page.getByRole("button", { name: /open navigation/i }).click();
+    await mobileNavigationOpener(page).click();
     await page.getByRole("dialog", { name: /navigation/i }).waitFor();
     await expectMinTouchTarget(
       page.getByRole("button", { name: /close navigation/i }),

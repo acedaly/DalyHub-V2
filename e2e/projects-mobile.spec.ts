@@ -71,7 +71,7 @@ function cleanupMobileProjects() {
 
 async function enterProjectsFromMobileShell(page: Page) {
   await gotoFixture(page, "/today");
-  const navButton = page.getByRole("button", { name: /open navigation/i });
+  const navButton = mobileNavigationOpener(page);
   await expectMinTouchTarget(navButton);
   await navButton.click();
 

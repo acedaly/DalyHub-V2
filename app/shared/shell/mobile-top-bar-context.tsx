@@ -10,7 +10,15 @@
  * contextual actions. Anything richer belongs in the page, not in the chrome.
  */
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 
 export type MobileTopBarState = {
@@ -23,7 +31,8 @@ export type MobileTopBarState = {
 };
 
 export type MobileTopBarContextValue = MobileTopBarState & {
-  readonly publish: (state: Partial<MobileTopBarState>) => void;
+  /** Register/replace this publisher's entry; `null` removes it. */
+  readonly publish: (id: string, state: MobileTopBarState | null) => void;
 };
 
 const EMPTY: MobileTopBarState = { title: null, backTo: null, actions: null };
@@ -38,23 +47,29 @@ export function useMobileTopBar(): MobileTopBarState {
 }
 
 /**
- * Publish this route's phone top-bar identity for as long as it is mounted, and
- * clear it on unmount so a stale title can never outlive its route.
+ * Publish this surface's phone top-bar identity for as long as it is mounted, and
+ * withdraw it on unmount so a stale title can never outlive its route.
+ *
+ * Publishers STACK. A collection publishes its name; a record opened over it
+ * publishes the record's, and closing the record reveals the collection's again.
+ * A single slot would have the record's unmount blank the bar instead — which is
+ * exactly the state a phone user would be left staring at after closing a drawer.
  *
  * Desktop is unaffected: the bar it feeds is `display: none` above `md`.
  */
 export function useSetMobileTopBar(state: Partial<MobileTopBarState>): void {
   const context = useContext(MobileTopBarContext);
   const publish = context?.publish;
+  const id = useId();
   const { title = null, backTo = null, actions = null } = state;
 
   useEffect(() => {
     if (!publish) {
       return;
     }
-    publish({ title, backTo, actions });
-    return () => publish(EMPTY);
-  }, [publish, title, backTo, actions]);
+    publish(id, { title, backTo, actions });
+    return () => publish(id, null);
+  }, [publish, id, title, backTo, actions]);
 }
 
 export function MobileTopBarProvider({
@@ -62,14 +77,25 @@ export function MobileTopBarProvider({
 }: {
   readonly children: ReactNode;
 }) {
-  const [state, setState] = useState<MobileTopBarState>(EMPTY);
+  // Insertion-ordered, so "the most recently mounted publisher" is simply the
+  // last entry, and withdrawing one restores the one beneath it.
+  const [entries, setEntries] = useState<
+    readonly (readonly [string, MobileTopBarState])[]
+  >([]);
+
+  const publish = useCallback((id: string, next: MobileTopBarState | null) => {
+    setEntries((prev) => {
+      const without = prev.filter(([key]) => key !== id);
+      return next === null ? without : [...without, [id, next] as const];
+    });
+  }, []);
 
   const value = useMemo<MobileTopBarContextValue>(
     () => ({
-      ...state,
-      publish: (next) => setState((prev) => ({ ...prev, ...next })),
+      ...(entries.length > 0 ? entries[entries.length - 1][1] : EMPTY),
+      publish,
     }),
-    [state],
+    [entries, publish],
   );
 
   return (

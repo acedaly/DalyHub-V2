@@ -93,6 +93,13 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
     fields: { title: { validate: requiredRule("A title is required") } },
     fieldOrder: ["title", "entryType", "when", "body"],
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
+      // Read and CLEAR the mode up front, so it describes this submission only.
+      // Clearing it on the success path alone would leave it set after a failed
+      // "Save and add another": the user fixes the error, presses Enter or the
+      // primary Capture, and that submission would wrongly keep the panel open.
+      const keepOpen = addAnotherRef.current;
+      addAnotherRef.current = false;
+
       const body = new FormData();
       body.set("title", values.title);
       body.set("entryType", values.entryType);
@@ -113,8 +120,6 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
         const capturedDayKey = values.when
           ? values.when.slice(0, 10)
           : todayKey;
-        const keepOpen = addAnotherRef.current;
-        addAnotherRef.current = false;
         onCaptured(data.entryId, capturedDayKey, keepOpen);
         if (keepOpen) {
           // Clear the form and return to the title so the next entry is
