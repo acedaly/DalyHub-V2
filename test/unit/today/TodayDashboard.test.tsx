@@ -295,18 +295,24 @@ describe("TODAY-04 planning dashboard", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps Quick Capture inert and honest (nothing saved)", () => {
+  it("offers the shared Quick Capture entries (TODAY-07, wired by MOBILE-01)", () => {
     renderToday();
-    const textarea = screen.getByPlaceholderText("What needs your attention?");
-    fireEvent.change(textarea, { target: { value: "New idea" } });
-    // Scope to the capture form so the submit button is unambiguous (the widget
-    // heading is also a "Capture"-labelled control).
-    const form = textarea.closest("form")!;
-    fireEvent.click(within(form).getByRole("button", { name: "Capture" }));
+    // The honest fixture textarea — which saved nothing and said so — is gone.
     expect(
-      screen.getByText(/Quick Capture is not connected yet/),
-    ).toBeInTheDocument();
-    expect((textarea as HTMLTextAreaElement).value).toBe("New idea");
+      screen.queryByPlaceholderText("What needs your attention?"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Quick Capture is not connected yet/),
+    ).not.toBeInTheDocument();
+
+    // Today now offers the four SHARED capture types, each opening the one
+    // capture sheet, which posts to the module's canonical creation route.
+    const capture = screen.getByRole("group", { name: "Quick capture" });
+    for (const label of ["Task", "Diary entry", "Meeting", "Note"]) {
+      expect(
+        within(capture).getByRole("button", { name: label }),
+      ).toBeInTheDocument();
+    }
   });
 
   it("renders the Waiting summary when tasks are waiting", () => {
@@ -397,12 +403,13 @@ describe("TODAY-04 command integration", () => {
     ).toBe(false);
   });
 
-  it("the Quick capture pane-header button focuses the field directly (no palette involved)", () => {
+  it("the Quick capture pane-header button focuses the capture entries directly (no palette involved)", () => {
     renderTodayWithCommands();
     fireEvent.click(screen.getByRole("button", { name: "Quick capture" }));
-    expect(
-      screen.getByPlaceholderText("What needs your attention?"),
-    ).toHaveFocus();
+    // The focus target is now the first shared capture entry rather than the
+    // retired fixture textarea; the PX-03 keyboard route into capture is
+    // unchanged.
+    expect(screen.getByTestId("today-capture-task")).toHaveFocus();
   });
 
   it("exposes planning commands with shortcuts for the focused task (TODAY-05)", () => {

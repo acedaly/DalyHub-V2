@@ -27,8 +27,10 @@ import {
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps, CardTone } from "~/shared/card";
 import {
+  CollectionControls,
   CollectionLayout,
   useCollectionLoading,
+  type CollectionControlGroup,
 } from "~/shared/collection-layout";
 import {
   DrawerProvider,
@@ -46,10 +48,12 @@ import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import {
+  taskPriorityLabel,
   timeSectorLabel,
   type SerializedTaskListItem,
 } from "~/shared/task-record/task-view";
 import {
+  TASK_PRIORITIES,
   TASK_SORTS,
   TASK_SYSTEM_VIEWS,
   TIME_SECTORS,
@@ -107,6 +111,84 @@ const SORT_LABELS: Record<TaskSort, string> = {
   updated: "Updated",
   title: "Title",
 };
+
+/**
+ * MOBILE-01 — the phone control groups, fed to the ONE shared collection sheet.
+ *
+ * These are the SAME URL parameters the desktop system-view rail, the view
+ * switcher and the sort select write (`?system=`, `?priority=`, `?sector=`,
+ * `?view=`, `?sort=`), so the phone sheet is a different way to reach the same
+ * state — not a second filter model. Saved views appear as the "View" group: the
+ * system views ARE the product's saved views today, and when X-02 adds
+ * user-defined ones they extend this same group.
+ *
+ * Everything here is a small, closed option set. A filter over a searched record
+ * (a specific Project) stays a server-backed picker on the desktop filter bar —
+ * the sheet never loads a collection to filter it locally.
+ */
+const MOBILE_CONTROL_GROUPS: readonly CollectionControlGroup[] = [
+  {
+    id: "system",
+    label: "View",
+    param: "system",
+    kind: "view",
+    options: [
+      { value: "", label: "Default for this view" },
+      ...TASK_SYSTEM_VIEWS.map((view) => ({
+        value: view,
+        label: SYSTEM_VIEW_LABELS[view],
+      })),
+    ],
+  },
+  {
+    id: "priority",
+    label: "Priority",
+    param: "priority",
+    options: [
+      { value: "", label: "Any priority" },
+      { value: "p1", label: "P1 · Urgent" },
+      { value: "p2", label: "P2 · High" },
+      { value: "p3", label: "P3 · Normal" },
+      { value: "p4", label: "P4 · Low" },
+      { value: "__none", label: "No priority" },
+    ],
+  },
+  {
+    id: "sector",
+    label: "Time sector",
+    param: "sector",
+    options: [
+      { value: "", label: "Any sector" },
+      { value: "__none", label: "Inbox (no sector)" },
+      ...TIME_SECTORS.map((sector) => ({
+        value: sector,
+        label: timeSectorLabel(sector),
+      })),
+    ],
+  },
+  {
+    id: "layout",
+    label: "Layout",
+    param: "view",
+    kind: "group",
+    defaultValue: "focus",
+    options: VIEW_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label,
+    })),
+  },
+  {
+    id: "sort",
+    label: "Sort",
+    param: "sort",
+    kind: "sort",
+    defaultValue: "smart",
+    options: TASK_SORTS.map((sort) => ({
+      value: sort,
+      label: SORT_LABELS[sort],
+    })),
+  },
+];
 
 /* -------------------------------------------------------------------------- */
 /* Provider + drawer wiring                                                    */
@@ -256,9 +338,64 @@ function useTaskPagination(
 /* The surface                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * MOBILE-01 — one-tap task edits from the list, through the CANONICAL routes.
+ *
+ * Completion posts `intent=complete`/`reopen` to `POST /tasks/:taskId` — the same
+ * atomic task-domain operation the Task Drawer's Complete button uses (ADR-029),
+ * so completing from a list and completing from the record are one execution
+ * path with one Activity trail. Priority and date changes go through the trusted
+ * `/tasks/bulk` field mutation with a single id, again the same authority the bulk
+ * bar uses. There is no list-only mutation anywhere in this file.
+ *
+ * The loader is revalidated after each change so the row reflects reality
+ * (a completed task leaving an active view, a re-sorted list) rather than an
+ * optimistic guess that could disagree with the server.
+ */
+function useTaskQuickMutation() {
+  const fetcher = useFetcher();
+  const revalidator = useRevalidator();
+  const settled = useRef<unknown>(null);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) {
+      return;
+    }
+    if (settled.current === fetcher.data) {
+      return;
+    }
+    settled.current = fetcher.data;
+    revalidator.revalidate();
+  }, [fetcher.state, fetcher.data, revalidator]);
+
+  const setCompleted = useCallback(
+    (taskId: string, completed: boolean) => {
+      const body = new FormData();
+      body.set("intent", completed ? "complete" : "reopen");
+      fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
+    },
+    [fetcher],
+  );
+
+  const setField = useCallback(
+    (taskId: string, fields: Record<string, string>) => {
+      const body = new FormData();
+      body.append("id", taskId);
+      for (const [key, value] of Object.entries(fields)) {
+        body.set(key, value);
+      }
+      fetcher.submit(body, { method: "post", action: "/tasks/bulk" });
+    },
+    [fetcher],
+  );
+
+  return { setCompleted, setField, busy: fetcher.state !== "idle" };
+}
+
 function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { openDrawer } = useDrawer();
+  const quick = useTaskQuickMutation();
 
   const resetKey = useMemo(
     () =>
@@ -374,14 +511,78 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           ),
         });
       }
-      metadata.push({ id: "sector", label: "Sector", value: card.sectorLabel });
+      // MOBILE-01: the module declares what a small card should lead with.
+      // Priority and urgency are SIGNALS the user scans for; the sector and the
+      // delegate are supporting detail — de-emphasised on a phone, never hidden.
+      metadata.push({
+        id: "sector",
+        label: "Sector",
+        value: card.sectorLabel,
+        priority: "low",
+      });
       if (card.delegatedTo) {
         metadata.push({
           id: "delegated",
           label: "Delegated to",
           value: card.delegatedTo,
+          priority: "low",
         });
       }
+
+      // MOBILE-01: one-tap completion straight from the list, and one-tap
+      // scheduling — the two things a phone user does most and previously had to
+      // open the record for. Both are ordinary, labelled, keyboard-reachable
+      // buttons; the swipe tray below is only an accelerator over the same
+      // actions (TODAY-06 / ADR-032), never gesture-only functionality.
+      const completeAction = {
+        id: "complete",
+        label: card.completed ? "Reopen" : "Complete",
+        ariaLabel: card.completed
+          ? `Reopen ${card.title}`
+          : `Complete ${card.title}`,
+        onSelect: () => quick.setCompleted(card.id, !card.completed),
+        disabled: quick.busy,
+      };
+      const planTodayAction = card.completed
+        ? null
+        : {
+            id: "plan-today",
+            label: "Today",
+            ariaLabel: `Plan ${card.title} for today`,
+            onSelect: () =>
+              quick.setField(card.id, {
+                intent: "plan",
+                scheduledDate: data.todayIso,
+              }),
+            disabled: quick.busy,
+          };
+      const quickActions = [completeAction, planTodayAction].filter(
+        (action) => action !== null,
+      );
+
+      // The long tail of quick edits (priority, clearing a plan) stays in the
+      // one shared overflow menu rather than adding buttons to every row.
+      const overflowActions = card.completed
+        ? []
+        : [
+            ...TASK_PRIORITIES.map((priority) => ({
+              id: `priority-${priority}`,
+              label: `Set ${taskPriorityLabel(priority)}`,
+              disabled: quick.busy || card.priority === priority,
+              onSelect: () =>
+                quick.setField(card.id, {
+                  intent: "set_priority",
+                  priority,
+                }),
+            })),
+            {
+              id: "clear-plan",
+              label: "Clear scheduled date",
+              separatorBefore: true,
+              disabled: quick.busy || card.scheduledDate === null,
+              onSelect: () => quick.setField(card.id, { intent: "clear_plan" }),
+            },
+          ];
 
       const key = `task:${card.id}`;
       return {
@@ -398,6 +599,11 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         href: `?${withDrawerPushed(searchParams, key).toString()}`,
         onOpen: () => openDrawer(key),
         openAriaLabel: `Open ${card.title}`,
+        quickActions,
+        overflowActions,
+        // The accelerator reveals the SAME actions, so nothing here is
+        // gesture-only and a non-touch device behaves exactly as before.
+        swipeActions: quickActions,
         selection: {
           selected: selected.has(card.id),
           onSelectedChange: (on) => toggleSelected(card.id, on),
@@ -405,7 +611,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         },
       };
     },
-    [data.todayIso, searchParams, openDrawer, selected, toggleSelected],
+    [data.todayIso, searchParams, openDrawer, selected, toggleSelected, quick],
   );
 
   const renderCollection = useCallback(
@@ -481,6 +687,10 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         />
       }
       filterBar={<SystemViewChips searchParams={searchParams} />}
+      // MOBILE-01: on a phone the desktop system-view rail, view switcher and
+      // sort select collapse into ONE row plus the shared sheet, so the first
+      // task is visible without scrolling past three rows of chrome.
+      mobileControls={<CollectionControls groups={MOBILE_CONTROL_GROUPS} />}
       error={
         data.failed ? (
           <EmptyState

@@ -104,38 +104,19 @@
 /* Quick capture                                                              */
 /* -------------------------------------------------------------------------- */
 
+/* MOBILE-01 / TODAY-07 — the shared Quick Capture entries.
+ *
+ * The old fixture textarea (which saved nothing) is gone. Each entry opens the
+ * ONE shared capture sheet on that type, so Today has no capture path of its own
+ * to keep in step with the modules. */
 .dh-today__capture {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
-  padding: var(--dh-space-5);
+  padding: var(--dh-space-4);
   background: var(--dh-color-surface);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-lg);
-}
-
-.dh-today__capture-input {
-  width: 100%;
-  resize: vertical;
-  padding: var(--dh-space-3);
-  font: inherit;
-  font-size: var(--dh-font-size-md);
-  color: var(--dh-color-text);
-  background: var(--dh-color-bg);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-}
-
-.dh-today__capture-input::placeholder {
-  color: var(--dh-color-text-muted);
-}
-
-.dh-today__capture-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--dh-space-3);
 }
 
 .dh-today__capture-hint {
@@ -144,11 +125,38 @@
   color: var(--dh-color-text-muted);
 }
 
-.dh-today__capture-notice {
-  margin: 0;
-  min-height: 1em;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
+/* Entries WRAP rather than scroll, so no capture type is hidden off the edge. */
+.dh-today__capture-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-today__capture-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-today__capture-type:hover {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-today__capture-type-icon {
+  display: inline-flex;
+  line-height: 0;
+  font-size: var(--dh-font-size-lg);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1124,4 +1132,104 @@
   margin: 0;
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — the phone Today and Tasks workspaces                            */
+/*                                                                             */
+/* Placed last so these overrides win over the desktop rules above without      */
+/* raising specificity. Both surfaces keep every control they had at wider      */
+/* widths; what changes is where the chrome lives and how tight the rhythm is.  */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* Tasks — sorting lives in the shared collection sheet on a phone. A select
+   * pinned above the list is a permanent row of chrome for a control used once
+   * a session. */
+  .dh-tasks-sort {
+    display: none;
+  }
+
+  /* Section labels earn more weight on a phone: on a long stacked Matrix or
+   * Sectors page they are the only way to keep your place. (The Matrix and
+   * Sectors views were already mobile-first stacked — TASKS-01 — so a phone has
+   * never seen a compressed 2×2 grid.) */
+  .dh-tasks-section__label {
+    font-size: var(--dh-font-size-sm);
+    font-weight: var(--dh-font-weight-semibold);
+    color: var(--dh-color-text);
+  }
+
+  .dh-tasks-focus,
+  .dh-tasks-sectors,
+  .dh-tasks-matrix {
+    gap: var(--dh-space-5);
+  }
+
+  /* The bulk-action bar wraps into a scrollable row rather than a tall stack of
+   * buttons that would swallow the viewport, and clears the bottom navigation. */
+  .dh-tasks-bulk__actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    padding-bottom: var(--dh-space-1);
+  }
+
+  .dh-tasks-bulk__actions > * {
+    flex: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* MOBILE-01 — the phone Today dashboard                                       */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* Tighter vertical rhythm: the first viewport must answer "what must I do,
+   * what is due, what am I waiting on" without scrolling past decoration. */
+  .dh-today {
+    gap: var(--dh-space-5);
+  }
+
+  .dh-today__section {
+    gap: var(--dh-space-2);
+  }
+
+  /* Section labels carry more weight on a phone — on a long scroll they are the
+   * only orientation the user has. */
+  .dh-today__section-label {
+    font-size: var(--dh-font-size-sm);
+    font-weight: var(--dh-font-weight-semibold);
+    color: var(--dh-color-text);
+  }
+
+  /*
+   * No duplicate capture affordance.
+   *
+   * The phone bottom bar's Capture control IS Today's capture entry — it opens
+   * the same shared sheet as the pane-header "Quick capture" button. Showing
+   * both would be two controls competing for the same action, which the mobile
+   * principles explicitly forbid. The header action is hidden ONLY at phone
+   * width, where the bottom bar exists; nothing becomes unreachable, and the
+   * in-page Quick Capture widget (with its four typed entries) is untouched.
+   */
+  .dh-today__primary {
+    display: none;
+  }
+
+  /* Capture entries fill the row so each is a comfortable thumb target. */
+  .dh-today__capture-types {
+    gap: var(--dh-space-2);
+  }
+
+  .dh-today__capture-type {
+    flex: 1 1 8rem;
+    justify-content: center;
+  }
+
+  /* The customise toolbar is a low-frequency control: it stays reachable but
+   * stops competing with the day's work for the top of the screen. */
+  .dh-today__toolbar {
+    order: 99;
+  }
 }
