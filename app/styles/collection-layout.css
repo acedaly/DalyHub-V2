@@ -177,3 +177,21 @@
     top: env(safe-area-inset-top, 0px);
   }
 }
+
+/* MOBILE-01 — below `md` the collection header does NOT stick.
+ *
+ * With a fixed bottom bar now occupying the other end of the viewport, a sticky
+ * filter header leaves a thin clickable band between the two, and a card scrolled
+ * into that band lands under one layer or the other. In the Notes collection that
+ * made list rows genuinely unclickable — Playwright reported the sticky form and
+ * the bottom bar alternately intercepting the same link for 150 seconds.
+ *
+ * A phone has too little height to spend a permanent slice of it on filter chrome
+ * anyway (PRODUCT_EXPERIENCE: content before chrome), so the header scrolls away
+ * with the content and the bottom bar keeps navigation always reachable. Above
+ * `md` the sticky header is unchanged. */
+@media (max-width: 48rem) {
+  .dh-collection__sticky {
+    position: static;
+  }
+}
