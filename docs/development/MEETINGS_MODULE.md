@@ -54,9 +54,18 @@ The mapping **supplements** the Universal Relationship System; it never replaces
 
 The Meeting Activity tab is a real DS-05 Timeline (`/meeting/:id/activity`), replacing MEET-01's placeholder. Descriptors (`meeting-activity.ts`) cover the lifecycle types plus MEET-02's two structural events — `meeting.item_converted_to_task` and `meeting.follow_up_created` — both recording the Meeting and the created Task as subjects. **Payloads carry only structural metadata (the item kind); never agenda, notes, decision or outcome text** (AGENTS.md §17).
 
-## People timeline seam (MEET-02 → MEET-03)
+## People timeline seam (MEET-03)
 
-Attendee `meeting.attendee` links already appear on both the meeting's and the attendee's Timelines because the kernel records `entity_link.created` with both endpoints as subjects — so "linked to <meeting>" surfaces on a Person today with no new model. Richer, meaning-specific People-timeline descriptors ("attended meeting", "follow-up task created/completed" scoped to the attendee) require either a link-type-scoped descriptor or emitting Person-subject events, which is a broader change owned by **MEET-03 / PEOPLE-02**. MEET-02 ships the clean underlying relationship/activity seam and defers the richer People-timeline UI adoption there — no People-specific shadow history model is introduced.
+**Since [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) (☑), an attended Meeting's own record events already appear on the attendee's Person Timeline.** The Person Timeline reads the one FND-05 Activity stream across the Person AND the records they are linked to, and a `meeting.attendee` link makes the Meeting one of those records — so `meeting.created`, `meeting.updated`, `meeting.item_converted_to_task` and the rest surface on every attendee's history, filed under the **Conversations** category, with no Meetings change and no People-specific shadow history model.
+
+**What MEET-03 still owes** is the meeting's *substance scoped to the attendee* — which decisions and outcomes concerned them, what they committed to. The seam is additive and is specified in [`PEOPLE_MODULE.md → The MEET-03 integration seam`](PEOPLE_MODULE.md#the-meet-03-integration-seam):
+
+1. Emit meaning-specific Meeting Activity naming the attendee **Person as a subject** (e.g. `meeting.held` recording the Meeting AND each attendee), so the event belongs to the person in their own right and survives an attendee link being removed later.
+2. Declare the new types in this module's manifest `activityTypes` with a human label — that alone gives them a readable, payload-free line on every attendee's timeline, with **no People-module change, no import and no switch case**.
+3. Optionally register a `describe` in [`meeting-activity.ts`](../../app/modules/meetings/meeting-activity.ts) if the Meeting record's own Timeline wants a richer line; the People surface deliberately keeps the label-only rendering, because a registry-derived descriptor emits no payload metadata (the privacy boundary).
+4. Keep payloads **structural** — item kinds, counts, dates; never agenda, notes, decision or outcome text (AGENTS.md §17), exactly as MEET-02 already does.
+
+Do **not** add a Meetings-specific timeline to the Person record, a second Person history surface, or a copied meeting history: there is exactly one Person history surface and one endpoint behind it ([DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2)).
 
 ## Product surface
 
@@ -71,7 +80,7 @@ The module contributes Upcoming, Recent and Archived collection views; a fast cr
 
 ## Deliberate deferrals
 
-- **MEET-03 / PEOPLE-02:** the unified relationship-history projection and meaning-specific meeting events on People Timelines. The attendee EntityLink seam is in place.
+- **MEET-03:** meaning-specific meeting events on People Timelines. PEOPLE-02 has built the unified relationship-history projection they contribute to, and the attendee EntityLink seam is in place — see [People timeline seam](#people-timeline-seam-meet-03).
 - **MEET-04:** deeper capture-specific mobile optimisation (MEET-02 inherits the responsive baseline and is verified 320–2560px).
 - Calendar synchronisation, invitations, conferencing creation, reminders, recurring series, automated reminders, notifications, AI-generated summaries, autonomous action-item extraction from prose, email ingestion and attachments remain out of scope. No dead settings or placeholder controls for these are added.
 
@@ -85,7 +94,7 @@ The module contributes Upcoming, Recent and Archived collection views; a fast cr
 
 **Known limitations.**
 
-- **Meetings do not yet contribute to attendee history.** The attendee *link* exists and its creation event reaches the person's timeline, but the meeting's substance — its date, decisions, outcomes and follow-up Tasks — does not, so "what did we discuss" is unanswerable from a Person record. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration).
+- **Meetings contribute structurally to attendee history, not semantically.** Since PEOPLE-02 an attended Meeting's own record events appear on the attendee's Person Timeline (the attendee link makes the Meeting an anchor of that unified stream), but the meeting's substance *scoped to the attendee* — which decisions and outcomes concerned them — does not, so "what did we discuss" is still not fully answerable from a Person record. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration), seam documented above.
 - **The collection forks the shared Card.** `MeetingsCollection.tsx` renders a hand-rolled `dh-meeting-card` anchor rather than the DS-04 Card, so it does not inherit selection, quick actions, density or swipe behaviour — [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1).
 - **Lifecycle placement diverges.** Archive/Restore is an inline button in the record body, not the Settings-tab pattern Projects/Areas/People/Assets/Reviews use, and not a shared overflow menu (none exists) — [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1).
 - Mobile coverage is partial: the follow-up surface has axe (light and dark) and 390/320px overflow assertions, and `/meetings` is in the accessibility sweep, but the collection and record have no dedicated mobile journey.
@@ -94,6 +103,6 @@ The module contributes Upcoming, Recent and Archived collection views; a fast cr
 
 **Deferred work.** People/history integration; mobile completion (especially capture **during** a meeting on a phone); calendar sync and invitations; AI-proposed tasks and notes from meeting content ([AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals), which layers a review step over the existing MEET-02 conversion authority rather than replacing it).
 
-**Relevant roadmap items.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) ☑ · [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐ · [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) ☐ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☐ (blocks MEET-03) · [AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals) ☐.
+**Relevant roadmap items.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) ☑ · [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐ (now unblocked) · [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) ☐ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals) ☐.
 
 **Relevant product-debt items.** [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2).

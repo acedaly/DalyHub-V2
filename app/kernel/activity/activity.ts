@@ -171,6 +171,20 @@ export type ListEntityActivityInput = {
 };
 
 /**
+ * Input to list the events of a bounded SET of anchor entities as ONE stream
+ * (`listForEntities`), using bounded cursor pagination. Identical in shape to a
+ * single-entity Timeline listing — the anchor set is passed alongside, not here,
+ * and there is no `workspaceId` field.
+ *
+ * This exists so a record whose history is genuinely the history of a
+ * RELATIONSHIP — a Person and the records they are linked to — can be read as one
+ * correctly-ordered, correctly-paginated stream instead of N interleaved queries
+ * merged in application code. It reads the SAME one Activity stream at a wider
+ * scope; it is not a second event model.
+ */
+export type ListEntitiesActivityInput = ListEntityActivityInput;
+
+/**
  * A bounded page of Activity events plus the information needed to request the
  * next page. Events are ordered newest-first by `(occurredAt, id)`. `nextCursor`
  * is null when there are no further events.

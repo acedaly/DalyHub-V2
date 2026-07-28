@@ -1,17 +1,37 @@
 /**
- * PEOPLE-01 — Person Activity Timeline endpoint (`GET /person/:personId/activity`).
+ * PEOPLE-01 / PEOPLE-02 — the Person relationship Timeline endpoint
+ * (`GET /person/:personId/activity`).
  *
- * Serves the person's accumulated relationship history (create, detail edits,
- * archive/restore, plus any linked-record events) as a bounded, paginated,
- * display-ready JSON page the shared Timeline consumes. People-owned event types
- * are described via `PEOPLE_ACTIVITY_DESCRIPTORS`; kernel lifecycle events use
- * their defaults. Fails closed with a calm 404 for a missing/wrong-type/
- * cross-workspace id.
+ * This is the ONE endpoint behind the ONE Person history surface. PEOPLE-01 served
+ * the Person's own record events from `activity.listForEntity(personId)`;
+ * PEOPLE-02 widens the SAME read to the Person's relationships — the Person plus
+ * the records they are linked to — through the kernel's multi-anchor
+ * `activity.listForEntities(anchorIds)`. It stays one bounded, cursor-paginated,
+ * display-ready JSON page over the one FND-05 stream: no second timeline, no
+ * relationship-event store, no copied record content.
+ *
+ * Trust boundary: the workspace is fixed server-side from the authenticated
+ * session and is never taken from input; the anchor set is DERIVED server-side
+ * from the Person's own EntityLinks (the client can never name the records whose
+ * history it reads); every id is resolved through the workspace-bound
+ * repositories, so a cross-workspace record cannot enter the stream. Fails closed
+ * with a calm 404 for a missing / wrong-type / cross-workspace Person and a calm
+ * 400 for a cursor this endpoint did not issue for this Person.
+ *
+ * Privacy: only structural facts cross the boundary — event type, actor, time,
+ * referenced-record identity (title + type, resolved in ONE batch) and the safe
+ * presentation the descriptors produce. No Note body, Diary entry, meeting agenda,
+ * task description or `person_details` field is read or serialised here, and
+ * cross-module Activity payloads are never rendered (see `person-activity.ts`).
  */
 
 import { env } from "cloudflare:workers";
 
-import { InvalidActivityCursorError } from "~/kernel/activity";
+import {
+  ActivitySubjectUnavailableError,
+  InvalidActivityCursorError,
+} from "~/kernel/activity";
+import { discoverModuleRegistry } from "~/modules/discover-modules";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -20,12 +40,33 @@ import {
 } from "~/shared/activity-feed/model";
 
 import {
-  PEOPLE_ACTIVITY_DESCRIPTORS,
+  buildPersonTimelineDescriptors,
   PERSON_ACTIVITY_PAGE_SIZE,
   type PersonActivityPage,
   type SerializedPersonActivityItem,
 } from "../person-activity";
+import {
+  decodePersonTimelineCursor,
+  encodePersonTimelineCursor,
+  resolvePersonTimelineAnchors,
+} from "../person-timeline-anchors";
 import type { Route } from "./+types/activity";
+
+/**
+ * The descriptor map is derived from the BUILD-TIME module registry, so it is
+ * identical for every request and every workspace — resolve it once per isolate
+ * rather than rebuilding it per page read.
+ */
+let cachedDescriptors: ReturnType<
+  typeof buildPersonTimelineDescriptors
+> | null = null;
+
+function personTimelineDescriptors() {
+  cachedDescriptors ??= buildPersonTimelineDescriptors(
+    discoverModuleRegistry().listActivityTypes(),
+  );
+  return cachedDescriptors;
+}
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -40,9 +81,11 @@ function json(data: unknown, status = 200): Response {
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const personId = params.personId;
-  const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;
+  const cursor = new URL(request.url).searchParams.get("cursor");
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
+  // The anchor Person must exist in THIS workspace. A soft-deleted Person keeps a
+  // readable history (the kernel allows it), so deleted rows are included here.
   const anchor = await scope.entities.getById(personId, {
     includeDeleted: true,
   });
@@ -50,19 +93,53 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     return json({ error: "not_found" }, 404);
   }
 
+  // Page 1 derives the anchor set from the Person's live relationships; later
+  // pages replay the set the first page was read at, so pagination is a stable
+  // snapshot rather than a shifting target (see `person-timeline-anchors.ts`).
+  let anchorIds: readonly string[];
+  let activityCursor: string | undefined;
+  let relatedRecordCount: number;
+  let relatedRecordsTruncated: boolean;
+
+  if (cursor === null) {
+    const anchors = await resolvePersonTimelineAnchors(
+      scope.entityLinks,
+      personId,
+    );
+    anchorIds = anchors.anchorIds;
+    relatedRecordCount = anchors.relatedIds.length;
+    relatedRecordsTruncated = anchors.truncated;
+  } else {
+    const decoded = decodePersonTimelineCursor(cursor, personId);
+    if (!decoded) {
+      return json({ error: "invalid_cursor" }, 400);
+    }
+    anchorIds = decoded.anchorIds;
+    activityCursor = decoded.activityCursor;
+    relatedRecordCount = decoded.anchorIds.length - 1;
+    relatedRecordsTruncated = decoded.truncated;
+  }
+
   let page;
   try {
-    page = await scope.activity.listForEntity(personId, {
+    page = await scope.activity.listForEntities(anchorIds, {
       limit: PERSON_ACTIVITY_PAGE_SIZE,
-      cursor,
+      ...(activityCursor ? { cursor: activityCursor } : {}),
     });
   } catch (error) {
     if (error instanceof InvalidActivityCursorError) {
       return json({ error: "invalid_cursor" }, 400);
     }
+    if (error instanceof ActivitySubjectUnavailableError) {
+      // A record named by a replayed cursor was permanently removed between
+      // pages. Fail the page closed rather than silently reading a smaller set.
+      return json({ error: "invalid_cursor" }, 400);
+    }
     throw error;
   }
 
+  // Resolve every referenced entity ONCE, up front (DS-05's batch resolver — the
+  // UI never fetches per item, so there is no N+1).
   const ids = new Set<string>();
   for (const record of page.items) {
     for (const subject of record.subjects) {
@@ -83,7 +160,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   }
 
   const items = toActivityItems(page.items, {
-    descriptors: PEOPLE_ACTIVITY_DESCRIPTORS,
+    descriptors: personTimelineDescriptors(),
     resolveEntity: (id) => resolved.get(id) ?? null,
     anchorEntityId: personId,
   });
@@ -94,7 +171,16 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 
   return json({
     items: serialized,
-    nextCursor: page.nextCursor,
+    nextCursor: page.nextCursor
+      ? encodePersonTimelineCursor(
+          personId,
+          anchorIds,
+          page.nextCursor,
+          relatedRecordsTruncated,
+        )
+      : null,
     hasMore: page.hasMore,
+    relatedRecordCount,
+    relatedRecordsTruncated,
   } satisfies PersonActivityPage);
 }

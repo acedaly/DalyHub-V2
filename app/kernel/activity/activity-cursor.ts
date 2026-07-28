@@ -9,8 +9,12 @@
  *      returned, so the next page resumes exactly after it. `id` is the
  *      tiebreaker that makes the newest-first ordering total and deterministic.
  *   2. the query SCOPE that produced it — the workspace, the scope KIND
- *      (`workspace` feed vs. an `entity` Timeline), the anchor entity id when
- *      entity-scoped, and the event-type filter (if any).
+ *      (`workspace` feed vs. an `entity` Timeline vs. an `entities` multi-anchor
+ *      Timeline), the anchor key when anchored, and the event-type filter (if
+ *      any). For an `entity` scope the anchor key IS the anchor entity id; for an
+ *      `entities` scope it is the stable digest of the whole anchor SET
+ *      ({@link activityAnchorKey}), so a cursor cannot be replayed against a
+ *      different set of anchors and silently skip events.
  *
  * This is a DEDICATED, VERSIONED cursor format, deliberately separate from the
  * entity and entity-link cursors: the query scope and record type differ, so the
@@ -21,6 +25,7 @@
  *   - a workspace-feed cursor cannot be replayed on an entity Timeline (and vice
  *     versa);
  *   - a cursor for entity X is rejected when listing entity Y;
+ *   - a cursor for anchor set {A,B} is rejected when listing {A,B,C};
  *   - a type-filtered cursor cannot be reused without that filter or under another.
  *
  * The encoding is base64url over a small, versioned JSON array — opaque to callers
@@ -38,8 +43,12 @@ import { InvalidActivityCursorError } from "./activity-errors";
 /** The current Activity-cursor format version. Bump when the shape changes. */
 export const ACTIVITY_CURSOR_VERSION = 1;
 
-/** Which kind of listing a cursor belongs to. */
-export type ActivityCursorScopeKind = "workspace" | "entity";
+/**
+ * Which kind of listing a cursor belongs to: the whole-workspace feed, ONE
+ * entity's Timeline, or a bounded SET of anchor entities read as one stream
+ * (`listForEntities`).
+ */
+export type ActivityCursorScopeKind = "workspace" | "entity" | "entities";
 
 /** The ordering position a cursor points just after (newest-first). */
 export type ActivityCursorPosition = {
@@ -54,9 +63,13 @@ export type ActivityCursorPosition = {
 export type ActivityCursorScope = {
   /** The workspace the listing was scoped to. */
   readonly workspaceId: string;
-  /** Whether this is the whole-workspace feed or one entity's Timeline. */
+  /** Whether this is the whole-workspace feed, one entity's Timeline, or a set. */
   readonly scope: ActivityCursorScopeKind;
-  /** The anchor entity id when `scope === "entity"`, else null. */
+  /**
+   * The anchor key: the anchor entity id when `scope === "entity"`, the anchor
+   * SET digest ({@link activityAnchorKey}) when `scope === "entities"`, and null
+   * for the whole-workspace feed.
+   */
   readonly entityId: string | null;
   /** The single event-type filter in effect, or null when unfiltered. */
   readonly type: string | null;
@@ -124,7 +137,42 @@ export type DecodedActivityCursor = {
 const SCOPE_KINDS: ReadonlySet<ActivityCursorScopeKind> = new Set([
   "workspace",
   "entity",
+  "entities",
 ]);
+
+/** Scope kinds that carry a non-empty anchor key in the cursor's `entityId` slot. */
+const ANCHORED_SCOPE_KINDS: ReadonlySet<ActivityCursorScopeKind> = new Set([
+  "entity",
+  "entities",
+]);
+
+/**
+ * The stable digest of a multi-anchor listing's anchor SET, used as the cursor's
+ * anchor key so a cursor issued for one set is rejected against another.
+ *
+ * It is a 64-bit FNV-1a over the sorted, deduped, length-prefixed ids, prefixed
+ * with the anchor count — deterministic, dependency-free and small (the alternative,
+ * embedding dozens of ids verbatim, would make the opaque cursor kilobytes long).
+ * It is deliberately NOT a cryptographic commitment and is not required to be:
+ * the anchor ids are always supplied by the trusted server caller on every call
+ * and are never *read back out* of the cursor, so the key only has to detect an
+ * accidental scope change, not resist forgery — a forged key grants nothing the
+ * caller could not obtain by passing a different anchor set directly, and the
+ * workspace and ordering position remain independently bound and validated.
+ */
+export function activityAnchorKey(entityIds: readonly string[]): string {
+  const sorted = [...new Set(entityIds)].sort();
+  // Length-prefix each id so the concatenation is injective: no two distinct
+  // anchor sets can produce the same input string, whatever the ids contain.
+  const joined = sorted.map((id) => `${id.length}:${id}`).join("");
+  const bytes = new TextEncoder().encode(joined);
+  const mask = 0xffffffffffffffffn;
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of bytes) {
+    hash = ((hash ^ BigInt(byte)) * 0x100000001b3n) & mask;
+  }
+  return `${sorted.length}:${hash.toString(16).padStart(16, "0")}`;
+}
 
 /**
  * Decode an opaque cursor back into its scope and position, validating version
@@ -157,15 +205,17 @@ export function decodeActivityCursor(cursor: string): DecodedActivityCursor {
 
   const [version, workspaceId, scope, entityId, type, occurredAt, id] = parsed;
 
-  const entityScoped = scope === "entity";
+  const anchored =
+    typeof scope === "string" &&
+    ANCHORED_SCOPE_KINDS.has(scope as ActivityCursorScopeKind);
   if (
     version !== ACTIVITY_CURSOR_VERSION ||
     typeof workspaceId !== "string" ||
     workspaceId.length === 0 ||
     typeof scope !== "string" ||
     !SCOPE_KINDS.has(scope as ActivityCursorScopeKind) ||
-    // entity-scoped ⇒ non-empty entity id; workspace-scoped ⇒ null entity id.
-    (entityScoped
+    // anchored ⇒ non-empty anchor key; workspace-scoped ⇒ null anchor key.
+    (anchored
       ? !(typeof entityId === "string" && entityId.length > 0)
       : entityId !== null) ||
     !(type === null || (typeof type === "string" && type.length > 0)) ||
@@ -181,7 +231,7 @@ export function decodeActivityCursor(cursor: string): DecodedActivityCursor {
     scope: {
       workspaceId,
       scope: scope as ActivityCursorScopeKind,
-      entityId: entityScoped ? (entityId as string) : null,
+      entityId: anchored ? (entityId as string) : null,
       type,
     },
     position: { occurredAt, id },

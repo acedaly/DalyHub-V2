@@ -202,6 +202,32 @@ specific agenda item / decision / outcome produced the Task is recorded by a nar
 module-owned mapping table (`meeting_item_tasks`) that **supplements** this link — it
 never replaces it. See [ADR-048](../decisions/ARCHITECTURE_DECISIONS.md#adr-048-meeting-follow-through--task-conversion-orchestration-and-the-source-item-mapping).
 
+## Adopter note — the People relationship timeline (PEOPLE-02)
+
+A relationship is not only a row in a Linked Items list; it is also a claim about
+whose history matters. [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline)
+is the first surface to READ the relationship graph that way: a Person's Timeline
+derives its **anchor set** from that Person's active links (both directions,
+excluding the reserved structural spine types, exactly as `loadLinkedItems` does)
+and reads the ONE FND-05 Activity stream across it. A linked record therefore
+contributes **its own canonical events** to the Person's history — by reference,
+never copied.
+
+Consequences worth knowing when you touch this system:
+
+- **The relationship IS the subscription.** Link a record to a Person and its
+  history joins theirs; unlink it and that history leaves. Nothing is cached, so
+  nothing needs cleaning up.
+- **Only active links to active counterparts count** — that is the kernel's own
+  `listForEntity` contract, not a second rule.
+- **Module-owned link types count too** (`meeting.attendee`, `task.relates_to`), not
+  only `link.related` — the Person's history follows every real relationship, even
+  though only `link.related` links are removable from the shared surface.
+- **No relationship model changed.** PEOPLE-02 adds no link type, no table and no
+  second relationship store; it only READS the graph. See
+  [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)
+  and [`PEOPLE_MODULE.md → §4a`](PEOPLE_MODULE.md#4a-the-unified-relationship-timeline-people-02).
+
 ## Activity
 
 Relationship creation and removal are recorded automatically by the FND-04 kernel

@@ -53,10 +53,11 @@
 - **Desired future state.** Context-preserving navigation and restored state ([UX philosophy](../../AGENTS.md#6-ux-philosophy)).
 - **Related roadmap item.** [FND-09](../roadmap/ROADMAP_V2.md#-fnd-09--app-shell-routing--auth) + [DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer).
 
-### ☐ DEBT-07 — Fragmented activity/history — P2
+### ◐ DEBT-07 — Fragmented activity/history — P2
 - **Current issue.** History (where it exists) is per-module and inconsistent; no unified timeline or audit trail.
 - **Desired future state.** One [shared Activity model](../decisions/ARCHITECTURE_DECISIONS.md#adr-005-shared-activity-model) rendered as Timeline/Activity Feed everywhere.
-- **Related roadmap item.** [FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model) + [DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed).
+- **Progress.** FND-05 + DS-05 established the one event model and the one renderer, and Tasks, Areas, Goals, Projects, Meetings, Assets and People each adopted it rather than forking a per-module history. [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) is the first surface to prove the harder half — a **unified, cross-record** history — without fragmenting anything: the Person Timeline reads the ONE Activity stream across the Person AND their linked records, through an additive kernel multi-anchor read, with cross-module event labels taken from the FND-06 module registry. No second timeline, relationship-event store or copied content was introduced, and [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream) records the pattern any future cross-record history should reuse. **Still open:** modules that render no Timeline at all, and the workspace-wide Activity Feed has no product surface yet (only the dev fixture).
+- **Related roadmap item.** [FND-05](../roadmap/ROADMAP_V2.md#-fnd-05--shared-activity-model) + [DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed) + [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline).
 
 ### ◐ DEBT-08 — Ad-hoc cross-entity links — P2
 - **Current issue.** Relationships were modelled per-feature; links aren't bidirectional or universally visible.

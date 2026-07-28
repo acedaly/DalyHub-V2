@@ -74,6 +74,16 @@ export const DEFAULT_ACTIVITY_PAGE_SIZE = 50;
 export const MAX_ACTIVITY_PAGE_SIZE = 100;
 
 /**
+ * Hard upper bound on how many anchor entities ONE multi-anchor listing
+ * (`listForEntities`) may read at once. A unified history — a Person's
+ * relationship timeline, say — reads the events of the record itself PLUS the
+ * records it is linked to, so the anchor set must be bounded: an unbounded `IN`
+ * list is both a query-planning and a denial-of-service hazard. Callers that can
+ * exceed it must bound (and honestly disclose) their own selection first.
+ */
+export const MAX_ACTIVITY_ANCHORS = 64;
+
+/**
  * The shared lowercase dotted-identifier shape used across DalyHub for stable
  * machine identifiers: each segment starts with a letter and contains only
  * lowercase letters, digits and underscores (e.g. `entity.created`, `system`,
@@ -413,6 +423,39 @@ export function validateActivityLimit(value: unknown): number {
     throw new ActivityValidationError("limit", "must be at least 1");
   }
   return Math.min(value, MAX_ACTIVITY_PAGE_SIZE);
+}
+
+/**
+ * Validate the anchor set of a multi-anchor listing: a non-empty array of valid
+ * subject entity ids, DEDUPED and returned in a stable SORTED order.
+ *
+ * Sorting is load-bearing, not cosmetic: the anchor set — not any single anchor —
+ * is the query scope a cursor is bound to, so two callers naming the same
+ * entities in a different order must produce the same scope (see
+ * `activityAnchorKey`). Deduping keeps a record that is linked twice from
+ * widening the `IN` list. The set is bounded by {@link MAX_ACTIVITY_ANCHORS}.
+ */
+export function validateActivityAnchorIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    throw new ActivityValidationError("anchors", "must be an array");
+  }
+  if (value.length === 0) {
+    throw new ActivityValidationError(
+      "anchors",
+      "must name at least one entity",
+    );
+  }
+  const unique = new Set<string>();
+  for (const candidate of value) {
+    unique.add(validateSubjectEntityId(candidate));
+  }
+  if (unique.size > MAX_ACTIVITY_ANCHORS) {
+    throw new ActivityValidationError(
+      "anchors",
+      `must name at most ${MAX_ACTIVITY_ANCHORS} entities`,
+    );
+  }
+  return [...unique].sort();
 }
 
 /** Validate an optional event-type filter, returning undefined when not given. */

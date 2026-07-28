@@ -19,6 +19,10 @@ single shared Activity stream at two scopes:
 
 - **Timeline** — one record's history (`activity.listForEntity(entityId, …)`),
   suitable for the Activity tab of the [DS-02 Record Layout](../design/DESIGN_SYSTEM.md#shared-record-layout-ds-02).
+  A record whose history is genuinely the history of a RELATIONSHIP can widen that
+  read to a bounded SET of anchors with `activity.listForEntities(entityIds, …)`
+  (see [Multi-anchor timelines](#multi-anchor-timelines) below) — still one
+  Timeline, still one stream.
 - **Activity Feed** — a workspace/scope stream (`activity.listForWorkspace(…)`).
 
 Both are **the same `ActivityStream`**, differing only in the loader they are given
@@ -179,6 +183,57 @@ pass it straight back into the same listing.
 
 ---
 
+## Multi-anchor timelines
+
+Some records ARE their relationships. A Person's history is not only the events the
+Person row is a subject of — it is the commitments, notes, diary entries and
+meetings connected to them, whose events name THOSE records as subjects. FND-05
+therefore exposes a set generalisation of the entity Timeline:
+
+```ts
+const page = await activity.listForEntities(anchorIds, { limit, cursor });
+```
+
+Contract (see [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)):
+
+- an event is returned when ANY anchor is one of its subjects, **exactly once**
+  even when several anchors are, and it carries **all** of its subjects;
+- the same total newest-first `(occurredAt, id)` order, so a merged history is
+  deterministic even for equal timestamps;
+- **every** anchor must exist in the bound workspace (active or soft-deleted);
+  a nonexistent or cross-workspace anchor fails the whole read closed;
+- the anchor set is deduped, order-insensitive and bounded by
+  `MAX_ACTIVITY_ANCHORS`;
+- the cursor is bound to the anchor SET, so it cannot be replayed against a
+  different set and silently skip events — **page with a stable anchor set** (the
+  People adopter carries the set inside its own opaque page cursor, so a page reads
+  a snapshot and a relationship added mid-read appears on the next first-page read).
+
+This is a READ. It adds no table, migration, event type or projection — it is the
+one Activity stream at a wider scope. Deriving the anchor set (e.g. from FND-04
+EntityLinks) belongs to the adopting module, never to the kernel.
+
+### Labelling another module's event types
+
+A multi-anchor timeline necessarily carries event types the hosting module does not
+own. Do **not** import another module's descriptor map and do **not** grow a switch
+statement. Build descriptors from the FND-06 module registry, which already carries
+every module's declared activity types and their human labels:
+
+```ts
+const descriptors = createActivityDescriptorMap(
+  Object.fromEntries(
+    registry.listActivityTypes().map((t) => [t.type, { label: t.label }]),
+  ),
+  MY_MODULE_DESCRIPTORS, // your own types keep their purpose-written line
+);
+```
+
+A registry-derived descriptor has a label but **no `describe`**, so DS-05 renders
+its calm default line and emits **no payload metadata** — which is exactly what a
+privacy-sensitive host surface wants: another module's Activity payload never
+appears there, whatever it contains.
+
 ## Ordering, grouping and dates
 
 - Order is **newest-first by `(occurredAt, id)`**, ties broken by descending `id`
@@ -297,10 +352,24 @@ SAME `Timeline` given a different record-scoped `loadPage`, never a forked compo
   note (§17). A status change to `disposed` emits `asset.disposed`; any other status
   change emits `asset.status_changed`; any other detail edit emits `asset.updated`.
 
+- **The Person record's Timeline tab** (PEOPLE-01, widened by PEOPLE-02,
+  [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)) —
+  [`PersonTimelineTab`](../../app/modules/people/PersonTimelineTab.tsx) fetching the
+  module-owned [`/person/:personId/activity`](../../app/modules/people/routes/activity.tsx)
+  route. The only **multi-anchor** adopter: its loader derives the anchor set from the
+  Person's FND-04 EntityLinks and reads `activity.listForEntities`, so a linked
+  Task's, Note's, Diary entry's or Meeting's own events join the Person's history by
+  reference. It registers the four `person.*` descriptors, takes every other
+  module's labels from the module registry (payload-free, see
+  [Multi-anchor timelines](#multi-anchor-timelines)), and adds a module-owned DS-07
+  relationship-category field over the `ActivityItem` view-model — no DS-05 fork, no
+  second Person history surface. See
+  [`PEOPLE_MODULE.md → §4a`](PEOPLE_MODULE.md#4a-the-unified-relationship-timeline-people-02).
+
 All prove the intended shape: a module owns a small resource route over
-`activity.listForEntity`, maps records server-side, and drops a `<Timeline>` into its
-DS-02 Activity tab (Activity last). None adds an event store, a migration, a
-dependency or a second renderer.
+`activity.listForEntity` (or, for a relationship history, `listForEntities`), maps
+records server-side, and drops a `<Timeline>` into its DS-02 Activity tab (Activity
+last). None adds an event store, a migration, a dependency or a second renderer.
 
 ---
 

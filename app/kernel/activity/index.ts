@@ -22,6 +22,7 @@ export type {
   ActivityRecord,
   ListWorkspaceActivityInput,
   ListEntityActivityInput,
+  ListEntitiesActivityInput,
   ActivityPage,
 } from "./activity";
 
@@ -51,6 +52,7 @@ export {
   PAYLOAD_MAX_DEPTH,
   DEFAULT_ACTIVITY_PAGE_SIZE,
   MAX_ACTIVITY_PAGE_SIZE,
+  MAX_ACTIVITY_ANCHORS,
   ACTIVITY_IDENTIFIER_PATTERN,
   parseActivityType,
   isActivityType,
@@ -65,6 +67,7 @@ export {
   serializeActivityPayload,
   parseActivityPayload,
   validateActivityLimit,
+  validateActivityAnchorIds,
   validateOptionalActivityType,
 } from "./activity-validation";
 
@@ -77,6 +80,7 @@ export type {
 
 export {
   ACTIVITY_CURSOR_VERSION,
+  activityAnchorKey,
   encodeActivityCursor,
   decodeActivityCursor,
   decodeActivityCursorForScope,
