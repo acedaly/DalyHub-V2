@@ -28,6 +28,7 @@ import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
+import type { RelationshipRepository } from "~/kernel/relationships";
 import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
@@ -79,6 +80,7 @@ import {
   D1ProjectSettingsRepository,
   type D1ProjectSettingsRepositoryOptions,
 } from "./d1-project-settings-repository";
+import { D1RelationshipRepository } from "./d1-relationship-repository";
 import {
   D1ReviewRepository,
   type D1ReviewRepositoryOptions,
@@ -144,6 +146,7 @@ export {
 export { D1MeetingRepository } from "./d1-meeting-repository";
 export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
+export { D1RelationshipRepository };
 export { D1ReviewRepository, type D1ReviewRepositoryOptions };
 export { type D1ReviewCreateFault } from "./d1-review-repository";
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
@@ -421,6 +424,22 @@ export function createProjectSettingsRepository(
   options?: D1ProjectSettingsRepositoryOptions,
 ): ProjectSettingsRepository {
   return new D1ProjectSettingsRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped, read-only D1-backed RelationshipRepository —
+ * the PEOPLE-03 relationship-facts projection. It performs no mutations and caches
+ * nothing: a Person's shared-record inventory and interaction history are
+ * recomputed from live `entity_links`, `entities`, `spine_records` and Activity
+ * data, gathered for a whole bounded page of People in a fixed number of grouped
+ * queries (no N+1). Bound to a `WorkspaceContext`; there is no unscoped
+ * construction path.
+ */
+export function createRelationshipRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): RelationshipRepository {
+  return new D1RelationshipRepository(db, context);
 }
 
 export function createReviewRepository(

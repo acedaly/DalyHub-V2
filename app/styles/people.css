@@ -213,6 +213,25 @@
   gap: var(--dh-space-2);
 }
 
+/* PEOPLE-03 — the relationship summary and stay-in-touch regions. Both are plain
+ * labelled sections around SHARED components (DS-13 summary cards, the shared
+ * stay-in-touch panel); nothing about their internals is styled here. */
+.dh-person-summary__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-person-summary__section-heading {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-secondary);
+}
+
 .dh-person-summary__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));

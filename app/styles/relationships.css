@@ -1,0 +1,155 @@
+/*
+ * PEOPLE-03 stay-in-touch presentation.
+ *
+ * Mirrors `health.css` structurally (`.dh-health*` -> `.dh-stay-in-touch*`) — the
+ * SAME restrained pill + explanatory panel, so DalyHub's two derived signals read
+ * as siblings rather than as two dialects.
+ *
+ * The tone vocabulary here is deliberately NARROWER than health's: only `neutral`,
+ * `success` and `info` exist. A relationship is never a warning and never a danger
+ * (AGENTS.md §5 — care, not a CRM), so there is no red or amber rule to write.
+ * Every tone pairs its colour with the text label and a decorative dot, so meaning
+ * is never carried by colour alone (DS-11 / WCAG 2.2 AA).
+ */
+
+.dh-stay-in-touch {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-stay-in-touch__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  padding: 0 var(--dh-space-2);
+  min-height: var(--dh-space-5);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--dh-radius-full);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface);
+  white-space: nowrap;
+}
+
+.dh-stay-in-touch__dot {
+  width: var(--dh-space-2);
+  height: var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+.dh-stay-in-touch__pill[data-tone="success"] {
+  color: var(--dh-color-success-text);
+  background: var(--dh-color-success-surface);
+  border-color: transparent;
+}
+.dh-stay-in-touch__pill[data-tone="info"] {
+  color: var(--dh-color-info-text);
+  background: var(--dh-color-info-surface);
+  border-color: transparent;
+}
+
+.dh-stay-in-touch__reason {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- The detailed record panel ------------------------------------------- */
+
+.dh-stay-in-touch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-stay-in-touch-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-stay-in-touch-panel__reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-stay-in-touch-panel__reason {
+  position: relative;
+  padding-inline-start: var(--dh-space-4);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-stay-in-touch-panel__reason::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--dh-space-1);
+  inset-block-start: 0.55em;
+  width: var(--dh-space-2);
+  height: var(--dh-space-2);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-border-strong);
+}
+.dh-stay-in-touch-panel__reason[data-tone="success"]::before {
+  background: var(--dh-color-success);
+}
+.dh-stay-in-touch-panel__reason[data-tone="info"]::before {
+  background: var(--dh-color-info);
+}
+
+.dh-stay-in-touch-panel__facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--dh-space-2) var(--dh-space-4);
+}
+
+.dh-stay-in-touch-panel__fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+}
+
+.dh-stay-in-touch-panel__fact dt {
+  font-size: var(--dh-font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-stay-in-touch-panel__fact dd {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-stay-in-touch-panel__note {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .dh-stay-in-touch__pill {
+    border-color: CanvasText;
+  }
+  .dh-stay-in-touch__dot,
+  .dh-stay-in-touch-panel__reason::before {
+    background: CanvasText;
+  }
+}

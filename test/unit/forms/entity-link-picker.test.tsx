@@ -29,7 +29,9 @@ function renderPicker(ui: React.ReactElement) {
 
 const TARGETS: EntityLinkTargetOption[] = [
   { id: "n1", type: "note", title: "Creative brief" },
-  { id: "p1", type: "diary", title: "Mel Okoye" },
+  // An UNREGISTERED type: every registered entity type now has a genuine record
+  // destination, so this is what "no implemented destination" looks like.
+  { id: "p1", type: "widget", title: "Mel Okoye" },
 ];
 
 const LINK_TYPES = [
@@ -204,7 +206,7 @@ describe("EntityLinkPicker", () => {
         initial={[
           {
             linkId: "l-p1",
-            target: TARGETS[1]!, // diary → no implemented record destination
+            target: TARGETS[1]!, // unregistered type → no implemented destination
             linkType: "project.supporting_note",
             direction: "outgoing",
           },

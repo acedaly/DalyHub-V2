@@ -1,8 +1,10 @@
 # PEOPLE_MODULE.md — The People foundation
 
-> **Status:** PEOPLE-01 and PEOPLE-02 implemented. People are a first-class
-> Spine-backed entity in DalyHub, comparable to Areas, Goals, Projects, Notes and
-> Day Diary, and the Person record carries a **unified relationship timeline**.
+> **Status:** PEOPLE-01, PEOPLE-02 and PEOPLE-03 implemented. People are a
+> first-class Spine-backed entity in DalyHub, comparable to Areas, Goals, Projects,
+> Notes and Day Diary; the Person record carries a **unified relationship timeline**
+> and, over the same graph, a **derived relationship summary and stay-in-touch
+> signal**.
 >
 > Related: relationship philosophy in [`AGENTS.md §5`](../../AGENTS.md#5-relationship-philosophy) ·
 > entity kernel in [`DATA_KERNEL.md`](DATA_KERNEL.md) · module registry in
@@ -43,6 +45,9 @@ A Person is an ordinary `entities` row of reserved type `person` **plus** a
 - **The relationship history** is the shared FND-05 Activity stream — read across
   the Person AND the records they are linked to — rendered by the DS-05 Timeline
   (PEOPLE-02, [§4a](#4a-the-unified-relationship-timeline-people-02)).
+- **The relationship *answer*** — the summary aggregates and the stay-in-touch state
+  — is DERIVED from that same graph on every read by the `relationships` kernel, and
+  stored nowhere (PEOPLE-03, [§4b](#4b-relationship-intelligence-people-03)).
 
 ### Reserved-type, create-only reservation
 
@@ -186,7 +191,8 @@ The shared DS-02 `RecordLayout` with six tabs:
 
 - **Summary** — large avatar, name/pronouns, organisation/role, relationship,
   quick actions (Call, Email, Diary entry, Meeting, New note, Copy email, Copy
-  phone), key dates and tags.
+  phone), the PEOPLE-03 **relationship summary** (DS-13 cards) and **stay-in-touch**
+  panel ([§4b](#4b-relationship-intelligence-people-03)), key dates and tags.
 - **Contact** — the full structured detail editor (DS-06 forms).
 - **Timeline** — the unified relationship history via the DS-05 Timeline (see
   [§4a](#4a-the-unified-relationship-timeline-people-02)).
@@ -362,6 +368,130 @@ timeline component. See [`MEETINGS_MODULE.md`](MEETINGS_MODULE.md) and
 | [`app/modules/people/PersonTimelineTab.tsx`](../../app/modules/people/PersonTimelineTab.tsx) | the tab: shared `FilterBar` + shared `Timeline` |
 | [`app/kernel/activity`](../../app/kernel/activity) | `listForEntities`, the anchor-set cursor scope, anchor validation |
 
+## 4b. Relationship intelligence (PEOPLE-03)
+
+> Decision & rationale: [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream).
+> Aggregation architecture, data sources, extension points and performance:
+> [`RELATIONSHIPS.md → Relationship intelligence`](RELATIONSHIPS.md#relationship-intelligence-people-03).
+> Shared presentation: [`DESIGN_SYSTEM.md → Stay-in-touch signal`](../design/DESIGN_SYSTEM.md#stay-in-touch-signal-people-03)
+> and [`→ Shared summary cards (DS-13)`](../design/DESIGN_SYSTEM.md#shared-summary-cards-ds-13).
+
+PEOPLE-02 made a Person's history readable. PEOPLE-03 makes it **answerable**: the
+same graph, aggregated, so opening a Person immediately answers *when did I last
+interact with them*, *what have we shared*, *how often are we in touch* — without
+scrolling a timeline and totalling it up.
+
+**Nothing is stored.** There is no relationship table, no cached score, no
+`last_interaction_at` column and no backfill. Both the summary and the signal are
+recomputed on every load from the same two primitives the timeline reads, so they
+can never disagree with the Activity tab beside them.
+
+### Authority & data flow
+
+```
+Person record loader ──▶ scope.relationships.getPersonRelationshipFacts(personId)
+                              │   (three grouped statements; see RELATIONSHIPS.md)
+                              │
+                              ├─ entity_links → entities (+ spine_records,
+                              │                 project_details)   ← WHAT we share
+                              └─ activity_subjects → activities     ← WHAT happened
+                                     (INTERACTION_ACTIVITY_TYPES only)
+                              │
+                              ▼
+                    evaluatePersonRelationship(facts, ownerClock)   ← the RULES
+                              │
+                              ├─ SummaryCards (DS-13)      ← the relationship summary
+                              └─ StayInTouchPanel / Pill   ← the stay-in-touch state
+```
+
+### The relationship summary
+
+DS-13 summary cards on the Summary tab. Every card **leads somewhere**: shared-record
+counts open the **Linked** tab (which opens each record in its own module), and
+interaction facts open the **Activity** tab (the ONE relationship timeline, whose
+every item links to its originating record).
+
+| Card | Derived from |
+|---|---|
+| Last interaction | the most recent qualifying Activity event on a linked record |
+| Total interactions | the exact count of those events |
+| Meetings · Diary mentions · Notes · Reviews | linked records of that type |
+| Open tasks | linked Tasks whose `spine_records.completed_at` is NULL, of the total |
+| Active projects | linked Projects neither complete nor archived, of the total |
+| First interaction | the earliest qualifying event |
+
+A card whose count is **zero is omitted**, not shown as `0` — an empty relationship
+should read as an invitation, not a scoreboard of what is missing (AGENTS.md §5).
+*Last interaction* and *Total interactions* always appear, because their absence is
+itself the answer.
+
+### Stay in touch
+
+| State | Means | Tone |
+|---|---|---|
+| **No shared history yet** | nothing recorded — an invitation | `neutral` |
+| **Recently connected** | a shared moment within `RECENTLY_CONNECTED_WITHIN_DAYS` (14) | `success` |
+| **In touch** | interacting, still inside the expected rhythm | `neutral` |
+| **Due for follow-up** | past the cadence the owner chose, or past this relationship's own demonstrated rhythm | `info` |
+| **It's been a while** | nothing shared for `EXTENDED_ABSENCE_AFTER_DAYS` (180) | `info` |
+
+Precedence: `no_history → out_of_touch → due_for_follow_up → recently_connected →
+in_touch`. Whichever wins, **every** applicable reason is kept (primary first), so
+the panel explains itself rather than asserting a state.
+
+Alongside it, the panel shows the calculated cadence: days since the last shared
+moment, how often you connect (`averageIntervalDays`, phrased as "about weekly"),
+the **longest closed gap** so far (an in-progress silence is not yet a historical
+fact), the interval the follow-up signal was measured against, and the first
+interaction.
+
+**Where a follow-up signal can come from — and only these:**
+
+1. the owner's chosen `follow_up_frequency` (PEOPLE-01's long-unread field, finally
+   given a duration in `FOLLOW_UP_CADENCE_DAYS`);
+2. the owner's explicit `next_follow_up` date, once it has passed;
+3. the relationship's **own** demonstrated rhythm — but only from
+   `MIN_DAYS_FOR_OBSERVED_RHYTHM` (3) or more interaction days, only at
+   `OBSERVED_RHYTHM_MULTIPLIER` (2×) the observed average, and never inside the
+   recent-connection window.
+
+A relationship with too little history is **left alone** rather than assigned an
+invented expectation.
+
+### Tone — care, not a CRM
+
+The tone vocabulary is a strict subset with **no `warning` and no `danger`**: a
+relationship is never an error state. There are no scores, streaks, badges or
+percentages. A long silence is stated once, with its date ("Nothing shared since 1
+December 2025"), never as a day count presented as a failure. Meaning is always
+carried by the label; colour only reinforces it. PEOPLE-03 exposes the **calculated
+state only** — reminders and notifications are deliberately not part of it.
+
+### On the collection
+
+`/people` and `/people/recent` carry the SAME shared pill, from **ONE batched read
+per page** (`listPersonRelationshipFacts`), and prefer the derived last interaction
+over the hand-entered `lastInteraction` field, falling back to it only when nothing
+has been recorded. The pill is non-interactive, so a card still has exactly one tab
+stop.
+
+`/people/archived` deliberately shows **no** signal: archiving is a reversible "put
+away", and telling the owner that someone they filed away is due for a catch-up is
+precisely the nagging §5 rules out. The relationship still derives fully on the
+record itself.
+
+### Files
+
+| File | Role |
+|---|---|
+| [`app/kernel/relationships/person-relationship.ts`](../../app/kernel/relationships/person-relationship.ts) | thresholds, the interaction vocabulary, the facts shape and the pure evaluator |
+| [`app/kernel/relationships/relationship-repository.ts`](../../app/kernel/relationships/relationship-repository.ts) | the batch-first, read-only facts contract |
+| [`app/platform/storage/d1/d1-relationship-repository.ts`](../../app/platform/storage/d1/d1-relationship-repository.ts) | the three grouped, chunked statements |
+| [`app/shared/relationships`](../../app/shared/relationships) | the shared pill, the record panel, the wording and the owner-clock seam |
+| [`app/shared/summary-cards`](../../app/shared/summary-cards) | the DS-13 grid |
+| [`app/modules/people/person-relationship-view.ts`](../../app/modules/people/person-relationship-view.ts) | the People-owned summary cards + their destinations |
+| [`app/modules/people/person-collection-relationships.ts`](../../app/modules/people/person-collection-relationships.ts) | the collection's ONE batched read per page |
+
 ## 5. Accessibility & mobile
 
 - Keyboard-complete; visible focus (inherited global ring); WAI-ARIA tabs.
@@ -376,6 +506,16 @@ timeline component. See [`MEETINGS_MODULE.md`](MEETINGS_MODULE.md) and
   focus-managed popover, Escape dismisses only the editor), the day headings stay
   real headings, newly-loaded events are announced politely, and the whole tab is
   proven with axe in light AND dark and for no horizontal overflow from 320px up.
+- The PEOPLE-03 Summary regions are labelled **exactly once** each — the visible
+  heading labels the shared component itself (the DS-13 list, the stay-in-touch
+  section), never a wrapper as well, because two nested landmarks with the same name
+  is a screen-reader dead end rather than extra structure. Every navigable summary
+  card is ONE link (never a card wrapping a separate link), accessibly named
+  `"<label>: <value>"`, keyboard-reachable and clearing the 44px target at every
+  width; the grid reflows to a single column rather than scrolling sideways. The
+  collection's stay-in-touch pill is non-interactive, so a card keeps exactly one tab
+  stop. Both are proven with axe in light AND dark and across the 320px-up responsive
+  matrix ([`e2e/people-relationship.spec.ts`](../../e2e/people-relationship.spec.ts)).
 
 ---
 
@@ -387,8 +527,8 @@ breaking this contract**:
 | Future work | How it slots in |
 |---|---|
 | **Organisations** | A new `organisation` entity + a `person.works_at` EntityLink; `person_details.organisation` stays a denormalised label. |
-| **Meetings / Calls / Emails** | New entity/event types that append to the shared Activity Timeline and create `person.linked_*` EntityLinks — the Timeline and Linked tab render them with no change. |
-| **Follow-up reminders** | Read `next_follow_up` + `follow_up_frequency`; no schema change. |
+| **Meetings / Calls / Emails** | New entity/event types that append to the shared Activity Timeline and create EntityLinks — the Timeline and Linked tab render them with no change, and they join the PEOPLE-03 summary as shared records immediately (and as *interactions* once their event types are added to `INTERACTION_ACTIVITY_TYPES`). |
+| **Follow-up reminders** | Read the already-derived PEOPLE-03 `state` + `cadence`; no schema change, no second evaluator. PEOPLE-03 exposes the calculated state and deliberately no notifications. |
 | **Birthday reminders** | Read `birthday`; no schema change. |
 | **Relationship graph / timeline** | Traverse `person.linked_*` links (already the kernel primitive). |
 | **AI contact summaries** | Read the Person + its Timeline; People are excluded from external model context unless explicitly opted in (AGENTS.md §8, §17). |
@@ -424,7 +564,9 @@ sending or SMS. This PR is the DalyHub foundation only.
 
 ## Status (2026-07-28 reconciliation)
 
-**Current status.** The foundation and the relationship history are complete — [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) and [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) are ☑. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) and [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) remain ☐.
+**Current status.** The foundation, the relationship history and the relationship intelligence over it are complete — [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record), [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) and [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) are ☑. [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) remains ☐.
+
+**Delivered capabilities (PEOPLE-03).** Opening a Person now answers the relationship questions directly: a DS-13 **relationship summary** (last interaction, total interactions, meetings, diary mentions, notes, open tasks, active projects, reviews, first interaction — each card navigating to the surface that opens the records behind it) and a **stay-in-touch** panel (days since the last shared moment, how often you connect, the longest recorded gap, the interval the signal was measured against). It is a DERIVED, never-cached projection over the SAME two primitives PEOPLE-02 reads, in a new `relationships` kernel pairing a read-only workspace-bound facts repository with a pure evaluator — no table, no migration, no cached score, no `last_interaction_at` column, no backfill, no second history surface. An interaction is a substantive event on a *linked record*, never an edit to the contact card, and cadence counts distinct owner-calendar days. PEOPLE-01's `follow_up_frequency` is finally read, and is the only source of a follow-up signal apart from an explicit `next_follow_up` date or a rhythm the relationship demonstrably has. The tone set excludes `warning` and `danger` outright. The facts read is batched by contract (three grouped statements per chunk for a whole page), so the collection carries the same shared pill for no extra round trips; archived People are deliberately left unsignalled. See [§4b](#4b-relationship-intelligence-people-03) and [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream).
 
 **Delivered capabilities (PEOPLE-02).** The Person Timeline is now a genuine relationship history: the ONE `/person/:personId/activity` endpoint reads the ONE FND-05 stream across the Person AND the records they are linked to, via an additive kernel multi-anchor read (`activity.listForEntities`) — no second timeline, no relationship-event store, no copied content. Cross-module events are labelled from the FND-06 module registry (so no module imports and no product switch), which is also the privacy boundary: another module's Activity payload is never rendered here. Adds DS-07 relationship-category filtering, an honest disclosure when a Person holds more relationships than one read covers, a snapshot-stable page cursor, and the documented MEET-03 seam. See [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream).
 
@@ -435,16 +577,18 @@ sending or SMS. This PR is the DalyHub foundation only.
 - **Meetings contribute structurally, not semantically.** An attended Meeting's own record events appear (it is a linked record), but the meeting's substance — its decisions, outcomes and follow-through, scoped to the attendee — does not. [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration), whose seam is specified in [§4a](#the-meet-03-integration-seam).
 - **A very well-connected Person sees a bounded history.** One read anchors at most 40 linked records; beyond that the tab discloses the bound rather than hiding it.
 - **Filtering matches over loaded pages**, per the shared DS-05/DS-07 contract — narrowing a long history is filter + Load more, not a server-side query.
-- **Stay-in-touch has an input but no signal.** The follow-up-frequency field is persisted and editable, but nothing derives last-contact, due or overdue state from it, and nothing surfaces it. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals).
+- **Cadence is read from a bounded sample.** Exact totals (`totalInteractions`, first and last interaction) are exact and unbounded; only the interval arithmetic reads the most recent `RELATIONSHIP_INTERACTION_SAMPLE_LIMIT` moments, and the panel discloses when it did.
+- **Stay-in-touch exposes state, not reminders.** [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) deliberately ships the calculated state only. Notifications, digests and reminders are a later item that consumes it.
+- **The DS-13 summary cards are shared but not yet adopted elsewhere.** Projects, Assets and Today still render their own stat grids ([DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1)); converging them is follow-on debt work, not part of PEOPLE-03.
 - Some record quick actions (Diary / Meeting / New note) are honest placeholders rather than wired flows.
 
-**Deferred work.** Meetings contributing their substance ([MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration)); stay-in-touch signals; mobile completion beyond the DS-11 baseline; and all external integrations (Google Contacts, Microsoft 365, calendar, email/SMS) — the kernel is designed to accept these without an API break.
+**Deferred work.** Meetings contributing their substance ([MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration)) — which now also joins the PEOPLE-03 signal simply by adding its event types to `INTERACTION_ACTIVITY_TYPES`; follow-up reminders and notifications over the derived state; mobile completion beyond the DS-11 baseline; and all external integrations (Google Contacts, Microsoft 365, calendar, email/SMS) — the kernel is designed to accept these without an API break.
 
-**Build order — still binding.** There is exactly **one** Person history surface and **one** endpoint behind it. PEOPLE-02 widened `/person/:personId/activity` into the unified relationship history; [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) contributes meeting participation to that same stream (seam: [§4a](#the-meet-03-integration-seam)); PEOPLE-03 derives its signal from it; mobile comes last. A separate "Meetings" or "Interactions" tab on the Person record would fork the model and re-create [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) inside V2.
+**Build order — still binding.** There is exactly **one** Person history surface and **one** endpoint behind it, and exactly **one** derivation over it. PEOPLE-02 widened `/person/:personId/activity` into the unified relationship history; PEOPLE-03 derives its summary and signal from the same graph (never a second read model, never a stored aggregate); [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) contributes meeting participation to that same stream (seam: [§4a](#the-meet-03-integration-seam)) and to the same signal (one line in `INTERACTION_ACTIVITY_TYPES`); mobile comes last. A separate "Meetings" or "Interactions" tab on the Person record would fork the model and re-create [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) inside V2.
 
-**Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ · [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) ☐ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐.
+**Relevant roadmap items.** [PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record) ☑ · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☑ · [DS-13](../roadmap/ROADMAP_V2.md#-ds-13--shared-summary-cards) ☑ · [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) ☐ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☐.
 
-**Relevant product-debt items.** [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1) · [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3) (this module owns one of the two `0013` migrations — always cite it by full filename).
+**Relevant product-debt items.** [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28) · [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3) (this module owns one of the two `0013` migrations — always cite it by full filename).
 
 ---
 

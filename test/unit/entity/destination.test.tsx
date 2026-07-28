@@ -59,8 +59,20 @@ describe("entityDestination", () => {
     });
   });
 
+  // PEOPLE-03 — DIARY-01A shipped `/diary/:entryId` but never registered it here,
+  // so a diary entry referenced from a Person's relationship timeline degraded to
+  // plain text even though its record page existed.
+  it("maps a Diary entry to its canonical record route", () => {
+    expect(entityDestination("diary", "d1")).toEqual({
+      kind: "route",
+      to: "/diary/d1",
+    });
+  });
+
   it("returns null for unsupported types and blank ids (degrades to text)", () => {
-    for (const type of ["diary", "??"]) {
+    // Every REGISTERED entity type now has a genuine destination, so the
+    // no-destination case is an unregistered type (a future module's) or a blank id.
+    for (const type of ["widget", "??"]) {
       expect(entityDestination(type, "x")).toBeNull();
     }
     expect(entityDestination("goal", "")).toBeNull();
@@ -96,7 +108,7 @@ describe("EntityLink", () => {
   });
 
   it("renders unsupported targets as plain, non-interactive text", () => {
-    renderLink(<EntityLink type="diary" id="d1" title="Budget spreadsheet" />);
+    renderLink(<EntityLink type="widget" id="d1" title="Budget spreadsheet" />);
     expect(screen.getByText("Budget spreadsheet")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
@@ -128,8 +140,10 @@ describe("EntityLink", () => {
   });
 
   it("keeps the glyph on a target with no destination, so identity never depends on navigability", () => {
+    // A registered type whose id is missing: identity (the glyph) is still shown,
+    // but there is nothing to navigate to.
     const { container } = renderLink(
-      <EntityLink type="diary" id="d1" title="Monday" />,
+      <EntityLink type="diary" id="" title="Monday" />,
     );
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(

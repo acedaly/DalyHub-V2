@@ -14,14 +14,19 @@
  *     degrades to non-interactive text at the render layer.
  *
  * Destinations follow the accepted DalyHub conventions:
- *   - Area / Goal / Project / Note / Person / Meeting / Asset / Review → their canonical
- *     record route.
+ *   - Area / Goal / Project / Note / Person / Meeting / Asset / Review / Diary entry →
+ *     their canonical record route.
  *   - Task → the shared Task Drawer (a `task:<id>` drawer key, opened over the
  *     current record context — never a standalone page, matching the app-wide
  *     convention).
- *   - Every other entity type (diary) → `null`, because no genuine
- *     canonical record destination is implemented yet. We never link to a "Coming
- *     Soon" placeholder merely because a type is registered.
+ *   - Any entity type with no implemented record route → `null`, so the caller
+ *     renders plain text. We never link to a "Coming Soon" placeholder merely
+ *     because a type is registered.
+ *
+ * PEOPLE-03 added the Diary entry route (`/diary/:entryId`), which DIARY-01A had
+ * shipped without registering here — so a diary entry referenced from a Person's
+ * relationship timeline used to degrade to plain text even though its record page
+ * existed.
  *
  * This is the single source of truth for "where does this record open"; modules
  * must not reintroduce per-module route `switch` statements.
@@ -46,6 +51,7 @@ const CANONICAL_ROUTE: Partial<Record<string, (id: string) => string>> = {
   meeting: (id) => `/meeting/${encodeURIComponent(id)}`,
   asset: (id) => `/asset/${encodeURIComponent(id)}`,
   review: (id) => `/reviews/${encodeURIComponent(id)}`,
+  diary: (id) => `/diary/${encodeURIComponent(id)}`,
 };
 
 /**

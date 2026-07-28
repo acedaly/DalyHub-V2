@@ -13,10 +13,8 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import { PeopleCollectionView } from "../PeopleCollection";
-import {
-  serializePersonListItem,
-  type SerializedPersonListItem,
-} from "../person-view";
+import { serializePeoplePage } from "../person-collection-relationships";
+import { type SerializedPersonListItem } from "../person-view";
 import type { Route } from "./+types/recent";
 
 const RECENT_LIMIT = 12;
@@ -36,8 +34,14 @@ export async function loader({ context }: Route.LoaderArgs) {
       status: "active",
       limit: RECENT_LIMIT,
     });
+    // PEOPLE-03 — ONE batched relationship read for the WHOLE page.
     return {
-      people: page.items.map(serializePersonListItem),
+      people: await serializePeoplePage(
+        scope.relationships,
+        scope.appPreferences,
+        session.user.subject,
+        page.items,
+      ),
       nextCursor: null as string | null,
       view: "recent" as const,
       failed: false,

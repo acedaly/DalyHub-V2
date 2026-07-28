@@ -9,6 +9,12 @@
  * here.
  */
 
+import type {
+  RelationshipReason,
+  RelationshipState,
+  RelationshipTone,
+} from "~/kernel/relationships";
+
 import {
   CONTACT_METHODS,
   FOLLOW_UP_FREQUENCIES,
@@ -18,6 +24,24 @@ import {
   type Person,
   type PersonRelationship,
 } from "~/kernel/people";
+
+/**
+ * PEOPLE-03 — the compact, card-sized projection of a Person's DERIVED
+ * stay-in-touch signal. It satisfies the shared `StayInTouchSignal` contract, so the
+ * collection card and the Person record render the SAME pill from the same
+ * component; only the primary reason travels, because that is all a card shows.
+ * Nothing here is stored — it is evaluated per request from live facts.
+ */
+export type SerializedPersonStayInTouch = {
+  readonly state: RelationshipState;
+  readonly label: string;
+  readonly tone: RelationshipTone;
+  readonly reasons: readonly RelationshipReason[];
+  /** The owner-calendar date of the last shared moment `YYYY-MM-DD`, or null. */
+  readonly lastInteractionDate: string | null;
+  /** Owner-calendar days since that moment, or null when there is none. */
+  readonly daysSinceLastInteraction: number | null;
+};
 
 /** One Person on the `/people` collection (card-sized projection). */
 export type SerializedPersonListItem = {
@@ -38,6 +62,12 @@ export type SerializedPersonListItem = {
   readonly archived: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /**
+   * The derived stay-in-touch signal, when the page resolved one. Optional so the
+   * collection stays renderable if the batched facts read fails — the card simply
+   * shows no signal rather than a wrong one.
+   */
+  readonly stayInTouch?: SerializedPersonStayInTouch;
 };
 
 /** The full Person detail projection for the canonical record. */
@@ -135,8 +165,10 @@ function letter(value: string): string {
 
 export function serializePersonListItem(
   person: Person,
+  stayInTouch?: SerializedPersonStayInTouch,
 ): SerializedPersonListItem {
   return {
+    ...(stayInTouch ? { stayInTouch } : {}),
     id: person.id,
     title: person.title,
     preferredName: person.preferredName,

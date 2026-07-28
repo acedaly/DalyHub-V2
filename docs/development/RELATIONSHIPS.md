@@ -228,6 +228,106 @@ Consequences worth knowing when you touch this system:
   [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)
   and [`PEOPLE_MODULE.md → §4a`](PEOPLE_MODULE.md#4a-the-unified-relationship-timeline-people-02).
 
+## Relationship intelligence (PEOPLE-03)
+
+> Decision & rationale: [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream).
+> Surface: [`PEOPLE_MODULE.md → §4b`](PEOPLE_MODULE.md#4b-relationship-intelligence-people-03).
+
+[PEOPLE-02](#adopter-note--the-people-relationship-timeline-people-02) made the
+relationship graph *readable as history*. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals)
+makes it *answerable*: the same graph, aggregated. This is the second — and, so
+far, only other — surface that reads the graph rather than editing it, and it is
+the one future modules (Email, Calendar, Communications, an AI assistant) are
+expected to build on.
+
+### The aggregation architecture
+
+Three layers, the same shape PROJ-02 project health and AREA-03 goal alignment use:
+
+```
+app/kernel/relationships/       the pure model + the read-only facts CONTRACT
+  person-relationship.ts          thresholds, vocabulary, facts, the evaluator
+  relationship-repository.ts      RelationshipRepository (batch-first)
+
+app/platform/storage/d1/        the ONLY place SQL lives
+  d1-relationship-repository.ts   three grouped statements per chunk
+
+app/shared/relationships/       the shared presentation (pill, panel, wording)
+app/modules/people/             the People-owned view-model + wiring
+```
+
+The evaluator is a **pure function of (facts, injected clock)**. Nothing is stored,
+cached or backfilled — a relationship is recomputed on every load, so it can never
+drift from the timeline the owner is looking at.
+
+### The data sources — exactly two
+
+| Source | Answers | Read as |
+|---|---|---|
+| **FND-04 EntityLinks** (`entity_links`) | *What have we shared?* | active links in either direction, minus reserved spine types, joined to active in-workspace `entities`, grouped by type |
+| **FND-05 Activity** (`activities` + `activity_subjects`) | *What actually happened, and when?* | qualifying events on those linked records — first, last, exact count, plus a bounded newest-first instant sample for cadence |
+
+Task and Project *open/active* state comes from the authoritative `spine_records`
+(and `project_details.archived_at`), never a cached column. There is no third
+source, and there is deliberately no relationship table.
+
+### What counts as an interaction
+
+`INTERACTION_ACTIVITY_TYPES` (in the relationships kernel) is a **trusted, narrow
+vocabulary of events on a LINKED record**. It admits substantive creation and
+progress events — a meeting created or written up, a diary entry, a note's content,
+a commitment completed, a review. It excludes, deliberately:
+
+- every `person.*` type — record maintenance on the contact card is not contact;
+- every `entity_link.*` type — relationship bookkeeping is not a moment;
+- `entity.updated` — a rename;
+- `entity.deleted` / `entity.restored` — tidying;
+- archive / restore / status-change types — filing.
+
+Each moment counts exactly once: a module with its own repository emits only its own
+creation event (`meeting.created`, `diary_entry.created`, `review.created`), and
+records created through the generic entity/spine path (Notes, Tasks, Projects) emit
+only `entity.created` — the two never both fire for one creation.
+
+### Extension points
+
+| Future work | How it slots in |
+|---|---|
+| **MEET-03 meeting substance** | emit `meeting.held` (etc.) naming the attendee as a subject, declare it in the Meetings manifest, and add the type to `INTERACTION_ACTIVITY_TYPES`. No People change, no new surface. |
+| **Emails, calls, messages** | a new entity type linked to the Person + its own Activity types in the vocabulary. It counts as a shared record and as an interaction with no schema change; give it a named summary card only when it earns one (until then it lands in *Other records*). |
+| **Calendar** | identical to Meetings — an entity, a link, an event type. |
+| **Follow-up reminders / notifications** | read the already-derived `state` and `cadence`. PEOPLE-03 deliberately ships the calculated state and no notifications; a reminder layer consumes it and adds nothing to the kernel. |
+| **A People collection sorted or filtered by stay-in-touch** | `listPersonRelationshipFacts` already returns a whole page; the surface work is the sort control, not a new read. |
+| **AI relationship summaries** | read the evaluated model, not the records. People stay excluded from external model context unless explicitly opted in ([AGENTS.md §8](../../AGENTS.md#8-ai-philosophy), [§17](../../AGENTS.md#17-security-requirements)). |
+| **A richer relationship graph (per-link qualifiers, family/colleague edges)** | layers on the EntityLink primitive; the aggregate reads whatever links exist. |
+
+An interaction source that never declares its Activity types still contributes
+**structurally** (it is counted as a shared record) but not **semantically** — the
+same trade PEOPLE-02 already makes for timeline labels.
+
+### Performance
+
+- **Batch-first by contract.** `listPersonRelationshipFacts(ids)` is the primary
+  method and `getPersonRelationshipFacts(id)` is defined as its one-element case, so
+  there is no per-Person path to fall into. A whole page costs **three grouped
+  statements per chunk of 25 ids** — one for the shared-record inventory, one for the
+  interaction aggregate, one for the bounded sample — regardless of page size. A
+  query-counting kernel test asserts that 1 Person and 12 People cost the same three
+  statements, and 30 People cost six.
+- **Chunked binds.** The id set is bound twice per statement (once per link
+  direction), so the chunk size is 25 — comfortably inside D1's 100-bind ceiling.
+- **Bounded, disclosed.** Exact totals are read unbounded (a `COUNT`/`MIN`/`MAX` is
+  cheap); only the cadence *sample* is bounded, at
+  `RELATIONSHIP_INTERACTION_SAMPLE_LIMIT`, ranked per Person with one window function
+  rather than one query each. When the bound bites, the panel says so.
+- **Nothing cached.** Deliberately: a cached relationship is a cache every module in
+  the product would have to invalidate, and it fails silently when they forget. The
+  cost is one extra grouped read per record load, and a facts failure degrades to the
+  honest zero relationship rather than taking the record down.
+- **No timezone logic in SQL.** Raw UTC instants cross the boundary; the evaluator
+  maps them to the owner's calendar day, so "days since" is right across the
+  UTC/AEST boundary.
+
 ## Activity
 
 Relationship creation and removal are recorded automatically by the FND-04 kernel

@@ -172,10 +172,23 @@ pass it straight back into the same listing.
   `filterFields`/`filterExpression`/`onClearFilters` to the stream. Filter state
   follows the DS-07 URL contract and preserves unrelated params (including DS-03
   `drawer` params).
-- **Opening an entity** reuses the DS-03 Drawer. A `ResolvedEntity` with a
-  `drawerKey` renders as a `DrawerTrigger` link by default; mount the stream inside a
-  `DrawerProvider` whose `renderDrawer` maps the key to a DS-02 Record Layout.
-  Override with `renderEntityLink` if you must — but never build a bespoke modal.
+- **Opening an entity** goes wherever that record type actually opens, resolved by
+  the ONE shared `entityDestination` helper. Order of precedence:
+  1. an explicit `drawerKey` on the `ResolvedEntity` — the loader has decided;
+  2. otherwise the shared destination for the resolved `entityType` — the DS-03
+     Drawer for a Task, the canonical record route for a Meeting, Note, Diary entry,
+     Project, Review, Person, Area, Goal or Asset;
+  3. otherwise plain, non-interactive text — an unresolvable or not-yet-routable
+     record never becomes a broken link.
+
+  Mount the stream inside a `DrawerProvider` whose `renderDrawer` maps a drawer key
+  to a DS-02 Record Layout. Override with `renderEntityLink` if you must — but never
+  build a bespoke modal.
+
+  *Before PEOPLE-03 only step 1 existed, so every timeline in the product could link
+  Tasks and nothing else: a Person's relationship history named the meeting, note or
+  diary entry an event came from and gave no way to open it. Nothing about the route
+  contract changed — the default link resolution did.*
 - **States** are built in and reuse the shared components: initial loading
   (Skeleton), genuinely-empty (EmptyState), filtered-empty (DS-07 FilterEmptyState),
   loading-more, page-load failure + retry, end-of-feed, unknown type, unresolved
