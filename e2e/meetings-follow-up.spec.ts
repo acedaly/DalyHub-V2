@@ -27,23 +27,22 @@ async function createMeeting(page: Page, title: string): Promise<string> {
   owned.add(title);
   await gotoFixture(page, "/new/meeting");
   await page
-    .getByRole("form", { name: "New Meeting" })
+    .getByRole("form", { name: "New meeting" })
     .getByLabel("Title")
     .fill(title);
-  await page.getByLabel("Starts").fill("2026-07-27T09:00");
+  await page.getByLabel("Start date and time").fill("2026-07-27T09:00");
   await page.getByRole("button", { name: "Create meeting" }).click();
-  await expect(page).toHaveURL(/\/meeting\/[^/?#]+$/);
+  await expect(page).toHaveURL(/\/meeting\/[^/?#]+\?tab=meeting$/);
   return page.url();
 }
 
-/** Add a structured item of a kind via its tab's add form. */
+/** Add a structured item via the consolidated Meeting workspace. */
 async function addItem(
   page: Page,
-  tab: string,
   addLabel: string,
   body: string,
 ): Promise<void> {
-  await page.getByRole("tab", { name: tab }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await page.getByLabel(addLabel).fill(body);
   await page.getByRole("button", { name: addLabel }).click();
   await expect(page.getByText(body, { exact: false })).toBeVisible();
@@ -126,36 +125,29 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await createMeeting(page, title);
 
   // Attendee (seeded person).
-  await page.getByRole("tab", { name: "Summary" }).click();
-  await page.getByLabel("Add attendee").selectOption({ label: "Sarah Chen" });
-  await page.getByRole("button", { name: "Add attendee" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
+  const attendee = page.getByRole("combobox", { name: "Add attendees" });
+  await attendee.click();
+  await attendee.fill("Sarah Chen");
+  await page.getByRole("option", { name: "Sarah Chen" }).click();
+  await page.getByRole("button", { name: "Add selected" }).click();
   await expect(page.getByRole("link", { name: /Sarah Chen/ })).toBeVisible();
 
-  await addItem(
-    page,
-    "Agenda",
-    "Add agenda item",
-    "Agenda: confirm the budget",
-  );
-  await addItem(
-    page,
-    "Decisions",
-    "Add decision",
-    "Decision: proceed with vendor A",
-  );
-  await addItem(page, "Outcomes", "Add outcome", "Outcome: publish the recap");
+  await addItem(page, "Add agenda item", "Agenda: confirm the budget");
+  await addItem(page, "Add decision", "Decision: proceed with vendor A");
+  await addItem(page, "Add outcome", "Outcome: publish the recap");
 
   // Convert the agenda item, editing title + priority.
-  await page.getByRole("tab", { name: "Agenda" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Agenda: confirm the budget", {
     title: "Confirm the FY budget",
     parent: "Website relaunch",
-    priority: "P1 · Do",
+    priority: "P1 · Urgent",
   });
   await closeDrawer(page);
 
   // The item now offers "Open task"; opening restores focus to that control.
-  await page.getByRole("tab", { name: "Agenda" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   const openButton = page
     .locator(".dh-meeting-item", { hasText: "Agenda: confirm the budget" })
     .getByRole("button", { name: "Open task" });
@@ -167,12 +159,12 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await expect(openButton).toBeFocused();
 
   // Convert the decision and outcome too.
-  await page.getByRole("tab", { name: "Decisions" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: proceed with vendor A", {
     parent: "Website relaunch",
   });
   await closeDrawer(page);
-  await page.getByRole("tab", { name: "Outcomes" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Outcome: publish the recap", {
     parent: "Launch checklist",
   });
@@ -204,7 +196,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   await expect(page.getByRole("heading", { name: /Open \(4\)/ })).toBeVisible();
 
   // Duplicate conversion is prevented: the agenda item shows Open task, not Create.
-  await page.getByRole("tab", { name: "Agenda" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await expect(openButton).toBeVisible();
   await expect(
     page
@@ -226,8 +218,8 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
 }) => {
   const title = uniqueMeetingTitle("archived");
   await createMeeting(page, title);
-  await addItem(page, "Decisions", "Add decision", "Decision: keep the venue");
-  await page.getByRole("tab", { name: "Decisions" }).click();
+  await addItem(page, "Add decision", "Decision: keep the venue");
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: keep the venue", {
     parent: "Website relaunch",
   });
@@ -235,9 +227,9 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
 
   // Archive from Settings (the button flips to Restore once archived).
   await page.getByRole("tab", { name: "Settings" }).click();
-  await page.getByRole("button", { name: "Archive meeting" }).click();
+  await page.getByRole("button", { name: /Archive Meeting/i }).click();
   await expect(
-    page.getByRole("button", { name: "Restore meeting" }),
+    page.getByRole("button", { name: /Restore Meeting/i }),
   ).toBeVisible();
 
   // Creation controls are gone; the linked Task is still openable.
@@ -245,7 +237,7 @@ test("an archived meeting is read-only but its Tasks stay navigable", async ({
   await expect(
     page.getByRole("button", { name: "Add follow-up task" }),
   ).toHaveCount(0);
-  await page.getByRole("tab", { name: "Decisions" }).click();
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await expect(
     page
       .locator(".dh-meeting-item", { hasText: "Decision: keep the venue" })
@@ -263,13 +255,8 @@ test("browser Back/Forward and refresh preserve the tab and Drawer", async ({
 }) => {
   const title = uniqueMeetingTitle("history");
   const url = await createMeeting(page, title);
-  await addItem(
-    page,
-    "Decisions",
-    "Add decision",
-    "Decision: schedule the review",
-  );
-  await page.getByRole("tab", { name: "Decisions" }).click();
+  await addItem(page, "Add decision", "Decision: schedule the review");
+  await page.getByRole("tab", { name: "Meeting" }).click();
   await convertItem(page, "Decision: schedule the review", {
     parent: "Website relaunch",
   });
@@ -291,7 +278,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     const title = uniqueMeetingTitle(`axe-${scheme}`);
     await createMeeting(page, title);
-    await addItem(page, "Decisions", "Add decision", "Decision: axe check");
+    await addItem(page, "Add action item", "Action: axe check");
     await page.getByRole("tab", { name: "Follow-up" }).click();
     await expect(
       page.getByRole("button", { name: "Add follow-up task" }),
@@ -309,13 +296,12 @@ for (const width of [390, 320]) {
     await createMeeting(page, title);
     await addItem(
       page,
-      "Decisions",
-      "Add decision",
-      "Decision: a deliberately long decision line that must wrap without widening the page on a narrow phone viewport",
+      "Add action item",
+      "Action: a deliberately long action line that must wrap without widening the page on a narrow phone viewport",
     );
     await page.getByRole("tab", { name: "Follow-up" }).click();
     await expectNoHorizontalOverflow(page);
-    await page.getByRole("tab", { name: "Decisions" }).click();
+    await page.getByRole("tab", { name: "Meeting" }).click();
     await expectNoHorizontalOverflow(page);
   });
 }

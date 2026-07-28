@@ -369,6 +369,11 @@ describe("module discovery", () => {
           file: "routes/create.tsx",
         },
         {
+          id: "meetings.attendee_options",
+          moduleId: "meetings",
+          file: "routes/attendee-options.tsx",
+        },
+        {
           id: "meetings.detail",
           moduleId: "meetings",
           file: "routes/detail.tsx",

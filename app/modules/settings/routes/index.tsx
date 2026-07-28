@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useFetcher, useSearchParams } from "react-router";
 
 import {
@@ -15,6 +15,7 @@ import {
   parseDiaryDefaultMode,
   parseFirstDayOfWeek,
   parseLandingDestination,
+  parseTaskCaptureParentId,
   parseTaskDefaultView,
   parseTimezone,
   resolveNavigationPreferences,
@@ -30,8 +31,10 @@ import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
+import { SelectField } from "~/shared/forms";
 import { ThemeControl } from "~/shared/shell/ThemeControl";
 import { readThemePreference } from "~/shared/shell/theme";
+import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import type { Route } from "./+types/index";
 
@@ -147,9 +150,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       firstDayOfWeek: preferences.firstDayOfWeek,
       defaultLandingDestination: preferences.defaultLandingDestination,
       defaultTasksView: preferences.defaultTasksView,
+      defaultTaskCaptureParentId: preferences.defaultTaskCaptureParentId,
+      defaultTaskCaptureParentKind: preferences.defaultTaskCaptureParentKind,
       defaultDiaryMode: preferences.defaultDiaryMode,
       version: preferences.version,
     },
+    defaultTaskCaptureParent:
+      preferences.defaultTaskCaptureParentId !== null
+        ? await scope.tasks.getTaskParentCandidate(
+            preferences.defaultTaskCaptureParentId,
+          )
+        : null,
     navigation: resolvedNavigation.items,
     landingOptions: LANDING_DESTINATIONS.filter((destination) =>
       availablePaths.has(`/${destination}`),
@@ -173,6 +184,33 @@ export async function action({ request, context }: Route.ActionArgs) {
       const value = String(form.get("value") ?? "");
       const patch = patchForField(field, value);
       await scope.appPreferences.update(session.user.subject, patch);
+      return json({ ok: true });
+    }
+    if (intent === "update-task-capture-parent") {
+      const parentId = parseTaskCaptureParentId(
+        String(form.get("parentId") ?? ""),
+      );
+      if (parentId === null) {
+        await scope.appPreferences.update(session.user.subject, {
+          defaultTaskCaptureParentId: null,
+          defaultTaskCaptureParentKind: null,
+        });
+        return json({ ok: true });
+      }
+      const parent = await scope.tasks.getTaskParentCandidate(parentId);
+      if (!parent) {
+        return json(
+          {
+            ok: false,
+            message: "Choose an active Area or non-archived Project.",
+          },
+          400,
+        );
+      }
+      await scope.appPreferences.update(session.user.subject, {
+        defaultTaskCaptureParentId: parent.id,
+        defaultTaskCaptureParentKind: parent.kind,
+      });
       return json({ ok: true });
     }
     if (intent === "toggle-navigation") {
@@ -323,6 +361,10 @@ function GeneralSection({
             value,
             label: TASK_VIEW_LABELS[value],
           }))}
+        />
+        <TaskCaptureParentSetting
+          current={data.defaultTaskCaptureParent}
+          storedId={data.preferences.defaultTaskCaptureParentId}
         />
         <SelectSetting
           field="defaultDiaryMode"
@@ -556,6 +598,104 @@ function SelectSetting({
           </select>
         </fetcher.Form>
       )}
+    />
+  );
+}
+
+function TaskCaptureParentSetting({
+  current,
+  storedId,
+}: {
+  readonly current: {
+    readonly id: string;
+    readonly kind: "area" | "project";
+    readonly title: string;
+  } | null;
+  readonly storedId: string | null;
+}) {
+  const fetcher = useFetcher<ActionResult>();
+  const parentSearch = useTaskParentSearch();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [value, setValue] = useState(current?.id ?? "");
+  const currentOption = current
+    ? [
+        {
+          value: current.id,
+          label: current.title,
+          description: current.kind === "project" ? "Project" : "Area",
+        },
+      ]
+    : [];
+  const options = [
+    ...currentOption,
+    ...parentSearch
+      .withSelected(value)
+      .filter((option) => option.value !== current?.id),
+  ];
+  const unavailable =
+    storedId !== null && current === null
+      ? "The saved parent is no longer available; choose another or clear it."
+      : null;
+  return (
+    <SettingsRow
+      label="Default task capture parent"
+      description="Used by New task when the current screen does not provide a Project or Area context."
+      status={statusFor(fetcher) ?? unavailable}
+      statusTone={
+        fetcher.data?.ok === false || unavailable
+          ? "danger"
+          : statusToneFor(fetcher)
+      }
+      statusLive
+      align="start"
+      control={
+        <fetcher.Form
+          ref={formRef}
+          method="post"
+          className="dh-settings-page__stacked-form"
+        >
+          <input
+            type="hidden"
+            name="intent"
+            value="update-task-capture-parent"
+          />
+          <input type="hidden" name="parentId" value={value} />
+          <SelectField
+            label="Default task capture parent"
+            showOptionalCue={false}
+            value={value}
+            onChange={setValue}
+            options={options}
+            onSearch={parentSearch.search}
+            loading={parentSearch.loading}
+            placeholder="Search Projects and Areas"
+            emptyMessage="No matching Projects or Areas"
+            disabled={fetcher.state !== "idle"}
+          />
+          <div className="dh-settings-page__inline-actions">
+            <button
+              type="submit"
+              className="dh-btn dh-btn--secondary"
+              disabled={fetcher.state !== "idle"}
+            >
+              Save parent
+            </button>
+            <button
+              type="button"
+              className="dh-btn dh-btn--ghost"
+              disabled={fetcher.state !== "idle" || value.length === 0}
+              onClick={() => {
+                setValue("");
+                window.requestAnimationFrame(() => {
+                  formRef.current?.requestSubmit();
+                });
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </fetcher.Form>
+      }
     />
   );
 }

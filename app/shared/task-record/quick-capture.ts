@@ -39,6 +39,7 @@ export interface QuickCaptureInterpretation {
 
 /** A recognised token and the human label the preview shows. */
 export interface QuickCaptureToken {
+  readonly id: string;
   readonly raw: string;
   readonly kind: "priority" | "sector" | "commitment" | "waiting" | "delegate";
   readonly label: string;
@@ -69,10 +70,10 @@ const SINGLE_SECTOR_TOKENS: Record<string, TimeSector> = {
 };
 
 const PRIORITY_PREVIEW: Record<TaskPriority, string> = {
-  p1: "P1 · Do",
-  p2: "P2 · Defer",
-  p3: "P3 · Delegate",
-  p4: "P4 · Delete / Review",
+  p1: "P1 · Urgent",
+  p2: "P2 · High",
+  p3: "P3 · Normal",
+  p4: "P4 · Low",
 };
 
 const SECTOR_PREVIEW: Record<TimeSector, string> = {
@@ -95,7 +96,10 @@ function normaliseWhitespace(value: string): string {
  * title it keeps the original text (tokens become literal words) — capture never
  * yields an empty task.
  */
-export function parseQuickCapture(raw: string): QuickCaptureInterpretation {
+export function parseQuickCapture(
+  raw: string,
+  options: { readonly ignoredTokenIds?: ReadonlySet<string> } = {},
+): QuickCaptureInterpretation {
   const original = normaliseWhitespace(raw);
   const words = original.length > 0 ? original.split(" ") : [];
   const lower = words.map((w) => w.toLowerCase());
@@ -107,6 +111,7 @@ export function parseQuickCapture(raw: string): QuickCaptureInterpretation {
   let waiting = false;
   let delegate = false;
   const tokens: QuickCaptureToken[] = [];
+  const ignored = options.ignoredTokenIds ?? new Set<string>();
 
   // Multi-word sector phrases first (whole consecutive words, case-insensitive).
   for (const [phrase, sector] of SECTOR_PHRASES) {
@@ -114,10 +119,13 @@ export function parseQuickCapture(raw: string): QuickCaptureInterpretation {
     for (let i = 0; i + 1 < words.length; i++) {
       if (removed[i] || removed[i + 1]) continue;
       if (`${lower[i]} ${lower[i + 1]}` === phrase) {
+        const id = `sector:${phrase}`;
+        if (ignored.has(id)) break;
         timeSector = sector;
         removed[i] = true;
         removed[i + 1] = true;
         tokens.push({
+          id,
           raw: phrase,
           kind: "sector",
           label: SECTOR_PREVIEW[sector],
@@ -132,17 +140,23 @@ export function parseQuickCapture(raw: string): QuickCaptureInterpretation {
     if (removed[i]) continue;
     const w = lower[i]!;
     if (priority === null && w in PRIORITY_TOKENS) {
+      const id = `priority:${w}`;
+      if (ignored.has(id)) continue;
       priority = PRIORITY_TOKENS[w]!;
       removed[i] = true;
       tokens.push({
+        id,
         raw: w,
         kind: "priority",
         label: PRIORITY_PREVIEW[priority],
       });
     } else if (timeSector === null && w in SINGLE_SECTOR_TOKENS) {
+      const id = `sector:${w}`;
+      if (ignored.has(id)) continue;
       timeSector = SINGLE_SECTOR_TOKENS[w]!;
       removed[i] = true;
       tokens.push({
+        id,
         raw: w,
         kind: "sector",
         label: SECTOR_PREVIEW[timeSector],
@@ -151,17 +165,28 @@ export function parseQuickCapture(raw: string): QuickCaptureInterpretation {
       commitmentState === "active" &&
       (w === "someday" || w === "maybe")
     ) {
+      const id = `commitment:${w}`;
+      if (ignored.has(id)) continue;
       commitmentState = "someday";
       removed[i] = true;
-      tokens.push({ raw: w, kind: "commitment", label: "Someday / Maybe" });
+      tokens.push({
+        id,
+        raw: w,
+        kind: "commitment",
+        label: "Someday / Maybe",
+      });
     } else if (!waiting && w === "waiting") {
+      const id = "waiting:waiting";
+      if (ignored.has(id)) continue;
       waiting = true;
       removed[i] = true;
-      tokens.push({ raw: w, kind: "waiting", label: "Waiting" });
+      tokens.push({ id, raw: w, kind: "waiting", label: "Waiting" });
     } else if (!delegate && w === "delegate") {
+      const id = "delegate:delegate";
+      if (ignored.has(id)) continue;
       delegate = true;
       removed[i] = true;
-      tokens.push({ raw: w, kind: "delegate", label: "Delegate" });
+      tokens.push({ id, raw: w, kind: "delegate", label: "Delegate" });
     }
   }
 

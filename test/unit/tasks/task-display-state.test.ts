@@ -29,11 +29,11 @@ describe("priorityQuadrant / labels", () => {
     expect(priorityQuadrant(null)).toBeNull();
   });
 
-  it("labels priority consistently as 'P1 · Do' etc", () => {
-    expect(taskPriorityLabel("p1")).toBe("P1 · Do");
-    expect(taskPriorityLabel("p2")).toBe("P2 · Defer");
-    expect(taskPriorityLabel("p3")).toBe("P3 · Delegate");
-    expect(taskPriorityLabel("p4")).toBe("P4 · Delete / Review");
+  it("labels priority concisely outside methodology-specific views", () => {
+    expect(taskPriorityLabel("p1")).toBe("P1 · Urgent");
+    expect(taskPriorityLabel("p2")).toBe("P2 · High");
+    expect(taskPriorityLabel("p3")).toBe("P3 · Normal");
+    expect(taskPriorityLabel("p4")).toBe("P4 · Low");
     expect(taskPriorityLabel(null)).toBe("No priority");
   });
 

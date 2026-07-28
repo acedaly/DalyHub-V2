@@ -17,6 +17,7 @@ import {
 
 const TASK_TITLE = "Await supplier sign-off";
 const DRAWER_URL = "/today?drawer=task%3At-waiting";
+const WAITING_NOTE_LABEL = /What it.?s waiting on/;
 
 /**
  * Open the dedicated task's Drawer and normalise it to a NOT-waiting state, so each
@@ -50,9 +51,7 @@ test.describe("TODAY-03 — Waiting", () => {
 
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
-    await dialog
-      .getByLabel("What it’s waiting on")
-      .fill("finance confirmation");
+    await dialog.getByLabel(WAITING_NOTE_LABEL).fill("finance confirmation");
     await dialog.getByRole("button", { name: "Save" }).click();
 
     // The read-only waiting summary appears with the subject and a "Waiting" pill.
@@ -69,7 +68,7 @@ test.describe("TODAY-03 — Waiting", () => {
     const dialog = await openTaskDrawer(page);
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
-    await dialog.getByLabel("What it’s waiting on").fill("replacement parts");
+    await dialog.getByLabel(WAITING_NOTE_LABEL).fill("replacement parts");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog.getByText("replacement parts")).toBeVisible();
 
@@ -99,7 +98,7 @@ test.describe("TODAY-03 — Waiting", () => {
     const dialog = await openTaskDrawer(page);
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
-    await dialog.getByLabel("What it’s waiting on").fill("legal review");
+    await dialog.getByLabel(WAITING_NOTE_LABEL).fill("legal review");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog.getByText("legal review")).toBeVisible();
 
@@ -130,7 +129,7 @@ test.describe("TODAY-03 — Waiting", () => {
     const dialog = await openTaskDrawer(page);
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
-    await dialog.getByLabel("What it’s waiting on").fill("finance");
+    await dialog.getByLabel(WAITING_NOTE_LABEL).fill("finance");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog.getByText("finance")).toBeVisible();
     // The waiting control (and the whole Drawer) is usable at 320px with no

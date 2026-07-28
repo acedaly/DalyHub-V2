@@ -57,6 +57,10 @@ export {
 export { TextField, type TextFieldProps } from "./TextField";
 export { MarkdownField, type MarkdownFieldProps } from "./MarkdownField";
 export { DateField, type DateFieldProps } from "./DateField";
+export {
+  LocalDateTimeField,
+  type LocalDateTimeFieldProps,
+} from "./LocalDateTimeField";
 export { SelectField, type SelectFieldProps } from "./SelectField";
 export { TagsField, type TagsFieldProps } from "./TagsField";
 export { BooleanField, type BooleanFieldProps } from "./BooleanField";

@@ -48,6 +48,7 @@ export interface TasksPageData {
   readonly filters: TasksFilterState;
   /** The owner's calendar date `YYYY-MM-DD`. */
   readonly todayIso: string;
+  readonly defaultCaptureParent: TaskParentOption | null;
   /**
    * The flat, cursor-paginated page (Focus/All views). Empty for the Matrix/Sectors
    * views, which render from `grouping` instead of a single global page.

@@ -1045,6 +1045,21 @@ Items not listed keep the status and sequencing recorded in their own entries �
 
 ## Change log for this roadmap
 
+- **2026-07-28 — UX-01 Tasks/Meetings usability slice.** Implemented the first
+  functional slice of the requested usability overhaul: fast Task capture with a
+  validated default capture parent preference, removable deterministic
+  quick-capture chips, concise everyday priority labels and an Upcoming Tasks
+  system view; Meeting creation on shared forms with configured-timezone
+  `datetime-local` conversion, editable core details/status actions, searchable
+  attendees, a five-tab Meeting record, explicit Action items and Action-only
+  Follow-up semantics, plus shared-card Meetings collection search/sort/pagination.
+  Migration `0021_ux01_tasks_meetings_usability.sql` adds the Task capture parent
+  preference columns and widens `meeting_items.kind` to include `action`. Remaining
+  UX-01 requests not completed in this slice stay open: persisted saved Task views,
+  the full Tasks Filter/Sort/Group/Display toolbar, all date-derived filters,
+  generalized authoritative grouping, complete Task quick-edit popovers and full
+  Playwright/manual screenshot evidence.
+
 When you complete, split, add, or defer an item, note it here (newest first) so the roadmap's evolution is legible.
 
 - **2026-07-28 — [PEOPLE-03](#-people-03--stay-in-touch-signals) ☑ relationship intelligence, and [DS-13](#-ds-13--shared-summary-cards) ☑ the shared summary cards it needed.** Opening a Person now answers the questions the module exists to answer — who is this, when did we last interact, what have we shared, how often are we in touch — instead of leaving the reader to total up a timeline. It is a **derived, never-cached** projection over the SAME two primitives [PEOPLE-02](#-people-02--relationship-timeline) reads (a Person's FND-04 EntityLinks and the FND-05 Activity stream their linked records write to), in a new `relationships` kernel that pairs a read-only workspace-bound facts repository with a pure evaluator — the PROJ-02/AREA-03 shape. **No table, no migration, no cached score, no `last_interaction_at` column, no backfill, no second history surface.** The honesty rule the item was blocked on holds: an interaction is a substantive event on a *linked record*, never an edit to the Person's contact card, and cadence counts distinct owner-calendar days. PEOPLE-01's long-unread `follow_up_frequency` is now the primary source of a follow-up signal; absent one, a rhythm is inferred only from a relationship that demonstrably has one. The tone set excludes `warning` and `danger` outright — care, not a CRM. The facts read is **batched by contract** (three grouped statements per chunk for a whole page, proven by a query-counting test), so the People collection carries the same shared pill for no extra round trips; archived People are deliberately left unsignalled. Two shared defects fixed along the way: the DS-05 timeline could only link Tasks (every other referenced record was dead text), and the Diary record route DIARY-01A shipped was never registered in the shared destination map. [PEOPLE-04](#-people-04--mobile) and [MEET-03](#-meet-03--people--history-integration) remain ☐ — MEET-03 now joins this signal by declaring its event types, with no People change. Accepted as [ADR-056](../decisions/ARCHITECTURE_DECISIONS.md#adr-056-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream).

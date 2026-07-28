@@ -106,6 +106,9 @@ export function SelectField(props: SelectFieldProps) {
       }
       setQuery("");
       if (onSearch) onSearch("");
+      if (displayOptions.filter((option) => !option.disabled).length <= 1) {
+        combobox.close();
+      }
     } else {
       (props.onChange as (v: string) => void)(value);
       const chosen = options.find((option) => option.value === value);

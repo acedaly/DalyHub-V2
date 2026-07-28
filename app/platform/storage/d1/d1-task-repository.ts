@@ -1133,6 +1133,38 @@ export class D1TaskRepository implements TaskRepository {
     }));
   }
 
+  async getTaskParentCandidate(
+    id: string,
+  ): Promise<TaskParentCandidate | null> {
+    const parentId = validateTaskId(id);
+    const row = await this.#db
+      .prepare(
+        `SELECT e.id AS id, e.type AS type, e.title AS title
+         FROM entities e
+         LEFT JOIN project_details pd
+           ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
+         WHERE e.workspace_id = ?
+           AND e.id = ?
+           AND e.type IN ('${AREA}', '${PROJECT}')
+           AND e.deleted_at IS NULL
+           AND (e.type <> '${PROJECT}' OR pd.archived_at IS NULL)
+         LIMIT 1`,
+      )
+      .bind(this.#workspaceId, parentId)
+      .first<{
+        readonly id: string;
+        readonly type: string;
+        readonly title: string;
+      }>();
+    return row
+      ? {
+          id: row.id,
+          kind: row.type === AREA ? "area" : "project",
+          title: row.title,
+        }
+      : null;
+  }
+
   /** The single primary sort expression + direction for a workspace-tasks sort. */
   #workspaceSortSpec(sort: string): { expr: string; dir: "ASC" | "DESC" } {
     switch (sort) {
@@ -1245,6 +1277,12 @@ export class D1TaskRepository implements TaskRepository {
           `${notTerminal} AND td.waiting_since IS NULL AND td.scheduled_date = ?`,
         );
         params.push(todayIso);
+        return;
+      case "upcoming":
+        whereParts.push(
+          `${notTerminal} AND td.waiting_since IS NULL AND ((td.scheduled_date IS NOT NULL AND td.scheduled_date > ?) OR (td.due_date IS NOT NULL AND td.due_date > ?))`,
+        );
+        params.push(todayIso, todayIso);
         return;
       case "overdue":
         whereParts.push(

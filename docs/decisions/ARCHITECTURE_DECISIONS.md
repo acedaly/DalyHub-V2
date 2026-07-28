@@ -1227,3 +1227,36 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
   - *A relationship "score" or a health percentage.* Rejected — §5. A score invites optimisation of a friendship, which is the failure mode this product exists to avoid.
   - *Evaluate per Person on the collection page.* Rejected — a textbook N+1 (one link scan and three aggregates per card). The batch method is the primary contract for exactly this reason.
   - *Put the signal on the archived collection too, for symmetry.* Rejected — see consequences (d). Symmetry that contradicts the product's philosophy is not consistency.
+
+---
+
+## ADR-057: UX-01 capture parent preference, Meeting Action items and owner-local meeting time
+
+- **Status:** Accepted (UX-01, 2026-07-28).
+- **Context.** The UX-01 pass simplified Tasks and Meetings without changing the
+  underlying model. Three decisions needed durable documentation: (1) Task capture
+  needs a default parent, but Tasks must still have exactly one real Area or
+  Project parent; (2) Meetings need explicit follow-through semantics, but Agenda,
+  Decisions and Outcomes should not all be treated as unfinished work; (3) native
+  `datetime-local` controls are local wall-clock inputs, while Meeting storage
+  expects UTC instants plus a timezone.
+- **Decision.**
+  1. The default Task capture parent is an owner/workspace application preference
+     storing only a canonical Area/Project id and kind. The server validates the
+     entity is an active Area or non-archived Project before saving, and creation
+     degrades to the shared parent picker if the stored target is later removed or
+     archived. No synthetic inbox Area is introduced.
+  2. `meeting_items.kind` includes an explicit `action` value. Only unconverted
+     Action items form the Follow-up tab's unconverted work list. Agenda items,
+     Decisions and Outcomes remain structured Meeting items and may still create a
+     canonical Task contextually, but absence of a Task is not unfinished work.
+  3. Meeting create/edit actions convert `datetime-local` values using the
+     configured owner/workspace IANA timezone from Application preferences. The
+     browser timezone is not authoritative. Storage remains UTC instants plus the
+     Meeting timezone, and DST gap times are rejected by round-trip validation.
+- **Consequences.** Tasks keep one parent model and one Task authority while
+  capture gets faster. Meetings gain a clearer prepare/conduct/follow-up workflow
+  without a second Task or Activity model, and Activity payloads remain structural.
+  Time conversion is deterministic and testable, but any local datetime form must
+  route through the trusted server conversion path rather than serialising browser
+  local assumptions.

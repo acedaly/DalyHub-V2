@@ -8,8 +8,8 @@
  * everywhere and there is no second, drifting vocabulary.
  *
  * Accessibility (AGENTS.md §15, DEBT-28): the meaning is carried by TEXT, never by
- * colour alone. The short tag ("P1") is visible; the full action word ("Do",
- * "Defer", "Delegate", "Delete / Review") is available to assistive technology via a
+ * colour alone. The short tag ("P1") is visible; the concise priority language is
+ * available to assistive technology via a
  * visually-hidden suffix, so a monochrome or screen-reader user loses nothing. The
  * colour is reinforcement only. The indicator stays legible at compact density and
  * at 320px because it degrades to just the tag + accessible text.
@@ -19,7 +19,7 @@ import type { TaskPriority } from "~/kernel/tasks";
 
 import {
   priorityQuadrant,
-  quadrantActionLabel,
+  taskPriorityLabel,
   taskPriorityTag,
 } from "./task-view";
 
@@ -62,7 +62,7 @@ export function PriorityIndicator({
     );
   }
 
-  const action = quadrantActionLabel(quadrant);
+  const action = taskPriorityLabel(priority);
   return (
     <span
       className={["dh-priority", className].filter(Boolean).join(" ")}

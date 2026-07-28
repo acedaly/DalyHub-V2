@@ -114,6 +114,8 @@ export function meetingItemKindLabel(kind: MeetingItemKind): string {
       return "Decision";
     case "outcome":
       return "Outcome";
+    case "action":
+      return "Action item";
   }
 }
 

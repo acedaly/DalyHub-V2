@@ -132,10 +132,10 @@ describe("task record rendering", () => {
     ).toBeInTheDocument();
     expect(document.querySelector(".record-status")).toHaveTextContent("Inbox");
     expect(screen.getByText("1 Aug 2026")).toBeInTheDocument();
-    // Priority is now the shared coloured PriorityIndicator (TASKS-02): the short
-    // tag is visible and the full action word is available to assistive tech.
+    // Priority is the shared PriorityIndicator: the short tag is visible and the
+    // full everyday label is available to assistive tech.
     expect(screen.getByText("P1")).toBeInTheDocument();
-    expect(screen.getByText(/priority — Do/)).toBeInTheDocument();
+    expect(screen.getByText(/priority — P1 · Urgent/)).toBeInTheDocument();
     expect(screen.getByText("Ship V2")).toBeInTheDocument();
   });
 

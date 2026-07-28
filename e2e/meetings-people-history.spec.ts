@@ -115,18 +115,22 @@ async function createMeeting(page: Page, title: string): Promise<string> {
   ownedMeetings.add(title);
   await gotoFixture(page, "/new/meeting");
   await page
-    .getByRole("form", { name: "New Meeting" })
+    .getByRole("form", { name: "New meeting" })
     .getByLabel("Title")
     .fill(title);
-  await page.getByLabel("Starts").fill("2026-07-27T09:00");
+  await page.getByLabel("Start date and time").fill("2026-07-27T09:00");
   await page.getByRole("button", { name: "Create meeting" }).click();
-  await expect(page).toHaveURL(/\/meeting\/[^/?#]+$/);
+  await expect(page).toHaveURL(/\/meeting\/[^/?#]+\?tab=meeting$/);
   return page.url();
 }
 
 async function addAttendee(page: Page, personName: string): Promise<void> {
-  await page.getByLabel("Add attendee").selectOption({ label: personName });
-  await page.getByRole("button", { name: "Add attendee" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
+  const attendee = page.getByRole("combobox", { name: "Add attendees" });
+  await attendee.click();
+  await attendee.fill(personName);
+  await page.getByRole("option", { name: personName }).click();
+  await page.getByRole("button", { name: "Add selected" }).click();
   await expect(
     page.getByRole("link", { name: new RegExp(personName) }),
   ).toBeVisible();

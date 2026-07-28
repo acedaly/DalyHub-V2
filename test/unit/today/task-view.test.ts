@@ -68,7 +68,7 @@ describe("serializeTaskView", () => {
 describe("display derivations", () => {
   it("labels statuses and priorities", () => {
     expect(taskStatusLabel("in_progress")).toBe("In progress");
-    expect(taskPriorityLabel("p1")).toBe("P1 · Do");
+    expect(taskPriorityLabel("p1")).toBe("P1 · Urgent");
     expect(taskPriorityLabel(null)).toBe("No priority");
   });
 

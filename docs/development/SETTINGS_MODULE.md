@@ -19,7 +19,7 @@
 
 | Section | Controls |
 |---|---|
-| General | default landing page, default Tasks view, default Diary mode |
+| General | default landing page, default Tasks view, default Task capture parent, default Diary mode |
 | Date & time | owner timezone, date display, first day of week |
 | Appearance | existing System / Light / Dark theme control |
 | Navigation | optional module visibility and reset |
@@ -40,6 +40,7 @@ Do not put every preference into one global row. SET-01 establishes this boundar
 | first day of week | owner inside workspace | D1 `owner_app_preferences` |
 | default landing page | owner inside workspace | D1 `owner_app_preferences` |
 | default Tasks view | owner inside workspace | D1 `owner_app_preferences` |
+| default Task capture parent | owner inside workspace | D1 `owner_app_preferences` |
 | default Diary mode | owner inside workspace | D1 `owner_app_preferences` |
 | optional navigation visibility | owner inside workspace | D1 `owner_app_preferences.navigation_config` |
 | appearance theme | device/local browser | existing HttpOnly `dh_theme` cookie |
@@ -73,6 +74,7 @@ Migration `0017_create_owner_app_preferences.sql` creates one typed row per
 | `first_day_of_week` | `monday` or `sunday` |
 | `default_landing_destination` | stable destination key |
 | `default_tasks_view` | existing Tasks primary view |
+| `default_task_capture_parent_id` / `default_task_capture_parent_kind` | optional active Area or non-archived Project used by fast Task capture |
 | `default_diary_mode` | existing Diary mode |
 | `navigation_config` | validated versioned representation for hidden modules only |
 | `version` | monotonically incremented optimistic version |
@@ -82,6 +84,11 @@ Core behavioural preferences use explicit typed columns. There is no arbitrary
 JSON dumping ground for core settings. `navigation_config` is the one versioned
 structured field because its valid values come from the module registry and must
 forward-normalise as modules are added.
+
+Migration `0021_ux01_tasks_meetings_usability.sql` adds the default Task capture
+parent columns. The Settings action validates the selected id through the existing
+bounded Task parent authority before saving, and the Tasks loader safely ignores a
+stored parent that later becomes invalid or unavailable.
 
 Reads are deterministic when no row exists: the repository returns
 `DEFAULT_APP_PREFERENCES` with version `0`. Writes are parameterised, workspace-

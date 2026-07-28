@@ -28,6 +28,11 @@ const routes: readonly RouteContribution[] = [
   { id: "meetings.new", path: "new/meeting", file: "routes/new.tsx" },
   { id: "meetings.create", path: "meetings/create", file: "routes/create.tsx" },
   {
+    id: "meetings.attendee_options",
+    path: "meetings/attendee-options",
+    file: "routes/attendee-options.tsx",
+  },
+  {
     id: "meetings.detail",
     path: "meeting/:meetingId",
     file: "routes/detail.tsx",

@@ -213,15 +213,22 @@ export function quadrantActionLabel(quadrant: EisenhowerQuadrant): string {
 }
 
 /**
- * The full consistent priority label, e.g. "P1 · Do", "P4 · Delete / Review", or
+ * The full everyday priority label, e.g. "P1 · Urgent", "P4 · Low", or
  * "No priority" for null. Meaning is always carried by the label, never colour.
  */
 export function taskPriorityLabel(priority: TaskPriority | null): string {
-  const quadrant = priorityQuadrant(priority);
-  if (priority === null || quadrant === null) {
-    return "No priority";
+  switch (priority) {
+    case "p1":
+      return "P1 · Urgent";
+    case "p2":
+      return "P2 · High";
+    case "p3":
+      return "P3 · Normal";
+    case "p4":
+      return "P4 · Low";
+    default:
+      return "No priority";
   }
-  return `${priority.toUpperCase()} · ${quadrantActionLabel(quadrant)}`;
 }
 
 /** The short priority tag, e.g. "P1". `null` → "—". */

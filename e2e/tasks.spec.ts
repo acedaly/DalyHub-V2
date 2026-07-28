@@ -37,13 +37,13 @@ test.describe("TASKS-01 — desktop", () => {
       dialog.getByRole("heading", { level: 3, name: "Draft the proposal" }),
     ).toBeVisible();
     // TASKS-02: the canonical priority renders as the shared coloured
-    // PriorityIndicator — the short "P1" tag is visible and the full action word
-    // "Do" is carried in the element (available to assistive tech), never colour
+    // PriorityIndicator — the short "P1" tag is visible and the everyday priority
+    // label is carried in the element (available to assistive tech), never colour
     // alone.
     const priority = dialog.locator('.dh-priority[data-priority="p1"]');
     await expect(priority).toBeVisible();
     await expect(priority).toContainText("P1");
-    await expect(priority).toContainText("Do");
+    await expect(priority).toContainText("Urgent");
 
     // Escape closes the Drawer and restores the Tasks context.
     await page.keyboard.press("Escape");
@@ -54,7 +54,7 @@ test.describe("TASKS-01 — desktop", () => {
   test("renders the shared priority + urgency signals on task cards (TASKS-02)", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, "/tasks?view=all&system=overdue");
 
     // The always-overdue seeded task (`pht-overdue`, due 2000-01-01) shows the
     // Overdue urgency chip — the WORD, not merely a red date (DEBT-28). The smart
@@ -63,12 +63,11 @@ test.describe("TASKS-01 — desktop", () => {
     const overdueCard = page.getByRole("article", {
       name: "Open Submit the abstract",
     });
-    await expect(
-      overdueCard.getByText("Overdue · due 1 Jan 2000"),
-    ).toBeVisible();
+    await expect(overdueCard.getByText(/Overdue.*1 Jan 2000/)).toBeVisible();
 
     // The p1 seeded task shows the coloured PriorityIndicator on its card — priority
     // is no longer an absent/colour-free grey chip (DEBT-27).
+    await gotoFixture(page, "/tasks?view=all");
     const p1Card = page.getByRole("article", {
       name: "Open Draft the proposal",
     });
