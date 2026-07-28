@@ -60,26 +60,30 @@ test.describe("TODAY-01 — desktop", () => {
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
   });
 
-  test("quick capture is structured but does not persist", async ({ page }) => {
+  test("quick capture opens the shared capture sheet — it persists now (TODAY-07)", async ({
+    page,
+  }) => {
     await page.goto("/today");
     await page.locator('.dh-today[data-hydrated="true"]').waitFor();
-    // Scope to the capture form's submit — the widget heading is also a "Capture"
-    // control, so an unscoped role query would be ambiguous (TODAY-08).
-    const capture = page.locator('.dh-today__capture button[type="submit"]');
-    await expect(capture).toBeDisabled();
-    await page
-      .getByPlaceholder("What needs your attention?")
-      .fill("Call the plumber");
-    await expect(capture).toBeEnabled();
-    await capture.click();
-    // Scope to the capture notice — the Recent Activity feed also owns a live status
-    // region ("N events loaded"), so an unscoped role query would be ambiguous.
-    await expect(page.locator(".dh-today__capture-notice")).toContainText(
-      /has not been saved/i,
-    );
+
+    // The honest fixture is retired: there is no textarea that discards what you
+    // type, and no notice apologising that nothing was saved. Asserting their
+    // ABSENCE keeps this test meaningful — it would fail again if the fixture
+    // ever came back.
+    await expect(page.locator(".dh-today__capture-notice")).toHaveCount(0);
     await expect(
       page.getByPlaceholder("What needs your attention?"),
-    ).toHaveValue("Call the plumber");
+    ).toHaveCount(0);
+
+    // Capture is now the ONE shared sheet over each module's canonical create
+    // route, entered by type. Its create paths are proven end to end in
+    // `mobile-capture-journeys.spec.ts`; here we prove Today reaches it.
+    await page.getByTestId("today-capture-task").click();
+    await expect(page.getByTestId("capture-sheet")).toBeVisible();
+    await expect(page.getByLabel("Title")).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("capture-sheet")).toBeHidden();
   });
 
   test("a widget can be collapsed and hidden, and the layout is remembered", async ({

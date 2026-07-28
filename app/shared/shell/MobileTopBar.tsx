@@ -55,7 +55,14 @@ export function MobileTopBar({
         </button>
       ) : null}
 
-      <h2 className="dh-mobilebar__title">{title ?? workspaceName}</h2>
+      {/*
+       * NOT a heading. The route below already owns the document's `h1`, and
+       * publishing the same text as an `h2` here gave every phone record TWO
+       * headings with the same name — a worse outline for a screen reader, and the
+       * duplicated title PRODUCT_EXPERIENCE tells us to avoid. This is a chrome
+       * label that survives scrolling, so it is plain text.
+       */}
+      <p className="dh-mobilebar__title">{title ?? workspaceName}</p>
 
       <div className="dh-mobilebar__actions">
         {actions}

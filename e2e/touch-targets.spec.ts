@@ -172,9 +172,15 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     // formatting toolbar plus a Read toggle. Sample a toolbar button and the
     // toggle — all share the same 44px-floor rule.
     const toolbar = page.getByRole("toolbar", { name: "Formatting" });
-    for (const name of ["Bold", "Checklist", "Table"] as const) {
+    for (const name of ["Bold", "Checklist"] as const) {
       await expectMinTouchTarget(toolbar.getByRole("button", { name }));
     }
+    // MOBILE-01 moved the low-frequency commands behind "More" INSIDE the same
+    // toolbar, so a phone is not given a permanent row of every command. They are
+    // still toolbar buttons held to the same 44px floor — reveal and measure one.
+    await expectMinTouchTarget(toolbar.getByRole("button", { name: "More" }));
+    await toolbar.getByRole("button", { name: "More" }).click();
+    await expectMinTouchTarget(toolbar.getByRole("button", { name: "Table" }));
     await expectMinTouchTarget(page.getByRole("button", { name: "Read" }));
 
     await overflow.click();
