@@ -244,7 +244,17 @@ export async function loadNoteReferences(
     scanned < MAX_SCAN_PAGES_PER_CALL
   );
 
-  const items = collected.slice(0, limit);
+  // Everything collected is returned — deliberately NOT `slice(0, limit)`.
+  //
+  // The underlying cursor advances by KERNEL page, not by display item, so a
+  // truncated page could never be resumed: with (say) 40 relationships inside a
+  // single 100-row kernel page, `nextCursor` is null, and slicing to 25 would
+  // drop rows 26–40 permanently with no "Load more" to reach them. `limit` is
+  // therefore a *stop scanning* threshold rather than a hard page size, and a
+  // page may overshoot it by at most one kernel page. This is exactly how the
+  // shared `loadLinkedItems` behaves, for the same reason — the two surfaces
+  // must not disagree about what a page contains.
+  const items = collected;
 
   // Batched context for note counterparts — one query for the whole page.
   const noteIds = items

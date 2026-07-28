@@ -363,6 +363,16 @@ Where it is practical and bounded, a reference shows WHY it exists:
 - **outgoing from this Note** — the block of THIS note containing the reference,
   computed from the source the route already holds (no extra query).
 
+**Paging.** The underlying EntityLink cursor advances by KERNEL page, not by
+display item, so a relationship page returns EVERYTHING the scan collected
+rather than truncating to the requested limit: `limit` is a *stop scanning*
+threshold, and a page may overshoot it by at most one kernel page. Truncating
+would be silently lossy — with, say, 40 relationships inside a single 100-row
+kernel page the cursor is already `null`, so rows 26–40 would be unreachable
+with no "Load more" able to find them. This is the same contract the shared
+`loadLinkedItems` uses, so the two surfaces cannot disagree about what a page
+contains.
+
 Extraction is deterministic and defensive: the window is cut in SQL around
 `instr(...)`, wiki-link syntax collapses to its label so the user never sees
 `[[…]]`, the shared analyser strips the remaining Markdown so no half-open

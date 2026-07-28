@@ -44,6 +44,7 @@ export {
   NOTE_SEARCH_MAX_LIMIT,
   NOTE_TAG_FACET_MAX,
   MAX_TITLE_RESOLUTION,
+  MAX_CONTEXT_WINDOWS,
 } from "./note-query";
 export type {
   ListNotesInput,

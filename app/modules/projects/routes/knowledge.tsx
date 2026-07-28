@@ -138,16 +138,15 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   }
 
   if (intent === "create") {
+    // Creating a Note from a Project keeps the Project relationship
+    // automatically (§8): the note is created and linked in the same request, so
+    // the user never has to remember to attach it.
+    let note;
     try {
-      // Creating a Note from a Project keeps the Project relationship
-      // automatically (§8): the note is created and linked in the same request,
-      // so the user never has to remember to attach it.
-      const note = await scope.entities.create({
+      note = await scope.entities.create({
         type: "note",
         title: String(form.get("title") ?? ""),
       });
-      await linkNoteToProject(scope, project.id, note.id);
-      return json({ kind: "create", ok: true, noteId: note.id });
     } catch (cause) {
       if (cause instanceof EntityValidationError) {
         return json({
@@ -158,6 +157,32 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
       return json({ kind: "create", ok: false, formError: GENERIC_FAILURE });
     }
+
+    // The two writes are separate repository calls (each atomic with its own
+    // Activity), so there is no shared transaction to lean on. If the LINK
+    // fails, the note already exists — reporting a plain failure would be a lie
+    // that leaves an orphan behind and mints another one on every retry. So
+    // compensate: put the note back the way it was.
+    try {
+      await linkNoteToProject(scope, project.id, note.id);
+    } catch {
+      try {
+        await scope.entities.softDelete(note.id);
+      } catch {
+        // Even the compensation failed. The note DOES exist and is not linked,
+        // so say that rather than claiming nothing happened — the user can find
+        // it in `/notes` and attach it, instead of creating duplicates.
+        return json({
+          kind: "create",
+          ok: false,
+          formError:
+            "The note was created, but we couldn’t link it to this project. You’ll find it in Notes.",
+        });
+      }
+      return json({ kind: "create", ok: false, formError: GENERIC_FAILURE });
+    }
+
+    return json({ kind: "create", ok: true, noteId: note.id });
   }
 
   if (intent === "remove") {

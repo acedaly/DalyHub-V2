@@ -114,6 +114,17 @@ export function NotesFilterBar({
   if (state !== "active") clearParams.set("state", state);
   const clearQuery = clearParams.toString();
 
+  // Every dimension the form's defaults are derived from.
+  const scopeKey = [
+    state,
+    filters.q,
+    filters.tag,
+    filters.project,
+    filters.area,
+    filters.links,
+    filters.sort,
+  ].join("\u0000");
+
   return (
     <div className="dh-notes-filters">
       <SegmentedFilter
@@ -122,7 +133,17 @@ export function NotesFilterBar({
         value={state}
         label="Filter notes by state"
       />
+      {/*
+        `key` remounts the form whenever the applied filter scope changes.
+        The controls are deliberately UNCONTROLLED (that is what lets them work
+        with no JavaScript), and React applies `defaultValue` only on mount — so
+        without this, Clear, Back, Forward or a state-segment navigation would
+        leave the previous values displayed, and pressing Apply again would
+        silently restore filters the URL and the results had already moved past.
+        Remounting is the smallest fix that keeps the no-JS behaviour intact.
+      */}
       <form
+        key={scopeKey}
         method="get"
         action="/notes"
         role="search"

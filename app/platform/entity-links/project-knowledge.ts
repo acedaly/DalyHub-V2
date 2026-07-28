@@ -115,7 +115,15 @@ export async function loadProjectKnowledge(
     cursor = page.nextCursor ?? undefined;
   } while (cursor && byNote.size < limit && scanned < MAX_SCAN_PAGES_PER_CALL);
 
-  const ids = [...byNote.keys()].slice(0, limit);
+  // Every note found is returned — deliberately NOT `slice(0, limit)`. The
+  // underlying cursor advances by KERNEL link page, not by note, so a truncated
+  // page could never be resumed: with (say) 40 linked notes inside a single
+  // 100-row link page, `nextCursor` is null, and slicing to 25 would drop notes
+  // 26–40 from the Knowledge tab with no "Load more" to reach them. `limit` is
+  // a *stop scanning* threshold, so a page may overshoot it by at most one link
+  // page — the same contract `loadNoteReferences` and the shared
+  // `loadLinkedItems` use.
+  const ids = [...byNote.keys()];
   // ONE batched query resolves every note's archive state and opening excerpt.
   const windows = await deps.notes.loadContextWindows(ids, "");
 

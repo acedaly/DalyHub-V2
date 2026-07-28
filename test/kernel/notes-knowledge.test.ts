@@ -876,6 +876,34 @@ describe("backlinks and outgoing links", () => {
     expect((await runReferences(target.id, "incoming")).items).toEqual([]);
   });
 
+  it("never drops a relationship that shares one underlying link page", async () => {
+    // Regression (PR #80 review): the underlying cursor advances by KERNEL page,
+    // not by display item. With 40 relationships inside a single 100-row link
+    // page, `nextCursor` is null — so truncating the page to the requested limit
+    // would drop rows 26–40 permanently, with no "Load more" able to reach them.
+    const target = await createNote("Atlas");
+    const sources: string[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      const source = await createNote(`Source ${i}`);
+      sources.push(source.id);
+      await links().create({
+        sourceEntityId: source.id,
+        targetEntityId: target.id,
+        type: UNIVERSAL_RELATED_LINK,
+      });
+    }
+
+    const page = await loadNoteReferences(deps(), target.id, "incoming", {
+      limit: 25,
+      anchorTitle: "Atlas",
+    });
+    expect(page.items).toHaveLength(40);
+    expect(page.items.map((item) => item.record.id).sort()).toEqual(
+      [...sources].sort(),
+    );
+    expect(page.nextCursor).toBeNull();
+  });
+
   it("loads references without an N+1 — one page, one batched context query", async () => {
     const target = await createNote("Atlas");
     for (let i = 0; i < 5; i += 1) {
@@ -943,7 +971,7 @@ describe("project knowledge", () => {
     );
   });
 
-  it("rejects a blank title with a typed field error and links nothing", async () => {
+  it("rejects a blank title with a typed field error, creating NO orphan note", async () => {
     const { project } = await createProject("Atlas");
     const result = await runKnowledgePost(
       project.id,
@@ -951,6 +979,9 @@ describe("project knowledge", () => {
     );
     expect(result.ok).toBe(false);
     expect((await loadProjectKnowledge(deps(), project.id)).notes).toEqual([]);
+    // A failed create must leave nothing behind — not an unlinked note the user
+    // would have to find and clean up (PR #80 review).
+    expect((await runIndex()).notes).toEqual([]);
   });
 
   it("REMOVING a note from the project unlinks it and never deletes or archives it", async () => {
@@ -1005,6 +1036,29 @@ describe("project knowledge", () => {
     const page = await loadProjectKnowledge(deps(), project.id);
     expect(page.notes.map((n) => n.id)).toEqual([archived.id]);
     expect(page.notes[0]?.archived).toBe(true);
+  });
+
+  it("never drops a linked note that shares one underlying link page", async () => {
+    // Regression (PR #80 review): the same cursor-granularity trap as
+    // `loadNoteReferences` — 40 linked notes inside one 100-row link page would
+    // otherwise leave notes 26–40 unreachable from the Knowledge tab.
+    const { project } = await createProject("Atlas");
+    const noteIds: string[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      const note = await createNote(`Knowledge ${i}`);
+      noteIds.push(note.id);
+      await linkNoteToProject(deps(), project.id, note.id);
+    }
+
+    const page = await loadProjectKnowledge(deps(), project.id, { limit: 25 });
+    expect(page.notes).toHaveLength(40);
+    expect(page.notes.map((note) => note.id).sort()).toEqual(
+      [...noteIds].sort(),
+    );
+    expect(page.nextCursor).toBeNull();
+    // Every returned row still carries its resolved state — the batched context
+    // read must cover the whole page, not just the first requested limit.
+    expect(page.notes.every((note) => note.archived === false)).toBe(true);
   });
 
   it("only ever lists NOTES, never other linked record types", async () => {

@@ -33,6 +33,7 @@ import {
   NOTE_LIST_MAX_LIMIT,
   NOTE_SEARCH_MAX_LIMIT,
   NOTE_TAG_FACET_MAX,
+  MAX_CONTEXT_WINDOWS,
   MAX_TITLE_RESOLUTION,
   NoteQueryStorageError,
   decodeNoteCursorForScope,
@@ -619,7 +620,7 @@ export class D1NoteRepository implements NoteQueryRepository {
   ): Promise<ReadonlyMap<string, NoteContextWindow>> {
     const ids = [...new Set(noteIds.filter((id) => id !== ""))].slice(
       0,
-      MAX_TITLE_RESOLUTION,
+      MAX_CONTEXT_WINDOWS,
     );
     const out = new Map<string, NoteContextWindow>();
     if (ids.length === 0) return out;

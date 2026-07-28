@@ -681,6 +681,20 @@ association the rest of the app cannot see.
 | **Remove from project** | **unlinks only.** The Note keeps its content, title, tags, other relationships and its place in `/notes`. It is neither deleted nor archived — and the confirmation says so. |
 | **Open** | the Note's canonical record, through normal SPA navigation with a real `href`. |
 
+**Paging** follows the same rule as the Note relationship tabs: the underlying
+link cursor advances by kernel page, not by note, so the tab returns every note
+the scan found rather than truncating to the requested limit (which would leave
+notes beyond it unreachable when the cursor is already exhausted). A page may
+overshoot its limit by at most one link page.
+
+**Creating a note is compensated, not assumed.** The note and its link are two
+separate writes, each atomic with its own Activity but with no shared
+transaction. If the LINK fails, the note is soft-deleted again so a failed
+create leaves nothing behind — otherwise every retry would mint another orphan.
+In the rare case the compensating delete also fails, the response says the note
+exists but is unlinked (so the user finds it in `/notes`) rather than claiming
+nothing happened.
+
 An **archived** Note appears, flagged "Archived" in words — archiving is "put
 away", not "removed", and hiding it would silently drop knowledge the Project
 still owns. A **soft-deleted** Note disappears (the kernel's `listForEntity`

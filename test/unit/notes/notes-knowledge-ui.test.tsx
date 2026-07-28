@@ -1,10 +1,12 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
+import { useState } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -137,6 +139,42 @@ describe("NotesFilterBar", () => {
     expect(
       container.querySelector('input[type="hidden"][name="state"]'),
     ).toHaveValue("archived");
+  });
+
+  it("follows the loader's filters after a navigation, never showing stale values", () => {
+    // Regression (PR #80 review): the controls are deliberately UNCONTROLLED so
+    // the form works with no JavaScript, and React applies `defaultValue` only
+    // on mount. Without remounting on a scope change, Clear/Back/Forward would
+    // leave the previous values on screen and re-applying would silently restore
+    // filters the URL had already moved past.
+    // The props must change on the SAME mounted tree — that is what a loader
+    // revalidation does, and it is the case a fresh `render` would not exercise.
+    let applyFilters!: (next: NoteFilterValues) => void;
+    function Harness() {
+      const [filters, setFilters] = useState<NoteFilterValues>({
+        ...NO_FILTERS,
+        q: "hydroponics",
+        sort: "recent",
+      });
+      applyFilters = setFilters;
+      return (
+        <NotesFilterBar
+          state="active"
+          filters={filters}
+          tags={[]}
+          projects={[]}
+          areas={[]}
+        />
+      );
+    }
+
+    renderAt(<Harness />);
+    expect(screen.getByLabelText("Search notes")).toHaveValue("hydroponics");
+    expect(screen.getByLabelText("Sort")).toHaveValue("recent");
+
+    act(() => applyFilters(NO_FILTERS));
+    expect(screen.getByLabelText("Search notes")).toHaveValue("");
+    expect(screen.getByLabelText("Sort")).toHaveValue("");
   });
 
   it("offers Clear only when a filter is actually set", () => {
@@ -375,6 +413,48 @@ describe("ProjectKnowledgeTab", () => {
       ).toBeGreaterThan(0),
     );
     expect(screen.queryByRole("link", { name: "Open Research" })).toBeNull();
+  });
+
+  it("surfaces an honest message when a note was created but could not be linked", async () => {
+    // Regression (PR #80 review): the create and the link are separate writes.
+    // If the link fails and the compensating delete ALSO fails, the server says
+    // so rather than claiming nothing happened — otherwise a retry would mint
+    // another orphan note each time.
+    globalThis.fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              kind: "create",
+              ok: false,
+              formError:
+                "The note was created, but we couldn’t link it to this project. You’ll find it in Notes.",
+            }),
+          );
+        }
+        return new Response(JSON.stringify({ notes: [], nextCursor: null }));
+      },
+    ) as typeof fetch;
+
+    renderAt(
+      <ProjectKnowledgeTab
+        projectId="p1"
+        page={{ notes: [], nextCursor: null }}
+        onOpenNote={() => {}}
+      />,
+      "/projects/p1",
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: /New note title/ }), {
+      target: { value: "Kick-off" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create note" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/You’ll find it in Notes/).length,
+      ).toBeGreaterThan(0),
+    );
   });
 
   it("hides the add and remove affordances on an archived, read-only project", () => {

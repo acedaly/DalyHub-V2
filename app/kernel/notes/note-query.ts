@@ -120,6 +120,16 @@ export type NoteContextWindow = {
 export const MAX_TITLE_RESOLUTION = 100;
 
 /**
+ * The most Notes one context-window call will read.
+ *
+ * Deliberately larger than a display page: a relationship page may overshoot its
+ * requested limit by up to one underlying link page (see `loadNoteReferences`),
+ * and every row on a page must get its archive state — silently dropping the
+ * tail would make an archived note look active.
+ */
+export const MAX_CONTEXT_WINDOWS = 200;
+
+/**
  * The Notes read projection. Workspace-bound at construction (ADR-010) — no
  * method takes a workspace id, so a caller can never widen the scope, and
  * soft-deleted Notes are excluded from every result unless the state explicitly
@@ -158,7 +168,8 @@ export interface NoteQueryRepository {
    * For each of the given Note ids, a bounded slice of its Markdown source
    * around the first occurrence of `needle` (or its opening block when the
    * needle is absent), plus its archive state — in ONE query, so rendering the
-   * context of N backlinks costs one round trip, not N.
+   * context of N backlinks costs one round trip, not N. Bounded by
+   * {@link MAX_CONTEXT_WINDOWS}.
    */
   loadContextWindows(
     noteIds: readonly string[],
