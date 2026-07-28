@@ -706,54 +706,28 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Mobile floating capture action                                             */
+/* Mobile floating capture action (retired by MOBILE-01)                       */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * MOBILE-01 — the floating action is RETIRED.
+ *
+ * PX-06 introduced it so exactly one primary create action existed per viewport:
+ * the Pane Header button on desktop, the floating action below `md`. MOBILE-01
+ * makes that trade obsolete and, worse, wrong — the phone now has a persistent
+ * bottom navigation bar with its own Capture control, so a floating button would
+ * be a SECOND circular accent control hovering directly above it, competing for
+ * the same corner and the same intent ("several floating buttons competing for
+ * attention" is explicitly on the avoid list).
+ *
+ * So the floating action is gone at every width and the Pane Header's
+ * "New Diary entry" stays visible on a phone. Diary therefore has exactly one
+ * IN-PAGE primary create action at every viewport — and it is the right one,
+ * because it opens the module's own capture on the day currently being viewed
+ * (with backdating), which the global Capture control deliberately does not do.
+ */
 .dh-diary-fab {
   display: none;
-}
-
-/* PX-06 — exactly ONE primary create action per viewport. On desktop the Pane
- * Header button is it; below `md` the floating action takes over and the header
- * button is withdrawn, so the two never appear together. */
-@media (max-width: 48rem) {
-  .dh-diary-header-create {
-    display: none;
-  }
-}
-
-@media (max-width: 48rem) {
-  .dh-diary-fab {
-    position: fixed;
-    inset-block-end: calc(var(--dh-space-5) + env(safe-area-inset-bottom, 0px));
-    inset-inline-end: var(--dh-space-5);
-    z-index: var(--dh-z-sticky);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    inline-size: 3.5rem;
-    block-size: 3.5rem;
-    border: 0;
-    border-radius: var(--dh-radius-full);
-    color: var(--dh-color-on-accent);
-    background: var(--dh-color-accent);
-    box-shadow: var(--dh-shadow-lg);
-    cursor: pointer;
-  }
-
-  .dh-diary-fab:hover {
-    background: var(--dh-color-accent-hover);
-  }
-
-  .dh-diary-fab svg {
-    inline-size: 1.5rem;
-    block-size: 1.5rem;
-  }
-
-  /* Hide the floating action while a sheet is open (it would overlap the sheet). */
-  .dh-inspector-layout[data-inspector-open="true"] .dh-diary-fab {
-    display: none;
-  }
 }
 
 /* -------------------------------------------------------------------------- */

@@ -15,10 +15,23 @@
  * touch targets, nothing icon-only or colour-only. On a narrow phone the row
  * scrolls horizontally rather than wrapping, so the writing surface keeps its
  * vertical space.
+ *
+ * MOBILE-01 — **common formatting directly, the rest behind More.** Eleven
+ * permanently-visible controls is chrome that costs a phone the rows it needs
+ * for writing, and it makes the FREQUENT commands harder to reach, not easier,
+ * because each one sits further along a scrolling row. So the six commonest
+ * actions render directly and the remaining five appear when "More" is expanded.
+ *
+ * Crucially, the secondary actions stay INSIDE this toolbar rather than moving to
+ * a menu: the toolbar therefore remains exactly ONE Tab stop (the DS-11 baseline
+ * for a command-button row), the roving model simply spans whatever is currently
+ * rendered, and every action stays reachable by Arrow keys with no second focus
+ * surface. "More" itself is an ordinary toolbar button carrying `aria-expanded`.
  */
 
 import {
   useCallback,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -26,6 +39,8 @@ import {
 
 import {
   MARKDOWN_FORMATTING_ACTIONS,
+  PRIMARY_FORMATTING_ACTIONS,
+  SECONDARY_FORMATTING_ACTIONS,
   type MarkdownFormattingAction,
 } from "./formatting-actions";
 
@@ -45,11 +60,26 @@ export function EditorToolbar({
   disabled = false,
 }: EditorToolbarProps) {
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
-  // Roving tabindex: only the active button is a Tab stop; Arrow/Home/End move
-  // the active button.
+  // Roving tabindex: only the active control is a Tab stop; Arrow/Home/End move
+  // the active control.
   const [activeIndex, setActiveIndex] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const focusButton = useCallback((index: number) => {
+  // Everything the toolbar currently renders, in keyboard order: the primary
+  // actions, the More toggle, then the secondary actions once revealed. There is
+  // no separate collection — the roving model spans exactly what is on screen.
+  const actions = useMemo<readonly MarkdownFormattingAction[]>(
+    () =>
+      moreOpen
+        ? [...PRIMARY_FORMATTING_ACTIONS, ...SECONDARY_FORMATTING_ACTIONS]
+        : PRIMARY_FORMATTING_ACTIONS,
+    [moreOpen],
+  );
+  // The More toggle sits immediately after the primary actions.
+  const moreIndex = PRIMARY_FORMATTING_ACTIONS.length;
+  const controlCount = actions.length + 1;
+
+  const focusControl = useCallback((index: number) => {
     const button = buttonsRef.current[index];
     if (button) {
       setActiveIndex(index);
@@ -59,31 +89,56 @@ export function EditorToolbar({
 
   const onKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
-      const count = MARKDOWN_FORMATTING_ACTIONS.length;
       switch (event.key) {
         case "ArrowRight":
         case "ArrowDown":
           event.preventDefault();
-          focusButton((index + 1) % count);
+          focusControl((index + 1) % controlCount);
           break;
         case "ArrowLeft":
         case "ArrowUp":
           event.preventDefault();
-          focusButton((index - 1 + count) % count);
+          focusControl((index - 1 + controlCount) % controlCount);
           break;
         case "Home":
           event.preventDefault();
-          focusButton(0);
+          focusControl(0);
           break;
         case "End":
           event.preventDefault();
-          focusButton(count - 1);
+          focusControl(controlCount - 1);
           break;
         default:
           break;
       }
     },
-    [focusButton],
+    [focusControl, controlCount],
+  );
+
+  /** Render one formatting button at a given roving index. */
+  const renderAction = (action: MarkdownFormattingAction, index: number) => (
+    <button
+      key={action.id}
+      ref={(node) => {
+        buttonsRef.current[index] = node;
+      }}
+      type="button"
+      className="dh-md-toolbar__button"
+      data-action={action.id}
+      title={action.hint}
+      disabled={disabled}
+      tabIndex={index === activeIndex ? 0 : -1}
+      onKeyDown={(event) => onKeyDown(event, index)}
+      onFocus={() => setActiveIndex(index)}
+      // Keep the editor focused and its selection intact when a button is
+      // clicked — the format applies to what the user had selected, the caret
+      // stays in the document, and (on a phone) the software keyboard is not
+      // dismissed and re-raised on every formatting tap.
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => onAction(action)}
+    >
+      {action.label}
+    </button>
   );
 
   return (
@@ -93,29 +148,40 @@ export function EditorToolbar({
       aria-label={label}
       aria-orientation="horizontal"
     >
-      {MARKDOWN_FORMATTING_ACTIONS.map((action, index) => (
-        <button
-          key={action.id}
-          ref={(node) => {
-            buttonsRef.current[index] = node;
-          }}
-          type="button"
-          className="dh-md-toolbar__button"
-          data-action={action.id}
-          title={action.hint}
-          disabled={disabled}
-          tabIndex={index === activeIndex ? 0 : -1}
-          onKeyDown={(event) => onKeyDown(event, index)}
-          onFocus={() => setActiveIndex(index)}
-          // Keep the editor focused and its selection intact when a button is
-          // clicked — the format applies to what the user had selected, and the
-          // caret stays in the document (the host restores focus on apply).
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onAction(action)}
-        >
-          {action.label}
-        </button>
-      ))}
+      {PRIMARY_FORMATTING_ACTIONS.map((action, index) =>
+        renderAction(action, index),
+      )}
+
+      <button
+        ref={(node) => {
+          buttonsRef.current[moreIndex] = node;
+        }}
+        type="button"
+        className="dh-md-toolbar__button dh-md-toolbar__more"
+        title={
+          moreOpen
+            ? "Hide the less-used formatting commands"
+            : "Show the less-used formatting commands"
+        }
+        disabled={disabled}
+        aria-expanded={moreOpen}
+        tabIndex={moreIndex === activeIndex ? 0 : -1}
+        onKeyDown={(event) => onKeyDown(event, moreIndex)}
+        onFocus={() => setActiveIndex(moreIndex)}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setMoreOpen((open) => !open)}
+      >
+        {moreOpen ? "Less" : "More"}
+      </button>
+
+      {moreOpen
+        ? SECONDARY_FORMATTING_ACTIONS.map((action, offset) =>
+            renderAction(action, moreIndex + 1 + offset),
+          )
+        : null}
     </div>
   );
 }
+
+/** Re-exported so a consumer can assert the full catalogue without importing two modules. */
+export { MARKDOWN_FORMATTING_ACTIONS };

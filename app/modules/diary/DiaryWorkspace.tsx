@@ -27,7 +27,6 @@ import { CollectionLayout } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
-import { PlusIcon } from "~/shared/icons";
 import {
   InspectorProvider,
   useInspector,
@@ -123,9 +122,15 @@ function CaptureHost({ todayKey }: { readonly todayKey: string }) {
   const [searchParams] = useSearchParams();
 
   const onCaptured = useCallback(
-    (_entryId: string, capturedDayKey: string) => {
+    (_entryId: string, capturedDayKey: string, keepOpen: boolean) => {
       revalidator.revalidate();
-      closeInspector();
+      // MOBILE-01: "Save and add another" keeps the panel open (already cleared
+      // and refocused by the capture form) so a burst of entries costs one
+      // re-open, not one per entry. The day behind it is revalidated either way,
+      // so the new entry is on the timeline the moment the panel closes.
+      if (!keepOpen) {
+        closeInspector();
+      }
       feedback.notifySuccess("Entry captured");
 
       // Honest cross-day handling: a backdated entry that belongs to another day
@@ -418,9 +423,14 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
         primaryAction={
           // PX-06: the SAME primary-create affordance as every other module —
           // a plain labelled button, no `+` glyph (Diary was the only create
-          // button in the product carrying one). It is hidden below `md`, where
-          // the floating action is the single primary entry point, so exactly ONE
-          // primary create action exists per viewport.
+          // button in the product carrying one).
+          //
+          // MOBILE-01: it is now shown at EVERY width. The phone floating action
+          // PX-06 paired it with is retired, because the bottom navigation bar's
+          // Capture control would sit in the same corner with the same intent.
+          // This button opens capture on the day being VIEWED (with backdating),
+          // which the global Capture deliberately does not — so the two are
+          // complementary, not duplicates.
           <button
             type="button"
             className="dh-btn dh-btn--primary dh-diary-header-create"
@@ -509,15 +519,6 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
           />
         ) : null}
       </CollectionLayout>
-
-      <button
-        type="button"
-        className="dh-diary-fab"
-        aria-label="New Diary entry"
-        onClick={openCapture}
-      >
-        <PlusIcon aria-hidden="true" />
-      </button>
     </>
   );
 }

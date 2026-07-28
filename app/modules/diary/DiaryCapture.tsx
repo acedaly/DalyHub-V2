@@ -59,13 +59,29 @@ export interface DiaryCaptureProps {
    * Called after a successful capture with the new entry's id and the LOCAL day it
    * belongs to, so the workspace can revalidate and — for a backdated entry landing
    * on another day — offer to view that day rather than silently misplacing it.
+   *
+   * MOBILE-01 adds `keepOpen`: true when the user chose "Save and add another", so
+   * the workspace revalidates the day WITHOUT closing the panel. Diary capture is
+   * bursty — several entries in one sitting — and closing after each one made the
+   * second entry cost a whole re-open.
    */
-  readonly onCaptured: (entryId: string, capturedDayKey: string) => void;
+  readonly onCaptured: (
+    entryId: string,
+    capturedDayKey: string,
+    keepOpen: boolean,
+  ) => void;
 }
 
 export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
   const options = entryTypeOptions();
   const [showDetails, setShowDetails] = useState(false);
+  // Which button submitted. A ref (not state) because it must be readable inside
+  // the submit handler in the SAME tick the click starts, before any re-render.
+  const addAnotherRef = useRef(false);
+  // Late-bound handles so the submit closure can reset and refocus the form it is
+  // itself part of.
+  const resetFormRef = useRef<() => void>(() => {});
+  const focusTitleRef = useRef<() => void>(() => {});
 
   const form = useForm<Values>({
     initialValues: {
@@ -97,7 +113,16 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
         const capturedDayKey = values.when
           ? values.when.slice(0, 10)
           : todayKey;
-        onCaptured(data.entryId, capturedDayKey);
+        const keepOpen = addAnotherRef.current;
+        addAnotherRef.current = false;
+        onCaptured(data.entryId, capturedDayKey, keepOpen);
+        if (keepOpen) {
+          // Clear the form and return to the title so the next entry is
+          // type-and-save with no navigation at all. Reached through refs
+          // because `form` does not exist yet where this closure is written.
+          resetFormRef.current();
+          requestAnimationFrame(() => focusTitleRef.current());
+        }
         return { status: "success" };
       }
       return {
@@ -110,6 +135,8 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
   });
 
   const { focusField } = form;
+  resetFormRef.current = form.reset;
+  focusTitleRef.current = () => focusField("title");
   // Land focus on the title for the fast path. The host Inspector focuses its close
   // button in a single rAF on open; a NESTED rAF runs a frame later, so the title
   // wins the initial focus (the fast path starts in the title, not the close button).
@@ -209,6 +236,20 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
             {showDetails ? "Fewer details" : "Add details"}
           </button>
           <FormActions>
+            {/* MOBILE-01: diary capture is bursty. "Save and add another" keeps
+                the panel open, clears the form and returns focus to the title, so
+                the next entry costs a title and a tap — no re-open, no
+                navigation. "Capture" keeps its existing close-on-save behaviour. */}
+            <FormButton
+              type="submit"
+              variant="secondary"
+              pending={form.isSubmitting}
+              onClick={() => {
+                addAnotherRef.current = true;
+              }}
+            >
+              Save and add another
+            </FormButton>
             <FormButton
               type="submit"
               variant="primary"
