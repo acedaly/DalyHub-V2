@@ -397,3 +397,56 @@ describe("DS-07 filtering — empty vs filtered-empty", () => {
     expect(onClearFilters).toHaveBeenCalled();
   });
 });
+
+describe("DS-11 — the viewport never carries a prohibited aria-label", () => {
+  // Regression: the scroll viewport dropped `role="feed"` in every non-feed
+  // state but kept its `aria-label`, and `aria-label` is prohibited on a generic
+  // div. It was a serious axe violation (`aria-prohibited-attr`) that only
+  // surfaced when a scan caught the stream in one of those states — the loading
+  // window in particular is a race, so it presented as an intermittent failure
+  // rather than a reproducible one.
+  const viewport = (): HTMLElement => {
+    const el = document.querySelector(".dh-activity__viewport");
+    if (!el) throw new Error("viewport not rendered");
+    return el as HTMLElement;
+  };
+
+  const expectNamedWithARole = () => {
+    const el = viewport();
+    expect(el).toHaveAttribute("aria-label", "Activity");
+    // The name is only legal because a role that permits it is present.
+    expect(el.getAttribute("role")).toBeTruthy();
+  };
+
+  it("names the region via role=group while the first page is still loading", () => {
+    // Never resolves — holds the component in `showInitialLoading`.
+    renderStream({ loadPage: () => new Promise<ActivityStreamPage>(() => {}) });
+    expectNamedWithARole();
+    expect(viewport()).toHaveAttribute("role", "group");
+    expect(viewport()).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("names the region via role=group when there is genuinely no activity", async () => {
+    renderStream({ loadPage: pageLoaderFor([]) });
+    await waitFor(() => expect(viewport()).toHaveAttribute("role", "group"));
+    expectNamedWithARole();
+  });
+
+  it("names the region via role=group when the initial load fails", async () => {
+    renderStream({
+      loadPage: async () => {
+        throw new Error("boom");
+      },
+    });
+    await screen.findByRole("button", { name: "Try again" });
+    expectNamedWithARole();
+    expect(viewport()).toHaveAttribute("role", "group");
+  });
+
+  it("uses role=feed once there is activity to own", async () => {
+    renderStream({ loadPage: pageLoaderFor([rec({ id: "a" })]) });
+    await screen.findByRole("article");
+    expect(viewport()).toHaveAttribute("role", "feed");
+    expectNamedWithARole();
+  });
+});

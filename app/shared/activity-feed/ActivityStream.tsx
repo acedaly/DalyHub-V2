@@ -147,6 +147,27 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
   const showingFeed =
     !genuinelyEmpty && !filteredEmpty && !initialError && !showInitialLoading;
 
+  /*
+   * The viewport is a focusable scroll region in BOTH states, so it keeps its
+   * name in both — but `aria-label` is prohibited on a generic div, so the
+   * non-feed state has to carry a role that permits one. `group` is that role:
+   * the region still exists and is still worth naming, it just owns an
+   * empty/error/loading state instead of a set of articles. Emitting a bare
+   * `aria-label` here was a serious `aria-prohibited-attr` violation that only
+   * surfaced when a scan caught the stream in one of those states.
+   */
+  const viewportAria = showingFeed
+    ? {
+        role: "feed",
+        "aria-label": ariaLabel,
+        "aria-busy": stream.isLoadingMore || undefined,
+      }
+    : {
+        role: "group",
+        "aria-label": ariaLabel,
+        "aria-busy": showInitialLoading || undefined,
+      };
+
   const renderRow = (row: ActivityRow): ReactNode => {
     if (row.kind === "heading") {
       return (
@@ -231,13 +252,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
         className="dh-activity__viewport"
         tabIndex={0}
         style={{ maxHeight }}
-        {...(showingFeed
-          ? {
-              role: "feed",
-              "aria-label": ariaLabel,
-              "aria-busy": stream.isLoadingMore || undefined,
-            }
-          : { "aria-label": ariaLabel })}
+        {...viewportAria}
       >
         {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
         {initialError ? (
