@@ -30,6 +30,15 @@ test.use({ viewport: PHONE, isMobile: true, hasTouch: true });
 
 const bottomNav = "[data-testid='bottom-nav']";
 
+/**
+ * Diary entries are NOT cleaned up between runs (the module has no fixture
+ * helper and the timeline is meant to accumulate), so each run writes its own
+ * uniquely-titled entries. Without this a second run trips Playwright's strict
+ * mode on the entry a previous run left behind — a test-data problem, not a
+ * product one.
+ */
+const RUN = `${Date.now().toString(36)}`;
+
 /** Open the shared capture sheet on a type from the phone bottom bar. */
 async function openCapture(page: Page, type: string) {
   await page
@@ -85,7 +94,7 @@ test.describe("MOBILE-01 Diary on a phone", () => {
     const title = panel.getByLabel("Title");
     await expect(title).toBeVisible({ timeout: 15_000 });
 
-    await title.fill("Phone diary entry one");
+    await title.fill(`Phone diary entry one ${RUN}`);
     await panel.getByRole("button", { name: "Save and add another" }).click();
 
     // The panel stays open, cleared and refocused — the next entry is a title
@@ -93,15 +102,15 @@ test.describe("MOBILE-01 Diary on a phone", () => {
     await expect(title).toHaveValue("", { timeout: 15_000 });
     await expect(title).toBeFocused();
 
-    await title.fill("Phone diary entry two");
+    await title.fill(`Phone diary entry two ${RUN}`);
     await panel.getByRole("button", { name: "Capture", exact: true }).click();
 
     // The plain Capture still closes, and the day behind it shows both entries.
     await expect(panel).toHaveCount(0, { timeout: 15_000 });
-    await expect(page.getByText("Phone diary entry two")).toBeVisible({
+    await expect(page.getByText(`Phone diary entry two ${RUN}`)).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Phone diary entry one")).toBeVisible();
+    await expect(page.getByText(`Phone diary entry one ${RUN}`)).toBeVisible();
   });
 
   test("holds the accessibility baseline with capture open", async ({

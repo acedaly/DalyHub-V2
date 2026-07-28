@@ -179,6 +179,11 @@
 .dh-meeting-capturebar__types {
   display: flex;
   flex-wrap: wrap;
+  /* `align-items: stretch` (the default) sizes each button to its flex LINE,
+   * which is what let the type chips render at their text height despite their
+   * own minimum. Sizing the ROW itself removes the ambiguity entirely. */
+  align-items: stretch;
+  min-block-size: var(--dh-touch-target-min);
   gap: var(--dh-space-2);
 }
 
