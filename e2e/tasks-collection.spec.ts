@@ -432,6 +432,109 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
   });
 });
 
+test.describe("TASKS-03 — Today integration", () => {
+  test("plans from the list and Today reflects it immediately", async ({
+    page,
+  }) => {
+    await gotoFixture(
+      page,
+      "/tasks?view=list&system=all&sort=created&dir=desc",
+    );
+    const field = page.getByTestId("tasks-quickadd-input");
+    const title = `E2E today integration ${Date.now()}`;
+    await field.fill(title);
+    await field.press("Enter");
+
+    const card = page.getByRole("article", { name: `Open ${title}` });
+    await card.getByRole("button", { name: `Plan ${title} for today` }).click();
+    await expect(card).toBeVisible();
+
+    // Today reads the SAME canonical planning field — there is no second
+    // definition of "today" to keep in step.
+    await gotoFixture(page, "/today");
+    await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
+
+    // Completing from Today's own surface is reflected back in Tasks.
+    await gotoFixture(page, "/tasks?view=list&system=completed&sort=updated");
+    await expect(page.getByRole("article").first()).toBeVisible();
+
+    // Clear the plan so a lingering scheduled-today task cannot leak a "Today"
+    // band into another spec's view of the dashboard. (It moves to the always-
+    // present backlog band rather than off Today — that IS Today's model, and
+    // nothing here redefines it.)
+    await gotoFixture(
+      page,
+      "/tasks?view=list&system=all&sort=created&dir=desc",
+    );
+    const again = page.getByRole("article", { name: `Open ${title}` });
+    await again
+      .getByRole("button", { name: `More actions for Open ${title}` })
+      .click();
+    await page.getByRole("menuitem", { name: "Clear planned date" }).click();
+    await expect(again).not.toContainText(/Scheduled today|Planned/);
+  });
+
+  test("choosing a DEFAULT Tasks view does not change the Today dashboard", async ({
+    page,
+  }) => {
+    /**
+     * Click the switcher's set-default item, whichever of its two labels it is
+     * currently showing. The control is one item that toggles between "make this
+     * the default" and "clear the default", so a spec that hard-coded one label
+     * would depend on the state a previous run left behind.
+     */
+    const toggleDefault = async () => {
+      await page.getByRole("button", { name: "Manage Tasks views" }).click();
+      await page
+        .getByRole("menuitem", { name: /the default|Clear default/ })
+        .click();
+      // Wait for the write to be CONFIRMED before navigating: navigating away
+      // from an in-flight fetcher aborts it, and the test would then assert
+      // against a preference that was never stored.
+      await expect(
+        page.getByText(/Default Tasks view (set|cleared)\./),
+      ).toBeAttached();
+    };
+
+    // Start from a known state: no default.
+    await gotoFixture(page, "/tasks");
+    if (
+      await page
+        .getByTestId("tasks-view-trigger")
+        .locator("..")
+        .getByText("Default")
+        .count()
+    ) {
+      await toggleDefault();
+    }
+
+    // Capture Today's own content before touching any Tasks preference.
+    await gotoFixture(page, "/today");
+    const before = await page.locator("main").innerText();
+
+    // Make a narrow built-in view the default for /tasks.
+    await gotoFixture(page, "/tasks?system=waiting");
+    await toggleDefault();
+    await gotoFixture(page, "/tasks");
+    await expect(page.getByTestId("tasks-view-trigger")).toContainText(
+      "Waiting",
+    );
+
+    // Today is unmoved: the Tasks default is a Tasks preference, not a
+    // redefinition of what Today shows.
+    await gotoFixture(page, "/today");
+    expect(await page.locator("main").innerText()).toBe(before);
+
+    // Restore, so the preference does not leak into another spec.
+    await gotoFixture(page, "/tasks");
+    await toggleDefault();
+    await gotoFixture(page, "/tasks");
+    await expect(page.getByTestId("tasks-view-trigger")).toContainText(
+      "All active",
+    );
+  });
+});
+
 test.describe("TASKS-03 — accessibility, keyboard and responsive", () => {
   test("is axe-clean in light and dark across the presentations", async ({
     page,

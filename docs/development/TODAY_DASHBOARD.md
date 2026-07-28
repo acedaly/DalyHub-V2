@@ -677,3 +677,46 @@ field functional.
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+## Today and the completed Tasks collection (TASKS-03, 2026-07-28)
+
+TASKS-03 completed the `/tasks` collection experience — filters, sorting, grouping
+and persistent saved views. **It changed nothing about Today**, and that is the
+point worth recording explicitly, because "saved views" is exactly the kind of
+feature that quietly grows a second definition of "today".
+
+**There is still ONE definition of Today.** Today's planning bands read
+`TaskRepository.listPlanningTasks` against the owner's server-derived calendar day
+(ADR-022, ADR-030); the Tasks workspace's `today` scope is the kernel `today`
+system view over the SAME `scheduled_date` field. A saved view can name that scope,
+but it cannot redefine it — a configuration names dimensions from closed sets and
+carries no query (ADR-059).
+
+Verified, not assumed:
+
+- **"Plan today" updates Today immediately.** The row's Today action posts to the
+  canonical `/tasks/bulk` `plan` intent — the same `planTasks` authority the Today
+  dashboard's own planning controls use — and the loader is revalidated after it.
+- **Completing a task updates Today and Tasks consistently.** List-level completion
+  posts `intent=complete` to `POST /tasks/:taskId`, the atomic task-domain
+  operation of ADR-029 that the Task Drawer's own button uses. There is no
+  list-only mutation.
+- **Quick Capture still uses the configured default parent.** The MOBILE-01
+  title-and-Enter path is untouched. The Tasks workspace's new quick-add row is an
+  ADDITIONAL affordance inside the workspace that posts to the same `/tasks/new`
+  route with the same resolved default parent.
+- **Changing the default Tasks view does not change Today.** `defaultTaskViewId` is
+  read by the `/tasks` loader alone. Covered by a browser test that captures
+  Today's rendered content, makes a narrow built-in view the Tasks default, and
+  asserts Today is byte-identical
+  ([`e2e/tasks-collection.spec.ts`](../../e2e/tasks-collection.spec.ts) →
+  "TASKS-03 — Today integration").
+
+**The complete Tasks workspace is deliberately NOT embedded in Today.** Today
+remains a focused execution dashboard; `/tasks` remains where work is *managed*.
+
+**[DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) is still open.** TASKS-03 gave `/tasks` a first-class status filter and a status
+grouping, which makes the inconsistency *easier to see* — an on-hold task is now
+one click from being isolated in Tasks — but Today's `listPlanningTasks` still
+filters only Someday and Cancelled, and its projection still carries no status. The
+debt entry is unchanged and remains the place that work is tracked.

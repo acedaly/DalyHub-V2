@@ -349,6 +349,36 @@
 
 ---
 
+### ☐ DEBT-48 — Tasks have no tags, so the collection offers no tag filter — P3
+- **Current issue.** The TASKS-03 filter set was specified to include tags "where Tasks already support them". They do not: there is no tag field on `task_details`, no tag table, and no tag anywhere in the Task domain. The collection therefore ships **no tag filter**, and this entry exists so that absence is a recorded decision rather than something a future reader has to rediscover.
+- **Why it was not built here.** Adding a tag filter would have meant adding TAGS — a new field or a new table, a create/edit surface, a validation and normalisation policy (case, whitespace, duplicates, limits), Activity semantics, and a decision about whether tags are Task-only or a kernel primitive shared with Notes, Projects and People. That is a data-model change wearing a filter's clothes, and it belongs to whichever item genuinely owns the decision — not to a collection-experience slice that would have had to invent the model to have something to filter.
+- **Impact.** A user who thinks in tags has no way to express that in Tasks. In practice the gap is narrower than it sounds — the workspace already filters on parent (Project/Area/Goal), Time Sector, priority, delegate and status, which is how DalyHub's model expects work to be classified — but a genuinely cross-cutting label (`#errand`, `#deep-work`) has no home.
+- **Desired future state.** A decision on whether labels are a KERNEL primitive (an EntityLink type or a small shared `labels` table usable by every entity) or a Task-only field. Almost certainly the former, given that Notes, People and Assets would want the same thing, and given [ADR-002](../decisions/ARCHITECTURE_DECISIONS.md#adr-002-entitylinks)'s existing stance that relationships are a kernel concern.
+- **Closing condition.** A tag/label model exists on the Task domain with create, edit and validation; the Tasks filter declaration gains one `tags` dimension whose options come from a bounded workspace-scoped aggregate (the same shape the delegate filter already uses); and the filter is covered by a real-D1 combined-filter test. Until all three are true, this stays open.
+- **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
+
+---
+
+### ☐ DEBT-49 — Two filter models coexist: DS-07 expressions and the Tasks declarative configuration — P3
+- **Current issue.** The product now contains two filter models. [DS-07](../design/DESIGN_SYSTEM.md#shared-filters-ds-07) is a client-side clause builder (`FilterExpression`: field → operator → value, evaluated in the browser over supplied records). TASKS-03 added a **declarative configuration** that names filter dimensions from closed sets and is translated to trusted predicates by the repository ([ADR-059](../decisions/ARCHITECTURE_DECISIONS.md#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration)).
+- **Why both exist, honestly.** They answer different questions, and the second is not a fork of the first. A persisted `FilterExpression` could name a repository field, which makes storing one a persisted injection surface — so a saved, server-executed view could not have been built on DS-07 without weakening it. DS-07 remains correct for what it does; it is simply not a server-side query contract, and was never documented as one.
+- **Impact.** Two things a future reader must tell apart, and a real risk that a third collection picks the wrong one. It is a comprehension and consistency cost, not a correctness one: neither model can produce the other's failure mode.
+- **Desired future state.** ONE declarative, server-translatable configuration contract shared by every collection, with DS-07's clause builder retained (or retired) explicitly as the client-side evaluator it is. The Tasks contract is deliberately built to generalise — the config, its validation and its URL codec contain no Task-specific logic beyond the dimension names.
+- **Closing condition.** At least one non-Tasks collection (Projects or Notes) is filtering through the shared declarative contract, the contract has moved out of `app/kernel/task-views` into a collection-agnostic home, and `DESIGN_SYSTEM.md` states which model a new collection should use in one sentence without qualification.
+- **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
+
+---
+
+### ☐ DEBT-50 — Card quick actions are 28px on a narrow viewport with a mouse — P3
+- **Current issue.** The shared Card's quick actions and overflow trigger are raised to the 44px target under `@media (hover: none)` — a TOUCH device. A narrow viewport driven by a POINTER (a small desktop window, a resized browser, a touchscreen laptop reporting fine pointer) keeps the compact 28px control. WCAG 2.2 §2.5.8 is written about target size, not input modality, so the compact control is below the target for any user in that configuration.
+- **Where it stands.** Pre-existing, and unchanged by TASKS-03 — it was found by driving the Tasks list at 390px with a mouse while writing that item's touch-target coverage, and the assertion was moved to the touch-emulated phone block (where the product genuinely meets 44px) rather than widened to paper over it. Every phone journey and `touch-targets.spec.ts` run under touch emulation and pass.
+- **Impact.** Low but real: a pointer user at a phone-width window gets a 28×28 target where 44×44 is required. It affects every Card in the product, not only Tasks.
+- **Desired future state.** The target size follows the VIEWPORT (and/or `pointer: coarse`), not `hover: none` alone — most simply by moving the sizing rule into the existing narrow-width media query as well.
+- **Closing condition.** `expectMinTouchTarget` passes on Card quick actions at 320/375/390/430px **without** touch emulation, and the responsive spec asserts it there.
+- **Related roadmap item.** [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
+
+---
+
 ## Entry template
 
 ```markdown
