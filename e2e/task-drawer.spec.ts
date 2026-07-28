@@ -52,12 +52,12 @@ test.describe("TODAY-02 — desktop", () => {
     ).toBeVisible();
   });
 
-  test("shows the real area relationship in the Links tab", async ({
+  test("shows the real area relationship in the Linked tab", async ({
     page,
   }) => {
     await gotoFixture(page, DRAWER_URL);
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("tab", { name: "Links" }).click();
+    await dialog.getByRole("tab", { name: "Linked" }).click();
     const relationships = dialog.getByRole("region", { name: "Relationships" });
     await expect(relationships.getByText("DalyHub V2")).toBeVisible();
   });
@@ -184,7 +184,7 @@ test.describe("TODAY-02 — desktop", () => {
 
   test("shows the calm not-found for an invalid task id", async ({ page }) => {
     await gotoFixture(page, "/today?drawer=task%3Amissing-task");
-    await expect(page.getByText("We couldn't find that task")).toBeVisible();
+    await expect(page.getByText("We couldn’t find that task")).toBeVisible();
   });
 
   test("has no horizontal overflow with the Drawer open", async ({ page }) => {

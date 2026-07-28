@@ -316,7 +316,7 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     // its Planned baseline before the next full suite run regardless.
   });
 
-  test("a restored Planned project stays absent from Today's Continue working", async ({
+  test("a restored Planned project stays absent from Today’s Continue working", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-today-planned");

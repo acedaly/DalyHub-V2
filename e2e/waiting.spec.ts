@@ -51,7 +51,7 @@ test.describe("TODAY-03 — Waiting", () => {
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
     await dialog
-      .getByLabel("What it's waiting on")
+      .getByLabel("What it’s waiting on")
       .fill("finance confirmation");
     await dialog.getByRole("button", { name: "Save" }).click();
 
@@ -69,7 +69,7 @@ test.describe("TODAY-03 — Waiting", () => {
     const dialog = await openTaskDrawer(page);
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
-    await dialog.getByLabel("What it's waiting on").fill("replacement parts");
+    await dialog.getByLabel("What it’s waiting on").fill("replacement parts");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog.getByText("replacement parts")).toBeVisible();
 
@@ -99,7 +99,7 @@ test.describe("TODAY-03 — Waiting", () => {
     const dialog = await openTaskDrawer(page);
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
-    await dialog.getByLabel("What it's waiting on").fill("legal review");
+    await dialog.getByLabel("What it’s waiting on").fill("legal review");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog.getByText("legal review")).toBeVisible();
 
@@ -130,7 +130,7 @@ test.describe("TODAY-03 — Waiting", () => {
     const dialog = await openTaskDrawer(page);
     await dialog.getByRole("button", { name: "Mark as waiting" }).click();
     await dialog.getByLabel("Something else").click();
-    await dialog.getByLabel("What it's waiting on").fill("finance");
+    await dialog.getByLabel("What it’s waiting on").fill("finance");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog.getByText("finance")).toBeVisible();
     // The waiting control (and the whole Drawer) is usable at 320px with no

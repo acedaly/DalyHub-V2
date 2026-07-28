@@ -97,7 +97,7 @@ test.describe("Relationship navigation (deliverable 4)", () => {
     await expect(page).toHaveURL(/\/projects\/pr-launch$/);
   });
 
-  test("Goal Projects tab shows only the active Goal's Projects across navigation (scope isolation)", async ({
+  test("Goal Projects tab shows only the active Goal’s Projects across navigation (scope isolation)", async ({
     page,
   }) => {
     // DEBT-22 pagination is scoped per Goal: navigating between Goal records must

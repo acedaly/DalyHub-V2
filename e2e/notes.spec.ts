@@ -376,7 +376,7 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await clearAndType(page, "Draft that must survive a failure");
     await blurEditor(page);
 
-    await expect(page.getByText("Couldn't save")).toBeVisible();
+    await expect(page.getByText("Couldn’t save")).toBeVisible();
     await expect(page.getByText("Simulated failure for e2e.")).toBeVisible();
     expect(await readSource(page)).toContain(
       "Draft that must survive a failure",

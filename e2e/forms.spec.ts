@@ -86,7 +86,7 @@ test.describe("DS-06 — desktop", () => {
     const failing = autosave.getByRole("textbox", { name: /fails on/ }).first();
     await failing.fill("please fail");
     await failing.blur();
-    await expect(autosave.getByText("Couldn't save").first()).toBeVisible();
+    await expect(autosave.getByText("Couldn’t save").first()).toBeVisible();
     await expect(failing).toHaveValue("please fail"); // input preserved
 
     await failing.fill("all good now");

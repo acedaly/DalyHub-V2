@@ -106,7 +106,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expect(page.getByText("Nothing recorded on this day")).toBeVisible();
     await expectNoAxeViolations(page);
 
-    // 2. Launch capture from the New entry button and file the fast path.
+    // 2. Launch capture from the New Diary entry button and file the fast path.
     await page.getByRole("button", { name: "New Diary entry" }).first().click();
     const capture = page.getByRole("form", { name: "Quick capture" });
     await expect(capture).toBeVisible();

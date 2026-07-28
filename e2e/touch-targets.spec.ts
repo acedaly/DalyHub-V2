@@ -29,7 +29,7 @@ test.describe("touch targets — shell (mobile)", () => {
     );
   });
 
-  test("the mobile navigation sheet's close control meets the minimum", async ({
+  test("the mobile navigation sheet’s close control meets the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
@@ -91,7 +91,7 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
     hasTouch: true,
   });
 
-  test("the Areas collection's primary action and record tabs meet the minimum", async ({
+  test("the Areas collection’s primary action and record tabs meet the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/areas");
@@ -106,7 +106,7 @@ test.describe("touch targets — Areas & Goals (mobile)", () => {
     }
   });
 
-  test("the Goal record's actions and the Alignment evidence control meet the minimum", async ({
+  test("the Goal record’s actions and the Alignment evidence control meet the minimum", async ({
     page,
   }) => {
     await gotoFixture(page, "/goals/g-launch");
@@ -125,7 +125,7 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     hasTouch: true,
   });
 
-  test("the record's Rename/Delete actions and the editor's formatting toolbar meet the minimum", async ({
+  test("the record’s Rename/Delete actions and the editor’s formatting toolbar meet the minimum", async ({
     page,
   }) => {
     // This is the only test in this shard that mounts the note-editor route, so
@@ -155,9 +155,15 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     });
 
     await expectMinTouchTarget(page.getByRole("button", { name: "Rename" }));
+    // PX-04: Delete now lives in the ONE shared overflow menu every record uses,
+    // so both the trigger and the item it reveals must meet the floor.
+    const overflow = page.getByRole("button", { name: /^More actions for / });
+    await expectMinTouchTarget(overflow);
+    await overflow.click();
     await expectMinTouchTarget(
-      page.getByRole("button", { name: "Delete note" }),
+      page.getByRole("menuitem", { name: "Delete Note" }),
     );
+    await page.keyboard.press("Escape");
     // NOTES-05 retired Source/Split/Preview: the writing surface exposes a
     // formatting toolbar plus a Read toggle. Sample a toolbar button and the
     // toggle — all share the same 44px-floor rule.

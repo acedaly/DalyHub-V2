@@ -149,7 +149,7 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
     ownedNoteTitles.clear();
   });
 
-  test("a linked record's history joins the Person's, is filterable, and leaves when unlinked", async ({
+  test("a linked record’s history joins the Person’s, is filterable, and leaves when unlinked", async ({
     page,
   }) => {
     test.setTimeout(180_000);
