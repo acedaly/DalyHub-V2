@@ -118,7 +118,8 @@ export function DiaryCapturePanel({
 
   const addAnother = useCallback(() => {
     setSuccess(null);
-    form.reset();
+    // `resetToInitial`, not `reset` — see TaskCapturePanel.
+    form.resetToInitial();
     window.requestAnimationFrame(() => firstFieldRef.current?.focus());
   }, [form, firstFieldRef]);
 

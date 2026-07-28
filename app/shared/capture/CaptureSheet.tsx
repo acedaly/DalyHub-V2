@@ -62,9 +62,30 @@ export default function CaptureSheet({
   const firstFieldRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (active !== null) {
-      rememberCaptureType(active);
+    if (active === null) {
+      return;
     }
+    rememberCaptureType(active);
+
+    /*
+     * Focus the panel's first field whenever a type becomes active.
+     *
+     * The Sheet's own initial-focus contract (DS-03 `useDrawerFocus`) runs ONCE
+     * on mount. That is correct for a sheet whose content is fixed, but this
+     * sheet swaps its content in place: arriving from the chooser, or switching
+     * type, leaves the Sheet mounted, so the mount effect never re-runs and
+     * focus would sit on the Close button while the user expected to be typing.
+     * Re-mounting the Sheet per type would fix the focus but would also fire the
+     * unmount focus-restoration (bouncing focus back to the opener) and re-run
+     * the scroll lock, so this is an explicit, additive focus move instead.
+     *
+     * A frame's delay lets the newly-rendered panel attach its control ref (the
+     * ref is set by the field's `controlRef` during commit).
+     */
+    const frame = window.requestAnimationFrame(() =>
+      firstFieldRef.current?.focus(),
+    );
+    return () => window.cancelAnimationFrame(frame);
   }, [active]);
 
   const choose = useCallback((type: CaptureType) => setActive(type), []);

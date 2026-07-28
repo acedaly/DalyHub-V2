@@ -483,3 +483,49 @@ This review changes **no roadmap status** and starts **no roadmap item**. Its ou
 - [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md) — when each surface referenced here gets built.
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — where reality diverges; several entries above prevent debt from recurring in V2.
 - [`AGENTS.md`](../../AGENTS.md) — the constitution this contract operates under.
+
+---
+
+## The phone product frame (MOBILE-01)
+
+Everything above describes one product frame. MOBILE-01 does not add a second one
+— it states how the same frame behaves when the viewport is a phone and the
+pointer is a thumb.
+
+**Navigation moves to where the thumb is.** The persistent left rail is the
+desktop expression of primary navigation; at phone widths its most frequent
+destinations move to a persistent BOTTOM bar (`Today · Tasks · Capture · Diary ·
+More`), because the top-left corner of a phone is the one place a hand holding
+that phone cannot reach. The complete navigation is unchanged behind "More". The
+bar is derived from the module registry, so it is the same navigation model — not
+a phone-specific list.
+
+**Chrome yields to content.** A phone screen cannot afford a tall header, a
+duplicated title, several permanent filter rows and a wrapped tab bar before the
+first record. So: the top bar is one row carrying the ROUTE's title (not the
+workspace name, which the user already knows); a collection shows one control row
+and moves the rest into a sheet; a record's surplus tabs collapse into a labelled
+menu; and a full-screen record does not repeat the title its own header already
+carries.
+
+**Capture is a product surface, not a module feature.** "Capture first, organise
+later" was already a principle; MOBILE-01 makes it a place. One sheet captures a
+Task, a Diary entry, a Meeting or a Note, from the bottom bar, from Today, from a
+Person record or from the Command Palette — always through the owning module's
+canonical creation authority. The fast path is deliberately brutal: a Task is a
+title and Enter.
+
+**Nothing is hidden to look tidy.** A card title wraps rather than truncates;
+low-priority metadata is de-emphasised rather than removed; a tab moved into
+"More sections" is one tap away and its deep link still works. Density is a
+presentation decision, never a decision to withhold information.
+
+**One affordance per action.** Where the phone shell provides an action (Capture),
+the page does not also provide its own version of the same action. This is why
+Today's header capture button is hidden at phone width and Diary's floating action
+was retired: several controls competing for one intent is the thing that makes an
+interface feel improvised.
+
+**Gestures accelerate; they never gate.** Unchanged from TODAY-06, and now a rule
+for every surface: a swipe may make an action faster, but the action must also be
+an ordinary, visible, keyboard-reachable control.

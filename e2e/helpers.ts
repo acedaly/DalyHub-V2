@@ -24,15 +24,27 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * The canonical responsive matrix (DESIGN_SYSTEM.md → Responsive behaviour). The
- * widths are the task's required checkpoints — the common small phones (320/375/390),
- * the tablet/`md` boundary (768), the `lg` desktop boundary (1024), a common laptop
- * (1440) and an ultra-wide monitor (2560) — so a surface is proven from the
- * narrowest supported viewport through the widest.
+ * widths are the required checkpoints — the common small phones (320/375/390),
+ * a large phone (430), the tablet/`md` boundary (768), the `lg` desktop boundary
+ * (1024), a common laptop (1440) and an ultra-wide monitor (2560) — so a surface
+ * is proven from the narrowest supported viewport through the widest.
+ *
+ * MOBILE-01 added the two the matrix genuinely lacked:
+ *
+ *   - **`mobile-430`**, the large-phone width most current handsets actually
+ *     report, which sits between the small-phone cluster and the tablet boundary
+ *     with nothing else covering it;
+ *   - **`phone-landscape`** (844×390), a real orientation with a genuinely
+ *     different constraint — a very SHORT viewport carrying sticky top chrome, a
+ *     bottom navigation bar and, often, an on-screen keyboard. Height was
+ *     previously never the binding dimension anywhere in the matrix.
  */
 export const RESPONSIVE_VIEWPORTS = [
   { label: "mobile-320", width: 320, height: 720 },
   { label: "mobile-375", width: 375, height: 812 },
   { label: "mobile-390", width: 390, height: 844 },
+  { label: "mobile-430", width: 430, height: 932 },
+  { label: "phone-landscape", width: 844, height: 390 },
   { label: "tablet-768", width: 768, height: 1024 },
   { label: "desktop-1024", width: 1024, height: 768 },
   { label: "desktop-1440", width: 1440, height: 900 },

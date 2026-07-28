@@ -522,3 +522,40 @@ visual was preserved exactly and Diary was pulled onto the shared pieces that ge
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+## Phone capture (MOBILE-01)
+
+### Repeated capture
+
+Diary capture is bursty — several entries in one sitting — and closing the panel
+after each one made the second entry cost a full re-open. The capture form now
+offers **"Save and add another"** beside "Capture":
+
+- **Capture** keeps its existing behaviour: save, close, revalidate the day.
+- **Save and add another** saves, revalidates the day behind the panel, then
+  clears the form and returns focus to the title. The next entry is a title and a
+  tap, with no navigation at all.
+
+The distinction is carried into the workspace through the `keepOpen` argument of
+`onCaptured`, so the cross-day handling (an entry backdated onto another day
+offers "View that day") is identical on both paths.
+
+The **shared Quick Capture sheet** also captures a Diary entry — from the phone
+bottom bar, Today, or anywhere else — defaulting to today, offering the kernel's
+built-in entry types as one-tap chips and remembering the last type for the
+session. It posts to the same `POST /diary/new` endpoint backed by the reserved
+`DiaryRepository.create`, so there is exactly one way a diary row is written.
+
+### The floating action is retired
+
+PX-06 introduced a phone floating action so that exactly one primary create action
+existed per viewport (the Pane Header button on desktop, the FAB below `md`).
+MOBILE-01 makes that trade wrong: the phone now has a bottom navigation bar with
+its own Capture control, and a FAB would be a second circular accent button
+hovering directly above it, competing for the same corner and the same intent.
+
+So the FAB is gone at every width, and the Pane Header's **"New Diary entry" is
+shown on a phone too**. Diary therefore still has exactly ONE in-page primary
+create action per viewport — and it is the right one to keep, because it opens
+capture on the day currently being VIEWED, with backdating, which the global
+Capture control deliberately does not do.

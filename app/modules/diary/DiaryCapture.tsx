@@ -135,7 +135,9 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
   });
 
   const { focusField } = form;
-  resetFormRef.current = form.reset;
+  // `resetToInitial`, not `reset`: a successful save makes the captured entry
+  // the committed baseline, so `reset` would restore it instead of clearing.
+  resetFormRef.current = form.resetToInitial;
   focusTitleRef.current = () => focusField("title");
   // Land focus on the title for the fast path. The host Inspector focuses its close
   // button in a single rAF on open; a NESTED rAF runs a frame later, so the title

@@ -927,3 +927,43 @@ pattern; it is now the shared one, with Goals and Diary running on it.
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+## Phone writing surface (MOBILE-01)
+
+NOTES-04 and NOTES-05 already delivered the writing-first phone editor: a single
+horizontally-scrolling toolbar row (never several wrapped rows eating the writing
+space), no split preview on a phone (a Read/Write toggle instead), one canonical
+editor over one Markdown source, 44px targets, and a `role="toolbar"` with roving
+tabindex that is exactly ONE Tab stop. MOBILE-01 changes one thing.
+
+### Common formatting directly, the rest behind More
+
+Eleven permanently-visible commands is chrome that costs a phone the rows it needs
+for writing — and it makes the FREQUENT commands harder to reach, not easier,
+because each one sits further along a scrolling row. The catalogue
+(`formatting-actions.ts`) therefore marks six actions `primary`:
+
+> Heading · Bold · Italic · Bullets · Checklist · Link
+
+Numbered, Quote, Code, Code block and Table appear when **More** is expanded.
+
+Crucially the secondary actions stay **inside the same toolbar** rather than
+moving into a menu:
+
+- the row remains exactly **one Tab stop**, and Arrow/Home/End move across
+  everything currently on screen — the DS-11 baseline for a command-button row is
+  preserved, not traded for a second focus surface;
+- "More" is an ordinary toolbar button carrying `aria-expanded`;
+- nothing is unreachable — every command is one tap away.
+
+Pointer press is still prevented on every control, so a formatting tap never
+dismisses the phone keyboard or loses the caret and selection.
+
+### Capture into the canonical editor
+
+The shared Quick Capture sheet's Note panel creates the Note through
+`POST /notes/new` and, if an opening line was typed, writes it through the note's
+OWN `update_content` mutation — the same authority the editor autosaves through —
+then hands off to `/notes/:id`. There is no second simplified note store, and if
+the opening line fails to save the panel says so honestly rather than discarding
+the words.

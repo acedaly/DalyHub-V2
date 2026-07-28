@@ -249,3 +249,63 @@ Recent and Archived views, bounded text search, start/updated/title sorting and
 cursor-backed Load more pagination. Attendees are added through a bounded
 workspace-scoped server search over active People rather than an initial fixed
 select.
+
+## Phone workspace (MOBILE-01)
+
+### The capture bar
+
+A meeting is the one workflow where the phone is genuinely in use while the thing
+being recorded is happening. Capturing a decision previously meant scrolling to
+the right section, finding its add field, typing, submitting and scrolling back —
+several times a meeting, while trying to listen.
+
+While the **Meeting tab** is open, a sticky bar pins one row to the bottom of the
+workspace:
+
+> Note · Action · Decision · Outcome
+
+Choosing a type focuses a single input; submitting saves and leaves the user
+exactly where they were, with the input cleared and still focused. No drawer
+opens, no tab changes, nothing nests.
+
+Every write uses the canonical authority — there is no capture-only path:
+
+| Type | Authority |
+| --- | --- |
+| Action / Decision / Outcome | `intent=add_item` with the item's kind — the same structured-item authority the section's own add field uses |
+| Note | Appended to the meeting's canonical `notesMarkdown` through the same `intent=update` the Notes editor autosaves through — one field, one Markdown source, one Activity trail |
+
+A note is **appended**, never overwritten, so a capture during a meeting can never
+destroy notes already written. A failed capture keeps the text on screen. Saves
+and failures are announced through a live region.
+
+`agenda` is deliberately absent from the bar: an agenda is written *before* a
+meeting, not captured during one.
+
+The bar clears the phone keyboard (`--dh-keyboard-inset`) and the bottom
+navigation (`--dh-bottomnav-height`) using tokens, so it measures nothing, and it
+is hidden entirely for an archived (read-only) meeting.
+
+### Workspace order
+
+The Meeting tab now renders Agenda items, then **Actions**, then Decisions and
+Outcomes — the order a meeting actually runs, rather than alphabetical-by-accident.
+
+### Joining an online meeting
+
+The meeting link was previously reachable only by opening the record and finding
+the Overview tab — thirty seconds before a call, on a phone, that is too slow. A
+**Join** quick action now appears on the Meeting card itself, for meetings that
+have a link and are still upcoming (planned, not held, not archived). A "Join"
+button on last month's meeting is noise, so it is omitted rather than disabled.
+
+Cards lead with **when** the meeting is; location/mode become supporting metadata
+(`priority: "low"`), de-emphasised on a narrow card but never hidden.
+
+### Follow-up on a phone
+
+UX-01 already reduced follow-up creation to title, resolved parent, due date and
+priority with everything else behind "More details". MOBILE-01 adds only that the
+form's commitment row is **sticky**, so "Create task" stays above the phone
+keyboard in the full-screen Drawer rather than at the end of a scroll. Meeting
+linkage, source-item mapping and the return path are unchanged.

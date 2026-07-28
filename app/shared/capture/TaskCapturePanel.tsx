@@ -164,7 +164,10 @@ export function TaskCapturePanel({
 
   const addAnother = useCallback(() => {
     setSuccess(null);
-    form.reset();
+    // `resetToInitial`, not `reset`: after a successful save the committed
+    // baseline IS the captured task, so `reset` would restore it rather than
+    // clear the form.
+    form.resetToInitial();
     // Focus returns to the title so the next capture is typing plus Enter.
     window.requestAnimationFrame(() => firstFieldRef.current?.focus());
   }, [form, firstFieldRef]);

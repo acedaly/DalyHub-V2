@@ -129,6 +129,14 @@ export interface UseFormResult<TValues extends Record<string, unknown>> {
   readonly handleSubmit: (event?: { preventDefault(): void }) => void;
   /** Restore the committed baseline (Cancel), clearing errors and touched state. */
   readonly reset: () => void;
+  /**
+   * Clear back to the ORIGINAL initial values and make them the baseline again.
+   *
+   * Distinct from {@link reset}: after a successful save the baseline IS the
+   * saved snapshot, so `reset` correctly restores what was saved. A
+   * capture-another flow instead needs the empty form back (MOBILE-01).
+   */
+  readonly resetToInitial: () => void;
   /** Focus a field by name (used by the error summary links). */
   readonly focusField: (name: string) => void;
   /** The stable base id for a field name (matches the control's `id`). */
@@ -159,6 +167,12 @@ export function useForm<TValues extends Record<string, unknown>>(
   // draft without being re-created on every keystroke.
   const valuesRef = useRef(values);
   valuesRef.current = values;
+
+  // MOBILE-01 — the ORIGINAL initial values, captured once and never updated.
+  // `baseline` deliberately moves to the submitted snapshot after a successful
+  // save (so an edit form's Cancel restores what was actually saved); a
+  // create-another flow needs the EMPTY form back, which is a different thing.
+  const initialValuesRef = useRef(options.initialValues);
 
   const onSubmitRef = useRef(options.onSubmit);
   onSubmitRef.current = options.onSubmit;
@@ -434,15 +448,35 @@ export function useForm<TValues extends Record<string, unknown>>(
     [fieldOrder, getConfig, focusFirstInvalid, unexpectedMessage],
   );
 
-  const reset = useCallback(() => {
-    // Abandon any in-flight submission/validation and restore the baseline.
-    submitGen.current += 1;
-    submittingRef.current = false;
-    abortAllAsync();
-    asyncSeq.current.clear();
-    setValues(baseline);
-    setSubmit(INITIAL_SUBMIT_STATE);
-  }, [baseline, abortAllAsync]);
+  /** Abandon any in-flight submission/validation and restore `next`. */
+  const restore = useCallback(
+    (next: TValues) => {
+      submitGen.current += 1;
+      submittingRef.current = false;
+      abortAllAsync();
+      asyncSeq.current.clear();
+      setValues(next);
+      setSubmit(INITIAL_SUBMIT_STATE);
+    },
+    [abortAllAsync],
+  );
+
+  const reset = useCallback(() => restore(baseline), [restore, baseline]);
+
+  /**
+   * MOBILE-01 — clear back to the ORIGINAL initial values, and make them the
+   * baseline again.
+   *
+   * `reset` restores the committed baseline, which after a successful save is
+   * the snapshot that was saved — correct for "Cancel my edits", wrong for
+   * "capture another one", which needs the empty form back. Repeated capture
+   * (the shared Quick Capture sheet's "Add another", Diary's "Save and add
+   * another") uses this.
+   */
+  const resetToInitial = useCallback(() => {
+    setBaseline(initialValuesRef.current);
+    restore(initialValuesRef.current);
+  }, [restore]);
 
   return {
     values,
@@ -456,6 +490,7 @@ export function useForm<TValues extends Record<string, unknown>>(
     fieldOrder,
     handleSubmit,
     reset,
+    resetToInitial,
     focusField,
     fieldId,
   };
