@@ -286,6 +286,43 @@ describe("states", () => {
     expect(await screen.findByText("No activity yet")).toBeInTheDocument();
   });
 
+  // Regression: the viewport used to carry `aria-label` with NO role while it was
+  // empty, loading or errored — a serious axe `aria-prohibited-attr` violation, and
+  // an accessible name assistive tech simply drops. It is a `feed` while showing
+  // articles and a labelled `group` otherwise, but it is NEVER an unlabelled or
+  // roleless region.
+  it("keeps the viewport a labelled region in EVERY state", async () => {
+    const { unmount } = renderStream({
+      loadPage: async () => ({ items: [], nextCursor: null, hasMore: false }),
+    });
+    expect(await screen.findByText("No activity yet")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Activity" })).toBeInTheDocument();
+    expect(screen.queryByRole("feed")).not.toBeInTheDocument();
+    unmount();
+
+    renderStream({
+      loadPage: async () => {
+        throw new Error("boom");
+      },
+    });
+    expect(
+      await screen.findByRole("button", { name: "Try again" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Activity" })).toBeInTheDocument();
+  });
+
+  it("becomes a labelled feed once it has articles to show", async () => {
+    renderStream({
+      loadPage: async () => ({
+        items: toActivityItems([rec({ id: "a" })], { resolveEntity }),
+        nextCursor: null,
+        hasMore: false,
+      }),
+    });
+    expect(await screen.findByRole("article")).toBeInTheDocument();
+    expect(screen.getByRole("feed", { name: "Activity" })).toBeInTheDocument();
+  });
+
   it("shows an error and retries", async () => {
     let attempt = 0;
     const loadPage = vi.fn(async (): Promise<ActivityStreamPage> => {
