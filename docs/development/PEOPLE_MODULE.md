@@ -467,6 +467,14 @@ December 2025"), never as a day count presented as a failure. Meaning is always
 carried by the label; colour only reinforces it. PEOPLE-03 exposes the **calculated
 state only** — reminders and notifications are deliberately not part of it.
 
+### The hand-entered `lastInteraction` field
+
+PEOPLE-01's `person_details.last_interaction` is now a **fallback**, not a parallel
+truth. Both the record and the collection prefer the DERIVED last interaction and
+fall back to the noted date only while nothing has been recorded — where the record
+labels it *"Last interaction (noted)"* so the two can never be mistaken for each
+other. Two fields with the same name that can disagree would be worse than one.
+
 ### On the collection
 
 `/people` and `/people/recent` carry the SAME shared pill, from **ONE batched read

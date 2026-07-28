@@ -71,12 +71,19 @@ export function PersonSummary({
   );
 
   const facts: { id: string; label: string; value: string }[] = [];
-  const lastInteraction = formatPersonDate(person.lastInteraction);
-  if (lastInteraction) {
+  // PEOPLE-03 — the hand-entered `lastInteraction` field is now a FALLBACK, shown
+  // only while nothing has actually been recorded. Once the relationship has real
+  // history the derived "Last interaction" card above is the honest answer, and two
+  // fields of the same name that can disagree would be worse than one.
+  const noteworthyLastInteraction =
+    relationship.summary.lastInteractionDate === null
+      ? formatPersonDate(person.lastInteraction)
+      : null;
+  if (noteworthyLastInteraction) {
     facts.push({
       id: "last",
-      label: "Last interaction",
-      value: lastInteraction,
+      label: "Last interaction (noted)",
+      value: noteworthyLastInteraction,
     });
   }
   const nextFollowUp = formatPersonDate(person.nextFollowUp);

@@ -248,3 +248,29 @@ describe("PersonSummary — stay-in-touch", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("PersonSummary — the hand-entered last-interaction field", () => {
+  it("is shown, clearly labelled as noted, only while nothing has been recorded", () => {
+    renderSummary(relationship(), { lastInteraction: "2020-01-01" });
+
+    expect(screen.getByText("Last interaction (noted)")).toBeInTheDocument();
+    expect(screen.getByText("1 January 2020")).toBeInTheDocument();
+  });
+
+  it("gives way to the derived answer once there is real history", () => {
+    renderSummary(relationship({}, ["2026-07-25"]), {
+      lastInteraction: "2020-01-01",
+    });
+
+    // One "last interaction" on the tab, and it is the derived one.
+    expect(
+      screen.queryByText("Last interaction (noted)"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("1 January 2020")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: "Relationship" })).getByText(
+        "3 days ago",
+      ),
+    ).toBeInTheDocument();
+  });
+});
