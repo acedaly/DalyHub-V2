@@ -283,7 +283,14 @@ export function Card(props: CardProps) {
         {metadata && metadata.length > 0 ? (
           <ul className="dh-card__metadata">
             {metadata.map((item) => (
-              <li key={item.id} className="dh-card__meta">
+              // MOBILE-01: the module's declared scanning priority. Low-priority
+              // detail is de-emphasised on a narrow card, never removed — it stays
+              // in the DOM and the accessibility tree at every width.
+              <li
+                key={item.id}
+                className="dh-card__meta"
+                data-priority={item.priority ?? "high"}
+              >
                 {item.label ? (
                   <span className="dh-card__meta-label">{item.label}: </span>
                 ) : null}

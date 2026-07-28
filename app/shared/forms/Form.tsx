@@ -101,11 +101,31 @@ export function FieldGroup({ className, children }: FieldGroupProps) {
 export interface FormActionsProps {
   readonly children: ReactNode;
   readonly className?: string;
+  /**
+   * MOBILE-01 — pin the row to the bottom of its scroll container.
+   *
+   * Use it for forms a user genuinely scrolls on a phone (a record's Details tab,
+   * a Meeting's follow-up), so the commitment is always in reach. The row is
+   * keyboard-safe and bottom-navigation-safe by construction (forms.css), so a
+   * consumer never measures anything.
+   *
+   * Do NOT set it on a short form: a sticky bar over three fields is chrome that
+   * costs rows and earns nothing.
+   */
+  readonly sticky?: boolean;
 }
 
 /** The explicit actions row (Save / Cancel). Kept visually distinct and last. */
-export function FormActions({ children, className }: FormActionsProps) {
-  const rootClassName = ["dh-form-actions", className]
+export function FormActions({
+  children,
+  className,
+  sticky = false,
+}: FormActionsProps) {
+  const rootClassName = [
+    "dh-form-actions",
+    sticky ? "dh-form-actions--sticky" : null,
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
   return <div className={rootClassName}>{children}</div>;

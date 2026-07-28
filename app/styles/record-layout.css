@@ -365,14 +365,34 @@
   min-width: 0;
 }
 
+/* MOBILE-01 — the strip holds the scrolling tablist AND the pinned "More
+ * sections" trigger, so the trigger never scrolls out of reach. */
+.record-tabs__strip {
+  display: flex;
+  align-items: stretch;
+  gap: var(--dh-space-1);
+  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  min-width: 0;
+}
+
 .record-tabs__list {
   display: flex;
   gap: var(--dh-space-1);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  /* Overflow horizontally on narrow screens instead of widening the page. */
+  /* Overflow horizontally on narrow screens instead of widening the page. The
+   * bottom border now lives on the strip, so the tablist and the More trigger
+   * share one rule. */
   overflow-x: auto;
   scrollbar-width: thin;
   min-width: 0;
+  flex: 1;
+}
+
+/* The overflow trigger: a 44px target pinned at the end of the strip. */
+.record-tabs__more {
+  flex: none;
+  min-inline-size: var(--dh-touch-target-min);
+  min-block-size: var(--dh-control-height-lg);
+  align-self: center;
 }
 
 .record-tab {
@@ -558,6 +578,58 @@
 
   .record-action {
     flex: 1 1 auto;
+  }
+}
+
+/*
+ * MOBILE-01 — the compact phone record.
+ *
+ * Driven by the CONTAINER, not the viewport, so a record is equally correct as a
+ * full page on a phone, inside a full-screen phone Drawer, and inside a narrow
+ * desktop pane or Inspector. Nothing is removed: the header tightens, metadata
+ * reflows to a single wrapped summary row, and empty regions stop reserving space
+ * — so the record's actual CONTENT gets the viewport.
+ */
+@container record (max-width: 30rem) {
+  .record-layout {
+    gap: var(--dh-space-4);
+    padding: var(--dh-space-4) var(--dh-space-4);
+  }
+
+  .record-header {
+    gap: var(--dh-space-2);
+  }
+
+  /* Long titles WRAP (never truncate — a record's name is essential) but do not
+   * push the actions off-screen, because the actions already wrap below. */
+  .record-header__title {
+    font-size: var(--dh-font-size-lg);
+    overflow-wrap: anywhere;
+  }
+
+  /* Metadata becomes one wrapped, comma-free summary row of chips rather than a
+   * fixed-width key/value table. */
+  .record-header__meta {
+    gap: var(--dh-space-1) var(--dh-space-3);
+    font-size: var(--dh-font-size-xs);
+  }
+
+  /* An empty metadata row must not reserve vertical space on a phone. */
+  .record-header__meta:empty,
+  .record-summary:empty {
+    display: none;
+  }
+
+  .record-tabs {
+    gap: var(--dh-space-3);
+  }
+
+  /* Tabs stay ONE row: the strip scrolls (an intentional, contained overflow) and
+   * the surplus lives in the More menu — a wrapped multi-row tab bar would eat
+   * the record. */
+  .record-tab {
+    padding: 0 var(--dh-space-2);
+    font-size: var(--dh-font-size-sm);
   }
 }
 

@@ -41,6 +41,20 @@ export type CollectionLayoutProps = {
 
   /* -- Filter bar slot -- */
   readonly filterBar?: ReactNode;
+  /**
+   * MOBILE-01 — the phone collection controls (one row: Filter + Sort/View),
+   * typically a shared `<CollectionControls>`.
+   *
+   * At phone widths this REPLACES `filterBar` and `viewSwitcher`: a phone cannot
+   * afford several permanent rows of chrome above the first record. Both are
+   * rendered so the swap is pure CSS (correct on the first server byte, no
+   * viewport sniffing and no hydration mismatch); the duplicated markup is a
+   * couple of buttons, never a second copy of the collection's content.
+   *
+   * A collection that supplies none keeps its desktop filter bar at every width —
+   * the existing behaviour, unchanged.
+   */
+  readonly mobileControls?: ReactNode;
 
   /* -- State slots (precedence: error → loading → filtered-empty → empty) -- */
   readonly error?: ReactNode;
@@ -73,6 +87,7 @@ export function CollectionLayout({
   viewSwitcher,
   primaryAction,
   filterBar,
+  mobileControls,
   error,
   isLoading = false,
   loadingSlot,
@@ -87,7 +102,14 @@ export function CollectionLayout({
   className,
 }: CollectionLayoutProps) {
   const titleId = useId();
-  const classes = ["dh-collection", className].filter(Boolean).join(" ");
+  const classes = [
+    "dh-collection",
+    // Drives the phone/desktop control swap in CSS (see collection-layout.css).
+    mobileControls ? "dh-collection--has-mobile-controls" : null,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   let content: ReactNode;
   if (error) {
@@ -118,6 +140,9 @@ export function CollectionLayout({
         />
         {filterBar ? (
           <div className="dh-collection__filters">{filterBar}</div>
+        ) : null}
+        {mobileControls ? (
+          <div className="dh-collection__mobile-controls">{mobileControls}</div>
         ) : null}
       </div>
 

@@ -69,6 +69,11 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
   const title = result?.title ?? "This record isn’t available";
   const description = result?.description;
   const size = result?.size ?? "default";
+  // MOBILE-01: the phone Drawer is the record's whole screen, so it can carry the
+  // record's contextual actions in its own compact header and pin the record's
+  // primary commitment to a keyboard-safe sticky region.
+  const headerActions = result?.headerActions;
+  const stickyActions = result?.stickyActions;
 
   useDrawerFocus({
     containerRef: panelRef,
@@ -106,6 +111,10 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
       data-size={size}
       data-top={isTop ? "true" : "false"}
       data-depth={entry.depth}
+      // Styling hook (MOBILE-01): when the record's title lives only in this
+      // header, the body's own record header collapses on a phone rather than
+      // repeating it.
+      data-title-in-header={result?.titleInHeaderOnly ? "true" : undefined}
       inert={!isTop ? true : undefined}
       tabIndex={-1}
     >
@@ -120,6 +129,9 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
             </p>
           )}
         </div>
+        {headerActions !== undefined && (
+          <div className="drawer__header-actions">{headerActions}</div>
+        )}
         <button
           ref={closeButtonRef}
           type="button"
@@ -133,6 +145,11 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
       <div className="drawer__body">
         {result === null ? <DrawerNotFound /> : result.children}
       </div>
+      {stickyActions !== undefined && (
+        // Pinned OUTSIDE the scrolling body so it never scrolls away, and
+        // keyboard-safe by construction (see drawer.css).
+        <div className="drawer__sticky-actions">{stickyActions}</div>
+      )}
     </div>
   );
 }
