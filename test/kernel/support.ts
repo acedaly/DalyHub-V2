@@ -14,6 +14,7 @@ import {
   createGoalRepository,
   createMeetingRepository,
   createNoteDetailsRepository,
+  createNoteRepository,
   createPersonRepository,
   createProjectHealthRepository,
   createRelationshipRepository,
@@ -193,6 +194,15 @@ export function makeNoteDetailsRepository(
   options?: D1NoteDetailsRepositoryOptions,
 ) {
   return createNoteDetailsRepository(env.DB, context, options);
+}
+
+/**
+ * Construct a workspace-scoped, read-only D1-backed NoteQueryRepository over the
+ * isolated test database (NOTES-03: the Notes READ projection — collection
+ * filtering/ordering, full-content search, tag facets, reference resolution).
+ */
+export function makeNoteRepository(context: WorkspaceContext) {
+  return createNoteRepository(env.DB, context);
 }
 
 /**

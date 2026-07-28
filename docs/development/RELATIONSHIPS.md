@@ -228,17 +228,94 @@ Consequences worth knowing when you touch this system:
   [ADR-052](../decisions/ARCHITECTURE_DECISIONS.md#adr-052-the-unified-people-relationship-timeline--a-derived-multi-anchor-projection-over-the-one-activity-stream)
   and [`PEOPLE_MODULE.md → §4a`](PEOPLE_MODULE.md#4a-the-unified-relationship-timeline-people-02).
 
+### `meeting.attendee` — what the link means, and what it does NOT (MEET-03)
+
+MEET-03 made a distinction worth stating plainly, because the two are easy to
+conflate and only one of them is history.
+
+- **An active `meeting.attendee` link means "this Person is currently listed as an
+  attendee of this Meeting."** It is a *current* fact and is fully editable: adding
+  or removing an attendee is an ordinary link create/unlink, with the usual
+  both-endpoints `entity_link.created` / `.unlinked` events. As a relationship it
+  makes the Meeting an anchor of the Person's timeline, so the Meeting's own record
+  events appear there — and stop appearing when the link is removed.
+- **It does NOT, by itself, mean "this Person attended a meeting that happened."**
+  That is a historical fact, and MEET-03 records it separately as a `meeting.held`
+  Activity event naming each attendee as a **subject** at the moment the meeting was
+  marked held.
+
+The consequences are deliberate and worth remembering:
+
+- The attendee link is the **authority** for who attends — `meeting.held` derives
+  its subjects from the active links, server-side, and accepts no attendee input.
+- Once recorded, the event does **not** track the links any more. Removing an
+  attendee afterwards does not erase the interaction from their history; adding one
+  afterwards does not retroactively insert them. **Editing a relationship never
+  rewrites a historical fact.**
+- So a Person can hold a `meeting.held` event for a Meeting they are no longer
+  linked to. That is correct, not a leak: the event names them as a subject, which
+  is a stronger and more durable claim than an anchor-derived appearance.
+
+No link type, table or semantic was added — this section clarifies the existing
+`meeting.attendee` type against the new event. See
+[ADR-055](../decisions/ARCHITECTURE_DECISIONS.md#adr-055-a-meetings-occurrence-is-a-durable-write-once-fact-and-attendee-history-is-one-multi-subject-activity-event)
+and [`MEETINGS_MODULE.md → People history`](MEETINGS_MODULE.md#people-history-meet-03).
+
+## Adopter note — Note references and backlinks (NOTES-02)
+
+NOTES-02 makes `[[Wiki Links]]` **persist**, closing the substantive half of
+DEBT-39, and adds the first surface that reads the graph *directionally*.
+
+- **A `[[Wiki Link]]` in a SAVED note is a typed EntityLink** —
+  `note.references`, source = the Note, target = the referenced record —
+  reconciled against the body on every content save
+  ([`note-references.ts`](../../app/platform/entity-links/note-references.ts)).
+  Titles are matched ONCE, at save time; the relationship is stored by **stable
+  id**, so renaming the target keeps it. Duplicates collapse to one row, a
+  reference inside code is never a relationship, removing the last mention
+  unlinks, and re-adding restores the SAME link id. Reconciliation only touches
+  `note.references` links whose source is that Note, so a user-created
+  `link.related` or a module-owned type is never disturbed.
+- **Resolution is now ONE bounded, indexed query** (`resolveReferenceTargets`),
+  not the whole-workspace page-scan the navigation-time resolver used —
+  the performance half of DEBT-39. It prefers a Note, then the earliest-created
+  record, when several records share a title.
+- **`~/shared/references` reads the graph, `~/shared/linked-items` edits it.**
+  The new shared surface is deliberately ISOLATED rather than an extension of
+  `linked-items-model.ts`: the two answer different questions, and REL-01's model
+  is a wire contract for a picker. Both read the SAME kernel — there is no second
+  relationship store and no second timeline representation (the PEOPLE-02 rule).
+- **The definitions, stated once.**
+  - **Backlink** — an *incoming*, non-structural, active EntityLink: another
+    record explicitly links to this one. A plain-text occurrence of a record's
+    title is **never** a backlink.
+  - **Outgoing link** — the same, in the *outgoing* direction.
+  - Reserved **structural spine links** are excluded from both, exactly as
+    `loadLinkedItems` excludes them.
+  - A **deleted** counterpart simply stops appearing (the kernel's own
+    `listForEntity` contract) and returns intact when restored; link rows are
+    never rewritten by a lifecycle change.
+- **Project Knowledge (PROJ-03) is the same graph, filtered to notes** — no
+  `project_notes` join table and no `note.project_id` column. Cardinality is
+  **many-to-many**, uniqueness is the kernel's
+  `(workspace, source, target, type)` identity, and "Remove from project"
+  unlinks without touching the Note. See
+  [`project-knowledge.ts`](../../app/platform/entity-links/project-knowledge.ts)
+  and [`PROJECTS_MODULE.md`](PROJECTS_MODULE.md).
+
+Full reasoning: [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-wiki-link-is-a-persisted-reference-and-knowledge-relationships-stay-entitylinks).
+
 ## Relationship intelligence (PEOPLE-03)
 
-> Decision & rationale: [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream).
+> Decision & rationale: [ADR-056](../decisions/ARCHITECTURE_DECISIONS.md#adr-056-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream).
 > Surface: [`PEOPLE_MODULE.md → §4b`](PEOPLE_MODULE.md#4b-relationship-intelligence-people-03).
 
 [PEOPLE-02](#adopter-note--the-people-relationship-timeline-people-02) made the
 relationship graph *readable as history*. [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals)
-makes it *answerable*: the same graph, aggregated. This is the second — and, so
-far, only other — surface that reads the graph rather than editing it, and it is
-the one future modules (Email, Calendar, Communications, an AI assistant) are
-expected to build on.
+makes it *answerable*: the same graph, aggregated. It joins PEOPLE-02's timeline
+and NOTES-02's backlinks as a surface that READS the graph rather than editing it,
+and it is the one future modules (Email, Calendar, Communications, an AI assistant)
+are expected to build their signals on.
 
 ### The aggregation architecture
 
@@ -265,18 +342,29 @@ drift from the timeline the owner is looking at.
 | Source | Answers | Read as |
 |---|---|---|
 | **FND-04 EntityLinks** (`entity_links`) | *What have we shared?* | active links in either direction, minus reserved spine types, joined to active in-workspace `entities`, grouped by type |
-| **FND-05 Activity** (`activities` + `activity_subjects`) | *What actually happened, and when?* | qualifying events on those linked records — first, last, exact count, plus a bounded newest-first instant sample for cadence |
+| **FND-05 Activity** (`activities` + `activity_subjects`) | *What actually happened, and when?* | qualifying events on those linked records **and on the Person themself** — first, last, exact count, plus a bounded newest-first instant sample for cadence |
 
 Task and Project *open/active* state comes from the authoritative `spine_records`
 (and `project_details.archived_at`), never a cached column. There is no third
 source, and there is deliberately no relationship table.
 
+**Why the Activity read spans the Person's own subject rows too.** MEET-03's
+`meeting.held` names each attendee Person as a **subject in their own right**
+(ADR-055), precisely so the interaction outlives the attendee link. Reading
+interactions only through *live links* would therefore silently drop a meeting the
+Person genuinely attended once the link was tidied away — and the summary would
+contradict the timeline sitting beside it. Including the Person's own subject rows
+is safe **only** because the vocabulary below excludes every `person.*` and
+`entity_link.*` type: a contact-card edit can never enter the set. That exclusion is
+load-bearing, not incidental — it is the honesty rule PEOPLE-03 was blocked on.
+
 ### What counts as an interaction
 
 `INTERACTION_ACTIVITY_TYPES` (in the relationships kernel) is a **trusted, narrow
-vocabulary of events on a LINKED record**. It admits substantive creation and
-progress events — a meeting created or written up, a diary entry, a note's content,
-a commitment completed, a review. It excludes, deliberately:
+vocabulary**, evaluated over a Person's linked records and over the Person as a
+subject. It admits substantive creation and progress events — a meeting created,
+**held** or written up, a diary entry, a note's content, a commitment completed, a
+review. It excludes, deliberately:
 
 - every `person.*` type — record maintenance on the contact card is not contact;
 - every `entity_link.*` type — relationship bookkeeping is not a moment;
@@ -293,7 +381,7 @@ only `entity.created` — the two never both fire for one creation.
 
 | Future work | How it slots in |
 |---|---|
-| **MEET-03 meeting substance** | emit `meeting.held` (etc.) naming the attendee as a subject, declare it in the Meetings manifest, and add the type to `INTERACTION_ACTIVITY_TYPES`. No People change, no new surface. |
+| **MEET-03 meeting substance** | ☑ **Done.** `meeting.held` names each attendee as a subject and is in `INTERACTION_ACTIVITY_TYPES`. It is the STRONGEST interaction the product records: because the Person is a subject in their own right, it survives the attendee link being removed — which is why the facts read spans the Person's own subject rows as well as their linked records (see below). |
 | **Emails, calls, messages** | a new entity type linked to the Person + its own Activity types in the vocabulary. It counts as a shared record and as an interaction with no schema change; give it a named summary card only when it earns one (until then it lands in *Other records*). |
 | **Calendar** | identical to Meetings — an entity, a link, an event type. |
 | **Follow-up reminders / notifications** | read the already-derived `state` and `cadence`. PEOPLE-03 deliberately ships the calculated state and no notifications; a reminder layer consumes it and adds nothing to the kernel. |

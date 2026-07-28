@@ -10,7 +10,7 @@
 import { memo, type ReactNode } from "react";
 import { Link } from "react-router";
 
-import { entityDestination, isEntityType, EntityIcon } from "~/shared/entity";
+import { isEntityType, EntityIcon } from "~/shared/entity";
 import { DrawerTrigger } from "~/shared/drawer";
 
 import type {
@@ -70,24 +70,6 @@ function segmentText(
   }
 }
 
-/**
- * The default entity reference: a link to wherever that record actually opens.
- *
- * DS-05's rule is that "events link to the entities they reference", and the ONE
- * shared `entityDestination` helper already knows where every record type opens.
- * Resolution order:
- *
- *   1. an explicit `drawerKey` supplied by the loader — the caller has decided;
- *   2. otherwise the shared destination for the resolved `entityType` — a route
- *      (Meeting, Note, Diary entry, Project, Review, Person, Area, Goal, Asset) or
- *      the Task Drawer;
- *   3. otherwise plain, non-interactive text — an unresolvable or not-yet-routable
- *      record never becomes a broken link.
- *
- * Before PEOPLE-03 only step 1 existed, so every timeline could link Tasks and
- * nothing else — a Person's relationship history named the meeting, note or diary
- * entry it came from but gave no way to open it.
- */
 function DefaultEntityLink({
   entity,
   label,
@@ -95,33 +77,31 @@ function DefaultEntityLink({
   entity: ResolvedEntity;
   label: string;
 }): ReactNode {
-  const destination = entity.drawerKey
-    ? ({ kind: "drawer", drawerKey: entity.drawerKey } as const)
-    : entity.entityType
-      ? entityDestination(entity.entityType, entity.entityId)
-      : null;
-
-  if (!destination) {
-    return <span className="dh-activity-item__entity">{label}</span>;
-  }
-  if (destination.kind === "drawer") {
+  // A Drawer-opening record (a Task) keeps its Drawer; a record whose canonical
+  // destination is a PAGE gets an ordinary link, so an event on a timeline is a
+  // real route back to the record it is about rather than inert text. Neither →
+  // plain text (an unresolvable record, or a type with no genuine destination).
+  if (entity.drawerKey) {
     return (
       <DrawerTrigger
-        drawerKey={destination.drawerKey}
+        drawerKey={entity.drawerKey}
         className="dh-activity-item__entity dh-activity-item__entity--link"
       >
         {label}
       </DrawerTrigger>
     );
   }
-  return (
-    <Link
-      to={destination.to}
-      className="dh-activity-item__entity dh-activity-item__entity--link"
-    >
-      {label}
-    </Link>
-  );
+  if (entity.href) {
+    return (
+      <Link
+        to={entity.href}
+        className="dh-activity-item__entity dh-activity-item__entity--link"
+      >
+        {label}
+      </Link>
+    );
+  }
+  return <span className="dh-activity-item__entity">{label}</span>;
 }
 
 export const ActivityEventItem = memo(function ActivityEventItem({

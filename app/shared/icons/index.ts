@@ -43,6 +43,8 @@ export {
   TrashIcon,
   EditIcon,
   CheckIcon,
+  DownloadIcon,
+  TagIcon,
   // Subtype glyphs (PX-05) — never an entity glyph re-used for a subtype
   ChatIcon,
   CalendarIcon,

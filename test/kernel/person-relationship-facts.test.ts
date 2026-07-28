@@ -532,3 +532,56 @@ describe("The full derivation, end to end", () => {
     expect(relationship.state).toBe("recently_connected");
   });
 });
+
+describe("MEET-03 integration — a held meeting is the strongest interaction", () => {
+  it("counts `meeting.held` as an interaction with each attendee", async () => {
+    const w = world(WS);
+    const person = await w.people.create({ title: "Ada" });
+    const meeting = await makeMeeting(w, "Weekly sync");
+    await link(w, meeting.id, person.id, "meeting.attendee");
+
+    const before = await w.relationships.getPersonRelationshipFacts(person.id);
+    await w.meetings.markHeld(meeting.id);
+    const after = await w.relationships.getPersonRelationshipFacts(person.id);
+
+    expect(after.totalInteractions).toBe(before.totalInteractions + 1);
+    expect(after.lastInteractionAt?.getTime()).toBeGreaterThanOrEqual(
+      before.lastInteractionAt?.getTime() ?? 0,
+    );
+  });
+
+  it("KEEPS a held meeting after the attendee link is removed", async () => {
+    const w = world(WS);
+    const person = await w.people.create({ title: "Ada" });
+    const meeting = await makeMeeting(w, "Weekly sync");
+    const attendee = await link(w, meeting.id, person.id, "meeting.attendee");
+    await w.meetings.markHeld(meeting.id);
+
+    await w.links.unlink(attendee.id);
+
+    const after = await w.relationships.getPersonRelationshipFacts(person.id);
+    // The Meeting is no longer a shared record…
+    expect(after.records.meetings).toBe(0);
+    // …but the meeting they actually attended is still an interaction, because
+    // `meeting.held` names the Person as a subject in their own right (ADR-055).
+    // Dropping it here would make the summary contradict the timeline beside it.
+    expect(after.totalInteractions).toBe(1);
+    expect(after.lastInteractionAt).not.toBeNull();
+  });
+
+  it("still never counts an edit to the Person's own contact card", async () => {
+    const w = world(WS);
+    const person = await w.people.create({ title: "Ada" });
+
+    await w.people.update(person.id, { organisation: "Analytical Engines" });
+    await w.people.archive(person.id);
+    await w.people.restore(person.id);
+    await w.entities.update(person.id, { title: "Ada Lovelace" });
+
+    // Reading the Person's OWN subject rows is only safe because the interaction
+    // vocabulary excludes every `person.*` and `entity_link.*` type.
+    const facts = await w.relationships.getPersonRelationshipFacts(person.id);
+    expect(facts.totalInteractions).toBe(0);
+    expect(facts.lastInteractionAt).toBeNull();
+  });
+});

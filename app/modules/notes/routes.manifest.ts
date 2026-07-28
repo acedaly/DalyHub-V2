@@ -49,6 +49,20 @@ const routes: readonly RouteContribution[] = [
     path: "notes/:noteId/activity",
     file: "routes/activity.tsx",
   },
+  {
+    // NOTES-02 — further pages of a Note's backlinks / outgoing links. The FIRST
+    // page is server-rendered by the record route; this serves "Load more".
+    id: "notes.references",
+    path: "notes/:noteId/references",
+    file: "routes/references.tsx",
+  },
+  {
+    // NOTES-06 — single-Note download (`?format=md|txt`). A resource route, so
+    // exporting never leaves or reloads the record.
+    id: "notes.export",
+    path: "notes/:noteId/export",
+    file: "routes/export.tsx",
+  },
 ];
 
 export default routes;

@@ -115,7 +115,7 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Rules.** Meaning is **always** text + tone, never colour alone. Reuse the shared components — do **not** add a second project-card component or invent status vocabulary that competes with open/completed or task status. Free-text waiting subjects are never surfaced.
 
 ### Stay-in-touch signal (PEOPLE-03)
-**Purpose.** A restrained, reusable presentation of a **derived** relationship state (PEOPLE-03, [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream)) — calm, honest, explained, and never a nudge.
+**Purpose.** A restrained, reusable presentation of a **derived** relationship state (PEOPLE-03, [ADR-056](../decisions/ARCHITECTURE_DECISIONS.md#adr-056-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream)) — calm, honest, explained, and never a nudge.
 **Anatomy.** A toned **pill** (`StayInTouchIndicator`: a decorative dot + state label + optional primary reason) for the Card `metadata` slot and the Record header; a **`StayInTouchPanel`** (state pill + reason list + a cadence-facts `dl`) for the record Summary. The vocabulary is `No shared history yet` · `Recently connected` · `In touch` · `Due for follow-up` · `It’s been a while`.
 **Behaviour.** Evaluated server-side and rendered as text; it refreshes through ordinary loader revalidation, never a cached column. The tone set is deliberately narrower than [Health](#health-signal-proj-02)'s — `neutral`/`success`/`info` only. There is **no `warning` and no `danger`**: a relationship is never an error state.
 **Rules.** *Care, not a CRM* ([AGENTS.md §5](../../AGENTS.md#5-relationship-philosophy)): no scores, streaks, badges or percentages; a long silence is stated once, with its date, never as a failure. Meaning is **always** text + tone, never colour alone. Reuse the shared components — a collection card and a record must never grow two different pills. Do not add notifications to this pattern; it exposes the calculated state only.
@@ -734,6 +734,28 @@ the DS-06 policy service through the one shared `/links` endpoint; it never adds
 second relationship model or a per-module link route. Add/remove are **optimistic**
 with a DS-10 **Undo** toast, **offline-aware**, and keyboard-complete; structural
 spine links are shown by the hierarchy, not here.
+
+**References — reading the graph directionally (NOTES-02).** Linked Items answers
+*what is this related to?* as one editable list. A knowledge record needs a second
+question answered: **who points at me, and who do I point at.** That is
+[`app/shared/references`](../../app/shared/references) — a separate, isolated
+shared contract that READS the same FND-04 graph; it never creates or removes a
+relationship, and Linked Items stays the one place relationships are edited. Use
+it whenever a record's own detail page should distinguish the two directions.
+
+- **Backlinks and Outgoing links are separate surfaces, never one merged list.**
+  Merging them produces an ambiguous "related" pile that answers neither question.
+- **A backlink is an explicit typed relationship or a supported entity reference
+  — never a text coincidence.** Writing a record's title in prose creates nothing.
+  Say so in the surface, not only in the docs.
+- **`ReferenceList` is the one row treatment**: the counterpart's identity glyph
+  (decorative), its **type in words**, the **relationship name in words**, an
+  optional bounded **context** line, the linked date, and the title as the shared
+  navigable `EntityLink`. Archive state is a **word**, never colour or a glyph
+  alone. Grouping by counterpart type is opt-in, in first-seen order.
+- **Context is bounded, deterministic and safe**: block-scoped, syntax-free,
+  truncated with an explicit ellipsis, and absent rather than guessed when the
+  source type cannot supply it.
 
 **Command Palette.** Mounting the tab registers a `⌘K` **navigate** action ("Link a
 record to this …") that opens the Linked tab — a navigation action, never a

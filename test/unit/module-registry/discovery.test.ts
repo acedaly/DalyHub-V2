@@ -250,6 +250,12 @@ describe("module discovery", () => {
           moduleId: "projects",
           file: "routes/tasks.tsx",
         },
+        // PROJ-03 project Knowledge resource route (linked Notes).
+        {
+          id: "projects.knowledge",
+          moduleId: "projects",
+          file: "routes/knowledge.tsx",
+        },
         // PROJ-04 project Activity Timeline resource route.
         {
           id: "projects.activity",
@@ -319,6 +325,18 @@ describe("module discovery", () => {
           id: "notes.activity",
           moduleId: "notes",
           file: "routes/activity.tsx",
+        },
+        // NOTES-02 backlink/outgoing-link pagination resource route.
+        {
+          id: "notes.references",
+          moduleId: "notes",
+          file: "routes/references.tsx",
+        },
+        // NOTES-06 single-note export resource route.
+        {
+          id: "notes.export",
+          moduleId: "notes",
+          file: "routes/export.tsx",
         },
         { id: "diary.index", moduleId: "diary", file: "routes/index.tsx" },
         { id: "diary.new", moduleId: "diary", file: "routes/new.tsx" },
@@ -478,6 +496,13 @@ describe("module discovery", () => {
         "tasks.matrix",
         "tasks.sectors",
         "tasks.someday",
+        // NOTES-03 navigation commands (open / new / recent / unlinked /
+        // archived) — Notes sorts after Tasks by the module order.
+        "notes.open",
+        "notes.new",
+        "notes.recent",
+        "notes.unlinked",
+        "notes.archived",
         "meetings.open",
         "meetings.new",
         "meetings.search",
@@ -510,6 +535,9 @@ describe("module discovery", () => {
       expect(searchProviders.map((provider) => provider.id)).toEqual([
         "today.search",
         "tasks.search",
+        // NOTES-03 closes the DEBT-36 gap for Notes: full-content search over
+        // title, Markdown body, headings and tags.
+        "notes.search",
         "meetings.search",
         "people.search",
         "assets.search",

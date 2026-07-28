@@ -108,14 +108,22 @@ const DAYS_PER_MONTH = 30.436_875;
  * (Notes, Tasks, Projects) emit only `entity.created` — the two never both fire for
  * one creation.
  *
- * A module that later contributes real contact — MEET-03's `meeting.held`, or a
- * future Email/Calls module — joins this vocabulary and nothing else changes.
+ * A module that contributes real contact joins this vocabulary and nothing else
+ * changes — MEET-03's `meeting.held` did exactly that, and a future Email/Calls
+ * module will too.
+ *
+ * `meeting.held` is the STRONGEST interaction the product records: MEET-03 names
+ * the Meeting AND every active attendee Person as subjects of one multi-subject
+ * event (ADR-055), so it is an interaction with each attendee IN THEIR OWN RIGHT.
+ * It therefore survives the attendee link later being removed, where the rest of
+ * this vocabulary — which reaches a Person only through a live link — does not.
  */
 export const INTERACTION_ACTIVITY_TYPES = [
   "entity.created",
   "diary_entry.created",
   "diary_entry.updated",
   "meeting.created",
+  "meeting.held",
   "meeting.updated",
   "meeting.item_converted_to_task",
   "meeting.follow_up_created",

@@ -46,6 +46,7 @@ export {
   createActivityDescriptorMap,
   humanizeActivityType,
   resolveActivityDescriptor,
+  selectReferenceSubject,
   summarizeActivityPayload,
   type ResolvedActivityDescriptor,
 } from "./activity-type-registry";

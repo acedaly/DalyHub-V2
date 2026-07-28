@@ -49,12 +49,13 @@ import { fromStorageTimestamp } from "./database";
 
 /**
  * The per-query Person-id chunk size. D1 caps bound variables at 100 per
- * statement and the id set is bound TWICE in the `linked` CTE (once per link
- * direction), so 25 ids → 50 id binds plus a handful of scalars stays comfortably
- * under the limit while still gathering a whole collection page in a small, FIXED
- * number of statements.
+ * statement. The id set is bound TWICE in the `linked` CTE (once per link
+ * direction) and a THIRD time in the `subjects` CTE (the Person as their own
+ * Activity subject), so 20 ids → 60 id binds plus a handful of scalars stays
+ * comfortably under the limit while still gathering a whole collection page in a
+ * small, FIXED number of statements.
  */
-const RELATIONSHIP_FACTS_CHUNK_SIZE = 25;
+const RELATIONSHIP_FACTS_CHUNK_SIZE = 20;
 
 /** The reserved structural spine link types, as a trusted, inlined SQL list. A
  * Person is outside the Area → Goal → Project → Task spine, so one should never
@@ -80,7 +81,7 @@ const INTERACTION_TYPE_LIST = INTERACTION_ACTIVITY_TYPES.map(
  * Binds, in order: workspaceId, …ids, workspaceId, …ids.
  */
 function linkedCte(idCount: number): string {
-  const placeholders = Array.from({ length: idCount }, () => "?").join(", ");
+  const placeholders = idPlaceholders(idCount);
   return `WITH linked AS (
       SELECT l.source_entity_id AS person_id, l.target_entity_id AS entity_id
       FROM entity_links l
@@ -95,6 +96,40 @@ function linkedCte(idCount: number): string {
             AND l.type NOT IN (${SPINE_LINK_TYPE_LIST})
             AND l.target_entity_id IN (${placeholders})
             AND l.target_entity_id <> l.source_entity_id
+    )`;
+}
+
+function idPlaceholders(idCount: number): string {
+  return Array.from({ length: idCount }, () => "?").join(", ");
+}
+
+/**
+ * The ACTIVITY-SUBJECT set an interaction is read across: the Person's linked
+ * records PLUS the Person themself.
+ *
+ * The Person is included on purpose, and it is safe purely because
+ * `INTERACTION_ACTIVITY_TYPES` excludes every `person.*` and `entity_link.*` type:
+ * an edit to a contact card can never enter this set, which is the honesty rule
+ * PEOPLE-03 was blocked on.
+ *
+ * What it DOES capture is an event that names the Person as a subject in their own
+ * right — MEET-03's `meeting.held` (ADR-055) is exactly that. Such an event is
+ * designed to outlive the attendee link, so reading interactions only through live
+ * links would silently drop a meeting the Person genuinely attended, and the
+ * summary would then contradict the timeline beside it.
+ *
+ * Extends `linkedCte`, so it continues its bind order:
+ * workspaceId, …ids, workspaceId, …ids, workspaceId, …ids.
+ */
+function subjectsCte(idCount: number): string {
+  return `${linkedCte(idCount)},
+    subjects AS (
+      SELECT person_id, entity_id FROM linked
+      UNION
+      SELECT e.id AS person_id, e.id AS entity_id
+      FROM entities e
+      WHERE e.workspace_id = ? AND e.type = 'person'
+            AND e.id IN (${idPlaceholders(idCount)})
     )`;
 }
 
@@ -351,22 +386,24 @@ export class D1RelationshipRepository implements RelationshipRepository {
   ): Promise<InteractionAggregateRow[]> {
     const statement = this.#db
       .prepare(
-        `${linkedCte(personIds.length)}
-         SELECT linked.person_id AS person_id,
+        `${subjectsCte(personIds.length)}
+         SELECT subjects.person_id AS person_id,
                 COUNT(DISTINCT a.id) AS total,
                 MIN(a.occurred_at) AS first_at,
                 MAX(a.occurred_at) AS last_at
-         FROM linked
+         FROM subjects
          JOIN entities e
-           ON e.workspace_id = ? AND e.id = linked.entity_id AND e.deleted_at IS NULL
+           ON e.workspace_id = ? AND e.id = subjects.entity_id AND e.deleted_at IS NULL
          JOIN activity_subjects s
            ON s.workspace_id = e.workspace_id AND s.entity_id = e.id
          JOIN activities a
            ON a.workspace_id = s.workspace_id AND a.id = s.activity_id
               AND a.type IN (${INTERACTION_TYPE_LIST})
-         GROUP BY linked.person_id`,
+         GROUP BY subjects.person_id`,
       )
       .bind(
+        this.#workspaceId,
+        ...personIds,
         this.#workspaceId,
         ...personIds,
         this.#workspaceId,
@@ -392,14 +429,14 @@ export class D1RelationshipRepository implements RelationshipRepository {
   ): Promise<InteractionSampleRow[]> {
     const statement = this.#db
       .prepare(
-        `${linkedCte(personIds.length)},
+        `${subjectsCte(personIds.length)},
          moments AS (
-           SELECT DISTINCT linked.person_id AS person_id,
+           SELECT DISTINCT subjects.person_id AS person_id,
                            a.id AS activity_id,
                            a.occurred_at AS occurred_at
-           FROM linked
+           FROM subjects
            JOIN entities e
-             ON e.workspace_id = ? AND e.id = linked.entity_id AND e.deleted_at IS NULL
+             ON e.workspace_id = ? AND e.id = subjects.entity_id AND e.deleted_at IS NULL
            JOIN activity_subjects s
              ON s.workspace_id = e.workspace_id AND s.entity_id = e.id
            JOIN activities a
@@ -420,6 +457,8 @@ export class D1RelationshipRepository implements RelationshipRepository {
          ORDER BY person_id, occurred_at DESC`,
       )
       .bind(
+        this.#workspaceId,
+        ...personIds,
         this.#workspaceId,
         ...personIds,
         this.#workspaceId,

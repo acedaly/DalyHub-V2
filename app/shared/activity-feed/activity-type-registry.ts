@@ -191,6 +191,35 @@ export function createActivityDescriptorMap(
 }
 
 /**
+ * Which record a calm, label-only line should REFER TO.
+ *
+ * The primary subject is the right anchor for grouping, but it is the wrong thing
+ * to link when the reader is already looking at that record: on a Person's
+ * Timeline the anchor Person wins `selectPrimarySubject`, so a MULTI-SUBJECT
+ * cross-module event (MEET-03's `meeting.held` names the Meeting AND each
+ * attendee) would render "… — Ada" on Ada's own page — a link back to where the
+ * reader already is, and no route to the record the event is actually about.
+ *
+ * So prefer the most meaningful subject that is NOT the anchor — a `subject`-role
+ * one first, then any — and fall back to the primary subject when the anchor is
+ * the only subject there is. For a single-subject event, or one the anchor is not
+ * a subject of, this resolves to exactly what it always did; it differs only in
+ * the case that was previously useless.
+ *
+ * Shared here, once, rather than worked around inside a module's descriptors:
+ * every surface that renders a label-only line gets the same correct reference.
+ */
+export function selectReferenceSubject(
+  context: ActivityDescriptorContext,
+): ActivityItemSubject | null {
+  return (
+    context.subjects.find((s) => !s.isAnchor && s.role === "subject") ??
+    context.subjects.find((s) => !s.isAnchor) ??
+    context.primarySubject
+  );
+}
+
+/**
  * The conservative generic fallback for a type with no specialised descriptor.
  *
  * It stays readable, shows the (humanised) event type safely, keeps the actor and
@@ -202,22 +231,23 @@ export function buildFallbackPresentation(
   context: ActivityDescriptorContext,
 ): ActivityItemPresentation {
   const phrase = humanizeActivityType(base.type);
+  const reference = selectReferenceSubject(context);
   const segments: ActivityDescriptionSegment[] = [
     { kind: "actor" },
     { kind: "text", text: " · " },
     { kind: "emphasis", text: phrase },
   ];
-  if (context.primarySubject) {
+  if (reference) {
     segments.push({ kind: "text", text: " — " });
     segments.push({
       kind: "entity",
-      entityId: context.primarySubject.entityId,
+      entityId: reference.entityId,
     });
   }
   return {
     segments,
     tone: "neutral",
-    entityType: context.primarySubject?.entity?.entityType,
+    entityType: reference?.entity?.entityType,
   };
 }
 

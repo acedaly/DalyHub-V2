@@ -35,6 +35,20 @@ export const NOTE_ENTITY_TYPE = "note";
 /** Activity event appended when a Note's Markdown content genuinely changes. */
 export const NOTE_CONTENT_UPDATED = "note.content_updated";
 
+/** Activity event appended when a Note is put away (reversible archive). */
+export const NOTE_ARCHIVED = "note.archived";
+
+/** Activity event appended when an archived Note is brought back. */
+export const NOTE_UNARCHIVED = "note.unarchived";
+
+/** Activity event appended when a Note's tag set genuinely changes. */
+export const NOTE_TAGS_UPDATED = "note.tags_updated";
+
+/** The most tags one Note may carry. */
+export const MAX_NOTE_TAGS = 20;
+/** The longest a single tag may be, in code points. */
+export const MAX_NOTE_TAG_LENGTH = 40;
+
 /** The Note-owned detail fields: the durable Markdown source and, when it has
  * ever been written, the timestamp of that write. */
 export type NoteDetails = {
@@ -48,6 +62,20 @@ export type NoteDetails = {
    * effective "last updated" moment; this repository does not compute that
    * itself. */
   readonly contentUpdatedAt: Date | null;
+  /**
+   * The Note's tags, normalised (trimmed, case-folded, de-duplicated) and in
+   * stable sorted order. Empty when the Note has no `note_details` row or no
+   * tags — never `null`, mirroring the empty-content contract.
+   */
+  readonly tags: readonly string[];
+  /**
+   * When the Note was ARCHIVED (put away but kept), or `null` when it is
+   * active. This is deliberately distinct from `entities.deleted_at`: archiving
+   * is an organisational act the user takes on a note they want out of the way,
+   * while soft-deletion is a removal. Both are reversible; only deletion hides
+   * the record's canonical route.
+   */
+  readonly archivedAt: Date | null;
 };
 
 export type NoteDetailsRecord = NoteDetails & {
@@ -60,7 +88,7 @@ export type NoteDetailsChangeResult = {
   readonly changed: boolean;
 };
 
-export type NoteDetailsValidationField = "id" | "content";
+export type NoteDetailsValidationField = "id" | "content" | "tags";
 
 export class NoteDetailsValidationError extends Error {
   readonly code = "validation" as const;
@@ -123,4 +151,70 @@ export function validateNoteContent(value: unknown): MarkdownSource {
     }
     throw cause;
   }
+}
+
+/**
+ * Normalise ONE tag: trim, collapse internal whitespace to single spaces and
+ * case-fold. Tags are an organisational label, not free text — `"Reading "`,
+ * `"reading"` and `"Reading"` are the same tag, so filtering by one finds all
+ * three and a Note can never carry the "same" tag twice.
+ */
+export function normaliseNoteTag(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+/**
+ * Validate and normalise a Note's whole tag set: every entry trimmed,
+ * case-folded, de-duplicated and sorted, bounded by {@link MAX_NOTE_TAGS} and
+ * {@link MAX_NOTE_TAG_LENGTH}. Sorting makes the stored value canonical, so an
+ * unchanged set is byte-identical and never records a spurious Activity event.
+ */
+export function validateNoteTags(value: unknown): readonly string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new NoteDetailsValidationError("tags", "must be a list of tags");
+  }
+  const out = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== "string") {
+      throw new NoteDetailsValidationError("tags", "must be a list of tags");
+    }
+    const tag = normaliseNoteTag(entry);
+    if (tag === "") continue;
+    if ([...tag].length > MAX_NOTE_TAG_LENGTH) {
+      throw new NoteDetailsValidationError(
+        "tags",
+        `each tag must be ${MAX_NOTE_TAG_LENGTH} characters or fewer`,
+      );
+    }
+    out.add(tag);
+  }
+  if (out.size > MAX_NOTE_TAGS) {
+    throw new NoteDetailsValidationError(
+      "tags",
+      `a note can carry at most ${MAX_NOTE_TAGS} tags`,
+    );
+  }
+  return [...out].sort();
+}
+
+/**
+ * Parse the wire form of a tag set into a validated tag set. Kept here so no
+ * route or component invents its own splitting rule.
+ *
+ * Accepts the JSON array the shared DS-06 `TagsField` posts (matching how Assets
+ * and People already submit tags) and, defensively, a comma-separated string —
+ * so a no-JavaScript submission or a hand-written request still behaves.
+ */
+export function parseNoteTagInput(value: unknown): readonly string[] {
+  if (typeof value !== "string") return validateNoteTags(value);
+  const trimmed = value.trim();
+  if (trimmed.startsWith("[")) {
+    try {
+      return validateNoteTags(JSON.parse(trimmed));
+    } catch {
+      throw new NoteDetailsValidationError("tags", "must be a list of tags");
+    }
+  }
+  return validateNoteTags(trimmed === "" ? [] : trimmed.split(","));
 }

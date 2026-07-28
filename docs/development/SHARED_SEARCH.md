@@ -228,6 +228,73 @@ provider contract does not.
 
 ---
 
+## The Notes provider (NOTES-03) — full-content search
+
+The Notes module registers a real, repository-backed provider
+([`app/modules/notes/search.ts`](../../app/modules/notes/search.ts)) over
+`NoteQueryRepository.search`. It is the first provider that searches a record's
+**body**, not just its header fields, so it is worth stating exactly what it
+does and what it costs.
+
+**What is matched.** A Note's TITLE, its full Markdown BODY (headings included,
+since a heading is body text), and its TAGS. There is no alias concept — a Note
+has one title — and entity names referenced from the body are matched simply
+because `[[Their Title]]` is body text.
+
+**What a result shows.** The Note icon and title, an honest **match source**
+("Title", "Tag", "Heading: Risks", or "Under 'Risks'" for a body hit under a
+heading), the archive state when archived, and a **readable excerpt** around the
+match. The excerpt is never raw Markdown: the shared analyser
+(`note-document.ts`) strips syntax and truncates deterministically, so a result
+never shows `##` or half a code fence. Highlighting is the shared match-range
+`<mark>` infrastructure — the provider supplies plain text and no HTML.
+
+**Lifecycle.** Deleted Notes are excluded **always**, by the repository, not by
+the caller. Archived Notes ARE returned and are labelled "Archived": archiving
+means "out of the way", not "unfindable". Results are workspace-scoped in SQL —
+the executor binds the trusted, server-derived scope and cannot widen it.
+
+### The indexing strategy, and its trade-off
+
+The search is **D1-native SQLite**: a bounded, workspace-scoped, parameterised
+`lower(col) LIKE ? ESCAPE '\'` over `entities.title` joined to
+`note_details.content`/`tags`, with the excerpt window cut **in SQL** by
+`substr(...)` around `instr(...)` so a matching 1 MiB note transfers a few
+hundred bytes rather than its whole body. Ordering is total and deterministic
+(exact title → title prefix → title contains → other, then most recently updated,
+then id), and every result set is limit-bounded.
+
+This is the same mechanism People, Assets, Meetings, Reviews and Tasks already
+use, which is the main reason to keep it: one search mechanism in the product,
+not two.
+
+**The trade-off, stated plainly.** A leading-wildcard `LIKE` cannot use a B-tree
+index, so the body match is a scan **of the workspace's note rows** — after the
+candidate set has already been narrowed by the existing
+`entities_active_workspace_type_created_idx` (workspace + type + not deleted) and
+the `note_details` partial indexes for active/archived. Nothing is scanned in
+application code: filtering, ordering, excerpting and the relationship count all
+happen in the one statement. **FTS5 was considered and deferred**: D1 supports
+it, but keeping a shadow virtual table in sync requires triggers and creates a
+SECOND, DERIVED representation of the canonical Markdown source — precisely what
+[ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)
+exists to prevent. Revisit when a workspace holds enough notes for the scan to be
+*measurable*, and then behind the same repository contract so no caller changes.
+Recorded in [`migrations/0019_notes_knowledge.sql`](../../migrations/0019_notes_knowledge.sql)
+and [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-wiki-link-is-a-persisted-reference-and-knowledge-relationships-stay-entitylinks) §7.
+
+**Two D1 specifics every repository-backed search must respect.**
+
+1. **A LIKE pattern is capped at 50 bytes.** A longer pattern fails the WHOLE
+   statement with `LIKE or GLOB pattern too complex` — not just that predicate.
+   A search box is exactly where an over-long value arrives, so the Notes
+   repository bounds the escaped needle itself and a long query degrades to
+   matching its opening characters instead of erroring. The other
+   repository-backed providers do **not** yet do this — recorded as
+   [DEBT-42](../product/PRODUCT_DEBT.md).
+2. **`lower()` folds ASCII only.** Matching and the excerpt offsets are therefore
+   ASCII-case-insensitive, consistently across every DalyHub search.
+
 ## Development demonstration
 
 A development-only route (`/design/search`, excluded from production by the

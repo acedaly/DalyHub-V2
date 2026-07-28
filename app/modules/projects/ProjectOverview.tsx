@@ -47,6 +47,7 @@ interface ProjectOverviewProps {
   readonly onRename: () => void;
   readonly tasksTab: ReactNode;
   readonly linksTab: ReactNode;
+  readonly knowledgeTab: ReactNode;
   /** The PROJ-04 Activity tab — the shared DS-05 Timeline. */
   readonly activityTab: ReactNode;
   /** The PROJ-05 Settings tab (DS-10b) — always the FINAL tab. */
@@ -70,6 +71,7 @@ export function ProjectOverview({
   onRename,
   tasksTab,
   linksTab,
+  knowledgeTab,
   activityTab,
   settingsTab,
   onArchive,
@@ -256,6 +258,7 @@ export function ProjectOverview({
         onTabChange={onTabChange}
         tabs={[
           { id: "tasks", label: "Tasks", content: tasksTab },
+          { id: "knowledge", label: "Knowledge", content: knowledgeTab },
           { id: "linked", label: "Linked", content: linksTab },
           { id: "activity", label: "Activity", content: activityTab },
           // Settings is the FINAL tab, per the shared tab vocabulary

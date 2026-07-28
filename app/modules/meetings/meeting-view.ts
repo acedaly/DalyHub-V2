@@ -8,6 +8,7 @@ export function serializeMeeting(m: Meeting) {
     startsAt: m.startsAt.toISOString(),
     endsAt: m.endsAt?.toISOString() ?? null,
     archivedAt: m.archivedAt?.toISOString() ?? null,
+    heldAt: m.heldAt?.toISOString() ?? null,
     items: m.items.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),
