@@ -248,8 +248,15 @@ test.describe("TASKS-01 — full journey", () => {
 
     // Bulk complete → it appears in the Completed view and leaves the active Matrix.
     await selectTask(page, "Journey task Charlie");
+    // Scoped to the bulk bar and matched EXACTLY: Playwright matches an
+    // accessible name as a case-insensitive substring by default, and MOBILE-01
+    // gave every task card a one-tap "Complete <title>" action — so an unscoped
+    // { name: "Complete" } now resolves to the bar's button AND every row's.
     await runBulk(page, () =>
-      page.getByRole("button", { name: "Complete" }).click(),
+      page
+        .getByRole("group", { name: "Bulk task actions" })
+        .getByRole("button", { name: "Complete", exact: true })
+        .click(),
     );
     await gotoFixture(page, "/tasks?system=completed");
     await page

@@ -242,10 +242,19 @@
   display: none;
 }
 
-/* The bar overlays the end of the record, so the record reserves its height. */
+/* The bar overlays the end of the record, so the record reserves its height.
+ *
+ * The reservation must cover the bar's WHOLE stack, not a nominal gap: two 44px
+ * rows plus their gap and padding, then the phone navigation bar beneath it and
+ * the safe-area inset. The first version reserved 4rem — less than the bar's own
+ * two rows — so the last section's "Add …" control sat underneath the bar and
+ * could not be clicked at all. A sticky action bar that swallows the controls at
+ * the end of the record is worse than no sticky bar. */
 .dh-record-section:has(~ .dh-meeting-capturebar),
 .record-layout:has(~ .dh-meeting-capturebar) {
-  padding-bottom: var(--dh-space-16);
+  padding-bottom: calc(
+    9rem + var(--dh-bottomnav-height, 0px) + env(safe-area-inset-bottom)
+  );
 }
 
 /* -------------------------------------------------------------------------- */
