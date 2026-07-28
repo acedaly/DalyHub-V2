@@ -43,18 +43,9 @@
   color: var(--dh-color-text-muted);
 }
 
-.dh-today__section-empty {
-  margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-today__section-empty-detail {
-  display: inline-block;
-  margin-top: var(--dh-space-1);
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
-}
+/* PX-06: Today's private empty-state rules are gone — every quiet section and
+ * widget now renders the SHARED `EmptyState` (compact), so there is nothing
+ * Today-specific left to style here. */
 
 /* A completed focus task reads as done without relying on colour alone. */
 .dh-today__task--done .dh-card__title-text {

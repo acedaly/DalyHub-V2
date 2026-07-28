@@ -90,7 +90,7 @@ function makeRenderInspector(todayKey: string) {
   ): InspectorRenderResult | null {
     if (entry.key === CAPTURE_KEY) {
       return {
-        title: "New entry",
+        title: "New Diary entry",
         description: "Capture a moment — a meeting, a decision, an idea.",
         children: <CaptureHost todayKey={todayKey} />,
       };
@@ -190,6 +190,17 @@ function DetailsHost({
     [navigate, searchParams],
   );
 
+  // PX-04 — reversible removal for a Diary entry. "Closing" here means dropping
+  // the `inspector` parameter, so the timeline (and the selected day) is
+  // preserved rather than navigated away from; the shared Undo toast restores
+  // the entry through the mirror intent.
+  const closeTo = (() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("inspector");
+    const query = next.toString();
+    return query.length > 0 ? `?${query}` : "?";
+  })();
+
   return (
     <DiaryDetailsHost
       entryId={entryId}
@@ -198,6 +209,8 @@ function DetailsHost({
       onRequestRead={() => setKey(`${VIEW_PREFIX}${entryId}`, true)}
       onChanged={() => revalidator.revalidate()}
       onClose={closeInspector}
+      deleteRedirectTo={closeTo}
+      onDeleted={() => revalidator.revalidate()}
     />
   );
 }
@@ -403,13 +416,17 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
         entityType="diary"
         viewSwitcher={<DiaryModeTabs mode={mode} />}
         primaryAction={
+          // PX-06: the SAME primary-create affordance as every other module —
+          // a plain labelled button, no `+` glyph (Diary was the only create
+          // button in the product carrying one). It is hidden below `md`, where
+          // the floating action is the single primary entry point, so exactly ONE
+          // primary create action exists per viewport.
           <button
             type="button"
-            className="dh-btn dh-btn--primary"
+            className="dh-btn dh-btn--primary dh-diary-header-create"
             onClick={openCapture}
           >
-            <PlusIcon aria-hidden="true" />
-            New entry
+            New Diary entry
           </button>
         }
         filterBar={
@@ -453,7 +470,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
                 className="dh-btn dh-btn--primary"
                 onClick={openCapture}
               >
-                New entry
+                New Diary entry
               </button>
             }
           />
@@ -496,7 +513,7 @@ function DiaryWorkspaceInner(props: DiaryWorkspaceViewProps) {
       <button
         type="button"
         className="dh-diary-fab"
-        aria-label="New entry"
+        aria-label="New Diary entry"
         onClick={openCapture}
       >
         <PlusIcon aria-hidden="true" />

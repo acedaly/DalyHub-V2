@@ -135,7 +135,7 @@ describe("NewProjectForm", () => {
   });
 
   describe("creation discoverability (PROJ-05 §8)", () => {
-    it("explains why a project can't be created when no Area/Goal exists, without an unusable picker or a link to an unbuilt route", () => {
+    it("explains why a project can’t be created when no Area/Goal exists, without an unusable picker or a link to an unbuilt route", () => {
       const onCancel = vi.fn();
       renderInRouter(
         <NewProjectForm

@@ -34,7 +34,7 @@ export interface TagsFieldProps extends BaseControlProps<readonly string[]> {
 const REJECTION_MESSAGES: Record<TagRejectionReason, string> = {
   empty: "",
   duplicate: "That tag is already added.",
-  limit: "You've reached the maximum number of tags.",
+  limit: "You’ve reached the maximum number of tags.",
   "too-long": "That tag is too long.",
 };
 

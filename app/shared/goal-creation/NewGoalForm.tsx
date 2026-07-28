@@ -66,7 +66,7 @@ export function NewGoalForm({ areaId, onCreated, onCancel }: NewGoalFormProps) {
       } catch {
         return {
           status: "error",
-          formError: "That Goal couldn't be created. Please try again.",
+          formError: "That Goal couldn’t be created. Please try again.",
         };
       }
       if (data.ok) {

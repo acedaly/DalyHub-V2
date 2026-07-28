@@ -1,5 +1,5 @@
 /**
- * AREA-03 — the Goals collection view: the Alignment view (ADR-040).
+ * AREA-03 / PX-04 — the Goals collection view: the Alignment view (ADR-040).
  *
  * Replaces the placeholder `/goals` surface with the shared PX-02 Collection
  * Layout and DS-04 Card. Every open Goal across every Area is shown with its
@@ -9,6 +9,11 @@
  * alignment summaries. Goal CREATION stays owned by the Area record (AREA-02)
  * — this collection is a read-only alignment surface, not a second creation
  * entry point.
+ *
+ * PX-04 adds the `?state=active|deleted` lifecycle filter, identical in shape and
+ * wording to the Notes collection's (ADR-042): `deleted` lists ONLY soft-deleted
+ * Goals and offers a one-click Restore, so removing a Goal is reversible for good
+ * and never a dead end — the durable path back when an Undo toast is missed.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,25 +22,53 @@ import { useFetcher, useNavigate } from "react-router";
 import {
   Card,
   CardCollection,
+  type CardAction,
   type CardMetaItem,
   type CardProps,
 } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
-import { EntityIcon } from "~/shared/entity";
+import { EntityIcon, emptyCollectionTitle } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
+import { useCollectionRestore } from "~/shared/record-lifecycle";
+import {
+  SegmentedFilter,
+  type SegmentedFilterOption,
+} from "~/shared/segmented-filter";
+import { formatCalendarDate } from "~/shared/task-record/task-view";
 import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
 
 import { goalStateLabel } from "./goal-view";
 import type { SerializedGoalListItem } from "./goal-view";
+import type { GoalMutationResult } from "./routes/mutate";
 
 export type SerializedGoalWithAlignment = SerializedGoalListItem & {
   readonly alignment: GoalAlignment;
 };
 
+/** A soft-deleted Goal, as the honest "Deleted" view shows it: identity only. */
+export type SerializedDeletedGoalItem = {
+  readonly id: string;
+  readonly title: string;
+  readonly updatedAt: string;
+};
+
+/** The two lifecycle views of the Goals collection (`?state=`). */
+export type GoalCollectionState = "active" | "deleted";
+
+const STATE_OPTIONS: readonly SegmentedFilterOption[] = [
+  { value: "active", label: "Active" },
+  { value: "deleted", label: "Deleted" },
+];
+
 export interface GoalsCollectionViewProps {
   readonly goals: readonly SerializedGoalWithAlignment[];
+  readonly deletedGoals?: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
+  readonly state?: GoalCollectionState;
   readonly failed: boolean;
 }
 
@@ -47,18 +80,74 @@ type GoalsPageData = {
 
 export function GoalsCollectionView({
   goals,
+  deletedGoals = [],
   nextCursor,
+  state = "active",
   failed,
 }: GoalsCollectionViewProps) {
   const navigate = useNavigate();
   return (
     <GoalsCollection
       goals={goals}
+      deletedGoals={deletedGoals}
       nextCursor={nextCursor}
+      state={state}
       failed={failed}
       onOpenGoal={(id) => navigate(`/goals/${encodeURIComponent(id)}`)}
     />
   );
+}
+
+/**
+ * A DELETED Goal's Card: no open target (its canonical route 404s — soft-deleted
+ * records read as "not found" everywhere in the kernel), just identity and a
+ * "Restore" quick action. The SAME shape the Deleted Notes view uses.
+ */
+function toDeletedCardProps(
+  goal: SerializedDeletedGoalItem,
+  onRestore: (id: string, title: string) => void,
+  pending: boolean,
+): CardProps {
+  const metadata: CardMetaItem[] = [];
+  const deletedOn = formatCalendarDate(goal.updatedAt.slice(0, 10));
+  if (deletedOn) {
+    metadata.push({ id: "deleted", label: "Deleted", value: deletedOn });
+  }
+
+  const restoreAction: CardAction = {
+    id: "restore",
+    label: "Restore",
+    pending,
+    onSelect: () => onRestore(goal.id, goal.title),
+  };
+
+  return {
+    id: goal.id,
+    title: goal.title,
+    typeLabel: "Goal",
+    icon: <EntityIcon type="goal" />,
+    headingLevel: 2,
+    metadata,
+    density: "comfortable",
+    presentation: "list",
+    quickActions: [restoreAction],
+  };
+}
+
+/** Restore a Goal from the Deleted view — one click, through the shared hook. */
+function useRestoreGoal() {
+  const post = useCallback(async (goalId: string) => {
+    const body = new FormData();
+    body.set("intent", "restore");
+    const response = await fetch(
+      `/goals/${encodeURIComponent(goalId)}/mutate`,
+      { method: "POST", body },
+    );
+    const result = (await response.json()) as GoalMutationResult;
+    return result.kind === "restore" && result.ok;
+  }, []);
+
+  return useCollectionRestore({ post });
 }
 
 function toCardProps(
@@ -194,12 +283,16 @@ function alignmentSummary(
 
 function GoalsCollection({
   goals,
+  deletedGoals,
   nextCursor,
+  state,
   failed,
   onOpenGoal,
 }: {
   readonly goals: readonly SerializedGoalWithAlignment[];
+  readonly deletedGoals: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
+  readonly state: GoalCollectionState;
   readonly failed: boolean;
   readonly onOpenGoal: (id: string) => void;
 }) {
@@ -207,6 +300,67 @@ function GoalsCollection({
     goals,
     nextCursor,
   );
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
+  const { restore, pendingIds, restoredIds } = useRestoreGoal();
+  const deleted = deletedGoals.filter((goal) => !restoredIds.has(goal.id));
+
+  if (state === "deleted") {
+    return (
+      <CollectionLayout
+        isLoading={isReloading}
+        title="Goals"
+        subtitle={
+          failed
+            ? "We couldn’t load your deleted Goals."
+            : deleted.length === 1
+              ? "1 deleted Goal"
+              : `${deleted.length} deleted Goals`
+        }
+        entityType="goal"
+        filterBar={
+          <SegmentedFilter
+            param="state"
+            options={STATE_OPTIONS}
+            value={state}
+            label="Filter Goals by state"
+          />
+        }
+        error={
+          failed ? (
+            <EmptyState
+              title="We couldn’t load your deleted Goals"
+              description="Something went wrong. Please try again."
+            />
+          ) : undefined
+        }
+        isFilteredEmpty={!failed && deleted.length === 0}
+        filteredEmptySlot={
+          <EmptyState
+            icon={<EntityIcon type="goal" />}
+            title="No deleted Goals"
+            description="Goals you delete appear here, and can be restored at any time."
+          />
+        }
+      >
+        <CardCollection
+          items={deleted}
+          getItemId={(goal) => goal.id}
+          ariaLabel="Deleted Goals"
+          presentation="list"
+          density="comfortable"
+          renderCard={(goal) => (
+            <Card
+              {...toDeletedCardProps(goal, restore, pendingIds.has(goal.id))}
+            />
+          )}
+        />
+      </CollectionLayout>
+    );
+  }
+
   // DEBT-23: the Alignment order is now established WORKSPACE-WIDE by the
   // repository (`listGoalsByAlignment`) BEFORE pagination, so accumulated pages
   // are already globally ordered by `GOAL_ALIGNMENT_DISPLAY_RANK` then
@@ -214,7 +368,7 @@ function GoalsCollection({
   // never re-sorts Goals into a merely per-page ranking.
   const count = items.length;
   const subtitle = failed
-    ? "We couldn't load your Goals."
+    ? "We couldn’t load your Goals."
     : hasMore
       ? count === 1
         ? "1 Goal loaded"
@@ -226,13 +380,22 @@ function GoalsCollection({
 
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Goals"
       subtitle={subtitle}
       entityType="goal"
+      filterBar={
+        <SegmentedFilter
+          param="state"
+          options={STATE_OPTIONS}
+          value={state}
+          label="Filter Goals by state"
+        />
+      }
       error={
         failed ? (
           <EmptyState
-            title="We couldn't load your Goals"
+            title="We couldn’t load your Goals"
             description="Something went wrong. Please try again."
           />
         ) : undefined
@@ -241,7 +404,7 @@ function GoalsCollection({
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="goal" />}
-          title="No Goals yet"
+          title={emptyCollectionTitle("goal")}
           description="Goals are the aspirational outcomes you pursue under an Area. Open an Area to add one."
           primaryAction={
             <a className="dh-btn dh-btn--primary" href="/areas">

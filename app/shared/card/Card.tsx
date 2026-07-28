@@ -20,20 +20,27 @@
 import type { MouseEvent } from "react";
 import { useId } from "react";
 
+import { OverflowMenu, type OverflowMenuItem } from "~/shared/overflow-menu";
+
 import { CardActionButton } from "./CardAction";
 import { CardSwipeTray } from "./CardSwipeTray";
 import { useCardSwipe } from "./useCardSwipe";
-import type { CardProps } from "./types";
+import type { CardAction, CardProps } from "./types";
 import { normaliseProgress, primaryOpenIsModifiedClick } from "./types";
 
-function OverflowGlyph() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="3" cy="8" r="1.4" fill="currentColor" />
-      <circle cx="8" cy="8" r="1.4" fill="currentColor" />
-      <circle cx="13" cy="8" r="1.4" fill="currentColor" />
-    </svg>
-  );
+/** The legacy single `overflowAction` is just a one-item menu (DS-12). */
+function toOverflowItem(action: CardAction): OverflowMenuItem {
+  return {
+    id: action.id,
+    label: action.label,
+    ariaLabel: action.ariaLabel,
+    icon: action.icon,
+    description: action.description,
+    href: action.href,
+    onSelect: action.onSelect,
+    disabled: action.disabled,
+    pending: action.pending,
+  };
 }
 
 export function Card(props: CardProps) {
@@ -52,7 +59,9 @@ export function Card(props: CardProps) {
     dateLabel,
     selection,
     quickActions,
+    overflowActions,
     overflowAction,
+    overflowLabel,
     swipeActions,
     href,
     onOpen,
@@ -96,6 +105,15 @@ export function Card(props: CardProps) {
   };
 
   const openAccessibleName = openAriaLabel ?? title;
+
+  // DS-12: one overflow rendering. `overflowActions` is the contract; the legacy
+  // single `overflowAction` normalises into the same one-item menu.
+  const overflowItems: readonly OverflowMenuItem[] =
+    overflowActions && overflowActions.length > 0
+      ? overflowActions
+      : overflowAction
+        ? [toOverflowItem(overflowAction)]
+        : [];
   const TitleHeading = `h${headingLevel}` as const;
 
   const titleContent = <span className="dh-card__title-text">{title}</span>;
@@ -282,7 +300,7 @@ export function Card(props: CardProps) {
         ) : null}
       </div>
 
-      {(quickActions && quickActions.length > 0) || overflowAction ? (
+      {(quickActions && quickActions.length > 0) || overflowItems.length > 0 ? (
         <div
           className="dh-card__actions"
           role="group"
@@ -296,14 +314,11 @@ export function Card(props: CardProps) {
               tabIndex={secondaryTabIndex}
             />
           ))}
-          {overflowAction ? (
-            <CardActionButton
-              action={{
-                ...overflowAction,
-                iconOnly: overflowAction.iconOnly ?? true,
-                icon: overflowAction.icon ?? <OverflowGlyph />,
-              }}
-              className="dh-card__action--overflow"
+          {overflowItems.length > 0 ? (
+            <OverflowMenu
+              items={overflowItems}
+              label={overflowLabel ?? `More actions for ${openAccessibleName}`}
+              triggerClassName="dh-card__action--overflow"
               tabIndex={secondaryTabIndex}
             />
           ) : null}

@@ -45,7 +45,7 @@ export default defineModule({
     {
       type: PERSON_UPDATED,
       label: "Person details updated",
-      description: "A person's details changed.",
+      description: "A person’s details changed.",
     },
     {
       type: PERSON_ARCHIVED,

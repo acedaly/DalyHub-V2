@@ -224,7 +224,7 @@ describe("NoteContentForm", () => {
     }
   });
 
-  it("shows a retryable error and keeps the user's draft when the save fails", async () => {
+  it("shows a retryable error and keeps the user’s draft when the save fails", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -249,7 +249,7 @@ describe("NoteContentForm", () => {
     fireEvent.blur(textbox);
 
     await waitFor(() =>
-      expect(screen.getByText("Couldn't save")).toBeInTheDocument(),
+      expect(screen.getByText("Couldn’t save")).toBeInTheDocument(),
     );
     expect(screen.getByText("storage failure")).toBeInTheDocument();
     expect(textbox).toHaveValue("Draft that must survive");
@@ -257,7 +257,7 @@ describe("NoteContentForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await waitFor(() =>
-      expect(screen.queryByText("Couldn't save")).not.toBeInTheDocument(),
+      expect(screen.queryByText("Couldn’t save")).not.toBeInTheDocument(),
     );
     expect(screen.getByText("Saved")).toBeInTheDocument();
   });
@@ -280,7 +280,7 @@ describe("NoteContentForm", () => {
     fireEvent.blur(textbox);
 
     await waitFor(() =>
-      expect(screen.getByText(/You're offline/)).toBeInTheDocument(),
+      expect(screen.getByText(/You’re offline/)).toBeInTheDocument(),
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -377,7 +377,7 @@ describe("NoteContentForm", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("suppressGuard forces navigation through regardless of autosave state (the record's own Delete flow)", async () => {
+    it("suppressGuard forces navigation through regardless of autosave state (the record’s own Delete flow)", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() => new Promise<Response>(() => {})),
@@ -576,7 +576,7 @@ describe("NoteContentForm", () => {
       fireEvent.change(textarea, { target: { value: "edited" } });
       fireEvent.blur(textarea);
       await waitFor(() =>
-        expect(screen.getByText("Couldn't save")).toBeInTheDocument(),
+        expect(screen.getByText("Couldn’t save")).toBeInTheDocument(),
       );
 
       // A formatting action applied on top of the failed draft keeps the work.
@@ -607,7 +607,7 @@ describe("NoteContentForm", () => {
       fireEvent.blur(textarea);
 
       await waitFor(() =>
-        expect(screen.getByText(/You're offline/)).toBeInTheDocument(),
+        expect(screen.getByText(/You’re offline/)).toBeInTheDocument(),
       );
       expect(textarea.value).toBe("**draft**");
     });

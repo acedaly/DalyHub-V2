@@ -15,7 +15,7 @@ import { NewPersonForm } from "../NewPersonForm";
 
 export function meta() {
   return [
-    { title: "New person · DalyHub" },
+    { title: "New Person · DalyHub" },
     { name: "description", content: "Add someone to People." },
   ];
 }
@@ -29,7 +29,7 @@ export default function NewPersonRoute() {
           <EntityIcon type="person" />
         </span>
         <div>
-          <h1 className="dh-person-new__title">New person</h1>
+          <h1 className="dh-person-new__title">New Person</h1>
           <p className="dh-person-new__lede">
             Add someone to People. You can add more detail once they exist.
           </p>

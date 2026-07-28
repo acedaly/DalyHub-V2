@@ -140,7 +140,7 @@ function WaitingCollection({
 
   const count = items.length;
   const subtitle = failed
-    ? "We couldn't load your waiting tasks."
+    ? "We couldn’t load your waiting tasks."
     : count === 1
       ? "1 task is waiting on someone or something else."
       : `${count} tasks are waiting on someone or something else.`;
@@ -158,7 +158,7 @@ function WaitingCollection({
       error={
         failed ? (
           <EmptyState
-            title="We couldn't load your waiting tasks"
+            title="We couldn’t load your waiting tasks"
             description="Something went wrong. Please try again."
           />
         ) : undefined
@@ -167,8 +167,8 @@ function WaitingCollection({
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="task" />}
-          title="Nothing's waiting"
-          description="When a task is blocked on someone or something else, mark it as waiting from the task's drawer and it will appear here."
+          title="Nothing’s waiting"
+          description="When a task is blocked on someone or something else, mark it as waiting from the task’s drawer and it will appear here."
         />
       }
     >

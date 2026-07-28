@@ -35,7 +35,7 @@ const TASK_STATE_OPTIONS = [
   { value: "all", label: "All" },
 ] as const;
 
-/** The drawer key that opens the "New task" create form. */
+/** The drawer key that opens the "New Task" create form. */
 export const NEW_TASK_KEY = "new-task";
 
 type TaskState = "open" | "completed" | "all";

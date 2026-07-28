@@ -55,7 +55,7 @@ describe("personInitials", () => {
       personInitials({ title: "x", firstName: "Ada", lastName: "Lovelace" }),
     ).toBe("AL");
   });
-  it("falls back to the display name's words", () => {
+  it("falls back to the display name’s words", () => {
     expect(personInitials({ title: "Grace Hopper" })).toBe("GH");
   });
   it("uses a single letter for a one-word name", () => {

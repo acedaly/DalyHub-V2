@@ -26,7 +26,10 @@ import {
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps, CardTone } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import {
   DrawerProvider,
   DrawerTrigger,
@@ -64,7 +67,7 @@ import {
   type TaskCardData,
 } from "./tasks-view-model";
 
-/** The drawer key that opens the "New task" quick-capture form. */
+/** The drawer key that opens the "New Task" quick-capture form. */
 const NEW_TASK_KEY = "new-task";
 
 /** The primary view switcher options (URL `?view=`). */
@@ -124,7 +127,7 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
       }
       if (entry.key === NEW_TASK_KEY) {
         return {
-          title: "New task",
+          title: "New Task",
           description: "Capture a task under a Project or an Area.",
           children: <NewTaskDrawerHost />,
         };
@@ -413,7 +416,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
 
   const count = isGrouped ? groupedTotal : items.length;
   const subtitle = data.failed
-    ? "We couldn't load your tasks."
+    ? "We couldn’t load your tasks."
     : isGrouped
       ? count === 1
         ? "1 task"
@@ -443,8 +446,13 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     [setSearchParams],
   );
 
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Tasks"
       subtitle={subtitle}
       entityType="task"
@@ -453,7 +461,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
           drawerKey={NEW_TASK_KEY}
           className="dh-btn dh-btn--primary"
         >
-          New task
+          New Task
         </DrawerTrigger>
       }
       viewSwitcher={
@@ -468,7 +476,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       error={
         data.failed ? (
           <EmptyState
-            title="We couldn't load your tasks"
+            title="We couldn’t load your tasks"
             description="Something went wrong. Please try again."
           />
         ) : undefined
@@ -477,14 +485,14 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="task" />}
-          title="No tasks here"
+          title="No Tasks yet"
           description="Capture a task, or choose a different view or system list above."
           primaryAction={
             <DrawerTrigger
               drawerKey={NEW_TASK_KEY}
               className="dh-btn dh-btn--primary"
             >
-              New task
+              New Task
             </DrawerTrigger>
           }
         />

@@ -9,6 +9,8 @@
  * given (DESIGN_SYSTEM.md → Record Header).
  */
 
+import { OverflowMenu } from "~/shared/overflow-menu";
+
 import { RecordActionButton } from "./RecordAction";
 import type { RecordHeaderProps } from "./types";
 
@@ -39,11 +41,15 @@ export function RecordHeader({
   metadata,
   primaryAction,
   secondaryActions,
+  overflowActions,
+  overflowLabel,
 }: RecordHeaderProps) {
   const Heading = `h${headingLevel}` as "h1" | "h2" | "h3";
+  const overflow = overflowActions ?? [];
   const hasActions =
     primaryAction !== undefined ||
-    (secondaryActions !== undefined && secondaryActions.length > 0);
+    (secondaryActions !== undefined && secondaryActions.length > 0) ||
+    overflow.length > 0;
 
   return (
     <header className="record-header">
@@ -105,6 +111,14 @@ export function RecordHeader({
               <RecordActionButton
                 action={primaryAction}
                 defaultVariant="primary"
+              />
+            )}
+            {/* DS-12: the overflow always sits LAST in the action row, on every
+             * record, so "where do I archive/delete this?" has one answer. */}
+            {overflow.length > 0 && (
+              <OverflowMenu
+                items={overflow}
+                label={overflowLabel ?? `More actions for ${title}`}
               />
             )}
           </div>

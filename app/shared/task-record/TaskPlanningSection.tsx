@@ -75,7 +75,7 @@ export function TaskPlanningSection({
         setError(
           outcome.fieldErrors?.["scheduledDate"] ??
             outcome.formError ??
-            "That couldn't be saved.",
+            "That couldn’t be saved.",
         );
       } else {
         setCustomOpen(false);

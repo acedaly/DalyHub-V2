@@ -199,7 +199,7 @@ describe("DIARY-01 capture route", () => {
 });
 
 describe("DIARY-01 timeline loader", () => {
-  it("returns only the active workspace's entries (isolation)", async () => {
+  it("returns only the active workspace’s entries (isolation)", async () => {
     await capture({ entryType: "note", title: "Mine" });
     // Seed a DIFFERENT workspace directly; it must never appear.
     await makeDiaryRepository(makeContext(OTHER), {
@@ -436,5 +436,66 @@ describe("DIARY-01 edit route", () => {
     const id = await capture({ entryType: "note", title: "To delete" });
     await makeRepository(makeContext(WS)).softDelete(id);
     await expect(runEntry(id)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+/**
+ * PX-04 — reversible Diary-entry removal over the real Worker/D1 runtime.
+ *
+ * A Diary entry had no removal path at all, though the generic
+ * `EntityRepository` has supported soft-delete since FND-02. These assert the
+ * behaviour the user gets: the entry leaves the timeline, Undo genuinely brings
+ * it back with its detail intact, a repeat call stays a no-op, and neither intent
+ * can be aimed at another workspace or a non-Diary record.
+ */
+describe("PX-04 — Diary entry delete/restore", () => {
+  it("soft-deletes an entry, removes it from the timeline, and restores it intact", async () => {
+    const id = await capture({
+      entryType: "decision",
+      title: "Chose Cloudflare",
+      body: "Workers + D1.",
+    });
+    expect(flatEntries(await runIndex("?mode=timeline")).length).toBe(1);
+
+    const deleted = (await (
+      await runMutate(id, formData({ intent: "delete" }))
+    ).json()) as DiaryMutationResult;
+    expect(deleted.ok).toBe(true);
+    expect(flatEntries(await runIndex("?mode=timeline")).length).toBe(0);
+    // The canonical entry read is the calm not-found, exactly as a deleted Note.
+    await expect(runEntry(id)).rejects.toMatchObject({ status: 404 });
+
+    const restored = (await (
+      await runMutate(id, formData({ intent: "restore" }))
+    ).json()) as DiaryMutationResult;
+    expect(restored.ok).toBe(true);
+
+    const entries = flatEntries(await runIndex("?mode=timeline"));
+    expect(entries.length).toBe(1);
+    const body = (await (await runEntry(id)).json()) as DiaryEntryEditResponse;
+    expect(body.entry.title).toBe("Chose Cloudflare");
+    expect(body.entry.bodySource).toBe("Workers + D1.");
+  });
+
+  it("is idempotent, so a repeated delete or restore never becomes a spurious 404", async () => {
+    const id = await capture({ entryType: "note", title: "Twice" });
+
+    await runMutate(id, formData({ intent: "delete" }));
+    const again = (await (
+      await runMutate(id, formData({ intent: "delete" }))
+    ).json()) as DiaryMutationResult;
+    expect(again.ok).toBe(true);
+
+    await runMutate(id, formData({ intent: "restore" }));
+    const restoredAgain = (await (
+      await runMutate(id, formData({ intent: "restore" }))
+    ).json()) as DiaryMutationResult;
+    expect(restoredAgain.ok).toBe(true);
+  });
+
+  it("fails closed for an unknown id, so a lifecycle intent never mutates a wrong-type record", async () => {
+    await expect(
+      runMutate("not-a-real-entry", formData({ intent: "delete" })),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

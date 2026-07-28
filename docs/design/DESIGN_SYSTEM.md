@@ -169,6 +169,20 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Optimistic and reversible (prefer [undo](#success-feedback) over confirm dialogs). One identity, one execution path: pointer and keyboard call the same handler; pending blocks a duplicate activation; disabled and unavailable stay distinct; every action has a text-based accessible name.
 **Contract.** A curated few live on the surface; the long tail lives in the [Command Palette](#command-palette). Persistent mutations still go through an authorised server action — the client context is never treated as authority. See [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action).
 
+### Overflow menu
+**Purpose.** The conventional, single home for a record's **secondary and destructive** actions, so "where do I archive or delete this?" has one answer everywhere.
+**Anatomy.** A ⋯ menu button on the [Record Header](#record-header) (always last in the action row) and on the [Card](#cards) (in its action group), opening one list of labelled items with optional leading glyphs, a decorative group separator, and a `danger` tone for destructive items.
+**Behaviour.** A WAI-ARIA menu button, not a modal: `aria-haspopup="menu"` + `aria-expanded`, arrow/Home/End navigation with roving focus, Escape closing only the menu and restoring focus, Tab and outside-pointer dismissal. A blocked action stays **visible and disabled with an explanation** rather than disappearing.
+**Rules.** Exactly one primary action stays in the header; everything else belongs here or in the [Command Palette](#command-palette). Meaning is always the item's wording — tone and glyph are reinforcement. Never build a second menu.
+**Realised by** the [Shared overflow menu (DS-12)](#shared-overflow-menu-ds-12).
+
+### Record lifecycle
+**Purpose.** One vocabulary and one interaction for Archive / Restore / Delete, on every entity.
+**Anatomy.** Lifecycle items in the Record Header [overflow](#overflow-menu), in a fixed order (module actions · Archive **or** Restore · Delete), plus — where a module has more to explain — the same actions in its final **Settings** tab.
+**Behaviour.** Friction scales with reversibility: a reversible soft-delete is one click with an [Undo](#success-feedback) toast and a durable "Deleted" collection view; an irreversible permanent delete requires a typed confirmation of the record's exact name. A blocked delete explains its precondition and offers no bypass. Nothing ever cascades.
+**Rules.** Labels are **derived**, never written per module. Settings-tab controls may exist, but must never be the *only* entry point.
+**Realised by** the [Shared record lifecycle (PX-04)](#shared-record-lifecycle-px-04).
+
 ### Forms
 **Purpose.** Create and edit entities consistently and forgivingly.
 **Anatomy.** Shared field controls (text, markdown, date, select, entity-link picker, tags) · inline labels + help · inline validation · clear submit/cancel.
@@ -267,6 +281,17 @@ every consumer (Area, Goal, Project, Note, Task) gets it identically:
   The result is a bounded record, not a stack of rounded cards inside rounded cards.
 - Existing container-query behaviour is unchanged; the record remains uncluttered
   and free of horizontal overflow at 320px, and mobile is not "boxed in".
+
+### Record content sections (PX-06)
+
+Inside a tab panel, sections share ONE vertical rhythm (`app/styles/record-layout.css`), so a Task, a Project, a Meeting and a Review breathe identically:
+
+- **`.dh-record-stack`** — the stack of sections inside a panel.
+- **`.dh-record-section`** — one section within it.
+- **`.dh-record-section__label`** — a restrained uppercase eyebrow (never the record heading).
+- **`.dh-record-muted`** — calm supporting/absent-state prose.
+
+These replaced four private copies at three different gaps (the Task Drawer's `__links`/`__section`, which the Project links tab borrowed *by class name*, plus `dh-meeting-section` and `dh-review-tab-stack`). A module adds only what is genuinely its own on top.
 
 ### Accessibility
 
@@ -433,6 +458,77 @@ The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic c
 - ❌ Build a `TaskCard`/`ProjectCard`/… or bake entity/business logic into the Card; make the whole card a single click target (`div onClick`) or nest interactive controls; convey selection/status by colour alone; hide quick actions from touch; mutate data inside a reorder.
 
 **Extension rules.** Add an affordance to the **one** shared Card (and document it here) only when a real entity needs it; never fork per module. Real product card usages arrive when a module first adopts DS-04 — this ships the component plus a development fixture only.
+
+---
+
+## Shared overflow menu (DS-12)
+
+The [Overflow menu](#overflow-menu) pattern is realised by ONE reusable, entity-agnostic component: the **Shared overflow menu** ([DS-12](../roadmap/ROADMAP_V2.md#-ds-12--record-header-overflow-menu--card-overflow-action)), in [`app/shared/overflow-menu`](../../app/shared/overflow-menu). The [DS-02 Record Header](#shared-record-layout-ds-02) and the [DS-04 Card](#shared-cards-ds-04) render the SAME component with the SAME item model, so a secondary or destructive action looks, reads and behaves identically wherever it appears. Accepted in [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+**Purpose.** Give the product one conventional home for the long tail of record actions — above all Archive / Restore / Delete — instead of a per-module invention (a header button here, a Settings sub-tab there, nothing at all somewhere else).
+
+**Item model.** `OverflowMenuItem` ([`types.ts`](../../app/shared/overflow-menu/types.ts)) is the `RecordAction`/`CardAction` shape plus the two things a menu needs and a button row does not: a `tone` (`default` | `danger`) and a `separatorBefore` group break. Fields: `id` · `label` · `ariaLabel` · `icon` · `description` · `href` **or** `onSelect` · `disabled` · `pending` · `tone` · `separatorBefore`.
+
+**Anatomy.**
+
+```
+<div class=dh-overflow-menu>
+  <button aria-haspopup="menu" aria-expanded aria-controls aria-label="More actions for <record>">⋯</button>
+  <div role="menu" aria-labelledby=trigger>            ← only while open
+    <button|a role="menuitem">  icon? · label · description?
+```
+
+**Behaviour.** A WAI-ARIA **menu button**, deliberately **non-modal**: it adds no second focus-trap, makes nothing inert and locks no scroll (so it composes inside a Drawer, an Inspector or a Card without fighting them). Click/Enter/Space/ArrowDown open with the first item focused; ArrowUp opens with the last. Arrow keys wrap; Home/End jump. **Escape closes only this menu** (the event is stopped, so an enclosing Drawer never also closes) and restores focus to the trigger; Tab leaves naturally; an outside pointer press dismisses. Choosing a button item runs it and returns focus to the trigger; choosing a link item follows it. A disabled or `pending` item cannot fire.
+
+**Accessibility.** The trigger always names the record it acts on (`More actions for <title>`) so several card menus on one page stay distinguishable. An item's `description` is rendered inside the item but referenced via `aria-describedby` and kept out of the accessible *name*. Destructive items carry `tone="danger"` **and** the word "Delete" — never colour alone. Touch targets meet the 44px token.
+
+**Card integration.** `CardProps.overflowActions` is the contract; the legacy single `overflowAction` is normalised into the same one-item menu, so there is exactly ONE overflow rendering. A swipe-enabled card un-clips itself only while its menu is open, so the panel is never cut off.
+
+**Correct vs incorrect usage.**
+
+- ✅ Pass `overflowActions` to `RecordLayout` (or a `Card`) and let the shared menu render it; keep exactly one primary action in the header.
+- ✅ Keep a blocked action visible and disabled with a `description` explaining the precondition.
+- ❌ Build a second menu/popover; put a destructive action only in a Settings sub-tab; convey "destructive" with colour alone; hide an action the user is allowed to learn about.
+
+**Extension rules.** Add an affordance to the one shared menu (and document it here) only when a real record needs it. Never fork per module.
+
+---
+
+## Shared record lifecycle (PX-04)
+
+The [Record lifecycle](#record-lifecycle) pattern is realised by ONE hook and ONE vocabulary ([PX-04](../roadmap/ROADMAP_V2.md#-px-04--lifecycle--destructive-action-consistency)), in [`app/shared/record-lifecycle`](../../app/shared/record-lifecycle). Every record composes it, so "how do I remove this?" has the same answer, in the same place, in the same words, on every entity. Accepted in [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+### One vocabulary
+
+`lifecycle-copy.ts` derives every label from ONE input — the entity type — through the PX-02 [`ENTITY_IDENTITY`](#entity-identity-px-02) map. A module never writes a lifecycle label:
+
+| Act | Menu label | Confirmation | Recovery |
+|---|---|---|---|
+| **Archive** | `Archive <Entity>` | a plain confirm naming the consequence | Restore, any time |
+| **Restore** | `Restore <Entity>` | a plain confirm | — |
+| **Delete** (reversible) | `Delete <Entity>` | **none** — friction would be noise | an **Undo** toast, plus a durable "Deleted" collection view |
+| **Delete permanently** | `Delete <Entity> permanently` | a **typed confirmation** of the record's exact title | none — and it says so |
+
+Success messages (`<Entity> archived` / `restored` / `deleted`) come from the same module, so the Settings tab and the header overflow can never drift apart.
+
+### The hook
+
+`useRecordLifecycle({ entityType, title, archived?, onArchive?, onRestore?, onDelete?, deleteMode?, deleteBlockedReason?, pending?, leadingItems?, notifyOnSuccess? })` returns `{ overflowActions, dialogs }`:
+
+- `overflowActions` goes straight to `RecordLayout`'s `overflowActions` (or a Card's), always ordered **module items → Archive/Restore → Delete**, with one decorative separator before the lifecycle group.
+- `dialogs` is rendered inside the record; it hosts the DS-10b [`ConfirmationDialog`](#settings-layout-ds-10b) — no second focus-trap, no second confirmation modal.
+- The hook owns **presentation only**. A module supplies async callbacks that post to its own trusted route; the server stays the authority. A **rejected callback keeps the dialog open with an inline error and a retry** — a lifecycle action never closes as though it worked.
+- `deleteBlockedReason` renders Delete **visible but disabled** with the precondition spelled out (e.g. "Move or remove everything inside this Area first"), so a capability is never silently hidden.
+
+### Reversible removal, shared
+
+`useReversibleDelete` is the Notes pattern ([ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042-notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern)) generalised: one deliberate click → a REAL server soft-delete → a redirect back to the collection → an **Undo** toast whose handler calls the mirror `restore` intent. `useCollectionRestore` is the other half — the one-click restore, with in-flight bookkeeping, that a "Deleted" collection view needs. Notes, Goals and Diary all run on these; no module re-implements them.
+
+### Where the actions live
+
+The **Record Header overflow is the primary entry point on every record**. A module may *also* keep a Settings tab (where there is genuinely more to explain — dependency counts, workflow status, blocked-delete detail), but Settings is never the only way in. The two surfaces share the same handlers and the same wording.
+
+**Current coverage.** Area (archive/restore + permanent delete, gated by the spine dependency guard) · Goal (reversible delete + Undo + a Deleted view) · Project (archive/restore) · Note (reversible delete + Undo + a Deleted view) · Diary entry (reversible delete + Undo) · Person, Asset, Review (archive/restore + permanent delete) · Meeting (archive/restore). **Task is deliberately excluded**: a Task's removal semantic is **Cancel** (a first-class display state), and a Task lives inside its Project's lifecycle — adding a second removal concept would muddy rather than unify. That exclusion is a decision, not an omission.
 
 ---
 
@@ -787,18 +883,29 @@ Pane: --dh-color-bg. Grid: var(--dh-shell-nav-width) 1fr.
 
 **Rules.** Every accent has a light **and** dark value (parity + ≥3:1 contrast, both tested). Accents are used at **identity sites only** (icon, card edge, chip) — never as text colour ([PRODUCT_EXPERIENCE Part III §5](PRODUCT_EXPERIENCE.md)). Icons are decorative (`aria-hidden`); a text label always names the entity. Cards, Record Headers, the sidebar, empty states and (later) Search/Command Palette all consume this one map — never a hand-picked icon at a call site.
 
-**Subtype icons.** A module whose entity has meaningful *sub-kinds* may add one stable icon **per subtype**, drawn from the same shared `app/shared/icons` set (never a one-off SVG or a hand-picked icon at a call site), through a small module-local registry with a safe fallback to the entity glyph. Precedent: the Diary entry-type icons ([`app/modules/diary/diary-icons.tsx`](../../app/modules/diary/diary-icons.tsx)) and the Asset type icons ([`app/modules/assets/asset-icons.tsx`](../../app/modules/assets/asset-icons.tsx), one per Asset type — vehicle, appliance, licence, insurance shield, subscription, software, …). Subtype icons keep the same rules: `currentColor` (design tokens, light/dark parity), decorative, always paired with text, consistent in the collection, record, search and Linked Items.
+**Subtype icons (PX-05).** A module whose entity has meaningful *sub-kinds* registers one stable icon **per subtype** with the SHARED subtype-icon registry ([`app/shared/entity/subtype-icons.tsx`](../../app/shared/entity/subtype-icons.tsx)) — `registerSubtypeIcons(entityType, map)` at module load, `getSubtypeIcon(entityType, subtype)` or the `<SubtypeIcon>` component to resolve, with a safe fallback to the entity glyph. Diary entry types and Asset types are its two consumers; each previously kept a private map, which is how a Diary "meeting" **subtype** ended up wearing the Meeting **entity** glyph.
+
+Two layers, never merged:
+
+- **Entity identity** — one icon + one accent per entity TYPE, from the frozen `ENTITY_IDENTITY`. Used at identity sites. Never re-picked at a call site.
+- **Module subtype** — one glyph per sub-kind, subordinate to the entity icon, owned by the module that defines the vocabulary, resolved through the one registry.
+
+A subtype **must never be given another entity's glyph** — the shared icon set carries dedicated subtype glyphs (chat, calendar, idea, decision, travel, observation, reflection, …) for exactly this reason, and a test enforces it. Subtype icons keep the same rules: `currentColor` (design tokens, light/dark parity), decorative, always paired with text, consistent in the collection, record, filter chips, search and Linked Items.
 
 ### Collection Layout (PX-02)
 
 **Purpose.** The product's commonest screen — "a filtered collection of Cards with a Filter bar, opening records in a Drawer" — as a named, entity-agnostic scaffold. This is to screens what the [Record Layout](#shared-record-layout-ds-02) is to records.
 **Anatomy.** [`app/shared/collection-layout`](../../app/shared/collection-layout) composes a [Pane Header](#pane-header) · a [FilterBar](#shared-filters-ds-07) slot · a content slot (a [Card](#shared-cards-ds-04) collection) · a selection/bulk slot · and built-in **Loading** ([Skeleton](#loading-states-px-02)), **Empty**, **Filtered-empty** and **Error** states.
 **Behaviour.** State precedence is error → loading → filtered-empty → empty → children, so a surface can **never** render a blank region ([PRODUCT_EXPERIENCE Part IV §5](PRODUCT_EXPERIENCE.md)). The header + filter bar pin (sticky) while the content scrolls; the selection bar is bottom-anchored.
+**Loading (PX-06).** `useCollectionLoading()` ([`app/shared/collection-layout`](../../app/shared/collection-layout)) is the ONE loading signal, derived from the router: true while a **same-route** navigation is in flight — a filter, a view or a page change on the collection the user is already looking at — and deliberately false for a navigation *away* (that page owns its own state; swapping the list for a skeleton on the way out would be a flash, not feedback). Every filtered collection passes it to `isLoading`, so the shared `CollectionSkeleton` and `aria-busy` appear consistently instead of the previous list sitting there with no indication that a new one is coming.
+
 **Rules.** No business logic, no repositories, no entity assumptions — every collection surface (Today, Projects, Areas, Goals, Notes, People) is configuration. Filters bind to the URL via DS-07; cards open the DS-03 Drawer.
 
 ### Empty State (PX-02)
 
 The [Empty States](#empty-states) pattern is realised by ONE `EmptyState` ([`app/shared/empty-state`](../../app/shared/empty-state)): icon (usually an entity glyph) · title · one-sentence body · primary/secondary actions · illustration slot. It replaces the previously-forked record/filter empty renderings; the *filtered-empty* variant is just this component with a "clear filters" recovery. Calm and centred in its content region — never full-screen theatre.
+
+`size="compact"` (PX-06) is the SAME component and the same anatomy at a widget's scale, for a small region such as a Today section — so a quiet dashboard still teaches the next action instead of degrading to a bare paragraph (or becoming a page of full-height empty blocks). Today was the last surface in the product rendering its own empty states; it no longer does.
 
 ### Loading States (PX-02)
 
@@ -809,6 +916,22 @@ The [Loading](#loading) pattern gains a shared **Skeleton** system ([`app/shared
 **Purpose.** Every ROADMAP_V2 module gets a real, reachable route the moment it's registered — never a 404 — while its product experience is still a later phase. This is the honest, content-only placeholder every such route renders (`app/shared/shell/ModuleComingSoon`, distinct from the plain `ModulePlaceholder` still used by `/tasks`).
 **Anatomy.** The SAME [Pane Header](#pane-header) (title + entity glyph, when the module owns one) every real module uses, then a lead paragraph naming where the module fits in DalyHub's model, then a labelled "Coming Soon" section: a sentence naming the module's real ROADMAP_V2 phase (or, honestly, that it has none yet), and a list of capabilities copied from that phase's roadmap items — never invented.
 **Rules.** No new visual language: it reuses `.dh-pane-body` typography unchanged. No lorem ipsum, no fabricated feature claims. A future roadmap item replaces the route's body with the real module; this component is never reused by the real thing.
+
+### Copy convention (PX-06)
+
+One voice across every surface. Collection headers used to read "New Area" beside "New project"; empty states "No tasks here" beside "No projects yet"; Diary alone said "New entry" and used a different apostrophe. The convention is now **executable** rather than merely written down — the recurring labels are derived from the one identity map ([`app/shared/entity/copy.ts`](../../app/shared/entity/copy.ts)), so a module cannot drift and a new entity inherits the product's voice for free.
+
+| Rule | Correct | Incorrect |
+|---|---|---|
+| **Sentence case**, with the product's **entity nouns capitalised** (they are proper concepts in the model — AGENTS.md §7) | `New Project`, `Archive Area`, `Rename` | `New project`, `New Area Record`, `ARCHIVE` |
+| **One create verb**, product-wide: `newRecordLabel(type)` | `New Note`, `New Person`, `New Diary entry` | `Add note`, `Quick capture`, `New entry` |
+| **Genuinely-empty vs filtered-empty are different sentences**: `emptyCollectionTitle` / `filteredEmptyTitle` | `No Projects yet` · `No matching Projects` | `No projects yet` for both |
+| **Counts** use the identity map's own plural: `countLabel(type, n)` | `1 Person`, `2 People` | `2 Persons` |
+| **Tab names** come from the shared vocabulary, with **Activity and Settings last, in that order** | `Summary · Linked · Activity · Settings` | `Key links`, `Links`, `Timeline` for the same thing |
+| **Typographic apostrophe** (’) in all user-facing copy | `We couldn’t load your Notes` | `couldn't`, `&apos;`, `&rsquo;` |
+| **Errors name a recovery**; nothing dead-ends | `Move or remove everything inside this Area first.` | `Delete failed` |
+
+Only reach for a literal where the derived label genuinely does not fit (Diary creates an *entry*, not a *Diary*, so it reads `New Diary entry`) — and say why at the call site.
 
 ### Correct vs incorrect usage
 

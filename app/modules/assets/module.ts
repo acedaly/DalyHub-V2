@@ -49,12 +49,12 @@ export default defineModule({
     {
       type: ASSET_UPDATED,
       label: "Asset details updated",
-      description: "An asset's details changed.",
+      description: "An asset’s details changed.",
     },
     {
       type: ASSET_STATUS_CHANGED,
       label: "Asset status changed",
-      description: "An asset's real-world status changed.",
+      description: "An asset’s real-world status changed.",
     },
     {
       type: ASSET_ARCHIVED,

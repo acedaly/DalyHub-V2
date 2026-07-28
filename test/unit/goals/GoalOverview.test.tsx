@@ -1,6 +1,8 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+import { FeedbackProvider } from "~/shared/feedback";
 import type { ReactElement } from "react";
 
 import { GoalOverview } from "~/modules/goals/GoalOverview";
@@ -98,7 +100,11 @@ function renderInRouter(node: ReactElement) {
   const router = createMemoryRouter([{ path: "/", element: node }], {
     initialEntries: ["/"],
   });
-  return render(<RouterProvider router={router} />);
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 function renderGoal(

@@ -26,7 +26,7 @@ export default function AiRoute() {
       name="AI"
       summary="A propose → review → apply loop over your real data."
       fit="AI in DalyHub is a proposer, never an autonomous actor — it reads the same Areas, Goals, Projects, Tasks and links every human action touches and emits structured, reviewable proposals you accept, edit or reject; nothing is written to your data without your approval."
-      roadmapStatus="It's planned for Phase 11 — AI (AI-01 → AI-04) of the DalyHub V2 roadmap."
+      roadmapStatus="It’s planned for Phase 11 — AI (AI-01 → AI-04) of the DalyHub V2 roadmap."
       capabilities={[
         "A propose → review → apply loop that never mutates your data without approval",
         "Meeting notes turned into reviewable task and note proposals",

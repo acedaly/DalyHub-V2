@@ -22,6 +22,10 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import {
+  lifecycleSuccessMessage,
+  useRecordLifecycle,
+} from "~/shared/record-lifecycle";
 
 import { AssetDatesTab } from "./AssetDatesTab";
 import { AssetDetailsForm, type RecordOption } from "./AssetDetailsForm";
@@ -82,39 +86,39 @@ export function AssetRecord({
     [asset.id],
   );
 
-  const onArchive = useCallback(() => {
+  const onArchive = useCallback(async () => {
     setPending(true);
-    void post("archive")
+    await post("archive")
       .then((result) => {
         if (result.kind === "archive" && result.ok) {
-          feedback.notifySuccess(`"${asset.title}" archived`);
+          feedback.notifySuccess(lifecycleSuccessMessage("archive", "asset"));
           onSaved();
         } else {
-          feedback.notifyError("Couldn't archive this asset. Try again.");
+          feedback.notifyError("Couldn’t archive this asset. Try again.");
         }
       })
       .catch(() =>
-        feedback.notifyError("Couldn't archive this asset. Try again."),
+        feedback.notifyError("Couldn’t archive this asset. Try again."),
       )
       .finally(() => setPending(false));
-  }, [post, feedback, asset.title, onSaved]);
+  }, [post, feedback, onSaved]);
 
-  const onRestore = useCallback(() => {
+  const onRestore = useCallback(async () => {
     setPending(true);
-    void post("restore")
+    await post("restore")
       .then((result) => {
         if (result.kind === "restore" && result.ok) {
-          feedback.notifySuccess(`"${asset.title}" restored`);
+          feedback.notifySuccess(lifecycleSuccessMessage("restore", "asset"));
           onSaved();
         } else {
-          feedback.notifyError("Couldn't restore this asset. Try again.");
+          feedback.notifyError("Couldn’t restore this asset. Try again.");
         }
       })
       .catch(() =>
-        feedback.notifyError("Couldn't restore this asset. Try again."),
+        feedback.notifyError("Couldn’t restore this asset. Try again."),
       )
       .finally(() => setPending(false));
-  }, [post, feedback, asset.title, onSaved]);
+  }, [post, feedback, onSaved]);
 
   const onDelete = useCallback(async () => {
     const result = await post("delete");
@@ -124,10 +128,10 @@ export function AssetRecord({
     }
     if (result.kind === "delete" && result.blockedReason === "has_links") {
       throw new Error(
-        "Unlink this asset's related records before deleting it permanently.",
+        "Unlink this asset’s related records before deleting it permanently.",
       );
     }
-    throw new Error("Couldn't delete this asset.");
+    throw new Error("Couldn’t delete this asset.");
   }, [post, navigate]);
 
   const renameAction: RecordAction = {
@@ -156,91 +160,114 @@ export function AssetRecord({
     });
   }
 
+  // PX-04: the SAME lifecycle actions, in the SAME shared overflow slot, as every
+  // other record. The Settings tab keeps the full explanation and the
+  // dependency/blocked detail; `notifyOnSuccess` is off because the handlers
+  // above already report through the shared `lifecycleSuccessMessage` wording
+  // (they are driven from Settings too).
+  const lifecycle = useRecordLifecycle({
+    entityType: "asset",
+    title: asset.title,
+    archived: asset.archived,
+    onArchive,
+    onRestore,
+    onDelete,
+    pending,
+    notifyOnSuccess: false,
+  });
+
   return (
-    <RecordLayout
-      title={asset.title}
-      typeLabel={asset.assetTypeLabel}
-      icon={<EntityIcon type="asset" />}
-      breadcrumb={[{ id: "assets", label: "Assets", href: "/assets" }]}
-      status={{
-        label: asset.archived
-          ? `Archived · ${asset.statusLabel}`
-          : asset.statusLabel,
-        tone: asset.archived
-          ? "warning"
-          : TONE_TO_RECORD[assetStatusTone(asset.status)],
-      }}
-      metadata={headerMetadata}
-      secondaryActions={[renameAction]}
-      activeTabId={activeTabId}
-      onTabChange={onTabChange}
-      tabs={[
-        {
-          id: "summary",
-          label: "Summary",
-          content: (
-            <AssetSummary
-              asset={asset}
-              names={names}
-              today={today}
-              onEditDetails={() => onTabChange("details")}
-            />
-          ),
-        },
-        {
-          id: "details",
-          label: "Details",
-          content: (
-            <AssetDetailsForm
-              asset={asset}
-              people={people}
-              areas={areas}
-              onSaved={onSaved}
-            />
-          ),
-        },
-        {
-          id: "dates",
-          label: "Dates",
-          content: <AssetDatesTab asset={asset} today={today} />,
-        },
-        {
-          id: "linked",
-          label: "Linked",
-          content: (
-            <LinkedItemsTab
-              anchorId={asset.id}
-              anchorType="asset"
-              readOnly={asset.archived}
-              linkCommandTarget={{
-                kind: "route",
-                to: `/asset/${asset.id}?tab=linked`,
-              }}
-            />
-          ),
-        },
-        {
-          id: "activity",
-          label: "Activity",
-          content: (
-            <AssetTimelineTab assetId={asset.id} reloadKey={asset.updatedAt} />
-          ),
-        },
-        {
-          id: "settings",
-          label: "Settings",
-          content: (
-            <AssetSettingsTab
-              asset={asset}
-              onRename={onRename}
-              onArchive={onArchive}
-              onRestore={onRestore}
-              onDelete={onDelete}
-              pending={pending}
-            />
-          ),
-        },
-      ]}
-    />
+    <>
+      <RecordLayout
+        title={asset.title}
+        typeLabel={asset.assetTypeLabel}
+        icon={<EntityIcon type="asset" />}
+        breadcrumb={[{ id: "assets", label: "Assets", href: "/assets" }]}
+        status={{
+          label: asset.archived
+            ? `Archived · ${asset.statusLabel}`
+            : asset.statusLabel,
+          tone: asset.archived
+            ? "warning"
+            : TONE_TO_RECORD[assetStatusTone(asset.status)],
+        }}
+        metadata={headerMetadata}
+        secondaryActions={[renameAction]}
+        overflowActions={lifecycle.overflowActions}
+        activeTabId={activeTabId}
+        onTabChange={onTabChange}
+        tabs={[
+          {
+            id: "summary",
+            label: "Summary",
+            content: (
+              <AssetSummary
+                asset={asset}
+                names={names}
+                today={today}
+                onEditDetails={() => onTabChange("details")}
+              />
+            ),
+          },
+          {
+            id: "details",
+            label: "Details",
+            content: (
+              <AssetDetailsForm
+                asset={asset}
+                people={people}
+                areas={areas}
+                onSaved={onSaved}
+              />
+            ),
+          },
+          {
+            id: "dates",
+            label: "Dates",
+            content: <AssetDatesTab asset={asset} today={today} />,
+          },
+          {
+            id: "linked",
+            label: "Linked",
+            content: (
+              <LinkedItemsTab
+                anchorId={asset.id}
+                anchorType="asset"
+                readOnly={asset.archived}
+                linkCommandTarget={{
+                  kind: "route",
+                  to: `/asset/${asset.id}?tab=linked`,
+                }}
+              />
+            ),
+          },
+          {
+            id: "activity",
+            label: "Activity",
+            content: (
+              <AssetTimelineTab
+                assetId={asset.id}
+                reloadKey={asset.updatedAt}
+              />
+            ),
+          },
+          {
+            id: "settings",
+            label: "Settings",
+            content: (
+              <AssetSettingsTab
+                asset={asset}
+                onRename={onRename}
+                onArchive={onArchive}
+                onRestore={onRestore}
+                onDelete={onDelete}
+                pending={pending}
+              />
+            ),
+          },
+        ]}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }

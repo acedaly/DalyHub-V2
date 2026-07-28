@@ -178,7 +178,7 @@ export function TaskRecordDrawer({
       }
       return {
         status: "error",
-        formError: "Your changes couldn't be saved. Please try again.",
+        formError: "Your changes couldn’t be saved. Please try again.",
       };
     },
     [postAction, notifySuccess, refresh],
@@ -200,12 +200,12 @@ export function TaskRecordDrawer({
           notifyError(
             result.kind === "completion" && !result.ok
               ? result.message
-              : "That couldn't be saved. Please try again.",
+              : "That couldn’t be saved. Please try again.",
           );
         }
       } catch {
         setOptimisticComplete(null);
-        notifyError("That couldn't be saved. Please try again.");
+        notifyError("That couldn’t be saved. Please try again.");
       } finally {
         setCompletionPending(false);
       }
@@ -249,7 +249,7 @@ export function TaskRecordDrawer({
         throw new Error(
           result.kind === "link" && result.message
             ? result.message
-            : "That link couldn't be created.",
+            : "That link couldn’t be created.",
         );
       }
       refresh();
@@ -264,7 +264,7 @@ export function TaskRecordDrawer({
       form.set("linkId", link.linkId);
       const result = await postAction(form);
       if (!(result.kind === "unlink" && result.ok)) {
-        throw new Error("That link couldn't be removed.");
+        throw new Error("That link couldn’t be removed.");
       }
       refresh();
     },
@@ -323,7 +323,7 @@ export function TaskRecordDrawer({
       }
       return {
         ok: false,
-        formError: "That couldn't be saved. Please try again.",
+        formError: "That couldn’t be saved. Please try again.",
       };
     },
     [postAction, notifySuccess, refresh],
@@ -343,7 +343,7 @@ export function TaskRecordDrawer({
     }
     return {
       ok: false,
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     };
   }, [postAction, notifySuccess, refresh]);
 
@@ -367,7 +367,7 @@ export function TaskRecordDrawer({
       }
       return {
         ok: false,
-        formError: "That couldn't be saved. Please try again.",
+        formError: "That couldn’t be saved. Please try again.",
       };
     },
     [postAction, notifySuccess, refresh],
@@ -387,7 +387,7 @@ export function TaskRecordDrawer({
     }
     return {
       ok: false,
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     };
   }, [postAction, notifySuccess, refresh]);
 
@@ -432,7 +432,7 @@ export function TaskRecordDrawer({
   if (loadError) {
     return (
       <EmptyState
-        title="We couldn't load this task"
+        title="We couldn’t load this task"
         description="Something went wrong. Please try again."
         primaryAction={
           <FormButton
@@ -454,7 +454,7 @@ export function TaskRecordDrawer({
   if ("error" in data) {
     return (
       <EmptyState
-        title="We couldn't find that task"
+        title="We couldn’t find that task"
         description="It may have been deleted, or the link is out of date."
       />
     );
@@ -575,8 +575,8 @@ export function TaskRecordDrawer({
           ),
         },
         {
-          id: "links",
-          label: "Links",
+          id: "linked",
+          label: "Linked",
           content: (
             <TaskLinksTab
               task={task}

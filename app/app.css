@@ -16,6 +16,7 @@
  *   8. record-layout.css     — the DS-02 Shared Record Layout.
  *   9. drawer.css            — the DS-03 Shared Drawer.
  *  10. card.css              — the DS-04 Shared Card.
+ *  10b. overflow-menu.css   — the DS-12 shared overflow (⋯) menu.
  *  11. filters.css           — the DS-07 Shared Filters.
  *  12. activity-feed.css      — the DS-05 Shared Timeline & Activity Feed.
  *  13. forms.css             — the DS-06 Shared Forms & field controls.
@@ -39,6 +40,7 @@
 @import "./styles/record-layout.css";
 @import "./styles/drawer.css";
 @import "./styles/card.css";
+@import "./styles/overflow-menu.css";
 @import "./styles/filters.css";
 @import "./styles/activity-feed.css";
 @import "./styles/forms.css";

@@ -169,7 +169,7 @@ describe("Filtering hooks", () => {
 });
 
 describe("Workspace isolation", () => {
-  it("never returns another workspace's entries", async () => {
+  it("never returns another workspace’s entries", async () => {
     await seed(WS, "a", [{ type: "note", at: "2026-07-20T10:00:00.000Z" }]);
     await seed(OTHER, "b", [{ type: "note", at: "2026-07-20T10:00:00.000Z" }]);
     const page = await repoFor(WS, "z").list();

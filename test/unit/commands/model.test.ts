@@ -52,7 +52,7 @@ describe("command ranking", () => {
       keywords: ["capture", "new"],
     }),
     registered("projects.create", "Create project"),
-    registered("notes.new", "New note", { subtitle: "Capture a thought" }),
+    registered("notes.new", "New Note", { subtitle: "Capture a thought" }),
   ];
 
   it("ranks exact title above prefix above keyword above fuzzy above subtitle", () => {
@@ -61,7 +61,7 @@ describe("command ranking", () => {
     expect(rankCommands("Create pr", commands)[0].tier).toBe(TIER_TITLE_PREFIX);
 
     const keyword = rankCommands("capture", commands);
-    // "Focus Quick Capture" matches by token prefix on "Capture"; "New note"
+    // "Focus Quick Capture" matches by token prefix on "Capture"; "New Note"
     // matches only in its subtitle.
     expect(keyword[0].command.id).toBe("today.capture");
     const subtitleOnly = keyword.find((r) => r.command.id === "notes.new");
@@ -91,7 +91,7 @@ describe("command ranking", () => {
     const ranked = rankCommands("new", commands).find(
       (r) => r.command.id === "notes.new",
     );
-    // "New note" title starts with "new" — a title prefix, so it has ranges.
+    // "New Note" title starts with "new" — a title prefix, so it has ranges.
     expect(ranked?.titleMatches.length ?? 0).toBeGreaterThan(0);
   });
 });

@@ -68,7 +68,7 @@ describe("ProjectRepository.listProjects", () => {
     expect(item.taskCompleted).toBe(0);
   });
 
-  it("resolves a goal-advancing project's Area through its Goal", async () => {
+  it("resolves a goal-advancing project’s Area through its Goal", async () => {
     const s = spine(WS);
     const area = await s.createArea({ title: "Health" });
     const goal = await s.createGoal({ title: "Run a half", areaId: area.id });
@@ -180,7 +180,7 @@ describe("ProjectRepository.listProjects", () => {
     expect(completedOnly.items).toHaveLength(0);
   });
 
-  it("an additional workflowStatus filter restricts to an exact status (Today's active-only query)", async () => {
+  it("an additional workflowStatus filter restricts to an exact status (Today’s active-only query)", async () => {
     const s = spine(WS);
     const settings = makeProjectSettingsRepository(makeContext(WS));
     const area = await s.createArea({ title: "Career" });
@@ -338,7 +338,7 @@ describe("ProjectRepository.getProjectOverview", () => {
     expect(overview?.goal).toBeNull();
   });
 
-  it("resolves a goal-parented project's Goal and Area", async () => {
+  it("resolves a goal-parented project’s Goal and Area", async () => {
     const s = spine(WS);
     const area = await s.createArea({ title: "Health" });
     const goal = await s.createGoal({ title: "Run a half", areaId: area.id });
@@ -384,7 +384,7 @@ describe("ProjectRepository.getProjectOverview", () => {
 });
 
 describe("TaskRepository.listProjectTasks", () => {
-  it("lists a project's child tasks with waiting representation and honours state", async () => {
+  it("lists a project’s child tasks with waiting representation and honours state", async () => {
     const s = spine(WS);
     const t = tasks(WS);
     const area = await s.createArea({ title: "Career" });

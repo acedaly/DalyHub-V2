@@ -53,7 +53,7 @@ export default defineModule({
     {
       type: GOAL_DETAILS_UPDATED,
       label: "Goal details updated",
-      description: "A goal's target date or definition of done changed.",
+      description: "A goal’s target date or definition of done changed.",
     },
   ],
 });

@@ -150,6 +150,6 @@ function mapError(cause: unknown): MeetingFollowUpResult {
   return {
     ok: false,
     formError:
-      "That follow-up couldn't be saved. Your work is safe — try again.",
+      "That follow-up couldn’t be saved. Your work is safe — try again.",
   };
 }

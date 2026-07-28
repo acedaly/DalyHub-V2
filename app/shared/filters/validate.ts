@@ -55,7 +55,7 @@ export function operatorsForField(
     throw new Error(
       `Filter field "${definition.id}" (type "${definition.type}") declares ` +
         `operators not valid for its type: ${invalid.join(", ")}. An operators ` +
-        `override may only narrow the type's default set, never widen it.`,
+        `override may only narrow the type’s default set, never widen it.`,
     );
   }
   return definition.operators.filter((op) => allowed.includes(op));

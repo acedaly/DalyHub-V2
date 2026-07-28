@@ -53,7 +53,7 @@ export function RenameAreaForm({
       } catch {
         return {
           status: "error",
-          formError: "That couldn't be saved. Please try again.",
+          formError: "That couldn’t be saved. Please try again.",
         };
       }
       if (data.ok === true) {

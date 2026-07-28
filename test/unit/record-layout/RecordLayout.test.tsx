@@ -195,14 +195,14 @@ describe("RecordContent — state slots", () => {
 
   it("announces an error via role=alert with precedence over other states", () => {
     render(
-      <RecordContent isLoading isEmpty error="Couldn't load — try again.">
+      <RecordContent isLoading isEmpty error="Couldn’t load — try again.">
         Body
       </RecordContent>,
     );
     const region = screen.getByRole("region", { name: "Content" });
     expect(region).toHaveAttribute("data-state", "error");
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Couldn't load — try again.",
+      "Couldn’t load — try again.",
     );
     expect(screen.queryByText("Body")).toBeNull();
   });
@@ -239,7 +239,7 @@ describe("RecordLayout — entity-agnostic", () => {
     expect(screen.getByText("Person body")).toBeInTheDocument();
   });
 
-  it("renders the active tab's panel as the content region when tabs are given", () => {
+  it("renders the active tab’s panel as the content region when tabs are given", () => {
     render(<RecordLayout title="Record" tabs={tabs} />);
     expect(screen.getByText("Overview body")).toBeVisible();
     // Inactive panel content is hidden.
@@ -249,5 +249,53 @@ describe("RecordLayout — entity-agnostic", () => {
         panel.getAttribute("aria-labelledby")?.includes("activity"),
       );
     expect(activityPanel).toHaveAttribute("hidden");
+  });
+});
+
+/**
+ * DS-12 — the Record Header's overflow (⋯) slot.
+ *
+ * The Design System documented this slot from DS-02 onwards but nothing rendered
+ * it, so every module invented its own home for secondary and destructive
+ * actions. These assert the structural contract: the overflow is the SAME shared
+ * menu the Card uses, it always sits last in the action row, and it disappears
+ * entirely rather than rendering an empty affordance.
+ */
+describe("RecordLayout — overflow menu (DS-12)", () => {
+  it("renders the overflow last, after the primary action", () => {
+    render(
+      <RecordLayout
+        title="Website relaunch"
+        primaryAction={{ id: "done", label: "Complete project" }}
+        secondaryActions={[{ id: "rename", label: "Rename" }]}
+        overflowActions={[{ id: "archive", label: "Archive Project" }]}
+      />,
+    );
+    const trigger = screen.getByRole("button", {
+      name: "More actions for Website relaunch",
+    });
+    const buttons = Array.from(
+      document.querySelectorAll(".record-header__actions button"),
+    );
+    expect(buttons[buttons.length - 1]).toBe(trigger);
+  });
+
+  it("names the trigger for its record, so several menus on a page stay distinguishable", () => {
+    render(
+      <RecordLayout
+        title="Career"
+        overflowActions={[{ id: "a", label: "Archive Area" }]}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "More actions for Career" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders no overflow affordance at all when there are no items", () => {
+    render(<RecordLayout title="Career" overflowActions={[]} />);
+    expect(
+      screen.queryByRole("button", { name: /More actions/ }),
+    ).not.toBeInTheDocument();
   });
 });

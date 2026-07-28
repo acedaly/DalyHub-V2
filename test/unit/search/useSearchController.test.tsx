@@ -228,7 +228,7 @@ describe("useSearchController — immediate stale invalidation", () => {
     }
   });
 
-  it("aborts the active request's signal immediately when the query changes", async () => {
+  it("aborts the active request’s signal immediately when the query changes", async () => {
     vi.useFakeTimers();
     try {
       let signalA: AbortSignal | undefined;

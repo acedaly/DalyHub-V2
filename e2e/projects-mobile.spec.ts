@@ -88,11 +88,11 @@ async function enterProjectsFromMobileShell(page: Page) {
 }
 
 async function openNewProjectSheet(page: Page) {
-  const trigger = page.getByRole("link", { name: "New project" }).first();
+  const trigger = page.getByRole("link", { name: "New Project" }).first();
   await expectMinTouchTarget(trigger);
   await trigger.focus();
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "New project" });
+  const dialog = page.getByRole("dialog", { name: "New Project" });
   await expect(dialog).toBeVisible();
   await expectNoHorizontalOverflow(page);
   return { trigger, dialog };
@@ -124,7 +124,7 @@ async function addTask(page: Page, title: string) {
   await expectMinTouchTarget(addTask);
   await addTask.click();
 
-  const createDialog = page.getByRole("dialog", { name: "New task" });
+  const createDialog = page.getByRole("dialog", { name: "New Task" });
   await expect(createDialog).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await createDialog.getByLabel(/Title/).fill(title);
@@ -139,7 +139,7 @@ async function addTask(page: Page, title: string) {
 
 async function openTab(
   page: Page,
-  name: "Tasks" | "Key links" | "Activity" | "Settings",
+  name: "Tasks" | "Linked" | "Activity" | "Settings",
 ) {
   const tab = page.getByRole("tab", { name });
   await expectMinTouchTarget(tab);
@@ -156,7 +156,7 @@ async function expectImportantTouchTargets(page: Page) {
     page.getByRole("button", { name: "Complete project" }).first(),
   );
   await expectMinTouchTarget(page.getByRole("tab", { name: "Tasks" }));
-  await expectMinTouchTarget(page.getByRole("tab", { name: "Key links" }));
+  await expectMinTouchTarget(page.getByRole("tab", { name: "Linked" }));
 }
 
 test.describe("PROJ-06 — mobile Projects", () => {
@@ -247,7 +247,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
       page.getByRole("link", { name: `Open ${BLOCKING_TASK}` }),
     ).toBeVisible();
 
-    await openTab(page, "Key links");
+    await openTab(page, "Linked");
     await expect(page).toHaveURL(new RegExp(`${projectPath}\\?`));
     await expect(page.getByText("DalyHub V2").first()).toBeVisible();
     const related = page.getByRole("combobox", { name: "Related records" });

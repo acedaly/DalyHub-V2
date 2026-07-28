@@ -130,7 +130,7 @@ describe("operator registry", () => {
     expect(OPERATORS_BY_TYPE["multi-enum"]).toContain("is_any_of");
   });
 
-  it("uses a field's operator override when present", () => {
+  it("uses a field’s operator override when present", () => {
     expect(
       operatorsForField({
         id: "x",

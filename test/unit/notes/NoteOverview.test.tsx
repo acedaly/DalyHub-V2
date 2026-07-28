@@ -66,6 +66,16 @@ function renderInRouter(node: ReactElement) {
   );
 }
 
+/**
+ * PX-04 — Delete lives in the ONE shared overflow menu now (DS-12), so a test
+ * opens the menu and picks the item, exactly as a user would.
+ */
+function openOverflowDelete(): HTMLElement {
+  const trigger = screen.getByRole("button", { name: /^More actions for / });
+  fireEvent.click(trigger);
+  return screen.getByRole("menuitem", { name: "Delete Note" });
+}
+
 describe("NoteOverview", () => {
   it("renders the generic entity identity (title, type label) and Rename/Delete actions", () => {
     const onRename = vi.fn();
@@ -91,8 +101,13 @@ describe("NoteOverview", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
     expect(onRename).toHaveBeenCalledTimes(1);
+    // PX-04: Delete now lives in the ONE shared overflow menu, the same slot as
+    // every other record's lifecycle actions, with the shared wording.
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions for Reading list" }),
+    );
     expect(
-      screen.getByRole("button", { name: "Delete note" }),
+      screen.getByRole("menuitem", { name: "Delete Note" }),
     ).toBeInTheDocument();
   });
 
@@ -134,7 +149,7 @@ describe("NoteOverview", () => {
     );
   });
 
-  it("shows the Summary's Updated date from a content save that postdates the last rename", () => {
+  it("shows the Summary’s Updated date from a content save that postdates the last rename", () => {
     renderInRouter(
       <NoteOverview
         overview={overview({ updatedAt: "2026-07-20T10:00:00.000Z" })}
@@ -192,7 +207,7 @@ describe("NoteOverview", () => {
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+      fireEvent.click(openOverflowDelete());
 
       await screen.findByText("Notes collection");
       expect(fetchMock).toHaveBeenNthCalledWith(
@@ -259,7 +274,7 @@ describe("NoteOverview", () => {
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+      fireEvent.click(openOverflowDelete());
 
       const toasts = await screen.findByRole("region", {
         name: "Notifications",
@@ -267,7 +282,7 @@ describe("NoteOverview", () => {
       await waitFor(() =>
         expect(
           within(toasts).getByText(
-            'Couldn\'t delete "Reading list". Please try again.',
+            'Couldn’t delete "Reading list". Please try again.',
           ),
         ).toBeInTheDocument(),
       );
@@ -285,7 +300,7 @@ describe("NoteOverview", () => {
     // Undo restored the STALE previously-committed content instead. Delete now
     // flushes the pending edit through the same field first (`flushRef` /
     // `field.flush()`, see `use-delete-note.ts` and `use-autosave-field.ts`).
-    it("flushes an unsaved edit through the editor's own save path before deleting, so the deleted content is the latest typed content", async () => {
+    it("flushes an unsaved edit through the editor’s own save path before deleting, so the deleted content is the latest typed content", async () => {
       const fetchMock = vi
         .fn()
         .mockResolvedValueOnce({
@@ -312,7 +327,7 @@ describe("NoteOverview", () => {
       fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
         target: { value: "edited but not yet saved" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+      fireEvent.click(openOverflowDelete());
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
@@ -341,7 +356,7 @@ describe("NoteOverview", () => {
         json: async () => ({
           kind: "update_content",
           ok: false,
-          formError: "That couldn't be saved.",
+          formError: "That couldn’t be saved.",
         }),
       });
       vi.stubGlobal("fetch", fetchMock);
@@ -360,7 +375,7 @@ describe("NoteOverview", () => {
       fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
         target: { value: "edited but will fail to save" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+      fireEvent.click(openOverflowDelete());
 
       const toasts = await screen.findByRole("region", {
         name: "Notifications",
@@ -368,7 +383,7 @@ describe("NoteOverview", () => {
       await waitFor(() =>
         expect(
           within(toasts).getByText(
-            "Couldn't save your latest changes, so \"Reading list\" wasn't deleted. Fix the save error, then try again.",
+            'Couldn’t save your latest changes, so "Reading list" wasn’t deleted. Fix the save error, then try again.',
           ),
         ).toBeInTheDocument(),
       );

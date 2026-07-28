@@ -582,7 +582,7 @@ describe("route: /today/task/:id planning intents", () => {
     expect(await storedScheduled(WS, id)).toBe("2026-07-21");
   });
 
-  it("clears a single task's plan", async () => {
+  it("clears a single task’s plan", async () => {
     const id = await seedTask(WS, "One");
     await taskRepo(WS).planTask(id, { scheduledDate: "2026-07-21" });
     const form = new FormData();

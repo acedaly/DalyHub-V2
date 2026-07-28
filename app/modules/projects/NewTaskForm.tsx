@@ -1,5 +1,5 @@
 /**
- * PROJ-01 — the "New task in this project" form (hosted in the shared DS-03 Drawer).
+ * PROJ-01 — the "New Task in this project" form (hosted in the shared DS-03 Drawer).
  *
  * DS-06 controls + `useForm` (required title, duplicate-submit prevention,
  * server-authoritative errors). It posts to `/projects/:projectId/mutate`
@@ -57,7 +57,7 @@ export function NewTaskForm({
       } catch {
         return {
           status: "error",
-          formError: "That task couldn't be created. Please try again.",
+          formError: "That task couldn’t be created. Please try again.",
         };
       }
       if (data.kind === "create_task" && data.ok) {
@@ -80,7 +80,7 @@ export function NewTaskForm({
 
   return (
     <Form
-      aria-label="New task"
+      aria-label="New Task"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >

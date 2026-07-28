@@ -97,7 +97,7 @@ describe("GoalDetailsRepository.update", () => {
     expect(await countActivitiesOfType("goal.details_updated")).toBe(1);
   });
 
-  it("title stays spine-owned: updating details never changes the Goal's title", async () => {
+  it("title stays spine-owned: updating details never changes the Goal’s title", async () => {
     const s = spine();
     const goal = await seedGoal(s);
     await details().update(goal.id, { targetDate: "2026-12-31" });

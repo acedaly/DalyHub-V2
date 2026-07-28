@@ -10,3 +10,5 @@ export {
   CollectionLayout,
   type CollectionLayoutProps,
 } from "./CollectionLayout";
+
+export { useCollectionLoading } from "./use-collection-loading";

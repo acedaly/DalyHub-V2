@@ -282,7 +282,7 @@ describe("Area routes", () => {
     );
   }, 90_000);
 
-  it("Area momentum ignores a completed/archived Project's health facts and reflects exact direct-task counts", async () => {
+  it("Area momentum ignores a completed/archived Project’s health facts and reflects exact direct-task counts", async () => {
     const s = spine(WS);
     const settings = makeProjectSettingsRepository(makeContext(WS));
     const area = await s.createArea({ title: "Context Area" });

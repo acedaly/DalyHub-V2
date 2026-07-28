@@ -109,7 +109,7 @@ afterEach(() => {
 });
 
 describe("ProjectActivityTab", () => {
-  it("renders the shared Timeline feed with the project's events", async () => {
+  it("renders the shared Timeline feed with the project’s events", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(
         page(

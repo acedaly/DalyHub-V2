@@ -56,7 +56,11 @@ function renderCollection(
     ],
     { initialEntries: ["/people"] },
   );
-  return render(<RouterProvider router={router} />);
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 describe("People collection", () => {
@@ -98,7 +102,7 @@ describe("People collection", () => {
 
   it("shows a warm empty state on /people", () => {
     renderCollection([]);
-    expect(screen.getByText("No people yet")).toBeInTheDocument();
+    expect(screen.getByText("No People yet")).toBeInTheDocument();
   });
 
   it("shows a Restore action for an archived person in the Archived view", () => {

@@ -78,8 +78,8 @@ describe("projectOffset", () => {
   });
 
   it("never exceeds the boundaries however far the finger travels", () => {
-    expect(projectOffset(0, -10_000, TRAY)).toBe(TRAY); // can't over-reveal
-    expect(projectOffset(TRAY, 10_000, TRAY)).toBe(0); // can't over-close
+    expect(projectOffset(0, -10_000, TRAY)).toBe(TRAY); // can’t over-reveal
+    expect(projectOffset(TRAY, 10_000, TRAY)).toBe(0); // can’t over-close
   });
 });
 

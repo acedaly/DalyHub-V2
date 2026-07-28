@@ -59,8 +59,8 @@ export function AssetSettingsTab({
         headingLevel={3}
         description={
           asset.archived
-            ? "This asset is archived — hidden from the active collection. Restore it to bring it back. (Archive is separate from the asset's real-world status.)"
-            : "Archive hides this asset from the active collection without deleting it; you can restore it any time. Archive is separate from the asset's real-world status."
+            ? "This asset is archived — hidden from the active collection. Restore it to bring it back. (Archive is separate from the asset’s real-world status.)"
+            : "Archive hides this asset from the active collection without deleting it; you can restore it any time. Archive is separate from the asset’s real-world status."
         }
       >
         {asset.archived ? (

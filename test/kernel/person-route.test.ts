@@ -203,7 +203,7 @@ describe("collection loaders", () => {
 });
 
 describe("GET /person/:id/activity", () => {
-  it("returns the person's timeline including the create event", async () => {
+  it("returns the person’s timeline including the create event", async () => {
     const id = await createPerson({ title: "Timeline" });
     const response = (await activityLoader({
       request: new Request(`https://app.test/person/${id}/activity`),

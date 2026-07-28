@@ -50,15 +50,18 @@ const PRODUCT_ROUTES = [
   // AREA-03 — the real Goals collection (the Alignment view) + a real Goal
   // record with the derived Alignment Summary panel.
   "/goals",
+  // PX-04 — the Goals "Deleted" lifecycle view, the durable path back from a
+  // reversible removal (the same shape as `/notes?state=deleted`).
+  "/goals?state=deleted",
   "/goals/g-launch",
   "/goals/g-launch?tab=activity",
   // PROJ-06 — the complete Projects collection + record surface across the
-  // canonical matrix: collection filters/cards, default Tasks tab, Key links,
+  // canonical matrix: collection filters/cards, default Tasks tab, Linked,
   // Activity Timeline and Settings.
   "/projects",
   "/projects/pr-website",
   "/projects/pr-website?tasks=all",
-  "/projects/pr-website?tab=links",
+  "/projects/pr-website?tab=linked",
   "/projects/pr-website?tab=activity",
   // PROJ-05 Slice 4 — the Settings tab, the Archived collection and a bare
   // archived record across the full breakpoint matrix.
@@ -191,8 +194,8 @@ test.describe("responsive — open overlays never overflow", () => {
         height: viewport.height,
       });
       await gotoFixture(page, "/projects");
-      await page.getByRole("link", { name: "New project" }).first().click();
-      await page.getByRole("dialog", { name: "New project" }).waitFor();
+      await page.getByRole("link", { name: "New Project" }).first().click();
+      await page.getByRole("dialog", { name: "New Project" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
     });

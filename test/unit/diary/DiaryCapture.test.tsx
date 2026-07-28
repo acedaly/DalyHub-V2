@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 describe("Diary capture", () => {
-  it("captures via the fast path and reports today's local day", async () => {
+  it("captures via the fast path and reports today’s local day", async () => {
     const fetchMock = mockCaptureOk("new-1");
     const onCaptured = vi.fn();
     render(<DiaryCapture todayKey="2026-07-20" onCaptured={onCaptured} />);

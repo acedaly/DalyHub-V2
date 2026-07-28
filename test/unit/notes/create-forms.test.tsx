@@ -6,7 +6,7 @@ import type { ReactElement } from "react";
 import { NewNoteForm } from "~/modules/notes/NewNoteForm";
 
 /**
- * NOTES-01B — the "New note" DS-06 create form as behaviour: required-title
+ * NOTES-01B — the "New Note" DS-06 create form as behaviour: required-title
  * validation, duplicate-submit prevention, server-authoritative errors, and
  * the success path (mirrors `test/unit/projects/create-forms.test.tsx`).
  */

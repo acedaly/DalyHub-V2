@@ -50,7 +50,7 @@ export interface UnsavedChangesGuardProps extends UnsavedChangesOptions {
 export function UnsavedChangesGuard({
   when,
   title = "Leave with unsaved changes?",
-  message = "You've made changes that haven't been saved. If you leave now, they'll be lost.",
+  message = "You’ve made changes that haven’t been saved. If you leave now, they’ll be lost.",
   leaveLabel = "Leave",
   stayLabel = "Stay",
   drawerKey,

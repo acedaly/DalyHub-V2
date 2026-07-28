@@ -108,7 +108,7 @@ describe("AlignmentRepository — activity facts derivation", () => {
     expect(facts).toBeNull();
   });
 
-  it("attributes a Task's creation (entity.created) as qualifying evidence via Task -> Project -> Goal", async () => {
+  it("attributes a Task’s creation (entity.created) as qualifying evidence via Task -> Project -> Goal", async () => {
     const w = world(WS);
     const goal = await newGoal(w);
     const project = await advancingProject(w, goal.id);
@@ -123,7 +123,7 @@ describe("AlignmentRepository — activity facts derivation", () => {
     expect(facts!.lastContributingActivityAt).toBeInstanceOf(Date);
   });
 
-  it("counts a Task's completion and reopening as further qualifying evidence", async () => {
+  it("counts a Task’s completion and reopening as further qualifying evidence", async () => {
     const w = world(WS);
     const goal = await newGoal(w);
     const project = await advancingProject(w, goal.id);
@@ -181,7 +181,7 @@ describe("AlignmentRepository — activity facts derivation", () => {
     expect(facts).toBeNull();
   });
 
-  it("excludes a soft-deleted Task's activity", async () => {
+  it("excludes a soft-deleted Task’s activity", async () => {
     const w = world(WS);
     const goal = await newGoal(w);
     const project = await advancingProject(w, goal.id);
@@ -214,7 +214,7 @@ describe("AlignmentRepository — activity facts derivation", () => {
     expect(factsB).toBeNull();
   });
 
-  it("a Project's exactly-one-parent invariant means its Tasks' evidence can never double-count across Goals", async () => {
+  it("a Project’s exactly-one-parent invariant means its Tasks' evidence can never double-count across Goals", async () => {
     // SPINE_MODEL.md: a Project has exactly one active structural parent
     // (enforced by a partial unique index), so "one Project advancing two
     // Goals" cannot be represented — moving a Project to a new Goal detaches
@@ -263,7 +263,7 @@ describe("AlignmentRepository — activity facts derivation", () => {
     );
   });
 
-  it("an archived Project's PAST Task activity still counts as historical evidence (ADR-040 §40.8)", async () => {
+  it("an archived Project’s PAST Task activity still counts as historical evidence (ADR-040 §40.8)", async () => {
     const w = world(WS);
     const goal = await newGoal(w);
     const project = await advancingProject(w, goal.id);
@@ -356,7 +356,7 @@ describe("AlignmentRepository — activity facts derivation", () => {
 });
 
 describe("AlignmentRepository.listGoalAlignmentEvidence", () => {
-  it("returns each contributing Task's most recent qualifying event, newest first", async () => {
+  it("returns each contributing Task’s most recent qualifying event, newest first", async () => {
     const w = world(WS);
     const goal = await newGoal(w);
     const project = await advancingProject(w, goal.id);
@@ -364,7 +364,7 @@ describe("AlignmentRepository.listGoalAlignmentEvidence", () => {
     w.clock.advance(1000);
     const taskB = await addTask(w, project.id, "B");
     w.clock.advance(1000);
-    await w.spine.complete(taskA.id); // bumps A's most recent event past B's creation
+    await w.spine.complete(taskA.id); // bumps A’s most recent event past B’s creation
 
     const page = await w.alignment.listGoalAlignmentEvidence(goal.id, 10);
     expect(page.items.map((i) => i.taskId)).toEqual([taskA.id, taskB.id]);
@@ -427,7 +427,7 @@ describe("GoalRepository.listGoals — the workspace-wide Alignment collection b
     expect(page.items[0]!.area).toEqual({ id: areaA.id, title: "Area A" });
   });
 
-  it("paginates deterministically and rejects a cursor issued for another workspace's scope", async () => {
+  it("paginates deterministically and rejects a cursor issued for another workspace’s scope", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Area" });
     await w.spine.createGoal({ title: "G1", areaId: area.id });
@@ -736,7 +736,7 @@ describe("GoalRepository.listGoalsByAlignment — global Alignment order (DEBT-2
     expect(last.nextCursor).toBeNull();
   });
 
-  it("rejects a malformed cursor and a cursor from another workspace's scope", async () => {
+  it("rejects a malformed cursor and a cursor from another workspace’s scope", async () => {
     const w = world(WS, "2026-07-01T00:00:00.000Z");
     await seedAllStates(w);
     const { activeBoundary } = ctxAt(NOW);

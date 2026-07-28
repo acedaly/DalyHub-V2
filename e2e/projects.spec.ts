@@ -64,7 +64,7 @@ test.describe("PROJ-01 — Projects", () => {
 
     // Add a task through the shared create Drawer.
     await page.getByRole("link", { name: "Add task" }).first().click();
-    const createDialog = page.getByRole("dialog", { name: "New task" });
+    const createDialog = page.getByRole("dialog", { name: "New Task" });
     await expect(createDialog).toBeVisible();
     await createDialog.getByLabel(/Title/).fill("E2E launch task");
     await createDialog.getByRole("button", { name: "Add task" }).click();
@@ -245,12 +245,12 @@ test.describe("PROJ-01 — Projects", () => {
     await expect(latecomer).toHaveCount(1);
   });
 
-  test("New project: the parent picker searches the server for an Area", async ({
+  test("New Project: the parent picker searches the server for an Area", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects");
-    await page.getByRole("link", { name: "New project" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New project" });
+    await page.getByRole("link", { name: "New Project" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "New Project" });
     await expect(dialog).toBeVisible();
 
     // Typing queries the server-backed endpoint; the "Pagination" Area is selectable

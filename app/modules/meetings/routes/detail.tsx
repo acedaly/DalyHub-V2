@@ -18,6 +18,11 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { EntityIcon, EntityLink } from "~/shared/entity";
+import {
+  lifecycleActionLabel,
+  useRecordLifecycle,
+} from "~/shared/record-lifecycle";
+import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { EmptyState } from "~/shared/empty-state";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import { RecordLayout } from "~/shared/record-layout";
@@ -220,7 +225,7 @@ function MeetingRecord({
     return map;
   }, [followUps]);
 
-  // A meeting-aware ⌘K action: "New meeting follow-up" navigates to this meeting's
+  // A meeting-aware ⌘K action: "New Meeting follow-up" navigates to this meeting's
   // Follow-up tab with the direct follow-up drawer open (a `navigate` action, never
   // a focus-moving `run`, per COMMAND_PALETTE.md). Hidden on an archived meeting.
   const followUpActions = useMemo<AppAction[]>(
@@ -230,7 +235,7 @@ function MeetingRecord({
         : [
             {
               id: `meetings.follow_up.${m.id}`,
-              title: "New meeting follow-up",
+              title: "New Meeting follow-up",
               subtitle: "Capture a follow-up task from this meeting",
               keywords: ["follow up", "task", "convert", "action item"],
               kind: "navigate",
@@ -261,220 +266,262 @@ function MeetingRecord({
     />
   );
 
+  // PX-04 — the shared lifecycle, in the shared overflow slot. Archiving a
+  // meeting was previously reachable only through the Settings tab.
+  const lifecycle = useRecordLifecycle({
+    entityType: "meeting",
+    title: m.title,
+    archived: Boolean(m.archivedAt),
+    onArchive: async () => {
+      const ok = await post({ intent: "archive" });
+      if (!ok) throw new Error("Couldn’t archive this meeting.");
+    },
+    onRestore: async () => {
+      const ok = await post({ intent: "restore" });
+      if (!ok) throw new Error("Couldn’t restore this meeting.");
+    },
+  });
+
   const attendeeIds = new Set(loaderData.attendees.map((a) => a.id));
   const addablePeople = loaderData.people.filter((p) => !attendeeIds.has(p.id));
 
   return (
-    <RecordLayout
-      title={m.title}
-      typeLabel="Meeting"
-      icon={<EntityIcon type="meeting" />}
-      breadcrumb={[{ id: "meetings", label: "Meetings", href: "/meetings" }]}
-      status={{
-        label: m.archivedAt ? "Archived" : m.status,
-        tone: m.archivedAt ? "warning" : "neutral",
-      }}
-      metadata={[
-        {
-          id: "when",
-          label: "When",
-          value: new Intl.DateTimeFormat("en", {
-            dateStyle: "medium",
-            timeStyle: "short",
-            timeZone: m.timezone,
-          }).format(new Date(m.startsAt)),
-        },
-        {
-          id: "where",
-          label: "Where",
-          value: m.location ?? m.mode ?? "Not set",
-        },
-      ]}
-      activeTabId={active}
-      onTabChange={change}
-      tabs={[
-        {
-          id: "summary",
-          label: "Summary",
-          content: (
-            <section className="dh-meeting-section">
-              <h2>Meeting details</h2>
-              <dl>
-                <dt>Status</dt>
-                <dd>{m.status}</dd>
-                {m.meetingUrl && (
-                  <>
-                    <dt>Meeting link</dt>
-                    <dd>
-                      <a href={m.meetingUrl} target="_blank" rel="noreferrer">
-                        Open meeting link
-                      </a>
-                    </dd>
-                  </>
+    <>
+      <RecordLayout
+        title={m.title}
+        typeLabel="Meeting"
+        icon={<EntityIcon type="meeting" />}
+        breadcrumb={[{ id: "meetings", label: "Meetings", href: "/meetings" }]}
+        status={{
+          label: m.archivedAt ? "Archived" : m.status,
+          tone: m.archivedAt ? "warning" : "neutral",
+        }}
+        metadata={[
+          {
+            id: "when",
+            label: "When",
+            value: new Intl.DateTimeFormat("en", {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: m.timezone,
+            }).format(new Date(m.startsAt)),
+          },
+          {
+            id: "where",
+            label: "Where",
+            value: m.location ?? m.mode ?? "Not set",
+          },
+        ]}
+        overflowActions={lifecycle.overflowActions}
+        activeTabId={active}
+        onTabChange={change}
+        tabs={[
+          {
+            id: "summary",
+            label: "Summary",
+            content: (
+              <section className="dh-record-section">
+                <h2>Meeting details</h2>
+                <dl>
+                  <dt>Status</dt>
+                  <dd>{m.status}</dd>
+                  {m.meetingUrl && (
+                    <>
+                      <dt>Meeting link</dt>
+                      <dd>
+                        <a href={m.meetingUrl} target="_blank" rel="noreferrer">
+                          Open meeting link
+                        </a>
+                      </dd>
+                    </>
+                  )}
+                </dl>
+                <h3>Attendees</h3>
+                {loaderData.attendees.length ? (
+                  <ul className="dh-meeting-attendees">
+                    {loaderData.attendees.map((a) => (
+                      <li key={a.id} className="dh-meeting-attendee">
+                        <EntityLink type="person" id={a.id} title={a.title} />
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            className="dh-btn dh-btn--ghost"
+                            aria-label={`Remove attendee ${a.title}`}
+                            onClick={() =>
+                              void post({
+                                intent: "remove_attendee",
+                                linkId: a.linkId,
+                              })
+                            }
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="dh-follow-up-empty">No attendees yet.</p>
                 )}
-              </dl>
-              <h3>Attendees</h3>
-              {loaderData.attendees.length ? (
-                <ul className="dh-meeting-attendees">
-                  {loaderData.attendees.map((a) => (
-                    <li key={a.id} className="dh-meeting-attendee">
-                      <EntityLink type="person" id={a.id} title={a.title} />
-                      {!readOnly && (
-                        <button
-                          type="button"
-                          className="dh-btn dh-btn--ghost"
-                          aria-label={`Remove attendee ${a.title}`}
-                          onClick={() =>
-                            void post({
-                              intent: "remove_attendee",
-                              linkId: a.linkId,
-                            })
-                          }
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="dh-follow-up-empty">No attendees yet.</p>
-              )}
-              {!readOnly && addablePeople.length > 0 && (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const personId = String(
-                      new FormData(event.currentTarget).get("personId") ?? "",
-                    );
-                    if (personId)
-                      void post({ intent: "add_attendee", personId });
-                  }}
-                >
-                  <label className="dh-field">
-                    <span className="dh-field__label">Add attendee</span>
-                    <select
-                      name="personId"
-                      className="dh-input"
-                      defaultValue=""
-                    >
-                      <option value="" disabled>
-                        Choose a person…
-                      </option>
-                      {addablePeople.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.title}
+                {!readOnly && addablePeople.length > 0 && (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const personId = String(
+                        new FormData(event.currentTarget).get("personId") ?? "",
+                      );
+                      if (personId)
+                        void post({ intent: "add_attendee", personId });
+                    }}
+                  >
+                    <label className="dh-field">
+                      <span className="dh-field__label">Add attendee</span>
+                      <select
+                        name="personId"
+                        className="dh-input"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          Choose a person…
                         </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="submit" className="dh-btn dh-btn--secondary">
-                    Add attendee
-                  </button>
-                </form>
-              )}
-            </section>
-          ),
-        },
-        {
-          id: "follow-up",
-          label: "Follow-up",
-          content: (
-            <MeetingFollowUpTab
-              items={m.items}
-              followUps={followUps}
-              readOnly={readOnly}
-              onConvert={onConvert}
-              onOpenTask={onOpenTask}
-              onAddFollowUp={onAddFollowUp}
-            />
-          ),
-        },
-        {
-          id: "agenda",
-          label: "Agenda",
-          content: (
-            <div className="dh-meeting-section">
+                        {addablePeople.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button type="submit" className="dh-btn dh-btn--secondary">
+                      Add attendee
+                    </button>
+                  </form>
+                )}
+              </section>
+            ),
+          },
+          {
+            id: "follow-up",
+            label: "Follow-up",
+            content: (
+              <MeetingFollowUpTab
+                items={m.items}
+                followUps={followUps}
+                readOnly={readOnly}
+                onConvert={onConvert}
+                onOpenTask={onOpenTask}
+                onAddFollowUp={onAddFollowUp}
+              />
+            ),
+          },
+          {
+            id: "agenda",
+            label: "Agenda",
+            content: (
+              <div className="dh-record-section">
+                <MeetingMarkdown
+                  meetingId={m.id}
+                  field="agendaMarkdown"
+                  label="Agenda"
+                  initial={m.agendaMarkdown}
+                  onSaved={() => r.revalidate()}
+                />
+                {itemSection("agenda", "Agenda items")}
+              </div>
+            ),
+          },
+          {
+            id: "notes",
+            label: "Notes",
+            content: (
               <MeetingMarkdown
                 meetingId={m.id}
-                field="agendaMarkdown"
-                label="Agenda"
-                initial={m.agendaMarkdown}
+                field="notesMarkdown"
+                label="Notes"
+                initial={m.notesMarkdown}
                 onSaved={() => r.revalidate()}
               />
-              {itemSection("agenda", "Agenda items")}
-            </div>
-          ),
-        },
-        {
-          id: "notes",
-          label: "Notes",
-          content: (
-            <MeetingMarkdown
-              meetingId={m.id}
-              field="notesMarkdown"
-              label="Notes"
-              initial={m.notesMarkdown}
-              onSaved={() => r.revalidate()}
-            />
-          ),
-        },
-        {
-          id: "decisions",
-          label: "Decisions",
-          content: itemSection("decision", "Decisions"),
-        },
-        {
-          id: "outcomes",
-          label: "Outcomes",
-          content: itemSection("outcome", "Outcomes"),
-        },
-        {
-          id: "linked",
-          label: "Linked",
-          content: (
-            <LinkedItemsTab
-              anchorId={m.id}
-              anchorType="meeting"
-              readOnly={readOnly}
-              linkCommandTarget={{
-                kind: "route",
-                to: `/meeting/${m.id}?tab=linked`,
-              }}
-            />
-          ),
-        },
-        {
-          id: "activity",
-          label: "Activity",
-          content: (
-            <MeetingTimelineTab meetingId={m.id} reloadKey={m.updatedAt} />
-          ),
-        },
-        {
-          id: "settings",
-          label: "Settings",
-          content: (
-            <section className="dh-meeting-section">
-              <h2>Meeting settings</h2>
-              <p>
-                Archiving removes this record from active meeting views without
-                deleting its history. Follow-up tasks stay accessible and are
-                never archived or deleted with the meeting.
-              </p>
-              <button
-                className="dh-btn dh-btn--secondary"
-                onClick={() =>
-                  void post({ intent: m.archivedAt ? "restore" : "archive" })
-                }
-              >
-                {m.archivedAt ? "Restore meeting" : "Archive meeting"}
-              </button>
-            </section>
-          ),
-        },
-      ]}
-    />
+            ),
+          },
+          {
+            id: "decisions",
+            label: "Decisions",
+            content: itemSection("decision", "Decisions"),
+          },
+          {
+            id: "outcomes",
+            label: "Outcomes",
+            content: itemSection("outcome", "Outcomes"),
+          },
+          {
+            id: "linked",
+            label: "Linked",
+            content: (
+              <LinkedItemsTab
+                anchorId={m.id}
+                anchorType="meeting"
+                readOnly={readOnly}
+                linkCommandTarget={{
+                  kind: "route",
+                  to: `/meeting/${m.id}?tab=linked`,
+                }}
+              />
+            ),
+          },
+          {
+            id: "activity",
+            label: "Activity",
+            content: (
+              <MeetingTimelineTab meetingId={m.id} reloadKey={m.updatedAt} />
+            ),
+          },
+          {
+            id: "settings",
+            label: "Settings",
+            // PX-04: the shared DS-10b Settings surface, not a bespoke section with
+            // a raw button — the same structure Areas/Projects/People/Assets use,
+            // and the same lifecycle wording as the header overflow above.
+            content: (
+              <SettingsLayout title="Meeting settings">
+                <SettingsGroup
+                  title={m.archivedAt ? "Archived" : "Archive"}
+                  description="Archiving removes this record from active meeting views without deleting its history. Follow-up tasks stay accessible and are never archived or deleted with the meeting."
+                  tone={m.archivedAt ? undefined : "danger"}
+                >
+                  <SettingsRow
+                    label={
+                      m.archivedAt
+                        ? lifecycleActionLabel("restore", "meeting")
+                        : lifecycleActionLabel("archive", "meeting")
+                    }
+                    description={
+                      m.archivedAt
+                        ? "Bring it back into your active meetings. Nothing inside it changed."
+                        : "It leaves your active meetings, but stays readable and fully intact."
+                    }
+                    control={
+                      <button
+                        type="button"
+                        className="dh-btn dh-btn--secondary"
+                        onClick={() =>
+                          void post({
+                            intent: m.archivedAt ? "restore" : "archive",
+                          })
+                        }
+                      >
+                        {m.archivedAt
+                          ? lifecycleActionLabel("restore", "meeting")
+                          : lifecycleActionLabel("archive", "meeting")}
+                      </button>
+                    }
+                  />
+                </SettingsGroup>
+              </SettingsLayout>
+            ),
+          },
+        ]}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }
 
@@ -483,7 +530,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     return (
       <EmptyState
         icon={<EntityIcon type="meeting" />}
-        title="We couldn't find that meeting"
+        title="We couldn’t find that meeting"
         description="It may have been deleted or belongs to another workspace."
       />
     );

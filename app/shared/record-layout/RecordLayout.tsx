@@ -31,6 +31,8 @@ export function RecordLayout({
   metadata,
   primaryAction,
   secondaryActions,
+  overflowActions,
+  overflowLabel,
   // Summary
   summary,
   // Tabs
@@ -59,6 +61,8 @@ export function RecordLayout({
         metadata={metadata}
         primaryAction={primaryAction}
         secondaryActions={secondaryActions}
+        overflowActions={overflowActions}
+        overflowLabel={overflowLabel}
       />
 
       {summary !== undefined && (

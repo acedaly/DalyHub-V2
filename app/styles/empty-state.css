@@ -28,6 +28,24 @@
   border-radius: var(--dh-radius-full);
 }
 
+/* PX-06 — the compact size: the same anatomy at a widget's scale, so a quiet
+ * Today section still teaches the next action instead of being a bare sentence
+ * (or a full-height empty block). */
+.dh-empty-state[data-size="compact"] {
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-5) var(--dh-space-3);
+}
+
+.dh-empty-state[data-size="compact"] .dh-empty-state__icon {
+  inline-size: 2rem;
+  block-size: 2rem;
+  font-size: var(--dh-font-size-md);
+}
+
+.dh-empty-state[data-size="compact"] .dh-empty-state__title {
+  font-size: var(--dh-font-size-md);
+}
+
 .dh-empty-state__illustration {
   max-width: 100%;
 }

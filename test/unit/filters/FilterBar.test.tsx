@@ -136,7 +136,7 @@ describe("FilterBar — edit, remove, clear", () => {
     expect(within(chips).queryByText("run")).toBeNull();
   });
 
-  it("restores focus to the chip's edit button after the editor closes", () => {
+  it("restores focus to the chip’s edit button after the editor closes", () => {
     render(<Harness initial={initial} />);
     const editButton = screen.getByRole("button", { name: /Edit filter/ });
     fireEvent.click(editButton);

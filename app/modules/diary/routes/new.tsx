@@ -123,7 +123,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     return json({
       ok: false,
-      formError: "That entry couldn't be captured. Please try again.",
+      formError: "That entry couldn’t be captured. Please try again.",
     });
   }
 }

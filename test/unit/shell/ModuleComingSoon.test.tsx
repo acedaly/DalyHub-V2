@@ -11,7 +11,7 @@ describe("PX-03 ModuleComingSoon", () => {
         entityType="note"
         summary="Markdown records that document any entity in DalyHub."
         fit="Notes attach across the spine via EntityLinks."
-        roadmapStatus="It's planned for Phase 5 — Notes (NOTES-01 → NOTES-04)."
+        roadmapStatus="It’s planned for Phase 5 — Notes (NOTES-01 → NOTES-04)."
         capabilities={["Create, edit and read Markdown notes"]}
       />,
     );
@@ -36,14 +36,14 @@ describe("PX-03 ModuleComingSoon", () => {
         name="Diary"
         summary="Dated Markdown journal entries."
         fit="Diary is your private journal."
-        roadmapStatus="It's planned for Phase 9 — Diary."
-        capabilities={["Write dated entries", "Link to the day's context"]}
+        roadmapStatus="It’s planned for Phase 9 — Diary."
+        capabilities={["Write dated entries", "Link to the day’s context"]}
       />,
     );
     const list = screen.getByRole("list");
     expect(list.querySelectorAll("li")).toHaveLength(2);
     expect(screen.getByText("Write dated entries")).toBeInTheDocument();
-    expect(screen.getByText("Link to the day's context")).toBeInTheDocument();
+    expect(screen.getByText("Link to the day’s context")).toBeInTheDocument();
   });
 
   it("shows the entity identity glyph only when an entity type is given", () => {
@@ -52,7 +52,7 @@ describe("PX-03 ModuleComingSoon", () => {
         name="AI"
         summary="A propose → review → apply loop."
         fit="AI is a proposer, never an autonomous actor."
-        roadmapStatus="It's planned for Phase 11 — AI."
+        roadmapStatus="It’s planned for Phase 11 — AI."
         capabilities={["A propose → review → apply loop"]}
       />,
     );
@@ -63,8 +63,8 @@ describe("PX-03 ModuleComingSoon", () => {
         name="Reviews"
         entityType="review"
         summary="Guided rituals."
-        fit="Review is DalyHub's ritual layer."
-        roadmapStatus="It's planned for Phase 10 — Review."
+        fit="Review is DalyHub’s ritual layer."
+        roadmapStatus="It’s planned for Phase 10 — Review."
         capabilities={["Guided review rituals"]}
       />,
     );
@@ -78,8 +78,8 @@ describe("PX-03 ModuleComingSoon", () => {
       <ModuleComingSoon
         name="Help"
         summary="Guidance for how DalyHub works."
-        fit="Help is planned to become DalyHub's in-app guidance."
-        roadmapStatus="Help isn't a dedicated phase on the DalyHub V2 roadmap yet."
+        fit="Help is planned to become DalyHub’s in-app guidance."
+        roadmapStatus="Help isn’t a dedicated phase on the DalyHub V2 roadmap yet."
         capabilities={[
           "The keyboard-shortcut reference already shipped for Today",
         ]}

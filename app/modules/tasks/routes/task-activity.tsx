@@ -57,7 +57,7 @@ const TASK_DESCRIPTORS: Record<string, ActivityTypeDescriptor> = {
     tone: "warning",
   },
   [TASK_WAITING_CHANGED]: {
-    label: "Changed what it's waiting on",
+    label: "Changed what it’s waiting on",
     entityType: "task",
     tone: "warning",
   },

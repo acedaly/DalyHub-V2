@@ -135,8 +135,8 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     test.setTimeout(120_000);
     const noteTitle = uniqueNoteTitle("touch-targets");
     await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New note" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New note" });
+    await page.getByRole("link", { name: "New Note" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "New Note" });
     await expect(dialog).toBeVisible();
     // Let the drawer-open loader revalidation settle before submitting, so the
     // create-navigation isn't dropped racing it (leaving the URL stuck on

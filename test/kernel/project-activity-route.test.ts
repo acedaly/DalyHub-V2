@@ -114,7 +114,7 @@ beforeEach(async () => {
 });
 
 describe("GET /projects/:projectId/activity", () => {
-  it("returns the project's own events, newest-first, project as an authorised subject", async () => {
+  it("returns the project’s own events, newest-first, project as an authorised subject", async () => {
     const clock = new FakeClock();
     const { projectId } = await seedProject(WS, clock);
     // A child task: its `task.belongs_to_project` link names the project (target).

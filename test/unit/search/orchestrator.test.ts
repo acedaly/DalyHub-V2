@@ -279,7 +279,7 @@ describe("executeSearch — provider deadlines and cancellation", () => {
     }
   });
 
-  it("aborts the timed-out provider's signal", async () => {
+  it("aborts the timed-out provider’s signal", async () => {
     vi.useFakeTimers();
     try {
       let seen: AbortSignal | undefined;

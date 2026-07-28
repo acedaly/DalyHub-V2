@@ -237,7 +237,7 @@ describe("links", () => {
   it("shows the real project, goal and area relationships", async () => {
     renderDrawer(<TaskDrawerContent taskId="t1" />);
     await screen.findByRole("heading", { name: "Write the ADR" });
-    fireEvent.click(screen.getByRole("tab", { name: "Links" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Linked" }));
     const relationships = await screen.findByRole("region", {
       name: "Relationships",
     });
@@ -252,7 +252,7 @@ describe("states", () => {
     stubFetch({ detail: { error: "not_found" }, detailStatus: 404 });
     renderDrawer(<TaskDrawerContent taskId="t1" />);
     expect(
-      await screen.findByText("We couldn't find that task"),
+      await screen.findByText("We couldn’t find that task"),
     ).toBeInTheDocument();
   });
 
@@ -263,7 +263,7 @@ describe("states", () => {
     );
     renderDrawer(<TaskDrawerContent taskId="t1" />);
     expect(
-      await screen.findByText("We couldn't load this task"),
+      await screen.findByText("We couldn’t load this task"),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });

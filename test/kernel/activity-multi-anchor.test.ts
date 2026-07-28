@@ -184,7 +184,7 @@ describe("Activity multi-anchor listing", () => {
     ).rejects.toBeInstanceOf(InvalidActivityCursorError);
   });
 
-  it("is workspace-isolated: another workspace's anchor is unavailable", async () => {
+  it("is workspace-isolated: another workspace’s anchor is unavailable", async () => {
     const mine = await create("Mine");
     const otherEntities = makeRepository(CTX_OTHER, {
       clock: clock.now,
@@ -213,7 +213,7 @@ describe("Activity multi-anchor listing", () => {
     ).rejects.toBeInstanceOf(ActivitySubjectUnavailableError);
   });
 
-  it("keeps a soft-deleted anchor's history queryable", async () => {
+  it("keeps a soft-deleted anchor’s history queryable", async () => {
     const a = await create("A");
     const b = await create("B");
     await entities.softDelete(b);

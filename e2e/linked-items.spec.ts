@@ -26,8 +26,8 @@ const ownedNoteTitles = new Set<string>();
 async function createNote(page: Page, title: string): Promise<string> {
   ownedNoteTitles.add(title);
   await gotoFixture(page, "/notes");
-  await page.getByRole("link", { name: "New note" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New note" });
+  await page.getByRole("link", { name: "New Note" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New Note" });
   await expect(dialog).toBeVisible();
   await page.waitForLoadState("networkidle");
   await dialog.getByLabel(/Title/).fill(title);

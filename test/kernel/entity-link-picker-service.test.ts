@@ -256,7 +256,7 @@ describe("DS-06 entity-link picker service (FND-04 policy integration)", () => {
     expect(await listActiveLinks(depsA, { anchorId: ANCHOR })).toHaveLength(1);
   });
 
-  it("enforces workspace isolation — B cannot see or link A's entities", async () => {
+  it("enforces workspace isolation — B cannot see or link A’s entities", async () => {
     const result = await createLinkWithPolicy(depsB, policy(), {
       targetId: NOTE,
       linkType: "project.supporting_note",

@@ -49,7 +49,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     return json({
       ok: false,
-      formError: "That Area couldn't be created. Please try again.",
+      formError: "That Area couldn’t be created. Please try again.",
     });
   }
 }

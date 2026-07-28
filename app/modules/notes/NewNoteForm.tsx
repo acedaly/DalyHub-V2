@@ -1,5 +1,5 @@
 /**
- * NOTES-01B — the "New note" form (hosted in the shared DS-03 Drawer).
+ * NOTES-01B — the "New Note" form (hosted in the shared DS-03 Drawer).
  *
  * Built entirely from DS-06 shared controls (`useForm`, `TextField`) with
  * explicit Save/Cancel, required-title validation, duplicate-submit
@@ -50,7 +50,7 @@ export function NewNoteForm({ onCreated, onCancel }: NewNoteFormProps) {
       } catch {
         return {
           status: "error",
-          formError: "That note couldn't be created. Please try again.",
+          formError: "That note couldn’t be created. Please try again.",
         };
       }
       if (data.ok) {
@@ -70,7 +70,7 @@ export function NewNoteForm({ onCreated, onCancel }: NewNoteFormProps) {
 
   return (
     <Form
-      aria-label="New note"
+      aria-label="New Note"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >

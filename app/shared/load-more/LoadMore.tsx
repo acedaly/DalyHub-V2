@@ -35,7 +35,7 @@ export function LoadMore({
     <div className="dh-load-more">
       {loadFailed ? (
         <p className="dh-load-more__error" role="status">
-          We couldn&rsquo;t load more. Please try again.
+          We couldn’t load more. Please try again.
         </p>
       ) : null}
       <button

@@ -27,7 +27,7 @@ async function createMeeting(page: Page, title: string): Promise<string> {
   owned.add(title);
   await gotoFixture(page, "/new/meeting");
   await page
-    .getByRole("form", { name: "New meeting" })
+    .getByRole("form", { name: "New Meeting" })
     .getByLabel("Title")
     .fill(title);
   await page.getByLabel("Starts").fill("2026-07-27T09:00");

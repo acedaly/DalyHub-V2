@@ -1,5 +1,5 @@
 /**
- * PEOPLE-01 — the "New person" form (hosted in the DS-03 Drawer or the
+ * PEOPLE-01 — the "New Person" form (hosted in the DS-03 Drawer or the
  * `/new/person` page). Uses DS-06 explicit form controls and posts to the trusted
  * `/new/person` action, which creates through `PersonRepository.create` — the
  * client never supplies workspace or actor data. Captures the essentials warmly;
@@ -97,7 +97,7 @@ export function NewPersonForm({ onCreated, onCancel }: NewPersonFormProps) {
       } catch {
         return {
           status: "error",
-          formError: "That person couldn't be created. Please try again.",
+          formError: "That person couldn’t be created. Please try again.",
         };
       }
       if (data.ok) {
@@ -115,7 +115,7 @@ export function NewPersonForm({ onCreated, onCancel }: NewPersonFormProps) {
 
   return (
     <Form
-      aria-label="New person"
+      aria-label="New Person"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >

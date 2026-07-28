@@ -88,7 +88,7 @@ async function addTask(
 }
 
 describe("ProjectHealthRepository — facts derivation", () => {
-  it("derives health from ALL of a project's tasks, independent of Tasks-tab paging (60+ tasks)", async () => {
+  it("derives health from ALL of a project’s tasks, independent of Tasks-tab paging (60+ tasks)", async () => {
     const w = world(WS);
     const project = await newProject(w);
     // 60 tasks: 40 open, 20 completed — far more than any task-list page size.
@@ -184,7 +184,7 @@ describe("ProjectHealthRepository — facts derivation", () => {
 });
 
 describe("ProjectHealthRepository — staleness from Activity", () => {
-  it("child-task meaningful activity keeps a project fresh; the project's own updated_at is not required", async () => {
+  it("child-task meaningful activity keeps a project fresh; the project’s own updated_at is not required", async () => {
     const w = world(WS, "2026-07-01T00:00:00.000Z");
     const project = await newProject(w);
     // Later, add a task (records a meaningful child event) close to 'today'.
@@ -229,7 +229,7 @@ describe("ProjectHealthRepository — staleness from Activity", () => {
     expect(health.state).toBe("stale");
   });
 
-  it("a soft-deleted child task's activity does not keep a project fresh (stays stale)", async () => {
+  it("a soft-deleted child task’s activity does not keep a project fresh (stays stale)", async () => {
     const w = world(WS, "2026-07-01T00:00:00.000Z");
     const project = await newProject(w);
     // An old remaining task keeps the project open with stale activity.

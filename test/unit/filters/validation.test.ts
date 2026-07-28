@@ -150,7 +150,7 @@ describe("boolean", () => {
 });
 
 describe("operator overrides", () => {
-  it("allows narrowing to a subset of the type's operators", () => {
+  it("allows narrowing to a subset of the type’s operators", () => {
     expect(
       operatorsForField({
         id: "t",

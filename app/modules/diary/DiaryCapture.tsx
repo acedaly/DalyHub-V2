@@ -89,7 +89,7 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
       } catch {
         return {
           status: "error",
-          formError: "That entry couldn't be captured. Please try again.",
+          formError: "That entry couldn’t be captured. Please try again.",
         };
       }
       if (data.ok) {

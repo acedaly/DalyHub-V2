@@ -111,7 +111,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
           blockedReason: "has_links",
           linkCount: result.linkCount,
           formError:
-            "Unlink this asset's related records before deleting it permanently.",
+            "Unlink this asset’s related records before deleting it permanently.",
         });
       }
       // Already gone: treat as success (idempotent).
@@ -120,7 +120,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "delete",
         ok: false,
-        formError: "That couldn't be deleted. Please try again.",
+        formError: "That couldn’t be deleted. Please try again.",
       });
     }
   }
@@ -149,7 +149,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "rename",
         ok: false,
-        formError: "That couldn't be saved. Please try again.",
+        formError: "That couldn’t be saved. Please try again.",
       });
     }
   }
@@ -169,7 +169,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "update",
         ok: false,
-        formError: "That couldn't be saved. Please try again.",
+        formError: "That couldn’t be saved. Please try again.",
       });
     }
   }
@@ -182,7 +182,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "archive",
         ok: false,
-        formError: "That couldn't be archived. Please try again.",
+        formError: "That couldn’t be archived. Please try again.",
       });
     }
   }
@@ -195,7 +195,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({
         kind: "restore",
         ok: false,
-        formError: "That couldn't be restored. Please try again.",
+        formError: "That couldn’t be restored. Please try again.",
       });
     }
   }

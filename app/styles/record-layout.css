@@ -560,3 +560,47 @@
     flex: 1 1 auto;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Record content sections (PX-06)                                            */
+/*                                                                            */
+/* ONE vertical rhythm for the sections inside a record's tab panel. Four       */
+/* modules had grown their own — the Task Drawer's `__links`/`__section`, the   */
+/* Project Key-links tab borrowing them by class name, `dh-meeting-section`     */
+/* and `dh-review-tab-stack` — at three different gaps, so the same idea        */
+/* breathed differently on every record. These are the shared primitives; a     */
+/* module adds only what is genuinely its own on top.                          */
+/* -------------------------------------------------------------------------- */
+
+/* The stack of sections inside a tab panel. */
+.dh-record-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+  min-width: 0;
+}
+
+/* One section within that stack. */
+.dh-record-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+/* A section's eyebrow label. Restrained, uppercase, never the record heading. */
+.dh-record-section__label {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-semibold);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+/* Calm supporting/absent-state prose inside a record section. */
+.dh-record-muted {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}

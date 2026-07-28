@@ -164,7 +164,7 @@ export function MeetingFollowUpForm({
         return {
           status: "error",
           formError:
-            "That follow-up couldn't be created. Your text is safe — try again.",
+            "That follow-up couldn’t be created. Your text is safe — try again.",
         };
       }
       if (data.ok) {

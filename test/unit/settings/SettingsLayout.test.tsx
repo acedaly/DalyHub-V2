@@ -118,7 +118,7 @@ function DrawerHostedHarness({
 }
 
 describe("DS-10b SettingsLayout — focus safety net (PROJ-05 Slice 4)", () => {
-  it("reclaims focus to the settings surface itself — never a global page region — when a confirmed dangerous action's own subtree (trigger + dialog) unmounts together on success", async () => {
+  it("reclaims focus to the settings surface itself — never a global page region — when a confirmed dangerous action’s own subtree (trigger + dialog) unmounts together on success", async () => {
     const onArchive = vi.fn(() => Promise.resolve());
     render(<FullPageHarness onArchive={onArchive} />);
 

@@ -2,6 +2,8 @@ import { RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { FeedbackProvider } from "~/shared/feedback";
+
 import { AreaOverviewView } from "~/modules/areas/AreaOverview";
 import type {
   SerializedAreaGoalItem,
@@ -109,7 +111,11 @@ function renderRecord(
     ],
     { initialEntries: ["/areas/a1"] },
   );
-  return render(<RouterProvider router={router} />);
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 describe("AreaOverview", () => {
@@ -132,7 +138,7 @@ describe("AreaOverview", () => {
     expect(onOpenGoal).toHaveBeenCalledWith("g1");
   });
 
-  it("shows a Goal's target date only when set, never overcrowding the card (AREA-02)", () => {
+  it("shows a Goal’s target date only when set, never overcrowding the card (AREA-02)", () => {
     const { unmount } = renderRecord();
     expect(screen.queryByText("Target")).not.toBeInTheDocument();
     unmount();

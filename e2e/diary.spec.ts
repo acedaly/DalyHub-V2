@@ -107,7 +107,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expectNoAxeViolations(page);
 
     // 2. Launch capture from the New entry button and file the fast path.
-    await page.getByRole("button", { name: "New entry" }).first().click();
+    await page.getByRole("button", { name: "New Diary entry" }).first().click();
     const capture = page.getByRole("form", { name: "Quick capture" });
     await expect(capture).toBeVisible();
     await capture.getByRole("button", { name: "Capture" }).click();
@@ -126,7 +126,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     );
 
     // 4. A second capture with optional Markdown via the details disclosure.
-    await page.getByRole("button", { name: "New entry" }).first().click();
+    await page.getByRole("button", { name: "New Diary entry" }).first().click();
     const capture2 = page.getByRole("form", { name: "Quick capture" });
     await capture2.getByRole("textbox", { name: /Title/ }).fill(second);
     await capture2.getByRole("button", { name: "Add details" }).click();
@@ -194,7 +194,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     await expect(page).toHaveURL(/inspector=view/);
 
     // 9. Touch targets + no horizontal overflow across the matrix.
-    await page.getByRole("button", { name: "New entry" }).first().click();
+    await page.getByRole("button", { name: "New Diary entry" }).first().click();
     await expectMinTouchTarget(
       page.getByRole("form", { name: "Quick capture" }).getByRole("button", {
         name: "Capture",
@@ -241,7 +241,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
     const backdated = `${PREFIX}${stamp} memory`;
 
     await gotoFixture(page, "/diary");
-    await page.getByRole("button", { name: "New entry" }).first().click();
+    await page.getByRole("button", { name: "New Diary entry" }).first().click();
     const capture = page.getByRole("form", { name: "Quick capture" });
     await capture.getByRole("textbox", { name: /Title/ }).fill(backdated);
     await capture.getByRole("button", { name: "Add details" }).click();

@@ -120,11 +120,11 @@ test.describe("Relationship navigation (deliverable 4)", () => {
     ).toHaveCount(0);
   });
 
-  test("Project Key links relationship rows are navigable, back/forward works", async ({
+  test("Project Linked relationship rows are navigable, back/forward works", async ({
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-launch");
-    await page.getByRole("tab", { name: /Key links/ }).click();
+    await page.getByRole("tab", { name: /Linked/ }).click();
     const goalLink = page
       .getByRole("link", { name: "Goal: Launch the site" })
       .first();

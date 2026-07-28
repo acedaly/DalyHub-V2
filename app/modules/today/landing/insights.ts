@@ -137,7 +137,7 @@ export function briefFocusLine(input: InsightsInput): string {
     return `${input.plannedTodayCount} ${noun} planned for today`;
   }
   if (input.overdueCount > 0) {
-    return "Nothing planned yet — start with what's overdue";
+    return "Nothing planned yet — start with what’s overdue";
   }
   if (input.inboxCount > 0) {
     return "Nothing planned yet — pull something in from your inbox";

@@ -105,4 +105,35 @@ describe("EntityLink", () => {
     renderLink(<EntityLink type="goal" id="secret-id-123" title="Ship v2" />);
     expect(screen.queryByText(/secret-id-123/)).not.toBeInTheDocument();
   });
+
+  // PX-05 — the icon lives in the SHARED link now, so related-record rows can no
+  // longer drift between iconned (a Links tab that hand-composed one) and bare
+  // text (a record summary that didn't).
+  it("carries the entity-identity glyph by default", () => {
+    const { container } = renderLink(
+      <EntityLink type="goal" id="g1" title="Ship v2" />,
+    );
+    expect(container.querySelector('[data-entity="goal"]')).toBeInTheDocument();
+    // Decorative: the accessible name still comes from the type + title alone.
+    expect(
+      screen.getByRole("link", { name: "Goal: Ship v2" }),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the glyph where the surrounding row already shows the type", () => {
+    const { container } = renderLink(
+      <EntityLink type="goal" id="g1" title="Ship v2" showIcon={false} />,
+    );
+    expect(container.querySelector('[data-entity="goal"]')).toBeNull();
+  });
+
+  it("keeps the glyph on a target with no destination, so identity never depends on navigability", () => {
+    const { container } = renderLink(
+      <EntityLink type="diary" id="d1" title="Monday" />,
+    );
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      container.querySelector('[data-entity="diary"]'),
+    ).toBeInTheDocument();
+  });
 });

@@ -118,7 +118,7 @@ const TASK_EVENT = () =>
     "2026-07-19T09:00:00.000Z",
   );
 
-function renderTab(initialEntry = `/person/${PERSON_ID}?tab=timeline`) {
+function renderTab(initialEntry = `/person/${PERSON_ID}?tab=activity`) {
   const renderDrawer = (): DrawerRenderResult => ({
     title: "Task",
     children: <div>task drawer</div>,
@@ -137,7 +137,7 @@ afterEach(() => {
 });
 
 describe("PersonTimelineTab", () => {
-  it("renders one shared Timeline feed carrying the Person's AND a linked record's events", async () => {
+  it("renders one shared Timeline feed carrying the Person’s AND a linked record’s events", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(page([PERSON_EVENT(), TASK_EVENT()], null)),
     );
@@ -176,7 +176,7 @@ describe("PersonTimelineTab", () => {
 
     renderTab(
       // The DS-07 URL contract: a category clause restricting to Commitments.
-      `/person/${PERSON_ID}?tab=timeline&fv=1&f=${encodeURIComponent('personTimelineCategory:is:"task"')}`,
+      `/person/${PERSON_ID}?tab=activity&fv=1&f=${encodeURIComponent('personTimelineCategory:is:"task"')}`,
     );
 
     const feed = await screen.findByRole("feed", { name: "Person timeline" });
@@ -193,7 +193,7 @@ describe("PersonTimelineTab", () => {
     );
 
     renderTab(
-      `/person/${PERSON_ID}?tab=timeline&fv=1&f=${encodeURIComponent('personTimelineCategory:is:"meeting"')}`,
+      `/person/${PERSON_ID}?tab=activity&fv=1&f=${encodeURIComponent('personTimelineCategory:is:"meeting"')}`,
     );
 
     expect(
@@ -247,7 +247,7 @@ describe("PersonTimelineTab", () => {
     renderTab();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      /Couldn't load activity/,
+      /Couldn’t load activity/,
     );
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
 

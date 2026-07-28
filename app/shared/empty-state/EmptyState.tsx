@@ -31,6 +31,14 @@ export type EmptyStateProps = {
   readonly primaryAction?: ReactNode;
   /** An optional secondary action. */
   readonly secondaryAction?: ReactNode;
+  /**
+   * PX-06 — `compact` tightens the rhythm for a small region (a Today widget, a
+   * card-sized section) so a dashboard of quiet sections does not become a page
+   * of full-height empty blocks. It is the SAME component and the same anatomy —
+   * icon, title, one sentence, a next action — only denser, so a widget's empty
+   * state still teaches the next step instead of degrading to a bare paragraph.
+   */
+  readonly size?: "default" | "compact";
   readonly className?: string;
 };
 
@@ -42,13 +50,14 @@ export function EmptyState({
   description,
   primaryAction,
   secondaryAction,
+  size = "default",
   className,
 }: EmptyStateProps) {
   const Heading = `h${headingLevel}` as const;
   const classes = ["dh-empty-state", className].filter(Boolean).join(" ");
 
   return (
-    <div className={classes}>
+    <div className={classes} data-size={size}>
       {illustration ? (
         <div className="dh-empty-state__illustration">{illustration}</div>
       ) : icon ? (

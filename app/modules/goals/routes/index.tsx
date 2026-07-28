@@ -19,6 +19,10 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import { GoalsCollectionView } from "../GoalsCollection";
+import type {
+  GoalCollectionState,
+  SerializedDeletedGoalItem,
+} from "../GoalsCollection";
 import {
   serializeGoalListItem,
   type SerializedGoalListItem,
@@ -37,9 +41,49 @@ export function meta() {
   ];
 }
 
+function parseState(value: string | null): GoalCollectionState {
+  return value === "deleted" ? "deleted" : "active";
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
-  const cursor = new URL(request.url).searchParams.get("cursor") ?? undefined;
+  const url = new URL(request.url);
+  const cursor = url.searchParams.get("cursor") ?? undefined;
+  const state = parseState(url.searchParams.get("state"));
+
+  // PX-04 — the honest "Deleted" view. A soft-deleted Goal is an ordinary
+  // soft-deleted ENTITY (the spine stores identity, title and `deletedAt` on
+  // `entities`), so the generic kernel list serves this view with NO new query,
+  // NO migration and no Goal-specific deletion model — exactly as Notes do.
+  if (state === "deleted") {
+    try {
+      const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+      const page = await scope.entities.list({
+        type: "goal",
+        cursor,
+        deletedOnly: true,
+      });
+      return {
+        goals: [] as SerializedGoalWithAlignment[],
+        deletedGoals: page.items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          updatedAt: item.updatedAt.toISOString(),
+        })) as readonly SerializedDeletedGoalItem[],
+        nextCursor: page.nextCursor,
+        state,
+        failed: false,
+      };
+    } catch {
+      return {
+        goals: [] as SerializedGoalWithAlignment[],
+        deletedGoals: [] as readonly SerializedDeletedGoalItem[],
+        nextCursor: null as string | null,
+        state,
+        failed: true,
+      };
+    }
+  }
 
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
@@ -99,13 +143,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
     return {
       goals,
+      deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: page.nextCursor,
+      state,
       failed: false,
     };
   } catch {
     return {
       goals: [] as SerializedGoalWithAlignment[],
+      deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: null as string | null,
+      state,
       failed: true,
     };
   }
@@ -115,7 +163,9 @@ export default function GoalsRoute({ loaderData }: Route.ComponentProps) {
   return (
     <GoalsCollectionView
       goals={loaderData.goals}
+      deletedGoals={loaderData.deletedGoals}
       nextCursor={loaderData.nextCursor}
+      state={loaderData.state}
       failed={loaderData.failed}
     />
   );

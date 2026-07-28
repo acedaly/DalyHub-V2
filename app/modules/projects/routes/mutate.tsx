@@ -193,7 +193,7 @@ async function handleRename(
     return {
       kind: "rename",
       ok: false,
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     };
   }
 }
@@ -218,7 +218,7 @@ async function handleCompletion(
     return {
       kind: "completion",
       ok: false,
-      message: "That couldn't be saved. Please try again.",
+      message: "That couldn’t be saved. Please try again.",
     };
   }
 }
@@ -247,7 +247,7 @@ async function handleCreateTask(
     return {
       kind: "create_task",
       ok: false,
-      formError: "That task couldn't be created. Please try again.",
+      formError: "That task couldn’t be created. Please try again.",
     };
   }
 }
@@ -309,7 +309,7 @@ async function handleStatus(
       message:
         cause instanceof ProjectSettingsValidationError
           ? cause.message
-          : "That couldn't be saved. Please try again.",
+          : "That couldn’t be saved. Please try again.",
     };
   }
 }
@@ -341,7 +341,7 @@ async function handleMove(
       kind: "settings",
       ok: false,
       outcome: "invalid",
-      message: "That couldn't be saved. Please try again.",
+      message: "That couldn’t be saved. Please try again.",
     };
   }
 }
@@ -365,7 +365,7 @@ async function handleArchive(
       message:
         cause instanceof ProjectArchiveBlockedError
           ? cause.message
-          : "That couldn't be saved. Please try again.",
+          : "That couldn’t be saved. Please try again.",
     };
   }
 }
@@ -385,7 +385,7 @@ async function handleRestore(
       kind: "settings",
       ok: false,
       outcome: "invalid",
-      message: "That couldn't be saved. Please try again.",
+      message: "That couldn’t be saved. Please try again.",
     };
   }
 }

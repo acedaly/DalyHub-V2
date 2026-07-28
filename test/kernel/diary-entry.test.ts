@@ -118,7 +118,7 @@ describe("generic EntityRepository reservation", () => {
     expect(await countRows()).toBe(0);
   });
 
-  it("still owns a Diary Entry's header lifecycle: rename, soft-delete and restore", async () => {
+  it("still owns a Diary Entry’s header lifecycle: rename, soft-delete and restore", async () => {
     const repo = diary();
     const entry = await repo.create({ entryType: "note", title: "Draft" });
     const generic = entities();

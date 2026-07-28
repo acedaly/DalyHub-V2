@@ -25,29 +25,11 @@
   cursor: progress;
 }
 
-.dh-task-drawer__details,
-.dh-task-drawer__links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-5);
-}
-
-.dh-task-drawer__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-}
-
-.dh-task-drawer__section-label {
-  margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-task-drawer__muted,
+/* PX-06: the section rhythm, the eyebrow label and the muted prose are now the
+ * SHARED `.dh-record-stack` / `.dh-record-section` / `.dh-record-section__label`
+ * / `.dh-record-muted` primitives in record-layout.css — the Task Drawer no
+ * longer owns a private copy that the Project Links tab had to borrow by class
+ * name. Only the genuinely task-specific description fallback stays here. */
 .dh-task-drawer__description-fallback {
   margin: 0;
   color: var(--dh-color-text-muted);

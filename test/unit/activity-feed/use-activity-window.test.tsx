@@ -82,7 +82,7 @@ describe("useActivityWindow — ResizeObserver registration", () => {
     expect(observer?.observed.has(el)).toBe(false);
   });
 
-  it("unobserves the previous element when a key's element is swapped", () => {
+  it("unobserves the previous element when a key’s element is swapped", () => {
     const first = document.createElement("div");
     const second = document.createElement("div");
     const { result } = renderWindow(true);

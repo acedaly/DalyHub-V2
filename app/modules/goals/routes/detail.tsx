@@ -29,6 +29,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import { useFeedback } from "~/shared/feedback";
+import { useReversibleDelete } from "~/shared/record-lifecycle";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { GoalActivityTab } from "../GoalActivityTab";
@@ -276,7 +277,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       try {
         const ok = await submitCompletion(complete ? "complete" : "reopen");
         if (!ok) {
-          notifyError("That couldn't be saved. Please try again.");
+          notifyError("That couldn’t be saved. Please try again.");
           return;
         }
         if (complete) {
@@ -287,13 +288,33 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
           notifySuccess("Goal reopened.");
         }
       } catch {
-        notifyError("That couldn't be saved. Please try again.");
+        notifyError("That couldn’t be saved. Please try again.");
       } finally {
         setCompletionPending(false);
       }
     },
     [submitCompletion, notifyUndo, notifySuccess, notifyError],
   );
+
+  const postLifecycle = useCallback(
+    async (intent: "delete" | "restore") => {
+      const body = new FormData();
+      body.set("intent", intent);
+      const result = await postMutation(body);
+      return result.kind === intent && result.ok;
+    },
+    [postMutation],
+  );
+
+  // PX-04 — reversible removal, through the ONE shared implementation: a real
+  // server soft-delete, a redirect back to the collection, and a DS-10 Undo
+  // toast whose handler calls the mirror `restore` intent.
+  const { remove: onDelete, pending: deletePending } = useReversibleDelete({
+    entityType: "goal",
+    title: props.overview.title,
+    post: postLifecycle,
+    redirectTo: "/goals",
+  });
 
   return (
     <GoalOverview
@@ -310,6 +331,8 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       onToggleComplete={(complete) => void onToggleComplete(complete)}
       onRename={() => openDrawer(RENAME_KEY)}
       onEditDetails={() => openDrawer(EDIT_DETAILS_KEY)}
+      onDelete={onDelete}
+      deletePending={deletePending}
       onOpenProject={(projectId) =>
         navigate(`/projects/${encodeURIComponent(projectId)}`)
       }
@@ -348,7 +371,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <div className="dh-goal-not-found">
         <EmptyState
           icon={<EntityIcon type="goal" />}
-          title="We couldn't find that Goal"
+          title="We couldn’t find that Goal"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
             <a className="dh-btn dh-btn--primary" href="/areas">

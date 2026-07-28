@@ -22,7 +22,10 @@ import {
   type CardProps,
   type CardTone,
 } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
@@ -300,8 +303,13 @@ export function AssetsCollectionView({
   const isFilteredEmpty =
     !data.failed && pagination.items.length === 0 && filtersActive;
 
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Assets"
       entityType="asset"
       subtitle={viewLabel}
@@ -309,14 +317,14 @@ export function AssetsCollectionView({
       filterBar={filterBar}
       primaryAction={
         <Link to="/new/asset" className="dh-btn dh-btn--primary">
-          New asset
+          New Asset
         </Link>
       }
       error={
         data.failed ? (
           <EmptyState
             icon={<EntityIcon type="asset" />}
-            title="We couldn't load your assets"
+            title="We couldn’t load your assets"
             description="Something went wrong. Please try again."
           />
         ) : undefined
@@ -325,11 +333,11 @@ export function AssetsCollectionView({
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="asset" />}
-          title="No assets yet"
+          title="No Assets yet"
           description="Track the important things you own — vehicles, appliances, licences, subscriptions and more."
           primaryAction={
             <Link to="/new/asset" className="dh-btn dh-btn--primary">
-              New asset
+              New Asset
             </Link>
           }
         />

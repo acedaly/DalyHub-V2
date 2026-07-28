@@ -55,7 +55,7 @@ export function RenameProjectForm({
       } catch {
         return {
           status: "error",
-          formError: "That couldn't be saved. Please try again.",
+          formError: "That couldn’t be saved. Please try again.",
         };
       }
       if (data.kind === "rename" && data.ok) {

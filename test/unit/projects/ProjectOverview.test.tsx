@@ -1,6 +1,8 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+import { FeedbackProvider } from "~/shared/feedback";
 import type { ReactElement } from "react";
 
 import { ProjectOverview } from "~/modules/projects/ProjectOverview";
@@ -39,7 +41,11 @@ function renderInRouter(node: ReactElement) {
   const router = createMemoryRouter([{ path: "/", element: node }], {
     initialEntries: ["/"],
   });
-  return render(<RouterProvider router={router} />);
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 describe("ProjectOverview", () => {
@@ -75,7 +81,7 @@ describe("ProjectOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("explains the project's health with all current reasons and supporting facts", () => {
+  it("explains the project’s health with all current reasons and supporting facts", () => {
     renderInRouter(
       <ProjectOverview
         overview={overview()}
@@ -170,10 +176,10 @@ describe("ProjectOverview", () => {
     const tabNames = screen
       .getAllByRole("tab")
       .map((tab) => tab.textContent?.trim());
-    expect(tabNames).toEqual(["Tasks", "Key links", "Activity", "Settings"]);
+    expect(tabNames).toEqual(["Tasks", "Linked", "Activity", "Settings"]);
 
     expect(screen.getByRole("tab", { name: "Tasks" })).toBeInTheDocument();
-    const linksTab = screen.getByRole("tab", { name: "Key links" });
+    const linksTab = screen.getByRole("tab", { name: "Linked" });
     fireEvent.click(linksTab);
     expect(screen.getByText("links-content")).toBeInTheDocument();
 
@@ -303,7 +309,7 @@ describe("ProjectOverview", () => {
       const tabNames = screen
         .getAllByRole("tab")
         .map((tab) => tab.textContent?.trim());
-      expect(tabNames).toEqual(["Tasks", "Key links", "Activity", "Settings"]);
+      expect(tabNames).toEqual(["Tasks", "Linked", "Activity", "Settings"]);
     });
 
     it("hides Complete/Reopen and Rename for an archived project that was also completed", () => {

@@ -82,7 +82,7 @@ describe("NoteDetailsRepository.update", () => {
     expect(await countActivitiesOfType("note.content_updated")).toBe(1);
   });
 
-  it("title stays entity-owned: updating content never changes the Note's title", async () => {
+  it("title stays entity-owned: updating content never changes the Note’s title", async () => {
     const e = entities();
     const note = await seedNote(e);
     await details().update(note.id, "content");

@@ -147,13 +147,13 @@ describe("alignmentToneToCardTone", () => {
 });
 
 describe("evidenceDateLabel", () => {
-  it("labels today's date", () => {
+  it("labels today’s date", () => {
     expect(
       evidenceDateLabel("2026-07-24T10:00:00.000Z", "2026-07-24"),
     ).toContain("(today)");
   });
 
-  it("labels yesterday's date", () => {
+  it("labels yesterday’s date", () => {
     expect(
       evidenceDateLabel("2026-07-23T10:00:00.000Z", "2026-07-24"),
     ).toContain("(yesterday)");
@@ -165,7 +165,7 @@ describe("evidenceDateLabel", () => {
     ).toContain("(14 days ago)");
   });
 
-  it("uses the owner's Sydney calendar day, not the UTC day, near UTC midnight (regression)", () => {
+  it("uses the owner’s Sydney calendar day, not the UTC day, near UTC midnight (regression)", () => {
     // 2026-07-23T15:00:00.000Z is winter in Sydney (AEST, UTC+10, no DST) —
     // 2026-07-24T01:00 locally. A naive UTC-date slice would read this as
     // "2026-07-23" (yesterday, relative to todayIso "2026-07-24"); the

@@ -251,3 +251,19 @@ household sharing/permissions beyond current workspace rules.
 **Relevant roadmap items.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ · [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) ☐ · [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) ☐.
 
 **Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) · [DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1).
+
+---
+
+## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
+
+**Lifecycle in the shared overflow.** Archive/Restore and the guarded permanent delete now also
+appear in the Record Header overflow (⋯), driving the same handlers as the Settings tab, with
+wording derived from the identity map.
+
+**Subtype icons became shared.** `asset-icons.tsx` registers its Asset-type map with the shared
+subtype-icon registry instead of keeping a private one; resolution and the safe fallback to the
+Asset entity glyph now live in shared code.
+
+See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
+[`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
+[ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).

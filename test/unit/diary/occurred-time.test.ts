@@ -65,7 +65,7 @@ describe("ownerLocalToUtc / utcToOwnerLocal", () => {
     }
   });
 
-  it("rejects a nonexistent spring-forward gap time (can't round-trip)", () => {
+  it("rejects a nonexistent spring-forward gap time (can’t round-trip)", () => {
     // DST begins 2026-10-04 02:00 → 03:00; 02:30 does not exist locally, so it
     // cannot faithfully represent the entered wall-clock and is rejected.
     expect(ownerLocalToUtc("2026-10-04T02:30", SYDNEY)).toBeNull();

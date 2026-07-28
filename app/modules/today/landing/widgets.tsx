@@ -11,6 +11,9 @@
 
 import { Link } from "react-router";
 
+import { EmptyState } from "~/shared/empty-state";
+import { EntityIcon, type EntityType } from "~/shared/entity";
+
 import type {
   AreaHealthItem,
   DiaryWidgetData,
@@ -19,9 +22,34 @@ import type {
 } from "./types";
 import type { InsightSignal } from "./insights";
 
-/** A calm, muted empty note that always teaches the next action (no dead ends). */
-function EmptyNote({ children }: { readonly children: React.ReactNode }) {
-  return <p className="dh-today__section-empty">{children}</p>;
+/**
+ * PX-06 — every widget's empty state is the SHARED `EmptyState` (compact), not a
+ * bare paragraph. Today was the last surface in the product still rendering its
+ * own, so a quiet dashboard read as unfinished rather than calm. Each one now
+ * carries the entity glyph, a heading and the next action, exactly like every
+ * other module's empty state.
+ */
+function WidgetEmpty({
+  entityType,
+  title,
+  description,
+  action,
+}: {
+  readonly entityType: EntityType;
+  readonly title: string;
+  readonly description: string;
+  readonly action?: React.ReactNode;
+}) {
+  return (
+    <EmptyState
+      size="compact"
+      headingLevel={3}
+      icon={<EntityIcon type={entityType} />}
+      title={title}
+      description={description}
+      primaryAction={action}
+    />
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -35,10 +63,16 @@ export function NotesWidget({
 }) {
   if (notes.length === 0) {
     return (
-      <EmptyNote>
-        No notes yet. <Link to="/notes/new">Start a note</Link> to think out
-        loud.
-      </EmptyNote>
+      <WidgetEmpty
+        entityType="note"
+        title="No Notes yet"
+        description="Notes hold what you know and think — references, drafts, research, ideas."
+        action={
+          <Link className="dh-btn dh-btn--secondary" to="/notes/new">
+            New Note
+          </Link>
+        }
+      />
     );
   }
   return (
@@ -66,10 +100,16 @@ export function DiaryWidget({ data }: { readonly data: DiaryWidgetData }) {
   const hasAny = data.today.length > 0 || data.recent.length > 0;
   if (!hasAny) {
     return (
-      <EmptyNote>
-        No moments captured yet. <Link to="/diary">Open your diary</Link> to
-        note what happened.
-      </EmptyNote>
+      <WidgetEmpty
+        entityType="diary"
+        title="No moments captured yet"
+        description="Your diary is where you note what actually happened — a meeting, a decision, an idea."
+        action={
+          <Link className="dh-btn dh-btn--secondary" to="/diary">
+            Open Diary
+          </Link>
+        }
+      />
     );
   }
   return (
@@ -83,7 +123,7 @@ export function DiaryWidget({ data }: { readonly data: DiaryWidgetData }) {
       {data.today.length > 0 ? (
         <div className="dh-diary-widget__group">
           <p className="dh-diary-widget__group-label">Today</p>
-          <DiaryList label="Today's diary moments" items={data.today} />
+          <DiaryList label="Today’s diary moments" items={data.today} />
         </div>
       ) : null}
       {data.recent.length > 0 ? (
@@ -136,10 +176,16 @@ export function AreasWidget({
 }) {
   if (areas.length === 0) {
     return (
-      <EmptyNote>
-        No areas yet. <Link to="/areas">Create an area</Link> to organise your
-        life.
-      </EmptyNote>
+      <WidgetEmpty
+        entityType="area"
+        title="No Areas yet"
+        description="Areas are the ongoing domains of your life — Health, Career, Home, Finance."
+        action={
+          <Link className="dh-btn dh-btn--secondary" to="/areas">
+            Browse Areas
+          </Link>
+        }
+      />
     );
   }
   return (
@@ -170,10 +216,16 @@ export function AreasWidget({
 export function GoalsWidget({ data }: { readonly data: GoalsWidgetData }) {
   if (data.goals.length === 0) {
     return (
-      <EmptyNote>
-        No goals yet. <Link to="/goals">Set a goal</Link> to give your projects
-        direction.
-      </EmptyNote>
+      <WidgetEmpty
+        entityType="goal"
+        title="No Goals yet"
+        description="Goals give your Projects a direction and a definition of done."
+        action={
+          <Link className="dh-btn dh-btn--secondary" to="/goals">
+            Browse Goals
+          </Link>
+        }
+      />
     );
   }
   return (
@@ -225,7 +277,13 @@ export function InsightsWidget({
   readonly signals: readonly InsightSignal[];
 }) {
   if (signals.length === 0) {
-    return <EmptyNote>Nothing needs your attention. A calm day.</EmptyNote>;
+    return (
+      <WidgetEmpty
+        entityType="task"
+        title="Nothing needs your attention"
+        description="A calm day. Insights appear here when something slips, stalls or comes due."
+      />
+    );
   }
   return (
     <ul className="dh-insights" aria-label="Insights">

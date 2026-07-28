@@ -11,6 +11,8 @@
 
 import type { ReactNode } from "react";
 
+import type { OverflowMenuItem } from "~/shared/overflow-menu";
+
 /**
  * A semantic tone. Tones map to DS-01 feedback tokens; they NEVER carry meaning
  * by colour alone — a tone is always paired with its text label.
@@ -88,6 +90,15 @@ export interface RecordHeaderProps {
   readonly metadata?: readonly RecordMetaItem[];
   readonly primaryAction?: RecordAction;
   readonly secondaryActions?: readonly RecordAction[];
+  /**
+   * DS-12 — the overflow (⋯) menu: the ONE home for a record's secondary and
+   * destructive actions (Archive / Restore / Delete). Rendered after the primary
+   * action through the shared `OverflowMenu`, so every record in the product
+   * carries the same affordance in the same place. An empty list renders nothing.
+   */
+  readonly overflowActions?: readonly OverflowMenuItem[];
+  /** Accessible name for the overflow trigger. Defaults to `More actions for <title>`. */
+  readonly overflowLabel?: string;
 }
 
 /** Props for the summary region. */

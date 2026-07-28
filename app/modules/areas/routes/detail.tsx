@@ -356,7 +356,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
     if (!result.ok) {
       throw new Error(
         ("formError" in result && result.formError) ||
-          "That couldn't be saved. Please try again.",
+          "That couldn’t be saved. Please try again.",
       );
     }
     revalidator.revalidate();
@@ -367,7 +367,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
     if (!result.ok) {
       throw new Error(
         ("formError" in result && result.formError) ||
-          "That couldn't be saved. Please try again.",
+          "That couldn’t be saved. Please try again.",
       );
     }
     revalidator.revalidate();
@@ -378,7 +378,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
     if (!result.ok) {
       throw new Error(
         ("formError" in result && result.formError) ||
-          "That couldn't be completed. Please try again.",
+          "That couldn’t be completed. Please try again.",
       );
     }
     // Redirect to the collection; the deleted Area no longer exists.
@@ -419,6 +419,10 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
           reloadKey={props.overview.updatedAt}
         />
       }
+      onArchive={onArchive}
+      onRestore={onRestore}
+      onDelete={onDelete}
+      deletable={props.dependencies.deletable}
       settingsTab={
         <AreaSettingsTab
           overview={props.overview}
@@ -438,7 +442,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <div className="dh-area-not-found">
         <EmptyState
           icon={<EntityIcon type="area" />}
-          title="We couldn't find that Area"
+          title="We couldn’t find that Area"
           description="It may have been deleted, or the link is out of date."
           primaryAction={
             <a className="dh-btn dh-btn--primary" href="/areas">

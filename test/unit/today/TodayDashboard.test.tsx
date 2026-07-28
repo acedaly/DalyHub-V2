@@ -483,7 +483,7 @@ describe("TODAY-06 mobile swipe quick actions", () => {
 });
 
 describe("PROJ-05 Slice 4 — Continue working is Active-only", () => {
-  it("labels the section's count from the Active projects the loader supplied", () => {
+  it("labels the section’s count from the Active projects the loader supplied", () => {
     renderToday();
     const section = screen.getByRole("region", { name: "Continue working 1" });
     expect(
@@ -494,7 +494,7 @@ describe("PROJ-05 Slice 4 — Continue working is Active-only", () => {
     ).toBeInTheDocument();
   });
 
-  it("presents every card's status as Active — never the old generic Open label", () => {
+  it("presents every card’s status as Active — never the old generic Open label", () => {
     renderToday();
     const section = screen.getByRole("region", { name: /Continue working/ });
     expect(within(section).getByText("Active")).toBeInTheDocument();
@@ -544,8 +544,11 @@ describe("PROJ-05 Slice 4 — Continue working empty state", () => {
   it("reads 'No active projects to continue' with a quiet explanation, not the stale open-projects copy", () => {
     renderTodayWithProjects([]);
     const section = screen.getByRole("region", { name: "Continue working 0" });
+    // PX-06: the section now renders the SHARED EmptyState (compact) rather than
+    // a bare paragraph — an entity glyph, a heading, the explanation and a next
+    // action, exactly like every other module's empty state.
     expect(
-      within(section).getByText("No active projects to continue."),
+      within(section).getByRole("heading", { name: "Nothing to continue" }),
     ).toBeInTheDocument();
     expect(
       within(section).getByText(/workflow status is set to Active/),

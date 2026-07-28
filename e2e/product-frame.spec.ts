@@ -71,7 +71,7 @@ test.describe("PX-02 frame — desktop", () => {
     // Empty state: a teaching EmptyState with a next action.
     await page.getByRole("radio", { name: "empty" }).check();
     await expect(
-      page.getByRole("heading", { name: "No projects yet" }),
+      page.getByRole("heading", { name: "No Projects yet" }),
     ).toBeVisible();
 
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);

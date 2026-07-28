@@ -180,7 +180,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
       return (
         <div className="dh-activity__footer" role="alert">
           <p className="dh-activity__error-text">
-            Couldn&apos;t load more activity.
+            Couldn’t load more activity.
           </p>
           <button
             type="button"
@@ -215,7 +215,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
     if (stream.items.length > 0) {
       return (
         <div className="dh-activity__footer">
-          <p className="dh-activity__end">You&apos;ve reached the beginning.</p>
+          <p className="dh-activity__end">You’ve reached the beginning.</p>
         </div>
       );
     }
@@ -242,9 +242,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
         {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
         {initialError ? (
           <div className="dh-activity__state" role="alert">
-            <p className="dh-activity__error-text">
-              Couldn&apos;t load activity.
-            </p>
+            <p className="dh-activity__error-text">Couldn’t load activity.</p>
             <button
               type="button"
               className="dh-activity__btn"

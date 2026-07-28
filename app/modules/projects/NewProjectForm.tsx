@@ -1,5 +1,5 @@
 /**
- * PROJ-01 — the "New project" form (hosted in the shared DS-03 Drawer).
+ * PROJ-01 — the "New Project" form (hosted in the shared DS-03 Drawer).
  *
  * Built entirely from DS-06 shared controls (`useForm`, `TextField`, `SelectField`)
  * with explicit Save/Cancel, required-field validation, duplicate-submit prevention
@@ -72,8 +72,7 @@ function NoEligibleParents({ onCancel }: { readonly onCancel: () => void }) {
     <div className="dh-project-empty-parents" role="status">
       <p>
         A project belongs to an Area, or advances a Goal — and this workspace
-        doesn&rsquo;t have either yet, so there&rsquo;s nowhere for a new
-        project to go.
+        doesn’t have either yet, so there’s nowhere for a new project to go.
       </p>
       <FormActions>
         <FormButton type="button" variant="secondary" onClick={onCancel}>
@@ -101,7 +100,7 @@ function ParentOptionsUnavailable({
 }) {
   return (
     <div className="dh-project-empty-parents" role="status">
-      <p>Couldn&rsquo;t load Areas and Goals.</p>
+      <p>Couldn’t load Areas and Goals.</p>
       <p>Please try again.</p>
       <FormActions>
         <FormButton type="button" variant="secondary" onClick={onCancel}>
@@ -146,7 +145,7 @@ export function NewProjectForm({
       } catch {
         return {
           status: "error",
-          formError: "That project couldn't be created. Please try again.",
+          formError: "That project couldn’t be created. Please try again.",
         };
       }
       if (data.ok) {
@@ -188,7 +187,7 @@ export function NewProjectForm({
 
   return (
     <Form
-      aria-label="New project"
+      aria-label="New Project"
       busy={form.isSubmitting}
       onSubmit={form.handleSubmit}
     >

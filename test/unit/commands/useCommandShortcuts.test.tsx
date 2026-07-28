@@ -150,7 +150,7 @@ describe("useCommandShortcuts dispatcher", () => {
     expect(enabled).toHaveBeenCalledTimes(1);
   });
 
-  it("never fires a disabled AppAction's shortcut, but fires an enabled one", () => {
+  it("never fires a disabled AppAction’s shortcut, but fires an enabled one", () => {
     const shortcut = { key: "j", modifiers: ["mod"] as const };
     const disabledTrigger = vi.fn();
     const enabledTrigger = vi.fn();

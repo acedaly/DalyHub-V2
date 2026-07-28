@@ -71,7 +71,7 @@ describe("withSecurityHeaders", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
   });
 
-  it("leaves a public response's absent cache policy untouched", () => {
+  it("leaves a public response’s absent cache policy untouched", () => {
     const response = withSecurityHeaders(
       new Response("ok", {
         headers: { "Cache-Control": "public, max-age=30" },

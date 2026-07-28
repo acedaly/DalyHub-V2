@@ -104,7 +104,7 @@ function makeDirty() {
 }
 
 describe("unsaved guard over the DS-03 drawer URL contract", () => {
-  it("intercepts closing the form's drawer and Stay keeps the draft", async () => {
+  it("intercepts closing the form’s drawer and Stay keeps the draft", async () => {
     renderHarness();
     makeDirty();
     fireEvent.click(screen.getByTestId("close"));

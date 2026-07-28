@@ -133,5 +133,5 @@ function planErrorMessage(cause: unknown): string {
   if (cause instanceof TaskProjectArchivedError) {
     return "One of those tasks belongs to an archived project. Nothing was changed.";
   }
-  return "That couldn't be saved. Your work is safe — try again.";
+  return "That couldn’t be saved. Your work is safe — try again.";
 }

@@ -34,15 +34,10 @@ test.describe("PROJ-04 project Activity tab", () => {
       page.getByRole("heading", { name: "Activity showcase" }),
     ).toBeVisible();
 
-    // Tabs follow the shared vocabulary: Tasks, Key links, Activity, then
+    // Tabs follow the shared vocabulary: Tasks, Linked, Activity, then
     // Settings LAST (PROJ-05 Slice 3).
     const tabs = page.getByRole("tab");
-    await expect(tabs).toHaveText([
-      "Tasks",
-      "Key links",
-      "Activity",
-      "Settings",
-    ]);
+    await expect(tabs).toHaveText(["Tasks", "Linked", "Activity", "Settings"]);
 
     await page.getByRole("tab", { name: "Activity" }).click();
     const feed = page.getByRole("feed", { name: "Project activity" });
@@ -178,7 +173,7 @@ test.describe("PROJ-04 project Activity tab", () => {
     ).toBeVisible();
   });
 
-  test("Tasks and Key links tabs remain intact, and a completed project shows no active-work health", async ({
+  test("Tasks and Linked tabs remain intact, and a completed project shows no active-work health", async ({
     page,
   }) => {
     await gotoFixture(page, RECORD);
@@ -190,8 +185,8 @@ test.describe("PROJ-04 project Activity tab", () => {
     await expect(
       page.getByRole("heading", { name: /Activity task/ }).first(),
     ).toBeVisible();
-    // Key links tab still shows relationships.
-    await page.getByRole("tab", { name: "Key links" }).click();
+    // Linked tab still shows relationships.
+    await page.getByRole("tab", { name: "Linked" }).click();
     await expect(
       page.getByRole("region", { name: "Relationships" }),
     ).toBeVisible();

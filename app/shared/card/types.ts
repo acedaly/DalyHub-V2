@@ -18,6 +18,8 @@
 
 import type { MouseEvent, ReactNode } from "react";
 
+import type { OverflowMenuItem } from "~/shared/overflow-menu";
+
 /** A semantic tone, paired with a text label — never colour-only (WCAG 2.2 AA). */
 export type CardTone =
   "neutral" | "accent" | "success" | "warning" | "danger" | "info";
@@ -129,7 +131,20 @@ export interface CardProps {
   readonly selection?: CardSelection;
   /** Curated quick actions (a small few). The overflow holds the long tail. */
   readonly quickActions?: readonly CardAction[];
+  /**
+   * DS-12 — the card's overflow (⋯) menu: the long tail and the lifecycle
+   * actions (Archive / Restore / Delete), rendered through the SAME shared
+   * `OverflowMenu` the Record Header uses, so a card's menu and its record's menu
+   * read identically. An empty list renders nothing.
+   */
+  readonly overflowActions?: readonly OverflowMenuItem[];
+  /**
+   * The single-action form of {@link overflowActions}, kept for the one-item case.
+   * It is normalised into a one-item menu — there is no second overflow rendering.
+   */
   readonly overflowAction?: CardAction;
+  /** Accessible name for the overflow trigger. Defaults to `More actions for <title>`. */
+  readonly overflowLabel?: string;
   /**
    * Touch swipe quick actions (TODAY-06). When provided AND the device is
    * touch-first, the card can be swiped horizontally to reveal an action tray

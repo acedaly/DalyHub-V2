@@ -57,7 +57,7 @@ function renderLayer(opts: {
 const loc = () => screen.getByTestId("loc").textContent;
 
 describe("CommandShortcutLayer", () => {
-  it("dispatches a registered navigation command's shortcut", async () => {
+  it("dispatches a registered navigation command’s shortcut", async () => {
     renderLayer({
       catalogue: {
         commands: [
@@ -82,7 +82,7 @@ describe("CommandShortcutLayer", () => {
     await waitFor(() => expect(loc()).toBe("/today"));
   });
 
-  it("dispatches a contextual navigation action's shortcut", async () => {
+  it("dispatches a contextual navigation action’s shortcut", async () => {
     renderLayer({
       actions: [
         {
@@ -133,7 +133,7 @@ describe("CommandShortcutLayer", () => {
     await waitFor(() => expect(loc()).toBe("/projects"));
   });
 
-  it("dispatches a contextual RUN action's shortcut (TODAY-05)", async () => {
+  it("dispatches a contextual RUN action’s shortcut (TODAY-05)", async () => {
     const run = vi.fn(() => ({ ok: true as const }));
     renderLayer({
       actions: [
@@ -174,7 +174,7 @@ describe("CommandShortcutLayer", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("does NOT dispatch an executable command's shortcut (deferred to DS-10)", async () => {
+  it("does NOT dispatch an executable command’s shortcut (deferred to DS-10)", async () => {
     renderLayer({
       catalogue: {
         commands: [

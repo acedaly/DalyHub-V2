@@ -19,7 +19,7 @@ import {
  * it never disturbs the other journeys.
  */
 
-/** Open the "New task" quick-capture form and create a task, returning once it opens
+/** Open the "New Task" quick-capture form and create a task, returning once it opens
  *  in the canonical Drawer. Uses the server-backed searchable parent selector. */
 async function createJourneyTask(
   page: Page,
@@ -31,8 +31,8 @@ async function createJourneyTask(
     readonly scheduledDate?: string;
   },
 ): Promise<void> {
-  await page.getByRole("link", { name: "New task" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New task" });
+  await page.getByRole("link", { name: "New Task" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New Task" });
   await expect(dialog).toBeVisible();
 
   await dialog.getByLabel("Title").fill(options.title);

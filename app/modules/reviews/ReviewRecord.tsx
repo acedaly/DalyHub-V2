@@ -17,6 +17,10 @@ import {
   type RecordMetaItem,
 } from "~/shared/record-layout";
 import {
+  lifecycleSuccessMessage,
+  useRecordLifecycle,
+} from "~/shared/record-lifecycle";
+import {
   DangerousAction,
   SettingsGroup,
   SettingsLayout,
@@ -88,12 +92,12 @@ function SectionEditor({
       } else {
         setError(
           result.kind === "update_section"
-            ? (result.formError ?? "That section couldn't be saved.")
-            : "That section couldn't be saved.",
+            ? (result.formError ?? "That section couldn’t be saved.")
+            : "That section couldn’t be saved.",
         );
       }
     } catch {
-      setError("That section couldn't be saved.");
+      setError("That section couldn’t be saved.");
     } finally {
       setSaving(false);
     }
@@ -222,23 +226,25 @@ export function ReviewRecord({
   );
 
   const runLifecycle = useCallback(
-    async (intent: string, success: string) => {
+    async (intent: string, success: string): Promise<boolean> => {
       setPending(true);
       try {
         const result = await post(intent);
         if (result.ok) {
           feedback.notifySuccess(success);
           onSaved();
+          return true;
         } else {
           feedback.notifyError(
-            result.formError ?? "That change couldn't be saved.",
+            result.formError ?? "That change couldn’t be saved.",
           );
         }
       } catch {
-        feedback.notifyError("That change couldn't be saved.");
+        feedback.notifyError("That change couldn’t be saved.");
       } finally {
         setPending(false);
       }
+      return false;
     },
     [feedback, onSaved, post],
   );
@@ -251,8 +257,8 @@ export function ReviewRecord({
     } else {
       feedback.notifyError(
         result.kind === "rename"
-          ? (result.formError ?? "That title couldn't be saved.")
-          : "That title couldn't be saved.",
+          ? (result.formError ?? "That title couldn’t be saved.")
+          : "That title couldn’t be saved.",
       );
     }
   };
@@ -266,7 +272,7 @@ export function ReviewRecord({
     throw new Error(
       result.kind === "delete"
         ? result.formError
-        : "That review couldn't be deleted.",
+        : "That review couldn’t be deleted.",
     );
   };
 
@@ -299,183 +305,225 @@ export function ReviewRecord({
           onSelect: () => void runLifecycle("complete", "Review completed"),
         };
 
+  // PX-04 — the shared lifecycle in the shared overflow slot: identical wording,
+  // ordering and confirmation friction to every other record. The Settings tab
+  // keeps the fuller explanation.
+  const lifecycle = useRecordLifecycle({
+    entityType: "review",
+    title: review.title,
+    archived: review.archived,
+    pending,
+    notifyOnSuccess: false,
+    // A failed lifecycle post THROWS, so the shared confirmation dialog stays
+    // open with its inline error and a retry rather than closing as if it worked.
+    onArchive: async () => {
+      const ok = await runLifecycle(
+        "archive",
+        lifecycleSuccessMessage("archive", "review"),
+      );
+      if (!ok) throw new Error("Couldn’t archive this Review.");
+    },
+    onRestore: async () => {
+      const ok = await runLifecycle(
+        "restore",
+        lifecycleSuccessMessage("restore", "review"),
+      );
+      if (!ok) throw new Error("Couldn’t restore this Review.");
+    },
+    onDelete,
+  });
+
   return (
-    <RecordLayout
-      title={review.title}
-      typeLabel={`${review.typeLabel} Review`}
-      icon={<EntityIcon type="review" />}
-      breadcrumb={[{ id: "reviews", label: "Reviews", href: "/reviews" }]}
-      status={{
-        label: review.archived
-          ? `Archived · ${review.statusLabel}`
-          : review.statusLabel,
-        tone: review.archived
-          ? "warning"
-          : review.status === "completed"
-            ? "success"
-            : review.status === "in_progress"
-              ? "info"
-              : "neutral",
-      }}
-      metadata={metadata}
-      primaryAction={review.archived ? undefined : completeAction}
-      activeTabId={activeTabId}
-      onTabChange={onTabChange}
-      tabs={[
-        {
-          id: "summary",
-          label: "Summary",
-          content: (
-            <div className="dh-review-tab-stack">
-              {[
-                "summary.overall",
-                "summary.highlights",
-                "summary.challenges",
-                "summary.lessons",
-                "summary.decisions",
-                "summary.next_focus",
-              ].map((id) => (
+    <>
+      <RecordLayout
+        title={review.title}
+        typeLabel={`${review.typeLabel} Review`}
+        icon={<EntityIcon type="review" />}
+        breadcrumb={[{ id: "reviews", label: "Reviews", href: "/reviews" }]}
+        status={{
+          label: review.archived
+            ? `Archived · ${review.statusLabel}`
+            : review.statusLabel,
+          tone: review.archived
+            ? "warning"
+            : review.status === "completed"
+              ? "success"
+              : review.status === "in_progress"
+                ? "info"
+                : "neutral",
+        }}
+        metadata={metadata}
+        primaryAction={review.archived ? undefined : completeAction}
+        overflowActions={lifecycle.overflowActions}
+        activeTabId={activeTabId}
+        onTabChange={onTabChange}
+        tabs={[
+          {
+            id: "summary",
+            label: "Summary",
+            content: (
+              <div className="dh-record-stack">
+                {[
+                  "summary.overall",
+                  "summary.highlights",
+                  "summary.challenges",
+                  "summary.lessons",
+                  "summary.decisions",
+                  "summary.next_focus",
+                ].map((id) => (
+                  <SectionEditor
+                    key={id}
+                    review={review}
+                    section={section(review, id as ReviewSectionId)}
+                    readOnly={readOnly}
+                    onSaved={onSaved}
+                  />
+                ))}
+              </div>
+            ),
+          },
+          {
+            id: "progress",
+            label: "Progress",
+            content: (
+              <div className="dh-record-stack">
+                <p className="dh-review-context-note">{context.note}</p>
                 <SectionEditor
-                  key={id}
                   review={review}
-                  section={section(review, id as ReviewSectionId)}
+                  section={section(review, "progress.commentary")}
                   readOnly={readOnly}
                   onSaved={onSaved}
                 />
-              ))}
-            </div>
-          ),
-        },
-        {
-          id: "progress",
-          label: "Progress",
-          content: (
-            <div className="dh-review-tab-stack">
-              <p className="dh-review-context-note">{context.note}</p>
-              <SectionEditor
+              </div>
+            ),
+          },
+          {
+            id: "tasks",
+            label: "Tasks",
+            content: (
+              <div className="dh-record-stack">
+                <ContextList
+                  title="Completed tasks"
+                  items={context.completedTasks}
+                  empty="No completed tasks were found in this bounded period context."
+                />
+                <ContextList
+                  title="Open or overdue tasks"
+                  items={context.openTasks}
+                  empty="No overdue open tasks were found."
+                />
+                <SectionEditor
+                  review={review}
+                  section={section(review, "tasks.commentary")}
+                  readOnly={readOnly}
+                  onSaved={onSaved}
+                />
+              </div>
+            ),
+          },
+          {
+            id: "diary",
+            label: "Diary",
+            content: (
+              <div className="dh-record-stack">
+                <ContextList
+                  title="Diary entries"
+                  items={context.diaryEntries}
+                  empty="No diary entries were found in this bounded period context."
+                />
+                <SectionEditor
+                  review={review}
+                  section={section(review, "diary.commentary")}
+                  readOnly={readOnly}
+                  onSaved={onSaved}
+                />
+              </div>
+            ),
+          },
+          {
+            id: "people",
+            label: "People & Meetings",
+            content: (
+              <div className="dh-record-stack">
+                <ContextList
+                  title="Meetings"
+                  items={context.meetings}
+                  empty="No meetings were found in this bounded period context."
+                />
+                <SectionEditor
+                  review={review}
+                  section={section(review, "people_meetings.commentary")}
+                  readOnly={readOnly}
+                  onSaved={onSaved}
+                />
+              </div>
+            ),
+          },
+          {
+            id: "linked",
+            label: "Linked",
+            content: (
+              <LinkedItemsTab
+                anchorId={review.id}
+                anchorType="review"
+                readOnly={review.archived}
+                linkCommandTarget={{
+                  kind: "route",
+                  to: `/reviews/${review.id}?tab=linked`,
+                }}
+              />
+            ),
+          },
+          {
+            id: "activity",
+            label: "Activity",
+            content: (
+              <ReviewTimelineTab
+                reviewId={review.id}
+                reloadKey={review.updatedAt}
+              />
+            ),
+          },
+          {
+            id: "settings",
+            label: "Settings",
+            content: (
+              <ReviewSettings
                 review={review}
-                section={section(review, "progress.commentary")}
-                readOnly={readOnly}
+                pending={pending}
+                onRename={onRename}
+                onStatus={(status) =>
+                  void runLifecycle(
+                    "set_status",
+                    `Review status changed to ${status}`,
+                  )
+                }
+                onComplete={() =>
+                  void runLifecycle("complete", "Review completed")
+                }
+                onReopen={() => void runLifecycle("reopen", "Review reopened")}
+                onArchive={() =>
+                  void runLifecycle(
+                    "archive",
+                    lifecycleSuccessMessage("archive", "review"),
+                  )
+                }
+                onRestore={() =>
+                  void runLifecycle(
+                    "restore",
+                    lifecycleSuccessMessage("restore", "review"),
+                  )
+                }
+                onDelete={onDelete}
+                post={post}
                 onSaved={onSaved}
               />
-            </div>
-          ),
-        },
-        {
-          id: "tasks",
-          label: "Tasks",
-          content: (
-            <div className="dh-review-tab-stack">
-              <ContextList
-                title="Completed tasks"
-                items={context.completedTasks}
-                empty="No completed tasks were found in this bounded period context."
-              />
-              <ContextList
-                title="Open or overdue tasks"
-                items={context.openTasks}
-                empty="No overdue open tasks were found."
-              />
-              <SectionEditor
-                review={review}
-                section={section(review, "tasks.commentary")}
-                readOnly={readOnly}
-                onSaved={onSaved}
-              />
-            </div>
-          ),
-        },
-        {
-          id: "diary",
-          label: "Diary",
-          content: (
-            <div className="dh-review-tab-stack">
-              <ContextList
-                title="Diary entries"
-                items={context.diaryEntries}
-                empty="No diary entries were found in this bounded period context."
-              />
-              <SectionEditor
-                review={review}
-                section={section(review, "diary.commentary")}
-                readOnly={readOnly}
-                onSaved={onSaved}
-              />
-            </div>
-          ),
-        },
-        {
-          id: "people",
-          label: "People & Meetings",
-          content: (
-            <div className="dh-review-tab-stack">
-              <ContextList
-                title="Meetings"
-                items={context.meetings}
-                empty="No meetings were found in this bounded period context."
-              />
-              <SectionEditor
-                review={review}
-                section={section(review, "people_meetings.commentary")}
-                readOnly={readOnly}
-                onSaved={onSaved}
-              />
-            </div>
-          ),
-        },
-        {
-          id: "linked",
-          label: "Linked",
-          content: (
-            <LinkedItemsTab
-              anchorId={review.id}
-              anchorType="review"
-              readOnly={review.archived}
-              linkCommandTarget={{
-                kind: "route",
-                to: `/reviews/${review.id}?tab=linked`,
-              }}
-            />
-          ),
-        },
-        {
-          id: "activity",
-          label: "Activity",
-          content: (
-            <ReviewTimelineTab
-              reviewId={review.id}
-              reloadKey={review.updatedAt}
-            />
-          ),
-        },
-        {
-          id: "settings",
-          label: "Settings",
-          content: (
-            <ReviewSettings
-              review={review}
-              pending={pending}
-              onRename={onRename}
-              onStatus={(status) =>
-                void runLifecycle(
-                  "set_status",
-                  `Review status changed to ${status}`,
-                )
-              }
-              onComplete={() =>
-                void runLifecycle("complete", "Review completed")
-              }
-              onReopen={() => void runLifecycle("reopen", "Review reopened")}
-              onArchive={() => void runLifecycle("archive", "Review archived")}
-              onRestore={() => void runLifecycle("restore", "Review restored")}
-              onDelete={onDelete}
-              post={post}
-              onSaved={onSaved}
-            />
-          ),
-        },
-      ]}
-    />
+            ),
+          },
+        ]}
+      />
+      {lifecycle.dialogs}
+    </>
   );
 }
 
@@ -579,7 +627,7 @@ function ReviewSettings({
                       onSaved();
                     } else {
                       feedback.notifyError(
-                        result.formError ?? "That status couldn't be saved.",
+                        result.formError ?? "That status couldn’t be saved.",
                       );
                     }
                   });
@@ -634,7 +682,7 @@ function ReviewSettings({
       <SettingsGroup title="Danger zone" headingLevel={2} tone="danger">
         <DangerousAction
           label="Delete this Review"
-          description="Permanently remove this Review's detail and section rows, plus its links. Linked source records are never deleted."
+          description="Permanently remove this Review’s detail and section rows, plus its links. Linked source records are never deleted."
           actionLabel="Delete Review..."
           confirmTitle={`Delete ${review.title}?`}
           confirmBody="This permanently removes the Review record and authored reflection. It cannot be undone."

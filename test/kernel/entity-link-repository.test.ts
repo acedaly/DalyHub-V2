@@ -490,7 +490,7 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
       expect((await linksA.listForEntity(anchor.id)).items).toEqual([]);
     });
 
-    it("never surfaces another workspace's links and requires the anchor to be active", async () => {
+    it("never surfaces another workspace’s links and requires the anchor to be active", async () => {
       const source = await entitiesA.create({ type: "widget", title: "M" });
       const target = await entitiesA.create({ type: "widget", title: "T" });
       await linksA.create({
@@ -806,7 +806,7 @@ describe("D1EntityLinkRepository (workspace-scoped)", () => {
   });
 
   describe("getById scoping", () => {
-    it("hides another workspace's link and excludes unlinked by default", async () => {
+    it("hides another workspace’s link and excludes unlinked by default", async () => {
       const [source, target] = await twoEntitiesA();
       const { link } = await linksA.create({
         sourceEntityId: source,

@@ -61,7 +61,7 @@ export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
   {
     id: "my-day",
     title: "My day",
-    description: "Today's planned, overdue, upcoming and backlog tasks.",
+    description: "Today’s planned, overdue, upcoming and backlog tasks.",
   },
   {
     id: "recent-activity",
@@ -71,7 +71,7 @@ export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
   {
     id: "diary",
     title: "Diary",
-    description: "Today's journal entry and recent moments.",
+    description: "Today’s journal entry and recent moments.",
   },
   {
     id: "notes",

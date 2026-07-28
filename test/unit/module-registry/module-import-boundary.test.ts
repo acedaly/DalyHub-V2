@@ -95,7 +95,7 @@ function listSourceFiles(dir: string): string[] {
 describe("module import boundary", () => {
   const projectsFile = path.join(modulesDir, "projects", "detail.ts");
 
-  it("flags an aliased import into another module's internals", () => {
+  it("flags an aliased import into another module’s internals", () => {
     expect(
       crossModuleImports(
         projectsFile,

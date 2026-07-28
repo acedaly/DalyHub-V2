@@ -6,7 +6,10 @@ import {
   type ReviewView,
 } from "~/kernel/reviews";
 import { Card, CardCollection, type CardMetaItem } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 
@@ -171,8 +174,13 @@ export function ReviewsCollectionView({
     ? hrefFor(searchParams, { cursor: data.nextCursor })
     : null;
 
+  // PX-06: the ONE shared collection loading signal — a same-route navigation
+  // (a filter, a view, a page) shows the shared skeleton instead of leaving the
+  // previous list on screen with no feedback.
+  const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      isLoading={isReloading}
       title="Reviews"
       entityType="review"
       subtitle="Reflect on the period, close loops and plan what matters next."
@@ -196,7 +204,7 @@ export function ReviewsCollectionView({
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="review" />}
-          title="No reviews yet"
+          title="No Reviews yet"
           description="Start a weekly, monthly, quarterly, annual or custom review."
           primaryAction={
             <Link className="dh-btn dh-btn--primary" to="/reviews/new">
@@ -211,7 +219,7 @@ export function ReviewsCollectionView({
       filteredEmptySlot={
         <EmptyState
           icon={<EntityIcon type="review" />}
-          title="No matching reviews"
+          title="No matching Reviews"
           description="Adjust the search or filters to widen the view."
         />
       }

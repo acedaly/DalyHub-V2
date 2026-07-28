@@ -8,6 +8,8 @@ import {
 } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { FeedbackProvider } from "~/shared/feedback";
+
 import { ProjectsCollectionView } from "~/modules/projects/ProjectsCollection";
 import type { SerializedProjectListItem } from "~/modules/projects/project-view";
 
@@ -73,7 +75,11 @@ function renderCollection(
     ],
     { initialEntries: ["/projects"] },
   );
-  return render(<RouterProvider router={router} />);
+  return render(
+    <FeedbackProvider>
+      <RouterProvider router={router} />
+    </FeedbackProvider>,
+  );
 }
 
 describe("Projects collection", () => {
@@ -101,11 +107,11 @@ describe("Projects collection", () => {
     expect(screen.getByText("No tasks yet")).toBeInTheDocument();
     // The subtitle reflects the count.
     expect(screen.getByText("2 projects")).toBeInTheDocument();
-    // The state segment and the New project affordance are present.
+    // The state segment and the New Project affordance are present.
     expect(
       screen.getByRole("group", { name: "Filter projects by state" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("New project").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("New Project").length).toBeGreaterThan(0);
   });
 
   it("keeps project cards as honest links with no mobile swipe accelerator", () => {
@@ -227,7 +233,7 @@ describe("Projects collection", () => {
       state: "all",
       failed: false,
     });
-    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+    expect(screen.getByText("No Projects yet")).toBeInTheDocument();
   });
 
   it("distinguishes a filtered-empty state from genuinely empty", () => {
@@ -283,7 +289,7 @@ describe("Projects collection", () => {
       expect(link).toHaveAttribute("href", "/projects/archived-1");
     });
 
-    it("shows a distinct, honest empty state for the Archived filter with no 'New project' CTA", () => {
+    it("shows a distinct, honest empty state for the Archived filter with no 'New Project' CTA", () => {
       renderCollection({
         projects: [],
         nextCursor: null,
@@ -292,10 +298,10 @@ describe("Projects collection", () => {
         failed: false,
       });
       expect(screen.getByText("No archived projects")).toBeInTheDocument();
-      // Only the persistent header "New project" trigger renders — the
+      // Only the persistent header "New Project" trigger renders — the
       // Archived empty state deliberately omits a SECOND create CTA (creating
       // a project doesn't address "no archived projects").
-      expect(screen.getAllByText("New project")).toHaveLength(1);
+      expect(screen.getAllByText("New Project")).toHaveLength(1);
     });
   });
 
@@ -321,7 +327,7 @@ describe("Projects collection", () => {
       failed: false,
     });
 
-    fireEvent.click(screen.getAllByText("New project")[0]!);
+    fireEvent.click(screen.getAllByText("New Project")[0]!);
 
     // The load-failure message renders, never the false "no Areas or Goals
     // exist" domain claim a generic empty-array fallback would otherwise show.

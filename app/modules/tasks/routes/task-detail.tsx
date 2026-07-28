@@ -242,7 +242,7 @@ async function handleUpdate(
       kind: "update",
       status: "error",
       formError:
-        "Your changes couldn't be saved. Your work is safe — try again.",
+        "Your changes couldn’t be saved. Your work is safe — try again.",
     };
   }
 }
@@ -291,7 +291,7 @@ async function handleCompletion(
     return {
       kind: "completion",
       ok: false,
-      message: "That couldn't be saved. Please try again.",
+      message: "That couldn’t be saved. Please try again.",
     };
   }
 }
@@ -312,7 +312,7 @@ async function rejectIfParentProjectArchived(
   if (task.project === null) return null;
   const settings = await scope.projectSettings.get(task.project.id);
   return settings?.archivedAt
-    ? "This task's project is archived and read-only — restore it to make changes."
+    ? "This task’s project is archived and read-only — restore it to make changes."
     : null;
 }
 
@@ -406,7 +406,7 @@ async function handleSetWaiting(
     return {
       kind: "waiting",
       status: "error",
-      formError: "That couldn't be saved. Your work is safe — try again.",
+      formError: "That couldn’t be saved. Your work is safe — try again.",
     };
   }
 }
@@ -436,7 +436,7 @@ async function handleClearWaiting(
     return {
       kind: "waiting",
       status: "error",
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     };
   }
 }
@@ -476,7 +476,7 @@ async function handlePlan(
     return {
       kind: "planning",
       status: "error",
-      formError: "That couldn't be saved. Your work is safe — try again.",
+      formError: "That couldn’t be saved. Your work is safe — try again.",
     };
   }
 }
@@ -514,7 +514,7 @@ async function handleClearPlan(
     return {
       kind: "planning",
       status: "error",
-      formError: "That couldn't be saved. Please try again.",
+      formError: "That couldn’t be saved. Please try again.",
     };
   }
 }
