@@ -7,6 +7,7 @@ import type {
   MeetingItem,
   MeetingItemKind,
   MeetingPage,
+  MeetingSort,
   MeetingView,
   UpdateMeetingInput,
 } from "./meeting";
@@ -62,6 +63,7 @@ export interface MeetingRepository {
   list(input?: {
     view?: MeetingView;
     query?: string;
+    sort?: MeetingSort;
     limit?: number;
     cursor?: string;
   }): Promise<MeetingPage>;

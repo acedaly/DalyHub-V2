@@ -91,6 +91,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   let preferredPrimaryView = DEFAULT_APP_PREFERENCES.defaultTasksView;
   let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  let defaultCaptureParent: TasksPageData["defaultCaptureParent"] = null;
   try {
     const preferenceScope = await resolveAuthenticatedWorkspaceScope(
       env,
@@ -101,6 +102,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     );
     preferredPrimaryView = preferences.defaultTasksView;
     timezone = preferences.timezone;
+    if (preferences.defaultTaskCaptureParentId) {
+      const parent = await preferenceScope.tasks.getTaskParentCandidate(
+        preferences.defaultTaskCaptureParentId,
+      );
+      if (parent) {
+        defaultCaptureParent = {
+          id: parent.id,
+          kind: parent.kind,
+          title: parent.title,
+          context: parent.kind === "project" ? "Project" : "Area",
+        };
+      }
+    }
   } catch {
     // The task list itself handles storage failures below; preference read failure
     // falls back deterministically so /tasks remains reachable.
@@ -125,6 +139,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     sort,
     filters,
     todayIso,
+    defaultCaptureParent,
   };
 
   // The Matrix and Sectors views render from a SERVER-AUTHORITATIVE grouping —

@@ -15,29 +15,29 @@ import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 
 describe("PriorityIndicator", () => {
-  it("renders the short tag AND the full action word for assistive tech", () => {
+  it("renders the short tag AND the full priority label for assistive tech", () => {
     render(<PriorityIndicator priority="p1" data-testid="pi" />);
     const el = screen.getByTestId("pi");
-    // The visible tag is short; the full text content includes the action word so a
-    // screen-reader user hears "P1 priority — Do", never a bare colour.
+    // The visible tag is short; the full text content includes the priority label
+    // so a screen-reader user hears "P1 priority — P1 · Urgent", never a bare colour.
     expect(el).toHaveTextContent("P1");
-    expect(el).toHaveTextContent(/priority — Do/);
+    expect(el).toHaveTextContent(/priority — P1 · Urgent/);
     // Colour is reinforcement only — the meaning-bearing attribute is the value.
     expect(el).toHaveAttribute("data-priority", "p1");
   });
 
-  it("maps each priority to its action word", () => {
-    for (const [priority, word] of [
-      ["p1", "Do"],
-      ["p2", "Defer"],
-      ["p3", "Delegate"],
-      ["p4", "Delete / Review"],
+  it("maps each priority to its everyday label", () => {
+    for (const [priority, label] of [
+      ["p1", "P1 · Urgent"],
+      ["p2", "P2 · High"],
+      ["p3", "P3 · Normal"],
+      ["p4", "P4 · Low"],
     ] as const) {
       const { unmount } = render(
         <PriorityIndicator priority={priority} data-testid="pi" />,
       );
       expect(screen.getByTestId("pi")).toHaveTextContent(
-        new RegExp(`priority — ${word.replace("/", "\\/")}`),
+        new RegExp(`priority — ${label.replace("·", "·")}`),
       );
       unmount();
     }

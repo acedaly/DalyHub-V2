@@ -217,23 +217,27 @@ export function MeetingFollowUpForm({
         options={PRIORITY_OPTIONS}
         {...form.field("priority")}
       />
-      <SelectField
-        label="Status"
-        options={STATUS_OPTIONS}
-        {...form.field("status")}
-      />
-      <SelectField
-        label="Time sector"
-        options={SECTOR_OPTIONS}
-        {...form.field("timeSector")}
-      />
-      <SelectField
-        label="Commitment"
-        options={COMMITMENT_OPTIONS}
-        {...form.field("commitmentState")}
-      />
       <DateField label="Due date" {...form.field("dueDate")} />
-      <DateField label="Scheduled date" {...form.field("scheduledDate")} />
+
+      <details className="dh-progressive-section">
+        <summary>More details</summary>
+        <SelectField
+          label="Status"
+          options={STATUS_OPTIONS}
+          {...form.field("status")}
+        />
+        <DateField label="Scheduled date" {...form.field("scheduledDate")} />
+        <SelectField
+          label="Time sector"
+          options={SECTOR_OPTIONS}
+          {...form.field("timeSector")}
+        />
+        <SelectField
+          label="Commitment"
+          options={COMMITMENT_OPTIONS}
+          {...form.field("commitmentState")}
+        />
+      </details>
 
       <FormActions>
         <FormButton

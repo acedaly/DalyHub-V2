@@ -39,12 +39,12 @@ test.describe("TODAY-02 — desktop", () => {
     // The open stack lives in the URL (DS-03).
     await expect(page).toHaveURL(/drawer=task%3At-drawer/);
     // Real fields render (TASKS-02: priority is the shared coloured
-    // PriorityIndicator — the "P1" tag is visible and the "Do" action word is carried
-    // for assistive tech).
+    // PriorityIndicator — the "P1" tag is visible and the everyday priority label
+    // is carried for assistive tech).
     const priority = dialog.locator('.dh-priority[data-priority="p1"]');
     await expect(priority).toBeVisible();
     await expect(priority).toContainText("P1");
-    await expect(priority).toContainText("Do");
+    await expect(priority).toContainText("Urgent");
     // The due date renders — now in both the Planning section and, since TASKS-02,
     // the shared UrgencyChip ("Due 1 Aug 2026"); assert the chip form explicitly.
     await expect(
@@ -57,7 +57,7 @@ test.describe("TODAY-02 — desktop", () => {
   }) => {
     await gotoFixture(page, DRAWER_URL);
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("tab", { name: "Links" }).click();
+    await dialog.getByRole("tab", { name: "Linked" }).click();
     const relationships = dialog.getByRole("region", { name: "Relationships" });
     await expect(relationships.getByText("DalyHub V2")).toBeVisible();
   });
@@ -184,7 +184,7 @@ test.describe("TODAY-02 — desktop", () => {
 
   test("shows the calm not-found for an invalid task id", async ({ page }) => {
     await gotoFixture(page, "/today?drawer=task%3Amissing-task");
-    await expect(page.getByText("We couldn't find that task")).toBeVisible();
+    await expect(page.getByText(/We couldn.t find that task/)).toBeVisible();
   });
 
   test("has no horizontal overflow with the Drawer open", async ({ page }) => {

@@ -25,6 +25,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | **Product** | |
 | [`product/PRODUCT_PRINCIPLES.md`](product/PRODUCT_PRINCIPLES.md) | What DalyHub is, why it exists, how it should feel; meaning of every entity. |
 | [`product/PRODUCT_DEBT.md`](product/PRODUCT_DEBT.md) | Known inconsistencies and their target states, linked to roadmap items. |
+| [`product/UX_01_IMPLEMENTATION_NOTE_2026_07_28.md`](product/UX_01_IMPLEMENTATION_NOTE_2026_07_28.md) | Exact completed and remaining scope for the UX-01 Tasks/Meetings usability slice. |
 | [`product/IMPLEMENTATION_WORKFLOW.md`](product/IMPLEMENTATION_WORKFLOW.md) | The step-by-step lifecycle of every feature. |
 | **Roadmap** | |
 | [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of independently-implementable work items. |
@@ -76,6 +77,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     ├── product/
     │   ├── PRODUCT_PRINCIPLES.md
     │   ├── PRODUCT_DEBT.md
+    │   ├── UX_01_IMPLEMENTATION_NOTE_2026_07_28.md
     │   └── IMPLEMENTATION_WORKFLOW.md
     ├── roadmap/
     │   └── ROADMAP_V2.md

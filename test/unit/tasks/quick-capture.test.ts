@@ -77,4 +77,19 @@ describe("parseQuickCapture", () => {
     expect(r.priority).toBe("p2");
     expect(r.timeSector).toBe("next_week");
   });
+
+  it("keeps an ignored chip as literal title text", () => {
+    const parsed = parseQuickCapture("Write p1 launch brief next week");
+    const priorityChip = parsed.tokens.find(
+      (token) => token.kind === "priority",
+    );
+    expect(priorityChip?.id).toBe("priority:p1");
+
+    const ignored = parseQuickCapture("Write p1 launch brief next week", {
+      ignoredTokenIds: new Set(["priority:p1"]),
+    });
+    expect(ignored.title).toBe("Write p1 launch brief");
+    expect(ignored.priority).toBeNull();
+    expect(ignored.timeSector).toBe("next_week");
+  });
 });

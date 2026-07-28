@@ -28,7 +28,11 @@ import {
   type SubmitOutcome,
 } from "~/shared/forms";
 
-import { formatCalendarDate, type SerializedTaskView } from "./task-view";
+import {
+  formatCalendarDate,
+  taskPriorityLabel,
+  type SerializedTaskView,
+} from "./task-view";
 
 /** The editable values of the Details form (all strings for the shared controls). */
 export type TaskDetailsValues = {
@@ -68,10 +72,10 @@ const STATUS_OPTIONS = [
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "No priority" },
-  { value: "p1", label: "P1 · Do" },
-  { value: "p2", label: "P2 · Defer" },
-  { value: "p3", label: "P3 · Delegate" },
-  { value: "p4", label: "P4 · Delete / Review" },
+  { value: "p1", label: taskPriorityLabel("p1") },
+  { value: "p2", label: taskPriorityLabel("p2") },
+  { value: "p3", label: taskPriorityLabel("p3") },
+  { value: "p4", label: taskPriorityLabel("p4") },
 ];
 
 const SECTOR_OPTIONS = [
@@ -254,7 +258,7 @@ function TaskDetailsForm({
       <SelectField label="Status" options={STATUS_OPTIONS} {...statusField} />
       <SelectField
         label="Priority"
-        help="P1 · Do · P2 · Defer · P3 · Delegate · P4 · Delete / Review"
+        help="P1 · Urgent · P2 · High · P3 · Normal · P4 · Low"
         options={PRIORITY_OPTIONS}
         {...priorityField}
       />

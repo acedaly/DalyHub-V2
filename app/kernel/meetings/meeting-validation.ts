@@ -14,6 +14,12 @@ export class MeetingValidationError extends Error {
 
 const modes = new Set(["in_person", "phone", "online"]);
 const statuses = new Set(["planned", "completed", "cancelled"]);
+export const meetingItemKinds = new Set([
+  "agenda",
+  "decision",
+  "outcome",
+  "action",
+]);
 
 function instant(value: string, field: string): string {
   const date = new Date(value);
@@ -85,12 +91,23 @@ export function validateCreateMeeting(input: CreateMeetingInput) {
 }
 
 export function validateUpdateMeeting(input: UpdateMeetingInput) {
+  if (input.title !== undefined) {
+    const title = input.title.trim();
+    if (!title)
+      throw new MeetingValidationError("title", "Enter a meeting title.");
+    if (title.length > 240)
+      throw new MeetingValidationError(
+        "title",
+        "Keep the title under 240 characters.",
+      );
+  }
   if (input.status && !statuses.has(input.status))
     throw new MeetingValidationError("status", "Choose a valid status.");
   if (input.mode && !modes.has(input.mode))
     throw new MeetingValidationError("mode", "Choose a valid meeting mode.");
   return {
     ...input,
+    title: input.title === undefined ? undefined : input.title.trim(),
     startsAt:
       input.startsAt === undefined
         ? undefined

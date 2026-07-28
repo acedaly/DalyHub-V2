@@ -44,9 +44,9 @@ describe("Waiting collection card — shared priority signal (TASKS-02)", () => 
     const indicator = container.querySelector<HTMLElement>(".dh-priority");
     expect(indicator).not.toBeNull();
     expect(indicator).toHaveAttribute("data-priority", "p2");
-    // Meaning carried by text, never colour alone: the tag + the action word.
+    // Meaning carried by text, never colour alone: the tag + the priority label.
     expect(indicator).toHaveTextContent("P2");
-    expect(indicator).toHaveTextContent(/priority — Defer/);
+    expect(indicator).toHaveTextContent(/priority — P2 · High/);
   });
 
   it("shows no priority chip for an untriaged waiting task (no false priority)", () => {

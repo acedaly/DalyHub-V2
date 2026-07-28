@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SerializedTaskView } from "~/shared/task-record/task-view";
+import type { MeetingItemKind } from "~/kernel/meetings";
 import {
   MeetingFollowUpTab,
   MeetingItemRow,
@@ -10,7 +11,7 @@ import type { FollowUpTaskEntry } from "~/modules/meetings/follow-up-view";
 
 type Item = {
   id: string;
-  kind: "agenda" | "decision" | "outcome";
+  kind: MeetingItemKind;
   bodyMarkdown: string;
   position: number;
   createdAt: string;
@@ -149,9 +150,10 @@ describe("MeetingFollowUpTab", () => {
   const items = [
     item({ id: "i1", kind: "decision", bodyMarkdown: "Decision A" }),
     item({ id: "i2", kind: "outcome", bodyMarkdown: "Outcome B" }),
+    item({ id: "i3", kind: "action", bodyMarkdown: "Action C" }),
   ];
 
-  it("shows the calm empty state and lists unconverted items when nothing is converted", () => {
+  it("shows the calm empty state and lists only unconverted action items", () => {
     const onAddFollowUp = vi.fn();
     render(
       <MeetingFollowUpTab
@@ -163,9 +165,10 @@ describe("MeetingFollowUpTab", () => {
         onAddFollowUp={onAddFollowUp}
       />,
     );
-    expect(screen.getByText("No follow-up Tasks yet")).toBeInTheDocument();
-    expect(screen.getByText("Decision A")).toBeInTheDocument();
-    expect(screen.getByText("Outcome B")).toBeInTheDocument();
+    expect(screen.getByText("No follow-up tasks yet")).toBeInTheDocument();
+    expect(screen.queryByText("Decision A")).toBeNull();
+    expect(screen.queryByText("Outcome B")).toBeNull();
+    expect(screen.getByText("Action C")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Add follow-up task" }));
     expect(onAddFollowUp).toHaveBeenCalled();
   });
@@ -247,9 +250,9 @@ describe("MeetingFollowUpTab", () => {
       screen.queryByRole("button", { name: "Add follow-up task" }),
     ).toBeNull();
     expect(screen.queryByRole("button", { name: "Create task" })).toBeNull();
-    // The unconverted items still render, read-only.
-    const notConverted = screen.getAllByText("Not converted");
-    expect(notConverted.length).toBeGreaterThan(0);
-    within(document.body).getByText("Decision A");
+    // Explicit action items still render, read-only; decisions/outcomes are not a
+    // global conversion backlog.
+    expect(screen.getByText("Action C")).toBeInTheDocument();
+    expect(screen.queryByText("Decision A")).toBeNull();
   });
 });

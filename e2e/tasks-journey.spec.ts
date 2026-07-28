@@ -31,8 +31,8 @@ async function createJourneyTask(
     readonly scheduledDate?: string;
   },
 ): Promise<void> {
-  await page.getByRole("link", { name: "New Task" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New Task" });
+  await page.getByRole("link", { name: "New task" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New task" });
   await expect(dialog).toBeVisible();
 
   await dialog.getByLabel("Title").fill(options.title);
@@ -54,6 +54,9 @@ async function createJourneyTask(
     await dialog
       .getByRole("option", { name: options.priority, exact: true })
       .click();
+  }
+  if (options.sector || options.scheduledDate) {
+    await dialog.locator("summary", { hasText: "More details" }).click();
   }
   if (options.sector) {
     const sectorCombo = dialog.getByRole("combobox", { name: "Time sector" });
@@ -92,7 +95,10 @@ async function createJourneyTask(
 
 /** Select a task's card checkbox in the current collection view. */
 async function selectTask(page: Page, title: string): Promise<void> {
-  await page.getByRole("checkbox", { name: `Select ${title}` }).check();
+  await page
+    .getByRole("checkbox", { name: `Select ${title}` })
+    .first()
+    .check();
 }
 
 /** Run a bulk-bar action and wait until the mutation commits (the bar clears). */
@@ -115,7 +121,7 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Alpha",
       parent: "Tasks journey project",
-      priority: "P1 · Do",
+      priority: "P1 · Urgent",
       sector: "This Week",
     });
 
@@ -136,7 +142,7 @@ test.describe("TASKS-01 — full journey", () => {
     await runBulk(page, () =>
       page
         .getByLabel("Set priority for selected tasks")
-        .selectOption({ label: "P4 · Delete / Review" }),
+        .selectOption({ label: "P4 · Low" }),
     );
     await gotoFixture(page, "/tasks?view=matrix");
     await expect(
@@ -173,7 +179,7 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Bravo",
       parent: "Tasks journey project",
-      priority: "P2 · Defer",
+      priority: "P2 · High",
     });
 
     // Delegate through the canonical Drawer's Details editor.
@@ -237,7 +243,7 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Charlie",
       parent: "Tasks journey project",
-      priority: "P1 · Do",
+      priority: "P1 · Urgent",
     });
 
     // Bulk complete → it appears in the Completed view and leaves the active Matrix.
@@ -274,7 +280,7 @@ test.describe("TASKS-01 — full journey", () => {
     await createJourneyTask(page, {
       title: "Journey task Delta",
       parent: "Tasks journey project",
-      priority: "P1 · Do",
+      priority: "P1 · Urgent",
       scheduledDate: today,
     });
 
@@ -315,7 +321,7 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
     await createJourneyTask(page, {
       title: "Journey task Echo",
       parent: "Tasks journey project",
-      priority: "P3 · Delegate",
+      priority: "P3 · Normal",
       sector: "This Month",
     });
     for (const view of ["all", "matrix", "sectors", "focus"]) {

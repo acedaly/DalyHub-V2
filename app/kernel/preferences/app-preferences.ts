@@ -42,6 +42,8 @@ export interface AppPreferences {
   readonly firstDayOfWeek: FirstDayOfWeek;
   readonly defaultLandingDestination: LandingDestination;
   readonly defaultTasksView: TaskDefaultView;
+  readonly defaultTaskCaptureParentId: string | null;
+  readonly defaultTaskCaptureParentKind: "area" | "project" | null;
   readonly defaultDiaryMode: DiaryDefaultMode;
   readonly navigation: NavigationPreferences;
 }
@@ -60,6 +62,8 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   firstDayOfWeek: "monday",
   defaultLandingDestination: "today",
   defaultTasksView: "focus",
+  defaultTaskCaptureParentId: null,
+  defaultTaskCaptureParentKind: null,
   defaultDiaryMode: "day",
   navigation: {
     version: NAVIGATION_CONFIG_VERSION,
@@ -73,6 +77,8 @@ export type AppPreferencePatch = Partial<{
   readonly firstDayOfWeek: FirstDayOfWeek;
   readonly defaultLandingDestination: LandingDestination;
   readonly defaultTasksView: TaskDefaultView;
+  readonly defaultTaskCaptureParentId: string | null;
+  readonly defaultTaskCaptureParentKind: "area" | "project" | null;
   readonly defaultDiaryMode: DiaryDefaultMode;
   readonly navigation: NavigationPreferences;
 }>;
