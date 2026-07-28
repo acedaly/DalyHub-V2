@@ -361,6 +361,30 @@ An architectural test asserts the boundary rather than trusting it: the People
 timeline files import no Meetings code, hard-code no `meeting.*` identifier, and
 contain no Meetings-specific branch.
 
+#### What a held meeting shows, and to whom
+
+Worth stating precisely, because two different mechanisms put a Meeting on this
+timeline and they do not have the same meaning:
+
+| Mechanism | Who sees it | What it means |
+|---|---|---|
+| The Person is an Activity **subject** of `meeting.held` | recorded attendees only | *They were in that meeting.* Durable — survives unlinking and soft-deletion. |
+| The Meeting is an **anchor** (the Person is linked to it) | anyone linked to that Meeting, by any link type | *An event on a record you are connected to.* Leaves when the link does. |
+
+A consequence, recorded rather than hidden: a Person linked to a Meeting who was
+**not** a recorded attendee — a `link.related` connection, or an attendee added
+after the meeting was marked held — still sees the `Meeting held` line through the
+anchor path, exactly as they already see `meeting.created`. The line is true about
+the Meeting, but on a *relationship* history it reads more like "we met" than a
+record event does. Tracked as
+[DEBT-44](../product/PRODUCT_DEBT.md#-debt-44--a-held-meeting-appears-on-the-timeline-of-a-linked-non-attendee--p2);
+the fix is a generic subject-membership rule for this timeline, which changes
+PEOPLE-02 semantics for every module's events and so belongs to its own item.
+
+**The contact seam is unaffected**, which is the part that matters most: it reads
+`activity.listForEntity(personId)`, which returns only events that NAME the Person,
+so a linked non-attendee can never become a "last meaningful contact".
+
 #### One shared fix MEET-03 exposed
 
 `meeting.held` is the first multi-subject cross-module event where the anchor
