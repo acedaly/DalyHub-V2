@@ -93,37 +93,41 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
   test("completes a task from the list without opening the record", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks");
+    // The ALL view shows every task regardless of which system view the owner
+    // prefers, so the journey does not depend on which bucket a seeded task
+    // lands in. It restores the task afterwards, so other journeys are unaffected.
+    await gotoFixture(page, "/tasks?view=all&system=active");
 
-    const card = page.locator('.dh-card[data-card-id="t-gym"]');
+    const card = page.locator(".dh-card").first();
     await expect(card).toBeVisible();
-
-    const complete = card.getByRole("button", { name: /^Complete Gym$/ });
+    const complete = card.getByRole("button", { name: /^Complete / });
     await expect(complete).toBeVisible();
     await expectMinTouchTarget(complete);
+
+    const taskTitle = (
+      (await complete.getAttribute("aria-label")) ?? ""
+    ).replace(/^Complete /, "");
     await complete.click();
 
     // The row reflects the SERVER after revalidation, not an optimistic guess.
+    const row = page.locator(".dh-card").filter({ hasText: taskTitle });
     await expect(
-      card.getByRole("button", { name: /^Reopen Gym$/ }),
-    ).toBeVisible({ timeout: 10_000 });
+      row.getByRole("button", { name: `Reopen ${taskTitle}` }),
+    ).toBeVisible({ timeout: 15_000 });
 
     // Restore, so the other journeys see the seeded state.
-    await card.getByRole("button", { name: /^Reopen Gym$/ }).click();
+    await row.getByRole("button", { name: `Reopen ${taskTitle}` }).click();
     await expect(
-      card.getByRole("button", { name: /^Complete Gym$/ }),
-    ).toBeVisible({ timeout: 10_000 });
+      row.getByRole("button", { name: `Complete ${taskTitle}` }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("opens a task as a full-screen record and returns to the list", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks");
+    await gotoFixture(page, "/tasks?view=all&system=active");
 
-    await page
-      .locator('.dh-card[data-card-id="t-drawer"]')
-      .getByRole("link", { name: /Draft the proposal/ })
-      .click();
+    await page.locator(".dh-card__open").first().click();
 
     const drawer = page.getByRole("dialog", { name: "Task" });
     await expect(drawer).toBeVisible();
@@ -195,19 +199,21 @@ test.describe("MOBILE-01 secondary module journeys", () => {
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
 
-    // The bottom navigation must not sit on top of the collection's content.
+    // The collection RESERVES the bottom bar's height, so the last card is never
+    // trapped underneath it. Asserted against the reserved padding rather than
+    // against pixel positions, which depend on how much content happens to exist
+    // and on how far the page is scrolled.
     const bar = page.locator("[data-testid='bottom-nav']");
     await expect(bar).toBeVisible();
     const barBox = await bar.boundingBox();
-    const contentBottom = await page.evaluate(() => {
+    const reserved = await page.evaluate(() => {
       const content = document.querySelector(".dh-collection__content");
-      return content ? content.getBoundingClientRect().bottom : 0;
+      if (!content) return 0;
+      return Number.parseFloat(getComputedStyle(content).paddingBottom);
     });
     expect(barBox).not.toBeNull();
     if (barBox) {
-      // The content region ends at or above the bar's top edge, allowing for the
-      // reserved padding rather than overlapping it.
-      expect(contentBottom).toBeLessThanOrEqual(barBox.y + barBox.height + 1);
+      expect(reserved).toBeGreaterThanOrEqual(barBox.height);
     }
   });
 

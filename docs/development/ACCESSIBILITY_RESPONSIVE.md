@@ -84,7 +84,10 @@ same vocabulary, adapted layout.
 
 - **No horizontal overflow, ever, from 320px up.** Metadata wraps, long tokens
   break, nothing forces a fixed width wider than the smallest supported viewport.
-  Enforced automatically (see below) at 320 / 375 / 390 / 768 / 1024 / 1440 / 2560.
+  Enforced automatically (see below) across the canonical matrix — 320 / 375 /
+  390 / 430 / **844×390 phone landscape** / 768 / 1024 / 1440 / 2560. MOBILE-01
+  added the last two of those: the large-phone width most current handsets report,
+  and the first entry where HEIGHT is the binding dimension.
 - **Breakpoints are tokens.** `--dh-breakpoint-sm … 2xl` in
   [`tokens.css`](../../app/styles/tokens.css), mirrored as numbers in
   [`app/shared/tokens/tokens.ts`](../../app/shared/tokens/tokens.ts) (a test keeps
@@ -341,3 +344,39 @@ reveals exactly the `quickActions` already rendered on the card.
 - [`ROADMAP_V2.md → DS-11`](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
 - [`AGENTS.md §15`](../../AGENTS.md#15-accessibility-requirements) — the requirement.
 - [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) — the axe-core reuse assessment.
+
+### Measured bundle cost (MOBILE-01)
+
+Production `pnpm run build`, client JS, measured before and after the change on
+the same machine. Chunk names are normalised (the content hash stripped) and
+sizes aggregated per name, because Rolldown re-splits chunks between builds.
+
+| | Before | After | Δ |
+| --- | ---: | ---: | ---: |
+| Total client JS | 1,684,143 B | 1,720,997 B | **+36,854 B (+2.2%)** |
+| Chunks | 160 | 168 | +8 |
+| `entry.client` | 182,473 B | 182,473 B | **0** |
+
+**The initial application bundle is byte-for-byte unchanged.** That is the number
+that matters: everything MOBILE-01 adds is either lazy or tiny.
+
+New chunks, all lazy or shell-level:
+
+| Chunk | Size | When it loads |
+| --- | ---: | --- |
+| `CaptureSheet` | 13,871 B | First time Quick Capture is opened |
+| `sheet` | 2,663 B | With the first sheet |
+| `capture` | 2,372 B | Split across the capture panels |
+| `quick` | 2,031 B | The shared quick-capture parser, with the Task panel |
+| `viewport` | 994 B | The shell (the keyboard-inset observer) |
+
+The largest per-route growth is `app` (+3,757 B — the shell's bottom bar, top bar
+and providers) and `collection` (+3,131 B — the shared controls and filter sheet).
+`manifest` grows 2,011 B because there is one more route (`/capture/context`).
+No route chunk shrank or grew materially otherwise, and route-level code splitting
+is unchanged.
+
+Search and the Command Palette remain lazy (`SearchSurface` and `CommandPalette`
+are still separate chunks and did not move into the shell), the bottom bar loads
+no module code to render itself, and the capture context is fetched on demand
+rather than in the app-shell loader.

@@ -1071,6 +1071,30 @@ Items not listed keep the status and sequencing recorded in their own entries �
 
 ## Change log for this roadmap
 
+- **2026-07-28 — MOBILE-01 phone platform.** Built the shared surfaces that make
+  DalyHub quick on a phone, on top of the DS-11 baseline that made it usable:
+  registry-driven bottom navigation (a new validated `meta.mobilePrimaryOrder`
+  capability, so the shell holds no module list), one shared Quick Capture
+  framework over the modules' canonical creation routes, full-screen phone
+  records with keyboard-safe sticky actions, a shared collection filter/sort/view
+  sheet, a compact Card preset with module-declared metadata priority, and one
+  Visual Viewport listener publishing one keyboard-inset token. Accepted via
+  [ADR-058](../decisions/ARCHITECTURE_DECISIONS.md#adr-058-registry-driven-phone-navigation-and-quick-capture-as-a-shared-shell-framework).
+
+  **Reconciled honestly, not wholesale.** [TODAY-07](#-today-07--quick-capture-wiring)
+  ☑ (Today's capture is real), [MEET-04](#-meet-04--mobile) ☑ and
+  [DIARY-03](#-diary-03--mobile) ☑ (both delivered the distinctive value they
+  named). [PEOPLE-04](#-people-04--mobile), [ASSET-03](#-asset-03--mobile) and
+  [REVIEW-04](#-review-04--mobile) are ◐ — each has a specific, named remainder
+  (capture context linking; phone-first Asset capture; the one-prompt-at-a-time
+  Review stepper) that is genuinely outstanding rather than covered by a passing
+  no-overflow test. The four already-☑ module mobile items were extended, not
+  re-opened. Two debts were recorded in the same change that created them:
+  [DEBT-45](../product/PRODUCT_DEBT.md) (a captured record is not linked to its
+  capture context) and [DEBT-46](../product/PRODUCT_DEBT.md) (Diary's timeline
+  node, split out of DEBT-01 and deliberately downgraded rather than closed by
+  conversion).
+
 - **2026-07-28 — UX-01 Tasks/Meetings usability slice.** Implemented the first
   functional slice of the requested usability overhaul: fast Task capture with a
   validated default capture parent preference, removable deterministic
