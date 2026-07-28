@@ -20,6 +20,7 @@ import {
   RESPONSIVE_VIEWPORTS,
   expectNoHorizontalOverflow,
   gotoFixture,
+  mobileNavigationOpener,
 } from "./helpers";
 
 const DESIGN_FIXTURES = [

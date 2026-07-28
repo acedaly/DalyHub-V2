@@ -7,6 +7,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  mobileNavigationOpener,
 } from "./helpers";
 
 /**

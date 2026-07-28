@@ -14,7 +14,11 @@
 
 import { expect, test } from "@playwright/test";
 
-import { expectMinTouchTarget, gotoFixture } from "./helpers";
+import {
+  expectMinTouchTarget,
+  gotoFixture,
+  mobileNavigationOpener,
+} from "./helpers";
 import { cleanupNoteByTitle, uniqueNoteTitle } from "./notes-fixtures";
 
 test.describe("touch targets — shell (mobile)", () => {
