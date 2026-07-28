@@ -30,7 +30,7 @@
  * newline.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { MeetingItemKind } from "~/kernel/meetings";
 
@@ -75,8 +75,25 @@ export function MeetingCaptureBar({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  /**
+   * Set when a save finishes, so the input is refocused once it is interactive
+   * again. It cannot be refocused inside `submit`: the field is `disabled` while
+   * the save is in flight — which is what blurred it — and a disabled element
+   * cannot take focus, so a `focus()` call there is silently dropped and the user
+   * is left with no keyboard after every capture. Focusing from an effect runs
+   * after React has re-enabled the field.
+   */
+  const refocusAfterSave = useRef(false);
 
   const active = OPTIONS.find((option) => option.kind === kind) ?? OPTIONS[0];
+
+  useEffect(() => {
+    if (busy || !refocusAfterSave.current) {
+      return;
+    }
+    refocusAfterSave.current = false;
+    inputRef.current?.focus();
+  }, [busy]);
 
   const choose = useCallback((next: MeetingCaptureKind) => {
     setKind(next);
@@ -96,11 +113,12 @@ export function MeetingCaptureBar({
     const ok =
       kind === "note" ? await onAppendNote(body) : await onAddItem(kind, body);
     setBusy(false);
+    // Either way the user stays in the workspace with the field focused — ready
+    // for the next capture, or to correct and retry the one that failed.
+    refocusAfterSave.current = true;
     if (ok) {
       setValue("");
       setStatus(`${active.label} captured`);
-      // Stay in the workspace with the input focused, ready for the next one.
-      inputRef.current?.focus();
     } else {
       // The text stays on screen: a failed capture must never cost the words.
       setStatus(

@@ -93,6 +93,21 @@ export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
  */
 export async function gotoFixture(page: Page, path: string): Promise<void> {
   await page.goto(path);
+  await waitForInteractive(page);
+}
+
+/**
+ * Wait until the document currently loaded is interactive, using the same gate as
+ * {@link gotoFixture}.
+ *
+ * Needed on its own whenever a journey arrives at a page through the PRODUCT — a
+ * capture that creates a record and lands on it — rather than through `goto`.
+ * Server-rendered markup is present and visible well before React attaches its
+ * handlers, so a click dispatched in that window is silently dropped: the element
+ * is there, the click "succeeds", and nothing happens. Gating on readiness makes
+ * the journey assert the behaviour it means to.
+ */
+export async function waitForInteractive(page: Page): Promise<void> {
   const marker = page.locator("[data-hydrated]");
   if ((await marker.count()) > 0) {
     await expect(marker.first()).toHaveAttribute("data-hydrated", "true");
@@ -101,15 +116,33 @@ export async function gotoFixture(page: Page, path: string): Promise<void> {
   }
 }
 
-/** Assert an interactive control meets the WCAG 2.2 (2.5.8) minimum target size. */
+/**
+ * Assert an interactive control meets the WCAG 2.2 (2.5.8) minimum target size.
+ *
+ * The measurement RETRIES, like every other web-first assertion in Playwright,
+ * because a bare `boundingBox()` samples one instant. The Vite dev server injects
+ * the stylesheet through JavaScript, so a freshly loaded document has a brief
+ * unstyled window in which every control measures at its intrinsic text size — a
+ * dev-server artefact (production serves a render-blocking `<link>`, so it cannot
+ * occur there) that has nothing to do with whether the control is big enough.
+ * Retrying converges on the settled layout.
+ *
+ * The threshold itself is unchanged and the assertion still fails — it just fails
+ * on a genuinely small control rather than on a moment of measurement.
+ */
 export async function expectMinTouchTarget(locator: Locator): Promise<void> {
-  const box = await locator.boundingBox();
-  expect(box, "control should be laid out").not.toBeNull();
-  if (box) {
-    // Half-a-pixel tolerance for sub-pixel rounding.
-    expect(box.width).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN - 0.5);
-    expect(box.height).toBeGreaterThanOrEqual(TOUCH_TARGET_MIN - 0.5);
-  }
+  await expect(locator).toBeVisible();
+  await expect
+    .poll(
+      async () => {
+        const box = await locator.boundingBox();
+        // Half-a-pixel tolerance for sub-pixel rounding; the smaller dimension is
+        // the one that decides whether a thumb can hit the control.
+        return box ? Math.min(box.width, box.height) : 0;
+      },
+      { message: "control should meet the minimum touch target on both axes" },
+    )
+    .toBeGreaterThanOrEqual(TOUCH_TARGET_MIN - 0.5);
 }
 
 /** Options for a scoped axe scan. */

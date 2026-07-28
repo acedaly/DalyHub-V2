@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  waitForInteractive,
 } from "./helpers";
 import { cleanupNoteByTitle, uniqueNoteTitle } from "./notes-fixtures";
 import { cleanupMeetingByTitle, uniqueMeetingTitle } from "./meetings-fixtures";
@@ -144,6 +145,9 @@ test.describe("MOBILE-01 the Notes writing surface", () => {
 
     // Capture hands off to the canonical NOTES-05 editor — never a second one.
     await expect(page).toHaveURL(/\/notes\//, { timeout: 15_000 });
+    // Same as the Meeting journey: arrived through the product, so gate on the
+    // editor being interactive before driving its toolbar.
+    await waitForInteractive(page);
 
     const toolbar = page.getByRole("toolbar", { name: /formatting/i }).first();
     await expect(toolbar).toBeVisible({ timeout: 15_000 });
@@ -198,6 +202,17 @@ test.describe("MOBILE-01 the live Meeting workspace", () => {
 
     // A captured meeting opens its workspace — the next thing you do is run it.
     await expect(page).toHaveURL(/\/meeting\//, { timeout: 15_000 });
+    // Arriving through the product, not through `goto`: wait for the workspace to
+    // be interactive before driving it, or the first chip tap lands on markup that
+    // has no handler attached yet and is dropped.
+    await waitForInteractive(page);
+    // This journey asserts FOCUS, and Playwright reports an element as `inactive`
+    // — not focused — when it is the document's active element but the page itself
+    // is not the browser's active one. Earlier tests in this file open and close
+    // their own contexts, which can leave this page inactive even though nothing
+    // about the workspace is wrong. Make it the active page so the assertions
+    // below are about the capture bar rather than about window activation.
+    await page.bringToFront();
 
     const bar = page.getByTestId("meeting-capture-bar");
     await expect(bar).toBeVisible({ timeout: 15_000 });
@@ -231,15 +246,28 @@ test.describe("MOBILE-01 the live Meeting workspace", () => {
     await input.press("Enter");
     await expect(input).toHaveValue("", { timeout: 15_000 });
 
-    // All three landed in the record.
+    // The two structured items appear in their sections immediately.
     await expect(page.getByText("Phone-captured action")).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByText("Phone-captured decision")).toBeVisible();
-    await expect(page.getByText("Phone-captured meeting note")).toBeVisible();
 
     // The surface holds the baseline with the bar present.
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
+
+    // The NOTE goes to the meeting's `notesMarkdown` through the same authority
+    // the Notes editor autosaves through — so it is asserted where that can
+    // actually be observed: after a reload. The open editor is an autosave field
+    // that owns its own draft and deliberately does NOT adopt server changes
+    // underneath a writer, so a note captured while it is mounted does not appear
+    // in it until the record is loaded again (DEBT-47). This asserts what is
+    // genuinely true today — the note was persisted to the canonical field —
+    // rather than a live update the product does not yet make.
+    await page.reload();
+    await waitForInteractive(page);
+    await expect(page.getByText("Phone-captured meeting note")).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

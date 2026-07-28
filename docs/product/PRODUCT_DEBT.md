@@ -329,6 +329,14 @@
 - **Desired future state.** Either a Card *variant* that can render against a time rail without the Card growing timeline knowledge, or an explicit, documented acceptance that a timeline node is its own shared primitive. Decide it deliberately; do not close it by conversion.
 - **Related roadmap item.** [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1); [DIARY-01B](../roadmap/ROADMAP_V2.md#-diary-01b--diary-responsive-day-timeline-workspace).
 
+### ☐ DEBT-47 — An open autosave editor does not adopt a server-side change to its field — P2
+- **Status: outstanding, surfaced by [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience) (2026-07-28).** Pre-existing behaviour of the shared autosave field; MOBILE-01 is the first workflow that makes it visible, so it is recorded here rather than left to be discovered.
+- **Current issue.** `useAutosaveField` seeds its draft from `initialValue` once and then owns it, so a change written to the same field by anything else — another tab, another device, or the Meeting capture bar's **Note** type — does not appear in an editor that is already mounted. The write itself is correct and canonical: the note IS appended to `notesMarkdown` through the same `intent=update` the editor autosaves through, and it is there on the next load. But during the meeting the user captures a note, hears "Note captured", and sees the notes editor unchanged.
+- **Why it was not fixed here.** The safe-looking fix — adopt `initialValue` whenever it changes — would overwrite a draft out from under someone who is typing, which is exactly the data loss the current design refuses. A correct fix is a *reconciliation contract* on the shared hook: adopt an external value only when the field is genuinely clean (no pending debounce, no unsaved edit, no in-flight or failed save), and decide deliberately what happens when it is not (keep the draft and say so, or offer the newer version). That is a change to a shared DS-06 contract used by every autosave surface in the product, not a mobile adjustment — one item per PR (AGENTS.md §13).
+- **Effect on the tests.** `e2e/mobile-capture-journeys.spec.ts` asserts the captured note after a reload, which is what is genuinely true today, rather than asserting a live update the product does not make. The comment there points back to this entry.
+- **Desired future state.** `useAutosaveField` accepts an external value and adopts it when clean; the Meeting capture bar's notes then appear as they are captured, and a second tab stops silently diverging.
+- **Related roadmap item.** [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile); [SHARED_FORMS.md](../development/SHARED_FORMS.md).
+
 ---
 
 ## Entry template

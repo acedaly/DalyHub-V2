@@ -279,6 +279,22 @@ A note is **appended**, never overwritten, so a capture during a meeting can nev
 destroy notes already written. A failed capture keeps the text on screen. Saves
 and failures are announced through a live region.
 
+A captured **note** is written to the canonical field, but an editor that is
+already open does not show it until the record is loaded again: the autosave field
+owns its draft and does not adopt server changes underneath a writer. That is
+[DEBT-47](../product/PRODUCT_DEBT.md#-debt-47--an-open-autosave-editor-does-not-adopt-a-server-side-change-to-its-field--p2),
+recorded rather than patched, because adopting external values safely is a change
+to the shared DS-06 autosave contract.
+
+**Focus across a save is part of the contract, not polish.** The field is disabled
+while a save is in flight, and a browser blurs a disabled element — so it is
+refocused from an effect that runs *after* React re-enables it. Refocusing inside
+the submit handler looks correct and does nothing at all, because `focus()` on a
+disabled element is dropped silently; the symptom is the phone keyboard closing
+after every captured item, which is exactly the flow the bar exists to provide.
+The failure path refocuses too, so a rejected capture can be corrected and retried
+without re-tapping the field.
+
 `agenda` is deliberately absent from the bar: an agenda is written *before* a
 meeting, not captured during one.
 

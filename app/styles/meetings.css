@@ -179,26 +179,17 @@
 .dh-meeting-capturebar__types {
   display: flex;
   flex-wrap: wrap;
-  /* `align-items: stretch` (the default) sizes each button to its flex LINE,
-   * which is what let the type chips render at their text height despite their
-   * own minimum. Sizing the ROW itself removes the ambiguity entirely. */
-  align-items: stretch;
-  min-block-size: var(--dh-touch-target-min);
   gap: var(--dh-space-2);
 }
 
 .dh-meeting-capturebar__type {
   flex: 1 1 auto;
-  /* Centred inline-flex, like every other chip in the product: a bare `button`
-   * with a min-height still lays its text out at the top, and — as the phone
-   * touch-target check caught — the floor did not survive the wrapping flex
-   * line. `min-height` is stated alongside the logical property so the target is
-   * unambiguous. */
+  /* Centred inline-flex, like every other chip in the product, so the label sits
+   * in the middle of the 44px target rather than at the top of it. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-block-size: var(--dh-touch-target-min);
-  min-height: var(--dh-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--dh-radius-full);
