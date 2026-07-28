@@ -20,9 +20,16 @@
  */
 
 import { defineModule } from "~/kernel/modules";
-import { NOTE_CONTENT_UPDATED } from "~/kernel/notes";
+import {
+  NOTE_ARCHIVED,
+  NOTE_CONTENT_UPDATED,
+  NOTE_TAGS_UPDATED,
+  NOTE_UNARCHIVED,
+} from "~/kernel/notes";
 
+import { notesCommands } from "./commands";
 import routes from "./routes.manifest";
+import { notesSearchProvider } from "./search";
 
 export default defineModule({
   id: "notes",
@@ -37,5 +44,24 @@ export default defineModule({
       label: "Note content updated",
       description: "A note’s Markdown content changed.",
     },
+    {
+      type: NOTE_TAGS_UPDATED,
+      label: "Note tags updated",
+      description: "A note’s tags changed.",
+    },
+    {
+      type: NOTE_ARCHIVED,
+      label: "Note archived",
+      description: "A note was put away.",
+    },
+    {
+      type: NOTE_UNARCHIVED,
+      label: "Note restored from archive",
+      description: "An archived note was brought back.",
+    },
   ],
+  // NOTES-03 closes the DEBT-36 gap for Notes: a REAL, repository-backed
+  // provider over title, full Markdown body, headings and tags.
+  searchProviders: [notesSearchProvider],
+  commands: notesCommands,
 });

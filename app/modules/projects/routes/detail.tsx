@@ -16,11 +16,16 @@ import { env } from "cloudflare:workers";
 import { useCallback, useMemo, useState } from "react";
 import {
   isRouteErrorResponse,
+  useNavigate,
   useRevalidator,
   useSearchParams,
 } from "react-router";
 
 import { listActiveLinks } from "~/platform/entity-links";
+import {
+  DEFAULT_KNOWLEDGE_PAGE,
+  loadProjectKnowledge,
+} from "~/platform/entity-links/project-knowledge";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
@@ -48,6 +53,10 @@ import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 
 import { NewTaskForm } from "../NewTaskForm";
 import { ProjectActivityTab } from "../ProjectActivityTab";
+import {
+  ProjectKnowledgeTab,
+  type SerializedKnowledgePage,
+} from "../ProjectKnowledgeTab";
 import { ProjectLinksTab } from "../ProjectLinksTab";
 import { ProjectOverview } from "../ProjectOverview";
 import { ProjectSettingsTab } from "../ProjectSettingsTab";
@@ -139,7 +148,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   // existing `/projects/parent-options?q=` search, so this loader (and every
   // ordinary revalidation of it — a task edit, a completion, a settings
   // change) stays independent of how many Areas/Goals the workspace has.
-  const [taskPage, links] = await Promise.all([
+  const [taskPage, links, knowledge] = await Promise.all([
     scope.tasks.listProjectTasks(projectId, { state: taskState }),
     listActiveLinks(
       { entities: scope.entities, entityLinks: scope.entityLinks },
@@ -149,6 +158,12 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
         linkTypes: [PROJECT_RELATES_TO],
       },
     ),
+    // PROJ-03 — the first page of the project's linked Notes, server-rendered so
+    // the Knowledge tab is populated without JavaScript. A relationship failure
+    // degrades to an empty page rather than costing the whole record.
+    loadProjectKnowledge(scope, projectId, {
+      limit: DEFAULT_KNOWLEDGE_PAGE,
+    }).catch(() => ({ notes: [], nextCursor: null })),
   ]);
 
   return {
@@ -159,6 +174,16 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     tasksNextCursor: taskPage.nextCursor,
     taskState,
     links,
+    knowledge: {
+      notes: knowledge.notes.map((note) => ({
+        id: note.id,
+        title: note.title,
+        archived: note.archived,
+        excerpt: note.excerpt,
+        linkedAt: note.linkedAt,
+      })),
+      nextCursor: knowledge.nextCursor,
+    } satisfies SerializedKnowledgePage,
     todayIso,
   };
 }
@@ -174,6 +199,7 @@ export default function ProjectDetailRoute({
     tasksNextCursor,
     taskState,
     links,
+    knowledge,
     todayIso,
   } = loaderData;
 
@@ -192,6 +218,7 @@ export default function ProjectDetailRoute({
         tasksNextCursor={tasksNextCursor}
         taskState={taskState}
         links={links}
+        knowledge={knowledge}
         todayIso={todayIso}
       />
     </DrawerProvider>
@@ -315,6 +342,7 @@ function ProjectDetail({
   tasksNextCursor,
   taskState,
   links,
+  knowledge,
   todayIso,
 }: {
   readonly overview: SerializedProjectOverview;
@@ -324,9 +352,11 @@ function ProjectDetail({
   readonly tasksNextCursor: string | null;
   readonly taskState: TaskState;
   readonly links: readonly EntityLinkSelection[];
+  readonly knowledge: SerializedKnowledgePage;
   readonly todayIso: string;
 }) {
   const revalidator = useRevalidator();
+  const navigate = useNavigate();
   const { openDrawer } = useDrawer();
   const { notifySuccess, notifyError, notifyUndo } = useFeedback();
   const [completionPending, setCompletionPending] = useState(false);
@@ -343,6 +373,7 @@ function ProjectDetail({
   const requestedTab = searchParams.get("tab");
   const activeTabId =
     requestedTab === "linked" ||
+    requestedTab === "knowledge" ||
     requestedTab === "activity" ||
     requestedTab === "settings"
       ? requestedTab
@@ -574,6 +605,16 @@ function ProjectDetail({
           taskState={taskState}
           todayIso={todayIso}
           archived={archived}
+        />
+      }
+      knowledgeTab={
+        <ProjectKnowledgeTab
+          projectId={overview.id}
+          page={knowledge}
+          readOnly={archived}
+          onOpenNote={(noteId) =>
+            navigate(`/notes/${encodeURIComponent(noteId)}`)
+          }
         />
       }
       linksTab={

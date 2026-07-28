@@ -60,6 +60,7 @@ describe("ProjectOverview", () => {
         onToggleComplete={() => {}}
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
+        knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -98,6 +99,7 @@ describe("ProjectOverview", () => {
         onToggleComplete={() => {}}
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
+        knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -122,6 +124,7 @@ describe("ProjectOverview", () => {
         onToggleComplete={() => {}}
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
+        knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -144,6 +147,7 @@ describe("ProjectOverview", () => {
         onToggleComplete={() => {}}
         onRename={() => {}}
         tasksTab={<div>tasks-content</div>}
+        knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -165,6 +169,7 @@ describe("ProjectOverview", () => {
         onToggleComplete={onToggleComplete}
         onRename={onRename}
         tasksTab={<div>tasks-content</div>}
+        knowledgeTab={<div>Knowledge content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -176,7 +181,13 @@ describe("ProjectOverview", () => {
     const tabNames = screen
       .getAllByRole("tab")
       .map((tab) => tab.textContent?.trim());
-    expect(tabNames).toEqual(["Tasks", "Linked", "Activity", "Settings"]);
+    expect(tabNames).toEqual([
+      "Tasks",
+      "Knowledge",
+      "Linked",
+      "Activity",
+      "Settings",
+    ]);
 
     expect(screen.getByRole("tab", { name: "Tasks" })).toBeInTheDocument();
     const linksTab = screen.getByRole("tab", { name: "Linked" });
@@ -210,6 +221,7 @@ describe("ProjectOverview", () => {
           onToggleComplete={() => {}}
           onRename={() => {}}
           tasksTab={<div>tasks-content</div>}
+          knowledgeTab={<div>Knowledge content</div>}
           linksTab={<div>links-content</div>}
           activityTab={<div>activity-content</div>}
           settingsTab={<div>settings-content</div>}
@@ -257,6 +269,7 @@ describe("ProjectOverview", () => {
             onToggleComplete={() => {}}
             onRename={() => {}}
             tasksTab={<div>tasks-content</div>}
+            knowledgeTab={<div>Knowledge content</div>}
             linksTab={<div>links-content</div>}
             activityTab={<div>activity-content</div>}
             settingsTab={<div>settings-content</div>}
@@ -286,6 +299,7 @@ describe("ProjectOverview", () => {
           onToggleComplete={() => {}}
           onRename={() => {}}
           tasksTab={<div>tasks-content</div>}
+          knowledgeTab={<div>Knowledge content</div>}
           linksTab={<div>links-content</div>}
           activityTab={<div>activity-content</div>}
           settingsTab={<div>settings-content</div>}
@@ -309,7 +323,13 @@ describe("ProjectOverview", () => {
       const tabNames = screen
         .getAllByRole("tab")
         .map((tab) => tab.textContent?.trim());
-      expect(tabNames).toEqual(["Tasks", "Linked", "Activity", "Settings"]);
+      expect(tabNames).toEqual([
+        "Tasks",
+        "Knowledge",
+        "Linked",
+        "Activity",
+        "Settings",
+      ]);
     });
 
     it("hides Complete/Reopen and Rename for an archived project that was also completed", () => {
@@ -330,6 +350,7 @@ describe("ProjectOverview", () => {
           onToggleComplete={() => {}}
           onRename={() => {}}
           tasksTab={<div>tasks-content</div>}
+          knowledgeTab={<div>Knowledge content</div>}
           linksTab={<div>links-content</div>}
           activityTab={<div>activity-content</div>}
           settingsTab={<div>settings-content</div>}

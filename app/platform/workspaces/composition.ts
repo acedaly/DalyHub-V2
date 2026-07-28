@@ -29,7 +29,10 @@ import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
-import type { NoteDetailsRepository } from "~/kernel/notes";
+import type {
+  NoteDetailsRepository,
+  NoteQueryRepository,
+} from "~/kernel/notes";
 import type { PersonRepository } from "~/kernel/people";
 import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
@@ -55,6 +58,7 @@ import {
   createGoalDetailsRepository,
   createGoalRepository,
   createNoteDetailsRepository,
+  createNoteRepository,
   createPersonRepository,
   createMeetingRepository,
   createProjectHealthRepository,
@@ -139,6 +143,14 @@ export interface WorkspaceScope {
    * atomically with its own trusted actor, mirroring `goalDetails`.
    */
   readonly noteDetails: NoteDetailsRepository;
+  /**
+   * The NOTES-03 Notes READ projection: a READ-ONLY view that answers the
+   * collection's filtered/ordered page and global Search's full-content query in
+   * ONE bounded, workspace-scoped statement each — never by listing Notes and
+   * sifting them in application code. Note mutations stay `entities.*` /
+   * `noteDetails.*`; nothing here is cached.
+   */
+  readonly notes: NoteQueryRepository;
   /**
    * The DIARY-01A authoritative Diary Entry repository (ADR-041): the
    * Interstitial Journal's capture surface AND Timeline read model. It creates
@@ -263,6 +275,7 @@ export function bindWorkspaceRepositories(
   const noteDetails = createNoteDetailsRepository(env.DB, context, {
     actorContext,
   });
+  const notes = createNoteRepository(env.DB, context);
   const diary = createDiaryRepository(env.DB, context, { actorContext });
   const people = createPersonRepository(env.DB, context, { actorContext });
   const meetings = createMeetingRepository(env.DB, context, { actorContext });
@@ -290,6 +303,7 @@ export function bindWorkspaceRepositories(
     goals,
     goalDetails,
     noteDetails,
+    notes,
     diary,
     people,
     meetings,

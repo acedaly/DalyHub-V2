@@ -48,7 +48,13 @@ function overview(
 function details(
   over: Partial<SerializedNoteDetails> = {},
 ): SerializedNoteDetails {
-  return { content: "", contentUpdatedAt: null, ...over };
+  return {
+    content: "",
+    contentUpdatedAt: null,
+    tags: [],
+    archivedAt: null,
+    ...over,
+  };
 }
 
 function renderInRouter(node: ReactElement) {
@@ -85,7 +91,9 @@ describe("NoteOverview", () => {
         details={details()}
         onRename={onRename}
         onSaved={() => {}}
-        linkedTab={<div>Linked content</div>}
+        onEditTags={() => {}}
+        backlinksTab={<div>Backlinks content</div>}
+        linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -111,14 +119,16 @@ describe("NoteOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("exposes the Note, Linked and Activity tabs (Linked is the shared Linked Items section)", () => {
+  it("exposes the Note, Backlinks, Links and Activity tabs (NOTES-02 separates the two link directions)", () => {
     renderInRouter(
       <NoteOverview
         overview={overview()}
         details={details()}
         onRename={() => {}}
         onSaved={() => {}}
-        linkedTab={<div>Linked content</div>}
+        onEditTags={() => {}}
+        backlinksTab={<div>Backlinks content</div>}
+        linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -128,7 +138,8 @@ describe("NoteOverview", () => {
     expect(tablist).toBeInTheDocument();
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       "Note",
-      "Linked",
+      "Backlinks",
+      "Links",
       "Activity",
     ]);
   });
@@ -140,7 +151,9 @@ describe("NoteOverview", () => {
         details={details({ content: "# Hello" })}
         onRename={() => {}}
         onSaved={() => {}}
-        linkedTab={<div>Linked content</div>}
+        onEditTags={() => {}}
+        backlinksTab={<div>Backlinks content</div>}
+        linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -159,7 +172,9 @@ describe("NoteOverview", () => {
         })}
         onRename={() => {}}
         onSaved={() => {}}
-        linkedTab={<div>Linked content</div>}
+        onEditTags={() => {}}
+        backlinksTab={<div>Backlinks content</div>}
+        linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -175,7 +190,9 @@ describe("NoteOverview", () => {
         details={details()}
         onRename={() => {}}
         onSaved={() => {}}
-        linkedTab={<div>Linked content</div>}
+        onEditTags={() => {}}
+        backlinksTab={<div>Backlinks content</div>}
+        linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
       />,
     );
@@ -202,7 +219,9 @@ describe("NoteOverview", () => {
           details={details()}
           onRename={() => {}}
           onSaved={() => {}}
-          linkedTab={<div>Linked content</div>}
+          onEditTags={() => {}}
+          backlinksTab={<div>Backlinks content</div>}
+          linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );
@@ -269,7 +288,9 @@ describe("NoteOverview", () => {
           details={details()}
           onRename={() => {}}
           onSaved={() => {}}
-          linkedTab={<div>Linked content</div>}
+          onEditTags={() => {}}
+          backlinksTab={<div>Backlinks content</div>}
+          linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );
@@ -317,7 +338,9 @@ describe("NoteOverview", () => {
           details={details({ content: "original" })}
           onRename={() => {}}
           onSaved={() => {}}
-          linkedTab={<div>Linked content</div>}
+          onEditTags={() => {}}
+          backlinksTab={<div>Backlinks content</div>}
+          linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );
@@ -367,7 +390,9 @@ describe("NoteOverview", () => {
           details={details({ content: "original" })}
           onRename={() => {}}
           onSaved={() => {}}
-          linkedTab={<div>Linked content</div>}
+          onEditTags={() => {}}
+          backlinksTab={<div>Backlinks content</div>}
+          linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
         />,
       );

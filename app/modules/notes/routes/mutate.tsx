@@ -28,7 +28,8 @@
 import { env } from "cloudflare:workers";
 
 import { EntityValidationError } from "~/kernel/entities";
-import { NoteDetailsValidationError } from "~/kernel/notes";
+import { NoteDetailsValidationError, parseNoteTagInput } from "~/kernel/notes";
+import { reconcileNoteReferences } from "~/platform/entity-links/note-references";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -57,6 +58,21 @@ export type NoteMutationResult =
       readonly kind: "restore";
       readonly ok: false;
       readonly formError: string;
+    }
+  | { readonly kind: "archive"; readonly ok: true }
+  | { readonly kind: "archive"; readonly ok: false; readonly formError: string }
+  | { readonly kind: "unarchive"; readonly ok: true }
+  | {
+      readonly kind: "unarchive";
+      readonly ok: false;
+      readonly formError: string;
+    }
+  | { readonly kind: "set_tags"; readonly ok: true }
+  | {
+      readonly kind: "set_tags";
+      readonly ok: false;
+      readonly formError?: string;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
     }
   | {
       readonly kind: "unknown";
@@ -149,8 +165,20 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   }
 
   if (intent === "update_content") {
+    const content = String(form.get("content") ?? "");
     try {
-      await scope.noteDetails.update(noteId, String(form.get("content") ?? ""));
+      await scope.noteDetails.update(noteId, content);
+      // NOTES-02: the note's `[[Wiki Link]]` references become REAL, typed
+      // EntityLinks, reconciled against the saved body. This runs AFTER the
+      // content write and never fails the save: the Markdown source is the
+      // canonical record, and a workspace hiccup while writing derived
+      // relationships must not cost the user their writing. The next save
+      // reconciles again from the same source, so nothing drifts permanently.
+      try {
+        await reconcileNoteReferences(scope, noteId, content);
+      } catch {
+        // Intentionally swallowed — see above.
+      }
       return json({ kind: "update_content", ok: true });
     } catch (cause) {
       if (cause instanceof NoteDetailsValidationError) {
@@ -162,6 +190,42 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
       return json({
         kind: "update_content",
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+  }
+
+  if (intent === "archive" || intent === "unarchive") {
+    try {
+      await scope.noteDetails.setArchived(noteId, intent === "archive");
+      return json({ kind: intent, ok: true });
+    } catch {
+      return json({
+        kind: intent,
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+  }
+
+  if (intent === "set_tags") {
+    try {
+      await scope.noteDetails.setTags(
+        noteId,
+        parseNoteTagInput(form.get("tags")),
+      );
+      return json({ kind: "set_tags", ok: true });
+    } catch (cause) {
+      if (cause instanceof NoteDetailsValidationError) {
+        return json({
+          kind: "set_tags",
+          ok: false,
+          fieldErrors: { tags: cause.message },
+        });
+      }
+      return json({
+        kind: "set_tags",
         ok: false,
         formError: "That couldn’t be saved. Please try again.",
       });

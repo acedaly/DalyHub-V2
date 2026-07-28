@@ -22,7 +22,10 @@ import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
-import type { NoteDetailsRepository } from "~/kernel/notes";
+import type {
+  NoteDetailsRepository,
+  NoteQueryRepository,
+} from "~/kernel/notes";
 import type { PersonRepository } from "~/kernel/people";
 import type { MeetingRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
@@ -68,6 +71,7 @@ import {
   D1NoteDetailsRepository,
   type D1NoteDetailsRepositoryOptions,
 } from "./d1-note-details-repository";
+import { D1NoteRepository } from "./d1-note-repository";
 import {
   D1PersonRepository,
   type D1PersonRepositoryOptions,
@@ -131,6 +135,7 @@ export {
   D1NoteDetailsRepository,
   type D1NoteDetailsRepositoryOptions,
 } from "./d1-note-details-repository";
+export { D1NoteRepository };
 export {
   D1DiaryRepository,
   type D1DiaryRepositoryOptions,
@@ -284,6 +289,19 @@ export function createNoteDetailsRepository(
   options?: D1NoteDetailsRepositoryOptions,
 ): NoteDetailsRepository {
   return new D1NoteDetailsRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed NoteQueryRepository — the NOTES-03
+ * READ-ONLY Notes projection (collection filtering/ordering, full-content
+ * search, tag facets). It never mutates and never records Activity, so it takes
+ * no actor, mirroring `createProjectRepository`.
+ */
+export function createNoteRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): NoteQueryRepository {
+  return new D1NoteRepository(db, context);
 }
 
 /**
