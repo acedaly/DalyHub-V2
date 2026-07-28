@@ -93,10 +93,12 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
   test("completes a task from the list without opening the record", async ({
     page,
   }) => {
-    // The ALL view shows every task regardless of which system view the owner
-    // prefers, so the journey does not depend on which bucket a seeded task
-    // lands in. It restores the task afterwards, so other journeys are unaffected.
-    await gotoFixture(page, "/tasks?view=all&system=active");
+    // `system=all` keeps a task listed AFTER it is completed, so the row can be
+    // observed flipping to Reopen and then restored. (`system=active` would be
+    // wrong here — a completed task correctly LEAVES the active population, so
+    // the row would vanish rather than update.) The task is restored below, so
+    // other journeys see seeded state.
+    await gotoFixture(page, "/tasks?view=all&system=all");
 
     const card = page.locator(".dh-card").first();
     await expect(card).toBeVisible();
@@ -125,7 +127,7 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
   test("opens a task as a full-screen record and returns to the list", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all&system=active");
+    await gotoFixture(page, "/tasks?view=all&system=all");
 
     await page.locator(".dh-card__open").first().click();
 
@@ -140,7 +142,11 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     }
 
     // The common properties are in the Summary — no Details edit form needed.
-    await expect(drawer.getByText("Priority")).toBeVisible();
+    // Matched on the definition TERM so the assertion is about the field being
+    // present, not about whichever value this particular task happens to hold.
+    await expect(
+      drawer.locator("dt").filter({ hasText: /^Priority$/ }),
+    ).toBeVisible();
 
     await drawer.getByRole("button", { name: "Close" }).click();
     await expect(drawer).toBeHidden();

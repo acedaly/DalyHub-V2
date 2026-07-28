@@ -14,16 +14,14 @@ import { cleanupMeetingByTitle, uniqueMeetingTitle } from "./meetings-fixtures";
  * MOBILE-01 — the capture-heavy phone journeys: Diary, Notes and the live
  * Meeting workspace.
  *
- * These are the three workflows the mobile pass exists to make quick, so they are
- * driven for real: capture several diary entries without re-opening the panel,
- * write in the Notes editor with its toolbar split, and capture a note, an action
- * and a decision during a meeting without leaving the workspace.
+ * These are the three workflows the mobile pass exists to make quick, so each is
+ * driven as ONE continuous journey rather than as separate tests sharing fixture
+ * data: create the record through the phone path, then keep working in it. That
+ * mirrors what a user actually does, removes any dependence on seeded records,
+ * and means a failure points at the step that broke rather than at a lookup.
  *
- * The Notes and Meetings journeys **create their own records through the shared
- * Quick Capture sheet** rather than relying on seeded ones. That is deliberate: it
- * removes a dependency on fixture data AND exercises the phone creation path
- * end to end, which is the thing MOBILE-01 claims to have made fast. Each
- * fixture is removed afterwards through the module's existing cleanup helper.
+ * Each journey removes its own fixture through the module's existing cleanup
+ * helper.
  */
 
 const PHONE = { width: 390, height: 844 };
@@ -32,7 +30,7 @@ test.use({ viewport: PHONE, isMobile: true, hasTouch: true });
 
 const bottomNav = "[data-testid='bottom-nav']";
 
-/** Open the shared capture sheet on a given type from the phone bottom bar. */
+/** Open the shared capture sheet on a type from the phone bottom bar. */
 async function openCapture(page: Page, type: string) {
   await page
     .locator(bottomNav)
@@ -40,7 +38,7 @@ async function openCapture(page: Page, type: string) {
     .click();
   const sheet = page.getByTestId("capture-sheet");
   await expect(sheet).toBeVisible();
-  // The sheet may already be on a remembered type; return to the chooser first.
+  // The sheet may open on a remembered type; return to the chooser first.
   const changeType = sheet.getByTestId("capture-change-type");
   if (await changeType.isVisible()) {
     await changeType.click();
@@ -78,28 +76,25 @@ test.describe("MOBILE-01 Diary on a phone", () => {
     await gotoFixture(page, "/diary");
     await headerCreate(page).click();
 
-    const title = page.getByRole("textbox", { name: /Title/ });
-    await expect(title).toBeVisible();
+    // The capture panel is the Inspector's modal sheet on a phone; scoping to it
+    // keeps the field lookup unambiguous against the timeline behind it.
+    const panel = page.getByRole("dialog").last();
+    const title = panel.getByLabel("Title");
+    await expect(title).toBeVisible({ timeout: 15_000 });
 
     await title.fill("Phone diary entry one");
-    await page.getByRole("button", { name: "Save and add another" }).click();
+    await panel.getByRole("button", { name: "Save and add another" }).click();
 
     // The panel stays open, cleared and refocused — the next entry is a title
     // and a tap, with no navigation.
-    await expect(page.getByRole("textbox", { name: /Title/ })).toHaveValue("", {
-      timeout: 15_000,
-    });
-    await expect(page.getByRole("textbox", { name: /Title/ })).toBeFocused();
+    await expect(title).toHaveValue("", { timeout: 15_000 });
+    await expect(title).toBeFocused();
 
-    await page
-      .getByRole("textbox", { name: /Title/ })
-      .fill("Phone diary entry two");
-    await page.getByRole("button", { name: "Capture", exact: true }).click();
+    await title.fill("Phone diary entry two");
+    await panel.getByRole("button", { name: "Capture", exact: true }).click();
 
     // The plain Capture still closes, and the day behind it shows both entries.
-    await expect(page.getByRole("textbox", { name: /Title/ })).toBeHidden({
-      timeout: 15_000,
-    });
+    await expect(panel).toBeHidden({ timeout: 15_000 });
     await expect(page.getByText("Phone diary entry two")).toBeVisible({
       timeout: 15_000,
     });
@@ -111,7 +106,9 @@ test.describe("MOBILE-01 Diary on a phone", () => {
   }) => {
     await gotoFixture(page, "/diary");
     await headerCreate(page).click();
-    await expect(page.getByRole("textbox", { name: /Title/ })).toBeVisible();
+    await expect(
+      page.getByRole("dialog").last().getByLabel("Title"),
+    ).toBeVisible({ timeout: 15_000 });
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
   });
@@ -124,7 +121,7 @@ test.describe("MOBILE-01 the Notes writing surface", () => {
     await cleanupNoteByTitle(title);
   });
 
-  test("captures a Note on a phone and lands in the canonical editor", async ({
+  test("captures a Note on a phone, then writes in the canonical editor", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
@@ -135,20 +132,9 @@ test.describe("MOBILE-01 the Notes writing surface", () => {
 
     // Capture hands off to the canonical NOTES-05 editor — never a second one.
     await expect(page).toHaveURL(/\/notes\//, { timeout: 15_000 });
-    await expect(
-      page.getByRole("toolbar", { name: /formatting/i }).first(),
-    ).toBeVisible({ timeout: 15_000 });
-  });
-
-  test("offers common formatting directly and the rest behind More", async ({
-    page,
-  }) => {
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: title }).first().click();
-    await page.waitForLoadState("networkidle");
 
     const toolbar = page.getByRole("toolbar", { name: /formatting/i }).first();
-    await expect(toolbar).toBeVisible();
+    await expect(toolbar).toBeVisible({ timeout: 15_000 });
 
     // The common actions are directly available.
     for (const label of ["Bold", "Italic", "Link"]) {
@@ -185,7 +171,9 @@ test.describe("MOBILE-01 the live Meeting workspace", () => {
     await cleanupMeetingByTitle(meetingTitle);
   });
 
-  test("creates a Meeting from the phone capture sheet", async ({ page }) => {
+  test("creates a Meeting from the phone sheet, then captures during it", async ({
+    page,
+  }) => {
     await gotoFixture(page, "/today");
     const sheet = await openCapture(page, "meeting");
 
@@ -194,27 +182,19 @@ test.describe("MOBILE-01 the live Meeting workspace", () => {
     await expect(sheet.getByLabel("Start")).not.toHaveValue("", {
       timeout: 15_000,
     });
-
     await sheet.getByRole("button", { name: "Create meeting" }).click();
 
     // A captured meeting opens its workspace — the next thing you do is run it.
     await expect(page).toHaveURL(/\/meeting\//, { timeout: 15_000 });
-    await expect(page.getByTestId("meeting-capture-bar")).toBeVisible({
-      timeout: 15_000,
-    });
-  });
-
-  test("captures a note, an action and a decision without leaving the workspace", async ({
-    page,
-  }) => {
-    await gotoFixture(page, "/meetings");
-    await page.getByRole("link", { name: meetingTitle }).first().click();
-    await page.waitForLoadState("networkidle");
-    await page.getByRole("tab", { name: "Meeting" }).click();
 
     const bar = page.getByTestId("meeting-capture-bar");
-    await expect(bar).toBeVisible();
+    await expect(bar).toBeVisible({ timeout: 15_000 });
     const input = page.getByTestId("meeting-capture-input");
+
+    // Every control on the bar is a comfortable thumb target.
+    for (const kind of ["note", "action", "decision", "outcome"]) {
+      await expectMinTouchTarget(page.getByTestId(`meeting-capture-${kind}`));
+    }
 
     // An Action, through the canonical structured-item authority.
     await page.getByTestId("meeting-capture-action").click();
@@ -245,20 +225,8 @@ test.describe("MOBILE-01 the live Meeting workspace", () => {
     });
     await expect(page.getByText("Phone-captured decision")).toBeVisible();
     await expect(page.getByText("Phone-captured meeting note")).toBeVisible();
-  });
 
-  test("every capture-bar control meets the touch target, and the surface is axe-clean", async ({
-    page,
-  }) => {
-    await gotoFixture(page, "/meetings");
-    await page.getByRole("link", { name: meetingTitle }).first().click();
-    await page.waitForLoadState("networkidle");
-    await page.getByRole("tab", { name: "Meeting" }).click();
-    await expect(page.getByTestId("meeting-capture-bar")).toBeVisible();
-
-    for (const kind of ["note", "action", "decision", "outcome"]) {
-      await expectMinTouchTarget(page.getByTestId(`meeting-capture-${kind}`));
-    }
+    // The surface holds the baseline with the bar present.
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
   });
