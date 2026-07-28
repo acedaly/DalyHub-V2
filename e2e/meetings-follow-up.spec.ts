@@ -91,12 +91,23 @@ async function convertItem(
   await expect(page.getByRole("dialog", { name: "Task" })).toBeVisible();
 }
 
+/**
+ * Close every open Drawer level with Escape, waiting on the real user-visible
+ * state (one fewer dialog) after each press rather than on a fixed delay. A
+ * Drawer close is a history navigation, so pressing Escape again before the
+ * previous close has landed used to pop past the meeting record entirely — the
+ * provider now guards against that, and this helper no longer provokes it.
+ */
 async function closeDrawer(page: Page): Promise<void> {
-  for (let i = 0; i < 4 && (await page.getByRole("dialog").count()) > 0; i++) {
+  const dialogs = page.getByRole("dialog");
+  for (
+    let open = await dialogs.count();
+    open > 0;
+    open = await dialogs.count()
+  ) {
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(120);
+    await expect(dialogs).toHaveCount(open - 1);
   }
-  await expect(page.getByRole("dialog")).toHaveCount(0);
 }
 
 test.beforeAll(async () => {

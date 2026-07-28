@@ -196,6 +196,20 @@ describe("Drawer controller — Back-aware close", () => {
         <button type="button" onClick={() => closeDrawer()}>
           close-top
         </button>
+        {/*
+          Two close requests inside ONE tick — the re-entrancy a repeated Escape
+          produces in a real browser, where `history.go(-1)` lands on a later
+          task and the component still reads the pre-close location in between.
+        */}
+        <button
+          type="button"
+          onClick={() => {
+            closeDrawer();
+            closeDrawer();
+          }}
+        >
+          close-top-twice
+        </button>
         <button type="button" onClick={() => closeAll()}>
           close-all
         </button>
@@ -397,5 +411,75 @@ describe("Drawer controller — Back-aware close", () => {
     // closeAll is a push, so Back restores the whole stack — no malformed state.
     fireEvent.click(screen.getByText("browser-back"));
     await waitFor(() => expect(depth()).toBe("2"));
+  });
+
+  /*
+   * 12–14) Re-entrant close (regression).
+   *
+   * A close of a provider-pushed level is `navigate(-1)` — a real history pop,
+   * which does not land synchronously. A second close request arriving in that
+   * window (Escape pressed twice in quick succession, or Escape racing the close
+   * button) used to read the same stale, non-empty stack and pop a SECOND time,
+   * throwing the user off the record the drawer was opened from entirely. This
+   * is what made `e2e/meetings-follow-up.spec.ts` land back on `/new/meeting`
+   * mid-journey and then time out looking for the record's tabs.
+   */
+  it("12) a repeated close pops one level only, never past the record", async () => {
+    renderApp(["/projects", "/host"], 1);
+    fireEvent.click(screen.getByText("open-a"));
+    await waitFor(() => expect(depth()).toBe("1"));
+
+    fireEvent.click(screen.getByText("close-top-twice"));
+    await waitFor(() => expect(depth()).toBe("0"));
+    // The record page itself is intact — the second close was a no-op, not a
+    // second Back onto /projects.
+    expect(path()).toBe("/host");
+  });
+
+  it("13) the guard clears once the close lands, so the next level still closes", async () => {
+    renderApp(["/host"]);
+    fireEvent.click(screen.getByText("open-a"));
+    await waitFor(() => expect(depth()).toBe("1"));
+    fireEvent.click(screen.getByText("open-b"));
+    await waitFor(() => expect(depth()).toBe("2"));
+
+    fireEvent.click(screen.getByText("close-top-twice"));
+    await waitFor(() => expect(depth()).toBe("1"));
+    expect(screen.getByTestId("topkey")).toHaveTextContent("rec:a");
+
+    fireEvent.click(screen.getByText("close-top"));
+    await waitFor(() => expect(depth()).toBe("0"));
+    expect(path()).toBe("/host");
+  });
+
+  it("14) Forward-restoring a closed drawer leaves it closable again", async () => {
+    // Forward re-enters the ORIGINAL history entry, so React Router hands back
+    // its original `location.key` — the same key the close guard recorded on the
+    // way out. The guard must be released when the browser leaves the entry, or
+    // a restored drawer latches permanently open with no way to close it.
+    renderApp(["/host"]);
+    fireEvent.click(screen.getByText("open-a"));
+    await waitFor(() => expect(depth()).toBe("1"));
+
+    fireEvent.click(screen.getByText("close-top"));
+    await waitFor(() => expect(depth()).toBe("0"));
+
+    fireEvent.click(screen.getByText("browser-forward"));
+    await waitFor(() => expect(depth()).toBe("1"));
+
+    fireEvent.click(screen.getByText("close-top"));
+    await waitFor(() => expect(depth()).toBe("0"));
+    expect(path()).toBe("/host");
+  });
+
+  it("15) a repeated close of a deep-linked level removes the parameter once", async () => {
+    // The replace path has the same re-entrancy window; a second replace must
+    // not strip a level that is no longer there or disturb other parameters.
+    renderApp([{ pathname: "/goals", search: "?status=active&drawer=a" }]);
+    expect(depth()).toBe("1");
+    fireEvent.click(screen.getByText("close-top-twice"));
+    await waitFor(() => expect(depth()).toBe("0"));
+    expect(path()).toContain("status=active");
+    expect(path()).not.toContain("drawer=");
   });
 });

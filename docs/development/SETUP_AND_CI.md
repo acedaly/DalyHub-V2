@@ -85,21 +85,24 @@ sharded across multiple runners:
 | **Unit & component tests** | `pnpm run test:unit` |
 | **Kernel tests** | `pnpm run test:kernel` (real Workers runtime + local D1) |
 | **Production build** | `pnpm run build`, then uploads `build/` as the `production-build` artifact |
-| **Playwright E2E** | A 3-way matrix (`shard 1/3`, `2/3`, `3/3`); each shard downloads the `production-build` artifact and runs its slice of the full suite on its own runner |
+| **Playwright E2E** | A 5-way matrix (`shard 1/5` … `5/5`); each shard downloads the `production-build` artifact and runs its slice of the full suite on its own runner |
 | **CI Gate** | Depends on every job above; the one stable required check (see below) |
 
-All six jobs start as soon as their own dependencies are met — static quality,
+All jobs start as soon as their own dependencies are met — static quality,
 unit tests, kernel tests and the production build have no dependency on each
 other and run in parallel; only the Playwright jobs wait on the build job (they
 need its artifact).
 
 ### Playwright sharding
 
-The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, 3]`), not
-three copy-pasted jobs, so evaluating a different shard count is a one-line
-change. Each shard:
+The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, 3, 4, 5]`),
+not five copy-pasted jobs, so changing the shard count is a one-line change.
+The count has a **single source of truth**: both the job name and the
+`--shard=N/TOTAL` argument read `strategy.job-total`, which GitHub derives from
+the matrix list itself, so a `--shard` denominator can never drift out of step
+with the number of jobs actually running. Each shard:
 
-- runs `pnpm exec playwright test --shard=N/3`. With `fullyParallel: true` (and
+- runs `pnpm exec playwright test --shard=N/${{ strategy.job-total }}`. With `fullyParallel: true` (and
   no `describe.serial` anywhere in `e2e/`, verified), Playwright's sharding
   operates on independent test **groups**, and an independent test with no
   serial ancestor is its own group — so shards split at **individual-test**
@@ -149,13 +152,69 @@ build on the Playwright critical path. The unauthenticated production
 fail-closed test still runs against a real production build — the same one the
 build job produced — so the regression coverage is unchanged, not weakened.
 
+### Shard budget, and why a shard is never cancelled
+
+Measured, not guessed. On run `30310393566` (three shards) the slowest shard
+spent **14.0 minutes** running tests and **14m34s** in the job as a whole —
+26 seconds inside the then-current `timeout-minutes: 15`. It had no slack, and
+on a marginally slower runner the job was **cancelled** rather than failed. That
+distinction mattered: the report/trace upload steps were conditioned on
+`failure()`, which is false for a cancelled job, so the shard's failures left no
+artefacts at all and were invisible unless someone read the raw log
+([DEBT-41](../product/PRODUCT_DEBT.md)). Three changes make that impossible:
+
+1. **Five shards instead of three.** Measured on run `30314062657` (five
+   shards, all green):
+
+   | shard | tests | job |
+   | --- | --- | --- |
+   | 1/5 | 8m40s | 9m14s |
+   | 2/5 | **11m09s** | **11m55s** |
+   | 3/5 | 5m24s | 6m01s |
+   | 4/5 | 5m03s | 5m48s |
+   | 5/5 | 7m53s | 8m41s |
+
+   The worst shard now uses **74%** of the 15-minute Playwright ceiling and
+   **60%** of the 20-minute job budget, against **97%** of the old budget
+   before. Worth recording honestly: the spread got *wider*, not narrower —
+   5.0–11.2 min at five shards versus 11.7–14.0 at three. Playwright shards by
+   test **count**, so the finer the split, the more per-test duration variance
+   shows through. That is acceptable, because the budget only has to cover the
+   *worst* shard, and if shard 2 keeps growing the failure mode is now a
+   Playwright timeout with a full report rather than a silent cancellation. No
+   test was moved, skipped or reweighted to reach these numbers.
+2. **Playwright bounds itself first.** `playwright.config.ts` sets
+   `globalTimeout` to **15 minutes in CI**, below the job's
+   `timeout-minutes: 20`. An overrunning shard is therefore stopped by
+   *Playwright*, which writes its HTML report, traces and screenshots and exits
+   non-zero — a **failure**, with evidence — instead of by GitHub, which
+   cancels the job and destroys it. The job timeout is a backstop for the whole
+   job (install, browser, artifact download, servers, teardown), not the
+   mechanism that bounds the tests. `globalTimeout` is unset outside CI so a
+   full local suite run in one process is never killed mid-way.
+3. **Artefacts upload on any non-success.** Both upload steps are conditioned on
+   `always() && steps.e2e.outcome != 'success'` rather than `failure()`, so a
+   failed, timed-out or cancelled shard still publishes what it has, while a
+   green shard uploads nothing.
+
+Slow tests stay visible rather than being absorbed by the larger budget:
+`reportSlowTests` prints a slow-file summary at the end of **every** run, the
+`list` reporter prints each individual test's duration, and CI adds a `json`
+reporter writing `playwright-report/results.json` so per-test durations are
+machine-readable when the shard split next needs revisiting. Revisiting it is a
+matter of editing the `shard:` list — nothing else — and re-reading that table.
+
+`fail-fast: false` keeps every shard's result reported — one red shard never
+cancels (and so never hides) the other four — and a re-run from the Actions UI
+re-runs only the failed shard, so successful shards are never repeated.
+
 ### Failure diagnostics
 
-On a shard failure, that shard uploads its own uniquely-named artifacts —
-`playwright-report-shard-N` (the HTML report) and
-`playwright-test-results-shard-N` (raw traces/screenshots) — so one shard's
-failure output can never overwrite another's. Retention is bounded at 7 days,
-matching the previous single-job behaviour. Blob-report merging into one
+On a shard failure, timeout or cancellation, that shard uploads its own
+uniquely-named artifacts — `playwright-report-shard-N` (the HTML report, which
+also carries `results.json`) and `playwright-test-results-shard-N` (raw
+traces/screenshots) — so one shard's failure output can never overwrite
+another's. Retention is bounded at 7 days. Blob-report merging into one
 combined HTML report was evaluated and deliberately **not** added: each
 shard's standalone report is already sufficient to diagnose that shard's
 failures, and a merge step would add job/artifact complexity the current scale
@@ -226,7 +285,15 @@ job. `CI Gate` depends on every other job (`static-quality`, `unit-test`,
 `kernel-test`, `build`, and the full `playwright` matrix) and uses `if:
 always()` so it still runs — and fails — if any dependency fails, is
 cancelled, or doesn't run. This keeps one stable required-check name even as
-the internal job/matrix structure evolves. This PR does not change branch
+the internal job/matrix structure evolves.
+
+`needs.<job>.result` collapses the whole Playwright matrix to a single value
+that is `success` only when **every** shard succeeded; a cancelled shard
+reports `cancelled`, a failed one `failure`, and a job that never started
+`skipped`. All three fail the gate, so a shard that runs out of time is
+represented as honestly as one that fails an assertion. The gate prints a
+`job → result` table to the run summary, so the reason a gate is red is legible
+from the gate itself rather than only from whichever job happens to be red. This PR does not change branch
 protection settings itself; that's a repository-settings change for a human to
 make.
 

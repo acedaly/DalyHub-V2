@@ -80,9 +80,23 @@ test("create, edit, search, filter, archive, restore, delete", async ({
     .first()
     .fill("Toyota");
   await page.getByRole("button", { name: "Save details" }).click();
-  // Summary reflects the saved make.
+  // Summary reflects the saved make. Scoped to the Summary tab panel: the make
+  // legitimately appears twice on the record — once as the header's "Make &
+  // model" metadata chip and once in the Summary's identity line — so an
+  // unscoped text locator is ambiguous under Playwright strict mode and proves
+  // nothing about *where* the value surfaced.
   await page.getByRole("tab", { name: "Summary" }).click();
-  await expect(page.getByText("Toyota")).toBeVisible();
+  await expect(
+    page.getByRole("tabpanel", { name: "Summary" }).getByText("Toyota"),
+  ).toBeVisible();
+  // …and so does the record header's "Make & model" metadata chip. Asserting
+  // both places explicitly keeps the duplication a deliberate, proven product
+  // behaviour rather than an accident the test has to route around.
+  await expect(
+    page
+      .getByRole("list", { name: "Record metadata" })
+      .getByText("Toyota", { exact: true }),
+  ).toBeVisible();
 
   // 6. Search finds the asset by title.
   await gotoFixture(page, "/assets");

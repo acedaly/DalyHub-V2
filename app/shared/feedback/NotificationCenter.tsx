@@ -13,10 +13,20 @@
  *   - the visible stack is a labelled list; each toast/operation is a group with
  *     an accessible name; actions and dismiss are real, keyboard-operable buttons
  *     with text names and ≥44px targets;
- *   - hovering OR focusing anywhere in the stack pauses auto-dismiss, so a toast
- *     is never yanked away mid-read or mid-keyboard-operation;
+ *   - focusing anywhere in the stack, or hovering any of its controls, pauses
+ *     auto-dismiss, so a toast is never yanked away mid-keyboard-operation or
+ *     as the pointer travels to its Undo/Dismiss button;
  *   - tone is carried by icon + text, never colour alone;
  *   - motion is CSS and disabled under `prefers-reduced-motion`.
+ *
+ * Pointer contract (DEBT-38). The region is `position: fixed` over the
+ * bottom-right of every page, exactly where a record's lifecycle controls sit.
+ * Everything in it is therefore click-through except its real controls — the
+ * dismiss-all button, each toast's action, each toast's close (see
+ * `app/styles/feedback.css`). A notification can never absorb a click meant for
+ * the page beneath it, and hover-pause is scoped to the controls accordingly: a
+ * pointer crossing a click-through surface is interacting with the page, not
+ * reading the toast. Errors stay sticky, so nothing that must be read expires.
  */
 
 import { CloseGlyph, KindIcon, Spinner } from "./feedback-icons";

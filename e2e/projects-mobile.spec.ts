@@ -227,7 +227,19 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await expect(completedTaskLink).toBeFocused();
     await expectNoHorizontalOverflow(page);
 
+    // Switching back to the Open filter is a navigation, and the next step
+    // clicks another link ("Add task") whose href is built from the CURRENT
+    // URL. Wait for the filter to have actually landed before doing that:
+    // otherwise the second click can supersede the first, "Add task" carries
+    // `?tasks=completed`, and the open task created below is correctly absent
+    // from a completed-only list. Asserting the filter applied — the completed
+    // task is gone — is both the wait and a stronger claim than the URL alone.
     await page.getByRole("link", { name: "Open", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`${projectPath}$`));
+    await expect(
+      page.getByRole("link", { name: `Open ${COMPLETED_TASK}` }),
+    ).toHaveCount(0);
+
     await addTask(page, BLOCKING_TASK);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);

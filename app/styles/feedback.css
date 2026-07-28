@@ -31,14 +31,29 @@
   width: min(24rem, calc(100vw - 2 * var(--dh-space-4)));
   max-height: calc(100vh - 2 * var(--dh-space-4));
   overflow-y: auto;
-  /* The container is click-transparent between toasts; each toast opts back in. */
+  /*
+   * DEBT-38 — the notification region is click-transparent, and ONLY its real
+   * controls opt back in (`.dh-feedback__dismiss-all`, `.dh-toast__action`,
+   * `.dh-toast__close`). Nothing else in the region — not the column between
+   * toasts, not the dismiss-all row's empty width, not a toast's own surface —
+   * may absorb a pointer event, because none of them do anything with one.
+   *
+   * This matters because the region is `position: fixed` over the bottom-right
+   * of every page: a record's lifecycle controls (Archive/Restore/Delete) sit
+   * exactly there, and a sequence of actions leaves a stack of transient
+   * confirmations hovering over them. Before this rule the stack silently ate
+   * the next click — a real user's, and Playwright's. Hover/focus pause is
+   * therefore scoped to the toast's controls (see NotificationCenter.tsx); a
+   * pointer over a click-through surface is not a signal of intent to read it.
+   */
   pointer-events: none;
 }
 
 .dh-feedback__toolbar {
   display: flex;
   justify-content: flex-end;
-  pointer-events: auto;
+  /* Full-width row, small button: its empty width must stay click-through. */
+  pointer-events: none;
 }
 
 .dh-feedback__dismiss-all {
@@ -72,7 +87,11 @@
 }
 
 .dh-toast {
-  pointer-events: auto;
+  /*
+   * The toast surface itself has no pointer behaviour — it is text plus buttons
+   * — so it stays click-through (DEBT-38). Its buttons opt back in below.
+   */
+  pointer-events: none;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: start;
@@ -168,6 +187,8 @@
 }
 
 .dh-toast__action {
+  /* A real control inside the click-through region: opt back in. */
+  pointer-events: auto;
   appearance: none;
   border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
   background: transparent;
@@ -186,6 +207,8 @@
 }
 
 .dh-toast__close {
+  /* A real control inside the click-through region: opt back in. */
+  pointer-events: auto;
   appearance: none;
   border: 0;
   background: transparent;
