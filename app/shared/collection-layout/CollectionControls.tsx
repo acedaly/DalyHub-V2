@@ -31,9 +31,9 @@ import { useSearchParams } from "react-router";
 
 import { Sheet, SheetOption, SheetOptionList } from "~/shared/sheet";
 
+import { CollectionFilterChips } from "./CollectionFilterChips";
 import {
   activeFilterCount,
-  activeSummary,
   applyDraft,
   currentValue,
   draftFromParams,
@@ -57,6 +57,8 @@ export type CollectionControlsProps = {
   readonly label?: string;
   /** Extra params to clear on Apply (pagination is always cleared). */
   readonly resetParams?: readonly string[];
+  /** Route the chips link within. Defaults to a parameter-only relative link. */
+  readonly basePath?: string;
   /**
    * The trigger's visible text. Defaults to "Filter". A collection whose sheet also
    * carries sort and grouping can say so ("Filter & sort") rather than under-selling
@@ -82,6 +84,7 @@ export function CollectionControls({
   label = "Filter and sort",
   resetParams,
   triggerLabel = "Filter",
+  basePath,
   params,
 }: CollectionControlsProps) {
   const [urlParams, setSearchParams] = useSearchParams();
@@ -93,7 +96,6 @@ export function CollectionControls({
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const filterCount = activeFilterCount(groups, searchParams);
-  const summary = activeSummary(groups, searchParams);
 
   const openSheet = useCallback(() => {
     // Seed the draft from what is COMMITTED each time, so a discarded draft never
@@ -140,11 +142,18 @@ export function CollectionControls({
           ) : null}
         </button>
 
-        {summary.length > 0 ? (
-          <p className="dh-collection-controls__summary">
-            {summary.join(" · ")}
-          </p>
-        ) : null}
+        {/* What is applied, as REMOVABLE chips rather than a read-only sentence.
+            It answers the same question the old plain-text summary answered — a
+            phone user must never wonder why a list looks short — and answers the
+            obvious follow-up too, without reopening the sheet. Shaping controls
+            (sort, layout, grouping) stay OUT of the chips: they narrow nothing,
+            so offering to "remove" one would be meaningless. */}
+        <CollectionFilterChips
+          groups={groups}
+          params={searchParams}
+          basePath={basePath}
+          {...(resetParams ? { resetParams } : {})}
+        />
       </div>
 
       {open ? (

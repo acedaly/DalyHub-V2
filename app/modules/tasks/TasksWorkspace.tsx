@@ -33,7 +33,6 @@ import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps, CardTone } from "~/shared/card";
 import {
   CollectionControls,
-  CollectionFilterChips,
   CollectionLayout,
   useCollectionLoading,
 } from "~/shared/collection-layout";
@@ -715,20 +714,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       // shared chip row keeps what is applied visible without reopening it.
       persistentControls
       mobileControls={
-        <>
-          <div className="dh-tasks-controls">
-            <CollectionControls
-              groups={controlGroups}
-              triggerLabel="Filter & sort"
-              params={canonicalParams}
-            />
-          </div>
-          <CollectionFilterChips
-            groups={controlGroups}
-            params={canonicalParams}
-            basePath="/tasks"
-          />
-        </>
+        <CollectionControls
+          groups={controlGroups}
+          triggerLabel="Filter & sort"
+          basePath="/tasks"
+          params={canonicalParams}
+        />
       }
       error={
         data.failed ? (

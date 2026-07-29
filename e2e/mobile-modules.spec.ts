@@ -57,13 +57,15 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     await expect(sheet).toBeHidden();
     await expect.poll(() => page.url()).toContain("priority=p1");
 
-    // The active filter is visible BEFORE reopening the sheet, so a short list
-    // is never unexplained.
+    // The active filter is visible BEFORE reopening the sheet, so a short list is
+    // never unexplained — and it is a REMOVABLE chip naming its dimension and its
+    // value, not a read-only sentence.
     const trigger = page.getByTestId("collection-filter-trigger");
     await expect(trigger).toContainText("1");
     await expect(
-      page.locator(".dh-collection-controls__summary"),
+      page.getByRole("list", { name: "Active filters" }),
     ).toContainText("Priority");
+    await expect(page.getByTestId("collection-reset-filters")).toBeVisible();
 
     // Reset is explicit and complete.
     await trigger.click();
