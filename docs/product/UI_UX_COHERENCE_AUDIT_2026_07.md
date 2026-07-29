@@ -593,9 +593,11 @@ direction. Recorded here so the audit backlog stays honest about what remains.
   different presentation from a Card, and converting it to close a debt entry
   would be worse product on the surface the mobile pass exists to serve. The
   Meetings half was already resolved by UX-01.
-- **Capture context.** Capturing from a record does not link the created record to
-  it. Recorded as [DEBT-45](PRODUCT_DEBT.md) in the same change that created the
-  gap.
+- **Capture context.** MOBILE-01 deliberately left this open. ADR-060 later added
+  the shared capture-context contract, context chip and canonical-route
+  reconciliation for the implemented Quick Capture paths, but [DEBT-45](PRODUCT_DEBT.md)
+  remains only partially addressed until every entry point, full-form hand-off,
+  mobile/a11y proof and partial-failure path is verified.
 
 ---
 

@@ -14,6 +14,11 @@ import { env } from "cloudflare:workers";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
+  applyCaptureRelationship,
+  compensateCapturedRecord,
+  validateCaptureContextForCreate,
+} from "~/platform/capture/capture-context.server";
+import {
   resolveAuthenticatedWorkspaceScope,
   type WorkspaceScope,
 } from "~/platform/workspaces";
@@ -66,6 +71,11 @@ async function handleCreate(
   const dueDate = form.get("dueDate");
   const scheduledDate = form.get("scheduledDate");
   try {
+    const captureContext = await validateCaptureContextForCreate(
+      scope,
+      "task",
+      form.get("captureContext"),
+    );
     const task = await scope.tasks.createTask({
       title,
       parent: { kind: parentKind, id: parentId },
@@ -77,6 +87,23 @@ async function handleCreate(
       ...(dueDate ? { dueDate: String(dueDate) } : {}),
       ...(scheduledDate ? { scheduledDate: String(scheduledDate) } : {}),
     });
+    try {
+      await applyCaptureRelationship(scope, task.id, captureContext);
+    } catch {
+      const compensated = await compensateCapturedRecord(
+        scope,
+        task.id,
+        "task",
+      );
+      return {
+        kind: "create",
+        ok: false,
+        formError: compensated
+          ? "The task couldn’t be linked to that context, so it was not kept. Try again from the record or create it without the context."
+          : "The task was created but could not be linked to that context. Open the created task and link it manually.",
+        createdId: task.id,
+      } as TasksCreateResult;
+    }
     return { kind: "create", ok: true, taskId: task.id };
   } catch (cause) {
     if (cause instanceof TaskValidationError) {

@@ -32,6 +32,7 @@ import {
 import { utcToOwnerLocal } from "~/shared/datetime";
 
 import { defaultMeetingStartLocal } from "./capture-model";
+import { encodeCaptureContext } from "./capture-context";
 import { useCaptureContext } from "./use-capture-context";
 import { useAttendeeOptions } from "./use-attendee-options";
 import type { CapturePanelProps } from "./types";
@@ -58,13 +59,21 @@ type CreateMeetingResponse = {
 export function MeetingCapturePanel({
   firstFieldRef,
   onClose,
+  captureContext,
 }: CapturePanelProps) {
   const { context } = useCaptureContext();
   const attendees = useAttendeeOptions();
   const [navigating, setNavigating] = useState(false);
 
   const form = useForm<Values>({
-    initialValues: { title: "", startsAtLocal: "", attendeeIds: [] },
+    initialValues: {
+      title: "",
+      startsAtLocal: "",
+      attendeeIds:
+        captureContext?.sourceEntityType === "person"
+          ? [captureContext.sourceEntityId]
+          : [],
+    },
     fields: {
       title: { validate: required("Enter a meeting title.") },
       startsAtLocal: { validate: required("Enter the start date and time.") },
@@ -74,6 +83,9 @@ export function MeetingCapturePanel({
       const body = new FormData();
       body.set("title", values.title);
       body.set("startsAtLocal", values.startsAtLocal);
+      if (captureContext) {
+        body.set("captureContext", encodeCaptureContext(captureContext));
+      }
       for (const attendeeId of values.attendeeIds) {
         body.append("attendeeIds", attendeeId);
       }

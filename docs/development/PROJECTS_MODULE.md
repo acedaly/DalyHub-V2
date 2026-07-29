@@ -95,6 +95,11 @@ same pattern the shared task record surface uses).
   created/updated; tabs: **Tasks**, **Key links**, **Activity**, **Settings** — Settings
   is now the final tab (PROJ-05 Slice 3), per the shared tab vocabulary's "Activity and
   Settings always sit last").
+  ADR-060 adds contextual create actions in the header overflow for active Projects:
+  New task opens shared Quick Capture with this Project as the fixed structural
+  Task parent; New note creates a standalone Note linked Project→Note with
+  `link.related`, so it appears in Project Knowledge; New meeting and New diary
+  entry create canonical records linked to the Project with `link.related`.
 - **Tasks tab** — [`ProjectTasksTab.tsx`](../../app/modules/projects/ProjectTasksTab.tsx):
   the project's real child tasks as DS-04 Cards with the shared task semantics
   (completion = the spine's `completedAt`; waiting = the TODAY-03 state; scheduled ≠
@@ -118,6 +123,10 @@ same pattern the shared task record surface uses).
   (deliverable 4) — a Project→Goal or Project→Area title opens that record;
   unsupported/unavailable targets stay calm text; the picker's Remove stays a
   separate control and archived Projects keep their relationships followable.
+- **Knowledge tab** — [`ProjectKnowledgeTab.tsx`](../../app/modules/projects/ProjectKnowledgeTab.tsx):
+  remains the canonical Project Knowledge surface. A Note captured from a Project
+  through Quick Capture writes the same Project→Note `link.related` relationship
+  as the tab's own New note flow; no `project_notes` table or Note parent is added.
 - **Create / rename** — DS-06 forms
   ([`NewProjectForm`](../../app/modules/projects/NewProjectForm.tsx),
   [`NewTaskForm`](../../app/modules/projects/NewTaskForm.tsx),

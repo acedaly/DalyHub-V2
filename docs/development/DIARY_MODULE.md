@@ -186,6 +186,13 @@ model. Everything else is a shared kernel primitive it reuses:
 There is **no** Diary-specific link table, **no** second event history, and
 **no** second Markdown pipeline.
 
+ADR-060 lets shared Quick Capture carry a validated source context into
+`/diary/new`. After the Diary repository creates the canonical entry, the route
+adds a `link.related` relationship from the Diary entry to a Person, Project,
+Area, Goal, Meeting, Task or Note source. Diary prose is still never duplicated
+into Activity payloads; the contextual relationship is represented only by the
+EntityLink and its structural Activity event.
+
 ### 4.1 Relationship to Activity — the load-bearing distinction
 
 - **Activity** is the automatic, system-authored **audit trail of changes to

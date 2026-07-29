@@ -114,6 +114,13 @@ reused by the SpineRepository), so the spine stays the identity authority. The
 quick-capture form posts to the dedicated **`/tasks/new` resource route** (no
 component) so it receives the action's JSON — mirroring `/projects/new`, `/notes/new`.
 
+With ADR-060, `/tasks/new` also accepts a shared capture context. Project and Area
+contexts are interpreted as the Task's structural parent before the default capture
+parent is considered. Person context creates a normal `task.relates_to` link after
+creation and is never silently treated as delegation. Meeting, Note, Diary and Goal
+contexts likewise create a `task.relates_to` link with user-facing wording such as
+"Follow-up from" or "Supports"; retries are idempotent.
+
 ## Parent search
 
 The create parent selector calls `TaskRepository.searchTaskParents(query)` — a

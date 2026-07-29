@@ -108,6 +108,7 @@ export type TasksCreateResult =
       readonly ok: false;
       readonly formError?: string;
       readonly fieldErrors?: Record<string, string>;
+      readonly createdId?: string;
     };
 
 /** The discriminated result of a `/tasks/bulk` action. */

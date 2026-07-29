@@ -38,6 +38,10 @@ import { taskPriorityLabel } from "~/shared/task-record/task-view";
 import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
 
 import { CaptureResult } from "./CaptureResult";
+import {
+  captureRelationshipPlan,
+  encodeCaptureContext,
+} from "./capture-context";
 import { useCaptureContext } from "./use-capture-context";
 import type { CapturePanelProps, CaptureSuccess } from "./types";
 
@@ -76,12 +80,24 @@ function shiftIso(iso: string, days: number): string {
 export function TaskCapturePanel({
   firstFieldRef,
   onClose,
+  captureContext,
 }: CapturePanelProps) {
   const { context, loading } = useCaptureContext();
   const parentSearch = useTaskParentSearch();
   const [success, setSuccess] = useState<CaptureSuccess | null>(null);
 
-  const defaultParent = context?.defaultTaskParent ?? null;
+  const contextPlan = captureContext
+    ? captureRelationshipPlan("task", captureContext.sourceEntityType)
+    : null;
+  const contextualParent =
+    contextPlan?.kind === "task_parent"
+      ? {
+          id: captureContext!.sourceEntityId,
+          kind: contextPlan.parentKind,
+          title: captureContext!.sourceEntityTitle,
+        }
+      : null;
+  const defaultParent = contextualParent ?? context?.defaultTaskParent ?? null;
   const todayIso = context?.todayIso ?? null;
   // Until the context resolves we cannot know whether a parent picker is needed;
   // requiring the field only once we KNOW there is no default keeps the fast path
@@ -117,6 +133,9 @@ export function TaskCapturePanel({
       body.set("title", interpretation.title);
       body.set("parentId", parentId);
       body.set("parentKind", parentKind);
+      if (captureContext) {
+        body.set("captureContext", encodeCaptureContext(captureContext));
+      }
       const priority = values.priority || interpretation.priority || "";
       if (priority) body.set("priority", priority);
       if (interpretation.timeSector) {

@@ -21,6 +21,11 @@
 import { env } from "cloudflare:workers";
 
 import { EntityValidationError } from "~/kernel/entities";
+import {
+  applyCaptureRelationship,
+  compensateCapturedRecord,
+  validateCaptureContextForCreate,
+} from "~/platform/capture/capture-context.server";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -33,6 +38,7 @@ export type CreateNoteResult =
       readonly ok: false;
       readonly formError?: string;
       readonly fieldErrors?: Readonly<Record<string, string>>;
+      readonly createdId?: string;
     };
 
 function json(data: CreateNoteResult, status = 200): Response {
@@ -56,7 +62,28 @@ export async function action({ request, context }: Route.ActionArgs) {
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
   try {
+    const captureContext = await validateCaptureContextForCreate(
+      scope,
+      "note",
+      form.get("captureContext"),
+    );
     const note = await scope.entities.create({ type: "note", title });
+    try {
+      await applyCaptureRelationship(scope, note.id, captureContext);
+    } catch {
+      const compensated = await compensateCapturedRecord(
+        scope,
+        note.id,
+        "note",
+      );
+      return json({
+        ok: false,
+        createdId: note.id,
+        formError: compensated
+          ? "The note couldn’t be linked to that context, so it was not kept. Try again from the record or create it without the context."
+          : "The note was created but could not be linked to that context. Open the note and link it manually.",
+      });
+    }
     return json({ ok: true, noteId: note.id });
   } catch (cause) {
     if (cause instanceof EntityValidationError) {

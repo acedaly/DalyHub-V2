@@ -23,6 +23,11 @@ import { env } from "cloudflare:workers";
 
 import { DiaryValidationError } from "~/kernel/diary";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
+import {
+  applyCaptureRelationship,
+  compensateCapturedRecord,
+  validateCaptureContextForCreate,
+} from "~/platform/capture/capture-context.server";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -40,6 +45,7 @@ export type CreateDiaryEntryResult =
       readonly ok: false;
       readonly formError?: string;
       readonly fieldErrors?: Readonly<Record<string, string>>;
+      readonly createdId?: string;
     };
 
 function json(data: CreateDiaryEntryResult, status = 200): Response {
@@ -106,6 +112,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   try {
+    const captureContext = await validateCaptureContextForCreate(
+      scope,
+      "diary",
+      form.get("captureContext"),
+    );
     const entry = await scope.diary.create({
       entryType,
       title,
@@ -113,6 +124,22 @@ export async function action({ request, context }: Route.ActionArgs) {
       timezone,
       ...(occurredAt ? { occurredAt } : {}),
     });
+    try {
+      await applyCaptureRelationship(scope, entry.id, captureContext);
+    } catch {
+      const compensated = await compensateCapturedRecord(
+        scope,
+        entry.id,
+        "diary",
+      );
+      return json({
+        ok: false,
+        createdId: entry.id,
+        formError: compensated
+          ? "The diary entry couldn’t be linked to that context, so it was not kept. Try again from the record or create it without the context."
+          : "The diary entry was captured but could not be linked to that context. Open it and link it manually.",
+      });
+    }
     return json({ ok: true, entryId: entry.id });
   } catch (cause) {
     if (cause instanceof DiaryValidationError) {

@@ -205,9 +205,11 @@ The shared DS-02 `RecordLayout` with six tabs:
 - **Settings** — Rename, Archive/Restore and Delete, via the DS-10b Settings
   system.
 
-Quick actions that depend on a not-yet-built module (Diary entry, Meeting, New
-note) are honest placeholders that explain what they will do; Call, Email and Copy
-work today.
+Quick actions use the shared context-aware Quick Capture contract (ADR-060):
+New Task creates a canonical Task and links it to the Person with `task.relates_to`
+(not delegation); New Meeting preselects and persists the Person as a
+`meeting.attendee`; New note and Diary entry create canonical records linked back
+with `link.related`. Call, Email and Copy work directly from stored contact data.
 
 ### The Timeline tab
 

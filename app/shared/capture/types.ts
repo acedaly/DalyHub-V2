@@ -9,6 +9,7 @@
  */
 
 import type { RefObject } from "react";
+import type { CaptureContextContract } from "./capture-context";
 
 export type CapturePanelProps = {
   /**
@@ -18,6 +19,8 @@ export type CapturePanelProps = {
   readonly firstFieldRef: RefObject<HTMLElement | null>;
   /** Close the capture sheet ("Done", or after opening the created record). */
   readonly onClose: () => void;
+  /** Optional record context supplied by a meaningful originating surface. */
+  readonly captureContext: CaptureContextContract | null;
 };
 
 /** The three next steps every panel offers after a successful capture. */

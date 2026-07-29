@@ -13,6 +13,8 @@
 import type { ReactNode } from "react";
 
 import { EntityIcon, EntityLink } from "~/shared/entity";
+import { useCapture } from "~/shared/capture";
+import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import {
   HealthIndicator,
   ProjectHealthPanel,
@@ -85,6 +87,17 @@ export function ProjectOverview({
   // this is a calm UI reflection of an invariant enforced elsewhere, not the
   // only thing standing between the user and a failed request.
   const archived = isProjectArchived(overview);
+  const capture = useCapture();
+  const captureContext: CaptureContextContract = {
+    sourceEntityId: overview.id,
+    sourceEntityType: "project",
+    sourceEntityTitle: overview.title,
+    sourceModule: "projects",
+    originatingRoute: `/projects/${overview.id}`,
+    mode: "removable",
+    relationshipMeaning: "related",
+    returnTo: `/projects/${overview.id}`,
+  };
   // Archived → Completed → the specific workflow status (Planned/Active/On
   // hold) — the SAME precedence and label the collection Card uses, driven by
   // the optimistic `completed` override so the pill updates immediately on
@@ -214,6 +227,38 @@ export function ProjectOverview({
     onArchive,
     onRestore,
   });
+  const contextualCreateActions = archived
+    ? []
+    : [
+        {
+          id: "capture-task",
+          label: "New task",
+          description: "Create a Task in this Project.",
+          onSelect: () =>
+            capture?.openCapture("task", null, {
+              ...captureContext,
+              relationshipMeaning: "parent",
+            }),
+        },
+        {
+          id: "capture-note",
+          label: "New note",
+          description: "Create a Note in Project Knowledge.",
+          onSelect: () => capture?.openCapture("note", null, captureContext),
+        },
+        {
+          id: "capture-meeting",
+          label: "New meeting",
+          description: "Create a Meeting linked to this Project.",
+          onSelect: () => capture?.openCapture("meeting", null, captureContext),
+        },
+        {
+          id: "capture-diary",
+          label: "New diary entry",
+          description: "Create a Diary entry linked to this Project.",
+          onSelect: () => capture?.openCapture("diary", null, captureContext),
+        },
+      ];
 
   return (
     <>
@@ -226,7 +271,14 @@ export function ProjectOverview({
         metadata={headerMetadata}
         primaryAction={primaryAction}
         secondaryActions={archived ? [] : [renameAction]}
-        overflowActions={lifecycle.overflowActions}
+        overflowActions={[
+          ...contextualCreateActions,
+          ...lifecycle.overflowActions.map((item, index) =>
+            index === 0 && contextualCreateActions.length > 0
+              ? { ...item, separatorBefore: true }
+              : item,
+          ),
+        ]}
         summary={{
           description: (
             <div className="dh-project-overview__summary">

@@ -18,6 +18,8 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { EntityIcon, EntityLink } from "~/shared/entity";
+import { useCapture } from "~/shared/capture";
+import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { useFeedback } from "~/shared/feedback";
 import { CheckIcon } from "~/shared/icons";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
@@ -192,6 +194,7 @@ function MeetingRecord({
   const { meeting: m, followUps } = loaderData,
     r = useRevalidator(),
     { openDrawer } = useDrawer(),
+    capture = useCapture(),
     feedback = useFeedback(),
     [sp, setSp] = useSearchParams(),
     rawTab = sp.get("tab"),
@@ -201,6 +204,16 @@ function MeetingRecord({
         ? rawTab!
         : "overview";
   const readOnly = Boolean(m.archivedAt);
+  const captureContext: CaptureContextContract = {
+    sourceEntityId: m.id,
+    sourceEntityType: "meeting",
+    sourceEntityTitle: m.title,
+    sourceModule: "meetings",
+    originatingRoute: `/meeting/${m.id}`,
+    mode: "removable",
+    relationshipMeaning: "related",
+    returnTo: `/meeting/${m.id}`,
+  };
   const [markingHeld, setMarkingHeld] = useState(false);
 
   const change = useCallback(
@@ -434,6 +447,37 @@ function MeetingRecord({
     // UX-01 operational status actions live in the same overflow slot, so status,
     // held-state and archive state remain separate without adding local buttons.
     leadingItems: [
+      ...(readOnly
+        ? []
+        : [
+            {
+              id: "capture-follow-up-task",
+              label: "New follow-up task",
+              description: "Create a Task linked back to this Meeting.",
+              onSelect: () =>
+                capture?.openCapture("task", null, {
+                  ...captureContext,
+                  relationshipMeaning: "follow_up",
+                }),
+            },
+            {
+              id: "capture-linked-note",
+              label: "New linked note",
+              description: "Create a Note linked to this Meeting.",
+              onSelect: () =>
+                capture?.openCapture("note", null, {
+                  ...captureContext,
+                  relationshipMeaning: "related",
+                }),
+            },
+            {
+              id: "capture-diary-entry",
+              label: "New diary entry",
+              description: "Create a Diary entry linked to this Meeting.",
+              onSelect: () =>
+                capture?.openCapture("diary", null, captureContext),
+            },
+          ]),
       ...heldMenuItems,
       ...(readOnly
         ? []

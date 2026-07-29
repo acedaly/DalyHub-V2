@@ -21,6 +21,7 @@ import type {
   EntityLinkSelection,
   EntityLinkTargetOption,
 } from "~/shared/forms/model";
+import type { OverflowMenuItem } from "~/shared/overflow-menu";
 
 import { TASK_RELATES_TO, type SerializedTaskView } from "./task-view";
 
@@ -37,6 +38,7 @@ interface TaskLinksTabProps {
     readonly direction: "outgoing" | "incoming";
   }) => Promise<void>;
   readonly onUnlink: (link: EntityLinkSelection) => Promise<void>;
+  readonly contextualActions?: readonly OverflowMenuItem[];
 }
 
 export function TaskLinksTab({
@@ -45,6 +47,7 @@ export function TaskLinksTab({
   searchTargets,
   onLink,
   onUnlink,
+  contextualActions = [],
 }: TaskLinksTabProps) {
   const relationships = [task.area, task.goal, task.project].filter(
     (relation): relation is NonNullable<typeof relation> => relation !== null,
@@ -52,6 +55,26 @@ export function TaskLinksTab({
 
   return (
     <div className="dh-record-stack">
+      {contextualActions.length > 0 ? (
+        <section
+          aria-label="Create from this task"
+          className="dh-record-section"
+        >
+          <h4 className="dh-record-section__label">Create from this task</h4>
+          <div className="dh-capture-context-actions">
+            {contextualActions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                className="dh-btn dh-btn--secondary"
+                onClick={action.onSelect}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section aria-label="Relationships" className="dh-record-section">
         <h4 className="dh-record-section__label">Relationships</h4>
         {relationships.length > 0 ? (

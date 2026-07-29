@@ -166,6 +166,13 @@ No shared classification constant is introduced here, because there is no owners
 
 The module contributes Upcoming, Recent and Archived collection views; a fast creation route; a canonical Record Layout with Summary (incl. attendee management), **Follow-up**, Agenda, Notes, Decisions, Outcomes, Linked, Activity and Settings; bounded global search; Open/Create/Search commands and a meeting-aware **New meeting follow-up** ⌘K action (a `navigate` action to the meeting's Follow-up tab with the direct follow-up drawer open). The **Linked** tab is the shared Universal Relationship System Linked Items section (REL-01); the follow-up `task.relates_to` links appear there read-only. Agenda and notes reuse `LiveMarkdownEditor` and the DS-06 autosave coordinator.
 
+ADR-060 adds context-aware capture to the Meeting record overflow. New follow-up
+task opens shared Quick Capture with Meeting context and creates a canonical Task
+linked back with `task.relates_to`; New linked note and New diary entry create
+canonical records linked to the Meeting with `link.related`. Creating a Meeting
+from a Person context preselects and persists that Person as `meeting.attendee`;
+attendee semantics remain distinct from generic related-record links.
+
 ## Lifecycle
 
 - **Archived meeting** — readable; linked Tasks stay accessible and navigable; existing relationships stay visible; **new** conversions are rejected (`MeetingArchivedError`) and creation controls disappear; existing Tasks are never archived or deleted. **Mark as held** is not offered and is refused server-side (`409`); an already-recorded `meeting.held` event stands and stays on every attendee's history.

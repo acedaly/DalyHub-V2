@@ -36,6 +36,10 @@ import {
   resolveInitialCaptureType,
   type CaptureType,
 } from "./capture-model";
+import {
+  contextPresentation,
+  type CaptureContextContract,
+} from "./capture-context";
 import { DiaryCapturePanel } from "./DiaryCapturePanel";
 import { MeetingCapturePanel } from "./MeetingCapturePanel";
 import { NoteCapturePanel } from "./NoteCapturePanel";
@@ -47,12 +51,14 @@ export type CaptureSheetProps = {
   readonly requestedType?: CaptureType;
   /** The control that opened the sheet, for focus restoration. */
   readonly opener: HTMLElement | null;
+  readonly captureContext: CaptureContextContract | null;
   readonly onClose: () => void;
 };
 
 export default function CaptureSheet({
   requestedType,
   opener,
+  captureContext,
   onClose,
 }: CaptureSheetProps) {
   // Resolved once on mount: an explicit request wins, then the session memory.
@@ -60,6 +66,8 @@ export default function CaptureSheet({
     resolveInitialCaptureType(requestedType, readRememberedCaptureType()),
   );
   const firstFieldRef = useRef<HTMLElement | null>(null);
+  const [activeContext, setActiveContext] =
+    useState<CaptureContextContract | null>(captureContext);
 
   useEffect(() => {
     if (active === null) {
@@ -120,6 +128,7 @@ export default function CaptureSheet({
   const panelProps: CapturePanelProps = {
     firstFieldRef,
     onClose,
+    captureContext: activeContext,
   };
 
   return (
@@ -146,6 +155,26 @@ export default function CaptureSheet({
         </button>
       }
     >
+      {activeContext ? (
+        <div className="dh-capture-context" role="status">
+          <EntityIcon type={activeContext.sourceEntityType} />
+          <span className="dh-capture-context__label">
+            {contextPresentation(active, activeContext)}
+          </span>
+          {activeContext.mode === "fixed" ? (
+            <span className="dh-capture-context__fixed">Fixed</span>
+          ) : (
+            <button
+              type="button"
+              className="dh-capture-context__remove"
+              onClick={() => setActiveContext(null)}
+              aria-label={`Remove capture context ${activeContext.sourceEntityTitle}`}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      ) : null}
       {active === "task" ? (
         <TaskCapturePanel {...panelProps} />
       ) : active === "diary" ? (

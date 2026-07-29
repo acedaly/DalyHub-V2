@@ -3,6 +3,11 @@ import {
   MEETING_ATTENDEE_LINK,
   MeetingValidationError,
 } from "~/kernel/meetings";
+import {
+  applyCaptureRelationship,
+  compensateCapturedRecord,
+  validateCaptureContextForCreate,
+} from "~/platform/capture/capture-context.server";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerLocalToUtc } from "~/shared/datetime";
@@ -34,6 +39,11 @@ export async function action({ request, context }: Route.ActionArgs) {
         "Enter a valid end time in your configured timezone.",
       );
     }
+    const captureContext = await validateCaptureContextForCreate(
+      scope,
+      "meeting",
+      f.get("captureContext"),
+    );
     const meeting = await scope.meetings.create({
       title: String(f.get("title") ?? ""),
       startsAt: startsAt.toISOString(),
@@ -54,6 +64,22 @@ export async function action({ request, context }: Route.ActionArgs) {
           type: MEETING_ATTENDEE_LINK,
         });
       }
+    }
+    try {
+      await applyCaptureRelationship(scope, meeting.id, captureContext);
+    } catch {
+      const compensated = await compensateCapturedRecord(
+        scope,
+        meeting.id,
+        "meeting",
+      );
+      return Response.json({
+        ok: false,
+        meetingId: meeting.id,
+        formError: compensated
+          ? "The meeting couldn’t be linked to that context, so it was not kept. Try again from the record or create it without the context."
+          : "The meeting was created but could not be linked to that context. Open it and link it manually.",
+      });
     }
     return Response.json({ ok: true, meetingId: meeting.id });
   } catch (e) {
