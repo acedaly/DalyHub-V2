@@ -20,7 +20,7 @@ test.describe("TASKS-01 — desktop", () => {
   test("lists workspace tasks and opens one in the canonical Drawer", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, "/tasks?view=list&system=all");
     await expect(
       page.getByRole("heading", { level: 1, name: "Tasks" }),
     ).toBeVisible();
@@ -47,14 +47,14 @@ test.describe("TASKS-01 — desktop", () => {
 
     // Escape closes the Drawer and restores the Tasks context.
     await page.keyboard.press("Escape");
-    await expect(page).toHaveURL(/\/tasks\?view=all$/);
+    await expect(page).toHaveURL(/\/tasks\?view=list&system=all$/);
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("renders the shared priority + urgency signals on task cards (TASKS-02)", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all&system=overdue");
+    await gotoFixture(page, "/tasks?view=list&system=overdue");
 
     // The always-overdue seeded task (`pht-overdue`, due 2000-01-01) shows the
     // Overdue urgency chip — the WORD, not merely a red date (DEBT-28). The smart
@@ -67,7 +67,7 @@ test.describe("TASKS-01 — desktop", () => {
 
     // The p1 seeded task shows the coloured PriorityIndicator on its card — priority
     // is no longer an absent/colour-free grey chip (DEBT-27).
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, "/tasks?view=list&system=all");
     const p1Card = page.getByRole("article", {
       name: "Open Draft the proposal",
     });
@@ -113,7 +113,7 @@ test.describe("TASKS-01 — desktop", () => {
   test("the Drawer is URL-backed and Back/Forward correct", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, "/tasks?view=list&system=all");
     // Opening a task pushes a history entry (the drawer state lives in the URL).
     await page
       .getByRole("link", { name: "Draft the proposal" })
@@ -123,7 +123,7 @@ test.describe("TASKS-01 — desktop", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
     // Back closes the drawer; Forward reopens it.
     await page.goBack();
-    await expect(page).toHaveURL(/\/tasks\?view=all$/);
+    await expect(page).toHaveURL(/\/tasks\?view=list&system=all$/);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.goForward();
     await expect(page).toHaveURL(/drawer=task%3At-drawer/);
@@ -131,7 +131,7 @@ test.describe("TASKS-01 — desktop", () => {
   });
 
   test("switching the primary view updates the URL", async ({ page }) => {
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, "/tasks?view=list&system=all");
     await page.getByRole("link", { name: "Matrix", exact: true }).click();
     await expect(page).toHaveURL(/view=matrix/);
     await expect(
@@ -148,12 +148,12 @@ test.describe("TASKS-01 — accessibility & responsive", () => {
     await expectNoAxeViolations(page);
   });
 
-  test("the default Focus view (and All) are axe-clean in light and dark", async ({
+  test("the default list (and the complete collection) are axe-clean in light and dark", async ({
     page,
   }) => {
     // Mirrors what the shared accessibility sweep scans: the default /tasks
-    // landing (Focus → This Week, empty for the seed → EmptyState) and All.
-    for (const path of ["/tasks", "/tasks?view=all"]) {
+    // landing (TASKS-03: the calm active list) and the complete collection.
+    for (const path of ["/tasks", "/tasks?view=list&system=all"]) {
       await gotoFixture(page, path);
       await expectNoAxeViolations(page);
       await page.emulateMedia({ colorScheme: "dark" });
@@ -165,10 +165,23 @@ test.describe("TASKS-01 — accessibility & responsive", () => {
   test("no horizontal overflow from 320px to desktop across views", async ({
     page,
   }) => {
-    for (const view of ["all", "matrix", "sectors"]) {
-      for (const width of [320, 375, 768, 1280]) {
+    // Six presentations × six widths over the 80-task collection dataset: the
+    // work is genuinely larger than it was, so the budget matches it. Not one
+    // assertion is relaxed and no wait is inserted.
+    test.setTimeout(180_000);
+    // TASKS-03 widened this to the complete presentation set, including the
+    // ordinary grouped list and the Board, and to the 390/430px phone widths.
+    for (const query of [
+      "view=list&system=all",
+      "view=list&group=parent",
+      "view=board&group=due_state",
+      "view=matrix",
+      "view=sectors",
+      "priority=p1&due=overdue&person=Sam+Okafor",
+    ]) {
+      for (const width of [320, 375, 390, 430, 768, 1280]) {
         await page.setViewportSize({ width, height: 800 });
-        await gotoFixture(page, `/tasks?view=${view}`);
+        await gotoFixture(page, `/tasks?${query}`);
         await expectNoHorizontalOverflow(page);
       }
     }

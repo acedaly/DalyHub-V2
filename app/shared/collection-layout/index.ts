@@ -23,6 +23,7 @@ export {
   type CollectionControlsProps,
 } from "./CollectionControls";
 export {
+  activeControls,
   activeFilterCount,
   activeSummary,
   applyDraft,
@@ -31,8 +32,21 @@ export {
   draftIsDirty,
   emptyDraft,
   withDraftValue,
+  withoutControl,
+  withoutControls,
+  type ActiveCollectionControl,
   type CollectionControlGroup,
   type CollectionControlKind,
   type CollectionControlOption,
   type CollectionControlsDraft,
 } from "./collection-controls-model";
+
+/**
+ * TASKS-03 — the shared removable active-filter chips + Reset, driven by the SAME
+ * control groups as the phone sheet. Use it in a collection's `filterBar` slot so
+ * a filtered list always explains itself without reopening a control surface.
+ */
+export {
+  CollectionFilterChips,
+  type CollectionFilterChipsProps,
+} from "./CollectionFilterChips";

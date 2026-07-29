@@ -529,3 +529,52 @@ interface feel improvised.
 **Gestures accelerate; they never gate.** Unchanged from TODAY-06, and now a rule
 for every surface: a swipe may make an action faster, but the action must also be
 an ordinary, visible, keyboard-reachable control.
+
+---
+
+## The Tasks collection (TASKS-03, 2026-07-28)
+
+The reference shape for a collection whose control surface is genuinely rich.
+
+```
+Pane header:  Tasks                      142 tasks     [List|Board|Matrix|Sectors] [+ New task]
+View row:     [View  Deep work · Modified] [⋯]
+Control row:  [Filter & sort  3]  List · Grouped by parent · 3 filters
+Chips:        [Priority: P1 · Urgent ×] [Due: Overdue ×] [Delegated to: Sam ×]  Reset filters
+──────────────────────────────────────────────────────────────────────────────
+Quick add:    [ Add a task to Inbox — press Enter ]  [Add]  [More options]
+──────────────────────────────────────────────────────────────────────────────
+ list / grouped sections of Task cards: ✓ · title · parent context ·
+ P1 · Overdue · sector · delegated · [Complete] [Today] [⋯]
+```
+
+Four principles this screen exists to demonstrate, all of which generalise:
+
+**A layout switcher switches LAYOUTS.** TASKS-01 put a system view (`focus`) and
+the absence of a filter (`all`) in the same control as two real layouts, and the
+result was a workspace that could not express "P1 work due this week, grouped by
+Project" — because a scope, a filter and a grouping were being made to share one
+choice. Scope, filter, grouping and layout are now four independent choices, and
+the switcher offers only the fourth.
+
+**A method is available, not compulsory.** The Eisenhower Matrix and the Time
+Sectors are retained in full, and neither is the landing surface. A triage method
+that a user must pass through to reach their work is a tax on the work.
+
+**A filtered collection must explain itself where the records would be.** Not
+behind a control the user has to reopen. Every applied filter is a chip carrying
+its dimension and its value in words, with its own remove control and one explicit
+reset — and the chips read what the SERVER applied, never the raw URL, so they can
+never describe a narrower list than the one on screen.
+
+**The cost that matters is the cost of the SECOND one.** A capture field that
+clears, stays put and refocuses turns "add five tasks" into five titles and five
+Enters. This is the same rule as MOBILE-01's "Add another", applied to the surface
+where a burst of capture actually happens.
+
+Two things this screen deliberately does NOT do. It does not add a permanent
+saved-view sidebar: a rail would take horizontal space from the task list on every
+ordinary screen to show a list touched a few times a day, so the switcher is a
+compact menu that names the active view. And it does not embed itself in Today:
+Today runs the day, `/tasks` manages the work, and the shared authority between
+them is the Task model — not a shared screen.

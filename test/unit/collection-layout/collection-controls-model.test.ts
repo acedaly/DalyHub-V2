@@ -18,6 +18,9 @@ import {
   draftIsDirty,
   emptyDraft,
   withDraftValue,
+  activeControls,
+  withoutControl,
+  withoutControls,
   type CollectionControlGroup,
 } from "~/shared/collection-layout/collection-controls-model";
 
@@ -175,5 +178,84 @@ describe("activeSummary", () => {
     expect(activeSummary(GROUPS, params("priority=p9"))).toEqual([
       "Priority: p9",
     ]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-03 — the SAME model driving the removable desktop chips               */
+/* -------------------------------------------------------------------------- */
+
+describe("activeControls", () => {
+  it("resolves each applied FILTER for display, in group order", () => {
+    expect(
+      activeControls(GROUPS, params("sector=this_week&priority=p1")),
+    ).toEqual([
+      {
+        groupId: "priority",
+        param: "priority",
+        label: "Priority",
+        value: "p1",
+        valueLabel: "P1 · Urgent",
+        kind: "filter",
+      },
+      {
+        groupId: "sector",
+        param: "sector",
+        label: "Sector",
+        value: "this_week",
+        valueLabel: "This week",
+        kind: "filter",
+      },
+    ]);
+  });
+
+  it("excludes SHAPING controls, so a chip never invites removing a sort", () => {
+    expect(activeControls(GROUPS, params("sort=due_date"))).toEqual([]);
+    // …unless a caller explicitly asks for them.
+    expect(
+      activeControls(GROUPS, params("sort=due_date"), ["sort"]).map(
+        (c) => c.valueLabel,
+      ),
+    ).toEqual(["Due date"]);
+  });
+
+  it("falls back to the raw value for an unknown option rather than hiding it", () => {
+    expect(activeControls(GROUPS, params("priority=p9"))[0]?.valueLabel).toBe(
+      "p9",
+    );
+  });
+
+  it("is empty when nothing is applied", () => {
+    expect(activeControls(GROUPS, params(""))).toEqual([]);
+  });
+});
+
+describe("withoutControl / withoutControls", () => {
+  it("removes ONE control and resets pagination", () => {
+    const next = withoutControl(
+      params("priority=p1&sector=this_week&cursor=abc"),
+      "priority",
+    );
+    expect(next.get("priority")).toBeNull();
+    expect(next.get("sector")).toBe("this_week");
+    expect(next.get("cursor")).toBeNull();
+  });
+
+  it("preserves parameters the collection does not manage", () => {
+    const next = withoutControl(
+      params("priority=p1&drawer=task%3At1"),
+      "priority",
+    );
+    expect(next.get("drawer")).toBe("task:t1");
+  });
+
+  it("clears every FILTER but keeps the sort the user chose", () => {
+    const next = withoutControls(
+      GROUPS,
+      params("priority=p1&sector=this_week&sort=due_date"),
+    );
+    expect(next.get("priority")).toBeNull();
+    expect(next.get("sector")).toBeNull();
+    expect(next.get("sort")).toBe("due_date");
   });
 });

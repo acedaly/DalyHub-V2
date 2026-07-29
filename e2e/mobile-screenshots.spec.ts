@@ -101,7 +101,7 @@ test.describe("MOBILE-01 screenshots — 390px", () => {
     await page.keyboard.press("Escape");
 
     // A full-screen phone record.
-    await gotoFixture(page, "/tasks?view=all&system=active");
+    await gotoFixture(page, "/tasks?view=list&system=active");
     await page.locator(".dh-card__open").first().click();
     await page.getByRole("dialog", { name: "Task" }).waitFor();
     await shoot(page, "task-record-390");
@@ -174,7 +174,7 @@ test.describe("MOBILE-01 screenshots — 320px", () => {
     await shoot(page, "task-filter-sheet-320");
     await page.keyboard.press("Escape");
 
-    await gotoFixture(page, "/tasks?view=all&system=active");
+    await gotoFixture(page, "/tasks?view=list&system=active");
     await page.locator(".dh-card__open").first().click();
     await page.getByRole("dialog", { name: "Task" }).waitFor();
     await shoot(page, "task-record-320");

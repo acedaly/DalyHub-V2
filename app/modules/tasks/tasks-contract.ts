@@ -1,30 +1,16 @@
 /**
- * TASKS-01 — the JSON contract between the `/tasks` loader/actions and the module
- * UI. Kept React-free so both the server routes and the pure view-model share one
- * shape.
+ * TASKS-01/TASKS-03 — the JSON contract between the `/tasks` loader/actions and the
+ * module UI. Kept React-free so both the server routes and the pure view-model
+ * share one shape.
  */
 
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
-import type { TaskSort, TaskSystemView } from "~/kernel/tasks";
+import type { WorkspaceTaskGroupDimension } from "~/kernel/tasks";
+import type { TaskViewConfig } from "~/kernel/task-views";
 
-import type { TasksPrimaryView } from "./tasks-view-model";
-
-/** The applied filter state, mirrored from the URL (all optional). */
-export interface TasksFilterState {
-  readonly priority: string | null;
-  readonly timeSector: string | null;
-  readonly commitmentState: string | null;
-  readonly status: string | null;
-  readonly projectId: string | null;
-  readonly goalId: string | null;
-  readonly areaId: string | null;
-  readonly delegatedOnly: boolean;
-  readonly waitingOnly: boolean;
-}
-
-/** One server-grouped bucket of the active planning collection (Matrix/Sectors). */
+/** One server-grouped bucket of the collection. */
 export interface TasksGroup {
-  /** `p1`..`p4`|`untriaged` (quadrant) or a `TimeSector`|`inbox` (sector). */
+  /** The bucket key, in the vocabulary of the grouping dimension. */
   readonly key: string;
   /** AUTHORITATIVE total in this bucket — independent of how many `items` loaded. */
   readonly count: number;
@@ -32,34 +18,63 @@ export interface TasksGroup {
   readonly items: readonly SerializedTaskListItem[];
   /** True when `count` exceeds the loaded `items` (reach the rest via the filtered view). */
   readonly hasMore: boolean;
+  /** The server-resolved label for an open-ended bucket (parent, delegate). */
+  readonly label: string | null;
 }
 
-/** The server-authoritative grouping the Matrix/Sectors views render from. */
+/** The server-authoritative grouping a grouped view renders from. */
 export interface TasksGrouping {
-  readonly dimension: "quadrant" | "sector";
+  readonly dimension: WorkspaceTaskGroupDimension;
   readonly groups: readonly TasksGroup[];
+}
+
+/**
+ * A view offered in the Tasks view switcher. `kind` is what makes a system view
+ * visually and semantically distinguishable from a user-created one WITHOUT relying
+ * on colour: the switcher labels the two groups and marks system views as built-in.
+ */
+export interface TasksViewOption {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly kind: "system" | "user";
+  /** The URL query string (without `?`) that applies this view. */
+  readonly query: string;
+  /** True when this view is the owner's chosen default for `/tasks`. */
+  readonly isDefault: boolean;
 }
 
 /** The `/tasks` page loader payload. */
 export interface TasksPageData {
-  readonly primaryView: TasksPrimaryView;
-  readonly systemView: TaskSystemView;
-  readonly sort: TaskSort;
-  readonly filters: TasksFilterState;
+  /** The resolved, validated configuration this page is rendering. */
+  readonly config: TaskViewConfig;
+  /** The saved/system view currently selected, or null for an ad-hoc configuration. */
+  readonly activeViewId: string | null;
+  /** True when the configuration differs from the selected saved view's. */
+  readonly viewModified: boolean;
+  /** Every view offered in the switcher — system views first, then the owner's. */
+  readonly views: readonly TasksViewOption[];
+  /** The distinct delegatees present in the workspace (a closed filter option set). */
+  readonly delegates: readonly string[];
+  /** The Projects and Areas offered as parent filters. */
+  readonly parents: readonly {
+    readonly id: string;
+    readonly kind: "area" | "project";
+    readonly title: string;
+  }[];
   /** The owner's calendar date `YYYY-MM-DD`. */
   readonly todayIso: string;
   readonly defaultCaptureParent: TaskParentOption | null;
   /**
-   * The flat, cursor-paginated page (Focus/All views). Empty for the Matrix/Sectors
-   * views, which render from `grouping` instead of a single global page.
+   * The flat, cursor-paginated page. Empty for a grouped view, which renders from
+   * `grouping` instead of a single global page.
    */
   readonly items: readonly SerializedTaskListItem[];
   /** Opaque cursor for the next page, or null. */
   readonly nextCursor: string | null;
   /**
-   * The server-authoritative grouping for the Matrix (`quadrant`) and Sectors
-   * (`sector`) views — accurate per-bucket counts + bounded per-bucket records — or
-   * null for the flat Focus/All views (ADR-043 §11 / decision 12).
+   * The server-authoritative grouping — accurate per-bucket counts + bounded
+   * per-bucket records — or null for a flat list (ADR-043 §11 / decision 12).
    */
   readonly grouping: TasksGrouping | null;
   /** True when the query failed — the UI renders a calm error state. */
@@ -82,7 +97,12 @@ export interface TaskParentOption {
 
 /** The discriminated result of a `/tasks` create action. */
 export type TasksCreateResult =
-  | { readonly kind: "create"; readonly ok: true; readonly taskId: string }
+  | {
+      readonly kind: "create";
+      readonly ok: true;
+      readonly taskId: string;
+      readonly title?: string;
+    }
   | {
       readonly kind: "create";
       readonly ok: false;
@@ -99,3 +119,15 @@ export type TasksBulkResult =
       readonly unchanged: number;
     }
   | { readonly kind: "bulk"; readonly ok: false; readonly formError: string };
+
+/** The discriminated result of a `/tasks/views` saved-view action. */
+export type TasksViewResult =
+  | {
+      readonly kind: "view";
+      readonly ok: true;
+      /** The affected view's id, or null for a delete/clear-default. */
+      readonly viewId: string | null;
+      /** A short, human confirmation for the live region. */
+      readonly message: string;
+    }
+  | { readonly kind: "view"; readonly ok: false; readonly formError: string };

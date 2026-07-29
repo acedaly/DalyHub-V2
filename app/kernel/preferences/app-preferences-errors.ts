@@ -8,6 +8,7 @@ export class AppPreferencesValidationError extends Error {
       | "firstDayOfWeek"
       | "defaultLandingDestination"
       | "defaultTasksView"
+      | "defaultTaskViewId"
       | "defaultTaskCaptureParentId"
       | "defaultTaskCaptureParentKind"
       | "defaultDiaryMode"

@@ -24,14 +24,24 @@ import { InvalidSpineCursorError } from "~/kernel/spine";
 
 import {
   TASK_SORTS,
+  TASK_SORT_DIRECTIONS,
   TASK_SYSTEM_VIEWS,
   type TaskSort,
+  type TaskSortDirection,
   type TaskSystemView,
   type WorkspaceTaskFilters,
 } from "./task";
 
-/** The current workspace-tasks cursor format version. Bump when the shape changes. */
-export const WORKSPACE_TASK_CURSOR_VERSION = 1;
+/**
+ * The current workspace-tasks cursor format version.
+ *
+ * v2 (TASKS-03) adds the explicit sort DIRECTION to the bound scope, because a
+ * reversed sort produces a different ordering and a v1 cursor carries no direction
+ * to compare. Bumping means every in-flight v1 cursor is rejected calmly (the
+ * caller simply loads page one) rather than being reinterpreted against a
+ * differently-ordered result set.
+ */
+export const WORKSPACE_TASK_CURSOR_VERSION = 2;
 
 /** The ordering position a workspace-tasks cursor points just after. */
 export type WorkspaceTaskCursorPosition = {
@@ -48,6 +58,8 @@ export type WorkspaceTaskCursorScope = {
   readonly workspaceId: string;
   readonly view: TaskSystemView;
   readonly sort: TaskSort;
+  /** The resolved sort direction — it changes ordering, so it binds the cursor. */
+  readonly direction: TaskSortDirection;
   readonly todayIso: string;
   /** A canonical, order-independent signature of the applied filters. */
   readonly filtersSignature: string;
@@ -81,6 +93,20 @@ export function workspaceTaskFiltersSignature(
   if (filters.areaId != null) parts.push(`a=${filters.areaId}`);
   if (filters.delegatedOnly) parts.push("dg=1");
   if (filters.waitingOnly) parts.push("wt=1");
+  // TASKS-03 filters. Additive: a query that applies none of them produces exactly
+  // the signature it produced before, so existing links keep working.
+  if (filters.dueState != null) parts.push(`du=${filters.dueState}`);
+  if (filters.plannedState != null) parts.push(`pl=${filters.plannedState}`);
+  if (filters.parentKind != null) parts.push(`pk=${filters.parentKind}`);
+  if (filters.delegatedTo != null) parts.push(`dt=${filters.delegatedTo}`);
+  if (filters.createdWithin != null) parts.push(`cw=${filters.createdWithin}`);
+  if (filters.updatedWithin != null) parts.push(`uw=${filters.updatedWithin}`);
+  if (
+    filters.completedVisibility != null &&
+    filters.completedVisibility !== "default"
+  ) {
+    parts.push(`cv=${filters.completedVisibility}`);
+  }
   return parts.join("&");
 }
 
@@ -122,6 +148,7 @@ export function encodeWorkspaceTaskCursor(
     scope.workspaceId,
     scope.view,
     scope.sort,
+    scope.direction,
     scope.todayIso,
     scope.filtersSignature,
     position.sortValue,
@@ -163,7 +190,7 @@ export function decodeWorkspaceTaskCursor(
     throw new InvalidSpineCursorError();
   }
 
-  if (!Array.isArray(parsed) || parsed.length !== 9) {
+  if (!Array.isArray(parsed) || parsed.length !== 10) {
     throw new InvalidSpineCursorError();
   }
 
@@ -172,6 +199,7 @@ export function decodeWorkspaceTaskCursor(
     workspaceId,
     view,
     sort,
+    direction,
     todayIso,
     filtersSignature,
     sortValue,
@@ -187,6 +215,8 @@ export function decodeWorkspaceTaskCursor(
     !(TASK_SYSTEM_VIEWS as readonly string[]).includes(view) ||
     typeof sort !== "string" ||
     !(TASK_SORTS as readonly string[]).includes(sort) ||
+    typeof direction !== "string" ||
+    !(TASK_SORT_DIRECTIONS as readonly string[]).includes(direction) ||
     typeof todayIso !== "string" ||
     typeof filtersSignature !== "string" ||
     typeof sortValue !== "string" ||
@@ -203,6 +233,7 @@ export function decodeWorkspaceTaskCursor(
       workspaceId,
       view: view as TaskSystemView,
       sort: sort as TaskSort,
+      direction: direction as TaskSortDirection,
       todayIso,
       filtersSignature,
     },
@@ -219,6 +250,7 @@ export function workspaceTaskCursorScopeMatches(
     a.workspaceId === b.workspaceId &&
     a.view === b.view &&
     a.sort === b.sort &&
+    a.direction === b.direction &&
     a.todayIso === b.todayIso &&
     a.filtersSignature === b.filtersSignature
   );

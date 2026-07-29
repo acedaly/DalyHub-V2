@@ -4,6 +4,7 @@ import {
   createActivityRepository,
   createAlignmentRepository,
   createAppPreferencesRepository,
+  createTaskViewRepository,
   createAreaRepository,
   createAreaSettingsRepository,
   createAssetRepository,
@@ -26,6 +27,7 @@ import {
   createWorkspaceRepository,
   type AtomicMutationFault,
   type D1AppPreferencesRepositoryOptions,
+  type D1TaskViewRepositoryOptions,
   type D1AreaSettingsRepositoryOptions,
   type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
@@ -359,6 +361,18 @@ export function makeRelationshipRepository(context: WorkspaceContext) {
   return createRelationshipRepository(env.DB, context);
 }
 
+/**
+ * Construct a workspace-scoped D1-backed TaskViewRepository over the isolated
+ * test database (TASKS-03: persisted saved Tasks views, bound to a
+ * `WorkspaceContext` AND, per call, to an authenticated owner).
+ */
+export function makeTaskViewRepository(
+  context: WorkspaceContext,
+  options?: D1TaskViewRepositoryOptions,
+) {
+  return createTaskViewRepository(env.DB, context, options);
+}
+
 export function makeAppPreferencesRepository(
   context: WorkspaceContext,
   options?: D1AppPreferencesRepositoryOptions,
@@ -574,6 +588,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM review_sections").run();
   await env.DB.prepare("DELETE FROM review_details").run();
   await env.DB.prepare("DELETE FROM owner_app_preferences").run();
+  await env.DB.prepare("DELETE FROM task_saved_views").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

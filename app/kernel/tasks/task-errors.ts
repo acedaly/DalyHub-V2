@@ -51,6 +51,16 @@ export type TaskValidationField =
   | "sort"
   | "cursor"
   | "dimension"
+  // TASKS-03 (collection experience) additive filter/sort fields.
+  | "direction"
+  | "dueState"
+  | "plannedState"
+  | "parentKind"
+  | "recencyWindow"
+  | "completedVisibility"
+  | "group"
+  | "savedView"
+  | "savedViewName"
   /**
    * The mutation was rejected because the task is completed (TODAY-04): planning
    * applies to open work only. The id/input are valid — the STATE is not — so this

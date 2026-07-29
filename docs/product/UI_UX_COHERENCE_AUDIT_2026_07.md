@@ -596,3 +596,48 @@ direction. Recorded here so the audit backlog stays honest about what remains.
 - **Capture context.** Capturing from a record does not link the created record to
   it. Recorded as [DEBT-45](PRODUCT_DEBT.md) in the same change that created the
   gap.
+
+---
+
+## Post-audit implementation note (TASKS-03, 2026-07-28)
+
+The Tasks collection experience was completed. Its relationship to this audit is
+narrower than it might look, and worth stating precisely.
+
+**What this audit had already resolved, and TASKS-03 preserved unchanged.** The
+§6 priority/urgency/state visual grammar shipped as TASKS-02 and is intact: a
+card still renders priority ≠ urgency ≠ display-state as three separable slots,
+each carrying its meaning in a WORD, with colour as reinforcement only. TASKS-03
+added no new signal and removed none; it added `waiting` as a low-priority
+metadata item so a blocked row says so in text, and it passes the shared density
+through rather than forking CSS.
+
+**What TASKS-03 closes that this audit did not raise.** The audit examined
+presentation coherence and did not reach the Tasks workspace's *information
+architecture* — that two of its four "primary views" were a system view and the
+absence of a filter wearing a layout switcher's clothes, and that a filtered list
+could not explain itself. Both are now fixed, and the second produced a genuinely
+shared pattern: `CollectionFilterChips` gives every collection a way to say, where
+the records would be, which filters are hiding them — in words, with a labelled
+remove control each and one explicit reset.
+
+**One audit-adjacent defect was found and fixed at its root.** Driving the real
+product surfaced a shared **DS-04/DS-12 stacking-context** bug: a Card creates its
+own stacking context (the swipe surface is positioned so the tray can sit behind
+it), which capped an open overflow menu inside its card — so in a long collection
+the next card and the sticky header painted over the menu and its items were
+unclickable. It affected every Card in the product and had simply never been hit,
+because existing specs opened menus on short lists. Fixed in the shared layer by
+raising the card to the dropdown layer while its menu is open.
+
+**One was found and deliberately NOT papered over.** The shared Card's quick
+actions are raised to 44px under `@media (hover: none)` — a touch device — so a
+narrow viewport driven by a *mouse* keeps a 28px control. The touch-target
+assertion was moved to the touch-emulated phone block, where the product genuinely
+meets the target, rather than widened to hide the gap, and the gap is recorded as
+[DEBT-50](PRODUCT_DEBT.md#-debt-50--card-quick-actions-are-28px-on-a-narrow-viewport-with-a-mouse--p3).
+
+**Still open from this audit, unchanged:** DEBT-01's Diary half
+([DEBT-46](PRODUCT_DEBT.md)), capture context ([DEBT-45](PRODUCT_DEBT.md)), and
+task signals in global Search
+([TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search)).

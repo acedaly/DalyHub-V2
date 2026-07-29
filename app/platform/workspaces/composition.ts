@@ -42,6 +42,7 @@ import type { ProjectSettingsRepository } from "~/kernel/project-settings";
 import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
+import type { TaskViewRepository } from "~/kernel/task-views";
 import type {
   WorkspaceContext,
   WorkspaceContextResolver,
@@ -69,6 +70,7 @@ import {
   createReviewRepository,
   createSpineRepository,
   createTaskRepository,
+  createTaskViewRepository,
   createWorkspaceRepository,
 } from "~/platform/storage/d1";
 
@@ -216,6 +218,13 @@ export interface WorkspaceScope {
    */
   readonly alignment: AlignmentRepository;
   readonly appPreferences: AppPreferencesRepository;
+  /**
+   * The TASKS-03 saved Tasks views: workspace- AND owner-scoped named
+   * configurations. It stores a validated declarative config only — never records,
+   * never a query and never SQL — so a saved view re-runs the ordinary bounded
+   * `tasks` query and can neither drift from the data nor escape the workspace.
+   */
+  readonly taskViews: TaskViewRepository;
 }
 
 /**
@@ -303,6 +312,7 @@ export function bindWorkspaceRepositories(
   const activity = createActivityRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
   const appPreferences = createAppPreferencesRepository(env.DB, context);
+  const taskViews = createTaskViewRepository(env.DB, context);
   return {
     context,
     entities,
@@ -327,5 +337,6 @@ export function bindWorkspaceRepositories(
     activity,
     alignment,
     appPreferences,
+    taskViews,
   };
 }

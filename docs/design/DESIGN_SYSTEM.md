@@ -608,6 +608,8 @@ Active filters survive refresh and copied links; Back/Forward restores prior sta
 
 **Extension rules.** Add a value type/operator or a bar affordance to the **one** shared system (and document it here), never a per-module fork. Real product filter usages and server-side/saved-view persistence arrive with later items (Today, Projects, X-02) — this ships the system plus a development fixture only.
 
+**Relationship to the TASKS-03 Tasks configuration (read this before adding a saved-view store).** DS-07's `FilterExpression` is a CLIENT-side clause builder and evaluator: an arbitrary field/operator/value expression, evaluated in the browser over supplied records. That is exactly right for a local collection, and exactly wrong to persist — a stored expression can name a repository field, so persisting one is persisting an injection surface. Tasks therefore stores a different thing: a **declarative configuration** that names filter DIMENSIONS from closed sets and no operators at all, which the repository maps to its own trusted predicates ([ADR-059](../decisions/ARCHITECTURE_DECISIONS.md#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration)). Both are legitimate; they answer different questions. Having two is honest but not free, and generalising the declarative contract to the other collections is recorded as [DEBT-49](../product/PRODUCT_DEBT.md#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3) rather than pretended away.
+
 ---
 
 ## Shared Timeline & Activity Feed (DS-05)
@@ -1096,6 +1098,14 @@ A phone collection shows ONE row of chrome: a **Filter** button carrying its act
 - **Apply writes the URL exactly once** and clears pagination. **Reset** is explicit and complete.
 - The badge counts only controls that genuinely narrow the collection — sorting differently does not make a list filtered.
 - Large data pickers stay **server-backed**; the sheet never loads a collection to filter it locally.
+
+**TASKS-03 extended this into the ONE collection-control surface, at every width.** A collection whose control surface is genuinely rich — Tasks carries sixteen filter dimensions, eight sorts, eight groupings and saved views — should not fork into a desktop control bar and a phone sheet: that is two things to learn, two things to keep in step and two places for a filter to hide. Three shared additions make one surface serve both:
+
+- **`CollectionLayout persistentControls`** keeps the shared control row visible at every width instead of only on a phone. A collection that does not opt in behaves exactly as before.
+- **`CollectionFilterChips`** renders every applied filter as a labelled, removable chip plus one explicit **Reset filters**, driven by the SAME `CollectionControlGroup[]` declaration as the sheet. `CollectionControls` renders it **for every collection**, replacing the read-only summary sentence: it answers the same question ("why does this list look short?") and answers the obvious follow-up too, without reopening the sheet. Each chip states its DIMENSION and its VALUE in words ("Priority: P1 · Urgent"), each remove control has its own accessible name saying what it removes, and the row is a labelled list — so filter state is never carried by colour, position or a badge alone, and a user never has to reopen a control surface to learn why a list looks short. Chips are ordinary links: the URL is the state, so they are keyboard-operable and Back/Forward-correct.
+- **`CollectionControls params`** lets a collection that VALIDATES its URL state hand the controls the canonical parameters. Without it, a value the query rejected — a stale saved view's removed dimension, a hand-typed nonsense filter — would still count on the badge and still survive an Apply, so the controls would describe a narrower collection than the one on screen.
+
+The model additions are pure and shared: `activeControls` (the applied controls, resolved for display), `withoutControl` and `withoutControls` (remove one, or reset a kind). Resetting FILTERS deliberately does not clear the sort, the layout or the grouping the user chose.
 
 ### Compact phone Cards
 

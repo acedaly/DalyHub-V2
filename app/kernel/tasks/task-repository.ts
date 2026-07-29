@@ -160,6 +160,15 @@ export interface TaskRepository {
   ): Promise<WorkspaceTaskGrouping>;
 
   /**
+   * TASKS-03 — the DISTINCT delegatees recorded on the workspace's tasks, for the
+   * "Delegated to" filter. ONE bounded, workspace-scoped, N+1-free aggregate — the
+   * filter therefore offers only values that genuinely exist, so it is a closed
+   * option set that the shared control sheet can render without searching, and a
+   * filter can never name someone with no tasks. Ordered deterministically.
+   */
+  listTaskDelegates(limit?: number): Promise<readonly string[]>;
+
+  /**
    * Search the workspace's candidate task PARENTS — active Areas and non-archived
    * Projects — by title, for the `/tasks` create flow (ADR-043 §9 / decision 13). A
    * bounded, indexed, workspace-scoped SQL search over the WHOLE collection (never a
@@ -279,6 +288,17 @@ export interface TaskRepository {
   setCommitmentMany(
     ids: readonly string[],
     commitmentState: CommitmentState,
+  ): Promise<BulkFieldResult>;
+
+  /**
+   * TASKS-03 — set (or clear, with `null`) the DUE date on MANY tasks atomically.
+   * See `setPriorityMany`. The due date is a DEADLINE and stays strictly separate
+   * from the scheduled/planned date `planTasks` writes (ADR-043 §3): neither ever
+   * silently overwrites the other.
+   */
+  setDueDateMany(
+    ids: readonly string[],
+    dueDate: string | null,
   ): Promise<BulkFieldResult>;
 
   /** Set the workflow status on MANY tasks atomically. See `setPriorityMany`. */

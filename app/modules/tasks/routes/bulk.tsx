@@ -127,6 +127,13 @@ async function dispatch(
           String(form.get("status") ?? "todo") as TaskStatus,
         ),
       );
+    case "set_due":
+      // TASKS-03: the DUE date is a deadline, distinct from the scheduled/planned
+      // date `plan` sets (ADR-043 §3) — setting one never silently overwrites the
+      // other. An empty value clears it.
+      return ok(
+        await scope.tasks.setDueDateMany(ids, emptyToNull(form.get("dueDate"))),
+      );
     case "plan": {
       const date = String(form.get("scheduledDate") ?? "");
       return ok(await scope.tasks.planTasks(ids, { scheduledDate: date }));

@@ -31,9 +31,9 @@ import { useSearchParams } from "react-router";
 
 import { Sheet, SheetOption, SheetOptionList } from "~/shared/sheet";
 
+import { CollectionFilterChips } from "./CollectionFilterChips";
 import {
   activeFilterCount,
-  activeSummary,
   applyDraft,
   currentValue,
   draftFromParams,
@@ -57,6 +57,25 @@ export type CollectionControlsProps = {
   readonly label?: string;
   /** Extra params to clear on Apply (pagination is always cleared). */
   readonly resetParams?: readonly string[];
+  /** Route the chips link within. Defaults to a parameter-only relative link. */
+  readonly basePath?: string;
+  /**
+   * The trigger's visible text. Defaults to "Filter". A collection whose sheet also
+   * carries sort and grouping can say so ("Filter & sort") rather than under-selling
+   * what the button opens.
+   */
+  readonly triggerLabel?: string;
+  /**
+   * The COMMITTED state to read from and apply over, when it is not simply the
+   * URL's raw parameters.
+   *
+   * A collection that validates its URL state (Tasks does) must hand the
+   * CANONICAL parameters here. Otherwise a value the query rejected — a stale
+   * saved view's removed dimension, a hand-typed nonsense filter — would still
+   * count on the Filter badge and still survive an Apply, so the controls would
+   * describe a narrower collection than the one on screen. Defaults to the URL.
+   */
+  readonly params?: URLSearchParams;
 };
 
 export function CollectionControls({
@@ -64,8 +83,12 @@ export function CollectionControls({
   children,
   label = "Filter and sort",
   resetParams,
+  triggerLabel = "Filter",
+  basePath,
+  params,
 }: CollectionControlsProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [urlParams, setSearchParams] = useSearchParams();
+  const searchParams = params ?? urlParams;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<CollectionControlsDraft>(() =>
     draftFromParams(groups, searchParams),
@@ -73,7 +96,6 @@ export function CollectionControls({
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const filterCount = activeFilterCount(groups, searchParams);
-  const summary = activeSummary(groups, searchParams);
 
   const openSheet = useCallback(() => {
     // Seed the draft from what is COMMITTED each time, so a discarded draft never
@@ -109,7 +131,7 @@ export function CollectionControls({
           onClick={openSheet}
           data-testid="collection-filter-trigger"
         >
-          Filter
+          {triggerLabel}
           {/* The count is TEXT, so an active filter is legible without colour and
               audible to a screen reader. */}
           {filterCount > 0 ? (
@@ -120,11 +142,18 @@ export function CollectionControls({
           ) : null}
         </button>
 
-        {summary.length > 0 ? (
-          <p className="dh-collection-controls__summary">
-            {summary.join(" · ")}
-          </p>
-        ) : null}
+        {/* What is applied, as REMOVABLE chips rather than a read-only sentence.
+            It answers the same question the old plain-text summary answered — a
+            phone user must never wonder why a list looks short — and answers the
+            obvious follow-up too, without reopening the sheet. Shaping controls
+            (sort, layout, grouping) stay OUT of the chips: they narrow nothing,
+            so offering to "remove" one would be meaningless. */}
+        <CollectionFilterChips
+          groups={groups}
+          params={searchParams}
+          basePath={basePath}
+          {...(resetParams ? { resetParams } : {})}
+        />
       </div>
 
       {open ? (

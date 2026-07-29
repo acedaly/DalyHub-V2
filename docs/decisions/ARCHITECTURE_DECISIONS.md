@@ -1335,3 +1335,126 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
   was captured from (a Person, a Project). That needs a link-intent contract the
   capture framework does not yet have, and is recorded as outstanding rather than
   approximated.
+
+---
+
+## ADR-059: The Tasks collection contract — one declarative view configuration, server-side filtering and grouping, and saved views as validated configuration
+
+- **Status.** Accepted (2026-07-28, TASKS-03).
+- **Context.** TASKS-01 gave `/tasks` a real Task model and four "primary views"
+  (Focus · Matrix · Sectors · All). Two years of that model in use exposed three
+  structural problems, none of which is a styling problem.
+
+  1. **Two of the four "views" were not layouts.** `focus` was a SYSTEM VIEW (This
+     Week) and `all` was the ABSENCE of a filter, both wearing a layout switcher's
+     clothes. That conflation is why the workspace could not answer ordinary
+     questions — "P1 work due this week, grouped by Project" needs a scope, a
+     filter and a grouping to be three independent choices, and they were one.
+  2. **The Eisenhower Matrix read as the primary way to manage tasks**, because it
+     was one of four peers in the switcher and the remaining peers were a
+     pre-filtered list and an unfiltered dump. A triage method should be available,
+     not compulsory.
+  3. **Filter, sort and grouping state was ad-hoc.** Filters were a handful of
+     query parameters read directly in the loader; grouping existed only for the
+     Matrix and Sectors and was hard-wired to the active-planning scope; and a
+     configuration could be shared as a URL but never NAMED, so the same set of
+     filters was rebuilt by hand every day.
+
+  The obvious answers were all worse. A general query language (a saved
+  `FilterExpression` translated to SQL) makes a stored view able to name a
+  repository field, which is a persisted injection surface. A client-side filter
+  over a loaded page is honest at 50 tasks and a lie at 5,000. A per-view query is
+  how a grouped count and a filtered list end up disagreeing.
+
+- **Decision.**
+
+  1. **One declarative configuration is the whole state model.** A
+     {@link TaskViewConfig} (`app/kernel/task-views/task-view-config.ts`) names a
+     presentation, a system view, a sort + direction, a grouping and a set of
+     FILTER DIMENSIONS drawn from closed sets. It is the URL, the loader payload
+     and the persisted saved view — there is deliberately no second
+     representation, so a saved view and a copied link cannot mean different
+     things. Parsing is TOTAL and lenient: an unknown key, a removed dimension or
+     a value from a future version is dropped and the rest is kept.
+
+  2. **A configuration can never carry a query.** It names dimensions, never
+     fields, columns, operators or expressions. The repository maps an
+     already-validated dimension to its OWN trusted predicate; no value from a
+     configuration reaches SQL as text, and every scalar is bound. This is what
+     makes persisting one safe, and it is why the shared DS-07 `FilterExpression`
+     — an excellent CLIENT-side clause builder — is deliberately not what is
+     stored here.
+
+  3. **The LIST is the primary workspace.** `list` is the default presentation;
+     `board` is the same query in grouped columns; the Eisenhower Matrix and the
+     Time Sectors are RETAINED as optional specialist presentations, chosen from
+     the same control as any other layout. The legacy `?view=focus` and
+     `?view=all` links redirect ONCE into the new vocabulary rather than being
+     silently reinterpreted, so the address bar always states what is applied.
+
+  4. **Filtering and grouping share ONE resolved scope.** `#resolveWorkspaceScope`
+     builds the view membership, every filter and the completed-visibility
+     override once; both the flat cursor-paginated query and the windowed grouping
+     query consume it. A grouped view therefore cannot report a total the
+     equivalent filtered list contradicts. Grouping is widened from two hard-wired
+     dimensions to eight, each a TRUSTED constant expression selected by an
+     already-validated dimension NAME, and it now accepts the caller's view and
+     filters instead of assuming the active-planning scope.
+
+  5. **Counts stay server-authoritative and queries stay bounded.** Per-bucket
+     totals remain `COUNT(*) OVER (PARTITION BY bucket)` over the whole filtered
+     scope with a bounded per-bucket slice (ADR-043 decision 12, unchanged). The
+     flat list keeps its opaque, versioned, scope-bound keyset cursor; the cursor
+     version is bumped to 2 because the sort DIRECTION now binds it, so a v1
+     cursor is rejected calmly rather than reinterpreted against a reversed order.
+
+  6. **Saved views are a small owner-scoped table, not preference JSON.** They
+     need a name, uniqueness, an independent lifecycle and a bound count — all of
+     which `owner_app_preferences` would have to grow badly to provide. The new
+     `task_saved_views` table (migration `0022`, additive) stores the CANONICAL
+     re-serialised configuration with the version it was written at. The owner's
+     chosen DEFAULT view is a preference (one nullable column on the existing
+     table), because that genuinely is a single scalar preference.
+
+  7. **The built-in views are DERIVED, not seeded.** Inbox · Today · Upcoming ·
+     Overdue · Waiting · Delegated · Someday/Maybe · Completed are code
+     (`task-system-views.ts`) expressed in the same configuration vocabulary. They
+     therefore cost no storage and no migration, exist in a new workspace on day
+     one, and cannot be deleted or silently mutated — there is no row to delete or
+     update, and the definition is reviewed like code.
+
+  8. **Priority and the Eisenhower quadrant stay ONE axis.** They are the same
+     stored field (ADR-043 §2). One filter carries both vocabularies in its
+     labels; `quadrant` and `priority` exist as separate GROUPING dimensions only
+     because the Matrix names a bucket by the action it prescribes and a list names
+     it by everyday urgency. Two filters over one field would let a user build a
+     contradiction.
+
+  9. **The control model is shared, not forked.** The MOBILE-01
+     `CollectionControlGroup[]` declaration drives the phone sheet, the desktop
+     chip row, the active-filter badge and the reset — one declaration, several
+     affordances. The chips and the badge read the CANONICAL parameters (the
+     configuration the server actually applied), never the raw URL, so the
+     controls can never describe a narrower collection than the one on screen.
+
+- **Consequences.** Adding a filter dimension is now a closed-set addition in the
+  kernel plus one predicate in the repository plus one entry in the control
+  declaration; it reaches the URL, the phone sheet, the chips, the badge and
+  saved views without further work. A grouped count and a filtered list cannot
+  drift. A saved view is safe to persist and safe to restore from an older or
+  newer build.
+
+  The costs are real and accepted. The Tasks configuration vocabulary is a SECOND
+  filter model alongside DS-07's client-side `FilterExpression` — justified
+  because DS-07 is explicitly a client-side evaluator and a persisted expression
+  would be a persisted injection surface, but it does mean two things a future
+  reader must tell apart, and generalising this contract to other collections is
+  the honest long-term resolution (recorded as debt, not pretended away). The
+  cursor version bump invalidates in-flight page-two cursors once. The rolling
+  seven-day "this week" window is a deliberate simplification: it needs no
+  first-day-of-week preference, so a shared link means the same thing to any
+  viewer, at the cost of not matching a calendar week.
+
+  Deliberately NOT decided here: **tags**. The Task model has no tag field, and
+  inventing one to satisfy a filter list would be a data-model change wearing a
+  filter's clothes. Recorded as debt with an explicit closing condition.

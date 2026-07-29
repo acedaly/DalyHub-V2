@@ -36,6 +36,14 @@ const routes: readonly RouteContribution[] = [
     path: "tasks/parent-options",
     file: "routes/parent-options.tsx",
   },
+  // TASKS-03: the saved-view mutations (create / update / rename / duplicate /
+  // delete / set-default). A resource route, so the switcher's fetchers receive the
+  // action's JSON directly.
+  {
+    id: "tasks.views",
+    path: "tasks/views",
+    file: "routes/views.tsx",
+  },
   // PROJ-01 / ADR-033: the re-homed task record resource routes (no nav entry). The
   // ONE task record data endpoint (loader + mutation action), its Activity Timeline
   // page, the "related records" target search and the waiting-target search. They are

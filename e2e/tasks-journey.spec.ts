@@ -113,11 +113,23 @@ async function runBulk(
   await expect(bar).toHaveCount(0);
 }
 
+/**
+ * The journey's own working list: the complete collection, MOST RECENTLY CREATED
+ * FIRST.
+ *
+ * TASKS-03 added a realistic 80-task collection dataset to the seed, so a journey
+ * that assumed its freshly-created task would appear on the first page of the
+ * default smart order no longer holds — and should not: relying on that was always
+ * a property of a small seed, not of the product. Sorting by creation makes the
+ * journey assert on the record it actually created.
+ */
+const JOURNEY_LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
+
 test.describe("TASKS-01 — full journey", () => {
   test("create under a Project via the parent selector, then move across the Matrix and Sectors", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await createJourneyTask(page, {
       title: "Journey task Alpha",
       parent: "Tasks journey project",
@@ -137,7 +149,7 @@ test.describe("TASKS-01 — full journey", () => {
     ).toBeVisible();
 
     // Move P1 → P4 via a bulk action; it leaves Do and appears in Delete / Review.
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Alpha");
     await runBulk(page, () =>
       page
@@ -157,7 +169,7 @@ test.describe("TASKS-01 — full journey", () => {
     ).toHaveCount(0);
 
     // Move This Week → Next Week via a bulk action; the Sectors view reflects it.
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Alpha");
     await runBulk(page, () =>
       page
@@ -175,7 +187,7 @@ test.describe("TASKS-01 — full journey", () => {
   test("delegate via the Drawer; Someday and reactivate, On hold and Cancel", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await createJourneyTask(page, {
       title: "Journey task Bravo",
       parent: "Tasks journey project",
@@ -213,7 +225,7 @@ test.describe("TASKS-01 — full journey", () => {
     );
 
     // On hold via bulk → excluded from the active Matrix scope (parked work).
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Bravo");
     await runBulk(page, () =>
       page.getByRole("button", { name: "On hold" }).click(),
@@ -224,7 +236,7 @@ test.describe("TASKS-01 — full journey", () => {
     ).toHaveCount(0);
 
     // Cancel via bulk → it surfaces in the Cancelled view.
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Bravo");
     await runBulk(page, () =>
       page
@@ -239,7 +251,7 @@ test.describe("TASKS-01 — full journey", () => {
   });
 
   test("bulk complete then reopen through the Drawer", async ({ page }) => {
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await createJourneyTask(page, {
       title: "Journey task Charlie",
       parent: "Tasks journey project",
@@ -283,7 +295,7 @@ test.describe("TASKS-01 — full journey", () => {
 
   test("Today and Projects project the same task", async ({ page }) => {
     const today = new Date().toISOString().slice(0, 10);
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await createJourneyTask(page, {
       title: "Journey task Delta",
       parent: "Tasks journey project",
@@ -312,7 +324,7 @@ test.describe("TASKS-01 — full journey", () => {
     // Today dashboard (and its command palette) for subsequent specs in this run.
     // (It moves to the always-present "Anytime" backlog, so the Today surface stays
     // consistent with the seed baseline.) `runBulk` confirms the clear committed.
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await selectTask(page, "Journey task Delta");
     await runBulk(page, () =>
       page.getByRole("button", { name: "Clear plan" }).click(),
@@ -332,17 +344,27 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
     // still fails the poll exactly as before.
     test.setTimeout(90_000);
 
-    await gotoFixture(page, "/tasks?view=all");
+    await gotoFixture(page, JOURNEY_LIST);
     await createJourneyTask(page, {
       title: "Journey task Echo",
       parent: "Tasks journey project",
       priority: "P3 · Normal",
       sector: "This Month",
     });
-    for (const view of ["all", "matrix", "sectors", "focus"]) {
-      for (const width of [320, 375, 768, 1280]) {
+    // TASKS-03 replaced the four "primary views" with presentations plus
+    // grouping; the legacy `focus`/`all` links redirect into the new vocabulary,
+    // and both forms are checked so an existing bookmark is proven too.
+    for (const query of [
+      "view=list&system=all",
+      "view=list&group=parent",
+      "view=board&group=priority",
+      "view=matrix",
+      "view=sectors",
+      "view=focus",
+    ]) {
+      for (const width of [320, 375, 390, 430, 768, 1280]) {
         await page.setViewportSize({ width, height: 800 });
-        await gotoFixture(page, `/tasks?view=${view}`);
+        await gotoFixture(page, `/tasks?${query}`);
         await expectNoHorizontalOverflow(page);
       }
     }
@@ -351,6 +373,8 @@ test.describe("TASKS-01 — journey accessibility & responsive", () => {
   test("Matrix and Sectors are axe-clean in light and dark with real content", async ({
     page,
   }) => {
+    // Four full axe passes over the 80-task collection dataset.
+    test.setTimeout(120_000);
     for (const view of ["matrix", "sectors"]) {
       await gotoFixture(page, `/tasks?view=${view}`);
       await expectNoAxeViolations(page);

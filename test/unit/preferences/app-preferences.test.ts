@@ -12,7 +12,8 @@ import {
   resolveDefaultLandingPath,
   resolveNavigationPreferences,
 } from "~/kernel/preferences";
-import { resolvePrimaryView } from "~/modules/tasks/tasks-view-model";
+import { DEFAULT_TASK_VIEW_CONFIG } from "~/kernel/task-views";
+import { configFromParams } from "~/modules/tasks/tasks-url-state";
 import {
   readThemePreference,
   serializeThemeCookie,
@@ -97,9 +98,23 @@ describe("app preferences", () => {
   });
 
   it("uses the preferred Tasks view only when URL state is absent", () => {
-    expect(resolvePrimaryView(null, "matrix")).toBe("matrix");
-    expect(resolvePrimaryView("all", "matrix")).toBe("all");
-    expect(resolvePrimaryView("bad", "matrix")).toBe("matrix");
+    const preferred = {
+      ...DEFAULT_TASK_VIEW_CONFIG,
+      presentation: "matrix" as const,
+    };
+    expect(
+      configFromParams(new URLSearchParams(), preferred).presentation,
+    ).toBe("matrix");
+    // An explicit URL value always wins over the preference — a deep link and
+    // Back/Forward stay authoritative.
+    expect(
+      configFromParams(new URLSearchParams("view=board"), preferred)
+        .presentation,
+    ).toBe("board");
+    // An invalid URL value falls back to the preference, never to an error.
+    expect(
+      configFromParams(new URLSearchParams("view=bad"), preferred).presentation,
+    ).toBe("matrix");
   });
 
   it("keeps appearance in the existing local cookie authority", () => {

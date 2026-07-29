@@ -57,13 +57,15 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     await expect(sheet).toBeHidden();
     await expect.poll(() => page.url()).toContain("priority=p1");
 
-    // The active filter is visible BEFORE reopening the sheet, so a short list
-    // is never unexplained.
+    // The active filter is visible BEFORE reopening the sheet, so a short list is
+    // never unexplained — and it is a REMOVABLE chip naming its dimension and its
+    // value, not a read-only sentence.
     const trigger = page.getByTestId("collection-filter-trigger");
     await expect(trigger).toContainText("1");
     await expect(
-      page.locator(".dh-collection-controls__summary"),
+      page.getByRole("list", { name: "Active filters" }),
     ).toContainText("Priority");
+    await expect(page.getByTestId("collection-reset-filters")).toBeVisible();
 
     // Reset is explicit and complete.
     await trigger.click();
@@ -96,11 +98,20 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
     // `system=all` keeps a task listed AFTER it is completed, so the row can be
     // observed flipping to Reopen and then restored. (`system=active` would be
     // wrong here — a completed task correctly LEAVES the active population, so
-    // the row would vanish rather than update.) The task is restored below, so
-    // other journeys see seeded state.
-    await gotoFixture(page, "/tasks?view=all&system=all");
+    // the row would vanish rather than update.) `sort=updated` keeps it on the
+    // page: the default smart order puts completed work last, which at the
+    // realistic collection volume TASKS-03 seeds pushes the row past the first
+    // page — correct behaviour, but not what this test is about. The task is
+    // restored below, so other journeys see seeded state.
+    await gotoFixture(page, "/tasks?view=list&system=all&sort=updated");
 
-    const card = page.locator(".dh-card").first();
+    // The first row that is genuinely OPEN — `sort=updated` puts whatever was
+    // touched most recently first, which may be a task an earlier journey
+    // completed, and "the first card" is not the same thing as "an open task".
+    const card = page
+      .locator(".dh-card")
+      .filter({ has: page.getByRole("button", { name: /^Complete / }) })
+      .first();
     await expect(card).toBeVisible();
     const complete = card.getByRole("button", { name: /^Complete / });
     await expect(complete).toBeVisible();
@@ -127,7 +138,7 @@ test.describe("MOBILE-01 Tasks on a phone", () => {
   test("opens a task as a full-screen record and returns to the list", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks?view=all&system=all");
+    await gotoFixture(page, "/tasks?view=list&system=all");
 
     await page.locator(".dh-card__open").first().click();
 
