@@ -11,10 +11,15 @@
  */
 
 import type { EntityType } from "~/kernel/entities";
-import type { SearchResultTarget } from "~/kernel/modules";
+import type { SearchResultSignal, SearchResultTarget } from "~/kernel/modules";
 
 export type { EntityType } from "~/kernel/entities";
-export type { SearchResultItem, SearchResultTarget } from "~/kernel/modules";
+export type {
+  SearchResultItem,
+  SearchResultSignal,
+  SearchResultSignalTone,
+  SearchResultTarget,
+} from "~/kernel/modules";
 
 /**
  * A half-open range of matched characters `[start, end)` over a title or subtitle,
@@ -36,14 +41,15 @@ export type TaggedResult = {
    * is never part of the result's public identity.
    */
   readonly entityId?: string;
-  /** The registered provider's namespaced id (e.g. `today.search`). */
+  /** The registered provider's namespaced id (e.g. `tasks.search`). */
   readonly providerId: string;
-  /** The owning module's id (e.g. `today`). */
+  /** The owning module's id (e.g. `tasks`). */
   readonly moduleId: string;
   readonly title: string;
   readonly subtitle?: string;
   readonly entityType?: EntityType;
   readonly target: SearchResultTarget;
+  readonly signals?: readonly SearchResultSignal[];
   /** Optional provider relevance already clamped to `[0, 1]`, or undefined. */
   readonly providerScore?: number;
 };
@@ -62,6 +68,7 @@ export type RankedSearchResult = {
   readonly subtitle?: string;
   readonly entityType?: EntityType;
   readonly target: SearchResultTarget;
+  readonly signals?: readonly SearchResultSignal[];
   /** Normalised relevance in `[0, 1]` — informational; ordering is deterministic. */
   readonly score: number;
   /** Matched ranges within the title (may be empty). */

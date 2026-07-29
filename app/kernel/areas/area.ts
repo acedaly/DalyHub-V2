@@ -16,6 +16,11 @@ export type AreaListInput = {
   readonly cursor?: string;
 };
 
+export type AreaSearchInput = {
+  readonly text: string;
+  readonly limit?: number;
+};
+
 export type AreaChildrenInput = {
   readonly areaId: string;
   readonly limit?: number;
@@ -150,6 +155,14 @@ export type AreaDependencySummary = {
 export type AreaListPage = {
   readonly items: readonly AreaListItem[];
   readonly nextCursor: string | null;
+};
+
+export type AreaSearchHit = {
+  readonly id: string;
+  readonly title: string;
+  readonly activeProjectCount: number;
+  readonly openGoalCount: number;
+  readonly directTaskCount: number;
 };
 
 export type AreaGoalPage = {

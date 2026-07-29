@@ -111,6 +111,7 @@ import {
   type ProjectTaskCursorScope,
   type ProjectTaskListPage,
   type SearchTaskParentsInput,
+  type SearchTasksInput,
   type SetWaitingInput,
   type SetWaitingResult,
   type TaskDelegation,
@@ -122,6 +123,7 @@ import {
   type TaskRelation,
   type TaskRelationKind,
   type TaskRepository,
+  type TaskSearchHit,
   type TaskStatus,
   type TaskView,
   type TaskWaiting,
@@ -146,6 +148,7 @@ import {
   type EntityRow,
 } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
+import { likeContains, likePrefix } from "./like-pattern";
 import {
   buildEntityUpdatedAtBumpStatement,
   buildSpineChildEntityInsertStatement,
@@ -635,6 +638,51 @@ export class D1TaskRepository implements TaskRepository {
     const rows = (result.results ?? []) as TaskListRow[];
     const items = rows.map((row) => this.#toTaskListItem(row));
     return { items };
+  }
+
+  async searchTasks(
+    input: SearchTasksInput,
+  ): Promise<readonly TaskSearchHit[]> {
+    const text = input.text.trim().toLocaleLowerCase();
+    if (text.length === 0) return [];
+    const limit = validateTaskLimit(input.limit);
+    const like = likeContains(text);
+    const statement = this.#db
+      .prepare(
+        `SELECT ${TASK_DETAIL_COLUMNS},
+                ${WAITING_TARGET_COLUMNS},
+                pl.target_entity_id AS parent_id,
+                pl.type AS parent_link_type,
+                pe.title AS parent_title
+         FROM entities e
+         JOIN spine_records sr
+           ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         LEFT JOIN task_details td
+           ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN entity_links pl
+           ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+              AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
+         LEFT JOIN entities pe
+           ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+              AND pe.deleted_at IS NULL
+         ${WAITING_TARGET_JOIN}
+         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
+               AND lower(e.title) LIKE ? ESCAPE '\\'
+         ORDER BY CASE
+                    WHEN lower(e.title) = ? THEN 0
+                    WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 1
+                    ELSE 2
+                  END,
+                  (sr.completed_at IS NOT NULL) ASC,
+                  lower(e.title) ASC,
+                  e.id ASC
+         LIMIT ?`,
+      )
+      .bind(this.#workspaceId, like, text, likePrefix(text), limit);
+
+    const result = await this.#run(statement);
+    const rows = (result.results ?? []) as TaskListRow[];
+    return rows.map((row) => this.#toTaskListItem(row));
   }
 
   /**
@@ -1299,12 +1347,10 @@ export class D1TaskRepository implements TaskRepository {
       Math.max(1, input.limit ?? TASK_PARENT_SEARCH_LIMIT),
       TASK_PARENT_SEARCH_MAX,
     );
-    // Case-insensitive substring match. Escape the LIKE metacharacters in the user's
-    // needle so a literal `%`/`_`/`\` matches itself, and bind the pattern (never
-    // interpolate). An empty needle → `%%` → the first bounded page of parents.
+    // Case-insensitive substring match. The shared helper escapes LIKE
+    // metacharacters and bounds the pattern to D1's 50-byte LIKE limit.
     const needle = (input.query ?? "").trim().toLocaleLowerCase();
-    const escaped = needle.replace(/[\\%_]/g, (ch: string) => `\\${ch}`);
-    const pattern = `%${escaped}%`;
+    const pattern = likeContains(needle);
 
     // Indexed, workspace-scoped search over the WHOLE collection (never a fixed
     // prefix scan): active Areas and NON-ARCHIVED Projects whose title matches, so a

@@ -16,6 +16,8 @@ import type {
   GoalOverview,
   GoalProjectContribution,
   GoalProjectPage,
+  GoalSearchHit,
+  GoalSearchInput,
 } from "./goal";
 
 export interface GoalRepository {
@@ -33,6 +35,9 @@ export interface GoalRepository {
    * collection surface. Copies no Area/hierarchy state into another table.
    */
   listGoals(input?: GoalListInput): Promise<GoalListPage>;
+
+  /** Search active Goals by title with parent Area and completion context. */
+  searchGoals(input: GoalSearchInput): Promise<readonly GoalSearchHit[]>;
 
   /**
    * The WORKSPACE-WIDE Goal list ordered by the deterministic Alignment display

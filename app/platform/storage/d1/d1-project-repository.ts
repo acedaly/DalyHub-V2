@@ -39,6 +39,8 @@ import {
   type ProjectOrder,
   type ProjectRelation,
   type ProjectRepository,
+  type ProjectSearchHit,
+  type ProjectSearchInput,
   type ProjectStateFilter,
 } from "~/kernel/projects";
 import { parseProjectWorkflowStatus } from "~/kernel/project-settings";
@@ -46,6 +48,7 @@ import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp } from "./database";
+import { likeContains, likePrefix } from "./like-pattern";
 
 /**
  * The LEFT JOINs that resolve a project's Area/Goal context from the structural
@@ -137,6 +140,57 @@ export class D1ProjectRepository implements ProjectRepository {
   constructor(db: D1Database, context: WorkspaceContext) {
     this.#db = db;
     this.#workspaceId = context.workspaceId;
+  }
+
+  async searchProjects(
+    input: ProjectSearchInput,
+  ): Promise<readonly ProjectSearchHit[]> {
+    const text = input.text.trim().toLocaleLowerCase();
+    if (text.length === 0) return [];
+    const limit = validateSpineLimit(input.limit);
+    const like = likeContains(text);
+    const prefix = likePrefix(text);
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT ${PROJECT_BASE_COLUMNS},${PROJECT_RELATION_COLUMNS},
+                  COALESCE(tc.total, 0) AS task_total,
+                  COALESCE(tc.completed, 0) AS task_completed
+           FROM entities e
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN project_details pd ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
+           ${PROJECT_RELATION_JOINS}
+           LEFT JOIN (
+             SELECT tl.target_entity_id AS project_id,
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN tsr.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed
+             FROM entity_links tl
+             JOIN entities te
+               ON te.workspace_id = tl.workspace_id AND te.id = tl.source_entity_id
+                  AND te.type = '${TASK}' AND te.deleted_at IS NULL
+             JOIN spine_records tsr
+               ON tsr.workspace_id = te.workspace_id AND tsr.entity_id = te.id
+             WHERE tl.workspace_id = ? AND tl.type = '${TASK_BELONGS_TO_PROJECT}'
+                   AND tl.deleted_at IS NULL
+             GROUP BY tl.target_entity_id
+           ) tc ON tc.project_id = e.id
+           WHERE e.workspace_id = ? AND e.type = '${PROJECT}' AND e.deleted_at IS NULL
+                 AND pd.archived_at IS NULL
+                 AND lower(e.title) LIKE ? ESCAPE '\\'
+           ORDER BY CASE
+                      WHEN lower(e.title) = ? THEN 0
+                      WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 1
+                      ELSE 2
+                    END,
+                    lower(e.title) ASC,
+                    e.id ASC
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, this.#workspaceId, like, text, prefix, limit),
+    );
+    const rows = (result.results ?? []) as ProjectListRow[];
+    return rows.map((row) => this.#toListItem(row));
   }
 
   async listProjects(input: ListProjectsInput = {}): Promise<ProjectListPage> {

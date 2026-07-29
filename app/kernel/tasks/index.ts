@@ -56,6 +56,8 @@ export {
   type TaskStateFilter,
   type TaskListItem,
   type TaskListPage,
+  type SearchTasksInput,
+  type TaskSearchHit,
   type SetWaitingInput,
   type SetWaitingResult,
   type ClearWaitingResult,

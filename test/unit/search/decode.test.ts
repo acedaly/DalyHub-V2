@@ -131,6 +131,38 @@ describe("decodeSearchOutcome", () => {
     expect(decoded!.groups[0]?.results[0]?.titleMatches).toEqual([]);
   });
 
+  it("decodes bounded generic signals and drops malformed signal entries", () => {
+    const withSignals = JSON.parse(JSON.stringify(validOutcome())) as {
+      groups: { results: Record<string, unknown>[] }[];
+    };
+    withSignals.groups[0]!.results[0] = {
+      ...withSignals.groups[0]!.results[0],
+      signals: [
+        {
+          id: "priority",
+          kind: "priority",
+          label: "P1",
+          value: "p1",
+          tone: "neutral",
+          accessibleLabel: "P1 priority",
+        },
+        { id: "", kind: "urgency", label: "Due today" },
+        { id: "long", kind: "state", label: "x".repeat(300) },
+      ],
+    };
+    const decoded = decodeSearchOutcome(withSignals);
+    expect(decoded!.groups[0]?.results[0]?.signals).toEqual([
+      {
+        id: "priority",
+        kind: "priority",
+        label: "P1",
+        value: "p1",
+        tone: "neutral",
+        accessibleLabel: "P1 priority",
+      },
+    ]);
+  });
+
   it("bounds oversized entity types and unknown group kinds", () => {
     const weird = {
       query: "x",

@@ -45,9 +45,9 @@ A module registers a provider in its manifest:
 
 ```ts
 export default defineModule({
-  id: "today",
+  id: "tasks",
   // …
-  searchProviders: [todaySearchProvider],
+  searchProviders: [tasksSearchProvider],
 });
 ```
 
@@ -60,7 +60,18 @@ type SearchResultItem = {
   readonly subtitle?: string;       // concise subtitle / preview
   readonly target: SearchResultTarget;
   readonly entityType?: EntityType; // groups the result
+  readonly signals?: readonly SearchResultSignal[];
   readonly score?: number;          // optional; a normalised tie-breaker only
+};
+
+type SearchResultSignal = {
+  readonly id: string;
+  readonly kind: string;
+  readonly label: string;
+  readonly value?: string;
+  readonly tone?: "neutral" | "muted" | "accent" | "success" | "warning" | "danger";
+  readonly icon?: string;
+  readonly accessibleLabel?: string;
 };
 
 type SearchResultTarget =
@@ -77,8 +88,15 @@ in-app paths must be app-relative, and `javascript:`, protocol-relative `//…`,
 external URLs, backslashes and control characters are rejected (the result is
 dropped).
 
-The executor receives a trusted `SearchRuntimeContext` (the workspace scope plus a
-cancellation `signal`) and never searches across workspaces:
+`signals` is the generic, serialisable slot for compact metadata such as Task
+priority/urgency. It carries no React nodes and imports no module-specific types.
+The Search surface may translate known generic signals into shared presentation
+components (`PriorityIndicator`, `UrgencyChip`); malformed signal objects are
+dropped by both the server validator and browser decoder.
+
+The executor receives a trusted `SearchRuntimeContext` (the workspace scope, the
+authenticated owner id when available, and a cancellation `signal`) and never
+searches across workspaces:
 
 ```ts
 const search: SearchExecutor = async (query, context) => {
@@ -105,8 +123,8 @@ dominate global ordering:
 1. exact title match
 2. title prefix
 3. title token (word-boundary) prefix
-4. fuzzy title (subsequence)
-5. subtitle / preview match
+4. subtitle / preview match
+5. fuzzy title (subsequence)
 6. normalised provider score — tie-breaker only, then title, then id
 
 Results **group primarily by entity type**; a result with no entity type falls
@@ -141,6 +159,13 @@ length, provider count, results per provider, total results, and each display
 field. Empty or invalid queries never execute a provider. The browser sends only
 the bounded query and receives only bounded results — never a workspace dataset.
 
+Repository-backed providers must perform bounded database queries over canonical
+data or a dedicated read projection. They must not load a whole collection and
+filter in JavaScript, and they must not enrich results by calling one repository
+method per hit. The D1 search projections added for Areas, Goals, Projects, Tasks
+and Diary are query-count tested: one matching record and fifty matching Tasks use
+the same single statement.
+
 ---
 
 ## Incremental search (no arbitrary timeouts)
@@ -171,6 +196,20 @@ DS-03 pure URL helper, **preserving unrelated query parameters** — so opening 
 result never discards filters or other state. Result rows are real links, so
 modified/middle-click open in a new tab; a plain click/Enter opens in-app and
 closes Search. There is **no second Drawer or record viewer**.
+
+## Recent results
+
+When Search opens with no query, the surface shows a calm **Recent** group of the
+last opened Search results. This is device-local UI history in `localStorage`, not
+workspace domain data: maximum eight entries, newest first, deduped by target
+identity, and clearable from the Search surface. The storage helper catches
+`localStorage`/JSON failures, so server rendering and privacy-restricted browsers
+degrade to the normal idle hint.
+
+Recent entries store only safe presentation metadata. Subtitles are stripped for
+Diary, People, Meetings, Assets and Reviews so Diary prose, contact data, meeting
+notes, asset identifiers/prices and review reflections are never persisted in
+browser history.
 
 ---
 
@@ -214,17 +253,26 @@ the real resolver succeeds there too.)
 
 ---
 
-## The Today provider (fixture-backed)
+## Provider coverage and preview policy
 
-The Today module registers a real, **registry-discovered** provider
-([`app/modules/today/search.ts`](../../app/modules/today/search.ts)) over the
-existing TODAY-01 fixtures (focus tasks, upcoming meetings/reminders/deadlines,
-projects, notes). It returns the **existing Today Drawer keys**
-(`task:<id>`, `upcoming:<id>`, `project:<id>`, `note:<id>`) with
-`canonicalPath: "/today"`, so selecting a result opens the current DS-03 Record
-Layout in the Drawer. It duplicates no fixtures and adds no persistence. When Today
-swaps to real product repositories, **only the executor changes** — the shared
-provider contract does not.
+Today is a derived dashboard, not an entity collection, and registers **no Search
+provider**. It remains reachable through navigation and command-palette commands,
+but it never manufactures records from fixtures.
+
+Current production providers are all registry-discovered and repository-backed:
+
+| Entity | Provider | Match source | Safe preview policy |
+|---|---|---|---|
+| Areas | `areas.search` | Area title | Structural counts only: open Goals, active Projects, direct Tasks. |
+| Goals | `goals.search` | Goal title | Parent Area, open/completed state, target date and contribution counts. |
+| Projects | `projects.search` | Project title | Area/Goal context, workflow/completion state and Task progress. |
+| Tasks | `tasks.search` | Task title | Parent Project/Area plus generic priority/urgency signals from one bounded projection. |
+| Notes | `notes.search` | Title, Markdown body/headings, tags | Existing syntax-free match source/excerpt; deleted excluded, archived labelled. |
+| Diary | `diary.search` | Diary title only | Title, entry type and owner-local occurrence time; body prose is not selected. |
+| Meetings | `meetings.search` | Meeting title and safe structured fields | No private notes or agenda content by default. |
+| People | `people.search` | Name plus accepted safe structured fields | No email, phone or private notes in snippets. |
+| Assets | `assets.search` | Title/type/tags and accepted safe fields | No serial/reference numbers, prices or private notes. |
+| Reviews | `reviews.search` | Review title/type/period metadata | No section/reflection content in previews. |
 
 ---
 
@@ -289,9 +337,9 @@ and [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-w
    statement with `LIKE or GLOB pattern too complex` — not just that predicate.
    A search box is exactly where an over-long value arrives, so the Notes
    repository bounds the escaped needle itself and a long query degrades to
-   matching its opening characters instead of erroring. The other
-   repository-backed providers do **not** yet do this — recorded as
-   [DEBT-42](../product/PRODUCT_DEBT.md).
+   matching its opening characters instead of erroring. The shared
+   `like-pattern.ts` helper is used by repository-backed Search providers so this
+   behaviour is consistent.
 2. **`lower()` folds ASCII only.** Matching and the excerpt offsets are therefore
    ASCII-case-insensitive, consistently across every DalyHub search.
 
@@ -304,15 +352,16 @@ types, exact/prefix/fuzzy matches, highlighting, grouping, no-results, partial a
 complete failure, duplicates, long content, keyboard navigation and real Drawer
 opening. The real Product Frame Search (sidebar `/`) uses the live `/search`
 endpoint and the Today provider.
+endpoint and the production registry-backed providers.
 
 ---
 
 ## What DS-08 deliberately does NOT do
 
 No command execution, record creation, Quick Actions, `⌘K`, Inspector/Settings,
-product CRUD, persistence, migration, AI/vector/embedding search, background
-indexing, or search-history persistence. Search exposes a clean API the DS-09
-Command Palette can later launch or incorporate.
+product CRUD, AI/vector/embedding search, background indexing, remote search
+tracking or workspace-persisted search history. Search exposes a clean API the
+DS-09 Command Palette can launch or incorporate.
 
 ---
 

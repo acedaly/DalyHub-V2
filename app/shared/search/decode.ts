@@ -31,6 +31,8 @@ import type {
   SearchOutcomeStatus,
   SearchProviderStatus,
   SearchResultGroup,
+  SearchResultSignal,
+  SearchResultSignalTone,
 } from "./types";
 
 const STATUSES: ReadonlySet<string> = new Set(["ok", "partial", "error"]);
@@ -38,6 +40,22 @@ const MAX_GROUPS = 64;
 const MAX_RANGES = 64;
 const MAX_ID_LENGTH = MAX_RESULT_ID_LENGTH * 3 + 8; // "moduleId::providerId::itemId"
 const MAX_LABEL_LENGTH = 256;
+const SIGNAL_TONES: ReadonlySet<SearchResultSignalTone> = new Set([
+  "neutral",
+  "muted",
+  "accent",
+  "success",
+  "warning",
+  "danger",
+]);
+const MAX_SIGNALS = 4;
+
+function signalTone(value: unknown): SearchResultSignalTone | undefined {
+  return typeof value === "string" &&
+    SIGNAL_TONES.has(value as SearchResultSignalTone)
+    ? (value as SearchResultSignalTone)
+    : undefined;
+}
 
 function boundedString(value: unknown, max: number): string | null {
   return typeof value === "string" && value.length <= max ? value : null;
@@ -91,6 +109,39 @@ function decodeRanges(value: unknown): MatchRange[] {
   return ranges;
 }
 
+function decodeSignals(value: unknown): SearchResultSignal[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const signals: SearchResultSignal[] = [];
+  for (const entry of value) {
+    if (signals.length >= MAX_SIGNALS) break;
+    if (entry === null || typeof entry !== "object") continue;
+    const raw = entry as Record<string, unknown>;
+    const id = nonEmptyString(raw.id, MAX_LABEL_LENGTH);
+    const kind = nonEmptyString(raw.kind, MAX_LABEL_LENGTH);
+    const label = nonEmptyString(raw.label, MAX_LABEL_LENGTH);
+    if (id === null || kind === null || label === null) continue;
+    const signalValue = nonEmptyString(raw.value, MAX_LABEL_LENGTH);
+    const icon = nonEmptyString(raw.icon, MAX_LABEL_LENGTH);
+    const accessibleLabel = nonEmptyString(
+      raw.accessibleLabel,
+      MAX_LABEL_LENGTH,
+    );
+    const tone = signalTone(raw.tone);
+    signals.push({
+      id,
+      kind,
+      label,
+      ...(signalValue === null ? {} : { value: signalValue }),
+      ...(tone === undefined ? {} : { tone }),
+      ...(icon === null ? {} : { icon }),
+      ...(accessibleLabel === null ? {} : { accessibleLabel }),
+    });
+  }
+  return signals;
+}
+
 function decodeResult(value: unknown): RankedSearchResult | null {
   if (value === null || typeof value !== "object") {
     return null;
@@ -114,6 +165,7 @@ function decodeResult(value: unknown): RankedSearchResult | null {
   }
   const subtitle = boundedString(raw.subtitle, MAX_SUBTITLE_LENGTH);
   const entityType = decodeEntityType(raw.entityType);
+  const signals = decodeSignals(raw.signals);
   return {
     id,
     providerId,
@@ -122,6 +174,7 @@ function decodeResult(value: unknown): RankedSearchResult | null {
     ...(subtitle !== null && subtitle.length > 0 ? { subtitle } : {}),
     ...(entityType === undefined ? {} : { entityType }),
     target,
+    ...(signals.length === 0 ? {} : { signals }),
     score: decodeScore(raw.score),
     titleMatches: decodeRanges(raw.titleMatches),
     subtitleMatches: decodeRanges(raw.subtitleMatches),

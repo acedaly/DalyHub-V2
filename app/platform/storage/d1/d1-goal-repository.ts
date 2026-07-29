@@ -45,12 +45,15 @@ import {
   type GoalProjectItem,
   type GoalProjectPage,
   type GoalRepository,
+  type GoalSearchHit,
+  type GoalSearchInput,
 } from "~/kernel/goals";
 import { MEANINGFUL_HEALTH_ACTIVITY_TYPES } from "~/kernel/project-health";
 import { parseProjectWorkflowStatus } from "~/kernel/project-settings";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp } from "./database";
+import { likeContains, likePrefix } from "./like-pattern";
 
 /**
  * The authoritative PRESENTATION timestamp expression (mirrors ADR-037 §37.2 for
@@ -149,6 +152,109 @@ export class D1GoalRepository implements GoalRepository {
   constructor(db: D1Database, context: WorkspaceContext) {
     this.#db = db;
     this.#workspaceId = context.workspaceId;
+  }
+
+  async searchGoals(input: GoalSearchInput): Promise<readonly GoalSearchHit[]> {
+    const text = input.text.trim().toLocaleLowerCase();
+    if (text.length === 0) return [];
+    const limit = validateSpineLimit(input.limit);
+    const like = likeContains(text);
+    const prefix = likePrefix(text);
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `WITH contrib AS (
+             SELECT pg.target_entity_id AS goal_id,
+                    COUNT(pe.id) AS total,
+                    SUM(CASE WHEN psr.completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed,
+                    SUM(CASE WHEN psr.completed_at IS NULL AND pd.archived_at IS NULL AND COALESCE(pd.status, 'planned') = 'active' THEN 1 ELSE 0 END) AS active,
+                    SUM(CASE WHEN psr.completed_at IS NULL AND pd.archived_at IS NULL AND COALESCE(pd.status, 'planned') = 'planned' THEN 1 ELSE 0 END) AS planned,
+                    SUM(CASE WHEN psr.completed_at IS NULL AND pd.archived_at IS NULL AND COALESCE(pd.status, 'planned') = 'on_hold' THEN 1 ELSE 0 END) AS on_hold,
+                    SUM(CASE WHEN pd.archived_at IS NOT NULL THEN 1 ELSE 0 END) AS archived
+             FROM entity_links pg
+             JOIN entities pe
+               ON pe.workspace_id = pg.workspace_id AND pe.id = pg.source_entity_id
+                  AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+             JOIN spine_records psr
+               ON psr.workspace_id = pe.workspace_id AND psr.entity_id = pe.id
+             LEFT JOIN project_details pd
+               ON pd.workspace_id = pe.workspace_id AND pd.entity_id = pe.id
+             WHERE pg.workspace_id = ? AND pg.type = '${PROJECT_ADVANCES_GOAL}'
+                   AND pg.deleted_at IS NULL
+             GROUP BY pg.target_entity_id
+           )
+           SELECT ge.id, ge.title, ge.created_at, ge.updated_at, gsr.completed_at,
+                  ae.id AS area_id, ae.title AS area_title,
+                  gd.target_date,
+                  COALESCE(c.total, 0) AS total,
+                  COALESCE(c.completed, 0) AS completed,
+                  COALESCE(c.active, 0) AS active,
+                  COALESCE(c.planned, 0) AS planned,
+                  COALESCE(c.on_hold, 0) AS on_hold,
+                  COALESCE(c.archived, 0) AS archived
+           FROM entity_links gl
+           JOIN entities ge
+             ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+           JOIN spine_records gsr
+             ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
+           JOIN entities ae
+             ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
+                AND ae.type = '${AREA}' AND ae.deleted_at IS NULL
+           LEFT JOIN goal_details gd
+             ON gd.workspace_id = ge.workspace_id AND gd.entity_id = ge.id
+           LEFT JOIN contrib c ON c.goal_id = ge.id
+           WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                 AND gl.deleted_at IS NULL
+                 AND lower(ge.title) LIKE ? ESCAPE '\\'
+           ORDER BY CASE
+                      WHEN lower(ge.title) = ? THEN 0
+                      WHEN lower(ge.title) LIKE ? ESCAPE '\\' THEN 1
+                      ELSE 2
+                    END,
+                    lower(ge.title) ASC,
+                    ge.id ASC
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, this.#workspaceId, like, text, prefix, limit),
+    );
+    const rows = (result.results ?? []) as Array<{
+      readonly id: string;
+      readonly title: string;
+      readonly completed_at: string | null;
+      readonly area_id: string;
+      readonly area_title: string;
+      readonly target_date: string | null;
+      readonly total: number | null;
+      readonly completed: number | null;
+      readonly active: number | null;
+      readonly planned: number | null;
+      readonly on_hold: number | null;
+      readonly archived: number | null;
+    }>;
+    return rows.map((row) => {
+      const total = Number(row.total ?? 0);
+      const completed = Number(row.completed ?? 0);
+      return {
+        id: row.id,
+        title: row.title,
+        completedAt:
+          row.completed_at === null
+            ? null
+            : fromStorageTimestamp(row.completed_at),
+        area: { id: row.area_id, title: row.area_title },
+        targetDate: row.target_date,
+        contribution: {
+          total,
+          completed,
+          incomplete: Math.max(0, total - completed),
+          active: Number(row.active ?? 0),
+          planned: Number(row.planned ?? 0),
+          onHold: Number(row.on_hold ?? 0),
+          archived: Number(row.archived ?? 0),
+        },
+      };
+    });
   }
 
   async getGoalOverview(id: string): Promise<GoalOverview | null> {

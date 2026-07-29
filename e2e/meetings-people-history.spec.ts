@@ -302,7 +302,8 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     await addAttendee(page, attendeeName);
 
     // The overflow trigger is a real focusable control that names its record,
-    // opens from the keyboard, and lands focus on the first item.
+    // opens from the keyboard, and exposes the held-state action in the current
+    // shared menu order.
     const trigger = page.getByRole("button", {
       name: `More actions for ${meetingTitle}`,
     });
@@ -311,6 +312,12 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
 
     await page.keyboard.press("ArrowDown");
     const item = page.getByRole("menuitem", { name: "Mark as held" });
+    await expect(
+      page.getByRole("menuitem", { name: "New follow-up task" }),
+    ).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
     await expect(item).toBeFocused();
 
     // Escape closes only the menu and returns focus — no keyboard trap.
@@ -319,6 +326,9 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     await expect(trigger).toBeFocused();
 
     // Enter runs it, from the keyboard alone.
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     const [response] = await Promise.all([
       page.waitForResponse(

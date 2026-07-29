@@ -40,12 +40,15 @@ import {
   type AreaProjectItem,
   type AreaProjectPage,
   type AreaRepository,
+  type AreaSearchHit,
+  type AreaSearchInput,
 } from "~/kernel/areas";
 import { parseProjectWorkflowStatus } from "~/kernel/project-settings";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp } from "./database";
+import { likeContains, likePrefix } from "./like-pattern";
 
 const EFFECTIVE_PROJECT_UPDATED_AT_EXPR =
   "(CASE WHEN pd.updated_at IS NOT NULL AND pd.updated_at > e.updated_at THEN pd.updated_at ELSE e.updated_at END)";
@@ -168,6 +171,131 @@ export class D1AreaRepository implements AreaRepository {
   constructor(db: D1Database, context: WorkspaceContext) {
     this.#db = db;
     this.#workspaceId = context.workspaceId;
+  }
+
+  async searchAreas(input: AreaSearchInput): Promise<readonly AreaSearchHit[]> {
+    const text = input.text.trim().toLocaleLowerCase();
+    if (text.length === 0) return [];
+    const limit = validateSpineLimit(input.limit);
+    const like = likeContains(text);
+    const prefix = likePrefix(text);
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `WITH
+           open_goals AS (
+             SELECT gl.target_entity_id AS area_id, COUNT(*) AS open_goal_count
+             FROM entity_links gl
+             JOIN entities ge
+               ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                  AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+             JOIN spine_records gsr
+               ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
+                  AND gsr.completed_at IS NULL
+             WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                   AND gl.deleted_at IS NULL
+             GROUP BY gl.target_entity_id
+           ),
+           active_projects AS (
+             SELECT area_id, COUNT(*) AS active_project_count
+             FROM (
+               SELECT pl.target_entity_id AS area_id, pe.id AS project_id
+               FROM entity_links pl
+               JOIN entities pe
+                 ON pe.workspace_id = pl.workspace_id AND pe.id = pl.source_entity_id
+                    AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+               JOIN spine_records psr
+                 ON psr.workspace_id = pe.workspace_id AND psr.entity_id = pe.id
+                    AND psr.completed_at IS NULL
+               LEFT JOIN project_details pd
+                 ON pd.workspace_id = pe.workspace_id AND pd.entity_id = pe.id
+               WHERE pl.workspace_id = ? AND pl.type = '${PROJECT_BELONGS_TO_AREA}'
+                     AND pl.deleted_at IS NULL AND pd.archived_at IS NULL
+               UNION
+               SELECT gl.target_entity_id AS area_id, pe.id AS project_id
+               FROM entity_links gl
+               JOIN entities ge
+                 ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                    AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+               JOIN entity_links pg
+                 ON pg.workspace_id = gl.workspace_id AND pg.target_entity_id = ge.id
+                    AND pg.type = '${PROJECT_ADVANCES_GOAL}' AND pg.deleted_at IS NULL
+               JOIN entities pe
+                 ON pe.workspace_id = pg.workspace_id AND pe.id = pg.source_entity_id
+                    AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+               JOIN spine_records psr
+                 ON psr.workspace_id = pe.workspace_id AND psr.entity_id = pe.id
+                    AND psr.completed_at IS NULL
+               LEFT JOIN project_details pd
+                 ON pd.workspace_id = pe.workspace_id AND pd.entity_id = pe.id
+               WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                     AND gl.deleted_at IS NULL AND pd.archived_at IS NULL
+             )
+             GROUP BY area_id
+           ),
+           direct_tasks AS (
+             SELECT tl.target_entity_id AS area_id, COUNT(*) AS direct_task_count
+             FROM entity_links tl
+             JOIN entities te
+               ON te.workspace_id = tl.workspace_id AND te.id = tl.source_entity_id
+                  AND te.type = '${TASK}' AND te.deleted_at IS NULL
+             JOIN spine_records tsr
+               ON tsr.workspace_id = te.workspace_id AND tsr.entity_id = te.id
+                  AND tsr.completed_at IS NULL
+             WHERE tl.workspace_id = ? AND tl.type = '${TASK_BELONGS_TO_AREA}'
+                   AND tl.deleted_at IS NULL
+             GROUP BY tl.target_entity_id
+           )
+           SELECT e.id, e.title,
+                  COALESCE(ap.active_project_count, 0) AS active_project_count,
+                  COALESCE(og.open_goal_count, 0) AS open_goal_count,
+                  COALESCE(dt.direct_task_count, 0) AS direct_task_count
+           FROM entities e
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           LEFT JOIN area_details ad
+             ON ad.workspace_id = e.workspace_id AND ad.entity_id = e.id
+           LEFT JOIN active_projects ap ON ap.area_id = e.id
+           LEFT JOIN open_goals og ON og.area_id = e.id
+           LEFT JOIN direct_tasks dt ON dt.area_id = e.id
+           WHERE e.workspace_id = ? AND e.type = '${AREA}' AND e.deleted_at IS NULL
+                 AND ad.archived_at IS NULL
+                 AND lower(e.title) LIKE ? ESCAPE '\\'
+           ORDER BY CASE
+                      WHEN lower(e.title) = ? THEN 0
+                      WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 1
+                      ELSE 2
+                    END,
+                    lower(e.title) ASC,
+                    e.id ASC
+           LIMIT ?`,
+        )
+        .bind(
+          this.#workspaceId,
+          this.#workspaceId,
+          this.#workspaceId,
+          this.#workspaceId,
+          this.#workspaceId,
+          like,
+          text,
+          prefix,
+          limit,
+        ),
+    );
+    const rows = (result.results ?? []) as Array<{
+      readonly id: string;
+      readonly title: string;
+      readonly active_project_count: number | null;
+      readonly open_goal_count: number | null;
+      readonly direct_task_count: number | null;
+    }>;
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      activeProjectCount: Number(row.active_project_count ?? 0),
+      openGoalCount: Number(row.open_goal_count ?? 0),
+      directTaskCount: Number(row.direct_task_count ?? 0),
+    }));
   }
 
   async listAreas(

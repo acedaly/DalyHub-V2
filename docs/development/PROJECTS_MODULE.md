@@ -760,6 +760,14 @@ refinements are tracked in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 - [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md) — the task record surface and the Today integration.
 - [`ROADMAP_V2.md` PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview) · [`docs/README.md`](../README.md).
 
+## Global Search (X-01)
+
+Projects register `projects.search`, backed by `ProjectRepository.searchProjects`.
+It searches active, non-archived Project titles through one bounded
+workspace-scoped D1 projection and returns canonical `/projects/:id` route targets.
+The preview is structural only: Area/Goal context, workflow/completion state and
+direct Task progress. No Today fixture Drawer target remains.
+
 ### PROJ-05 foundation (slice 1) + corrective hardening (slice 2)
 Migration `0008_create_project_details.sql` adds the Projects-owned, workspace-scoped `project_details` table. It owns only the open-work workflow status (`planned`, `active`, `on_hold`) and reversible `archived_at` state; missing rows resolve to `planned` (both pre-existing OPEN and pre-existing COMPLETED Projects were intentionally backfilled `active` at migration time — completed Projects carry no visible status until reopened, but reopening should not surprise the owner with a reset-to-Planned project). Identity/title, parentage, completion, links and roll-ups remain authoritative in the spine.
 

@@ -36,6 +36,7 @@ VALUES
   ('t-pr', 'local-dev-workspace', 'task', 'Review PR', '2026-07-19T01:00:01.000Z', '2026-07-19T01:00:01.000Z', NULL),
   ('t-gym', 'local-dev-workspace', 'task', 'Gym', '2026-07-19T01:00:02.000Z', '2026-07-19T01:00:02.000Z', NULL),
   ('t-drawer', 'local-dev-workspace', 'task', 'Draft the proposal', '2026-07-19T01:00:03.000Z', '2026-07-19T01:00:03.000Z', NULL),
+  ('t-overdue-signal', 'local-dev-workspace', 'task', 'Review the overdue signal', '2026-07-19T01:00:04.000Z', '2026-07-19T01:00:04.000Z', NULL),
   ('t-waiting', 'local-dev-workspace', 'task', 'Await supplier sign-off', '2026-07-19T01:00:05.000Z', '2026-07-19T01:00:05.000Z', NULL),
   ('t-complete', 'local-dev-workspace', 'task', 'Wrap up the sprint', '2026-07-19T01:00:06.000Z', '2026-07-19T01:00:06.000Z', NULL);
 INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
@@ -44,6 +45,7 @@ VALUES
   ('local-dev-workspace', 't-pr', 'task', NULL),
   ('local-dev-workspace', 't-gym', 'task', NULL),
   ('local-dev-workspace', 't-drawer', 'task', NULL),
+  ('local-dev-workspace', 't-overdue-signal', 'task', NULL),
   ('local-dev-workspace', 't-waiting', 'task', NULL),
   ('local-dev-workspace', 't-complete', 'task', NULL);
 INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
@@ -52,11 +54,13 @@ VALUES
   ('l-pr-area', 'local-dev-workspace', 't-pr', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:01.000Z', '2026-07-19T01:00:01.000Z', NULL),
   ('l-gym-area', 'local-dev-workspace', 't-gym', 'a-health', 'task.belongs_to_area', '2026-07-19T01:00:02.000Z', '2026-07-19T01:00:02.000Z', NULL),
   ('l-drawer-area', 'local-dev-workspace', 't-drawer', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:03.000Z', '2026-07-19T01:00:03.000Z', NULL),
+  ('l-overdue-signal-area', 'local-dev-workspace', 't-overdue-signal', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:04.000Z', '2026-07-19T01:00:04.000Z', NULL),
   ('l-waiting-area', 'local-dev-workspace', 't-waiting', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:05.000Z', '2026-07-19T01:00:05.000Z', NULL),
   ('l-complete-area', 'local-dev-workspace', 't-complete', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:06.000Z', '2026-07-19T01:00:06.000Z', NULL);
 INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at)
 VALUES
-  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2026-08-01', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z');
+  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2026-08-01', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z'),
+  ('local-dev-workspace', 't-overdue-signal', 'task', 'todo', NULL, '2000-01-01', NULL, 'Dedicated non-mutated overdue signal fixture.', '2026-07-19T01:00:04.000Z');
 
 -- Reset the seeded tasks' MUTABLE state so every e2e run starts from a known,
 -- deterministic point regardless of what a prior run's journeys changed (the
@@ -64,18 +68,23 @@ VALUES
 -- seeded tasks; `t-drawer`'s details are restored to their canonical values.
 UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
-  AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-waiting', 't-complete');
+  AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-overdue-signal', 't-waiting', 't-complete');
 UPDATE task_details
 SET status = 'todo', priority = 'p1', due_date = '2026-08-01',
     scheduled_date = NULL, description = 'Draft the **proposal** document.',
     waiting_since = NULL, waiting_note = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-drawer';
+UPDATE task_details
+SET status = 'todo', priority = NULL, due_date = '2000-01-01',
+    scheduled_date = NULL, description = 'Dedicated non-mutated overdue signal fixture.',
+    waiting_since = NULL, waiting_note = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-overdue-signal';
 
 -- TODAY-03: clear any waiting state left by a prior e2e run so every run starts
 -- from a known point (no task is waiting; no active waiting links).
 UPDATE task_details SET waiting_since = NULL, waiting_note = NULL
 WHERE workspace_id = 'local-dev-workspace'
-  AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-waiting');
+  AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-overdue-signal', 't-waiting');
 DELETE FROM entity_links
 WHERE workspace_id = 'local-dev-workspace' AND type = 'task.waiting_on';
 
@@ -115,6 +124,146 @@ UPDATE spine_records SET completed_at = '2026-07-19T03:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pt-copy';
 UPDATE entities SET title = 'Website relaunch'
 WHERE workspace_id = 'local-dev-workspace' AND id = 'pr-website';
+
+-- X-01 / TASKS-02b: dedicated real records for the global Search E2E journey.
+-- These are canonical workspace records (not Search fixtures) spanning every
+-- shipped searchable module. The body/contact/private fields below are deliberate
+-- leak sentinels: the browser journey and route tests assert they never appear in
+-- global Search previews or Recent history.
+DELETE FROM activity_subjects
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id
+    FROM entities
+    WHERE workspace_id = 'local-dev-workspace'
+      AND type = 'diary'
+      AND title LIKE 'Phone diary entry %'
+  );
+DELETE FROM activities
+WHERE workspace_id = 'local-dev-workspace'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM activity_subjects s
+    WHERE s.workspace_id = activities.workspace_id
+      AND s.activity_id = activities.id
+  );
+DELETE FROM diary_entry_details
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id
+    FROM entities
+    WHERE workspace_id = 'local-dev-workspace'
+      AND type = 'diary'
+      AND title LIKE 'Phone diary entry %'
+  );
+DELETE FROM entities
+WHERE workspace_id = 'local-dev-workspace'
+  AND type = 'diary'
+  AND title LIKE 'Phone diary entry %';
+DELETE FROM project_details
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('pr-search-e2e');
+DELETE FROM spine_records
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN ('a-search-e2e', 'g-search-e2e', 'pr-search-e2e');
+DELETE FROM entity_links
+WHERE workspace_id = 'local-dev-workspace'
+  AND (
+    source_entity_id IN ('a-search-e2e', 'g-search-e2e', 'pr-search-e2e')
+    OR target_entity_id IN ('a-search-e2e', 'g-search-e2e', 'pr-search-e2e')
+  );
+DELETE FROM entities
+WHERE workspace_id = 'local-dev-workspace'
+  AND id IN ('a-search-e2e', 'g-search-e2e', 'pr-search-e2e');
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('t-search-e2e', 'local-dev-workspace', 'task', 'Global Search E2E Task', '2026-07-19T02:20:03.000Z', '2026-07-19T02:20:03.000Z', NULL),
+  ('n-search-e2e', 'local-dev-workspace', 'note', 'Global Search E2E Note', '2026-07-19T02:20:04.000Z', '2026-07-19T02:20:04.000Z', NULL),
+  ('d-search-e2e', 'local-dev-workspace', 'diary', 'Global Search E2E Diary', '2026-07-19T02:20:05.000Z', '2026-07-19T02:20:05.000Z', NULL),
+  ('p-search-e2e', 'local-dev-workspace', 'person', 'Global Search E2E Person', '2026-07-19T02:20:06.000Z', '2026-07-19T02:20:06.000Z', NULL),
+  ('m-search-e2e', 'local-dev-workspace', 'meeting', 'Global Search E2E Meeting', '2026-07-19T02:20:07.000Z', '2026-07-19T02:20:07.000Z', NULL),
+  ('as-search-e2e', 'local-dev-workspace', 'asset', 'Global Search E2E Asset', '2026-07-19T02:20:08.000Z', '2026-07-19T02:20:08.000Z', NULL),
+  ('r-search-e2e', 'local-dev-workspace', 'review', 'Global Search E2E Review', '2026-07-19T02:20:09.000Z', '2026-07-19T02:20:09.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 't-search-e2e', 'task', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-tse-area', 'local-dev-workspace', 't-search-e2e', 'a-dh', 'task.belongs_to_area', '2026-07-19T02:20:03.000Z', '2026-07-19T02:20:03.000Z', NULL);
+INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at)
+VALUES ('local-dev-workspace', 't-search-e2e', 'task', 'todo', 'p1', '2026-07-29', NULL, 'Search E2E task description.', '2026-07-19T02:20:03.000Z');
+UPDATE task_details
+SET status = 'todo', priority = 'p1', due_date = '2026-07-29', scheduled_date = NULL,
+    description = 'Search E2E task description.', waiting_since = NULL, waiting_note = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-search-e2e';
+INSERT OR IGNORE INTO note_details (workspace_id, entity_id, entity_type, content, updated_at)
+VALUES ('local-dev-workspace', 'n-search-e2e', 'note', '# Search Body Heading E2E\n\nSyntax-free body match sentinel.', '2026-07-19T02:20:04.000Z');
+UPDATE note_details
+SET content = '# Search Body Heading E2E\n\nSyntax-free body match sentinel.',
+    updated_at = '2026-07-19T02:20:04.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'n-search-e2e';
+INSERT OR IGNORE INTO diary_entry_details
+  (workspace_id, entity_id, entity_type, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at)
+VALUES
+  ('local-dev-workspace', 'd-search-e2e', 'diary', 'reflection', 'PRIVATE-DIARY-BODY-SEARCH-E2E', '2026-07-29T09:30:00.000Z', 'Australia/Sydney', 'manual', NULL, '2026-07-19T02:20:05.000Z');
+UPDATE diary_entry_details
+SET entry_type = 'reflection', body = 'PRIVATE-DIARY-BODY-SEARCH-E2E',
+    occurred_at = '2026-07-29T09:30:00.000Z', timezone = 'Australia/Sydney',
+    source_channel = 'manual', source_reference = NULL, updated_at = '2026-07-19T02:20:05.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'd-search-e2e';
+INSERT OR IGNORE INTO person_details
+  (workspace_id, entity_id, entity_type, preferred_name, first_name, last_name, organisation, role, email, mobile, tags, notes, updated_at)
+VALUES
+  ('local-dev-workspace', 'p-search-e2e', 'person', 'Global', 'Global', 'Person', 'Search Lab', 'Principal', 'private-search-person@example.test', '+61 400 111 222', '["search"]', 'PRIVATE-PERSON-NOTES-SEARCH-E2E', '2026-07-19T02:20:06.000Z');
+UPDATE person_details
+SET preferred_name = 'Global', first_name = 'Global', last_name = 'Person',
+    organisation = 'Search Lab', role = 'Principal',
+    email = 'private-search-person@example.test', mobile = '+61 400 111 222',
+    tags = '["search"]', notes = 'PRIVATE-PERSON-NOTES-SEARCH-E2E',
+    archived_at = NULL, updated_at = '2026-07-19T02:20:06.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'p-search-e2e';
+INSERT OR IGNORE INTO meeting_details
+  (workspace_id, entity_id, entity_type, starts_at, ends_at, timezone, location, mode, meeting_url, status, agenda_markdown, notes_markdown, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'm-search-e2e', 'meeting', '2026-07-29T10:00:00.000Z', NULL, 'Australia/Sydney', 'Search room', 'online', NULL, 'planned', 'PRIVATE-MEETING-AGENDA-SEARCH-E2E', 'PRIVATE-MEETING-NOTES-SEARCH-E2E', NULL, '2026-07-19T02:20:07.000Z');
+UPDATE meeting_details
+SET starts_at = '2026-07-29T10:00:00.000Z', ends_at = NULL, timezone = 'Australia/Sydney',
+    location = 'Search room', mode = 'online', meeting_url = NULL, status = 'planned',
+    agenda_markdown = 'PRIVATE-MEETING-AGENDA-SEARCH-E2E',
+    notes_markdown = 'PRIVATE-MEETING-NOTES-SEARCH-E2E',
+    archived_at = NULL, updated_at = '2026-07-19T02:20:07.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'm-search-e2e';
+INSERT OR IGNORE INTO asset_details
+  (workspace_id, entity_id, entity_type, asset_type, status, description, manufacturer, model, serial_number, reference_code, tags, purchase_price_minor, currency_code, reference_number, document_notes, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'as-search-e2e', 'asset', 'tool', 'active', 'Search-safe asset description', 'SearchCo', 'Model E2E', 'PRIVATE-ASSET-SERIAL-SEARCH-E2E', 'PRIVATE-ASSET-REFERENCE-SEARCH-E2E', '["search"]', 123456, 'AUD', 'PRIVATE-ASSET-POLICY-SEARCH-E2E', 'PRIVATE-ASSET-NOTES-SEARCH-E2E', NULL, '2026-07-19T02:20:08.000Z');
+UPDATE asset_details
+SET asset_type = 'tool', status = 'active', description = 'Search-safe asset description',
+    manufacturer = 'SearchCo', model = 'Model E2E',
+    serial_number = 'PRIVATE-ASSET-SERIAL-SEARCH-E2E',
+    reference_code = 'PRIVATE-ASSET-REFERENCE-SEARCH-E2E',
+    tags = '["search"]', purchase_price_minor = 123456, currency_code = 'AUD',
+    reference_number = 'PRIVATE-ASSET-POLICY-SEARCH-E2E',
+    document_notes = 'PRIVATE-ASSET-NOTES-SEARCH-E2E',
+    archived_at = NULL, updated_at = '2026-07-19T02:20:08.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'as-search-e2e';
+INSERT OR IGNORE INTO review_details
+  (workspace_id, entity_id, entity_type, review_type, period_start, period_end, status, template_id, completed_at, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'r-search-e2e', 'review', 'custom', '2026-07-01', '2026-07-31', 'draft', 'custom', NULL, NULL, '2026-07-19T02:20:09.000Z');
+UPDATE review_details
+SET review_type = 'custom', period_start = '2026-07-01', period_end = '2026-07-31',
+    status = 'draft', template_id = 'custom', completed_at = NULL, archived_at = NULL,
+    updated_at = '2026-07-19T02:20:09.000Z'
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'r-search-e2e';
+INSERT OR IGNORE INTO review_sections (workspace_id, review_id, section_id, body_markdown, updated_at)
+VALUES ('local-dev-workspace', 'r-search-e2e', 'summary.overall', 'PRIVATE-REVIEW-REFLECTION-SEARCH-E2E', '2026-07-19T02:20:09.000Z');
+UPDATE review_sections
+SET body_markdown = 'PRIVATE-REVIEW-REFLECTION-SEARCH-E2E',
+    updated_at = '2026-07-19T02:20:09.000Z'
+WHERE workspace_id = 'local-dev-workspace'
+  AND review_id = 'r-search-e2e'
+  AND section_id = 'summary.overall';
 
 -- PROJ-05 Slice 4 — `pr-website` is the showcase project the existing Projects
 -- journeys navigate; nothing mutates its workflow status, so it is permanently
@@ -553,6 +702,77 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-archive-blocked-d
 -- Goal`, the only indirect path the spine allows (SPINE_MODEL.md). The
 -- journey itself creates a SECOND Goal live through the UI (recent activity
 -- by construction) to exercise the `active` state end to end.
+DELETE FROM task_details
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT tl.source_entity_id
+    FROM entity_links tl
+    JOIN entities te
+      ON te.workspace_id = tl.workspace_id
+      AND te.id = tl.source_entity_id
+      AND te.title LIKE 'Phone project contextual task %'
+    WHERE tl.workspace_id = 'local-dev-workspace'
+      AND tl.type = 'task.belongs_to_project'
+  );
+DELETE FROM spine_records
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT tl.source_entity_id
+    FROM entity_links tl
+    JOIN entities te
+      ON te.workspace_id = tl.workspace_id
+      AND te.id = tl.source_entity_id
+      AND te.title LIKE 'Phone project contextual task %'
+    WHERE tl.workspace_id = 'local-dev-workspace'
+      AND tl.type = 'task.belongs_to_project'
+  );
+DELETE FROM activity_subjects
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT tl.source_entity_id
+    FROM entity_links tl
+    JOIN entities te
+      ON te.workspace_id = tl.workspace_id
+      AND te.id = tl.source_entity_id
+      AND te.title LIKE 'Phone project contextual task %'
+    WHERE tl.workspace_id = 'local-dev-workspace'
+      AND tl.type = 'task.belongs_to_project'
+  );
+DELETE FROM entity_links
+WHERE workspace_id = 'local-dev-workspace'
+  AND (
+    source_entity_id IN (
+      SELECT tl.source_entity_id
+      FROM entity_links tl
+      JOIN entities te
+        ON te.workspace_id = tl.workspace_id
+        AND te.id = tl.source_entity_id
+        AND te.title LIKE 'Phone project contextual task %'
+      WHERE tl.workspace_id = 'local-dev-workspace'
+        AND tl.type = 'task.belongs_to_project'
+    )
+    OR target_entity_id IN (
+      SELECT tl.source_entity_id
+      FROM entity_links tl
+      JOIN entities te
+        ON te.workspace_id = tl.workspace_id
+        AND te.id = tl.source_entity_id
+        AND te.title LIKE 'Phone project contextual task %'
+      WHERE tl.workspace_id = 'local-dev-workspace'
+        AND tl.type = 'task.belongs_to_project'
+    )
+  );
+DELETE FROM entities
+WHERE workspace_id = 'local-dev-workspace'
+  AND title LIKE 'Phone project contextual task %';
+DELETE FROM activities
+WHERE workspace_id = 'local-dev-workspace'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM activity_subjects s
+    WHERE s.workspace_id = activities.workspace_id
+      AND s.activity_id = activities.id
+  );
 INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
 VALUES
   ('g-align-neglected', 'local-dev-workspace', 'goal', 'Learn Spanish', '2020-01-01T00:00:00.000Z', '2020-01-01T00:00:00.000Z', NULL),

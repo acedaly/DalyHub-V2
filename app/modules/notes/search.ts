@@ -1,9 +1,8 @@
 /**
  * NOTES-03 — the Notes module's REAL, repository-backed search provider (DS-08).
  *
- * This is the provider whose absence [DEBT-36] recorded: until now a Note could
- * not be found from global Search at all, while the Today fixture provider
- * returned invented `note:` results. It resolves REAL workspace Notes through
+ * This is the provider whose absence [DEBT-36] recorded: before NOTES-03, a Note
+ * could not be found from global Search at all. It resolves REAL workspace Notes through
  * the workspace-scoped `NoteQueryRepository.search` — a bounded, D1-native match
  * over the Note's TITLE, its full Markdown BODY (including headings) and its
  * TAGS — so a Note is findable by any meaningful content inside it.

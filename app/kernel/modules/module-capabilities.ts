@@ -36,6 +36,8 @@ import type { WorkspaceContext } from "~/kernel/workspaces";
 export type ModuleRuntimeContext = {
   /** The authenticated, server-derived workspace scope for this invocation. */
   readonly workspace: WorkspaceContext;
+  /** Optional authenticated owner/user id, derived server-side when available. */
+  readonly ownerId?: string;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -365,6 +367,24 @@ export type SearchResultTarget =
       readonly to: string;
     };
 
+export type SearchResultSignalTone =
+  "neutral" | "muted" | "accent" | "success" | "warning" | "danger";
+
+/**
+ * Optional serialisable metadata a Search result can render as a compact signal.
+ * It deliberately carries plain data only — no React nodes and no module-owned
+ * component types — so it can cross the provider/server/client boundary safely.
+ */
+export type SearchResultSignal = {
+  readonly id: string;
+  readonly kind: string;
+  readonly label: string;
+  readonly value?: string;
+  readonly tone?: SearchResultSignalTone;
+  readonly icon?: string;
+  readonly accessibleLabel?: string;
+};
+
 /**
  * A single typed search result a provider returns. The module describes HOW the
  * result opens via a typed `target` (validated at the Search boundary); it never
@@ -393,6 +413,8 @@ export type SearchResultItem = {
   readonly target: SearchResultTarget;
   /** Optional entity type the result corresponds to. */
   readonly entityType?: EntityType;
+  /** Optional compact, serialisable signals rendered after title/subtitle. */
+  readonly signals?: readonly SearchResultSignal[];
   /**
    * Optional provider-supplied relevance, expected in `[0, 1]`. The shared Search
    * ranker treats it only as a bounded tie-breaker after its own title/preview

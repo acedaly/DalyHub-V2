@@ -180,9 +180,21 @@ describe("registry-driven provider discovery", () => {
   it("discovers providers from module manifests (no manual array)", () => {
     const registry = discoverModuleRegistry();
     const providers = registry.listSearchProviders();
-    const today = providers.find((p) => p.id === "today.search");
-    expect(today).toBeDefined();
-    expect(today?.moduleId).toBe("today"); // ownership retained
+    expect(providers.map((provider) => provider.id)).toEqual([
+      "areas.search",
+      "goals.search",
+      "projects.search",
+      "tasks.search",
+      "notes.search",
+      "diary.search",
+      "meetings.search",
+      "people.search",
+      "assets.search",
+      "reviews.search",
+    ]);
+    expect(providers.some((provider) => provider.moduleId === "today")).toBe(
+      false,
+    );
   });
 
   it("returns providers in a deterministic order across repeated discovery", () => {
@@ -220,26 +232,19 @@ describe("registry-driven provider discovery", () => {
     ]);
   });
 
-  it("runs the discovered Today provider and opens results via Drawer targets", async () => {
+  it("isolates repository-backed providers when the unit environment has no D1 env", async () => {
     const registry = discoverModuleRegistry();
-    // The real Tasks provider needs D1/env (absent in this unit env) and is
-    // isolated by executeSearch; the fixture-backed Today provider still resolves
-    // its project/note/meeting candidates via Drawer targets. TASKS-01 retired
-    // Today's fixture TASK results, so we search a project instead.
     const outcome = await executeSearch({
       providers: registry.listSearchProviders(),
       context,
       rawQuery: "DalyHub",
     });
     const allResults = outcome.groups.flatMap((g) => g.results);
-    expect(allResults.length).toBeGreaterThan(0);
-    const project = allResults.find((r) => r.entityType === "project");
-    expect(project?.target).toMatchObject({
-      kind: "drawer",
-      drawerKey: "project:p-dalyhub",
-      canonicalPath: "/today",
-    });
-    expect(project?.moduleId).toBe("today");
+    expect(allResults).toEqual([]);
+    expect(outcome.providers.length).toBeGreaterThan(0);
+    expect(outcome.providers.every((provider) => provider.ok === false)).toBe(
+      true,
+    );
   });
 });
 

@@ -536,21 +536,26 @@ describe("module discovery", () => {
       );
       expect(registry.getCommand("today.open")?.moduleId).toBe("today");
       expect(registry.listSettings()).toEqual([]);
-      // TODAY-01's fixture-backed provider plus TASKS-01's real, repository-backed
-      // Tasks search provider (the fixture task results were retired from Today).
+      // Global Search is repository-backed across shipped record modules. Today is
+      // a derived dashboard and intentionally registers no provider.
       const searchProviders = registry.listSearchProviders();
       expect(searchProviders.map((provider) => provider.id)).toEqual([
-        "today.search",
+        "areas.search",
+        "goals.search",
+        "projects.search",
         "tasks.search",
         // NOTES-03 closes the DEBT-36 gap for Notes: full-content search over
         // title, Markdown body, headings and tags.
         "notes.search",
+        "diary.search",
         "meetings.search",
         "people.search",
         "assets.search",
         "reviews.search",
       ]);
-      expect(searchProviders[0]?.moduleId).toBe("today");
+      expect(
+        searchProviders.some((provider) => provider.moduleId === "today"),
+      ).toBe(false);
     });
   });
 });

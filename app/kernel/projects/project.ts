@@ -68,6 +68,11 @@ export type ListProjectsInput = {
   readonly cursor?: string;
 };
 
+export type ProjectSearchInput = {
+  readonly text: string;
+  readonly limit?: number;
+};
+
 /**
  * A project as shown in the collection: identity, its Area/Goal context, its
  * open/completed state and its active direct-task counts. `area` is present whether
@@ -116,6 +121,8 @@ export type ProjectListPage = {
    */
   readonly nextCursor: string | null;
 };
+
+export type ProjectSearchHit = ProjectListItem;
 
 /**
  * The project overview header/summary data for the record route: identity, dates,

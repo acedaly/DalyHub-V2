@@ -81,6 +81,7 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
+import { likeContains } from "./like-pattern";
 
 /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
 export type D1AssetCreateFault = "after-entity" | "after-details";
@@ -258,12 +259,6 @@ interface CreatedEntityRow {
   readonly title: string;
   readonly created_at: string;
   readonly updated_at: string;
-}
-
-/** Escape LIKE wildcards so a query character is matched literally. */
-function likeContains(value: string): string {
-  const escaped = value.replace(/[\\%_]/g, (c) => `\\${c}`);
-  return `%${escaped.toLocaleLowerCase()}%`;
 }
 
 /** Parse stored tags JSON defensively (a corrupt value yields no tags). */
@@ -525,7 +520,7 @@ export class D1AssetRepository implements AssetRepository {
     }
     if (filters.tag) {
       conditions.push("lower(d.tags) LIKE ? ESCAPE '\\'");
-      params.push(likeContains(`"${filters.tag}"`));
+      params.push(likeContains(`"${filters.tag.toLocaleLowerCase()}"`));
     }
 
     // Non-sensitive text query.

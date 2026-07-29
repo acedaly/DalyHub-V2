@@ -56,7 +56,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
     });
     await expect(listbox).toBeVisible();
     await expect(
-      listbox.getByRole("option", { name: /Go to Today/ }),
+      listbox.getByRole("option", { name: /Go to Today/ }).first(),
     ).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
   });
@@ -74,7 +74,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await page.goto("/");
     const input = await openPalette(page);
     await input.fill("Go to Today");
-    await expect(option(page, /Go to Today/)).toBeVisible();
+    await expect(option(page, /Go to Today/).first()).toBeVisible();
     await input.press("Enter");
     await expect(page).toHaveURL(/\/today$/);
     await expect(palette(page)).toHaveCount(0);

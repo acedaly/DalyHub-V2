@@ -17,6 +17,8 @@ import type {
   ListProjectsInput,
   ProjectListPage,
   ProjectOverview,
+  ProjectSearchHit,
+  ProjectSearchInput,
 } from "./project";
 
 export interface ProjectRepository {
@@ -28,6 +30,11 @@ export interface ProjectRepository {
    * never an unbounded "load everything".
    */
   listProjects(input?: ListProjectsInput): Promise<ProjectListPage>;
+
+  /** Search active, non-archived Projects by title with Area/Goal context. */
+  searchProjects(
+    input: ProjectSearchInput,
+  ): Promise<readonly ProjectSearchHit[]>;
 
   /**
    * Read one project's overview (identity, dates, open/completed state, resolved

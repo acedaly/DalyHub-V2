@@ -105,9 +105,23 @@ export type GoalListInput = {
   readonly cursor?: string;
 };
 
+export type GoalSearchInput = {
+  readonly text: string;
+  readonly limit?: number;
+};
+
 export type GoalListPage = {
   readonly items: readonly GoalListItem[];
   readonly nextCursor: string | null;
+};
+
+export type GoalSearchHit = {
+  readonly id: string;
+  readonly title: string;
+  readonly completedAt: Date | null;
+  readonly area: GoalAreaContext;
+  readonly targetDate: string | null;
+  readonly contribution: GoalProjectContribution;
 };
 
 /**

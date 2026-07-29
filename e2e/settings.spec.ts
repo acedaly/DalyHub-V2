@@ -38,6 +38,15 @@ function resetPreferences(): void {
   );
 }
 
+function restoreSeededPreferences(): void {
+  d1Execute(
+    [
+      `INSERT OR IGNORE INTO owner_app_preferences (workspace_id, owner_id, created_at, updated_at) VALUES ('${WORKSPACE_ID}', '${OWNER_ID}', '2026-07-19T00:00:00.000Z', '2026-07-19T00:00:00.000Z');`,
+      `UPDATE owner_app_preferences SET default_task_capture_parent_id = 'a-dh', default_task_capture_parent_kind = 'area' WHERE workspace_id = '${WORKSPACE_ID}' AND owner_id = '${OWNER_ID}';`,
+    ].join(" "),
+  );
+}
+
 function forceInvalidLandingDestination(): void {
   d1Execute(
     [
@@ -55,7 +64,7 @@ async function choose(page: Page, label: string, value: string): Promise<void> {
 
 test.describe("SETTINGS-01A — application settings", () => {
   test.beforeEach(() => resetPreferences());
-  test.afterEach(() => resetPreferences());
+  test.afterEach(() => restoreSeededPreferences());
 
   test("opens from navigation and persists owner/workspace preferences", async ({
     page,
