@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   captureRelationshipPlan,
+  contextForCaptureType,
   contextPresentation,
   encodeCaptureContext,
   parseCaptureContextContract,
@@ -17,6 +18,36 @@ const projectContext: CaptureContextContract = {
   mode: "removable",
   relationshipMeaning: "related",
   returnTo: "/projects/project-1",
+};
+
+const areaContext: CaptureContextContract = {
+  ...projectContext,
+  sourceEntityId: "area-1",
+  sourceEntityType: "area",
+  sourceEntityTitle: "Health & Wellbeing",
+  sourceModule: "areas",
+  originatingRoute: "/areas/area-1",
+  returnTo: "/areas/area-1",
+};
+
+const taskContext: CaptureContextContract = {
+  ...projectContext,
+  sourceEntityId: "task-1",
+  sourceEntityType: "task",
+  sourceEntityTitle: "Existing task",
+  sourceModule: "tasks",
+  originatingRoute: "/tasks?selected=task-1",
+  returnTo: "/tasks?selected=task-1",
+};
+
+const assetContext: CaptureContextContract = {
+  ...projectContext,
+  sourceEntityId: "asset-1",
+  sourceEntityType: "asset",
+  sourceEntityTitle: "Passport",
+  sourceModule: "assets",
+  originatingRoute: "/asset/asset-1",
+  returnTo: "/asset/asset-1",
 };
 
 describe("capture context contract", () => {
@@ -42,12 +73,15 @@ describe("capture context contract", () => {
     ).toBeNull();
   });
 
-  it("uses Project and Area context as a Task structural parent", () => {
+  it("resolves Project context to the authoritative Task Project parent", () => {
     expect(captureRelationshipPlan("task", "project")).toMatchObject({
       kind: "task_parent",
       parentKind: "project",
       presentation: "In",
     });
+  });
+
+  it("resolves Area context to the authoritative Task Area parent", () => {
     expect(captureRelationshipPlan("task", "area")).toMatchObject({
       kind: "task_parent",
       parentKind: "area",
@@ -81,6 +115,9 @@ describe("capture context contract", () => {
   });
 
   it("omits unsupported combinations instead of inventing meaning", () => {
+    expect(captureRelationshipPlan("task", "task")).toMatchObject({
+      kind: "none",
+    });
     expect(captureRelationshipPlan("diary", "asset")).toMatchObject({
       kind: "none",
     });
@@ -90,5 +127,18 @@ describe("capture context contract", () => {
     expect(contextPresentation("note", projectContext)).toBe(
       "In DalyHub Development",
     );
+  });
+
+  it("keeps context when the new capture type has defined semantics", () => {
+    expect(contextForCaptureType("task", projectContext)).toEqual(
+      projectContext,
+    );
+    expect(contextForCaptureType("task", areaContext)).toEqual(areaContext);
+    expect(contextForCaptureType("meeting", taskContext)).toEqual(taskContext);
+  });
+
+  it("clears context when changing to an unsupported capture type", () => {
+    expect(contextForCaptureType("task", taskContext)).toBeNull();
+    expect(contextForCaptureType("diary", assetContext)).toBeNull();
   });
 });

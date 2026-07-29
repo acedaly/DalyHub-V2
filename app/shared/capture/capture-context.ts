@@ -244,6 +244,15 @@ export function contextPresentation(
   return `${plan.presentation} ${context.sourceEntityTitle}`;
 }
 
+export function contextForCaptureType(
+  captureType: CaptureType,
+  context: CaptureContextContract | null | undefined,
+): CaptureContextContract | null {
+  if (!context) return null;
+  const plan = captureRelationshipPlan(captureType, context.sourceEntityType);
+  return plan.kind === "none" ? null : context;
+}
+
 function stringField(value: unknown, min: number, max: number): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();

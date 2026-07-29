@@ -16,8 +16,13 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import {
   applyCaptureRelationship,
   compensateCapturedRecord,
+  type ValidatedCaptureContext,
   validateCaptureContextForCreate,
 } from "~/platform/capture/capture-context.server";
+import {
+  captureRelationshipPlan,
+  parseCaptureContextContract,
+} from "~/shared/capture/capture-context";
 import {
   resolveAuthenticatedWorkspaceScope,
   type WorkspaceScope,
@@ -36,6 +41,10 @@ import {
 import type { TasksCreateResult } from "../tasks-contract";
 import type { Route } from "./+types/new";
 
+type TaskCreateParent =
+  | { readonly kind: "area"; readonly id: string }
+  | { readonly kind: "project"; readonly id: string };
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -46,6 +55,32 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+export function structuralTaskParentContextWasSubmitted(raw: unknown): boolean {
+  const parsed = parseCaptureContextContract(raw);
+  if (!parsed) return false;
+  return (
+    captureRelationshipPlan("task", parsed.sourceEntityType).kind ===
+    "task_parent"
+  );
+}
+
+export function resolveTaskCreateParent(
+  captureContext: ValidatedCaptureContext | null,
+  submittedParentKind: string,
+  submittedParentId: string,
+): TaskCreateParent | null {
+  if (captureContext?.plan.kind === "task_parent") {
+    return {
+      kind: captureContext.plan.parentKind,
+      id: captureContext.contract.sourceEntityId,
+    };
+  }
+  if (submittedParentKind !== "area" && submittedParentKind !== "project") {
+    return null;
+  }
+  return { kind: submittedParentKind, id: submittedParentId };
+}
+
 /** Create a task AND its quick-capture planning fields in ONE atomic operation. */
 async function handleCreate(
   scope: WorkspaceScope,
@@ -54,13 +89,6 @@ async function handleCreate(
   const title = String(form.get("title") ?? "");
   const parentId = String(form.get("parentId") ?? "");
   const parentKind = String(form.get("parentKind") ?? "");
-  if (parentKind !== "area" && parentKind !== "project") {
-    return {
-      kind: "create",
-      ok: false,
-      fieldErrors: { parentId: "Choose a Project or Area for this task." },
-    };
-  }
 
   // The task AND its planning fields are created in ONE atomic repository operation
   // (ADR-043 §13 / decision 15) — never a spine create followed by a separate detail
@@ -70,15 +98,39 @@ async function handleCreate(
   const commitment = form.get("commitmentState");
   const dueDate = form.get("dueDate");
   const scheduledDate = form.get("scheduledDate");
+  const rawCaptureContext = form.get("captureContext");
   try {
     const captureContext = await validateCaptureContextForCreate(
       scope,
       "task",
-      form.get("captureContext"),
+      rawCaptureContext,
     );
+    if (
+      !captureContext &&
+      structuralTaskParentContextWasSubmitted(rawCaptureContext)
+    ) {
+      return {
+        kind: "create",
+        ok: false,
+        formError:
+          "That capture context is no longer available. Create the task from the record again or remove the context.",
+      };
+    }
+    const parent = resolveTaskCreateParent(
+      captureContext,
+      parentKind,
+      parentId,
+    );
+    if (!parent) {
+      return {
+        kind: "create",
+        ok: false,
+        fieldErrors: { parentId: "Choose a Project or Area for this task." },
+      };
+    }
     const task = await scope.tasks.createTask({
       title,
-      parent: { kind: parentKind, id: parentId },
+      parent,
       ...(priority ? { priority: String(priority) as TaskPriority } : {}),
       ...(sector ? { timeSector: String(sector) as TimeSector } : {}),
       ...(commitment

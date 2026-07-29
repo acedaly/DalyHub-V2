@@ -37,6 +37,7 @@ import {
   type CaptureType,
 } from "./capture-model";
 import {
+  contextForCaptureType,
   contextPresentation,
   type CaptureContextContract,
 } from "./capture-context";
@@ -67,7 +68,9 @@ export default function CaptureSheet({
   );
   const firstFieldRef = useRef<HTMLElement | null>(null);
   const [activeContext, setActiveContext] =
-    useState<CaptureContextContract | null>(captureContext);
+    useState<CaptureContextContract | null>(() =>
+      active ? contextForCaptureType(active, captureContext) : captureContext,
+    );
 
   useEffect(() => {
     if (active === null) {
@@ -96,7 +99,10 @@ export default function CaptureSheet({
     return () => window.cancelAnimationFrame(frame);
   }, [active]);
 
-  const choose = useCallback((type: CaptureType) => setActive(type), []);
+  const choose = useCallback((type: CaptureType) => {
+    setActive(type);
+    setActiveContext((current) => contextForCaptureType(type, current));
+  }, []);
   const backToChooser = useCallback(() => setActive(null), []);
 
   if (active === null) {
@@ -156,7 +162,11 @@ export default function CaptureSheet({
       }
     >
       {activeContext ? (
-        <div className="dh-capture-context" role="status">
+        <div
+          className="dh-capture-context"
+          role="status"
+          data-testid="capture-context-chip"
+        >
           <EntityIcon type={activeContext.sourceEntityType} />
           <span className="dh-capture-context__label">
             {contextPresentation(active, activeContext)}
