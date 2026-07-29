@@ -242,19 +242,32 @@ describe("derived due-state filters", () => {
     expect(overdue).not.toContain("Finished");
   });
 
-  it("separates due today, this week and later", async () => {
+  it("separates due today, later this week and later, without overlap", async () => {
     const { repo } = await seed(WS);
     expect(await titles(repo, { dueState: "due_today" })).toEqual([
       "Due today P2",
     ]);
-    // The rolling week window INCLUDES today and its sixth following day.
-    expect((await titles(repo, { dueState: "due_this_week" })).sort()).toEqual([
+    // The states are MUTUALLY EXCLUSIVE: "this week" is the window AFTER today, so
+    // a task due today appears in exactly one of them.
+    expect(await titles(repo, { dueState: "due_this_week" })).toEqual([
       "Due this week P3",
-      "Due today P2",
     ]);
     expect(await titles(repo, { dueState: "due_later" })).toEqual([
       "Due later",
     ]);
+  });
+
+  it("gives a FINISHED past-due task its own state, never overdue or later", async () => {
+    const { repo } = await seed(WS);
+    expect(
+      await titles(repo, { dueState: "due_past" }, { view: "all" }),
+    ).toEqual(["Finished"]);
+    expect(await titles(repo, { dueState: "overdue" })).not.toContain(
+      "Finished",
+    );
+    expect(await titles(repo, { dueState: "due_later" })).not.toContain(
+      "Finished",
+    );
   });
 
   it("finds tasks with no due date at all", async () => {
@@ -272,9 +285,10 @@ describe("derived planned-state filters", () => {
     expect(await titles(repo, { plannedState: "planned_today" })).toEqual([
       "Planned today",
     ]);
-    expect(
-      (await titles(repo, { plannedState: "planned_this_week" })).sort(),
-    ).toEqual(["Planned this week", "Planned today"]);
+    // Exclusive, like the due states: "this week" is the window after today.
+    expect(await titles(repo, { plannedState: "planned_this_week" })).toEqual([
+      "Planned this week",
+    ]);
     const unplanned = await titles(repo, { plannedState: "unplanned" });
     expect(unplanned).toContain("Overdue P1");
     expect(unplanned).not.toContain("Planned today");
@@ -567,9 +581,29 @@ describe("server-authoritative grouping", () => {
     const byKey = new Map(grouping.groups.map((g) => [g.key, g.count]));
     expect(byKey.get("overdue")).toBe(1);
     expect(byKey.get("due_today")).toBe(1);
-    // The completed task, due long ago, lands in `due_later` rather than overdue —
-    // exactly as the filter treats it.
-    expect(byKey.get("due_later")).toBe(2);
+    // The completed task, due long ago, is `due_past` — not overdue (it is done)
+    // and not "due later" (that would be nonsense).
+    expect(byKey.get("due_past")).toBe(1);
+    expect(byKey.get("due_later")).toBe(1);
+  });
+
+  it("makes every bucket's count equal its own filter's result — no drift", async () => {
+    // The property the shared expression exists to guarantee: "group by due state,
+    // then open a bucket" lands on exactly the records that bucket counted.
+    const { repo } = await seed(WS);
+    const grouping = await repo.listWorkspaceTaskGroups({
+      dimension: "due_state",
+      view: "all",
+      todayIso: TODAY,
+    });
+    for (const group of grouping.groups) {
+      const drilled = await titles(
+        repo,
+        { dueState: group.key as never },
+        { view: "all" },
+      );
+      expect(drilled.length, `bucket ${group.key}`).toBe(group.count);
+    }
   });
 
   it("groups by status with completion as its own bucket", async () => {
@@ -626,6 +660,33 @@ describe("server-authoritative grouping", () => {
     expect(active).not.toContain("Someday idea");
     expect(active).not.toContain("Paused work");
     expect(active).not.toContain("Waiting on finance");
+  });
+
+  it("BOUNDS the number of buckets, not only the rows within each", async () => {
+    // `parent` and `delegate` are open-ended dimensions — one bucket per Project,
+    // Area or delegatee. Bounding rows per bucket alone would let a large
+    // workspace return `buckets × bucketLimit` rows in one payload, which is the
+    // unbounded read the collection contract forbids.
+    const { repo } = await seed(WS);
+    const spine = spineRepo(WS);
+    for (let i = 0; i < 40; i += 1) {
+      const area = await spine.createArea({ title: `Bulk area ${i}` });
+      await repo.createTask({
+        title: `Bulk task ${i}`,
+        parent: { kind: "area", id: area.id },
+      });
+    }
+
+    const grouping = await repo.listWorkspaceTaskGroups({
+      dimension: "parent",
+      view: "all",
+      todayIso: TODAY,
+    });
+    expect(grouping.groups.length).toBeLessThanOrEqual(24);
+    // The LARGEST buckets survive, so what is dropped is the tail rather than an
+    // arbitrary slice: the seeded multi-task parents outrank the one-task ones.
+    const counts = grouping.groups.map((group) => group.count);
+    expect(Math.max(...counts)).toBeGreaterThan(1);
   });
 
   it("stays workspace-scoped", async () => {

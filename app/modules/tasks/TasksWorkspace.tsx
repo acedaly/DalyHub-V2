@@ -58,23 +58,15 @@ import {
   type SerializedTaskListItem,
 } from "~/shared/task-record/task-view";
 import { TASK_PRIORITIES, TIME_SECTORS } from "~/kernel/tasks";
-import { taskViewFilterCount } from "~/kernel/task-views";
+import { TASK_PRESENTATIONS, taskViewFilterCount } from "~/kernel/task-views";
 
 import { NewTaskForm } from "./NewTaskForm";
 import { TasksQuickAdd } from "./TasksQuickAdd";
 import { TasksViewSwitcher } from "./TasksViewSwitcher";
 import { buildTasksControlGroups } from "./tasks-controls";
 import type { TasksBulkResult, TasksPageData } from "./tasks-contract";
-import {
-  GROUP_BY_LABELS,
-  PRESENTATION_LABELS,
-  PRESENTATION_OPTIONS,
-} from "./tasks-presentation";
-import {
-  TASKS_PARAMS,
-  effectiveGroupBy,
-  paramsFromConfig,
-} from "./tasks-url-state";
+import { PRESENTATION_LABELS } from "./tasks-presentation";
+import { TASKS_PARAMS, paramsFromConfig } from "./tasks-url-state";
 import {
   resolveGroupedSections,
   toTaskCardData,
@@ -342,7 +334,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     (cursor: string): string => {
       const next = new URLSearchParams(searchParams);
       next.delete("drawer");
-      next.set("cursor", cursor);
+      next.set(TASKS_PARAMS.cursor, cursor);
       return `/tasks?${next.toString()}`;
     },
     [searchParams],
@@ -383,10 +375,10 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         return null;
       }
       const next = new URLSearchParams(searchParams);
-      next.set("view", "list");
-      next.delete("group");
+      next.set(TASKS_PARAMS.presentation, "list");
+      next.delete(TASKS_PARAMS.groupBy);
       next.set(section.filterParam, section.filterKey);
-      next.delete("cursor");
+      next.delete(TASKS_PARAMS.cursor);
       next.delete("drawer");
       return `/tasks?${next.toString()}`;
     },
@@ -646,7 +638,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   const currentQuery = useMemo(() => {
     const next = new URLSearchParams(searchParams);
     next.delete("drawer");
-    next.delete("cursor");
+    next.delete(TASKS_PARAMS.cursor);
     return next.toString();
   }, [searchParams]);
   const shareUrl =
@@ -701,7 +693,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       viewSwitcher={
         <SegmentedFilter
           param={TASKS_PARAMS.presentation}
-          options={PRESENTATION_OPTIONS.map((presentation) => ({
+          options={TASK_PRESENTATIONS.map((presentation) => ({
             value: presentation,
             label: PRESENTATION_LABELS[presentation],
           }))}
@@ -728,18 +720,8 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             <CollectionControls
               groups={controlGroups}
               triggerLabel="Filter & sort"
-              hideSummary
               params={canonicalParams}
             />
-            <p className="dh-tasks-controls__summary">
-              {PRESENTATION_LABELS[config.presentation]}
-              {effectiveGroupBy(config) !== "none"
-                ? ` · Grouped by ${GROUP_BY_LABELS[effectiveGroupBy(config)].toLowerCase()}`
-                : ""}
-              {filterCount > 0
-                ? ` · ${filterCount} ${filterCount === 1 ? "filter" : "filters"}`
-                : ""}
-            </p>
           </div>
           <CollectionFilterChips
             groups={controlGroups}

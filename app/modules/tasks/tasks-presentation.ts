@@ -17,24 +17,20 @@
  *     an icon or a position to be understood (AGENTS.md §15).
  */
 
-import {
-  TASK_GROUP_BYS,
-  TASK_PRESENTATIONS,
-  type TaskGroupBy,
-  type TaskPresentation,
-} from "~/kernel/task-views";
+import type { TaskGroupBy, TaskPresentation } from "~/kernel/task-views";
 import {
   TASK_DUE_STATES,
   TASK_PLANNED_STATES,
   TASK_PRIORITIES,
-  TASK_RECENCY_WINDOWS,
-  TASK_SORTS,
   TASK_STATUSES,
   TIME_SECTORS,
   type TaskSort,
 } from "~/kernel/tasks";
 import {
+  priorityQuadrant,
+  quadrantActionLabel,
   taskPriorityLabel,
+  taskPriorityTag,
   taskStatusLabel,
   timeSectorLabel,
 } from "~/shared/task-record/task-view";
@@ -69,15 +65,6 @@ export const SORT_LABELS: Record<TaskSort, string> = {
   parent: "Parent",
 };
 
-/**
- * Whether reversing a sort is meaningful. `smart` is deliberately excluded: "least
- * relevant first" is not a useful order, and offering it would make the default
- * view unpredictable.
- */
-export function sortSupportsDirection(sort: TaskSort): boolean {
-  return sort !== "smart";
-}
-
 export const GROUP_BY_LABELS: Record<TaskGroupBy, string> = {
   none: "No grouping",
   priority: "Priority",
@@ -89,11 +76,18 @@ export const GROUP_BY_LABELS: Record<TaskGroupBy, string> = {
   sector: "Time sector",
 };
 
-/** The due-state vocabulary, shared by the filter, the chips and the headings. */
+/**
+ * The due-state vocabulary, shared by the filter, the chips and the headings.
+ *
+ * The wording is exact because the states are mutually exclusive: "Due later this
+ * week" is the window AFTER today, and a finished task with a past due date reads
+ * "Was due earlier" rather than being called overdue.
+ */
 export const DUE_STATE_LABELS: Record<string, string> = {
   overdue: "Overdue",
+  due_past: "Was due earlier",
   due_today: "Due today",
-  due_this_week: "Due this week",
+  due_this_week: "Due later this week",
   due_later: "Due later",
   no_due_date: "No due date",
 };
@@ -101,7 +95,7 @@ export const DUE_STATE_LABELS: Record<string, string> = {
 /** The planned-state vocabulary, over the SCHEDULED date (not the due date). */
 export const PLANNED_STATE_LABELS: Record<string, string> = {
   planned_today: "Planned today",
-  planned_this_week: "Planned this week",
+  planned_this_week: "Planned later this week",
   planned_earlier: "Planned earlier",
   planned_later: "Planned later",
   unplanned: "Unplanned",
@@ -136,10 +130,14 @@ export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
  * the Eisenhower action the Matrix uses, so one filter serves both mental models.
  */
 export const PRIORITY_FILTER_LABELS: Record<string, string> = {
-  p1: "P1 · Urgent — Do",
-  p2: "P2 · High — Defer",
-  p3: "P3 · Normal — Delegate",
-  p4: "P4 · Low — Delete / Review",
+  ...Object.fromEntries(
+    TASK_PRIORITIES.map((priority) => [
+      priority,
+      `${taskPriorityLabel(priority)} — ${quadrantActionLabel(
+        priorityQuadrant(priority)!,
+      )}`,
+    ]),
+  ),
   __none: "No priority",
 };
 
@@ -169,11 +167,32 @@ export const SECTOR_LABELS: Record<string, string> = {
  * priority, because "Delete / Review" is not a useful heading for a list.
  */
 export const QUADRANT_LABELS: Record<string, string> = {
-  p1: "P1 · Do",
-  p2: "P2 · Defer",
-  p3: "P3 · Delegate",
-  p4: "P4 · Delete / Review",
+  ...Object.fromEntries(
+    TASK_PRIORITIES.map((priority) => [
+      priority,
+      `${taskPriorityTag(priority)} · ${quadrantActionLabel(
+        priorityQuadrant(priority)!,
+      )}`,
+    ]),
+  ),
   untriaged: "Unprioritised",
+};
+
+/**
+ * The Eisenhower quadrant's supporting line, shown as a Matrix section subtitle —
+ * the one place the methodological wording is genuinely the point. `null` for any
+ * key that is not a quadrant.
+ */
+export function matrixSubtitle(key: string): string | null {
+  return QUADRANT_SUBTITLES[key] ?? null;
+}
+
+const QUADRANT_SUBTITLES: Record<string, string> = {
+  p1: "Urgent & important — do it",
+  p2: "Important, not urgent — defer it",
+  p3: "Urgent, not important — delegate it",
+  p4: "Neither — delete or review",
+  untriaged: "No priority yet",
 };
 
 /**
@@ -249,9 +268,3 @@ export function declaredBucketOrder(
 export function showsEmptyBuckets(dimension: string): boolean {
   return dimension === "quadrant" || dimension === "sector";
 }
-
-/** The valid presentation list, re-exported so the UI never re-declares it. */
-export const PRESENTATION_OPTIONS = TASK_PRESENTATIONS;
-export const GROUP_BY_OPTIONS = TASK_GROUP_BYS;
-export const SORT_OPTIONS = TASK_SORTS;
-export const RECENCY_OPTIONS = TASK_RECENCY_WINDOWS;

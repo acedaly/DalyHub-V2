@@ -518,13 +518,23 @@ export type TaskSortDirection = (typeof TASK_SORT_DIRECTIONS)[number];
 
 /**
  * TASKS-03 — the DERIVED due state, resolved against the owner's calendar day
- * (never browser-local time, ADR-022). "This week" is the rolling seven-day window
- * `todayIso … todayIso + 6`, so it never depends on a week-start preference and is
- * stable for a shared link. `overdue` means an OPEN task due strictly before today;
- * due-today is deliberately NOT overdue (the same rule the `smart` sort uses).
+ * (never browser-local time, ADR-022).
+ *
+ * The values are MUTUALLY EXCLUSIVE — every task has exactly one — because this
+ * one vocabulary serves both the filter and the grouping buckets. That is what
+ * guarantees "group by due state, then open Overdue" lands on exactly the records
+ * the Overdue bucket counted; two separate definitions would drift.
+ *
+ * `overdue` means an OPEN task due strictly before today; due-today is deliberately
+ * NOT overdue (the same rule the `smart` sort and the `overdue` system view use).
+ * A COMPLETED task with a past due date is `due_past` — it is finished, so calling
+ * it overdue would be wrong, and calling it "due later" would be nonsense.
+ * `due_this_week` is the rolling window AFTER today (`today + 1 … today + 6`), so
+ * it never depends on a week-start preference and never overlaps `due_today`.
  */
 export const TASK_DUE_STATES = [
   "overdue",
+  "due_past",
   "due_today",
   "due_this_week",
   "due_later",
@@ -536,6 +546,8 @@ export type TaskDueState = (typeof TASK_DUE_STATES)[number];
  * TASKS-03 — the DERIVED planned state over the SCHEDULED date (the owner's
  * "I intend to work on this that day" commitment, ADR-030). Distinct from the due
  * state: a task can be planned today and due next month, or overdue and unplanned.
+ * Mutually exclusive for the same reason {@link TASK_DUE_STATES} is, so
+ * `planned_this_week` means the rolling window AFTER today.
  */
 export const TASK_PLANNED_STATES = [
   "planned_today",

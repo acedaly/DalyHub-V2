@@ -23,12 +23,10 @@ import {
   TASK_PRESENTATIONS,
   TASK_VIEW_FILTER_KEYS,
   type TaskGroupBy,
-  type TaskPresentation,
   type TaskViewConfig,
   type TaskViewFilters,
 } from "~/kernel/task-views";
 import {
-  TASK_RECENCY_WINDOW_DAYS,
   TASK_SORTS,
   TASK_SORT_DIRECTIONS,
   TASK_SYSTEM_VIEWS,
@@ -74,12 +72,6 @@ export const TASKS_FILTER_PARAMS: Record<keyof TaskViewFilters, string> = {
 
 /** The boolean filter keys, which encode as `1` and are absent when off. */
 const BOOLEAN_FILTER_KEYS = ["delegated", "waiting", "someday"] as const;
-
-/** Every parameter this module OWNS — the exact set a reset clears. */
-export const TASKS_OWNED_PARAMS: readonly string[] = [
-  ...Object.values(TASKS_PARAMS),
-  ...Object.values(TASKS_FILTER_PARAMS),
-];
 
 /** The parameters a FILTER reset clears (never the presentation, sort or view). */
 export const TASKS_FILTER_PARAM_NAMES: readonly string[] =
@@ -265,24 +257,10 @@ export function groupDimensionFor(
   return config.presentation === "board" ? "priority" : null;
 }
 
-/** True when the presentation is one of the optional specialist planning views. */
-export function isSpecialistView(presentation: TaskPresentation): boolean {
-  return presentation === "matrix" || presentation === "sectors";
-}
-
 /** The grouping the UI should show as selected (Board's implicit fallback included). */
 export function effectiveGroupBy(config: TaskViewConfig): TaskGroupBy {
   if (config.presentation === "board" && config.groupBy === "none") {
     return "priority";
   }
   return config.groupBy;
-}
-
-/** Human text for a recency window, used in chips and option labels. */
-export function recencyWindowLabel(window: string): string {
-  const days =
-    TASK_RECENCY_WINDOW_DAYS[window as keyof typeof TASK_RECENCY_WINDOW_DAYS];
-  if (days === undefined) return window;
-  if (days === 1) return "Today";
-  return `Last ${days} days`;
 }

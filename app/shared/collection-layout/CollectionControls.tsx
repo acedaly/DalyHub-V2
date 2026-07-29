@@ -63,10 +63,6 @@ export type CollectionControlsProps = {
    * what the button opens.
    */
   readonly triggerLabel?: string;
-  /** Test id for the trigger. Defaults to the shared collection-control id. */
-  readonly triggerTestId?: string;
-  /** Hide the inline applied-summary line (e.g. when a chip row already shows it). */
-  readonly hideSummary?: boolean;
   /**
    * The COMMITTED state to read from and apply over, when it is not simply the
    * URL's raw parameters.
@@ -86,8 +82,6 @@ export function CollectionControls({
   label = "Filter and sort",
   resetParams,
   triggerLabel = "Filter",
-  triggerTestId = "collection-filter-trigger",
-  hideSummary = false,
   params,
 }: CollectionControlsProps) {
   const [urlParams, setSearchParams] = useSearchParams();
@@ -133,7 +127,7 @@ export function CollectionControls({
           className="dh-collection-controls__trigger"
           aria-expanded={open}
           onClick={openSheet}
-          data-testid={triggerTestId}
+          data-testid="collection-filter-trigger"
         >
           {triggerLabel}
           {/* The count is TEXT, so an active filter is legible without colour and
@@ -146,7 +140,7 @@ export function CollectionControls({
           ) : null}
         </button>
 
-        {summary.length > 0 && !hideSummary ? (
+        {summary.length > 0 ? (
           <p className="dh-collection-controls__summary">
             {summary.join(" · ")}
           </p>

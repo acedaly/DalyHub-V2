@@ -26,9 +26,11 @@ import type { TaskPriority, TaskSystemView, TimeSector } from "~/kernel/tasks";
 import type { TaskPresentation } from "~/kernel/task-views";
 
 import type { TasksGrouping } from "./tasks-contract";
+import { TASKS_FILTER_PARAMS } from "./tasks-url-state";
 import {
   declaredBucketOrder,
   groupBucketLabel,
+  matrixSubtitle,
   showsEmptyBuckets,
 } from "./tasks-presentation";
 
@@ -162,25 +164,25 @@ const BUCKET_FILTERS: Record<
   { param: string; value: (key: string) => string | null }
 > = {
   quadrant: {
-    param: "priority",
+    param: TASKS_FILTER_PARAMS.priority,
     value: (key) => (key === "untriaged" ? "__none" : key),
   },
   priority: {
-    param: "priority",
+    param: TASKS_FILTER_PARAMS.priority,
     value: (key) => (key === "untriaged" ? "__none" : key),
   },
   sector: {
-    param: "sector",
+    param: TASKS_FILTER_PARAMS.timeSector,
     value: (key) => (key === "inbox" ? "__none" : key),
   },
   status: {
-    param: "status",
+    param: TASKS_FILTER_PARAMS.status,
     value: (key) => (key === "completed" ? null : key),
   },
-  due_state: { param: "due", value: (key) => key },
-  planned: { param: "planned", value: (key) => key },
+  due_state: { param: TASKS_FILTER_PARAMS.dueState, value: (key) => key },
+  planned: { param: TASKS_FILTER_PARAMS.plannedState, value: (key) => key },
   delegate: {
-    param: "person",
+    param: TASKS_FILTER_PARAMS.delegatedTo,
     value: (key) => (key === "__none" ? null : key),
   },
 };
@@ -241,7 +243,7 @@ export function resolveGroupedSections(
     return {
       key,
       title: groupBucketLabel(dimension, key, bucket?.label ?? null),
-      subtitle: MATRIX_SUBTITLES[key] ?? null,
+      subtitle: matrixSubtitle(key),
       filterParam: filterKey === null ? null : (filter?.param ?? null),
       filterKey,
       count: bucket?.count ?? 0,
@@ -262,15 +264,3 @@ export function resolveGroupedSections(
     .map(([key]) => build(key))
     .sort((a, b) => b.count - a.count || a.title.localeCompare(b.title) || 0);
 }
-
-/**
- * The Eisenhower ACTION word for each quadrant, shown as a section subtitle in the
- * Matrix only — the one place the methodology vocabulary is genuinely the point.
- */
-const MATRIX_SUBTITLES: Record<string, string> = {
-  p1: "Urgent & important — do it",
-  p2: "Important, not urgent — defer it",
-  p3: "Urgent, not important — delegate it",
-  p4: "Neither — delete or review",
-  untriaged: "No priority yet",
-};

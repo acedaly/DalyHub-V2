@@ -379,6 +379,27 @@
 
 ---
 
+### ☐ DEBT-51 — An open overflow menu escapes its card by z-index, not by leaving the stacking context — P2
+- **Current issue.** The shared DS-12 `OverflowMenu` panel carries `z-index: var(--dh-z-dropdown)`, but a DS-04 Card establishes its own **stacking context** (the swipe surface is positioned with a z-index so the tray can sit behind it), so the panel's z-index resolves *inside* the card. In a long collection the next card — and the sticky Pane Header — painted over an open menu and its items were unclickable. Found by driving the Tasks list; it affected every Card in the product and had simply never been hit, because existing specs opened menus on short lists.
+- **Where it stands.** Fixed at the symptom in TASKS-03 (`app/styles/card.css`): while a menu is open the CARD is raised to the dropdown layer, which lifts the whole context above its siblings and the sticky chrome. Correct and covered by a browser test, but it is a rule keyed to `.dh-card`/`.dh-card-swipe`.
+- **Impact.** Every future container that establishes a stacking context — a Drawer body, an Inspector, a Record Header, a board column with a `transform` — will need its own copy of the same `:has()` patch, and each copy has to pick a z-index that outranks its own neighbours. That is a z-index arms race, and the shared menu should not require its hosts to cooperate.
+- **Desired future state.** The panel escapes ancestor stacking contexts BY CONSTRUCTION — `createPortal` to the app-shell boundary, or the native `popover` attribute (top layer). Nothing in `app/shared/` portals today, so this is the first case that forces the decision; the focus, dismissal and roving-tabindex behaviour must survive it unchanged.
+- **Closing condition.** `OverflowMenu` renders its panel outside its host's stacking context, the per-host CSS patch in `card.css` is deleted, and a browser test opens a card menu mid-list under a sticky header without any host-side cooperation.
+- **Related roadmap item.** [DS-12](../roadmap/ROADMAP_V2.md#-ds-12--record-header-overflow-menu--card-overflow-action).
+
+---
+
+### ☐ DEBT-52 — Three copies of calendar-day arithmetic in the kernel, and a fourth capture surface — P3
+- **Current issue.** Two duplications the TASKS-03 review surfaced, both small and both the same shape.
+  1. **Date maths.** `addDaysToIsoDate` exists in `app/kernel/alignment/goal-alignment.ts` and `app/kernel/project-health/project-health.ts`; TASKS-03 added a third (`shiftCalendarDate` in `app/kernel/tasks/task-validation.ts`) because the kernel cannot import `app/shared/datetime` and there is no kernel-level date primitive to import instead.
+  2. **Task capture.** `NewTaskForm` and the shared `TaskCapturePanel` both build "title → `POST /tasks/new` → typed error" on the DS-06 `useForm`; the TASKS-03 quick-add row builds a third, hand-rolled version, and does not call the shared deterministic `parseQuickCapture`, so `p1` / `next week` tokens are interpreted in Quick Capture and stored literally in the row.
+- **Impact.** Low but real. A change to the inclusive/exclusive convention in date maths has to be found in three places under three different entities. The capture divergence is user-visible: the same typed text behaves differently depending on which field it was typed into.
+- **Desired future state.** One kernel date primitive (`app/kernel/datetime` or an export from `app/kernel/spine`) exporting `addDaysToIsoDate`, with all three call sites collapsed onto it. And the quick-add row rebuilt on `~/shared/forms` + `parseQuickCapture`, ideally as an inline presentation of `TaskCapturePanel` rather than a fourth surface.
+- **Closing condition.** `grep` finds exactly one implementation of ISO day-shift arithmetic in `app/kernel`, and typing `Draft the brief p1` into the Tasks quick-add row produces the same task as typing it into Quick Capture.
+- **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
+
+---
+
 ## Entry template
 
 ```markdown

@@ -231,41 +231,20 @@ const PLANNING_COMPLETED_LIMIT = 100;
 const WORKSPACE_GROUP_BUCKET_LIMIT = 50;
 const WORKSPACE_GROUP_BUCKET_MAX = 200;
 
+/**
+ * The maximum number of BUCKETS a grouped read returns.
+ *
+ * The closed dimensions have at most eight, but `parent` and `delegate` are
+ * open-ended — one bucket per Project, Area or delegatee. Bounding rows per bucket
+ * alone would let a large workspace return `buckets × 50` rows in a single
+ * payload, which is precisely the unbounded read the collection contract forbids.
+ * The largest buckets are kept, so what is dropped is the tail.
+ */
+const WORKSPACE_GROUP_MAX_BUCKETS = 24;
+
 /** Default and hard-max results for the bounded task-parent title search (ADR-043 §9). */
 const TASK_PARENT_SEARCH_LIMIT = 25;
 const TASK_PARENT_SEARCH_MAX = 50;
-
-/**
- * TASKS-03 — the DERIVED due-state predicates, over the calendar day and the
- * rolling week end joined once as `cal`. They are constant SQL text (no bind
- * placeholders and no caller data), selected by an already-validated closed-set
- * key, so a due filter can never widen the statement.
- *
- * `overdue` requires the task to still be OPEN: a task completed last week is
- * finished, not overdue — the same rule the `smart` sort and the `overdue` system
- * view apply, so the three can never disagree.
- */
-const WORKSPACE_DUE_STATE_WHERE: Record<string, string> = {
-  overdue:
-    "sr.completed_at IS NULL AND td.due_date IS NOT NULL AND td.due_date < cal.today_iso",
-  due_today: "td.due_date = cal.today_iso",
-  due_this_week:
-    "td.due_date IS NOT NULL AND td.due_date >= cal.today_iso AND td.due_date <= cal.week_end",
-  due_later: "td.due_date IS NOT NULL AND td.due_date > cal.week_end",
-  no_due_date: "td.due_date IS NULL",
-};
-
-/** TASKS-03 — the DERIVED planned-state predicates over the SCHEDULED date. */
-const WORKSPACE_PLANNED_STATE_WHERE: Record<string, string> = {
-  planned_today: "td.scheduled_date = cal.today_iso",
-  planned_this_week:
-    "td.scheduled_date IS NOT NULL AND td.scheduled_date >= cal.today_iso AND td.scheduled_date <= cal.week_end",
-  planned_earlier:
-    "td.scheduled_date IS NOT NULL AND td.scheduled_date < cal.today_iso",
-  planned_later:
-    "td.scheduled_date IS NOT NULL AND td.scheduled_date > cal.week_end",
-  unplanned: "td.scheduled_date IS NULL",
-};
 
 /**
  * TASKS-03 — the bucket-key expression per grouping dimension. Trusted, constant
@@ -287,7 +266,7 @@ const WORKSPACE_GROUP_BUCKET_EXPR: Record<WorkspaceTaskGroupDimension, string> =
     due_state:
       "CASE WHEN td.due_date IS NULL THEN 'no_due_date'" +
       " WHEN sr.completed_at IS NULL AND td.due_date < cal.today_iso THEN 'overdue'" +
-      " WHEN td.due_date < cal.today_iso THEN 'due_later'" +
+      " WHEN td.due_date < cal.today_iso THEN 'due_past'" +
       " WHEN td.due_date = cal.today_iso THEN 'due_today'" +
       " WHEN td.due_date <= cal.week_end THEN 'due_this_week'" +
       " ELSE 'due_later' END",
@@ -1015,14 +994,17 @@ export class D1TaskRepository implements TaskRepository {
             : `pl.type = '${TASK_BELONGS_TO_AREA}'`,
       );
     }
-    // The derived DUE state, resolved against the owner's calendar day joined once
-    // as `cal` — the same day the `smart` sort and the `overdue` view use, so the
-    // three can never disagree about what "overdue" means.
+    // The derived DUE and PLANNED states are selected from the SAME expression
+    // the grouping buckets by, so "group by due state, then open Overdue" always
+    // lands on exactly the records the Overdue bucket counted. Two separate
+    // definitions could — and did — drift.
     if (filterDueState !== undefined) {
-      whereParts.push(WORKSPACE_DUE_STATE_WHERE[filterDueState]);
+      whereParts.push(`(${WORKSPACE_GROUP_BUCKET_EXPR.due_state}) = ?`);
+      params.push(filterDueState);
     }
     if (filterPlannedState !== undefined) {
-      whereParts.push(WORKSPACE_PLANNED_STATE_WHERE[filterPlannedState]);
+      whereParts.push(`(${WORKSPACE_GROUP_BUCKET_EXPR.planned}) = ?`);
+      params.push(filterPlannedState);
     }
     if (filterCreatedWithin !== undefined) {
       // `created_at` is a full ISO timestamp; comparing against the window's start
@@ -1211,7 +1193,7 @@ export class D1TaskRepository implements TaskRepository {
            CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
            WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${whereSql}
          ),
-         ranked AS (
+         counted AS (
            SELECT *,
                   COUNT(*) OVER (PARTITION BY bucket) AS bucket_count,
                   ROW_NUMBER() OVER (
@@ -1219,10 +1201,29 @@ export class D1TaskRepository implements TaskRepository {
                     ORDER BY sort_value ${sortSpec.dir}, created_at ASC, id ASC
                   ) AS rn
            FROM scoped
+         ),
+         ranked AS (
+           -- A separate level: SQLite refuses a window function nested inside
+           -- another window function's ORDER BY, so the bucket rank is computed
+           -- over the already-counted rows.
+           SELECT *,
+                  DENSE_RANK() OVER (
+                    ORDER BY bucket_count DESC, bucket ASC
+                  ) AS bucket_rank
+           FROM counted
          )
-         SELECT * FROM ranked WHERE rn <= ? ORDER BY bucket ASC, rn ASC`,
+         SELECT * FROM ranked
+         WHERE rn <= ? AND bucket_rank <= ?
+         ORDER BY bucket ASC, rn ASC`,
       )
-      .bind(todayIso, weekEnd, this.#workspaceId, ...params, bucketLimit);
+      .bind(
+        todayIso,
+        weekEnd,
+        this.#workspaceId,
+        ...params,
+        bucketLimit,
+        WORKSPACE_GROUP_MAX_BUCKETS,
+      );
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as (TaskListRow & {

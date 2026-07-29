@@ -366,11 +366,26 @@ lands on the same records and the address bar stays honest about what is applied
 | Created / updated recency | `created` · `updated` | Closed windows: today · 7 · 30 · 90 days. |
 | Completed visibility | `completed` | `hide` · `include` · `only`, applied ON TOP of the system view. |
 
-"This week" is a **rolling seven-day window** (`today … today + 6`), so it needs no
-first-day-of-week preference and a shared link means the same thing to any viewer.
-"Overdue" means an OPEN task due strictly before the owner's calendar day — the
-same rule the `smart` sort and the `overdue` system view use, so the three can
-never disagree.
+The derived due and planned states are **mutually exclusive**, and deliberately so:
+ONE SQL expression defines each of them, and both the FILTER and the GROUPING
+buckets select from it. That is what guarantees "group by due state, then open
+Overdue" lands on exactly the records the Overdue bucket counted — two separate
+definitions drift, and an earlier draft of this work proved it by producing a
+bucket whose drill-down filter matched nothing.
+
+Exclusivity decides the wording, so the labels say what they mean:
+
+- **Overdue** — OPEN and due strictly before the owner's calendar day. The same
+  rule the `smart` sort, the `overdue` system view and the `UrgencyChip` use.
+- **Was due earlier** — FINISHED with a past due date. It is not overdue (it is
+  done) and it is not "due later" (that would be nonsense), so it has its own state.
+- **Due today**, then **Due later this week** — the rolling window *after* today
+  (`today + 1 … today + 6`), so it never overlaps "Due today" and never depends on
+  a first-day-of-week preference. A shared link therefore means the same thing to
+  any viewer.
+- **Due later**, **No due date**.
+
+The planned states follow the same rule over the SCHEDULED date.
 
 **Tasks have no tag field**, so there is no tag filter. Inventing one would be a
 data-model change wearing a filter's clothes — recorded as

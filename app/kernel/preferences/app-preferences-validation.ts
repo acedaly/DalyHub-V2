@@ -121,18 +121,31 @@ export function parseTaskDefaultView(value: unknown): TaskDefaultView {
   );
 }
 
-export function parseTaskCaptureParentId(value: unknown): string | null {
-  if (value === null || value === "") return null;
+/**
+ * The shared rule for a nullable, bounded, id-safe preference value — the same
+ * shape `parseEnum` gives the closed-set preferences. An empty or absent value is
+ * a real state (no default chosen), not an error.
+ */
+function parseBoundedId(
+  field: AppPreferencesValidationError["field"],
+  value: unknown,
+  message: string,
+): string | null {
+  if (value === null || value === undefined || value === "") return null;
   if (
     typeof value === "string" &&
-    value.length > 0 &&
     value.length <= 128 &&
     /^[A-Za-z0-9:_-]+$/.test(value)
   ) {
     return value;
   }
-  throw new AppPreferencesValidationError(
+  throw new AppPreferencesValidationError(field, message);
+}
+
+export function parseTaskCaptureParentId(value: unknown): string | null {
+  return parseBoundedId(
     "defaultTaskCaptureParentId",
+    value,
     "Choose a valid default capture parent.",
   );
 }
@@ -144,17 +157,9 @@ export function parseTaskCaptureParentId(value: unknown): string | null {
  * the preference was written.
  */
 export function parseDefaultTaskViewId(value: unknown): string | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (
-    typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= 128 &&
-    /^[A-Za-z0-9:_-]+$/.test(value)
-  ) {
-    return value;
-  }
-  throw new AppPreferencesValidationError(
+  return parseBoundedId(
     "defaultTaskViewId",
+    value,
     "Choose a valid default Tasks view.",
   );
 }
