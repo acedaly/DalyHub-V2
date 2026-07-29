@@ -487,7 +487,7 @@ lazily loaded.
 | | Baseline | TASKS-03 | Δ |
 |---|---|---|---|
 | **`entry.client` (the initial bundle)** | 182,473 | 182,473 | **0** |
-| All client assets | 1,964,952 | 1,987,919 | +22,967 (+1.17%) |
+| All client assets | 1,964,952 | 1,987,399 | +22,447 (+1.14%) |
 
 The **initial bundle is byte-identical**: everything TASKS-03 adds lands in the
 lazily-loaded `/tasks` route chunk and the shared collection chunk, plus ~5 KB of
