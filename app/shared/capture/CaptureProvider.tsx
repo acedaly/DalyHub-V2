@@ -25,6 +25,7 @@ import {
 import type { ReactNode } from "react";
 
 import type { CaptureType } from "./capture-model";
+import type { CaptureContextContract } from "./capture-context";
 
 /** Lazily-loaded so no capture form enters the initial application bundle. */
 const CaptureSheet = lazy(() => import("./CaptureSheet"));
@@ -38,6 +39,7 @@ export type CaptureContextValue = {
   readonly openCapture: (
     type?: CaptureType,
     opener?: HTMLElement | null,
+    captureContext?: CaptureContextContract | null,
   ) => void;
   /** Close the sheet. */
   readonly closeCapture: () => void;
@@ -68,10 +70,17 @@ export function CaptureProvider({
     undefined,
   );
   const [opener, setOpener] = useState<HTMLElement | null>(null);
+  const [captureContext, setCaptureContext] =
+    useState<CaptureContextContract | null>(null);
 
   const openCapture = useCallback(
-    (type?: CaptureType, openerElement?: HTMLElement | null) => {
+    (
+      type?: CaptureType,
+      openerElement?: HTMLElement | null,
+      nextContext?: CaptureContextContract | null,
+    ) => {
       setRequestedType(type);
+      setCaptureContext(nextContext ?? null);
       setOpener(
         openerElement ??
           (typeof document === "undefined"
@@ -98,6 +107,7 @@ export function CaptureProvider({
           <CaptureSheet
             requestedType={requestedType}
             opener={opener}
+            captureContext={captureContext}
             onClose={closeCapture}
           />
         </Suspense>

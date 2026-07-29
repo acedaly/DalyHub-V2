@@ -39,6 +39,7 @@ const bottomNav = "[data-testid='bottom-nav']";
  * product one.
  */
 const RUN = `${Date.now().toString(36)}`;
+const DRAWER_URL = "/today?drawer=task%3At-drawer";
 
 /** Open the shared capture sheet on a type from the phone bottom bar. */
 async function openCapture(page: Page, type: string) {
@@ -55,6 +56,41 @@ async function openCapture(page: Page, type: string) {
   }
   await sheet.getByTestId(`capture-choose-${type}`).click();
   return sheet;
+}
+
+async function chooseCaptureType(
+  sheet: ReturnType<Page["getByTestId"]>,
+  type: string,
+) {
+  await sheet.getByTestId("capture-change-type").click();
+  await sheet.getByTestId(`capture-choose-${type}`).click();
+}
+
+async function selectTaskParentIfNeeded(
+  sheet: ReturnType<Page["getByTestId"]>,
+  parentName: string,
+) {
+  const parent = sheet.getByRole("combobox", { name: /Project or Area/ });
+  if ((await parent.count()) === 0 || !(await parent.isVisible())) return;
+  await parent.click();
+  await parent.fill(parentName);
+  await sheet.getByRole("option", { name: parentName }).first().click();
+}
+
+async function submitTaskCapture(
+  page: Page,
+  sheet: ReturnType<Page["getByTestId"]>,
+) {
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname === "/tasks/new" &&
+        r.request().method() === "POST",
+    ),
+    sheet.getByRole("button", { name: "Create task" }).click(),
+  ]);
+  const body = (await response.json()) as { ok?: boolean };
+  expect(body.ok, JSON.stringify(body)).toBe(true);
 }
 
 test.describe("MOBILE-01 Diary on a phone", () => {
@@ -124,6 +160,78 @@ test.describe("MOBILE-01 Diary on a phone", () => {
     ).toBeVisible({ timeout: 15_000 });
     await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
+  });
+});
+
+test.describe("ADR-060 contextual capture on a phone", () => {
+  test("clears Task context when switching to unsupported Task capture", async ({
+    page,
+  }) => {
+    await gotoFixture(page, DRAWER_URL);
+    const drawer = page.getByRole("dialog").first();
+    await expect(
+      drawer.getByRole("heading", { level: 3, name: "Draft the proposal" }),
+    ).toBeVisible({ timeout: 15_000 });
+    await drawer.getByRole("tab", { name: "Linked" }).click();
+    await drawer.getByRole("button", { name: "New linked note" }).click();
+
+    const sheet = page.getByTestId("capture-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("capture-context-chip")).toContainText(
+      "Related to Draft the proposal",
+    );
+
+    await chooseCaptureType(sheet, "meeting");
+    await expect(sheet.getByTestId("capture-context-chip")).toContainText(
+      "Linked to Draft the proposal",
+    );
+
+    await chooseCaptureType(sheet, "task");
+    await expect(sheet.getByTestId("capture-context-chip")).toHaveCount(0);
+
+    await sheet
+      .getByLabel("Title")
+      .fill(`Phone task after unsupported switch ${RUN}`);
+    await selectTaskParentIfNeeded(sheet, "DalyHub V2");
+    await submitTaskCapture(page, sheet);
+    await expect(sheet.getByTestId("capture-result")).toBeVisible();
+  });
+
+  test("captures a Project-context Task without choosing another parent", async ({
+    page,
+  }) => {
+    const title = `Phone project contextual task ${RUN}`;
+
+    await gotoFixture(page, "/projects");
+    await page
+      .getByRole("link", { name: /^Open / })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
+    const projectTitle = (
+      await page.locator("h1").first().textContent()
+    )?.trim();
+    expect(projectTitle).toBeTruthy();
+
+    await page.getByRole("button", { name: /^More actions for / }).click();
+    await page.getByRole("menuitem", { name: "New task" }).click();
+
+    const sheet = page.getByTestId("capture-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("capture-context-chip")).toContainText(
+      `In ${projectTitle}`,
+    );
+    await expect(sheet.getByText(`Filing under ${projectTitle}`)).toBeVisible();
+    await expect(
+      sheet.getByRole("combobox", { name: /Project or Area/ }),
+    ).toHaveCount(0);
+
+    await sheet.getByLabel("Title").fill(title);
+    await submitTaskCapture(page, sheet);
+    await sheet.getByTestId("capture-done").click();
+
+    await page.getByRole("tab", { name: "Tasks" }).click();
+    await expect(page.getByText(title)).toBeVisible({ timeout: 15_000 });
   });
 });
 

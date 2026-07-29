@@ -27,6 +27,7 @@ import { useCallback } from "react";
 
 import type { PersonRelationship } from "~/kernel/relationships";
 import { useCapture } from "~/shared/capture";
+import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { useFeedback } from "~/shared/feedback";
 import { StayInTouchPanel } from "~/shared/relationships";
 import { SummaryCards } from "~/shared/summary-cards";
@@ -114,6 +115,16 @@ export function PersonSummary({
   const contextLine = [person.role, person.organisation]
     .filter(Boolean)
     .join(" · ");
+  const captureContext: CaptureContextContract = {
+    sourceEntityId: person.id,
+    sourceEntityType: "person",
+    sourceEntityTitle: person.title,
+    sourceModule: "people",
+    originatingRoute: `/person/${person.id}`,
+    mode: "removable",
+    relationshipMeaning: "related",
+    returnTo: `/person/${person.id}`,
+  };
 
   return (
     <div className="dh-person-summary">
@@ -181,16 +192,19 @@ export function PersonSummary({
         >
           Email
         </a>
-        {/* MOBILE-01 — these three were honest placeholders that dead-ended in a
-            toast. They now open the SHARED capture sheet on the right type, so
-            each creates a real record through its module's canonical route.
-            The created record is NOT yet pre-linked to this Person — that is
-            recorded as deliberately outstanding rather than implied by the
-            wording, which is why each label names the record, not the person. */}
+        {/* MOBILE-01 made these real shared capture actions. ADR-060 now passes
+            Person context through the same sheet: Tasks are related unless the
+            user explicitly delegates, Meetings receive an attendee link, and
+            Notes/Diary entries use canonical EntityLinks. */}
         <button
           type="button"
           className="dh-btn dh-btn--secondary"
-          onClick={(event) => capture?.openCapture("task", event.currentTarget)}
+          onClick={(event) =>
+            capture?.openCapture("task", event.currentTarget, {
+              ...captureContext,
+              relationshipMeaning: "related",
+            })
+          }
         >
           New Task
         </button>
@@ -198,7 +212,7 @@ export function PersonSummary({
           type="button"
           className="dh-btn dh-btn--secondary"
           onClick={(event) =>
-            capture?.openCapture("diary", event.currentTarget)
+            capture?.openCapture("diary", event.currentTarget, captureContext)
           }
         >
           Diary entry
@@ -207,7 +221,10 @@ export function PersonSummary({
           type="button"
           className="dh-btn dh-btn--secondary"
           onClick={(event) =>
-            capture?.openCapture("meeting", event.currentTarget)
+            capture?.openCapture("meeting", event.currentTarget, {
+              ...captureContext,
+              relationshipMeaning: "attendee",
+            })
           }
         >
           New Meeting
@@ -215,7 +232,9 @@ export function PersonSummary({
         <button
           type="button"
           className="dh-btn dh-btn--secondary"
-          onClick={(event) => capture?.openCapture("note", event.currentTarget)}
+          onClick={(event) =>
+            capture?.openCapture("note", event.currentTarget, captureContext)
+          }
         >
           New Note
         </button>

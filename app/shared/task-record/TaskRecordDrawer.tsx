@@ -22,6 +22,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
 import { useDrawer } from "~/shared/drawer";
+import { useCapture } from "~/shared/capture";
+import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { useFeedback } from "~/shared/feedback";
@@ -97,6 +99,7 @@ export function TaskRecordDrawer({
   const detailUrl = `${basePath}/${encodeURIComponent(taskId)}`;
   const revalidator = useRevalidator();
   const { closeDrawer } = useDrawer();
+  const capture = useCapture();
   const { notifySuccess, notifyError } = useFeedback();
 
   const [data, setData] = useState<DetailResponse | null>(null);
@@ -525,6 +528,33 @@ export function TaskRecordDrawer({
   if (task.area) {
     metadata.push({ id: "area", label: "Area", value: task.area.title });
   }
+  const taskCaptureContext: CaptureContextContract = {
+    sourceEntityId: task.id,
+    sourceEntityType: "task",
+    sourceEntityTitle: task.title,
+    sourceModule: "tasks",
+    originatingRoute: `/tasks?drawer=task:${task.id}`,
+    mode: "removable",
+    relationshipMeaning: "related",
+    returnTo: `/tasks?drawer=task:${task.id}`,
+  };
+  const contextualActions = [
+    {
+      id: "capture-note",
+      label: "New linked note",
+      onSelect: () => capture?.openCapture("note", null, taskCaptureContext),
+    },
+    {
+      id: "capture-meeting",
+      label: "New meeting",
+      onSelect: () => capture?.openCapture("meeting", null, taskCaptureContext),
+    },
+    {
+      id: "capture-diary",
+      label: "New diary entry",
+      onSelect: () => capture?.openCapture("diary", null, taskCaptureContext),
+    },
+  ];
 
   return (
     <RecordLayout
@@ -584,6 +614,7 @@ export function TaskRecordDrawer({
               searchTargets={searchTargets}
               onLink={linkTarget}
               onUnlink={unlinkTarget}
+              contextualActions={contextualActions}
             />
           ),
         },

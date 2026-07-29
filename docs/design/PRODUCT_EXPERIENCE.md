@@ -513,7 +513,9 @@ later" was already a principle; MOBILE-01 makes it a place. One sheet captures a
 Task, a Diary entry, a Meeting or a Note, from the bottom bar, from Today, from a
 Person record or from the Command Palette — always through the owning module's
 canonical creation authority. The fast path is deliberately brutal: a Task is a
-title and Enter.
+title and Enter. Where a record intentionally supplies context, ADR-060 lets the
+same sheet show that context and create the canonical relationship after the
+record is created; the global bottom-bar Capture remains context-free.
 
 **Nothing is hidden to look tidy.** A card title wraps rather than truncates;
 low-priority metadata is de-emphasised rather than removed; a tab moved into

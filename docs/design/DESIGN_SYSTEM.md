@@ -1070,6 +1070,16 @@ ONE capture surface for **Task, Diary entry, Meeting and Note**, opened from the
 - **Text survives a recoverable failure** (the DS-06 `useForm` contract), and saves are announced through a live region.
 - **Session-remembered type**, with "Change type" always one tap away, so remembering never makes another type harder to reach.
 - **Lazy-loaded.** The sheet and every panel load on first open; the shell carries only a context and a lazy boundary.
+- **Context-aware when intentionally supplied (ADR-060).** A record surface may open
+  capture with one `CaptureContextContract`; global Quick Capture remains
+  context-free. The sheet shows a compact chip near the top using the entity icon
+  and words ("Related to Jane Smith", "In DalyHub Development", "Follow-up from
+  Weekly Planning"), never raw ids or link types. Suggested/removable context has
+  a 44px Remove control with an accessible name; fixed context is labelled as fixed
+  and is not presented as editable. Switching capture type preserves the context
+  when the matrix still has defined semantics, and unsupported combinations omit
+  the relationship rather than fabricating one. Every create route revalidates the
+  source context server-side before writing any relationship.
 
 `GET /capture/context` is the shell-owned endpoint serving the owner timezone, today's calendar date and the re-verified default capture parent — so the bottom bar costs no workspace read.
 

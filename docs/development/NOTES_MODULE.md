@@ -116,6 +116,12 @@ that navigation itself replaces the `?drawer=new-note` URL, so no separate
 Duplicate-submit prevention and server-authoritative validation errors are
 `useForm`'s standard explicit-save guarantees — no bespoke creation logic.
 
+ADR-060 extends the same `/notes/new` route with optional capture context. A Note
+captured from a Project creates the Project→Note `link.related` relationship that
+Project Knowledge reads; a Note captured from a Person, Area, Goal, Meeting, Task
+or Diary entry creates a Note→source `link.related`. No fake `[[Wiki Links]]` are
+generated to create these relationships.
+
 ## Canonical Note record
 
 `/notes/:noteId`, composed through the shared DS-02 `RecordLayout` as a

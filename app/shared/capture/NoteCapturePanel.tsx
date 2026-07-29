@@ -33,6 +33,7 @@ import {
   type SubmitOutcome,
 } from "~/shared/forms";
 
+import { encodeCaptureContext } from "./capture-context";
 import type { CapturePanelProps } from "./types";
 
 type Values = {
@@ -56,6 +57,7 @@ type CreateNoteResponse =
 export function NoteCapturePanel({
   firstFieldRef,
   onClose,
+  captureContext,
 }: CapturePanelProps) {
   const navigate = useNavigate();
   const [handingOff, setHandingOff] = useState(false);
@@ -71,6 +73,9 @@ export function NoteCapturePanel({
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
       const body = new FormData();
       body.set("title", values.title);
+      if (captureContext) {
+        body.set("captureContext", encodeCaptureContext(captureContext));
+      }
 
       let data: CreateNoteResponse;
       // A retry after a failed CONTENT write must not create a second note. The

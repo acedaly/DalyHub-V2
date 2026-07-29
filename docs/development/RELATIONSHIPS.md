@@ -69,6 +69,38 @@ relationship rules. The **structural spine links** (`*.belongs_to_*`,
 `project.advances_goal`) are deliberately EXCLUDED from the Linked Items view — the
 hierarchy already renders those in each record's own relationships surface.
 
+## Context-aware capture (ADR-060)
+
+Quick Capture may now receive a validated `CaptureContextContract` from a record
+surface. The contract is one shared shape for desktop and mobile: source entity id,
+source entity type, source title for display, source module, originating route,
+relationship meaning, fixed/removable mode and an optional return destination. The
+client-supplied title is never authoritative; every create route revalidates the
+source id/type in the authenticated workspace before using it.
+
+Supported matrix:
+
+| Capture | Source | Behaviour |
+|---|---|---|
+| Task | Project / Area | Uses the source as the Task's structural parent. No generic link is added. |
+| Task | Person / Goal / Meeting / Note / Diary entry | Creates `task.relates_to` from the new Task to the source. Person context is **not** delegation. Meeting context is presented as a follow-up. |
+| Note | Project | Creates Project→Note `link.related`, so the Note appears in Project Knowledge and remains standalone. |
+| Note | Person / Area / Goal / Meeting / Task / Diary entry | Creates Note→source `link.related`. |
+| Meeting | Person | Creates Meeting→Person `meeting.attendee`. |
+| Meeting | Project / Area / Goal / Task / Note / Diary entry | Creates Meeting→source `link.related`. |
+| Diary entry | Person / Project / Area / Goal / Meeting / Task / Note | Creates Diary entry→source `link.related`. |
+
+Asset and Review source contexts are parsed but currently unsupported by the
+matrix for these capture types; the route omits a relationship rather than
+inventing one.
+
+Relationship reconciliation is post-create because each module's repository owns
+its own atomic creation. If a contextual relationship fails after creation, the
+route attempts compensation (Task via `spine.softDelete`; other capture records
+via generic soft-delete). If compensation also fails, the response includes the
+created record id and reports that the record exists but is not linked. Retrying is
+safe because EntityLink creation is idempotent.
+
 ---
 
 ## Using it in a record

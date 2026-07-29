@@ -33,6 +33,7 @@ import {
 import { SubtypeIcon } from "~/shared/entity";
 
 import { CaptureResult } from "./CaptureResult";
+import { encodeCaptureContext } from "./capture-context";
 import {
   DIARY_QUICK_ENTRY_TYPES,
   readRememberedDiaryType,
@@ -64,6 +65,7 @@ type CreateDiaryEntryResponse =
 export function DiaryCapturePanel({
   firstFieldRef,
   onClose,
+  captureContext,
 }: CapturePanelProps) {
   const { context } = useCaptureContext();
   const [success, setSuccess] = useState<CaptureSuccess | null>(null);
@@ -79,6 +81,9 @@ export function DiaryCapturePanel({
       const body = new FormData();
       body.set("entryType", entryType);
       body.set("title", values.title);
+      if (captureContext) {
+        body.set("captureContext", encodeCaptureContext(captureContext));
+      }
       if (values.body) body.set("body", values.body);
 
       let data: CreateDiaryEntryResponse;
