@@ -25,6 +25,9 @@ export const TASK_DEFAULT_VIEWS = [
 ] as const;
 export type TaskDefaultView = (typeof TASK_DEFAULT_VIEWS)[number];
 
+export const TASK_DESTINATIONS = ["inbox", "chosen_parent"] as const;
+export type TaskDestination = (typeof TASK_DESTINATIONS)[number];
+
 export const DIARY_DEFAULT_MODES = ["day", "timeline"] as const;
 export type DiaryDefaultMode = (typeof DIARY_DEFAULT_MODES)[number];
 
@@ -42,6 +45,7 @@ export interface AppPreferences {
   readonly firstDayOfWeek: FirstDayOfWeek;
   readonly defaultLandingDestination: LandingDestination;
   readonly defaultTasksView: TaskDefaultView;
+  readonly defaultTaskDestination: TaskDestination;
   /**
    * TASKS-03 — the owner's chosen DEFAULT Tasks view: either a built-in view id
    * (derived in code) or a saved-view id. `null` means "no default", in which case
@@ -70,6 +74,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   firstDayOfWeek: "monday",
   defaultLandingDestination: "today",
   defaultTasksView: "focus",
+  defaultTaskDestination: "inbox",
   defaultTaskViewId: null,
   defaultTaskCaptureParentId: null,
   defaultTaskCaptureParentKind: null,
@@ -86,6 +91,7 @@ export type AppPreferencePatch = Partial<{
   readonly firstDayOfWeek: FirstDayOfWeek;
   readonly defaultLandingDestination: LandingDestination;
   readonly defaultTasksView: TaskDefaultView;
+  readonly defaultTaskDestination: TaskDestination;
   readonly defaultTaskViewId: string | null;
   readonly defaultTaskCaptureParentId: string | null;
   readonly defaultTaskCaptureParentKind: "area" | "project" | null;

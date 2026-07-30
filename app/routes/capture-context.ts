@@ -9,8 +9,8 @@
  *   - `timezone` — so a captured Meeting's default start is the OWNER's next
  *     quarter hour, not the travelling phone's;
  *   - `todayIso` — so a captured Diary entry says which day it lands on;
- *   - `defaultTaskParent` — the UX-01 default capture parent, re-validated
- *     server-side, so a Task can be created from title + Enter alone.
+ *   - `defaultTaskParent` — the explicit chosen Task destination, re-validated
+ *     server-side. Null means the title+Enter fast path creates an Inbox Task.
  *
  * It lives at the shell rather than inside Tasks because the capture sheet is a
  * SHELL surface serving four modules; a module route serving another module's
@@ -52,7 +52,10 @@ export async function loader({ context }: Route.LoaderArgs) {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const preferences = await scope.appPreferences.get(session.user.subject);
     timezone = preferences.timezone;
-    if (preferences.defaultTaskCaptureParentId) {
+    if (
+      preferences.defaultTaskDestination === "chosen_parent" &&
+      preferences.defaultTaskCaptureParentId
+    ) {
       // Re-verified server-side on every read: a parent that has since been
       // archived or deleted must not be offered as a silent capture target.
       const parent = await scope.tasks.getTaskParentCandidate(

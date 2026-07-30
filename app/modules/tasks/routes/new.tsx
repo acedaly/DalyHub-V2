@@ -6,8 +6,9 @@
  * `/projects/new` and `/notes/new` create endpoints. (A POST to the `/tasks` page
  * route, which HAS a component, would render the document instead of returning the
  * action result.) Creation is ONE atomic repository operation: the task's identity
- * and its initial planning fields commit together (ADR-043 §13), the parent is
- * bound and re-verified server-side, and every failure returns a calm typed result.
+ * and its initial planning fields commit together. A structural Area/Project context
+ * is still bound and re-verified server-side; otherwise a missing submitted parent
+ * creates an intentional Unassigned Task in Inbox.
  */
 
 import { env } from "cloudflare:workers";
@@ -78,6 +79,7 @@ export function resolveTaskCreateParent(
   if (submittedParentKind !== "area" && submittedParentKind !== "project") {
     return null;
   }
+  if (submittedParentId.trim().length === 0) return null;
   return { kind: submittedParentKind, id: submittedParentId };
 }
 
@@ -91,8 +93,9 @@ async function handleCreate(
   const parentKind = String(form.get("parentKind") ?? "");
 
   // The task AND its planning fields are created in ONE atomic repository operation
-  // (ADR-043 §13 / decision 15) — never a spine create followed by a separate detail
-  // write, so a failure can never leave a created-but-unplanned or orphaned task.
+  // — never a spine create followed by a separate detail write, so a failure can
+  // never leave a created-but-unplanned task. With no parent, the result is a valid
+  // Unassigned Task, not an orphan.
   const priority = form.get("priority");
   const sector = form.get("timeSector");
   const commitment = form.get("commitmentState");
@@ -121,13 +124,6 @@ async function handleCreate(
       parentKind,
       parentId,
     );
-    if (!parent) {
-      return {
-        kind: "create",
-        ok: false,
-        fieldErrors: { parentId: "Choose a Project or Area for this task." },
-      };
-    }
     const task = await scope.tasks.createTask({
       title,
       parent,

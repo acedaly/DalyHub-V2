@@ -1082,6 +1082,27 @@
   color: var(--dh-color-danger-text);
 }
 
+.dh-tasks-inline-title {
+  width: 100%;
+  text-align: start;
+}
+
+.dh-tasks-inline-title-editor {
+  display: grid;
+  gap: var(--dh-space-1);
+  width: 100%;
+}
+
+.dh-tasks-inline-title-editor__input {
+  min-height: var(--dh-touch-target-min);
+  font: inherit;
+}
+
+.dh-tasks-inline-title-editor__error {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-danger-text);
+}
+
 /* The compact view switcher. A menu, never a permanent secondary sidebar — the
  * task list keeps its full width on an ordinary screen. */
 .dh-tasks-views {

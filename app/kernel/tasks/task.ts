@@ -16,6 +16,7 @@
 
 import type { MarkdownSource } from "~/kernel/markdown";
 import type { WorkspaceId } from "~/kernel/workspaces";
+import type { TaskRecurrenceRule } from "./task-recurrence";
 
 /**
  * The closed set of open-state workflow positions (TASKS-01 widened this from the
@@ -147,6 +148,8 @@ export type TaskDetails = {
   readonly commitmentState: CommitmentState;
   /** The delegation record (ADR-043 §7), or null when not delegated. */
   readonly delegation: TaskDelegation | null;
+  /** Structured calendar recurrence, or null for a one-off task. */
+  readonly recurrence?: TaskRecurrenceRule | null;
   /** Markdown SOURCE (FND-08 / ADR-015), rendered through the one shared pipeline. */
   readonly description: MarkdownSource | null;
 };
@@ -160,6 +163,7 @@ export const DEFAULT_TASK_DETAILS: TaskDetails = {
   timeSector: null,
   commitmentState: "active",
   delegation: null,
+  recurrence: null,
   description: null,
 };
 
@@ -186,6 +190,7 @@ export type TaskView = {
   readonly timeSector: TimeSector | null;
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
+  readonly recurrence?: TaskRecurrenceRule | null;
   readonly description: MarkdownSource | null;
   /** The Project the task belongs to, if its structural parent is a Project. */
   readonly project: TaskRelation | null;
@@ -240,6 +245,16 @@ export type UpdateTaskResult = {
   readonly changed: boolean;
 };
 
+export type SetTaskParentInput = {
+  readonly kind: "area" | "project";
+  readonly id: string;
+} | null;
+
+export type SetTaskParentResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
 /** Options for listing a workspace's tasks (bounded — never "load everything"). */
 export type ListTasksInput = {
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */
@@ -268,6 +283,7 @@ export type TaskListItem = {
   readonly timeSector: TimeSector | null;
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
+  readonly recurrence?: TaskRecurrenceRule | null;
   /** The structural parent (a Project or an Area) as a context line, or null. */
   readonly parent: TaskRelation | null;
   /** The active waiting state, or null when the task is not waiting (TODAY-03). */
@@ -781,20 +797,18 @@ export type SearchTaskParentsInput = {
 };
 
 /**
- * Create a task AND its initial planning fields as ONE atomic operation (ADR-043 §13
- * / decision 15). The structural identity/parentage (an Area OR Project parent, the
- * spine record and the `entity.created`/`entity_link.created` events) and the additive
- * `task_details` planning slice are written together in a single transaction — never a
- * spine create followed by a separate detail write. Any planning field is optional; an
- * omitted field takes its documented default and no `task_details` row is written when
- * no planning field is supplied.
+ * Create a task AND its initial planning fields as ONE atomic operation. TASKS-04
+ * permits an intentional Unassigned Task: structural parentage is optional for Tasks
+ * only, while the entity row, spine record, Activity and optional `task_details` slice
+ * are still written together. When a parent is supplied it must be an active Area or
+ * non-archived Project in the authenticated workspace.
  */
 export type NewTaskInput = {
   readonly title: string;
-  readonly parent: {
+  readonly parent?: {
     readonly kind: "area" | "project";
     readonly id: string;
-  };
+  } | null;
   readonly priority?: TaskPriority | null;
   readonly timeSector?: TimeSector | null;
   readonly commitmentState?: CommitmentState;

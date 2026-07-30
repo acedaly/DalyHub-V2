@@ -3,8 +3,8 @@
  *
  * A storage-independent, WORKSPACE-BOUND repository for the additive task-detail
  * slice TODAY-02 introduces (ADR-028). It COMPOSES the FND-07 spine rather than
- * replacing it: identity, title, completion and structural parentage remain the
- * spine's; this repository owns the `task_details` fields (status, priority,
+ * replacing it: identity, title, completion and optional structural parentage remain
+ * the spine's; this repository owns the `task_details` fields (status, priority,
  * due/scheduled dates, description) and reads the whole task (spine + details +
  * resolved relationships) back as one `TaskView`.
  *
@@ -35,6 +35,8 @@ import type {
   ProjectTaskListPage,
   SearchTaskParentsInput,
   SearchTasksInput,
+  SetTaskParentInput,
+  SetTaskParentResult,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
@@ -53,18 +55,13 @@ import type {
 
 export interface TaskRepository {
   /**
-   * Create a task AND its initial planning fields as ONE atomic operation (ADR-043
-   * §13 / decision 15). A single `D1Database.batch()` writes the `entities` row
-   * (gated on an active Area/Project parent — and, under a Project, one that is not
-   * archived), the `spine_records` row, the structural parent EntityLink, the
-   * `entity.created` + `entity_link.created` events AND the additive `task_details`
-   * planning slice (only when a planning field is supplied). Either everything
-   * commits or nothing does — a task can never be left created-without-its-planning
-   * or half-linked; there is no spine-create-then-detail-write sequence. Structural
-   * identity/parentage SQL is the SHARED spine create builder (the spine stays the
-   * identity authority). Throws `SpineParentUnavailableError` when the parent is
-   * missing/deleted/wrong-kind/archived/cross-workspace (nothing is written) and
-   * `TaskValidationError`/`SpineValidationError` for invalid input.
+   * Create a Task AND its initial planning fields as ONE atomic operation. A Task
+   * may be intentionally Unassigned: then the batch writes the `entities` row, the
+   * `spine_records` row, `entity.created` Activity and optional `task_details`, but
+   * no structural EntityLink. When a parent is supplied, the same batch also writes
+   * the structural parent link and `entity_link.created` Activity after validating
+   * an active Area or non-archived Project in this workspace. Either everything
+   * commits or nothing does; callers never write structural links directly.
    */
   createTask(input: NewTaskInput): Promise<TaskView>;
 
@@ -76,6 +73,17 @@ export interface TaskRepository {
    * soft-deleted without `includeDeleted`, wrong entity type, or cross-workspace).
    */
   getTask(id: string, options?: GetTaskOptions): Promise<TaskView | null>;
+
+  /**
+   * Assign, move or clear a Task's structural parent. `null` means intentional
+   * Unassigned. The repository validates destination parents inside the workspace,
+   * preserves Task details/completion/waiting state, appends structural Activity and
+   * reports idempotent no-ops without writing duplicate links.
+   */
+  setTaskParent(
+    id: string,
+    parent: SetTaskParentInput,
+  ): Promise<SetTaskParentResult>;
 
   /**
    * Update a task's editable fields (title + additive details) ATOMICALLY: one

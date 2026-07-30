@@ -267,7 +267,8 @@
 - **Current issue.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) added `on_hold` as a first-class workflow status, and the `/tasks` `active` system view deliberately excludes it alongside completed, cancelled, Someday/Maybe and waiting ([`app/kernel/tasks/task.ts`](../../app/kernel/tasks/task.ts), ADR-043 §11) so a paused task stays out of a Matrix quadrant or Time Sector. But Today's planning read applies only `commitment_state <> 'someday' AND status <> 'cancelled'` ([`d1-task-repository.ts` `listPlanningTasks`](../../app/platform/storage/d1/d1-task-repository.ts)), so **an on-hold task still appears in Today's planning buckets** — and Today's `PlanningTaskItem` projection ([`planning-view.ts`](../../app/modules/today/task/planning-view.ts)) carries no `status`/`commitmentState`, so it renders indistinguishably from ordinary active work with no "On hold" label.
 - **Impact.** The same task is "parked" on `/tasks` and "today's work" on `/today`. It contradicts [DEBT-28](#-debt-28--task-priority-is-invisible-where-triage-happens-and-status-resolves-three-different-ways--p2)'s resolution, which retired `taskDisplayStatus` precisely so every surface would resolve state identically — Today is the one surface that still does not run `taskDisplayState` at all.
 - **Desired future state.** Decide the intent once and apply it in one place: either exclude `on_hold` from `listPlanningTasks` exactly as `/tasks` does, or widen the Today projection to carry the status and render the shared "On hold" state so the card is honest. Do not add a third state vocabulary.
-- **Related roadmap item.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) / [TODAY-04](../roadmap/ROADMAP_V2.md#-today-04--planning).
+- **TASKS-04 mapping.** Expected to be resolved by [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence) only when the Today projection and tests prove on-hold Tasks no longer appear as normal active work while eligible Unassigned Tasks still can.
+- **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence), [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) / [TODAY-04](../roadmap/ROADMAP_V2.md#-today-04--planning).
 
 ### ☑ DEBT-38 — Notification toasts occlude bottom-anchored record actions — P1
 - **Resolved (2026-07-27).** The DS-10 notification region no longer takes pointer input anywhere except its own controls. In [`app/styles/feedback.css`](../../app/styles/feedback.css), `.dh-feedback`, `.dh-feedback__toolbar` and `.dh-toast` are all `pointer-events: none`; only `.dh-feedback__dismiss-all`, `.dh-toast__action` and `.dh-toast__close` opt back in. Toasts stay fully visible and their Undo/Retry/Cancel/Dismiss controls stay operable; every other pixel of the region passes the click through to the page. One shared fix in the one shared feedback layer — no Reviews-only CSS, no test-only override, no forced or coordinate clicks anywhere in the suite.
@@ -386,6 +387,7 @@
 - **Impact.** A user who thinks in tags has no way to express that in Tasks. In practice the gap is narrower than it sounds — the workspace already filters on parent (Project/Area/Goal), Time Sector, priority, delegate and status, which is how DalyHub's model expects work to be classified — but a genuinely cross-cutting label (`#errand`, `#deep-work`) has no home.
 - **Desired future state.** A decision on whether labels are a KERNEL primitive (an EntityLink type or a small shared `labels` table usable by every entity) or a Task-only field. Almost certainly the former, given that Notes, People and Assets would want the same thing, and given [ADR-002](../decisions/ARCHITECTURE_DECISIONS.md#adr-002-entitylinks)'s existing stance that relationships are a kernel concern.
 - **Closing condition.** A tag/label model exists on the Task domain with create, edit and validation; the Tasks filter declaration gains one `tags` dimension whose options come from a bounded workspace-scoped aggregate (the same shape the delegate filter already uses); and the filter is covered by a real-D1 combined-filter test. Until all three are true, this stays open.
+- **TASKS-04 mapping.** Intentionally retained. TASKS-04 does not add Task tags; recurrence and Inbox triage must not smuggle in a second "label" field.
 - **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
 
 ---
@@ -396,6 +398,7 @@
 - **Impact.** Two things a future reader must tell apart, and a real risk that a third collection picks the wrong one. It is a comprehension and consistency cost, not a correctness one: neither model can produce the other's failure mode.
 - **Desired future state.** ONE declarative, server-translatable configuration contract shared by every collection, with DS-07's clause builder retained (or retired) explicitly as the client-side evaluator it is. The Tasks contract is deliberately built to generalise — the config, its validation and its URL codec contain no Task-specific logic beyond the dimension names.
 - **Closing condition.** At least one non-Tasks collection (Projects or Notes) is filtering through the shared declarative contract, the contract has moved out of `app/kernel/task-views` into a collection-agnostic home, and `DESIGN_SYSTEM.md` states which model a new collection should use in one sentence without qualification.
+- **TASKS-04 mapping.** Intentionally retained. TASKS-04 may add Inbox/Unassigned/recurrence dimensions to the existing Task configuration, but it must not start the cross-module saved-view generalisation.
 - **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
 
 ---
@@ -406,6 +409,7 @@
 - **Impact.** Low but real: a pointer user at a phone-width window gets a 28×28 target where 44×44 is required. It affects every Card in the product, not only Tasks.
 - **Desired future state.** The target size follows the VIEWPORT (and/or `pointer: coarse`), not `hover: none` alone — most simply by moving the sizing rule into the existing narrow-width media query as well.
 - **Closing condition.** `expectMinTouchTarget` passes on Card quick actions at 320/375/390/430px **without** touch emulation, and the responsive spec asserts it there.
+- **TASKS-04 mapping.** Intentionally retained unless the implementation changes shared Card quick actions. TASKS-04 row controls must be 44px on phones, but fixing every Card target under fine-pointer narrow viewports is shared DS-11 hardening.
 - **Related roadmap item.** [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
 
 ---
@@ -416,6 +420,7 @@
 - **Impact.** Every future container that establishes a stacking context — a Drawer body, an Inspector, a Record Header, a board column with a `transform` — will need its own copy of the same `:has()` patch, and each copy has to pick a z-index that outranks its own neighbours. That is a z-index arms race, and the shared menu should not require its hosts to cooperate.
 - **Desired future state.** The panel escapes ancestor stacking contexts BY CONSTRUCTION — `createPortal` to the app-shell boundary, or the native `popover` attribute (top layer). Nothing in `app/shared/` portals today, so this is the first case that forces the decision; the focus, dismissal and roving-tabindex behaviour must survive it unchanged.
 - **Closing condition.** `OverflowMenu` renders its panel outside its host's stacking context, the per-host CSS patch in `card.css` is deleted, and a browser test opens a card menu mid-list under a sticky header without any host-side cooperation.
+- **TASKS-04 mapping.** Intentionally retained. TASKS-04 should avoid adding new overflow-menu host patches; portal/top-layer work belongs to a shared DS-12 hardening item.
 - **Related roadmap item.** [DS-12](../roadmap/ROADMAP_V2.md#-ds-12--record-header-overflow-menu--card-overflow-action).
 
 ---
@@ -427,7 +432,8 @@
 - **Impact.** Low but real. A change to the inclusive/exclusive convention in date maths has to be found in three places under three different entities. The capture divergence is user-visible: the same typed text behaves differently depending on which field it was typed into.
 - **Desired future state.** One kernel date primitive (`app/kernel/datetime` or an export from `app/kernel/spine`) exporting `addDaysToIsoDate`, with all three call sites collapsed onto it. And the quick-add row rebuilt on `~/shared/forms` + `parseQuickCapture`, ideally as an inline presentation of `TaskCapturePanel` rather than a fourth surface.
 - **Closing condition.** `grep` finds exactly one implementation of ISO day-shift arithmetic in `app/kernel`, and typing `Draft the brief p1` into the Tasks quick-add row produces the same task as typing it into Quick Capture.
-- **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
+- **TASKS-04 mapping.** Partly in scope. TASKS-04's calendar parsing and recurrence work should introduce one Task-safe calendar utility and make the Tasks quick-add row use the shared deterministic parser. The broader kernel-wide date-primitive consolidation closes only if all existing duplicate implementations are removed and tested.
+- **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence); [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) for any later cross-module generalisation.
 
 ---
 

@@ -146,6 +146,8 @@ export interface CardProps {
   readonly headingLevel?: 2 | 3 | 4;
   /** Optional subtitle or short description. */
   readonly subtitle?: ReactNode;
+  /** Optional replacement for the title/open control, used for inline editing. */
+  readonly titleSlot?: ReactNode;
   readonly status?: CardStatus;
   readonly metadata?: readonly CardMetaItem[];
   readonly progress?: CardProgress;

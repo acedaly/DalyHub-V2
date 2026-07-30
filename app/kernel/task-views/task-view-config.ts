@@ -102,7 +102,7 @@ export interface TaskViewFilters {
   readonly projectId?: string;
   readonly areaId?: string;
   readonly goalId?: string;
-  /** A time sector, or `__none` for the derived Inbox. */
+  /** A time sector, or `__none` for "No sector". */
   readonly timeSector?: TimeSector | "__none";
   /** Only tasks delegated to this exact person/label. */
   readonly delegatedTo?: string;

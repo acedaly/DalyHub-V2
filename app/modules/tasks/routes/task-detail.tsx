@@ -30,6 +30,7 @@ import {
   TaskProjectArchivedError,
   TaskValidationError,
   type CommitmentState,
+  type SetTaskParentInput,
   type SetWaitingInput,
   type TaskPriority,
   type TaskStatus,
@@ -148,6 +149,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   switch (intent) {
     case "update":
       return json(await handleUpdate(scope, taskId, form));
+    case "rename":
+      return json(await handleRename(scope, taskId, form));
     case "complete":
     case "reopen":
       return json(await handleCompletion(scope, taskId, intent));
@@ -163,11 +166,53 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(await handlePlan(scope, taskId, form));
     case "clear_plan":
       return json(await handleClearPlan(scope, taskId));
+    case "set_parent":
+      return json(await handleSetParent(scope, taskId, form));
     default:
       return json(
         { kind: "update", status: "error", formError: "Unknown action." },
         400,
       );
+  }
+}
+
+async function handleRename(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  try {
+    const result = await scope.tasks.updateTask(taskId, {
+      title: String(form.get("title") ?? ""),
+    });
+    return {
+      kind: "update",
+      status: "success",
+      task: serializeTaskView(result.task),
+    };
+  } catch (cause) {
+    if (cause instanceof TaskValidationError) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { title: cause.message },
+      };
+    }
+    if (cause instanceof TaskNotFoundError) {
+      return {
+        kind: "update",
+        status: "error",
+        formError: "This task is no longer available.",
+      };
+    }
+    if (cause instanceof TaskProjectArchivedError) {
+      return { kind: "update", status: "error", formError: cause.message };
+    }
+    return {
+      kind: "update",
+      status: "error",
+      formError: "That title couldn’t be saved. Your text is safe — try again.",
+    };
   }
 }
 
@@ -292,6 +337,64 @@ async function handleCompletion(
       kind: "completion",
       ok: false,
       message: "That couldn’t be saved. Please try again.",
+    };
+  }
+}
+
+async function handleSetParent(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  const parentKind = nullable(form.get("parentKind"));
+  const parentId = nullable(form.get("parentId"));
+  try {
+    if (
+      parentKind !== null &&
+      parentId !== null &&
+      parentKind !== "area" &&
+      parentKind !== "project"
+    ) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { parentId: "Choose an Area, Project or Unassigned." },
+      };
+    }
+    let parent: SetTaskParentInput = null;
+    if (parentId !== null && parentKind === "area") {
+      parent = { kind: "area", id: parentId };
+    } else if (parentId !== null && parentKind === "project") {
+      parent = { kind: "project", id: parentId };
+    }
+    const result = await scope.tasks.setTaskParent(taskId, parent);
+    return {
+      kind: "update",
+      status: "success",
+      task: serializeTaskView(result.task),
+    };
+  } catch (cause) {
+    if (cause instanceof TaskNotFoundError) {
+      return {
+        kind: "update",
+        status: "error",
+        formError: "This task is no longer available.",
+      };
+    }
+    if (
+      cause instanceof SpineParentUnavailableError ||
+      cause instanceof TaskProjectArchivedError
+    ) {
+      return {
+        kind: "update",
+        status: "error",
+        formError: "That Project or Area is no longer available.",
+      };
+    }
+    return {
+      kind: "update",
+      status: "error",
+      formError: "That parent change couldn’t be saved. Please try again.",
     };
   }
 }

@@ -50,6 +50,7 @@ export function Card(props: CardProps) {
     icon,
     accent = "neutral",
     title,
+    titleSlot,
     headingLevel = 3,
     subtitle,
     status,
@@ -119,7 +120,9 @@ export function Card(props: CardProps) {
   const titleContent = <span className="dh-card__title-text">{title}</span>;
 
   let titleNode;
-  if (href !== undefined) {
+  if (titleSlot !== undefined) {
+    titleNode = titleSlot;
+  } else if (href !== undefined) {
     titleNode = (
       <a
         className="dh-card__open"

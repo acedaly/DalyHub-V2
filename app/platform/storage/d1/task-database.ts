@@ -19,10 +19,12 @@ import {
   isTaskStatus,
   TASK_PRIORITIES,
   TIME_SECTORS,
+  validateTaskRecurrenceRule,
   type CommitmentState,
   type TaskDelegation,
   type TaskDetails,
   type TaskPriority,
+  type TaskRecurrenceRule,
   type TaskStatus,
   type TaskWaiting,
   type TaskWaitingSubject,
@@ -51,6 +53,12 @@ export interface TaskDetailsRow {
   readonly description: string | null;
   readonly waiting_since: string | null;
   readonly waiting_note: string | null;
+  readonly recurrence_frequency: string | null;
+  readonly recurrence_interval: number | null;
+  readonly recurrence_weekdays: string | null;
+  readonly recurrence_date_kind: string | null;
+  readonly recurrence_anchor_day: number | null;
+  readonly recurrence_anchor_month: number | null;
   readonly updated_at: string;
 }
 
@@ -81,6 +89,12 @@ export interface TaskJoinedRow {
   readonly description: string | null;
   readonly waiting_since: string | null;
   readonly waiting_note: string | null;
+  readonly recurrence_frequency: string | null;
+  readonly recurrence_interval: number | null;
+  readonly recurrence_weekdays: string | null;
+  readonly recurrence_date_kind: string | null;
+  readonly recurrence_anchor_day: number | null;
+  readonly recurrence_anchor_month: number | null;
   readonly parent_id: string | null;
   readonly parent_link_type: string | null;
 }
@@ -118,7 +132,13 @@ export const TASK_DETAIL_COLUMNS = `
   td.delegate_note AS delegate_note,
   td.description AS description,
   td.waiting_since AS waiting_since,
-  td.waiting_note AS waiting_note`;
+  td.waiting_note AS waiting_note,
+  rr.frequency AS recurrence_frequency,
+  rr.interval AS recurrence_interval,
+  rr.weekdays AS recurrence_weekdays,
+  rr.date_kind AS recurrence_date_kind,
+  rr.anchor_day AS recurrence_anchor_day,
+  rr.anchor_month AS recurrence_anchor_month`;
 
 /**
  * The resolved `task.waiting_on` target columns, aliased. Joined via the active
@@ -204,6 +224,41 @@ function toDescription(value: string | null): MarkdownSource | null {
   }
 }
 
+function toRecurrence(row: {
+  readonly recurrence_frequency?: string | null;
+  readonly recurrence_interval?: number | null;
+  readonly recurrence_weekdays?: string | null;
+  readonly recurrence_date_kind?: string | null;
+  readonly recurrence_anchor_day?: number | null;
+  readonly recurrence_anchor_month?: number | null;
+}): TaskRecurrenceRule | null {
+  if (
+    row.recurrence_frequency === null ||
+    row.recurrence_frequency === undefined
+  ) {
+    return null;
+  }
+  const weekdays =
+    row.recurrence_weekdays === null || row.recurrence_weekdays === undefined
+      ? []
+      : row.recurrence_weekdays
+          .split(",")
+          .filter((part) => part.length > 0)
+          .map((part) => Number(part));
+  try {
+    return validateTaskRecurrenceRule({
+      frequency: row.recurrence_frequency as TaskRecurrenceRule["frequency"],
+      interval: row.recurrence_interval ?? 1,
+      dateKind: row.recurrence_date_kind as TaskRecurrenceRule["dateKind"],
+      weekdays,
+      anchorDay: row.recurrence_anchor_day ?? null,
+      anchorMonth: row.recurrence_anchor_month ?? null,
+    });
+  } catch {
+    throw new CorruptTaskRecordError();
+  }
+}
+
 /**
  * Convert the additive-detail columns of a joined task read into `TaskDetails`,
  * applying the documented defaults when the task has no `task_details` row yet.
@@ -221,6 +276,12 @@ export function rowToTaskDetails(row: {
   readonly delegated_on?: string | null;
   readonly follow_up_on?: string | null;
   readonly delegate_note?: string | null;
+  readonly recurrence_frequency?: string | null;
+  readonly recurrence_interval?: number | null;
+  readonly recurrence_weekdays?: string | null;
+  readonly recurrence_date_kind?: string | null;
+  readonly recurrence_anchor_day?: number | null;
+  readonly recurrence_anchor_month?: number | null;
   readonly description: string | null;
 }): TaskDetails {
   return {
@@ -236,6 +297,7 @@ export function rowToTaskDetails(row: {
       follow_up_on: row.follow_up_on ?? null,
       delegate_note: row.delegate_note ?? null,
     }),
+    recurrence: toRecurrence(row),
     description: toDescription(row.description),
   };
 }

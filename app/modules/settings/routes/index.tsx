@@ -150,12 +150,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       firstDayOfWeek: preferences.firstDayOfWeek,
       defaultLandingDestination: preferences.defaultLandingDestination,
       defaultTasksView: preferences.defaultTasksView,
+      defaultTaskDestination: preferences.defaultTaskDestination,
       defaultTaskCaptureParentId: preferences.defaultTaskCaptureParentId,
       defaultTaskCaptureParentKind: preferences.defaultTaskCaptureParentKind,
       defaultDiaryMode: preferences.defaultDiaryMode,
       version: preferences.version,
     },
     defaultTaskCaptureParent:
+      preferences.defaultTaskDestination === "chosen_parent" &&
       preferences.defaultTaskCaptureParentId !== null
         ? await scope.tasks.getTaskParentCandidate(
             preferences.defaultTaskCaptureParentId,
@@ -192,6 +194,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       );
       if (parentId === null) {
         await scope.appPreferences.update(session.user.subject, {
+          defaultTaskDestination: "inbox",
           defaultTaskCaptureParentId: null,
           defaultTaskCaptureParentKind: null,
         });
@@ -208,6 +211,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         );
       }
       await scope.appPreferences.update(session.user.subject, {
+        defaultTaskDestination: "chosen_parent",
         defaultTaskCaptureParentId: parent.id,
         defaultTaskCaptureParentKind: parent.kind,
       });
@@ -633,13 +637,13 @@ function TaskCaptureParentSetting({
       .filter((option) => option.value !== current?.id),
   ];
   const unavailable =
-    storedId !== null && current === null
+    storedId !== null && value.length > 0 && current === null
       ? "The saved parent is no longer available; choose another or clear it."
       : null;
   return (
     <SettingsRow
-      label="Default task capture parent"
-      description="Used by New task when the current screen does not provide a Project or Area context."
+      label="Default task destination"
+      description="Inbox is the fast default. Choose a Project or Area only when you want ordinary capture filed there."
       status={statusFor(fetcher) ?? unavailable}
       statusTone={
         fetcher.data?.ok === false || unavailable
@@ -661,14 +665,14 @@ function TaskCaptureParentSetting({
           />
           <input type="hidden" name="parentId" value={value} />
           <SelectField
-            label="Default task capture parent"
+            label="Default task destination"
             showOptionalCue={false}
             value={value}
             onChange={setValue}
             options={options}
             onSearch={parentSearch.search}
             loading={parentSearch.loading}
-            placeholder="Search Projects and Areas"
+            placeholder="Inbox, or search Projects and Areas"
             emptyMessage="No matching Projects or Areas"
             disabled={fetcher.state !== "idle"}
           />
@@ -678,7 +682,7 @@ function TaskCaptureParentSetting({
               className="dh-btn dh-btn--secondary"
               disabled={fetcher.state !== "idle"}
             >
-              Save parent
+              Save destination
             </button>
             <button
               type="button"
@@ -691,7 +695,7 @@ function TaskCaptureParentSetting({
                 });
               }}
             >
-              Clear
+              Use Inbox
             </button>
           </div>
         </fetcher.Form>

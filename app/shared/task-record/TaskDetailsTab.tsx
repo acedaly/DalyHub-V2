@@ -79,7 +79,7 @@ const PRIORITY_OPTIONS = [
 ];
 
 const SECTOR_OPTIONS = [
-  { value: "", label: "Inbox (no sector)" },
+  { value: "", label: "No sector" },
   { value: "this_week", label: "This Week" },
   { value: "next_week", label: "Next Week" },
   { value: "this_month", label: "This Month" },

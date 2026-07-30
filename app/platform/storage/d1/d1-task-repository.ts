@@ -112,6 +112,8 @@ import {
   type ProjectTaskListPage,
   type SearchTaskParentsInput,
   type SearchTasksInput,
+  type SetTaskParentInput,
+  type SetTaskParentResult,
   type SetWaitingInput,
   type SetWaitingResult,
   type TaskDelegation,
@@ -172,7 +174,12 @@ const ENTITY_RETURNING =
   "id, workspace_id, type, title, created_at, updated_at, deleted_at";
 
 const ENTITY_UPDATED = "entity.updated";
+const LINK_CREATED = "entity_link.created";
+const LINK_UNLINKED = "entity_link.unlinked";
+const LINK_RESTORED = "entity_link.restored";
 const SUBJECT_ROLE = "subject";
+const ROLE_SOURCE = "source";
+const ROLE_TARGET = "target";
 
 /** The two structural parent link types a Task can carry, as a trusted SQL list. */
 const TASK_PARENT_LINK_LIST = `'${TASK_BELONGS_TO_AREA}', '${TASK_BELONGS_TO_PROJECT}'`;
@@ -213,6 +220,21 @@ type TaskWaitingJoinedRow = TaskJoinedRow & WaitingTargetColumns;
 type TaskListRow = TaskJoinedRow & {
   readonly parent_title: string | null;
 } & Partial<WaitingTargetColumns>;
+
+type TaskParentLinkRow = {
+  readonly task_id: string;
+  readonly link_id: string | null;
+  readonly parent_id: string | null;
+  readonly parent_link_type: string | null;
+};
+
+type AnyLinkRow = {
+  readonly id: string;
+  readonly source_entity_id: string;
+  readonly target_entity_id: string;
+  readonly type: string;
+  readonly deleted_at: string | null;
+};
 
 /**
  * Planning query band bounds (TODAY-04). Each band is fetched independently so the
@@ -262,7 +284,7 @@ const WORKSPACE_GROUP_BUCKET_EXPR: Record<WorkspaceTaskGroupDimension, string> =
   {
     quadrant: "COALESCE(td.priority, 'untriaged')",
     priority: "COALESCE(td.priority, 'untriaged')",
-    sector: "COALESCE(td.time_sector, 'inbox')",
+    sector: "COALESCE(td.time_sector, '__none')",
     status:
       "CASE WHEN sr.completed_at IS NOT NULL THEN 'completed'" +
       " ELSE COALESCE(td.status, 'todo') END",
@@ -394,13 +416,20 @@ export class D1TaskRepository implements TaskRepository {
 
   async createTask(input: NewTaskInput): Promise<TaskView> {
     const title = validateSpineTitle(input.title);
-    const parentKind = input.parent?.kind;
-    if (parentKind !== "area" && parentKind !== "project") {
+    const parent =
+      input.parent === null || input.parent === undefined ? null : input.parent;
+    if (
+      parent !== null &&
+      parent.kind !== "area" &&
+      parent.kind !== "project"
+    ) {
       throw new SpineInvalidParentKindError();
     }
-    const parentId = validateTaskId(input.parent.id);
-    const linkType = spineLinkTypeFor(TASK, parentKind);
-    if (linkType === null) {
+    const parentKind = parent?.kind ?? null;
+    const parentId = parent ? validateTaskId(parent.id) : null;
+    const linkType =
+      parentKind === null ? null : spineLinkTypeFor(TASK, parentKind);
+    if (parentKind !== null && linkType === null) {
       throw new SpineInvalidParentKindError();
     }
 
@@ -426,32 +455,38 @@ export class D1TaskRepository implements TaskRepository {
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
     const id = this.#newEntityId();
-    const linkId = this.#newEntityId();
+    const linkId = parentId === null ? null : this.#newEntityId();
 
-    // Identity + parentage: the SHARED spine create builders (the spine stays the
-    // identity authority; the parent-gate security SQL lives in ONE place).
-    const entityStmt = buildSpineChildEntityInsertStatement(
-      this.#db,
-      this.#workspaceId,
-      { id, kind: TASK, title, parentKind, parentId, nowTs },
-    );
+    // Identity: assigned tasks still use the shared parent-gated spine builder.
+    // Unassigned Tasks are a TASKS-04 exception: they are valid spine records with
+    // no structural EntityLink, not damaged children of a hidden parent.
+    const entityStmt =
+      parentKind === null || parentId === null
+        ? this.#createUnassignedTaskEntityStatement(id, title, nowTs)
+        : buildSpineChildEntityInsertStatement(this.#db, this.#workspaceId, {
+            id,
+            kind: TASK,
+            title,
+            parentKind,
+            parentId,
+            nowTs,
+          });
     const spineStmt = buildSpineChildRecordInsertStatement(
       this.#db,
       this.#workspaceId,
       { id, kind: TASK },
     );
-    const linkStmt = buildSpineChildLinkInsertStatement(
-      this.#db,
-      this.#workspaceId,
-      {
-        linkId,
-        sourceEntityId: id,
-        targetEntityId: parentId,
-        parentKind,
-        linkType,
-        nowTs,
-      },
-    );
+    const linkStmt =
+      parentKind !== null && parentId !== null && linkId !== null && linkType
+        ? buildSpineChildLinkInsertStatement(this.#db, this.#workspaceId, {
+            linkId,
+            sourceEntityId: id,
+            targetEntityId: parentId,
+            parentKind,
+            linkType,
+            nowTs,
+          })
+        : null;
 
     // The two create events, each guarded (via the recorder's `changes() > 0`
     // predicate) on the insert IMMEDIATELY before it in the batch.
@@ -463,14 +498,18 @@ export class D1TaskRepository implements TaskRepository {
     );
     const [entityActivity, ...entitySubjects] =
       this.#recorder.buildAppendStatements(this.#workspaceId, entityModel);
-    const linkModel = buildActivityWriteModel(
-      spineLinkCreatedEvent(linkId, id, parentId, linkType),
-      this.#actor.actor,
-      this.#newActivityId(),
-      now,
-    );
-    const [linkActivity, ...linkSubjects] =
-      this.#recorder.buildAppendStatements(this.#workspaceId, linkModel);
+    const linkStatements =
+      linkId !== null && parentId !== null && linkType !== null
+        ? this.#recorder.buildAppendStatements(
+            this.#workspaceId,
+            buildActivityWriteModel(
+              spineLinkCreatedEvent(linkId, id, parentId, linkType),
+              this.#actor.actor,
+              this.#newActivityId(),
+              now,
+            ),
+          )
+        : [];
 
     // The additive planning slice — written in the SAME batch, ONLY when a planning
     // field is supplied (otherwise the task reads documented defaults with no row),
@@ -487,10 +526,8 @@ export class D1TaskRepository implements TaskRepository {
       entityActivity!,
       ...entitySubjects,
       spineStmt,
-      linkStmt,
-      linkActivity!,
-      ...linkSubjects,
     ];
+    if (linkStmt) statements.push(linkStmt, ...linkStatements);
     if (writeDetails) {
       statements.push(
         this.#createDetailsStatement(
@@ -516,13 +553,14 @@ export class D1TaskRepository implements TaskRepository {
       throw new TaskStorageError(undefined, { cause });
     }
 
-    // The entity insert is index 0; a zero-change result means the parent was
-    // missing/deleted/wrong-kind/archived/cross-workspace — the batch committed
-    // nothing (no entity, spine row, link, details or Activity).
+    // The entity insert is index 0. For assigned Tasks a zero-change result means
+    // the parent was missing/deleted/wrong-kind/archived/cross-workspace; for
+    // Unassigned Tasks it would indicate an id collision or storage corruption.
     const entityResult = results[0];
     const entityRow = (entityResult?.results ?? [])[0];
     if ((entityResult?.meta?.changes ?? 0) === 0 || !entityRow) {
-      throw new SpineParentUnavailableError();
+      if (parentKind !== null) throw new SpineParentUnavailableError();
+      throw new TaskStorageError();
     }
 
     const view = await this.getTask(id);
@@ -530,6 +568,324 @@ export class D1TaskRepository implements TaskRepository {
       throw new TaskStorageError();
     }
     return view;
+  }
+
+  #createUnassignedTaskEntityStatement(
+    id: string,
+    title: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO entities
+           (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+         VALUES (?, ?, '${TASK}', ?, ?, ?, NULL)
+         RETURNING ${ENTITY_RETURNING}`,
+      )
+      .bind(id, this.#workspaceId, title, nowTs, nowTs);
+  }
+
+  async setTaskParent(
+    id: string,
+    parent: SetTaskParentInput,
+  ): Promise<SetTaskParentResult> {
+    const taskId = validateTaskId(id);
+    const target =
+      parent === null
+        ? null
+        : { kind: parent.kind, id: validateTaskId(parent.id) };
+    if (
+      target !== null &&
+      target.kind !== "area" &&
+      target.kind !== "project"
+    ) {
+      throw new SpineInvalidParentKindError();
+    }
+
+    const current = await this.#readCurrentTaskParentLink(taskId);
+    if (!current) throw new TaskNotFoundError();
+
+    const targetLinkType =
+      target === null ? null : spineLinkTypeFor(TASK, target.kind);
+    if (target !== null && targetLinkType === null) {
+      throw new SpineInvalidParentKindError();
+    }
+    if (
+      target !== null &&
+      current.parent_id === target.id &&
+      current.parent_link_type === targetLinkType
+    ) {
+      const task = await this.getTask(taskId);
+      if (!task) throw new TaskNotFoundError();
+      return { task, changed: false };
+    }
+    if (target === null && current.link_id === null) {
+      const task = await this.getTask(taskId);
+      if (!task) throw new TaskNotFoundError();
+      return { task, changed: false };
+    }
+
+    if (target !== null) {
+      const candidate = await this.getTaskParentCandidate(target.id);
+      if (!candidate || candidate.kind !== target.kind) {
+        throw new SpineParentUnavailableError();
+      }
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const statements: D1PreparedStatement[] = [
+      this.#bumpTaskUpdatedAtStatement(taskId, nowTs),
+    ];
+
+    if (
+      current.link_id !== null &&
+      current.parent_id !== null &&
+      current.parent_link_type !== null
+    ) {
+      const unlinkIdentity: AnyLinkRow = {
+        id: current.link_id,
+        source_entity_id: taskId,
+        target_entity_id: current.parent_id,
+        type: current.parent_link_type,
+        deleted_at: null,
+      };
+      statements.push(
+        this.#unlinkTaskParentStatement(current.link_id, nowTs),
+        ...this.#linkActivityStatements(LINK_UNLINKED, unlinkIdentity, now),
+      );
+    }
+
+    if (target !== null && targetLinkType !== null) {
+      const existing = await this.#findTaskParentLink(
+        taskId,
+        target.id,
+        targetLinkType,
+      );
+      const linkIdentity: AnyLinkRow = existing ?? {
+        id: this.#newEntityId(),
+        source_entity_id: taskId,
+        target_entity_id: target.id,
+        type: targetLinkType,
+        deleted_at: null,
+      };
+      statements.push(
+        existing
+          ? this.#restoreTaskParentStatement(existing.id, target, nowTs)
+          : this.#insertTaskParentStatement(
+              linkIdentity.id,
+              taskId,
+              target,
+              targetLinkType,
+              nowTs,
+            ),
+        ...this.#linkActivityStatements(
+          existing ? LINK_RESTORED : LINK_CREATED,
+          linkIdentity,
+          now,
+        ),
+      );
+    }
+
+    try {
+      await this.#db.batch(statements);
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
+
+    const task = await this.getTask(taskId);
+    if (!task) throw new TaskNotFoundError();
+    return { task, changed: true };
+  }
+
+  async #readCurrentTaskParentLink(
+    taskId: string,
+  ): Promise<TaskParentLinkRow | null> {
+    return await this.#db
+      .prepare(
+        `SELECT e.id AS task_id,
+                pl.id AS link_id,
+                pl.target_entity_id AS parent_id,
+                pl.type AS parent_link_type
+         FROM entities e
+         JOIN spine_records sr
+           ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+          AND sr.kind = '${TASK}'
+         LEFT JOIN entity_links pl
+           ON pl.workspace_id = e.workspace_id
+          AND pl.source_entity_id = e.id
+          AND pl.type IN (${TASK_PARENT_LINK_LIST})
+          AND pl.deleted_at IS NULL
+         WHERE e.workspace_id = ?
+           AND e.id = ?
+           AND e.type = '${TASK}'
+           AND e.deleted_at IS NULL
+         LIMIT 1`,
+      )
+      .bind(this.#workspaceId, taskId)
+      .first<TaskParentLinkRow>();
+  }
+
+  async #findTaskParentLink(
+    taskId: string,
+    parentId: string,
+    linkType: string,
+  ): Promise<AnyLinkRow | null> {
+    return await this.#db
+      .prepare(
+        `SELECT id, source_entity_id, target_entity_id, type, deleted_at
+         FROM entity_links
+         WHERE workspace_id = ?
+           AND source_entity_id = ?
+           AND target_entity_id = ?
+           AND type = ?
+         LIMIT 1`,
+      )
+      .bind(this.#workspaceId, taskId, parentId, linkType)
+      .first<AnyLinkRow>();
+  }
+
+  #bumpTaskUpdatedAtStatement(
+    taskId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entities SET updated_at = ?
+         WHERE workspace_id = ? AND id = ? AND type = '${TASK}' AND deleted_at IS NULL`,
+      )
+      .bind(nowTs, this.#workspaceId, taskId);
+  }
+
+  #unlinkTaskParentStatement(
+    linkId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entity_links
+         SET deleted_at = ?, updated_at = ?
+         WHERE workspace_id = ?
+           AND id = ?
+           AND deleted_at IS NULL
+           AND type IN (${TASK_PARENT_LINK_LIST})
+           AND EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = source_entity_id
+                   AND type = '${TASK}' AND deleted_at IS NULL
+               )`,
+      )
+      .bind(nowTs, nowTs, this.#workspaceId, linkId, this.#workspaceId);
+  }
+
+  #insertTaskParentStatement(
+    linkId: string,
+    taskId: string,
+    parent: { readonly kind: "area" | "project"; readonly id: string },
+    linkType: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO entity_links
+           (id, workspace_id, source_entity_id, target_entity_id, type,
+            created_at, updated_at, deleted_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, NULL
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                   AND deleted_at IS NULL
+               )
+           AND EXISTS (
+                 SELECT 1
+                 FROM entities target
+                 LEFT JOIN project_details pd
+                   ON pd.workspace_id = target.workspace_id
+                  AND pd.entity_id = target.id
+                 WHERE target.workspace_id = ?
+                   AND target.id = ?
+                   AND target.type = ?
+                   AND target.deleted_at IS NULL
+                   AND (target.type <> '${PROJECT}' OR pd.archived_at IS NULL)
+               )`,
+      )
+      .bind(
+        linkId,
+        this.#workspaceId,
+        taskId,
+        parent.id,
+        linkType,
+        nowTs,
+        nowTs,
+        this.#workspaceId,
+        taskId,
+        this.#workspaceId,
+        parent.id,
+        parent.kind,
+      );
+  }
+
+  #restoreTaskParentStatement(
+    linkId: string,
+    parent: { readonly kind: "area" | "project"; readonly id: string },
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entity_links
+         SET deleted_at = NULL, updated_at = ?
+         WHERE workspace_id = ?
+           AND id = ?
+           AND deleted_at IS NOT NULL
+           AND EXISTS (
+                 SELECT 1
+                 FROM entities target
+                 LEFT JOIN project_details pd
+                   ON pd.workspace_id = target.workspace_id
+                  AND pd.entity_id = target.id
+                 WHERE target.workspace_id = ?
+                   AND target.id = ?
+                   AND target.type = ?
+                   AND target.deleted_at IS NULL
+                   AND (target.type <> '${PROJECT}' OR pd.archived_at IS NULL)
+               )`,
+      )
+      .bind(
+        nowTs,
+        this.#workspaceId,
+        linkId,
+        this.#workspaceId,
+        parent.id,
+        parent.kind,
+      );
+  }
+
+  #linkActivityStatements(
+    type: string,
+    link: AnyLinkRow,
+    occurredAt: Date,
+  ): D1PreparedStatement[] {
+    return this.#recorder.buildAppendStatements(
+      this.#workspaceId,
+      buildActivityWriteModel(
+        {
+          type,
+          subjects: [
+            { entityId: link.source_entity_id, role: ROLE_SOURCE },
+            { entityId: link.target_entity_id, role: ROLE_TARGET },
+          ],
+          payload: {
+            linkId: link.id,
+            linkType: link.type,
+            sourceEntityId: link.source_entity_id,
+            targetEntityId: link.target_entity_id,
+          },
+        },
+        this.#actor.actor,
+        this.#newActivityId(),
+        occurredAt,
+      ),
+    );
   }
 
   /**
@@ -617,6 +973,8 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -659,6 +1017,8 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -754,6 +1114,8 @@ export class D1TaskRepository implements TaskRepository {
               AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${completedClause}${cursorClause}
          ORDER BY e.created_at ASC, e.id ASC
@@ -799,10 +1161,10 @@ export class D1TaskRepository implements TaskRepository {
     const backlogLimit = input.backlogLimit ?? PLANNING_BACKLOG_LIMIT;
     const completedLimit = input.completedLimit ?? PLANNING_COMPLETED_LIMIT;
 
-    // TASKS-01 (ADR-043 §17): Today excludes Someday/Maybe and Cancelled tasks —
-    // they are not active execution work — in addition to waiting and completed.
+    // TASKS-01/TASKS-04: Today excludes Someday/Maybe, Cancelled and On-hold tasks
+    // from normal active work — in addition to waiting and completed.
     const activeExclusions =
-      "COALESCE(td.commitment_state, 'active') <> 'someday' AND COALESCE(td.status, 'todo') <> 'cancelled'";
+      "COALESCE(td.commitment_state, 'active') <> 'someday' AND COALESCE(td.status, 'todo') NOT IN ('cancelled', 'on_hold')";
     const scheduled = await this.#queryPlanningBand(
       `sr.completed_at IS NULL AND td.waiting_since IS NULL AND td.scheduled_date IS NOT NULL AND ${activeExclusions}`,
       "td.scheduled_date ASC, e.id ASC",
@@ -843,6 +1205,8 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -880,6 +1244,7 @@ export class D1TaskRepository implements TaskRepository {
       timeSector: details.timeSector,
       commitmentState: details.commitmentState,
       delegation: details.delegation,
+      recurrence: details.recurrence,
       parent: this.#parentRelation(
         row.parent_link_type,
         row.parent_id,
@@ -1141,6 +1506,8 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -1231,6 +1598,8 @@ export class D1TaskRepository implements TaskRepository {
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
            LEFT JOIN task_details td
              ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+           LEFT JOIN task_recurrence_rules rr
+             ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
            LEFT JOIN entity_links pl
              ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
                 AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -1550,9 +1919,7 @@ export class D1TaskRepository implements TaskRepository {
         );
         return;
       case "inbox":
-        whereParts.push(
-          `${notTerminal} AND td.waiting_since IS NULL AND td.time_sector IS NULL AND td.scheduled_date IS NULL`,
-        );
+        whereParts.push(`${notTerminal} AND pl.type IS NULL`);
         return;
       case "today":
         whereParts.push(
@@ -1853,6 +2220,7 @@ export class D1TaskRepository implements TaskRepository {
         timeSector: afterSector,
         commitmentState: afterCommitment,
         delegation: afterDelegation,
+        recurrence: current.recurrence,
         description: afterDescription,
       },
       changed: true,
@@ -2097,6 +2465,8 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -3299,6 +3669,8 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+         LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -3459,6 +3831,7 @@ export class D1TaskRepository implements TaskRepository {
       timeSector: details.timeSector,
       commitmentState: details.commitmentState,
       delegation: details.delegation,
+      recurrence: details.recurrence,
       description: details.description,
       project: relationships.project,
       goal: relationships.goal,

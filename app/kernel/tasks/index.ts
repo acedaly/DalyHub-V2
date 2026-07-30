@@ -49,6 +49,8 @@ export {
   type GetTaskOptions,
   type UpdateTaskInput,
   type UpdateTaskResult,
+  type SetTaskParentInput,
+  type SetTaskParentResult,
   type ListTasksInput,
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
@@ -102,6 +104,19 @@ export {
 } from "./task-identifiers";
 
 export type { TaskRepository } from "./task-repository";
+
+export {
+  TASK_RECURRENCE_DATE_KINDS,
+  TASK_RECURRENCE_FREQUENCIES,
+  addCalendarDays,
+  nextTaskOccurrenceDate,
+  validateTaskRecurrenceRule,
+  weekdayOfDate,
+  type TaskRecurrenceDateKind,
+  type TaskRecurrenceFrequency,
+  type TaskRecurrenceInput,
+  type TaskRecurrenceRule,
+} from "./task-recurrence";
 
 export {
   PROJECT_TASK_CURSOR_VERSION,

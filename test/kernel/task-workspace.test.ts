@@ -140,7 +140,7 @@ describe("listWorkspaceTasks system views", () => {
       if (Object.keys(patch).length > 0) await repo.updateTask(t.id, patch);
       return t;
     };
-    const inbox = await mk("inbox task", {});
+    const inbox = await repo.createTask({ title: "inbox task" });
     const thisWeek = await mk("week task", {
       timeSector: "this_week",
       priority: "p1",
@@ -162,7 +162,7 @@ describe("listWorkspaceTasks system views", () => {
     expect(inboxIds).toContain(seeded.inbox.id);
     expect(inboxIds).not.toContain(seeded.someday.id);
     expect(inboxIds).not.toContain(seeded.cancelled.id);
-    expect(inboxIds).not.toContain(seeded.thisWeek.id); // it has a sector
+    expect(inboxIds).not.toContain(seeded.thisWeek.id); // it is assigned
 
     const week = await repo.listWorkspaceTasks({
       view: "this_week",
@@ -394,6 +394,86 @@ describe("createTask (atomic identity + planning)", () => {
       .bind(WS, task.id)
       .first<{ n: number }>();
     expect(details?.n).toBe(0);
+  });
+
+  it("creates an intentional unassigned task with no structural parent", async () => {
+    const repo = taskRepo(WS);
+    const task = await repo.createTask({ title: "Inbox capture" });
+
+    expect(task.title).toBe("Inbox capture");
+    expect(task.project).toBeNull();
+    expect(task.area).toBeNull();
+
+    const links = await env.DB.prepare(
+      `SELECT COUNT(*) AS n
+       FROM entity_links
+       WHERE workspace_id = ?
+         AND source_entity_id = ?
+         AND deleted_at IS NULL
+         AND type IN ('task.belongs_to_area', 'task.belongs_to_project')`,
+    )
+      .bind(WS, task.id)
+      .first<{ n: number }>();
+    expect(links?.n).toBe(0);
+  });
+
+  it("treats Inbox as active unassigned tasks, independent of planning fields", async () => {
+    const { project } = await seedProject(WS);
+    const repo = taskRepo(WS);
+    const inbox = await repo.createTask({
+      title: "Scheduled unassigned",
+      priority: "p1",
+      timeSector: "this_week",
+      scheduledDate: "2026-08-01",
+      dueDate: "2026-08-03",
+    });
+    await repo.createTask({
+      title: "Assigned no-sector",
+      parent: { kind: "project", id: project.id },
+    });
+
+    const page = await repo.listWorkspaceTasks({
+      view: "inbox",
+      todayIso: "2026-07-30",
+    });
+
+    expect(page.items.map((item) => item.id)).toContain(inbox.id);
+    expect(page.items.some((item) => item.title === "Assigned no-sector")).toBe(
+      false,
+    );
+  });
+
+  it("assigns, changes and clears a task parent through the TaskRepository", async () => {
+    const { area, project } = await seedProject(WS);
+    const repo = taskRepo(WS);
+    const task = await repo.createTask({
+      title: "Move me",
+      priority: "p2",
+      scheduledDate: "2026-08-02",
+    });
+
+    const assigned = await repo.setTaskParent(task.id, {
+      kind: "area",
+      id: area.id,
+    });
+    expect(assigned.changed).toBe(true);
+    expect(assigned.task.area?.id).toBe(area.id);
+    expect(assigned.task.priority).toBe("p2");
+    expect(assigned.task.scheduledDate).toBe("2026-08-02");
+
+    const moved = await repo.setTaskParent(task.id, {
+      kind: "project",
+      id: project.id,
+    });
+    expect(moved.task.project?.id).toBe(project.id);
+    expect(moved.task.area?.id).toBe(area.id);
+
+    const cleared = await repo.setTaskParent(task.id, null);
+    expect(cleared.task.project).toBeNull();
+    expect(cleared.task.area).toBeNull();
+
+    const again = await repo.setTaskParent(task.id, null);
+    expect(again.changed).toBe(false);
   });
 
   it("rejects a missing parent and creates nothing", async () => {
@@ -706,19 +786,19 @@ describe("listWorkspaceTaskGroups", () => {
     expect(p1?.hasMore).toBe(true);
   });
 
-  it("groups by sector with null → inbox", async () => {
+  it("groups by sector with null → no sector", async () => {
     const { project } = await seedProject(WS);
     const repo = taskRepo(WS);
     await mk(WS, project.id, "wk1", { timeSector: "this_week" });
     await mk(WS, project.id, "wk2", { timeSector: "this_week" });
-    await mk(WS, project.id, "ib1", {}); // no sector → inbox
+    await mk(WS, project.id, "ib1", {}); // no sector
     const grouping = await repo.listWorkspaceTaskGroups({
       dimension: "sector",
       todayIso: TODAY,
     });
     const byKey = new Map(grouping.groups.map((g) => [g.key, g]));
     expect(byKey.get("this_week")?.count).toBe(2);
-    expect(byKey.get("inbox")?.count).toBe(1);
+    expect(byKey.get("__none")?.count).toBe(1);
   });
 
   it("sorts within a bucket smart (overdue-first)", async () => {

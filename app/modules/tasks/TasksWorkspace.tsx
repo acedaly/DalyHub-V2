@@ -50,6 +50,7 @@ import { LoadMore } from "~/shared/load-more";
 import { SegmentedFilter } from "~/shared/segmented-filter";
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import type { TaskActionData } from "~/shared/task-record/contract";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import {
   taskPriorityLabel,
@@ -99,13 +100,16 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
           title: "New task",
           description: "Capture a task under a Project or an Area.",
           children: (
-            <NewTaskDrawerHost defaultParent={data.defaultCaptureParent} />
+            <NewTaskDrawerHost
+              defaultParent={data.defaultCaptureParent}
+              todayIso={data.todayIso}
+            />
           ),
         };
       }
       return null;
     };
-  }, [data.defaultCaptureParent]);
+  }, [data.defaultCaptureParent, data.todayIso]);
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>
@@ -117,14 +121,17 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
 /** Hosts the create form: reflects the new task, then opens it in the shared Drawer. */
 function NewTaskDrawerHost({
   defaultParent,
+  todayIso,
 }: {
   readonly defaultParent: TasksPageData["defaultCaptureParent"];
+  readonly todayIso: string;
 }) {
   const { closeDrawer, replaceDrawer } = useDrawer();
   const revalidator = useRevalidator();
   return (
     <NewTaskForm
       defaultParent={defaultParent}
+      todayIso={todayIso}
       onCreated={(taskId) => {
         revalidator.revalidate();
         replaceDrawer(`task:${taskId}`);
@@ -285,12 +292,147 @@ function useTaskQuickMutation() {
     [fetcher],
   );
 
+  const clearParent = useCallback(
+    (taskId: string, title: string) => {
+      pendingLabel.current = `${title} moved to Inbox.`;
+      const body = new FormData();
+      body.set("intent", "set_parent");
+      body.set("parentId", "");
+      body.set("parentKind", "");
+      fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
+    },
+    [fetcher],
+  );
+
   return {
     setCompleted,
     setField,
+    clearParent,
     busy: fetcher.state !== "idle",
     announcement,
   };
+}
+
+function InlineTaskTitle({
+  taskId,
+  title,
+}: {
+  readonly taskId: string;
+  readonly title: string;
+}) {
+  const fetcher = useFetcher<TaskActionData>();
+  const revalidator = useRevalidator();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const [error, setError] = useState<string | null>(null);
+  const processed = useRef<TaskActionData | null>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(title);
+  }, [editing, title]);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    if (processed.current === fetcher.data) return;
+    processed.current = fetcher.data;
+    const result = fetcher.data;
+    if (result.kind !== "update") return;
+    if (result.status === "success") {
+      setEditing(false);
+      setError(null);
+      revalidator.revalidate();
+      return;
+    }
+    setError(
+      result.fieldErrors?.title ??
+        result.formError ??
+        "That title couldn’t be saved.",
+    );
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, [fetcher.state, fetcher.data, revalidator]);
+
+  const saving = fetcher.state !== "idle";
+  const save = useCallback(() => {
+    const trimmed = draft.trim();
+    if (saving) return;
+    if (trimmed.length === 0) {
+      setError("A title is required.");
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
+    if (trimmed === title) {
+      setEditing(false);
+      setError(null);
+      return;
+    }
+    setError(null);
+    const body = new FormData();
+    body.set("intent", "rename");
+    body.set("title", trimmed);
+    fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
+  }, [draft, fetcher, saving, taskId, title]);
+
+  const cancel = useCallback(() => {
+    if (saving) return;
+    setDraft(title);
+    setError(null);
+    setEditing(false);
+  }, [saving, title]);
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="dh-card__open dh-tasks-inline-title"
+        onClick={() => setEditing(true)}
+        aria-label={`Edit title for ${title}`}
+      >
+        <span className="dh-card__title-text">{title}</span>
+      </button>
+    );
+  }
+
+  return (
+    <span className="dh-tasks-inline-title-editor">
+      <input
+        ref={inputRef}
+        className="dh-input dh-tasks-inline-title-editor__input"
+        value={draft}
+        maxLength={512}
+        disabled={saving}
+        aria-label="Task title"
+        aria-invalid={error ? true : undefined}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (error) setError(null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            save();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            cancel();
+          } else if (event.key === "Tab") {
+            save();
+          }
+        }}
+        onBlur={() => {
+          if (!error) save();
+        }}
+      />
+      {error ? (
+        <span className="dh-tasks-inline-title-editor__error" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -561,9 +703,15 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                 ),
             },
             {
+              id: "move-to-inbox",
+              label: "Move to Inbox",
+              disabled: quick.busy || !card.parentLabel,
+              onSelect: () => quick.clearParent(card.id, card.title),
+            },
+            {
               id: "open-record",
               label: "Open task record",
-              description: "For the parent, delegation, waiting and removal.",
+              description: "For delegation, waiting and removal.",
               separatorBefore: true,
               onSelect: () => openDrawer(`task:${card.id}`),
             },
@@ -573,6 +721,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       return {
         id: card.id,
         title: card.title,
+        titleSlot: <InlineTaskTitle taskId={card.id} title={card.title} />,
         typeLabel: "Task",
         icon: <EntityIcon type="task" />,
         headingLevel,
@@ -766,6 +915,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       <TasksQuickAdd
         defaultParent={data.defaultCaptureParent}
         sessionDefaults={sessionDefaults}
+        todayIso={data.todayIso}
         onOpenFullForm={() => openDrawer(NEW_TASK_KEY)}
       />
 
@@ -919,7 +1069,7 @@ const BULK_PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
 
 const BULK_SECTOR_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "", label: "Move to sector…" },
-  { value: "__none", label: "Inbox (no sector)" },
+  { value: "__none", label: "No sector" },
   ...TIME_SECTORS.map((sector) => ({
     value: sector,
     label: timeSectorLabel(sector),

@@ -92,4 +92,123 @@ describe("parseQuickCapture", () => {
     expect(ignored.priority).toBeNull();
     expect(ignored.timeSector).toBe("next_week");
   });
+
+  it("parses today, tomorrow and tonight as scheduled dates from the owner day", () => {
+    const today = parseQuickCapture("Prepare slides today", {
+      todayIso: "2026-07-30",
+    });
+    expect(today.title).toBe("Prepare slides");
+    expect(today.scheduledDate).toBe("2026-07-30");
+
+    const tomorrow = parseQuickCapture("Prepare slides tomorrow", {
+      todayIso: "2026-07-30",
+    });
+    expect(tomorrow.scheduledDate).toBe("2026-07-31");
+
+    const tonight = parseQuickCapture("Prepare slides tonight", {
+      todayIso: "2026-07-30",
+    });
+    expect(tonight.scheduledDate).toBe("2026-07-30");
+  });
+
+  it("parses due date phrases separately from scheduled date phrases", () => {
+    const r = parseQuickCapture("Renew registration due 15/11 p2", {
+      todayIso: "2026-07-30",
+    });
+    expect(r.title).toBe("Renew registration");
+    expect(r.dueDate).toBe("2026-11-15");
+    expect(r.scheduledDate).toBeNull();
+    expect(r.priority).toBe("p2");
+  });
+
+  it("parses Australian dates and rolls day-first dates into next year when needed", () => {
+    expect(
+      parseQuickCapture("Pay rego due 14/8", {
+        todayIso: "2026-07-30",
+      }).dueDate,
+    ).toBe("2026-08-14");
+    expect(
+      parseQuickCapture("Pay rego due 14/8", {
+        todayIso: "2026-09-01",
+      }).dueDate,
+    ).toBe("2027-08-14");
+    expect(
+      parseQuickCapture("Pay rego due 14/08/2026", {
+        todayIso: "2026-07-30",
+      }).dueDate,
+    ).toBe("2026-08-14");
+  });
+
+  it("keeps next week as a Time Sector while next Friday is a calendar date", () => {
+    const sector = parseQuickCapture("Draft brief next week", {
+      todayIso: "2026-07-30",
+    });
+    expect(sector.timeSector).toBe("next_week");
+    expect(sector.scheduledDate).toBeNull();
+
+    const date = parseQuickCapture("Draft brief next Friday", {
+      todayIso: "2026-07-30",
+    });
+    expect(date.timeSector).toBeNull();
+    expect(date.scheduledDate).toBe("2026-08-07");
+  });
+
+  it("does not parse date words without an owner calendar day", () => {
+    const r = parseQuickCapture("Prepare slides tomorrow");
+    expect(r.title).toBe("Prepare slides tomorrow");
+    expect(r.scheduledDate).toBeNull();
+  });
+
+  it("parses every Friday as weekly recurrence with the next weekday anchor", () => {
+    const r = parseQuickCapture("Submit timesheet every Friday", {
+      todayIso: "2026-07-30",
+    });
+    expect(r.title).toBe("Submit timesheet");
+    expect(r.scheduledDate).toBe("2026-07-31");
+    expect(r.recurrence).toMatchObject({
+      frequency: "week",
+      interval: 1,
+      weekdays: [5],
+      dateKind: "scheduled",
+      needsDate: false,
+    });
+    expect(r.tokens.map((token) => token.kind)).toContain("recurrence");
+  });
+
+  it("keeps due-date recurrence anchored to the due date", () => {
+    const r = parseQuickCapture("Pay registration due 15/11 every year", {
+      todayIso: "2026-07-30",
+    });
+    expect(r.title).toBe("Pay registration");
+    expect(r.dueDate).toBe("2026-11-15");
+    expect(r.recurrence).toMatchObject({
+      frequency: "year",
+      interval: 1,
+      dateKind: "due",
+      needsDate: false,
+    });
+  });
+
+  it("surfaces interval recurrence without guessing an anchor date", () => {
+    const r = parseQuickCapture("Review plan every 2 weeks", {
+      todayIso: "2026-07-30",
+    });
+    expect(r.title).toBe("Review plan");
+    expect(r.scheduledDate).toBeNull();
+    expect(r.recurrence).toMatchObject({
+      frequency: "week",
+      interval: 2,
+      dateKind: null,
+      needsDate: true,
+    });
+  });
+
+  it("does not strip every word for a recurrence-only capture", () => {
+    const r = parseQuickCapture("every Friday", {
+      todayIso: "2026-07-30",
+    });
+    expect(r.title).toBe("every Friday");
+    expect(r.recurrence).toBeNull();
+    expect(r.scheduledDate).toBeNull();
+  });
 });

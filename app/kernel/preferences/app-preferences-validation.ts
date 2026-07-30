@@ -5,6 +5,7 @@ import {
   FIRST_DAY_OF_WEEK_OPTIONS,
   LANDING_DESTINATIONS,
   NAVIGATION_CONFIG_VERSION,
+  TASK_DESTINATIONS,
   TASK_DEFAULT_VIEWS,
   type AppPreferencePatch,
   type AppPreferences,
@@ -13,6 +14,7 @@ import {
   type FirstDayOfWeek,
   type LandingDestination,
   type NavigationPreferences,
+  type TaskDestination,
   type TaskDefaultView,
 } from "./app-preferences";
 import { AppPreferencesValidationError } from "./app-preferences-errors";
@@ -118,6 +120,15 @@ export function parseTaskDefaultView(value: unknown): TaskDefaultView {
     value,
     TASK_DEFAULT_VIEWS,
     "Choose a supported Tasks view.",
+  );
+}
+
+export function parseTaskDestination(value: unknown): TaskDestination {
+  return parseEnum(
+    "defaultTaskDestination",
+    value,
+    TASK_DESTINATIONS,
+    "Choose Inbox or a chosen parent.",
   );
 }
 
@@ -241,6 +252,10 @@ export function validateAppPreferencesPatch(
     );
   if (patch.defaultTasksView !== undefined)
     out.defaultTasksView = parseTaskDefaultView(patch.defaultTasksView);
+  if (patch.defaultTaskDestination !== undefined)
+    out.defaultTaskDestination = parseTaskDestination(
+      patch.defaultTaskDestination,
+    );
   if (patch.defaultTaskViewId !== undefined)
     out.defaultTaskViewId = parseDefaultTaskViewId(patch.defaultTaskViewId);
   if (patch.defaultTaskCaptureParentId !== undefined)
@@ -273,6 +288,7 @@ export function normaliseStoredPreferences(input: {
   readonly firstDayOfWeek: unknown;
   readonly defaultLandingDestination: unknown;
   readonly defaultTasksView: unknown;
+  readonly defaultTaskDestination?: unknown;
   readonly defaultTaskViewId?: unknown;
   readonly defaultTaskCaptureParentId?: unknown;
   readonly defaultTaskCaptureParentKind?: unknown;
@@ -307,6 +323,16 @@ export function normaliseStoredPreferences(input: {
       (TASK_DEFAULT_VIEWS as readonly string[]).includes(input.defaultTasksView)
         ? (input.defaultTasksView as TaskDefaultView)
         : DEFAULT_APP_PREFERENCES.defaultTasksView,
+    defaultTaskDestination: (() => {
+      try {
+        return parseTaskDestination(
+          (input as { readonly defaultTaskDestination?: unknown })
+            .defaultTaskDestination,
+        );
+      } catch {
+        return DEFAULT_APP_PREFERENCES.defaultTaskDestination;
+      }
+    })(),
     defaultTaskViewId: (() => {
       try {
         return parseDefaultTaskViewId(
