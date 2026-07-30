@@ -1,78 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { workspaceContextFromId } from "~/kernel/workspaces";
-import type { SearchRuntimeContext } from "~/kernel/modules";
-import { todaySearchProvider } from "~/modules/today/search";
+import { discoverModuleRegistry } from "~/modules/discover-modules";
 import todayModule from "~/modules/today/module";
-import { TODAY_FIXTURE } from "~/modules/today/fixtures";
 
-const context: SearchRuntimeContext = {
-  workspace: workspaceContextFromId("today-search-test"),
-  signal: new AbortController().signal,
-};
-
-async function run(query: string, limit = 20) {
-  return todaySearchProvider.search({ text: query, limit }, context);
-}
-
-describe("today search provider", () => {
-  it("is registered in the Today module manifest", () => {
-    expect(todayModule.searchProviders).toBeDefined();
-    expect(todayModule.searchProviders?.[0]?.id).toBe("today.search");
+describe("today search provider removal", () => {
+  it("keeps Today navigable without registering a Search provider", () => {
+    expect(todayModule.commands?.map((command) => command.id)).toEqual([
+      "today.open",
+      "today.focus_quick_capture",
+      "today.open_waiting",
+    ]);
+    expect(todayModule.searchProviders).toBeUndefined();
   });
 
-  it("no longer returns fixture focus tasks (TASKS-01 retired them; real Tasks search owns tasks)", async () => {
-    const results = await run("PX-02");
-    const finish = results.find((r) => r.title === "Finish PX-02");
-    expect(finish).toBeUndefined();
-    // The remaining Today candidates are meetings, projects and notes only.
-    expect(
-      results.every(
-        (r) => r.entityType !== "task" || r.id.startsWith("upcoming:"),
-      ),
-    ).toBe(true);
-  });
-
-  it("finds a project, a note and a meeting across the fixtures", async () => {
-    const project = (await run("DalyHub")).find(
-      (r) => r.entityType === "project",
+  it("does not expose fixture-backed Today providers in production discovery", () => {
+    const providers = discoverModuleRegistry().listSearchProviders();
+    expect(providers.some((provider) => provider.moduleId === "today")).toBe(
+      false,
     );
-    expect(project?.target).toMatchObject({ drawerKey: "project:p-dalyhub" });
-
-    const note = (await run("Standup notes")).find(
-      (r) => r.entityType === "note",
+    expect(providers.some((provider) => provider.id === "today.search")).toBe(
+      false,
     );
-    expect(note?.target).toMatchObject({ drawerKey: "note:n-standup" });
-
-    const meeting = (await run("Design standup")).find(
-      (r) => r.entityType === "meeting",
-    );
-    expect(meeting?.target).toMatchObject({ drawerKey: "upcoming:u-standup" });
-  });
-
-  it("maps reminders and deadlines to the task identity (UPCOMING_KIND)", async () => {
-    const reminder = (await run("Water the plants"))[0];
-    expect(reminder?.entityType).toBe("task");
-    expect(reminder?.target).toMatchObject({ drawerKey: "upcoming:u-water" });
-  });
-
-  it("does not duplicate fixture records and excludes non-openable timeline entries", async () => {
-    const all = await run("", 100);
-    // Empty query still returns all candidates here (the orchestrator gates empty
-    // queries upstream); assert the candidate set has no timeline ids.
-    // TASKS-01 retired the focus (task) candidates from Today search.
-    const openable =
-      TODAY_FIXTURE.upcoming.length +
-      TODAY_FIXTURE.projects.length +
-      TODAY_FIXTURE.notes.length;
-    const ids = new Set(all.map((r) => r.id));
-    expect(ids.size).toBe(all.length); // no duplicates
-    expect(all.length).toBeLessThanOrEqual(openable);
-    expect(all.some((r) => r.id.startsWith("timeline"))).toBe(false);
-  });
-
-  it("honours the per-provider limit", async () => {
-    const limited = await run("", 2);
-    expect(limited.length).toBeLessThanOrEqual(2);
   });
 });

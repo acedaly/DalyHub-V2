@@ -912,8 +912,8 @@ note transclusion — see [Deferrals](#deferrals).
 [PROJ-03](../roadmap/ROADMAP_V2.md#-proj-03--knowledge) ☑.
 
 **Relevant product-debt items.** [DEBT-39](../product/PRODUCT_DEBT.md#-debt-39--wiki-links-create-no-entitylink-and-the-resolver-scans-the-whole-workspace--p2) ☑ ·
-[DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2) ◐ (Notes closed; Projects/Areas/Goals/Diary remain) ·
-[DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) ◐ (the fixture `note:` results are now shadowed by real ones, but the fixture provider is still registered) ·
+[DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2) ☑ ·
+[DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) ☑ ·
 [DEBT-08](../product/PRODUCT_DEBT.md#-debt-08--ad-hoc-cross-entity-links--p2) ·
 [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
 

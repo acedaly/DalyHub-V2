@@ -56,8 +56,10 @@ import {
   type DiaryEntry,
   type DiaryEntryChangeResult,
   type DiaryRepository,
+  type DiarySearchHit,
   type DiaryTimelinePage,
   type ListDiaryTimelineInput,
+  type SearchDiaryEntriesInput,
   type UpdateDiaryEntryInput,
 } from "~/kernel/diary";
 import {
@@ -74,6 +76,7 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
+import { likeContains, likePrefix } from "./like-pattern";
 
 /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
 export type D1DiaryCreateFault = "after-entity" | "after-details";
@@ -320,6 +323,53 @@ export class D1DiaryRepository implements DiaryRepository {
       throw new DiaryStorageError({ cause });
     }
     return row ? this.#rowToEntry(row) : null;
+  }
+
+  async search(
+    input: SearchDiaryEntriesInput,
+  ): Promise<readonly DiarySearchHit[]> {
+    const text = input.text.trim().toLocaleLowerCase();
+    if (text.length === 0) return [];
+    const limit = validateDiaryLimit(input.limit);
+    const like = likeContains(text);
+    const prefix = likePrefix(text);
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT e.id, e.title, d.entry_type, d.occurred_at, d.timezone
+           FROM entities e
+           JOIN diary_entry_details d
+             ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
+           WHERE e.workspace_id = ? AND e.type = '${DIARY_ENTITY_TYPE}'
+                 AND e.deleted_at IS NULL
+                 AND lower(e.title) LIKE ? ESCAPE '\\'
+           ORDER BY CASE
+                      WHEN lower(e.title) = ? THEN 0
+                      WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 1
+                      ELSE 2
+                    END,
+                    d.occurred_at DESC,
+                    e.id DESC
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, like, text, prefix, limit)
+        .all<{
+          readonly id: string;
+          readonly title: string;
+          readonly entry_type: string;
+          readonly occurred_at: string;
+          readonly timezone: string;
+        }>();
+      return result.results.map((row) => ({
+        id: row.id,
+        title: row.title,
+        entryType: row.entry_type,
+        occurredAt: fromStorageTimestamp(row.occurred_at),
+        timezone: row.timezone,
+      }));
+    } catch (cause) {
+      throw new DiaryStorageError({ cause });
+    }
   }
 
   /* ---------------------------------------------------------------------- */

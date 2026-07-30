@@ -115,6 +115,8 @@ export type { DiaryDayGroup, DiaryMonthGroup } from "./diary-grouping";
 
 export type {
   DiaryRepository,
+  DiarySearchHit,
   ListDiaryTimelineInput,
+  SearchDiaryEntriesInput,
   DiaryTimelinePage,
 } from "./diary-repository";

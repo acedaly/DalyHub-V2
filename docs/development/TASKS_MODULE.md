@@ -152,8 +152,11 @@ follow-up date — but P3 never *requires* a delegatee.
 
 The Tasks module registers a **real, repository-backed** search provider
 (`app/modules/tasks/search.ts`) over active `task` entities (bounded, workspace-
-scoped, opens the canonical Drawer). The fixture-backed Today task search was
-retired so there is ONE trustworthy task search. Navigation commands: New Task ·
+scoped, opens the canonical Drawer). The projection returns parent context,
+priority, due/scheduled dates and completion/workflow fields in one query, so
+global Search can render the shared `PriorityIndicator` and `UrgencyChip` without
+per-result `getTask()` calls. The fixture-backed Today task search was retired so
+there is ONE trustworthy task search. Navigation commands: New Task ·
 Open Tasks · Open This Week · Open Matrix · Open Time Sectors · Open Someday/Maybe.
 
 ## Shared signal presentation (TASKS-02)
@@ -178,11 +181,9 @@ Both live in the Card `metadata` slot; the display-state stays the Card `status`
 pill, resolved by the ONE `taskDisplayState` evaluator (the legacy `taskDisplayStatus`
 was retired in TASKS-02, so Today, Projects and `/tasks` share one state vocabulary).
 Colour and icon are reinforcement only — the tag/word always carries the meaning
-(AGENTS.md §15). Styling is token-only (`app/styles/task-signals.css`). Rendering the
-signals inside global **Search** results (which requires extending the shared
-`SearchResultItem` contract + surface and a bounded task-search projection) is a
-sanctioned follow-up (ROADMAP TASKS-02), deferred to keep this change coherent —
-Search itself is unchanged and continues to open the canonical Drawer.
+(AGENTS.md §15). Styling is token-only (`app/styles/task-signals.css`). Global
+Search now uses the same components through the generic Search signal slot
+([TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search)).
 
 ## Meetings integration (MEET-02)
 
@@ -209,7 +210,7 @@ canonical Drawer. All three surfaces read the one shared display-state evaluator
 
 ## Status (2026-07-27 reconciliation)
 
-**Current status.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) is **☑ Done** — reconciled from ◐ by this audit after verifying its acceptance criteria individually against `main` at `b1a2f65`. [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) is ☑; [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) remains ☐.
+**Current status.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module), [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) and [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) are **☑ Done**.
 
 **Delivered capabilities.**
 
@@ -225,13 +226,12 @@ canonical Drawer. All three surfaces read the one shared display-state evaluator
 **Known limitations.**
 
 - **Today does not exclude or label `on_hold`.** `/tasks`'s `active` system view excludes on-hold work, but Today's `listPlanningTasks` filters only Someday and Cancelled, and its `PlanningTaskItem` projection carries no status — so a paused task appears in Today's planning buckets indistinguishable from active work. Today is the one task-bearing surface that does not run `taskDisplayState`. [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2).
-- **Search results carry no priority or urgency signal.** The shared `SearchResultItem` renders icon/title/subtitle only. Split out as [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search).
 - Task removal is a Drawer status `<select>` (cancel), not the shared lifecycle pattern other modules use — [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28).
 - A few Today task actions are reachable only through their visible controls, not a dedicated palette command — [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3). This is a discoverability gap, not an accessibility one.
 
-**Deferred work.** Task signals in global Search ([TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search)); delegation to a real Person EntityLink (the `delegate_to` column is plain text today, deliberately EntityLink-ready); recurrence; time tracking.
+**Deferred work.** Delegation to a real Person EntityLink (the `delegate_to` column is plain text today, deliberately EntityLink-ready); recurrence; time tracking.
 
-**Relevant roadmap items.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) ☑ · [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) ☑ · [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) ☐ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐.
+**Relevant roadmap items.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) ☑ · [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) ☑ · [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐.
 
 **Relevant product-debt items.** [DEBT-16](../product/PRODUCT_DEBT.md#-debt-16--minimal-task-detail-model-richer-workflow-status-deferred--p3) ☑ (closed by TASKS-01) · [DEBT-27](../product/PRODUCT_DEBT.md#-debt-27--task-overdue-urgency-is-signalled-by-colour-alone--p1) ☑ · [DEBT-28](../product/PRODUCT_DEBT.md#-debt-28--task-priority-is-invisible-where-triage-happens-and-status-resolves-three-different-ways--p2) ☑ · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) ☐ · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3) ☐ · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28) ☐.
 

@@ -10,20 +10,19 @@
  * renders Today's row with the generic navigation glyph — the shell's documented
  * fallback (PrimaryNavigation) — composed exactly as intended, with no shell change.
  *
- * It contributes the single navigable route (`routes.manifest.ts`), a fixture-backed
- * SEARCH PROVIDER (`search.ts`, DS-08) and — now that DS-09 supplies the palette and
- * the discriminated command contract — two honest NAVIGATION COMMANDS (`commands.ts`):
+ * It contributes the single navigable route (`routes.manifest.ts`) and — now that
+ * DS-09 supplies the palette and the discriminated command contract — two honest
+ * NAVIGATION COMMANDS (`commands.ts`):
  * "Go to Today" and "Focus Quick Capture". They are declarative (they open a route),
  * so they need no `run` handler and persist nothing; the palette navigates to them
- * directly (ADR-024 §24.15). Today remains fixture-only — no repositories, D1, APIs,
- * AI or persistence — so it registers no EXECUTABLE (server-mutating) command.
+ * directly (ADR-024 §24.15). Today is a derived dashboard, not a record collection:
+ * it registers no Search provider and never manufactures records from fixtures.
  */
 
 import { defineModule } from "~/kernel/modules";
 
 import { todayCommands } from "./commands";
 import routes from "./routes.manifest";
-import { todaySearchProvider } from "./search";
 
 export default defineModule({
   id: "today",
@@ -32,5 +31,4 @@ export default defineModule({
   order: 5,
   routes,
   commands: todayCommands,
-  searchProviders: [todaySearchProvider],
 });

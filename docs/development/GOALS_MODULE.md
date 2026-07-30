@@ -589,6 +589,13 @@ since:** the Goal record's Projects tab now has an interactive "Load more"
 - [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
   / [ADR-040](../decisions/ARCHITECTURE_DECISIONS.md#adr-040--alignment-a-derived-non-persisted-goaltask-activity-signal-hosted-on-the-real-goals-collection)
 
+## Global Search (X-01)
+
+Goals register `goals.search`, backed by `GoalRepository.searchGoals`. It searches
+Goal titles through one bounded workspace-scoped D1 projection and returns
+canonical `/goals/:id` route targets. The preview is limited to parent Area,
+open/completed state, target date and contributing-Project completion counts.
+
 ---
 
 ## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)

@@ -10,6 +10,8 @@ export type {
   ProjectRelation,
   ProjectStateFilter,
   ProjectOrder,
+  ProjectSearchInput,
+  ProjectSearchHit,
   ListProjectsInput,
   ProjectListItem,
   ProjectListPage,

@@ -504,6 +504,17 @@ floating capture action, integrated with the existing shell.
 
 ---
 
+## Global Search (X-01)
+
+Diary registers `diary.search`, backed by `DiaryRepository.search`. It searches
+Diary titles only through one bounded workspace-scoped D1 projection and opens the
+entry through the existing `/diary?inspector=view:<id>` route-backed Inspector.
+The Search payload selects title, entry type and occurrence time only; Diary body
+prose is not selected and cannot appear in a global Search snippet or Recent
+history.
+
+---
+
 ## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)
 
 **A Diary entry can finally be removed, and Diary stopped forking two shared things.**

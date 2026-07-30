@@ -4,7 +4,8 @@ import type {
   SearchResultItem,
 } from "~/kernel/modules";
 const search: SearchExecutor = async (query, context) => {
-  if (!query.text.trim()) return [];
+  const text = query.text.trim();
+  if (text.length === 0 || query.limit <= 0) return [];
   const spec = "cloudflare:workers";
   const [{ env }, { bindWorkspaceRepositories }, { createSystemActorContext }] =
     await Promise.all([
@@ -21,7 +22,7 @@ const search: SearchExecutor = async (query, context) => {
   );
   const page = await scope.meetings.list({
     view: "recent",
-    query: query.text,
+    query: text,
     limit: query.limit,
   });
   return page.items.map<SearchResultItem>((m) => ({

@@ -34,11 +34,13 @@ import type {
   PlanTaskResult,
   ProjectTaskListPage,
   SearchTaskParentsInput,
+  SearchTasksInput,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
   TaskParentCandidate,
   TaskPriority,
+  TaskSearchHit,
   TaskStatus,
   TaskView,
   TimeSector,
@@ -92,6 +94,13 @@ export interface TaskRepository {
    * a safe default and maximum page size. Never an unbounded "load everything".
    */
   listTasks(input?: ListTasksInput): Promise<TaskListPage>;
+
+  /**
+   * Search non-deleted Tasks by title for global Search. Returns the planning
+   * fields and parent context in one bounded projection so Search can render
+   * priority/urgency signals without per-result detail reads.
+   */
+  searchTasks(input: SearchTasksInput): Promise<readonly TaskSearchHit[]>;
 
   /**
    * List the tasks belonging to ONE Project (PROJ-01) as bounded, deterministic

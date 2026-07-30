@@ -23,6 +23,10 @@ function palette(page: Page) {
   return page.getByRole("combobox", { name: "Search commands and records" });
 }
 
+function feedbackLive(page: Page) {
+  return page.locator(".dh-feedback-live");
+}
+
 async function openTodayList(page: Page) {
   await gotoFixture(page, "/today");
   await expect(
@@ -139,7 +143,9 @@ test.describe("TODAY-05 — shortcut boundary", () => {
     // "no dialog" assertion is replaced by the specific side effects that would
     // mean a shortcut had fired.)
     await expect(page.getByText(/Task completed/i)).toHaveCount(0);
-    await expect(page.getByText(/Plan updated|tasks planned/i)).toHaveCount(0);
+    await expect(
+      feedbackLive(page).filter({ hasText: /Plan updated|tasks planned/i }),
+    ).toHaveCount(0);
   });
 
   test("a task shortcut does not fire behind the keyboard-help Drawer", async ({
@@ -162,7 +168,9 @@ test.describe("TODAY-05 — shortcut boundary", () => {
 
     // The stale task was NOT completed or replanned — no such feedback appears.
     await expect(page.getByText(/Task completed/i)).toHaveCount(0);
-    await expect(page.getByText(/Plan updated|tasks planned/i)).toHaveCount(0);
+    await expect(
+      feedbackLive(page).filter({ hasText: /Plan updated|tasks planned/i }),
+    ).toHaveCount(0);
 
     // Close the Drawer; the task is unchanged and still in its open section.
     await page.keyboard.press("Escape");

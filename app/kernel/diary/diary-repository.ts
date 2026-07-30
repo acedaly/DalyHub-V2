@@ -52,12 +52,25 @@ export type ListDiaryTimelineInput = {
   readonly includeDeleted?: boolean;
 };
 
+export type SearchDiaryEntriesInput = {
+  readonly text: string;
+  readonly limit?: number;
+};
+
 /** A bounded Timeline page plus the cursor to fetch the next one. */
 export type DiaryTimelinePage = {
   readonly items: ReadonlyArray<DiaryEntry>;
   /** Null when there are no further entries in this scope. */
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
+};
+
+export type DiarySearchHit = {
+  readonly id: string;
+  readonly title: string;
+  readonly entryType: string;
+  readonly occurredAt: Date;
+  readonly timezone: string;
 };
 
 export interface DiaryRepository {
@@ -103,4 +116,10 @@ export interface DiaryRepository {
    * so pagination and grouping compose cleanly.
    */
   list(input?: ListDiaryTimelineInput): Promise<DiaryTimelinePage>;
+
+  /**
+   * Search live Diary Entries by title only. Body prose is intentionally not part
+   * of the global Search projection because Diary content is sensitive.
+   */
+  search(input: SearchDiaryEntriesInput): Promise<readonly DiarySearchHit[]>;
 }

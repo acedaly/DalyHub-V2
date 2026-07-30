@@ -27,6 +27,7 @@ import {
   PROJECT_RESTORED,
   PROJECT_STATUS_CHANGED,
 } from "~/kernel/project-settings";
+import { projectsSearchProvider } from "./search";
 
 export default defineModule({
   id: "projects",
@@ -35,6 +36,7 @@ export default defineModule({
   order: 30,
   routes,
   entityTypes: [{ type: PROJECT, singular: "Project", plural: "Projects" }],
+  searchProviders: [projectsSearchProvider],
   entityLinkTypes: [
     {
       type: PROJECT_BELONGS_TO_AREA,

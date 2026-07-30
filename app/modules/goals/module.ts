@@ -22,6 +22,7 @@ import {
 } from "~/kernel/spine";
 
 import routes from "./routes.manifest";
+import { goalsSearchProvider } from "./search";
 
 export default defineModule({
   id: "goals",
@@ -30,6 +31,7 @@ export default defineModule({
   order: 20,
   routes,
   entityTypes: [{ type: GOAL, singular: "Goal", plural: "Goals" }],
+  searchProviders: [goalsSearchProvider],
   entityLinkTypes: [
     {
       type: GOAL_BELONGS_TO_AREA,

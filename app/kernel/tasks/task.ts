@@ -279,6 +279,13 @@ export type TaskListPage = {
   readonly items: readonly TaskListItem[];
 };
 
+export type SearchTasksInput = {
+  readonly text: string;
+  readonly limit?: number;
+};
+
+export type TaskSearchHit = TaskListItem;
+
 /** The completion filter for a project's task list (PROJ-01). */
 export type TaskStateFilter = "open" | "completed" | "all";
 

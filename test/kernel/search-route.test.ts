@@ -9,7 +9,15 @@ import type { SearchOutcome } from "~/shared/search/model";
 
 import {
   makeContext,
+  makeAssetRepository,
+  makeDiaryRepository,
+  makeMeetingRepository,
+  makeNoteDetailsRepository,
+  makePersonRepository,
+  makeRepository,
+  makeReviewRepository,
   makeSpineRepository,
+  makeTaskRepository,
   makeWorkspaceRepository,
   resetTables,
 } from "./support";
@@ -72,6 +80,69 @@ async function seedConfiguredWorkspace(): Promise<void> {
   });
 }
 
+async function seedEverySearchableRecord(): Promise<void> {
+  await makeWorkspaceRepository().create({
+    id: parseWorkspaceId(CONFIGURED_WORKSPACE),
+  });
+  const context = makeContext(CONFIGURED_WORKSPACE);
+  const spine = makeSpineRepository(context);
+  const area = await spine.createArea({ title: "GlobalSearch Area" });
+  const goal = await spine.createGoal({
+    title: "GlobalSearch Goal",
+    areaId: area.id,
+  });
+  const project = await spine.createProject({
+    title: "GlobalSearch Project",
+    parent: { kind: "goal", id: goal.id },
+  });
+  const task = await spine.createTask({
+    title: "GlobalSearch Task",
+    parent: { kind: "project", id: project.id },
+  });
+  await makeTaskRepository(context).updateTask(task.id, {
+    priority: "p1",
+    dueDate: "2026-07-29",
+  });
+
+  const entityRepo = makeRepository(context);
+  const note = await entityRepo.create({
+    type: "note",
+    title: "Repository Note",
+  });
+  await makeNoteDetailsRepository(context).update(
+    note.id,
+    "# GlobalSearch Note Heading\n\nBody that should be safe syntax-free.",
+  );
+
+  await makeDiaryRepository(context).create({
+    entryType: "reflection",
+    title: "GlobalSearch Diary",
+    body: "Private diary prose that must not appear in Search.",
+  });
+  await makePersonRepository(context).create({
+    title: "GlobalSearch Person",
+    email: "private-person@example.test",
+    mobile: "+61 400 000 000",
+  });
+  await makeMeetingRepository(context).create({
+    title: "GlobalSearch Meeting",
+    startsAt: "2026-07-29T09:00:00.000Z",
+    timezone: "UTC",
+  });
+  await makeAssetRepository(context).create({
+    title: "GlobalSearch Asset",
+    assetType: "tool",
+    serialNumber: "SECRET-SERIAL-123",
+    referenceNumber: "SECRET-POLICY-456",
+  });
+  await makeReviewRepository(context).create({
+    type: "custom",
+    periodStart: "2026-07-01",
+    periodEnd: "2026-07-31",
+    title: "GlobalSearch Review",
+  });
+}
+
 describe("GET /search route loader", () => {
   beforeEach(async () => {
     await resetTables();
@@ -94,6 +165,86 @@ describe("GET /search route loader", () => {
       expect(finish.target.drawerKey).toMatch(/^task:/);
       expect(finish.target.canonicalPath).toBe("/tasks");
     }
+  });
+
+  it("returns real repository-backed results from every shipped record provider", async () => {
+    await seedEverySearchableRecord();
+    const response = await runLoader(request("GlobalSearch"), authedContext());
+    expect(response.status).toBe(200);
+    const outcome = (await response.json()) as SearchOutcome;
+    expect(outcome.status).toBe("ok");
+    expect(outcome.providers.map((provider) => provider.providerId)).toEqual([
+      "areas.search",
+      "goals.search",
+      "projects.search",
+      "tasks.search",
+      "notes.search",
+      "diary.search",
+      "meetings.search",
+      "people.search",
+      "assets.search",
+      "reviews.search",
+    ]);
+
+    const results = outcome.groups.flatMap((group) => group.results);
+    expect(new Set(results.map((result) => result.entityType))).toEqual(
+      new Set([
+        "area",
+        "goal",
+        "project",
+        "task",
+        "note",
+        "diary",
+        "meeting",
+        "person",
+        "asset",
+        "review",
+      ]),
+    );
+    const task = results.find((result) => result.entityType === "task");
+    expect(task?.target).toMatchObject({
+      kind: "drawer",
+      canonicalPath: "/tasks",
+    });
+    expect(task?.signals?.map((signal) => signal.kind)).toEqual([
+      "priority",
+      "urgency",
+    ]);
+
+    const payload = JSON.stringify(outcome);
+    expect(payload).not.toContain("Private diary prose");
+    expect(payload).not.toContain("private-person@example.test");
+    expect(payload).not.toContain("+61 400 000 000");
+    expect(payload).not.toContain("SECRET-SERIAL-123");
+    expect(payload).not.toContain("SECRET-POLICY-456");
+    expect(payload).not.toContain("today.search");
+  });
+
+  it("excludes archived People from global Search", async () => {
+    await makeWorkspaceRepository().create({
+      id: parseWorkspaceId(CONFIGURED_WORKSPACE),
+    });
+    const personRepo = makePersonRepository(makeContext(CONFIGURED_WORKSPACE));
+    const person = await personRepo.create({
+      title: "ArchivedSearch Person",
+      email: "archived-person@example.test",
+    });
+    await personRepo.archive(person.id);
+
+    const response = await runLoader(
+      request("ArchivedSearch Person"),
+      authedContext(),
+    );
+    expect(response.status).toBe(200);
+    const outcome = (await response.json()) as SearchOutcome;
+    expect(outcome.status).toBe("ok");
+    const results = outcome.groups.flatMap((group) => group.results);
+    expect(results.some((result) => result.id === `person:${person.id}`)).toBe(
+      false,
+    );
+    expect(JSON.stringify(outcome)).not.toContain(
+      "archived-person@example.test",
+    );
   });
 
   it("ignores a forged workspace query parameter", async () => {

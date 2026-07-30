@@ -56,12 +56,13 @@ test.describe("TASKS-01 — desktop", () => {
   }) => {
     await gotoFixture(page, "/tasks?view=list&system=overdue");
 
-    // The always-overdue seeded task (`pht-overdue`, due 2000-01-01) shows the
-    // Overdue urgency chip — the WORD, not merely a red date (DEBT-28). The smart
-    // sort surfaces overdue work first, so it is on the first page. The card is
-    // pinned to its exact-named title link so the locator is unambiguous.
+    // The dedicated non-mutated overdue task (`t-overdue-signal`, due 2000-01-01)
+    // shows the Overdue urgency chip — the WORD, not merely a red date (DEBT-28).
+    // The card is pinned to its exact-named title link so the locator is
+    // unambiguous and independent of the Project Health journey mutating
+    // `pht-overdue`.
     const overdueCard = page.getByRole("article", {
-      name: "Open Submit the abstract",
+      name: "Open Review the overdue signal",
     });
     await expect(overdueCard.getByText(/Overdue.*1 Jan 2000/)).toBeVisible();
 

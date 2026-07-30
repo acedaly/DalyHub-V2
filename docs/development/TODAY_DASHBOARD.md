@@ -536,8 +536,7 @@ layer (ADR-045) and preserves the TODAY-02…06 execution core bit-for-bit.
 
 TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks
 module (creation UI, board, planning), a richer workflow status,
-search-over-real-tasks (the DS-08 provider stays fixture-backed —
-[DEBT-17](../product/PRODUCT_DEBT.md)), AI, or any second Drawer/Record
+AI, or any second Drawer/Record
 Layout/form/Activity/EntityLinks system. The non-task Today sections remain
 fixture-only: no Notes, Meetings, reminders or Diary implementation. TODAY-03 adds
 Waiting (above) but no multi-target waiting, delegation workflow beyond the waiting
@@ -571,16 +570,12 @@ change.
    into planning sections with per-card plan/complete actions and multi-select bulk
    planning — and TODAY-05 (Keyboard) will complete the full keyboard-driven
    execution flow. (Reordering WITHIN a bucket is still deferred to TODAY-05.)
-2. **Search provider (added by DS-08).** The Today module now registers a real,
-   registry-discovered, **fixture-backed** search provider
-   ([`app/modules/today/search.ts`](../../app/modules/today/search.ts)) over the
-   TODAY-01 fixtures (focus tasks, upcoming meetings/reminders/deadlines, projects,
-   notes). It returns the existing Today Drawer keys (`task:<id>`, `upcoming:<id>`,
-   `project:<id>`, `note:<id>`) with `canonicalPath: "/today"`, so a Shared Search
-   result opens the current DS-03 Record Layout in the Drawer. It duplicates no
-   fixtures and adds no persistence; when Today swaps to real product repositories,
-   **only the executor changes** — the shared provider contract does not. See
-   [`SHARED_SEARCH.md`](SHARED_SEARCH.md) and [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation).
+2. **Search provider (retired by X-01).** Today is a derived dashboard, not an
+   entity collection, so it registers **no** Search provider. Global Search finds
+   the real records Today summarises through their owning modules (Tasks, Projects,
+   Notes, Diary, Meetings, People, Assets, Reviews, Areas and Goals), never through
+   invented Today fixture ids. See [`SHARED_SEARCH.md`](SHARED_SEARCH.md) and
+   [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation).
 3. **Commands (DS-09).** Today now registers two honest, registry-discovered
    NAVIGATION commands ([`app/modules/today/commands.ts`](../../app/modules/today/commands.ts)):
    **Go to Today** (opens `/today`) and **Focus Quick Capture** (opens
@@ -648,7 +643,6 @@ change.
 
 - **Quick Capture does not create a Task.** `onCapture` shows *"Quick Capture is not connected yet. Your draft has not been saved."* and writes nothing. The copy is honest, but the action is inert — [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring). Its dependency is now unblocked: TASKS-01 ships the atomic creation path and the quick-capture parser to wire into.
 - **Today is the only surface not using the shared `EmptyState`.** Every other module adopted it; `TodayDashboard.tsx` and `landing/widgets.tsx` render bare inline paragraphs — [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2--presentation-half-resolved-2026-07-28).
-- **The Today search provider is still fixture-backed.** It no longer contributes fake *task* results (TASKS-01 replaced those with a real provider), but it still returns invented `upcoming:`, `project:` and `note:` results that open placeholder Drawers — [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1), [DEBT-19](../product/PRODUCT_DEBT.md#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3).
 - **On-hold tasks appear in the planning buckets** with no label, though `/tasks` excludes them — [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2).
 - Widget arrangement is per-device `localStorage`, not synced — [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3). A deliberate first cut.
 - A "Continue working" Project card's parent Area is an inert label — [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3).
@@ -657,7 +651,7 @@ change.
 
 **Relevant roadmap items.** [TODAY-01](../roadmap/ROADMAP_V2.md#-today-01--today-dashboard)…[TODAY-06](../roadmap/ROADMAP_V2.md#-today-06--mobile) ☑ · [TODAY-08](../roadmap/ROADMAP_V2.md#-today-08--today-as-the-command-centre) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐ · [PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention) ☐.
 
-**Relevant product-debt items.** [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) · [DEBT-19](../product/PRODUCT_DEBT.md#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3) · [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3) · [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2--presentation-half-resolved-2026-07-28) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3) · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3).
+**Relevant product-debt items.** [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) ☑ · [DEBT-19](../product/PRODUCT_DEBT.md#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3) ☑ · [DEBT-25](../product/PRODUCT_DEBT.md#-debt-25--today-continue-working-project-cards-area-context-is-not-navigable--p3) · [DEBT-31](../product/PRODUCT_DEBT.md#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2--presentation-half-resolved-2026-07-28) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3) · [DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) · [DEBT-18](../product/PRODUCT_DEBT.md#-debt-18--reserved-cross-app-keyboard-vocabulary--a-few-today-actions-lack-a-dedicated-palette-command--p3).
 
 ---
 

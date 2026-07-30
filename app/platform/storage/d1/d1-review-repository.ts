@@ -70,6 +70,7 @@ import {
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
+import { likeContains } from "./like-pattern";
 
 export type D1ReviewCreateFault = "after-entity" | "after-details";
 
@@ -139,11 +140,6 @@ const EFFECTIVE_UPDATED_EXPR = `max(
             FROM review_sections rs
             WHERE rs.workspace_id = e.workspace_id AND rs.review_id = e.id), d.updated_at)
 )`;
-
-function likeContains(value: string): string {
-  const escaped = value.replace(/[\\%_]/g, (c) => `\\${c}`);
-  return `%${escaped}%`;
-}
 
 function uniqueConstraint(error: unknown): boolean {
   return (

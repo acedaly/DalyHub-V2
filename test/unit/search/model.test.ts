@@ -195,6 +195,43 @@ describe("validateResultItem", () => {
     );
     expect(blank!.entityId).toBeUndefined();
   });
+
+  it("accepts bounded serialisable signals and rejects malformed entries", () => {
+    const result = validateResultItem(
+      item({
+        signals: [
+          {
+            id: "priority",
+            kind: "priority",
+            label: "P1",
+            value: "p1",
+            tone: "neutral",
+            accessibleLabel: "P1 priority",
+          },
+          { id: "", kind: "urgency", label: "Due today" },
+          {
+            id: "bad-tone",
+            kind: "state",
+            label: "State",
+            tone: "loud" as never,
+          },
+        ],
+      }),
+      "tasks",
+      "tasks.search",
+    );
+    expect(result?.signals).toEqual([
+      {
+        id: "priority",
+        kind: "priority",
+        label: "P1",
+        value: "p1",
+        tone: "neutral",
+        accessibleLabel: "P1 priority",
+      },
+      { id: "bad-tone", kind: "state", label: "State" },
+    ]);
+  });
 });
 
 describe("dedupeTagged", () => {
@@ -224,7 +261,7 @@ describe("fuzzyMatch", () => {
 });
 
 describe("rankResults", () => {
-  it("orders exact > prefix > token > fuzzy > subtitle", () => {
+  it("orders exact > prefix > token > subtitle > fuzzy", () => {
     const results: TaggedResult[] = [
       tagged({ itemId: "fuzzy", title: "Fedora exploration ... x" }),
       tagged({
@@ -241,8 +278,8 @@ describe("rankResults", () => {
       "exact",
       "prefix",
       "token",
-      "fuzzy",
       "subtitle",
+      "fuzzy",
     ]);
   });
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { mobileNavigationOpener } from "./helpers";
-import type { Page } from "@playwright/test";
+import { expectNoAxeViolations, mobileNavigationOpener } from "./helpers";
+import type { Locator, Page } from "@playwright/test";
 
 /**
  * DS-08 Shared Search — driven end to end against the development-auth server.
@@ -30,6 +30,28 @@ async function openSearch(page: Page) {
   const input = page.getByRole("combobox", { name: "Search everything" });
   await expect(input).toBeVisible();
   return input;
+}
+
+function searchPanel(page: Page) {
+  return page.locator(".dh-search__panel");
+}
+
+function optionFor(page: Page, title: string) {
+  return page
+    .getByRole("listbox")
+    .getByRole("option")
+    .filter({ hasText: title })
+    .first();
+}
+
+async function expectSearchResult(
+  page: Page,
+  input: Locator,
+  query: string,
+  title: string,
+) {
+  await input.fill(query);
+  await expect(optionFor(page, title)).toBeVisible();
 }
 
 test.describe("DS-08 Shared Search — desktop", () => {
@@ -96,6 +118,165 @@ test.describe("DS-08 Shared Search — desktop", () => {
     await expect(
       page.getByRole("heading", { name: "No results" }),
     ).toBeVisible();
+  });
+
+  test("finds real records across shipped modules with safe previews, task signals and Recent", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await page.evaluate(() => window.localStorage.clear());
+    const input = await openSearch(page);
+
+    const providerIds = await page.evaluate(async () => {
+      const response = await fetch("/search?q=Global%20Search%20E2E");
+      const payload = (await response.json()) as {
+        providers: { providerId: string }[];
+      };
+      return payload.providers.map((provider) => provider.providerId);
+    });
+    expect(providerIds).toEqual([
+      "areas.search",
+      "goals.search",
+      "projects.search",
+      "tasks.search",
+      "notes.search",
+      "diary.search",
+      "meetings.search",
+      "people.search",
+      "assets.search",
+      "reviews.search",
+    ]);
+    expect(providerIds).not.toContain("today.search");
+
+    await expectSearchResult(page, input, "DalyHub V2", "DalyHub V2");
+    await expectSearchResult(page, input, "Launch the site", "Launch the site");
+    await expectSearchResult(
+      page,
+      input,
+      "Website relaunch",
+      "Website relaunch",
+    );
+    await expectSearchResult(
+      page,
+      input,
+      "Global Search E2E Task",
+      "Global Search E2E Task",
+    );
+    const taskOption = optionFor(page, "Global Search E2E Task");
+    await expect(taskOption).toContainText("P1");
+    await expect(taskOption).toContainText(/Overdue|Due today/);
+
+    await expectSearchResult(
+      page,
+      input,
+      "Search Body Heading E2E",
+      "Global Search E2E Note",
+    );
+    await expectSearchResult(
+      page,
+      input,
+      "Global Search E2E Diary",
+      "Global Search E2E Diary",
+    );
+    await expect(searchPanel(page)).not.toContainText(
+      "PRIVATE-DIARY-BODY-SEARCH-E2E",
+    );
+    await expectSearchResult(
+      page,
+      input,
+      "Global Search E2E Person",
+      "Global Search E2E Person",
+    );
+    await expect(searchPanel(page)).not.toContainText(
+      "private-search-person@example.test",
+    );
+    await expect(searchPanel(page)).not.toContainText("+61 400 111 222");
+    await expect(searchPanel(page)).not.toContainText(
+      "PRIVATE-PERSON-NOTES-SEARCH-E2E",
+    );
+    await expectSearchResult(
+      page,
+      input,
+      "Global Search E2E Meeting",
+      "Global Search E2E Meeting",
+    );
+    await expect(searchPanel(page)).not.toContainText(
+      "PRIVATE-MEETING-AGENDA-SEARCH-E2E",
+    );
+    await expect(searchPanel(page)).not.toContainText(
+      "PRIVATE-MEETING-NOTES-SEARCH-E2E",
+    );
+    await expectSearchResult(
+      page,
+      input,
+      "Global Search E2E Asset",
+      "Global Search E2E Asset",
+    );
+    await expect(searchPanel(page)).not.toContainText(
+      "PRIVATE-ASSET-SERIAL-SEARCH-E2E",
+    );
+    await expect(searchPanel(page)).not.toContainText(
+      "PRIVATE-ASSET-POLICY-SEARCH-E2E",
+    );
+    await expectSearchResult(
+      page,
+      input,
+      "Global Search E2E Review",
+      "Global Search E2E Review",
+    );
+    await expect(searchPanel(page)).not.toContainText(
+      "PRIVATE-REVIEW-REFLECTION-SEARCH-E2E",
+    );
+
+    await expectNoAxeViolations(page, { include: ".dh-search__panel" });
+
+    await input.fill("Website relaunch");
+    await optionFor(page, "Website relaunch").getByRole("link").click();
+    await expect(page).toHaveURL(/\/projects\/pr-website$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/today$/);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/projects\/pr-website$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/today$/);
+
+    const secondInput = await openSearch(page);
+    await secondInput.fill("Global Search E2E Task");
+    await optionFor(page, "Global Search E2E Task").getByRole("link").click();
+    await expect(page).toHaveURL(/\/tasks\?.*drawer=/);
+    await expect(
+      page.getByRole("dialog").getByRole("heading", {
+        level: 3,
+        name: "Global Search E2E Task",
+      }),
+    ).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/\/tasks(\?.*)?$/);
+    await openSearch(page);
+    await expect(
+      page.getByRole("listbox", { name: "Recent search results" }),
+    ).toBeVisible();
+    await expect(optionFor(page, "Global Search E2E Task")).toBeVisible();
+    await expect(searchPanel(page)).not.toContainText("PRIVATE-DIARY-BODY");
+    await page.getByRole("button", { name: "Clear" }).click();
+    await expect(
+      page.getByText("Search across everything in your workspace."),
+    ).toBeVisible();
+  });
+});
+
+test.describe("DS-08 Shared Search — real open surface axe (dark)", () => {
+  test.use({ colorScheme: "dark" });
+
+  test("has no violations with real Search results in dark theme", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    const input = await openSearch(page);
+    await input.fill("Global Search E2E Task");
+    await expect(optionFor(page, "Global Search E2E Task")).toBeVisible();
+    await expectNoAxeViolations(page, { include: ".dh-search__panel" });
   });
 });
 

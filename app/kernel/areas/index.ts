@@ -4,8 +4,10 @@
 
 export type {
   AreaListInput,
+  AreaSearchInput,
   AreaChildrenInput,
   AreaListItem,
+  AreaSearchHit,
   AreaOverview,
   AreaGoalItem,
   AreaProjectParentContext,

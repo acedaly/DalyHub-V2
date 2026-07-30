@@ -63,6 +63,7 @@ import {
 } from "~/platform/markdown/note-document";
 
 import { fromStorageTimestamp } from "./database";
+import { likeContains, likePrefix } from "./like-pattern";
 
 /**
  * The reserved structural spine link types, as a SQL literal list. They are
@@ -136,42 +137,6 @@ interface ContextRow {
 
 /** How many ids/titles are bound into one statement (D1 variable-limit safe). */
 const TITLE_CHUNK = 40;
-
-/**
- * D1 caps a LIKE pattern at {@link MAX_LIKE_PATTERN_LENGTH} bytes: a longer one
- * fails the WHOLE statement with `LIKE or GLOB pattern too complex`, not just
- * that predicate. A search box is exactly where an over-long value arrives (a
- * pasted title, a sentence), so the bound is enforced HERE rather than trusted
- * to callers — a long query degrades to matching its opening characters instead
- * of returning a storage error.
- */
-const MAX_LIKE_PATTERN_LENGTH = 50;
-
-/**
- * Escape LIKE wildcards so a query character is matched literally, then bound
- * the escaped value so the wrapped pattern fits D1's limit. A truncation is
- * never allowed to end on a lone escape character (which SQLite rejects).
- */
-function likeNeedle(value: string, wrappers: number): string {
-  let escaped = value
-    .toLocaleLowerCase()
-    .replace(/[\\%_]/g, (c) => `\\${c}`)
-    .slice(0, MAX_LIKE_PATTERN_LENGTH - wrappers);
-  // A trailing, unpaired escape character would make the pattern invalid.
-  const trailingEscapes = /\\*$/.exec(escaped)?.[0].length ?? 0;
-  if (trailingEscapes % 2 === 1) escaped = escaped.slice(0, -1);
-  return escaped;
-}
-
-/** `%value%` — a bounded, escaped "contains" pattern. */
-function likeContains(value: string): string {
-  return `%${likeNeedle(value, 2)}%`;
-}
-
-/** `value%` — a bounded, escaped "starts with" pattern. */
-function likePrefix(value: string): string {
-  return `${likeNeedle(value, 1)}%`;
-}
 
 function parseStoredTags(value: string | null): readonly string[] {
   if (!value) return [];
@@ -389,8 +354,8 @@ export class D1NoteRepository implements NoteQueryRepository {
     const text = normaliseNoteQuery(input.text);
     if (text === null) return [];
     const limit = clampLimit(input.limit, NOTE_SEARCH_MAX_LIMIT, 10);
-    const like = likeContains(text);
     const needle = text.toLocaleLowerCase();
+    const like = likeContains(needle);
 
     // `instr` gives the 1-based code-point offset of the first body hit; the
     // window is cut around it so a huge Note never crosses the wire. Both the
@@ -431,7 +396,7 @@ export class D1NoteRepository implements NoteQueryRepository {
       like,
       like,
       needle, // rank: exact title
-      likePrefix(text), // rank: title prefix
+      likePrefix(needle), // rank: title prefix
       like, // rank: title contains
       limit,
     ];

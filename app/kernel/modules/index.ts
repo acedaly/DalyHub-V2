@@ -43,6 +43,8 @@ export type {
   ExecutableCommandContribution,
   SearchQuery,
   SearchResultItem,
+  SearchResultSignal,
+  SearchResultSignalTone,
   SearchResultTarget,
   SearchRuntimeContext,
   SearchExecutor,

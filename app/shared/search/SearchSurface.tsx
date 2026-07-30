@@ -13,7 +13,14 @@
  * Highlighting is plain text + `<mark>` — never raw HTML.
  */
 
-import { useCallback, useEffect, useId, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 
@@ -25,9 +32,17 @@ import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
 
 import { Highlight } from "./HighlightText";
+import { SearchSignals } from "./SearchSignals";
 import type { SearchFn } from "./client";
 import { buildResultDestination, destinationHref } from "./navigation";
 import { recordAnchorFromPath } from "./record-anchor";
+import {
+  clearRecentSearchResults,
+  loadRecentSearchResults,
+  recentToRankedResult,
+  saveRecentSearchResult,
+} from "./recent";
+import { nextIndex, previousIndex } from "./selection";
 import { useSearchController } from "./useSearchController";
 import type { RankedSearchResult, SearchResultGroup } from "./types";
 
@@ -117,6 +132,12 @@ export default function SearchSurface({
   });
 
   const { flatResults, activeIndex } = controller;
+  const [recentResults, setRecentResults] = useState<RankedSearchResult[]>([]);
+  const [recentActiveIndex, setRecentActiveIndex] = useState(-1);
+
+  useEffect(() => {
+    setRecentResults(loadRecentSearchResults().map(recentToRankedResult));
+  }, []);
 
   // Map each result's global id to its flat index for aria-activedescendant.
   const indexById = useMemo(() => {
@@ -127,6 +148,9 @@ export default function SearchSurface({
 
   const activate = useCallback(
     (result: RankedSearchResult) => {
+      setRecentResults(
+        saveRecentSearchResult(result).map(recentToRankedResult),
+      );
       const destination = buildResultDestination(result.target, {
         pathname: location.pathname,
         search: location.search,
@@ -139,6 +163,42 @@ export default function SearchSurface({
 
   const handleInputKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
+      if (controller.phase === "idle" && recentResults.length > 0) {
+        switch (event.key) {
+          case "ArrowDown":
+            event.preventDefault();
+            setRecentActiveIndex((index) =>
+              nextIndex(index, recentResults.length),
+            );
+            break;
+          case "ArrowUp":
+            event.preventDefault();
+            setRecentActiveIndex((index) =>
+              previousIndex(index, recentResults.length),
+            );
+            break;
+          case "Home":
+            event.preventDefault();
+            setRecentActiveIndex(0);
+            break;
+          case "End":
+            event.preventDefault();
+            setRecentActiveIndex(recentResults.length - 1);
+            break;
+          case "Enter":
+            if (
+              recentActiveIndex >= 0 &&
+              recentActiveIndex < recentResults.length
+            ) {
+              event.preventDefault();
+              activate(recentResults[recentActiveIndex]);
+            }
+            break;
+          default:
+            break;
+        }
+        return;
+      }
       // Only the CURRENT result set is navigable/activatable. While a new query
       // loads, prior results may be visible but are stale and inert.
       if (!controller.resultsAreCurrent) {
@@ -175,7 +235,7 @@ export default function SearchSurface({
           break;
       }
     },
-    [activate, controller],
+    [activate, controller, recentActiveIndex, recentResults],
   );
 
   // Escape closes Search (the top-most surface). A document-level capture
@@ -203,9 +263,25 @@ export default function SearchSurface({
     [activate],
   );
 
-  const activeDescendant = activeIndex >= 0 ? optionId(activeIndex) : undefined;
+  const activeDescendant =
+    controller.phase === "idle" && recentActiveIndex >= 0
+      ? optionId(recentActiveIndex)
+      : activeIndex >= 0
+        ? optionId(activeIndex)
+        : undefined;
 
-  const statusMessage = buildStatusMessage(controller);
+  const statusMessage = buildStatusMessage(controller, recentResults.length);
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      setRecentActiveIndex(-1);
+      controller.setQuery(value);
+    },
+    [controller],
+  );
+  const clearRecent = useCallback(() => {
+    setRecentResults(clearRecentSearchResults().map(recentToRankedResult));
+    setRecentActiveIndex(-1);
+  }, []);
 
   return (
     <div className="dh-search" role="presentation" ref={modalRootRef}>
@@ -247,11 +323,14 @@ export default function SearchSurface({
             spellCheck={false}
             role="combobox"
             aria-label="Search everything"
-            aria-expanded={controller.hasResults}
+            aria-expanded={
+              controller.hasResults ||
+              (controller.phase === "idle" && recentResults.length > 0)
+            }
             aria-controls={listboxId}
             aria-activedescendant={activeDescendant}
             value={controller.query}
-            onChange={(event) => controller.setQuery(event.target.value)}
+            onChange={(event) => handleQueryChange(event.target.value)}
             onKeyDown={handleInputKeyDown}
           />
         </div>
@@ -269,6 +348,10 @@ export default function SearchSurface({
             onRowClick={handleRowClick}
             onRowHover={controller.setActiveIndex}
             currentLocation={location}
+            recentResults={recentResults}
+            recentActiveIndex={recentActiveIndex}
+            onRecentHover={setRecentActiveIndex}
+            onClearRecent={clearRecent}
           />
         </div>
 
@@ -308,6 +391,10 @@ type SearchResultsProps = {
     readonly pathname: string;
     readonly search: string;
   };
+  readonly recentResults: readonly RankedSearchResult[];
+  readonly recentActiveIndex: number;
+  readonly onRecentHover: (index: number) => void;
+  readonly onClearRecent: () => void;
 };
 
 function SearchResults({
@@ -318,10 +405,57 @@ function SearchResults({
   onRowClick,
   onRowHover,
   currentLocation,
+  recentResults,
+  recentActiveIndex,
+  onRecentHover,
+  onClearRecent,
 }: SearchResultsProps) {
   const { phase, query, groups, activeIndex } = controller;
 
   if (phase === "idle") {
+    if (recentResults.length > 0) {
+      return (
+        <div
+          className="dh-search__listbox"
+          id={listboxId}
+          role="listbox"
+          aria-label="Recent search results"
+        >
+          <div
+            className="dh-search__group"
+            role="group"
+            aria-labelledby={`${listboxId}-recent`}
+          >
+            <div className="dh-search__grouptitle" id={`${listboxId}-recent`}>
+              <span className="dh-search__groupicon" aria-hidden="true">
+                <SearchIcon />
+              </span>
+              Recent
+              <button
+                type="button"
+                className="dh-search__clear"
+                onClick={onClearRecent}
+              >
+                Clear
+              </button>
+            </div>
+            {recentResults.map((result, index) => (
+              <SearchOption
+                key={result.id}
+                result={result}
+                index={index}
+                domId={optionId(index)}
+                active={index === recentActiveIndex}
+                interactive
+                onClick={onRowClick}
+                onHover={onRecentHover}
+                currentLocation={currentLocation}
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
     return (
       <p className="dh-search__idle">
         Search across everything in your workspace.
@@ -479,6 +613,7 @@ function SearchOption({
             <Highlight text={result.subtitle} ranges={result.subtitleMatches} />
           </span>
         ) : null}
+        <SearchSignals signals={result.signals} />
       </span>
       {typeLabel !== undefined ? (
         <span className="dh-search__optiontype">{typeLabel}</span>
@@ -519,10 +654,11 @@ function SearchOption({
 
 function buildStatusMessage(
   controller: ReturnType<typeof useSearchController>,
+  recentCount: number,
 ): string {
   switch (controller.phase) {
     case "idle":
-      return "";
+      return recentCount > 0 ? `${recentCount} recent results.` : "";
     case "loading":
       return "Searching…";
     case "error":

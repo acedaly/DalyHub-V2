@@ -416,6 +416,13 @@ inherently cross-Area and belongs on the workspace-wide collection instead.
 - [`ARCHITECTURE_DECISIONS.md` ADR-038](../decisions/ARCHITECTURE_DECISIONS.md#adr-038--area-overview-read-only-spine-projection-and-derived-momentum)
 - [`ARCHITECTURE_DECISIONS.md` ADR-039](../decisions/ARCHITECTURE_DECISIONS.md#adr-039--goal-records-an-additive-goal_details-slice-an-owner-calendar-target-date-and-an-exact-derived-project-contribution-boundary)
 
+## Global Search (X-01)
+
+Areas register `areas.search`, backed by `AreaRepository.searchAreas`. It searches
+active, non-archived Area titles through one bounded workspace-scoped D1 projection
+and returns canonical `/areas/:id` route targets. The preview stays calm and
+structural: open Goal count, active Project count and direct Task count.
+
 ---
 
 ## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)

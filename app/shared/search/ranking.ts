@@ -4,11 +4,11 @@
  * Ranking is tiered so a provider's own score range can never dominate global
  * ordering (ADR-023). Highest first:
  *
- *   5. exact title match
- *   4. title prefix
- *   3. title token (word-boundary) prefix
- *   2. fuzzy title (subsequence)
- *   1. subtitle / preview match
+ *   6. exact title match
+ *   5. title prefix
+ *   4. title token (word-boundary) prefix
+ *   2. subtitle / preview match
+ *   1. fuzzy title (subsequence)
  *   0. no local match (kept, ordered by provider relevance only)
  *
  * Within a tier we order by a tier-appropriate strength, then the (bounded,
@@ -95,14 +95,14 @@ function titleSignal(query: FoldedText, title: FoldedText): Signal {
 
   if (arraysEqual(q, t)) {
     return {
-      tier: 5,
+      tier: 6,
       strength: 0,
       titleMatches: [{ start: 0, end: t.length }],
     };
   }
   if (matchesAt(t, q, 0)) {
     return {
-      tier: 4,
+      tier: 5,
       strength: 1000 - t.length,
       titleMatches: [{ start: 0, end: q.length }],
     };
@@ -110,14 +110,14 @@ function titleSignal(query: FoldedText, title: FoldedText): Signal {
   const tokenAt = tokenPrefixIndex(t, q);
   if (tokenAt !== -1) {
     return {
-      tier: 3,
+      tier: 4,
       strength: 1000 - tokenAt,
       titleMatches: [{ start: tokenAt, end: tokenAt + q.length }],
     };
   }
   const fuzzy = fuzzyMatch(query, title);
   if (fuzzy !== null) {
-    return { tier: 2, strength: fuzzy.score, titleMatches: fuzzy.ranges };
+    return { tier: 1, strength: fuzzy.score, titleMatches: fuzzy.ranges };
   }
   return { tier: 0, strength: 0, titleMatches: [] };
 }
@@ -180,9 +180,9 @@ export function rankResults(
         ? []
         : subtitleMatchRanges(foldedQuery, foldText(result.subtitle));
 
-    // A subtitle-only match lifts a tier-0 result to tier 1.
+    // A subtitle-only match lifts a tier-0 result above fuzzy-only title matches.
     const tier =
-      signal.tier === 0 && subtitleMatches.length > 0 ? 1 : signal.tier;
+      signal.tier === 0 && subtitleMatches.length > 0 ? 2 : signal.tier;
 
     return {
       result,
@@ -234,7 +234,10 @@ export function rankResults(
       ? {}
       : { entityType: entry.result.entityType }),
     target: entry.result.target,
-    score: entry.tier / 5,
+    ...(entry.result.signals === undefined
+      ? {}
+      : { signals: entry.result.signals }),
+    score: entry.tier / 6,
     titleMatches: entry.titleMatches,
     subtitleMatches: entry.subtitleMatches,
   }));

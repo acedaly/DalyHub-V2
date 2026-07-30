@@ -13,6 +13,8 @@ export type {
   GoalListItem,
   GoalListInput,
   GoalListPage,
+  GoalSearchInput,
+  GoalSearchHit,
   GoalAlignmentListInput,
   GoalAlignmentListPage,
 } from "./goal";

@@ -15,11 +15,16 @@ import type {
   AreaMomentumSourceFacts,
   AreaOverview,
   AreaProjectPage,
+  AreaSearchHit,
+  AreaSearchInput,
 } from "./area";
 
 export interface AreaRepository {
   /** List active Areas with live hierarchy roll-up facts in a bounded page. */
   listAreas(input?: AreaListInput): Promise<AreaListPage>;
+
+  /** Search active, non-archived Areas by title with safe structural context. */
+  searchAreas(input: AreaSearchInput): Promise<readonly AreaSearchHit[]>;
 
   /**
    * Read a single active Area header. Returns `null` for missing, deleted,

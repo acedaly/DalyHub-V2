@@ -16,7 +16,71 @@ import {
   MAX_TITLE_LENGTH,
 } from "./limits";
 import { validateTarget } from "./target";
-import type { SearchResultItem, TaggedResult } from "./types";
+import type {
+  SearchResultItem,
+  SearchResultSignal,
+  SearchResultSignalTone,
+  TaggedResult,
+} from "./types";
+
+const SIGNAL_TONES: ReadonlySet<SearchResultSignalTone> = new Set([
+  "neutral",
+  "muted",
+  "accent",
+  "success",
+  "warning",
+  "danger",
+]);
+const MAX_SIGNALS = 4;
+const MAX_SIGNAL_FIELD = 64;
+
+function signalTone(value: unknown): SearchResultSignalTone | undefined {
+  return typeof value === "string" &&
+    SIGNAL_TONES.has(value as SearchResultSignalTone)
+    ? (value as SearchResultSignalTone)
+    : undefined;
+}
+
+function signalString(value: unknown, max = MAX_SIGNAL_FIELD): string | null {
+  return typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= max
+    ? value.trim()
+    : null;
+}
+
+function normaliseSignals(value: unknown): SearchResultSignal[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const signals: SearchResultSignal[] = [];
+  for (const entry of value) {
+    if (signals.length >= MAX_SIGNALS) break;
+    if (entry === null || typeof entry !== "object") continue;
+    const raw = entry as Record<string, unknown>;
+    const id = signalString(raw.id);
+    const kind = signalString(raw.kind);
+    const label = signalString(raw.label, MAX_SUBTITLE_LENGTH);
+    if (id === null || kind === null || label === null) continue;
+    const value = signalString(raw.value);
+    const tone = signalTone(raw.tone);
+    const icon = signalString(raw.icon);
+    const accessibleLabel = signalString(
+      raw.accessibleLabel,
+      MAX_SUBTITLE_LENGTH,
+    );
+    signals.push({
+      id,
+      kind,
+      label,
+      ...(value === null ? {} : { value }),
+      ...(tone === undefined ? {} : { tone }),
+      ...(icon === null ? {} : { icon }),
+      ...(accessibleLabel === null ? {} : { accessibleLabel }),
+    });
+  }
+  return signals;
+}
 
 /** Truncate to a maximum number of code points (never splits a surrogate pair). */
 function clampCodePoints(value: string, max: number): string {
@@ -103,6 +167,8 @@ export function validateResultItem(
       ? rawEntityId
       : undefined;
 
+  const signals = normaliseSignals(item.signals);
+
   return {
     itemId: id,
     ...(entityId === undefined ? {} : { entityId }),
@@ -112,6 +178,7 @@ export function validateResultItem(
     ...(cleanSubtitle === undefined ? {} : { subtitle: cleanSubtitle }),
     ...(entityType === undefined ? {} : { entityType }),
     target,
+    ...(signals.length === 0 ? {} : { signals }),
     ...(providerScore === undefined ? {} : { providerScore }),
   };
 }

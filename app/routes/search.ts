@@ -86,7 +86,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
     const outcome = await executeSearch({
       providers: registry.listSearchProviders(),
-      context: { workspace: scope.context },
+      context: { workspace: scope.context, ownerId: session.user.subject },
       rawQuery,
       ...(boostIds && boostIds.size > 0 ? { boostIds } : {}),
     });

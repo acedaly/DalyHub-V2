@@ -79,6 +79,7 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
+import { likeContains } from "./like-pattern";
 
 /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
 export type D1PersonCreateFault = "after-entity" | "after-details";
@@ -227,12 +228,6 @@ interface CreatedEntityRow {
 /** A statement guaranteed to fail at execution, aborting/rolling back the batch. */
 function forcedFailure(db: D1Database): D1PreparedStatement {
   return db.prepare("SELECT 1 FROM __dalyhub_person_forced_fault__");
-}
-
-/** Escape LIKE wildcards so a query character is matched literally. */
-function likeContains(value: string): string {
-  const escaped = value.replace(/[\\%_]/g, (c) => `\\${c}`);
-  return `%${escaped.toLocaleLowerCase()}%`;
 }
 
 /** Parse the stored tags JSON defensively (a corrupt value yields no tags). */

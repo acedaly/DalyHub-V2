@@ -50,6 +50,7 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
+import { likeContains } from "./like-pattern";
 
 interface Row {
   id: string;
@@ -226,10 +227,7 @@ export class D1MeetingRepository implements MeetingRepository {
       where.push(
         "(lower(e.title) LIKE ? ESCAPE '\\' OR lower(coalesce(d.location,'')) LIKE ? ESCAPE '\\')",
       );
-      const q = `%${input.query
-        .trim()
-        .toLowerCase()
-        .replace(/[\\%_]/g, "\\$&")}%`;
+      const q = likeContains(input.query.trim().toLowerCase());
       values.push(q, q);
     }
     if (input.cursor) {

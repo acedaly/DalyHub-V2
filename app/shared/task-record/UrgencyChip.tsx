@@ -13,20 +13,22 @@
  * has no due or scheduled date, so lists stay calm.
  */
 
-import { taskUrgency } from "./task-view";
+import { taskUrgency, type TaskUrgency } from "./task-view";
 
-export interface UrgencyChipProps {
+export type UrgencyChipProps = {
   /** The minimal date facts the urgency evaluator reads. */
   readonly task: {
     readonly completedAt: string | null;
     readonly dueDate: string | null;
     readonly scheduledDate: string | null;
-  };
+  } | null;
   /** The owner's current calendar date `YYYY-MM-DD` (server-derived, ADR-022). */
-  readonly todayIso: string;
+  readonly todayIso?: string;
+  /** A pre-evaluated urgency fact from a trusted projection, used by Search. */
+  readonly urgency?: TaskUrgency;
   readonly className?: string;
   readonly "data-testid"?: string;
-}
+};
 
 /** A small calendar glyph for scheduled kinds; a clock/alert for due kinds. */
 function UrgencyGlyph({ scheduled }: { readonly scheduled: boolean }) {
@@ -91,24 +93,29 @@ function UrgencyGlyph({ scheduled }: { readonly scheduled: boolean }) {
 export function UrgencyChip({
   task,
   todayIso,
+  urgency,
   className,
   "data-testid": testId,
 }: UrgencyChipProps) {
-  const urgency = taskUrgency(task, todayIso);
-  if (urgency === null) {
+  const evaluated =
+    urgency ??
+    (task !== null && todayIso !== undefined
+      ? taskUrgency(task, todayIso)
+      : null);
+  if (evaluated === null) {
     return null;
   }
   const scheduled =
-    urgency.kind === "scheduled" || urgency.kind === "scheduled_today";
+    evaluated.kind === "scheduled" || evaluated.kind === "scheduled_today";
   return (
     <span
       className={["dh-urgency", className].filter(Boolean).join(" ")}
-      data-tone={urgency.tone}
-      data-kind={urgency.kind}
+      data-tone={evaluated.tone}
+      data-kind={evaluated.kind}
       data-testid={testId}
     >
       <UrgencyGlyph scheduled={scheduled} />
-      <span className="dh-urgency__label">{urgency.label}</span>
+      <span className="dh-urgency__label">{evaluated.label}</span>
     </span>
   );
 }

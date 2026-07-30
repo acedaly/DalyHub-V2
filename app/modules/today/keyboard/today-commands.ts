@@ -87,9 +87,13 @@ export function buildTodayGlobalCommands(
     if (section.count <= 0) {
       continue;
     }
+    const title =
+      section.bucket === "today"
+        ? "Jump to Today tasks"
+        : `Go to ${section.label}`;
     actions.push({
       id: `today.cmd.focus_section.${section.bucket}`,
-      title: `Go to ${section.label}`,
+      title,
       subtitle: `Jump to the ${section.label} section`,
       keywords: ["focus", "section", "jump", section.label.toLowerCase()],
       kind: "navigate",

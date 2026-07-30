@@ -20,6 +20,24 @@ const TASK_ITEMS: readonly SearchResultItem[] = [
     title: "Finish PX-02",
     subtitle: "DalyHub V2",
     entityType: "task",
+    signals: [
+      {
+        id: "priority",
+        kind: "priority",
+        label: "P1",
+        value: "p1",
+        tone: "neutral",
+        accessibleLabel: "P1 priority",
+      },
+      {
+        id: "urgency",
+        kind: "urgency",
+        label: "Due today",
+        value: "due_today",
+        tone: "warning",
+        accessibleLabel: "Due today",
+      },
+    ],
     target: { kind: "drawer", drawerKey: "task:t1", canonicalPath: "/today" },
   },
   {
@@ -134,6 +152,14 @@ describe("SearchSurface", () => {
     expect(screen.getByRole("listbox")).toBeVisible();
     expect(screen.getByText("Tasks")).toBeVisible();
     expect(screen.getByText("Projects")).toBeVisible();
+  });
+
+  it("renders generic result signals as shared task presentation", async () => {
+    renderSurface(healthySearch);
+    typeQuery("PX-02");
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
+    expect(screen.getByText("P1")).toBeVisible();
+    expect(screen.getByText("Due today")).toBeVisible();
   });
 
   it("highlights the matched text with <mark> and no raw HTML", async () => {
