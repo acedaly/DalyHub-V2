@@ -220,6 +220,33 @@ describe("GET /search route loader", () => {
     expect(payload).not.toContain("today.search");
   });
 
+  it("excludes archived People from global Search", async () => {
+    await makeWorkspaceRepository().create({
+      id: parseWorkspaceId(CONFIGURED_WORKSPACE),
+    });
+    const personRepo = makePersonRepository(makeContext(CONFIGURED_WORKSPACE));
+    const person = await personRepo.create({
+      title: "ArchivedSearch Person",
+      email: "archived-person@example.test",
+    });
+    await personRepo.archive(person.id);
+
+    const response = await runLoader(
+      request("ArchivedSearch Person"),
+      authedContext(),
+    );
+    expect(response.status).toBe(200);
+    const outcome = (await response.json()) as SearchOutcome;
+    expect(outcome.status).toBe("ok");
+    const results = outcome.groups.flatMap((group) => group.results);
+    expect(results.some((result) => result.id === `person:${person.id}`)).toBe(
+      false,
+    );
+    expect(JSON.stringify(outcome)).not.toContain(
+      "archived-person@example.test",
+    );
+  });
+
   it("ignores a forged workspace query parameter", async () => {
     await seedConfiguredWorkspace();
     const response = await runLoader(

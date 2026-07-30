@@ -45,7 +45,7 @@ const searchPeople: SearchExecutor = async (query, context) => {
   );
 
   const page = await scope.people.list({
-    status: "all",
+    status: "active",
     query: text,
     limit: query.limit,
   });

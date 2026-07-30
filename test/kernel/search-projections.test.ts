@@ -5,6 +5,7 @@ import {
   createAreaRepository,
   createDiaryRepository,
   createGoalRepository,
+  createMeetingRepository,
   createProjectRepository,
   createTaskRepository,
 } from "~/platform/storage/d1";
@@ -13,6 +14,7 @@ import { parseWorkspaceId } from "~/kernel/workspaces";
 import {
   makeContext,
   makeDiaryRepository,
+  makeMeetingRepository,
   makeSpineRepository,
   makeTaskRepository,
   makeWorkspaceRepository,
@@ -177,5 +179,23 @@ describe("global Search D1 projections", () => {
     const hits = await repo.search({ text: "Public diary title" });
     expect(hits).toHaveLength(1);
     expect(hits[0]?.title).toBe("Public diary title");
+  });
+
+  it("keeps meeting search bounded and treats backslashes as literal text", async () => {
+    const context = makeContext(WS);
+    await makeMeetingRepository(context).create({
+      title: "Meeting with trailing slash \\",
+      startsAt: "2000-01-01T09:00:00.000Z",
+      timezone: "UTC",
+    });
+
+    const repo = createMeetingRepository(env.DB, context);
+    await expect(
+      repo.list({ view: "recent", query: "x".repeat(500), limit: 5 }),
+    ).resolves.toMatchObject({ items: [] });
+    const hits = await repo.list({ view: "recent", query: "\\", limit: 5 });
+    expect(hits.items.map((meeting) => meeting.title)).toEqual([
+      "Meeting with trailing slash \\",
+    ]);
   });
 });

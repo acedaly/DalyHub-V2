@@ -26,9 +26,6 @@ function likeNeedle(value: string, wrappers: number): string {
     bytes += nextBytes;
   }
 
-  while (escaped.endsWith("\\")) {
-    escaped = escaped.slice(0, -1);
-  }
   return escaped;
 }
 

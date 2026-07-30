@@ -112,6 +112,42 @@ describe("recent search results", () => {
     expect(person.subtitle).toBeUndefined();
   });
 
+  it("strips subtitles from malformed or migrated stored entries unless the entity type is safe", () => {
+    const store = new MemoryStorage();
+    store.setItem(
+      "dalyhub.search.recent.v1",
+      JSON.stringify([
+        {
+          title: "Stored person",
+          subtitle: "aidan@example.test",
+          entityType: "person ",
+          target: { kind: "route", to: "/person/p1" },
+        },
+        {
+          title: "Stored task",
+          subtitle: "Project: Work",
+          entityType: "task",
+          target: {
+            kind: "drawer",
+            drawerKey: "task:stored",
+            canonicalPath: "/tasks",
+          },
+        },
+      ]),
+    );
+
+    const recent = loadRecentSearchResults(store);
+    expect(recent[0]?.subtitle).toBeUndefined();
+    expect(recent[1]?.subtitle).toBe("Project: Work");
+  });
+
+  it("treats malformed JSON as empty history", () => {
+    const store = new MemoryStorage();
+    store.setItem("dalyhub.search.recent.v1", "{not-json");
+
+    expect(loadRecentSearchResults(store)).toEqual([]);
+  });
+
   it("drops malformed stored signals", () => {
     const store = new MemoryStorage();
     store.setItem(

@@ -1,3 +1,5 @@
+import { validateEntityType, type EntityType } from "~/kernel/entities";
+
 import {
   MAX_RESULT_ID_LENGTH,
   MAX_SUBTITLE_LENGTH,
@@ -35,7 +37,7 @@ export type RecentSearchResult = {
   readonly id: string;
   readonly title: string;
   readonly subtitle?: string;
-  readonly entityType?: string;
+  readonly entityType?: EntityType;
   readonly target: SearchResultTarget;
   readonly signals?: readonly SearchResultSignal[];
 };
@@ -114,23 +116,30 @@ export function targetIdentity(target: SearchResultTarget): string {
 function safeSubtitle(result: RankedSearchResult): string | undefined {
   if (
     result.subtitle === undefined ||
-    (result.entityType !== undefined &&
-      SENSITIVE_SUBTITLE_TYPES.has(result.entityType))
+    result.entityType === undefined ||
+    SENSITIVE_SUBTITLE_TYPES.has(result.entityType)
   ) {
     return undefined;
   }
   return clamp(result.subtitle, MAX_SUBTITLE_LENGTH);
 }
 
+function decodeEntityType(value: unknown): EntityType | undefined {
+  try {
+    return validateEntityType(value);
+  } catch {
+    return undefined;
+  }
+}
+
 export function toRecentSearchResult(
   result: RankedSearchResult,
 ): RecentSearchResult {
+  const subtitle = safeSubtitle(result);
   return {
     id: clamp(targetIdentity(result.target), MAX_RESULT_ID_LENGTH),
     title: clamp(result.title, MAX_TITLE_LENGTH),
-    ...(safeSubtitle(result) === undefined
-      ? {}
-      : { subtitle: safeSubtitle(result) }),
+    ...(subtitle === undefined ? {} : { subtitle }),
     ...(result.entityType === undefined
       ? {}
       : { entityType: result.entityType }),
@@ -154,14 +163,14 @@ function decodeRecent(value: unknown): RecentSearchResult | null {
     typeof raw.subtitle === "string" && raw.subtitle.trim().length > 0
       ? clamp(raw.subtitle, MAX_SUBTITLE_LENGTH)
       : undefined;
-  const entityType =
-    typeof raw.entityType === "string" ? raw.entityType : undefined;
+  const entityType = decodeEntityType(raw.entityType);
   const signals = decodeRecentSignals(raw.signals);
   return {
     id,
     title: clamp(raw.title, MAX_TITLE_LENGTH),
     ...(subtitle === undefined ||
-    (entityType !== undefined && SENSITIVE_SUBTITLE_TYPES.has(entityType))
+    entityType === undefined ||
+    SENSITIVE_SUBTITLE_TYPES.has(entityType)
       ? {}
       : { subtitle }),
     ...(entityType === undefined ? {} : { entityType }),
