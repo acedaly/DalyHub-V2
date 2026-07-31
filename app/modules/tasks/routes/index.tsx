@@ -215,6 +215,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       work.catch(() => fallback);
     const [parent, savedViews, delegateNames, parentOptions] =
       await Promise.all([
+        preferences.defaultTaskDestination === "chosen_parent" &&
         preferences.defaultTaskCaptureParentId
           ? soft(
               scope.tasks.getTaskParentCandidate(

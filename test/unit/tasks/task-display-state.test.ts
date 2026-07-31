@@ -43,10 +43,10 @@ describe("priorityQuadrant / labels", () => {
     expect(quadrantActionLabel("delete")).toBe("Delete / Review");
   });
 
-  it("labels sectors and treats null as Inbox", () => {
+  it("labels sectors and treats null as No sector", () => {
     expect(timeSectorLabel("this_week")).toBe("This Week");
     expect(timeSectorLabel("routines")).toBe("Routines");
-    expect(timeSectorLabel(null)).toBe("Inbox");
+    expect(timeSectorLabel(null)).toBe("No sector");
   });
 });
 
@@ -135,9 +135,9 @@ describe("taskDisplayState precedence (ADR-043 §6)", () => {
     ).toBe("planned");
   });
 
-  it("Inbox when active with no sector and no schedule", () => {
+  it("Unscheduled when active with no sector and no schedule", () => {
     const state = taskDisplayState(base);
     expect(state.kind).toBe("inbox");
-    expect(state.label).toBe("Inbox");
+    expect(state.label).toBe("Unscheduled");
   });
 });

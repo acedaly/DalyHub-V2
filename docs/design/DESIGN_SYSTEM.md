@@ -127,6 +127,12 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Clicking opens the [Drawer](#drawer). Cards support selection, drag (with keyboard equivalent), and inline quick actions. Density is configurable (comfortable/compact).
 **Rules.** **One Card component, configured** — not a bespoke card per module. If a module needs a new card affordance, add it to the shared Card. (This is a top target in [PRODUCT_DEBT](../product/PRODUCT_DEBT.md).)
 
+### Inline title editing on a Card (TASKS-04)
+**Purpose.** Rename a record from a list without opening it, for collections where renaming is a routine daily act (Tasks).
+**Anatomy.** The shared Card's optional `titleEditor` slot. When supplied, it replaces the title cell; when absent, the Card renders its ordinary open control (the link or button whose accessible name is `openAriaLabel`).
+**Behaviour.** The host owns the editing state and supplies `titleEditor` **only while that one row is being renamed** — reached from the row's shared overflow menu, so nothing is hover-only and the row keeps its two visible quick actions. Enter saves through the canonical rename mutation and revalidates; Escape abandons; a rejected save keeps the typed text, announces the reason and returns focus to the field.
+**Rules.** **Inline editing must never cost the user the way into the record.** A permanent replacement of the title control removes the record's primary open target from every row — the regression TASKS-04 found and fixed, and the reason this is a *conditional* slot rather than a title override. One row is editable at a time. The editor is a shared-token control, never a bespoke input.
+
 ### Health signal (PROJ-02)
 **Purpose.** A restrained, reusable presentation of a **derived** record health state (PROJ-02, [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity)) — calm, honest, explained.
 **Anatomy.** A toned **pill** (`HealthIndicator`: a decorative dot + state label + optional primary reason) for the Card `metadata` slot and record header; a **`ProjectHealthPanel`** (state pill + a de-duplicated reason list + a supporting-facts `dl`) for the record Summary. Tones are a strict subset of the shared vocabulary (`neutral`/`success`/`info`/`warning`/`danger`).

@@ -589,6 +589,9 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM review_details").run();
   await env.DB.prepare("DELETE FROM owner_app_preferences").run();
   await env.DB.prepare("DELETE FROM task_saved_views").run();
+  // TASKS-04: the recurrence rows reference entities ON DELETE RESTRICT, so they
+  // must clear before entities.
+  await env.DB.prepare("DELETE FROM task_recurrence_rules").run();
   await env.DB.prepare("DELETE FROM entities").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {

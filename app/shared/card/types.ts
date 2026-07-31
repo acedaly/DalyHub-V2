@@ -159,6 +159,14 @@ export interface CardProps {
   readonly headingLevel?: 2 | 3 | 4;
   /** Optional subtitle or short description. */
   readonly subtitle?: ReactNode;
+  /**
+   * TASKS-04 — an EDITOR rendered in place of the title while the row is being
+   * renamed inline. Supply it only while editing: the Card's own title/open control
+   * (the link or button whose accessible name is `openAriaLabel`) is what makes a
+   * card openable, and replacing it permanently would take the record away. The
+   * caller owns the editing state; the Card just yields the slot.
+   */
+  readonly titleEditor?: ReactNode;
   readonly status?: CardStatus;
   readonly metadata?: readonly CardMetaItem[];
   readonly progress?: CardProgress;

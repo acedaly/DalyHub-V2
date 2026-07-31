@@ -34,6 +34,7 @@ function renderRow(
           <TasksQuickAdd
             defaultParent={PARENT}
             sessionDefaults={{}}
+            todayIso="2026-07-30"
             onOpenFullForm={onOpenFullForm}
             {...over}
           />
@@ -182,10 +183,38 @@ describe("quick add", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("says so, rather than failing on submit, when there is no capture parent", () => {
+  it("creates an Inbox task when there is no capture parent", async () => {
+    const fetchMock = mockFetch({ kind: "create", ok: true, taskId: "t-1" });
     renderRow({ defaultParent: null });
-    expect(input().disabled).toBe(true);
-    expect(input().placeholder).toContain("default capture parent");
+    expect(input().disabled).toBe(false);
+    expect(input().placeholder).toContain("Inbox");
+
+    fireEvent.change(input(), { target: { value: "Capture this" } });
+    fireEvent.submit(input().closest("form")!);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
+      .body as FormData;
+    expect(body.get("title")).toBe("Capture this");
+    expect(body.has("parentId")).toBe(false);
+    expect(body.has("parentKind")).toBe(false);
+  });
+
+  it("applies deterministic calendar and priority tokens before save", async () => {
+    const fetchMock = mockFetch({ kind: "create", ok: true, taskId: "t-1" });
+    renderRow({ defaultParent: null });
+
+    fireEvent.change(input(), {
+      target: { value: "Prepare OpO slides tomorrow p1" },
+    });
+    fireEvent.submit(input().closest("form")!);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
+      .body as FormData;
+    expect(body.get("title")).toBe("Prepare OpO slides");
+    expect(body.get("scheduledDate")).toBe("2026-07-31");
+    expect(body.get("priority")).toBe("p1");
   });
 
   it("keeps the full capture form one click away", () => {

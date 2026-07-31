@@ -130,7 +130,9 @@ describe("task record rendering", () => {
     expect(
       await screen.findByRole("heading", { name: "Write the ADR" }),
     ).toBeInTheDocument();
-    expect(document.querySelector(".record-status")).toHaveTextContent("Inbox");
+    expect(document.querySelector(".record-status")).toHaveTextContent(
+      "Unscheduled",
+    );
     expect(screen.getByText("1 Aug 2026")).toBeInTheDocument();
     // Priority is the shared PriorityIndicator: the short tag is visible and the
     // full everyday label is available to assistive tech.

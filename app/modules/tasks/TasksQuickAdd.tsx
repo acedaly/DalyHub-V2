@@ -9,7 +9,8 @@
  * It changes no authority: it posts to the canonical `/tasks/new` resource route,
  * exactly as the Drawer's capture form does (ADR-043 §13), so a task created here
  * is created atomically with its planning fields, under a server-verified parent,
- * with the same Activity trail. There is no list-only create path.
+ * with the same Activity trail. When no destination is selected, the canonical
+ * route creates an Unassigned Inbox task. There is no list-only create path.
  *
  * MOBILE-01's title-and-Enter capture path is untouched: this is an ADDITIONAL
  * affordance inside the workspace, not a replacement for the shared Quick Capture,
@@ -24,10 +25,15 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
+import {
+  applyRecurrenceFields,
+  parseQuickCapture,
+} from "~/shared/task-record/quick-capture";
+
 import type { TaskParentOption, TasksCreateResult } from "./tasks-contract";
 
 export interface TasksQuickAddProps {
-  /** The resolved default capture parent, or null when none is configured. */
+  /** The resolved chosen destination, or null for Inbox / Unassigned. */
   readonly defaultParent: TaskParentOption | null;
   /**
    * Classification carried for the SESSION from the current view, so a task added
@@ -39,6 +45,7 @@ export interface TasksQuickAddProps {
     readonly timeSector?: string;
     readonly scheduledDate?: string;
   };
+  readonly todayIso: string;
   /** Opens the full capture Drawer for anything this row deliberately cannot do. */
   readonly onOpenFullForm: () => void;
 }
@@ -46,6 +53,7 @@ export interface TasksQuickAddProps {
 export function TasksQuickAdd({
   defaultParent,
   sessionDefaults,
+  todayIso,
   onOpenFullForm,
 }: TasksQuickAddProps) {
   const revalidator = useRevalidator();
@@ -58,32 +66,46 @@ export function TasksQuickAdd({
   const fieldId = useId();
   const errorId = useId();
 
-  // A quick add with no resolvable parent would fail on every submit, so the row
-  // says so up front and points at the full form rather than letting the user type
-  // a task into something that cannot accept it.
-  const canQuickAdd = defaultParent !== null;
-
   const submit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       const trimmed = title.trim();
-      if (trimmed.length === 0 || !defaultParent || busy) return;
+      if (trimmed.length === 0 || busy) return;
 
       setBusy(true);
       setError(null);
       const body = new FormData();
+      const interpretation = parseQuickCapture(trimmed, { todayIso });
       body.set("intent", "create");
-      body.set("title", trimmed);
-      body.set("parentId", defaultParent.id);
-      body.set("parentKind", defaultParent.kind);
-      if (sessionDefaults.priority)
-        body.set("priority", sessionDefaults.priority);
-      if (sessionDefaults.timeSector) {
-        body.set("timeSector", sessionDefaults.timeSector);
+      body.set("title", interpretation.title);
+      if (defaultParent) {
+        body.set("parentId", defaultParent.id);
+        body.set("parentKind", defaultParent.kind);
       }
-      if (sessionDefaults.scheduledDate) {
-        body.set("scheduledDate", sessionDefaults.scheduledDate);
+      const priority = interpretation.priority ?? sessionDefaults.priority;
+      const timeSector =
+        interpretation.timeSector ?? sessionDefaults.timeSector;
+      const scheduledDate =
+        interpretation.scheduledDate ?? sessionDefaults.scheduledDate;
+      if (priority) body.set("priority", priority);
+      if (timeSector) {
+        body.set("timeSector", timeSector);
       }
+      if (scheduledDate) {
+        body.set("scheduledDate", scheduledDate);
+      }
+      if (interpretation.dueDate) {
+        body.set("dueDate", interpretation.dueDate);
+      }
+      if (interpretation.commitmentState !== "active") {
+        body.set("commitmentState", interpretation.commitmentState);
+      }
+      // A recognised `every …` phrase is APPLIED here too, through the same shared
+      // mapping every capture surface uses.
+      applyRecurrenceFields(body, interpretation.recurrence, {
+        scheduledDate,
+        dueDate: interpretation.dueDate,
+      });
 
       let result: TasksCreateResult;
       try {
@@ -114,7 +136,7 @@ export function TasksQuickAdd({
           "That task couldn’t be added. Your text is safe — try again.",
       );
     },
-    [title, defaultParent, busy, sessionDefaults, revalidator],
+    [title, defaultParent, busy, sessionDefaults, todayIso, revalidator],
   );
 
   // Return focus to the field once it is interactive again, so the next task is one
@@ -147,11 +169,11 @@ export function TasksQuickAdd({
         type="text"
         value={title}
         maxLength={512}
-        disabled={!canQuickAdd || busy}
+        disabled={busy}
         placeholder={
-          canQuickAdd
+          defaultParent
             ? `Add a task to ${defaultParent.title} — press Enter`
-            : "Choose a default capture parent to add tasks here"
+            : "Add a task to Inbox — press Enter"
         }
         aria-describedby={error ? errorId : undefined}
         aria-invalid={error ? true : undefined}
@@ -164,7 +186,7 @@ export function TasksQuickAdd({
       <button
         type="submit"
         className="dh-btn dh-btn--secondary dh-tasks-quickadd__submit"
-        disabled={!canQuickAdd || busy || title.trim().length === 0}
+        disabled={busy || title.trim().length === 0}
       >
         {busy ? "Adding…" : "Add"}
       </button>

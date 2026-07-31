@@ -81,6 +81,20 @@ export interface TasksPageData {
   readonly failed: boolean;
 }
 
+/**
+ * TASKS-04 — the Review Inbox loader payload: ONE bounded page of the built-in Inbox
+ * query (active, unassigned Tasks) plus the owner's calendar day. No Inbox-specific
+ * Task shape: these are the same serialised list items every other Tasks surface uses.
+ */
+export interface TasksReviewData {
+  readonly items: readonly SerializedTaskListItem[];
+  /** Opaque cursor for the next review page, or null when the Inbox is exhausted. */
+  readonly nextCursor: string | null;
+  readonly todayIso: string;
+  /** True when the query failed — the surface renders a calm error state. */
+  readonly failed: boolean;
+}
+
 /** A page fetched by "Load more" (same shape, minus the view chrome). */
 export interface TasksCollectionPage {
   readonly items: readonly SerializedTaskListItem[];

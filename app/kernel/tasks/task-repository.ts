@@ -3,8 +3,8 @@
  *
  * A storage-independent, WORKSPACE-BOUND repository for the additive task-detail
  * slice TODAY-02 introduces (ADR-028). It COMPOSES the FND-07 spine rather than
- * replacing it: identity, title, completion and structural parentage remain the
- * spine's; this repository owns the `task_details` fields (status, priority,
+ * replacing it: identity, title, completion and optional structural parentage remain
+ * the spine's; this repository owns the `task_details` fields (status, priority,
  * due/scheduled dates, description) and reads the whole task (spine + details +
  * resolved relationships) back as one `TaskView`.
  *
@@ -21,6 +21,7 @@ import type {
   ClearPlanResult,
   ClearWaitingResult,
   CommitmentState,
+  CompleteTaskOptions,
   CompleteTaskResult,
   GetTaskOptions,
   ListPlanningTasksInput,
@@ -33,8 +34,13 @@ import type {
   PlanTaskInput,
   PlanTaskResult,
   ProjectTaskListPage,
+  ReopenTaskResult,
   SearchTaskParentsInput,
   SearchTasksInput,
+  SetTaskParentInput,
+  SetTaskParentResult,
+  SetTaskRecurrenceInput,
+  SetTaskRecurrenceResult,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
@@ -53,18 +59,13 @@ import type {
 
 export interface TaskRepository {
   /**
-   * Create a task AND its initial planning fields as ONE atomic operation (ADR-043
-   * §13 / decision 15). A single `D1Database.batch()` writes the `entities` row
-   * (gated on an active Area/Project parent — and, under a Project, one that is not
-   * archived), the `spine_records` row, the structural parent EntityLink, the
-   * `entity.created` + `entity_link.created` events AND the additive `task_details`
-   * planning slice (only when a planning field is supplied). Either everything
-   * commits or nothing does — a task can never be left created-without-its-planning
-   * or half-linked; there is no spine-create-then-detail-write sequence. Structural
-   * identity/parentage SQL is the SHARED spine create builder (the spine stays the
-   * identity authority). Throws `SpineParentUnavailableError` when the parent is
-   * missing/deleted/wrong-kind/archived/cross-workspace (nothing is written) and
-   * `TaskValidationError`/`SpineValidationError` for invalid input.
+   * Create a Task AND its initial planning fields as ONE atomic operation. A Task
+   * may be intentionally Unassigned: then the batch writes the `entities` row, the
+   * `spine_records` row, `entity.created` Activity and optional `task_details`, but
+   * no structural EntityLink. When a parent is supplied, the same batch also writes
+   * the structural parent link and `entity_link.created` Activity after validating
+   * an active Area or non-archived Project in this workspace. Either everything
+   * commits or nothing does; callers never write structural links directly.
    */
   createTask(input: NewTaskInput): Promise<TaskView>;
 
@@ -76,6 +77,42 @@ export interface TaskRepository {
    * soft-deleted without `includeDeleted`, wrong entity type, or cross-workspace).
    */
   getTask(id: string, options?: GetTaskOptions): Promise<TaskView | null>;
+
+  /**
+   * Assign, move or clear a Task's structural parent. `null` means intentional
+   * Unassigned. The repository validates destination parents inside the workspace,
+   * preserves Task details/completion/waiting state, appends structural Activity and
+   * reports idempotent no-ops without writing duplicate links.
+   */
+  setTaskParent(
+    id: string,
+    parent: SetTaskParentInput,
+  ): Promise<SetTaskParentResult>;
+
+  /**
+   * TASKS-04 — set, change or REMOVE the Task's structured recurrence rule
+   * (ADR-062). The rule is validated through the kernel against the Task's own
+   * anchor date (a `scheduled` rule needs a scheduled date, a `due` rule a due
+   * date), stored as DATA in `task_recurrence_rules`, and recorded through the ONE
+   * existing `entity.updated` Activity event — recurrence is a task-detail field,
+   * not a second history model.
+   *
+   * The first rule on a Task starts a SERIES: the persisted `series_id` /
+   * `sequence` pair that later makes successor creation and undo deterministic. A
+   * Task that is already part of a series keeps its series identity when the rule is
+   * edited, so history is never re-parented. Passing `null` removes the rule (and
+   * with it the Task's membership of the series); every other Task field —
+   * completion, dates, waiting, delegation, parent — is untouched. An unchanged rule
+   * is an idempotent no-op with no Activity.
+   *
+   * Throws `TaskValidationError` for an invalid rule or a missing anchor date,
+   * `TaskNotFoundError` for a missing/deleted/cross-workspace id, and
+   * `TaskProjectArchivedError` when the Task sits in an archived Project.
+   */
+  setTaskRecurrence(
+    id: string,
+    recurrence: SetTaskRecurrenceInput,
+  ): Promise<SetTaskRecurrenceResult>;
 
   /**
    * Update a task's editable fields (title + additive details) ATOMICALLY: one
@@ -330,7 +367,10 @@ export interface TaskRepository {
    * `TaskValidationError` for an empty/oversized/invalid id list and
    * `TaskNotFoundError`/`TaskProjectArchivedError` as the other bulk methods.
    */
-  completeTasks(ids: readonly string[]): Promise<BulkFieldResult>;
+  completeTasks(
+    ids: readonly string[],
+    options?: CompleteTaskOptions,
+  ): Promise<BulkFieldResult>;
 
   /**
    * Complete a task AND clear any active waiting state as ONE atomic domain
@@ -347,5 +387,28 @@ export interface TaskRepository {
    * `changed: false`). Throws `TaskNotFoundError` for a missing/deleted/non-task/
    * cross-workspace id. Reopening is unchanged and never restores waiting.
    */
-  completeTask(id: string): Promise<CompleteTaskResult>;
+  completeTask(
+    id: string,
+    options?: CompleteTaskOptions,
+  ): Promise<CompleteTaskResult>;
+
+  /**
+   * TASKS-04 — reopen a completed Task, and safely undo the recurrence successor the
+   * completion created (ADR-062). ONE `D1Database.batch()` clears the spine
+   * completion, bumps `updated_at`, appends `task.reopened` and — ONLY when the
+   * successor is provably safe to withdraw — soft-deletes that successor and appends
+   * its withdrawal Activity. Either all of that commits or none of it does.
+   *
+   * "Provably safe" is decided from PERSISTED identity, never a guess: the successor
+   * must be the next `sequence` of THIS occurrence's series, still open, still
+   * unassigned of any change (its `updated_at` still equals its `created_at`), and
+   * carry no relationships beyond the structural parent link it was created with. A
+   * successor the owner has since edited, completed, planned or linked is RETAINED
+   * and reported as `retained`, so undo can never destroy real work.
+   *
+   * Reopening an already-open Task is an idempotent no-op. Reopening never restores a
+   * prior waiting state (the documented default) and never un-archives a Project:
+   * `TaskProjectArchivedError` is thrown when the parent Project is archived.
+   */
+  reopenTask(id: string): Promise<ReopenTaskResult>;
 }

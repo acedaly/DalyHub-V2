@@ -173,7 +173,7 @@ const BUCKET_FILTERS: Record<
   },
   sector: {
     param: TASKS_FILTER_PARAMS.timeSector,
-    value: (key) => (key === "inbox" ? "__none" : key),
+    value: (key) => key,
   },
   status: {
     param: TASKS_FILTER_PARAMS.status,

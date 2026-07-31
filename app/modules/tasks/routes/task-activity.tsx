@@ -19,6 +19,8 @@ import { TASK_COMPLETED, TASK_REOPENED } from "~/kernel/spine";
 import {
   TASK_PLAN_CLEARED,
   TASK_PLANNED,
+  TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_RESCHEDULED,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
@@ -73,6 +75,15 @@ const TASK_DESCRIPTORS: Record<string, ActivityTypeDescriptor> = {
     tone: "accent",
   },
   [TASK_PLAN_CLEARED]: { label: "Plan cleared", entityType: "task" },
+  [TASK_RECURRENCE_OCCURRENCE_CREATED]: {
+    label: "Created the next occurrence",
+    entityType: "task",
+    tone: "accent",
+  },
+  [TASK_RECURRENCE_OCCURRENCE_WITHDRAWN]: {
+    label: "Withdrew the next occurrence",
+    entityType: "task",
+  },
 };
 
 const DESCRIPTORS = createActivityDescriptorMap(

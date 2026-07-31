@@ -8,6 +8,7 @@
 
 import { env } from "cloudflare:workers";
 
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
   resolveAuthenticatedWorkspaceScope,
@@ -24,6 +25,8 @@ import {
   type TaskStatus,
   type TimeSector,
 } from "~/kernel/tasks";
+
+import { ownerCalendarIso } from "~/shared/datetime";
 
 import type { TasksBulkResult } from "../tasks-contract";
 import type { Route } from "./+types/bulk";
@@ -62,7 +65,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
   try {
-    return json(await dispatch(scope, intent, ids, form));
+    return json(
+      await dispatch(
+        scope,
+        intent,
+        ids,
+        form,
+        await ownerTodayIsoFor(scope, session.user.subject),
+      ),
+    );
   } catch (cause) {
     if (cause instanceof TaskValidationError) {
       return json(fail(cause.message), 400);
@@ -85,11 +96,29 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+/**
+ * The OWNER's calendar day (ADR-022) — recurrence schedules a successor relative to
+ * the day the owner completed the task, never the server's UTC day.
+ */
+async function ownerTodayIsoFor(
+  scope: WorkspaceScope,
+  subject: string,
+): Promise<string> {
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    timezone = (await scope.appPreferences.get(subject)).timezone;
+  } catch {
+    // Keep the mutation working on the deterministic default.
+  }
+  return ownerCalendarIso(new Date(), timezone);
+}
+
 async function dispatch(
   scope: WorkspaceScope,
   intent: string,
   ids: readonly string[],
   form: FormData,
+  ownerTodayIso: string,
 ): Promise<TasksBulkResult> {
   switch (intent) {
     case "complete":
@@ -98,7 +127,9 @@ async function dispatch(
       // batch. A storage fault mid-batch rolls the transaction back, so the selection
       // can never be left partially completed — the outer catch's "nothing was
       // changed" is then factually correct. Already-complete tasks count `unchanged`.
-      return ok(await scope.tasks.completeTasks(ids));
+      // A recurring task in the selection gets its ONE successor in the SAME batch,
+      // so bulk completion and row completion behave identically (TASKS-04).
+      return ok(await scope.tasks.completeTasks(ids, { ownerTodayIso }));
     case "set_priority":
       return ok(
         await scope.tasks.setPriorityMany(

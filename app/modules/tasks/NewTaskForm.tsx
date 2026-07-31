@@ -12,7 +12,7 @@
  *     no picker is shown — the task is created under that project.
  *   - FREE parent (the `/tasks` quick-capture): a SERVER-BACKED, searchable picker
  *     querying the bounded `/tasks/parent-options?q=` endpoint (workspace-scoped,
- *     kinds resolved server-side). A Task structurally requires exactly one parent.
+ *     kinds resolved server-side). Leaving it blank creates an Unassigned Inbox Task.
  *
  * A deterministic quick-capture preview (ADR-043 §14) parses the title as the user
  * types and offers to fill the priority / sector / commitment fields and strip the
@@ -36,6 +36,7 @@ import {
 } from "~/shared/forms";
 import type { SelectOption } from "~/shared/forms/types";
 import {
+  applyRecurrenceFields,
   interpretationIsMeaningful,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
@@ -64,7 +65,7 @@ type Values = {
 
 const FIELD_LABELS: Record<string, string> = {
   title: "Title",
-  parentId: "Project or Area",
+  parentId: "Parent",
   priority: "Priority",
   timeSector: "Time sector",
   commitmentState: "Commitment",
@@ -78,7 +79,7 @@ const PRIORITY_OPTIONS: readonly SelectOption[] = [
 ];
 
 const SECTOR_OPTIONS: readonly SelectOption[] = [
-  { value: "", label: "Inbox (no sector)" },
+  { value: "", label: "No sector" },
   ...TIME_SECTORS.map((s) => ({ value: s, label: timeSectorLabel(s) })),
 ];
 
@@ -98,6 +99,8 @@ export interface NewTaskFormProps {
     readonly kind: "area" | "project";
     readonly title: string;
   } | null;
+  /** Owner-calendar date for deterministic quick-capture calendar phrases. */
+  readonly todayIso?: string | null;
   /** Called with the new task's id after a successful create. */
   readonly onCreated: (taskId: string) => void;
   /** Called when the user cancels. */
@@ -107,6 +110,7 @@ export interface NewTaskFormProps {
 export function NewTaskForm({
   projectId,
   defaultParent = null,
+  todayIso = null,
   onCreated,
   onCancel,
 }: NewTaskFormProps) {
@@ -150,9 +154,6 @@ export function NewTaskForm({
     },
     fields: {
       title: { validate: required("A title is required") },
-      ...(fixedParent
-        ? {}
-        : { parentId: { validate: required("Choose a Project or an Area") } }),
     },
     fieldOrder,
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
@@ -163,21 +164,16 @@ export function NewTaskForm({
           (values.parentId === resolvedParent?.id
             ? resolvedParent.kind
             : null));
-      if (!parentKind || !parentIdValue) {
-        return {
-          status: "error",
-          fieldErrors: {
-            parentId: "Choose a Project or an Area for this task.",
-          },
-        };
-      }
+      const hasParent = parentKind !== null && parentIdValue.length > 0;
 
       const body = new FormData();
       body.set("intent", "create");
       const parsedTitle = interpretation.title.trim();
       body.set("title", parsedTitle.length > 0 ? parsedTitle : values.title);
-      body.set("parentId", parentIdValue);
-      body.set("parentKind", parentKind);
+      if (hasParent) {
+        body.set("parentId", parentIdValue);
+        body.set("parentKind", parentKind);
+      }
       const priority = values.priority || interpretation.priority || "";
       const timeSector = values.timeSector || interpretation.timeSector || "";
       const commitmentState =
@@ -189,8 +185,18 @@ export function NewTaskForm({
       if (commitmentState && commitmentState !== "active") {
         body.set("commitmentState", commitmentState);
       }
-      if (values.dueDate) body.set("dueDate", values.dueDate);
-      if (values.scheduledDate) body.set("scheduledDate", values.scheduledDate);
+      const dueDate = values.dueDate || interpretation.dueDate || "";
+      const scheduledDate =
+        values.scheduledDate || interpretation.scheduledDate || "";
+      if (dueDate) body.set("dueDate", dueDate);
+      if (scheduledDate) body.set("scheduledDate", scheduledDate);
+      // TASKS-04: a recognised `every …` phrase is APPLIED, not merely previewed.
+      // The route writes the rule in the same atomic create as the dates it repeats
+      // from, and drops it if neither date is present rather than guessing one.
+      applyRecurrenceFields(body, interpretation.recurrence, {
+        scheduledDate,
+        dueDate,
+      });
 
       let data: TasksCreateResult;
       try {
@@ -251,8 +257,12 @@ export function NewTaskForm({
     () => new Set(),
   );
   const interpretation = useMemo(
-    () => parseQuickCapture(titleField.value, { ignoredTokenIds }),
-    [titleField.value, ignoredTokenIds],
+    () =>
+      parseQuickCapture(titleField.value, {
+        ignoredTokenIds,
+        todayIso: todayIso ?? undefined,
+      }),
+    [titleField.value, ignoredTokenIds, todayIso],
   );
   const showPreview =
     interpretationIsMeaningful(interpretation) &&
@@ -319,7 +329,8 @@ export function NewTaskForm({
         </div>
       ) : null}
 
-      {/* The owner's default capture parent PRE-SELECTS this field; it does not
+      {/* The owner's default destination PRE-SELECTS this field when it is a parent;
+       * it does not
        * replace it. A saved preference is a starting point, not a lock — filing a
        * task somewhere else has to stay possible without a detour through
        * Settings, and the field keeps its label, its help text and its keyboard
@@ -328,9 +339,8 @@ export function NewTaskForm({
       {fixedParent ? null : (
         <SelectField
           label="Project or Area"
-          help="A task belongs to exactly one Project or Area."
+          help="Leave blank to keep this task Unassigned in Inbox."
           placeholder="Search Projects and Areas"
-          required
           options={parentOptions}
           onSearch={parentSearch.search}
           loading={parentSearch.loading}

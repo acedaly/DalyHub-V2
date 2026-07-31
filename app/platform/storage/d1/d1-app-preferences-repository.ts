@@ -27,6 +27,7 @@ interface AppPreferencesRow {
   readonly first_day_of_week: string;
   readonly default_landing_destination: string;
   readonly default_tasks_view: string;
+  readonly default_task_destination: string | null;
   readonly default_task_view_id: string | null;
   readonly default_task_capture_parent_id: string | null;
   readonly default_task_capture_parent_kind: string | null;
@@ -107,12 +108,13 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
           .prepare(
             `INSERT INTO owner_app_preferences (
                workspace_id, owner_id, theme, timezone, date_format, first_day_of_week,
-               default_landing_destination, default_tasks_view, default_task_view_id,
+               default_landing_destination, default_tasks_view,
+               default_task_destination, default_task_view_id,
                default_task_capture_parent_id, default_task_capture_parent_kind,
                default_diary_mode,
                navigation_config, version, created_at, updated_at
              )
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
              ON CONFLICT (workspace_id, owner_id) DO UPDATE SET
                theme = excluded.theme,
                timezone = excluded.timezone,
@@ -120,6 +122,7 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
                first_day_of_week = excluded.first_day_of_week,
                default_landing_destination = excluded.default_landing_destination,
                default_tasks_view = excluded.default_tasks_view,
+               default_task_destination = excluded.default_task_destination,
                default_task_view_id = excluded.default_task_view_id,
                default_task_capture_parent_id = excluded.default_task_capture_parent_id,
                default_task_capture_parent_kind = excluded.default_task_capture_parent_kind,
@@ -138,6 +141,7 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
             next.firstDayOfWeek,
             next.defaultLandingDestination,
             next.defaultTasksView,
+            next.defaultTaskDestination,
             next.defaultTaskViewId,
             next.defaultTaskCaptureParentId,
             next.defaultTaskCaptureParentKind,
@@ -170,6 +174,7 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
       firstDayOfWeek: row.first_day_of_week,
       defaultLandingDestination: row.default_landing_destination,
       defaultTasksView: row.default_tasks_view,
+      defaultTaskDestination: row.default_task_destination,
       defaultTaskViewId: row.default_task_view_id,
       defaultTaskCaptureParentId: row.default_task_capture_parent_id,
       defaultTaskCaptureParentKind: row.default_task_capture_parent_kind,
@@ -203,6 +208,7 @@ function preferencesEqual(a: AppPreferences, b: AppPreferences): boolean {
     a.firstDayOfWeek === b.firstDayOfWeek &&
     a.defaultLandingDestination === b.defaultLandingDestination &&
     a.defaultTasksView === b.defaultTasksView &&
+    a.defaultTaskDestination === b.defaultTaskDestination &&
     a.defaultTaskViewId === b.defaultTaskViewId &&
     a.defaultTaskCaptureParentId === b.defaultTaskCaptureParentId &&
     a.defaultTaskCaptureParentKind === b.defaultTaskCaptureParentKind &&

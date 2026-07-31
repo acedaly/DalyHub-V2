@@ -2,16 +2,14 @@
  * MOBILE-01 — Quick Capture: Task.
  *
  * The product's fastest path to a captured Task, and the one the acceptance
- * criteria name explicitly: **open capture, type a title, press Enter**. With a
- * valid UX-01 default capture parent that is the whole interaction — no picker, no
- * scrolling, no second screen.
+ * criteria name explicitly: **open capture, type a title, press Enter**. With no
+ * contextual Project or Area, that creates an Unassigned Inbox Task.
  *
  * Everything else is progressive disclosure:
  *   - Priority and Due date are optional CHIP rows — one tap each, never a
  *     collapsed select the thumb has to hunt for;
- *   - the parent picker appears ONLY when no valid default parent exists (a Task
- *     structurally requires exactly one parent, so capture cannot silently skip
- *     it), and it is the same server-backed search the full form uses.
+ *   - the optional parent picker is the same server-backed search the full form
+ *     uses; leaving it empty keeps the Task in Inbox.
  *
  * It posts to `POST /tasks/new` — the SAME atomic TASKS-01 creation route the
  * full New Task form uses, so parent verification, validation and the created
@@ -32,7 +30,10 @@ import {
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
-import { parseQuickCapture } from "~/shared/task-record/quick-capture";
+import {
+  applyRecurrenceFields,
+  parseQuickCapture,
+} from "~/shared/task-record/quick-capture";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 import { taskPriorityLabel } from "~/shared/task-record/task-view";
 import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
@@ -99,40 +100,30 @@ export function TaskCapturePanel({
       : null;
   const defaultParent = contextualParent ?? context?.defaultTaskParent ?? null;
   const todayIso = context?.todayIso ?? null;
-  // Until the context resolves we cannot know whether a parent picker is needed;
-  // requiring the field only once we KNOW there is no default keeps the fast path
-  // free of a validation error that would disappear a moment later.
-  const needsParent = !loading && defaultParent === null;
+  const canChooseParent = !loading && defaultParent === null;
 
   const form = useForm<Values>({
     initialValues: { title: "", parentId: "", priority: "", dueDate: "" },
     fields: {
       title: { validate: required("A title is required") },
-      ...(needsParent
-        ? { parentId: { validate: required("Choose a Project or an Area") } }
-        : {}),
     },
     fieldOrder: ["title", "parentId", "priority", "dueDate"],
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
       const parentId = defaultParent?.id ?? values.parentId;
       const parentKind =
         defaultParent?.kind ?? parentSearch.kindOf(values.parentId);
-      if (!parentId || !parentKind) {
-        return {
-          status: "error",
-          fieldErrors: {
-            parentId: "Choose a Project or an Area for this task.",
-          },
-        };
-      }
 
       // The SAME deterministic parser `/tasks` uses — never a second vocabulary.
-      const interpretation = parseQuickCapture(values.title);
+      const interpretation = parseQuickCapture(values.title, {
+        todayIso: todayIso ?? undefined,
+      });
       const body = new FormData();
       body.set("intent", "create");
       body.set("title", interpretation.title);
-      body.set("parentId", parentId);
-      body.set("parentKind", parentKind);
+      if (parentId && parentKind) {
+        body.set("parentId", parentId);
+        body.set("parentKind", parentKind);
+      }
       if (captureContext) {
         body.set("captureContext", encodeCaptureContext(captureContext));
       }
@@ -144,7 +135,15 @@ export function TaskCapturePanel({
       if (interpretation.commitmentState !== "active") {
         body.set("commitmentState", interpretation.commitmentState);
       }
-      if (values.dueDate) body.set("dueDate", values.dueDate);
+      const dueDate = values.dueDate || interpretation.dueDate || "";
+      if (dueDate) body.set("dueDate", dueDate);
+      if (interpretation.scheduledDate) {
+        body.set("scheduledDate", interpretation.scheduledDate);
+      }
+      applyRecurrenceFields(body, interpretation.recurrence, {
+        scheduledDate: interpretation.scheduledDate,
+        dueDate: dueDate || null,
+      });
 
       let data: TasksCreateResponse;
       try {
@@ -178,6 +177,17 @@ export function TaskCapturePanel({
 
   const titleField = form.field("title");
   const parentField = form.field("parentId");
+  /**
+   * The title of an explicitly CHOSEN destination, so the "Filing under …" line tracks
+   * the picker instead of contradicting it. Resolved from the picker's own known
+   * options — never a second source of truth for what a Project is called.
+   */
+  const selectedParentTitle =
+    parentField.value.length === 0
+      ? null
+      : (parentSearch
+          .withSelected(parentField.value)
+          .find((option) => option.value === parentField.value)?.label ?? null);
   const priorityValue = form.values.priority;
   const dueValue = form.values.dueDate;
 
@@ -239,23 +249,35 @@ export function TaskCapturePanel({
         }}
       />
 
+      {/* TASKS-04 — the sheet ALWAYS states where the task will be filed, because
+          "somewhere" is the one thing a trustworthy inbox may never be. With a fixed
+          or chosen destination that is the Project/Area; otherwise it is Inbox, which
+          is a real destination now rather than the absence of one. The optional picker
+          is progressive disclosure BELOW that line, never a blocker on the fast path. */}
       {defaultParent ? (
         <p className="dh-capture-parent">
           Filing under <strong>{defaultParent.title}</strong>
         </p>
-      ) : needsParent ? (
-        <SelectField
-          label="Project or Area"
-          help="A task belongs to exactly one Project or Area."
-          placeholder="Search Projects and Areas"
-          required
-          options={parentSearch.withSelected(parentField.value)}
-          onSearch={parentSearch.search}
-          loading={parentSearch.loading}
-          emptyMessage="No matching Projects or Areas"
-          {...parentField}
-        />
-      ) : null}
+      ) : (
+        <>
+          <p className="dh-capture-parent">
+            Filing under <strong>{selectedParentTitle ?? "Inbox"}</strong>
+          </p>
+          {canChooseParent ? (
+            <SelectField
+              label="Project or Area"
+              help="Leave blank to keep this task in Inbox."
+              placeholder="Search Projects and Areas"
+              showOptionalCue={false}
+              options={parentSearch.withSelected(parentField.value)}
+              onSearch={parentSearch.search}
+              loading={parentSearch.loading}
+              emptyMessage="No matching Projects or Areas"
+              {...parentField}
+            />
+          ) : null}
+        </>
+      )}
 
       {/* Optional classification as one-tap chips — a priority or a date costs a
           single additional tap, never a trip into a collapsed form section. */}

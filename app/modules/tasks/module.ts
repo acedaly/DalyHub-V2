@@ -23,6 +23,8 @@ import {
 import {
   TASK_PLAN_CLEARED,
   TASK_PLANNED,
+  TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_RESCHEDULED,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
@@ -108,6 +110,17 @@ export default defineModule({
       type: TASK_PLAN_CLEARED,
       label: "Plan cleared",
       description: "A task’s plan (scheduled date) was removed.",
+    },
+    {
+      type: TASK_RECURRENCE_OCCURRENCE_CREATED,
+      label: "Next occurrence created",
+      description: "Completing a repeating task created its next occurrence.",
+    },
+    {
+      type: TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
+      label: "Next occurrence withdrawn",
+      description:
+        "Undoing a completion withdrew the untouched next occurrence it had created.",
     },
   ],
 });

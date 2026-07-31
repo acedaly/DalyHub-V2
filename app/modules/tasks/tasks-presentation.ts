@@ -104,7 +104,7 @@ export const PLANNED_STATE_LABELS: Record<string, string> = {
 export const PARENT_KIND_LABELS: Record<string, string> = {
   project: "In a Project",
   area: "In an Area",
-  none: "No parent",
+  none: "Unassigned",
 };
 
 export const RECENCY_LABELS: Record<string, string> = {
@@ -154,8 +154,7 @@ export const SECTOR_LABELS: Record<string, string> = {
   ...Object.fromEntries(
     TIME_SECTORS.map((sector) => [sector, timeSectorLabel(sector)]),
   ),
-  __none: "Inbox (no sector)",
-  inbox: "Inbox",
+  __none: "No sector",
 };
 
 /**
@@ -219,7 +218,7 @@ export function groupBucketLabel(
     case "planned":
       return PLANNED_STATE_LABELS[key] ?? key;
     case "parent":
-      return key === "__none" ? "No parent" : (labelFromServer ?? "Parent");
+      return key === "__none" ? "Unassigned" : (labelFromServer ?? "Parent");
     case "delegate":
       return key === "__none"
         ? "Not delegated"
@@ -245,7 +244,7 @@ export function declaredBucketOrder(
     case "priority":
       return [...TASK_PRIORITIES, "untriaged"];
     case "sector":
-      return ["inbox", ...TIME_SECTORS];
+      return ["__none", ...TIME_SECTORS];
     case "status":
       return [...TASK_STATUSES, "completed"];
     case "due_state":

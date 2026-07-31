@@ -16,6 +16,11 @@
 
 import type { MarkdownSource } from "~/kernel/markdown";
 import type { WorkspaceId } from "~/kernel/workspaces";
+import type {
+  TaskRecurrenceInput,
+  TaskRecurrenceRule,
+  TaskRecurrenceSeries,
+} from "./task-recurrence";
 
 /**
  * The closed set of open-state workflow positions (TASKS-01 widened this from the
@@ -47,9 +52,10 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
  * The Carl Pullein-inspired Time Sector (TASKS-01 / ADR-043 §3): the broad planning
  * WINDOW in which the owner intends to address a task, kept distinct from the
  * scheduled date (a specific day) and the due date (a deadline). Absence of a
- * sector is `null` — a task with no sector and no schedule reads as the DERIVED
- * "Inbox" state (Inbox is not a stored value). Sector is not a Project hierarchy
- * and never changes parentage, priority, dates or completion.
+ * sector is `null` — read as "No sector". (TASKS-04: that is NOT Inbox. Inbox means
+ * an active Task with no structural PARENT; a Task can be filed under a Project and
+ * still have no sector.) Sector is not a Project hierarchy and never changes
+ * parentage, priority, dates or completion.
  */
 export const TIME_SECTORS = [
   "this_week",
@@ -141,12 +147,16 @@ export type TaskDetails = {
   readonly dueDate: string | null;
   /** Date-only `YYYY-MM-DD`, or null. */
   readonly scheduledDate: string | null;
-  /** The planning window (ADR-043 §3), or null (derived "Inbox"). */
+  /** The planning window (ADR-043 §3), or null — "No sector" (TASKS-04). */
   readonly timeSector: TimeSector | null;
   /** The commitment state (ADR-043 §4). `active` unless parked as Someday/Maybe. */
   readonly commitmentState: CommitmentState;
   /** The delegation record (ADR-043 §7), or null when not delegated. */
   readonly delegation: TaskDelegation | null;
+  /** Structured calendar recurrence (TASKS-04), or null for a one-off task. */
+  readonly recurrence?: TaskRecurrenceRule | null;
+  /** The persisted series identity of a recurring occurrence, else null. */
+  readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   /** Markdown SOURCE (FND-08 / ADR-015), rendered through the one shared pipeline. */
   readonly description: MarkdownSource | null;
 };
@@ -160,6 +170,8 @@ export const DEFAULT_TASK_DETAILS: TaskDetails = {
   timeSector: null,
   commitmentState: "active",
   delegation: null,
+  recurrence: null,
+  recurrenceSeries: null,
   description: null,
 };
 
@@ -186,6 +198,8 @@ export type TaskView = {
   readonly timeSector: TimeSector | null;
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
+  readonly recurrence?: TaskRecurrenceRule | null;
+  readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   readonly description: MarkdownSource | null;
   /** The Project the task belongs to, if its structural parent is a Project. */
   readonly project: TaskRelation | null;
@@ -240,6 +254,16 @@ export type UpdateTaskResult = {
   readonly changed: boolean;
 };
 
+export type SetTaskParentInput = {
+  readonly kind: "area" | "project";
+  readonly id: string;
+} | null;
+
+export type SetTaskParentResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+};
+
 /** Options for listing a workspace's tasks (bounded — never "load everything"). */
 export type ListTasksInput = {
   /** Page size, clamped to a safe maximum; defaults to a safe page size. */
@@ -268,6 +292,8 @@ export type TaskListItem = {
   readonly timeSector: TimeSector | null;
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
+  readonly recurrence?: TaskRecurrenceRule | null;
+  readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   /** The structural parent (a Project or an Area) as a context line, or null. */
   readonly parent: TaskRelation | null;
   /** The active waiting state, or null when the task is not waiting (TODAY-03). */
@@ -379,8 +405,56 @@ export type ClearWaitingResult = {
 /**
  * The outcome of `completeTask`: the fresh (completed, non-waiting) task view and
  * whether completion actually happened (`false` for an already-completed no-op).
+ *
+ * When the completed occurrence carried a recurrence rule, `successor` is the ONE
+ * next occurrence created in the SAME transaction (TASKS-04 / ADR-062). It is null
+ * for a one-off task, and null on an idempotent no-op — a repeated completion never
+ * creates a second successor.
  */
 export type CompleteTaskResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+  readonly successor?: TaskView | null;
+};
+
+/**
+ * Options for `completeTask`. `ownerTodayIso` is the OWNER's calendar day (ADR-022),
+ * resolved server-side from their timezone preference. Recurrence uses it to schedule
+ * the successor after the later of the current anchor and the day the owner actually
+ * completed the task, so a task completed late at night in Sydney never repeats on
+ * yesterday's date. Omitted, the repository falls back to the clock's UTC day.
+ */
+export type CompleteTaskOptions = {
+  readonly ownerTodayIso?: string;
+};
+
+/**
+ * The outcome of `reopenTask` — the task-domain undo of completion.
+ *
+ * `successorOutcome` reports what happened to a recurrence successor created by the
+ * completion being undone:
+ *   - `none` — the completion created no successor (a one-off task);
+ *   - `removed` — the successor was still UNTOUCHED and provably created by this
+ *     completion, so it was withdrawn (soft-deleted) in the same transaction;
+ *   - `retained` — the successor has since been edited, completed, linked or
+ *     otherwise materially changed, so it was KEPT and the user is told.
+ */
+export type ReopenTaskSuccessorOutcome = "none" | "removed" | "retained";
+
+export type ReopenTaskResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+  readonly successorOutcome: ReopenTaskSuccessorOutcome;
+};
+
+/**
+ * The recurrence a mutation asks for: a validated rule, or `null` to remove
+ * recurrence from the task. `anchorDay`/`anchorMonth` may be omitted — the
+ * repository derives them from the Task's anchor date.
+ */
+export type SetTaskRecurrenceInput = TaskRecurrenceInput | null;
+
+export type SetTaskRecurrenceResult = {
   readonly task: TaskView;
   readonly changed: boolean;
 };
@@ -718,7 +792,8 @@ export type WorkspaceTaskGroupDimension =
 export type WorkspaceTaskGroup = {
   /**
    * The bucket key: for `quadrant`, one of `p1`|`p2`|`p3`|`p4`|`untriaged`; for
-   * `sector`, a `TimeSector` value or `inbox` (the derived no-sector bucket).
+   * `sector`, a `TimeSector` value or `__none` ("No sector"). TASKS-04 renamed that
+   * bucket: "Inbox" now means an UNASSIGNED Task, never an unsectored one.
    */
   readonly key: string;
   readonly count: number;
@@ -781,25 +856,30 @@ export type SearchTaskParentsInput = {
 };
 
 /**
- * Create a task AND its initial planning fields as ONE atomic operation (ADR-043 §13
- * / decision 15). The structural identity/parentage (an Area OR Project parent, the
- * spine record and the `entity.created`/`entity_link.created` events) and the additive
- * `task_details` planning slice are written together in a single transaction — never a
- * spine create followed by a separate detail write. Any planning field is optional; an
- * omitted field takes its documented default and no `task_details` row is written when
- * no planning field is supplied.
+ * Create a task AND its initial planning fields as ONE atomic operation. TASKS-04
+ * permits an intentional Unassigned Task: structural parentage is optional for Tasks
+ * only, while the entity row, spine record, Activity and optional `task_details` slice
+ * are still written together. When a parent is supplied it must be an active Area or
+ * non-archived Project in the authenticated workspace.
  */
 export type NewTaskInput = {
   readonly title: string;
-  readonly parent: {
+  readonly parent?: {
     readonly kind: "area" | "project";
     readonly id: string;
-  };
+  } | null;
   readonly priority?: TaskPriority | null;
   readonly timeSector?: TimeSector | null;
   readonly commitmentState?: CommitmentState;
   readonly dueDate?: string | null;
   readonly scheduledDate?: string | null;
+  /**
+   * TASKS-04 — an optional recurrence rule written in the SAME create batch, so a
+   * captured "every Monday" Task is never persisted without the rule it asked for.
+   * Validated against the Task's own anchor date: a `scheduled` rule needs
+   * `scheduledDate`, a `due` rule needs `dueDate`, and nothing is written if not.
+   */
+  readonly recurrence?: TaskRecurrenceInput | null;
 };
 
 /**

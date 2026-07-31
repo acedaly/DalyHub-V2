@@ -165,15 +165,16 @@ describe("resolveGroupedSections — the Matrix (a specialist view)", () => {
 });
 
 describe("resolveGroupedSections — Time Sectors (a specialist view)", () => {
-  it("returns inbox + the six sectors, inbox mapping to the __none filter", () => {
+  it("returns No sector + the six sectors, mapping null sector to the __none filter", () => {
     const sections = resolveGroupedSections({
       dimension: "sector",
       groups: [
-        group({ key: "inbox", count: 3, items: [item({ id: "i1" })] }),
+        group({ key: "__none", count: 3, items: [item({ id: "i1" })] }),
         group({ key: "this_week", count: 1, items: [item({ id: "w1" })] }),
       ],
     });
-    expect(sections[0]?.key).toBe("inbox");
+    expect(sections[0]?.key).toBe("__none");
+    expect(sections[0]?.title).toBe("No sector");
     expect(sections[0]?.filterParam).toBe("sector");
     expect(sections[0]?.filterKey).toBe("__none");
     expect(sections[0]?.count).toBe(3);

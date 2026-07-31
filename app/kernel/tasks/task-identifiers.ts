@@ -89,6 +89,27 @@ export const TASK_RESCHEDULED = "task.rescheduled";
 export const TASK_PLAN_CLEARED = "task.plan_cleared";
 
 /**
+ * TASKS-04 Recurrence — the ONE structural event a repeating Task adds (ADR-062).
+ *
+ * Setting, changing or removing a recurrence RULE is an ordinary task-detail edit and
+ * uses the existing `entity.updated` event (no per-field event types). Creating the
+ * next OCCURRENCE is different: it brings a new Task into existence because another
+ * was completed, and the timeline has to be able to say so. Its two subjects are the
+ * completed occurrence (`subject`) and the occurrence it produced (`successor`); its
+ * payload carries only calendar dates and the series identity — never free text.
+ */
+export const TASK_RECURRENCE_OCCURRENCE_CREATED =
+  "task.recurrence_occurrence_created";
+
+/**
+ * TASKS-04 — Activity appended when undoing a completion WITHDRAWS the successor that
+ * completion had created (the safe-undo path). Subjects mirror the creation event, so
+ * a series reads as a coherent pair of entries rather than a silent disappearance.
+ */
+export const TASK_RECURRENCE_OCCURRENCE_WITHDRAWN =
+  "task.recurrence_occurrence_withdrawn";
+
+/**
  * TASKS-01 — the four planning dimensions (Time Sector, priority, commitment,
  * workflow status) and delegation are edited through the SAME atomic write path as
  * every other task-detail field and recorded with the ONE existing `entity.updated`

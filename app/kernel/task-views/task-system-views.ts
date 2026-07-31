@@ -52,7 +52,7 @@ function derived(
 export const TASK_SYSTEM_VIEW_DEFINITIONS: readonly TaskSystemViewDefinition[] =
   [
     derived("default", "All active", "Everything actionable right now.", {}),
-    derived("inbox", "Inbox", "Captured, not yet planned.", {
+    derived("inbox", "Inbox", "Unassigned active tasks.", {
       systemView: "inbox",
     }),
     derived("today", "Today", "Planned for today.", { systemView: "today" }),

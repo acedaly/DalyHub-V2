@@ -44,6 +44,14 @@ const routes: readonly RouteContribution[] = [
     path: "tasks/views",
     file: "routes/views.tsx",
   },
+  // TASKS-04: Review Inbox — the focused triage flow over the built-in Inbox query
+  // (active, unassigned Tasks). A static segment, declared before `tasks/:taskId` so
+  // it can never be read as a task id.
+  {
+    id: "tasks.review",
+    path: "tasks/review",
+    file: "routes/review.tsx",
+  },
   // PROJ-01 / ADR-033: the re-homed task record resource routes (no nav entry). The
   // ONE task record data endpoint (loader + mutation action), its Activity Timeline
   // page, the "related records" target search and the waiting-target search. They are

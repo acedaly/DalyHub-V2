@@ -73,7 +73,9 @@ const STATUS_OPTIONS: readonly SelectOption[] = TASK_STATUSES.map((s) => ({
   label: taskStatusLabel(s),
 }));
 const SECTOR_OPTIONS: readonly SelectOption[] = [
-  { value: "", label: "Inbox (no sector)" },
+  // TASKS-04 vocabulary: the absence of a Time Sector is "No sector". "Inbox" now
+  // means an UNASSIGNED Task, and a follow-up Task always has a parent.
+  { value: "", label: "No sector" },
   ...TIME_SECTORS.map((s) => ({ value: s, label: timeSectorLabel(s) })),
 ];
 const COMMITMENT_OPTIONS: readonly SelectOption[] = COMMITMENT_STATES.map(

@@ -49,6 +49,13 @@ export {
   type GetTaskOptions,
   type UpdateTaskInput,
   type UpdateTaskResult,
+  type ReopenTaskResult,
+  type ReopenTaskSuccessorOutcome,
+  type SetTaskParentInput,
+  type SetTaskParentResult,
+  type CompleteTaskOptions,
+  type SetTaskRecurrenceInput,
+  type SetTaskRecurrenceResult,
   type ListTasksInput,
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
@@ -93,6 +100,8 @@ export {
   TASK_PLANNED,
   TASK_RESCHEDULED,
   TASK_PLAN_CLEARED,
+  TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   DELEGATE_TO_MAX_LENGTH,
   DELEGATION_NOTE_MAX_LENGTH,
   MAX_PLAN_BATCH_SIZE,
@@ -102,6 +111,24 @@ export {
 } from "./task-identifiers";
 
 export type { TaskRepository } from "./task-repository";
+
+export {
+  TASK_RECURRENCE_DATE_KINDS,
+  TASK_RECURRENCE_FREQUENCIES,
+  TASK_RECURRENCE_SERIES_ID_MAX_LENGTH,
+  addCalendarDays,
+  calendarDaysBetween,
+  nextTaskOccurrenceDate,
+  recurrenceAnchorField,
+  resolveTaskRecurrenceRule,
+  validateTaskRecurrenceRule,
+  weekdayOfDate,
+  type TaskRecurrenceDateKind,
+  type TaskRecurrenceFrequency,
+  type TaskRecurrenceInput,
+  type TaskRecurrenceRule,
+  type TaskRecurrenceSeries,
+} from "./task-recurrence";
 
 export {
   PROJECT_TASK_CURSOR_VERSION,

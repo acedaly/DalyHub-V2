@@ -52,6 +52,7 @@ import { UrgencyChip } from "./UrgencyChip";
 import {
   isTaskComplete,
   taskDisplayState,
+  taskRecurrenceLabel,
   timeSectorLabel,
   type SerializedTaskView,
 } from "./task-view";
@@ -527,6 +528,17 @@ export function TaskRecordDrawer({
   }
   if (task.area) {
     metadata.push({ id: "area", label: "Area", value: task.area.title });
+  }
+  // TASKS-04 — an Inbox task has NO structural parent, and the record says so with the
+  // product's word for it. Silence would read as "we lost it".
+  if (!task.project && !task.area) {
+    metadata.push({ id: "parent", label: "Parent", value: "Unassigned" });
+  }
+  // A stored recurrence rule is a fact about the task, so it is reported here in the
+  // same restrained vocabulary the parser and the Repeat control use.
+  const recurrenceLabel = taskRecurrenceLabel(task.recurrence);
+  if (recurrenceLabel !== null) {
+    metadata.push({ id: "repeats", label: "Repeats", value: recurrenceLabel });
   }
   const taskCaptureContext: CaptureContextContract = {
     sourceEntityId: task.id,

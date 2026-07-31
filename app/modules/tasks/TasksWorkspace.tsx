@@ -50,9 +50,15 @@ import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { SegmentedFilter } from "~/shared/segmented-filter";
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
+import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import type {
+  TaskActionData,
+  TaskRecurrenceOutcome,
+} from "~/shared/task-record/contract";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
 import {
+  formatCalendarDate,
   taskPriorityLabel,
   timeSectorLabel,
   type SerializedTaskListItem,
@@ -95,18 +101,38 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
           children: <TaskRecordDrawer taskId={id} />,
         };
       }
+      // TASKS-04 — the row's quick edits (and its parent change) open the ONE shared
+      // quick-edit panel in the ONE shared Drawer, rather than a bespoke popover per
+      // field. Both keys carry the task id, so the state is URL-backed and Back works.
+      if ((kind === "task-quick" || kind === "task-move") && id.length > 0) {
+        const item = findLoadedTask(data, id);
+        if (!item) return null;
+        return {
+          title: kind === "task-move" ? "Move task" : "Quick edit",
+          description:
+            kind === "task-move"
+              ? "File this task under a Project or an Area, or leave it in Inbox."
+              : "Dates, sector, commitment and repeat.",
+          children: (
+            <TaskQuickEditDrawerHost item={item} todayIso={data.todayIso} />
+          ),
+        };
+      }
       if (entry.key === NEW_TASK_KEY) {
         return {
           title: "New task",
           description: "Capture a task under a Project or an Area.",
           children: (
-            <NewTaskDrawerHost defaultParent={data.defaultCaptureParent} />
+            <NewTaskDrawerHost
+              defaultParent={data.defaultCaptureParent}
+              todayIso={data.todayIso}
+            />
           ),
         };
       }
       return null;
     };
-  }, [data.defaultCaptureParent]);
+  }, [data]);
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>
@@ -115,17 +141,69 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
   );
 }
 
+/**
+ * The task a Drawer key refers to, from whichever payload the current presentation
+ * loaded it into: the flat page, or a bucket of the server-grouped result. One
+ * lookup, so a grouped Matrix row can open the same panel a list row does.
+ */
+function findLoadedTask(
+  data: TasksPageData,
+  id: string,
+): SerializedTaskListItem | null {
+  const flat = data.items.find((task) => task.id === id);
+  if (flat) return flat;
+  for (const group of data.grouping?.groups ?? []) {
+    const found = group.items.find((task) => task.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Hosts the shared quick-edit panel in the Drawer. It revalidates the list after each
+ * canonical mutation and announces the outcome through a live region, so the row the
+ * user came from reflects the SERVER rather than an optimistic guess.
+ */
+function TaskQuickEditDrawerHost({
+  item,
+  todayIso,
+}: {
+  readonly item: SerializedTaskListItem;
+  readonly todayIso: string;
+}) {
+  const revalidator = useRevalidator();
+  const [announcement, setAnnouncement] = useState<string | null>(null);
+  return (
+    <>
+      <TaskQuickEditPanel
+        task={item}
+        todayIso={todayIso}
+        onChanged={(message) => {
+          setAnnouncement(message);
+          revalidator.revalidate();
+        }}
+      />
+      <p className="dh-visually-hidden" role="status">
+        {announcement ?? ""}
+      </p>
+    </>
+  );
+}
+
 /** Hosts the create form: reflects the new task, then opens it in the shared Drawer. */
 function NewTaskDrawerHost({
   defaultParent,
+  todayIso,
 }: {
   readonly defaultParent: TasksPageData["defaultCaptureParent"];
+  readonly todayIso: string;
 }) {
   const { closeDrawer, replaceDrawer } = useDrawer();
   const revalidator = useRevalidator();
   return (
     <NewTaskForm
       defaultParent={defaultParent}
+      todayIso={todayIso}
       onCreated={(taskId) => {
         revalidator.revalidate();
         replaceDrawer(`task:${taskId}`);
@@ -218,6 +296,26 @@ function useTaskPagination(
 /* -------------------------------------------------------------------------- */
 
 /**
+ * The plain-English consequence of a completion (or its undo) on a recurrence series.
+ * Empty for a one-off task, so an ordinary completion announcement is unchanged.
+ */
+function recurrenceNote(outcome: TaskRecurrenceOutcome | undefined): string {
+  if (!outcome) return "";
+  switch (outcome.outcome) {
+    case "created":
+      return outcome.scheduledDate
+        ? ` The next occurrence is scheduled for ${formatCalendarDate(outcome.scheduledDate)}.`
+        : outcome.dueDate
+          ? ` The next occurrence is due ${formatCalendarDate(outcome.dueDate)}.`
+          : " The next occurrence was created.";
+    case "removed":
+      return " The next occurrence it created was withdrawn.";
+    case "retained":
+      return " The next occurrence had already changed, so it was kept.";
+  }
+}
+
+/**
  * List-level quick edits, through the CANONICAL routes.
  *
  * Completion posts `intent=complete`/`reopen` to `POST /tasks/:taskId` — the same
@@ -248,6 +346,7 @@ function useTaskQuickMutation() {
     const result = fetcher.data as {
       readonly ok?: boolean;
       readonly formError?: string;
+      readonly recurrence?: TaskRecurrenceOutcome;
     };
     if (result.ok === false) {
       setAnnouncement(
@@ -255,7 +354,12 @@ function useTaskQuickMutation() {
           "That change couldn’t be saved. Nothing was changed.",
       );
     } else if (pendingLabel.current) {
-      setAnnouncement(pendingLabel.current);
+      // TASKS-04: completing or undoing a REPEATING task has a second consequence,
+      // and the surface says so rather than leaving a new (or surviving) occurrence
+      // unexplained.
+      setAnnouncement(
+        `${pendingLabel.current}${recurrenceNote(result.recurrence)}`,
+      );
     }
     pendingLabel.current = null;
     revalidator.revalidate();
@@ -286,12 +390,134 @@ function useTaskQuickMutation() {
     [fetcher],
   );
 
+  const clearParent = useCallback(
+    (taskId: string, title: string) => {
+      pendingLabel.current = `${title} moved to Inbox.`;
+      const body = new FormData();
+      body.set("intent", "set_parent");
+      body.set("parentId", "");
+      body.set("parentKind", "");
+      fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
+    },
+    [fetcher],
+  );
+
   return {
     setCompleted,
     setField,
+    clearParent,
     busy: fetcher.state !== "idle",
     announcement,
   };
+}
+
+/**
+ * TASKS-04 — the inline TITLE editor for one list row.
+ *
+ * It is rendered ONLY while the row is being renamed (the Card keeps its ordinary
+ * open link the rest of the time), so inline editing never costs the user the way
+ * into the record. Renaming posts to the canonical `POST /tasks/:taskId` route and
+ * revalidates the list; a rejected save keeps the typed text, announces the reason
+ * and returns focus to the field.
+ */
+function InlineTaskTitleEditor({
+  taskId,
+  title,
+  onDone,
+}: {
+  readonly taskId: string;
+  readonly title: string;
+  readonly onDone: () => void;
+}) {
+  const fetcher = useFetcher<TaskActionData>();
+  const revalidator = useRevalidator();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [draft, setDraft] = useState(title);
+  const [error, setError] = useState<string | null>(null);
+  const processed = useRef<TaskActionData | null>(null);
+  const saving = fetcher.state !== "idle";
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    if (processed.current === fetcher.data) return;
+    processed.current = fetcher.data;
+    const result = fetcher.data;
+    if (result.kind !== "update") return;
+    if (result.status === "success") {
+      setError(null);
+      revalidator.revalidate();
+      onDone();
+      return;
+    }
+    // The user's text is never discarded on a recoverable failure.
+    setError(
+      result.fieldErrors?.title ??
+        result.formError ??
+        "That title couldn’t be saved. Your text is safe — try again.",
+    );
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, [fetcher.state, fetcher.data, revalidator, onDone]);
+
+  const save = useCallback(() => {
+    const trimmed = draft.trim();
+    if (saving) return;
+    if (trimmed.length === 0) {
+      setError("A title is required.");
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
+    if (trimmed === title) {
+      onDone();
+      return;
+    }
+    setError(null);
+    const body = new FormData();
+    body.set("intent", "rename");
+    body.set("title", trimmed);
+    fetcher.submit(body, { method: "post", action: `/tasks/${taskId}` });
+  }, [draft, fetcher, onDone, saving, taskId, title]);
+
+  return (
+    <span className="dh-tasks-inline-title-editor">
+      <input
+        ref={inputRef}
+        className="dh-input dh-tasks-inline-title-editor__input"
+        value={draft}
+        maxLength={512}
+        disabled={saving}
+        aria-label={`Rename ${title}`}
+        aria-invalid={error ? true : undefined}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (error) setError(null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            save();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            setError(null);
+            onDone();
+          }
+        }}
+        onBlur={() => {
+          // A blur with an unresolved error would throw the text away; keep editing.
+          if (!error) save();
+        }}
+      />
+      {error ? (
+        <span className="dh-tasks-inline-title-editor__error" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -303,6 +529,12 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   const { openDrawer } = useDrawer();
   const quick = useTaskQuickMutation();
   const config = data.config;
+  /**
+   * TASKS-04 — which row (if any) is being renamed inline. Held here rather than in
+   * the row so exactly one title is ever in edit mode and the Card keeps its open
+   * control everywhere else.
+   */
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
 
   const controlGroups = useMemo(
     () =>
@@ -562,10 +794,33 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
                 ),
             },
             {
+              id: "rename",
+              label: "Rename",
+              separatorBefore: true,
+              disabled: quick.busy,
+              onSelect: () => setEditingTitleId(card.id),
+            },
+            {
+              id: "move-to",
+              label: "Move to Project or Area…",
+              onSelect: () => openDrawer(`task-move:${card.id}`),
+            },
+            {
+              id: "move-to-inbox",
+              label: "Move to Inbox",
+              disabled: quick.busy || !card.parentLabel,
+              onSelect: () => quick.clearParent(card.id, card.title),
+            },
+            {
+              id: "quick-edit",
+              label: "Dates, sector and repeat…",
+              separatorBefore: true,
+              onSelect: () => openDrawer(`task-quick:${card.id}`),
+            },
+            {
               id: "open-record",
               label: "Open task record",
-              description: "For the parent, delegation, waiting and removal.",
-              separatorBefore: true,
+              description: "For delegation, waiting and removal.",
               onSelect: () => openDrawer(`task:${card.id}`),
             },
           ];
@@ -574,12 +829,23 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       return {
         id: card.id,
         title: card.title,
+        // The editor replaces the title ONLY while this row is being renamed; every
+        // other row keeps the ordinary open link (TASKS-04).
+        titleEditor:
+          editingTitleId === card.id ? (
+            <InlineTaskTitleEditor
+              taskId={card.id}
+              title={card.title}
+              onDone={() => setEditingTitleId(null)}
+            />
+          ) : undefined,
         typeLabel: "Task",
         icon: <EntityIcon type="task" />,
         headingLevel,
         status: { label: card.stateLabel, tone: card.stateTone as CardTone },
         metadata,
-        context: card.parentLabel ? { label: card.parentLabel } : undefined,
+        // An Inbox Task reads as "Unassigned" — the honest parent value, not a blank.
+        context: { label: card.parentLabel ?? "Unassigned" },
         density,
         presentation: "list",
         href: `?${withDrawerPushed(searchParams, key).toString()}`,
@@ -603,6 +869,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       toggleSelected,
       quick,
       density,
+      editingTitleId,
     ],
   );
 
@@ -679,12 +946,20 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       entityType="task"
       density={density}
       primaryAction={
-        <DrawerTrigger
-          drawerKey={NEW_TASK_KEY}
-          className="dh-btn dh-btn--primary"
-        >
-          New task
-        </DrawerTrigger>
+        <>
+          {/* TASKS-04 — the way into Inbox triage lives beside capture, because
+              capturing fast and reviewing what you captured are the two halves of
+              the same daily habit. */}
+          <Link className="dh-btn dh-btn--secondary" to="/tasks/review">
+            Review Inbox
+          </Link>
+          <DrawerTrigger
+            drawerKey={NEW_TASK_KEY}
+            className="dh-btn dh-btn--primary"
+          >
+            New task
+          </DrawerTrigger>
+        </>
       }
       // The shared PX-02 view switcher stays in the pane header on desktop, so
       // changing presentation is ONE click rather than a trip through the sheet.
@@ -779,6 +1054,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       <TasksQuickAdd
         defaultParent={data.defaultCaptureParent}
         sessionDefaults={sessionDefaults}
+        todayIso={data.todayIso}
         onOpenFullForm={() => openDrawer(NEW_TASK_KEY)}
       />
 
@@ -932,7 +1208,7 @@ const BULK_PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
 
 const BULK_SECTOR_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "", label: "Move to sector…" },
-  { value: "__none", label: "Inbox (no sector)" },
+  { value: "__none", label: "No sector" },
   ...TIME_SECTORS.map((sector) => ({
     value: sector,
     label: timeSectorLabel(sector),

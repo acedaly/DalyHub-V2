@@ -17,6 +17,7 @@ import type {
   TaskDelegation,
   TaskListItem,
   TaskPriority,
+  TaskRecurrenceRule,
   TaskRelation,
   TaskStatus,
   TaskView,
@@ -74,6 +75,7 @@ export interface SerializedTaskView {
   readonly timeSector: TimeSector | null;
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
+  readonly recurrence?: TaskRecurrenceRule | null;
   readonly description: string | null;
   readonly project: TaskRelation | null;
   readonly goal: TaskRelation | null;
@@ -104,6 +106,7 @@ export function serializeTaskView(task: TaskView): SerializedTaskView {
     timeSector: task.timeSector,
     commitmentState: task.commitmentState,
     delegation: task.delegation,
+    recurrence: task.recurrence,
     description: task.description,
     project: task.project,
     goal: task.goal,
@@ -126,6 +129,7 @@ export interface SerializedTaskListItem {
   readonly timeSector: TimeSector | null;
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
+  readonly recurrence?: TaskRecurrenceRule | null;
   readonly parent: TaskRelation | null;
   readonly waiting: SerializedTaskWaiting | null;
 }
@@ -147,6 +151,7 @@ export function serializeTaskListItem(
     timeSector: item.timeSector,
     commitmentState: item.commitmentState,
     delegation: item.delegation,
+    recurrence: item.recurrence,
     parent: item.parent,
     waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
   };
@@ -236,7 +241,45 @@ export function taskPriorityTag(priority: TaskPriority | null): string {
   return priority === null ? "—" : priority.toUpperCase();
 }
 
-/** Human label for a Time Sector; `null` reads as "Inbox" (the derived state). */
+/**
+ * TASKS-04 — the human label for a recurrence rule, in the same restrained vocabulary
+ * the quick-capture parser recognises ("Every weekday", "Every 2 weeks"), so what the
+ * user typed, what the preview showed and what the record reports all read alike.
+ * `null` means the task does not repeat.
+ */
+export function taskRecurrenceLabel(
+  rule: TaskRecurrenceRule | null | undefined,
+): string | null {
+  if (!rule) return null;
+  const every = (unit: string) =>
+    rule.interval === 1 ? `Every ${unit}` : `Every ${rule.interval} ${unit}s`;
+  const base =
+    rule.frequency === "day"
+      ? every("day")
+      : rule.frequency === "weekday"
+        ? "Every weekday"
+        : rule.frequency === "week"
+          ? rule.weekdays.length > 0
+            ? `Every ${rule.weekdays.map((day) => WEEKDAY_NAMES[day] ?? "day").join(", ")}`
+            : every("week")
+          : rule.frequency === "month"
+            ? every("month")
+            : every("year");
+  return rule.dateKind === "due" ? `${base}, from the due date` : base;
+}
+
+/** Weekday names for a selected-weekday weekly rule (0 = Sunday). */
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+/** Human label for a Time Sector; `null` is the explicit "No sector" value. */
 export function timeSectorLabel(sector: TimeSector | null): string {
   switch (sector) {
     case "this_week":
@@ -252,7 +295,7 @@ export function timeSectorLabel(sector: TimeSector | null): string {
     case "routines":
       return "Routines";
     default:
-      return "Inbox";
+      return "No sector";
   }
 }
 
@@ -260,8 +303,8 @@ export function timeSectorLabel(sector: TimeSector | null): string {
  * The ONE canonical task display-state precedence evaluator (ADR-043 §6), consumed
  * by Tasks, Today and Projects — no duplicated status logic anywhere. Precedence,
  * highest first: Deleted → Completed → Cancelled → Waiting → On hold →
- * Someday/Maybe → In progress → Planned → Inbox. The result is a stable key plus a
- * label and a tone; meaning is carried by the LABEL, never colour alone.
+ * Someday/Maybe → In progress → Planned → Unscheduled. The result is a stable key
+ * plus a label and a tone; meaning is carried by the LABEL, never colour alone.
  */
 export type TaskDisplayStateKind =
   | "deleted"
@@ -319,7 +362,7 @@ export function taskDisplayState(
   if (task.timeSector !== null || task.scheduledDate !== null) {
     return { kind: "planned", label: "Planned", tone: "neutral" };
   }
-  return { kind: "inbox", label: "Inbox", tone: "neutral" };
+  return { kind: "inbox", label: "Unscheduled", tone: "neutral" };
 }
 
 const MONTHS = [
