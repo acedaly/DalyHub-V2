@@ -52,9 +52,10 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
  * The Carl Pullein-inspired Time Sector (TASKS-01 / ADR-043 §3): the broad planning
  * WINDOW in which the owner intends to address a task, kept distinct from the
  * scheduled date (a specific day) and the due date (a deadline). Absence of a
- * sector is `null` — a task with no sector and no schedule reads as the DERIVED
- * "Inbox" state (Inbox is not a stored value). Sector is not a Project hierarchy
- * and never changes parentage, priority, dates or completion.
+ * sector is `null` — read as "No sector". (TASKS-04: that is NOT Inbox. Inbox means
+ * an active Task with no structural PARENT; a Task can be filed under a Project and
+ * still have no sector.) Sector is not a Project hierarchy and never changes
+ * parentage, priority, dates or completion.
  */
 export const TIME_SECTORS = [
   "this_week",
@@ -146,7 +147,7 @@ export type TaskDetails = {
   readonly dueDate: string | null;
   /** Date-only `YYYY-MM-DD`, or null. */
   readonly scheduledDate: string | null;
-  /** The planning window (ADR-043 §3), or null (derived "Inbox"). */
+  /** The planning window (ADR-043 §3), or null — "No sector" (TASKS-04). */
   readonly timeSector: TimeSector | null;
   /** The commitment state (ADR-043 §4). `active` unless parked as Someday/Maybe. */
   readonly commitmentState: CommitmentState;
