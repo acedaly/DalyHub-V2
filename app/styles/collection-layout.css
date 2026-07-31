@@ -146,7 +146,7 @@
   flex: none;
   min-block-size: var(--dh-touch-target-min);
   padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
   border-radius: var(--dh-radius-full);
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);

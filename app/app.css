@@ -23,11 +23,12 @@
  *  14. today.css             — the TODAY-01 Today dashboard layout (tokens only).
  *  15. segmented-filter.css  — the shared restrained segmented state filter.
  *
- * Theme mechanism (ADR-016 §5.11): the root layout sets `data-theme` on <html>
- * from the persisted cookie during SSR. `light`/`dark` force a scheme; `system`
- * follows `prefers-color-scheme`. Because the server renders the correct value,
- * there is no light-to-dark flash and no client-side theme script. DS-01 supplies
- * the token VALUES the mechanism switches between.
+ * Theme mechanism (ADR-016 §5.11, extended by THEME-01/ADR-061): the root layout
+ * sets `data-theme` on <html> during SSR from the owner's persisted preference. Any
+ * of the five curated theme ids forces that palette; `system` follows
+ * `prefers-color-scheme` and resolves to Daly Light or Daly Dark. Because the server
+ * renders the correct value, there is no light-to-dark flash and no client-side theme
+ * script. DS-01 supplies the token VALUES the mechanism switches between.
  */
 
 @import "./styles/tokens.css";
@@ -60,12 +61,15 @@
 @import "./styles/alignment.css";
 @import "./styles/relationships.css";
 @import "./styles/summary-cards.css";
+@import "./styles/progress.css";
 @import "./styles/load-more.css";
 @import "./styles/search.css";
 @import "./styles/command.css";
 @import "./styles/feedback.css";
 @import "./styles/inspector.css";
 @import "./styles/settings.css";
+@import "./styles/theme-picker.css";
+@import "./styles/help.css";
 @import "./styles/markdown-editor.css";
 @import "./styles/diary.css";
 @import "./styles/people.css";

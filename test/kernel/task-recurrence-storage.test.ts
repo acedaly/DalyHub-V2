@@ -1,5 +1,5 @@
 /**
- * TASKS-04 / ADR-061 — real Workers/D1 integration tests for the PERSISTED
+ * TASKS-04 / ADR-062 — real Workers/D1 integration tests for the PERSISTED
  * recurrence lifecycle: validation at the mutation boundary, storage and read-back,
  * update and removal, exactly-one successor on completion (including under a retry
  * and a concurrent completion), the documented field-copy contract, and the SAFE undo

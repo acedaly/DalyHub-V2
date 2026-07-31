@@ -342,16 +342,16 @@ export function taskDisplayState(
     return { kind: "deleted", label: "Deleted", tone: "neutral" };
   }
   if (task.completedAt !== null) {
-    return { kind: "completed", label: "Completed", tone: "success" };
+    return { kind: "completed", label: "Completed", tone: "completed" };
   }
   if (task.status === "cancelled") {
     return { kind: "cancelled", label: "Cancelled", tone: "neutral" };
   }
   if (task.waiting !== null) {
-    return { kind: "waiting", label: "Waiting", tone: "warning" };
+    return { kind: "waiting", label: "Waiting", tone: "waiting" };
   }
   if (task.status === "on_hold") {
-    return { kind: "on_hold", label: "On hold", tone: "neutral" };
+    return { kind: "on_hold", label: "On hold", tone: "on-hold" };
   }
   if (task.commitmentState === "someday") {
     return { kind: "someday", label: "Someday / Maybe", tone: "info" };

@@ -20,9 +20,22 @@ import type { MouseEvent, ReactNode } from "react";
 
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 
-/** A semantic tone, paired with a text label — never colour-only (WCAG 2.2 AA). */
+/**
+ * A semantic tone, paired with a text label — never colour-only (WCAG 2.2 AA).
+ * Kept identical to `RecordTone` so a status reads the same on a Card and in a
+ * Record Header; see `app/shared/record-layout/types.ts` for why the three
+ * lifecycle tones are separate from the feedback tones.
+ */
 export type CardTone =
-  "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+  | "neutral"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "completed"
+  | "waiting"
+  | "on-hold";
 
 /** Comfortable (default) or compact vertical rhythm. */
 export type CardDensity = "comfortable" | "compact";

@@ -1,10 +1,13 @@
 // Adapted from the Cloudflare create-cloudflare (C3) React Router template
 // (https://developers.cloudflare.com/workers/framework-guides/web-apps/react-router/)
 // @ react-router 8.0.0, MIT, retrieved 2026-07-17.
-// Changes: FND-09 reads the persisted theme preference from the request cookie in
-// the root loader and applies it to <html data-theme> during SSR, so the page is
-// rendered with the correct theme on the first byte (no light-to-dark flash and no
-// client cookie reading). Styling stays plain CSS; the design system is DS-01.
+// Changes: FND-09 reads the persisted theme preference in the root loader and
+// applies it to <html data-theme> during SSR, so the page is rendered with the
+// correct theme on the first byte (no light-to-dark flash and no client theme
+// script). THEME-01 made the owner's preferences record the authority for that
+// value and demoted the cookie to a first-paint mirror, so the layout below
+// prefers the app shell's loader data and falls back to the cookie. Styling stays
+// plain CSS; the design system is DS-01.
 import {
   isRouteErrorResponse,
   Links,
@@ -18,14 +21,17 @@ import type { Location } from "react-router";
 
 import type { Route } from "./+types/root";
 import {
+  DEFAULT_THEME,
   readThemePreference,
   type ThemePreference,
 } from "./shared/shell/theme";
 import "./app.css";
 
 export function loader({ request }: Route.LoaderArgs) {
-  // The theme preference is not secret: it is safe to read here (this loader runs
-  // for authenticated pages) purely from the request cookie.
+  // The FALLBACK theme, read from the first-paint cookie mirror. The root loader
+  // deliberately does no database work: it runs for every document, including
+  // renders where the authenticated shell never resolves. The cookie is not secret
+  // and is safe to read here; the app shell supplies the authoritative value.
   return { theme: readThemePreference(request.headers.get("Cookie")) };
 }
 
@@ -41,10 +47,23 @@ function scrollRestorationKey(location: Location): string {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  // `useRouteLoaderData` returns undefined during an error render before the root
-  // loader resolved; fall back to `system` so the document still renders safely.
-  const data = useRouteLoaderData<typeof loader>("root");
-  const theme: ThemePreference = data?.theme ?? "system";
+  // THEME-01 — the theme is resolved from the most authoritative source that is
+  // actually available for THIS render, so the very first byte is already correct:
+  //
+  //   1. the app shell's loader data, which read the owner's stored preference;
+  //   2. the root loader's cookie mirror, for documents that never reach the shell
+  //      (a shell loader failure rendering the root error boundary);
+  //   3. `system`, if even the root loader has not resolved.
+  //
+  // `data-theme` is written server-side, so there is no light-to-dark flash and no
+  // inline bootstrapping script. On a client-side theme change React patches this
+  // one attribute, which is why switching is instant and reloads nothing.
+  const rootData = useRouteLoaderData<typeof loader>("root");
+  const shellData = useRouteLoaderData<{ theme?: ThemePreference }>(
+    "app-shell",
+  );
+  const theme: ThemePreference =
+    shellData?.theme ?? rootData?.theme ?? DEFAULT_THEME;
   return (
     <html lang="en" data-theme={theme}>
       <head>

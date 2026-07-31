@@ -93,6 +93,7 @@ describe("module discovery", () => {
           .map((d) => d.id)
           .sort(),
       ).toEqual([
+        "about",
         "ai",
         "areas",
         "assets",
@@ -130,6 +131,7 @@ describe("module discovery", () => {
         "ai",
         "settings",
         "help",
+        "about",
       ]);
       // Entity types are owned by exactly one module each.
       expect(registry.getEntityType("area")?.moduleId).toBe("areas");
@@ -490,6 +492,7 @@ describe("module discovery", () => {
           file: "routes/index.tsx",
         },
         { id: "help.index", moduleId: "help", file: "routes/index.tsx" },
+        { id: "about.index", moduleId: "about", file: "routes/index.tsx" },
       ]);
       // DS-09: Today registers registry-discovered navigation commands; TODAY-03
       // adds "Open Waiting". TASKS-01 adds the Tasks module's navigation commands.

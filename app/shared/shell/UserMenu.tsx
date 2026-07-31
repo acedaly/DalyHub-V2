@@ -6,10 +6,11 @@
  * email, the Theme control, a Settings link and Sign out. The header pixels return
  * to the work; identity lives where premium applications keep it.
  *
- * It REUSES the existing theme implementation unchanged — the same accessible
- * `ThemeControl` fieldset, posting to the same action, with the same cookie-backed
- * persistence (ADR-016 §5.11). PX-02 only relocates the control; it changes no theme
- * behaviour or persistence.
+ * It REUSES the shared theme implementation unchanged — `ThemeQuickSwitch`, the
+ * compact presentation of the THEME-01 registry, posting to the same action and
+ * persisting to the same owner preference record (ADR-016 §5.11, ADR-061). PX-02
+ * only relocates the control; it changes no theme behaviour or persistence, and the
+ * full picker with descriptions stays in Settings → Appearance.
  *
  * Interaction is an accessible disclosure (NOT a menu): a trigger with
  * `aria-expanded` + `aria-controls` reveals a `role="group"` panel whose controls
@@ -23,7 +24,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 
-import { ThemeControl } from "./ThemeControl";
+import { ThemeQuickSwitch } from "./ThemePicker";
 import type { ThemePreference } from "./theme";
 
 /** The Cloudflare Access application logout endpoint (ADR-016 §5.7). */
@@ -120,7 +121,7 @@ export function UserMenu({ email, theme, name, settingsHref }: UserMenuProps) {
             </span>
           </div>
           <div className="dh-user-menu__section">
-            <ThemeControl current={theme} />
+            <ThemeQuickSwitch current={theme} />
           </div>
           <div className="dh-user-menu__section dh-user-menu__links">
             {settingsHref ? (

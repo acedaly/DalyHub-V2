@@ -211,6 +211,34 @@
   background: var(--dh-color-info);
 }
 
+/* THEME-01 lifecycle tones — completed / waiting / on-hold carry their own tokens
+ * rather than borrowing success / warning / neutral, so a theme can say "paused"
+ * without changing what a real warning looks like. */
+.record-status[data-tone="completed"] {
+  background: var(--dh-color-state-completed-surface);
+  color: var(--dh-color-state-completed-text);
+  border-color: var(--dh-color-state-completed-surface);
+}
+.record-status[data-tone="completed"] .record-status__dot {
+  background: var(--dh-color-state-completed);
+}
+.record-status[data-tone="waiting"] {
+  background: var(--dh-color-state-waiting-surface);
+  color: var(--dh-color-state-waiting-text);
+  border-color: var(--dh-color-state-waiting-surface);
+}
+.record-status[data-tone="waiting"] .record-status__dot {
+  background: var(--dh-color-state-waiting);
+}
+.record-status[data-tone="on-hold"] {
+  background: var(--dh-color-state-on-hold-surface);
+  color: var(--dh-color-state-on-hold-text);
+  border-color: var(--dh-color-state-on-hold-surface);
+}
+.record-status[data-tone="on-hold"] .record-status__dot {
+  background: var(--dh-color-state-on-hold);
+}
+
 /* Actions: wrap onto their own line on narrow containers rather than disappear. */
 .record-header__actions {
   display: flex;

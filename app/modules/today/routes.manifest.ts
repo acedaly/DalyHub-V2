@@ -21,7 +21,13 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     // MOBILE-01: Today is the first phone bottom-navigation destination. The
     // shell derives the bar from this capability — it holds no module list.
-    meta: { navLabel: "Today", navOrder: 5, mobilePrimaryOrder: 10 },
+    meta: {
+      navLabel: "Today",
+      navOrder: 5,
+      mobilePrimaryOrder: 10,
+      // Today owns no entity type, so it declares its shell glyph (THEME-01).
+      navIcon: "today",
+    },
   },
   // TODAY-03 Waiting: a real sub-view of Today listing tasks blocked on someone or
   // something else. It has no sidebar nav entry (no `navLabel`) — it is reached from

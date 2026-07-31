@@ -35,8 +35,9 @@
 import { useRef } from "react";
 import { Link, useLocation } from "react-router";
 
-import { EntityIcon, isEntityType } from "~/shared/entity";
 import { MoreIcon, PlusIcon } from "~/shared/icons";
+
+import { NavIcon } from "./NavIcon";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
@@ -57,13 +58,12 @@ export type BottomNavProps = {
   readonly moreOpen: boolean;
 };
 
-/** The destination glyph: its entity identity when the module declares one. */
+/**
+ * The destination glyph — the same shared resolver the sidebar uses, so a module
+ * looks identical on the phone bar and on the desktop rail (THEME-01).
+ */
 function DestinationIcon({ item }: { readonly item: NavigationItem }) {
-  if (item.entityType !== undefined && isEntityType(item.entityType)) {
-    return <EntityIcon type={item.entityType} />;
-  }
-  // A module with no declared entity type still gets a real, non-empty glyph.
-  return <span className="dh-bottomnav__dot" />;
+  return <NavIcon entityType={item.entityType} navIcon={item.navIcon} />;
 }
 
 export function BottomNav({

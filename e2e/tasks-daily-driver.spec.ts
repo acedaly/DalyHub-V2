@@ -324,7 +324,7 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     // its own axe coverage in tasks-collection.spec.ts.
     //
     // `label-title-only` is disabled for THIS scan only, and deliberately disclosed
-    // rather than silently dropped (DEBT-53). Every other WCAG 2.2 AA rule is still
+    // rather than silently dropped (DEBT-56). Every other WCAG 2.2 AA rule is still
     // enforced here, and the same control is scanned by the full-page axe run in the
     // Review Inbox test below. The evidence that the control is correctly labelled:
     // in this exact drawer the Repeat input renders

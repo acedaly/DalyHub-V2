@@ -135,24 +135,40 @@ test.describe("SETTINGS-01A — application settings", () => {
     ).toHaveAttribute("aria-current", "true");
   });
 
-  test("keeps appearance device-local, navigation recoverable and sections history-backed", async ({
+  test("persists the chosen theme, keeps navigation recoverable and sections history-backed", async ({
     page,
   }) => {
     await gotoFixture(page, "/settings?section=appearance");
 
-    await page.getByRole("button", { name: "Light" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    // THEME-01 — appearance is no longer device-local: the choice is stored on
+    // the owner record (the full picker is covered by `themes.spec.ts`).
+    await page.getByRole("button", { name: "Daly Light", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-theme",
+      "daly-light",
+    );
     await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-theme",
+      "daly-light",
+    );
 
-    await page.getByRole("button", { name: "Dark" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("button", { name: "Daly Dark", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-theme",
+      "daly-dark",
+    );
     await expectNoAxeViolations(page);
 
-    await page.getByRole("button", { name: "System" }).click();
+    await page
+      .getByRole("button", { name: "Match system", exact: true })
+      .click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
 
-    await page.getByRole("link", { name: "Navigation" }).click();
+    const sectionNav = page.getByRole("navigation", {
+      name: "Settings sections",
+    });
+    await sectionNav.getByRole("link", { name: "Navigation" }).click();
     await expect(page).toHaveURL(/section=navigation/);
     const helpToggle = page.getByRole("checkbox", { name: "Help" });
     await expect(helpToggle).toBeChecked();
@@ -182,12 +198,17 @@ test.describe("SETTINGS-01A — application settings", () => {
     await page.reload();
     await expect(page.getByRole("checkbox", { name: "Help" })).toBeChecked();
 
-    await page.getByRole("link", { name: "Privacy & data" }).click();
+    await sectionNav.getByRole("link", { name: "Privacy & data" }).click();
     await expect(page).toHaveURL(/section=privacy-data/);
     await expect(page.getByText("Deferred data tools")).toBeVisible();
-    await page.getByRole("link", { name: "About" }).click();
+    // Scoped to the Settings section rail: RELEASE-01 added a top-level /about
+    // route, so an unscoped "About" link is now ambiguous.
+    await sectionNav.getByRole("link", { name: "About" }).click();
     await expect(page).toHaveURL(/section=about/);
-    await expect(page.getByText("Not configured")).toBeVisible();
+    // RELEASE-01 — this row used to read "Not configured"; there is now one real
+    // version authority behind it.
+    await expect(page.getByText(/^\d+\.\d+\.\d+$/)).toBeVisible();
+    await expect(page.getByText("Not configured")).toHaveCount(0);
     await page.goBack();
     await expect(page).toHaveURL(/section=privacy-data/);
     await page.goForward();
@@ -206,8 +227,11 @@ test.describe("SETTINGS-01A — application settings", () => {
     await gotoFixture(page, "/settings");
     await expectNoAxeViolations(page);
     await gotoFixture(page, "/settings?section=appearance");
-    await page.getByRole("button", { name: "Dark" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("button", { name: "Daly Dark", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-theme",
+      "daly-dark",
+    );
     await expectNoAxeViolations(page);
 
     await page.setViewportSize({ width: 390, height: 844 });

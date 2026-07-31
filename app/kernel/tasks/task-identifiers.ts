@@ -89,7 +89,7 @@ export const TASK_RESCHEDULED = "task.rescheduled";
 export const TASK_PLAN_CLEARED = "task.plan_cleared";
 
 /**
- * TASKS-04 Recurrence — the ONE structural event a repeating Task adds (ADR-061).
+ * TASKS-04 Recurrence — the ONE structural event a repeating Task adds (ADR-062).
  *
  * Setting, changing or removing a recurrence RULE is an ordinary task-detail edit and
  * uses the existing `entity.updated` event (no per-field event types). Creating the

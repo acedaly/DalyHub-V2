@@ -18,8 +18,15 @@ export {
 } from "./tokens";
 
 export {
+  ENTITY_ACCENT_NAMES,
   THEME_COLOR_MAPS,
-  darkTheme,
-  lightTheme,
+  THEME_ENTITY_ACCENTS,
+  coastalTheme,
+  dalyDarkTheme,
+  dalyLightTheme,
+  emberTheme,
+  eucalyptTheme,
   type ColorMap,
+  type EntityAccentMap,
+  type EntityAccentName,
 } from "./theme-colors";

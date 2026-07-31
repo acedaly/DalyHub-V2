@@ -91,7 +91,7 @@ export interface TaskRepository {
 
   /**
    * TASKS-04 — set, change or REMOVE the Task's structured recurrence rule
-   * (ADR-061). The rule is validated through the kernel against the Task's own
+   * (ADR-062). The rule is validated through the kernel against the Task's own
    * anchor date (a `scheduled` rule needs a scheduled date, a `due` rule a due
    * date), stored as DATA in `task_recurrence_rules`, and recorded through the ONE
    * existing `entity.updated` Activity event — recurrence is a task-detail field,
@@ -394,7 +394,7 @@ export interface TaskRepository {
 
   /**
    * TASKS-04 — reopen a completed Task, and safely undo the recurrence successor the
-   * completion created (ADR-061). ONE `D1Database.batch()` clears the spine
+   * completion created (ADR-062). ONE `D1Database.batch()` clears the spine
    * completion, bumps `updated_at`, appends `task.reopened` and — ONLY when the
    * successor is provably safe to withdraw — soft-deletes that successor and appends
    * its withdrawal Activity. Either all of that commits or none of it does.

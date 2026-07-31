@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { RouterContextProvider } from "react-router";
 
+import { RECENT_ACTION_WINDOW_DAYS } from "~/kernel/alignment";
 import type { AuthenticatedSession } from "~/kernel/auth";
+import type { Clock } from "~/kernel/spine";
 import { setAuthenticatedSession } from "~/platform/request";
 import { loader as indexLoader } from "~/modules/goals/routes/index";
 import { loader as detailLoader } from "~/modules/goals/routes/detail";
@@ -42,24 +44,30 @@ function authedContext(): RouterContextProvider {
 }
 
 /**
- * A spine whose writes are stamped NOW.
+ * A spine repository whose clock is TODAY, not a fixed date.
  *
- * Alignment classifies a Goal by how recently work contributed to it
- * (`RECENT_ACTION_WINDOW_DAYS`), and the loaders resolve "recent" against the real
- * current date. Seeding with `FakeClock`'s fixed default date therefore made these
- * tests depend on WHEN the suite runs: activity written at the fixture date silently
- * aged out of the window, and "recent activity ⇒ active" started failing on a
- * calendar boundary rather than on a behaviour change. The clock is still injected
- * (ids and ordering stay deterministic); only its anchor follows the same clock the
- * rule is evaluated against. Tests that need genuinely OLD activity pass their own
- * explicit past clock, and are unchanged.
+ * The alignment loader measures recency against the real calendar (there is no
+ * clock injection through a loader), so a fixture seeded at a fixed past date is a
+ * time bomb: it passes until that date falls outside the 14-day window, then fails
+ * for ever. It did — this suite failed on `main` from 2026-07-31 because the
+ * default FakeClock date (2026-07-17) had aged out.
+ *
+ * Seeding at "now" states what the test actually means ("activity that happened
+ * recently") instead of a date that only happened to be recent when it was written.
+ * Tests that need OLD activity still pin an explicit date, and do so relative to
+ * today for the same reason.
  */
-function spine(ws = WS) {
+function spine(ws = WS, clock: Clock = () => new Date()) {
   return makeSpineRepository(makeContext(ws), {
-    clock: new FakeClock(new Date()).now,
+    clock,
     idGenerator: nextEntityId,
     activityIdGenerator: nextActivityId,
   });
+}
+
+/** An ISO instant `days` before now, for seeding deliberately-stale activity. */
+function daysAgo(days: number): Date {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 }
 
 function runIndex(url = "https://app.test/goals") {
@@ -131,7 +139,9 @@ describe("/goals collection loader (the Alignment view)", () => {
   });
 
   it("surfaces a neglected Goal with an understandable reason grounded in real facts", async () => {
-    const clock = new FakeClock("2026-06-01T00:00:00.000Z");
+    // Comfortably outside the 14-day recent window, expressed relative to today so
+    // it stays outside it for ever rather than only until a fixed date ages in.
+    const clock = new FakeClock(daysAgo(RECENT_ACTION_WINDOW_DAYS * 4));
     const s = makeSpineRepository(makeContext(WS), {
       clock: clock.now,
       idGenerator: sequentialIds("neg"),
@@ -143,8 +153,8 @@ describe("/goals collection loader (the Alignment view)", () => {
       title: "Training plan",
       parent: { kind: "goal", id: goal.id },
     });
-    // The Task's only qualifying activity is its creation, dated 2026-06-01 —
-    // well outside the recent window from "today" (whenever the test runs).
+    // The Task's only qualifying activity is its creation, dated well outside the
+    // recent window from "today" (whenever the test runs).
     await s.createTask({
       title: "Run 5k",
       parent: { kind: "project", id: project.id },
