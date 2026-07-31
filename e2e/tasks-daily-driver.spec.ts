@@ -292,6 +292,31 @@ test.describe("TASKS-04 — persisted recurrence", () => {
       "Every month",
     );
   });
+
+  test("the row's quick edit holds the 320px and accessibility baselines", async ({
+    page,
+  }) => {
+    const title = `E2E quick edit narrow ${RUN}`;
+    await gotoFixture(page, LIST);
+    await quickAdd(page, title);
+
+    // The panel is the row's quick edits on a phone too — a Task is triaged from a
+    // pocket at least as often as from a desk.
+    await page.setViewportSize({ width: 320, height: 720 });
+    await chooseOverflow(page, title, "Dates, sector and repeat…");
+    await expect(
+      page.getByRole("dialog", { name: "Quick edit" }),
+    ).toBeVisible();
+    await expect(page.getByTestId("task-quick-edit")).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+    await expectNoAxeViolations(page);
+
+    // Escape closes it and returns to the list without losing the row.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(cardFor(page, title)).toBeVisible();
+  });
 });
 
 test.describe("TASKS-04 — Review Inbox", () => {
