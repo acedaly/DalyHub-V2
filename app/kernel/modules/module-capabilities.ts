@@ -64,6 +64,33 @@ export type ModuleRuntimeContext = {
  */
 export type RouteModuleFile = string;
 
+/**
+ * THEME-01 — the closed set of shell navigation glyph names a module may declare.
+ *
+ * Most modules need no entry here: a module that declares an entity type already
+ * has an identity glyph (PX-02), and the shell derives its navigation icon from
+ * that. This capability exists for the CROSS-CUTTING modules — Today, Help,
+ * Settings, About, AI — which own no entity type and were therefore rendering a
+ * generic placeholder dot in the sidebar and the phone bottom bar.
+ *
+ * It is a CLOSED set, and it names a glyph rather than supplying one: a manifest
+ * stays declarative data (no React, no SVG), an unknown name fails composition and
+ * therefore the build, and there is still no central switch mapping module ids to
+ * icons — each module declares its own. `app/shared/icons` maps these names to the
+ * one in-house outline set; adding a name here without adding its glyph fails a test.
+ */
+export const NAV_ICON_NAMES = [
+  "today",
+  "help",
+  "about",
+  "settings",
+  "insight",
+  "search",
+] as const;
+
+/** A shell navigation glyph name. */
+export type NavIconName = (typeof NAV_ICON_NAMES)[number];
+
 /** Optional metadata a route can expose for later shell discovery (FND-09). */
 export type RouteMeta = {
   /** Human-readable navigation label, if this route should appear in navigation. */
@@ -86,6 +113,12 @@ export type RouteMeta = {
    * See ADR-046 and `app/shared/shell/mobile-navigation.ts`.
    */
   readonly mobilePrimaryOrder?: number;
+  /**
+   * THEME-01 — the shell navigation glyph for a module that declares no entity
+   * type. Modules WITH an entity type must not set this: their icon is their
+   * identity (PX-02), and two sources for one glyph is how drift starts.
+   */
+  readonly navIcon?: NavIconName;
 };
 
 /**

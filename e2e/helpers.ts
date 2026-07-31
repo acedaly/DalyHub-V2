@@ -108,11 +108,24 @@ export async function gotoFixture(page: Page, path: string): Promise<void> {
  * the journey assert the behaviour it means to.
  */
 export async function waitForInteractive(page: Page): Promise<void> {
+  // Settle the document FIRST. This function is called precisely when a journey
+  // has arrived through the product, which means a client-side navigation may
+  // still be in flight — and `[data-hydrated]` belongs to a document, not to the
+  // page. Counting the marker before the navigation completes can therefore
+  // describe the document being navigated AWAY from, and then the assertion below
+  // spends its whole timeout waiting for an element the new document never had.
+  // (Seen in CI: a Note capture handed off to the canonical editor, `/notes/`
+  // matched, Today's marker was still counted, and `.first()` resolved to
+  // nothing.) Settling first makes the count describe the document we landed on.
+  await page.waitForLoadState("networkidle");
+
+  // `[data-hydrated]` is published only by the surfaces that have a meaningful
+  // hydration boundary — Today and the design routes. Where it exists it is the
+  // real gate, because server-rendered markup is interactive-looking well before
+  // React attaches. Where it does not, the settle above is the gate.
   const marker = page.locator("[data-hydrated]");
   if ((await marker.count()) > 0) {
     await expect(marker.first()).toHaveAttribute("data-hydrated", "true");
-  } else {
-    await page.waitForLoadState("networkidle");
   }
 }
 

@@ -220,9 +220,30 @@ jobs:
         # the ordering above. Splitting finer fixes the cause; raising the
         # ceiling only moves the line the cause is measured against.
         #
+        # 2026-07-31 — seven shards became ten, for the same reason and by the
+        # same reasoning. MEASURED on run 30619695918: shard 7 reached the 900s
+        # globalTimeout with 111 passed, ZERO failed and 26 never run, and shard
+        # 3 did the same with 133 passed and 1 never run. Again not a flake and
+        # not a slow runner — the THEME-01/HELP-01 specs added roughly 60 tests
+        # (the theme acceptance matrix alone is 25 axe-scanned surface x theme
+        # combinations) and the slices stopped fitting.
+        #
+        # Two changes were made together, and only one of them is this list.
+        # First, `e2e/themes.spec.ts` stopped shelling out to `wrangler d1
+        # execute` once per test to set the stored theme and once more to reset
+        # it — ~80 subprocess spawns, about two seconds each — and posts to the
+        # real `/preferences/theme` action instead. That removed waste, not
+        # coverage. Ten shards then buys headroom for the coverage that is left:
+        # the slice size drops ~30%, putting the worst shard back near the ~70%
+        # of the ceiling this split has always been tuned to.
+        #
+        # Raising `globalTimeout` is again rejected, for the reason recorded
+        # above: it would pin the worst shard against whatever the new ceiling
+        # is, and it hides a growing suite instead of splitting it.
+        #
         # `strategy.job-total` derives from this list, so `--shard=N/total` and
         # the job names follow automatically — this array is the only knob.
-        shard: [1, 2, 3, 4, 5, 6, 7]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

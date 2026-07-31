@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildHealthPayload, healthResponse } from "../../app/lib/health";
+import { APP_VERSION } from "../../app/lib/version";
 
 describe("buildHealthPayload", () => {
   it("reports ok status and the application name", () => {
@@ -8,6 +9,7 @@ describe("buildHealthPayload", () => {
     expect(payload).toEqual({
       status: "ok",
       name: "DalyHub",
+      version: APP_VERSION,
       environment: "development",
     });
   });
@@ -33,6 +35,7 @@ describe("healthResponse", () => {
     await expect(response.json()).resolves.toEqual({
       status: "ok",
       name: "DalyHub",
+      version: APP_VERSION,
       environment: "production",
     });
   });

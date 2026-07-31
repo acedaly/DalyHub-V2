@@ -45,6 +45,7 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
+import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { SegmentedFilter } from "~/shared/segmented-filter";
@@ -1025,6 +1026,18 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             >
               New task
             </DrawerTrigger>
+          }
+          // HELP-01 — an empty Tasks list is where "what is a scheduled date, and
+          // how is it different from a due date?" actually gets asked. The
+          // secondary action answers it instead of adding a second button that
+          // does the same thing as the first.
+          secondaryAction={
+            <Link
+              className="dh-btn dh-btn--secondary"
+              to={helpTopicHref("scheduled-vs-due")}
+            >
+              How tasks work
+            </Link>
           }
         />
       }

@@ -1,11 +1,12 @@
 /**
- * Test helper: read and parse `app/styles/tokens.css` into token maps.
+ * Test helper: read and parse `app/styles/tokens.css` into per-theme token maps.
  *
- * The DS-01 token tests treat the stylesheet as the authoritative source of
- * values and assert structural guarantees against it (required tokens exist,
- * the light/dark maps are complete and in parity, no consumer references an
- * undefined token). Parsing is deliberately simple: the token blocks contain no
- * nested rules, so balanced-brace extraction plus a declaration regex suffices.
+ * The DS-01 / THEME-01 token tests treat the stylesheet as the authoritative source
+ * of values and assert structural guarantees against it (every theme defines every
+ * required token, the two dark blocks stay in parity, the TS data mirrors the CSS,
+ * and no consumer references an undefined token). Parsing is deliberately simple:
+ * the token blocks contain no nested rules, so balanced-brace extraction plus a
+ * declaration regex suffices.
  */
 
 import { readFileSync } from "node:fs";
@@ -59,16 +60,36 @@ export function parseDeclarations(blockText: string): Map<string, string> {
   return declarations;
 }
 
-/** The light token map — the first (base) `:root { … }` block. */
-export function lightTokens(): Map<string, string> {
+/**
+ * The base map — the first (root) `:root { … }` block. It carries every structural
+ * token AND the Daly Light colour map, which is why an unknown or missing
+ * `data-theme` still paints a complete theme.
+ */
+export function rootTokens(): Map<string, string> {
   return parseDeclarations(blockBody(tokensCss, /:root\s*\{/));
 }
 
-/** The explicit dark map — `:root[data-theme="dark"] { … }`. */
-export function darkExplicitTokens(): Map<string, string> {
+/** An explicit `:root[data-theme="<id>"] { … }` block. */
+export function themeTokens(themeId: string): Map<string, string> {
   return parseDeclarations(
-    blockBody(tokensCss, /:root\[data-theme="dark"\]\s*\{/),
+    blockBody(
+      tokensCss,
+      new RegExp(`:root\\[data-theme="${themeId}"\\]\\s*\\{`),
+    ),
   );
+}
+
+/**
+ * The EFFECTIVE map for a theme: its own block layered over the `:root` base, which
+ * is what the browser actually resolves. Daly Light declares no colours of its own
+ * (it IS the base), so this is the only correct way to compare themes.
+ */
+export function effectiveThemeTokens(themeId: string): Map<string, string> {
+  const effective = new Map(rootTokens());
+  for (const [name, value] of themeTokens(themeId)) {
+    effective.set(name, value);
+  }
+  return effective;
 }
 
 /** The system-dark map — the block inside the prefers-color-scheme media query. */

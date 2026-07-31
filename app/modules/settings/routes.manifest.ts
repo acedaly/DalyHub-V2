@@ -12,7 +12,12 @@ const routes: readonly RouteContribution[] = [
     id: "settings.index",
     path: "settings",
     file: "routes/index.tsx",
-    meta: { navLabel: "Settings", navGroup: "system", navOrder: 300 },
+    meta: {
+      navLabel: "Settings",
+      navGroup: "system",
+      navOrder: 300,
+      navIcon: "settings",
+    },
   },
 ];
 

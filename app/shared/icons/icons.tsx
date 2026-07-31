@@ -199,6 +199,46 @@ export const MonitorIcon = createIcon(
   </>,
 );
 
+/* -------------------------------------------------------------------------- */
+/* Navigation glyphs for the cross-cutting modules (THEME-01).                 */
+/*                                                                            */
+/* Today, Help, About, Settings and AI own no entity type, so they had no      */
+/* identity glyph and rendered a placeholder dot in navigation. These are      */
+/* their real icons, reached through the `navIcon` manifest capability — never */
+/* hand-picked at a call site.                                                */
+/* -------------------------------------------------------------------------- */
+
+/** Today — a calendar day with the day marked. Distinct from the Diary glyph. */
+export const TodayIcon = createIcon(
+  "TodayIcon",
+  <>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+    <path d="M3.5 9.5h17" />
+    <path d="M8 3.5v3M16 3.5v3" />
+    <circle cx="12" cy="15" r="2.25" fill="currentColor" stroke="none" />
+  </>,
+);
+
+/** Help — a question mark in a circle. */
+export const HelpIcon = createIcon(
+  "HelpIcon",
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M9.6 9.4a2.5 2.5 0 1 1 3.2 2.9c-.5.2-.8.7-.8 1.2v.5" />
+    <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+  </>,
+);
+
+/** About — information in a circle. */
+export const InfoIcon = createIcon(
+  "InfoIcon",
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 11v5.5" />
+    <circle cx="12" cy="7.75" r="1" fill="currentColor" stroke="none" />
+  </>,
+);
+
 /** List — the list view. */
 export const ListIcon = createIcon(
   "ListIcon",

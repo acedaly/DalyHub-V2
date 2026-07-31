@@ -18,6 +18,12 @@ import {
   type TaskDefaultView,
 } from "./app-preferences";
 import { AppPreferencesValidationError } from "./app-preferences-errors";
+import {
+  DEFAULT_THEME,
+  isThemePreference,
+  parseThemePreference,
+  type ThemePreference,
+} from "./theme-preference";
 
 const OWNER_ID_MAX_LENGTH = 256;
 
@@ -85,6 +91,29 @@ function parseEnum<T extends string>(
     return value as T;
   }
   throw new AppPreferencesValidationError(field, message);
+}
+
+/**
+ * THEME-01 — validate a theme on the WRITE path (defence in depth behind the theme
+ * action, which has already coerced its input).
+ *
+ * Unlike the read-side normaliser, an unrecognised theme here is an error rather
+ * than a silent downgrade: a patch naming a theme DalyHub does not have is a bug or
+ * a tampered request, and answering it with "saved" would be dishonest. Legacy
+ * `light`/`dark`/`system` values are still accepted and mapped, so a stale form post
+ * keeps working.
+ */
+export function parseThemeChoice(value: unknown): ThemePreference {
+  if (isThemePreference(value)) {
+    return value;
+  }
+  if (value === "light" || value === "dark" || value === "system") {
+    return parseThemePreference(value);
+  }
+  throw new AppPreferencesValidationError(
+    "theme",
+    "Choose one of DalyHub's themes.",
+  );
 }
 
 export function parseDateFormat(value: unknown): DateFormat {
@@ -240,6 +269,7 @@ export function validateAppPreferencesPatch(
   const out: {
     -readonly [K in keyof AppPreferencePatch]: AppPreferencePatch[K];
   } = {};
+  if (patch.theme !== undefined) out.theme = parseThemeChoice(patch.theme);
   if (patch.timezone !== undefined)
     out.timezone = parseTimezone(patch.timezone);
   if (patch.dateFormat !== undefined)
@@ -283,6 +313,7 @@ export function validateAppPreferencesPatch(
 }
 
 export function normaliseStoredPreferences(input: {
+  readonly theme?: unknown;
   readonly timezone: unknown;
   readonly dateFormat: unknown;
   readonly firstDayOfWeek: unknown;
@@ -296,6 +327,10 @@ export function normaliseStoredPreferences(input: {
   readonly navigation: unknown;
 }): AppPreferences {
   return {
+    // A stored theme is coerced, never rejected: a row written by an older release
+    // (or by a release that still had a theme this one removed) must still produce a
+    // complete, readable theme rather than an error on every page load.
+    theme: parseThemePreference(input.theme ?? DEFAULT_THEME),
     timezone: isSupportedTimezone(input.timezone)
       ? input.timezone
       : DEFAULT_APP_PREFERENCES.timezone,

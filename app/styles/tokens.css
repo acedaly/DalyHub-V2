@@ -1,5 +1,5 @@
 /*
- * DS-01 — DalyHub design tokens (the authoritative token layer).
+ * DS-01 / THEME-01 — DalyHub design tokens (the authoritative token layer).
  *
  * This file is the single source of truth for every design VALUE in DalyHub:
  * colour, typography, spacing, sizing, shape, elevation, motion, z-index and
@@ -10,22 +10,41 @@
  * Naming: every token is `--dh-<group>-<role>[-<variant>]`, all kebab-case, all
  * SEMANTIC (what it is FOR, e.g. `--dh-color-danger-surface`) rather than what it
  * looks like (never `--dh-red-500`). The same semantic names carry different
- * values across themes, so a component styled once is correct in every theme.
+ * values in every theme, so a component styled once is correct in all of them.
  *
- * Theming (ADR-016 §5.11 mechanism, DS-01 values): the root layout renders
- * `<html data-theme>` from the persisted cookie during SSR, so the correct theme
- * is present on the first byte — no light-to-dark flash and no client script.
- *   - `light`  → forces the light map.
- *   - `dark`   → forces the dark map.
- *   - `system` (default) → follows `prefers-color-scheme`.
- * Only the COLOUR tokens change between themes; every other token (type, space,
- * shape, motion, layout) is theme-independent and defined once on `:root`.
+ * ── Theming (THEME-01) ────────────────────────────────────────────────────────
+ * DalyHub ships FIVE curated themes. Each is a complete map over the same
+ * semantic colour names; nothing else about a component changes between them, and
+ * no component ever branches on the theme in React.
  *
- * Extension rules: add a token here first, then consume it. Prefer adding a
- * semantic token over widening a component's local values. When a new colour
- * token is added it MUST be given a value in the light map AND both dark blocks
- * (see the parity test in test/unit/tokens). Contrast for text/control pairs is
- * verified in test/unit/tokens/contrast.test.ts — keep AA (4.5:1 text, 3:1 UI).
+ *   daly-light  — the calm warm-neutral default (light)
+ *   daly-dark   — a layered, intentionally-designed dark theme (dark)
+ *   eucalypt    — warm stone surfaces with a muted sage accent (light)
+ *   coastal     — cool neutrals with a sea-glass blue accent (light)
+ *   ember       — warm neutrals with a terracotta accent (light)
+ *
+ * `system` is not a sixth palette: it is an APPEARANCE MODE that pairs Daly Light
+ * with Daly Dark and follows `prefers-color-scheme`.
+ *
+ * Mechanism (ADR-016 §5.11 as extended by ADR-061): the root layout renders
+ * `<html data-theme>` during SSR from the owner's persisted preference, so the
+ * correct theme is present on the first byte — no light-to-dark flash and no
+ * client bootstrapping script. `:root` carries the Daly Light map, so an unknown
+ * or missing `data-theme` degrades to a complete, readable theme rather than to
+ * unstyled colour.
+ *
+ * Only COLOUR and ELEVATION tokens change between themes; every other token
+ * (type, space, shape, motion, layout) is theme-independent and defined once on
+ * `:root`.
+ *
+ * ── Extension rules ───────────────────────────────────────────────────────────
+ * Add a token here first, then consume it. Prefer adding a semantic token over
+ * widening a component's local values. A new colour token MUST be given a value
+ * in EVERY theme block, including both dark blocks (the explicit one and the
+ * `prefers-color-scheme` one, which a parity test keeps byte-identical). Coverage,
+ * parity and WCAG contrast (4.5:1 text, 3:1 UI) are enforced by
+ * `test/unit/tokens`; the same values are mirrored as data in
+ * `app/shared/tokens/theme-colors.ts`, which a sync test pins to this file.
  *
  * The breakpoint values below are also exposed as `--dh-breakpoint-*` for
  * reference and container queries; media queries cannot read custom properties,
@@ -175,154 +194,280 @@
   --dh-z-tooltip: 1500;
 
   /* ---------------------------------------------------------------------- */
-  /* Elevation (shadows/overlays) — light theme                             */
+  /* Elevation (shadows/overlays) — Daly Light                              */
   /* ---------------------------------------------------------------------- */
-  --dh-shadow-sm: 0 1px 2px rgba(16, 18, 22, 0.06);
-  --dh-shadow-md: 0 2px 8px rgba(16, 18, 22, 0.1);
-  --dh-shadow-lg: 0 12px 32px rgba(16, 18, 22, 0.16);
+  --dh-shadow-sm: 0 1px 2px rgba(38, 34, 28, 0.06);
+  --dh-shadow-md: 0 2px 8px rgba(38, 34, 28, 0.1);
+  --dh-shadow-lg: 0 12px 32px rgba(38, 34, 28, 0.16);
   --dh-shadow-focus: 0 0 0 3px var(--dh-color-focus-ring);
 
   /* ---------------------------------------------------------------------- */
-  /* Colour — LIGHT map (the default theme)                                 */
+  /* Colour — DALY LIGHT (the default theme, and the safe fallback)         */
   /* ---------------------------------------------------------------------- */
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #ffffff;
-  --dh-color-surface: #f5f6f8;
+  --dh-color-bg: #faf9f7;
+  --dh-color-surface: #f2f1ed;
   --dh-color-surface-raised: #ffffff;
-  --dh-color-surface-sunken: #eceef2;
+  --dh-color-surface-sunken: #eae8e3;
+  --dh-color-surface-nav: #f5f4f0;
+  --dh-color-surface-header: #fbfaf8;
+  --dh-color-surface-card: #ffffff;
 
-  /* Text. */
-  --dh-color-text: #1a1d23;
-  --dh-color-text-secondary: #454b57;
-  --dh-color-text-muted: #5b6270;
+  /* Text & foreground. */
+  --dh-color-text: #1c1e22;
+  --dh-color-text-secondary: #474c55;
+  --dh-color-text-muted: #5b616b;
   --dh-color-on-accent: #ffffff;
+  --dh-color-link: #14606c;
+  --dh-color-link-hover: #0e4a54;
 
   /* Borders & dividers. */
-  --dh-color-border: #dfe2e8;
-  --dh-color-border-strong: #c3c8d2;
-  --dh-color-divider: #e8eaef;
+  --dh-color-border: #dedcd6;
+  --dh-color-border-strong: #c2bfb7;
+  --dh-color-border-subtle: #ebe9e4;
+  --dh-color-control-border: #83817b;
+  --dh-color-divider: #e6e4de;
 
   /* Accent / brand. */
-  --dh-color-accent: #2952cc;
-  --dh-color-accent-hover: #2247b0;
-  --dh-color-accent-active: #1c3c96;
-  --dh-color-accent-text: #2450c8;
-  --dh-color-accent-surface: #eef3ff;
+  --dh-color-accent: #176b78;
+  --dh-color-accent-hover: #135a65;
+  --dh-color-accent-active: #0e4a54;
+  --dh-color-accent-text: #14606c;
+  --dh-color-accent-surface: #e2f0f2;
 
   /* Secondary (neutral) action. */
-  --dh-color-secondary: #eef0f4;
-  --dh-color-secondary-hover: #e2e5eb;
+  --dh-color-secondary: #eceae5;
+  --dh-color-secondary-hover: #e2dfd8;
 
   /* Feedback — solid / surface tint / text-on-surface. */
   --dh-color-success: #1f7a44;
-  --dh-color-success-surface: #e6f4ec;
-  --dh-color-success-text: #196236;
-  --dh-color-warning: #a76a00;
-  --dh-color-warning-surface: #fbf0dc;
-  --dh-color-warning-text: #855400;
-  --dh-color-danger: #c33025;
-  --dh-color-danger-surface: #fbe9e7;
-  --dh-color-danger-text: #a5271e;
-  --dh-color-info: #1f6fb2;
-  --dh-color-info-surface: #e6f1fa;
-  --dh-color-info-text: #185a91;
+  --dh-color-success-surface: #e4f2ea;
+  --dh-color-success-text: #186036;
+  --dh-color-warning: #9a6300;
+  --dh-color-warning-surface: #f8ecd8;
+  --dh-color-warning-text: #7a4f00;
+  --dh-color-danger: #c02f24;
+  --dh-color-danger-surface: #fae7e5;
+  --dh-color-danger-text: #9f261d;
+  --dh-color-info: #1c6b95;
+  --dh-color-info-surface: #e2eff7;
+  --dh-color-info-text: #155677;
 
   /* Interactive states. */
-  --dh-color-hover-surface: #f0f1f4;
-  --dh-color-active-surface: #e6e8ed;
-  --dh-color-disabled-surface: #f0f1f4;
-  --dh-color-disabled-text: #9aa0ac;
-  --dh-color-disabled-border: #e0e2e8;
+  --dh-color-hover-surface: #efede8;
+  --dh-color-active-surface: #e5e2dc;
+  --dh-color-disabled-surface: #efede8;
+  --dh-color-disabled-text: #8d8f92;
+  --dh-color-disabled-border: #e2e0da;
 
-  /* Focus & selection. */
-  --dh-color-focus-ring: #2952cc;
-  --dh-color-selection-bg: #cddcff;
-  --dh-color-selection-text: #10213f;
+  /* Focus, selection & overlay. */
+  --dh-color-focus-ring: #176b78;
+  --dh-color-selection-bg: #c9e6ea;
+  --dh-color-selection-text: #0d2c31;
+  --dh-color-overlay: rgba(28, 26, 22, 0.48);
 
-  /* Overlay / scrim. */
-  --dh-color-overlay: rgba(16, 18, 22, 0.5);
+  /* Task priority (P1–P4) — solid / surface / text-on-surface. */
+  --dh-color-priority-p1: #c02f24;
+  --dh-color-priority-p1-surface: #fae7e5;
+  --dh-color-priority-p1-text: #9f261d;
+  --dh-color-priority-p2: #9a6300;
+  --dh-color-priority-p2-surface: #f8ecd8;
+  --dh-color-priority-p2-text: #7a4f00;
+  --dh-color-priority-p3: #1c6b95;
+  --dh-color-priority-p3-surface: #e2eff7;
+  --dh-color-priority-p3-text: #155677;
+  --dh-color-priority-p4: #6b7078;
+  --dh-color-priority-p4-surface: #eeece7;
+  --dh-color-priority-p4-text: #565b63;
 
-  /* Entity identity accents (PX-02) — used at IDENTITY sites only (icon, card
-   * edge, chip), never as text colour. One accent per entity type; light values
-   * meet ≥3:1 on the page background, dark values are remapped below. */
-  --dh-entity-area-accent: #0f766e;
-  --dh-entity-goal-accent: #7c3aed;
-  --dh-entity-project-accent: #4f46e5;
-  --dh-entity-task-accent: #15803d;
-  --dh-entity-note-accent: #b45309;
-  --dh-entity-meeting-accent: #be123c;
-  --dh-entity-person-accent: #0e7490;
-  --dh-entity-asset-accent: #475569;
-  --dh-entity-diary-accent: #a21caf;
-  --dh-entity-review-accent: #0369a1;
+  /* Record & task states. */
+  --dh-color-state-overdue: #c02f24;
+  --dh-color-state-overdue-surface: #fae7e5;
+  --dh-color-state-overdue-text: #9f261d;
+  --dh-color-state-due-soon: #9a6300;
+  --dh-color-state-due-soon-surface: #f8ecd8;
+  --dh-color-state-due-soon-text: #7a4f00;
+  --dh-color-state-completed: #1f7a44;
+  --dh-color-state-completed-surface: #e4f2ea;
+  --dh-color-state-completed-text: #186036;
+  --dh-color-state-waiting: #6d5aa8;
+  --dh-color-state-waiting-surface: #ece8f6;
+  --dh-color-state-waiting-text: #564488;
+  --dh-color-state-on-hold: #6b7078;
+  --dh-color-state-on-hold-surface: #eeece7;
+  --dh-color-state-on-hold-text: #565b63;
+
+  /* Progress & chart series. */
+  --dh-color-progress-track: #e5e2dc;
+  --dh-color-progress-fill: #176b78;
+  --dh-color-progress-complete: #1f7a44;
+  --dh-color-chart-1: #176b78;
+  --dh-color-chart-2: #9a6300;
+  --dh-color-chart-3: #6d5aa8;
+  --dh-color-chart-4: #1f7a44;
+  --dh-color-chart-5: #b0512c;
+  --dh-color-chart-6: #1c6b95;
+
+  /* Loading / skeleton. */
+  --dh-color-skeleton-base: #eae8e3;
+  --dh-color-skeleton-highlight: #f6f5f2;
+
+  /* Entity identity accents (PX-02). */
+  --dh-entity-area-accent: #0f6f66;
+  --dh-entity-goal-accent: #6d43c4;
+  --dh-entity-project-accent: #4348c4;
+  --dh-entity-task-accent: #1f7a44;
+  --dh-entity-note-accent: #9a5c07;
+  --dh-entity-meeting-accent: #b01f45;
+  --dh-entity-person-accent: #0d6a80;
+  --dh-entity-asset-accent: #5c6470;
+  --dh-entity-diary-accent: #96189e;
+  --dh-entity-review-accent: #0b5f92;
 }
 
 /*
- * Colour — DARK map.
+ * Daly Light, named explicitly.
  *
- * Applied when the theme is EXPLICITLY dark, and (below) when the theme is
- * `system`/unset and the OS prefers dark. The two blocks are kept byte-identical
- * by a parity test; if you change one, change the other. Only colour and
- * elevation tokens are remapped — every structural token is inherited from
- * `:root`.
+ * `:root` already carries this map (it is the fallback), so this block only needs
+ * to restate `color-scheme`. Selecting Daly Light must NOT follow the OS into dark
+ * — it is a chosen theme, not the `system` appearance mode.
  */
-:root[data-theme="dark"] {
+:root[data-theme="daly-light"] {
+  color-scheme: light;
+
+  /* Elevation and colour are inherited from the `:root` map above. */
+}
+
+/*
+ * Daly Dark — a designed dark theme, not an inversion.
+ *
+ * Layered dark surfaces (sunken < bg < surface ≈ card < raised), softened white
+ * text rather than pure white, restrained borders, and a teal accent held inside
+ * the narrow band that is BOTH ≥3:1 against the dark background and ≥4.5:1 under
+ * white label text. Priority, overdue and warning colours are desaturated so they
+ * read clearly without glowing.
+ *
+ * This block and the `prefers-color-scheme` block at the end of the file are kept
+ * byte-identical by a parity test; if you change one, change the other.
+ */
+:root[data-theme="daly-dark"] {
   color-scheme: dark;
 
+  /* Elevation. */
   --dh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --dh-shadow-md: 0 2px 10px rgba(0, 0, 0, 0.55);
   --dh-shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.6);
 
-  --dh-color-bg: #0f1115;
-  --dh-color-surface: #171a21;
-  --dh-color-surface-raised: #1e222b;
-  --dh-color-surface-sunken: #0b0d11;
+  /* Backgrounds & surfaces. */
+  --dh-color-bg: #101215;
+  --dh-color-surface: #171a1f;
+  --dh-color-surface-raised: #1e222a;
+  --dh-color-surface-sunken: #0a0c0f;
+  --dh-color-surface-nav: #13161a;
+  --dh-color-surface-header: #13161a;
+  --dh-color-surface-card: #181c22;
 
-  --dh-color-text: #f2f3f5;
-  --dh-color-text-secondary: #c4c9d2;
-  --dh-color-text-muted: #9299a6;
+  /* Text & foreground. */
+  --dh-color-text: #eef0f3;
+  --dh-color-text-secondary: #c2c8d1;
+  --dh-color-text-muted: #949ba7;
   --dh-color-on-accent: #ffffff;
+  --dh-color-link: #6fc7d2;
+  --dh-color-link-hover: #8ed7e0;
 
-  --dh-color-border: #2b2f39;
-  --dh-color-border-strong: #3c414d;
-  --dh-color-divider: #23272f;
+  /* Borders & dividers. */
+  --dh-color-border: #2a2f37;
+  --dh-color-border-strong: #3b414b;
+  --dh-color-border-subtle: #20242b;
+  --dh-color-control-border: #6f7683;
+  --dh-color-divider: #22262d;
 
-  --dh-color-accent: #3b62d9;
-  --dh-color-accent-hover: #4a70e6;
-  --dh-color-accent-active: #5a7dee;
-  --dh-color-accent-text: #8fa8ff;
-  --dh-color-accent-surface: #1a2138;
+  /* Accent / brand. */
+  --dh-color-accent: #2a7581;
+  --dh-color-accent-hover: #2d7d8a;
+  --dh-color-accent-active: #2e808d;
+  --dh-color-accent-text: #6fc7d2;
+  --dh-color-accent-surface: #12262a;
 
-  --dh-color-secondary: #232833;
-  --dh-color-secondary-hover: #2c313d;
+  /* Secondary (neutral) action. */
+  --dh-color-secondary: #222730;
+  --dh-color-secondary-hover: #2b3039;
 
+  /* Feedback — solid / surface tint / text-on-surface. */
   --dh-color-success: #2f9c5c;
-  --dh-color-success-surface: #10241a;
+  --dh-color-success-surface: #0f2419;
   --dh-color-success-text: #5cd18e;
-  --dh-color-warning: #cf9134;
-  --dh-color-warning-surface: #241a0d;
-  --dh-color-warning-text: #e6b35c;
-  --dh-color-danger: #e05548;
-  --dh-color-danger-surface: #2a1210;
-  --dh-color-danger-text: #f5988e;
+  --dh-color-warning: #c98c33;
+  --dh-color-warning-surface: #241a0c;
+  --dh-color-warning-text: #e5b25b;
+  --dh-color-danger: #d9534a;
+  --dh-color-danger-surface: #291211;
+  --dh-color-danger-text: #f2958c;
   --dh-color-info: #3a8fce;
-  --dh-color-info-surface: #0e1e2b;
+  --dh-color-info-surface: #0d1e2b;
   --dh-color-info-text: #6fb8e6;
 
-  --dh-color-hover-surface: #1d212a;
-  --dh-color-active-surface: #252a34;
-  --dh-color-disabled-surface: #191d25;
-  --dh-color-disabled-text: #626875;
-  --dh-color-disabled-border: #262b34;
+  /* Interactive states. */
+  --dh-color-hover-surface: #1c2027;
+  --dh-color-active-surface: #242932;
+  --dh-color-disabled-surface: #181c22;
+  --dh-color-disabled-text: #646a76;
+  --dh-color-disabled-border: #252a32;
 
-  --dh-color-focus-ring: #8fa8ff;
-  --dh-color-selection-bg: #2a3f6b;
-  --dh-color-selection-text: #eaf0ff;
+  /* Focus, selection & overlay. */
+  --dh-color-focus-ring: #6fc7d2;
+  --dh-color-selection-bg: #1e4a52;
+  --dh-color-selection-text: #e6f6f8;
+  --dh-color-overlay: rgba(0, 0, 0, 0.62);
 
-  --dh-color-overlay: rgba(0, 0, 0, 0.6);
+  /* Task priority (P1–P4) — solid / surface / text-on-surface. */
+  --dh-color-priority-p1: #d9534a;
+  --dh-color-priority-p1-surface: #291211;
+  --dh-color-priority-p1-text: #f2958c;
+  --dh-color-priority-p2: #c98c33;
+  --dh-color-priority-p2-surface: #241a0c;
+  --dh-color-priority-p2-text: #e5b25b;
+  --dh-color-priority-p3: #3a8fce;
+  --dh-color-priority-p3-surface: #0d1e2b;
+  --dh-color-priority-p3-text: #6fb8e6;
+  --dh-color-priority-p4: #7b8290;
+  --dh-color-priority-p4-surface: #1c2027;
+  --dh-color-priority-p4-text: #a3aab6;
 
-  /* Entity identity accents (PX-02) — dark remap (brighter, ≥3:1 on dark bg). */
+  /* Record & task states. */
+  --dh-color-state-overdue: #d9534a;
+  --dh-color-state-overdue-surface: #291211;
+  --dh-color-state-overdue-text: #f2958c;
+  --dh-color-state-due-soon: #c98c33;
+  --dh-color-state-due-soon-surface: #241a0c;
+  --dh-color-state-due-soon-text: #e5b25b;
+  --dh-color-state-completed: #2f9c5c;
+  --dh-color-state-completed-surface: #0f2419;
+  --dh-color-state-completed-text: #5cd18e;
+  --dh-color-state-waiting: #8b7ad4;
+  --dh-color-state-waiting-surface: #191630;
+  --dh-color-state-waiting-text: #b3a6f0;
+  --dh-color-state-on-hold: #7b8290;
+  --dh-color-state-on-hold-surface: #1c2027;
+  --dh-color-state-on-hold-text: #a3aab6;
+
+  /* Progress & chart series. */
+  --dh-color-progress-track: #242932;
+  --dh-color-progress-fill: #4fb3bf;
+  --dh-color-progress-complete: #2f9c5c;
+  --dh-color-chart-1: #4fb3bf;
+  --dh-color-chart-2: #d9a24a;
+  --dh-color-chart-3: #a08ae6;
+  --dh-color-chart-4: #4fbb7c;
+  --dh-color-chart-5: #e07a53;
+  --dh-color-chart-6: #5aa5dd;
+
+  /* Loading / skeleton. */
+  --dh-color-skeleton-base: #1c2027;
+  --dh-color-skeleton-highlight: #262b33;
+
+  /* Entity identity accents (PX-02). */
   --dh-entity-area-accent: #2dd4bf;
   --dh-entity-goal-accent: #a78bfa;
   --dh-entity-project-accent: #818cf8;
@@ -335,65 +480,545 @@
   --dh-entity-review-accent: #38bdf8;
 }
 
+/*
+ * Eucalypt — warm stone surfaces with a muted sage-green accent.
+ *
+ * Australian-inspired but never literal: no imagery, no novelty. The warmth comes
+ * from the paper-like stone surfaces, the calm from a low-chroma green that never
+ * competes with the feedback colours.
+ */
+:root[data-theme="eucalypt"] {
+  color-scheme: light;
+
+  /* Elevation. */
+  --dh-shadow-sm: 0 1px 2px rgba(34, 38, 26, 0.07);
+  --dh-shadow-md: 0 2px 8px rgba(34, 38, 26, 0.11);
+  --dh-shadow-lg: 0 12px 32px rgba(34, 38, 26, 0.16);
+
+  /* Backgrounds & surfaces. */
+  --dh-color-bg: #f7f5ef;
+  --dh-color-surface: #eeebe1;
+  --dh-color-surface-raised: #fdfcf8;
+  --dh-color-surface-sunken: #e5e1d4;
+  --dh-color-surface-nav: #f1eee5;
+  --dh-color-surface-header: #f8f6f1;
+  --dh-color-surface-card: #fdfcf8;
+
+  /* Text & foreground. */
+  --dh-color-text: #22261f;
+  --dh-color-text-secondary: #4a5045;
+  --dh-color-text-muted: #5d6454;
+  --dh-color-on-accent: #ffffff;
+  --dh-color-link: #3a6242;
+  --dh-color-link-hover: #2b4d31;
+
+  /* Borders & dividers. */
+  --dh-color-border: #dbd6c7;
+  --dh-color-border-strong: #bdb7a4;
+  --dh-color-border-subtle: #e8e4d9;
+  --dh-color-control-border: #85826f;
+  --dh-color-divider: #e2ded1;
+
+  /* Accent / brand. */
+  --dh-color-accent: #3f6b47;
+  --dh-color-accent-hover: #355c3c;
+  --dh-color-accent-active: #2b4d31;
+  --dh-color-accent-text: #3a6242;
+  --dh-color-accent-surface: #e1ebdc;
+
+  /* Secondary (neutral) action. */
+  --dh-color-secondary: #e9e5d9;
+  --dh-color-secondary-hover: #ded9ca;
+
+  /* Feedback — solid / surface tint / text-on-surface. */
+  --dh-color-success: #2f7040;
+  --dh-color-success-surface: #e2eedd;
+  --dh-color-success-text: #255832;
+  --dh-color-warning: #8f6108;
+  --dh-color-warning-surface: #f4ead2;
+  --dh-color-warning-text: #714d06;
+  --dh-color-danger: #a83a2b;
+  --dh-color-danger-surface: #f5e3de;
+  --dh-color-danger-text: #8a3023;
+  --dh-color-info: #2b6474;
+  --dh-color-info-surface: #e0edf0;
+  --dh-color-info-text: #22505d;
+
+  /* Interactive states. */
+  --dh-color-hover-surface: #ece8dd;
+  --dh-color-active-surface: #e2ded1;
+  --dh-color-disabled-surface: #eceadf;
+  --dh-color-disabled-text: #8b8b7f;
+  --dh-color-disabled-border: #e0dccf;
+
+  /* Focus, selection & overlay. */
+  --dh-color-focus-ring: #3f6b47;
+  --dh-color-selection-bg: #cfe0c9;
+  --dh-color-selection-text: #1d2c1e;
+  --dh-color-overlay: rgba(32, 34, 26, 0.48);
+
+  /* Task priority (P1–P4) — solid / surface / text-on-surface. */
+  --dh-color-priority-p1: #a83a2b;
+  --dh-color-priority-p1-surface: #f5e3de;
+  --dh-color-priority-p1-text: #8a3023;
+  --dh-color-priority-p2: #8f6108;
+  --dh-color-priority-p2-surface: #f4ead2;
+  --dh-color-priority-p2-text: #714d06;
+  --dh-color-priority-p3: #2b6474;
+  --dh-color-priority-p3-surface: #e0edf0;
+  --dh-color-priority-p3-text: #22505d;
+  --dh-color-priority-p4: #6b7061;
+  --dh-color-priority-p4-surface: #eae7dc;
+  --dh-color-priority-p4-text: #565b4e;
+
+  /* Record & task states. */
+  --dh-color-state-overdue: #a83a2b;
+  --dh-color-state-overdue-surface: #f5e3de;
+  --dh-color-state-overdue-text: #8a3023;
+  --dh-color-state-due-soon: #8f6108;
+  --dh-color-state-due-soon-surface: #f4ead2;
+  --dh-color-state-due-soon-text: #714d06;
+  --dh-color-state-completed: #2f7040;
+  --dh-color-state-completed-surface: #e2eedd;
+  --dh-color-state-completed-text: #255832;
+  --dh-color-state-waiting: #5f5a94;
+  --dh-color-state-waiting-surface: #e6e4f0;
+  --dh-color-state-waiting-text: #4b4776;
+  --dh-color-state-on-hold: #6b7061;
+  --dh-color-state-on-hold-surface: #eae7dc;
+  --dh-color-state-on-hold-text: #565b4e;
+
+  /* Progress & chart series. */
+  --dh-color-progress-track: #ded9ca;
+  --dh-color-progress-fill: #3f6b47;
+  --dh-color-progress-complete: #2f7040;
+  --dh-color-chart-1: #3f6b47;
+  --dh-color-chart-2: #8f6108;
+  --dh-color-chart-3: #5f5a94;
+  --dh-color-chart-4: #2b6474;
+  --dh-color-chart-5: #a05437;
+  --dh-color-chart-6: #6b7061;
+
+  /* Loading / skeleton. */
+  --dh-color-skeleton-base: #e5e1d4;
+  --dh-color-skeleton-highlight: #f3f0e7;
+
+  /* Entity identity accents (PX-02). */
+  --dh-entity-area-accent: #0f6a5c;
+  --dh-entity-goal-accent: #6a4aad;
+  --dh-entity-project-accent: #3f5aa8;
+  --dh-entity-task-accent: #2f7040;
+  --dh-entity-note-accent: #8a5a10;
+  --dh-entity-meeting-accent: #a32f4a;
+  --dh-entity-person-accent: #2b6474;
+  --dh-entity-asset-accent: #5f6455;
+  --dh-entity-diary-accent: #8a2b8f;
+  --dh-entity-review-accent: #1f5a80;
+}
+
+/*
+ * Coastal — cool neutral surfaces with a sea-glass blue accent.
+ *
+ * Fresh rather than cold: the blue is deliberately held away from cyan so long
+ * daily use stays comfortable, and the neutrals keep a faint blue cast rather than
+ * a wash of tint.
+ */
+:root[data-theme="coastal"] {
+  color-scheme: light;
+
+  /* Elevation. */
+  --dh-shadow-sm: 0 1px 2px rgba(16, 28, 36, 0.07);
+  --dh-shadow-md: 0 2px 8px rgba(16, 28, 36, 0.11);
+  --dh-shadow-lg: 0 12px 32px rgba(16, 28, 36, 0.16);
+
+  /* Backgrounds & surfaces. */
+  --dh-color-bg: #f4f7f9;
+  --dh-color-surface: #e8eef2;
+  --dh-color-surface-raised: #ffffff;
+  --dh-color-surface-sunken: #dce5eb;
+  --dh-color-surface-nav: #eef3f6;
+  --dh-color-surface-header: #f6f9fa;
+  --dh-color-surface-card: #ffffff;
+
+  /* Text & foreground. */
+  --dh-color-text: #16232b;
+  --dh-color-text-secondary: #3e4f5b;
+  --dh-color-text-muted: #53636e;
+  --dh-color-on-accent: #ffffff;
+  --dh-color-link: #175f7d;
+  --dh-color-link-hover: #124a62;
+
+  /* Borders & dividers. */
+  --dh-color-border: #d3dee5;
+  --dh-color-border-strong: #b3c2cc;
+  --dh-color-border-subtle: #e2eaef;
+  --dh-color-control-border: #76848e;
+  --dh-color-divider: #dde6ec;
+
+  /* Accent / brand. */
+  --dh-color-accent: #1c6b8c;
+  --dh-color-accent-hover: #175a77;
+  --dh-color-accent-active: #124a62;
+  --dh-color-accent-text: #175f7d;
+  --dh-color-accent-surface: #dbeaf2;
+
+  /* Secondary (neutral) action. */
+  --dh-color-secondary: #e4ebf0;
+  --dh-color-secondary-hover: #d8e2e9;
+
+  /* Feedback — solid / surface tint / text-on-surface. */
+  --dh-color-success: #1c7554;
+  --dh-color-success-surface: #dcefe6;
+  --dh-color-success-text: #155c42;
+  --dh-color-warning: #8d6205;
+  --dh-color-warning-surface: #f4ecd6;
+  --dh-color-warning-text: #6f4d04;
+  --dh-color-danger: #b93a35;
+  --dh-color-danger-surface: #f8e5e4;
+  --dh-color-danger-text: #98302b;
+  --dh-color-info: #1f6b9e;
+  --dh-color-info-surface: #dfedf7;
+  --dh-color-info-text: #18567e;
+
+  /* Interactive states. */
+  --dh-color-hover-surface: #e7edf1;
+  --dh-color-active-surface: #dbe4ea;
+  --dh-color-disabled-surface: #e9eef1;
+  --dh-color-disabled-text: #82909a;
+  --dh-color-disabled-border: #dce4e9;
+
+  /* Focus, selection & overlay. */
+  --dh-color-focus-ring: #1c6b8c;
+  --dh-color-selection-bg: #c4dfec;
+  --dh-color-selection-text: #0e2833;
+  --dh-color-overlay: rgba(16, 28, 36, 0.48);
+
+  /* Task priority (P1–P4) — solid / surface / text-on-surface. */
+  --dh-color-priority-p1: #b93a35;
+  --dh-color-priority-p1-surface: #f8e5e4;
+  --dh-color-priority-p1-text: #98302b;
+  --dh-color-priority-p2: #8d6205;
+  --dh-color-priority-p2-surface: #f4ecd6;
+  --dh-color-priority-p2-text: #6f4d04;
+  --dh-color-priority-p3: #1f6b9e;
+  --dh-color-priority-p3-surface: #dfedf7;
+  --dh-color-priority-p3-text: #18567e;
+  --dh-color-priority-p4: #657682;
+  --dh-color-priority-p4-surface: #e6ecf0;
+  --dh-color-priority-p4-text: #526069;
+
+  /* Record & task states. */
+  --dh-color-state-overdue: #b93a35;
+  --dh-color-state-overdue-surface: #f8e5e4;
+  --dh-color-state-overdue-text: #98302b;
+  --dh-color-state-due-soon: #8d6205;
+  --dh-color-state-due-soon-surface: #f4ecd6;
+  --dh-color-state-due-soon-text: #6f4d04;
+  --dh-color-state-completed: #1c7554;
+  --dh-color-state-completed-surface: #dcefe6;
+  --dh-color-state-completed-text: #155c42;
+  --dh-color-state-waiting: #5f5da3;
+  --dh-color-state-waiting-surface: #e5e6f4;
+  --dh-color-state-waiting-text: #4b4a82;
+  --dh-color-state-on-hold: #657682;
+  --dh-color-state-on-hold-surface: #e6ecf0;
+  --dh-color-state-on-hold-text: #526069;
+
+  /* Progress & chart series. */
+  --dh-color-progress-track: #d8e2e9;
+  --dh-color-progress-fill: #1c6b8c;
+  --dh-color-progress-complete: #1c7554;
+  --dh-color-chart-1: #1c6b8c;
+  --dh-color-chart-2: #1c7554;
+  --dh-color-chart-3: #5f5da3;
+  --dh-color-chart-4: #8d6205;
+  --dh-color-chart-5: #a8474f;
+  --dh-color-chart-6: #3d7f9c;
+
+  /* Loading / skeleton. */
+  --dh-color-skeleton-base: #dce5eb;
+  --dh-color-skeleton-highlight: #eef3f6;
+
+  /* Entity identity accents (PX-02). */
+  --dh-entity-area-accent: #0e6f70;
+  --dh-entity-goal-accent: #6247b5;
+  --dh-entity-project-accent: #3d54b5;
+  --dh-entity-task-accent: #1c7554;
+  --dh-entity-note-accent: #8a5c0c;
+  --dh-entity-meeting-accent: #a82f52;
+  --dh-entity-person-accent: #136580;
+  --dh-entity-asset-accent: #5a6873;
+  --dh-entity-diary-accent: #8f2496;
+  --dh-entity-review-accent: #1f6b9e;
+}
+
+/*
+ * Ember — warm neutral surfaces with a terracotta accent.
+ *
+ * For owners who do not want a blue productivity app. The accent is an earthy
+ * terracotta and DANGER is deliberately shifted to a cooler crimson, so an ordinary
+ * primary button never reads as a warning or a destructive action. Priority and
+ * progress stay strong but controlled.
+ */
+:root[data-theme="ember"] {
+  color-scheme: light;
+
+  /* Elevation. */
+  --dh-shadow-sm: 0 1px 2px rgba(48, 30, 20, 0.07);
+  --dh-shadow-md: 0 2px 8px rgba(48, 30, 20, 0.11);
+  --dh-shadow-lg: 0 12px 32px rgba(48, 30, 20, 0.17);
+
+  /* Backgrounds & surfaces. */
+  --dh-color-bg: #faf6f2;
+  --dh-color-surface: #f1eae4;
+  --dh-color-surface-raised: #fffdfb;
+  --dh-color-surface-sunken: #e9e0d8;
+  --dh-color-surface-nav: #f5efe9;
+  --dh-color-surface-header: #fbf7f4;
+  --dh-color-surface-card: #fffdfb;
+
+  /* Text & foreground. */
+  --dh-color-text: #241c18;
+  --dh-color-text-secondary: #524740;
+  --dh-color-text-muted: #665951;
+  --dh-color-on-accent: #ffffff;
+  --dh-color-link: #9a4227;
+  --dh-color-link-hover: #75311c;
+
+  /* Borders & dividers. */
+  --dh-color-border: #e0d5cb;
+  --dh-color-border-strong: #c5b6a9;
+  --dh-color-border-subtle: #ece3db;
+  --dh-color-control-border: #8b8079;
+  --dh-color-divider: #e7ddd4;
+
+  /* Accent / brand. */
+  --dh-color-accent: #a8482b;
+  --dh-color-accent-hover: #8e3c23;
+  --dh-color-accent-active: #75311c;
+  --dh-color-accent-text: #9a4227;
+  --dh-color-accent-surface: #f7e2d7;
+
+  /* Secondary (neutral) action. */
+  --dh-color-secondary: #ece3db;
+  --dh-color-secondary-hover: #e1d5cb;
+
+  /* Feedback — solid / surface tint / text-on-surface. */
+  --dh-color-success: #2c7248;
+  --dh-color-success-surface: #e1efe4;
+  --dh-color-success-text: #225939;
+  --dh-color-warning: #8a6100;
+  --dh-color-warning-surface: #f5eacd;
+  --dh-color-warning-text: #6d4c00;
+  --dh-color-danger: #b01030;
+  --dh-color-danger-surface: #fbe0e5;
+  --dh-color-danger-text: #8f0d27;
+  --dh-color-info: #1f6285;
+  --dh-color-info-surface: #e0ecf3;
+  --dh-color-info-text: #194f6b;
+
+  /* Interactive states. */
+  --dh-color-hover-surface: #f0e8e1;
+  --dh-color-active-surface: #e6dcd3;
+  --dh-color-disabled-surface: #f0e9e3;
+  --dh-color-disabled-text: #94867d;
+  --dh-color-disabled-border: #e4dad1;
+
+  /* Focus, selection & overlay. */
+  --dh-color-focus-ring: #a8482b;
+  --dh-color-selection-bg: #f2d3c2;
+  --dh-color-selection-text: #3a1d10;
+  --dh-color-overlay: rgba(38, 26, 20, 0.48);
+
+  /* Task priority (P1–P4) — solid / surface / text-on-surface. */
+  --dh-color-priority-p1: #b01030;
+  --dh-color-priority-p1-surface: #fbe0e5;
+  --dh-color-priority-p1-text: #8f0d27;
+  --dh-color-priority-p2: #8a6100;
+  --dh-color-priority-p2-surface: #f5eacd;
+  --dh-color-priority-p2-text: #6d4c00;
+  --dh-color-priority-p3: #1f6285;
+  --dh-color-priority-p3-surface: #e0ecf3;
+  --dh-color-priority-p3-text: #194f6b;
+  --dh-color-priority-p4: #726359;
+  --dh-color-priority-p4-surface: #eee6df;
+  --dh-color-priority-p4-text: #5c4f47;
+
+  /* Record & task states. */
+  --dh-color-state-overdue: #b01030;
+  --dh-color-state-overdue-surface: #fbe0e5;
+  --dh-color-state-overdue-text: #8f0d27;
+  --dh-color-state-due-soon: #8a6100;
+  --dh-color-state-due-soon-surface: #f5eacd;
+  --dh-color-state-due-soon-text: #6d4c00;
+  --dh-color-state-completed: #2c7248;
+  --dh-color-state-completed-surface: #e1efe4;
+  --dh-color-state-completed-text: #225939;
+  --dh-color-state-waiting: #63558f;
+  --dh-color-state-waiting-surface: #e9e5f1;
+  --dh-color-state-waiting-text: #4f4373;
+  --dh-color-state-on-hold: #726359;
+  --dh-color-state-on-hold-surface: #eee6df;
+  --dh-color-state-on-hold-text: #5c4f47;
+
+  /* Progress & chart series. */
+  --dh-color-progress-track: #e6dcd3;
+  --dh-color-progress-fill: #a8482b;
+  --dh-color-progress-complete: #2c7248;
+  --dh-color-chart-1: #a8482b;
+  --dh-color-chart-2: #8a6100;
+  --dh-color-chart-3: #2c7248;
+  --dh-color-chart-4: #1f6285;
+  --dh-color-chart-5: #63558f;
+  --dh-color-chart-6: #8c4a5e;
+
+  /* Loading / skeleton. */
+  --dh-color-skeleton-base: #e9e0d8;
+  --dh-color-skeleton-highlight: #f5efe9;
+
+  /* Entity identity accents (PX-02). */
+  --dh-entity-area-accent: #0f6a63;
+  --dh-entity-goal-accent: #6a45b0;
+  --dh-entity-project-accent: #3f51ad;
+  --dh-entity-task-accent: #2c7248;
+  --dh-entity-note-accent: #8a5a0a;
+  --dh-entity-meeting-accent: #a72141;
+  --dh-entity-person-accent: #146277;
+  --dh-entity-asset-accent: #6a5c53;
+  --dh-entity-diary-accent: #8d2489;
+  --dh-entity-review-accent: #1f6285;
+}
+
+/*
+ * The `system` appearance mode.
+ *
+ * `system` is not a palette: it pairs Daly Light (inherited from `:root`) with
+ * Daly Dark when the OS prefers dark. It participates in both colour schemes so
+ * native form controls and scrollbars follow the resolved OS preference.
+ */
+:root[data-theme="system"] {
+  color-scheme: light dark;
+}
+
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"],
   :root:not([data-theme]) {
     color-scheme: dark;
 
+    /* Elevation. */
     --dh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
     --dh-shadow-md: 0 2px 10px rgba(0, 0, 0, 0.55);
     --dh-shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.6);
 
-    --dh-color-bg: #0f1115;
-    --dh-color-surface: #171a21;
-    --dh-color-surface-raised: #1e222b;
-    --dh-color-surface-sunken: #0b0d11;
+    /* Backgrounds & surfaces. */
+    --dh-color-bg: #101215;
+    --dh-color-surface: #171a1f;
+    --dh-color-surface-raised: #1e222a;
+    --dh-color-surface-sunken: #0a0c0f;
+    --dh-color-surface-nav: #13161a;
+    --dh-color-surface-header: #13161a;
+    --dh-color-surface-card: #181c22;
 
-    --dh-color-text: #f2f3f5;
-    --dh-color-text-secondary: #c4c9d2;
-    --dh-color-text-muted: #9299a6;
+    /* Text & foreground. */
+    --dh-color-text: #eef0f3;
+    --dh-color-text-secondary: #c2c8d1;
+    --dh-color-text-muted: #949ba7;
     --dh-color-on-accent: #ffffff;
+    --dh-color-link: #6fc7d2;
+    --dh-color-link-hover: #8ed7e0;
 
-    --dh-color-border: #2b2f39;
-    --dh-color-border-strong: #3c414d;
-    --dh-color-divider: #23272f;
+    /* Borders & dividers. */
+    --dh-color-border: #2a2f37;
+    --dh-color-border-strong: #3b414b;
+    --dh-color-border-subtle: #20242b;
+    --dh-color-control-border: #6f7683;
+    --dh-color-divider: #22262d;
 
-    --dh-color-accent: #3b62d9;
-    --dh-color-accent-hover: #4a70e6;
-    --dh-color-accent-active: #5a7dee;
-    --dh-color-accent-text: #8fa8ff;
-    --dh-color-accent-surface: #1a2138;
+    /* Accent / brand. */
+    --dh-color-accent: #2a7581;
+    --dh-color-accent-hover: #2d7d8a;
+    --dh-color-accent-active: #2e808d;
+    --dh-color-accent-text: #6fc7d2;
+    --dh-color-accent-surface: #12262a;
 
-    --dh-color-secondary: #232833;
-    --dh-color-secondary-hover: #2c313d;
+    /* Secondary (neutral) action. */
+    --dh-color-secondary: #222730;
+    --dh-color-secondary-hover: #2b3039;
 
+    /* Feedback — solid / surface tint / text-on-surface. */
     --dh-color-success: #2f9c5c;
-    --dh-color-success-surface: #10241a;
+    --dh-color-success-surface: #0f2419;
     --dh-color-success-text: #5cd18e;
-    --dh-color-warning: #cf9134;
-    --dh-color-warning-surface: #241a0d;
-    --dh-color-warning-text: #e6b35c;
-    --dh-color-danger: #e05548;
-    --dh-color-danger-surface: #2a1210;
-    --dh-color-danger-text: #f5988e;
+    --dh-color-warning: #c98c33;
+    --dh-color-warning-surface: #241a0c;
+    --dh-color-warning-text: #e5b25b;
+    --dh-color-danger: #d9534a;
+    --dh-color-danger-surface: #291211;
+    --dh-color-danger-text: #f2958c;
     --dh-color-info: #3a8fce;
-    --dh-color-info-surface: #0e1e2b;
+    --dh-color-info-surface: #0d1e2b;
     --dh-color-info-text: #6fb8e6;
 
-    --dh-color-hover-surface: #1d212a;
-    --dh-color-active-surface: #252a34;
-    --dh-color-disabled-surface: #191d25;
-    --dh-color-disabled-text: #626875;
-    --dh-color-disabled-border: #262b34;
+    /* Interactive states. */
+    --dh-color-hover-surface: #1c2027;
+    --dh-color-active-surface: #242932;
+    --dh-color-disabled-surface: #181c22;
+    --dh-color-disabled-text: #646a76;
+    --dh-color-disabled-border: #252a32;
 
-    --dh-color-focus-ring: #8fa8ff;
-    --dh-color-selection-bg: #2a3f6b;
-    --dh-color-selection-text: #eaf0ff;
+    /* Focus, selection & overlay. */
+    --dh-color-focus-ring: #6fc7d2;
+    --dh-color-selection-bg: #1e4a52;
+    --dh-color-selection-text: #e6f6f8;
+    --dh-color-overlay: rgba(0, 0, 0, 0.62);
 
-    --dh-color-overlay: rgba(0, 0, 0, 0.6);
+    /* Task priority (P1–P4) — solid / surface / text-on-surface. */
+    --dh-color-priority-p1: #d9534a;
+    --dh-color-priority-p1-surface: #291211;
+    --dh-color-priority-p1-text: #f2958c;
+    --dh-color-priority-p2: #c98c33;
+    --dh-color-priority-p2-surface: #241a0c;
+    --dh-color-priority-p2-text: #e5b25b;
+    --dh-color-priority-p3: #3a8fce;
+    --dh-color-priority-p3-surface: #0d1e2b;
+    --dh-color-priority-p3-text: #6fb8e6;
+    --dh-color-priority-p4: #7b8290;
+    --dh-color-priority-p4-surface: #1c2027;
+    --dh-color-priority-p4-text: #a3aab6;
 
-    /* Entity identity accents (PX-02) — dark remap (kept in parity with the
-     * explicit dark block above). */
+    /* Record & task states. */
+    --dh-color-state-overdue: #d9534a;
+    --dh-color-state-overdue-surface: #291211;
+    --dh-color-state-overdue-text: #f2958c;
+    --dh-color-state-due-soon: #c98c33;
+    --dh-color-state-due-soon-surface: #241a0c;
+    --dh-color-state-due-soon-text: #e5b25b;
+    --dh-color-state-completed: #2f9c5c;
+    --dh-color-state-completed-surface: #0f2419;
+    --dh-color-state-completed-text: #5cd18e;
+    --dh-color-state-waiting: #8b7ad4;
+    --dh-color-state-waiting-surface: #191630;
+    --dh-color-state-waiting-text: #b3a6f0;
+    --dh-color-state-on-hold: #7b8290;
+    --dh-color-state-on-hold-surface: #1c2027;
+    --dh-color-state-on-hold-text: #a3aab6;
+
+    /* Progress & chart series. */
+    --dh-color-progress-track: #242932;
+    --dh-color-progress-fill: #4fb3bf;
+    --dh-color-progress-complete: #2f9c5c;
+    --dh-color-chart-1: #4fb3bf;
+    --dh-color-chart-2: #d9a24a;
+    --dh-color-chart-3: #a08ae6;
+    --dh-color-chart-4: #4fbb7c;
+    --dh-color-chart-5: #e07a53;
+    --dh-color-chart-6: #5aa5dd;
+
+    /* Loading / skeleton. */
+    --dh-color-skeleton-base: #1c2027;
+    --dh-color-skeleton-highlight: #262b33;
+
+    /* Entity identity accents (PX-02). */
     --dh-entity-area-accent: #2dd4bf;
     --dh-entity-goal-accent: #a78bfa;
     --dh-entity-project-accent: #818cf8;
@@ -405,12 +1030,6 @@
     --dh-entity-diary-accent: #e879f9;
     --dh-entity-review-accent: #38bdf8;
   }
-}
-
-/* `system` participates in both schemes so form controls and scrollbars follow
- * the resolved OS preference. */
-:root[data-theme="system"] {
-  color-scheme: light dark;
 }
 
 /* Text selection uses the semantic selection tokens in every theme. */

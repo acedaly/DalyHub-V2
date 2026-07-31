@@ -228,6 +228,23 @@
   border-color: transparent;
 }
 
+/* THEME-01 lifecycle tones — their own tokens, not borrowed feedback colours. */
+.dh-card__status[data-tone="completed"] {
+  color: var(--dh-color-state-completed-text);
+  background: var(--dh-color-state-completed-surface);
+  border-color: transparent;
+}
+.dh-card__status[data-tone="waiting"] {
+  color: var(--dh-color-state-waiting-text);
+  background: var(--dh-color-state-waiting-surface);
+  border-color: transparent;
+}
+.dh-card__status[data-tone="on-hold"] {
+  color: var(--dh-color-state-on-hold-text);
+  background: var(--dh-color-state-on-hold-surface);
+  border-color: transparent;
+}
+
 .dh-card__title {
   margin: 0;
   font-size: var(--dh-font-size-md);

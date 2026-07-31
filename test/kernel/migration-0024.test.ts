@@ -2,7 +2,7 @@ import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
 /**
- * TASKS-04 — migration `0023_tasks04_daily_driver.sql`.
+ * TASKS-04 — migration `0024_tasks04_daily_driver.sql`.
  *
  * The migration is purely ADDITIVE: one column on `owner_app_preferences` and one new
  * `task_recurrence_rules` table. These assertions are about the SHAPE that has to
@@ -68,7 +68,7 @@ async function insertRule(
     .run();
 }
 
-describe("migration 0023 — the default task destination", () => {
+describe("migration 0024 — the default task destination", () => {
   it("adds the column with an 'inbox' default, so EXISTING preference rows file to Inbox", async () => {
     const row = await DB.prepare(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'owner_app_preferences'",
@@ -99,7 +99,7 @@ describe("migration 0023 — the default task destination", () => {
   });
 });
 
-describe("migration 0023 — task_recurrence_rules", () => {
+describe("migration 0024 — task_recurrence_rules", () => {
   it("is a STRICT table keyed one-rule-per-task", async () => {
     const row = await DB.prepare(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'task_recurrence_rules'",

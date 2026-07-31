@@ -11,6 +11,7 @@ import {
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
+import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 
 import type { ReviewsCollectionData } from "./review-collection-data";
@@ -209,6 +210,17 @@ export function ReviewsCollectionView({
           primaryAction={
             <Link className="dh-btn dh-btn--primary" to="/reviews/new">
               New Review
+            </Link>
+          }
+          // HELP-01 — "what is a Review actually for?" is the question standing
+          // between an empty list and a first entry. Answer it rather than only
+          // offering the button.
+          secondaryAction={
+            <Link
+              className="dh-btn dh-btn--secondary"
+              to={helpTopicHref("reviews")}
+            >
+              What Reviews are for
             </Link>
           }
         />

@@ -43,7 +43,8 @@ committed with real values.
 | Variable | Purpose |
 | --- | --- |
 | `AUTH_MODE` | `cloudflare-access` (production/default) or `development`. Missing → `cloudflare-access`; unknown → fails closed. |
-| `ENVIRONMENT` | `development` / `test` / `preview` / `staging` / `production`. Gates development auth and the `Secure` theme cookie. |
+| `ENVIRONMENT` | `development` / `test` / `preview` / `staging` / `production`. Gates development auth and the `Secure` theme cookie, and is the environment label About and `/health` report. |
+| `BUILD_COMMIT` | **Optional.** A git commit hash the About screen displays. Absent everywhere by default; a value that is not a commit hash is ignored rather than shown. |
 | `ACCESS_TEAM_DOMAIN` | `https://<team>.cloudflareaccess.com`. The token issuer and JWKS base. HTTPS only, no path/credentials. |
 | `ACCESS_AUD` | The Access application Audience (AUD) tag the token must carry. |
 | `OWNER_EMAIL` | The single owner's email; enforced independently of the Access policy. |
@@ -122,9 +123,9 @@ live in `app/platform/auth`.
 ## Why there is no users / sessions table
 
 Identity is derived from the Access token per request and held only in memory.
-Theme remains a device/browser-local cookie. SET-01 adds owner/workspace
-application preferences (`owner_app_preferences`) keyed by authenticated subject,
-but it still persists **no** JWT or session. A persisted user/profile model is
+SET-01 adds owner/workspace application preferences (`owner_app_preferences`) keyed
+by authenticated subject — which THEME-01 extended to carry the theme — but it still
+persists **no** JWT or session. A persisted user/profile model is
 introduced only when the product needs editable profile state or multiple users.
 
 ## Authenticated workspace resolution & Activity actor
@@ -268,15 +269,41 @@ and [MODULES.md](./MODULES.md).
 
 ## Theme preference behaviour
 
-`system` / `light` / `dark`, default `system`. The preference is intentionally
-device/browser-local and is stored in a same-site, HttpOnly, bounded cookie
-(`Secure` in non-development environments). The root layout reads it server-side,
-so `<html data-theme>` is correct on the first byte — no light-to-dark flash, no
-client cookie reading, no `localStorage`, no state library. Invalid values fall
-back to `system`. Changing the theme is a POST to `/preferences/theme` that sets
-the cookie and redirects back (same-origin, validated). Theme changes touch no
-database and record no Activity. The `/settings?section=appearance` route reuses
-this exact authority; it does not duplicate theme state in D1.
+Five curated themes (`daly-light`, `daly-dark`, `eucalypt`, `coastal`, `ember`)
+plus the `system` appearance mode, default `system` (THEME-01,
+[ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner)).
+
+**The owner preferences record is the authority.** The theme is a column on
+`owner_app_preferences` (migration `0023`), so it follows the owner between
+browsers — a change from FND-09/SET-01, which kept appearance device-local. With
+three appearance modes that was a cosmetic device setting; with five curated themes
+it is a personal choice, and a personal choice that does not follow the owner to
+their phone is a broken one.
+
+**The cookie is now only a first-paint mirror.** It is still same-site, HttpOnly and
+bounded (`Secure` in non-development environments), but it is a cache, not the
+source of truth. It exists so a document that never reaches the authenticated shell
+loader — a root error boundary — still renders with the right `data-theme`.
+
+**Resolution order in the root layout**, most authoritative first:
+
+1. the app-shell loader's value, read from the owner record;
+2. the root loader's cookie mirror;
+3. `system`.
+
+Because the shell loader supplies it during SSR, `<html data-theme>` carries the
+authoritative theme in the first byte of every authenticated document — no
+light-to-dark flash, no client theme script, no inline bootstrapping, no
+`localStorage`, no state library.
+
+Changing the theme is a POST to `/preferences/theme` (same-origin, validated) which
+writes the preference record, refreshes the cookie mirror and redirects back. With
+JavaScript that redirect is a client navigation, so the new theme paints immediately
+and nothing reloads. Theme changes record no Activity. Invalid or removed values
+fall back to `system`; a legacy `light`/`dark` value maps to Daly Light / Daly Dark
+rather than resetting the owner's choice. The `/settings?section=appearance` route
+reuses this exact authority — the full picker and the user-menu quick switch post to
+the same action.
 
 ## Security headers
 

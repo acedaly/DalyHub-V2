@@ -74,12 +74,43 @@ describe("ProjectOverview", () => {
     expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Career").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Ship v2").length).toBeGreaterThan(0);
-    // The roll-up progress presentation.
-    expect(screen.getByText(/25% — 1 of 4 tasks complete/)).toBeInTheDocument();
+    // THEME-01 — the roll-up is now the shared meter: the percentage reaches
+    // assistive tech through the progressbar, and the exact counts stay visible as
+    // text so nothing depends on seeing the bar.
+    const meter = screen.getByRole("progressbar", { name: "Roll-up progress" });
+    expect(meter).toHaveAttribute("aria-valuenow", "25");
+    expect(meter).toHaveAttribute(
+      "aria-valuetext",
+      "25% — 1 of 4 tasks complete",
+    );
+    expect(screen.getByText("1 of 4 tasks complete")).toBeInTheDocument();
     // The reversible completion action.
     expect(
       screen.getByRole("button", { name: "Complete project" }),
     ).toBeInTheDocument();
+  });
+
+  it("states an empty project has nothing to measure, not that it is 0% done", () => {
+    // A project with no tasks is not a project that is 0% complete. The meter is
+    // replaced by the sentence that says so (THEME-01).
+    renderInRouter(
+      <ProjectOverview
+        overview={overview()}
+        progress={projectProgress(0, 0)}
+        health={stubHealth({ taskTotal: 0, taskCompleted: 0 })}
+        completed={false}
+        completionPending={false}
+        onToggleComplete={() => {}}
+        onRename={() => {}}
+        tasksTab={<div>tasks-content</div>}
+        knowledgeTab={<div>Knowledge content</div>}
+        linksTab={<div>links-content</div>}
+        activityTab={<div>activity-content</div>}
+        settingsTab={<div>settings-content</div>}
+      />,
+    );
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.getByText("No tasks yet.")).toBeInTheDocument();
   });
 
   it("explains the project’s health with all current reasons and supporting facts", () => {

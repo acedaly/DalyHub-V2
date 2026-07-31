@@ -7,7 +7,7 @@
  * a short month (31 Jan → 28 Feb) returns to the requested day afterwards rather
  * than drifting. Nothing here generates a calendar of future Tasks: the rule plus
  * `nextTaskOccurrenceDate` computes exactly ONE next date on demand, which is what
- * completion uses to create exactly one successor (ADR-061).
+ * completion uses to create exactly one successor (ADR-062).
  *
  * Every function here is PURE and calendar-only (no clocks, no time zones): the
  * caller passes the owner's calendar day (ADR-022), never a browser-local date.

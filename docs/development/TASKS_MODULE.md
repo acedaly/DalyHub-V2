@@ -565,7 +565,7 @@ Capture resolves its destination in exactly this order, on every surface:
    explicitly `chosen_parent`;
 4. **Inbox**.
 
-Migration `0023` adds `owner_app_preferences.default_task_destination`
+Migration `0024` adds `owner_app_preferences.default_task_destination`
 (`'inbox' | 'chosen_parent'`, default `'inbox'`). It exists so a legacy saved parent
 cannot silently keep filing ahead of Inbox: the column makes the owner's intent
 explicit rather than inferring it from the presence of an old id. Setting a parent in
@@ -648,7 +648,7 @@ from. A phrase with no anchor date is dropped rather than given an invented one.
 
 ### Recurrence storage
 
-Recurrence is structured DATA, never prose. Migration `0023` adds
+Recurrence is structured DATA, never prose. Migration `0024` adds
 `task_recurrence_rules`: one row per occurrence, keyed `(workspace_id, entity_id)`,
 carrying `date_kind` (`scheduled`|`due`), `frequency`
 (`day`|`weekday`|`week`|`month`|`year`), `interval` (1–99), an optional selected
@@ -742,7 +742,7 @@ on Today as ordinary active work.
 
 ### Storage, migration and bundle (TASKS-04, measured)
 
-Migration `0023_tasks04_daily_driver.sql` is **purely additive**: one `ALTER TABLE`
+Migration `0024_tasks04_daily_driver.sql` is **purely additive**: one `ALTER TABLE`
 adding `owner_app_preferences.default_task_destination` with a `NOT NULL DEFAULT
 'inbox'` and a CHECK, and one `CREATE TABLE task_recurrence_rules` plus two indexes.
 

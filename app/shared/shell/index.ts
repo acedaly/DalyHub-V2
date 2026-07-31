@@ -20,7 +20,12 @@ export {
   displayNameFromEmail,
   initialsFromName,
 } from "./UserMenu";
-export { ThemeControl, THEME_ACTION_PATH } from "./ThemeControl";
+export {
+  ThemePicker,
+  ThemeQuickSwitch,
+  THEME_ACTION_PATH,
+} from "./ThemePicker";
+export { ThemePreview } from "./ThemePreview";
 export { MobileNav, MOBILE_NAV_ID } from "./MobileNav";
 export { ModulePlaceholder } from "./ModulePlaceholder";
 export {

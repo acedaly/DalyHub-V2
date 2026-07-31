@@ -14,6 +14,7 @@
 import { useId } from "react";
 import type { ReactNode } from "react";
 
+import { ProgressMeter } from "~/shared/progress";
 import {
   GoalAlignmentPanel,
   type GoalAlignment,
@@ -220,14 +221,15 @@ export function GoalOverview({
                   </p>
                 )}
               </div>
-              <p className="dh-goal-overview__progress">
-                <span className="dh-goal-overview__progress-label">
-                  Project contribution:
-                </span>{" "}
-                {progress.has
-                  ? `${progress.percent}% — ${progress.summary}`
-                  : progress.summary}
-              </p>
+              {/* THEME-01 — the same derived number, now shown as the shared
+               * meter. `available` is false when no Project contributes yet, so
+               * the Goal reads "no Projects yet" rather than an empty 0% bar. */}
+              <ProgressMeter
+                label="Project contribution"
+                percent={progress.percent}
+                summary={progress.summary}
+                available={progress.has}
+              />
               <div className="dh-goal-overview__alignment">
                 <h2
                   id={alignmentHeadingId}

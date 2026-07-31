@@ -6,6 +6,7 @@ import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 import { AppShell } from "~/shared/shell/AppShell";
 import { ACCESS_LOGOUT_PATH } from "~/shared/shell/UserMenu";
 import { ModulePlaceholder } from "~/shared/shell/ModulePlaceholder";
+import { THEMES } from "~/shared/shell/theme";
 
 const NAVIGATION: readonly NavigationItem[] = [
   {
@@ -229,14 +230,17 @@ describe("PX-02 AppShell — user menu relocation", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("owner@example.com")).toBeInTheDocument();
 
-    // Theme control relocated here (reused unchanged).
-    for (const label of ["System", "Light", "Dark"]) {
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    // THEME-01 — the quick switch offers every curated theme plus `system`, each
+    // as a real text-labelled button, never a colour-only swatch.
+    for (const option of [
+      "Match system",
+      ...THEMES.map((theme) => theme.name),
+    ]) {
+      expect(screen.getByRole("button", { name: option })).toBeInTheDocument();
     }
-    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(
+      screen.getByRole("button", { name: "Match system" }),
+    ).toHaveAttribute("aria-pressed", "true");
 
     const signOut = screen.getByRole("link", { name: /sign out/i });
     expect(signOut).toHaveAttribute("href", ACCESS_LOGOUT_PATH);

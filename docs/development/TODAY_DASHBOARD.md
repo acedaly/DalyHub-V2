@@ -485,17 +485,32 @@ layer (ADR-045) and preserves the TODAY-02…06 execution core bit-for-bit.
   to `localStorage` (SSR-safe — server + first client render use the default, the
   snapshot applies post-mount; it normalises stale snapshots and fails soft). The
   arrangement is a cosmetic per-device UI preference, deliberately **not** workspace/
-  server state (ADR-045 §2). A calm "Customise" toggle reveals each widget's
+  server state (ADR-045 §2). Since THEME-01 moved the theme onto the owner record,
+  this is the only personalisation surface that does not follow the owner between
+  devices — recorded as [DEBT-55](../product/PRODUCT_DEBT.md#-debt-55--today-widget-arrangement-is-still-device-local-while-the-theme-is-not--p3). A calm "Customise" toggle reveals each widget's
   move/pin/hide controls ([`TodayWidget.tsx`](../../app/modules/today/landing/TodayWidget.tsx)).
 - **The widgets.** In canonical order: **Morning brief** (greeting · date · a focus
-  line · at-a-glance planned/overdue/inbox counts · honest weather + calendar
-  placeholders · a capture entry), **My day** (the preserved planning bands +
+  line · at-a-glance planned/overdue/inbox counts · a capture entry), **My day** (the preserved planning bands +
   Waiting + roving keyboard + swipe + bulk bar — unchanged), **Recent activity**
   (below), **Diary**, **Notes**, **Continue working** (the real Active projects),
   **Areas**, **Goals**, **Focus** (a placeholder for focus mode / deep work /
   Pomodoro), **Insights**, and **Capture** (the honest inert Quick Capture, TODAY-07
   wires it). A widget with no data source in demo/fixture rendering simply does not
   appear.
+- **Weather and calendar were REMOVED (POLISH-01, 2026-07-31).** The Morning Brief
+  used to reserve two panels labelled "Weather" and "Upcoming calendar", each saying
+  the data would appear "once connected". They were honest about having no data, but
+  they took permanent space on the most-used screen in the product, every day, to
+  advertise two integrations that do not exist and are not being built. A panel that
+  has never once shown information is not a placeholder — it is a promise the product
+  keeps failing to keep. With no weather data source, no provider, no configuration
+  and no key, the only alternatives were fake data or a permanently-empty box, and
+  both are worse than an honest absence. Recorded as
+  [DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3);
+  Help's "What is not here yet" topic states it to the owner directly. **If weather
+  returns it will be an OPTIONAL widget, disabled until configured** — a documented
+  source, an owner-supplied location and a graceful unavailable state — never
+  reserved space. The calendar panel is subsumed by X-03.
 - **Real cross-module data.** A bounded, independently-degrading loader
   ([`landing/load.ts`](../../app/modules/today/landing/load.ts)) reads REAL Notes
   (`entities.list({type:"note"})`), Diary (`DiaryRepository.list`), Areas

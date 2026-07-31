@@ -27,13 +27,13 @@ import {
   type TaskDefaultView,
 } from "~/kernel/preferences";
 import { AppPreferencesValidationError } from "~/kernel/preferences";
+import { buildInfo } from "~/lib/version";
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { SelectField } from "~/shared/forms";
-import { ThemeControl } from "~/shared/shell/ThemeControl";
-import { readThemePreference } from "~/shared/shell/theme";
+import { ThemePicker } from "~/shared/shell/ThemePicker";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import type { Route } from "./+types/index";
@@ -167,7 +167,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     landingOptions: LANDING_DESTINATIONS.filter((destination) =>
       availablePaths.has(`/${destination}`),
     ),
-    theme: readThemePreference(request.headers.get("Cookie")),
+    // THEME-01 — the stored owner preference, already normalised against the theme
+    // registry by the kernel, so a removed or unknown theme shows as the default
+    // rather than leaving the picker with nothing selected.
+    theme: preferences.theme,
+    // RELEASE-01 — the allow-listed build facts, from the one version authority.
+    build: buildInfo(env),
   };
 }
 
@@ -294,7 +299,11 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="dh-settings-page">
-      <aside className="dh-settings-page__nav" aria-label="Settings sections">
+      {/* A list of links between sections is navigation, not complementary
+       * content. It was an <aside>; RELEASE-01 added a top-level /about route,
+       * which made an unscoped "About" link ambiguous and surfaced the wrong
+       * landmark role at the same time. */}
+      <nav className="dh-settings-page__nav" aria-label="Settings sections">
         {SECTIONS.map((section) => (
           <Link
             key={section.id}
@@ -310,7 +319,7 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
             {section.label}
           </Link>
         ))}
-      </aside>
+      </nav>
       <div className="dh-settings-page__content">
         <header className="dh-settings-page__header">
           <h1 className="dh-settings-page__title">Settings</h1>
@@ -442,13 +451,13 @@ function AppearanceSection({
   return (
     <SettingsLayout
       title="Appearance"
-      description="Appearance is intentionally stored on this device through the existing theme cookie."
+      description="Choose how DalyHub looks. Your theme is saved to your account, so it follows you to any browser you sign in from."
     >
       <SettingsGroup title="Theme">
         <SettingsRow
-          label="Theme mode"
-          description="System follows the operating system setting. Light and Dark apply immediately on this device."
-          control={<ThemeControl current={data.theme} />}
+          label="Theme"
+          description="Applies straight away. Match system follows your device between Daly Light and Daly Dark."
+          control={<ThemePicker current={data.theme} />}
           align="start"
         />
       </SettingsGroup>
@@ -524,13 +533,31 @@ function AboutSection({
   readonly data: Route.ComponentProps["loaderData"];
 }) {
   return (
-    <SettingsLayout title="About" description="Stable application information.">
+    <SettingsLayout
+      title="About"
+      description="Stable application information. The full About screen has the version, environment and build details."
+    >
       <SettingsGroup title="Application">
         <SettingsRow
           label="Name"
           description="The personal operating system for one life."
           control={
-            <span className="dh-settings-page__text-value">DalyHub</span>
+            <span className="dh-settings-page__text-value">
+              {data.build.name}
+            </span>
+          }
+        />
+        <SettingsRow
+          label="Version"
+          // RELEASE-01 — read from the ONE version authority, the same one the
+          // About screen and the health endpoint use. This row used to say "No
+          // deployment version is exposed to the application yet", which stopped
+          // being true when that authority landed.
+          description={`Release ${data.build.releaseName}.`}
+          control={
+            <span className="dh-settings-page__text-value">
+              {data.build.version}
+            </span>
           }
         />
         <SettingsRow
@@ -545,10 +572,12 @@ function AboutSection({
           }
         />
         <SettingsRow
-          label="Build version"
-          description="No deployment version is exposed to the application yet."
+          label="Full details"
+          description="Environment, build identifier, ownership and what that means for support."
           control={
-            <span className="dh-settings-page__text-value">Not configured</span>
+            <Link className="dh-about__link" to="/about">
+              Open About
+            </Link>
           }
         />
       </SettingsGroup>

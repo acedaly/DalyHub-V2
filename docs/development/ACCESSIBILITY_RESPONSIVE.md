@@ -127,13 +127,14 @@ Target: **WCAG 2.2 AA**, met by construction in the shared layer.
   and reorder announcements are announced (`aria-live` polite/assertive, or
   `role="status"`/`role="alert"` where appropriate). The app-global toast layer uses
   bare `aria-live` so it never shadows other status/alert regions.
-- **Focus visibility.** One high-contrast focus ring (`:focus-visible`, AA against
-  both themes) on every control; re-pinned to the system `Highlight` colour under
-  forced-colors (Windows High Contrast).
+- **Focus visibility.** One high-contrast focus ring (`:focus-visible`, ≥3:1 in
+  **every** curated theme) on every control; re-pinned to the system `Highlight`
+  colour under forced-colors (Windows High Contrast).
 - **State is never colour alone.** Status, selection, danger, active nav and
   save-state are always paired with icon, text or shape.
 - **User settings respected.** `prefers-reduced-motion` collapses motion to instant
-  (a global switch plus component blocks), `prefers-color-scheme` drives the theme,
+  (a global switch plus component blocks), `prefers-color-scheme` drives the theme
+  when the owner has chosen the `system` appearance mode (THEME-01),
   layouts reflow to 200% zoom without loss, and forced-colors/`prefers-contrast`
   are compatible (state carried by shape/text + real borders on modal surfaces).
 - **Every UI state is accessible:** loading (`aria-busy`, decorative skeletons),
@@ -150,8 +151,12 @@ fails fast and locally:
 1. **Static lint** — `eslint-plugin-jsx-a11y` (recommended) over `app/**` catches
    common JSX a11y mistakes at `pnpm lint`.
 2. **Unit/component tests** — role-based RTL assertions per component, plus the
-   DS-01 token **contrast** and **light/dark parity** tests (the authoritative,
-   deterministic colour-contrast guarantee).
+   DS-01/THEME-01 token **contrast**, **coverage** and **dark-block parity** tests
+   (the authoritative, deterministic colour-contrast guarantee). Since THEME-01
+   these run over **all five curated themes**, not a light/dark pair, and cover the
+   text ramp on every surface, every tinted surface, filled controls in all three
+   interactive states, focus rings, control boundaries, progress and every chart
+   series. A theme cannot be added without passing them.
 3. **Playwright end-to-end** (the DS-11 additions), all run by `pnpm test:e2e` and
    in CI:
    - **`e2e/accessibility.spec.ts`** — an **axe-core** (`@axe-core/playwright`,
@@ -174,12 +179,26 @@ Shared Playwright helpers live in **[`e2e/helpers.ts`](../../e2e/helpers.ts)**:
 `gotoFixture` (hydration-gated navigation), `expectMinTouchTarget`, and
 `buildAxeScan` / `expectNoAxeViolations`.
 
-**Why colour-contrast is disabled in the axe run.** DS-01 already proves every
-semantic token pair against AA deterministically in
+**Why colour-contrast is disabled in the axe run.** DS-01/THEME-01 already prove
+every semantic token pair against AA deterministically, in every theme, in
 `test/unit/tokens/contrast.test.ts`. Re-deriving contrast from rendered pixels in a
 headless browser is flaky (antialiasing, overlay compositing) and would duplicate
 that guarantee less reliably — so the axe run disables `color-contrast` and enforces
 every other rule. This keeps the gate strong without brittle assertions.
+
+**Control boundaries (THEME-01).** WCAG 1.4.11 requires 3:1 for a boundary that is
+needed to *identify* a control. `--dh-color-control-border` is that token and is
+asserted at 3:1 on four surfaces in every theme; `--dh-color-border-strong` remains
+the decorative emphasis border and is deliberately lighter. Using `border-strong` on
+a real control would silently fall below the threshold — recorded as
+[DEBT-54](../product/PRODUCT_DEBT.md#-debt-54--border-strong-is-still-below-31-where-it-is-a-decorative-border--p3)
+until a check enforces the distinction.
+
+**Meaning is never carried by a theme.** Priority, overdue, due-soon, completed,
+waiting and on-hold all have their own token triples in every theme AND always carry
+a text label, so none of them depends on the owner being able to distinguish
+Eucalypt's sage from Ember's terracotta. `e2e/themes.spec.ts` asserts the priority
+label is still present and readable in Daly Dark specifically.
 
 ---
 

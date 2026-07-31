@@ -316,7 +316,7 @@ async function handleCompletion(
     if (intent === "complete") {
       // Completing a task, clearing any active waiting state AND creating the ONE
       // next occurrence of a repeating task is ONE atomic task-domain operation
-      // (ADR-029 / ADR-061). The route never coordinates those through several calls.
+      // (ADR-029 / ADR-062). The route never coordinates those through several calls.
       const result = await scope.tasks.completeTask(taskId, { ownerTodayIso });
       return {
         kind: "completion",

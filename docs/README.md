@@ -31,6 +31,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of independently-implementable work items. |
 | **Design** | |
 | [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md) | The shared interaction language every module reuses. |
+| [`design/THEME_ACCEPTANCE_MATRIX.md`](design/THEME_ACCEPTANCE_MATRIX.md) | What was actually verified for each of the five curated themes (THEME-01), with the evidence for every claim and an honest record of what was not checked. |
 | [`design/PRODUCT_EXPERIENCE.md`](design/PRODUCT_EXPERIENCE.md) | The product-wide experience contract: the 2026-07 UX review, scores, ranked improvements, philosophies, hierarchy/composition rules, and reference screens. |
 | **Architecture** | |
 | [`architecture/ARCHITECTURE_OVERVIEW.md`](architecture/ARCHITECTURE_OVERVIEW.md) | How the kernel, modules, and platform fit together technically. |
@@ -53,6 +54,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/RELATIONSHIPS.md`](development/RELATIONSHIPS.md) | The Universal Relationship System (REL-01): the shared **Linked Items** section every record mounts, the module-agnostic `link.related` type + trusted policy, the one authenticated `/links` endpoint (list/search/summary + link/unlink), the `HoverCard`, inline `[[Wiki Links]]` + resolver, in-tier Search boosting, optimistic/offline/keyboard behaviour, Activity recording, how a module adopts it, and the **NOTES-02 references adopter note** (a saved `[[Wiki Link]]` becomes a typed, stable-id `note.references` EntityLink; the separate `~/shared/references` surface that READS the graph directionally; the backlink/outgoing-link definitions; Project Knowledge cardinality) — all on the FND-04 EntityLink primitive with no second relationship model. Also the **relationship aggregation architecture** (PEOPLE-03) and the **context-aware capture contract** (ADR-060): its revalidated source context, relationship matrix, canonical EntityLink / attendee / structural-parent outcomes and DEBT-45 limits. |
 | [`development/FEEDBACK_AND_INSPECTOR.md`](development/FEEDBACK_AND_INSPECTOR.md) | The Global Interaction Layer (DS-10): the Notification framework, the Undo framework, the Operation lifecycle (one Feedback platform + the hidden `useFeedback` API) and the shared Inspector — the model/runtime layers, calm queue/undo/operation semantics, the URL-driven resizable/sheet Inspector reusing the DS-03 modal machinery, accessibility, integration points, and the development demonstration. |
 | [`development/SETTINGS_LAYOUT.md`](development/SETTINGS_LAYOUT.md) | The Shared Settings layout (DS-10b): the structure primitives (`SettingsLayout`/`SettingsGroup`/`SettingsRow`), the two accessible-naming patterns, declared change behaviour (immediate via `useImmediateSetting`, autosave and explicit-save via DS-06), the dangerous-action contract (`DangerousAction`/`ConfirmationDialog` reusing the DS-03 modal machinery, typed confirmation, failure/retry), where Settings fits across routes/Inspectors/records, accessibility, and the development demonstration. |
+| [`development/HELP_AND_ABOUT.md`](development/HELP_AND_ABOUT.md) | In-app Help (HELP-01) and the single version authority behind About and `/health` (RELEASE-01): why Help's content is typed data, the rules that content follows, deep links from empty states, and what About is allowed to expose. |
 | [`development/SETTINGS_MODULE.md`](development/SETTINGS_MODULE.md) | The application Settings module (SET-01): the `/settings` information architecture, owner/workspace vs device-local preference authority, migration `0017`, timezone/date authority, root/default routing, navigation preferences, Activity privacy boundary, deferred scope and verification. |
 | [`development/ACCESSIBILITY_RESPONSIVE.md`](development/ACCESSIBILITY_RESPONSIVE.md) | The Accessibility & Responsive Baseline (DS-11): keyboard conventions, responsive rules (320px→ultra-wide, container queries, safe-area, touch targets), accessibility standards (landmarks, headings, live regions, forced-colors, reduced motion), the three-layer testing strategy (jsx-a11y · component/contrast tests · the axe-core + no-overflow + keyboard Playwright gate), the requirements every future module inherits and must keep, and **the MOBILE-01 phone platform** layered on top (the one keyboard-inset listener and its token, the mobile-zoom floor, the second navigation landmark, sheets reusing the modal machinery, command-row and tab-strip overflow, and what MOBILE-01 adds to the verification matrix). |
 | [`development/TASKS_MODULE.md`](development/TASKS_MODULE.md) | The Tasks module (TASKS-01 + TASKS-02 + TASKS-03 done): the authority boundaries it composes rather than replaces, the four separate planning questions (P1–P4 priority · Do/Defer/Delegate/Delete · Time Sector vs scheduled vs due date · Active vs Someday/Maybe), the one display-state precedence evaluator, atomic creation, bounded cursor pagination, delegation, the shared priority/urgency signals, and **the completed collection experience (TASKS-03, ADR-059)** — one declarative URL-backed configuration, complete server-side filtering, sorting and grouping with authoritative counts, persistent workspace- and owner-scoped saved views over a validated configuration, the list as the primary workspace with the Matrix and Time Sectors retained as optional presentations, and the in-workspace quick add and list-level quick edits that all post to canonical routes. |
@@ -85,6 +87,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   └── ROADMAP_V2.md
     ├── design/
     │   ├── DESIGN_SYSTEM.md
+    │   ├── THEME_ACCEPTANCE_MATRIX.md
     │   └── PRODUCT_EXPERIENCE.md
     ├── architecture/
     │   └── ARCHITECTURE_OVERVIEW.md
@@ -108,6 +111,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
         ├── COMMAND_PALETTE.md
         ├── FEEDBACK_AND_INSPECTOR.md
         ├── SETTINGS_LAYOUT.md
+        ├── HELP_AND_ABOUT.md
         ├── SETTINGS_MODULE.md
         ├── PROJECTS_MODULE.md
         ├── AREAS_MODULE.md

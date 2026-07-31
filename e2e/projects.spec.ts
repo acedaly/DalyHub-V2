@@ -59,8 +59,13 @@ test.describe("PROJ-01 — Projects", () => {
   }) => {
     await gotoFixture(page, "/projects/pr-website");
 
-    const progress = page.locator(".dh-project-overview__progress");
-    const before = (await progress.textContent()) ?? "";
+    // THEME-01 — the roll-up is now the shared progress meter, so this reads the
+    // value assistive tech reads rather than a component-specific class name.
+    const progress = page.getByRole("progressbar", {
+      name: "Roll-up progress",
+    });
+    const before = (await progress.getAttribute("aria-valuetext")) ?? "";
+    expect(before).not.toBe("");
 
     // Add a task through the shared create Drawer.
     await page.getByRole("link", { name: "Add task" }).first().click();
@@ -86,7 +91,7 @@ test.describe("PROJ-01 — Projects", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect
-      .poll(async () => (await progress.textContent()) ?? "")
+      .poll(async () => (await progress.getAttribute("aria-valuetext")) ?? "")
       .not.toBe(before);
 
     // The completed task persists after a reload (seen under the Completed filter).
@@ -201,9 +206,12 @@ test.describe("PROJ-01 — Projects", () => {
 
     // The authoritative roll-up reflects ALL 60 tasks even though only the first
     // page of task rows is loaded (the total is not the loaded-row count).
+    // The meter states the roll-up in text as well as in the bar, so both the
+    // visible summary and the accessible value have to name all 60 tasks.
+    await expect(page.getByText("60 of 60 tasks complete")).toBeVisible();
     await expect(
-      page.locator(".dh-project-overview__progress").getByText(/60/),
-    ).toBeVisible();
+      page.getByRole("progressbar", { name: "Roll-up progress" }),
+    ).toHaveAttribute("aria-valuetext", "100% — 60 of 60 tasks complete");
 
     const latecomer = page.getByRole("link", {
       name: "Open Paginated task 060",

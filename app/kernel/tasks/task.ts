@@ -407,7 +407,7 @@ export type ClearWaitingResult = {
  * whether completion actually happened (`false` for an already-completed no-op).
  *
  * When the completed occurrence carried a recurrence rule, `successor` is the ONE
- * next occurrence created in the SAME transaction (TASKS-04 / ADR-061). It is null
+ * next occurrence created in the SAME transaction (TASKS-04 / ADR-062). It is null
  * for a one-off task, and null on an idempotent no-op — a repeated completion never
  * creates a second successor.
  */
