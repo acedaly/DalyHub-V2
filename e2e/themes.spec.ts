@@ -14,7 +14,12 @@
 
 import { execFileSync } from "node:child_process";
 
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 import {
   expectNoAxeViolations,
@@ -56,21 +61,40 @@ function d1Execute(command: string): void {
   );
 }
 
-/** Put the stored preference back to the shipped default. */
-function resetTheme(): void {
-  d1Execute(
-    `UPDATE owner_app_preferences SET theme = 'system' WHERE workspace_id = '${WORKSPACE_ID}' AND owner_id = '${OWNER_ID}';`,
-  );
+/**
+ * Store the owner's theme WITHOUT touching the browser under test.
+ *
+ * This posts to the real `/preferences/theme` action, so the owner record is
+ * written through the product's own validated path — the same one the picker
+ * uses. It deliberately goes through the `request` fixture rather than
+ * `page.request`: that is a separate cookie jar, so the browser context the test
+ * then opens has never seen the first-paint cookie and the server has to resolve
+ * the theme from the stored record. Setting it here therefore proves MORE than a
+ * raw `UPDATE` did, not less.
+ *
+ * It is also roughly two seconds a call cheaper than shelling out to
+ * `wrangler d1 execute`, which — across this file's ~44 tests plus their reset —
+ * was the single largest consumer of the Playwright shard budget.
+ */
+async function storeTheme(
+  request: APIRequestContext,
+  themeId: string,
+): Promise<void> {
+  const response = await request.post("/preferences/theme", {
+    form: { theme: themeId },
+    maxRedirects: 0,
+  });
+  // The action answers with a redirect; anything else means it did not store.
+  expect(
+    response.status(),
+    `storing theme "${themeId}" did not redirect`,
+  ).toBeGreaterThanOrEqual(300);
+  expect(response.status()).toBeLessThan(400);
 }
 
-/** Write the stored preference directly, without going through the interface. */
-function storeTheme(themeId: string): void {
-  d1Execute(
-    [
-      `INSERT OR IGNORE INTO owner_app_preferences (workspace_id, owner_id, created_at, updated_at) VALUES ('${WORKSPACE_ID}', '${OWNER_ID}', '2026-07-19T00:00:00.000Z', '2026-07-19T00:00:00.000Z');`,
-      `UPDATE owner_app_preferences SET theme = '${themeId}' WHERE workspace_id = '${WORKSPACE_ID}' AND owner_id = '${OWNER_ID}';`,
-    ].join(" "),
-  );
+/** Put the stored preference back to the shipped default. */
+async function resetTheme(request: APIRequestContext): Promise<void> {
+  await storeTheme(request, "system");
 }
 
 /** The theme currently applied to the document. */
@@ -84,8 +108,8 @@ async function chooseTheme(page: Page, name: string): Promise<void> {
   await expect(page.getByRole("status")).toContainText(`Using ${name}`);
 }
 
-test.afterEach(() => {
-  resetTheme();
+test.afterEach(async ({ request }) => {
+  await resetTheme(request);
 });
 
 test.describe("THEME-01 the theme picker", () => {
@@ -180,11 +204,12 @@ test.describe("THEME-01 persistence", () => {
 
   test("is stored on the owner record, not only in this browser", async ({
     browser,
+    request,
   }) => {
-    // Written straight to the database, then read in a browser context that has
+    // Stored from a separate cookie jar, then read in a browser context that has
     // never seen the theme cookie. If the preference only lived in the cookie,
     // this would fall back to the default.
-    storeTheme("eucalypt");
+    await storeTheme(request, "eucalypt");
     const context = await browser.newContext();
     const page = await context.newPage();
     await gotoFixture(page, "/today");
@@ -194,9 +219,17 @@ test.describe("THEME-01 persistence", () => {
 
   test("falls back to the default when the stored theme no longer exists", async ({
     page,
+    request,
   }) => {
     // A theme removed by a later release must degrade to a complete, readable
     // theme rather than leaving the document unstyled.
+    //
+    // This is the ONE case that still needs raw SQL: the value it has to plant is
+    // one the product refuses to write, and the column's CHECK constraint refuses
+    // to store, so it can only be reached by suspending the constraint. Store a
+    // valid theme through the action first, so the owner row is guaranteed to
+    // exist for the UPDATE below regardless of which test ran before this one.
+    await storeTheme(request, "coastal");
     d1Execute(
       [
         "PRAGMA ignore_check_constraints = ON;",
@@ -212,8 +245,9 @@ test.describe("THEME-01 persistence", () => {
 test.describe("THEME-01 first paint", () => {
   test("serves Daly Dark in the very first byte, with no light flash", async ({
     page,
+    request,
   }) => {
-    storeTheme("daly-dark");
+    await storeTheme(request, "daly-dark");
 
     // Read the RAW server response, before any JavaScript runs. If the theme were
     // applied on the client there would be a light-themed first paint.
@@ -225,9 +259,12 @@ test.describe("THEME-01 first paint", () => {
     expect(html).not.toMatch(/document\.documentElement\.dataset\.theme/);
   });
 
-  test("serves each curated theme in the first byte", async ({ page }) => {
+  test("serves each curated theme in the first byte", async ({
+    page,
+    request,
+  }) => {
     for (const theme of THEMES) {
-      storeTheme(theme.id);
+      await storeTheme(request, theme.id);
       const response = await page.request.get("/today");
       expect(await response.text()).toContain(`data-theme="${theme.id}"`);
     }
@@ -250,8 +287,9 @@ test.describe("THEME-01 every surface in every theme", () => {
     for (const surface of SURFACES) {
       test(`${surface.label} renders correctly in ${theme.name}`, async ({
         page,
+        request,
       }) => {
-        storeTheme(theme.id);
+        await storeTheme(request, theme.id);
         await gotoFixture(page, surface.path);
 
         await expect(appliedTheme(page)).toHaveAttribute(
@@ -308,10 +346,11 @@ test.describe("THEME-01 accessibility of the picker", () => {
 
   test("keeps the priority chips readable as text in the dark theme", async ({
     page,
+    request,
   }) => {
     // Priority must never be colour-only. In Daly Dark in particular, the label
     // has to still be there and still be legible.
-    storeTheme("daly-dark");
+    await storeTheme(request, "daly-dark");
     await gotoFixture(page, "/tasks");
     const chip = page.locator(".dh-priority").first();
     if ((await chip.count()) > 0) {
@@ -322,8 +361,11 @@ test.describe("THEME-01 accessibility of the picker", () => {
 
 test.describe("THEME-01 on a phone", () => {
   for (const theme of [THEMES[0], THEMES[1]]) {
-    test(`phone navigation works in ${theme.name}`, async ({ page }) => {
-      storeTheme(theme.id);
+    test(`phone navigation works in ${theme.name}`, async ({
+      page,
+      request,
+    }) => {
+      await storeTheme(request, theme.id);
       await page.setViewportSize({ width: 375, height: 812 });
       await gotoFixture(page, "/today");
 

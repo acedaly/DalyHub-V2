@@ -44,7 +44,11 @@ test.describe("PX-02 frame — desktop", () => {
     const trigger = page.getByRole("button", { name: /owner/i });
     await trigger.click();
     await expect(page.getByText("owner@example.invalid")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Light" })).toBeVisible();
+    // THEME-01 — the quick switch offers the curated themes by their display
+    // names; `exact` matters because "Daly Light" contains "Light".
+    await expect(
+      page.getByRole("button", { name: "Daly Light", exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole("link", { name: /sign out/i })).toBeVisible();
 
     // Keyboard: Escape closes the menu and restores focus to the trigger.

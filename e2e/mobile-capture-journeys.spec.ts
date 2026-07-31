@@ -203,15 +203,24 @@ test.describe("ADR-060 contextual capture on a phone", () => {
     const title = `Phone project contextual task ${RUN}`;
 
     await gotoFixture(page, "/projects");
-    await page
-      .getByRole("link", { name: /^Open / })
-      .first()
-      .click();
-    await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
-    const projectTitle = (
-      await page.locator("h1").first().textContent()
-    )?.trim();
+    const open = page.getByRole("link", { name: /^Open / }).first();
+    // Take the project's name from the link that opens it, not from `h1` after
+    // the click. A client-side navigation updates the URL before it swaps the
+    // heading, so reading `h1` once the URL matches can still return the
+    // collection heading ("Projects") and then assert the capture chip against
+    // the wrong name. The link text is the same title from a source that cannot
+    // be half-updated.
+    const projectTitle = ((await open.textContent()) ?? "")
+      .trim()
+      .replace(/^Open /, "");
     expect(projectTitle).toBeTruthy();
+
+    await open.click();
+    await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
+    // The record heading has to be the project we named before the sheet opens.
+    await expect(
+      page.getByRole("heading", { level: 1, name: projectTitle }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: /^More actions for / }).click();
     await page.getByRole("menuitem", { name: "New task" }).click();
