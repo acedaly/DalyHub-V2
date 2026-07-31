@@ -686,17 +686,29 @@ test("the obligation and history states read correctly in all five themes", asyn
   page,
   request,
 }) => {
+  // This one journey walks FIVE themes over THREE tabs, running an axe scan on
+  // each — roughly fifteen real scans plus the setup that creates the states.
+  // The extended budget reflects that genuine work; it is not covering a race
+  // (every step below waits on a real condition, and none of them polls).
+  test.slow();
+
   const title = uniqueAssetTitle("themes");
   const url = await createAsset(page, title);
 
   // One asset carrying every state worth checking: an overdue obligation, a
   // due-soon one, a meter obligation with no reading, and a history entry.
   await page.goto(`${url}?tab=obligations`);
+  // Scoped to the tab panel: once the drawer is open it carries its own
+  // "Add obligation" SUBMIT button, which is a legitimate second control with
+  // the same name rather than a duplicate to design away.
+  const panel = page.getByRole("tabpanel", { name: "Obligations" });
+  const addObligation = panel.getByRole("button", { name: "Add obligation" });
+
   for (const [name, offset] of [
     ["Overdue rego", -10],
     ["Service due soon", 4],
   ] as const) {
-    await page.getByRole("button", { name: "Add obligation" }).click();
+    await addObligation.click();
     await drawer(page)
       .getByRole("textbox", { name: /^Title/ })
       .fill(name);
@@ -704,8 +716,11 @@ test("the obligation and history states read correctly in all five themes", asyn
       .getByRole("textbox", { name: /^Due date/ })
       .fill(isoInDays(offset));
     await drawer(page).getByRole("button", { name: "Add obligation" }).click();
+    // The drawer must be gone before the next iteration reaches for the bar.
+    await expect(drawer(page)).toHaveCount(0);
   }
-  await page.getByRole("button", { name: "Add obligation" }).click();
+
+  await addObligation.click();
   await drawer(page)
     .getByRole("textbox", { name: /^Title/ })
     .fill("Service at 60,000 km");
@@ -714,14 +729,19 @@ test("the obligation and history states read correctly in all five themes", asyn
     .fill("60000");
   await chooseOption(page, /^Meter unit/, "Kilometres");
   await drawer(page).getByRole("button", { name: "Add obligation" }).click();
+  await expect(drawer(page)).toHaveCount(0);
 
   await page.getByRole("tab", { name: "History" }).click();
-  await page.getByRole("button", { name: "Record service" }).click();
+  await page
+    .getByRole("group", { name: "Record an entry" })
+    .getByRole("button", { name: "Record service" })
+    .click();
   await drawer(page)
     .getByRole("textbox", { name: /^Title/ })
     .fill("Annual service");
   await drawer(page).getByRole("textbox", { name: /^Cost/ }).fill("489.50");
   await drawer(page).getByRole("button", { name: "Record service" }).click();
+  await expect(drawer(page)).toHaveCount(0);
 
   try {
     for (const theme of THEMES) {
