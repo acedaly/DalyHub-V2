@@ -230,6 +230,7 @@
 - **Desired future state.** When a workspace/user preference store exists (SET-01 territory), a synced arrangement can adopt the SAME pure `landing/layout.ts` model unchanged — only the persistence seam (`useTodayLayout`) swaps from `localStorage` to the preference store. No widget or model change required.
 - **Related roadmap item.** A future Settings/preferences item (SET-01 and beyond).
 - **SET-01 note.** SETTINGS-01A introduced the owner/workspace preference store but deliberately did **not** migrate Today arrangement into it; the device-local boundary remains a product decision until synced widget layout is explicitly prioritised.
+- **THEME-01 note (2026-07-31).** The theme preference has now moved INTO that store for exactly the reason this entry defers: a personal choice that does not follow the owner between devices is a broken one. That makes the device-local arrangement newly inconsistent rather than merely deferred — recorded as [DEBT-55](#-debt-55--today-widget-arrangement-is-still-device-local-while-the-theme-is-not--p3), which also notes that THEME-01 has proven the migration shape end to end.
 
 ### ☐ DEBT-33 — Settings changes are not yet represented in Activity — P3
 - **Current issue.** SET-01 persists owner/workspace preferences, but preference mutations do not append Activity rows. The accepted Activity model is entity-subject based, and forcing Settings into a fake entity subject would pollute the audit model. Preference values can also be sensitive or identifying, so arbitrary before/after payloads are not acceptable.
@@ -428,6 +429,27 @@
 - **Desired future state.** One kernel date primitive (`app/kernel/datetime` or an export from `app/kernel/spine`) exporting `addDaysToIsoDate`, with all three call sites collapsed onto it. And the quick-add row rebuilt on `~/shared/forms` + `parseQuickCapture`, ideally as an inline presentation of `TaskCapturePanel` rather than a fourth surface.
 - **Closing condition.** `grep` finds exactly one implementation of ISO day-shift arithmetic in `app/kernel`, and typing `Draft the brief p1` into the Tasks quick-add row produces the same task as typing it into Quick Capture.
 - **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
+
+### ☐ DEBT-53 — Weather and calendar on Today were removed, not implemented — P3
+- **Current issue.** The Morning Brief used to reserve two panels labelled "Weather" and "Upcoming calendar", each saying the data would appear "once connected". [POLISH-01](../roadmap/ROADMAP_V2.md#-polish-01--cross-module-visual-icon-and-today-polish) **removed both**. The reasoning, recorded here so it is not re-litigated: they were honest about having no data, but they took permanent space on the most-used screen in the product, every single day, to advertise two integrations that do not exist and are not being built. A panel that has never once shown information is not a placeholder — it is a promise the product keeps failing to keep. With no weather data source, no provider, no configuration and no key, the only alternatives were shipping fake data or shipping a permanently-empty box; both are worse than an honest absence.
+- **Impact.** None on the owner today — the removal is the improvement. The debt is that the CAPABILITY is absent, and this entry exists so it is a recorded decision rather than a silent omission. Help's "What is not here yet" topic states it to the owner directly.
+- **Desired future state.** If weather earns its place, it returns as an **optional widget that is disabled until configured** — a documented data source, an owner-supplied location, a graceful unavailable state, and never reserved space before any of that exists. The calendar panel is subsumed by [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar), which owns calendar integration properly.
+- **Closing condition.** Either a configured weather widget that shows real data and degrades honestly when the source is unavailable, or an explicit decision that DalyHub does not do weather. Not a placeholder.
+- **Related roadmap item.** [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar).
+
+### ☐ DEBT-54 — `border-strong` is still below 3:1 where it is a decorative border — P3
+- **Current issue.** [THEME-01](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system) added `--dh-color-control-border` at 3:1 and migrated the real interactive control boundaries onto it (inputs, checkboxes, the tags field, secondary buttons, the collection-controls trigger, the Settings select). `--dh-color-border-strong` remains the *decorative* emphasis border and is deliberately still below 3:1 — it is used for timeline rails, chips, dropdown containers and dialog edges, where the boundary is not what identifies a control and darkening it would make ordinary chrome heavy.
+- **Impact.** None known against WCAG 1.4.11, which applies to boundaries *required to identify* a component. The risk is drift: a future control styled with `border-strong` out of habit would silently be below the threshold, and nothing currently catches that.
+- **Desired future state.** A lint or test that flags a `border-strong` boundary on an element that is (or contains) an interactive control, so the distinction is enforced rather than remembered.
+- **Closing condition.** A check exists that fails when an interactive control's boundary uses `border-strong` instead of `control-border`.
+- **Related roadmap item.** [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
+
+### ☐ DEBT-55 — Today widget arrangement is still device-local while the theme is not — P3
+- **Current issue.** [THEME-01](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system) moved appearance out of a device-local cookie and onto the owner preferences record, because with five curated themes a choice that does not follow the owner to their phone is a broken one. The **same argument now applies to the Today widget arrangement**, which [DEBT-32](#-debt-32--today-personalisation-is-per-device-not-synced--p3) still leaves in `localStorage`. The two personalisation surfaces now disagree about whether personalisation follows the owner.
+- **Impact.** Low but newly inconsistent: an owner who sets up Today on a laptop and then opens DalyHub on a phone gets their theme but not their layout, with no explanation for the difference.
+- **Desired future state.** The arrangement adopts the same preference record, exactly as DEBT-32 already describes. THEME-01 has now proven the migration shape end to end (additive column, validated on read, safe default for existing owners), so the remaining work is the seam swap in `useTodayLayout`, not a design question.
+- **Closing condition.** Today's arrangement survives moving to a different browser signed in as the same owner.
+- **Related roadmap item.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences); supersedes the open question in [DEBT-32](#-debt-32--today-personalisation-is-per-device-not-synced--p3).
 
 ---
 

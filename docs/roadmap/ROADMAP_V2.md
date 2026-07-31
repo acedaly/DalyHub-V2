@@ -110,6 +110,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 - **Expected outcome.** All subsequent UI consumes tokens; no hard-coded design values; theme switch works. Ref: [Foundations](../design/DESIGN_SYSTEM.md#foundations).
 - **Priority.** P0.
 - **Status: ☑ Done.** Implemented together with [DS-02](#-ds-02--shared-record-layout-header--summary--tabs) as an **owner-approved, dependency-aligned exception** to the one-item-per-PR rule (DS-02 is DS-01's first consumer), accepted via [ADR-017](../decisions/ARCHITECTURE_DECISIONS.md#adr-017-design-tokens-and-the-shared-record-layout). The authoritative token system lives in [`app/styles/tokens.css`](../../app/styles/tokens.css) — semantic, `--dh-<group>-<role>` names covering colour (surfaces, text, borders/dividers, accent, success/warning/danger/info, focus/selection, hover/active/disabled), typography (families, sizes, line-heights, weights, letter-spacing, roles), spacing, sizing (control heights, content widths, shell dims, 44px touch target), shape (border widths, radius), elevation (shadows/overlay), motion (durations, easings) and layout (breakpoints, z-index, gutters) — with **light and dark maps over the same names**. A typed registry ([`app/shared/tokens`](../../app/shared/tokens)) mirrors token names + the colour maps for consumption and tests. The FND-09 flash-free `system`/`light`/`dark` cookie mechanism and `prefers-color-scheme`/`prefers-reduced-motion` handling are preserved; the app shell was refactored to consume tokens (no hard-coded visual values). **No new dependency** (plain CSS custom properties). Proven by tests: required tokens exist, light/dark maps are complete and in parity, no component references an undefined token, theme persistence still works, reduced-motion is honoured, and critical colour pairs meet WCAG 2.2 AA (4.5:1 text / 3:1 UI) in both themes. Documented in [`DESIGN_SYSTEM.md → Design tokens`](../design/DESIGN_SYSTEM.md#design-tokens-ds-01). `pnpm verify` and the credential-free deploy dry-run are green.
+- **Extended (not reopened) by [THEME-01](#-theme-01--the-curated-theme-system).** DS-01's token architecture was correct and is unchanged; THEME-01 grew the token SET (nav/header/card surfaces, link, subtle and control borders, P1–P4 priority, record states, progress, charts, skeleton) and replaced the two colour maps with five curated themes over the same semantic names. The mechanism DS-01 preserved is the same mechanism THEME-01 extends.
 
 ### ☑ DS-02 — Shared Record Layout (Header + Summary + Tabs)
 - **Purpose.** The universal record scaffold every entity view uses.
@@ -1023,6 +1024,51 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 ---
 
+## Phase 12b — V2 Final Polish & Release Readiness (`THEME` / `HELP` / `RELEASE`)
+
+*The completion pass that makes DalyHub a daily driver rather than a set of finished modules. Deliberately NOT a new business module: it adds no entity, no new data, and no capability that was not already implied by what shipped. It finishes the product.*
+
+### ☑ THEME-01 — The curated theme system
+- **Purpose.** Replace the three-mode appearance switch with a real theme system: at least five genuinely distinct, curated, production-quality themes over one semantic token set, persisted per owner.
+- **Dependencies.** DS-01, SET-01.
+- **Expected outcome.** Five complete themes; every module consuming semantic tokens; a Settings picker with visual previews; persistence that survives a reload and follows the owner between browsers; no light-to-dark flash; WCAG 2.2 AA in every theme. **P1.**
+- **Priority.** P1.
+- **Status: ☑ Done.** Five curated themes ship: **Daly Light** (default), **Daly Dark**, **Eucalypt**, **Coastal** and **Ember**. `system` remains as an appearance MODE pairing Daly Light with Daly Dark — deliberately not a sixth palette, so supporting the OS preference costs no curated theme.
+  - **Architecture.** One registry, two layers: [`app/kernel/preferences/theme-preference.ts`](../../app/kernel/preferences/theme-preference.ts) owns the ids, validation and the first-paint cookie (the theme is a persisted preference now, so validation is a kernel concern); [`app/shared/shell/theme.ts`](../../app/shared/shell/theme.ts) adds the owner-facing names and descriptions and re-exports the rest. There is exactly one theme list in the codebase, and a test fails if the registry, the CSS blocks and the TS colour data disagree.
+  - **Tokens.** Each theme is a complete map over the same semantic names in [`app/styles/tokens.css`](../../app/styles/tokens.css). The set grew by the tokens components were previously borrowing: `surface-nav`/`surface-header`/`surface-card`, `link`/`link-hover`, `border-subtle`, `control-border`, `priority-p1…p4`, `state-overdue|due-soon|completed|waiting|on-hold`, `progress-track|fill|complete`, `chart-1…6`, and `skeleton-base|highlight`. Priority and record states are now their OWN tokens rather than borrowed feedback triples — a P1 task is not an error, and "waiting on someone" is not a warning.
+  - **No component branches on the theme.** Enforced by a test that scans application TSX for comparisons against a theme id. The single documented exception is the preview swatch, which must paint a theme it is not in; a second test confines its `--dh-preview-*` properties to that one component.
+  - **Persistence.** The owner/workspace preferences record is the authority (`theme` column, migration `0023`, additive, existing owners default to `system`), so a theme follows the owner between browsers. The cookie survives only as the first-paint mirror for a document that never reaches the authenticated shell loader. Stored values are validated against the registry on read AND write; a removed theme degrades to the default; legacy `light`/`dark` map to Daly Light/Daly Dark rather than resetting. Accepted via [ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner).
+  - **First paint.** The root layout prefers the shell loader's stored value over the cookie, so the authoritative `data-theme` is in the first byte. No flash, no client theme script, no inline bootstrapping — asserted against the raw server response, not a rendered page.
+  - **Accessibility.** All five themes meet WCAG 2.2 AA across the text ramp on every surface, every tinted surface, filled controls in every interactive state, focus rings, control boundaries, progress and all six chart series — asserted per theme, not sampled. Adds `control-border` at 3:1 and migrates real form-control boundaries onto it, closing a pre-existing gap where control outlines sat near 1.7:1.
+  - **Cost.** +3.8 KB gzip CSS and +10 KB gzip JS against `main`. No per-theme stylesheet, no runtime theme computation, no duplicated component tree, no new dependency.
+
+### ☑ HELP-01 — In-app Help
+- **Purpose.** Replace the PX-03 "Coming Soon" placeholder with real, maintainable in-app guidance.
+- **Dependencies.** PX-03.
+- **Expected outcome.** Help covering the model and every module, using normal DalyHub layout and theme tokens, working on a phone, linkable from empty states, describing the product as it is. **P2.**
+- **Priority.** P2.
+- **Status: ☑ Done.** Content as typed data ([`app/modules/help/help-content.ts`](../../app/modules/help/help-content.ts)) rendered by one route with ordinary DalyHub chrome, so Help looks like the product in all five themes. Covers what DalyHub is, the Area → Goal → Project → Task spine, every shipped module, scheduled versus due date, priority, Time Sectors, recurrence, both inboxes, Search, the Command Palette, phone use, archive/delete/restore, themes and Settings, and data and privacy. Topics carry stable ids so an empty state can deep-link to the paragraph that explains it; deep links are validated against the content rather than trusted from the URL. A **"What is not here yet"** topic names export, backup, import, weather, notifications, AI and custom themes as deliberately absent, and states plainly that this deployment has no support desk and no second copy of the owner's data. Tests hold the honesty properties: required coverage, unique URL-safe ids, the five theme names, the missing-feature list, and no implementation jargon.
+
+### ☑ RELEASE-01 — About and the single version authority
+- **Purpose.** Complete the About surface and give the product one reliable version authority.
+- **Dependencies.** SET-01.
+- **Expected outcome.** Version, release name, environment and build identifier displayed from ONE authority, with no secrets or infrastructure detail. **P2.**
+- **Priority.** P2.
+- **Status: ☑ Done.** About is its own module (`/about`), because "what am I running?" is a different question from "how do I want this configured?". Every value comes from [`app/lib/version.ts`](../../app/lib/version.ts), the same authority `/health` reads, so a deployment check and the in-app About cannot disagree — a test pins them together. The authority is an ALLOW-LIST, not an environment dump: unrecognised environment values read `unknown`, and a build identifier that is not a commit hash is dropped rather than displayed. Settings' old "Build version — not configured" row is gone.
+
+### ☑ POLISH-01 — Cross-module visual, icon and Today polish
+- **Purpose.** Finish the presentation: consume the new tokens everywhere, remove placeholder presentation, and give every navigation row a real icon.
+- **Dependencies.** THEME-01, PX-05.
+- **Expected outcome.** No raw colour outside the token file; no placeholder glyphs or panels; progress shown, not just stated. **P2.**
+- **Priority.** P2.
+- **Status: ☑ Done.**
+  - **Tokens consumed.** Priority chips, urgency chips and status pills read the dedicated priority and record-state tokens; three lifecycle tones (`completed`, `waiting`, `on-hold`) joined the shared tone vocabulary. Navigation, header and card surfaces, skeletons and control boundaries adopted their own tokens. The last six hard-coded colour literals and the one `rgba()` fallback are gone — **outside `tokens.css` there is now no raw colour anywhere in `app/`.**
+  - **Navigation icons.** Today, Help, Settings, AI and About own no entity type and rendered a generic dot in the sidebar and the phone bottom bar, which reads as a missing glyph in permanent chrome. They now declare `meta.navIcon` — a new validated, closed-set manifest capability — and one shared resolver renders a real icon on both surfaces. An unknown name fails composition; a test proves the kernel's closed set can never get ahead of the glyphs that exist.
+  - **Progress.** One shared `ProgressMeter`, adopted for Goal contribution and Project roll-up. It computes and fabricates nothing: `available: false` is a designed state, so an empty project reads "No tasks yet" rather than a 0% bar. The value reaches assistive tech through `role="progressbar"` and the exact counts stay visible as text.
+  - **Today / weather — the honest outcome.** The Weather and Upcoming calendar placeholders are **removed**. They were honest about having no data, but they took permanent space on the most-used screen every day to advertise two integrations that do not exist and are not being built. With no data source, the only options were fake data or a permanently empty box — both worse than an honest absence. Recorded as [DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3); when a real source exists, weather returns as an OPTIONAL widget that is off until configured, never as reserved space.
+
+---
+
 ## Phase 13 — Settings & Platform (`SET`)
 
 ### ☑ SET-01 — App & workspace settings — core preferences
@@ -1071,7 +1117,9 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 *Added by the 2026-07-27 documentation and roadmap reconciliation. This is a high-level build order, **not** a replacement for the per-item detail above — every item's real acceptance criteria, dependencies and status live in its own entry. No time estimates, no percentages: DalyHub sequences by dependency and honesty, never by calendar.*
 
-The kernel (`FND`), the design system (`DS`), the product frame (`PX`), Today, Tasks, Projects, Areas & Goals, Notes, Meetings, People, Assets, Diary and the Reviews foundation are all delivered. What follows is the order to build the rest.
+The kernel (`FND`), the design system (`DS`), the product frame (`PX`), Today, Tasks, Projects, Areas & Goals, Notes, Meetings, People, Assets, Diary, the Reviews foundation and the [V2 Final Polish](#phase-12b--v2-final-polish--release-readiness-theme--help--release) pass are all delivered. What follows is the order to build the rest.
+
+**After the polish pass, the highest-value remaining work is unchanged and is a trust obligation, not a feature:** [X-04](#-x-04--export--data-portability) then [SET-02](#-set-02--backup--restore). DalyHub is now polished enough to use as a daily driver, which makes it the single copy of an increasing amount of a life — and there is still no way for the owner to get their data out. Help says so plainly in "What is not here yet"; that honesty is a stopgap, not a resolution.
 
 1. **Make the E2E gate trustworthy again, and finish verifying Reviews.** *(Done — see the change log entry for this PR.)* Playwright is now a **5-way** shard matrix with a 20-minute job budget and a 15-minute `globalTimeout` inside it, so an overrunning shard is stopped by Playwright — which writes its report and traces — rather than cancelled by GitHub, which destroyed them; artefacts upload on any non-success, and the gate prints each job's result by name. The four identified defects are fixed at their real root causes: [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) (the notification region now takes pointer input only on its own controls), the shared DS-03 Drawer's re-entrant close (which was what made `meetings-follow-up.spec.ts` fail — it had navigated off the record, not lost a tab), and the `assets.spec.ts` strict-mode locator. See [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) for what remains.
 2. **Reconcile stale roadmap statuses.** *(This reconciliation.)* Keep it current from here: update an item's status in the PR that changes it, and say which commit the verification refers to.
@@ -1103,6 +1151,45 @@ Items not listed keep the status and sequencing recorded in their own entries �
 ---
 
 ## Change log for this roadmap
+
+- **2026-07-31 — V2 Final Polish & Release Readiness.** The completion pass that
+  makes DalyHub a daily driver: [THEME-01](#-theme-01--the-curated-theme-system)
+  (five curated themes over one semantic token set, persisted per owner, accepted via
+  [ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner),
+  migration `0023`), [HELP-01](#-help-01--in-app-help),
+  [RELEASE-01](#-release-01--about-and-the-single-version-authority) and
+  [POLISH-01](#-polish-01--cross-module-visual-icon-and-today-polish).
+
+  **Reconciled honestly, not wholesale.** [DS-01](#-ds-01--design-tokens--theming)
+  stays ☑ and was **extended, not reopened** — its token architecture was correct;
+  THEME-01 grew the token SET and replaced two colour maps with five. SET-01's
+  appearance decision was **superseded with its reasoning stated**: keeping the theme
+  device-local was right for three modes and wrong for five, and the ADR says so
+  rather than pretending the original call was a mistake.
+
+  **Three new debts, recorded rather than absorbed:**
+  [DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3)
+  (weather and calendar were REMOVED from Today, not implemented — with the reasoning,
+  so it is not re-litigated),
+  [DEBT-54](../product/PRODUCT_DEBT.md#-debt-54--border-strong-is-still-below-31-where-it-is-a-decorative-border--p3)
+  (nothing yet stops a future control using the decorative border token), and
+  [DEBT-55](../product/PRODUCT_DEBT.md#-debt-55--today-widget-arrangement-is-still-device-local-while-the-theme-is-not--p3)
+  (moving the theme onto the owner record made Today's device-local arrangement
+  newly *inconsistent* rather than merely deferred — the argument in
+  [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3)
+  now cuts the other way).
+
+  **Also fixed:** a pre-existing time bomb in `goals-alignment-route.test.ts`, which
+  seeded activity at a fixed date and began failing on `main` once that date aged out
+  of the 14-day recency window. Fixtures are now expressed relative to today, so they
+  state what they mean instead of when they were written.
+
+  **Deliberately excluded from this milestone**, and not started: a user-built custom
+  theme editor, arbitrary colour picking, a theme marketplace, a dashboard layout
+  builder, analytics, offline mode, AI, notification integrations, and any module
+  outside the polish scope. The curated theme set is a product decision, not a
+  stepping stone — see ADR-061.
+
 
 - **2026-07-28 — TASKS-03 Tasks collection experience.** Made the main Tasks list
   the primary workspace and completed the collection language over it: one
