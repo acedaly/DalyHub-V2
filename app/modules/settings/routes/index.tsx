@@ -32,8 +32,7 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { SelectField } from "~/shared/forms";
-import { ThemeControl } from "~/shared/shell/ThemeControl";
-import { readThemePreference } from "~/shared/shell/theme";
+import { ThemePicker } from "~/shared/shell/ThemePicker";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import type { Route } from "./+types/index";
@@ -165,7 +164,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     landingOptions: LANDING_DESTINATIONS.filter((destination) =>
       availablePaths.has(`/${destination}`),
     ),
-    theme: readThemePreference(request.headers.get("Cookie")),
+    // THEME-01 — the stored owner preference, already normalised against the theme
+    // registry by the kernel, so a removed or unknown theme shows as the default
+    // rather than leaving the picker with nothing selected.
+    theme: preferences.theme,
   };
 }
 
@@ -438,13 +440,13 @@ function AppearanceSection({
   return (
     <SettingsLayout
       title="Appearance"
-      description="Appearance is intentionally stored on this device through the existing theme cookie."
+      description="Choose how DalyHub looks. Your theme is saved to your account, so it follows you to any browser you sign in from."
     >
       <SettingsGroup title="Theme">
         <SettingsRow
-          label="Theme mode"
-          description="System follows the operating system setting. Light and Dark apply immediately on this device."
-          control={<ThemeControl current={data.theme} />}
+          label="Theme"
+          description="Applies straight away. Match system follows your device between Daly Light and Daly Dark."
+          control={<ThemePicker current={data.theme} />}
           align="start"
         />
       </SettingsGroup>
