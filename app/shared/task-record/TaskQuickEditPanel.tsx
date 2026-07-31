@@ -117,6 +117,13 @@ export function TaskQuickEditPanel({
   const parentSearch = useTaskParentSearch();
   const [error, setError] = useState<string | null>(null);
   const [parentValue, setParentValue] = useState(task.parent?.id ?? "");
+  /**
+   * Instance-scoped control ids. The shared field controls otherwise DERIVE their id
+   * from the label text, which is fine for a one-off form but not for a panel that is
+   * mounted on more than one surface: two copies on a page would share an id, and an
+   * `aria-labelledby` pointing at an ambiguous id resolves to no accessible name at
+   * all. Scoping every id to this instance makes the panel safe to reuse anywhere.
+   */
   const groupId = useId();
   const busy = fetcher.state !== "idle";
   /** The message to announce IF the in-flight mutation succeeds. */
@@ -247,6 +254,7 @@ export function TaskQuickEditPanel({
 
       <SelectField
         label="Project or Area"
+        id={`${groupId}-parent`}
         help="Leave blank to keep this task in Inbox."
         showOptionalCue={false}
         placeholder="Search Projects and Areas"
@@ -261,6 +269,7 @@ export function TaskQuickEditPanel({
 
       <SelectField
         label="Priority"
+        id={`${groupId}-priority`}
         showOptionalCue={false}
         value={task.priority ?? ""}
         options={PRIORITY_OPTIONS}
@@ -278,6 +287,7 @@ export function TaskQuickEditPanel({
       <div className="dh-task-quick-edit__dates">
         <DateField
           label="Scheduled date"
+          id={`${groupId}-scheduled`}
           value={task.scheduledDate ?? ""}
           disabled={busy}
           onChange={(value) =>
@@ -294,6 +304,7 @@ export function TaskQuickEditPanel({
         />
         <DateField
           label="Due date"
+          id={`${groupId}-due`}
           value={task.dueDate ?? ""}
           disabled={busy}
           onChange={(value) =>
@@ -338,6 +349,7 @@ export function TaskQuickEditPanel({
 
       <SelectField
         label="Time Sector"
+        id={`${groupId}-sector`}
         showOptionalCue={false}
         value={task.timeSector ?? ""}
         options={SECTOR_OPTIONS}
@@ -352,6 +364,7 @@ export function TaskQuickEditPanel({
 
       <SelectField
         label="Commitment"
+        id={`${groupId}-commitment`}
         showOptionalCue={false}
         value={task.commitmentState}
         options={COMMITMENT_OPTIONS}
@@ -368,6 +381,7 @@ export function TaskQuickEditPanel({
 
       <SelectField
         label="Repeat"
+        id={`${groupId}-repeat`}
         help="A repeat needs a scheduled or due date to repeat from."
         showOptionalCue={false}
         value={repeatValueOf(task)}

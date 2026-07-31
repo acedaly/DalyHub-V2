@@ -425,6 +425,16 @@
 
 ---
 
+### ☐ DEBT-53 — axe reports `label-title-only` for one shared SelectField in the Tasks Drawer, and the DOM says otherwise — P3
+- **Current issue.** TASKS-04's `expectNoAxeViolations` scan of the row's quick-edit Drawer at 320px reports `label-title-only` ("Only title used to generate label for form element") against the **Repeat** `SelectField` — deterministically, 3 runs out of 3.
+- **What the evidence says.** In that exact drawer the input renders `aria-labelledby="…-repeat-label"` pointing at a **visible** `<span>` whose text is "Repeat", carries **no `title` attribute**, and Playwright's own accessibility tree resolves it as `combobox "Repeat"`. The four sibling `SelectField`s in the same panel — built by the same shared control, with the same markup — pass. Making every control id instance-scoped (so a generated id cannot collide) did not change the verdict. Most tellingly, the **identical component passes an unscoped axe scan at the same 320px width** on `/tasks/review`, where the panel is the page rather than drawer content.
+- **Impact.** Low and, on the evidence, presentational-only: no assistive-technology name is actually missing. The cost is a disabled rule in one scan and an unexplained disagreement between axe and the DOM.
+- **Why it was not "fixed".** Every plausible product change would have been a guess at satisfying a checker that disagrees with the DOM, the a11y tree and its own verdict on the same component elsewhere. Guessing would have been worse than recording what is known. `label-title-only` is therefore disabled for **that one scoped scan only** ([`e2e/tasks-daily-driver.spec.ts`](../../e2e/tasks-daily-driver.spec.ts)) with the reasoning inline; every other WCAG 2.2 AA rule stays enforced on the drawer, and the same control keeps full-page axe coverage on the Review Inbox route.
+- **Closing condition.** Either a reproduction that explains axe's verdict (at which point the underlying cause is fixed in the shared `SelectField` and the rule is re-enabled), or an upstream axe-core issue/version bump that resolves it. Until one of those exists, this stays open.
+- **Related roadmap item.** [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls), [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline), [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence).
+
+---
+
 ### ☐ DEBT-52 — Three copies of calendar-day arithmetic in the kernel, and a fourth capture surface — P3
 - **Current issue.** Two duplications the TASKS-03 review surfaced, both small and both the same shape.
   1. **Date maths.** `addDaysToIsoDate` exists in `app/kernel/alignment/goal-alignment.ts` and `app/kernel/project-health/project-health.ts`; TASKS-03 added a third (`shiftCalendarDate` in `app/kernel/tasks/task-validation.ts`) because the kernel cannot import `app/shared/datetime` and there is no kernel-level date primitive to import instead.

@@ -65,6 +65,30 @@ export function TasksReviewWorkspace({
     headingRef.current?.focus();
   }, [current?.id]);
 
+  /**
+   * Announce from the QUEUE, not from the control that changed it.
+   *
+   * A mutation inside the panel revalidates this loader, and a Task that is no longer
+   * unassigned-and-active leaves the Inbox page — which replaces the keyed panel, and
+   * with it whatever the panel was about to say. Watching the queue instead means the
+   * announcement is the SERVER's answer by construction: the Task is gone from Inbox
+   * because the server says it is, and that is exactly what the reviewer needs to hear.
+   */
+  const reviewing = useRef<{ id: string; title: string } | null>(null);
+  useEffect(() => {
+    const previous = reviewing.current;
+    if (
+      previous !== null &&
+      previous.id !== current?.id &&
+      !items.some((item) => item.id === previous.id)
+    ) {
+      setAnnouncement(`${previous.title} is filed and has left the Inbox.`);
+    }
+    reviewing.current = current
+      ? { id: current.id, title: current.title }
+      : null;
+  }, [current?.id, current, items]);
+
   useEffect(() => {
     if (completion.state !== "idle" || !completion.data) return;
     if (settled.current === completion.data) return;
