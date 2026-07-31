@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AppPreferencesValidationError,
   DEFAULT_APP_PREFERENCES,
   formatPreferenceDate,
+  normaliseStoredPreferences,
   parseDateFormat,
   parseDiaryDefaultMode,
   parseFirstDayOfWeek,
@@ -11,6 +13,7 @@ import {
   parseTimezone,
   resolveDefaultLandingPath,
   resolveNavigationPreferences,
+  validateAppPreferencesPatch,
 } from "~/kernel/preferences";
 import { DEFAULT_TASK_VIEW_CONFIG } from "~/kernel/task-views";
 import { configFromParams } from "~/modules/tasks/tasks-url-state";
@@ -18,6 +21,21 @@ import {
   readThemePreference,
   serializeThemeCookie,
 } from "~/shared/shell/theme";
+
+/** Normalise a partial stored row, filling the untouched fields with defaults. */
+function normalise(overrides: Record<string, unknown>) {
+  return normaliseStoredPreferences({
+    timezone: DEFAULT_APP_PREFERENCES.timezone,
+    dateFormat: DEFAULT_APP_PREFERENCES.dateFormat,
+    firstDayOfWeek: DEFAULT_APP_PREFERENCES.firstDayOfWeek,
+    defaultLandingDestination:
+      DEFAULT_APP_PREFERENCES.defaultLandingDestination,
+    defaultTasksView: DEFAULT_APP_PREFERENCES.defaultTasksView,
+    defaultDiaryMode: DEFAULT_APP_PREFERENCES.defaultDiaryMode,
+    navigation: DEFAULT_APP_PREFERENCES.navigation,
+    ...overrides,
+  });
+}
 
 describe("app preferences", () => {
   it("resolves deterministic defaults", () => {
@@ -117,9 +135,40 @@ describe("app preferences", () => {
     ).toBe("matrix");
   });
 
-  it("keeps appearance in the existing local cookie authority", () => {
-    const cookie = serializeThemeCookie("dark", { secure: false });
-    expect(readThemePreference(cookie)).toBe("dark");
+  it("carries the theme as a real owner preference, defaulting to system", () => {
+    // THEME-01 moved appearance out of a device-local cookie and onto the owner
+    // record, so a theme follows the owner between browsers. The cookie survives
+    // only as the first-paint mirror.
+    expect(DEFAULT_APP_PREFERENCES.theme).toBe("system");
+    expect(validateAppPreferencesPatch({ theme: "eucalypt" })).toEqual({
+      theme: "eucalypt",
+    });
+  });
+
+  it("rejects a write naming a theme DalyHub does not have", () => {
+    expect(() =>
+      validateAppPreferencesPatch({ theme: "neon" as never }),
+    ).toThrow(AppPreferencesValidationError);
+  });
+
+  it("accepts a legacy light/dark write and maps it onto a curated theme", () => {
+    expect(validateAppPreferencesPatch({ theme: "dark" as never })).toEqual({
+      theme: "daly-dark",
+    });
+  });
+
+  it("normalises a stored theme, degrading an unknown value to the default", () => {
+    // A row written by a release that had a theme this one removed must still
+    // produce a complete, readable theme rather than failing every page load.
+    expect(normalise({ theme: "coastal" }).theme).toBe("coastal");
+    expect(normalise({ theme: "retired-theme" }).theme).toBe("system");
+    expect(normalise({ theme: undefined }).theme).toBe("system");
+    expect(normalise({ theme: "dark" }).theme).toBe("daly-dark");
+  });
+
+  it("still mirrors the preference into the first-paint cookie", () => {
+    const cookie = serializeThemeCookie("daly-dark", { secure: false });
+    expect(readThemePreference(cookie)).toBe("daly-dark");
     expect(readThemePreference("dh_theme=bad")).toBe("system");
   });
 

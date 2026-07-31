@@ -46,11 +46,18 @@ test.describe("PX-02 authenticated app frame (development auth)", () => {
     await userMenu.click();
     await expect(page.getByText("owner@example.invalid")).toBeVisible();
 
-    // Theme switch (relocated into the user menu) persists across a full reload.
-    await page.getByRole("button", { name: "Dark" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    // THEME-01 — the quick switch offers the curated themes by name, and the
+    // choice is persisted on the owner record, so it survives a full reload.
+    await page.getByRole("button", { name: "Daly Dark", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-theme",
+      "daly-dark",
+    );
     await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-theme",
+      "daly-dark",
+    );
 
     // Sign out is an ordinary link to the Cloudflare-managed endpoint.
     await page.getByRole("button", { name: /owner/i }).click();

@@ -21,7 +21,7 @@
 |---|---|
 | General | default landing page, default Tasks view, default Task capture parent, default Diary mode |
 | Date & time | owner timezone, date display, first day of week |
-| Appearance | existing System / Light / Dark theme control |
+| Appearance | the THEME-01 theme picker: five curated themes plus Match system, with previews |
 | Navigation | optional module visibility and reset |
 | Privacy & data | current handling and explicitly deferred data tools |
 | About | stable app information already available to the app |
@@ -43,18 +43,28 @@ Do not put every preference into one global row. SET-01 establishes this boundar
 | default Task capture parent | owner inside workspace | D1 `owner_app_preferences` |
 | default Diary mode | owner inside workspace | D1 `owner_app_preferences` |
 | optional navigation visibility | owner inside workspace | D1 `owner_app_preferences.navigation_config` |
-| appearance theme | device/local browser | existing HttpOnly `dh_theme` cookie |
+| appearance theme | owner inside workspace | D1 `owner_app_preferences.theme` (the `dh_theme` cookie is now only the first-paint mirror) |
 | Today widget arrangement | device/local browser | existing `localStorage` model |
 | transient UI state | device/session | URL or component state |
 | application defaults | code | `DEFAULT_APP_PREFERENCES` |
 
-Appearance is deliberately not duplicated in D1. The theme is read server-side
-from the existing cookie, updates immediately through `/preferences/theme`, and
-falls back to `system` on invalid or missing values.
+**Appearance moved into D1 in THEME-01 (2026-07-31).** SET-01 deliberately kept the
+theme device-local, and that was right for three appearance modes: it was a cosmetic
+device setting and keeping it out of the preference record avoided coupling a nicety
+to the security boundary. With five curated themes it is a real personal choice, and
+a personal choice that does not follow the owner to their phone is a broken one. The
+theme is now `owner_app_preferences.theme` (migration `0023`, additive, existing
+owners default to `system`); the cookie survives only so a document that never
+reaches the authenticated shell loader still gets the right first byte. Updates go
+through `/preferences/theme`, which writes the record AND refreshes the mirror, then
+redirects — so the change applies immediately with no page reload. Invalid or removed
+values fall back to `system`. See [ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner).
 
-Today widget layout remains per-device in `localStorage` for now. The preference
-store can later host a synced arrangement without changing Today’s pure layout
-model, but SET-01 does not migrate it merely for uniformity.
+Today widget layout remains per-device in `localStorage`. That is now the only
+personalisation surface that does not follow the owner, which makes it inconsistent
+rather than merely deferred — recorded as [DEBT-55](../product/PRODUCT_DEBT.md#-debt-55--today-widget-arrangement-is-still-device-local-while-the-theme-is-not--p3).
+THEME-01 has proven the migration shape end to end, so the remaining work is the
+seam swap in `useTodayLayout`, not a design question.
 
 ## Persistence contract
 
@@ -186,7 +196,7 @@ Coverage added for SET-01:
 
 **Current status.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) is ☑ (shipped as SETTINGS-01A). [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) and [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) are ☐.
 
-**Delivered capabilities.** `/settings` as a first-class authenticated route on the shared Settings layout, with General, Date & time, Appearance, Navigation, Privacy & data and About sections. Owner/workspace behavioural preferences persist through the storage-independent `app/kernel/preferences` contract and its D1 adapter (`owner_app_preferences`, migration `0017`): timezone, date format, first day of week, default landing page, default Tasks view, default Diary mode and validated navigation visibility. Timezone is the shared owner-calendar authority for Today, date-derived loaders, Tasks urgency and Diary grouping. Appearance stays device-local through the existing theme cookie; Today widget arrangement stays device-local in `localStorage`. Navigation visibility resolves against the module registry, always keeps Today and Settings reachable, discards unknown module ids and shows new modules by default.
+**Delivered capabilities.** `/settings` as a first-class authenticated route on the shared Settings layout, with General, Date & time, Appearance, Navigation, Privacy & data and About sections. (Appearance now hosts the THEME-01 five-theme picker, and About reads the RELEASE-01 version authority and links to the full `/about` screen.) Owner/workspace behavioural preferences persist through the storage-independent `app/kernel/preferences` contract and its D1 adapter (`owner_app_preferences`, migration `0017`): timezone, date format, first day of week, default landing page, default Tasks view, default Diary mode and validated navigation visibility. Timezone is the shared owner-calendar authority for Today, date-derived loaders, Tasks urgency and Diary grouping. Appearance stays device-local through the existing theme cookie; Today widget arrangement stays device-local in `localStorage`. Navigation visibility resolves against the module registry, always keeps Today and Settings reachable, discards unknown module ids and shows new modules by default.
 
 **No dead controls.** Every control on `/settings` maps to real behaviour, and the Privacy & data section states plainly that export, import, backup, restore, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles, billing and advanced themes are deferred. That honesty should be preserved as those capabilities land.
 

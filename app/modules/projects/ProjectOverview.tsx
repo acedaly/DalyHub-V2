@@ -25,6 +25,7 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import { ProgressMeter } from "~/shared/progress";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
@@ -291,14 +292,19 @@ export function ProjectOverview({
                   <strong>Settings</strong> to restore it.
                 </p>
               ) : null}
-              <p className="dh-project-overview__progress">
-                <span className="dh-project-overview__progress-label">
-                  Roll-up progress:
-                </span>{" "}
-                {progress.has
-                  ? `${progress.percent}% — ${progress.summary} complete`
-                  : "No tasks yet."}
-              </p>
+              {/* THEME-01 — the derived roll-up, shown as the shared meter. An
+               * empty project has nothing to measure, so it states that instead
+               * of rendering a 0% bar. */}
+              <ProgressMeter
+                label="Roll-up progress"
+                percent={progress.percent}
+                summary={
+                  progress.has
+                    ? `${progress.summary} complete`
+                    : "No tasks yet."
+                }
+                available={progress.has}
+              />
               {overview.healthVisible ? (
                 <ProjectHealthPanel health={health} />
               ) : null}

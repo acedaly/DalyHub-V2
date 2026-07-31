@@ -14,9 +14,10 @@
  * `/diary` placeholder with the real Timeline, PEOPLE-01 replaced `/people` with
  * the real People collection, MEET-01 replaced `/meetings` with the real Meetings
  * collection, ASSET-01 replaced `/assets` with the real Assets collection,
- * REVIEWS-01 replaced `/reviews` with the real Reviews collection, and SET-01
- * replaced `/settings` with the real Settings route — so those routes are
- * EXCLUDED from `SHELL_MODULES` below. Their full journeys live in their own
+ * REVIEWS-01 replaced `/reviews` with the real Reviews collection, SET-01
+ * replaced `/settings` with the real Settings route, and HELP-01 replaced `/help`
+ * with real in-app guidance — so those routes are EXCLUDED from `SHELL_MODULES`
+ * below. Their full journeys live in their own
  * specs; sidebar reachability stays here, checked against real headings rather
  * than a placeholder.
  */
@@ -25,10 +26,9 @@ import { expect, test } from "@playwright/test";
 
 import { mobileNavigationOpener } from "./helpers";
 
-const SHELL_MODULES = [
-  { label: "AI", path: "/ai" },
-  { label: "Help", path: "/help" },
-] as const;
+// AI is the last module still legitimately a placeholder: the AI phase is
+// unstarted, and saying so is honest. Everything else on the sidebar is real.
+const SHELL_MODULES = [{ label: "AI", path: "/ai" }] as const;
 
 test.describe("PX-03 — `/` redirects to `/today`", () => {
   test("a direct visit to / lands on /today, not a standalone Home page", async ({
@@ -82,6 +82,40 @@ test.describe("PX-03 — every module shell route resolves with real content", (
         page.getByRole("heading", { level: 1, name: label }),
       ).toBeVisible();
     }
+  });
+
+  // HELP-01: Help is real guidance now, not a placeholder. The sidebar link
+  // reaches it, and the "Coming Soon" panel must NOT come back — that assertion
+  // is the point of this test, not an afterthought.
+  test("the sidebar reaches the real Help guidance", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "Help", exact: true }).click();
+    await expect(page).toHaveURL(/\/help$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Help" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
+    // Real content, not an empty shell: the contents rail and its topics.
+    await expect(
+      page.getByRole("navigation", { name: "Help contents" }),
+    ).toBeVisible();
+  });
+
+  // RELEASE-01: About is a real module route with the version authority behind it.
+  test("the sidebar reaches the real About screen", async ({ page }) => {
+    await page.goto("/today");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await nav.getByRole("link", { name: "About", exact: true }).click();
+    await expect(page).toHaveURL(/\/about$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "About DalyHub" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
   });
 
   // NOTES-01B: Notes has real content now, so it is checked separately from

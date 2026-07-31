@@ -1,18 +1,26 @@
 /**
- * PX-02 — entity-identity accent tokens.
+ * PX-02 / THEME-01 — entity-identity accent tokens, in every curated theme.
  *
  * The entity accents (`--dh-entity-<type>-accent`) are used at identity sites (icon,
- * card edge, chip). This test enforces that each is defined in the light map AND
- * both dark blocks (parity, like the colour tokens), that dark actually remaps, and
- * that each accent meets a 3:1 non-text contrast against its theme background so the
- * glyph is legible.
+ * card edge, chip). This test enforces that each is resolved in EVERY theme (not just
+ * light and dark), that the two dark blocks stay in parity, that dark actually
+ * remaps rather than inheriting the light values, and that each accent meets 3:1
+ * non-text contrast against its own theme's background so the glyph stays legible.
+ *
+ * The colour VALUES are asserted against the TS mirror in `tokens.test.ts`; this file
+ * is about coverage and legibility.
  */
 
 import { describe, expect, it } from "vitest";
 
+import { THEME_IDS } from "~/kernel/preferences/theme-preference";
 import { ENTITY_TYPES } from "~/shared/entity";
 
-import { darkExplicitTokens, darkSystemTokens, lightTokens } from "./token-css";
+import {
+  darkSystemTokens,
+  effectiveThemeTokens,
+  themeTokens,
+} from "./token-css";
 
 function parseHex(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
@@ -38,50 +46,49 @@ function contrastRatio(a: string, b: string): number {
 }
 
 describe("PX-02 entity accent tokens", () => {
-  const light = lightTokens();
-  const darkExplicit = darkExplicitTokens();
-  const darkSystem = darkSystemTokens();
-  const LIGHT_BG = light.get("dh-color-bg")!;
-  const DARK_BG = darkExplicit.get("dh-color-bg")!;
-
-  it("defines an accent for every entity type in all three theme blocks", () => {
-    for (const type of ENTITY_TYPES) {
-      const token = `dh-entity-${type}-accent`;
-      expect(light.has(token), `light missing --${token}`).toBe(true);
-      expect(darkExplicit.has(token), `dark missing --${token}`).toBe(true);
-      expect(darkSystem.has(token), `dark(system) missing --${token}`).toBe(
-        true,
-      );
+  it("resolves an accent for every entity type in every curated theme", () => {
+    for (const themeId of THEME_IDS) {
+      const effective = effectiveThemeTokens(themeId);
+      for (const type of ENTITY_TYPES) {
+        const token = `dh-entity-${type}-accent`;
+        expect(
+          effective.has(token),
+          `theme "${themeId}" does not resolve --${token}`,
+        ).toBe(true);
+      }
     }
   });
 
   it("keeps the two dark blocks in parity for entity accents", () => {
+    const darkExplicit = themeTokens("daly-dark");
+    const darkSystem = darkSystemTokens();
     for (const type of ENTITY_TYPES) {
       const token = `dh-entity-${type}-accent`;
       expect(darkSystem.get(token)).toBe(darkExplicit.get(token));
     }
   });
 
-  it("remaps the accent between light and dark", () => {
+  it("remaps the accent between the light default and the dark theme", () => {
+    const light = effectiveThemeTokens("daly-light");
+    const dark = effectiveThemeTokens("daly-dark");
     for (const type of ENTITY_TYPES) {
       const token = `dh-entity-${type}-accent`;
-      expect(darkExplicit.get(token)).not.toBe(light.get(token));
+      expect(dark.get(token)).not.toBe(light.get(token));
     }
   });
 
-  it("meets 3:1 non-text contrast against the theme background", () => {
-    for (const type of ENTITY_TYPES) {
-      const token = `dh-entity-${type}-accent`;
-      const lightRatio = contrastRatio(light.get(token)!, LIGHT_BG);
-      const darkRatio = contrastRatio(darkExplicit.get(token)!, DARK_BG);
-      expect(
-        lightRatio,
-        `${type} light accent ${light.get(token)} = ${lightRatio.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(3);
-      expect(
-        darkRatio,
-        `${type} dark accent ${darkExplicit.get(token)} = ${darkRatio.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(3);
+  it("meets 3:1 non-text contrast against every theme's background", () => {
+    for (const themeId of THEME_IDS) {
+      const effective = effectiveThemeTokens(themeId);
+      const background = effective.get("dh-color-bg")!;
+      for (const type of ENTITY_TYPES) {
+        const accent = effective.get(`dh-entity-${type}-accent`)!;
+        const ratio = contrastRatio(accent, background);
+        expect(
+          ratio,
+          `${themeId} ${type} accent ${accent} on ${background} = ${ratio.toFixed(2)}:1`,
+        ).toBeGreaterThanOrEqual(3);
+      }
     }
   });
 });

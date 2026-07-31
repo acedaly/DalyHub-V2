@@ -56,7 +56,10 @@ export type {
   NumberSettingContribution,
   EnumSettingContribution,
   SettingContribution,
+  NavIconName,
 } from "./module-capabilities";
+
+export { NAV_ICON_NAMES } from "./module-capabilities";
 
 export { defineModule } from "./define-module";
 

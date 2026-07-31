@@ -1,4 +1,5 @@
 import type { WorkspaceId } from "~/kernel/workspaces";
+import { DEFAULT_THEME, type ThemePreference } from "./theme-preference";
 
 export const APP_PREFERENCES_CHANGED = "settings.preferences_changed";
 
@@ -37,6 +38,15 @@ export interface NavigationPreferences {
 }
 
 export interface AppPreferences {
+  /**
+   * THEME-01 — the owner's chosen theme: one of the five curated theme ids, or
+   * `system` to follow the operating-system appearance. Stored on the owner record
+   * (not device-local) so the theme follows the owner between browsers; a cookie
+   * mirrors it only so the first byte of a document can carry the right
+   * `data-theme`. Validated against the theme registry on read AND on write, so a
+   * removed theme degrades to the default instead of rendering unstyled colour.
+   */
+  readonly theme: ThemePreference;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly firstDayOfWeek: FirstDayOfWeek;
@@ -65,6 +75,7 @@ export interface AppPreferenceRecord extends AppPreferences {
 }
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
+  theme: DEFAULT_THEME,
   timezone: "Australia/Sydney",
   dateFormat: "d_mmm_yyyy",
   firstDayOfWeek: "monday",
@@ -81,6 +92,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
 };
 
 export type AppPreferencePatch = Partial<{
+  readonly theme: ThemePreference;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
   readonly firstDayOfWeek: FirstDayOfWeek;

@@ -1,21 +1,25 @@
 /**
- * DS-01 — WCAG 2.2 contrast for critical colour combinations.
+ * DS-01 / THEME-01 — WCAG 2.2 contrast for every curated theme.
  *
  * Computes the WCAG relative-luminance contrast ratio for the token pairs that
- * carry text or meaningful UI boundaries, in BOTH themes, and asserts they meet
- * AA (4.5:1 normal text, 3:1 large text / non-text UI). The palette is checked,
- * not assumed (AGENTS.md §15). Values come from the TS colour maps, which a
- * separate test proves identical to the authoritative CSS.
+ * carry text or a meaningful UI boundary, in ALL FIVE themes, and asserts they meet
+ * AA (4.5:1 normal text, 3:1 large text / non-text UI). The palette is checked, not
+ * assumed (AGENTS.md §15), and a new theme cannot be added without passing.
+ *
+ * Values come from the TS colour maps, which `tokens.test.ts` proves identical to
+ * the authoritative CSS.
  */
 
 import { describe, expect, it } from "vitest";
 
+import { THEME_IDS } from "~/kernel/preferences/theme-preference";
 import {
-  darkTheme,
-  lightTheme,
+  ENTITY_ACCENT_NAMES,
+  THEME_COLOR_MAPS,
+  THEME_ENTITY_ACCENTS,
   type ColorMap,
   type ColorTokenName,
-} from "~/shared/tokens/theme-colors";
+} from "~/shared/tokens";
 
 /** Parse a `#rgb`/`#rrggbb` hex string to [r, g, b] in 0–255. */
 function parseHex(hex: string): [number, number, number] {
@@ -55,104 +59,216 @@ function contrastRatio(a: string, b: string): number {
 interface Pair {
   readonly fg: ColorTokenName;
   readonly bg: ColorTokenName;
-  readonly min: number;
   readonly note: string;
 }
 
-/** Normal text needs 4.5:1; non-text UI (focus ring, control fills) needs 3:1. */
-const TEXT_PAIRS: readonly Pair[] = [
-  { fg: "text", bg: "bg", min: 4.5, note: "primary text on background" },
-  { fg: "text", bg: "surface", min: 4.5, note: "primary text on surface" },
+/** The surfaces text is actually rendered on. */
+const TEXT_SURFACES = [
+  "bg",
+  "surface",
+  "surface-raised",
+  "surface-card",
+  "surface-nav",
+  "surface-header",
+] as const satisfies readonly ColorTokenName[];
+
+/** The text ramp, which must clear 4.5:1 on every surface above. */
+const TEXT_FOREGROUNDS = [
+  "text",
+  "text-secondary",
+  "text-muted",
+] as const satisfies readonly ColorTokenName[];
+
+function textRampPairs(): Pair[] {
+  const pairs: Pair[] = [];
+  for (const fg of TEXT_FOREGROUNDS) {
+    for (const bg of TEXT_SURFACES) {
+      pairs.push({ fg, bg, note: `${fg} on ${bg}` });
+    }
+  }
+  return pairs;
+}
+
+/** Tinted surfaces, each with the text token that sits on it. */
+const TINTED_PAIRS: readonly Pair[] = [
+  { fg: "success-text", bg: "success-surface", note: "success" },
+  { fg: "warning-text", bg: "warning-surface", note: "warning" },
+  { fg: "danger-text", bg: "danger-surface", note: "danger" },
+  { fg: "info-text", bg: "info-surface", note: "info" },
+  { fg: "accent-text", bg: "accent-surface", note: "accent tint" },
+  { fg: "priority-p1-text", bg: "priority-p1-surface", note: "P1 chip" },
+  { fg: "priority-p2-text", bg: "priority-p2-surface", note: "P2 chip" },
+  { fg: "priority-p3-text", bg: "priority-p3-surface", note: "P3 chip" },
+  { fg: "priority-p4-text", bg: "priority-p4-surface", note: "P4 chip" },
+  { fg: "state-overdue-text", bg: "state-overdue-surface", note: "overdue" },
+  { fg: "state-due-soon-text", bg: "state-due-soon-surface", note: "due soon" },
   {
-    fg: "text",
-    bg: "surface-raised",
-    min: 4.5,
-    note: "primary text on elevated surface",
+    fg: "state-completed-text",
+    bg: "state-completed-surface",
+    note: "completed",
   },
-  {
-    fg: "text-secondary",
-    bg: "bg",
-    min: 4.5,
-    note: "secondary text on background",
-  },
-  {
-    fg: "text-secondary",
-    bg: "surface",
-    min: 4.5,
-    note: "secondary text on surface",
-  },
-  { fg: "text-muted", bg: "bg", min: 4.5, note: "muted text on background" },
-  {
-    fg: "text-muted",
-    bg: "surface",
-    min: 4.5,
-    note: "muted text on surface",
-  },
-  { fg: "on-accent", bg: "accent", min: 4.5, note: "text on accent fill" },
-  { fg: "accent-text", bg: "bg", min: 4.5, note: "accent link on background" },
-  {
-    fg: "accent-text",
-    bg: "surface",
-    min: 4.5,
-    note: "accent link on surface",
-  },
-  {
-    fg: "success-text",
-    bg: "success-surface",
-    min: 4.5,
-    note: "success text on success surface",
-  },
-  {
-    fg: "warning-text",
-    bg: "warning-surface",
-    min: 4.5,
-    note: "warning text on warning surface",
-  },
-  {
-    fg: "danger-text",
-    bg: "danger-surface",
-    min: 4.5,
-    note: "danger text on danger surface",
-  },
-  {
-    fg: "info-text",
-    bg: "info-surface",
-    min: 4.5,
-    note: "info text on info surface",
-  },
+  { fg: "state-waiting-text", bg: "state-waiting-surface", note: "waiting" },
+  { fg: "state-on-hold-text", bg: "state-on-hold-surface", note: "on hold" },
+  { fg: "selection-text", bg: "selection-bg", note: "text selection" },
 ];
 
-/** Non-text UI pairs (3:1). */
+/** Foregrounds that must also be readable directly on the page background. */
+const ON_BACKGROUND_PAIRS: readonly Pair[] = [
+  { fg: "accent-text", bg: "bg", note: "accent link on background" },
+  { fg: "accent-text", bg: "surface", note: "accent link on surface" },
+  { fg: "link", bg: "bg", note: "link on background" },
+  { fg: "link", bg: "surface-card", note: "link on a card" },
+  { fg: "link-hover", bg: "bg", note: "hovered link on background" },
+  { fg: "success-text", bg: "bg", note: "success text on background" },
+  { fg: "warning-text", bg: "bg", note: "warning text on background" },
+  { fg: "danger-text", bg: "bg", note: "danger text on background" },
+  { fg: "info-text", bg: "bg", note: "info text on background" },
+  { fg: "state-waiting-text", bg: "surface", note: "waiting text on surface" },
+  { fg: "state-on-hold-text", bg: "surface", note: "on-hold text on surface" },
+];
+
+/** Text on a filled control, in every interactive state. */
+const ON_ACCENT_PAIRS: readonly Pair[] = [
+  { fg: "on-accent", bg: "accent", note: "label on the accent fill" },
+  { fg: "on-accent", bg: "accent-hover", note: "label on a hovered fill" },
+  { fg: "on-accent", bg: "accent-active", note: "label on a pressed fill" },
+];
+
+/**
+ * Non-text UI pairs (3:1) — anything whose SHAPE or PRESENCE carries meaning: the
+ * focus ring, a filled control, a form-control boundary, a progress bar, a priority
+ * dot, a status dot and every chart series.
+ */
 const UI_PAIRS: readonly Pair[] = [
-  { fg: "focus-ring", bg: "bg", min: 3, note: "focus ring on background" },
-  { fg: "focus-ring", bg: "surface", min: 3, note: "focus ring on surface" },
-  { fg: "accent", bg: "bg", min: 3, note: "accent fill on background" },
+  { fg: "focus-ring", bg: "bg", note: "focus ring on background" },
+  { fg: "focus-ring", bg: "surface", note: "focus ring on surface" },
+  { fg: "focus-ring", bg: "surface-card", note: "focus ring on a card" },
+  { fg: "focus-ring", bg: "surface-nav", note: "focus ring in navigation" },
+  { fg: "accent", bg: "bg", note: "accent fill on background" },
+  { fg: "accent", bg: "surface", note: "accent fill on surface" },
+  { fg: "accent", bg: "surface-card", note: "accent fill on a card" },
+  { fg: "control-border", bg: "bg", note: "control boundary on background" },
+  { fg: "control-border", bg: "surface", note: "control boundary on surface" },
   {
-    fg: "selection-text",
-    bg: "selection-bg",
-    min: 4.5,
-    note: "selected text on selection background",
+    fg: "control-border",
+    bg: "surface-raised",
+    note: "control boundary on an elevated surface",
   },
+  {
+    fg: "control-border",
+    bg: "surface-card",
+    note: "control boundary on a card",
+  },
+  { fg: "progress-fill", bg: "progress-track", note: "progress against track" },
+  {
+    fg: "progress-complete",
+    bg: "progress-track",
+    note: "completed progress against track",
+  },
+  { fg: "priority-p1", bg: "bg", note: "P1 indicator" },
+  { fg: "priority-p2", bg: "bg", note: "P2 indicator" },
+  { fg: "priority-p3", bg: "bg", note: "P3 indicator" },
+  { fg: "priority-p4", bg: "bg", note: "P4 indicator" },
+  { fg: "state-overdue", bg: "bg", note: "overdue indicator" },
+  { fg: "state-due-soon", bg: "bg", note: "due-soon indicator" },
+  { fg: "state-completed", bg: "bg", note: "completed indicator" },
+  { fg: "state-waiting", bg: "bg", note: "waiting indicator" },
+  { fg: "state-on-hold", bg: "bg", note: "on-hold indicator" },
+  { fg: "chart-1", bg: "surface-card", note: "chart series 1" },
+  { fg: "chart-2", bg: "surface-card", note: "chart series 2" },
+  { fg: "chart-3", bg: "surface-card", note: "chart series 3" },
+  { fg: "chart-4", bg: "surface-card", note: "chart series 4" },
+  { fg: "chart-5", bg: "surface-card", note: "chart series 5" },
+  { fg: "chart-6", bg: "surface-card", note: "chart series 6" },
 ];
 
-function runPairs(theme: ColorMap, pairs: readonly Pair[]) {
+function runPairs(
+  themeId: string,
+  theme: ColorMap,
+  pairs: readonly Pair[],
+  min: number,
+) {
   for (const pair of pairs) {
     const ratio = contrastRatio(theme[pair.fg], theme[pair.bg]);
     expect(
       ratio,
-      `${pair.note}: ${theme[pair.fg]} on ${theme[pair.bg]} = ${ratio.toFixed(2)}:1 (min ${pair.min})`,
-    ).toBeGreaterThanOrEqual(pair.min);
+      `${themeId} — ${pair.note}: ${theme[pair.fg]} on ${theme[pair.bg]} = ${ratio.toFixed(2)}:1 (min ${min})`,
+    ).toBeGreaterThanOrEqual(min);
   }
 }
 
-describe("DS-01 contrast — light theme", () => {
-  it("meets AA for text pairs", () => runPairs(lightTheme, TEXT_PAIRS));
-  it("meets AA for UI pairs", () => runPairs(lightTheme, UI_PAIRS));
+describe.each(THEME_IDS)("THEME-01 contrast — %s", (themeId) => {
+  const theme = THEME_COLOR_MAPS[themeId];
+
+  it("meets AA for the text ramp on every surface", () => {
+    runPairs(themeId, theme, textRampPairs(), 4.5);
+  });
+
+  it("meets AA for text on every tinted surface", () => {
+    runPairs(themeId, theme, TINTED_PAIRS, 4.5);
+  });
+
+  it("meets AA for status and link text on the page background", () => {
+    runPairs(themeId, theme, ON_BACKGROUND_PAIRS, 4.5);
+  });
+
+  it("meets AA for a label on a filled control in every state", () => {
+    runPairs(themeId, theme, ON_ACCENT_PAIRS, 4.5);
+  });
+
+  it("meets AA for non-text UI (focus, controls, progress, charts)", () => {
+    runPairs(themeId, theme, UI_PAIRS, 3);
+  });
+
+  it("keeps every entity identity accent visible on the page background", () => {
+    for (const entity of ENTITY_ACCENT_NAMES) {
+      const accent = THEME_ENTITY_ACCENTS[themeId][entity];
+      const ratio = contrastRatio(accent, theme.bg);
+      expect(
+        ratio,
+        `${themeId} — ${entity} accent ${accent} on ${theme.bg} = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("keeps priority levels distinguishable from one another", () => {
+    // Priority is never colour-only (the chip always carries a P1–P4 tag), but
+    // when colour IS perceived it must not collapse into one hue.
+    const levels = [
+      theme["priority-p1"],
+      theme["priority-p2"],
+      theme["priority-p3"],
+      theme["priority-p4"],
+    ];
+    expect(new Set(levels).size).toBe(levels.length);
+  });
+
+  it("keeps the chart series distinguishable from one another", () => {
+    const series = [
+      theme["chart-1"],
+      theme["chart-2"],
+      theme["chart-3"],
+      theme["chart-4"],
+      theme["chart-5"],
+      theme["chart-6"],
+    ];
+    expect(new Set(series).size).toBe(series.length);
+  });
 });
 
-describe("DS-01 contrast — dark theme", () => {
-  it("meets AA for text pairs", () => runPairs(darkTheme, TEXT_PAIRS));
-  it("meets AA for UI pairs", () => runPairs(darkTheme, UI_PAIRS));
+describe("THEME-01 Ember does not read as a warning", () => {
+  it("keeps the accent clearly distinct from danger and warning", () => {
+    // Ember's terracotta accent sits at the warm end of the palette. An ordinary
+    // primary button must never look like a destructive one, so the accent and the
+    // danger colour are held apart deliberately: danger is the redder, less orange
+    // of the two.
+    const ember = THEME_COLOR_MAPS.ember;
+    expect(ember.accent).not.toBe(ember.danger);
+    expect(ember.accent).not.toBe(ember.warning);
+    const [accentRed, , accentBlue] = parseHex(ember.accent);
+    const [dangerRed, , dangerBlue] = parseHex(ember.danger);
+    expect(dangerRed - dangerBlue).toBeGreaterThan(accentRed - accentBlue);
+  });
 });
 
 describe("contrast helper self-check", () => {

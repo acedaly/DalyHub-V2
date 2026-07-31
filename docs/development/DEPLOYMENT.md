@@ -232,7 +232,12 @@ named remote database directly, before running this.)
 Wrangler prints the deployed URL (or your configured route). Verify by opening it
 and checking:
 
-- `GET /health` returns `{"status":"ok","name":"DalyHub", ...}` (public);
+- `GET /health` returns `{"status":"ok","name":"DalyHub","version":"…","environment":"production"}` (public).
+  Since RELEASE-01 the `version` comes from the ONE version authority
+  (`app/lib/version.ts`), the same value the in-app **About** screen shows — so a
+  deployment check and the running application can never disagree about which build
+  is live. A test pins the two together. The commit identifier is deliberately NOT in
+  this payload; it is shown only on the authenticated About screen;
 - the authenticated shell renders **through Cloudflare Access** (document title
   `DalyHub`, the owner email in the header) — a request to a protected route
   without a valid Access token must be rejected, not served.
@@ -318,6 +323,47 @@ Actions repository secrets** (`Settings → Secrets and variables → Actions`):
 Restrict deployment to trusted triggers (e.g. pushes to `main` or manual
 `workflow_dispatch` with an environment protection rule) — never run a deploy
 using these secrets from an untrusted pull request.
+
+
+## V2 Final Polish release audit (2026-07-31)
+
+The release check performed for the **V2 Final Polish & Release Readiness**
+milestone. Recorded here so the next deployment starts from a known state rather
+than from memory.
+
+| Area | State | Evidence |
+|---|---|---|
+| Migrations | Ready. One new migration, `0023_add_owner_theme_preference.sql` | Additive `ALTER TABLE … ADD COLUMN theme TEXT NOT NULL DEFAULT 'system'` with a CHECK over the six legal values. No table rebuilt, no row rewritten, no existing preference touched. Verified against a fresh database and against a populated one in `test/kernel/app-preferences.test.ts` |
+| Migration ordering | Safe | `0023` is strictly after `0022` and depends only on the table `0017` created. It can be applied before or after the Worker deploy: the application reads the column defensively and a row without it degrades to `system` |
+| Production build | Green | `pnpm run build` |
+| Bundle impact | +3.8 KB gzip CSS, +10 KB gzip JS vs `main` | Measured by building both revisions. Five themes cost no per-theme stylesheet, no runtime theme computation and no new dependency |
+| Environment handling | Unchanged | `ENVIRONMENT` is still the only switch; `BUILD_COMMIT` is a NEW **optional** var. Absent everywhere today, and About says "Not recorded" rather than inventing one |
+| Version display | One authority | `app/lib/version.ts`, read by `/health` and `/about` |
+| Health endpoint | Extended, still public and secret-free | Adds `version`; exposes no commit, no bindings, no identifiers |
+| Authentication entry | Unchanged | No change to the Worker boundary, Access configuration or session handling |
+| Navigation | One new row (`About`) | Registry-driven; appears automatically, hideable in Settings → Navigation like any optional module |
+| Empty production database | Safe | A fresh owner has no preference row, so `theme` resolves to `system` from `DEFAULT_APP_PREFERENCES` — no row is written until they choose |
+| Populated production database | Safe | Existing owners keep every preference and default to `system`, which is exactly the appearance they already had |
+| Theme persistence | Verified end to end | `e2e/themes.spec.ts` — selection, navigation, reload, and a fresh browser context reading the stored value |
+| Mobile use | Verified | Phone navigation in light and dark, picker at 320 px, Help and About at 320 px, no horizontal overflow |
+| Browser refresh | Verified | Reload re-applies the stored theme, from the first byte |
+| Rollback | Straightforward, with one caveat | Rolling the Worker back to the previous release is safe with `0023` still applied: the old code never reads the column, and the column is nullable-with-default so its writes still succeed. **Do not roll the migration back** — dropping the column would discard owners' theme choices, and the old code does not need it gone |
+
+### Deploying this release
+
+1. `pnpm run deploy:production:preflight` — credential-free validation.
+2. `wrangler d1 migrations apply dalyhub-v2 --env production --remote` — applies `0023`.
+3. `pnpm run deploy:production`.
+4. Verify `GET /health` returns `ok` **and the expected `version`**; open `/about`
+   through Cloudflare Access and confirm the same version and `Production`; open
+   Settings → Appearance and switch a theme, then reload.
+
+### Optional: recording the build identifier
+
+To have About show which commit is running, set `BUILD_COMMIT` as a production var
+at deploy time (a full or short git SHA; anything else is ignored rather than
+displayed). It is optional by design — every environment that does not set it says
+"Not recorded", which is honest, and no environment is required to expose it.
 
 ## Current status
 

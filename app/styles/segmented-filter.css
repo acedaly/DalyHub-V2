@@ -43,7 +43,7 @@
 }
 
 .dh-segmented__option[aria-current="true"] {
-  color: #fff;
+  color: var(--dh-color-on-accent);
   background: var(--dh-color-accent);
 }
 

@@ -282,7 +282,9 @@
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-text);
   background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  /* A form control's boundary is what identifies it, so it uses the 3:1
+   * `control-border` token rather than the decorative border (WCAG 1.4.11). */
+  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
   border-radius: var(--dh-radius-md);
   cursor: pointer;
 }

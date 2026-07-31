@@ -16,7 +16,7 @@
  * therefore the build) rather than producing broken navigation.
  */
 
-import type { ModuleId, RegisteredRoute } from "~/kernel/modules";
+import type { ModuleId, NavIconName, RegisteredRoute } from "~/kernel/modules";
 
 /** A single primary-navigation entry the shell renders. Plain, safe data. */
 export type NavigationItem = {
@@ -46,6 +46,12 @@ export type NavigationItem = {
    * its identity, the shell reads it; there is no central icon switch.
    */
   readonly entityType?: string;
+  /**
+   * THEME-01 — the module-declared shell glyph name (`meta.navIcon`), for a module
+   * that owns no entity type. The shell resolves it through `app/shared/shell/NavIcon`;
+   * it never maps module ids to icons itself.
+   */
+  readonly navIcon?: NavIconName;
 };
 
 /**
@@ -154,6 +160,9 @@ export function buildNavigationModel(
         ? {}
         : { mobilePrimaryOrder: route.meta.mobilePrimaryOrder }),
       ...(entityType === undefined ? {} : { entityType }),
+      ...(route.meta?.navIcon === undefined
+        ? {}
+        : { navIcon: route.meta.navIcon }),
     };
     items.push({ item, listIndex });
   });

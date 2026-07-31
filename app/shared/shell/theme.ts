@@ -1,85 +1,147 @@
 /**
- * FND-09 theme infrastructure — the theme-preference contract and its cookie.
+ * THEME-01 — the DalyHub theme registry (owner-facing presentation).
  *
- * FND-09 provides only the MECHANISM for `system` / `light` / `dark`, not the
- * design system (DS-01 owns the token palettes and the final visual language).
- * The preference is cookie-backed and read server-side so `<html>` is rendered
- * with the correct theme on the first byte — no light-to-dark flash, no client
- * cookie reading, no `localStorage`, no database table (ADR-016 §5.11, §17).
+ * The persisted CONTRACT — which theme ids are legal, how a stored or cookie value
+ * is parsed, and how the first-paint cookie is serialised — lives in the kernel
+ * (`app/kernel/preferences/theme-preference.ts`), because the theme is a real owner
+ * preference. This module adds the part that is a design-system concern: what each
+ * theme is CALLED, how it is described, and whether it presents as light or dark.
  *
- * Pure and dependency-free so it is usable in the root loader, the theme action
- * and unit tests alike. Invalid or missing values fall back safely to `system`.
+ * Everything from the kernel contract is re-exported here, so the shell, the
+ * Settings UI and the tests have one import site and there is still exactly one
+ * theme list in the codebase.
+ *
+ * ── The five curated themes ───────────────────────────────────────────────────
+ *   daly-light  light   the calm warm-neutral default
+ *   daly-dark   dark    a designed dark theme, not an inversion
+ *   eucalypt    light   warm stone surfaces, muted sage accent
+ *   coastal     light   cool neutrals, sea-glass blue accent
+ *   ember       light   warm neutrals, terracotta accent
+ *
+ * plus the `system` APPEARANCE MODE, which pairs Daly Light with Daly Dark.
+ *
+ * Components never branch on the theme. A theme is a complete map over the same
+ * semantic tokens (`app/styles/tokens.css`), so a component styled once is correct
+ * in all five.
  */
 
-/** The three supported theme preferences. `system` follows the OS setting. */
-export const THEME_PREFERENCES = ["system", "light", "dark"] as const;
+import {
+  SYSTEM_THEME,
+  type ThemeAppearance,
+  type ThemeId,
+} from "~/kernel/preferences/theme-preference";
 
-/** A validated theme preference. */
-export type ThemePreference = (typeof THEME_PREFERENCES)[number];
+export {
+  DEFAULT_DARK_THEME,
+  DEFAULT_LIGHT_THEME,
+  DEFAULT_THEME,
+  SYSTEM_THEME,
+  THEME_COOKIE_MAX_AGE,
+  THEME_COOKIE_NAME,
+  THEME_IDS,
+  THEME_PREFERENCES,
+  isThemeId,
+  isThemePreference,
+  parseThemePreference,
+  readThemePreference,
+  resolveThemeId,
+  serializeThemeCookie,
+  type ThemeAppearance,
+  type ThemeId,
+  type ThemePreference,
+} from "~/kernel/preferences/theme-preference";
 
-/** The default preference when none is set or a stored value is invalid. */
-export const DEFAULT_THEME: ThemePreference = "system";
-
-/** The cookie name carrying the persisted preference. */
-export const THEME_COOKIE_NAME = "dh_theme";
-
-/** Bounded cookie lifetime: one year, in seconds. */
-export const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
-
-/** True when `value` is one of the supported preferences. */
-export function isThemePreference(value: unknown): value is ThemePreference {
-  return (
-    typeof value === "string" &&
-    (THEME_PREFERENCES as readonly string[]).includes(value)
-  );
-}
-
-/** Coerce any value to a valid preference, falling back to `system`. */
-export function parseThemePreference(value: unknown): ThemePreference {
-  return isThemePreference(value) ? value : DEFAULT_THEME;
+/** A theme's owner-facing presentation in Settings. */
+export interface ThemeDescriptor {
+  /** The stable id written to `<html data-theme>` and stored in preferences. */
+  readonly id: ThemeId;
+  /** The friendly display name. The owner never sees the raw id. */
+  readonly name: string;
+  /** One short sentence describing the feel, in plain Australian English. */
+  readonly description: string;
+  /** Whether this theme is light or dark, so Settings can group and label it. */
+  readonly appearance: ThemeAppearance;
 }
 
 /**
- * Read the persisted preference from a raw `Cookie` header. Missing header,
- * missing cookie or an invalid value all resolve to `system`.
+ * The five curated themes, in the order Settings presents them: the default first,
+ * its dark counterpart second, then the three character themes.
+ *
+ * Each theme is SELF-CONTAINED — one complete palette, not a light/dark pair. A
+ * theme therefore never changes when the operating-system appearance changes; only
+ * the `system` appearance mode does that.
  */
-export function readThemePreference(
-  cookieHeader: string | null | undefined,
-): ThemePreference {
-  if (!cookieHeader) {
-    return DEFAULT_THEME;
+export const THEMES: readonly ThemeDescriptor[] = [
+  {
+    id: "daly-light",
+    name: "Daly Light",
+    description:
+      "Warm off-white surfaces with a restrained blue-green accent. The calm default.",
+    appearance: "light",
+  },
+  {
+    id: "daly-dark",
+    name: "Daly Dark",
+    description:
+      "Layered charcoal surfaces and softened text, built for dark rooms and long evenings.",
+    appearance: "dark",
+  },
+  {
+    id: "eucalypt",
+    name: "Eucalypt",
+    description:
+      "Warm stone surfaces with a muted sage green. Grounded and quiet.",
+    appearance: "light",
+  },
+  {
+    id: "coastal",
+    name: "Coastal",
+    description:
+      "Cool neutral surfaces with a sea-glass blue. Fresh without being cold.",
+    appearance: "light",
+  },
+  {
+    id: "ember",
+    name: "Ember",
+    description:
+      "Warm neutral surfaces with a terracotta accent, for anyone tired of blue.",
+    appearance: "light",
+  },
+];
+
+/**
+ * The `system` appearance mode, presented alongside the themes in Settings so the
+ * owner sees one list of choices rather than a mode control plus a theme control.
+ */
+export const SYSTEM_THEME_OPTION = {
+  id: SYSTEM_THEME,
+  name: "Match system",
+  description:
+    "Follows your device: Daly Light normally, Daly Dark when your system switches to dark.",
+} as const;
+
+const THEMES_BY_ID: ReadonlyMap<ThemeId, ThemeDescriptor> = new Map(
+  THEMES.map((theme) => [theme.id, theme]),
+);
+
+/** The descriptor for a curated theme id. */
+export function themeById(id: ThemeId): ThemeDescriptor {
+  const descriptor = THEMES_BY_ID.get(id);
+  if (descriptor === undefined) {
+    // Unreachable for a typed id; keeps the accessor total for runtime callers.
+    throw new Error(`unknown theme id: ${id}`);
   }
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) {
-      continue;
-    }
-    const name = part.slice(0, eq).trim();
-    if (name === THEME_COOKIE_NAME) {
-      return parseThemePreference(part.slice(eq + 1).trim());
-    }
-  }
-  return DEFAULT_THEME;
+  return descriptor;
 }
 
 /**
- * Serialise the theme cookie. Same-site Lax, root path, bounded lifetime, and
- * HttpOnly (the value is only ever read server-side, never by client JS). `Secure`
- * is added in production/non-local environments.
+ * The display name for any preference, including `system`. Used wherever the
+ * current choice is announced (Settings status text, the About screen).
  */
-export function serializeThemeCookie(
-  preference: ThemePreference,
-  options: { readonly secure: boolean },
-): string {
-  const attributes = [
-    `${THEME_COOKIE_NAME}=${preference}`,
-    "Path=/",
-    `Max-Age=${THEME_COOKIE_MAX_AGE}`,
-    "SameSite=Lax",
-    "HttpOnly",
-  ];
-  if (options.secure) {
-    attributes.push("Secure");
+export function themePreferenceName(preference: string): string {
+  if (preference === SYSTEM_THEME) {
+    return SYSTEM_THEME_OPTION.name;
   }
-  return attributes.join("; ");
+  const descriptor = THEMES_BY_ID.get(preference as ThemeId);
+  return descriptor?.name ?? SYSTEM_THEME_OPTION.name;
 }

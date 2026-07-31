@@ -14,11 +14,26 @@ import type { ReactNode } from "react";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 
 /**
- * A semantic tone. Tones map to DS-01 feedback tokens; they NEVER carry meaning
- * by colour alone — a tone is always paired with its text label.
+ * A semantic tone. Tones map to DS-01 colour tokens; they NEVER carry meaning by
+ * colour alone — a tone is always paired with its text label.
+ *
+ * THEME-01 added three LIFECYCLE tones (`completed`, `waiting`, `on-hold`)
+ * alongside the four feedback tones. They previously borrowed `success`,
+ * `warning` and `neutral`, which read the same in the two original themes but says
+ * the wrong thing: a task waiting on someone else is not a warning, and a theme
+ * should be able to colour "paused" without changing what a real warning looks
+ * like. Each has its own token triple in every theme.
  */
 export type RecordTone =
-  "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+  | "neutral"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "completed"
+  | "waiting"
+  | "on-hold";
 
 /** A status pill shown in the record header (e.g. "In progress", "Done"). */
 export interface RecordStatus {
