@@ -1,4 +1,4 @@
-# Assets module (ASSET-01)
+# Assets module (ASSET-01 · ASSET-02)
 
 Assets are **first-class DalyHub records** for the important things you own or are
 responsible for — vehicles and camper trailers, appliances, electronics, tools and
@@ -14,7 +14,13 @@ This first version is deliberately useful **without** external cloud file storag
 barcode scanning, OCR, AI, reminders or automated integrations. See
 [Not implemented (by design)](#7-not-implemented-by-design).
 
-Decision record: **[ADR-049](../decisions/ARCHITECTURE_DECISIONS.md#adr-049-first-class-assets--the-asset_details-slice-integer-minor-unit-money-and-the-real-world-status-vs-record-archive-split)**.
+**ASSET-02** turned that static register into an ownership system: every Asset now
+carries its **history** (what happened) and its **obligations** (what is due), with
+both calendar-based and meter-based maintenance, recorded costs, value history, a
+documented Task authority contract and a calm Today presence.
+
+Decision records: **[ADR-049](../decisions/ARCHITECTURE_DECISIONS.md#adr-049-first-class-assets--the-asset_details-slice-integer-minor-unit-money-and-the-real-world-status-vs-record-archive-split)** (the Asset record) and
+**[ADR-063](../decisions/ARCHITECTURE_DECISIONS.md#adr-063-asset-ownership-history--canonical-facts-recorded-events-and-future-obligations-as-three-separate-things)** (history and obligations).
 
 ---
 
@@ -104,6 +110,243 @@ date logic is never duplicated.
   the migration CHECK (and a subtype icon) — no schema redesign.
 - **Status** — `active`, `stored`, `loaned`, `under_repair`, `retired`, `disposed`.
 
+
+---
+
+## 2a. Facts, history and obligations — the three-way split (ASSET-02)
+
+Read this before touching anything in `asset_events` or `asset_obligations`. The
+whole feature rests on keeping three things separate, and on ONE direction of flow
+between them.
+
+| | What it is | Where it lives | How it changes |
+| --- | --- | --- | --- |
+| **Canonical facts** | The Asset's CURRENT state: purchase price, warranty expiry, registration/renewal date, next service date, current meter reading. | `asset_details` | Read DIRECTLY. Edited on the Details tab, or advanced FORWARD-ONLY by a completed event or obligation. |
+| **History** | What HAPPENED: a service, a repair, a rego renewal, a valuation, a note about the hail. | `asset_events` | Appended. Corrected by editing the event. |
+| **Obligations** | What is DUE: rego by 30 September, a service every six months or 10,000 km. | `asset_obligations` | Created, rescheduled, completed, dismissed or put on hold. |
+
+**DalyHub is NOT event-sourced, and ASSET-02 does not make it so.** An Asset's
+current warranty expiry is a column that is read; it is never reconstructed by
+replaying a stream. An event may PROPOSE a new canonical fact, and the repository
+applies that in the same transaction — but only forwards.
+
+### Forward-only, guarded in SQL
+
+Recording last year's service must not rewind today's next-service date. Entering
+an old odometer reading must not rewind the odometer. Every projection is a
+`CASE WHEN ? > column THEN ? ELSE column END` **inside the same batch as the event
+insert**, so the rule cannot be bypassed by a second caller or forgotten by a
+future one. A meter reading in a DIFFERENT unit on a newer date is allowed as an
+explicit re-baseline (the owner switched the asset from km to miles); the two
+readings are simply not comparable, so there is nothing to protect.
+
+### The consequence worth knowing
+
+A mistaken canonical date is corrected on the **Details** tab, not by editing
+history. Editing an event corrects the record of what happened; it does not
+retroactively rewrite a fact that was set deliberately.
+
+---
+
+## 2b. Asset Events — one model, fourteen categories
+
+`migrations/0025_asset_history_and_obligations.sql` — a STRICT `asset_events`
+table keyed by `(workspace_id, id)`, with a composite FK to
+`entities(workspace_id, id, type)` (`ON DELETE RESTRICT`).
+
+**Categories** (closed, stored keys): `purchase`, `service`, `repair`,
+`inspection`, `registration`, `renewal`, `warranty`, `insurance`, `upgrade`,
+`modification`, `damage`, `valuation`, `disposal`, `history`. `history` is the
+deliberate catch-all so the owner is never forced to mis-file.
+
+**One table, not fourteen.** Every category shares the columns and fills only the
+ones that apply: a repair carries a cost and a provider; an inspection may carry a
+date and a sentence. The FORMS differ (see §13 below), not the schema.
+
+Fields, where applicable: title, `event_date` (wall-calendar, the timeline's sort
+key), optional `completed_at` instant, Markdown `description`, `provider` (plain
+text), `person_id` (an OPTIONAL canonical Person), `cost_minor`, `value_minor`,
+`currency_code`, `meter_value` + `meter_unit`, `warranty_expiry`, `next_due_date`,
+`task_id`, `note_id`, `obligation_id`, and the created/updated/archived/deleted
+timestamps.
+
+`cost_minor` and `value_minor` are **separate columns**: a cost and a valuation are
+not the same quantity and must never be summed. An amount without a currency is
+refused by a CHECK — a bare number is an unlabelled number.
+
+Indexes serve the newest-first timeline read, the category facet + cost
+aggregation, meter-reading resolution, and the reverse lookups from an obligation,
+a Task, a Note and a Person.
+
+---
+
+## 2c. Asset Obligations — and the status split
+
+`asset_obligations`, STRICT, same FK discipline.
+
+**Categories:** `registration`, `warranty`, `insurance`, `licence`, `service`,
+`inspection`, `maintenance`, `replacement`, `reminder`.
+
+### Stored status vs derived state — read this
+
+The stored `status` is the **owner-controlled lifecycle ONLY**:
+
+- `open` · `completed` · `dismissed` · `on_hold`
+
+The urgency words an owner actually reads are **DERIVED at read time**, never
+stored:
+
+- `upcoming` · `due` · `overdue` · `unknown`
+
+A stored "overdue" flag is wrong the moment the clock ticks past it, and keeping it
+true would need a background scheduler DalyHub deliberately does not have. One
+evaluator — `evaluateObligation` in `app/kernel/assets/asset-obligation.ts` —
+resolves the derived state from the due date, the lead time, the meter and the
+owner-calendar day. The record, the collection card and Today all call it, so they
+can never disagree.
+
+**Task status values are not reused.** A Task is done or not; an obligation can be
+on hold, dismissed as no longer relevant, or waiting on a reading nobody has taken.
+
+### Date-based and meter-based maintenance
+
+An obligation must commit to **something** — a due date, a meter threshold, or
+both. When it carries both ("six months or 10,000 km, whichever comes first"), the
+**more urgent side wins**, and an unknown meter never silences a known date.
+
+**Meters** are bounded data, never formulas:
+
+| Unit | Label | Approach window |
+| --- | --- | --- |
+| `km` | Kilometres | 500 km |
+| `mi` | Miles | 300 mi |
+| `hours` | Hours | 20 hrs |
+| `cycles` | Cycles | 20 cycles |
+| `count` | Count | 5 uses |
+
+Two readings are comparable **only within the same unit**. A km obligation against
+a mi reading is reported as *incompatible*, never converted — the odometer analogue
+of ADR-049's refusal to convert currency.
+
+**"No reading" is a first-class state.** A meter obligation with no current reading
+reads as **"Current meter reading needed"** and is **never** called overdue.
+Accusing the owner of being late for work whose trigger we cannot measure would be
+a lie the data does not support.
+
+### Recurrence
+
+`none` · `days` · `weeks` · `months` · `years` · `meter`, each with a bounded
+interval. No expression language, no cron.
+
+**A recurrence anchors on the day the work was ACTUALLY done.** A service done two
+months late schedules the next one a full interval after the work, not after the
+date it was originally due — otherwise being late once compounds forever. A meter
+interval measures from the reading at completion, so a service done 400 km late
+does not permanently pull the schedule 400 km early.
+
+**Exactly ONE successor per completion.** The successor insert is gated on the
+completion having been written in THIS batch AND on a `NOT EXISTS` check, with
+`UNIQUE (workspace_id, series_id, sequence)` as the database-level backstop. A
+retry returns the existing completion; a concurrent completion produces one event
+and one successor, not two.
+
+---
+
+## 2d. The Task authority contract
+
+| Field | Authoritative record |
+| --- | --- |
+| Due date, recurrence, meter threshold, maintenance meaning | **Obligation** |
+| Whether the work is on the owner's plate today | **Task** |
+| Proof that the work happened | **Asset Event** |
+| Current warranty / renewal / next-service date, current meter | **Asset** (`asset_details`) |
+
+The rules that follow from it:
+
+- **Completing the Task never asserts the work happened.** Ticking off "book the
+  service" is not proof the car was serviced. The obligation stays open and the
+  record says so in the owner's words: *"Its task is done. Record what actually
+  happened to complete this obligation."*
+- **Completing the obligation completes an open linked Task.** That direction is
+  safe, because completing an obligation *is* recording the work.
+- **Rescheduling the obligation moves the Task's due date**, so the two can never
+  permanently diverge.
+- **Deleting the Task never deletes the obligation.** The pointer is cleared on
+  reconciliation, and the owner can create a fresh Task.
+- **Task WRITES go through the canonical `TaskRepository`**, via a narrow injected
+  `ObligationTaskGateway`. The Task is completed FIRST, then the obligation
+  transaction runs. If that fails, the system lands in "Task done, work not yet
+  recorded" — a state the product already models.
+
+---
+
+## 2e. Today, and the deduplication rule
+
+Today gains an **Assets** widget: obligations that need attention within a 30-day
+horizon, capped at five rows, ordered overdue → due → reading-needed.
+
+**The rule: an OPEN linked Task wins.** An obligation whose Task is still open is
+already in My Day, so showing it again would be the same job twice on one page. It
+is suppressed from the Assets section and the suppressed count is **stated in
+words** ("2 more are tracked as tasks in My day"), never silently dropped. The
+moment that Task is completed, cancelled or deleted, the obligation reappears here
+— which is precisely the "now record what actually happened" moment.
+
+The rule lives in the KERNEL (`app/kernel/assets/asset-today.ts`), because Today
+must not import a module's internals and both surfaces have to agree.
+`AssetHistoryRepository.listAttention` is ONE bounded workspace query — never N
+reads for N assets — and excludes archived and deleted Assets.
+
+---
+
+## 2f. Recorded costs and value history
+
+Cost groups: **service and maintenance** (`service`, `inspection`), **repairs**
+(`repair`, `damage`), **renewals and registration** (`registration`, `renewal`,
+`warranty`, `insurance`), **upgrades and modifications** (`upgrade`,
+`modification`).
+
+- Totals are labelled **"Recorded costs"** everywhere, with an explicit line saying
+  they are *not* a complete cost of ownership. DalyHub cannot know whether every
+  receipt was entered and must not imply it.
+- The **purchase price stays separate** from ongoing cost, combinable only under an
+  explicitly-labelled "Recorded lifetime total".
+- **Mixed currencies are never added together.** The dominant currency is
+  summarised and the others are reported as excluded, by name.
+- Aggregation happens **in SQL over the full history**, never over a loaded page.
+
+**Value history** is valuation events only — a date, a value, a currency, an
+optional source. Two points are two points: the shape is drawn only above THREE
+points, and a plain-text summary always accompanies it. No depreciation model, no
+inferred market value.
+
+---
+
+## 2g. Documents and Notes
+
+Asset Events link an existing **Note** (`note_id`) for a service report, a receipt,
+warranty details, a registration or insurance record. There is no second embedded
+notes system inside Assets, and no fake attachment UI: file attachments are not a
+DalyHub capability yet, so Notes and documented external references carry that job
+until they are ([DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3)).
+
+**Providers are not People.** An event may store a plain provider name, a linked
+Person, or both. Typing a provider name **never** creates a Person record.
+
+---
+
+## 2h. Lifecycle
+
+| Action | Effect on history and obligations |
+| --- | --- |
+| **Archive an Asset** | History and obligations are KEPT and become read-only. The Asset stops asking for things: its obligations leave Today. |
+| **Restore an Asset** | Open obligations return to Today. Completed occurrences stay completed — restoring never reopens finished work. |
+| **Soft-delete an Asset** | Everything disappears from every read, including Today. |
+| **Archive an Event** | It leaves the default timeline and the cost totals; it is never destroyed, and `includeArchived` still reads it. |
+| **Delete an Event** | Soft-deleted. An obligation whose completion PROOF was deleted keeps its completed status and its series position; only the dangling pointer is cleared, so recurrence is never corrupted. |
+| **Delete a linked Task** | The obligation survives; reconciliation clears the pointer so a fresh Task can be created. |
+| **Cross-workspace ids** | Rejected on every relation (Person, Task, Note) — an id from another workspace is simply not found here. |
+
 ---
 
 ## 3. The repository contract (`AssetRepository`)
@@ -132,6 +375,32 @@ accepts a `workspaceId`; the trusted Activity actor is bound at construction.
   footprint child-first in one atomic, race-closing batch. Never touches a linked
   record.
 
+### `AssetHistoryRepository` (ASSET-02)
+
+One workspace-bound repository owns BOTH halves of the ownership record, because
+the interesting operations span them: completing an obligation writes an event,
+advances a canonical Asset fact, creates at most one successor and reconciles a
+Task, and every part of that must commit or none of it (ADR-012). Splitting them
+would force a caller to orchestrate a transaction across two repositories, which
+is exactly the route-level coordination the architecture forbids.
+
+- **Events** — `recordEvent`, `getEvent`, `updateEvent`, `archiveEvent`,
+  `restoreEvent`, `deleteEvent`, `listEvents` (bounded, cursor-paged, newest
+  first), `costSummary` (aggregated in SQL over the FULL history),
+  `valuationHistory`, and `recordMeterReading` (a deliberate front door so "just
+  update the odometer" is one call and one event).
+- **Obligations** — `createObligation`, `getObligation`, `updateObligation`,
+  `setObligationStatus` (never `completed`: completion must produce its proof),
+  `completeObligation` (the atomic five-step transaction), `deleteObligation`,
+  `listObligations`.
+- **Tasks** — `linkObligationTask`, `unlinkObligationTask`,
+  `reconcileObligationTask`. Task WRITES route through the injected
+  `ObligationTaskGateway` over the canonical `TaskRepository`; this repository
+  never creates or completes a Task itself.
+- **Cross-asset** — `listAttention` (the ONE bounded Today read) and
+  `summariseObligations` (a whole collection page's counts in ONE query, so a card
+  never loads history).
+
 **Activity privacy (§17):** payloads carry only changed field NAMES and the status
 vocabulary term — never a serial/policy number, price or private note.
 
@@ -156,12 +425,32 @@ in with no central edit.
   next meaningful date, phrased explicitly ("Warranty expires in 18 days", "Service
   overdue", "Renewal due 12 September") — never colour alone.
 - **Record** (`AssetRecord.tsx`) — the canonical DS-02 Record Layout with tabs:
-  **Summary** (glance: icon/type, status, make/model, owner/responsible/area,
-  location, next date, edit action), **Details** (grouped structured editing;
-  changing the type never clears other data), **Dates** (chronological, status-tagged),
-  **Linked** (the shared `LinkedItemsTab`, `anchorType="asset"`), **Activity** (the
-  shared Timeline), **Settings** (rename / archive / restore / guarded permanent
-  delete via the shared DS-10b Settings + `DangerousAction`).
+  **Overview** (the glance: icon/type, status, make/model, owner/responsible/area,
+  location, current meter, purchase, warranty, last work, the single most urgent
+  obligation, linked open tasks — plus recorded costs, value history and the full
+  date list behind progressive disclosure), **Obligations** (overdue → due soon →
+  later, with completed and set-aside work behind a disclosure), **History** (the
+  event timeline with six fast-capture actions), **Details** (grouped structured
+  editing; changing the type never clears other data), **Linked** (the shared
+  `LinkedItemsTab`, `anchorType="asset"`), **Activity** (the shared Timeline),
+  **Settings** (rename / archive / restore / guarded permanent delete via the
+  shared DS-10b Settings + `DangerousAction`).
+
+  **ASSET-02 folded the old standalone Dates tab into Overview**, behind an "All
+  dates" disclosure. Seven tabs is already the ceiling on a phone, and the canonical
+  dates are context for the overview rather than a destination — a future date now
+  lives as an obligation.
+
+  **A row that does not apply is not rendered.** A software licence has no odometer
+  and a hand tool has no registration, so neither shows an empty enterprise-style
+  field for one.
+
+- **Fast capture** (`AssetEventForm.tsx`) — six presets, each naming the SMALLEST
+  useful field set for one real action: *Record service*, *Record repair*, *Update
+  meter* (two fields), *Record renewal*, *Record valuation*, *Add history entry*.
+  Everything else is behind a "More details" disclosure that most captures never
+  open. The shape is data (`QUICK_EVENT_PRESETS`), so adding a preset is not
+  another component.
 - **Create** — a responsive progressive flow (`NewAssetForm.tsx`): start with a name
   and a type, then reveal only the fields relevant to that type
   (`asset-form-model.ts`, unit-tested); switching type preserves entered values. Full
@@ -180,10 +469,15 @@ in with no central edit.
 
 ## 5. Cross-module integration & the Today seam
 
-`AssetRepository.list` with `view: "expiring" | "service_due" | "recent"` is the
-clean, bounded read seam a future Today widget can consume. No Today redesign ships
-in ASSET-01; a Today "expiring / service due" widget is the next small follow-up
-(recorded in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md)).
+`AssetRepository.list` with `view: "expiring" | "service_due" | "recent"` remains
+the bounded read seam for the date-driven collection views.
+
+**ASSET-02 shipped the Today presence** the ASSET-01 note anticipated, over a
+different (and better) seam: `AssetHistoryRepository.listAttention` — ONE bounded,
+horizon-limited, workspace-scoped query returning open obligations with the Asset
+context and current reading needed to evaluate them. Today calls the shared kernel
+evaluator and the shared deduplication rule; it never re-derives obligation state
+and never imports the Assets module's internals. See §2e.
 
 ---
 
@@ -212,10 +506,23 @@ than relying on accidental text uniqueness. No Assets code changed.
 
 Deferred to later work (no dead UI ships for any of these) — see
 [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md): real file attachments; R2/object
-storage; OCR; barcode/QR scanning; recurring reminders and automated warranty
-alerts; service-history logbooks; depreciation/tax calculations; an insurance-claims
-workflow; receipt/email ingestion; external subscription sync; AI extraction;
-household sharing/permissions beyond current workspace rules.
+storage; OCR; barcode/QR scanning; receipt/email ingestion; external subscription
+sync; AI extraction; household sharing/permissions beyond current workspace rules.
+
+**ASSET-02 additionally and deliberately excludes:** external vehicle lookup,
+registration-authority or insurer integration, automatic market valuations,
+accounting, tax depreciation, fleet administration, fuel tracking, GPS tracking,
+meter-unit conversion, any notification channel (push, email, Pushover), data
+export, and backup or restore. Several are genuinely good future ideas; none is
+partially built here.
+
+**ASSET-01's "recurring reminders and automated warranty alerts" is now partly
+delivered and partly still out of scope, and the line matters.** Obligations DO
+recur, and they DO surface on Today and on the collection when they are due. What
+does not exist is any mechanism that reaches the owner when they are not looking at
+DalyHub — there is no scheduler, no background job and no notification of any
+kind. A renewal is noticed by opening the app, which is the whole reason the
+derived state is computed at read time rather than stored.
 
 ---
 
@@ -231,26 +538,60 @@ household sharing/permissions beyond current workspace rules.
 
 ---
 
-## Status (2026-07-27 reconciliation)
+## Status (2026-07-31, after ASSET-02)
 
-**Current status.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) is ☑. [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) and [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) are ☐.
+**Current status.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ ·
+[ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) ☑ ·
+[ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) ◐.
 
-**Delivered capabilities.** Assets as first-class entities with a STRICT `asset_details` slice (migration `0016`); an authoritative workspace-bound `AssetRepository` with atomic reserved create, partial updates, real-world status transitions kept distinct from record archive, and guarded permanent deletion; money as integer minor units plus an ISO-4217 code (never a float, [ADR-049](../decisions/ARCHITECTURE_DECISIONS.md#adr-049-first-class-assets--the-asset_details-slice-integer-minor-unit-money-and-the-real-world-status-vs-record-archive-split)); wall-calendar dates compared as integers in the owner timezone; a controlled-but-extensible type vocabulary with per-type subtype icons; the `/assets` collection with All / Recently updated / Expiring soon / Service due / Archived views, filtering, sorting and cursor pagination; the canonical Record Layout; a **real, repository-backed** search provider and five commands. DS-11 baseline proven — axe in light and dark, no horizontal overflow at 390px and 320px.
+**Delivered by ASSET-01.** Assets as first-class entities with a STRICT
+`asset_details` slice (migration `0016`); an authoritative workspace-bound
+`AssetRepository`; money as integer minor units plus an ISO-4217 code (never a
+float); wall-calendar dates compared as integers in the owner timezone; a
+controlled-but-extensible type vocabulary with per-type subtype icons; the
+`/assets` collection with All / Recently updated / Expiring soon / Service due /
+Archived views; the canonical Record Layout; a repository-backed search provider
+and five commands.
 
-**More of ASSET-02 already exists than the roadmap item's summary implies.** The queryable warranty, renewal and next-service dates are stored; `AssetRepository.list({ view: "expiring" | "service_due" })` is the bounded read seam a Today widget or reminder engine will consume; and the **calm due/expiry indicators are already implemented** as a pure evaluator in [`asset-dates.ts`](../../app/modules/assets/asset-dates.ts) — `evaluateDueDate` returns `overdue` / `due_soon` / `today` / `future` / `historical`, rendered with word-bearing phrasings ("Warranty expired", "Renewal due in N days", "Service overdue"), never colour alone. Scope ASSET-02 against what exists rather than rebuilding it.
+**Delivered by ASSET-02.** Migration `0025` adds `asset_events`,
+`asset_obligations` and the three meter columns on `asset_details`. One canonical
+event model covers fourteen categories; one obligation model covers nine, with a
+deliberate split between the stored owner lifecycle and the derived urgency state.
+Both date-based and meter-based maintenance, with a bounded five-unit meter
+vocabulary, no unit conversion, and an honest "reading needed" state. Recurrence
+anchored on the day the work was actually done, producing exactly one successor
+under retry and concurrency. A documented Task authority contract in which
+completing a Task never asserts the work happened. A calm Today section with a
+stated deduplication rule. Recorded-cost totals that never claim to be a cost of
+ownership and never mix currencies. Value history that refuses to call two points a
+trend. An Overview that renders only the facts that apply, six fast-capture
+actions, and a bounded obligation signal on every collection card.
 
-**Known limitations.**
+**Known limitations (honest).**
 
-- **No history of any kind.** There is no service/maintenance log, no warranty or renewal history (only a single next-date per kind), and no value-change history — so an asset shows its current state but not its life. [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals).
-- **The `expiring` / `service_due` seam is not surfaced outside `/assets`.** A renewal is only noticed by visiting the module.
-- The module maintains a private subtype-icon map ([`asset-icons.tsx`](../../app/modules/assets/asset-icons.tsx)) — the second such fork after Diary's, which a shared subtype-icon registry should absorb ([DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2--resolved-2026-07-28)).
-- Mobile completion (phone-first capture, date entry, type/subtype picking at narrow widths) remains — [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile).
+- **Nothing reaches the owner outside the app.** There is no scheduler, no
+  background job and no notification channel. A renewal is noticed by opening
+  DalyHub. This is a deliberate ASSET-02 exclusion, not an oversight — but it is
+  the single biggest gap between "tracked" and "reminded".
+- **The obligation-state collection filter is applied over the loaded page**, not
+  in the Asset list SQL. The state is derived (it depends on the owner-calendar day
+  and the current meter reading), so pushing it into the collection query would
+  mean duplicating the evaluator in SQL and letting the two drift. The page is
+  bounded, so this is cheap and always agrees with the record — but it means the
+  filter narrows a page rather than the whole collection.
+- **Linked-Task open-state on the obligations tab is resolved for at most 50 Tasks
+  per record load.** Beyond that the remainder read as "not open", which is
+  conservative (it shows the obligation rather than hiding it) but not exact.
+- **Correcting a canonical fact is a Details-tab edit, not a history edit.** The
+  forward-only projection is deliberate; the consequence needs teaching, and Help
+  now does.
+- Mobile completion — phone-first capture of a NEW asset and the type/subtype
+  picker at narrow widths — remains
+  [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile). ASSET-02 was its stated
+  prerequisite, and the history surface it was waiting for now exists.
 
-**Deferred work.** ASSET-02's scope is service/maintenance history, warranty and renewal tracking over time, value changes, and surfacing the existing due/expiry seam. **Explicitly outside ASSET-02** and retained as future debt under [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3): OCR, barcode/QR scanning, receipt or email ingestion, financial depreciation/tax workflows, insurance-claims workflows, external subscription sync, and real file attachments with R2 object storage.
-
-**Relevant roadmap items.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ · [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) ☐ · [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) ☐.
-
-**Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) · [DEBT-30](../product/PRODUCT_DEBT.md#-debt-30--shared-entitylink-renders-no-entity-icon-so-related-record-identity-drifts--p2--resolved-2026-07-28) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28).
+**Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) ·
+[DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2) · [DEBT-58](../product/PRODUCT_DEBT.md#-debt-58--the-assets-obligation-state-filter-narrows-a-page-not-the-collection--p3) · [DEBT-59](../product/PRODUCT_DEBT.md#-debt-59--linked-task-open-state-on-the-asset-obligations-tab-is-resolved-for-at-most-50-tasks--p3).
 
 ---
 

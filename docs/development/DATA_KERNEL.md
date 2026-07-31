@@ -505,6 +505,40 @@ The underlying SQLite file lives under `.wrangler/state/v3/d1` if you prefer a
 SQLite browser. It is local scratch state and safe to delete (a re-`migrate`
 recreates the schema).
 
+## Asset history and obligations (ASSET-02, migration `0025`)
+
+Two domain tables, added additively, both keyed by `(workspace_id, id)` with a
+composite FK to `entities(workspace_id, id, type)` (`ON DELETE RESTRICT`) — the
+same discipline every other domain slice follows.
+
+- **`asset_events`** — what happened to an Asset. ONE table for fourteen
+  categories; each row fills only the columns that apply. `cost_minor` and
+  `value_minor` are separate INTEGER columns (a cost and a valuation are different
+  quantities and must never be summed), and a CHECK refuses an amount with no
+  currency. A meter reading and its unit are constrained to travel together.
+  Indexes serve the newest-first timeline read, the category facet and cost
+  aggregation, meter resolution, and the reverse lookups from an obligation, Task,
+  Note and Person.
+- **`asset_obligations`** — what an Asset is due. The stored `status` is the
+  owner-controlled lifecycle ONLY (`open`/`completed`/`dismissed`/`on_hold`);
+  `upcoming`/`due`/`overdue` are DERIVED at read time and deliberately not stored,
+  because a stored urgency flag goes stale with the clock. `UNIQUE (workspace_id,
+  series_id, sequence)` is what makes recurrence-successor creation idempotent
+  under retry and concurrency — the same shape `task_recurrence_rules` uses.
+- **Three additive columns on `asset_details`** carry the Asset's CURRENT meter
+  reading. All three are null together when no reading exists, which is a
+  first-class state rather than a zero.
+
+The load-bearing rule: an event may ASSERT a canonical Asset fact, and the
+repository applies it **forward-only, guarded in SQL, in the same batch as the
+event insert**. Nothing is reconstructed by replaying events —
+[ADR-063](../decisions/ARCHITECTURE_DECISIONS.md#adr-063-asset-ownership-history--canonical-facts-recorded-events-and-future-obligations-as-three-separate-things) is explicit that this is not event sourcing.
+
+Migration `0025` is purely additive: three `ALTER TABLE … ADD COLUMN` on an
+existing table plus two `CREATE TABLE`s and their indexes. No backfill, no data
+rewrite, and no change to any existing column — an already-deployed application
+continues to run against the migrated schema untouched.
+
 ## Adding a future migration
 
 1. Create the next file in `migrations/` with a zero-padded, incrementing

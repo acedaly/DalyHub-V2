@@ -780,3 +780,36 @@ adding `owner_app_preferences.default_task_destination` with a `NOT NULL DEFAULT
 The **initial bundle is byte-identical**. Everything TASKS-04 adds lands in the
 lazily-loaded `/tasks` and `/tasks/review` route chunks, the shared task-record chunk
 and token-only CSS. Nothing was added to the app shell.
+
+---
+
+## Tasks and Asset obligations (ASSET-02)
+
+An Asset obligation — "renew the registration", "service every 10,000 km" — can
+carry a **linked Task**, so asset upkeep appears in Tasks and on Today alongside
+everything else the owner has committed to. The authority split is deliberate and
+documented in [ADR-063](../decisions/ARCHITECTURE_DECISIONS.md#adr-063-asset-ownership-history--canonical-facts-recorded-events-and-future-obligations-as-three-separate-things) §8.
+
+| Field | Authoritative record |
+| --- | --- |
+| Due date, recurrence, meter threshold, maintenance meaning | **Asset Obligation** |
+| Whether the work is on the owner's plate today | **Task** |
+| Proof that the work happened | **Asset Event** |
+
+What this means for anyone working on Tasks:
+
+- **Completing a Task never completes an obligation.** Ticking off "book the
+  service" is not proof the car was serviced. The Assets record surfaces "record
+  what actually happened" instead. Do NOT add an inference in the other direction.
+- **Assets never writes a Task directly.** Completion and rescheduling route
+  through the canonical `TaskRepository` via a narrow `ObligationTaskGateway`
+  injected at the composition root, so Task recurrence, project rollup and Task
+  Activity all still happen exactly once, in the place that owns them.
+- **A Task created from an obligation is an ordinary Task** — same repository, same
+  spine, same Activity, same EntityLink (`asset.linked_task`) to the Asset. It has
+  no special type, flag or table.
+- **Deleting the Task is safe.** The obligation survives and clears its pointer on
+  reconciliation, so the owner can create a fresh one.
+- **Today shows it once.** An obligation with an open linked Task is represented by
+  its Task in My day and suppressed from the Assets section — see
+  [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md#assets-on-today-asset-02).

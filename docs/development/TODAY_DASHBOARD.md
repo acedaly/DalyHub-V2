@@ -547,6 +547,39 @@ layer (ADR-045) and preserves the TODAY-02…06 execution core bit-for-bit.
   structure, the collapse/hide/remember personalisation journey), plus the unchanged
   keyboard/mobile/accessibility/responsive suites.
 
+## Assets on Today (ASSET-02)
+
+Today gains one more widget: **Assets** — the maintenance and renewals that need
+the owner now.
+
+- **Bounded, and one query.** `AssetHistoryRepository.listAttention` returns open
+  obligations within a 30-day horizon, capped, with the Asset context and current
+  meter reading needed to evaluate them. Today never issues N reads for N assets,
+  and never loads an Asset's history.
+- **One evaluator, shared.** The urgency is resolved by the kernel's
+  `evaluateObligation`, the same function the Asset record and the collection card
+  call. Today does not re-derive it, so the three surfaces cannot disagree about
+  whether the rego is overdue.
+- **The module boundary holds.** Today imports the projection and the deduplication
+  rule from `~/kernel/assets`, never from `~/modules/assets`. That is why the rule
+  lives in `app/kernel/assets/asset-today.ts` rather than in the Assets module's
+  view-model.
+- **The deduplication rule: an OPEN linked Task wins.** An obligation whose Task is
+  still open is already in My day, so the obligation row is suppressed and the
+  count is STATED ("2 more are tracked as tasks in My day") rather than silently
+  dropped. When that Task is completed, cancelled or deleted, the obligation
+  reappears — which is exactly the "now record what actually happened" moment the
+  Task authority contract describes.
+- **Calm, and word-bearing.** At most five rows, ordered overdue → due → reading
+  needed, each stating its urgency as a WORD beside the sentence. Archived and
+  deleted Assets never appear.
+- **Nothing fake was restored.** The removed weather and calendar panels stay
+  removed ([DEBT-53](../product/PRODUCT_DEBT.md)).
+
+Full detail: [`ASSETS_MODULE.md` §2e](ASSETS_MODULE.md#2e-today-and-the-deduplication-rule).
+
+---
+
 ## Deliberately NOT built
 
 TODAY-02 adds the **smallest honest** task slice: it does NOT build the full Tasks
