@@ -25,7 +25,9 @@ export interface TextFieldProps extends BaseControlProps<string> {
   /** Browser autocomplete token (e.g. "name", "email", "off"). */
   readonly autoComplete?: string;
   /** Input mode hint for on-screen keyboards (single-line only). */
-  readonly inputMode?: "text" | "email" | "url" | "tel" | "numeric" | "search";
+  /** `decimal` gives a money field the decimal-point keypad on a phone. */
+  readonly inputMode?:
+    "text" | "email" | "url" | "tel" | "numeric" | "decimal" | "search";
   /** Input type for single-line variants (defaults to "text"). */
   readonly type?: "text" | "email" | "url" | "tel" | "search";
 }

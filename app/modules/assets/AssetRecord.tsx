@@ -1,14 +1,18 @@
 /**
- * ASSET-01 — the canonical Asset record, composed through the shared DS-02 Record
- * Layout.
+ * ASSET-01/ASSET-02 — the canonical Asset record, composed through the shared DS-02
+ * Record Layout.
  *
  * Presentation + client-side mutation plumbing only: the header (type identity,
- * status, Rename, archive state) and the tabs (Summary / Details / Dates / Linked /
- * Activity / Settings). Data loading lives in the route; this component renders it
- * and posts lifecycle intents (`archive` / `restore` / `delete`) to
- * `/asset/:id/mutate`, revalidating on success. The Details form owns its own save.
- * Empty-looking tabs stay calm (the Dates tab shows a gentle line rather than a wall
- * of empty rows); no tab is hidden, but none is noisy.
+ * status, Rename, archive state) and the tabs — Overview / Obligations / History /
+ * Details / Linked / Activity / Settings. Data loading lives in the route; this
+ * component renders it and posts lifecycle intents (`archive` / `restore` /
+ * `delete`) to `/asset/:id/mutate`, revalidating on success. The Details form owns
+ * its own save; the history and obligation forms own theirs.
+ *
+ * ASSET-02 folded the old standalone "Dates" tab INTO Overview, behind an "All
+ * dates" disclosure. Seven tabs is already the ceiling on a phone, and the dates
+ * are context for the overview rather than a destination of their own — obligations
+ * are now where a future date actually lives.
  */
 
 import { useCallback, useState } from "react";
@@ -27,11 +31,20 @@ import {
   useRecordLifecycle,
 } from "~/shared/record-lifecycle";
 
-import { AssetDatesTab } from "./AssetDatesTab";
 import { AssetDetailsForm, type RecordOption } from "./AssetDetailsForm";
+import { AssetHistoryTab, type QuickEventAction } from "./AssetHistoryTab";
+import { AssetObligationsTab } from "./AssetObligationsTab";
+import {
+  AssetOverview,
+  type AssetOverviewData,
+  type AssetSummaryContext,
+} from "./AssetOverview";
 import { AssetSettingsTab } from "./AssetSettingsTab";
-import { AssetSummary, type AssetSummaryContext } from "./AssetSummary";
 import { AssetTimelineTab } from "./AssetTimelineTab";
+import type {
+  SerializedAssetEvent,
+  SerializedAssetObligation,
+} from "./asset-history-view";
 import { assetStatusTone, type SerializedAsset } from "./asset-view";
 import type { AssetMutationResult } from "./routes/mutate";
 
@@ -42,9 +55,22 @@ interface AssetRecordProps {
   readonly areas: readonly RecordOption[];
   readonly today: string;
   readonly activeTabId: string;
+  /** ASSET-02 — the history + obligations payload the loader derived. */
+  readonly overview: AssetOverviewData;
+  readonly obligations: readonly SerializedAssetObligation[];
+  readonly events: readonly SerializedAssetEvent[];
+  readonly eventsCursor: string | null;
+  readonly eventsHasMore: boolean;
   readonly onTabChange: (tabId: string) => void;
   readonly onRename: () => void;
   readonly onSaved: () => void;
+  readonly onQuickEvent: (action: QuickEventAction) => void;
+  readonly onEditEvent: (event: SerializedAssetEvent) => void;
+  readonly onAddObligation: () => void;
+  readonly onEditObligation: (obligation: SerializedAssetObligation) => void;
+  readonly onCompleteObligation: (
+    obligation: SerializedAssetObligation,
+  ) => void;
 }
 
 const TONE_TO_RECORD: Record<
@@ -65,9 +91,19 @@ export function AssetRecord({
   areas,
   today,
   activeTabId,
+  overview,
+  obligations,
+  events,
+  eventsCursor,
+  eventsHasMore,
   onTabChange,
   onRename,
   onSaved,
+  onQuickEvent,
+  onEditEvent,
+  onAddObligation,
+  onEditObligation,
+  onCompleteObligation,
 }: AssetRecordProps) {
   const feedback = useFeedback();
   const navigate = useNavigate();
@@ -199,13 +235,48 @@ export function AssetRecord({
         tabs={[
           {
             id: "summary",
-            label: "Summary",
+            label: "Overview",
             content: (
-              <AssetSummary
+              <AssetOverview
                 asset={asset}
                 names={names}
+                data={overview}
                 today={today}
                 onEditDetails={() => onTabChange("details")}
+                onOpenObligations={() => onTabChange("obligations")}
+                onOpenHistory={() => onTabChange("history")}
+              />
+            ),
+          },
+          {
+            id: "obligations",
+            label: obligationTabLabel(obligations),
+            content: (
+              <AssetObligationsTab
+                assetId={asset.id}
+                obligations={obligations}
+                readOnly={asset.archived}
+                onAdd={onAddObligation}
+                onEdit={onEditObligation}
+                onComplete={onCompleteObligation}
+                onChanged={onSaved}
+              />
+            ),
+          },
+          {
+            id: "history",
+            label: "History",
+            content: (
+              <AssetHistoryTab
+                assetId={asset.id}
+                initialEvents={events}
+                initialCursor={eventsCursor}
+                initialHasMore={eventsHasMore}
+                readOnly={asset.archived}
+                reloadKey={asset.updatedAt}
+                onQuickAction={onQuickEvent}
+                onEditEvent={onEditEvent}
+                onChanged={onSaved}
               />
             ),
           },
@@ -220,11 +291,6 @@ export function AssetRecord({
                 onSaved={onSaved}
               />
             ),
-          },
-          {
-            id: "dates",
-            label: "Dates",
-            content: <AssetDatesTab asset={asset} today={today} />,
           },
           {
             id: "linked",
@@ -270,4 +336,18 @@ export function AssetRecord({
       {lifecycle.dialogs}
     </>
   );
+}
+
+/**
+ * The Obligations tab label carries its own overdue count, so the signal survives
+ * on a phone where the tab strip may be the only thing visible — and it is a NUMBER
+ * in text, never a coloured dot (§24).
+ */
+function obligationTabLabel(
+  obligations: readonly SerializedAssetObligation[],
+): string {
+  const overdue = obligations.filter(
+    (o) => o.status === "open" && o.state === "overdue",
+  ).length;
+  return overdue > 0 ? `Obligations (${overdue} overdue)` : "Obligations";
 }

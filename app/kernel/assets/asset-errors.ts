@@ -62,7 +62,38 @@ export type AssetValidationField =
   | "cursor"
   | "query"
   | "view"
-  | "sort";
+  | "sort"
+  /* ASSET-02 — Asset Event and Asset Obligation fields. Kept in the ONE field
+   * union so a form error routes to its control through the same mechanism,
+   * whether it came from the Details form or an event/obligation form. */
+  | "eventId"
+  | "obligationId"
+  | "category"
+  | "eventDate"
+  | "completedAt"
+  | "completedOn"
+  | "provider"
+  | "personId"
+  | "cost"
+  | "value"
+  | "meterValue"
+  | "meterUnit"
+  | "meterThreshold"
+  | "meterInterval"
+  | "nextDueDate"
+  | "taskId"
+  | "noteId"
+  | "dueDate"
+  | "leadDays"
+  | "recurrenceKind"
+  | "recurrenceInterval";
+
+/**
+ * The subset of `AssetValidationField` an Asset Event or Obligation can report.
+ * A distinct name (rather than a distinct union) so history validation reads
+ * clearly at the call site while still flowing through one error family.
+ */
+export type AssetHistoryValidationField = AssetValidationField;
 
 /** Invalid input that crossed the Asset boundary. No data is written. */
 export class AssetValidationError extends AssetError {

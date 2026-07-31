@@ -1495,3 +1495,28 @@
     order: 99;
   }
 }
+
+/* ASSET-02 — the Assets widget's state word. Colour is a reinforcement; the
+   label text ("Overdue", "Due soon", "Reading needed") carries the meaning, so
+   nothing is lost in greyscale or to a colour-blind reader (§24). */
+.dh-today-signal {
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-today-signal--overdue {
+  color: var(--dh-color-state-overdue-text);
+}
+
+.dh-today-signal--due {
+  color: var(--dh-color-state-due-soon-text);
+}
+
+.dh-today-signal--unknown {
+  color: var(--dh-color-info-text);
+}
+
+.dh-today-list__note {
+  margin: var(--dh-space-2) 0 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}

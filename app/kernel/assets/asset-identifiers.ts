@@ -55,6 +55,43 @@ export const ASSET_RESTORED = "asset.restored";
 /** Activity event appended when an Asset is marked disposed (status → disposed). */
 export const ASSET_DISPOSED = "asset.disposed";
 
+/* -- ASSET-02: history and obligation Activity ----------------------------- */
+/*
+ * These record the OWNERSHIP events an owner would want an audit trail of — work
+ * recorded, commitments made, rescheduled, met or set aside. Deliberately absent:
+ * anything a draft form does. Opening an event form, typing in it and abandoning
+ * it appends nothing; only a committed change reaches the stream (§19).
+ *
+ * Payloads carry only structural terms — the category token, the derived state,
+ * whether a successor was created. Never a cost, a provider name, a serial number
+ * or a private note (§17), exactly as ASSET-01 established.
+ */
+
+/** Activity event appended when a history entry is recorded against an Asset. */
+export const ASSET_EVENT_CREATED = "asset.event_created";
+/** Activity event appended when a recorded history entry is edited. */
+export const ASSET_EVENT_UPDATED = "asset.event_updated";
+/** Activity event appended when a history entry is archived (reversible). */
+export const ASSET_EVENT_ARCHIVED = "asset.event_archived";
+/** Activity event appended when an archived history entry is restored. */
+export const ASSET_EVENT_RESTORED = "asset.event_restored";
+/** Activity event appended when a history entry is deleted. */
+export const ASSET_EVENT_DELETED = "asset.event_deleted";
+/** Activity event appended when a maintenance or renewal obligation is created. */
+export const ASSET_OBLIGATION_CREATED = "asset.obligation_created";
+/** Activity event appended when an obligation's due date or rule is changed. */
+export const ASSET_OBLIGATION_RESCHEDULED = "asset.obligation_rescheduled";
+/** Activity event appended when an obligation is completed. */
+export const ASSET_OBLIGATION_COMPLETED = "asset.obligation_completed";
+/** Activity event appended when an obligation is dismissed or put on hold. */
+export const ASSET_OBLIGATION_DISMISSED = "asset.obligation_dismissed";
+/** Activity event appended when an obligation is reopened from hold/dismissal. */
+export const ASSET_OBLIGATION_REOPENED = "asset.obligation_reopened";
+/** Activity event appended when a Task is linked to an obligation. */
+export const ASSET_TASK_LINKED = "asset.task_linked";
+/** Activity event appended when the Asset's current meter reading advances. */
+export const ASSET_METER_UPDATED = "asset.meter_updated";
+
 /** Every Asset-owned Activity event type, in a stable order. */
 export const ASSET_ACTIVITY_TYPES = [
   ASSET_CREATED,
@@ -63,6 +100,18 @@ export const ASSET_ACTIVITY_TYPES = [
   ASSET_ARCHIVED,
   ASSET_RESTORED,
   ASSET_DISPOSED,
+  ASSET_EVENT_CREATED,
+  ASSET_EVENT_UPDATED,
+  ASSET_EVENT_ARCHIVED,
+  ASSET_EVENT_RESTORED,
+  ASSET_EVENT_DELETED,
+  ASSET_OBLIGATION_CREATED,
+  ASSET_OBLIGATION_RESCHEDULED,
+  ASSET_OBLIGATION_COMPLETED,
+  ASSET_OBLIGATION_DISMISSED,
+  ASSET_OBLIGATION_REOPENED,
+  ASSET_TASK_LINKED,
+  ASSET_METER_UPDATED,
 ] as const;
 
 /* -------------------------------------------------------------------------- */

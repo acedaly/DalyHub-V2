@@ -135,6 +135,7 @@ function emptyLanding(
     areas: [],
     goals: { goals: [] },
     insights: { signals: deriveInsights(input) },
+    assets: { items: [], trackedAsTasksCount: 0, overdueCount: 0 },
   };
 }
 

@@ -338,3 +338,397 @@
     font-size: var(--dh-font-size-md);
   }
 }
+
+/* ==========================================================================
+   ASSET-02 — history, obligations, meters, costs and value history.
+
+   Every state colour resolves through the SHARED semantic state tokens
+   (`--dh-color-state-overdue-*`, `--dh-color-state-due-soon-*`, …), which each of
+   the five themes already defines — so nothing here needs a per-theme override,
+   and nothing here is the sole carrier of meaning: every state also renders its
+   word ("Overdue", "Due soon", "Reading needed") in the markup.
+   ========================================================================== */
+
+.dh-asset-badge--info {
+  background: var(--dh-color-info-surface);
+  color: var(--dh-color-info-text);
+}
+
+/* -- Progressive disclosure ------------------------------------------------ */
+
+.dh-asset-disclosure {
+  margin-block-start: var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-card);
+}
+
+.dh-asset-disclosure > summary {
+  padding: var(--dh-space-3);
+  /* A comfortable, coarse-pointer-sized target for the disclosure toggle. */
+  min-height: var(--dh-control-height-lg);
+  display: flex;
+  align-items: center;
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+  cursor: pointer;
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-asset-disclosure > summary:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dh-asset-disclosure__body {
+  padding: 0 var(--dh-space-3) var(--dh-space-3);
+}
+
+/* -- The overview's "next obligation" line -------------------------------- */
+
+.dh-asset-next {
+  margin-block-start: var(--dh-space-3);
+  padding: var(--dh-space-3);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-asset-next__line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-next__title {
+  font-weight: var(--dh-font-weight-semibold);
+  /* Long registration and serial values must wrap, never widen the page. */
+  overflow-wrap: anywhere;
+}
+
+.dh-asset-next__text,
+.dh-asset-next__meta {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-asset-next__meta {
+  margin: var(--dh-space-2) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-summary__tasks {
+  margin-block-start: var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+/* -- Obligations ----------------------------------------------------------- */
+
+.dh-asset-obligations__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  margin-block-end: var(--dh-space-4);
+}
+
+.dh-asset-obligations__filter,
+.dh-asset-history__filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-obligations__filter select,
+.dh-asset-history__filter select {
+  min-height: var(--dh-control-height-lg);
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  /* Never wider than its column at 320px. */
+  max-width: 100%;
+}
+
+.dh-asset-obligations__filter select:focus-visible,
+.dh-asset-history__filter select:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.dh-asset-obligations__group {
+  margin-block-end: var(--dh-space-5);
+}
+
+.dh-asset-obligations__heading {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-obligations__count {
+  font-weight: var(--dh-font-weight-regular);
+}
+
+.dh-asset-obligations__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-obligation {
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-card);
+  /* Stacks on a phone; side-by-side once there is room for both. */
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+@media (min-width: 40rem) {
+  .dh-asset-obligation {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.dh-asset-obligation__main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dh-asset-obligation__title {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-obligation__name {
+  font-weight: var(--dh-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.dh-asset-obligation__meta,
+.dh-asset-obligation__description,
+.dh-asset-obligation__task {
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-asset-obligation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  /* Thumb-sized targets on a phone, where these are the primary controls. */
+  align-items: center;
+}
+
+.dh-asset-obligations__clear {
+  color: var(--dh-color-text-muted);
+}
+
+/* -- History --------------------------------------------------------------- */
+
+.dh-asset-history__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin-block-end: var(--dh-space-3);
+}
+
+.dh-asset-history__bar {
+  margin-block-end: var(--dh-space-4);
+}
+
+.dh-asset-history__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-history__item {
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-card);
+}
+
+.dh-asset-history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-history__category {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-asset-history__title {
+  margin: var(--dh-space-1) 0 0;
+  font-weight: var(--dh-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.dh-asset-history__facts,
+.dh-asset-history__description,
+.dh-asset-history__links {
+  margin: var(--dh-space-1) 0 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-asset-history__item-actions {
+  margin: var(--dh-space-2) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-history__more {
+  margin-block-start: var(--dh-space-3);
+  text-align: center;
+}
+
+/* -- Recorded costs -------------------------------------------------------- */
+
+.dh-asset-costs {
+  margin: 0;
+}
+
+.dh-asset-costs__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--dh-space-3);
+  padding-block: var(--dh-space-1);
+}
+
+.dh-asset-costs__row dt,
+.dh-asset-costs__row dd {
+  margin: 0;
+}
+
+.dh-asset-costs__row dd {
+  /* Amounts align and never wrap mid-number. */
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dh-asset-costs__row--total {
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--dh-color-border-subtle);
+  margin-block-start: var(--dh-space-1);
+  padding-block-start: var(--dh-space-2);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-asset-costs__caveat,
+.dh-asset-costs__mixed {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- Value history --------------------------------------------------------- */
+
+.dh-asset-values__current {
+  margin: 0 0 var(--dh-space-2);
+}
+
+.dh-asset-values__current-label {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-values__current-amount {
+  font-weight: var(--dh-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-asset-values__summary,
+.dh-asset-values__empty {
+  margin: 0 0 var(--dh-space-3);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-values__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-asset-values__point {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--dh-space-1) var(--dh-space-3);
+}
+
+.dh-asset-values__date,
+.dh-asset-values__source {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-asset-values__amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dh-asset-values__source {
+  grid-column: 1 / -1;
+}
+
+.dh-asset-values__bar {
+  grid-column: 1 / -1;
+  display: block;
+  height: 0.375rem;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-surface-sunken);
+  overflow: hidden;
+}
+
+.dh-asset-values__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--dh-color-accent);
+}
+
+.dh-asset-complete__intro {
+  margin: 0 0 var(--dh-space-4);
+  color: var(--dh-color-text-muted);
+}

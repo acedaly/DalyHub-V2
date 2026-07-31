@@ -10,6 +10,13 @@
  * module's internals (the module import boundary holds).
  */
 
+import {
+  DEFAULT_ATTENTION_HORIZON_DAYS,
+  dedupeAttention,
+  evaluateObligation,
+  type AssetsTodayData,
+  type AttentionInput,
+} from "~/kernel/assets";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import {
   composeGoalAlignmentFacts,
@@ -40,6 +47,11 @@ const DIARY_RECENT_SHOWN = 4;
 const AREAS_SHOWN = 6;
 const GOALS_LIMIT = 8;
 const GOALS_SHOWN = 6;
+/**
+ * ASSET-02 — how far ahead Today looks for asset obligations. A renewal 30 days
+ * out is worth knowing about; one 300 days out is not today's business (§8).
+ */
+const ASSETS_HORIZON_DAYS = DEFAULT_ATTENTION_HORIZON_DAYS;
 
 /** Operational facts already computed by the main loader from the planning read. */
 export interface TodayLandingFacts {
@@ -250,6 +262,47 @@ async function loadGoals(
 }
 
 /**
+ * ASSET-02 — the Assets section: maintenance and renewals that need attention.
+ *
+ * ONE bounded, workspace-scoped repository read (never N reads for N assets), then
+ * the SHARED kernel evaluator and the SHARED deduplication rule. Today never
+ * re-derives obligation state and never imports the Assets module's internals — so
+ * it can never disagree with the Asset record about whether the rego is overdue.
+ */
+async function loadAssets(
+  scope: WorkspaceScope,
+  todayIso: string,
+): Promise<AssetsTodayData> {
+  try {
+    const attention = await scope.assetHistory.listAttention({
+      today: todayIso,
+      horizonDays: ASSETS_HORIZON_DAYS,
+    });
+    const inputs: AttentionInput[] = attention.map((item) => {
+      const evaluation = evaluateObligation(
+        item.obligation,
+        todayIso,
+        item.reading,
+      );
+      return {
+        obligationId: item.obligation.id,
+        assetId: item.assetId,
+        assetTitle: item.assetTitle,
+        assetType: item.assetType,
+        title: item.obligation.title,
+        category: item.obligation.category,
+        state: evaluation.state,
+        text: evaluation.text,
+        hasOpenTask: item.hasOpenTask,
+      };
+    });
+    return dedupeAttention(inputs);
+  } catch {
+    return { items: [], trackedAsTasksCount: 0, overdueCount: 0 };
+  }
+}
+
+/**
  * Load the whole landing payload. Each section degrades independently, so one
  * module's read failing never blanks the others; the Morning Brief and Insights are
  * computed from the facts the caller already read + the derived section results.
@@ -258,11 +311,12 @@ export async function loadTodayLanding(
   scope: WorkspaceScope,
   facts: TodayLandingFacts,
 ): Promise<TodayLandingData> {
-  const [notes, diary, areas, goals] = await Promise.all([
+  const [notes, diary, areas, goals, assets] = await Promise.all([
     loadNotes(scope, facts.todayIso, facts.timezone),
     loadDiary(scope, facts.todayIso, facts.timezone),
     loadAreas(scope),
     loadGoals(scope, facts.now),
+    loadAssets(scope, facts.todayIso),
   ]);
 
   const areasNeedingReviewCount = areas.filter(
@@ -299,5 +353,6 @@ export async function loadTodayLanding(
     areas,
     goals: { goals },
     insights: { signals: deriveInsights(insightsInput) },
+    assets,
   };
 }

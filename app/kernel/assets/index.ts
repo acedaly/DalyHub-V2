@@ -29,6 +29,18 @@ export {
   ASSET_LINKED_PERSON,
   ASSET_LINKED_ASSET,
   ASSET_LINK_TYPES,
+  ASSET_EVENT_CREATED,
+  ASSET_EVENT_UPDATED,
+  ASSET_EVENT_ARCHIVED,
+  ASSET_EVENT_RESTORED,
+  ASSET_EVENT_DELETED,
+  ASSET_OBLIGATION_CREATED,
+  ASSET_OBLIGATION_RESCHEDULED,
+  ASSET_OBLIGATION_COMPLETED,
+  ASSET_OBLIGATION_DISMISSED,
+  ASSET_OBLIGATION_REOPENED,
+  ASSET_TASK_LINKED,
+  ASSET_METER_UPDATED,
 } from "./asset-identifiers";
 
 export {
@@ -67,6 +79,7 @@ export {
   InvalidAssetCursorError,
   type AssetErrorCode,
   type AssetValidationField,
+  type AssetHistoryValidationField,
 } from "./asset-errors";
 
 export {
@@ -113,3 +126,155 @@ export {
 } from "./asset-cursor";
 
 export type { AssetRepository } from "./asset-repository";
+
+/* -------------------------------------------------------------------------- */
+/* ASSET-02 — history, obligations and meters                                 */
+/* -------------------------------------------------------------------------- */
+
+export {
+  ASSET_METER_UNITS,
+  ASSET_METER_UNIT_OPTIONS,
+  MAX_METER_VALUE,
+  isAssetMeterUnit,
+  meterUnitShort,
+  meterUnitLabel,
+  formatMeterReading,
+  validateMeterUnit,
+  validateMeterValue,
+  evaluateMeterThreshold,
+  nextMeterThreshold,
+  type AssetMeterUnit,
+  type MeterReading,
+  type MeterCommitment,
+  type MeterThresholdState,
+  type MeterThresholdEvaluation,
+} from "./asset-meter";
+
+export {
+  ASSET_EVENT_CATEGORIES,
+  ASSET_EVENT_CATEGORY_OPTIONS,
+  ASSET_COST_GROUPS,
+  ASSET_COST_GROUP_LABELS,
+  DEFAULT_ASSET_EVENTS_PAGE_SIZE,
+  MAX_ASSET_EVENTS_PAGE_SIZE,
+  assetEventCategoryLabel,
+  isAssetEventCategory,
+  costGroupForCategory,
+  canonicalFactForEventCategory,
+  SERVICE_EVENT_CATEGORIES,
+  type AssetEvent,
+  type AssetEventCategory,
+  type AssetCostGroup,
+  type AssetCostSummary,
+  type AssetValuationPoint,
+  type AssetEventInput,
+  type CreateAssetEventInput,
+  type UpdateAssetEventInput,
+  type AssetEventChangeResult,
+  type AssetEventFilters,
+  type ListAssetEventsInput,
+  type AssetEventPage,
+} from "./asset-event";
+
+export {
+  ASSET_OBLIGATION_CATEGORIES,
+  ASSET_OBLIGATION_CATEGORY_OPTIONS,
+  ASSET_OBLIGATION_STATUSES,
+  ASSET_RECURRENCE_KINDS,
+  ASSET_RECURRENCE_OPTIONS,
+  MAX_RECURRENCE_INTERVAL,
+  DEFAULT_ASSET_OBLIGATIONS_PAGE_SIZE,
+  MAX_ASSET_OBLIGATIONS_PAGE_SIZE,
+  DEFAULT_ATTENTION_HORIZON_DAYS,
+  MAX_ATTENTION_ITEMS,
+  assetObligationCategoryLabel,
+  isAssetObligationCategory,
+  isAssetObligationStatus,
+  isAssetRecurrenceKind,
+  canonicalFactForCategory,
+  completionEventCategory,
+  describeRecurrence,
+  evaluateObligation,
+  nextObligationDate,
+  isIsoDate,
+  addDays,
+  addMonths,
+  daysBetween,
+  type AssetObligation,
+  type AssetObligationCategory,
+  type AssetObligationStatus,
+  type AssetObligationState,
+  type AssetObligationEvaluation,
+  type AssetRecurrenceKind,
+  type AssetObligationInput,
+  type CreateAssetObligationInput,
+  type UpdateAssetObligationInput,
+  type AssetObligationChangeResult,
+  type CompleteAssetObligationInput,
+  type CompleteAssetObligationResult,
+  type AssetTaskOutcome,
+  type AssetEventRef,
+  type AssetObligationFilters,
+  type ListAssetObligationsInput,
+  type AssetObligationPage,
+  type AssetAttentionInput,
+  type AssetAttentionItem,
+} from "./asset-obligation";
+
+export {
+  EVENT_TITLE_MAX_LENGTH,
+  EVENT_DESCRIPTION_MAX_LENGTH,
+  PROVIDER_MAX_LENGTH,
+  OBLIGATION_TITLE_MAX_LENGTH,
+  OBLIGATION_DESCRIPTION_MAX_LENGTH,
+  MAX_LEAD_DAYS,
+  DEFAULT_LEAD_DAYS,
+  validateAssetEvent,
+  validateAssetObligation,
+  validateObligationCompletion,
+  validateEventCategory,
+  validateObligationCategory,
+  validateObligationStatus,
+  validateRecurrenceKind,
+  validateEventDate,
+  validateOptionalHistoryDate,
+  validateEventsLimit,
+  validateObligationsLimit,
+  validateEventFilters,
+  validateObligationFilters,
+  type ValidatedAssetEvent,
+  type ValidatedAssetObligation,
+  type ValidatedObligationCompletion,
+  type ValidationMode,
+} from "./asset-history-validation";
+
+export {
+  ASSET_HISTORY_CURSOR_VERSION,
+  historyFilterKey,
+  encodeAssetHistoryCursor,
+  decodeAssetHistoryCursor,
+  decodeAssetHistoryCursorForScope,
+  type AssetHistoryCursorKind,
+  type AssetHistoryCursorPosition,
+  type AssetHistoryCursorScope,
+  type DecodedAssetHistoryCursor,
+} from "./asset-history-cursor";
+
+export {
+  OBLIGATION_STATE_LABELS,
+  TODAY_ASSET_ROWS,
+  dedupeAttention,
+  type SerializedAttentionItem,
+  type AssetsTodayData,
+  type AttentionInput,
+} from "./asset-today";
+
+export type {
+  AssetHistoryRepository,
+  AssetObligationSummary,
+  ObligationTaskGateway,
+  LinkObligationTaskResult,
+  ObligationTaskReconciliation,
+  RecordMeterReadingInput,
+  RecordMeterReadingResult,
+} from "./asset-history-repository";

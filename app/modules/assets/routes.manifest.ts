@@ -50,6 +50,13 @@ const routes: readonly RouteContribution[] = [
     path: "asset/:assetId/activity",
     file: "routes/activity.tsx",
   },
+  // ASSET-02: the history + obligations resource route. GET returns a bounded
+  // page of the Asset's timeline; POST carries every event/obligation intent.
+  {
+    id: "assets.history",
+    path: "asset/:assetId/history",
+    file: "routes/history.tsx",
+  },
 ];
 
 export default routes;

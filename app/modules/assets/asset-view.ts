@@ -146,6 +146,10 @@ export type SerializedAsset = {
   readonly renewalDate: string | null;
   readonly url: string | null;
   readonly documentNotes: string | null;
+  /* ASSET-02 — the canonical current meter reading (never sensitive). */
+  readonly currentMeterValue: number | null;
+  readonly currentMeterUnit: string | null;
+  readonly currentMeterDate: string | null;
   readonly archived: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -227,6 +231,9 @@ export function serializeAsset(asset: Asset): SerializedAsset {
     renewalDate: asset.renewalDate,
     url: asset.url,
     documentNotes: asset.documentNotes,
+    currentMeterValue: asset.currentMeterValue,
+    currentMeterUnit: asset.currentMeterUnit,
+    currentMeterDate: asset.currentMeterDate,
     archived: asset.archivedAt !== null,
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
