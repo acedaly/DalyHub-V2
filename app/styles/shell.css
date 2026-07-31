@@ -182,14 +182,6 @@
   line-height: 0;
 }
 
-.dh-nav__icon-dot {
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
-  border-radius: var(--dh-radius-full);
-  background: currentColor;
-  opacity: 0.6;
-}
-
 .dh-nav__label {
   flex: 1;
   min-width: 0;
@@ -687,15 +679,6 @@
   display: inline-flex;
   font-size: var(--dh-font-size-lg);
   line-height: 0;
-}
-
-.dh-bottomnav__dot {
-  display: inline-block;
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
-  border-radius: var(--dh-radius-full);
-  background: currentColor;
-  opacity: 0.6;
 }
 
 /* The label is ALWAYS visible — no icon-only targets in primary navigation. It
