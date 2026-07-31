@@ -278,6 +278,9 @@ test.describe("THEME-01 every surface in every theme", () => {
   const SURFACES = [
     { path: "/today", label: "Today" },
     { path: "/tasks", label: "Tasks" },
+    // ASSET-02 — the Assets collection carries its own state language (overdue,
+    // due soon, reading needed), so it belongs in the five-theme sweep.
+    { path: "/assets", label: "Assets" },
     { path: "/settings?section=appearance", label: "Settings" },
     { path: "/help", label: "Help" },
     { path: "/about", label: "About" },

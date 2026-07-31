@@ -14,7 +14,12 @@
  * assert the servicing happened.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 import {
   cleanupAllAssetFixtures,
@@ -650,3 +655,114 @@ for (const scheme of ["light", "dark"] as const) {
     await scan();
   });
 }
+
+/* -------------------------------------------------------------------------- */
+/* All five themes                                                            */
+/* -------------------------------------------------------------------------- */
+
+/** The five curated themes, by the id the document carries. */
+const THEMES = [
+  "daly-light",
+  "daly-dark",
+  "eucalypt",
+  "coastal",
+  "ember",
+] as const;
+
+/** Store the owner's theme through the real preferences action. */
+async function storeTheme(
+  request: APIRequestContext,
+  themeId: string,
+): Promise<void> {
+  const response = await request.post("/preferences/theme", {
+    form: { theme: themeId },
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBeGreaterThanOrEqual(300);
+  expect(response.status()).toBeLessThan(400);
+}
+
+test("the obligation and history states read correctly in all five themes", async ({
+  page,
+  request,
+}) => {
+  const title = uniqueAssetTitle("themes");
+  const url = await createAsset(page, title);
+
+  // One asset carrying every state worth checking: an overdue obligation, a
+  // due-soon one, a meter obligation with no reading, and a history entry.
+  await page.goto(`${url}?tab=obligations`);
+  for (const [name, offset] of [
+    ["Overdue rego", -10],
+    ["Service due soon", 4],
+  ] as const) {
+    await page.getByRole("button", { name: "Add obligation" }).click();
+    await drawer(page)
+      .getByRole("textbox", { name: /^Title/ })
+      .fill(name);
+    await drawer(page)
+      .getByRole("textbox", { name: /^Due date/ })
+      .fill(isoInDays(offset));
+    await drawer(page).getByRole("button", { name: "Add obligation" }).click();
+  }
+  await page.getByRole("button", { name: "Add obligation" }).click();
+  await drawer(page)
+    .getByRole("textbox", { name: /^Title/ })
+    .fill("Service at 60,000 km");
+  await drawer(page)
+    .getByRole("textbox", { name: /^Due at meter reading/ })
+    .fill("60000");
+  await chooseOption(page, /^Meter unit/, "Kilometres");
+  await drawer(page).getByRole("button", { name: "Add obligation" }).click();
+
+  await page.getByRole("tab", { name: "History" }).click();
+  await page.getByRole("button", { name: "Record service" }).click();
+  await drawer(page)
+    .getByRole("textbox", { name: /^Title/ })
+    .fill("Annual service");
+  await drawer(page).getByRole("textbox", { name: /^Cost/ }).fill("489.50");
+  await drawer(page).getByRole("button", { name: "Record service" }).click();
+
+  try {
+    for (const theme of THEMES) {
+      await storeTheme(request, theme);
+
+      await page.goto(`${url}?tab=obligations`);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+      // Every state is carried by a WORD, in every theme — the assertion that
+      // proves nothing here depends on colour alone.
+      await expect(
+        page
+          .getByRole("list", { name: "Overdue obligations" })
+          .getByText("Overdue", { exact: true }),
+      ).toBeVisible();
+      const dueList = page.getByRole("list", { name: "Due soon obligations" });
+      await expect(
+        dueList.getByText("Due soon", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        dueList.getByText("Reading needed", { exact: true }),
+      ).toBeVisible();
+
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+
+      await page.getByRole("tab", { name: "History" }).click();
+      await page.waitForLoadState("networkidle");
+      await expect(
+        page.getByRole("list", { name: "Asset history" }).getByText(/489\.50/),
+      ).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+
+      await page.getByRole("tab", { name: "Overview" }).click();
+      await page.waitForLoadState("networkidle");
+      await expectNoHorizontalOverflow(page);
+      await expectNoAxeViolations(page);
+    }
+  } finally {
+    // Never leave the suite running under a theme this test chose.
+    await storeTheme(request, "system");
+  }
+});
