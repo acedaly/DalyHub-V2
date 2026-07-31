@@ -116,7 +116,11 @@ describe("quick add", () => {
     fireEvent.submit(input().closest("form")!);
 
     await waitFor(() => expect(input().value).toBe(""));
-    expect(document.activeElement).toBe(input());
+    // Awaited, not asserted immediately: the row RESTORES focus from an effect, so
+    // the cleared value lands one commit before the focus does. Reading
+    // `activeElement` off the back of the value assertion passed locally and failed
+    // in CI, which is a race in the test rather than a difference in the product.
+    await waitFor(() => expect(document.activeElement).toBe(input()));
   });
 
   it("announces a save politely", async () => {
@@ -141,8 +145,10 @@ describe("quick add", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     expect(input().value).toBe("Precious text");
     expect(screen.getByRole("alert").textContent).toContain("safe");
-    // Focus stays put so a retry needs no hunting.
-    expect(document.activeElement).toBe(input());
+    // Focus stays put so a retry needs no hunting. Awaited for the same reason as
+    // above: the alert renders in the commit that sets the error, and the focus
+    // effect runs after it.
+    await waitFor(() => expect(document.activeElement).toBe(input()));
   });
 
   it("NEVER discards entered text after a server-side rejection, and says why", async () => {
