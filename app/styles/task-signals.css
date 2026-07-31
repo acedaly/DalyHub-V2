@@ -7,6 +7,14 @@
  * reinforcement only — the label/tag always carries the meaning (AGENTS.md §15),
  * so both remain correct in forced-colours and for screen-reader users. Every
  * visual value is a DS-01 token (no raw colours/sizes).
+ *
+ * THEME-01 — priority and urgency now read DEDICATED semantic tokens
+ * (`--dh-color-priority-p1…p4`, `--dh-color-state-overdue|due-soon|…`) rather than
+ * borrowing the danger/warning/info feedback triples. They looked the same in the
+ * two original themes, but they are different CONCEPTS: a P1 task is not an error,
+ * and a warm theme needs to colour "important" differently from "destructive"
+ * without changing what an actual error looks like. Each theme now sets them
+ * independently, and the contrast test checks every one of them.
  */
 
 /* -- Priority indicator ---------------------------------------------------- */
@@ -39,29 +47,29 @@
   line-height: var(--dh-line-height-tight);
 }
 
-/* P1 · Do — the most urgent-and-important; danger triple. */
+/* P1 · Do — the most urgent-and-important. */
 .dh-priority[data-priority="p1"] {
-  color: var(--dh-color-danger-text);
-  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-priority-p1-text);
+  background: var(--dh-color-priority-p1-surface);
   border-color: transparent;
 }
-/* P2 · Defer — important, not urgent; warning triple. */
+/* P2 · Defer — important, not urgent. */
 .dh-priority[data-priority="p2"] {
-  color: var(--dh-color-warning-text);
-  background: var(--dh-color-warning-surface);
+  color: var(--dh-color-priority-p2-text);
+  background: var(--dh-color-priority-p2-surface);
   border-color: transparent;
 }
-/* P3 · Delegate — urgent, delegate; info triple. */
+/* P3 · Delegate — urgent, but not yours to do. */
 .dh-priority[data-priority="p3"] {
-  color: var(--dh-color-info-text);
-  background: var(--dh-color-info-surface);
+  color: var(--dh-color-priority-p3-text);
+  background: var(--dh-color-priority-p3-surface);
   border-color: transparent;
 }
-/* P4 · Delete / Review — neither; calm/muted. */
+/* P4 · Delete / Review — neither; calm and muted. */
 .dh-priority[data-priority="p4"] {
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface-sunken);
-  border-color: var(--dh-color-border);
+  color: var(--dh-color-priority-p4-text);
+  background: var(--dh-color-priority-p4-surface);
+  border-color: var(--dh-color-border-subtle);
 }
 /* Untriaged, rendered only when explicitly requested (e.g. the Drawer). */
 .dh-priority--none {
@@ -95,15 +103,18 @@
   line-height: var(--dh-line-height-tight);
 }
 
+/* Overdue — past its due date. Its own token, not "danger": overdue work is late,
+ * not broken, and a warm theme should be able to say that differently. */
 .dh-urgency[data-tone="danger"] {
-  color: var(--dh-color-danger-text);
-  background: var(--dh-color-danger-surface);
+  color: var(--dh-color-state-overdue-text);
+  background: var(--dh-color-state-overdue-surface);
   border-color: transparent;
   font-weight: var(--dh-font-weight-semibold);
 }
+/* Due soon — approaching, worth noticing, not yet late. */
 .dh-urgency[data-tone="warning"] {
-  color: var(--dh-color-warning-text);
-  background: var(--dh-color-warning-surface);
+  color: var(--dh-color-state-due-soon-text);
+  background: var(--dh-color-state-due-soon-surface);
   border-color: transparent;
   font-weight: var(--dh-font-weight-semibold);
 }

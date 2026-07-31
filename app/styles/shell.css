@@ -48,12 +48,14 @@
 /* Sidebar                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/* THEME-01 — navigation has its own surface token, so a theme can separate the
+ * rail from the page without every panel moving with it. */
 .dh-sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-2);
   padding: var(--dh-space-4) var(--dh-space-3);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-surface-nav);
   border-right: var(--dh-border-width-thin) solid var(--dh-color-border);
   min-width: 0;
 }
@@ -362,7 +364,7 @@
   flex: 1;
   min-height: var(--dh-control-height-md);
   padding: var(--dh-space-1) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
   border-radius: var(--dh-radius-sm);
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);
@@ -421,7 +423,7 @@
   padding-inline-start: max(var(--dh-space-2), env(safe-area-inset-left));
   padding-inline-end: max(var(--dh-space-2), env(safe-area-inset-right));
   border-bottom: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-surface-header);
   position: sticky;
   top: 0;
   z-index: var(--dh-z-sticky);
@@ -489,7 +491,7 @@
   justify-content: space-between;
   gap: var(--dh-space-3) var(--dh-space-4);
   padding: var(--dh-space-4) var(--dh-gutter);
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-header);
   border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
 }
 
@@ -578,7 +580,7 @@
   justify-content: center;
   min-inline-size: var(--dh-touch-target-min);
   min-block-size: var(--dh-touch-target-min);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
   border-radius: var(--dh-radius-sm);
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);
@@ -637,7 +639,7 @@
   inset-inline: 0;
   bottom: 0;
   z-index: var(--dh-z-sticky);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-surface-nav);
   border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
   padding-bottom: env(safe-area-inset-bottom);
   padding-inline-start: env(safe-area-inset-left);

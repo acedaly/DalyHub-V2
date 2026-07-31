@@ -42,10 +42,14 @@ Colour tokens are split by **role** so opposite theme requirements don't collide
 
 | Group | Tokens (examples) | Notes |
 |---|---|---|
-| **Colour — surfaces/text** | `bg`, `surface`, `surface-raised`, `surface-sunken`, `text`, `text-secondary`, `text-muted`, `on-accent`, `border`, `border-strong`, `divider` | semantic surfaces & text; light/dark mapped |
+| **Colour — surfaces/text** | `bg`, `surface`, `surface-raised`, `surface-sunken`, `surface-nav`, `surface-header`, `surface-card`, `text`, `text-secondary`, `text-muted`, `on-accent`, `link`, `link-hover`, `border`, `border-strong`, `border-subtle`, `control-border`, `divider` | semantic surfaces & text, mapped in every theme. `surface-nav`/`surface-header`/`surface-card` let a theme separate navigation, chrome and cards independently. `control-border` is the **3:1** boundary that identifies a form control (WCAG 1.4.11); `border-strong` stays the decorative emphasis border |
 | **Colour — brand/interactive** | `accent`, `accent-hover`, `accent-active`, `accent-text`, `accent-surface`, `secondary`, `secondary-hover`, `hover-surface`, `active-surface`, `disabled-surface`, `disabled-text`, `disabled-border` | fills vs foreground kept distinct |
 | **Colour — feedback** | `success{,-surface,-text}`, `warning{,-surface,-text}`, `danger{,-surface,-text}`, `info{,-surface,-text}` | never colour-only — always paired with a label/icon |
-| **Colour — focus/selection/overlay** | `focus-ring`, `selection-bg`, `selection-text`, `overlay` | focus ring meets 3:1 in both themes |
+| **Colour — priority** | `priority-p1{,-surface,-text}` … `priority-p4{,-surface,-text}` | P1–P4 are their OWN tokens, not the feedback triples: a P1 task is not an error |
+| **Colour — record states** | `state-overdue{,-surface,-text}`, `state-due-soon{…}`, `state-completed{…}`, `state-waiting{…}`, `state-on-hold{…}` | lifecycle, not feedback: "waiting on someone" is not a warning |
+| **Colour — progress & charts** | `progress-track`, `progress-fill`, `progress-complete`, `chart-1`…`chart-6` | track/fill hold 3:1; the six series are distinct in every theme |
+| **Colour — loading** | `skeleton-base`, `skeleton-highlight` | the shimmer pair, tuned per theme |
+| **Colour — focus/selection/overlay** | `focus-ring`, `selection-bg`, `selection-text`, `overlay` | focus ring meets 3:1 in every theme |
 | **Typography** | `--dh-font-sans/-mono`, `--dh-font-size-2xs…3xl`, `--dh-line-height-*`, `--dh-font-weight-*`, `--dh-letter-spacing-*` | one restrained, dense ramp (base 15px) with heading/body/label/metadata/code roles |
 | **Spacing** | `--dh-space-0…16` (+ `-px`) | 4px base scale |
 | **Sizing** | `--dh-control-height-sm/md/lg`, `--dh-touch-target-min` (44px), `--dh-width-narrow/prose/content/wide`, `--dh-shell-*`, `--dh-gutter` | control heights & content widths |
@@ -54,13 +58,27 @@ Colour tokens are split by **role** so opposite theme requirements don't collide
 | **Motion** | `--dh-duration-instant/fast/base/slow`, `--dh-ease-standard/emphasized/exit` | quick, purposeful; zeroed under reduced-motion |
 | **Layout** | `--dh-breakpoint-sm…2xl`, `--dh-z-base…tooltip` | breakpoints (also in TS) & z-index layers |
 
-### Theme mapping
+### Theme mapping (THEME-01)
 
-Light and dark are two maps over **the same semantic names**; only colour and elevation tokens change between them. The mechanism (from [ADR-016 §5.11](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing), whose values DS-01 now supplies) is a `data-theme` attribute the server renders on `<html>` from the persisted cookie, so the first byte is already correct — **no flash, no client theme script**:
+DalyHub ships **five curated themes**. Each is a complete map over **the same semantic names**; only colour and elevation tokens change between them, so a component styled once is correct in all five and **no component ever branches on the theme** (a test enforces this).
 
-- `light` → forces the light map.
-- `dark` → forces the dark map.
-- `system` (default) → follows `prefers-color-scheme`.
+| Theme | `data-theme` | Appearance | Character |
+|---|---|---|---|
+| **Daly Light** | `daly-light` | light | Warm off-white surfaces, restrained blue-green accent. The default and the safe fallback. |
+| **Daly Dark** | `daly-dark` | dark | Layered charcoal surfaces, softened text, desaturated status colours. A designed dark theme, not an inversion. |
+| **Eucalypt** | `eucalypt` | light | Warm stone surfaces, muted sage accent. |
+| **Coastal** | `coastal` | light | Cool neutral surfaces, sea-glass blue accent. |
+| **Ember** | `ember` | light | Warm neutral surfaces, terracotta accent; danger deliberately shifted cooler so a primary button never reads as destructive. |
+
+Every theme is **self-contained** — one palette, not a light/dark pair — so a chosen theme never changes when the OS appearance changes.
+
+`system` is an **appearance mode**, not a sixth palette: it pairs Daly Light with Daly Dark and follows `prefers-color-scheme`. Supporting the OS preference must never cost a curated theme.
+
+**Mechanism** ([ADR-016 §5.11](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing), extended by [ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner)): the server renders `data-theme` on `<html>` from the owner's **persisted preference**, so the first byte is already correct — **no flash, no client theme script, no inline bootstrapping**. `:root` carries the Daly Light map, so an unknown or missing `data-theme` degrades to a complete, readable theme rather than to unstyled colour.
+
+**Persistence**: the authority is the owner/workspace preferences record (`theme` column, migration `0023`), so a theme follows the owner between browsers. A cookie MIRRORS it purely so a document that never reaches the authenticated shell loader (a root error boundary) still gets the right first byte. Stored values are validated against the registry on read and on write; a removed theme degrades to the default. Legacy `light`/`dark` values map to Daly Light / Daly Dark.
+
+**The registry is the only theme list.** `app/kernel/preferences/theme-preference.ts` owns the ids and validation; `app/shared/shell/theme.ts` adds the owner-facing names and descriptions and re-exports the rest. Settings renders the registry, the tests iterate it. Adding a theme is a registry edit plus a CSS block — the tests fail if either is missing.
 
 `prefers-reduced-motion: reduce` collapses every transition/animation to `--dh-duration-instant`; meaning is never carried by motion alone.
 
@@ -68,7 +86,8 @@ Light and dark are two maps over **the same semantic names**; only colour and el
 
 1. **Use tokens, not literals.** Any colour/space/size/radius/shadow/duration in application CSS or components must be a `var(--dh-*)`. A test scans `app/` and fails if a `var(--dh-*)` references an undefined token.
 2. **Extend by adding a token first**, then consuming it. Never widen a component with a one-off literal.
-3. **A new colour token must be given a value in the light map and BOTH dark blocks** — the two dark blocks are kept in parity by a test, and required tokens/contrast are enforced by tests (4.5:1 text, 3:1 UI).
+3. **A new colour token must be given a value in EVERY theme block**, including both dark blocks (the explicit one and the `prefers-color-scheme` one, which a parity test keeps byte-identical). Coverage, cross-theme parity, and WCAG contrast (4.5:1 text, 3:1 UI) are enforced by `test/unit/tokens` in all five themes.
+5. **Never branch on the theme in a component.** If a component needs to know which theme is active, the missing thing is a token. The one documented exception is the theme PREVIEW swatch (`app/shared/shell/ThemePreview.tsx`), which must paint a theme it is not in and therefore sets `--dh-preview-*` inline from the colour data; a test confines those properties to that component.
 4. **Prefer a semantic token over a raw palette value.** There is no exposed raw palette; semantics are the API.
 
 ---

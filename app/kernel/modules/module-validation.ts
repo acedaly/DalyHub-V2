@@ -21,11 +21,13 @@
  */
 
 import { ModuleDefinitionError } from "./module-errors";
+import { NAV_ICON_NAMES } from "./module-capabilities";
 import type {
   CommandContribution,
   CommandShortcut,
   ExecutableCommandContribution,
   NavigationCommandContribution,
+  NavIconName,
   RouteContribution,
   SettingContribution,
   SettingEnumOption,
@@ -639,7 +641,31 @@ export function validateRouteContribution(
         moduleId,
       );
     }
-    meta = { navLabel, navGroup, navOrder, mobilePrimaryOrder };
+    // THEME-01: the navigation glyph is validated against the CLOSED set, so a
+    // typo fails composition (and the build) rather than silently falling back to
+    // the placeholder dot this capability exists to remove.
+    let navIcon: NavIconName | undefined;
+    if (rawMeta.navIcon !== undefined) {
+      if (
+        typeof rawMeta.navIcon !== "string" ||
+        !(NAV_ICON_NAMES as readonly string[]).includes(rawMeta.navIcon)
+      ) {
+        throw new ModuleDefinitionError(
+          `${field}.meta.navIcon`,
+          `must be one of: ${NAV_ICON_NAMES.join(", ")}`,
+          moduleId,
+        );
+      }
+      if (navLabel === undefined) {
+        throw new ModuleDefinitionError(
+          `${field}.meta.navIcon`,
+          "requires meta.navLabel — an icon is only meaningful on a navigable route",
+          moduleId,
+        );
+      }
+      navIcon = rawMeta.navIcon as NavIconName;
+    }
+    meta = { navLabel, navGroup, navOrder, mobilePrimaryOrder, navIcon };
   }
 
   return {

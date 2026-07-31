@@ -188,19 +188,43 @@ describe("GoalOverview", () => {
     renderGoal({
       contribution: contribution({ total: 4, completed: 1, incomplete: 3 }),
     });
-    expect(
-      screen.getByText(/25% — 1 of 4 Projects complete/),
-    ).toBeInTheDocument();
+    // THEME-01 — the same derived number is now the shared meter. The percentage
+    // reaches assistive tech through the progressbar, and the exact counts stay
+    // visible as text, so nothing depends on seeing the bar.
+    const meter = screen.getByRole("progressbar", {
+      name: "Project contribution",
+    });
+    expect(meter).toHaveAttribute("aria-valuenow", "25");
+    expect(meter).toHaveAttribute("aria-valuemin", "0");
+    expect(meter).toHaveAttribute("aria-valuemax", "100");
+    expect(meter).toHaveAttribute(
+      "aria-valuetext",
+      "25% — 1 of 4 Projects complete",
+    );
+    expect(screen.getByText("1 of 4 Projects complete")).toBeInTheDocument();
   });
 
   it("shows complete (100%) contribution progress without declaring the Goal complete", () => {
     renderGoal({
       contribution: contribution({ total: 2, completed: 2 }),
     });
-    expect(
-      screen.getByText(/100% — 2 of 2 Projects complete/),
-    ).toBeInTheDocument();
+    const meter = screen.getByRole("progressbar", {
+      name: "Project contribution",
+    });
+    expect(meter).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.getByText("2 of 2 Projects complete")).toBeInTheDocument();
+    // Full contribution is NOT the Goal being complete — the state stays Open.
     expect(screen.getAllByText("Open").length).toBeGreaterThan(0);
+  });
+
+  it("states there is nothing to measure rather than showing a 0% bar", () => {
+    // A Goal with no contributing Projects is not 0% done, so the meter is
+    // replaced by the sentence that says so.
+    renderGoal();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(
+      screen.getByText("No Projects contributing yet"),
+    ).toBeInTheDocument();
   });
 
   it("shows the empty definition-of-done state", () => {

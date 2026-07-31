@@ -8,6 +8,12 @@
  * is recognisable at a glance in the sidebar exactly as it is on a Card. It imports
  * no module route component — it consumes plain data (label, href, entityType).
  *
+ * THEME-01 — the cross-cutting modules (Today, Help, About, Settings, AI) own no
+ * entity type and used to render a generic dot here, which read as a missing glyph
+ * in permanent chrome. They now declare `meta.navIcon` and the shared `NavIcon`
+ * resolver returns a real icon for every row. The resolution rule lives in one
+ * place; this component just renders it.
+ *
  * React Router's `NavLink` sets `aria-current="page"` on the active item, so the
  * active state is conveyed SEMANTICALLY (reinforced by weight + a tint, never colour
  * alone — AGENTS.md §15). The row leaves room for a future quiet count and a future
@@ -26,9 +32,9 @@
 import { Fragment } from "react";
 import { NavLink } from "react-router";
 
-import { EntityIcon, isEntityType } from "~/shared/entity";
-
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
+
+import { NavIcon } from "./NavIcon";
 
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
@@ -69,11 +75,10 @@ export function PrimaryNavigation({
                   end
                 >
                   <span className="dh-nav__icon">
-                    {isEntityType(item.entityType) ? (
-                      <EntityIcon type={item.entityType} />
-                    ) : (
-                      <span className="dh-nav__icon-dot" aria-hidden="true" />
-                    )}
+                    <NavIcon
+                      entityType={item.entityType}
+                      navIcon={item.navIcon}
+                    />
                   </span>
                   <span className="dh-nav__label">{item.label}</span>
                 </NavLink>

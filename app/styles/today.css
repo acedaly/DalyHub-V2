@@ -703,34 +703,6 @@
   color: var(--dh-color-text-muted);
 }
 
-.dh-morning-brief__placeholders {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: var(--dh-space-3);
-}
-
-.dh-morning-brief__placeholder {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--dh-space-3);
-  background: var(--dh-color-surface-sunken);
-  border: var(--dh-border-width-thin) dashed var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-}
-
-.dh-morning-brief__placeholder-label {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-morning-brief__placeholder-note {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
-}
-
 .dh-morning-brief__capture {
   align-self: flex-start;
 }
