@@ -250,6 +250,12 @@ export function AssetEventForm({
       for (const [key, value] of Object.entries(values)) {
         body.set(key, value);
       }
+      // The meter unit is a FIELD DEFAULT (a vehicle's is km), not an assertion
+      // that a reading was taken. An empty reading clears the unit with it, so a
+      // defaulted unit can never be mistaken for half a reading (§20).
+      if (values.meterValue.trim() === "") {
+        body.set("meterUnit", "");
+      }
       let data: AssetHistoryResult;
       try {
         const response = await fetch(

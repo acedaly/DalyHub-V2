@@ -273,7 +273,6 @@ function parseTab(value: string | null): TabId {
 
 export default function AssetDetailRoute({ loaderData }: Route.ComponentProps) {
   const [drawerState, setDrawerState] = useState<DrawerState | null>(null);
-  const revalidator = useRevalidator();
 
   const renderDrawer = useCallback(
     (entry: DrawerEntry): DrawerRenderResult | null => {
@@ -284,11 +283,7 @@ export default function AssetDetailRoute({ loaderData }: Route.ComponentProps) {
         today: loaderData.today,
         people: loaderData.people,
         notes: loaderData.notes,
-        onDone: () => {
-          setDrawerState(null);
-          revalidator.revalidate();
-        },
-        onCancel: () => setDrawerState(null),
+        onSettled: () => setDrawerState(null),
       });
     },
     [
@@ -297,7 +292,6 @@ export default function AssetDetailRoute({ loaderData }: Route.ComponentProps) {
       loaderData.today,
       loaderData.people,
       loaderData.notes,
-      revalidator,
     ],
   );
 
@@ -396,6 +390,45 @@ function AssetDetail({
   );
 }
 
+/**
+ * The drawer body host.
+ *
+ * A save must both REVALIDATE the record and CLOSE the drawer — otherwise the
+ * form stays over the page it just changed, and its backdrop swallows the very
+ * clicks the owner reaches for next. `useDrawer` is only available inside the
+ * provider, so the close lives here, in a component the provider renders, rather
+ * than in the outer render callback.
+ */
+function DrawerFormHost({
+  onSettled,
+  render,
+}: {
+  readonly onSettled: () => void;
+  readonly render: (handlers: {
+    readonly onSaved: () => void;
+    readonly onCancel: () => void;
+  }) => React.ReactNode;
+}) {
+  const { closeDrawer } = useDrawer();
+  const revalidator = useRevalidator();
+  const settle = useCallback(
+    (revalidate: boolean) => {
+      if (revalidate) revalidator.revalidate();
+      onSettled();
+      closeDrawer();
+    },
+    [closeDrawer, onSettled, revalidator],
+  );
+  return (
+    <>
+      {render({
+        onSaved: () => settle(true),
+        onCancel: () => settle(false),
+      })}
+    </>
+  );
+}
+
 /** Build the drawer contents for the current state. */
 function renderAssetDrawer({
   state,
@@ -403,17 +436,21 @@ function renderAssetDrawer({
   today,
   people,
   notes,
-  onDone,
-  onCancel,
+  onSettled,
 }: {
   readonly state: DrawerState;
   readonly asset: SerializedAsset;
   readonly today: string;
   readonly people: readonly { id: string; title: string }[];
   readonly notes: readonly { id: string; title: string }[];
-  readonly onDone: () => void;
-  readonly onCancel: () => void;
+  readonly onSettled: () => void;
 }): DrawerRenderResult {
+  const host = (
+    render: (handlers: {
+      readonly onSaved: () => void;
+      readonly onCancel: () => void;
+    }) => React.ReactNode,
+  ) => <DrawerFormHost onSettled={onSettled} render={render} />;
   const defaultCurrency = asset.currencyCode ?? "AUD";
   // A vehicle or trailer defaults to kilometres because that is what its meter
   // is; everything else starts unset rather than guessing a unit for it.
@@ -428,20 +465,20 @@ function renderAssetDrawer({
       return {
         title: "Rename asset",
         description: "Update this asset’s display name.",
-        children: (
+        children: host(({ onSaved, onCancel }) => (
           <RenameAssetForm
             assetId={asset.id}
             currentTitle={asset.title}
-            onDone={onDone}
+            onDone={onSaved}
             onCancel={onCancel}
           />
-        ),
+        )),
       };
     case "event":
       return {
         title: quickActionTitle(state.action),
         description: "Record what happened. You can add more detail later.",
-        children: (
+        children: host(({ onSaved, onCancel }) => (
           <AssetEventForm
             assetId={asset.id}
             action={state.action}
@@ -450,16 +487,16 @@ function renderAssetDrawer({
             defaultMeterUnit={defaultMeterUnit}
             people={people}
             notes={notes}
-            onSaved={onDone}
+            onSaved={onSaved}
             onCancel={onCancel}
           />
-        ),
+        )),
       };
     case "edit-event":
       return {
         title: "Edit history entry",
         description: "Correct what was recorded.",
-        children: (
+        children: host(({ onSaved, onCancel }) => (
           <AssetEventForm
             assetId={asset.id}
             action="history"
@@ -469,31 +506,31 @@ function renderAssetDrawer({
             defaultMeterUnit={defaultMeterUnit}
             people={people}
             notes={notes}
-            onSaved={onDone}
+            onSaved={onSaved}
             onCancel={onCancel}
           />
-        ),
+        )),
       };
     case "obligation":
       return {
         title: state.obligation ? "Edit obligation" : "Add obligation",
         description:
           "When does this next need doing? A date, a meter reading, or both.",
-        children: (
+        children: host(({ onSaved, onCancel }) => (
           <AssetObligationForm
             assetId={asset.id}
             obligation={state.obligation}
             defaultMeterUnit={defaultMeterUnit}
-            onSaved={onDone}
+            onSaved={onSaved}
             onCancel={onCancel}
           />
-        ),
+        )),
       };
     case "complete":
       return {
         title: `Complete: ${state.obligation.title}`,
         description: "Record what actually happened.",
-        children: (
+        children: host(({ onSaved, onCancel }) => (
           <AssetCompleteObligationForm
             assetId={asset.id}
             obligation={state.obligation}
@@ -502,10 +539,10 @@ function renderAssetDrawer({
             defaultMeterUnit={defaultMeterUnit}
             people={people}
             notes={notes}
-            onSaved={onDone}
+            onSaved={onSaved}
             onCancel={onCancel}
           />
-        ),
+        )),
       };
   }
 }

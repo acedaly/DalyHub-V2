@@ -123,6 +123,11 @@ export function AssetObligationForm({
       for (const [key, value] of Object.entries(values)) {
         body.set(key, value);
       }
+      // Same rule as the event form: a defaulted meter unit with no threshold is
+      // "no meter target", never half a target.
+      if (values.meterThreshold.trim() === "") {
+        body.set("meterUnit", "");
+      }
       let data: AssetHistoryResult;
       try {
         const response = await fetch(

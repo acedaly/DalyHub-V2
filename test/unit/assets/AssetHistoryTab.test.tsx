@@ -155,10 +155,10 @@ describe("an entry shows what applies", () => {
     ]);
     expect(
       screen.getByRole("link", { name: "Book the service" }),
-    ).toHaveAttribute("href", "/task/t-1");
+    ).toHaveAttribute("href", "/tasks?drawer=task%3At-1");
     expect(
       screen.getByRole("link", { name: "Service report" }),
-    ).toHaveAttribute("href", "/note/n-1");
+    ).toHaveAttribute("href", "/notes/n-1");
   });
 
   it("names each entry's row actions, so identical buttons are distinguishable", () => {
@@ -176,14 +176,18 @@ describe("an entry shows what applies", () => {
 });
 
 describe("empty states", () => {
-  it("teaches the first entry with ONE primary action, not two", () => {
+  it("teaches the first entry with ONE set of controls, not two", () => {
     const handlers = renderTab([]);
     expect(screen.getByText("No history recorded yet")).toBeInTheDocument();
-    // The quick-action row stands down so the empty state is the only teacher.
+    // The empty state teaches; the quick-action row is the only place with
+    // controls, so a first-run screen never shows the same button twice.
+    const group = screen.getByRole("group", { name: "Record an entry" });
     expect(
-      screen.queryByRole("group", { name: "Record an entry" }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Record service" }));
+      screen.getAllByRole("button", { name: "Record service" }),
+    ).toHaveLength(1);
+    fireEvent.click(
+      within(group).getByRole("button", { name: "Record service" }),
+    );
     expect(handlers.onQuickAction).toHaveBeenCalledWith("service");
   });
 

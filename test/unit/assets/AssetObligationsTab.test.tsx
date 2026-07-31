@@ -162,7 +162,7 @@ describe("the Task authority contract, said plainly", () => {
     renderTab([obligation({ taskId: "t-1", taskOpen: true })]);
     expect(screen.getByRole("link", { name: "Open task" })).toHaveAttribute(
       "href",
-      "/task/t-1",
+      "/tasks?drawer=task%3At-1",
     );
     // No "Create task" — one already exists.
     expect(

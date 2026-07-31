@@ -142,7 +142,9 @@ describe("empty states", () => {
     renderWidget({ items: [], trackedAsTasksCount: 3, overdueCount: 0 });
     expect(screen.getByText("Nothing outstanding here")).toBeInTheDocument();
     expect(
-      screen.getByText(/3 asset obligations are already tracked as tasks/),
+      screen.getByText(
+        "3 asset obligations are already tracked as tasks in My day.",
+      ),
     ).toBeInTheDocument();
   });
 });

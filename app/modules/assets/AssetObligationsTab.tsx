@@ -157,7 +157,11 @@ export function AssetObligationsTab({
               {obligation.taskOpen ? (
                 <>
                   Tracked as a task.{" "}
-                  <a href={`/task/${obligation.taskId}`}>Open task</a>
+                  <a
+                    href={`/tasks?drawer=task%3A${encodeURIComponent(obligation.taskId)}`}
+                  >
+                    Open task
+                  </a>
                 </>
               ) : (
                 <>

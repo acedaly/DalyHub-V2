@@ -345,7 +345,7 @@ export function AssetsWidget({ data }: { readonly data: AssetsTodayData }) {
         }
         description={
           data.trackedAsTasksCount > 0
-            ? `${data.trackedAsTasksCount} asset ${data.trackedAsTasksCount === 1 ? "obligation is" : "obligations are"} already tracked as tasks in My day.`
+            ? `${data.trackedAsTasksCount} asset ${data.trackedAsTasksCount === 1 ? "obligation is already tracked as a task" : "obligations are already tracked as tasks"} in My day.`
             : "Assets with a service interval, registration or warranty will remind you here when they are due."
         }
         action={

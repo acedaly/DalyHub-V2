@@ -85,9 +85,11 @@ test("create, edit, search, filter, archive, restore, delete", async ({
   // model" metadata chip and once in the Summary's identity line — so an
   // unscoped text locator is ambiguous under Playwright strict mode and proves
   // nothing about *where* the value surfaced.
-  await page.getByRole("tab", { name: "Summary" }).click();
+  // ASSET-02 renamed the Summary tab to Overview and folded the old standalone
+  // Dates tab into it behind an "All dates" disclosure.
+  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(
-    page.getByRole("tabpanel", { name: "Summary" }).getByText("Toyota"),
+    page.getByRole("tabpanel", { name: "Overview" }).getByText("Toyota"),
   ).toBeVisible();
   // …and so does the record header's "Make & model" metadata chip. Asserting
   // both places explicitly keeps the duplication a deliberate, proven product
@@ -168,16 +170,16 @@ test("browser Back / Forward and refresh preserve the record tab", async ({
   const title = uniqueAssetTitle("nav");
   const url = await createAsset(page, title, "Tool");
   await page.goto(url);
-  await page.getByRole("tab", { name: "Dates" }).click();
-  await expect(page).toHaveURL(/tab=dates/);
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(page).toHaveURL(/tab=history/);
   await page.reload();
-  await expect(page.getByRole("tab", { name: "Dates" })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "History" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
   await page.goBack();
   await page.goForward();
-  await expect(page).toHaveURL(/tab=dates/);
+  await expect(page).toHaveURL(/tab=history/);
 });
 
 for (const width of [390, 320]) {

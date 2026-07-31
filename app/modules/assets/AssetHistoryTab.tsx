@@ -171,7 +171,7 @@ export function AssetHistoryTab({
     <div className="dh-asset-history">
       <h2 className="dh-visually-hidden">History</h2>
 
-      {readOnly || (events.length === 0 && category === "") ? null : (
+      {readOnly ? null : (
         <div
           className="dh-asset-history__actions"
           role="group"
@@ -217,17 +217,9 @@ export function AssetHistoryTab({
               ? "Try a different category, or record an entry."
               : "Record a service, a repair or a meter reading and this asset starts telling its own story."
           }
-          primaryAction={
-            readOnly ? undefined : (
-              <button
-                type="button"
-                className="dh-btn dh-btn--primary"
-                onClick={() => onQuickAction("service")}
-              >
-                Record service
-              </button>
-            )
-          }
+          // No action here: the quick-action row above already offers all six
+          // captures, and a second "Record service" button would be the same
+          // control twice on one empty screen.
         />
       ) : (
         <ol className="dh-asset-history__list" aria-label="Asset history">
@@ -264,7 +256,9 @@ export function AssetHistoryTab({
               {event.taskId || event.noteId ? (
                 <p className="dh-asset-history__links">
                   {event.taskId ? (
-                    <a href={`/task/${event.taskId}`}>
+                    <a
+                      href={`/tasks?drawer=task%3A${encodeURIComponent(event.taskId)}`}
+                    >
                       {event.taskTitle ?? "Linked task"}
                     </a>
                   ) : null}
@@ -272,7 +266,7 @@ export function AssetHistoryTab({
                     <span aria-hidden="true"> · </span>
                   ) : null}
                   {event.noteId ? (
-                    <a href={`/note/${event.noteId}`}>
+                    <a href={`/notes/${event.noteId}`}>
                       {event.noteTitle ?? "Linked note"}
                     </a>
                   ) : null}
