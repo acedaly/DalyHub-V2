@@ -1339,3 +1339,75 @@ VALUES
   ('local-dev-workspace', 't-ds-77', 'task', 'in_progress', 'p4', '2026-09-20', '2026-07-16', 'next_month', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:01:17.000Z'),
   ('local-dev-workspace', 't-ds-78', 'task', 'on_hold', NULL, NULL, NULL, 'next_month', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:01:18.000Z'),
   ('local-dev-workspace', 't-ds-79', 'task', 'cancelled', 'p1', '2026-07-06', NULL, 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:19.000Z');
+
+-- TASKS-04 daily-driver fixture — a DEDICATED, isolated Project the daily-driver
+-- journey files tasks INTO through the canonical parent mutation. It is deliberately
+-- its own record rather than a reuse of an existing one: filing tasks into a Project
+-- gives its Area/Goal recent contributing activity, which would silently flip the
+-- AREA-03 alignment journey's neglected Goal to active. Active, directly under Area
+-- `a-dh`, NO Goal, no seeded child tasks. The journey's created tasks all use the
+-- 'E2E ' title prefix; the cleanup below removes any left by a prior run (details,
+-- recurrence rules, links, activity subjects, spine record, entity) so every run
+-- starts from the same known point.
+INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('pr-tasks04', 'local-dev-workspace', 'project', 'Daily driver filing project', '2026-07-19T11:30:00.000Z', '2026-07-19T11:30:00.000Z', NULL);
+INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
+VALUES
+  ('local-dev-workspace', 'pr-tasks04', 'project', NULL);
+INSERT OR IGNORE INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('l-prtasks04-area', 'local-dev-workspace', 'pr-tasks04', 'a-dh', 'project.belongs_to_area', '2026-07-19T11:30:00.000Z', '2026-07-19T11:30:00.000Z', NULL);
+INSERT OR IGNORE INTO project_details (workspace_id, entity_id, status, archived_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'pr-tasks04', 'active', NULL, '2026-07-19T11:30:00.000Z');
+UPDATE project_details SET status = 'active', archived_at = NULL
+WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-tasks04';
+
+-- Remove any daily-driver-created tasks from a prior run (child-first under
+-- ON DELETE RESTRICT). Matched by their fixed 'E2E ' title prefix.
+DELETE FROM activity_subjects
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'E2E %'
+  );
+DELETE FROM task_recurrence_rules
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'E2E %'
+  );
+DELETE FROM entity_links
+WHERE workspace_id = 'local-dev-workspace'
+  AND (
+    source_entity_id IN (
+      SELECT id FROM entities
+      WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+        AND title LIKE 'E2E %'
+    )
+    OR target_entity_id IN (
+      SELECT id FROM entities
+      WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+        AND title LIKE 'E2E %'
+    )
+  );
+DELETE FROM task_details
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'E2E %'
+  );
+DELETE FROM spine_records
+WHERE workspace_id = 'local-dev-workspace'
+  AND entity_id IN (
+    SELECT id FROM entities
+    WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+      AND title LIKE 'E2E %'
+  );
+DELETE FROM entities
+WHERE workspace_id = 'local-dev-workspace' AND type = 'task'
+  AND title LIKE 'E2E %';

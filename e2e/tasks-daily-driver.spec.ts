@@ -24,7 +24,12 @@ import {
  *   - Review Inbox triages one task at a time, by keyboard, and empties;
  *   - the whole thing holds the 320px and accessibility baselines.
  *
- * Every task it creates is uniquely stamped, so it never disturbs another journey.
+ * Every task it creates is uniquely stamped and prefixed `E2E `, and it files them
+ * into a DEDICATED fixture Project (`Daily driver filing project`) rather than any
+ * Project another journey asserts about — filing a task into a Project gives that
+ * Project's Area and Goal recent contributing activity, which would silently flip the
+ * AREA-03 alignment journey's neglected Goal to active. The seed removes the prefixed
+ * tasks at the start of every run, so a run never inherits a previous one's state.
  */
 
 const RUN = Date.now();
@@ -143,7 +148,7 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
 
     const picker = drawer.getByRole("combobox", { name: /Project or Area/ });
     await picker.click();
-    await picker.fill("Spanish");
+    await picker.fill("Daily driver filing");
     const option = drawer.getByRole("option").first();
     await expect(option).toBeVisible();
     await option.click();
@@ -321,7 +326,7 @@ test.describe("TASKS-04 — Review Inbox", () => {
     // never a client-side guess about whether it still belongs there.
     const picker = panel.getByRole("combobox", { name: /Project or Area/ });
     await picker.click();
-    await picker.fill("Spanish");
+    await picker.fill("Daily driver filing");
     await expect(panel.getByRole("option").first()).toBeVisible();
     await panel.getByRole("option").first().click();
     await expect(
