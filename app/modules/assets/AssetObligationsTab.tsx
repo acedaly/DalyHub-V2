@@ -278,7 +278,9 @@ export function AssetObligationsTab({
             ))}
           </select>
         </label>
-        {readOnly ? null : (
+        {/* When the empty state is already teaching "Add obligation", the bar
+            must not offer a second identical control right above it. */}
+        {readOnly || obligations.length === 0 ? null : (
           <button
             type="button"
             className="dh-btn dh-btn--primary dh-btn--sm"
@@ -322,7 +324,10 @@ export function AssetObligationsTab({
                   ({group.items.length})
                 </span>
               </h3>
-              <ul className="dh-asset-obligations__list">
+              <ul
+                className="dh-asset-obligations__list"
+                aria-label={`${group.label} obligations`}
+              >
                 {group.items.map(renderRow)}
               </ul>
             </section>
@@ -332,7 +337,10 @@ export function AssetObligationsTab({
             <details className="dh-asset-disclosure">
               <summary>Completed and set aside ({settled.length})</summary>
               <div className="dh-asset-disclosure__body">
-                <ul className="dh-asset-obligations__list">
+                <ul
+                  className="dh-asset-obligations__list"
+                  aria-label="Completed and set-aside obligations"
+                >
                   {settled.map(renderRow)}
                 </ul>
               </div>

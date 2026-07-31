@@ -171,7 +171,7 @@ export function AssetHistoryTab({
     <div className="dh-asset-history">
       <h2 className="dh-visually-hidden">History</h2>
 
-      {readOnly ? null : (
+      {readOnly || (events.length === 0 && category === "") ? null : (
         <div
           className="dh-asset-history__actions"
           role="group"
@@ -230,7 +230,7 @@ export function AssetHistoryTab({
           }
         />
       ) : (
-        <ol className="dh-asset-history__list">
+        <ol className="dh-asset-history__list" aria-label="Asset history">
           {events.map((event) => (
             <li
               key={event.id}
