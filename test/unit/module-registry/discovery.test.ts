@@ -278,6 +278,8 @@ describe("module discovery", () => {
         },
         // TASKS-03 adds the saved-view mutation endpoint (no nav entry).
         { id: "tasks.views", moduleId: "tasks", file: "routes/views.tsx" },
+        // TASKS-04 adds Review Inbox — the triage flow over the built-in Inbox query.
+        { id: "tasks.review", moduleId: "tasks", file: "routes/review.tsx" },
         // PROJ-01 / ADR-033 re-homed the task record resource routes to the Tasks
         // module (previously `today.task*`): the task Drawer's data endpoint, its
         // Activity Timeline page, the link-target search and the waiting-target
@@ -499,6 +501,9 @@ describe("module discovery", () => {
         "today.open_waiting",
         "tasks.open",
         "tasks.new",
+        // TASKS-04 adds the Inbox view and its triage flow to the palette.
+        "tasks.inbox",
+        "tasks.review_inbox",
         "tasks.this_week",
         "tasks.matrix",
         "tasks.sectors",

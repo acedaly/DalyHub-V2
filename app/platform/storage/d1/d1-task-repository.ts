@@ -43,6 +43,7 @@ import {
   TASK_BELONGS_TO_AREA,
   TASK_BELONGS_TO_PROJECT,
   TASK_COMPLETED,
+  TASK_REOPENED,
   secureIdGenerator,
   spineLinkTypeFor,
   systemClock,
@@ -62,11 +63,17 @@ import {
   TASK_WAITING_ON,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
+  TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_WAITING_STARTED,
   TaskNotFoundError,
   TaskProjectArchivedError,
   TaskStorageError,
   TaskValidationError,
+  addCalendarDays,
+  calendarDaysBetween,
+  nextTaskOccurrenceDate,
+  resolveTaskRecurrenceRule,
   workspaceTaskFiltersSignature,
   validateCommitmentState,
   validateDelegationInput,
@@ -97,6 +104,7 @@ import {
   type ClearPlanResult,
   type ClearWaitingResult,
   type CommitmentState,
+  type CompleteTaskOptions,
   type CompleteTaskResult,
   type GetTaskOptions,
   type ListPlanningTasksInput,
@@ -110,10 +118,14 @@ import {
   type PlanTaskResult,
   type ProjectTaskCursorScope,
   type ProjectTaskListPage,
+  type ReopenTaskResult,
+  type ReopenTaskSuccessorOutcome,
   type SearchTaskParentsInput,
   type SearchTasksInput,
   type SetTaskParentInput,
   type SetTaskParentResult,
+  type SetTaskRecurrenceInput,
+  type SetTaskRecurrenceResult,
   type SetWaitingInput,
   type SetWaitingResult,
   type TaskDelegation,
@@ -122,6 +134,8 @@ import {
   type TaskListPage,
   type TaskParentCandidate,
   type TaskPriority,
+  type TaskRecurrenceRule,
+  type TaskRecurrenceSeries,
   type TaskRelation,
   type TaskRelationKind,
   type TaskRepository,
@@ -164,6 +178,7 @@ import {
   rowToTaskDetails,
   rowToTaskWaiting,
   TASK_DETAIL_COLUMNS,
+  TASK_RECURRENCE_JOIN,
   WAITING_TARGET_COLUMNS,
   type TaskJoinedRow,
   type WaitingTargetColumns,
@@ -178,6 +193,8 @@ const LINK_CREATED = "entity_link.created";
 const LINK_UNLINKED = "entity_link.unlinked";
 const LINK_RESTORED = "entity_link.restored";
 const SUBJECT_ROLE = "subject";
+/** The Activity subject role of the occurrence a completion produced (TASKS-04). */
+const ROLE_SUCCESSOR = "successor";
 const ROLE_SOURCE = "source";
 const ROLE_TARGET = "target";
 
@@ -235,6 +252,105 @@ type AnyLinkRow = {
   readonly type: string;
   readonly deleted_at: string | null;
 };
+
+/**
+ * Everything the ONE successor of a completed recurring occurrence is written from,
+ * resolved before the batch so the write itself is pure SQL. `id`/`linkId` are
+ * allocated up front so the caller can read the successor back after the commit.
+ */
+type SuccessorPlan = {
+  readonly id: string;
+  readonly linkId: string | null;
+  readonly predecessorId: string;
+  readonly rule: TaskRecurrenceRule;
+  readonly series: TaskRecurrenceSeries;
+  readonly scheduledDate: string | null;
+  readonly dueDate: string | null;
+  readonly title: string;
+  readonly description: MarkdownSource | null;
+  readonly priority: TaskPriority | null;
+  readonly timeSector: TimeSector | null;
+  readonly commitmentState: CommitmentState;
+  readonly parent: {
+    readonly kind: "area" | "project";
+    readonly id: string;
+  } | null;
+};
+
+/** The row shape a successor-safety read needs from a candidate successor. */
+type SuccessorRow = {
+  readonly entity_id: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+  readonly completed_at: string | null;
+  readonly sequence: number;
+  readonly extra_links: number;
+};
+
+/**
+ * The structural parent KIND behind a task's parent link type, or null when the task
+ * is Unassigned (TASKS-04). The one place the link type is mapped back to a kind.
+ */
+function taskParentKindOf(linkType: string | null): "area" | "project" | null {
+  if (linkType === TASK_BELONGS_TO_PROJECT) return "project";
+  if (linkType === TASK_BELONGS_TO_AREA) return "area";
+  return null;
+}
+
+/**
+ * The safe-undo predicate. A successor may be withdrawn ONLY when it is still exactly
+ * as completion created it: open, never edited (its `updated_at` still equals its
+ * `created_at`) and carrying no relationship beyond the structural parent link it was
+ * born with. Anything else is real work the owner has done since, so undo keeps it.
+ */
+function successorIsUntouched(row: SuccessorRow): boolean {
+  return (
+    row.completed_at === null &&
+    row.updated_at === row.created_at &&
+    row.extra_links === 0
+  );
+}
+
+/** The stored weekday set: a comma-separated ascending list, or NULL for "none". */
+function serialiseWeekdays(weekdays: readonly number[]): string | null {
+  return weekdays.length === 0 ? null : weekdays.join(",");
+}
+
+/** Structural equality of two recurrence rules (either may be absent). */
+function recurrenceRulesEqual(
+  a: TaskRecurrenceRule | null,
+  b: TaskRecurrenceRule | null,
+): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.frequency === b.frequency &&
+    a.interval === b.interval &&
+    a.dateKind === b.dateKind &&
+    a.anchorDay === b.anchorDay &&
+    a.anchorMonth === b.anchorMonth &&
+    serialiseWeekdays(a.weekdays) === serialiseWeekdays(b.weekdays)
+  );
+}
+
+/**
+ * The Activity `changes` value for a recurrence edit: a compact, non-sensitive
+ * descriptor of the RULE (never prose the user typed), so the shared Activity feed
+ * can say what changed without a recurrence-specific event type.
+ */
+function describeRecurrence(rule: TaskRecurrenceRule | null): string | null {
+  if (rule === null) return null;
+  const weekdays = serialiseWeekdays(rule.weekdays);
+  return [
+    rule.dateKind,
+    rule.frequency,
+    `x${rule.interval}`,
+    weekdays === null ? "" : `d${weekdays}`,
+    rule.anchorDay === null ? "" : `m${rule.anchorDay}`,
+    rule.anchorMonth === null ? "" : `y${rule.anchorMonth}`,
+  ]
+    .filter((part) => part.length > 0)
+    .join(":");
+}
 
 /**
  * Planning query band bounds (TODAY-04). Each band is fetched independently so the
@@ -451,6 +567,16 @@ export class D1TaskRepository implements TaskRepository {
       input.scheduledDate ?? null,
       "scheduledDate",
     );
+    // TASKS-04: an optional recurrence rule is validated against the dates being
+    // created in this very batch, so a captured "every Monday" either commits WITH
+    // its rule or not at all — never a repeating task that silently forgot to repeat.
+    const recurrence =
+      input.recurrence === undefined || input.recurrence === null
+        ? null
+        : resolveTaskRecurrenceRule(
+            input.recurrence,
+            input.recurrence.dateKind === "due" ? dueDate : scheduledDate,
+          );
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
@@ -533,6 +659,19 @@ export class D1TaskRepository implements TaskRepository {
         this.#createDetailsStatement(
           id,
           { priority, dueDate, scheduledDate, timeSector, commitmentState },
+          nowTs,
+        ),
+      );
+    }
+    if (recurrence) {
+      // A brand-new recurring task STARTS a series: its own id is the series id and
+      // it is occurrence 0. Gated on the entity insert so it cannot outlive a
+      // rolled-back create.
+      statements.push(
+        this.#insertRecurrenceStatement(
+          id,
+          recurrence,
+          { seriesId: id, sequence: 0 },
           nowTs,
         ),
       );
@@ -860,6 +999,182 @@ export class D1TaskRepository implements TaskRepository {
       );
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Recurrence (TASKS-04 / ADR-061)                                         */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Set, change or remove a Task's recurrence rule — see the
+   * `TaskRepository.setTaskRecurrence` contract. ONE batch writes the rule row (or
+   * removes it), bumps `entities.updated_at` and appends the single guarded
+   * `entity.updated` event, so a stored rule and its audit entry can never diverge.
+   */
+  async setTaskRecurrence(
+    id: string,
+    recurrence: SetTaskRecurrenceInput,
+  ): Promise<SetTaskRecurrenceResult> {
+    const entityId = validateTaskId(id);
+    const current = await this.getTask(entityId);
+    if (!current) throw new TaskNotFoundError();
+    await this.#rejectIfParentProjectArchived(current);
+
+    // Validated against THIS task's anchor date, so a rule that could never compute
+    // a successor is refused at the boundary rather than stored and found later.
+    const rule =
+      recurrence === null
+        ? null
+        : resolveTaskRecurrenceRule(
+            recurrence,
+            recurrence.dateKind === "due"
+              ? current.dueDate
+              : current.scheduledDate,
+          );
+
+    const before = current.recurrence ?? null;
+    if (recurrenceRulesEqual(before, rule)) {
+      return { task: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    // An occurrence already inside a series keeps its identity when the rule is
+    // edited; a first rule starts a series anchored on the task's own id.
+    const series = current.recurrenceSeries ?? {
+      seriesId: entityId,
+      sequence: 0,
+    };
+
+    const entityStmt = this.#bumpTaskUpdatedAtReturningStatement(
+      entityId,
+      nowTs,
+    );
+    const activity = this.#recorder.buildAppendStatements(
+      this.#workspaceId,
+      buildActivityWriteModel(
+        {
+          type: ENTITY_UPDATED,
+          subjects: [{ entityId, role: SUBJECT_ROLE }],
+          payload: {
+            entityType: TASK,
+            changes: {
+              recurrence: {
+                before: describeRecurrence(before),
+                after: describeRecurrence(rule),
+              },
+            },
+          },
+        },
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      ),
+    );
+
+    const statements: D1PreparedStatement[] = [entityStmt, ...activity];
+    statements.push(
+      rule === null
+        ? this.#deleteRecurrenceStatement(entityId)
+        : this.#insertRecurrenceStatement(entityId, rule, series, nowTs),
+    );
+
+    let results: D1Result<EntityRow>[];
+    try {
+      results = await this.#db.batch<EntityRow>(statements);
+    } catch (cause) {
+      if (cause instanceof ActivityError) throw cause;
+      throw new TaskStorageError(undefined, { cause });
+    }
+    if (((results[0]?.results ?? []).length ?? 0) === 0) {
+      // The guarded bump matched nothing: the task was deleted between the read and
+      // the write, so nothing was written or recorded.
+      throw new TaskNotFoundError();
+    }
+
+    const task = await this.getTask(entityId);
+    if (!task) throw new TaskNotFoundError();
+    return { task, changed: true };
+  }
+
+  /**
+   * Upsert one recurrence row, gated on the Task existing (so it can never outlive a
+   * rolled-back create) and on the series identity supplied by the caller. The
+   * UNIQUE (workspace, series, sequence) index is the database boundary that makes a
+   * duplicate successor impossible.
+   */
+  #insertRecurrenceStatement(
+    entityId: string,
+    rule: TaskRecurrenceRule,
+    series: TaskRecurrenceSeries,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `INSERT INTO task_recurrence_rules
+           (workspace_id, entity_id, entity_type, date_kind, frequency, interval,
+            weekdays, anchor_day, anchor_month, series_id, sequence,
+            created_at, updated_at)
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (
+                 SELECT 1 FROM entities
+                 WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                   AND deleted_at IS NULL
+               )
+         ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+           date_kind = excluded.date_kind,
+           frequency = excluded.frequency,
+           interval = excluded.interval,
+           weekdays = excluded.weekdays,
+           anchor_day = excluded.anchor_day,
+           anchor_month = excluded.anchor_month,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        this.#workspaceId,
+        entityId,
+        rule.dateKind,
+        rule.frequency,
+        rule.interval,
+        serialiseWeekdays(rule.weekdays),
+        rule.anchorDay,
+        rule.anchorMonth,
+        series.seriesId,
+        series.sequence,
+        nowTs,
+        nowTs,
+        this.#workspaceId,
+        entityId,
+      );
+  }
+
+  /**
+   * Remove a Task's recurrence row. Recurrence is per-occurrence CONFIGURATION, not
+   * history: the audit trail of the change is the `entity.updated` event written in
+   * the same batch, and a COMPLETED occurrence keeps its row untouched (nothing here
+   * ever reaches another occurrence of the series).
+   */
+  #deleteRecurrenceStatement(entityId: string): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `DELETE FROM task_recurrence_rules
+         WHERE workspace_id = ? AND entity_id = ?`,
+      )
+      .bind(this.#workspaceId, entityId);
+  }
+
+  /** The guarded `entities.updated_at` bump, RETURNING the row so the batch can prove it applied. */
+  #bumpTaskUpdatedAtReturningStatement(
+    taskId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entities SET updated_at = ?
+         WHERE workspace_id = ? AND id = ? AND type = '${TASK}' AND deleted_at IS NULL
+         RETURNING ${ENTITY_RETURNING}`,
+      )
+      .bind(nowTs, this.#workspaceId, taskId);
+  }
+
   #linkActivityStatements(
     type: string,
     link: AnyLinkRow,
@@ -973,8 +1288,7 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-         LEFT JOIN task_recurrence_rules rr
-           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+         ${TASK_RECURRENCE_JOIN}
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -1017,8 +1331,7 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-         LEFT JOIN task_recurrence_rules rr
-           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+         ${TASK_RECURRENCE_JOIN}
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -1114,8 +1427,7 @@ export class D1TaskRepository implements TaskRepository {
               AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-         LEFT JOIN task_recurrence_rules rr
-           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+         ${TASK_RECURRENCE_JOIN}
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${completedClause}${cursorClause}
          ORDER BY e.created_at ASC, e.id ASC
@@ -1205,8 +1517,7 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-         LEFT JOIN task_recurrence_rules rr
-           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+         ${TASK_RECURRENCE_JOIN}
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -1245,6 +1556,7 @@ export class D1TaskRepository implements TaskRepository {
       commitmentState: details.commitmentState,
       delegation: details.delegation,
       recurrence: details.recurrence,
+      recurrenceSeries: details.recurrenceSeries,
       parent: this.#parentRelation(
         row.parent_link_type,
         row.parent_id,
@@ -1506,8 +1818,7 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-         LEFT JOIN task_recurrence_rules rr
-           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+         ${TASK_RECURRENCE_JOIN}
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -1598,8 +1909,7 @@ export class D1TaskRepository implements TaskRepository {
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
            LEFT JOIN task_details td
              ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-           LEFT JOIN task_recurrence_rules rr
-             ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+           ${TASK_RECURRENCE_JOIN}
            LEFT JOIN entity_links pl
              ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
                 AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -2221,6 +2531,7 @@ export class D1TaskRepository implements TaskRepository {
         commitmentState: afterCommitment,
         delegation: afterDelegation,
         recurrence: current.recurrence,
+        recurrenceSeries: current.recurrenceSeries,
         description: afterDescription,
       },
       changed: true,
@@ -2465,8 +2776,7 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-         LEFT JOIN task_recurrence_rules rr
-           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+         ${TASK_RECURRENCE_JOIN}
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -3034,7 +3344,10 @@ export class D1TaskRepository implements TaskRepository {
   /* Completion + waiting clearance — one atomic operation (ADR-029)         */
   /* ---------------------------------------------------------------------- */
 
-  async completeTask(id: string): Promise<CompleteTaskResult> {
+  async completeTask(
+    id: string,
+    options?: CompleteTaskOptions,
+  ): Promise<CompleteTaskResult> {
     const entityId = validateTaskId(id);
 
     const current = await this.getTask(entityId);
@@ -3043,29 +3356,41 @@ export class D1TaskRepository implements TaskRepository {
     }
     await this.#rejectIfParentProjectArchived(current);
     // Already completed: idempotent no-op (matching the spine contract). No batch,
-    // no Activity. Any waiting was cleared by the completion that first set it.
+    // no Activity, and — crucially for TASKS-04 — no second successor.
     if (current.completedAt !== null) {
-      return { task: current, changed: false };
+      return { task: current, changed: false, successor: null };
     }
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
+    const ownerTodayIso =
+      options?.ownerTodayIso ?? now.toISOString().slice(0, 10);
+
+    // TASKS-04: a recurring occurrence's successor is planned BEFORE the batch (pure
+    // calendar arithmetic) and written INSIDE it, so completion and exactly one
+    // successor share one transaction.
+    const successorPlan = await this.#planSuccessor(current, ownerTodayIso);
 
     const entityRow = await this.#runCompleteBatch(
       entityId,
       current,
       now,
       nowTs,
+      successorPlan,
     );
     if (!entityRow) {
       // The completion gate matched nothing: the task was completed or deleted by a
       // concurrent racer between the read and the batch. Nothing was written; report
-      // honestly from the fresh state.
+      // honestly from the fresh state — including the successor the racer created.
       const refreshed = await this.getTask(entityId);
       if (!refreshed) {
         throw new TaskNotFoundError();
       }
-      return { task: refreshed, changed: false };
+      return {
+        task: refreshed,
+        changed: false,
+        successor: await this.#readExistingSuccessor(refreshed),
+      };
     }
 
     return {
@@ -3076,7 +3401,262 @@ export class D1TaskRepository implements TaskRepository {
         waiting: null,
       },
       changed: true,
+      successor: successorPlan ? await this.getTask(successorPlan.id) : null,
     };
+  }
+
+  /**
+   * Resolve the ONE next occurrence a completion must create, or null when the task
+   * does not recur. Pure: only calendar arithmetic over the persisted rule, the
+   * occurrence's own anchor date and the OWNER's completion day (never a UTC guess),
+   * so the same completion always plans the same successor.
+   *
+   * The next date is strictly after the LATER of the current anchor and the owner's
+   * completion day, which is what makes a long-missed daily task resume tomorrow
+   * rather than replaying every skipped day.
+   */
+  async #planSuccessor(
+    current: TaskView,
+    ownerTodayIso: string,
+  ): Promise<SuccessorPlan | null> {
+    const rule = current.recurrence ?? null;
+    if (rule === null) return null;
+    const anchorIso =
+      rule.dateKind === "due" ? current.dueDate : current.scheduledDate;
+    if (anchorIso === null) {
+      // A rule with no anchor cannot compute a date. The mutation boundary refuses
+      // to store one, so this is only reachable if the anchor was cleared later:
+      // completion still succeeds, and the series simply stops here rather than
+      // failing the user's completion.
+      return null;
+    }
+    const nextAnchorIso = nextTaskOccurrenceDate(
+      rule,
+      anchorIso,
+      ownerTodayIso,
+    );
+    // The NON-anchor date keeps its distance from the anchor, so a task scheduled
+    // Monday and due Friday stays a four-day window instead of inheriting a
+    // deadline already in the past (or silently losing it).
+    const otherIso =
+      rule.dateKind === "due" ? current.scheduledDate : current.dueDate;
+    const shiftedOther =
+      otherIso === null
+        ? null
+        : addCalendarDays(
+            nextAnchorIso,
+            calendarDaysBetween(anchorIso, otherIso),
+          );
+    const series = current.recurrenceSeries ?? {
+      seriesId: current.id,
+      sequence: 0,
+    };
+    // The STRUCTURAL parent, read from the active parent link rather than inferred
+    // from the derived project/area relations (a Project-parented task also reports an
+    // Area, so only the link says which one is structural).
+    const parentLink = await this.#readCurrentTaskParentLink(current.id);
+    const parentKind = taskParentKindOf(parentLink?.parent_link_type ?? null);
+    const parent =
+      parentLink?.parent_id && parentKind !== null
+        ? { kind: parentKind, id: parentLink.parent_id }
+        : null;
+    return {
+      id: this.#newEntityId(),
+      linkId: parent === null ? null : this.#newEntityId(),
+      predecessorId: current.id,
+      rule,
+      series: { seriesId: series.seriesId, sequence: series.sequence + 1 },
+      scheduledDate: rule.dateKind === "due" ? shiftedOther : nextAnchorIso,
+      dueDate: rule.dateKind === "due" ? nextAnchorIso : shiftedOther,
+      title: current.title,
+      description: current.description,
+      priority: current.priority,
+      timeSector: current.timeSector,
+      commitmentState: current.commitmentState,
+      parent,
+    };
+  }
+
+  /**
+   * The already-created successor of a completed occurrence, if any. Used when a
+   * concurrent completion won the race: the caller is told about the ONE successor
+   * that exists rather than being handed a second one or a silent null.
+   */
+  async #readExistingSuccessor(task: TaskView): Promise<TaskView | null> {
+    const series = task.recurrenceSeries ?? null;
+    if (series === null) return null;
+    const row = await this.#db
+      .prepare(
+        `SELECT entity_id FROM task_recurrence_rules
+         WHERE workspace_id = ? AND series_id = ? AND sequence = ?`,
+      )
+      .bind(this.#workspaceId, series.seriesId, series.sequence + 1)
+      .first<{ readonly entity_id: string }>();
+    return row ? await this.getTask(row.entity_id) : null;
+  }
+
+  /**
+   * The successor's write group. EVERY statement is gated on the completion having
+   * been written in THIS batch (`spine_records.completed_at = <this batch's
+   * timestamp>`), so a losing racer writes nothing at all; the UNIQUE (workspace,
+   * series, sequence) index is the second, database-level boundary that makes a
+   * duplicate occurrence impossible even under a retry.
+   *
+   * Field-copy contract (documented in TASKS_MODULE.md): title, description, parent,
+   * priority, Time Sector, commitment state, the recurrence rule and the series
+   * identity carry over. Completion, waiting, delegation and workflow status do NOT —
+   * they are the transient state of the occurrence that was just finished.
+   */
+  #buildSuccessorGroup(
+    plan: SuccessorPlan,
+    now: Date,
+    nowTs: string,
+  ): readonly D1PreparedStatement[] {
+    const committed = `EXISTS (
+             SELECT 1 FROM spine_records
+             WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?
+           )`;
+    const committedBinds = [this.#workspaceId, plan.predecessorId, nowTs];
+
+    const statements: D1PreparedStatement[] = [];
+
+    statements.push(
+      this.#db
+        .prepare(
+          `INSERT INTO entities
+             (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+           SELECT ?, ?, '${TASK}', ?, ?, ?, NULL
+           WHERE ${committed}`,
+        )
+        .bind(
+          plan.id,
+          this.#workspaceId,
+          plan.title,
+          nowTs,
+          nowTs,
+          ...committedBinds,
+        ),
+    );
+    // The SHARED spine child-record builder: the spine stays the identity authority
+    // for an occurrence exactly as it is for a hand-created Task.
+    statements.push(
+      buildSpineChildRecordInsertStatement(this.#db, this.#workspaceId, {
+        id: plan.id,
+        kind: TASK,
+      }),
+    );
+    statements.push(
+      ...this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        buildActivityWriteModel(
+          spineEntityCreatedEvent(plan.id, TASK, plan.title),
+          this.#actor.actor,
+          this.#newActivityId(),
+          now,
+        ),
+      ),
+    );
+
+    // The structural parent is COPIED, never re-validated against a picker: an
+    // occurrence of a repeating task belongs where its predecessor belonged. The
+    // insert is still gated on the parent being an active, non-archived destination,
+    // so a Project archived in the meantime simply yields an Inbox occurrence rather
+    // than a link into a read-only Project.
+    if (plan.parent !== null && plan.linkId !== null) {
+      const linkType = spineLinkTypeFor(TASK, plan.parent.kind);
+      if (linkType !== null) {
+        statements.push(
+          this.#insertTaskParentStatement(
+            plan.linkId,
+            plan.id,
+            { kind: plan.parent.kind, id: plan.parent.id },
+            linkType,
+            nowTs,
+          ),
+          ...this.#recorder.buildAppendStatements(
+            this.#workspaceId,
+            buildActivityWriteModel(
+              spineLinkCreatedEvent(
+                plan.linkId,
+                plan.id,
+                plan.parent.id,
+                linkType,
+              ),
+              this.#actor.actor,
+              this.#newActivityId(),
+              now,
+            ),
+          ),
+        );
+      }
+    }
+
+    // The copied detail slice. `status` resets to `todo` and delegation/waiting are
+    // NOT copied: they are the finished occurrence's transient state, and an `on_hold`
+    // successor would silently vanish from Today.
+    statements.push(
+      this.#db
+        .prepare(
+          `INSERT INTO task_details
+             (workspace_id, entity_id, entity_type, status, priority,
+              due_date, scheduled_date, time_sector, commitment_state,
+              delegate_to, delegated_on, follow_up_on, delegate_note,
+              description, updated_at)
+           SELECT ?, ?, '${TASK}', 'todo', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?
+           WHERE EXISTS (
+                   SELECT 1 FROM entities
+                   WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                     AND deleted_at IS NULL
+                 )`,
+        )
+        .bind(
+          this.#workspaceId,
+          plan.id,
+          plan.priority,
+          plan.dueDate,
+          plan.scheduledDate,
+          plan.timeSector,
+          plan.commitmentState,
+          plan.description === null ? null : String(plan.description),
+          nowTs,
+          this.#workspaceId,
+          plan.id,
+        ),
+    );
+
+    statements.push(
+      this.#insertRecurrenceStatement(plan.id, plan.rule, plan.series, nowTs),
+    );
+
+    // ONE legible event on the SERIES: the completed occurrence and the occurrence it
+    // produced, so the timeline explains where the new task came from.
+    statements.push(
+      ...this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        buildActivityWriteModel(
+          {
+            type: TASK_RECURRENCE_OCCURRENCE_CREATED,
+            subjects: [
+              { entityId: plan.predecessorId, role: SUBJECT_ROLE },
+              { entityId: plan.id, role: ROLE_SUCCESSOR },
+            ],
+            payload: {
+              entityType: TASK,
+              seriesId: plan.series.seriesId,
+              sequence: plan.series.sequence,
+              dateKind: plan.rule.dateKind,
+              scheduledDate: plan.scheduledDate,
+              dueDate: plan.dueDate,
+            },
+          },
+          this.#actor.actor,
+          this.#newActivityId(),
+          now,
+        ),
+      ),
+    );
+
+    return statements;
   }
 
   /**
@@ -3100,6 +3680,7 @@ export class D1TaskRepository implements TaskRepository {
     current: TaskView,
     now: Date,
     nowTs: string,
+    successorPlan: SuccessorPlan | null = null,
   ): Promise<EntityRow | null> {
     const fault = this.#completeFault;
     const group = this.#buildCompleteGroup(entityId, now, nowTs);
@@ -3122,6 +3703,12 @@ export class D1TaskRepository implements TaskRepository {
       ...group.waitingClearedSubjects,
       group.waitingLinkStmt,
       ...(fault === "after-waiting-link" ? [this.#forcedFailure()] : []),
+      // 7. TASKS-04: the ONE recurrence successor, every statement gated on THIS
+      //    batch's completion, so completion and succession commit together or not
+      //    at all.
+      ...(successorPlan
+        ? this.#buildSuccessorGroup(successorPlan, now, nowTs)
+        : []),
     ];
 
     let results: D1Result<EntityRow>[];
@@ -3151,7 +3738,10 @@ export class D1TaskRepository implements TaskRepository {
    * → entity bump resets `changes()` for that group's guarded events, so many guarded
    * completions compose correctly in a single transaction (mirrors `#bulkPlan`).
    */
-  async completeTasks(ids: readonly string[]): Promise<BulkFieldResult> {
+  async completeTasks(
+    ids: readonly string[],
+    options?: CompleteTaskOptions,
+  ): Promise<BulkFieldResult> {
     const entityIds = validateTaskIdList(ids);
 
     // Resolve all first; ANY missing/cross-workspace/deleted id (→ not found) or an
@@ -3168,6 +3758,8 @@ export class D1TaskRepository implements TaskRepository {
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
+    const ownerTodayIso =
+      options?.ownerTodayIso ?? now.toISOString().slice(0, 10);
 
     const statements: D1PreparedStatement[] = [];
     let changed = 0;
@@ -3179,6 +3771,7 @@ export class D1TaskRepository implements TaskRepository {
         continue;
       }
       const group = this.#buildCompleteGroup(current.id, now, nowTs);
+      const plan = await this.#planSuccessor(current, ownerTodayIso);
       statements.push(
         group.spineStmt,
         group.entityStmt,
@@ -3188,6 +3781,10 @@ export class D1TaskRepository implements TaskRepository {
         group.waitingClearedActivity,
         ...group.waitingClearedSubjects,
         group.waitingLinkStmt,
+        // A bulk completion of a recurring task creates its ONE successor in the
+        // SAME transaction, so /tasks and Today can never disagree about whether a
+        // repeating task continued.
+        ...(plan ? this.#buildSuccessorGroup(plan, now, nowTs) : []),
       );
       changed += 1;
     }
@@ -3210,6 +3807,201 @@ export class D1TaskRepository implements TaskRepository {
     }
 
     return { changed, unchanged };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Reopen — the task-domain undo, with SAFE recurrence withdrawal          */
+  /* ---------------------------------------------------------------------- */
+
+  async reopenTask(id: string): Promise<ReopenTaskResult> {
+    const entityId = validateTaskId(id);
+    const current = await this.getTask(entityId);
+    if (!current) throw new TaskNotFoundError();
+    // Reopening must not put unfinished work back inside an ARCHIVED Project
+    // (PROJ-05 / ADR-037) — the same rule the spine enforces.
+    await this.#rejectIfParentProjectArchived(current);
+    if (current.completedAt === null) {
+      return { task: current, changed: false, successorOutcome: "none" };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const observedCompletedAt = toStorageTimestamp(current.completedAt);
+
+    // Decide from PERSISTED identity — series + sequence — whether a successor exists
+    // and whether it is still safe to withdraw. Never a guess, never a title match.
+    const successor = await this.#readSuccessorSafety(current);
+    const withdraw = successor !== null && successorIsUntouched(successor);
+
+    const spineStmt = this.#db
+      .prepare(
+        `UPDATE spine_records SET completed_at = NULL
+         WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?
+           AND EXISTS (SELECT 1 FROM entities
+                       WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+         RETURNING entity_id`,
+      )
+      .bind(
+        this.#workspaceId,
+        entityId,
+        observedCompletedAt,
+        this.#workspaceId,
+        entityId,
+      );
+    const entityStmt = buildEntityUpdatedAtBumpStatement(
+      this.#db,
+      this.#workspaceId,
+      entityId,
+      nowTs,
+    );
+    const reopenActivity = this.#recorder.buildAppendStatements(
+      this.#workspaceId,
+      buildActivityWriteModel(
+        {
+          type: TASK_REOPENED,
+          subjects: [{ entityId, role: SUBJECT_ROLE }],
+          payload: { previousCompletedAt: observedCompletedAt },
+        },
+        this.#actor.actor,
+        this.#newActivityId(),
+        now,
+      ),
+    );
+
+    const statements: D1PreparedStatement[] = [
+      spineStmt,
+      entityStmt,
+      ...reopenActivity,
+    ];
+
+    if (withdraw && successor !== null) {
+      // Gated on the reopen having committed in THIS batch (the predecessor is open
+      // again) AND on the successor still being untouched and open, so a successor
+      // edited between the safety read and the write survives regardless.
+      statements.push(
+        this.#withdrawSuccessorStatement(entityId, successor.entity_id, nowTs),
+        ...this.#recorder.buildAppendStatements(
+          this.#workspaceId,
+          buildActivityWriteModel(
+            {
+              type: TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
+              subjects: [
+                { entityId, role: SUBJECT_ROLE },
+                { entityId: successor.entity_id, role: ROLE_SUCCESSOR },
+              ],
+              payload: {
+                entityType: TASK,
+                seriesId: current.recurrenceSeries?.seriesId ?? null,
+                sequence: successor.sequence,
+              },
+            },
+            this.#actor.actor,
+            this.#newActivityId(),
+            now,
+          ),
+        ),
+      );
+    }
+
+    let results: D1Result<{ readonly entity_id: string }>[];
+    try {
+      results = await this.#db.batch<{ readonly entity_id: string }>(
+        statements,
+      );
+    } catch (cause) {
+      if (cause instanceof ActivityError) throw cause;
+      throw new TaskStorageError(undefined, { cause });
+    }
+    if ((results[0]?.results ?? []).length === 0) {
+      // A concurrent racer reopened or deleted the task first: nothing was written.
+      const refreshed = await this.getTask(entityId);
+      if (!refreshed) throw new TaskNotFoundError();
+      return { task: refreshed, changed: false, successorOutcome: "none" };
+    }
+
+    const task = await this.getTask(entityId);
+    if (!task) throw new TaskNotFoundError();
+    // Report what ACTUALLY happened: the guarded withdrawal may have declined even
+    // though the safety read allowed it (a concurrent edit), so read it back.
+    let successorOutcome: ReopenTaskSuccessorOutcome = "none";
+    if (successor !== null) {
+      const stillPresent = await this.getTask(successor.entity_id);
+      successorOutcome = stillPresent === null ? "removed" : "retained";
+    }
+    return { task, changed: true, successorOutcome };
+  }
+
+  /**
+   * Read the successor of a completed occurrence together with everything the safety
+   * decision needs, in ONE statement: its timestamps, its completion, its sequence
+   * and how many ACTIVE links it carries beyond the structural parent it was created
+   * with. Returns null when this occurrence produced no successor.
+   */
+  async #readSuccessorSafety(task: TaskView): Promise<SuccessorRow | null> {
+    const series = task.recurrenceSeries ?? null;
+    if (series === null) return null;
+    return await this.#db
+      .prepare(
+        `SELECT e.id AS entity_id,
+                e.created_at AS created_at,
+                e.updated_at AS updated_at,
+                sr.completed_at AS completed_at,
+                rr.sequence AS sequence,
+                (SELECT COUNT(*) FROM entity_links l
+                  WHERE l.workspace_id = e.workspace_id
+                    AND l.deleted_at IS NULL
+                    AND (l.source_entity_id = e.id OR l.target_entity_id = e.id)
+                    AND l.type NOT IN (${TASK_PARENT_LINK_LIST})) AS extra_links
+         FROM task_recurrence_rules rr
+         JOIN entities e
+           ON e.workspace_id = rr.workspace_id AND e.id = rr.entity_id
+          AND e.type = '${TASK}' AND e.deleted_at IS NULL
+         JOIN spine_records sr
+           ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+         WHERE rr.workspace_id = ? AND rr.series_id = ? AND rr.sequence = ?
+         LIMIT 1`,
+      )
+      .bind(this.#workspaceId, series.seriesId, series.sequence + 1)
+      .first<SuccessorRow>();
+  }
+
+  /**
+   * Soft-delete an untouched successor as part of the reopen. Gated on (a) the
+   * predecessor being OPEN again — the reopen in this same batch — and (b) the
+   * successor still being open and still bearing no edit (`updated_at =
+   * created_at`), so a successor changed between the safety read and the write is
+   * never destroyed. Soft delete, never a purge: the reversible-delete lifecycle
+   * (PX-04) still applies, and its Activity history is retained.
+   */
+  #withdrawSuccessorStatement(
+    predecessorId: string,
+    successorId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `UPDATE entities
+         SET deleted_at = ?, updated_at = ?
+         WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+           AND deleted_at IS NULL
+           AND updated_at = created_at
+           AND EXISTS (SELECT 1 FROM spine_records
+                       WHERE workspace_id = ? AND entity_id = ?
+                         AND completed_at IS NULL)
+           AND EXISTS (SELECT 1 FROM spine_records
+                       WHERE workspace_id = ? AND entity_id = ?
+                         AND completed_at IS NULL)`,
+      )
+      .bind(
+        nowTs,
+        nowTs,
+        this.#workspaceId,
+        successorId,
+        this.#workspaceId,
+        successorId,
+        this.#workspaceId,
+        predecessorId,
+      );
   }
 
   /**
@@ -3669,8 +4461,7 @@ export class D1TaskRepository implements TaskRepository {
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
-         LEFT JOIN task_recurrence_rules rr
-           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id
+         ${TASK_RECURRENCE_JOIN}
          LEFT JOIN entity_links pl
            ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
               AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
@@ -3832,6 +4623,7 @@ export class D1TaskRepository implements TaskRepository {
       commitmentState: details.commitmentState,
       delegation: details.delegation,
       recurrence: details.recurrence,
+      recurrenceSeries: details.recurrenceSeries,
       description: details.description,
       project: relationships.project,
       goal: relationships.goal,

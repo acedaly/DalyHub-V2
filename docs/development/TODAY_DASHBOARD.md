@@ -709,8 +709,39 @@ Verified, not assumed:
 **The complete Tasks workspace is deliberately NOT embedded in Today.** Today
 remains a focused execution dashboard; `/tasks` remains where work is *managed*.
 
-**[DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) is still open.** TASKS-03 gave `/tasks` a first-class status filter and a status
-grouping, which makes the inconsistency *easier to see* — an on-hold task is now
-one click from being isolated in Tasks — but Today's `listPlanningTasks` still
-filters only Someday and Cancelled, and its projection still carries no status. The
-debt entry is unchanged and remains the place that work is tracked.
+**[DEBT-37](../product/PRODUCT_DEBT.md#-debt-37--on-hold-tasks-appear-on-today-but-are-excluded-from-tasks-active-planning-views--p2) was still open at TASKS-03.** TASKS-03 gave `/tasks` a first-class status filter
+and a status grouping, which made the inconsistency *easier to see* — an on-hold
+task was one click from being isolated in Tasks — but Today's `listPlanningTasks`
+still filtered only Someday and Cancelled.
+
+---
+
+## What is active work on Today (TASKS-04, 2026-07-31)
+
+TASKS-04 closed DEBT-37 by deciding the intent ONCE and applying it in one place:
+`listPlanningTasks` now excludes `on_hold` alongside Someday/Maybe and cancelled, so
+a paused Task can never be "parked" on `/tasks` and "today's work" on `/today`. No
+third state vocabulary was introduced and the projection's shape is unchanged.
+
+Today's active planning bands therefore contain:
+
+| State | On Today? |
+|---|---|
+| Active (`todo`) | **Yes** |
+| In progress | **Yes** |
+| A recurring successor created by completing its predecessor | **Yes** — ordinary active work |
+| Waiting | No — the dedicated Waiting surface owns it |
+| On hold | No *(TASKS-04)* |
+| Someday / Maybe | No |
+| Cancelled | No |
+| Completed | Yes, in the completions band, so "completed today" still works |
+
+An **Unassigned** Task (TASKS-04's Inbox: an active Task with no structural parent)
+is ordinary active work here. Inbox is about PARENTAGE, not about being unplanned —
+a Task scheduled for today with no Project or Area appears on Today exactly as an
+assigned one does.
+
+This is asserted, not assumed:
+[`test/kernel/task-inbox-parent.test.ts`](../../test/kernel/task-inbox-parent.test.ts)
+seeds one Task per state, all scheduled for the same day, and asserts that the
+planning bands and the `/tasks` active view AGREE on every one of them.

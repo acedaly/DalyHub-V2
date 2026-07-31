@@ -33,9 +33,14 @@ import {
   SpineValidationError,
 } from "~/kernel/spine";
 import {
+  TASK_RECURRENCE_DATE_KINDS,
+  TASK_RECURRENCE_FREQUENCIES,
   TaskValidationError,
   type CommitmentState,
   type TaskPriority,
+  type TaskRecurrenceDateKind,
+  type TaskRecurrenceFrequency,
+  type TaskRecurrenceInput,
   type TimeSector,
 } from "~/kernel/tasks";
 
@@ -83,6 +88,50 @@ export function resolveTaskCreateParent(
   return { kind: submittedParentKind, id: submittedParentId };
 }
 
+/**
+ * A comma-separated weekday list from an untrusted form field, accepting only whole
+ * numbers 0-6. Empty and blank segments are DROPPED rather than coerced — `Number("")`
+ * is 0, which would silently turn "no selected weekdays" into "every Sunday".
+ */
+function parseWeekdayList(value: FormDataEntryValue | null): number[] {
+  return String(value ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => /^[0-6]$/.test(part))
+    .map(Number);
+}
+
+/**
+ * Read the OPTIONAL recurrence fields off a create submission, accepting only
+ * closed-set tokens. Returns null when no recurrence was requested; an unrecognised
+ * frequency is treated as "no recurrence requested" rather than a silent guess, and
+ * the kernel still validates the rule against the task's anchor date.
+ */
+function readRecurrenceFields(form: FormData): TaskRecurrenceInput | null {
+  const frequency = String(form.get("recurrenceFrequency") ?? "");
+  if (!(TASK_RECURRENCE_FREQUENCIES as readonly string[]).includes(frequency)) {
+    return null;
+  }
+  const dateKindRaw = String(form.get("recurrenceDateKind") ?? "scheduled");
+  const dateKind = (TASK_RECURRENCE_DATE_KINDS as readonly string[]).includes(
+    dateKindRaw,
+  )
+    ? (dateKindRaw as TaskRecurrenceDateKind)
+    : "scheduled";
+  const intervalRaw = Number(form.get("recurrenceInterval") ?? 1);
+  const interval =
+    Number.isInteger(intervalRaw) && intervalRaw >= 1 && intervalRaw <= 99
+      ? intervalRaw
+      : 1;
+  const weekdays = parseWeekdayList(form.get("recurrenceWeekdays"));
+  return {
+    frequency: frequency as TaskRecurrenceFrequency,
+    dateKind,
+    interval,
+    weekdays,
+  };
+}
+
 /** Create a task AND its quick-capture planning fields in ONE atomic operation. */
 async function handleCreate(
   scope: WorkspaceScope,
@@ -102,6 +151,11 @@ async function handleCreate(
   const dueDate = form.get("dueDate");
   const scheduledDate = form.get("scheduledDate");
   const rawCaptureContext = form.get("captureContext");
+  // TASKS-04 — the recurrence the deterministic parser recognised, bound from closed
+  // sets and written in the SAME create batch. A captured "every Monday" is either
+  // persisted WITH its rule or not created at all: parsing without applying would be
+  // a promise the product does not keep.
+  const recurrence = readRecurrenceFields(form);
   try {
     const captureContext = await validateCaptureContextForCreate(
       scope,
@@ -134,6 +188,7 @@ async function handleCreate(
         : {}),
       ...(dueDate ? { dueDate: String(dueDate) } : {}),
       ...(scheduledDate ? { scheduledDate: String(scheduledDate) } : {}),
+      ...(recurrence ? { recurrence } : {}),
     });
     try {
       await applyCaptureRelationship(scope, task.id, captureContext);

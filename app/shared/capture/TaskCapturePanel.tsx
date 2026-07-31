@@ -30,7 +30,10 @@ import {
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
-import { parseQuickCapture } from "~/shared/task-record/quick-capture";
+import {
+  applyRecurrenceFields,
+  parseQuickCapture,
+} from "~/shared/task-record/quick-capture";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 import { taskPriorityLabel } from "~/shared/task-record/task-view";
 import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
@@ -137,6 +140,10 @@ export function TaskCapturePanel({
       if (interpretation.scheduledDate) {
         body.set("scheduledDate", interpretation.scheduledDate);
       }
+      applyRecurrenceFields(body, interpretation.recurrence, {
+        scheduledDate: interpretation.scheduledDate,
+        dueDate: dueDate || null,
+      });
 
       let data: TasksCreateResponse;
       try {
@@ -170,6 +177,17 @@ export function TaskCapturePanel({
 
   const titleField = form.field("title");
   const parentField = form.field("parentId");
+  /**
+   * The title of an explicitly CHOSEN destination, so the "Filing under …" line tracks
+   * the picker instead of contradicting it. Resolved from the picker's own known
+   * options — never a second source of truth for what a Project is called.
+   */
+  const selectedParentTitle =
+    parentField.value.length === 0
+      ? null
+      : (parentSearch
+          .withSelected(parentField.value)
+          .find((option) => option.value === parentField.value)?.label ?? null);
   const priorityValue = form.values.priority;
   const dueValue = form.values.dueDate;
 
@@ -231,22 +249,35 @@ export function TaskCapturePanel({
         }}
       />
 
+      {/* TASKS-04 — the sheet ALWAYS states where the task will be filed, because
+          "somewhere" is the one thing a trustworthy inbox may never be. With a fixed
+          or chosen destination that is the Project/Area; otherwise it is Inbox, which
+          is a real destination now rather than the absence of one. The optional picker
+          is progressive disclosure BELOW that line, never a blocker on the fast path. */}
       {defaultParent ? (
         <p className="dh-capture-parent">
           Filing under <strong>{defaultParent.title}</strong>
         </p>
-      ) : canChooseParent ? (
-        <SelectField
-          label="Parent"
-          help="Leave blank to keep this task in Inbox."
-          placeholder="Search Projects and Areas"
-          options={parentSearch.withSelected(parentField.value)}
-          onSearch={parentSearch.search}
-          loading={parentSearch.loading}
-          emptyMessage="No matching Projects or Areas"
-          {...parentField}
-        />
-      ) : null}
+      ) : (
+        <>
+          <p className="dh-capture-parent">
+            Filing under <strong>{selectedParentTitle ?? "Inbox"}</strong>
+          </p>
+          {canChooseParent ? (
+            <SelectField
+              label="Project or Area"
+              help="Leave blank to keep this task in Inbox."
+              placeholder="Search Projects and Areas"
+              showOptionalCue={false}
+              options={parentSearch.withSelected(parentField.value)}
+              onSearch={parentSearch.search}
+              loading={parentSearch.loading}
+              emptyMessage="No matching Projects or Areas"
+              {...parentField}
+            />
+          ) : null}
+        </>
+      )}
 
       {/* Optional classification as one-tap chips — a priority or a date costs a
           single additional tap, never a trip into a collapsed form section. */}

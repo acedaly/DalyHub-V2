@@ -24,6 +24,8 @@ import {
 import {
   TASK_PLANNED,
   TASK_PLAN_CLEARED,
+  TASK_RECURRENCE_OCCURRENCE_CREATED,
+  TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_RESCHEDULED,
   TASK_WAITING_CHANGED,
   TASK_WAITING_CLEARED,
@@ -66,6 +68,14 @@ export const TODAY_ACTIVITY_DESCRIPTORS: Record<
   [TASK_PLANNED]: { label: "Planned task", entityType: "task" },
   [TASK_RESCHEDULED]: { label: "Rescheduled task", entityType: "task" },
   [TASK_PLAN_CLEARED]: { label: "Cleared task plan", entityType: "task" },
+  [TASK_RECURRENCE_OCCURRENCE_CREATED]: {
+    label: "Created the next occurrence",
+    entityType: "task",
+  },
+  [TASK_RECURRENCE_OCCURRENCE_WITHDRAWN]: {
+    label: "Withdrew the next occurrence",
+    entityType: "task",
+  },
   [TASK_WAITING_STARTED]: { label: "Started waiting", entityType: "task" },
   [TASK_WAITING_CHANGED]: { label: "Changed waiting", entityType: "task" },
   [TASK_WAITING_CLEARED]: { label: "Cleared waiting", entityType: "task" },

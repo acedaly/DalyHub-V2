@@ -12,6 +12,9 @@
  *
  * Every token must be a WHOLE whitespace-delimited word (case-insensitive), so a
  * title like "Plan the p1 launch party" keeps "p1" as text unless it stands alone.
+ * An UNMARKED calendar word (`today`, `friday`, `12/08`) is recognised only when it
+ * TRAILS the line, so "Review the today show notes" keeps its words; a date anywhere
+ * else needs an explicit `due …` or `on …` marker.
  * The title is what remains after removing recognised tokens; if removing tokens
  * would empty the title, the ORIGINAL text is kept as the title (the tokens are
  * then treated as literal words) so capture never produces an empty task.
@@ -142,6 +145,17 @@ const WEEKDAY_LABELS = [
   "Friday",
   "Saturday",
 ];
+
+/**
+ * True when every word after `end` has already been consumed by a token — i.e. the
+ * span ending at `end` is the TAIL of what remains of the line.
+ */
+function isTrailing(removed: readonly boolean[], end: number): boolean {
+  for (let i = end + 1; i < removed.length; i++) {
+    if (!removed[i]) return false;
+  }
+  return true;
+}
 
 /** Collapse internal whitespace and trim. */
 function normaliseWhitespace(value: string): string {
@@ -449,6 +463,34 @@ export function parseQuickCapture(
   }
 
   if (options.todayIso) {
+    // Words belonging to a date token the user REMOVED: kept as plain title text
+    // rather than re-read by the unmarked-date pass.
+    const blockedDate = new Array<boolean>(words.length).fill(false);
+
+    // Recurrence PHRASES are consumed first, so a trailing date is still trailing
+    // once the `every …` phrase after it is gone ("Water the plants tomorrow every
+    // week" reads as a date AND a repeat, not as prose). The anchor the rule repeats
+    // from is resolved after the date pass below.
+    for (let i = 0; i < words.length; i++) {
+      if (removed[i] || recurrence !== null) continue;
+      const parsed = parseRecurrencePhrase(words, lower, i);
+      if (!parsed) continue;
+      const id = `recurrence:${i}:${parsed.raw.toLowerCase()}`;
+      if (ignored.has(id)) continue;
+      recurrence = {
+        ...parsed.recurrence,
+        dateKind: null,
+        needsDate: true,
+      };
+      for (let j = i; j <= parsed.end; j++) removed[j] = true;
+      tokens.push({
+        id,
+        raw: parsed.raw,
+        kind: "recurrence",
+        label: parsed.recurrence.label,
+      });
+    }
+
     for (let i = 0; i < words.length; i++) {
       if (removed[i]) continue;
       const w = lower[i]!;
@@ -458,7 +500,13 @@ export function parseQuickCapture(
         const parsed = parseDateWord(words, lower, i + 1, options.todayIso);
         if (!parsed) continue;
         const id = `${explicitKind}:${i}:${parsed.raw.toLowerCase()}`;
-        if (ignored.has(id)) continue;
+        if (ignored.has(id)) {
+          // A REMOVED token must restore the user's words as they typed them — not
+          // quietly reappear as a different interpretation. Block this span from the
+          // unmarked-date pass below.
+          for (let j = i; j <= parsed.end; j++) blockedDate[j] = true;
+          continue;
+        }
         if (explicitKind === "due_date" && dueDate === null) {
           dueDate = parsed.iso;
         } else if (
@@ -479,9 +527,16 @@ export function parseQuickCapture(
         continue;
       }
       if (scheduledDate === null) {
+        if (blockedDate[i]) continue;
         if (i > 0 && lower[i - 1] === "every") continue;
         const parsed = parseDateWord(words, lower, i, options.todayIso);
         if (!parsed) continue;
+        // An UNMARKED date word is only a date when it TRAILS the line ("Water the
+        // plants today"), never mid-sentence ("Review the today show notes"). A date
+        // meant to appear anywhere gets an explicit marker — `due …` or `on …` — which
+        // the branch above handles. This is the restraint that keeps the parser
+        // trustworthy: it never silently eats a word the user meant as prose.
+        if (!isTrailing(removed, parsed.end)) continue;
         const id = `scheduled_date:${i}:${parsed.raw.toLowerCase()}`;
         if (ignored.has(id)) continue;
         scheduledDate = parsed.iso;
@@ -495,37 +550,25 @@ export function parseQuickCapture(
       }
     }
 
-    for (let i = 0; i < words.length; i++) {
-      if (removed[i] || recurrence !== null) continue;
-      const parsed = parseRecurrencePhrase(words, lower, i);
-      if (!parsed) continue;
-      const id = `recurrence:${i}:${parsed.raw.toLowerCase()}`;
-      if (ignored.has(id)) continue;
+    // Resolve which date the rule repeats FROM, now that both passes have run. A
+    // `due …` date wins (that is the date the phrase attached to); otherwise the
+    // scheduled date; and a single-weekday weekly rule with no date at all gets the
+    // NEXT such weekday, because "every Monday" plainly means starting Monday.
+    if (recurrence !== null) {
       let dateKind: QuickCaptureRecurrence["dateKind"] =
         dueDate !== null ? "due" : scheduledDate !== null ? "scheduled" : null;
       if (
         dateKind === null &&
-        parsed.recurrence.frequency === "week" &&
-        parsed.recurrence.weekdays.length === 1
+        recurrence.frequency === "week" &&
+        recurrence.weekdays.length === 1
       ) {
         scheduledDate = nextWeekdayIso(
           options.todayIso,
-          parsed.recurrence.weekdays[0]!,
+          recurrence.weekdays[0]!,
         );
         dateKind = "scheduled";
       }
-      recurrence = {
-        ...parsed.recurrence,
-        dateKind,
-        needsDate: dateKind === null,
-      };
-      for (let j = i; j <= parsed.end; j++) removed[j] = true;
-      tokens.push({
-        id,
-        raw: parsed.raw,
-        kind: "recurrence",
-        label: recurrence.label,
-      });
+      recurrence = { ...recurrence, dateKind, needsDate: dateKind === null };
     }
   }
 
@@ -575,4 +618,45 @@ export function interpretationIsMeaningful(
     interpretation.waiting ||
     interpretation.delegate
   );
+}
+
+/**
+ * TASKS-04 — write a recognised recurrence phrase onto a `/tasks/new` submission.
+ *
+ * The parser can recognise "every Monday" before the user has given the task a date,
+ * so this is where recognition becomes PERSISTENCE: the rule is submitted only when
+ * the capture genuinely carries the date it would repeat from, preferring an explicit
+ * `due …` when that is the date the phrase attached to. Without an anchor the rule is
+ * dropped rather than invented — the preview still showed the phrase, and the server
+ * would refuse an anchorless rule anyway.
+ *
+ * Shared by every capture surface (the `/tasks` form, the in-list quick add and the
+ * phone capture sheet) so there is ONE mapping from parsed phrase to submitted fields.
+ */
+export function applyRecurrenceFields(
+  body: FormData,
+  recurrence: QuickCaptureRecurrence | null,
+  dates: {
+    readonly scheduledDate?: string | null;
+    readonly dueDate?: string | null;
+  },
+): void {
+  if (recurrence === null) return;
+  const scheduled = dates.scheduledDate ?? null;
+  const due = dates.dueDate ?? null;
+  const dateKind =
+    recurrence.dateKind === "due" && due !== null
+      ? "due"
+      : scheduled !== null
+        ? "scheduled"
+        : due !== null
+          ? "due"
+          : null;
+  if (dateKind === null) return;
+  body.set("recurrenceFrequency", recurrence.frequency);
+  body.set("recurrenceDateKind", dateKind);
+  body.set("recurrenceInterval", String(recurrence.interval));
+  if (recurrence.weekdays.length > 0) {
+    body.set("recurrenceWeekdays", recurrence.weekdays.join(","));
+  }
 }

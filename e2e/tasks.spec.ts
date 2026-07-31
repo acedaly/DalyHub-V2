@@ -103,8 +103,11 @@ test.describe("TASKS-01 — desktop", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks?view=sectors");
-    for (const label of ["Inbox", "This Week", "Next Week", "Long Term"]) {
-      // The section heading carries a count suffix, e.g. "Inbox (6)".
+    // TASKS-04 renamed the no-sector bucket: "Inbox" now means an UNASSIGNED task, so
+    // the absence of a Time Sector reads as "No sector". The two are genuinely
+    // different states — a task can be filed under a Project and still have no sector.
+    for (const label of ["No sector", "This Week", "Next Week", "Long Term"]) {
+      // The section heading carries a count suffix, e.g. "No sector (6)".
       await expect(
         page.getByRole("heading", { name: label }).first(),
       ).toBeVisible();

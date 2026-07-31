@@ -211,4 +211,99 @@ describe("parseQuickCapture", () => {
     expect(r.recurrence).toBeNull();
     expect(r.scheduledDate).toBeNull();
   });
+  it("only treats an UNMARKED calendar word as a date when it TRAILS the line", () => {
+    // The restraint that keeps the parser trustworthy: prose that happens to contain
+    // a calendar word keeps its words.
+    const prose = parseQuickCapture("Review the today show notes", {
+      todayIso: "2026-07-30",
+    });
+    expect(prose.title).toBe("Review the today show notes");
+    expect(prose.scheduledDate).toBeNull();
+
+    // The same word at the end IS the date the user meant.
+    const trailing = parseQuickCapture("Review the show notes today", {
+      todayIso: "2026-07-30",
+    });
+    expect(trailing.title).toBe("Review the show notes");
+    expect(trailing.scheduledDate).toBe("2026-07-30");
+
+    // An explicit marker works anywhere, because the user said so explicitly.
+    const marked = parseQuickCapture("Review on Friday with Sam", {
+      todayIso: "2026-07-30",
+    });
+    expect(marked.title).toBe("Review with Sam");
+    expect(marked.scheduledDate).toBe("2026-07-31");
+  });
+
+  it("parses a bare weekday name and an ISO date", () => {
+    const weekday = parseQuickCapture("Call the plumber monday", {
+      todayIso: "2026-07-30",
+    });
+    expect(weekday.scheduledDate).toBe("2026-08-03");
+
+    const iso = parseQuickCapture("Lodge the form 2026-09-15", {
+      todayIso: "2026-07-30",
+    });
+    expect(iso.title).toBe("Lodge the form");
+    expect(iso.scheduledDate).toBe("2026-09-15");
+  });
+
+  it("ignores an impossible Australian date rather than guessing", () => {
+    const r = parseQuickCapture("Pay rego due 31/02", {
+      todayIso: "2026-07-30",
+    });
+    expect(r.dueDate).toBeNull();
+    expect(r.title).toBe("Pay rego due 31/02");
+  });
+
+  it("recognises the whole restrained recurrence vocabulary", () => {
+    const cases: ReadonlyArray<
+      readonly [string, { frequency: string; interval: number }]
+    > = [
+      ["Stretch every day", { frequency: "day", interval: 1 }],
+      ["Stand-up every weekday", { frequency: "weekday", interval: 1 }],
+      ["Groceries every week", { frequency: "week", interval: 1 }],
+      ["Deep clean every 2 weeks", { frequency: "week", interval: 2 }],
+      ["Pay levy every month", { frequency: "month", interval: 1 }],
+      ["Renew domain every year", { frequency: "year", interval: 1 }],
+    ];
+    for (const [input, expected] of cases) {
+      const r = parseQuickCapture(input, { todayIso: "2026-07-30" });
+      expect(r.recurrence).toMatchObject(expected);
+    }
+  });
+
+  it("exposes every recognised token as removable before save", () => {
+    const r = parseQuickCapture("Submit report p1 next week due tomorrow", {
+      todayIso: "2026-07-30",
+    });
+    const kinds = r.tokens.map((token) => token.kind).sort();
+    expect(kinds).toEqual(["due_date", "priority", "sector"]);
+    // Removing a token by its id restores the word to the title.
+    const withoutDue = parseQuickCapture(
+      "Submit report p1 next week due tomorrow",
+      {
+        todayIso: "2026-07-30",
+        ignoredTokenIds: new Set(
+          r.tokens.filter((t) => t.kind === "due_date").map((t) => t.id),
+        ),
+      },
+    );
+    expect(withoutDue.dueDate).toBeNull();
+    expect(withoutDue.title).toBe("Submit report due tomorrow");
+  });
+  it("reads a trailing date AND a repeat from the same capture", () => {
+    // The repeat phrase is consumed first, so the date before it is still trailing.
+    const r = parseQuickCapture("Water the plants tomorrow every week", {
+      todayIso: "2026-07-30",
+    });
+    expect(r.title).toBe("Water the plants");
+    expect(r.scheduledDate).toBe("2026-07-31");
+    expect(r.recurrence).toMatchObject({
+      frequency: "week",
+      interval: 1,
+      dateKind: "scheduled",
+      needsDate: false,
+    });
+  });
 });

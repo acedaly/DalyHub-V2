@@ -84,6 +84,10 @@ describe("completion route — storage failure is calm", () => {
     expect(body.message).toBeTruthy();
     // The raw SQL / D1 internals never reach the client.
     expect(JSON.stringify(body)).not.toMatch(/D1_ERROR|syntax error|FROM/);
-    expect(completeTask).toHaveBeenCalledWith("t1");
+    // TASKS-04: the route passes the OWNER's calendar day so recurrence schedules
+    // the next occurrence from the day the owner completed the task (ADR-022).
+    expect(completeTask).toHaveBeenCalledWith("t1", {
+      ownerTodayIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
   });
 });

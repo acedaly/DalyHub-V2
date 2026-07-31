@@ -26,11 +26,16 @@ import { env } from "cloudflare:workers";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { SpineParentUnavailableError } from "~/kernel/spine";
 import {
+  TASK_RECURRENCE_DATE_KINDS,
+  TASK_RECURRENCE_FREQUENCIES,
   TaskNotFoundError,
   TaskProjectArchivedError,
   TaskValidationError,
   type CommitmentState,
   type SetTaskParentInput,
+  type SetTaskRecurrenceInput,
+  type TaskRecurrenceDateKind,
+  type TaskRecurrenceFrequency,
   type SetWaitingInput,
   type TaskPriority,
   type TaskStatus,
@@ -153,7 +158,14 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(await handleRename(scope, taskId, form));
     case "complete":
     case "reopen":
-      return json(await handleCompletion(scope, taskId, intent));
+      return json(
+        await handleCompletion(
+          scope,
+          taskId,
+          intent,
+          await ownerTodayIsoFor(scope, session.user.subject),
+        ),
+      );
     case "link":
       return json(await handleLink(scope, task, form));
     case "unlink":
@@ -168,6 +180,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(await handleClearPlan(scope, taskId));
     case "set_parent":
       return json(await handleSetParent(scope, taskId, form));
+    case "set_recurrence":
+      return json(await handleSetRecurrence(scope, taskId, form));
     default:
       return json(
         { kind: "update", status: "error", formError: "Unknown action." },
@@ -296,31 +310,43 @@ async function handleCompletion(
   scope: WorkspaceScope,
   taskId: string,
   intent: "complete" | "reopen",
+  ownerTodayIso: string,
 ): Promise<TaskActionData> {
   try {
     if (intent === "complete") {
-      // Completing a task AND clearing any active waiting state is ONE atomic
-      // task-domain operation (ADR-029): a completed task can never be left still
-      // waiting. The route no longer coordinates this invariant through two calls.
-      const result = await scope.tasks.completeTask(taskId);
+      // Completing a task, clearing any active waiting state AND creating the ONE
+      // next occurrence of a repeating task is ONE atomic task-domain operation
+      // (ADR-029 / ADR-061). The route never coordinates those through several calls.
+      const result = await scope.tasks.completeTask(taskId, { ownerTodayIso });
       return {
         kind: "completion",
         ok: true,
         task: serializeTaskView(result.task),
+        recurrence:
+          result.successor == null
+            ? undefined
+            : {
+                outcome: "created",
+                taskId: result.successor.id,
+                scheduledDate: result.successor.scheduledDate,
+                dueDate: result.successor.dueDate,
+              },
       };
     }
-    // Reopening goes through the spine (the completion authority) and does NOT
-    // restore a prior waiting state (the documented default).
-    await scope.spine.reopen(taskId);
-    const task = await scope.tasks.getTask(taskId);
-    if (!task) {
-      return {
-        kind: "completion",
-        ok: false,
-        message: "This task is no longer available.",
-      };
-    }
-    return { kind: "completion", ok: true, task: serializeTaskView(task) };
+    // Reopening is the task-domain UNDO: the spine's completion SQL clears the
+    // completion, and an untouched successor created by that completion is withdrawn
+    // in the SAME transaction. A successor the owner has since changed is retained
+    // and reported, never silently destroyed. Waiting is never restored.
+    const result = await scope.tasks.reopenTask(taskId);
+    return {
+      kind: "completion",
+      ok: true,
+      task: serializeTaskView(result.task),
+      recurrence:
+        result.successorOutcome === "none"
+          ? undefined
+          : { outcome: result.successorOutcome },
+    };
   } catch (cause) {
     if (
       cause instanceof TaskProjectArchivedError ||
@@ -337,6 +363,114 @@ async function handleCompletion(
       kind: "completion",
       ok: false,
       message: "That couldn’t be saved. Please try again.",
+    };
+  }
+}
+
+/**
+ * The OWNER's calendar day (ADR-022), resolved from their stored timezone. Recurrence
+ * schedules the next occurrence relative to the day the owner actually completed the
+ * task, never the server's UTC day or a browser guess.
+ */
+async function ownerTodayIsoFor(
+  scope: WorkspaceScope,
+  subject: string,
+): Promise<string> {
+  let timezone = DEFAULT_APP_PREFERENCES.timezone;
+  try {
+    timezone = (await scope.appPreferences.get(subject)).timezone;
+  } catch {
+    // Keep the mutation working on the deterministic default.
+  }
+  return ownerCalendarIso(new Date(), timezone);
+}
+
+/**
+ * TASKS-04 — set, change or remove the Task's recurrence rule. Every value is a
+ * closed-set token bound server-side; the kernel validates the rule against the
+ * Task's own anchor date, so a rule that could never repeat is refused with a field
+ * error the control can show.
+ */
+async function handleSetRecurrence(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  const frequency = nullable(form.get("frequency"));
+  const dateKind = nullable(form.get("dateKind")) ?? "scheduled";
+  const intervalRaw = nullable(form.get("interval"));
+  const weekdaysRaw = nullable(form.get("weekdays"));
+
+  let recurrence: SetTaskRecurrenceInput = null;
+  if (frequency !== null) {
+    if (
+      !(TASK_RECURRENCE_FREQUENCIES as readonly string[]).includes(frequency)
+    ) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { recurrence: "Choose how often this repeats." },
+      };
+    }
+    if (!(TASK_RECURRENCE_DATE_KINDS as readonly string[]).includes(dateKind)) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { recurrence: "Choose the date this repeats from." },
+      };
+    }
+    const interval = intervalRaw === null ? 1 : Number(intervalRaw);
+    if (!Number.isInteger(interval) || interval < 1 || interval > 99) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { recurrence: "Repeat every 1 to 99." },
+      };
+    }
+    // Only whole 0-6 tokens; a blank segment is dropped rather than coerced to 0
+    // (which would silently mean "every Sunday").
+    const weekdays = (weekdaysRaw ?? "")
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => /^[0-6]$/.test(part))
+      .map(Number);
+    recurrence = {
+      frequency: frequency as TaskRecurrenceFrequency,
+      dateKind: dateKind as TaskRecurrenceDateKind,
+      interval,
+      weekdays,
+    };
+  }
+
+  try {
+    const result = await scope.tasks.setTaskRecurrence(taskId, recurrence);
+    return {
+      kind: "update",
+      status: "success",
+      task: serializeTaskView(result.task),
+    };
+  } catch (cause) {
+    if (cause instanceof TaskValidationError) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { recurrence: cause.message },
+      };
+    }
+    if (cause instanceof TaskNotFoundError) {
+      return {
+        kind: "update",
+        status: "error",
+        formError: "This task is no longer available.",
+      };
+    }
+    if (cause instanceof TaskProjectArchivedError) {
+      return { kind: "update", status: "error", formError: cause.message };
+    }
+    return {
+      kind: "update",
+      status: "error",
+      formError: "That repeat couldn’t be saved. Please try again.",
     };
   }
 }

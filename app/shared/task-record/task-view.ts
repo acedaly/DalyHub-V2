@@ -241,6 +241,44 @@ export function taskPriorityTag(priority: TaskPriority | null): string {
   return priority === null ? "—" : priority.toUpperCase();
 }
 
+/**
+ * TASKS-04 — the human label for a recurrence rule, in the same restrained vocabulary
+ * the quick-capture parser recognises ("Every weekday", "Every 2 weeks"), so what the
+ * user typed, what the preview showed and what the record reports all read alike.
+ * `null` means the task does not repeat.
+ */
+export function taskRecurrenceLabel(
+  rule: TaskRecurrenceRule | null | undefined,
+): string | null {
+  if (!rule) return null;
+  const every = (unit: string) =>
+    rule.interval === 1 ? `Every ${unit}` : `Every ${rule.interval} ${unit}s`;
+  const base =
+    rule.frequency === "day"
+      ? every("day")
+      : rule.frequency === "weekday"
+        ? "Every weekday"
+        : rule.frequency === "week"
+          ? rule.weekdays.length > 0
+            ? `Every ${rule.weekdays.map((day) => WEEKDAY_NAMES[day] ?? "day").join(", ")}`
+            : every("week")
+          : rule.frequency === "month"
+            ? every("month")
+            : every("year");
+  return rule.dateKind === "due" ? `${base}, from the due date` : base;
+}
+
+/** Weekday names for a selected-weekday weekly rule (0 = Sunday). */
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
 /** Human label for a Time Sector; `null` is the explicit "No sector" value. */
 export function timeSectorLabel(sector: TimeSector | null): string {
   switch (sector) {

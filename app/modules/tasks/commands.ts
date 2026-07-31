@@ -31,6 +31,24 @@ export const tasksCommands: readonly CommandContribution[] = [
     },
   },
   {
+    // TASKS-04: Inbox is active, UNASSIGNED tasks — the built-in view and the
+    // triage flow over it are both reachable from the palette.
+    id: "tasks.inbox",
+    title: "Open Inbox",
+    subtitle: "Active tasks with no Project or Area yet",
+    keywords: ["inbox", "unassigned", "triage", "capture"],
+    kind: "navigate",
+    target: { kind: "route", to: "/tasks?view=list&system=inbox" },
+  },
+  {
+    id: "tasks.review_inbox",
+    title: "Review Inbox",
+    subtitle: "Triage unassigned tasks one at a time",
+    keywords: ["review", "inbox", "triage", "process", "clear"],
+    kind: "navigate",
+    target: { kind: "route", to: "/tasks/review" },
+  },
+  {
     id: "tasks.this_week",
     title: "Open This Week",
     subtitle: "Focus view for this week",

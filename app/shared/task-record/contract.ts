@@ -26,6 +26,23 @@ export interface TaskDetailData {
   readonly todayIso: string;
 }
 
+/**
+ * TASKS-04 — the recurrence consequence of a completion or its undo.
+ *
+ *   - `created` — completing a repeating occurrence created exactly one successor;
+ *   - `removed` — undoing that completion withdrew the untouched successor;
+ *   - `retained` — the successor had already been changed, so undo KEPT it and the
+ *     user must be told (never a silent destruction, never a silent duplicate).
+ */
+export type TaskRecurrenceOutcome =
+  | {
+      readonly outcome: "created";
+      readonly taskId: string;
+      readonly scheduledDate: string | null;
+      readonly dueDate: string | null;
+    }
+  | { readonly outcome: "removed" | "retained" };
+
 /** The discriminated action outcomes the Drawer client consumes. */
 export type TaskActionData =
   | {
@@ -43,6 +60,12 @@ export type TaskActionData =
       readonly kind: "completion";
       readonly ok: true;
       readonly task: SerializedTaskView;
+      /**
+       * TASKS-04 — what happened to the recurrence series, so the surface can say so
+       * honestly instead of leaving a new (or surviving) occurrence unexplained.
+       * Absent for a one-off task.
+       */
+      readonly recurrence?: TaskRecurrenceOutcome;
     }
   | {
       readonly kind: "completion";

@@ -50,7 +50,7 @@ export function Card(props: CardProps) {
     icon,
     accent = "neutral",
     title,
-    titleSlot,
+    titleEditor,
     headingLevel = 3,
     subtitle,
     status,
@@ -119,9 +119,12 @@ export function Card(props: CardProps) {
 
   const titleContent = <span className="dh-card__title-text">{title}</span>;
 
+  // While an inline editor is supplied the title cell becomes that editor; the rest
+  // of the time the card keeps its ordinary open control, so a row is never left
+  // without a way into its record (TASKS-04).
   let titleNode;
-  if (titleSlot !== undefined) {
-    titleNode = titleSlot;
+  if (titleEditor !== undefined) {
+    titleNode = titleEditor;
   } else if (href !== undefined) {
     titleNode = (
       <a

@@ -25,6 +25,7 @@ import {
   type TaskDetails,
   type TaskPriority,
   type TaskRecurrenceRule,
+  type TaskRecurrenceSeries,
   type TaskStatus,
   type TaskWaiting,
   type TaskWaitingSubject,
@@ -59,6 +60,8 @@ export interface TaskDetailsRow {
   readonly recurrence_date_kind: string | null;
   readonly recurrence_anchor_day: number | null;
   readonly recurrence_anchor_month: number | null;
+  readonly recurrence_series_id: string | null;
+  readonly recurrence_sequence: number | null;
   readonly updated_at: string;
 }
 
@@ -95,6 +98,8 @@ export interface TaskJoinedRow {
   readonly recurrence_date_kind: string | null;
   readonly recurrence_anchor_day: number | null;
   readonly recurrence_anchor_month: number | null;
+  readonly recurrence_series_id: string | null;
+  readonly recurrence_sequence: number | null;
   readonly parent_id: string | null;
   readonly parent_link_type: string | null;
 }
@@ -138,7 +143,17 @@ export const TASK_DETAIL_COLUMNS = `
   rr.weekdays AS recurrence_weekdays,
   rr.date_kind AS recurrence_date_kind,
   rr.anchor_day AS recurrence_anchor_day,
-  rr.anchor_month AS recurrence_anchor_month`;
+  rr.anchor_month AS recurrence_anchor_month,
+  rr.series_id AS recurrence_series_id,
+  rr.sequence AS recurrence_sequence`;
+
+/**
+ * The `task_recurrence_rules` join every task read uses. Declared HERE, next to the
+ * aliased columns it feeds, so a query can never select the recurrence columns
+ * without the join that supplies them.
+ */
+export const TASK_RECURRENCE_JOIN = `LEFT JOIN task_recurrence_rules rr
+           ON rr.workspace_id = e.workspace_id AND rr.entity_id = e.id`;
 
 /**
  * The resolved `task.waiting_on` target columns, aliased. Joined via the active
@@ -260,6 +275,30 @@ function toRecurrence(row: {
 }
 
 /**
+ * The persisted series identity of a recurring occurrence. Present exactly when the
+ * recurrence row is — the two are one row, so they can never disagree.
+ */
+function toRecurrenceSeries(row: {
+  readonly recurrence_series_id?: string | null;
+  readonly recurrence_sequence?: number | null;
+}): TaskRecurrenceSeries | null {
+  const seriesId = row.recurrence_series_id;
+  if (seriesId === null || seriesId === undefined || seriesId.length === 0) {
+    return null;
+  }
+  const sequence = row.recurrence_sequence;
+  if (
+    sequence === null ||
+    sequence === undefined ||
+    !Number.isInteger(sequence) ||
+    sequence < 0
+  ) {
+    throw new CorruptTaskRecordError();
+  }
+  return { seriesId, sequence };
+}
+
+/**
  * Convert the additive-detail columns of a joined task read into `TaskDetails`,
  * applying the documented defaults when the task has no `task_details` row yet.
  * Total but DEFENSIVE: a stored value outside its closed set surfaces as
@@ -282,6 +321,8 @@ export function rowToTaskDetails(row: {
   readonly recurrence_date_kind?: string | null;
   readonly recurrence_anchor_day?: number | null;
   readonly recurrence_anchor_month?: number | null;
+  readonly recurrence_series_id?: string | null;
+  readonly recurrence_sequence?: number | null;
   readonly description: string | null;
 }): TaskDetails {
   return {
@@ -298,6 +339,7 @@ export function rowToTaskDetails(row: {
       delegate_note: row.delegate_note ?? null,
     }),
     recurrence: toRecurrence(row),
+    recurrenceSeries: toRecurrenceSeries(row),
     description: toDescription(row.description),
   };
 }

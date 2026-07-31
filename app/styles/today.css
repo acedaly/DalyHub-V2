@@ -1082,11 +1082,6 @@
   color: var(--dh-color-danger-text);
 }
 
-.dh-tasks-inline-title {
-  width: 100%;
-  text-align: start;
-}
-
 .dh-tasks-inline-title-editor {
   display: grid;
   gap: var(--dh-space-1);
@@ -1101,6 +1096,77 @@
 .dh-tasks-inline-title-editor__error {
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-danger-text);
+}
+
+/* TASKS-04 — the shared quick-edit panel (a `/tasks` row's Drawer and the body of
+ * Review Inbox). One calm column at every width: the controls never sit side by side
+ * on a phone, and the two date fields only pair up when there is genuinely room. */
+.dh-task-quick-edit {
+  display: grid;
+  gap: var(--dh-space-4);
+  min-width: 0;
+}
+
+.dh-task-quick-edit__title {
+  margin: 0;
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-tight);
+  overflow-wrap: anywhere;
+}
+
+.dh-task-quick-edit__dates {
+  display: grid;
+  gap: var(--dh-space-3);
+}
+
+@media (min-width: 30rem) {
+  .dh-task-quick-edit__dates {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dh-task-quick-edit__shortcuts,
+.dh-task-quick-edit__footer,
+.dh-task-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-task-quick-edit__error {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-danger-text);
+}
+
+/* Review Inbox. A single bounded column so triage reads as one decision at a time
+ * rather than a wall of forms, centred but never wider than comfortable prose. */
+.dh-task-review {
+  display: grid;
+  gap: var(--dh-space-4);
+  max-width: 42rem;
+  min-width: 0;
+}
+
+.dh-task-review__progress {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-muted);
+}
+
+/* The heading receives PROGRAMMATIC focus each time the reviewed task changes, and
+   programmatic focus is not always `:focus-visible` — so the indicator is on `:focus`.
+   A ring, never colour alone. */
+.dh-task-review__progress:focus {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--dh-radius-xs);
+}
+
+.dh-task-review__more {
+  margin: 0;
 }
 
 /* The compact view switcher. A menu, never a permanent secondary sidebar — the

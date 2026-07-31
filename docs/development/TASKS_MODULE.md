@@ -507,3 +507,264 @@ workflow status, delegated and waiting work, Someday/Maybe, completed records an
 a wide spread of due and planned dates — with the dimensions assigned from
 independent deterministic streams, so a combined filter cannot pass for the wrong
 reason.
+
+---
+
+## The daily driver (TASKS-04, 2026-07-31)
+
+TASKS-04 is the usability pass that turns the structurally complete Tasks module
+into something usable every day: an honest Inbox, fast capture that keeps its
+promises, quick edits from the ordinary list, predictable basic recurrence and a
+focused triage flow. **No Task authority changed** — the spine still owns identity,
+completion and parentage, `task_details` the additive fields, the shared Task Drawer
+the canonical record, Activity the one audit stream — and every mutation reachable
+from any new surface posts to a canonical route.
+
+### Vocabulary: four different things, four different words
+
+The words below are NOT synonyms. Before TASKS-04 three of them collapsed into
+"Inbox", which is why a captured task could be "in Inbox" for three unrelated
+reasons and leave the Inbox by accident.
+
+| Word | Means | Stored as |
+|---|---|---|
+| **Inbox** | An **active** Task with **no structural parent** | derived: no active `task.belongs_to_*` link |
+| **Unassigned** | The **parent value** shown for an Inbox Task | derived: `parent === null` |
+| **No sector** | No **Time Sector** | `task_details.time_sector IS NULL` |
+| **Unscheduled** | No **scheduled date** | `task_details.scheduled_date IS NULL` |
+
+Consequences, each proven by test:
+
+- a Task with a P1 priority, a Time Sector, a scheduled date AND a due date is
+  **still in Inbox** if it has no parent;
+- a Task filed under a Project with no sector and no dates is **not** in Inbox;
+- the Time Sectors presentation's no-sector bucket is labelled **"No sector"**, not
+  "Inbox" — the two are genuinely different states.
+
+### Optional Task parentage
+
+A Task MAY have no structural parent. This is the one deliberate exception to the
+FND-07 rule that a spine child has exactly one parent, and it is confined to Tasks:
+capture has to be faster than deciding, and a system that forces a filing decision at
+capture time is a system people stop capturing into.
+
+An Unassigned Task is a **valid spine record with no structural EntityLink** — not a
+child of a hidden parent. There is no "Inbox" Project, no "Inbox" Area and no
+artificial parent link anywhere. `createTask` writes the entity, the spine record,
+`entity.created` and the optional `task_details` slice; with a parent it also writes
+the structural link and `entity_link.created`, in the same batch as before.
+
+### Default destination precedence
+
+Capture resolves its destination in exactly this order, on every surface:
+
+1. a **fixed context** from the current screen (a Project's "New task", the
+   ADR-060 capture context) — the user is already standing somewhere;
+2. an **explicit parent** the user chose in this capture;
+3. the owner's **saved default destination**, and ONLY when that preference is
+   explicitly `chosen_parent`;
+4. **Inbox**.
+
+Migration `0023` adds `owner_app_preferences.default_task_destination`
+(`'inbox' | 'chosen_parent'`, default `'inbox'`). It exists so a legacy saved parent
+cannot silently keep filing ahead of Inbox: the column makes the owner's intent
+explicit rather than inferring it from the presence of an old id. Setting a parent in
+Settings sets `chosen_parent`; "Use Inbox" clears both.
+
+Every capture surface **states where the task will be filed** — "Filing under
+&lt;Project&gt;" or "Filing under Inbox". Silence is not an option for an inbox.
+
+### Canonical parent mutation
+
+`TaskRepository.setTaskParent(id, parent | null)` is the ONE way a Task's parent
+changes. It validates the destination inside the authenticated workspace (rejecting
+missing, deleted, archived, wrong-kind and cross-workspace parents), preserves every
+other field (title, description, priority, dates, status, waiting, delegation,
+recurrence, completion), is atomic and idempotent, never leaves two active parent
+links, RESTORES a previously-used link row rather than duplicating it, and appends
+`entity_link.unlinked` / `entity_link.created` / `entity_link.restored` Activity.
+
+It is reachable from the ordinary list (row overflow → **Move to Project or Area…**
+opens the shared quick-edit panel in the Drawer, or **Move to Inbox** for the one-tap
+case), from Review Inbox, and through `POST /tasks/:taskId` with `intent=set_parent`.
+
+### Quick editing from the list
+
+The row keeps its two visible actions (Complete, Plan today) and its ONE shared
+overflow menu; the long tail did not become a spreadsheet. From the overflow:
+
+- **Rename** — inline title editing. The editor replaces the title **only while that
+  row is being renamed**; every other row (and that row, the moment the edit ends)
+  keeps the Card's ordinary open link. Inline editing must never cost the user the
+  way into the record, and a regression test asserts the link is still there after a
+  rename.
+- **Move to Project or Area… / Move to Inbox** — the canonical parent mutation.
+- **Dates, sector and repeat…** — the shared
+  [`TaskQuickEditPanel`](../../app/shared/task-record/TaskQuickEditPanel.tsx) in the
+  Drawer: parent, priority, scheduled date, due date, Time Sector, Someday/Maybe and
+  repeat, in one calm column.
+- priority, due today, clear due, clear plan, Someday/Maybe — unchanged from TASKS-03.
+
+`TaskQuickEditPanel` is **shared, not Tasks-only**: Review Inbox uses the same
+component, so there is one editor to learn and one place a control can be wrong.
+Every control posts to a canonical route (`/tasks/:taskId` for parent, plan and
+repeat; `/tasks/bulk` with a single id for priority, sector, due date and
+commitment) and the host revalidates, so a row always reflects the server.
+
+### Quick-capture grammar (deliberately bounded)
+
+The parser is deterministic and closed — never natural-language understanding, never
+AI. Every recognised token appears in the preview and can be removed before saving,
+and removing one restores the user's words exactly as typed.
+
+| Grammar | Examples |
+|---|---|
+| Priority | `p1` `p2` `p3` `p4` |
+| Time Sector | `this week`, `next month`, `long term`, `routines` |
+| Commitment | `someday`, `maybe` |
+| Flags | `waiting`, `delegate` |
+| Relative days | `today`, `tonight`, `tomorrow` |
+| Weekdays | `friday`, `next monday` |
+| Explicit markers | `due tomorrow`, `on friday`, `due 15/11` |
+| ISO dates | `2026-09-15` |
+| Australian dates | `14/8`, `14/08/2026` (day-first; a bare day/month rolls forward a year when it has passed) |
+| Recurrence | `every day`, `every weekday`, `every Monday`, `every week`, `every 2 weeks`, `every month`, `every year` |
+
+Two rules keep it trustworthy:
+
+- an **unmarked** calendar word is a date only when it **trails** the line ("Review the
+  notes today"), never mid-sentence ("Review the today show notes"). A date anywhere
+  else needs `due …` or `on …`;
+- recurrence phrases are consumed **before** the date pass, so "Water the plants
+  tomorrow every week" reads as a date AND a repeat rather than as prose.
+
+Dates resolve against the **owner's calendar day**, passed from the server (ADR-022) —
+never the browser's local date and never the CI runner's timezone.
+
+A recognised repeat is **applied, not merely previewed**: the shared
+`applyRecurrenceFields` helper puts it on the same `POST /tasks/new` submission, and
+the repository writes the rule in the same atomic create as the dates it repeats
+from. A phrase with no anchor date is dropped rather than given an invented one.
+
+### Recurrence storage
+
+Recurrence is structured DATA, never prose. Migration `0023` adds
+`task_recurrence_rules`: one row per occurrence, keyed `(workspace_id, entity_id)`,
+carrying `date_kind` (`scheduled`|`due`), `frequency`
+(`day`|`weekday`|`week`|`month`|`year`), `interval` (1–99), an optional selected
+`weekdays` list, the ORIGINALLY REQUESTED `anchor_day`/`anchor_month`, and the series
+identity `(series_id, sequence)` with a UNIQUE constraint on
+`(workspace_id, series_id, sequence)`.
+
+`anchor_day` is why a monthly rule that had to be clamped in February returns to the
+31st in March instead of drifting to the 28th.
+
+Rules are validated through the kernel against the Task's own anchor date: a
+`scheduled` rule requires a scheduled date, a `due` rule a due date. A rule that could
+never compute a successor is refused at the boundary, not stored and discovered later.
+A rule is readable on every Task view (the record's summary says "Repeats: Every
+week"), editable and removable, is preserved when a Task moves between parents, and
+travels with the Task through archive, restore and soft delete.
+
+### Successor creation
+
+Completing an open recurring occurrence creates **exactly one** successor, in the
+**same transaction** as the completion:
+
+- the next date is computed after the LATER of the current anchor and the OWNER's
+  completion day, so a long-missed daily task resumes tomorrow rather than replaying
+  every skipped day;
+- the non-anchor date keeps its distance from the anchor (scheduled Monday, due
+  Friday → still a four-day window);
+- every successor statement is gated on the completion having been written in THIS
+  batch, and the UNIQUE `(workspace, series, sequence)` index is the second,
+  database-level boundary — a retry or a concurrent completion cannot produce two;
+- the completed occurrence REMAINS as history, with its rule intact;
+- one `task.recurrence_occurrence_created` Activity event links the two.
+
+**Field-copy contract.** Copied: title, description, structural parent, priority,
+Time Sector, commitment state, the recurrence rule and the series identity (sequence
++ 1). NOT copied: completion, waiting, delegation, and workflow status (which resets
+to `todo` — an `on_hold` successor would silently vanish from Today).
+
+Bulk completion creates successors the same way, so `/tasks` and Today can never
+disagree about whether a repeating task continued.
+
+### Safe undo
+
+Undoing a completion (`reopenTask`) is atomic with the withdrawal of the successor
+that completion created, and decides from PERSISTED identity — series + sequence —
+never a guess:
+
+- if the successor is still exactly as completion made it (open, `updated_at` still
+  equals `created_at`, no relationships beyond its structural parent link), it is
+  soft-deleted in the same transaction and reported as `removed`;
+- otherwise it is **retained** and the user is told: "The next occurrence had already
+  changed, so it was kept." Undo never destroys real work.
+
+The withdrawal statement re-checks the same conditions inside the batch, so a
+successor edited between the safety read and the write still survives.
+
+### Review Inbox
+
+`/tasks/review` walks the built-in Inbox query one Task at a time. It uses the SAME
+`scope.tasks` projection `/tasks?system=inbox` renders — there is no Inbox-specific
+Task model and no second query definition — and loads ONE bounded page (25) with a
+cursor, so a large Inbox never becomes a large payload.
+
+For each Task the reviewer gets the shared quick-edit panel (parent, priority,
+scheduled date, due date, Time Sector, Someday/Maybe, repeat) plus Complete, Skip and
+Previous. Progress through the current set is always visible ("Reviewing task 3 of
+25"), `j`/`k` (and the arrow keys) walk the queue, `c` completes, and the shortcuts
+stand down while the user is typing. A Task leaves the queue when the SERVER says it
+is no longer unassigned-and-active: the loader is revalidated after each mutation, and
+the queue is the loader's Inbox page. The empty state teaches the next action.
+
+### Today consistency (DEBT-37)
+
+`listPlanningTasks` now excludes `on_hold` alongside Someday/Maybe and cancelled, so a
+paused Task is not "today's work" on one surface and "parked" on another. A focused
+kernel suite asserts the treatment of active, in-progress, waiting, on-hold,
+Someday/Maybe, cancelled and completed Tasks, AND that a recurring successor appears
+on Today as ordinary active work.
+
+### Storage, migration and bundle (TASKS-04, measured)
+
+Migration `0023_tasks04_daily_driver.sql` is **purely additive**: one `ALTER TABLE`
+adding `owner_app_preferences.default_task_destination` with a `NOT NULL DEFAULT
+'inbox'` and a CHECK, and one `CREATE TABLE task_recurrence_rules` plus two indexes.
+
+- **Fresh database** — applies in sequence with everything else.
+- **Existing development / production database** — the new column takes its default on
+  every existing preferences row, so a stored `default_task_capture_parent_id` from
+  UX-01 becomes inert until the owner explicitly chooses `chosen_parent`. That is the
+  intended behaviour: a legacy saved parent must not keep filing ahead of Inbox.
+- **Existing assigned Tasks are not touched.** No Task is rewritten, no parent link is
+  created or removed, and no "Inbox" Project or Area is invented.
+- **Rollback** is by application deployment (D1 migrations are forward-only). The
+  previous application ignores both additions: the column has a default, and nothing
+  older reads `task_recurrence_rules`.
+- **Foreign keys.** `task_recurrence_rules` references `entities (workspace_id, id,
+  type) ON DELETE RESTRICT`, matching every other detail table. It cannot obstruct the
+  Task lifecycle: Tasks are only ever SOFT-deleted (`entities.deleted_at`), so the
+  RESTRICT never fires. Recurrence rows are per-occurrence configuration — removing a
+  rule deletes the row, and a completed occurrence keeps its row so the series stays
+  resolvable for undo.
+- **Aliasing.** The recurrence columns are selected through ONE shared
+  `TASK_DETAIL_COLUMNS` fragment and joined through ONE shared
+  `TASK_RECURRENCE_JOIN`, declared beside each other in
+  [`task-database.ts`](../../app/platform/storage/d1/task-database.ts), so a query
+  cannot select the columns without the join that supplies them. One deserialiser
+  (`rowToTaskDetails`) turns them into the domain rule + series on every read path.
+
+**Bundle, measured against the TASKS-03 baseline** (`pnpm run build`, byte sizes of
+`build/client/assets`):
+
+| | TASKS-03 | TASKS-04 | Δ |
+|---|---|---|---|
+| **`entry.client` (the initial bundle)** | 182,473 | 182,473 | **0** |
+| All client assets | 1,987,399 | 2,006,916 | +19,517 (+0.98%) |
+
+The **initial bundle is byte-identical**. Everything TASKS-04 adds lands in the
+lazily-loaded `/tasks` and `/tasks/review` route chunks, the shared task-record chunk
+and token-only CSS. Nothing was added to the app shell.

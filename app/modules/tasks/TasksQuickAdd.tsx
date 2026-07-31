@@ -25,7 +25,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
-import { parseQuickCapture } from "~/shared/task-record/quick-capture";
+import {
+  applyRecurrenceFields,
+  parseQuickCapture,
+} from "~/shared/task-record/quick-capture";
 
 import type { TaskParentOption, TasksCreateResult } from "./tasks-contract";
 
@@ -97,6 +100,12 @@ export function TasksQuickAdd({
       if (interpretation.commitmentState !== "active") {
         body.set("commitmentState", interpretation.commitmentState);
       }
+      // A recognised `every …` phrase is APPLIED here too, through the same shared
+      // mapping every capture surface uses.
+      applyRecurrenceFields(body, interpretation.recurrence, {
+        scheduledDate,
+        dueDate: interpretation.dueDate,
+      });
 
       let result: TasksCreateResult;
       try {

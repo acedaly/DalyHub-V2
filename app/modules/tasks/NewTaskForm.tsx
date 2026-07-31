@@ -36,6 +36,7 @@ import {
 } from "~/shared/forms";
 import type { SelectOption } from "~/shared/forms/types";
 import {
+  applyRecurrenceFields,
   interpretationIsMeaningful,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
@@ -189,6 +190,13 @@ export function NewTaskForm({
         values.scheduledDate || interpretation.scheduledDate || "";
       if (dueDate) body.set("dueDate", dueDate);
       if (scheduledDate) body.set("scheduledDate", scheduledDate);
+      // TASKS-04: a recognised `every …` phrase is APPLIED, not merely previewed.
+      // The route writes the rule in the same atomic create as the dates it repeats
+      // from, and drops it if neither date is present rather than guessing one.
+      applyRecurrenceFields(body, interpretation.recurrence, {
+        scheduledDate,
+        dueDate,
+      });
 
       let data: TasksCreateResult;
       try {
@@ -330,7 +338,7 @@ export function NewTaskForm({
        * the parent is genuinely fixed by context) hides the picker. */}
       {fixedParent ? null : (
         <SelectField
-          label="Parent"
+          label="Project or Area"
           help="Leave blank to keep this task Unassigned in Inbox."
           placeholder="Search Projects and Areas"
           options={parentOptions}

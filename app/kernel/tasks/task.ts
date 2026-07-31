@@ -16,7 +16,11 @@
 
 import type { MarkdownSource } from "~/kernel/markdown";
 import type { WorkspaceId } from "~/kernel/workspaces";
-import type { TaskRecurrenceRule } from "./task-recurrence";
+import type {
+  TaskRecurrenceInput,
+  TaskRecurrenceRule,
+  TaskRecurrenceSeries,
+} from "./task-recurrence";
 
 /**
  * The closed set of open-state workflow positions (TASKS-01 widened this from the
@@ -148,8 +152,10 @@ export type TaskDetails = {
   readonly commitmentState: CommitmentState;
   /** The delegation record (ADR-043 §7), or null when not delegated. */
   readonly delegation: TaskDelegation | null;
-  /** Structured calendar recurrence, or null for a one-off task. */
+  /** Structured calendar recurrence (TASKS-04), or null for a one-off task. */
   readonly recurrence?: TaskRecurrenceRule | null;
+  /** The persisted series identity of a recurring occurrence, else null. */
+  readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   /** Markdown SOURCE (FND-08 / ADR-015), rendered through the one shared pipeline. */
   readonly description: MarkdownSource | null;
 };
@@ -164,6 +170,7 @@ export const DEFAULT_TASK_DETAILS: TaskDetails = {
   commitmentState: "active",
   delegation: null,
   recurrence: null,
+  recurrenceSeries: null,
   description: null,
 };
 
@@ -191,6 +198,7 @@ export type TaskView = {
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
   readonly recurrence?: TaskRecurrenceRule | null;
+  readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   readonly description: MarkdownSource | null;
   /** The Project the task belongs to, if its structural parent is a Project. */
   readonly project: TaskRelation | null;
@@ -284,6 +292,7 @@ export type TaskListItem = {
   readonly commitmentState: CommitmentState;
   readonly delegation: TaskDelegation | null;
   readonly recurrence?: TaskRecurrenceRule | null;
+  readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   /** The structural parent (a Project or an Area) as a context line, or null. */
   readonly parent: TaskRelation | null;
   /** The active waiting state, or null when the task is not waiting (TODAY-03). */
@@ -395,8 +404,56 @@ export type ClearWaitingResult = {
 /**
  * The outcome of `completeTask`: the fresh (completed, non-waiting) task view and
  * whether completion actually happened (`false` for an already-completed no-op).
+ *
+ * When the completed occurrence carried a recurrence rule, `successor` is the ONE
+ * next occurrence created in the SAME transaction (TASKS-04 / ADR-061). It is null
+ * for a one-off task, and null on an idempotent no-op — a repeated completion never
+ * creates a second successor.
  */
 export type CompleteTaskResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+  readonly successor?: TaskView | null;
+};
+
+/**
+ * Options for `completeTask`. `ownerTodayIso` is the OWNER's calendar day (ADR-022),
+ * resolved server-side from their timezone preference. Recurrence uses it to schedule
+ * the successor after the later of the current anchor and the day the owner actually
+ * completed the task, so a task completed late at night in Sydney never repeats on
+ * yesterday's date. Omitted, the repository falls back to the clock's UTC day.
+ */
+export type CompleteTaskOptions = {
+  readonly ownerTodayIso?: string;
+};
+
+/**
+ * The outcome of `reopenTask` — the task-domain undo of completion.
+ *
+ * `successorOutcome` reports what happened to a recurrence successor created by the
+ * completion being undone:
+ *   - `none` — the completion created no successor (a one-off task);
+ *   - `removed` — the successor was still UNTOUCHED and provably created by this
+ *     completion, so it was withdrawn (soft-deleted) in the same transaction;
+ *   - `retained` — the successor has since been edited, completed, linked or
+ *     otherwise materially changed, so it was KEPT and the user is told.
+ */
+export type ReopenTaskSuccessorOutcome = "none" | "removed" | "retained";
+
+export type ReopenTaskResult = {
+  readonly task: TaskView;
+  readonly changed: boolean;
+  readonly successorOutcome: ReopenTaskSuccessorOutcome;
+};
+
+/**
+ * The recurrence a mutation asks for: a validated rule, or `null` to remove
+ * recurrence from the task. `anchorDay`/`anchorMonth` may be omitted — the
+ * repository derives them from the Task's anchor date.
+ */
+export type SetTaskRecurrenceInput = TaskRecurrenceInput | null;
+
+export type SetTaskRecurrenceResult = {
   readonly task: TaskView;
   readonly changed: boolean;
 };
@@ -734,7 +791,8 @@ export type WorkspaceTaskGroupDimension =
 export type WorkspaceTaskGroup = {
   /**
    * The bucket key: for `quadrant`, one of `p1`|`p2`|`p3`|`p4`|`untriaged`; for
-   * `sector`, a `TimeSector` value or `inbox` (the derived no-sector bucket).
+   * `sector`, a `TimeSector` value or `__none` ("No sector"). TASKS-04 renamed that
+   * bucket: "Inbox" now means an UNASSIGNED Task, never an unsectored one.
    */
   readonly key: string;
   readonly count: number;
@@ -814,6 +872,13 @@ export type NewTaskInput = {
   readonly commitmentState?: CommitmentState;
   readonly dueDate?: string | null;
   readonly scheduledDate?: string | null;
+  /**
+   * TASKS-04 — an optional recurrence rule written in the SAME create batch, so a
+   * captured "every Monday" Task is never persisted without the rule it asked for.
+   * Validated against the Task's own anchor date: a `scheduled` rule needs
+   * `scheduledDate`, a `due` rule needs `dueDate`, and nothing is written if not.
+   */
+  readonly recurrence?: TaskRecurrenceInput | null;
 };
 
 /**

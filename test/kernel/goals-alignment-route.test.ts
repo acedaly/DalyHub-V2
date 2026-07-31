@@ -41,9 +41,22 @@ function authedContext(): RouterContextProvider {
   return context;
 }
 
+/**
+ * A spine whose writes are stamped NOW.
+ *
+ * Alignment classifies a Goal by how recently work contributed to it
+ * (`RECENT_ACTION_WINDOW_DAYS`), and the loaders resolve "recent" against the real
+ * current date. Seeding with `FakeClock`'s fixed default date therefore made these
+ * tests depend on WHEN the suite runs: activity written at the fixture date silently
+ * aged out of the window, and "recent activity ⇒ active" started failing on a
+ * calendar boundary rather than on a behaviour change. The clock is still injected
+ * (ids and ordering stay deterministic); only its anchor follows the same clock the
+ * rule is evaluated against. Tests that need genuinely OLD activity pass their own
+ * explicit past clock, and are unchanged.
+ */
 function spine(ws = WS) {
   return makeSpineRepository(makeContext(ws), {
-    clock: new FakeClock().now,
+    clock: new FakeClock(new Date()).now,
     idGenerator: nextEntityId,
     activityIdGenerator: nextActivityId,
   });

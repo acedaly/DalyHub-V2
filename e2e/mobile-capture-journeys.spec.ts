@@ -203,15 +203,20 @@ test.describe("ADR-060 contextual capture on a phone", () => {
     const title = `Phone project contextual task ${RUN}`;
 
     await gotoFixture(page, "/projects");
-    await page
-      .getByRole("link", { name: /^Open / })
-      .first()
-      .click();
-    await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
-    const projectTitle = (
-      await page.locator("h1").first().textContent()
-    )?.trim();
+    // Read the Project's title from the CARD's own open control before navigating.
+    // Reading it from the record's `h1` afterwards raced the collection heading
+    // ("Projects") still being mounted mid-transition, which made the assertion
+    // compare against the wrong string rather than against the real title.
+    const openLink = page.getByRole("link", { name: /^Open / }).first();
+    const projectTitle = (await openLink.getAttribute("aria-label"))
+      ?.replace(/^Open /, "")
+      .trim();
     expect(projectTitle).toBeTruthy();
+    await openLink.click();
+    await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: projectTitle! }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: /^More actions for / }).click();
     await page.getByRole("menuitem", { name: "New task" }).click();

@@ -21,6 +21,7 @@ import type {
   ClearPlanResult,
   ClearWaitingResult,
   CommitmentState,
+  CompleteTaskOptions,
   CompleteTaskResult,
   GetTaskOptions,
   ListPlanningTasksInput,
@@ -33,10 +34,13 @@ import type {
   PlanTaskInput,
   PlanTaskResult,
   ProjectTaskListPage,
+  ReopenTaskResult,
   SearchTaskParentsInput,
   SearchTasksInput,
   SetTaskParentInput,
   SetTaskParentResult,
+  SetTaskRecurrenceInput,
+  SetTaskRecurrenceResult,
   SetWaitingInput,
   SetWaitingResult,
   TaskListPage,
@@ -84,6 +88,31 @@ export interface TaskRepository {
     id: string,
     parent: SetTaskParentInput,
   ): Promise<SetTaskParentResult>;
+
+  /**
+   * TASKS-04 — set, change or REMOVE the Task's structured recurrence rule
+   * (ADR-061). The rule is validated through the kernel against the Task's own
+   * anchor date (a `scheduled` rule needs a scheduled date, a `due` rule a due
+   * date), stored as DATA in `task_recurrence_rules`, and recorded through the ONE
+   * existing `entity.updated` Activity event — recurrence is a task-detail field,
+   * not a second history model.
+   *
+   * The first rule on a Task starts a SERIES: the persisted `series_id` /
+   * `sequence` pair that later makes successor creation and undo deterministic. A
+   * Task that is already part of a series keeps its series identity when the rule is
+   * edited, so history is never re-parented. Passing `null` removes the rule (and
+   * with it the Task's membership of the series); every other Task field —
+   * completion, dates, waiting, delegation, parent — is untouched. An unchanged rule
+   * is an idempotent no-op with no Activity.
+   *
+   * Throws `TaskValidationError` for an invalid rule or a missing anchor date,
+   * `TaskNotFoundError` for a missing/deleted/cross-workspace id, and
+   * `TaskProjectArchivedError` when the Task sits in an archived Project.
+   */
+  setTaskRecurrence(
+    id: string,
+    recurrence: SetTaskRecurrenceInput,
+  ): Promise<SetTaskRecurrenceResult>;
 
   /**
    * Update a task's editable fields (title + additive details) ATOMICALLY: one
@@ -338,7 +367,10 @@ export interface TaskRepository {
    * `TaskValidationError` for an empty/oversized/invalid id list and
    * `TaskNotFoundError`/`TaskProjectArchivedError` as the other bulk methods.
    */
-  completeTasks(ids: readonly string[]): Promise<BulkFieldResult>;
+  completeTasks(
+    ids: readonly string[],
+    options?: CompleteTaskOptions,
+  ): Promise<BulkFieldResult>;
 
   /**
    * Complete a task AND clear any active waiting state as ONE atomic domain
@@ -355,5 +387,28 @@ export interface TaskRepository {
    * `changed: false`). Throws `TaskNotFoundError` for a missing/deleted/non-task/
    * cross-workspace id. Reopening is unchanged and never restores waiting.
    */
-  completeTask(id: string): Promise<CompleteTaskResult>;
+  completeTask(
+    id: string,
+    options?: CompleteTaskOptions,
+  ): Promise<CompleteTaskResult>;
+
+  /**
+   * TASKS-04 — reopen a completed Task, and safely undo the recurrence successor the
+   * completion created (ADR-061). ONE `D1Database.batch()` clears the spine
+   * completion, bumps `updated_at`, appends `task.reopened` and — ONLY when the
+   * successor is provably safe to withdraw — soft-deletes that successor and appends
+   * its withdrawal Activity. Either all of that commits or none of it does.
+   *
+   * "Provably safe" is decided from PERSISTED identity, never a guess: the successor
+   * must be the next `sequence` of THIS occurrence's series, still open, still
+   * unassigned of any change (its `updated_at` still equals its `created_at`), and
+   * carry no relationships beyond the structural parent link it was created with. A
+   * successor the owner has since edited, completed, planned or linked is RETAINED
+   * and reported as `retained`, so undo can never destroy real work.
+   *
+   * Reopening an already-open Task is an idempotent no-op. Reopening never restores a
+   * prior waiting state (the documented default) and never un-archives a Project:
+   * `TaskProjectArchivedError` is thrown when the parent Project is archived.
+   */
+  reopenTask(id: string): Promise<ReopenTaskResult>;
 }

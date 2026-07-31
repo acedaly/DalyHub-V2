@@ -31,6 +31,7 @@ import {
 import {
   formatCalendarDate,
   taskPriorityLabel,
+  taskRecurrenceLabel,
   type SerializedTaskView,
 } from "./task-view";
 
@@ -164,6 +165,13 @@ export function TaskDetailsTab({
       </section>
 
       <dl className="dh-task-drawer__meta">
+        {/* TASKS-04 — the Details tab states whether the task repeats even when it
+            does not, so "does it repeat?" is answerable without hunting. The parent
+            is NOT repeated here: the Record Summary above already reports it. */}
+        <div>
+          <dt>Repeats</dt>
+          <dd>{taskRecurrenceLabel(task.recurrence) ?? "Does not repeat"}</dd>
+        </div>
         <div>
           <dt>Created</dt>
           <dd>{createdLabel ?? "—"}</dd>
