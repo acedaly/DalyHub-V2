@@ -13,9 +13,9 @@ import { describe, expect, it } from "vitest";
 import {
   HELP_SECTIONS,
   HELP_TOPICS,
-  helpTopicHref,
   resolveHelpTopicId,
 } from "~/modules/help/help-content";
+import { LINKABLE_HELP_TOPICS, helpTopicHref } from "~/shared/help";
 
 /** The subjects the milestone requires Help to cover, by topic id. */
 const REQUIRED_TOPICS = [
@@ -143,5 +143,19 @@ describe("HELP-01 deep links", () => {
 
   it("builds a link an empty state can point at", () => {
     expect(helpTopicHref("inbox")).toBe("/help?topic=inbox");
+  });
+
+  it("resolves every topic other surfaces are allowed to link to", () => {
+    // The closed list in `app/shared/help` is what stops a module importing Help's
+    // internals to build a URL. If a topic is renamed without updating that list,
+    // the link would silently rot — this is what catches it.
+    const ids = new Set(HELP_TOPICS.map((topic) => topic.id));
+    for (const topic of LINKABLE_HELP_TOPICS) {
+      expect(
+        ids.has(topic),
+        `linkable topic "${topic}" is not a Help topic`,
+      ).toBe(true);
+      expect(resolveHelpTopicId(topic)).toBe(topic);
+    }
   });
 });

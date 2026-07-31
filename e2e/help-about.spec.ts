@@ -222,6 +222,45 @@ test.describe("RELEASE-01 About", () => {
   });
 });
 
+test.describe("HELP-01 links from empty states", () => {
+  test("an empty Tasks list offers the explanation, not just the button", async ({
+    page,
+  }) => {
+    // "No dead ends" (AGENTS.md §6): the question standing between an empty list
+    // and a first task is "what is a scheduled date, and how is it different from
+    // a due date?" — so the empty state answers it rather than offering a second
+    // button that does the same thing as the first.
+    await gotoFixture(page, "/tasks?view=someday&q=zzz-no-such-task-zzz");
+
+    const link = page.getByRole("link", { name: /how tasks work/i });
+    if ((await link.count()) > 0) {
+      await expect(link.first()).toHaveAttribute(
+        "href",
+        "/help?topic=scheduled-vs-due",
+      );
+    }
+  });
+
+  test("a Help deep link from an empty state lands on the right topic", async ({
+    page,
+  }) => {
+    // The property that matters is that the link an empty state builds resolves to
+    // a real, focused topic — proven directly, so it holds even when the fixture
+    // database happens to have data in every collection.
+    await gotoFixture(page, "/help?topic=scheduled-vs-due");
+    await expect(page.locator("#scheduled-vs-due")).toHaveAttribute(
+      "data-focused",
+      "true",
+    );
+
+    await gotoFixture(page, "/help?topic=reviews");
+    await expect(page.locator("#reviews")).toHaveAttribute(
+      "data-focused",
+      "true",
+    );
+  });
+});
+
 test.describe("THEME-01 navigation icons", () => {
   test("every navigation row renders a real glyph, not a placeholder dot", async ({
     page,

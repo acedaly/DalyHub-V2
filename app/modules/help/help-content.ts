@@ -463,9 +463,8 @@ export function resolveHelpTopicId(value: unknown): string | null {
 }
 
 /**
- * The deep link to a Help topic. Empty states use this to point at the paragraph
- * that explains them, so "no dead ends" (AGENTS.md §6) has somewhere to go.
+ * The deep link to a Help topic — re-exported from the shared layer, which owns it
+ * so other modules can link into Help without importing this module's internals
+ * (see `app/shared/help/help-link.ts` for why).
  */
-export function helpTopicHref(topicId: string): string {
-  return `/help?topic=${encodeURIComponent(topicId)}`;
-}
+export { helpTopicHref } from "~/shared/help";
