@@ -3833,18 +3833,35 @@ export class D1TaskRepository implements TaskRepository {
     const successor = await this.#readSuccessorSafety(current);
     const withdraw = successor !== null && successorIsUntouched(successor);
 
+    // The archived-Project guard is folded into the guarded UPDATE as well as checked
+    // above (mirroring the spine's own reopen), so a Project archived BETWEEN the read
+    // and the write cannot have unfinished work reopened inside it.
     const spineStmt = this.#db
       .prepare(
         `UPDATE spine_records SET completed_at = NULL
          WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?
            AND EXISTS (SELECT 1 FROM entities
                        WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL)
+           AND NOT EXISTS (
+                 SELECT 1
+                 FROM entity_links pl
+                 JOIN project_details pd
+                   ON pd.workspace_id = pl.workspace_id
+                  AND pd.entity_id = pl.target_entity_id
+                 WHERE pl.workspace_id = ?
+                   AND pl.source_entity_id = ?
+                   AND pl.type = '${TASK_BELONGS_TO_PROJECT}'
+                   AND pl.deleted_at IS NULL
+                   AND pd.archived_at IS NOT NULL
+               )
          RETURNING entity_id`,
       )
       .bind(
         this.#workspaceId,
         entityId,
         observedCompletedAt,
+        this.#workspaceId,
+        entityId,
         this.#workspaceId,
         entityId,
       );

@@ -690,6 +690,18 @@ to `todo` — an `on_hold` successor would silently vanish from Today).
 Bulk completion creates successors the same way, so `/tasks` and Today can never
 disagree about whether a repeating task continued.
 
+### Ending a series (and what that means for archiving a Project)
+
+A repeating Task always leaves exactly one OPEN occurrence — that is the point of it.
+A Project cannot be archived while it holds unfinished work (PROJ-05 / ADR-037), so a
+repeating Task inside a Project keeps that Project open until the SERIES is ended:
+remove the repeat from the current occurrence, then complete it. That is deliberate
+and honest — silently dropping a live repeat when a Project is archived would lose the
+user's intent — and it is asserted by test. Reopening a completed occurrence inside an
+already-archived Project is refused, with the archived-Project guard folded into the
+guarded UPDATE as well as checked before it, so a Project archived between the read and
+the write cannot have work reopened inside it.
+
 ### Safe undo
 
 Undoing a completion (`reopenTask`) is atomic with the withdrawal of the successor

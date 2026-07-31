@@ -15,6 +15,7 @@ import {
   TASK_RECURRENCE_OCCURRENCE_CREATED,
   TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TaskNotFoundError,
+  TaskProjectArchivedError,
   TaskValidationError,
 } from "~/kernel/tasks";
 
@@ -22,6 +23,7 @@ import {
   FakeClock,
   countActivitiesOfType,
   makeContext,
+  makeProjectSettingsRepository,
   makeSpineRepository,
   makeTaskRepository,
   resetTables,
@@ -687,5 +689,38 @@ describe("safe undo of a recurring completion", () => {
     await expect(taskRepo(OTHER).reopenTask(task.id)).rejects.toBeInstanceOf(
       TaskNotFoundError,
     );
+  });
+  it("refuses to reopen a Task inside an ARCHIVED Project, withdrawing nothing", async () => {
+    const spine = spineRepo(WS);
+    const area = await spine.createArea({ title: "Work" });
+    const project = await spine.createProject({
+      title: "Wrapped up",
+      parent: { kind: "area", id: area.id },
+    });
+    const tasks = taskRepo(WS);
+    const task = await tasks.createTask({
+      title: "Last report",
+      parent: { kind: "project", id: project.id },
+      scheduledDate: "2026-07-20",
+      recurrence: { frequency: "week", dateKind: "scheduled" },
+    });
+    const { successor } = await tasks.completeTask(task.id, {
+      ownerTodayIso: "2026-07-20",
+    });
+
+    // A Project cannot be archived while it holds unfinished work, and a repeating
+    // Task always leaves one open occurrence — so ENDING the series is how a repeating
+    // Task in a Project is finished: remove the rule, then complete the last one.
+    await tasks.setTaskRecurrence(successor!.id, null);
+    await tasks.completeTask(successor!.id, { ownerTodayIso: "2026-07-27" });
+    const settings = makeProjectSettingsRepository(makeContext(WS));
+    await settings.archive(project.id);
+
+    await expect(tasks.reopenTask(task.id)).rejects.toBeInstanceOf(
+      TaskProjectArchivedError,
+    );
+    // Nothing was written: the occurrence is still complete and its successor stands.
+    expect((await tasks.getTask(task.id))?.completedAt).not.toBeNull();
+    expect(await tasks.getTask(successor!.id)).not.toBeNull();
   });
 });
