@@ -466,12 +466,33 @@ This four-step sequence applied when `0023` was the pending migration. It is
 superseded by [Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade),
 which covers the real `0006`–`0025` step and adds the backup as step 1.
 
-### Optional: recording the build identifier
+### Recording the build identifier
 
-To have About show which commit is running, set `BUILD_COMMIT` as a production var
-at deploy time (a full or short git SHA; anything else is ignored rather than
-displayed). It is optional by design — every environment that does not set it says
-"Not recorded", which is honest, and no environment is required to expose it.
+**Since the V2 release closure, `deploy:production` records it for you.** The
+deploy defaults `BUILD_COMMIT` from `git rev-parse HEAD` in the checkout it is
+deploying from, normalises it to a short hash, and injects it as a production var
+in the generated config — so **About shows exactly which commit is live**, and the
+answer to "is production running what I think it is?" is on screen rather than
+inferred.
+
+The rules, and why each is what it is:
+
+- **An explicit `BUILD_COMMIT` wins.** Export one to record something other than
+  the local `HEAD` (a CI build, a tag's commit).
+- **A malformed value FAILS preflight** rather than being silently dropped. The
+  renderer (`app/lib/version.ts`) drops a bad value at display time, which is right
+  for a page; at deploy time it is wrong, because a typo would ship a build that
+  quietly claims to record nothing. Loud here, quiet there — and both use the same
+  7-40-hex rule, so a value that passes the guard is a value About will show.
+- **It stays optional.** A non-git checkout, or a `git` that fails, records none
+  and the deploy proceeds; About then says "Not recorded", which is honest. Recording
+  the commit is a convenience, never a gate.
+- **No var is written when there is none** — absent, not an empty string, so About
+  never has to guess whether a blank value was deliberate.
+
+The deploy prints which identifier it is shipping before it uploads. Verified by
+`test/unit/deploy/production-deploy-flow.test.ts` and
+`test/unit/deploy/production-preflight.test.ts`.
 
 ## Current status
 

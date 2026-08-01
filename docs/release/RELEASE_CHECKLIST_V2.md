@@ -271,3 +271,133 @@ Run after `pnpm run deploy:production`:
 - [ ] Settings → Appearance switches a theme, and it survives a reload
 - [ ] `Settings → Privacy & data` produces both downloads; `sha256sum -c CHECKSUMS.txt` verifies the archive
 - [ ] Delete both export files from any shared machine — they contain the whole workspace
+
+---
+
+## 14. Production deployment commands
+
+Copy-and-paste safe in **bash and zsh**: no `#` comment lines inside the blocks
+(zsh does not enable `interactive_comments` by default, so a pasted comment line
+becomes a command and errors). Explanation lives between the blocks; anything that
+must appear in-block is an `echo`.
+
+Run the blocks **in order** and read the output of each before starting the next.
+
+### 1 — Get to a verified clean `main`
+
+Set `DALYHUB_REPO` to your clone if it is not at `~/DalyHub-V2`.
+
+```bash
+export DALYHUB_REPO="${DALYHUB_REPO:-$HOME/DalyHub-V2}"
+cd "$DALYHUB_REPO" || return 1
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+git log --oneline -1
+test -z "$(git status --porcelain)" && echo "WORKING TREE CLEAN" || echo "WORKING TREE DIRTY - STOP AND RESOLVE"
+```
+
+Do not continue unless the last line reads `WORKING TREE CLEAN`.
+
+### 2 — Install locked dependencies
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+node -e "console.log('release version:', require('./package.json').version)"
+```
+
+### 3 — Load the production environment safely
+
+Keep the real values in a file **outside the repository**, owner-readable only, so
+no secret is ever typed into shell history or committed. Create it once:
+
+```bash
+mkdir -p "$HOME/.dalyhub" && touch "$HOME/.dalyhub/production.env" && chmod 600 "$HOME/.dalyhub/production.env"
+echo "Now edit $HOME/.dalyhub/production.env and set the six values listed below."
+```
+
+The file's contents (one `KEY=value` per line, no quotes needed, no `export`):
+
+```
+CLOUDFLARE_ACCOUNT_ID=<your Cloudflare account id>
+CLOUDFLARE_D1_DATABASE_ID=<the provisioned remote D1 UUID>
+PRODUCTION_DEFAULT_WORKSPACE_ID=<the provisioned workspace UUID>
+PRODUCTION_ACCESS_TEAM_DOMAIN=https://<your-team>.cloudflareaccess.com
+PRODUCTION_ACCESS_AUD=<the Access application AUD tag>
+PRODUCTION_OWNER_EMAIL=<the owner email>
+```
+
+Then, in the deploying shell:
+
+```bash
+set -a && . "$HOME/.dalyhub/production.env" && set +a
+env | grep -c '^PRODUCTION_\|^CLOUDFLARE_'
+```
+
+That prints a **count**, never a value. Expect `5` (or `6` with the account id).
+Authenticate Wrangler interactively with `wrangler login` if you have not already —
+that keeps the credential in the OS keychain, and no API token needs to touch disk.
+
+### 4 — Production preflight
+
+```bash
+pnpm run deploy:production:preflight
+```
+
+This validates the committed config and every supplied value **before anything is
+built or uploaded**, and prints the build identifier it will record. A non-zero
+exit here means stop — nothing has been touched.
+
+### 5 — Back up production, then apply the pending migrations
+
+The backup is not optional. V2 has no in-app restore, so this file is the only way
+back.
+
+```bash
+pnpm exec wrangler d1 migrations list dalyhub-v2 --env production --remote
+pnpm exec wrangler d1 export dalyhub-v2 --env production --remote --output "$HOME/dalyhub-production-backup-$(date -u +%Y%m%dT%H%M%SZ).sql"
+ls -lh "$HOME"/dalyhub-production-backup-*.sql
+```
+
+Confirm the backup file exists and has a sensible size, then apply:
+
+```bash
+pnpm exec wrangler d1 migrations apply dalyhub-v2 --env production --remote
+pnpm exec wrangler d1 migrations list dalyhub-v2 --env production --remote
+```
+
+The second `list` must report **no pending migrations**. Do not deploy until it
+does — the V2 Worker queries the new tables unconditionally.
+
+### 6 — Deploy the Worker
+
+```bash
+pnpm run deploy:production
+```
+
+### 7 — Confirm the deployment, the commit and the version
+
+```bash
+pnpm exec wrangler deployments list --name dalyhub-v2-production
+curl -fsS https://hub.daly.id.au/health
+echo "deployed from commit: $(git rev-parse --short=7 HEAD)"
+```
+
+`/health` must report `"status":"ok"`, `"version":"2.0.0"` and
+`"environment":"production"`. Then open <https://hub.daly.id.au/about> through
+Cloudflare Access and confirm it shows the **same** version, release `V2`,
+environment `Production`, and a build identifier matching the short commit printed
+above. The commit is deliberately absent from `/health` (it is public) and present
+only on the authenticated About screen.
+
+Finally, confirm the unprotected origin is still closed:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://dalyhub-v2-production.workers.dev/
+```
+
+Expect `404`. Anything else means an unauthenticated origin is reachable — treat
+that as an incident and disable it before using the deployment.
+
+Then work through [§13 Post-deployment verification](#13-post-deployment-verification).

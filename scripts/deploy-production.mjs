@@ -109,6 +109,41 @@ const UNCOMMITTED_VAR_KEYS = [
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Normalise a build identifier to the SAME rule `app/lib/version.ts` applies when
+ * it renders one: hex only, 7-40 characters, truncated to a short hash. Keeping
+ * the rule identical means a value that passes here is a value About will show —
+ * a deploy cannot succeed while silently supplying something the page then drops.
+ * Returns `null` for absent or malformed input. PURE.
+ */
+export function normaliseBuildCommit(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^[0-9a-fA-F]{7,40}$/.test(trimmed)) return null;
+  return trimmed.slice(0, 7).toLowerCase();
+}
+
+/**
+ * The commit this deploy is shipping, defaulted from the checkout when the
+ * environment did not supply one. Impure by design (it shells out to git), so it
+ * is kept OUT of `checkProductionDeployReadiness`, which stays pure apart from
+ * reading the config file. A non-git checkout, or any git failure, yields `null`
+ * and the deploy proceeds with no build identifier — recording one is a
+ * convenience, never a gate.
+ */
+export function resolveBuildCommitFromGit(runner = spawnSync) {
+  try {
+    const result = runner("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf8",
+    });
+    if (result.status !== 0) return null;
+    return normaliseBuildCommit(result.stdout ?? "");
+  } catch {
+    return null;
+  }
+}
+
 /** Strip line and block comments from JSONC without touching string bodies. */
 function stripJsonc(text) {
   let out = "";
@@ -280,6 +315,18 @@ export function checkProductionDeployReadiness({
     problems.push("PRODUCTION_OWNER_EMAIL must be the owner's email address.");
   }
 
+  // OPTIONAL, and deliberately so: a deployment that records no build identifier
+  // is honest (About says "Not recorded") rather than broken. But if one IS
+  // supplied and is malformed, fail here rather than let it be silently dropped
+  // at render time — a typo'd commit at deploy time should be loud.
+  const suppliedBuildCommit = (env.BUILD_COMMIT ?? "").trim();
+  const buildCommit = normaliseBuildCommit(suppliedBuildCommit);
+  if (suppliedBuildCommit !== "" && buildCommit === null) {
+    problems.push(
+      "BUILD_COMMIT must be a git commit hash (7-40 hex characters) when supplied.",
+    );
+  }
+
   if (problems.length > 0) {
     return { ok: false, problems };
   }
@@ -292,6 +339,7 @@ export function checkProductionDeployReadiness({
       accessTeamDomain,
       accessAud,
       ownerEmail,
+      buildCommit,
     },
   };
 }
@@ -405,6 +453,15 @@ export function finaliseGeneratedConfig(config, values) {
     );
   }
   finalised.vars.DEFAULT_WORKSPACE_ID = values.workspaceId;
+
+  // The build identifier is OPTIONAL. Set it only when there is one, so an
+  // unconfigured deployment has no `BUILD_COMMIT` var at all rather than an empty
+  // string that would read as a supplied-but-blank value.
+  if (values.buildCommit) {
+    finalised.vars.BUILD_COMMIT = values.buildCommit;
+  } else {
+    delete finalised.vars.BUILD_COMMIT;
+  }
 
   const serialised = JSON.stringify(finalised);
   for (const placeholder of [
@@ -523,6 +580,17 @@ function main() {
     process.env.DEPLOY_PRODUCTION_PREFLIGHT_ONLY === "1";
 
   // 1. Preflight — runs BEFORE any build or upload.
+  //
+  //    Default the build identifier from the checkout when the caller did not set
+  //    one, so a deployment records WHICH COMMIT it shipped without the owner
+  //    having to remember an extra export. An explicit BUILD_COMMIT still wins,
+  //    and a checkout git cannot read simply yields none.
+  if (!isNonEmptyString((process.env.BUILD_COMMIT ?? "").trim())) {
+    const fromGit = resolveBuildCommitFromGit();
+    if (fromGit !== null) {
+      process.env.BUILD_COMMIT = fromGit;
+    }
+  }
   const readiness = checkProductionDeployReadiness();
   if (!readiness.ok) {
     fail(
@@ -532,6 +600,11 @@ function main() {
   }
   console.log(
     "deploy:production — preflight passed: production configuration supplied.",
+  );
+  console.log(
+    readiness.values.buildCommit
+      ? `deploy:production — build identifier: ${readiness.values.buildCommit}`
+      : 'deploy:production — build identifier: none (About will read "Not recorded").',
   );
 
   if (preflightOnly) {
