@@ -37,7 +37,14 @@
  * destination and never learns of a record outside the workspace (§28).
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 
 import { useCombobox } from "~/shared/forms/use-combobox";
@@ -140,18 +147,27 @@ export function RecordLinkPicker({
     [onChoose, options],
   );
 
+  // Memoised: `useCombobox` keeps its active option in range via an effect on
+  // this array, so a fresh identity every render would re-run that effect on
+  // every keystroke for no reason.
+  const comboboxOptions = useMemo(
+    () => options.map((option) => ({ value: option.id })),
+    [options],
+  );
+
   const combobox = useCombobox({
-    options: options.map((option) => ({ value: option.id })),
+    options: comboboxOptions,
     onSelect: choose,
     baseId,
   });
+  // The listbox is always open here — this surface exists to show results, so
+  // there is nothing to expand or collapse, unlike a combobox inside a form.
   const { open } = combobox;
   useEffect(() => {
     open();
   }, [open, options]);
 
-  // A click outside dismisses, matching every other transient surface. Escape is
-  // handled on the container so it works from the list as well as the input.
+  // A click outside dismisses, matching every other transient surface.
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
       const node = containerRef.current;
