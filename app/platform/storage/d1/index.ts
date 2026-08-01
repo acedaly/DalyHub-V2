@@ -533,3 +533,14 @@ export function createAreaSettingsRepository(
 ): AreaSettingsRepository {
   return new D1AreaSettingsRepository(db, context, options);
 }
+
+/**
+ * X-04 — the read-only workspace-snapshot source the full export is built from.
+ * Re-exported here so the composition boundary constructs it the same way every
+ * other repository is constructed: bound to a `WorkspaceContext`, with no
+ * unscoped path and no mutating method.
+ */
+export {
+  D1WorkspaceSnapshotRepository,
+  createWorkspaceSnapshotRepository,
+} from "./d1-workspace-snapshot-repository";

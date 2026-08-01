@@ -36,6 +36,8 @@ import { SelectField } from "~/shared/forms";
 import { ThemePicker } from "~/shared/shell/ThemePicker";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
+import { ExportDownloads } from "../ExportDownloads";
+
 import type { Route } from "./+types/index";
 
 type SectionId =
@@ -514,9 +516,22 @@ function PrivacyDataSection() {
           description="Server-side workspace scope is resolved from trusted configuration, not from request input."
           control={<span className="dh-settings-page__text-value">Active</span>}
         />
+      </SettingsGroup>
+      {/*
+        X-04 — real export, replacing the row that used to say "Deferred". Both
+        downloads are built from the SAME canonical workspace snapshot, so they
+        can never describe different data.
+      */}
+      <SettingsGroup
+        title="Export your data"
+        description="Your data is yours. Both downloads are generated on demand from one workspace snapshot and are never stored by DalyHub."
+      >
+        <ExportDownloads />
+      </SettingsGroup>
+      <SettingsGroup title="Not available yet">
         <SettingsRow
           label="Deferred data tools"
-          description="Export, import, backup, restore, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles, billing and advanced themes are not part of this slice."
+          description="Backup and restore, import, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles and billing are not built yet. Export is the format a future restore will read; restore itself is a separate piece of work and is not implemented."
           control={
             <span className="dh-settings-page__text-value">Deferred</span>
           }

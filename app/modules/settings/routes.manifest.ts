@@ -19,6 +19,14 @@ const routes: readonly RouteContribution[] = [
       navIcon: "settings",
     },
   },
+  {
+    // X-04 — the two workspace-export downloads. A resource route with no
+    // navigation entry: it is reached from the Privacy & data section, never
+    // from the sidebar, because it returns a file rather than a page.
+    id: "settings.export",
+    path: "settings/export/:format",
+    file: "routes/export.tsx",
+  },
 ];
 
 export default routes;

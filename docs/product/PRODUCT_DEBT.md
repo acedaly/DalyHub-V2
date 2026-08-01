@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-61**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-63**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
@@ -527,6 +527,22 @@
 ## Entry template
 
 ```markdown
+### ☐ DEBT-61 — An export is not a point-in-time snapshot, and a busy workspace can produce a slightly incoherent one — P3
+
+- **Current issue.** [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) reads the workspace through a SEQUENCE of bounded statements. Each statement sees a consistent database, but the sequence does not: a write committed while the export is running is visible to the collections read after it and absent from those read before. A task created mid-export can therefore land in `entities` with no `taskDetails` row, or a link can name an entity that had not yet been read — which the snapshot validator would reject, failing the export rather than shipping an inconsistent file.
+- **Why it was accepted.** D1 exposes no cross-statement snapshot for this read pattern through the Workers binding, so the alternatives were to claim a guarantee that does not exist, or to state the real one. X-04 states it — in `meta.consistency`, `manifest.json`, the archive `README.md` and the vault's `Export Information.md` — and mitigates it by reading collections **sequentially rather than concurrently**, which narrows the window. For a single-owner product where an export is a deliberate, occasional action, the practical exposure is close to zero: it requires a write to land in the second or so between two specific collection reads.
+- **Desired future state.** If D1's Sessions API (or an equivalent read-snapshot mechanism) becomes usable from the Workers binding for a multi-statement read, bind the whole export to one snapshot and change `meta.consistency` to say so. Until then the honest statement is the correct behaviour, not a workaround.
+- **Evidence.** [`build-snapshot.ts`](../../app/platform/export/build-snapshot.ts) (the sequential read and the reasoning), `SNAPSHOT_CONSISTENCY` in [`workspace-snapshot.ts`](../../app/kernel/export/workspace-snapshot.ts), and the validator's referential-integrity checks in [`snapshot-validation.ts`](../../app/kernel/export/snapshot-validation.ts).
+- **Related roadmap item.** [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) — a scheduled backup runs unattended and hits this window more often than a hand-pressed export does, so it is the item that should decide whether the mitigation is still enough.
+
+### ☐ DEBT-62 — The whole export is assembled in memory, so it is bounded rather than unbounded — P3
+
+- **Current issue.** X-04 builds the snapshot in memory and then builds the archive from it, so peak memory is roughly the workspace's text plus the compressed archive. Both are bounded — 50,000 rows per collection (`SNAPSHOT_COLLECTION_MAX_ROWS`) and 64 MiB of archive content (`ZIP_MAX_TOTAL_BYTES`) — and exceeding either is **reported**, in `limitations` and the manifest, rather than silently truncated. But a workspace that outgrows those bounds cannot export in one file at all.
+- **Why it was accepted.** A streamed archive still needs every entry's CRC and size before the central directory can be written, and the vault's link rewriting needs every record's filename before any file can be written — so streaming would not remove the need to hold the data. A realistic personal workspace is orders of magnitude below both ceilings, and the honest ceiling with a clear error beats an isolate the runtime kills.
+- **Desired future state.** If a workspace ever approaches a ceiling, split the export into parts (per module, or per date range) with a manifest that names the set — which is also the shape a large restore would want. Do not raise the ceilings without measuring the Worker's real memory headroom first.
+- **Evidence.** `SNAPSHOT_COLLECTION_MAX_ROWS` in [`snapshot-repository.ts`](../../app/kernel/export/snapshot-repository.ts), `ZIP_MAX_TOTAL_BYTES` and `ZipTooLargeError` in [`zip.ts`](../../app/platform/export/zip.ts), and the 507 response in [`export.tsx`](../../app/modules/settings/routes/export.tsx).
+- **Related roadmap item.** [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore).
+
 ### ☐ DEBT-NN — <one-line title> — P<1|2|3>
 - **Current issue.** <what diverges today, with file references>
 - **Impact.** <what it costs the owner>

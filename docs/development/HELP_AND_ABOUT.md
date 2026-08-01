@@ -46,10 +46,20 @@ The reasons this is worth the indirection:
 2. **Owner language.** Areas, Goals, Projects, Tasks — the product's nouns. No route
    paths as concepts, no kernel vocabulary, no ADR references.
 3. **Plain Australian English.** Short sentences. No enterprise jargon.
-4. **Name what is missing.** The `not-yet` topic states plainly that export, backup,
-   import, calendar sync, weather, notifications, AI and custom themes are not built,
-   and that this deployment has no support desk and no second copy of the owner's
-   data. An owner deciding how much to trust the system deserves that up front.
+4. **Name what is missing.** The `not-yet` topic states plainly that backup and
+   restore, import, calendar sync, weather, notifications, AI and custom themes are
+   not built, and that this deployment has no support desk and no second copy of the
+   owner's data unless they keep an export themselves. An owner deciding how much to
+   trust the system deserves that up front.
+5. **Move an item OUT of that list the moment it ships, and split it if it was
+   compound.** X-04 (2026-08-01) is the worked example: "export and backup" was one
+   bullet, and only half of it shipped. Help now has a real **"Getting your data
+   out"** topic describing both downloads — and the `not-yet` list keeps a
+   **"Backup and restore"** bullet that says, in words, that DalyHub cannot read an
+   export back in. Letting the shipped half quietly close the whole bullet would
+   have been the exact dishonesty rule 1 exists to prevent. A test asserts both:
+   that the export topic exists and says *"an export is not a restore"*, and that
+   the missing list still names restore.
 
 ### Deep links from empty states
 

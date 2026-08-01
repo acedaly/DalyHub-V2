@@ -253,19 +253,61 @@ export interface NoteRecordLink {
  * references obey, because both feed the same per-reference relationship writes.
  */
 export function extractRecordLinks(source: string): readonly NoteRecordLink[] {
+  // Project down to the documented `NoteRecordLink` shape. The positional
+  // variant below is a SUPERSET; returning it here would silently widen this
+  // function's contract for every existing caller (relationship reconciliation
+  // compares these values), so the extra fields are dropped deliberately.
+  return extractRecordLinkOccurrences(source, MAX_NOTE_REFERENCES).map(
+    ({ type, id, label }) => ({ type, id, label }),
+  );
+}
+
+/**
+ * One `dalyhub://type/id` link, with the SOURCE RANGE of the whole
+ * `[Label](dalyhub://…)` construct.
+ *
+ * The X-04 vault export needs the range: it rewrites the link's destination to a
+ * relative path inside the vault, and doing that by string search would risk
+ * rewriting an identical-looking sample inside a code fence. Working from the
+ * link NODE's own position means the same structural guarantee
+ * {@link extractRecordLinks} already relies on — a `dalyhub://…` inside code is
+ * not a link node at all — applies to the rewrite too.
+ */
+export interface NoteRecordLinkOccurrence extends NoteRecordLink {
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * Every genuine `dalyhub://type/id` link with its source range, in source order.
+ *
+ * `limit` bounds the number of occurrences collected. Relationship
+ * reconciliation passes {@link MAX_NOTE_REFERENCES} (its per-reference cost is a
+ * write); the export passes a larger bound, because leaving a link unrewritten
+ * would produce a `dalyhub://` destination in a file that has no DalyHub to
+ * resolve it.
+ */
+export function extractRecordLinkOccurrences(
+  source: string,
+  limit: number,
+): readonly NoteRecordLinkOccurrence[] {
   // A cheap pre-check so an ordinary note never pays for a parse it cannot need.
   if (source.toLowerCase().indexOf("dalyhub:") === -1) return [];
-  const out: NoteRecordLink[] = [];
+  const out: NoteRecordLinkOccurrence[] = [];
   const visit = (node: MdNode): void => {
-    if (out.length >= MAX_NOTE_REFERENCES) return;
+    if (out.length >= limit) return;
     if (node.type === "link") {
       const target = parseRecordLink(node.url);
-      if (target) {
+      const start = node.position?.start?.offset;
+      const end = node.position?.end?.offset;
+      if (target && typeof start === "number" && typeof end === "number") {
         const label = inlineText(node).trim();
         out.push({
           type: target.type,
           id: target.id,
           label: label === "" ? target.type : label,
+          start,
+          end,
         });
       }
       // A link cannot nest another link — stop descending either way.

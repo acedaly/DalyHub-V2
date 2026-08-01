@@ -23,7 +23,7 @@
 | Date & time | owner timezone, date display, first day of week |
 | Appearance | the THEME-01 theme picker: five curated themes plus Match system, with previews |
 | Navigation | optional module visibility and reset |
-| Privacy & data | current handling and explicitly deferred data tools |
+| Privacy & data | current handling, the two **workspace exports** (X-04), and explicitly deferred data tools |
 | About | stable app information already available to the app |
 
 The route is responsive from 320px upward. Section navigation is URL-backed with
@@ -170,11 +170,51 @@ shared Activity model is entity-subject based. A workspace/owner-scoped audit
 event shape should be added deliberately before recording non-entity preference
 changes.
 
+## Export (X-04)
+
+`Settings → Privacy & data` now carries the product's only bulk data-export
+surface. Full detail lives in
+[`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md); what matters for
+Settings is:
+
+| Control | Route | What it downloads |
+|---|---|---|
+| Download full DalyHub export | `GET /settings/export/full` | `manifest.json` + `dalyhub-snapshot.json` + `SCHEMA.md` + `README.md` + `CHECKSUMS.txt` |
+| Download Obsidian vault | `GET /settings/export/obsidian` | a ready-to-open Markdown vault, one file per record |
+
+Both are built from ONE canonical `DalyHubWorkspaceSnapshotV1`, so they can never
+describe different data.
+
+**Three decisions worth not re-litigating.**
+
+1. **A sensitivity statement sits BEFORE the actions.** It names People, Diary,
+   Meetings, Reviews and archived/deleted records, and says the file is generated
+   on demand, never stored by DalyHub and never sent anywhere else. An export is
+   the one action that puts the whole workspace in a file the owner then has to
+   look after.
+2. **No typed destructive confirmation.** The action is deliberate and
+   authenticated, but it **changes no DalyHub data**. A typed phrase here would
+   be ceremony, and ceremony that is not earned teaches the owner to ignore the
+   ones that are.
+3. **Buttons that `fetch`, not `<a download>`.** Building a whole-workspace
+   archive takes real time. An anchor gives no pending state and no way to
+   distinguish success from a server error, because the browser navigates to
+   whatever comes back. The controls wait for the response, check it, and only
+   then save the file — so the pending state is honest and success is never
+   claimed before a download response exists.
+
+The route resolves the owner and workspace server-side, takes **no** workspace
+parameter, sets `no-store` + `private` + `nosniff` and an ASCII-safe filename,
+persists nothing, and never exposes SQL, a binding name or a stack trace on
+failure.
+
 ## Deferred scope
 
-No dead controls are shipped for: export/import, backup/restore, file
-attachments/R2, AI-provider credentials, integrations, notifications, reminders,
-workspace deletion, multi-user roles/permissions, billing or advanced themes.
+No dead controls are shipped for: import, backup/restore, file attachments/R2,
+AI-provider credentials, integrations, notifications, reminders, workspace
+deletion, multi-user roles/permissions, billing or advanced themes. **Export is
+no longer in that list** — see above. Restore in particular is still absent, and
+Privacy & data says so plainly rather than letting the new export imply it.
 
 ## Verification
 
@@ -194,22 +234,22 @@ Coverage added for SET-01:
 
 ## Status (2026-07-27 reconciliation)
 
-**Current status.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) is ☑ (shipped as SETTINGS-01A). [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) and [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) are ☐.
+**Current status.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) is ☑ (shipped as SETTINGS-01A). [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ (2026-08-01) and added the export controls to Privacy & data. [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) and [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) are ☐.
 
 **Delivered capabilities.** `/settings` as a first-class authenticated route on the shared Settings layout, with General, Date & time, Appearance, Navigation, Privacy & data and About sections. (Appearance now hosts the THEME-01 five-theme picker, and About reads the RELEASE-01 version authority and links to the full `/about` screen.) Owner/workspace behavioural preferences persist through the storage-independent `app/kernel/preferences` contract and its D1 adapter (`owner_app_preferences`, migration `0017`): timezone, date format, first day of week, default landing page, default Tasks view, default Diary mode and validated navigation visibility. Timezone is the shared owner-calendar authority for Today, date-derived loaders, Tasks urgency and Diary grouping. Appearance stays device-local through the existing theme cookie; Today widget arrangement stays device-local in `localStorage`. Navigation visibility resolves against the module registry, always keeps Today and Settings reachable, discards unknown module ids and shows new modules by default.
 
-**No dead controls.** Every control on `/settings` maps to real behaviour, and the Privacy & data section states plainly that export, import, backup, restore, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles, billing and advanced themes are deferred. That honesty should be preserved as those capabilities land.
+**No dead controls.** Every control on `/settings` maps to real behaviour. Privacy & data now ships two REAL export actions and still states plainly that import, backup, restore, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles, billing and advanced themes are deferred. That honesty was preserved as export landed — the deferred list shrank by exactly one entry, and restore is named separately so the new export cannot be mistaken for it.
 
 **Known limitations.**
 
-- **No export or import.** Nothing anywhere in the product can export data — [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) (a P2 trust obligation) and, for the single-record proof, [NOTES-06](../roadmap/ROADMAP_V2.md#-notes-06--note-export-and-portability).
-- **No backup or restore.** [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) is unstarted. **Cloudflare or D1 infrastructure does not satisfy it**: the item requires an owner-initiated backup, a documented format, and a restore that has actually been exercised end to end. An untested restore is not a backup. The `X-04 → SET-02` dependency is deliberate — a backup is a scheduled, restorable export, so the export format must exist and be proven first.
+- **Export shipped (2026-08-01); import did not.** [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) is ☑ — both a structured archive and an Obsidian vault, from one canonical snapshot. Import from external tools remains [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) and is unstarted.
+- **No backup or restore.** [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) is unstarted, now **unblocked rather than blocked**: X-04's versioned snapshot is its documented input contract. **Cloudflare or D1 infrastructure still does not satisfy it**, and neither does export — the item requires a restore that has actually been exercised end to end. An untested restore is not a backup, and being able to download a copy is not being able to put it back.
 - **No Account or Security section.** The identity layer is done and accepted (FND-09 / [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing): Cloudflare Access with in-Worker JWT validation and independent `OWNER_EMAIL` enforcement), so the product is authenticated — but there is no owner-facing session/identity surface, sign-out-everywhere, or security audit view. [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security).
 - **Preference changes append no Activity**, so a settings change leaves no audit trail — [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3). A future Security section would want exactly this.
 - Today widget arrangement was deliberately **not** migrated into the new preference store; it remains per-device — [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).
 
-**Deferred work.** Export and import; backup and restore; account and security; file attachments and R2; AI-provider credentials ([AI-01](../roadmap/ROADMAP_V2.md#-ai-01--proposal-architecture--review-ui)/[AI-04](../roadmap/ROADMAP_V2.md#-ai-04--privacy-controls)); integrations ([X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar)); notifications and reminders; workspace deletion, roles and billing; synced Today arrangement; saved views ([X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters)), for which this preference store is the natural home.
+**Deferred work.** Import; backup and restore; account and security; file attachments and R2; AI-provider credentials ([AI-01](../roadmap/ROADMAP_V2.md#-ai-01--proposal-architecture--review-ui)/[AI-04](../roadmap/ROADMAP_V2.md#-ai-04--privacy-controls)); integrations ([X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar)); notifications and reminders; workspace deletion, roles and billing; synced Today arrangement; saved views ([X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters)), for which this preference store is the natural home.
 
-**Relevant roadmap items.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) ☑ · [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) ☐ · [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) ☐ · [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☐ (blocks SET-02) · [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) ☐ · [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) ☐.
+**Relevant roadmap items.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) ☑ · [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ (unblocks SET-02) · [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) ☐ · [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) ☐ · [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) ☐ · [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) ☐.
 
 **Relevant product-debt items.** [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).

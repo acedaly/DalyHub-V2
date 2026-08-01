@@ -32,6 +32,7 @@ import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type { WorkspaceSnapshotRepository } from "~/kernel/export";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type {
   NoteDetailsRepository,
@@ -78,6 +79,7 @@ import {
   createTaskRepository,
   createTaskViewRepository,
   createWorkspaceRepository,
+  createWorkspaceSnapshotRepository,
 } from "~/platform/storage/d1";
 
 import { createConfiguredWorkspaceContextResolver } from "./configured-context-resolver";
@@ -241,6 +243,13 @@ export interface WorkspaceScope {
    * `tasks` query and can neither drift from the data nor escape the workspace.
    */
   readonly taskViews: TaskViewRepository;
+  /**
+   * The X-04 workspace-snapshot source: a READ-ONLY, bounded, deterministic
+   * projection over every persisted table in the workspace, from which BOTH the
+   * structured export and the Obsidian vault are derived. It has no mutating
+   * method, so an export structurally cannot write data or append Activity.
+   */
+  readonly snapshot: WorkspaceSnapshotRepository;
 }
 
 /**
@@ -357,6 +366,8 @@ export function bindWorkspaceRepositories(
   const alignment = createAlignmentRepository(env.DB, context);
   const appPreferences = createAppPreferencesRepository(env.DB, context);
   const taskViews = createTaskViewRepository(env.DB, context);
+  // Read-only: no actor, because it never mutates or records Activity.
+  const snapshot = createWorkspaceSnapshotRepository(env.DB, context);
   return {
     context,
     entities,
@@ -383,5 +394,6 @@ export function bindWorkspaceRepositories(
     alignment,
     appPreferences,
     taskViews,
+    snapshot,
   };
 }
