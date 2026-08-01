@@ -270,11 +270,23 @@ test.describe("MOBILE-01 the Notes writing surface", () => {
     await expect(toolbar).toBeVisible({ timeout: 15_000 });
 
     // The common actions are directly available.
+    //
+    // `exact` matters here: Playwright matches an accessible name by SUBSTRING
+    // by default, and the Notes editor's toolbar also carries NOTES-05's
+    // "Record link" command (insert a `dalyhub://` link to a record) alongside
+    // the "Link" formatting action (insert a Markdown link). The two are
+    // deliberately different controls with deliberately different accessible
+    // names — a screen-reader user hears them apart — so this assertion names
+    // the formatting one precisely rather than matching both.
     for (const label of ["Bold", "Italic", "Link"]) {
-      await expect(toolbar.getByRole("button", { name: label })).toBeVisible();
+      await expect(
+        toolbar.getByRole("button", { name: label, exact: true }),
+      ).toBeVisible();
     }
     // The low-frequency ones are not permanent chrome…
-    await expect(toolbar.getByRole("button", { name: "Table" })).toBeHidden();
+    await expect(
+      toolbar.getByRole("button", { name: "Table", exact: true }),
+    ).toBeHidden();
 
     // …but are one tap away, inside the SAME toolbar (so it stays one Tab stop).
     await toolbar.getByRole("button", { name: "More" }).click();
