@@ -84,6 +84,27 @@ test.describe("UX-01 — the keyboard reference is available everywhere", () => 
     ).toBeHidden();
     await expect(search).toHaveValue("why?");
   });
+
+  test("a surface that owns ? keeps it — Today still uses its Drawer host", async ({
+    page,
+  }) => {
+    // The shell's binding is a FALLBACK: it must never take the key from a
+    // surface that hosts its own reference. Today does, because there the
+    // reference belongs inside the drawer STACK — which is what makes a task
+    // drawer beneath it stop owning the task shortcuts. Both hosts share the
+    // same accessible name, so the distinguishing evidence is the shell sheet's
+    // test id (absent) and the drawer URL parameter (present).
+    await gotoFixture(page, "/today");
+    await page.locator("body").click();
+
+    await page.keyboard.press("Shift+?");
+    await expect(
+      page.getByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeVisible();
+
+    await expect(page.getByTestId("keyboard-shortcuts")).toHaveCount(0);
+    await expect(page).toHaveURL(/drawer=help%3Ashortcuts/);
+  });
 });
 
 test.describe("UX-01 — Today answers what is on today", () => {
