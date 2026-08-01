@@ -475,7 +475,9 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     // the whole flow must be reachable without a mouse (§30).
     await page.locator(".cm-content").click();
     await page.keyboard.type("Decision came from ");
-    await page.getByRole("button", { name: "Link", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Record link", exact: true })
+      .click();
 
     const search = page.getByRole("combobox", { name: "Link a record" });
     await expect(search).toBeFocused();
@@ -518,7 +520,9 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     const sourceUrl = await createNote(page, sourceTitle);
     await waitForEditor(page);
     await page.locator(".cm-content").click();
-    await page.getByRole("button", { name: "Link", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Record link", exact: true })
+      .click();
     const search = page.getByRole("combobox", { name: "Link a record" });
     await search.fill(targetTitle);
     await page.getByRole("option", { name: new RegExp(targetTitle) }).click();
@@ -618,7 +622,7 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
 
     await openOverflow(page);
     await page.getByRole("menuitem", { name: "Copy Markdown" }).click();
-    await expect(page.getByText(/copied as Markdown/)).toBeVisible();
+    await expect(page.getByText(/copied as Markdown/).first()).toBeVisible();
 
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
     // Copy serves the SAME bytes the matching export writes — front matter and
@@ -668,7 +672,9 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     await waitForEditor(page);
 
     await page.locator(".cm-content").click();
-    await page.getByRole("button", { name: "Link", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Record link", exact: true })
+      .click();
     const search = page.getByRole("combobox", { name: "Link a record" });
     await expect(search).toBeVisible();
     await expectMinTouchTarget(search);

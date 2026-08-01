@@ -21,6 +21,30 @@
  * onto a second page or leave a blank first one.
  */
 
+/**
+ * Off-screen by default. It is `aria-hidden` in the markup as well, because the
+ * on-screen record already presents this content — announcing it twice would be
+ * a duplicate reading, not extra information.
+ *
+ * This MUST come before the `@media print` block: the print rule that reveals it
+ * has the same specificity, so at equal specificity the later rule wins. Declared
+ * afterwards, this `display: none` would beat it and printing would produce a
+ * blank page.
+ */
+.dh-note-print {
+  display: none;
+}
+
+.dh-note-print__title {
+  margin: 0 0 var(--dh-space-1);
+  font-size: 1.6rem;
+}
+
+.dh-note-print__meta {
+  margin: 0 0 var(--dh-space-4);
+  font-size: 0.85rem;
+}
+
 @media print {
   /* Print on white with black text regardless of the active theme: an Ember or
    * Daly Dark background would waste an entire cartridge and read badly. */
@@ -84,23 +108,4 @@
     break-inside: avoid;
     page-break-inside: avoid;
   }
-}
-
-/**
- * Off-screen by default. It is `aria-hidden` in the markup as well, because the
- * on-screen record already presents this content — announcing it twice would be
- * a duplicate reading, not extra information.
- */
-.dh-note-print {
-  display: none;
-}
-
-.dh-note-print__title {
-  margin: 0 0 var(--dh-space-1);
-  font-size: 1.6rem;
-}
-
-.dh-note-print__meta {
-  margin: 0 0 var(--dh-space-4);
-  font-size: 0.85rem;
 }

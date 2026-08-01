@@ -291,7 +291,11 @@ export function LiveMarkdownEditor({
         ? [
             {
               id: "record-link",
-              label: "Link",
+              // NOT "Link": the formatting catalogue already has a "Link"
+              // action (an ordinary Markdown link). Two toolbar buttons sharing
+              // one accessible name is indistinguishable to a screen-reader
+              // user, and the visible word IS the accessible name here.
+              label: "Record link",
               hint: "Link a DalyHub record (project, person, meeting, asset…)",
               expanded: linkPickerOpen,
               onSelect: () => setLinkPickerOpen((wasOpen) => !wasOpen),
