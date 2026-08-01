@@ -251,17 +251,19 @@ Deploying V2 is a twenty-migration step (`0006`–`0025`) over your live data.
 The order is not optional, because the V2 Worker queries the new tables
 unconditionally:
 
-1. **Back this up first.** V2 has no in-app restore, so a `wrangler d1 export` (or a
-   dashboard backup) is your only way back. Take it before anything else.
+1. **Back this up first.** V2 has no in-app restore, so
+   `pnpm run db:production:export -- --output <file>` (or a dashboard backup) is
+   your only way back. Take it before anything else.
 2. **Preflight** — `pnpm run deploy:production:preflight`. No credentials, no upload.
-3. **Migrate** — `wrangler d1 migrations apply dalyhub-v2 --env production --remote`.
+3. **Migrate** — `pnpm run db:production:apply`.
 4. **Deploy** — `pnpm run deploy:production`.
 5. **Verify** — `/health` returns `ok` and version `2.0.0`; the authenticated shell
    loads through Cloudflare Access; `/about` shows the same version and `Production`.
 
-Every migration in the range is additive. Only one backfills anything (`0008` gives
-each existing Project a details row). **Do not roll a migration back** — the sequence
-is forward-only; if you need to revert, roll the Worker back and leave the schema.
+Every migration in the range is additive. Two backfill anything: `0008` gives each
+existing Project a details row, and `0011` gives each existing diary entry its
+chronology defaults. **Do not roll a migration back** — the sequence is
+forward-only; if you need to revert, roll the Worker back and leave the schema.
 
 The exact copy-and-paste command block and the full post-deployment checklist are in
 [`RELEASE_CHECKLIST_V2.md`](RELEASE_CHECKLIST_V2.md) and

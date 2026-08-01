@@ -223,6 +223,14 @@ test.describe("DS-04/DS-07 — desktop", () => {
     await expect(page.getByText(/2 of 12 result/)).toBeVisible();
 
     // Scroll down so we can prove position is restored on close.
+    //
+    // The filter above leaves 2 of 12 cards, and 2 cards plus the page chrome are
+    // not reliably taller than a default desktop viewport — so `scrollY > 0` was a
+    // precondition this test ASSUMED rather than established, and it failed on CI
+    // the moment the layout came in a little shorter. Shrink the viewport first so
+    // the filtered page is unambiguously scrollable. The subject of the test is the
+    // Drawer's scroll handling, which does not depend on the viewport being tall.
+    await page.setViewportSize({ width: 1280, height: 400 });
     await page.getByTestId("page-bottom").scrollIntoViewIfNeeded();
     const scrollBefore = await page.evaluate(() => window.scrollY);
     expect(scrollBefore).toBeGreaterThan(0);

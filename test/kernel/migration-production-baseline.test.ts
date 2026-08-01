@@ -31,6 +31,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 const DB = env.MIGRATION_TEST_DB;
 const WS = "ws_prod_baseline";
 const AT = "2026-07-18T00:00:00.000Z";
+/** Distinct from `AT`, so the 0011 backfill's `occurred_at = created_at` is provable. */
+const DIARY_CREATED_AT = "2026-07-01T09:30:00.000Z";
 
 /**
  * The migrations production already has. Selected by NAME, never by array index:
@@ -87,6 +89,21 @@ beforeAll(async () => {
       `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at)
        VALUES ('e_note', ?, 'note', 'A note that predates note_details', ?, ?)`,
     ).bind(WS, AT, AT),
+    // Two LEGACY diary entities. Migration 0011 is the second backfill in the
+    // range and the only one that touches these, so an upgrade test without them
+    // would stay green if 0011 stopped preserving a pre-existing journal.
+    DB.prepare(
+      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at)
+       VALUES ('e_diary', ?, 'diary', 'A moment recorded before the Diary slice existed', ?, ?)`,
+    ).bind(WS, DIARY_CREATED_AT, AT),
+    // Deliberately SOFT-DELETED. Unlike 0008, 0011's backfill has no
+    // `deleted_at IS NULL` filter, so it claims this row too — which is correct
+    // (a restored entry must still have a place on the Timeline) and is exactly
+    // the kind of difference between two backfills that a test should pin.
+    DB.prepare(
+      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+       VALUES ('e_diary_deleted', ?, 'diary', 'A deleted moment', ?, ?, ?)`,
+    ).bind(WS, DIARY_CREATED_AT, AT, AT),
   ]);
 
   await DB.batch([
@@ -196,7 +213,8 @@ describe("production baseline (0001-0005) → V2 (0025)", () => {
         deleted_at: string | null;
       }>();
 
-    expect(rows.results.length).toBe(SEEDED_ENTITIES.length + 1);
+    // The seeded spine entities, plus the note and the two diary entities.
+    expect(rows.results.length).toBe(SEEDED_ENTITIES.length + 3);
     for (const seeded of SEEDED_ENTITIES) {
       const row = rows.results.find((candidate) => candidate.id === seeded.id);
       expect(row, seeded.id).toBeDefined();
@@ -209,7 +227,10 @@ describe("production baseline (0001-0005) → V2 (0025)", () => {
     // Soft-deletion is preserved on exactly the row that carried it. A migration
     // that resurrected a deleted record, or deleted a live one, fails here.
     const deleted = rows.results.filter((row) => row.deleted_at !== null);
-    expect(deleted.map((row) => row.id)).toEqual(["e_task_deleted"]);
+    expect(deleted.map((row) => row.id).sort()).toEqual([
+      "e_diary_deleted",
+      "e_task_deleted",
+    ]);
   });
 
   it("preserves spine membership and completion", async () => {
@@ -308,9 +329,10 @@ describe("production baseline (0001-0005) → V2 (0025)", () => {
     }
   });
 
-  it("runs the ONE backfill in the range, and runs it correctly", async () => {
-    // 0008 is the only migration in 0006-0025 that populates rows from existing
-    // data: every pre-existing, non-deleted Project gets a `project_details` row.
+  it("runs BOTH backfills in the range, and runs each correctly", async () => {
+    // 0008 is the FIRST of exactly two migrations in 0006-0025 that populate rows
+    // from existing data: every pre-existing, NON-DELETED Project gets a
+    // `project_details` row.
     const details = await DB.prepare(
       `SELECT entity_id, status, archived_at FROM project_details
         WHERE workspace_id = ? ORDER BY entity_id`,
@@ -322,6 +344,46 @@ describe("production baseline (0001-0005) → V2 (0025)", () => {
     expect(details.results[0]!.entity_id).toBe("e_project");
     expect(details.results[0]!.status).toBe("active");
     expect(details.results[0]!.archived_at).toBeNull();
+
+    // 0011 is the SECOND, and it behaves differently in a way that matters: every
+    // pre-existing `diary` entity gets a `diary_entry_details` row with documented
+    // defaults, and — unlike 0008 — it has NO `deleted_at IS NULL` filter, so a
+    // soft-deleted entry is backfilled too. That is correct (a restored entry must
+    // still have a place on the Timeline), and it is pinned here so a future change
+    // to either rule is a failing test rather than a silent loss of someone's
+    // journal.
+    const diary = await DB.prepare(
+      `SELECT entity_id, entry_type, body, occurred_at, timezone, source_channel,
+              source_reference, updated_at
+         FROM diary_entry_details WHERE workspace_id = ? ORDER BY entity_id`,
+    )
+      .bind(WS)
+      .all<{
+        entity_id: string;
+        entry_type: string;
+        body: string | null;
+        occurred_at: string;
+        timezone: string;
+        source_channel: string;
+        source_reference: string | null;
+        updated_at: string;
+      }>();
+
+    expect(diary.results.map((row) => row.entity_id)).toEqual([
+      "e_diary",
+      "e_diary_deleted",
+    ]);
+    for (const row of diary.results) {
+      expect(row.entry_type).toBe("note");
+      expect(row.body).toBeNull();
+      // The only truthful chronology signal a legacy row has is its own
+      // `created_at` — NOT the migration's run time, and not `updated_at`.
+      expect(row.occurred_at).toBe(DIARY_CREATED_AT);
+      expect(row.timezone).toBe("UTC");
+      expect(row.source_channel).toBe("manual");
+      expect(row.source_reference).toBeNull();
+      expect(row.updated_at).toBe(AT);
+    }
 
     // Everything else is additive with no backfill, which is what makes
     // migrate-then-deploy and deploy-then-migrate both safe. A pre-existing Task,

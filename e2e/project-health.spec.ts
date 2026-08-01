@@ -62,8 +62,11 @@ test.describe("PROJ-02 — Project health", () => {
     await expect(panel).toBeVisible();
     await expect(panel.getByText("At risk")).toBeVisible();
     await expect(panel.getByText(/past its due date/)).toBeVisible();
-    // Supporting facts are present.
-    await expect(panel.getByText("Progress")).toBeVisible();
+    // Supporting facts are present. `exact` matters: the panel's REASON list can
+    // legitimately contain "No progress in 14 days", which a substring match also
+    // hits, and two matches is a strict-mode violation rather than a pass. The
+    // subject here is the supporting-fact term, so name it exactly.
+    await expect(panel.getByText("Progress", { exact: true })).toBeVisible();
 
     // Open the overdue task in the SHARED Task Drawer and complete it.
     await page

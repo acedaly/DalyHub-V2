@@ -276,17 +276,27 @@ table with SQLite's copy-and-rename pattern, but only `task_details` and
 `meeting_items` — tables that do not exist at the `0005` baseline and are therefore
 empty at that point in the sequence.
 
-**Exactly one migration in the range backfills anything:** `0008` creates a
-`project_details` row (`status = 'active'`, `archived_at IS NULL`) for every
-pre-existing, non-deleted Project. Everything else leaves existing records with no
-detail row until their first edit, and the read boundary resolves the absence to
-documented defaults.
+**Exactly two migrations in the range backfill anything, and they behave
+differently:**
+
+- **`0008`** creates a `project_details` row (`status = 'active'`,
+  `archived_at IS NULL`) for every pre-existing **non-deleted** Project.
+- **`0011`** creates a `diary_entry_details` row for every pre-existing `diary`
+  entity, with deliberate defaults — `entry_type = 'note'`, no body,
+  `occurred_at = the entity's own created_at` (the only truthful chronology signal
+  a legacy row has), `timezone = 'UTC'`, `source_channel = 'manual'`. **Unlike
+  `0008` it has no `deleted_at` filter**, so a soft-deleted entry is backfilled
+  too. That is correct: a restored entry must still have a place on the Timeline.
+
+Everything else leaves existing records with no detail row until their first edit,
+and the read boundary resolves the absence to documented defaults.
 
 **This is proven, not asserted.** [`test/kernel/migration-production-baseline.test.ts`](../../test/kernel/migration-production-baseline.test.ts)
 applies `0001`–`0005` to an isolated D1, seeds a representative workspace through
 every table that schema has — all four spine kinds, a completed task, a
-soft-deleted record, an explicitly-unlinked EntityLink, and a two-subject Activity
-event — then applies the **full committed sequence** over the top and asserts:
+soft-deleted record, a legacy diary entity and a soft-deleted one, an
+explicitly-unlinked EntityLink, and a two-subject Activity event — then applies the
+**full committed sequence** over the top and asserts:
 
 - no entity is lost and none is rewritten (`created_at`/`updated_at`/`title` intact);
 - soft-deletion is preserved on exactly the row that carried it — nothing resurrected,
@@ -295,7 +305,9 @@ event — then applies the **full committed sequence** over the top and asserts:
 - every link survives, **including the explicitly-unlinked one**, still unlinked;
 - the Activity stream and its multi-subject associations survive;
 - every V2 table the application queries unconditionally exists;
-- the `0008` backfill ran, and the non-backfilling migrations did not invent rows;
+- **both** backfills ran and each ran correctly — the `0008` project rows, and the
+  `0011` diary rows with their exact documented defaults including the soft-deleted
+  entry — and the non-backfilling migrations invented no rows;
 - no orphan rows and no `foreign_key_check` violations;
 - the upgrade invents no cross-workspace row.
 
@@ -304,18 +316,36 @@ each migration individually; this one proves the deployment.
 
 **The required order, every time.**
 
-1. **Back up** the production D1 database before touching it (`wrangler d1 export`,
-   or the dashboard backup). This is the step that makes every later step
-   reversible, and V2 has no in-app restore — see
+1. **Back up** the production D1 database before touching it:
+   `pnpm run db:production:export -- --output <file>` (or the dashboard backup).
+   This is the step that makes every later step reversible, and V2 has no in-app
+   restore — see
    [`ROADMAP_V2_1.md → SET-02`](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21).
 2. **Preflight**: `pnpm run deploy:production:preflight` — credential-free
    validation, no upload.
-3. **Migrate**: `wrangler d1 migrations apply dalyhub-v2 --env production --remote`
-   (applies `0006`–`0025` in order).
-4. **Verify** the migration list reports `0025` as applied.
+3. **Migrate**: `pnpm run db:production:apply` (applies `0006`–`0025` in order).
+4. **Verify**: `pnpm run db:production:list` reports **no pending migrations**.
 5. **Deploy**: `pnpm run deploy:production` — only after step 4 passes.
 6. **Smoke test**: `/health` returns `ok` with version `2.0.0`; the authenticated
    shell loads through Access; `/about` shows the same version.
+
+**Use `pnpm run db:production:*`, not `wrangler d1 ... --env production`.** The raw
+Wrangler command resolves the database NAME through the committed config, whose
+production `database_id` is a placeholder by design — `--env` selects an
+environment, it does not supply an id, and exporting `CLOUDFLARE_D1_DATABASE_ID`
+does not change what Wrangler reads, so the raw command targets the placeholder.
+Earlier guidance here asked the owner to set the real `database_id` in
+`env.production` locally before running it, which is precisely how a real
+identifier gets committed by accident.
+
+[`scripts/production-d1.mjs`](../../scripts/production-d1.mjs) instead does what the
+deploy orchestrator already does: it validates `CLOUDFLARE_D1_DATABASE_ID` is a real
+UUID (refusing both committed placeholders **by name**), writes a temporary
+top-level config carrying it **outside the repository** with owner-only permissions,
+runs Wrangler against that config, and deletes it in a `finally` — on success or
+failure. Nothing real is ever written into a tracked file. Use it for any other
+production D1 command too: `node scripts/production-d1.mjs d1 info dalyhub-v2`.
+Verified by `test/unit/deploy/production-d1.test.ts`.
 
 **Migrate before deploy, not after.** The application queries the detail tables
 unconditionally (`project_details`, `goal_details`, `task_details`, `note_details`,

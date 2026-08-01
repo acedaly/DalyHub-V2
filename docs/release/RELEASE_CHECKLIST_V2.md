@@ -210,10 +210,21 @@ cover the worst unit, so make the unit smaller rather than the budget bigger.** 
 is the rule this repository already applied at the shard level three times; fix 3
 applies it at the test level for the first time.
 
-**One neighbour is recorded rather than swept.** `project-health.spec.ts:137` is the
-same shape as fix 3 and took **31.4s in the same run — and passed**. It carries the
-same latent fragility and the same one-line fix, and is deliberately left alone
-because it is not failing. If it fails it needs no diagnosis: split it the same way.
+**A correction, recorded rather than quietly dropped.** This section first claimed
+`project-health.spec.ts` was a fragile neighbour of the same shape awaiting the same
+fix. Reading it disproved that: it already carries `test.setTimeout(90_000)` with a
+comment explaining that MOBILE-01 grew the viewport matrix from seven checkpoints to
+nine, so the loop does 18 page loads, and *"the budget is raised to match the added
+coverage; every assertion is unchanged."* It is not fragile and needs no fix.
+
+That also qualifies the rule above. Raising a **shard or global** ceiling is the move
+this repository has rejected three times, and rightly — it pins the worst shard
+against the new ceiling and hides a growing suite. Raising **one test's** timeout to
+match coverage that genuinely grew is a different and legitimate move, and the
+sibling test is the precedent. Splitting was still chosen for People because it
+additionally distributes — Playwright shards by test count, so one 90-second test is
+indivisible across runners while nine ~15s tests are not, and a failure names the
+viewport that broke rather than the whole matrix.
 
 ---
 
@@ -369,13 +380,18 @@ Set `DALYHUB_REPO` to your clone if it is not at `~/DalyHub-V2`.
 
 ```bash
 export DALYHUB_REPO="${DALYHUB_REPO:-$HOME/DalyHub-V2}"
-cd "$DALYHUB_REPO" || return 1
-git fetch origin main
-git checkout main
-git pull --ff-only origin main
-git log --oneline -1
-test -z "$(git status --porcelain)" && echo "WORKING TREE CLEAN" || echo "WORKING TREE DIRTY - STOP AND RESOLVE"
+cd "$DALYHUB_REPO" \
+  && git fetch origin main \
+  && git checkout main \
+  && git pull --ff-only origin main \
+  && git log --oneline -1 \
+  && { test -z "$(git status --porcelain)" && echo "WORKING TREE CLEAN" || echo "WORKING TREE DIRTY - STOP AND RESOLVE"; }
 ```
+
+The `&&` chaining is deliberate. `cd ... || return 1` reads naturally but `return`
+is invalid at an interactive top level, so bash prints an error and **carries on**,
+running the git commands in whatever directory you were already in. Chained with
+`&&`, a failed `cd` stops the whole sequence.
 
 Do not continue unless the last line reads `WORKING TREE CLEAN`.
 
@@ -435,17 +451,28 @@ The backup is not optional. V2 has no in-app restore, so this file is the only w
 back.
 
 ```bash
-pnpm exec wrangler d1 migrations list dalyhub-v2 --env production --remote
-pnpm exec wrangler d1 export dalyhub-v2 --env production --remote --output "$HOME/dalyhub-production-backup-$(date -u +%Y%m%dT%H%M%SZ).sql"
+pnpm run db:production:list
+pnpm run db:production:export -- --output "$HOME/dalyhub-production-backup-$(date -u +%Y%m%dT%H%M%SZ).sql"
 ls -lh "$HOME"/dalyhub-production-backup-*.sql
 ```
 
 Confirm the backup file exists and has a sensible size, then apply:
 
 ```bash
-pnpm exec wrangler d1 migrations apply dalyhub-v2 --env production --remote
-pnpm exec wrangler d1 migrations list dalyhub-v2 --env production --remote
+pnpm run db:production:apply
+pnpm run db:production:list
 ```
+
+**Why these are `pnpm run` and not raw `wrangler`.** `wrangler d1 ... dalyhub-v2
+--env production --remote` resolves the database NAME through the committed config,
+whose production `database_id` is a placeholder by design — `--env` selects an
+environment, it does not supply an id, and exporting `CLOUDFLARE_D1_DATABASE_ID`
+does not change what Wrangler reads. So the raw command targets the placeholder.
+[`scripts/production-d1.mjs`](../../scripts/production-d1.mjs) does what the deploy
+orchestrator already does: writes a temporary config carrying the real id **outside
+the repository**, uses it, and deletes it in a `finally`. It refuses to run at all
+without a real UUID, and refuses both committed placeholders by name
+(`test/unit/deploy/production-d1.test.ts`).
 
 The second `list` must report **no pending migrations**. Do not deploy until it
 does — the V2 Worker queries the new tables unconditionally.
