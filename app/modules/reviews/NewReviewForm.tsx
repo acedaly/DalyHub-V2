@@ -19,6 +19,8 @@ import {
   REVIEW_TYPE_LABELS,
   type ReviewCreationDefaults,
 } from "./review-view";
+import { useSetMobileTopBar } from "~/shared/shell";
+
 import type { NewReviewActionData } from "./routes/new";
 
 function nextPeriod(
@@ -69,6 +71,11 @@ export function NewReviewForm({
   const displayedTitle = titleTouched ? title : generatedTitle;
   const submitting = navigation.state !== "idle";
 
+  // UX-01 — this page composes no `PaneHeader`, so it must publish its own phone
+  // top-bar identity; without it the bar showed the workspace name and offered no
+  // way back to the collection.
+  useSetMobileTopBar({ title: "New Review", backTo: "/reviews" });
+
   const selectType = (nextType: ReviewType) => {
     setType(nextType);
     const next = currentReviewPeriod(
@@ -94,7 +101,11 @@ export function NewReviewForm({
   };
 
   return (
-    <main className="dh-review-new" aria-labelledby="new-review-title">
+    // UX-01 — a `section`, not a `main`. The app shell already renders the one
+    // `main` landmark (`#main-content`) that this route is rendered INSIDE, so a
+    // second `main` here gave the page two main landmarks — a WCAG 2.2 landmark
+    // defect that a screen-reader user meets as an ambiguous "main region" choice.
+    <section className="dh-review-new" aria-labelledby="new-review-title">
       <div className="dh-review-new__header">
         <div>
           <p className="dh-review-new__eyebrow">Reviews</p>
@@ -250,6 +261,6 @@ export function NewReviewForm({
           </button>
         </div>
       </Form>
-    </main>
+    </section>
   );
 }

@@ -402,73 +402,6 @@
     var(--dh-shadow-sm);
 }
 
-/* The keyboard-shortcuts reference, hosted in the shared DS-03 Drawer. */
-.dh-keyboard-help {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-5);
-}
-
-.dh-keyboard-help__intro {
-  margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
-}
-
-.dh-keyboard-help__group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-}
-
-.dh-keyboard-help__group-title {
-  margin: 0;
-  font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-keyboard-help__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-  margin: 0;
-}
-
-.dh-keyboard-help__row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--dh-space-3);
-}
-
-.dh-keyboard-help__keys {
-  flex: 0 0 7rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-1);
-  margin: 0;
-}
-
-.dh-keyboard-help__key {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.5rem;
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-sunken);
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text);
-}
-
-.dh-keyboard-help__desc {
-  margin: 0;
-  color: var(--dh-color-text);
-}
-
 /* ------------------------------------------------------------------------- */
 /* TODAY-08 — the command-centre widgets + personalisation (tokens only).     */
 /* Layout and rhythm ONLY; every visual value is a DS-01 token. No new colour, */
@@ -781,34 +714,6 @@
   font-weight: var(--dh-font-weight-medium);
   letter-spacing: var(--dh-letter-spacing-wide);
   color: var(--dh-color-text-muted);
-}
-
-/* -- Focus placeholder ------------------------------------------------------ */
-
-.dh-focus-widget {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-4);
-  background: var(--dh-color-surface-sunken);
-  border: var(--dh-border-width-thin) dashed var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-}
-
-.dh-focus-widget__lead {
-  margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
-}
-
-.dh-focus-widget__list {
-  margin: 0;
-  padding-left: var(--dh-space-5);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-1);
 }
 
 /* -- Insights --------------------------------------------------------------- */

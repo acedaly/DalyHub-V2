@@ -332,3 +332,19 @@ priority with everything else behind "More details". MOBILE-01 adds only that th
 form's commitment row is **sticky**, so "Create task" stays above the phone
 keyboard in the full-screen Drawer rather than at the end of a scroll. Meeting
 linkage, source-item mapping and the return path are unchanged.
+
+---
+
+## UX-01 — the collection paginates in place (2026-08-01)
+
+``/meetings`` was one of the two collections that paginated by **navigating** to the
+next page: the list was replaced, the owner's scroll position was discarded, and
+the control was *labelled* "Load more", which is not what it did. It now uses the ONE shared
+[`useKeysetPagination`](../../app/shared/load-more/useKeysetPagination.ts) and the
+shared `LoadMore` button, exactly like Areas, Goals, Notes, Projects, People and
+Assets — so all eight collections behave identically, and the request-scoped guard
+that closes [DEBT-45](../product/PRODUCT_DEBT.md) applies here too.
+
+The path a later page is requested from carries the CURRENT view and filters
+(minus any cursor), so "Load more" resumes the same result set the cursor was
+issued for rather than the unfiltered default.

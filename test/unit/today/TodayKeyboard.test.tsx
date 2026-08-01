@@ -29,7 +29,6 @@ import { CommandShortcutLayer } from "~/shared/commands/CommandShortcutLayer";
 import { DrawerProvider } from "~/shared/drawer";
 import { FeedbackProvider } from "~/shared/feedback";
 
-import { TODAY_FIXTURE } from "~/modules/today/fixtures";
 import { TodayDashboard } from "~/modules/today/TodayDashboard";
 import { createTodayDrawerRenderer } from "~/modules/today/TodayDrawer";
 import type { PlanningData } from "~/modules/today/task/planning-view";
@@ -155,11 +154,8 @@ function renderToday(entries: readonly string[] = ["/today"]) {
     <FeedbackProvider>
       <CommandContextProvider>
         <Observer />
-        <DrawerProvider
-          renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, new Map())}
-        >
+        <DrawerProvider renderDrawer={createTodayDrawerRenderer(new Map())}>
           <TodayDashboard
-            data={TODAY_FIXTURE}
             date="Tuesday 21 July 2026"
             todayIso="2026-07-21"
             planning={PLANNING}
@@ -398,11 +394,8 @@ function renderWithDispatcher() {
           reserved={[]}
           catalogue={async () => ({ commands: [] })}
         />
-        <DrawerProvider
-          renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, new Map())}
-        >
+        <DrawerProvider renderDrawer={createTodayDrawerRenderer(new Map())}>
           <TodayDashboard
-            data={TODAY_FIXTURE}
             date="Tuesday 21 July 2026"
             todayIso="2026-07-21"
             planning={PLANNING}

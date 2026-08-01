@@ -774,7 +774,7 @@ function NavigationToggle({
 }
 
 function statusFor(fetcher: ReturnType<typeof useFetcher<ActionResult>>) {
-  if (fetcher.state !== "idle") return "Saving...";
+  if (fetcher.state !== "idle") return "Saving…";
   if (fetcher.data?.ok === true) return "Saved";
   if (fetcher.data?.ok === false) return fetcher.data.message;
   return null;

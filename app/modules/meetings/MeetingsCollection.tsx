@@ -1,4 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+/**
+ * The Meetings collection.
+ *
+ * UX-01 — pagination now uses the ONE shared `useKeysetPagination` hook. It used to
+ * be a `Link` labelled "Load more" that NAVIGATED to the next page: the list was
+ * replaced rather than extended, the owner lost their scroll position and the
+ * label described behaviour the control did not have. Meetings and Reviews were the
+ * only two collections that paginated that way; every other one accumulated. See
+ * DEBT-45.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { Card, CardCollection, type CardMetaItem } from "~/shared/card";
@@ -8,8 +19,16 @@ import {
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 
 import type { SerializedMeeting } from "./meeting-view";
+
+/** The loader payload each `/meetings/*` view returns. */
+type MeetingsPageData = {
+  readonly meetings: readonly SerializedMeeting[];
+  readonly nextCursor: string | null;
+  readonly failed: boolean;
+};
 
 const VIEW_LINKS = [
   { id: "upcoming", label: "Upcoming", href: "/meetings/upcoming" },
@@ -43,10 +62,30 @@ export function MeetingsCollection({
   const query = searchParams.get("q") ?? "";
   const [draftQuery, setDraftQuery] = useState(query);
   const sort = searchParams.get("sort") ?? "start";
+
+  // The route path plus the CURRENT query minus any cursor, so a "Load more"
+  // resumes the same filtered, sorted view rather than the unfiltered default.
+  const viewHref =
+    VIEW_LINKS.find((item) => item.id === view)?.href ?? "/meetings";
+  const path = useMemo(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("cursor");
+    const qs = params.toString();
+    return qs ? `${viewHref}?${qs}` : viewHref;
+  }, [viewHref, searchParams]);
+
+  const pagination = useKeysetPagination<SerializedMeeting, MeetingsPageData>({
+    firstPage: meetings,
+    initialCursor: hasMore ? nextCursor : null,
+    path,
+    select: selectMeetingsPage,
+    getId: meetingId,
+  });
+
   const subtitle = failed
     ? "We couldn’t load your meetings."
-    : hasMore
-      ? `${meetings.length} of ${total} loaded`
+    : pagination.hasMore
+      ? `${pagination.items.length} of ${total} loaded`
       : total === 1
         ? "1 meeting"
         : `${total} meetings`;
@@ -78,12 +117,6 @@ export function MeetingsCollection({
     }, 250);
     return () => clearTimeout(timeout);
   }, [draftQuery, query, updateParam]);
-
-  const loadMoreHref = (() => {
-    const next = new URLSearchParams(searchParams);
-    if (nextCursor) next.set("cursor", nextCursor);
-    return `?${next.toString()}`;
-  })();
 
   return (
     <CollectionLayout
@@ -140,7 +173,7 @@ export function MeetingsCollection({
           title="Meetings couldn’t be loaded"
           description="Try again in a moment."
         />
-      ) : meetings.length === 0 ? (
+      ) : pagination.items.length === 0 ? (
         <EmptyState
           icon={<EntityIcon type="meeting" />}
           title={`No ${view} meetings`}
@@ -149,7 +182,7 @@ export function MeetingsCollection({
       ) : (
         <>
           <CardCollection
-            items={meetings}
+            items={pagination.items}
             getItemId={(meeting) => meeting.id}
             ariaLabel={`${view} meetings`}
             presentation="list"
@@ -174,15 +207,31 @@ export function MeetingsCollection({
               />
             )}
           />
-          {hasMore && nextCursor ? (
-            <Link className="dh-btn dh-btn--secondary" to={loadMoreHref}>
-              Load more
-            </Link>
+          {pagination.hasMore ? (
+            <LoadMore
+              loading={pagination.loading}
+              loadFailed={pagination.loadFailed}
+              onLoadMore={pagination.loadMore}
+              label="Load more meetings"
+            />
           ) : null}
         </>
       )}
     </CollectionLayout>
   );
+}
+
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectMeetingsPage(data: MeetingsPageData) {
+  return {
+    items: data.meetings,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
+  };
+}
+
+function meetingId(meeting: SerializedMeeting): string {
+  return meeting.id;
 }
 
 function meetingMetadata(meeting: SerializedMeeting): CardMetaItem[] {

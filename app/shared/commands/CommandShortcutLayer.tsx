@@ -50,6 +50,15 @@ import {
 export type CommandShortcutLayerProps = {
   /** Reserved global bindings (Mod+K, /) — highest precedence. */
   readonly reserved: readonly ShortcutBinding[];
+  /**
+   * UX-01 — app-wide bindings at the LOWEST precedence, appended after every
+   * contextual and registered binding. `?` (the keyboard reference) uses this: the
+   * shell provides it everywhere, but a surface that hosts its own reference —
+   * Today, where it belongs inside the drawer stack — keeps ownership of the key
+   * because its contextual binding is matched first. A fallback therefore extends
+   * coverage without ever overriding a surface.
+   */
+  readonly fallback?: readonly ShortcutBinding[];
   /** Injectable catalogue fetcher (real transport by default; a fake in tests). */
   readonly catalogue?: CommandCatalogueFn;
 };
@@ -60,6 +69,7 @@ export type CommandShortcutLayerProps = {
  */
 export function CommandShortcutLayer({
   reserved,
+  fallback,
   catalogue: catalogueFn = fetchCommandCatalogue,
 }: CommandShortcutLayerProps) {
   const contextualActions = useContextualActions();
@@ -134,8 +144,12 @@ export function CommandShortcutLayer({
       });
     }
 
+    // App-wide fallbacks last: a surface's own binding for the same key always
+    // wins, because bindings are matched in order.
+    result.push(...(fallback ?? []));
+
     return result;
-  }, [reserved, contextualActions, catalogue, navigateToTarget]);
+  }, [reserved, fallback, contextualActions, catalogue, navigateToTarget]);
 
   useCommandShortcuts(bindings);
   return null;

@@ -378,3 +378,78 @@
     animation-duration: var(--dh-duration-instant);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* UX-01 — the shared keyboard-shortcuts reference                            */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Moved here from `today.css` when the reference stopped being Today's. It is
+ * rendered by TWO hosts — the shell's app-wide `?` sheet and Today's DS-03 Drawer —
+ * so its styles belong with the shared command surfaces, not with one module.
+ */
+.dh-keyboard-help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-keyboard-help__intro {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-keyboard-help__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-keyboard-help__group-title {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-keyboard-help__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  margin: 0;
+}
+
+.dh-keyboard-help__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+}
+
+.dh-keyboard-help__keys {
+  flex: 0 0 7rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-1);
+  margin: 0;
+}
+
+.dh-keyboard-help__key {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-sunken);
+  font-family: var(--dh-font-mono);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text);
+}
+
+.dh-keyboard-help__desc {
+  margin: 0;
+  color: var(--dh-color-text);
+}

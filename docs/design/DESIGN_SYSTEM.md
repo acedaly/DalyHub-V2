@@ -194,6 +194,12 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Context-aware (contextual actions from the current surface/Drawer rank first; a command on the current module ranks higher), fully keyboard-driven (↑/↓ wrap, Home/End, Enter, Escape), fuzzy-matched, with a restrained suggested/recent set on an empty query (recents are session-only, never persisted). Search and the palette are mutually exclusive.
 **Contract.** A module contributes a **command** through the [module registry](../../AGENTS.md#92-module-registry): a `navigate` command (a declarative, validated target) or an `execute` command (a server handler). Navigation runs on the client; an executable command runs once through the authenticated `POST /commands/:commandId` boundary and returns a typed, safe outcome — the browser receives serialisable metadata only, never a handler. Modules register commands from day one; they may add but never reassign the reserved keyboard vocabulary (`Mod+K`, `/`, …). See [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action) and [`COMMAND_PALETTE.md`](../development/COMMAND_PALETTE.md). This is the backbone of the [keyboard-first](../../AGENTS.md#7-interaction-philosophy) product.
 
+### Keyboard reference (UX-01)
+**Purpose.** One answer to "what can I press here?", reachable from the keyboard on every screen.
+**Anatomy.** ONE catalogue ([`app/shared/commands/shortcut-reference.ts`](../../app/shared/commands/shortcut-reference.ts)) rendered by ONE component (`KeyboardShortcutsReference`) — grouped `<kbd>` keys beside a text description, so no meaning is carried by an unlabelled glyph or by colour. Each group declares its `scope` (`global` or a surface), so a host presents only what genuinely applies where the owner is.
+**Behaviour.** `?` opens it anywhere. The app shell registers that binding through the SAME one shared dispatcher as a **fallback** — a new lowest-precedence tier appended after contextual and registered bindings — so a surface that hosts its own reference keeps ownership of the key. Today does: there the reference belongs inside the Drawer *stack*, which is what makes a task drawer beneath it stop owning the task shortcuts. Everywhere else the shell opens it in the shared [Sheet](#shared-drawer-ds-03). Like every ordinary character shortcut it is suppressed while the owner is typing.
+**Rules.** Never write a second copy of the shortcut list, and never state a shortcut in the reference that does not work where the reference is being shown. A **read-only** Sheet must set `bodyFocusable` so its scroll container is keyboard-reachable (WCAG 2.1.1) — sheets with focusable content do not need it.
+
 ### Quick Actions
 **Purpose.** The two or three most frequent actions on an entity, available without opening it.
 **Anatomy.** Inline affordances on [Cards](#cards) and [Record Headers](#record-header) (complete, reschedule, link, assign) plus contextual keyboard shortcuts, projected from ONE shared `AppAction` ([`app/shared/commands/action.ts`](../../app/shared/commands/action.ts)) so the same action instance appears as a Card action, a Record Header action, a Command Palette command and a keyboard action.
@@ -237,6 +243,12 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Anatomy.** Skeletons that mirror the final layout for content; inline spinners only for small in-place waits; optimistic UI for user-initiated changes.
 **Behaviour.** Content streams in progressively (see [performance](../../AGENTS.md#16-performance-expectations)). Avoid layout shift; avoid spinner-blocked blank screens.
 **Rules.** Prefer skeletons over spinners; prefer optimistic over loading. Never block the whole screen for partial data.
+
+### Collection pagination (UX-01)
+**Purpose.** Reach the rest of a collection without losing your place.
+**Anatomy.** ONE hook ([`useKeysetPagination`](../../app/shared/load-more/useKeysetPagination.ts)) plus the shared `LoadMore` button. A collection supplies its first page, its cursor, the path the next page is fetched from, and how to read the page out of that route's loader data.
+**Behaviour.** Pages **accumulate in place** — never a navigation that replaces the list, and never automatic infinite scroll as the only path. A record straddling a page boundary appears once. A scope change (filter, view, lifecycle segment) restarts the accumulation, and **a page is consumed only if it was asked for since the current scope began**, so a revalidated response from a scope the owner has left can never be appended on top of a fresh first page. A failed page is a retryable state that does **not** advance the cursor.
+**Rules.** Never write a second paginator. The path a later page is requested from must carry the same scope the cursor was issued for. The label says what the control does: a control that navigates is not a "Load more".
 
 ### Empty States
 **Purpose.** Turn "nothing here yet" into "here's the next action."

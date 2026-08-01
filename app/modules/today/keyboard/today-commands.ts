@@ -163,7 +163,7 @@ export function buildTodayGlobalCommands(
   actions.push({
     id: "today.cmd.keyboard_help",
     title: "Keyboard shortcuts",
-    subtitle: "Show the Today keyboard reference",
+    subtitle: "Show the keyboard reference",
     keywords: ["keyboard", "shortcuts", "help", "keys", "reference"],
     shortcut: { key: "?", modifiers: ["shift"] },
     kind: "run",

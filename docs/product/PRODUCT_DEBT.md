@@ -13,7 +13,8 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-46**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-61**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+  - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
 ---
@@ -116,7 +117,7 @@
 - **Related roadmap item.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module).
 
 ### ☑ DEBT-17 — Today search provider is fixture-backed, not over real records — P1
-- **Original issue.** TODAY-02 made the Today *focus* section read real workspace-scoped tasks, but the DS-08 search provider (`app/modules/today/search.ts`, now removed) still built its candidates from the TODAY-01 fixtures (matching the seeded ids), because a search provider's `ModuleRuntimeContext` exposed the workspace context but not a repository/D1 handle. A search result for a fixture id that was not a real record opened the calm not-found Drawer.
+- **Original issue.** TODAY-02 made the Today *focus* section read real workspace-scoped tasks, but the DS-08 search provider (`app/modules/today/search.ts`, since removed) still built its candidates from the TODAY-01 fixtures (matching the seeded ids), because a search provider's `ModuleRuntimeContext` exposed the workspace context but not a repository/D1 handle. A search result for a fixture id that was not a real record opened the calm not-found Drawer.
 - **Task half resolved (2026-07-25).** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) added a **real, repository-backed** Tasks search provider ([`app/modules/tasks/search.ts`](../../app/modules/tasks/search.ts)) that resolves live workspace tasks through the trusted `searchLinkTargets` seam, and the Today provider's `buildCandidates()` no longer contributes task results. There is now exactly one trustworthy task search.
 - **Escalation before resolution.** The Today provider still contributed **fixture** `upcoming:<id>`, `project:<id>` and `note:<id>` results after real Projects, Notes, Meetings and Diary records existed, so global Search mixed **fabricated results with real ones** and a fixture hit opened a placeholder Drawer over `/today` instead of the canonical record. Presenting invented records as real search results violated [AGENTS.md §8 "fail honest"](../../AGENTS.md#8-ai-philosophy) and the [product principles](PRODUCT_PRINCIPLES.md). This was the same root cause as [DEBT-19](#-debt-19--projects-search-still-opens-the-fixture-project-drawer--p3) and was compounded by the missing real providers in [DEBT-36](#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2).
 - **Desired state.** Retire the fixture provider entirely once Projects, Notes and Meetings/Diary each register a real repository-backed provider; no shipped surface should return an id that does not resolve to a real record.
@@ -124,7 +125,7 @@
 - **TODAY-08 historical note.** The command-centre landing retired the calendar/notes/timeline *widget* fixtures and wired those widgets to real reads, but the Today **search provider** was out of scope for that item and remained fixture-backed until X-01. The Today recent-notes widget reads the TRUE newest notes via the dedicated `EntityRepository.listRecentByType` projection (newest-first, bounded) — not the oldest `entities.list` page re-sorted — so it is correct at any workspace size.
 - **Resolved (2026-07-29).** X-01 removed the Today provider entirely:
   [`app/modules/today/module.ts`](../../app/modules/today/module.ts) now registers
-  routes and commands only, and [`app/modules/today/search.ts`](../../app/modules/today/search.ts)
+  routes and commands only, and `app/modules/today/search.ts`
   no longer exists. Today remains a derived dashboard reachable through navigation
   and command-palette commands; it manufactures no records for Search. Production
   registry tests (`test/unit/today/search.test.ts`,
@@ -132,13 +133,17 @@
   Today-owned Search provider is registered, and the real `/search` route test
   asserts the payload contains no `today.search`.
 
-### ☐ DEBT-18 — Reserved cross-app keyboard vocabulary + a few Today actions lack a dedicated palette command — P3
+### ◐ DEBT-18 — Reserved cross-app keyboard vocabulary + a few Today actions lack a dedicated palette command — P3 — **the `?` half RESOLVED 2026-08-01**
 - **Current issue.** TODAY-05 implemented the Today execution shortcuts (Arrow/Home/End/Enter/Space roving, `P`/`Shift+P`/`C`, `?`, `Escape`) but the broader reserved keyboard vocabulary documented in [`PRODUCT_EXPERIENCE.md` Part IV](../design/PRODUCT_EXPERIENCE.md) — the `g`+letter go-to chords, `j/k` movement aliases, `x` select, `o`/`e` open/primary-action, and `[` sidebar — is still reserved-but-unbuilt at the app level, and the keyboard reference is Today-scoped (a `help:shortcuts` Drawer key), not a global `?` overlay. Separately, four Today actions are keyboard-operable only through their visible controls, not yet a dedicated palette command: **mark waiting** and **change waiting subject** (the Drawer waiting editor — needs typed input), **choose a custom planning date** (the Drawer/bulk-bar date inputs), and **open Task Activity** (the RecordTabs tablist). Each is fully reachable by keyboard today (ADR-031 §31.5b) — the gap is only palette discoverability, not accessibility.
 - **Desired future state.** A cross-app pass implements the remaining reserved vocabulary through the SAME one shared dispatcher (never per-surface listeners), promotes the shortcuts reference to a global overlay reusing the shared modal machinery, and adds dedicated commands for the four Today actions (e.g. a command that opens the waiting editor / activity tab / a date prompt) — extending, never forking, the DS-09 command system.
-- **Related roadmap item.** A future cross-cutting keyboard item (post-[TODAY-05](../roadmap/ROADMAP_V2.md#-today-05--keyboard-workflow)); the vocabulary stays reserved in the interim so nothing else claims those keys.
+- **The global `?` half is done (2026-08-01, UX-01).** This was worse than the entry recorded: the reference's own first group was titled **"Anywhere"** and listed `?` as showing it — a claim that was false on every route but `/today`. The catalogue now lives once in [`app/shared/commands/shortcut-reference.ts`](../../app/shared/commands/shortcut-reference.ts), one shared renderer serves both hosts, and `AppShell` registers `?` through the SAME one dispatcher as a new **fallback** binding tier (appended after contextual and registered bindings), so it opens the reference in the shared `Sheet` everywhere without taking the key from a surface that owns it.
+  - **Today keeps its Drawer host by decision, not by omission.** There the reference belongs inside the drawer STACK — that is what makes a task drawer beneath it stop owning the task shortcuts (`isTop`, ADR-031 §31.5b) — and a sheet sits outside that stack. The fallback tier exists precisely so Today's contextual `?` still wins there. Converging the two hosts is what remains of this half.
+  - **It also surfaced a latent shared-component gap**: every Sheet built before this held focusable content, so a READ-ONLY sheet's scroll container had no tab stop (WCAG 2.1.1). Fixed in `Sheet` via an opt-in `bodyFocusable`.
+- **Still open:** the `g`+letter go-to chords, `j/k`, `x`, `o`/`e` and `[`; and the four Today actions without a dedicated palette command.
+- **Related roadmap item.** [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) (the `?` half); a future cross-cutting keyboard item (post-[TODAY-05](../roadmap/ROADMAP_V2.md#-today-05--keyboard-workflow)); the vocabulary stays reserved in the interim so nothing else claims those keys.
 
 ### ☑ DEBT-19 — Projects: search still opens the fixture project drawer — P3
-- **Current issue.** PROJ-01 replaced the Today "Continue working" seam with the real project read model (navigating to `/projects/:id`), but the DS-08 Today **search** provider ([`app/modules/today/search.ts`](../../app/modules/today/search.ts)) still indexes fixture projects and opens a fixture `project:<id>` Drawer (the same fixture-search limitation as [DEBT-17](#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1)), so a project *found via search* opens a placeholder rather than the real record route now that real projects exist.
+- **Current issue.** PROJ-01 replaced the Today "Continue working" seam with the real project read model (navigating to `/projects/:id`), but the DS-08 Today **search** provider (`app/modules/today/search.ts`, since removed) still indexes fixture projects and opens a fixture `project:<id>` Drawer (the same fixture-search limitation as [DEBT-17](#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1)), so a project *found via search* opens a placeholder rather than the real record route now that real projects exist.
 - **Resolved (2026-07-22).** The collection-pagination half of this debt is **fixed**: the Projects collection AND the Project Tasks tab are now fully **cursor-paginated** (versioned, scope-bound cursors mirroring the spine/EntityLink pattern, keyset ordering with a deterministic `id` tiebreaker, `nextCursor` on the kernel contract, and an accessible shared "Load more" affordance), so **every** matching project and task is reachable — not just the first bounded page. See [ADR-034](../decisions/ARCHITECTURE_DECISIONS.md#adr-034-the-projects-module--a-read-only-projection-over-the-spine-no-second-project-model) and [PROJECTS_MODULE.md](../development/PROJECTS_MODULE.md). Only the fixture-search issue above remains open under this debt.
 - **Desired future state.** Search resolves real projects and targets the canonical `/projects/:id` route (folded into the DEBT-17 real-search work). This does not block PROJ-01's calm single-owner surface. *(Today's "Continue working" already selects the most-recently-updated projects at the database via `orderBy: "recent"`, so the earlier loader-side recency approximation is resolved.)*
 - **Related roadmap item.** [PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview); [DS-08](../roadmap/ROADMAP_V2.md#-ds-08--shared-search); [PROJ-02](../roadmap/ROADMAP_V2.md) (richer project filtering reuses the DS-07 clause-builder the state segment defers).
@@ -377,12 +382,17 @@
 
 ---
 
-### ☐ DEBT-45 — Keyset paginators can consume a revalidated fetcher page after a scope reset — P3
+### ☑ DEBT-45 — Keyset paginators can consume a revalidated fetcher page after a scope reset — P3 — **RESOLVED 2026-08-01**
 - **Current issue.** Every "Load more" collection paginator follows the same shape: a `useFetcher`, an `appended` accumulator, and a `processed` ref that de-dupes by **object identity** so one response is applied once. Identity alone is not sufficient. React Router revalidates an *active* fetcher after a navigation, so a scope change (an Active ⇄ Deleted filter switch, a new cursor scope) can deliver a **newly-identified copy of the page last loaded** in the very render where the reset effect has just cleared `processed`. The stale page is then appended on top of the new first page and the cursor advances past everything in between — silently stranding the records in the skipped pages.
 - **Where it stands.** Fixed in [`useDeletedGoalPagination`](../../app/modules/goals/GoalsCollection.tsx) (PX-04 follow-up), which now consumes only data it actually requested since the last reset. The **same shape remains** in the three older paginators it was modelled on: `useGoalPagination` (same file), `useNotePagination` ([`NotesCollection.tsx`](../../app/modules/notes/NotesCollection.tsx)) and `useProjectPagination` ([`ProjectsCollection.tsx`](../../app/modules/projects/ProjectsCollection.tsx)). Their exposure is lower — Notes and Projects reset on a lifecycle/state switch, which is exactly the trigger — but the defect is structurally identical and was simply never hit.
 - **Why it was not swept here.** The PX-04 follow-up fixed the paginator it introduced. Refactoring three untouched collection surfaces in a bug-fix PR would have widened it well past its scope and past what its tests cover.
 - **Desired future state.** One shared keyset-pagination hook the collections configure, rather than four near-identical copies — the same "shared over bespoke" move DS-04 made for Cards. Failing that, apply the request-scoped guard to the three remaining copies. Either way the rule to encode: **a page is consumed only if it was asked for since the current scope began.**
-- **Related roadmap item.** [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) (where collection-wide list behaviour is next revisited); tracked alongside [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1) as another per-module duplication of one idea.
+- **Resolved 2026-08-01 by UX-01, in the shape this entry asked for.** [`app/shared/load-more/useKeysetPagination.ts`](../../app/shared/load-more/useKeysetPagination.ts) is the ONE hook, and it encodes the rule verbatim: every `loadMore` stamps a monotonic request id, a scope change clears it, and a response is applied only while a request from the current scope is outstanding — so a revalidated copy of a previous scope's page can never be appended to a fresh first page.
+  - **Every copy is gone.** The audit found the problem was wider than this entry recorded: **six** private copies existed, not four (`useAreaPagination`, `useGoalPagination`, `useDeletedGoalPagination`, `useNotePagination`, `useProjectPagination` and Assets' `usePagination`), and **two** collections had no accumulating paginator at all. All six now delegate to the shared hook.
+  - **The two absences are closed too.** `/meetings` and `/reviews` paginated by NAVIGATING to the next page — replacing the list and discarding the owner's scroll position — and Meetings labelled that control "Load more", which is not what it did. Both now use the shared hook and the shared `LoadMore` affordance, so all eight collections behave identically.
+  - **Notes' extra guard was subsumed, not dropped.** `useNotePagination` additionally discarded a page whose echoed `state` no longer matched the selected lifecycle view. The shared request-scoped rule is strictly stronger — it discards ANY response issued under a previous scope, not only one whose state field happens to disagree.
+  - **Evidence.** [`test/unit/load-more/useKeysetPagination.test.tsx`](../../test/unit/load-more/useKeysetPagination.test.tsx) covers accumulation, boundary de-duplication, a retryable failed page that does not advance the cursor, and the exhausted no-op; [`e2e/ux-01-daily-driver.spec.ts`](../../e2e/ux-01-daily-driver.spec.ts) asserts neither collection offers a page-replacing link any more; the existing Projects/Goals/Areas/Notes/People/Assets "Load more" journeys pass unchanged.
+- **Related roadmap item.** [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) (resolved here); [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) (where collection-wide list behaviour is next revisited); tracked alongside [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1) as another per-module duplication of one idea.
 
 ---
 
@@ -446,7 +456,8 @@
 - **Impact.** None on the owner today — the removal is the improvement. The debt is that the CAPABILITY is absent, and this entry exists so it is a recorded decision rather than a silent omission. Help's "What is not here yet" topic states it to the owner directly.
 - **Desired future state.** If weather earns its place, it returns as an **optional widget that is disabled until configured** — a documented data source, an owner-supplied location, a graceful unavailable state, and never reserved space before any of that exists. The calendar panel is subsumed by [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar), which owns calendar integration properly.
 - **Closing condition.** Either a configured weather widget that shows real data and degrades honestly when the source is unavailable, or an explicit decision that DalyHub does not do weather. Not a placeholder.
-- **Related roadmap item.** [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar).
+- **The same rule was applied inconsistently, and UX-01 finished the job (2026-08-01).** POLISH-01 removed Weather and Upcoming calendar for this reasoning but left the **Focus** widget, which listed three unbuilt capabilities under "coming soon" and had likewise never once shown information. It is now removed on exactly the grounds recorded here. Its catalogue slot is taken by a `meetings` section backed by real records — which is what the reasoning above actually asks for.
+- **Related roadmap item.** [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar); [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) (the Focus removal).
 
 ### ☐ DEBT-54 — `border-strong` is still below 3:1 where it is a decorative border — P3
 - **Current issue.** [THEME-01](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system) added `--dh-color-control-border` at 3:1 and migrated the real interactive control boundaries onto it (inputs, checkboxes, the tags field, secondary buttons, the collection-controls trigger, the Settings select). `--dh-color-border-strong` remains the *decorative* emphasis border and is deliberately still below 3:1 — it is used for timeline rails, chips, dropdown containers and dialog edges, where the boundary is not what identifies a control and darkening it would make ordinary chrome heavy.
@@ -502,9 +513,27 @@
 
 ---
 
+### ☐ DEBT-60 — Help and About do not name themselves on the phone top bar — P3
+
+- **Current issue.** The MOBILE-01 phone top bar shows the title a route publishes through `PaneHeader` or `RecordLayout`, and falls back to the workspace name when a route publishes nothing. `/help` and `/about` compose neither (Help uses a bespoke contents-rail page; About composes `SettingsLayout`), so a phone owner reading Help sees a bar that says "DalyHub" and offers no contextual Back.
+- **Why it was not swept here.** UX-01 fixed the same cause on `/new/meeting` and `/reviews/new`, where the pages are ordinary create forms and publishing a title changes nothing visually. Help and About are deliberate bespoke page shapes; giving them a `PaneHeader` would change how they look, and publishing a title without one is the smaller fix but still a presentation decision about two screens this audit did not otherwise touch.
+- **Impact.** Low: both are destinations the owner navigates to on purpose, so they are rarely disorienting. It is an inconsistency, not a dead end.
+- **Desired future state.** Both publish their identity — either by composing `PaneHeader` (preferred, if the visual change is accepted) or by calling the shared `useSetMobileTopBar` the way the two create pages now do.
+- **Closing condition.** The phone top bar reads "Help" on `/help` and "About" on `/about`, asserted in the mobile spec.
+- **Related roadmap item.** [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience); [HELP-01](../roadmap/ROADMAP_V2.md#-help-01--in-app-help).
+
+---
+
 ## Entry template
 
 ```markdown
+### ☐ DEBT-NN — <one-line title> — P<1|2|3>
+- **Current issue.** <what diverges today, with file references>
+- **Impact.** <what it costs the owner>
+- **Desired future state.** <the target>
+- **Closing condition.** <the evidence that would close it>
+- **Related roadmap item.** <link>
+```
 
 ---
 

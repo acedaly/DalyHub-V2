@@ -23,6 +23,11 @@
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
+import {
+  activeNavigationHref,
+  isNavigationDestinationActive,
+} from "./navigation-active";
+
 /**
  * The maximum number of registry destinations the phone bar shows. Three plus
  * Capture plus More is the five-control budget; a fourth opted-in destination
@@ -97,19 +102,12 @@ export function buildBottomNavigation(
 /**
  * Whether a bottom-navigation destination is the active one for `pathname`.
  *
- * A destination matches its own path or any path nested beneath it, so
- * `/tasks/:id` keeps "Tasks" active — but `/` never matches everything, and a
- * longer sibling segment (`/todayish`) is not a nested path. Exactly ONE
- * destination is active for any pathname (the longest matching href wins), so the
- * bar never shows two active states.
+ * UX-01 — this is now a thin alias over the ONE shared navigation-active rule
+ * (`~/shared/shell/navigation-active`), which the desktop rail and the "More"
+ * sheet also use. The behaviour is unchanged; what changed is that the rail no
+ * longer disagrees with the bar about the same question.
  */
-export function isDestinationActive(href: string, pathname: string): boolean {
-  if (href === "/") {
-    return pathname === "/";
-  }
-  const normalised = href.endsWith("/") ? href.slice(0, -1) : href;
-  return pathname === normalised || pathname.startsWith(`${normalised}/`);
-}
+export const isDestinationActive = isNavigationDestinationActive;
 
 /**
  * The href of the single active destination for `pathname`, or null when the
@@ -121,14 +119,8 @@ export function activeDestinationHref(
   destinations: readonly NavigationItem[],
   pathname: string,
 ): string | null {
-  let best: string | null = null;
-  for (const destination of destinations) {
-    if (!isDestinationActive(destination.href, pathname)) {
-      continue;
-    }
-    if (best === null || destination.href.length > best.length) {
-      best = destination.href;
-    }
-  }
-  return best;
+  return activeNavigationHref(
+    destinations.map((destination) => destination.href),
+    pathname,
+  );
 }

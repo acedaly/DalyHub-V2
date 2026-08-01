@@ -38,10 +38,6 @@
   font-size: var(--dh-font-size-sm);
 }
 
-.dh-reviews-next {
-  padding-block: var(--dh-space-4);
-}
-
 .dh-review-new {
   width: min(58rem, 100%);
   margin-inline: auto;

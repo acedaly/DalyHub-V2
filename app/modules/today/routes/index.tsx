@@ -10,10 +10,13 @@
  * data: the loader reads open tasks through the trusted authenticated composition
  * boundary (`resolveAuthenticatedWorkspaceScope` → the task repository), and a Card
  * completion writes through the `/today/task/:id` action so Today and the Task
- * Drawer stay consistent (a revalidation reconciles). The other sections (upcoming,
- * projects, notes, timeline) remain fixture-backed until their modules connect —
- * only the data source changed, not the composition. The current date is formatted
+ * Drawer stay consistent (a revalidation reconciles). The current date is formatted
  * server-side in the owner's calendar timezone (see `date.ts`).
+ *
+ * UX-01 — every section on this route now reads REAL workspace data. The last
+ * TODAY-01 demonstration fixture (`TODAY_FIXTURE`) was still being serialised into
+ * the response of the product's most-visited route although nothing rendered it; it
+ * and the dead drawer branches it fed are gone.
  */
 
 import { env } from "cloudflare:workers";
@@ -41,7 +44,6 @@ import {
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate, ownerCalendarIso } from "../date";
-import { TODAY_FIXTURE } from "../fixtures";
 import {
   bucketPlanning,
   planningSummary,
@@ -134,6 +136,7 @@ function emptyLanding(
     diary: { today: [], recent: [], capturedToday: false },
     areas: [],
     goals: { goals: [] },
+    meetings: { meetings: [], remainingCount: 0 },
     insights: { signals: deriveInsights(input) },
     assets: { items: [], trackedAsTasksCount: 0, overdueCount: 0 },
   };
@@ -282,7 +285,6 @@ export async function loader({ context }: Route.LoaderArgs) {
     date,
     todayIso,
     nowIso: now.toISOString(),
-    data: TODAY_FIXTURE,
     waiting,
     planning,
     recentProjects,
@@ -317,8 +319,8 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
   }, [loaderData.planning]);
 
   const renderTodayDrawer = useMemo(
-    () => createTodayDrawerRenderer(loaderData.data, taskTitles),
-    [loaderData.data, taskTitles],
+    () => createTodayDrawerRenderer(taskTitles),
+    [taskTitles],
   );
 
   const onCompleteTask = useCallback(
@@ -337,7 +339,6 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
   return (
     <DrawerProvider renderDrawer={renderTodayDrawer}>
       <TodayDashboard
-        data={loaderData.data}
         date={loaderData.date}
         todayIso={loaderData.todayIso}
         nowIso={loaderData.nowIso}

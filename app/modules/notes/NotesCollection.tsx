@@ -16,8 +16,8 @@
  * "static title, quick actions only" shape.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useNavigate } from "react-router";
+import { useCallback, useMemo } from "react";
+import { useNavigate } from "react-router";
 
 import {
   Card,
@@ -39,7 +39,7 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { LoadMore } from "~/shared/load-more";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
@@ -240,91 +240,46 @@ function toDeletedCardProps(
  * DIFFERENT bound cursor scope entirely; stale accumulated rows from the
  * other state must never linger merged into the new one).
  */
+/**
+ * UX-01 — Notes' private paginator was one of five near-identical copies of the
+ * same forty lines (DEBT-45). It is now the ONE shared `useKeysetPagination`.
+ *
+ * The copy carried an extra guard: it discarded a page whose echoed `state` no
+ * longer matched the selected lifecycle view. The shared hook's request-scoped
+ * rule subsumes it and is strictly stronger — a scope change clears the pending
+ * request, so ANY response issued under a previous scope is discarded, not only
+ * one whose state field happens to disagree.
+ */
 function useNotePagination(
   firstPage: readonly SerializedNoteListItem[],
   initialCursor: string | null,
   state: NoteCollectionState,
   filterKey: string,
 ) {
-  const fetcher = useFetcher<NotesPageData>();
-  const [appended, setAppended] = useState<SerializedNoteListItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const processed = useRef<NotesPageData | null>(null);
+  // The next page MUST be requested under the same filter scope the cursor was
+  // issued for; `filterKey` is the serialised scope, so this can never ask the
+  // server to resume one result set inside another.
+  const path = `/notes?${filterKey}${filterKey ? "&" : ""}state=${state}`;
+  return useKeysetPagination<SerializedNoteListItem, NotesPageData>({
+    firstPage,
+    initialCursor,
+    path,
+    select: selectNotesPage,
+    getId: noteId,
+  });
+}
 
-  // Every filter combination is its OWN bound cursor scope, so accumulated rows
-  // must be dropped whenever ANY dimension changes — not just the state segment.
-  useEffect(() => {
-    setAppended([]);
-    setCursor(initialCursor);
-    setLoadFailed(false);
-    processed.current = null;
-  }, [initialCursor, state, filterKey]);
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
-      return;
-    }
-    const data = fetcher.data;
-    if (processed.current === data) {
-      return;
-    }
-    processed.current = data;
-    // A "Load more" fetch that was still in flight when the user switched the
-    // Active/Deleted filter resolves AFTER the effect above has already reset
-    // `appended`/`cursor` for the newly selected state. Its `state` still
-    // reflects whichever filter was active when it was ISSUED (the loader
-    // echoes back the `?state=` it read), so a mismatch means this response
-    // belongs to a view the user has since left — merging it would silently
-    // mix the two lifecycle views (e.g. a still-active note rendered with a
-    // Restore action) and hand this state's pagination a cursor scoped to the
-    // OTHER state. Discard it; the reset already put this state's pagination
-    // in the correct empty position, and Load More is still there to retry.
-    if (data.state !== state) {
-      return;
-    }
-    if (data.failed) {
-      setLoadFailed(true);
-      return;
-    }
-    setAppended((prev) => [...prev, ...data.notes]);
-    setCursor(data.nextCursor);
-    setLoadFailed(false);
-  }, [fetcher.state, fetcher.data, state]);
-
-  const loadMore = useCallback(() => {
-    if (cursor === null) {
-      return;
-    }
-    setLoadFailed(false);
-    // The next page MUST be requested under the same filter scope the cursor was
-    // issued for; `filterKey` is the serialised scope, so this can never ask the
-    // server to resume one result set inside another.
-    fetcher.load(
-      `/notes?${filterKey}${filterKey ? "&" : ""}state=${state}&cursor=${encodeURIComponent(cursor)}`,
-    );
-  }, [cursor, fetcher, state, filterKey]);
-
-  const items = useMemo(() => {
-    const seen = new Set<string>();
-    const out: SerializedNoteListItem[] = [];
-    for (const note of [...firstPage, ...appended]) {
-      if (seen.has(note.id)) {
-        continue;
-      }
-      seen.add(note.id);
-      out.push(note);
-    }
-    return out;
-  }, [firstPage, appended]);
-
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectNotesPage(data: NotesPageData) {
   return {
-    items,
-    hasMore: cursor !== null,
-    loading: fetcher.state !== "idle",
-    loadFailed,
-    loadMore,
+    items: data.notes,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
   };
+}
+
+function noteId(note: SerializedNoteListItem): string {
+  return note.id;
 }
 
 /** Restore a Note from the Deleted view. Not a Drawer/confirmation flow — the

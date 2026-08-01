@@ -95,7 +95,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         blocks: [
           {
             kind: "text",
-            text: "Today shows the tasks you planned for today, anything overdue or due soon, your meetings, and a capture box for whatever just landed in your head.",
+            text: "Today shows the tasks you planned for today, anything overdue or due soon, the meetings on your day, and a capture box for whatever just landed in your head.",
           },
           {
             kind: "text",
@@ -521,6 +521,25 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           {
             kind: "text",
             text: "Press Ctrl+K (Cmd+K on a Mac) anywhere to open the Command Palette. Start typing what you want to do and run it without leaving the keyboard.",
+          },
+        ],
+      },
+      {
+        id: "keyboard",
+        title: "Keyboard shortcuts",
+        lead: "The keys worth learning, and where to see the rest.",
+        blocks: [
+          {
+            kind: "text",
+            text: "Press ? on any screen to see the full keyboard reference. Escape always closes whatever is on top, or clears a selection.",
+          },
+          {
+            kind: "text",
+            text: "Press / to search. On Today you can move through your tasks with the arrow keys, open one with Enter, complete it with C, and plan it for today with P or tomorrow with Shift+P.",
+          },
+          {
+            kind: "text",
+            text: "Single-key shortcuts never fire while you are typing in a field, so a question mark in a note stays a question mark.",
           },
         ],
       },

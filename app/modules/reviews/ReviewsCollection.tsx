@@ -1,3 +1,16 @@
+/**
+ * The Reviews collection.
+ *
+ * UX-01 — two corrections to bring Reviews onto the conventions every other
+ * collection already followed:
+ *   - pagination was a "Next page" `Link` that REPLACED the list; it now uses the
+ *     ONE shared `useKeysetPagination` hook and accumulates in place, like Areas,
+ *     Goals, Notes, Projects, People, Assets and (since UX-01) Meetings (DEBT-45);
+ *   - the placeholder copy used ASCII "..." where the rest of the product uses a
+ *     real ellipsis (the PX-06 copy convention).
+ */
+
+import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import {
@@ -13,6 +26,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 
 import type { ReviewsCollectionData } from "./review-collection-data";
 import { REVIEW_TYPE_LABELS } from "./review-view";
@@ -72,6 +86,27 @@ export function ReviewsCollectionView({
   readonly data: ReviewsCollectionData;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // `/reviews` plus the current filters, minus any cursor — so a "Load more"
+  // resumes the same view rather than the unfiltered default.
+  const path = useMemo(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("cursor");
+    const qs = params.toString();
+    return qs ? `/reviews?${qs}` : "/reviews";
+  }, [searchParams]);
+
+  const pagination = useKeysetPagination<
+    ReviewsCollectionData["reviews"][number],
+    ReviewsCollectionData
+  >({
+    firstPage: data.reviews,
+    initialCursor: data.hasMore ? data.nextCursor : null,
+    path,
+    select: selectReviewsPage,
+    getId: reviewId,
+  });
+
   const filtersActive =
     data.view !== "current" || data.query.length > 0 || data.type !== "all";
 
@@ -99,7 +134,7 @@ export function ReviewsCollectionView({
         <input
           type="search"
           className="dh-input"
-          placeholder="Search reviews..."
+          placeholder="Search reviews…"
           defaultValue={data.query}
           aria-label="Search reviews"
           onChange={(event) => {
@@ -171,10 +206,6 @@ export function ReviewsCollectionView({
     </div>
   );
 
-  const nextHref = data.nextCursor
-    ? hrefFor(searchParams, { cursor: data.nextCursor })
-    : null;
-
   // PX-06: the ONE shared collection loading signal — a same-route navigation
   // (a filter, a view, a page) shows the shared skeleton instead of leaving the
   // previous list on screen with no feedback.
@@ -201,7 +232,7 @@ export function ReviewsCollectionView({
           />
         ) : undefined
       }
-      isEmpty={!data.failed && data.reviews.length === 0 && !filtersActive}
+      isEmpty={!data.failed && pagination.items.length === 0 && !filtersActive}
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="review" />}
@@ -226,7 +257,7 @@ export function ReviewsCollectionView({
         />
       }
       isFilteredEmpty={
-        !data.failed && data.reviews.length === 0 && filtersActive
+        !data.failed && pagination.items.length === 0 && filtersActive
       }
       filteredEmptySlot={
         <EmptyState
@@ -239,7 +270,7 @@ export function ReviewsCollectionView({
     >
       <CardCollection
         ariaLabel="Reviews"
-        items={data.reviews}
+        items={pagination.items}
         getItemId={(review) => review.id}
         renderCard={(review) => (
           <Card
@@ -268,13 +299,27 @@ export function ReviewsCollectionView({
           />
         )}
       />
-      {nextHref ? (
-        <div className="dh-reviews-next">
-          <Link className="dh-btn dh-btn--secondary" to={nextHref}>
-            Next page
-          </Link>
-        </div>
+      {pagination.hasMore ? (
+        <LoadMore
+          loading={pagination.loading}
+          loadFailed={pagination.loadFailed}
+          onLoadMore={pagination.loadMore}
+          label="Load more Reviews"
+        />
       ) : null}
     </CollectionLayout>
   );
+}
+
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectReviewsPage(data: ReviewsCollectionData) {
+  return {
+    items: data.reviews,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
+  };
+}
+
+function reviewId(review: ReviewsCollectionData["reviews"][number]): string {
+  return review.id;
 }

@@ -51,3 +51,14 @@ export {
 } from "./execution-client";
 export { executeCommand, type ExecuteCommandOptions } from "./execute-command";
 export type { CommandPaletteProps } from "./CommandPalette";
+export {
+  KeyboardShortcutsReference,
+  type KeyboardShortcutsReferenceProps,
+} from "./KeyboardShortcutsReference";
+export {
+  SHORTCUT_REFERENCE_GROUPS,
+  SHORTCUT_REFERENCE_INTRO,
+  type ShortcutReferenceGroup,
+  type ShortcutReferenceRow,
+} from "./shortcut-reference";
+export type { KeyboardShortcutsSheetProps } from "./KeyboardShortcutsSheet";

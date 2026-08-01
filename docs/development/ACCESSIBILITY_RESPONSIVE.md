@@ -399,3 +399,45 @@ Search and the Command Palette remain lazy (`SearchSurface` and `CommandPalette`
 are still separate chunks and did not move into the shell), the bottom bar loads
 no module code to render itself, and the capture context is fetched on demand
 rather than in the app-shell loader.
+
+---
+
+## UX-01 additions (2026-08-01)
+
+Three accessibility rules the daily-driver audit added or made explicit.
+
+### Exactly one `main` landmark per page
+
+The shell owns the page's single `main` (`#main-content`). A route rendered inside
+it must **never** render its own `<main>`; use a labelled `<section>`. Two routes
+had (`/new/meeting` and `/reviews/new`), which gives a screen-reader user
+navigating by landmark an ambiguous choice between two "main" regions.
+
+Why the gate missed it, stated plainly so the next reader does not assume coverage
+it does not have: `landmark-unique` is **disabled for every scan** for a
+documented, unrelated DS-02 reason (Record Layouts repeat "Summary"/"Content"
+regions by design), and `landmark-no-duplicate-main` is a best-practice rule
+outside the `wcag2a`/`wcag2aa`/`wcag21`/`wcag22aa` tag set `AXE_TAGS` scans.
+[`e2e/ux-01-daily-driver.spec.ts`](../../e2e/ux-01-daily-driver.spec.ts) asserts
+the count directly instead.
+
+### A read-only Sheet must be keyboard-scrollable
+
+The Sheet's body is its only scroll container. Every sheet built before UX-01 held
+focusable content (a capture form, an option list), so the container was always
+reachable by keyboard. A **read-only** sheet — the keyboard reference is the first
+— has no focusable content at all, so its scrollable region is unreachable
+(WCAG 2.1.1; axe `scrollable-region-focusable`, serious).
+
+Such a sheet sets `bodyFocusable` on the shared `Sheet`, which makes the body a
+tab stop and names it from the sheet title. It is opt-in rather than always-on so
+a form sheet does not gain a redundant tab stop before its first field.
+
+### A full-page surface without a `PaneHeader` must publish its phone identity
+
+The phone top bar shows the title published by `PaneHeader` or `RecordLayout` and
+falls back to the workspace name otherwise, so a surface composing neither reads
+"DalyHub" on a phone and offers no contextual Back. A surface with a deliberate
+bespoke page shape calls `useSetMobileTopBar` (exported from `~/shared/shell`)
+instead. `/help` and `/about` still do not — recorded as
+[DEBT-60](../product/PRODUCT_DEBT.md).

@@ -283,3 +283,46 @@ No DS-10 toast/Undo, Inspector or Settings; no full shortcuts-help overlay; no
 product CRUD or Task/Project/Note persistence; no natural-language parsing, macros,
 scripting, arbitrary command arguments, remote plugins, user-created commands,
 command-history persistence, analytics or a second Search/Drawer/Card. No migration.
+
+---
+
+## UX-01 — the fallback binding tier and the shared keyboard reference (2026-08-01)
+
+### A third precedence tier
+
+`CommandShortcutLayer` previously matched bindings in one order: **reserved**
+(`Mod+K`, `/`) → **contextual** → **registered**. UX-01 adds a fourth, lowest tier:
+
+```
+reserved  →  contextual  →  registered  →  fallback
+```
+
+A `fallback` binding is an app-wide shortcut the SHELL provides that any surface
+may legitimately own instead. Because bindings are matched in order and the first
+match wins, a surface's contextual binding for the same key always takes
+precedence — a fallback extends coverage and can never override a surface.
+
+It is still ONE document listener; no new dispatcher, no per-surface listener.
+
+### The one keyboard reference
+
+`?` is the first fallback binding, and it exists because the reference was
+previously reachable only from Today while its own first group was titled
+"Anywhere" and listed `?` as showing it. On a keyboard-first product the keyboard
+help could not be summoned from the keyboard on fourteen of fifteen modules.
+
+- **The catalogue** is [`shortcut-reference.ts`](../../app/shared/commands/shortcut-reference.ts)
+  — pure data, each group declaring a `scope` (`global` or a surface), so a host
+  presents only what applies where the owner actually is rather than claiming a
+  shortcut works where it does not.
+- **The renderer** is `KeyboardShortcutsReference` — `<kbd>` keys beside text, a
+  plain definition list, no meaning in a glyph or a colour.
+- **Two hosts, one content.** The shell opens it in the shared `Sheet`
+  (`KeyboardShortcutsSheet`, lazy-loaded). Today opens it in its DS-03 Drawer,
+  deliberately: there the reference belongs inside the drawer STACK, which is what
+  makes a task drawer beneath it stop owning `C`/`P`/`Shift+P` (`isTop`). A sheet
+  sits outside that stack and would not reproduce it.
+
+Converging the two hosts is the remainder of
+[DEBT-18](../product/PRODUCT_DEBT.md), alongside the still-unbuilt reserved
+vocabulary (`g`+letter, `j/k`, `x`, `o`/`e`, `[`).

@@ -36,8 +36,10 @@ import type {
   DiaryMomentItem,
   DiaryWidgetData,
   GoalProgressItem,
+  MeetingsWidgetData,
   RecentNoteItem,
   TodayLandingData,
+  TodayMeetingItem,
 } from "./types";
 
 /** Bounds — a landing widget previews, it never lists everything. */
@@ -52,6 +54,13 @@ const GOALS_SHOWN = 6;
  * out is worth knowing about; one 300 days out is not today's business (§8).
  */
 const ASSETS_HORIZON_DAYS = DEFAULT_ATTENTION_HORIZON_DAYS;
+/**
+ * UX-01 — how many meetings each direction of "today" is read from. A day with
+ * more than this many meetings is not a day the landing page can usefully
+ * summarise anyway; the widget links to the full list.
+ */
+const MEETINGS_LIMIT = 12;
+const MEETINGS_SHOWN = 6;
 
 /** Operational facts already computed by the main loader from the planning read. */
 export interface TodayLandingFacts {
@@ -261,6 +270,69 @@ async function loadGoals(
   }
 }
 
+/** Owner-facing labels for a meeting's mode — the same words the record uses. */
+const MEETING_MODE_LABELS: Record<string, string> = {
+  in_person: "In person",
+  phone: "Phone",
+  online: "Online",
+};
+
+/**
+ * UX-01 — the Meetings section: what is actually on today.
+ *
+ * TWO bounded reads, because a day has a before and an after: `recent` (started)
+ * and `upcoming` (still to come) are the repository's existing views, split at
+ * `now`. Both are filtered to the OWNER's calendar day — a meeting tomorrow is not
+ * today's business, and the widget must never imply otherwise. Times are formatted
+ * in the MEETING's own timezone (the same one its record shows), so a meeting
+ * booked in another zone reads identically in both places.
+ *
+ * Degrades to an empty section on failure, like every other widget: Meetings being
+ * unavailable must never blank Today.
+ */
+async function loadMeetings(
+  scope: WorkspaceScope,
+  todayIso: string,
+  timeZone: string,
+): Promise<MeetingsWidgetData> {
+  try {
+    const [started, upcoming] = await Promise.all([
+      scope.meetings.list({ view: "recent", limit: MEETINGS_LIMIT }),
+      scope.meetings.list({ view: "upcoming", limit: MEETINGS_LIMIT }),
+    ]);
+    const onToday = [...started.items, ...upcoming.items].filter(
+      (meeting) => ownerCalendarIso(meeting.startsAt, timeZone) === todayIso,
+    );
+    onToday.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+
+    const startedIds = new Set(started.items.map((meeting) => meeting.id));
+    const meetings: TodayMeetingItem[] = onToday
+      .slice(0, MEETINGS_SHOWN)
+      .map((meeting) => ({
+        id: meeting.id,
+        title: meeting.title,
+        timeLabel: new Intl.DateTimeFormat("en-AU", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: meeting.timezone,
+        }).format(meeting.startsAt),
+        context:
+          meeting.location?.trim() ||
+          (meeting.mode ? (MEETING_MODE_LABELS[meeting.mode] ?? null) : null),
+        started: startedIds.has(meeting.id),
+      }));
+
+    return {
+      meetings,
+      remainingCount: onToday.filter((meeting) => !startedIds.has(meeting.id))
+        .length,
+    };
+  } catch {
+    return { meetings: [], remainingCount: 0 };
+  }
+}
+
 /**
  * ASSET-02 — the Assets section: maintenance and renewals that need attention.
  *
@@ -311,11 +383,12 @@ export async function loadTodayLanding(
   scope: WorkspaceScope,
   facts: TodayLandingFacts,
 ): Promise<TodayLandingData> {
-  const [notes, diary, areas, goals, assets] = await Promise.all([
+  const [notes, diary, areas, goals, meetings, assets] = await Promise.all([
     loadNotes(scope, facts.todayIso, facts.timezone),
     loadDiary(scope, facts.todayIso, facts.timezone),
     loadAreas(scope),
     loadGoals(scope, facts.now),
+    loadMeetings(scope, facts.todayIso, facts.timezone),
     loadAssets(scope, facts.todayIso),
   ]);
 
@@ -352,6 +425,7 @@ export async function loadTodayLanding(
     diary,
     areas,
     goals: { goals },
+    meetings,
     insights: { signals: deriveInsights(insightsInput) },
     assets,
   };

@@ -16,8 +16,8 @@
  * and never a dead end — the durable path back when an Undo toast is missed.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useNavigate } from "react-router";
+import { useCallback } from "react";
+import { useNavigate } from "react-router";
 
 import {
   Card,
@@ -32,7 +32,7 @@ import {
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, emptyCollectionTitle } from "~/shared/entity";
-import { LoadMore } from "~/shared/load-more";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
 import {
   SegmentedFilter,
@@ -143,89 +143,50 @@ function toDeletedCardProps(
 /**
  * Accumulate pages of DELETED Goals behind "Load more".
  *
- * It cannot reuse `useGoalPagination`: that paginator loads `/goals?cursor=` —
- * the ACTIVE alignment scope — and accumulates alignment-carrying items, so a
- * deleted-scope cursor replayed through it would fetch the wrong records. The
- * cursor is bound to its scope, so the Deleted view carries `state=deleted`
- * through every page. Without this, a workspace with more deleted Goals than one
- * page could never reach — or restore — anything past the first (a dead end of
- * exactly the kind PX-04 exists to remove).
+ * It cannot share a scope with the active paginator: that one loads `/goals?cursor=`
+ * — the ACTIVE alignment scope — so a deleted-scope cursor replayed through it would
+ * fetch the wrong records. The cursor is bound to its scope, so the Deleted view
+ * carries `state=deleted` through every page. Without this, a workspace with more
+ * deleted Goals than one page could never reach — or restore — anything past the
+ * first (a dead end of exactly the kind PX-04 exists to remove).
+ *
+ * UX-01 — the mechanics are now the ONE shared `useKeysetPagination` (DEBT-45). The
+ * request-scoped guard this hook pioneered (a page is consumed only if it was asked
+ * for since the current scope began) lives in the shared hook, so every collection
+ * gets it rather than only this one.
  */
 function useDeletedGoalPagination(
   firstPage: readonly SerializedDeletedGoalItem[],
   initialCursor: string | null,
 ) {
-  const fetcher = useFetcher<DeletedGoalsPageData>();
-  const [appended, setAppended] = useState<SerializedDeletedGoalItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const processed = useRef<DeletedGoalsPageData | null>(null);
-  // Whether a page load issued SINCE the last reset is still awaiting its
-  // result. Identity alone is not enough to tell a fresh page from a stale one:
-  // React Router revalidates an active fetcher after a navigation, so switching
-  // Active ⇄ Deleted hands this effect a NEWLY-identified copy of the page that
-  // was last loaded — which, with `processed` just cleared, would be appended on
-  // top of the new first page and would advance the cursor past every page in
-  // between, quietly stranding those deleted Goals. Only data we actually asked
-  // for after the current reset is consumed.
-  const awaitingPage = useRef(false);
+  return useKeysetPagination<SerializedDeletedGoalItem, DeletedGoalsPageData>({
+    firstPage,
+    initialCursor,
+    path: "/goals?state=deleted",
+    select: selectDeletedGoalsPage,
+    getId: goalId,
+  });
+}
 
-  useEffect(() => {
-    setAppended([]);
-    setCursor(initialCursor);
-    setLoadFailed(false);
-    processed.current = null;
-    awaitingPage.current = false;
-  }, [initialCursor]);
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
-      return;
-    }
-    const data = fetcher.data;
-    if (processed.current === data || !awaitingPage.current) {
-      return;
-    }
-    processed.current = data;
-    awaitingPage.current = false;
-    if (data.failed) {
-      setLoadFailed(true);
-      return;
-    }
-    setAppended((prev) => [...prev, ...data.deletedGoals]);
-    setCursor(data.nextCursor);
-    setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
-
-  const loadMore = useCallback(() => {
-    if (cursor === null) {
-      return;
-    }
-    setLoadFailed(false);
-    awaitingPage.current = true;
-    fetcher.load(`/goals?state=deleted&cursor=${encodeURIComponent(cursor)}`);
-  }, [cursor, fetcher]);
-
-  const items = useMemo(() => {
-    const seen = new Set<string>();
-    const out: SerializedDeletedGoalItem[] = [];
-    for (const goal of [...firstPage, ...appended]) {
-      if (seen.has(goal.id)) {
-        continue;
-      }
-      seen.add(goal.id);
-      out.push(goal);
-    }
-    return out;
-  }, [firstPage, appended]);
-
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectDeletedGoalsPage(data: DeletedGoalsPageData) {
   return {
-    items,
-    hasMore: cursor !== null,
-    loading: fetcher.state !== "idle",
-    loadFailed,
-    loadMore,
+    items: data.deletedGoals,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
   };
+}
+
+function selectGoalsPage(data: GoalsPageData) {
+  return {
+    items: data.goals,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
+  };
+}
+
+function goalId(goal: { readonly id: string }): string {
+  return goal.id;
 }
 
 /** Restore a Goal from the Deleted view — one click, through the shared hook. */
@@ -276,69 +237,18 @@ function toCardProps(
   };
 }
 
+/** UX-01 — the ONE shared keyset paginator (DEBT-45). */
 function useGoalPagination(
   firstPage: readonly SerializedGoalWithAlignment[],
   initialCursor: string | null,
 ) {
-  const fetcher = useFetcher<GoalsPageData>();
-  const [appended, setAppended] = useState<SerializedGoalWithAlignment[]>([]);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const processed = useRef<GoalsPageData | null>(null);
-
-  useEffect(() => {
-    setAppended([]);
-    setCursor(initialCursor);
-    setLoadFailed(false);
-    processed.current = null;
-  }, [initialCursor]);
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
-      return;
-    }
-    const data = fetcher.data;
-    if (processed.current === data) {
-      return;
-    }
-    processed.current = data;
-    if (data.failed) {
-      setLoadFailed(true);
-      return;
-    }
-    setAppended((prev) => [...prev, ...data.goals]);
-    setCursor(data.nextCursor);
-    setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
-
-  const loadMore = useCallback(() => {
-    if (cursor === null) {
-      return;
-    }
-    setLoadFailed(false);
-    fetcher.load(`/goals?cursor=${encodeURIComponent(cursor)}`);
-  }, [cursor, fetcher]);
-
-  const items = useMemo(() => {
-    const seen = new Set<string>();
-    const out: SerializedGoalWithAlignment[] = [];
-    for (const goal of [...firstPage, ...appended]) {
-      if (seen.has(goal.id)) {
-        continue;
-      }
-      seen.add(goal.id);
-      out.push(goal);
-    }
-    return out;
-  }, [firstPage, appended]);
-
-  return {
-    items,
-    hasMore: cursor !== null,
-    loading: fetcher.state !== "idle",
-    loadFailed,
-    loadMore,
-  };
+  return useKeysetPagination<SerializedGoalWithAlignment, GoalsPageData>({
+    firstPage,
+    initialCursor,
+    path: "/goals",
+    select: selectGoalsPage,
+    getId: goalId,
+  });
 }
 
 /**

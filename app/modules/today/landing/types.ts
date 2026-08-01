@@ -81,6 +81,32 @@ export interface GoalsWidgetData {
   readonly goals: readonly GoalProgressItem[];
 }
 
+/**
+ * UX-01 — one of today's meetings, for the Meetings widget.
+ *
+ * "What is on today?" is one of the four questions Today exists to answer, and it
+ * was the only one with no surface at all: Meetings had shipped for weeks with no
+ * presence on the landing page. Times are resolved server-side in the meeting's own
+ * timezone, so an owner travelling never reads a wrong start time.
+ */
+export interface TodayMeetingItem {
+  readonly id: string;
+  readonly title: string;
+  /** The start time, owner-readable ("09:30"). */
+  readonly timeLabel: string;
+  /** An optional location/mode line ("Zoom", "Kitchen table"). */
+  readonly context: string | null;
+  /** Whether the meeting's start time has already passed. */
+  readonly started: boolean;
+}
+
+/** The Meetings widget payload: today's meetings in chronological order. */
+export interface MeetingsWidgetData {
+  readonly meetings: readonly TodayMeetingItem[];
+  /** How many of them are still to come (drives the calm summary line). */
+  readonly remainingCount: number;
+}
+
 /** The Insights widget payload — calm operational signals. */
 export interface InsightsWidgetData {
   readonly signals: readonly InsightSignal[];
@@ -99,6 +125,7 @@ export interface TodayLandingData {
   readonly diary: DiaryWidgetData;
   readonly areas: readonly AreaHealthItem[];
   readonly goals: GoalsWidgetData;
+  readonly meetings: MeetingsWidgetData;
   readonly insights: InsightsWidgetData;
   readonly assets: import("~/kernel/assets").AssetsTodayData;
 }

@@ -18,7 +18,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedbackProvider } from "~/shared/feedback";
 import { DrawerProvider } from "~/shared/drawer";
 
-import { TODAY_FIXTURE } from "~/modules/today/fixtures";
 import { TodayDashboard } from "~/modules/today/TodayDashboard";
 import { createTodayDrawerRenderer } from "~/modules/today/TodayDrawer";
 import type { PlanningData } from "~/modules/today/task/planning-view";
@@ -153,11 +152,8 @@ function renderToday(options: RenderOptions = {}) {
   const planning = options.planning ?? PLANNING;
   return renderInDataRouter(
     <FeedbackProvider>
-      <DrawerProvider
-        renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, taskTitles())}
-      >
+      <DrawerProvider renderDrawer={createTodayDrawerRenderer(taskTitles())}>
         <TodayDashboard
-          data={TODAY_FIXTURE}
           date="Sunday 19 July 2026"
           todayIso="2026-07-19"
           planning={planning}
@@ -368,11 +364,8 @@ function renderTodayWithCommands(entries: readonly string[] = ["/today"]) {
     <FeedbackProvider>
       <CommandContextProvider>
         <ContextualObserver />
-        <DrawerProvider
-          renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, taskTitles())}
-        >
+        <DrawerProvider renderDrawer={createTodayDrawerRenderer(taskTitles())}>
           <TodayDashboard
-            data={TODAY_FIXTURE}
             date="Sunday 19 July 2026"
             todayIso="2026-07-19"
             planning={PLANNING}
@@ -532,11 +525,8 @@ function renderTodayWithProjects(
 ) {
   return renderInDataRouter(
     <FeedbackProvider>
-      <DrawerProvider
-        renderDrawer={createTodayDrawerRenderer(TODAY_FIXTURE, taskTitles())}
-      >
+      <DrawerProvider renderDrawer={createTodayDrawerRenderer(taskTitles())}>
         <TodayDashboard
-          data={TODAY_FIXTURE}
           date="Sunday 19 July 2026"
           todayIso="2026-07-19"
           planning={PLANNING}
