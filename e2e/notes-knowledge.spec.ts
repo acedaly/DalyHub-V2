@@ -1,4 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 import {
   expectMinTouchTarget,
@@ -683,6 +688,80 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
 
     await page.setViewportSize({ width: 320, height: 720 });
     await expectNoHorizontalOverflow(page);
+  });
+
+  /** The five curated themes, by the id the document carries (THEME-01). */
+  const THEMES = [
+    "daly-light",
+    "daly-dark",
+    "eucalypt",
+    "coastal",
+    "ember",
+  ] as const;
+
+  /** Store the owner's theme through the real preferences action. */
+  async function storeTheme(
+    request: APIRequestContext,
+    themeId: string,
+  ): Promise<void> {
+    const response = await request.post("/preferences/theme", {
+      form: { theme: themeId },
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBeGreaterThanOrEqual(300);
+    expect(response.status()).toBeLessThan(400);
+  }
+
+  test("the knowledge surfaces read correctly and are axe-clean in all five themes", async ({
+    page,
+    request,
+  }) => {
+    // Five themes over two surfaces with an axe scan on each is genuine work,
+    // not a race being papered over — every step below waits on a real
+    // condition and none of them polls.
+    test.slow();
+
+    const targetTitle = uniqueNoteTitle("themes-target");
+    const sourceTitle = uniqueNoteTitle("themes-source");
+    const targetUrl = await createNote(page, targetTitle);
+    await createNote(page, sourceTitle);
+    await writeBody(page, `Points at [[${targetTitle}]].`);
+
+    try {
+      for (const theme of THEMES) {
+        await storeTheme(request, theme);
+
+        // The Backlinks surface: count, family grouping and the module filter.
+        await page.goto(`${targetUrl}?tab=backlinks`);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await expect(
+          page.getByRole("heading", { level: 2, name: /Referenced by/ }),
+        ).toBeVisible();
+        // The count and the group name are WORDS, in every theme — the
+        // assertion that proves nothing here depends on colour alone.
+        await expect(
+          page.getByRole("heading", { level: 3, name: /Notes \(1\)/ }),
+        ).toBeVisible();
+        await expectNoAxeViolations(page);
+        await expectNoHorizontalOverflow(page);
+
+        // The editor with the record-link picker open — the surface with the
+        // most new colour in it (an active option, an input, a status line).
+        await page.goto(targetUrl);
+        await waitForEditor(page);
+        await page
+          .getByRole("button", { name: "Record link", exact: true })
+          .click();
+        await expect(
+          page.getByRole("combobox", { name: "Link a record" }),
+        ).toBeVisible();
+        await expectNoAxeViolations(page);
+        await expectNoHorizontalOverflow(page);
+      }
+    } finally {
+      // Never leave the shared dev workspace on a non-default theme.
+      await storeTheme(request, "daly-light");
+    }
   });
 
   test("the relationship tabs are axe-clean in light and dark", async ({

@@ -287,7 +287,11 @@ does and what it costs.
 **What is matched.** A Note's TITLE, its full Markdown BODY (headings included,
 since a heading is body text), and its TAGS. There is no alias concept — a Note
 has one title — and entity names referenced from the body are matched simply
-because `[[Their Title]]` is body text.
+because `[[Their Title]]` is body text. The same holds for a `dalyhub://` record
+link: its visible LABEL is body text and is matched, while its `dalyhub://…`
+destination is matched only as the literal characters it is — searching for a
+record's id is not a supported way to find the notes that link to it, and the
+Backlinks tab is where that question is answered.
 
 **What a result shows.** The Note icon and title, an honest **match source**
 ("Title", "Tag", "Heading: Risks", or "Under 'Risks'" for a body hit under a
