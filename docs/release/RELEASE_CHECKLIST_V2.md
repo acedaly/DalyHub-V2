@@ -232,7 +232,7 @@ authoritative record.
 | Migration tests | included in the two above | ✅ per-migration `0002`–`0024`, plus the new production-baseline test and the D1-parser-compatibility test |
 | Production build | `pnpm run build` | ✅ pass |
 | Deploy dry-run | `pnpm run deploy:dry-run` | ✅ pass |
-| End-to-end (complete suite, one process) | `pnpm run test:e2e` | ✅ **1026 passed, 6 skipped** after the fix in §7 (1.3h) |
+| End-to-end (complete suite, one process) | `pnpm run test:e2e` | ⚠️ **1026 passed, 6 skipped, 2 failed** (1.3h). Both failures diagnosed and resolved — see §8a — and each re-verified green afterwards **individually**, not by re-running the whole 1.3h suite. The 14-shard CI run on the PR is the authoritative full-suite result. |
 | Mobile viewport tests | within the E2E suite | ✅ `mobile-*.spec.ts`, `responsive.spec.ts`, `touch-targets.spec.ts` |
 | Export tests | `test/kernel/workspace-export*`, `test/unit/export/`, `e2e/export.spec.ts` | ✅ pass |
 | Workspace-isolation tests | ~50 kernel/route tests | ✅ pass |
@@ -251,6 +251,12 @@ were not the same kind of thing:
 |---|---|---|
 | `areas-goals-mobile.spec.ts:111` | **Contention.** Re-run in isolation with nothing else executing: **passes.** It overran the 30s budget while a 3,100-test vitest suite was competing for CPU on the same container. | No change. Recorded, not "fixed" by adjusting a budget. |
 | `people.spec.ts:168` | **A real test defect, reproduced deterministically with nothing else running.** One test performed a record creation, a touch-target check, **18 navigations** and an axe scan inside a single 30s budget. | **Fixed by splitting the test** — see §7. |
+
+**What was re-verified after the fix, stated precisely.** `people.spec.ts` **13/13
+green** (the split turns 1 test into 13) and `areas-goals-mobile.spec.ts` **3/3
+green**, both on the same machine. The complete 1.3-hour suite was **not** re-run end
+to end afterwards; the CI run on the PR is what confirms the whole suite, and it must
+be green before merge.
 
 **No flaky test was quarantined, and no budget was raised to make a failure go away.**
 All three failures found during this closure were diagnosed to root cause; two were
