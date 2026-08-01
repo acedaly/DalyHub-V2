@@ -29,8 +29,20 @@ export {
 } from "./wikilinks";
 
 export {
+  RECORD_LINK_RESOLVE_PATH,
+  RECORD_LINK_SCHEME,
+  formatRecordLink,
+  parseRecordLink,
+  recordLinkHref,
+  remarkRecordLinks,
+  type RecordLinkTarget,
+} from "./record-links";
+
+export {
   dalyhubReferenceUrl,
+  distinctRecordLinkIds,
   distinctReferenceTitles,
+  extractRecordLinks,
   excerptAroundMatch,
   excerptAtOffset,
   extractHeadings,
@@ -42,6 +54,7 @@ export {
   MAX_EXCERPT_LENGTH,
   MAX_NOTE_REFERENCES,
   type NoteHeading,
+  type NoteRecordLink,
   type NoteReference,
   type ReferenceExportMode,
   type ReferenceResolver,

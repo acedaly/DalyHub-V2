@@ -515,3 +515,58 @@ export const removeFormattingTransform: MarkdownTransform = (input) => {
     selectionEnd: s + cleaned.length,
   };
 };
+
+/**
+ * NOTES-05 §5 — insert a DalyHub RECORD LINK at the caret,
+ * `[Label](dalyhub://type/id)`.
+ *
+ * A parameterised transform factory rather than a plain `MarkdownTransform`,
+ * because the destination is chosen by the user in a picker rather than being
+ * fixed by the action. Everything else is identical to the other transforms: it
+ * is pure, it emits Markdown SOURCE only, and it returns the selection to restore
+ * so the caller can dispatch ONE undoable transaction.
+ *
+ * Behaviour matches `linkTransform`'s established shape so the editor feels
+ * consistent: with text selected, that text becomes the label and the caret lands
+ * after the link (the user already said what to call it); with no selection the
+ * supplied record title is inserted as the label and SELECTED, so typing
+ * immediately replaces it with the author's own words. The stored destination is
+ * unaffected either way — the label is display text, the id is the authority
+ * (§4), which is exactly why renaming the target later never breaks the link.
+ *
+ * The label is escaped so a title containing `[` or `]` cannot break out of the
+ * link syntax and turn the rest of the note into something the author did not
+ * write.
+ */
+export function recordLinkTransform(params: {
+  readonly url: string;
+  readonly title: string;
+}): MarkdownTransform {
+  return (input) => {
+    const { value, selectionStart: s, selectionEnd: e } = input;
+    const before = value.slice(0, s);
+    const selected = value.slice(s, e);
+    const after = value.slice(e);
+    const label = escapeLinkLabel(selected === "" ? params.title : selected);
+    const insert = `[${label}](${params.url})`;
+    if (selected === "") {
+      // Select the inserted label so typing replaces it.
+      return {
+        value: before + insert + after,
+        selectionStart: s + 1,
+        selectionEnd: s + 1 + label.length,
+      };
+    }
+    const end = s + insert.length;
+    return {
+      value: before + insert + after,
+      selectionStart: end,
+      selectionEnd: end,
+    };
+  };
+}
+
+/** Escape the characters that would break out of a Markdown link label. */
+function escapeLinkLabel(label: string): string {
+  return label.replace(/([[\]])/g, "\\$1");
+}

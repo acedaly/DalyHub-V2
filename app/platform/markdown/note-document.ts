@@ -24,6 +24,7 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 
+import { formatRecordLink, parseRecordLink } from "./record-links";
 import { matchWikiLinks, type WikiLinkMatch } from "./wikilinks";
 
 /**
@@ -205,6 +206,79 @@ export function distinctReferenceTitles(source: string): readonly string[] {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(reference.title);
+    if (out.length >= MAX_NOTE_REFERENCES) break;
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Explicit record links (`[Label](dalyhub://type/id)`)                       */
+/* -------------------------------------------------------------------------- */
+
+/** One `dalyhub://type/id` link found in a Note's source. */
+export interface NoteRecordLink {
+  /** The referenced entity type slug, e.g. `project`. */
+  readonly type: string;
+  /** The referenced record's stable id. */
+  readonly id: string;
+  /** The link's visible label — the author's words, never rewritten. */
+  readonly label: string;
+}
+
+/**
+ * Every genuine `dalyhub://type/id` link in the document, in source order.
+ *
+ * This is the ID-based half of the reference model, and it is strictly BETTER
+ * evidence of intent than a `[[Wiki Link]]`: the author picked a specific record
+ * from a picker, so there is no title to resolve and no tie-break to apply. It is
+ * what makes a link survive a rename with no ambiguity at all (§4, §23).
+ *
+ * Structural fidelity comes free here. A record link is an ordinary Markdown
+ * link, so it exists in the tree as a `link` NODE — which means a `dalyhub://…`
+ * written inside a fenced or inline code span is not a link node at all and is
+ * never extracted. There is no range-exclusion pass to get wrong.
+ *
+ * Malformed destinations yield nothing (see {@link parseRecordLink}), and the
+ * result is bounded by {@link MAX_NOTE_REFERENCES} — the same ceiling wiki-link
+ * references obey, because both feed the same per-reference relationship writes.
+ */
+export function extractRecordLinks(source: string): readonly NoteRecordLink[] {
+  // A cheap pre-check so an ordinary note never pays for a parse it cannot need.
+  if (source.toLowerCase().indexOf("dalyhub:") === -1) return [];
+  const out: NoteRecordLink[] = [];
+  const visit = (node: MdNode): void => {
+    if (out.length >= MAX_NOTE_REFERENCES) return;
+    if (node.type === "link") {
+      const target = parseRecordLink(node.url);
+      if (target) {
+        const label = inlineText(node).trim();
+        out.push({
+          type: target.type,
+          id: target.id,
+          label: label === "" ? target.type : label,
+        });
+      }
+      // A link cannot nest another link — stop descending either way.
+      return;
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(parse(source));
+  return out;
+}
+
+/**
+ * The DISTINCT record ids a Note links to by id, in first-occurrence order.
+ * Writing the same record link twice must produce exactly ONE relationship,
+ * matching {@link distinctReferenceTitles}'s guarantee for wiki links (§14).
+ */
+export function distinctRecordLinkIds(source: string): readonly string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const link of extractRecordLinks(source)) {
+    if (seen.has(link.id)) continue;
+    seen.add(link.id);
+    out.push(link.id);
     if (out.length >= MAX_NOTE_REFERENCES) break;
   }
   return out;
@@ -478,7 +552,9 @@ export interface ResolvedReference {
  * host-specific URL that would rot the moment the deployment moves.
  */
 export function dalyhubReferenceUrl(type: string, id: string): string {
-  return `dalyhub://${type}/${id}`;
+  // One authority for the written form — `record-links.ts` also PARSES it, so
+  // constructing it anywhere else is how the two halves would drift apart.
+  return formatRecordLink(type, id);
 }
 
 export type ReferenceResolver = (title: string) => ResolvedReference | null;

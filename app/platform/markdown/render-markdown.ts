@@ -42,6 +42,7 @@ import {
 
 import { MARKDOWN_SANITISATION_SCHEMA } from "./sanitisation-schema";
 import { isSafeMarkdownUrl } from "./markdown-url-policy";
+import { remarkRecordLinks } from "./record-links";
 import { remarkWikiLinks } from "./wikilinks";
 
 /**
@@ -163,6 +164,12 @@ const processor = unified()
   .use(remarkStripFootnotes)
   // Inline [[Wiki Links]] → internal resolver links (deterministic; no DB lookup).
   .use(remarkWikiLinks)
+  // `dalyhub://type/id` link destinations → the same internal resolver, by
+  // stable id. Also deterministic and lookup-free; it runs AFTER the wiki-link
+  // transform purely so both operate on a settled tree, and the two cannot
+  // interact (one creates link nodes from text, the other only rewrites the
+  // destination of link nodes that already exist).
+  .use(remarkRecordLinks)
   .use(remarkRehype, { allowDangerousHtml: false })
   .use(rehypeDalyhubSafeContent)
   .use(rehypeSanitize, MARKDOWN_SANITISATION_SCHEMA)

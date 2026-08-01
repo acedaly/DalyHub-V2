@@ -456,6 +456,229 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  /* ---------------------------------------------------------------------- */
+  /* NOTES-05 — record links, backlinks presentation, copy and print          */
+  /* ---------------------------------------------------------------------- */
+
+  test("inserting a record link from the editor creates a real relationship the target can see", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const noteTitle = uniqueNoteTitle("record-link-source");
+    const targetTitle = uniqueNoteTitle("record-link-target");
+
+    const targetUrl = await createNote(page, targetTitle);
+    await createNote(page, noteTitle);
+    await waitForEditor(page);
+
+    // Open the picker from the toolbar, search, and choose with the keyboard —
+    // the whole flow must be reachable without a mouse (§30).
+    await page.locator(".cm-content").click();
+    await page.keyboard.type("Decision came from ");
+    await page.getByRole("button", { name: "Link", exact: true }).click();
+
+    const search = page.getByRole("combobox", { name: "Link a record" });
+    await expect(search).toBeFocused();
+    await search.fill(targetTitle);
+    await expect(
+      page.getByRole("option", { name: new RegExp(targetTitle) }),
+    ).toBeVisible();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+
+    // The editor now holds a real Markdown link whose destination is the
+    // record's stable id — readable outside DalyHub, unambiguous inside it.
+    await expect(page.locator(".cm-content")).toContainText(targetTitle);
+    await page
+      .locator(".cm-content")
+      .evaluate((el) => (el as HTMLElement).blur());
+    await expect(
+      page.getByText("Saved", { exact: false }).first(),
+    ).toBeVisible();
+
+    // The TARGET learns it was referenced — the point of the whole feature.
+    await page.goto(`${targetUrl}?tab=backlinks`);
+    const backlinks = page.getByRole("list", {
+      name: /Records linking to this note/,
+    });
+    await expect(
+      backlinks.getByRole("link", { name: new RegExp(noteTitle) }),
+    ).toBeVisible();
+  });
+
+  test("a record link survives renaming its target, and opens the renamed record", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const sourceTitle = uniqueNoteTitle("stable-source");
+    const targetTitle = uniqueNoteTitle("stable-target");
+    const renamedTitle = uniqueNoteTitle("stable-renamed");
+
+    const targetUrl = await createNote(page, targetTitle);
+    const sourceUrl = await createNote(page, sourceTitle);
+    await waitForEditor(page);
+    await page.locator(".cm-content").click();
+    await page.getByRole("button", { name: "Link", exact: true }).click();
+    const search = page.getByRole("combobox", { name: "Link a record" });
+    await search.fill(targetTitle);
+    await page.getByRole("option", { name: new RegExp(targetTitle) }).click();
+    await page
+      .locator(".cm-content")
+      .evaluate((el) => (el as HTMLElement).blur());
+    await expect(
+      page.getByText("Saved", { exact: false }).first(),
+    ).toBeVisible();
+
+    // Rename the target. The link is stored by id, so it must not break.
+    ownNote(renamedTitle);
+    await page.goto(targetUrl);
+    await page.getByRole("button", { name: "Rename" }).click();
+    const dialog = page.getByRole("dialog", { name: "Rename note" });
+    await dialog.getByLabel(/Title/).fill(renamedTitle);
+    await dialog.getByRole("button", { name: /Save|Rename/ }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: renamedTitle }),
+    ).toBeVisible();
+
+    // The source's outgoing link now DISPLAYS the new title (the record moved)
+    // while the author's prose is untouched (their words are theirs).
+    await page.goto(`${sourceUrl}?tab=linked`);
+    await expect(
+      page.getByRole("link", { name: new RegExp(renamedTitle) }).first(),
+    ).toBeVisible();
+  });
+
+  test("a record link to a deleted record lands on an honest 'unavailable' page, and never crashes the note", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const sourceTitle = uniqueNoteTitle("broken-source");
+    const targetTitle = uniqueNoteTitle("broken-target");
+
+    const targetUrl = await createNote(page, targetTitle);
+    const targetId = targetUrl.split("/notes/")[1]!.split(/[?#]/)[0]!;
+    const sourceUrl = await createNote(page, sourceTitle);
+    await waitForEditor(page);
+    await writeBody(page, `Read [The target](dalyhub://note/${targetId}).`);
+
+    // Delete the target.
+    await page.goto(targetUrl);
+    await openOverflow(page);
+    await page.getByRole("menuitem", { name: /Delete Note/ }).click();
+    await expect(page).toHaveURL(/\/notes(\?|$)/);
+
+    // The source note still opens and still renders — a broken link is a normal
+    // state in a knowledge base, not an error (§23).
+    await page.goto(sourceUrl);
+    await waitForEditor(page);
+    await expect(
+      page.getByRole("heading", { level: 1, name: sourceTitle }),
+    ).toBeVisible();
+
+    // Following the link says so plainly rather than dead-ending.
+    await page.goto(`/notes/resolve?type=note&id=${targetId}`);
+    await expect(page.getByText("That link doesn’t go anywhere")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Back to Notes" }),
+    ).toBeVisible();
+  });
+
+  test("backlinks are counted, grouped by module and filterable", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const targetTitle = uniqueNoteTitle("grouped-target");
+    const sourceTitle = uniqueNoteTitle("grouped-source");
+
+    const targetUrl = await createNote(page, targetTitle);
+    await createNote(page, sourceTitle);
+    await writeBody(page, `Points at [[${targetTitle}]].`);
+
+    await page.goto(`${targetUrl}?tab=backlinks`);
+    // An honest count in the heading, and a family grouping rather than one
+    // undifferentiated dump.
+    await expect(
+      page.getByRole("heading", { level: 2, name: /Referenced by/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 3, name: /Notes \(1\)/ }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("Copy Markdown puts the exported note on the clipboard", async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(120_000);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const title = uniqueNoteTitle("copy");
+    await createNote(page, title);
+    await writeBody(page, "# Heading\n\nSome body text.");
+
+    await openOverflow(page);
+    await page.getByRole("menuitem", { name: "Copy Markdown" }).click();
+    await expect(page.getByText(/copied as Markdown/)).toBeVisible();
+
+    const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+    // Copy serves the SAME bytes the matching export writes — front matter and
+    // all — so the two can never disagree about what the note is.
+    expect(clipboard).toContain("Some body text.");
+    expect(clipboard).toContain("title:");
+    // Nothing from the UI leaks in.
+    expect(clipboard).not.toContain("Load more");
+    expect(clipboard).not.toContain("More actions");
+  });
+
+  test("the print view carries the note and none of the app chrome", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const title = uniqueNoteTitle("print");
+    await createNote(page, title);
+    await writeBody(page, "# Printable heading\n\nPrintable body.");
+    await page.reload();
+    await waitForEditor(page);
+
+    // On screen the print view is hidden and hidden from assistive tech (the
+    // record already presents this content).
+    const printView = page.locator(".dh-note-print");
+    await expect(printView).toBeAttached();
+    await expect(printView).toBeHidden();
+
+    // Under print emulation it is the only visible content.
+    await page.emulateMedia({ media: "print" });
+    await expect(printView).toBeVisible();
+    await expect(printView).toContainText("Printable body.");
+    await expect(printView).toContainText(title);
+    // The formatting toolbar — the worst thing to print — is not visible.
+    await expect(
+      page.getByRole("toolbar", { name: "Formatting" }),
+    ).toBeHidden();
+    await page.emulateMedia({ media: "screen" });
+  });
+
+  test("the record-link picker is usable and axe-clean on a phone", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const title = uniqueNoteTitle("phone-link");
+    await createNote(page, title);
+    await waitForEditor(page);
+
+    await page.locator(".cm-content").click();
+    await page.getByRole("button", { name: "Link", exact: true }).click();
+    const search = page.getByRole("combobox", { name: "Link a record" });
+    await expect(search).toBeVisible();
+    await expectMinTouchTarget(search);
+    await expectNoHorizontalOverflow(page);
+    await expectNoAxeViolations(page);
+
+    await page.setViewportSize({ width: 320, height: 720 });
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("the relationship tabs are axe-clean in light and dark", async ({
     page,
   }) => {

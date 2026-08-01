@@ -46,6 +46,17 @@ export function filenameFromDisposition(
 
 export interface NoteExportState {
   readonly exportNote: (format: NoteExportFormat) => Promise<void>;
+  /**
+   * NOTES-05 §21 — copy the note to the clipboard in the same format.
+   *
+   * It fetches the SAME export route rather than serialising the note again in
+   * the browser. That is the whole point: "Copy Markdown" and "Export as
+   * Markdown" must produce identical bytes, and the only way to guarantee that
+   * is one projection with one producer. It also means copied content can never
+   * include hidden UI text or internal state — the client copies exactly what
+   * the server serialised from storage, and nothing the DOM happens to contain.
+   */
+  readonly copyNote: (format: NoteExportFormat) => Promise<void>;
   readonly pending: boolean;
 }
 
@@ -89,5 +100,37 @@ export function useNoteExport(noteId: string, title: string): NoteExportState {
     [feedback, noteId, title],
   );
 
-  return { exportNote, pending };
+  const copyNote = useCallback(
+    async (format: NoteExportFormat) => {
+      const what = NOTE_EXPORT_FORMAT_INFO[format].label;
+      setPending(true);
+      try {
+        const response = await fetch(
+          `/notes/${encodeURIComponent(noteId)}/export?format=${format}`,
+          { headers: { accept: "text/plain" } },
+        );
+        if (!response.ok) {
+          throw new Error(`Copy failed with status ${response.status}`);
+        }
+        const text = await response.text();
+        // `navigator.clipboard` is absent on an insecure origin and in some
+        // embedded browsers. Say so honestly rather than reporting a copy that
+        // did not happen.
+        if (!navigator.clipboard?.writeText) {
+          throw new Error("Clipboard unavailable");
+        }
+        await navigator.clipboard.writeText(text);
+        feedback.notifySuccess(`“${title}” copied as ${what}`);
+      } catch {
+        feedback.notifyError(
+          `We couldn’t copy “${title}”. You can still export it from this menu.`,
+        );
+      } finally {
+        setPending(false);
+      }
+    },
+    [feedback, noteId, title],
+  );
+
+  return { exportNote, copyNote, pending };
 }

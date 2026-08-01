@@ -18,6 +18,14 @@
  *   - `list`    → the anchor's Linked Items (`{ items }`).
  *   - `search`  → link-target candidates for the picker (`{ options }`).
  *   - `summary` → a safe hover-card summary of one target (`{ summary }`).
+ *   - `record-link` → the same candidates, each carrying its `dalyhub://type/id`
+ *     destination, for the writing editor's record-link picker (NOTES-05 §5).
+ *     It shares this route rather than adding a Notes-only one because it needs
+ *     exactly the same trusted composition, the same bounded workspace-scoped
+ *     search and the same anchor exclusion — a second endpoint would be a second
+ *     place for those guarantees to drift. The destination is formatted HERE, on
+ *     the server: a link's destination is a trust-relevant value, and having one
+ *     producer is what keeps the client from ever minting one.
  * POST intents:
  *   - `link`    → create a `link.related` link, policy-enforced (`{ ok, message? }`).
  *   - `unlink`  → remove a link the anchor owns, policy-enforced (`{ ok, message? }`).
@@ -44,6 +52,8 @@ import {
   type WorkspaceScope,
 } from "~/platform/workspaces";
 import type { EntityLinkTargetOption } from "~/shared/forms/model";
+import { formatRecordLink } from "~/shared/markdown/record-link";
+import type { RecordLinkOption } from "~/shared/markdown-editor/RecordLinkPicker";
 
 import type { Route } from "./+types/links";
 
@@ -58,6 +68,10 @@ export type LinksLoaderData =
   | {
       readonly op: "search";
       readonly options: readonly EntityLinkTargetOption[];
+    }
+  | {
+      readonly op: "record-link";
+      readonly options: readonly RecordLinkOption[];
     }
   | { readonly op: "summary"; readonly summary: LinkSummary | null };
 
@@ -113,6 +127,24 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         targetTypes: [...SUPPORTED_LINK_ENTITY_TYPES],
       });
       return json({ op: "search", options } satisfies LinksLoaderData);
+    }
+    case "record-link": {
+      // The SAME bounded, workspace-scoped, anchor-excluding search the link
+      // picker uses — only the projection differs. Reusing it is what guarantees
+      // the two pickers can never disagree about what is linkable.
+      const query = url.searchParams.get("q") ?? "";
+      const targets = await searchLinkTargets(pickerDeps(scope), {
+        anchorId: anchor,
+        query,
+        targetTypes: [...SUPPORTED_LINK_ENTITY_TYPES],
+      });
+      const options = targets.map<RecordLinkOption>((target) => ({
+        id: target.id,
+        type: target.type,
+        title: target.title,
+        url: formatRecordLink(target.type, target.id),
+      }));
+      return json({ op: "record-link", options } satisfies LinksLoaderData);
     }
     case "summary": {
       const target = url.searchParams.get("target") ?? "";

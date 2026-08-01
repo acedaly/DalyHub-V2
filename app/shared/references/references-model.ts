@@ -118,3 +118,118 @@ export function referencesOfType(
 ): readonly RecordReference[] {
   return references.filter((reference) => reference.record.type === type);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Module families (NOTES-05 §6)                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Backlinks grouped by MODULE FAMILY rather than by raw entity type.
+ *
+ * A record with fifty backlinks spread over eight entity types produces eight
+ * one-or-two-row groups — which is a table of contents, not an aid. Families are
+ * the grouping §6 asks for because they match how the owner actually thinks
+ * about where knowledge came from: planning work (Projects and Areas and Goals),
+ * people and the conversations with them, the things they have to do, and the
+ * dated record of what happened.
+ *
+ * `note` deliberately stands alone: a backlink from another note is the
+ * knowledge-graph edge the Backlinks surface exists for, and burying it among
+ * project links would hide the thing the user came to see.
+ *
+ * The order below IS the display order — fixed, not first-seen, because a stable
+ * shape is what lets someone learn where to look. Empty families are never
+ * rendered (§6).
+ */
+export const REFERENCE_FAMILIES = [
+  { id: "notes", label: "Notes", types: ["note"] },
+  {
+    id: "planning",
+    label: "Projects, Areas and Goals",
+    types: ["project", "area", "goal"],
+  },
+  { id: "people", label: "People and Meetings", types: ["person", "meeting"] },
+  { id: "work", label: "Tasks and Reviews", types: ["task", "review"] },
+  { id: "diary", label: "Diary", types: ["diary"] },
+  { id: "assets", label: "Assets", types: ["asset"] },
+] as const satisfies readonly {
+  readonly id: string;
+  readonly label: string;
+  readonly types: readonly string[];
+}[];
+
+/** A module family a backlink can belong to. */
+export type ReferenceFamilyId = (typeof REFERENCE_FAMILIES)[number]["id"];
+
+/** Where anything not covered above lands, so no reference is ever dropped. */
+export const OTHER_REFERENCE_FAMILY = {
+  id: "other",
+  label: "Other records",
+} as const;
+
+const TYPE_TO_FAMILY: ReadonlyMap<string, string> = new Map(
+  REFERENCE_FAMILIES.flatMap((family) =>
+    family.types.map((type) => [type, family.id] as const),
+  ),
+);
+
+/** The family id for an entity type; `other` for anything unrecognised. */
+export function referenceFamilyOf(type: string): string {
+  return TYPE_TO_FAMILY.get(type) ?? OTHER_REFERENCE_FAMILY.id;
+}
+
+/** One family's references, for a grouped presentation. */
+export interface ReferenceFamilyGroup {
+  readonly id: string;
+  readonly label: string;
+  readonly items: readonly RecordReference[];
+}
+
+/**
+ * Group references into module families, in the fixed {@link REFERENCE_FAMILIES}
+ * order with "Other records" last. Families with no references are omitted
+ * entirely, and order WITHIN a family is preserved exactly as supplied (the
+ * server's deterministic order), so the presentation adds no ordering of its own.
+ */
+export function groupReferencesByFamily(
+  references: readonly RecordReference[],
+): readonly ReferenceFamilyGroup[] {
+  const buckets = new Map<string, RecordReference[]>();
+  for (const reference of references) {
+    const id = referenceFamilyOf(reference.record.type);
+    const bucket = buckets.get(id);
+    if (bucket) bucket.push(reference);
+    else buckets.set(id, [reference]);
+  }
+  const out: ReferenceFamilyGroup[] = [];
+  for (const family of REFERENCE_FAMILIES) {
+    const items = buckets.get(family.id);
+    if (items && items.length > 0) {
+      out.push({ id: family.id, label: family.label, items });
+    }
+  }
+  const other = buckets.get(OTHER_REFERENCE_FAMILY.id);
+  if (other && other.length > 0) {
+    out.push({ ...OTHER_REFERENCE_FAMILY, items: other });
+  }
+  return out;
+}
+
+/**
+ * The families actually present in a set of references, in display order — the
+ * options a module filter should offer. Offering a family with nothing behind it
+ * would be a filter that can only ever empty the list (§6: no empty groups).
+ */
+export function availableReferenceFamilies(
+  references: readonly RecordReference[],
+): readonly {
+  readonly id: string;
+  readonly label: string;
+  readonly count: number;
+}[] {
+  return groupReferencesByFamily(references).map((group) => ({
+    id: group.id,
+    label: group.label,
+    count: group.items.length,
+  }));
+}

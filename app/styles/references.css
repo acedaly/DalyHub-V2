@@ -133,6 +133,36 @@
   max-width: var(--dh-width-prose);
 }
 
+/* NOTES-05 §6 — the backlink count, stated in the heading. Muted and lighter
+ * than the heading itself: it is a fact about the list, not part of its name. */
+.dh-note-references__count {
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-font-weight-regular);
+}
+
+/* NOTES-05 §6 — the backlinks module filter. A native control, so it wraps and
+ * scales with text size and never overflows a 320px viewport. */
+.dh-note-references__filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin-block-end: var(--dh-space-3);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-note-references__filter select {
+  min-block-size: var(--dh-touch-target-min);
+  max-inline-size: 100%;
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Notes collection filters                                                   */
 /* -------------------------------------------------------------------------- */

@@ -352,6 +352,25 @@ export const DownloadIcon = createIcon(
   </>,
 );
 
+/** Copy — duplicate content to the clipboard (NOTES-05 §21). */
+export const CopyIcon = createIcon(
+  "CopyIcon",
+  <>
+    <rect x="9" y="9" width="10.5" height="10.5" rx="1.5" />
+    <path d="M15 6.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v7.5A1.5 1.5 0 0 0 6 15h.5" />
+  </>,
+);
+
+/** Printer — a print-friendly rendering of the record (NOTES-05 §21). */
+export const PrinterIcon = createIcon(
+  "PrinterIcon",
+  <>
+    <path d="M7 9V4.5h10V9" />
+    <path d="M7 17.5H5.5A1.5 1.5 0 0 1 4 16v-4.5A1.5 1.5 0 0 1 5.5 10h13a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 1-1.5 1.5H17" />
+    <rect x="7" y="14.5" width="10" height="5" rx="1" />
+  </>,
+);
+
 /** Tag — a lightweight organisational label (NOTES-03 note tags). */
 export const TagIcon = createIcon(
   "TagIcon",

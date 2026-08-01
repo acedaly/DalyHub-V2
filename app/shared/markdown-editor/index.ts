@@ -14,11 +14,17 @@
 export { LiveMarkdownEditor } from "./LiveMarkdownEditor";
 export type { LiveMarkdownEditorProps } from "./LiveMarkdownEditor";
 export { EditorToolbar } from "./EditorToolbar";
-export type { EditorToolbarProps } from "./EditorToolbar";
+export type { EditorToolbarProps, EditorToolbarCommand } from "./EditorToolbar";
+export { RecordLinkPicker } from "./RecordLinkPicker";
+export type {
+  RecordLinkPickerProps,
+  RecordLinkOption,
+} from "./RecordLinkPicker";
 export {
   MARKDOWN_FORMATTING_ACTIONS,
   type MarkdownFormattingAction,
 } from "./formatting-actions";
+export { recordLinkTransform } from "./markdown-transforms";
 export type {
   EditorSelection as MarkdownEditorSelection,
   EditorTransform as MarkdownEditorTransform,

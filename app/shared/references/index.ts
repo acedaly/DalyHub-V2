@@ -9,11 +9,18 @@
 
 export { ReferenceList, type ReferenceListProps } from "./ReferenceList";
 export {
+  availableReferenceFamilies,
+  groupReferencesByFamily,
   groupReferencesByType,
+  referenceFamilyOf,
   referencesOfType,
   relationshipLabel,
+  OTHER_REFERENCE_FAMILY,
+  REFERENCE_FAMILIES,
   type RecordReference,
   type ReferenceDirection,
+  type ReferenceFamilyGroup,
+  type ReferenceFamilyId,
   type ReferenceGroup,
   type ReferencePage,
   type ReferenceRecord,

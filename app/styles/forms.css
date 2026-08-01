@@ -996,3 +996,54 @@
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * NOTES-05 §18 — the autosave reconciliation banner ([DEBT-47]).
+ *
+ * An informational surface, not an alarm: nothing has been lost, and the user is
+ * being offered a choice rather than warned about a failure. It therefore uses
+ * the INFO palette, and every part of its meaning is carried by words — the tint
+ * and the glyph are reinforcement only (AGENTS.md §15).
+ * ------------------------------------------------------------------------- */
+
+.dh-remote-change {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  margin-block-end: var(--dh-space-3);
+  padding: var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-info);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-info-surface);
+  color: var(--dh-color-info-text);
+}
+
+.dh-remote-change__message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-2);
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-remote-change__icon {
+  flex: 0 0 auto;
+  font-weight: var(--dh-font-weight-bold);
+}
+
+.dh-remote-change__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+.dh-remote-change__note {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+}
+
+@media (forced-colors: active) {
+  .dh-remote-change {
+    border-color: CanvasText;
+  }
+}

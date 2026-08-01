@@ -635,3 +635,186 @@ describe("NoteContentForm", () => {
     });
   });
 });
+
+/**
+ * NOTES-05 §18 — the autosave conflict banner ([DEBT-47]).
+ *
+ * The behaviour under test is the promise the banner makes: a note that changed
+ * elsewhere is adopted silently when there is nothing to lose, and OFFERED —
+ * never applied, never dropped — when there is.
+ */
+describe("NoteContentForm — server-side change while editing", () => {
+  function rerenderWithServerContent(
+    content: string,
+    onSaved: () => void = () => {},
+  ) {
+    return (
+      <NoteContentForm noteId="n1" initialContent={content} onSaved={onSaved} />
+    );
+  }
+
+  it("adopts a server-side change silently while the editor is clean", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const router = createMemoryRouter(
+      [{ path: "/", element: rerenderWithServerContent("first") }],
+      { initialEntries: ["/"] },
+    );
+    const { rerender } = render(<RouterProvider router={router} />);
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("first");
+
+    const next = createMemoryRouter(
+      [{ path: "/", element: rerenderWithServerContent("written elsewhere") }],
+      { initialEntries: ["/"] },
+    );
+    rerender(<RouterProvider router={next} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+        "written elsewhere",
+      ),
+    );
+    // Nothing to ask about, so nothing is asked.
+    expect(
+      screen.queryByText(/changed somewhere else/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps an unsaved draft and OFFERS the newer version instead of overwriting", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { rerender } = renderInRouter(rerenderWithServerContent("first"));
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "my draft" },
+    });
+    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+
+    const next = createMemoryRouter(
+      [
+        { path: "/", element: rerenderWithServerContent("written elsewhere") },
+        { path: "/elsewhere", element: <div>Elsewhere</div> },
+      ],
+      { initialEntries: ["/"] },
+    );
+    rerender(<RouterProvider router={next} />);
+
+    await screen.findByText(/changed somewhere else/);
+    // The draft is untouched — this is the whole point.
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+      "my draft",
+    );
+    expect(
+      screen.getByRole("button", { name: "Load the newer version" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Keep mine" }),
+    ).toBeInTheDocument();
+  });
+
+  it("loads the newer version only on an explicit choice", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { rerender } = renderInRouter(rerenderWithServerContent("first"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "my draft" },
+    });
+    const next = createMemoryRouter(
+      [
+        { path: "/", element: rerenderWithServerContent("written elsewhere") },
+        { path: "/elsewhere", element: <div>Elsewhere</div> },
+      ],
+      { initialEntries: ["/"] },
+    );
+    rerender(<RouterProvider router={next} />);
+    await screen.findByText(/changed somewhere else/);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load the newer version" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+        "written elsewhere",
+      ),
+    );
+    expect(
+      screen.queryByText(/changed somewhere else/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the draft and dismisses the banner on 'Keep mine'", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { rerender } = renderInRouter(rerenderWithServerContent("first"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "my draft" },
+    });
+    const next = createMemoryRouter(
+      [
+        { path: "/", element: rerenderWithServerContent("written elsewhere") },
+        { path: "/elsewhere", element: <div>Elsewhere</div> },
+      ],
+      { initialEntries: ["/"] },
+    );
+    rerender(<RouterProvider router={next} />);
+    await screen.findByText(/changed somewhere else/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep mine" }));
+
+    expect(
+      screen.queryByText(/changed somewhere else/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+      "my draft",
+    );
+  });
+
+  it("announces the conflict politely rather than only drawing it", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { rerender } = renderInRouter(rerenderWithServerContent("first"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "my draft" },
+    });
+    const next = createMemoryRouter(
+      [
+        { path: "/", element: rerenderWithServerContent("written elsewhere") },
+        { path: "/elsewhere", element: <div>Elsewhere</div> },
+      ],
+      { initialEntries: ["/"] },
+    );
+    rerender(<RouterProvider router={next} />);
+
+    // Named so it is distinguishable from the editor's save-status region.
+    const banner = await screen.findByRole("status", {
+      name: "Changed elsewhere",
+    });
+    expect(banner).toHaveAttribute("aria-live", "polite");
+    expect(banner).toHaveTextContent("nothing has been overwritten");
+  });
+
+  it("does not treat our OWN saved content coming back as a conflict", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ kind: "update_content", ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { rerender } = renderInRouter(rerenderWithServerContent("first"));
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "mine" },
+    });
+    fireEvent.blur(screen.getByRole("textbox", { name: "Note" }));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    // The route revalidates and hands back exactly what we just saved.
+    const next = createMemoryRouter(
+      [
+        { path: "/", element: rerenderWithServerContent("mine") },
+        { path: "/elsewhere", element: <div>Elsewhere</div> },
+      ],
+      { initialEntries: ["/"] },
+    );
+    rerender(<RouterProvider router={next} />);
+
+    expect(
+      screen.queryByText(/changed somewhere else/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("mine");
+  });
+});
