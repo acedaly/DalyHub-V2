@@ -262,7 +262,7 @@ were not the same kind of thing:
 
 | Failure | Diagnosis | Outcome |
 |---|---|---|
-| `areas-goals-mobile.spec.ts:111` | **Contention.** Re-run in isolation with nothing else executing: **passes.** It overran the 30s budget while a 3,100-test vitest suite was competing for CPU on the same container. | No change. Recorded, not "fixed" by adjusting a budget. |
+| `areas-goals-mobile.spec.ts:111` | **Initially read as contention** because it passed in isolation. That was incomplete — see §8b. With a budget it actually fits, the test takes **55.1s**. It was over the 30s default and occasionally lucky. | Budget sized to the measured work (§8b). |
 | `people.spec.ts:168` | **A real test defect, reproduced deterministically with nothing else running.** One test performed a record creation, a touch-target check, **18 navigations** and an axe scan inside a single 30s budget. | **Fixed by splitting the test** — see §7. |
 
 **What was re-verified after the fix, stated precisely.** `people.spec.ts` **13/13
@@ -270,6 +270,37 @@ green** (the split turns 1 test into 13) and `areas-goals-mobile.spec.ts` **3/3
 green**, both on the same machine. The complete 1.3-hour suite was **not** re-run end
 to end afterwards; the CI run on the PR is what confirms the whole suite, and it must
 be green before merge.
+
+### 8b. The per-test budget, measured rather than re-diagnosed
+
+Three specs failed on 30-second timeouts across the CI runs on this PR. Rather than
+diagnose a fourth, the full local run's per-test durations were tabulated:
+**23 tests take ≥20s against the 30s default.**
+
+The pattern settles it: **every spec whose author had already hit this had already
+sized its own budget** — `tasks.spec`, `tasks-collection`, `people-timeline`,
+`people-relationship`, `meetings-people-history`, `project-health` and
+`tasks-journey`'s own accessibility block all carry a local `setTimeout`. The specs
+still failing were the ones that had not failed *yet*. A default sized for short
+tests was being applied to multi-step journeys.
+
+Sized, with the measurement recorded in each: `tasks-journey`'s full-journey block
+(22.5s/27.2s), `areas-goals-mobile` (**55.1s**/23.2s/21.7s), `projects-mobile`
+(35.1s/25.4s/20.0s), `assets-ownership`'s five-theme sweep (31.9s) and
+`notes-knowledge`'s (28.9s). **No assertion changed in any of them**, and all
+verified green afterwards.
+
+**This is not the move rejected elsewhere in this document.** Raising the
+`globalTimeout`/shard budget pins the worst *shard* against a moving line and hides a
+growing suite — rejected three times, correctly. A *per-test* timeout bounds ONE
+interaction, and 30s was never sized for a journey that creates a record, opens a
+Drawer, edits it and walks four lifecycle states.
+
+The remaining bare tests in the 20–27s band are **recorded and deliberately not
+touched** — they have not failed, and a release closure is not the place to edit nine
+more passing specs. If one fails it needs no diagnosis; the table in
+[DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1)
+already names it.
 
 **No flaky test was quarantined, and no budget was raised to make a failure go away.**
 All three failures found during this closure were diagnosed to root cause; two were

@@ -716,6 +716,10 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     page,
     request,
   }) => {
+    // MEASURED at 28.9s on an idle machine against the 30s default: a five-theme sweep
+    // is genuinely long work, not a hang. Sized to it, as the sibling theme and
+    // responsive tests in this suite already are. No assertion changes.
+    test.setTimeout(90_000);
     // Five themes over two surfaces with an axe scan on each is genuine work,
     // not a race being papered over — every step below waits on a real
     // condition and none of them polls.
