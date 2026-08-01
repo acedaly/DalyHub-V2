@@ -18,7 +18,7 @@
 |---|---|
 | **Verdict** | **Ready to release, subject to one outstanding gate: the CI run.** Every blocker found is fixed and the full suite was run locally, but this repository's CI triggers only on a pull request or a push to `main`, so the authoritative run does not exist until a PR is opened. Open the PR, confirm the CI Gate is green, then deploy. |
 | **Version** | `2.0.0`, release name `V2`, from [`app/lib/version.ts`](../../app/lib/version.ts) |
-| **Blocking issues outstanding** | **0.** Two were found during closure; both fixed (§7). |
+| **Blocking issues outstanding** | **0.** Four were found during closure; all fixed (§7). Three were test defects; the fourth was a **product defect** in the shared pagination hook that silently dropped a page in all eight collections. |
 | **The one thing V2 knowingly does not do** | Read an export back in. [SET-02 is deferred to V2.1](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) and is not claimed anywhere in the product. |
 | **Production state at time of writing** | Schema `0001`–`0005`, pre-V2 Worker. Deploying V2 is a twenty-migration step. |
 | **Roadmap arithmetic** | 99 items: **85 complete** (3 of them with a documented limitation), **9 deferred to V2.1**, **5 deferred later**. Counted from the item headings, not asserted. |
@@ -197,6 +197,7 @@ state for deferred work, not a gap this closure introduced.
 |---|---|---|---|
 | 1 | `e2e/today.spec.ts:89` asserted a `[data-widget="focus"]` panel that UX-01 (#95) **deliberately removed**. `main` was red from #95 onward for a widget whose absence was the intended outcome. | Consistently failing required test | Retargeted the test at the **rendered** widget catalogue (id + title read from the DOM), so it covers the personalisation behaviour it was written for and stops encoding which widgets exist. `e2e/today.spec.ts` |
 | 2 | Playwright shard 4 of 10 hit the 900s `globalTimeout` with **102 passed, 0 failed, 1 never run** — runs 30693899680 and 30698894216. ~79 min of tests against a ten-way split. | Consistently failing required test | Split to **fourteen** shards, the same remedy as the previous three splits. `.github/workflows/ci.yml`. Ceiling untouched; `workers` stays 1 inside a shard. |
+| 4 | **A real product defect.** The shared `useKeysetPagination` hook could silently discard a fetched page: the mount-time scope reset could clear an already-stamped request, and the `idle && data === undefined` branch declared failure before `fetcher.load()` had left idle. Owner-visible in **all eight collections** — "Load more" cleared its spinner, added nothing, and left the cursor un-advanced. | Data-visibility defect / consistently failing required test | Reset only on a genuine scope **change**; gate the failure branch on the fetcher having actually started. Measured: 1/12 → 5/30 (first fix alone) → **0/40** (both), then 3/3 clean full unit runs. [DEBT-63](../product/PRODUCT_DEBT.md#-debt-63--load-more-could-silently-drop-a-page--p1--resolved-2026-08-01) |
 | 3 | `people.spec.ts:168` did a record creation, a touch-target check, **18 navigations** (9 viewports × collection + record) and an axe scan **inside one 30s per-test budget**. It fitted on a fast CI runner and not on a slower machine — found by running the complete suite in one process, and **reproduced deterministically with nothing else running**. | Consistently failing required test | **Split into one test per viewport**, which is how `responsive.spec.ts` already packages this matrix. Coverage is identical — same viewports, same overflow assertion on both surfaces, same touch target, same axe scan. Measured after: **13 tests, all green, each ~15s** on the same slow machine. |
 
 **No test was weakened, skipped, quarantined or deleted, and no budget was raised.**
@@ -273,15 +274,28 @@ be green before merge.
 All three failures found during this closure were diagnosed to root cause; two were
 fixed and one was proven environmental by re-running it clean.
 
-**Two unit tests also failed transiently, and are recorded rather than papered over.**
-`useKeysetPagination` and `ProjectsCollection` each failed once while the machine was
-heavily loaded, and a **different** one each time. Isolated: 3/3 green. Full suite on
-an idle machine: 2/2 green (277 files, 3120 tests). CI runs the unit suite on its own
-runner and is green. Raising their wait would have made the symptom go away **without
-a reproduction to verify the fix against**, which is guesswork wearing a green tick —
-so it is logged as [DEBT-63](../product/PRODUCT_DEBT.md#-debt-63--two-keyset-pagination-component-tests-fail-under-heavy-machine-load--p3)
-with the measurements and the two competing explanations a real diagnosis must choose
-between.
+**A fourth blocker, and the most serious one — a product defect, not a test defect.**
+Two keyset-pagination component tests were first recorded as failing "only under
+heavy machine load", with CI green. Then the same family failed on a dedicated CI
+runner, which forced a real diagnosis. Widening the wait to 8 seconds **still
+failed**, ruling out slowness: the page was never delivered. Tracing the shared
+`useKeysetPagination` hook found **two** independent paths that discarded a real
+page — the mount-time scope reset clearing an already-stamped request, and the
+`idle && data === undefined` branch declaring failure before `fetcher.load()` had
+even left idle.
+
+The owner-visible symptom: **click "Load more", the spinner clears, nothing is added,
+the cursor does not advance.** A second click works. **All eight collections share
+this hook.** Measured across the two reproducing suites: 1 failure in 12 before, 5 in
+30 with only the first fix, **0 in 40 with both**; full unit suite then green on 3
+consecutive runs (3128 tests). Recorded as
+[DEBT-63](../product/PRODUCT_DEBT.md#-debt-63--load-more-could-silently-drop-a-page--p1--resolved-2026-08-01).
+
+**A dedicated regression test was written and then removed**, because it passed 5/5
+against the pre-fix hook and therefore guarded nothing — the race only opens in the
+larger collection component trees. The two collection suites that reproduced it are
+the honest coverage. A check that cannot fail is worse than no check, because it
+reads as protection.
 
 ---
 
