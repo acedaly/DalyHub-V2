@@ -241,9 +241,32 @@ jobs:
         # above: it would pin the worst shard against whatever the new ceiling
         # is, and it hides a growing suite instead of splitting it.
         #
+        # 2026-08-01 (V2 release closure) — ten shards became fourteen, for the
+        # third time and by the same reasoning. MEASURED on run 30693899680
+        # (`main` @ ed666ca) shard 4 reached the 900s globalTimeout with 102
+        # passed, ZERO failed and 1 never run, and run 30698894216 (`main` @
+        # 6b50930, the X-04 merge) reproduced the same shape. The per-shard test
+        # times on 30693899680 were 6m24 / 10m22 / 8m11 / 15m01+ / 4m28 / 4m21 /
+        # 4m14 / 4m11 / 13m41 / 7m46 — about 79 minutes of tests against a
+        # ten-way split, so the mean was ~8 min and the worst shard was over the
+        # ceiling. NOTES-05, ASSET-02, UX-01 and X-04 each added specs and the
+        # slices stopped fitting again.
+        #
+        # Fourteen puts the mean near 5.7 min. The spread is roughly 1.9x the
+        # mean at this suite's mix (the axe and responsive-matrix tests are much
+        # slower than the rest, and Playwright shards by test COUNT), which puts
+        # the worst shard near 11 min — the same ~70% of the ceiling this split
+        # has always been tuned to.
+        #
+        # Intra-runner `workers` stays 1 and is NOT the knob to turn: the shard's
+        # tests share one dev server and one local D1, and some of them mutate
+        # owner-level state (theme preference, Today widget arrangement), so
+        # concurrent workers inside a shard would trade a budget problem for a
+        # correctness one.
+        #
         # `strategy.job-total` derives from this list, so `--shard=N/total` and
         # the job names follow automatically — this array is the only knob.
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

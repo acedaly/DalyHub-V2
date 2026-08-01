@@ -10,10 +10,47 @@ This file is written for the person using DalyHub, not for the person building i
 system is shaped the way it is).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-DalyHub is not versioned by release number — see
-[About](docs/development/HELP_AND_ABOUT.md) for what a given deployment is
-running — so entries are grouped by date and by the roadmap item that delivered
-them.
+From **2.0.0** DalyHub carries a release version, shown in **About** and reported
+by `/health` from one authority (`app/lib/version.ts`). Entries before that release
+are grouped by date and by the roadmap item that delivered them, because there was
+no version number to group them under.
+
+---
+
+## 2.0.0 — DalyHub V2 (2026-08-01)
+
+The V2 release. The full owner-facing description of what DalyHub V2 is and what it
+does is in **[Release notes](docs/release/RELEASE_NOTES_V2.md)**; the evidence behind
+every claim is in **[the release checklist](docs/release/RELEASE_CHECKLIST_V2.md)**.
+This entry records only what changed _in the release itself_, on top of everything
+already listed below.
+
+### Changed
+
+- **DalyHub now tells you which version it is.** About and `/health` report
+  **2.0.0**, release name **V2**, from a single source. Previously the release name
+  read "V2 Final Polish", which was the name of a milestone rather than of the
+  product you are running.
+
+### Fixed
+
+- **Two problems in the automated test suite** that were making the project's own
+  checks fail on the main branch. Neither was a fault in DalyHub itself: one test was
+  still looking for a "coming soon" panel on Today that was deliberately removed, and
+  the test run had outgrown its time budget. Nothing about the application changed.
+
+### Deferred
+
+- **Backup and restore is formally deferred to V2.1.** V2 gives you a real,
+  verifiable **export** — that is the V2 data-safety feature, and it is complete. What
+  V2 does not have is the other direction: DalyHub cannot read an export back in.
+  Restore has never been exercised end to end, so it is not offered anywhere and not
+  claimed anywhere. **Keep your own copy of an export until V2.1 ships restore.**
+
+### Known limitations
+
+Listed in full in the [release notes](docs/release/RELEASE_NOTES_V2.md#known-limitations)
+rather than repeated here.
 
 ---
 

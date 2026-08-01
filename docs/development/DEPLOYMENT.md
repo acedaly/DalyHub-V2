@@ -254,88 +254,90 @@ Then extract the vault and open `DalyHub Export/` as a folder in Obsidian. If
 `Home.md` renders and its links navigate, the export is good. Delete both files
 from any shared machine afterwards: they contain the whole workspace.
 
-### Production migrations
+### Production migrations — the V2 upgrade
 
-Apply migrations to the remote production D1 before (or as part of) going live,
-supplying the real database id so no placeholder is used:
+> **Superseded (2026-08-01).** This section previously carried a stack of
+> per-PR notes, each written "as of this PR" and each describing a different
+> pending migration gap (`0006`–`0008` for PROJ-05, then `0009` for AREA-02, and
+> so on). Read together they no longer described any real deployment. The V2
+> release closure replaced them with **one** statement of the actual upgrade.
+> The per-release notes for `0023`, `0025`, NOTES-05 and X-04 above are kept
+> because each records a genuine rollback/ordering property that is still true.
 
-```bash
-wrangler d1 migrations apply dalyhub-v2 --env production --remote
-```
+**The gap, stated once.** Production has migrations **`0001`–`0005`** applied
+(verified 2026-07-18 — see [Verified production deployment](#verified-production-deployment-2026-07-18)).
+The V2 release ships **`0025`**. So going live is a **twenty-migration step**,
+`0006` through `0025`, over a database that already holds the owner's data.
 
-(Set the real `database_id` in `env.production` locally, or apply against the
-named remote database directly, before running this.)
+**Every migration in that range is additive and existing-data-safe.** No column
+changes type, gains a narrowing constraint, or is dropped; no row of any table that
+exists at `0005` is rewritten. Three migrations (`0012`, `0015`, `0021`) do rebuild a
+table with SQLite's copy-and-rename pattern, but only `task_details` and
+`meeting_items` — tables that do not exist at the `0005` baseline and are therefore
+empty at that point in the sequence.
 
-> **⚠ Production migration gap (as of this PR).** Production has migrations
-> `0001`–`0005` applied (see [Verified production deployment](#verified-production-deployment-2026-07-18)
-> above); migrations `0006`, `0007` and `0008` (including this PR's PROJ-05
-> `project_details` table) have **NOT** been applied to production yet. **Do not
-> deploy this PR's Worker code to production before applying `0006`–`0008`** —
-> `d1-project-repository.ts` and `d1-project-settings-repository.ts` query the
-> `project_details` table unconditionally, and the Worker will error against a
-> database that doesn't yet have it. The required order, every time:
-> 1. **Backup** the production D1 database (`wrangler d1 export` or the
->    dashboard's backup) before touching it.
-> 2. **Migrate**: `wrangler d1 migrations apply dalyhub-v2 --env production --remote`
->    (applies `0006`–`0008` in order; each migration in this repo is additive and
->    existing-data-safe — see the migration-specific integration tests in
->    `test/kernel/migration-000*.test.ts`).
-> 3. **Verify**: confirm `project_details` exists (`STRICT`, FK, CHECK
->    constraints) and that every pre-existing, non-deleted Project has a
->    backfilled row (`status = 'active'`, `archived_at IS NULL`) — the exact
->    assertions `test/kernel/migration-0008.test.ts` makes, re-run manually
->    against the real database if desired.
-> 4. **Deploy** the Worker (`pnpm run deploy:production`) — only after step 3
->    passes.
-> 5. **Smoke test**: open `/projects`, confirm existing Projects still load with
->    no archived/status regressions, and that `/health` still returns `ok`.
->
-> This corrective PR does **not** perform any of these steps and does **not**
-> mutate the production database — they remain the owner's manual action.
+**Exactly one migration in the range backfills anything:** `0008` creates a
+`project_details` row (`status = 'active'`, `archived_at IS NULL`) for every
+pre-existing, non-deleted Project. Everything else leaves existing records with no
+detail row until their first edit, and the read boundary resolves the absence to
+documented defaults.
 
-> **AREA-01 deployment note.** The Areas overview adds no migration and no runtime
-> dependency. It reads the existing spine tables and the already-required
-> `project_details` data to present Goal-backed/direct Projects and Project health
-> visibility, so the migration prerequisite above remains unchanged: production
-> must have migrations `0001`-`0008` applied before deploying Worker code that
-> includes AREA-01.
+**This is proven, not asserted.** [`test/kernel/migration-production-baseline.test.ts`](../../test/kernel/migration-production-baseline.test.ts)
+applies `0001`–`0005` to an isolated D1, seeds a representative workspace through
+every table that schema has — all four spine kinds, a completed task, a
+soft-deleted record, an explicitly-unlinked EntityLink, and a two-subject Activity
+event — then applies the **full committed sequence** over the top and asserts:
 
-> **AREA-02 deployment note — migration `0009_create_goal_details.sql`.**
-> AREA-02 (canonical Goal records) adds ONE additive, forward-only migration:
-> `goal_details` (target date + definition of done), keyed by
-> `(workspace_id, entity_id)`, mirroring `0008_create_project_details.sql`'s
-> shape. **Unlike `0008`, this migration performs NO backfill** — an existing or
-> newly-created Goal simply has no `goal_details` row until its first detail
-> edit, and both fields resolve to `null` at the read boundary
-> (`d1-goal-details-repository.ts`'s `LEFT JOIN`), which is the correct default
-> for an optional, previously-nonexistent field. `d1-goal-repository.ts` also
-> `LEFT JOIN`s `goal_details` for the Area Goals-tab batch read, so **production
-> must have migration `0009` applied before deploying Worker code that includes
-> AREA-02** — the same unconditional-query hazard `0006`–`0008` already
-> established for `project_details`. The required order:
-> 1. **Backup** the production D1 database before touching it.
-> 2. **Migrate**: `wrangler d1 migrations apply dalyhub-v2 --env production --remote`
->    (applies `0009`; additive and existing-data-safe — see
->    `test/kernel/migration-0009.test.ts`).
-> 3. **Verify**: confirm `goal_details` exists (`STRICT`, composite FK, target-date
->    format CHECK, non-blank-definition CHECK) and that it has **zero rows**
->    immediately after migrating (no backfill is expected or correct).
-> 4. **Deploy** the Worker (`pnpm run deploy:production`) — only after step 3
->    passes.
-> 5. **Smoke test**: open an existing Area's Goals tab, confirm existing Goals
->    still render (with no target date/definition shown, since none exists
->    yet), open a Goal's canonical `/goals/:goalId` record, and confirm
->    `/health` still returns `ok`.
->
-> This implementation does **not** perform any of these steps and does **not**
-> mutate the production database — they remain the owner's manual action.
+- no entity is lost and none is rewritten (`created_at`/`updated_at`/`title` intact);
+- soft-deletion is preserved on exactly the row that carried it — nothing resurrected,
+  nothing newly deleted;
+- spine membership and completion survive;
+- every link survives, **including the explicitly-unlinked one**, still unlinked;
+- the Activity stream and its multi-subject associations survive;
+- every V2 table the application queries unconditionally exists;
+- the `0008` backfill ran, and the non-backfilling migrations did not invent rows;
+- no orphan rows and no `foreign_key_check` violations;
+- the upgrade invents no cross-workspace row.
+
+The per-migration tests (`test/kernel/migration-000*.test.ts`) remain and still prove
+each migration individually; this one proves the deployment.
+
+**The required order, every time.**
+
+1. **Back up** the production D1 database before touching it (`wrangler d1 export`,
+   or the dashboard backup). This is the step that makes every later step
+   reversible, and V2 has no in-app restore — see
+   [`ROADMAP_V2_1.md → SET-02`](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21).
+2. **Preflight**: `pnpm run deploy:production:preflight` — credential-free
+   validation, no upload.
+3. **Migrate**: `wrangler d1 migrations apply dalyhub-v2 --env production --remote`
+   (applies `0006`–`0025` in order).
+4. **Verify** the migration list reports `0025` as applied.
+5. **Deploy**: `pnpm run deploy:production` — only after step 4 passes.
+6. **Smoke test**: `/health` returns `ok` with version `2.0.0`; the authenticated
+   shell loads through Access; `/about` shows the same version.
+
+**Migrate before deploy, not after.** The application queries the detail tables
+unconditionally (`project_details`, `goal_details`, `task_details`, `note_details`,
+`person_details`, `meeting_details`, `asset_details`, `review_details`,
+`owner_app_preferences`, `task_saved_views` and the ASSET-02 child tables), so a V2
+Worker against a `0005` database errors. The reverse order is safe: the previous
+Worker ignores every table and column `0006`–`0025` adds, so a migrated database
+serving the old code keeps working — which is what makes step 3 independently
+reversible by rolling the *application* back.
+
+**Do not roll a migration back.** The sequence is forward-only. Dropping
+`0023`'s `theme` column would discard the owner's theme choice, and the older code
+does not need it gone. If the application must be rolled back, roll back the Worker
+and leave the schema where it is.
+
 
 ### Verify
 
 Wrangler prints the deployed URL (or your configured route). Verify by opening it
 and checking:
 
-- `GET /health` returns `{"status":"ok","name":"DalyHub","version":"…","environment":"production"}` (public).
+- `GET /health` returns `{"status":"ok","name":"DalyHub","version":"2.0.0","environment":"production"}` (public).
   Since RELEASE-01 the `version` comes from the ONE version authority
   (`app/lib/version.ts`), the same value the in-app **About** screen shows — so a
   deployment check and the running application can never disagree about which build
@@ -430,6 +432,12 @@ using these secrets from an untrusted pull request.
 
 ## V2 Final Polish release audit (2026-07-31)
 
+> **Historical.** This is the audit taken at the V2 Final Polish milestone, when
+> `0023` was the newest migration. It is kept because each row records a property
+> that is still true of that change. **For the V2 release itself, use
+> [Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade)
+> and [`RELEASE_CHECKLIST_V2.md`](../release/RELEASE_CHECKLIST_V2.md).**
+
 The release check performed for the **V2 Final Polish & Release Readiness**
 milestone. Recorded here so the next deployment starts from a known state rather
 than from memory.
@@ -452,14 +460,11 @@ than from memory.
 | Browser refresh | Verified | Reload re-applies the stored theme, from the first byte |
 | Rollback | Straightforward, with one caveat | Rolling the Worker back to the previous release is safe with `0023` still applied: the old code never reads the column, and the column is nullable-with-default so its writes still succeed. **Do not roll the migration back** — dropping the column would discard owners' theme choices, and the old code does not need it gone |
 
-### Deploying this release
+### Deploying that milestone (superseded)
 
-1. `pnpm run deploy:production:preflight` — credential-free validation.
-2. `wrangler d1 migrations apply dalyhub-v2 --env production --remote` — applies `0023`.
-3. `pnpm run deploy:production`.
-4. Verify `GET /health` returns `ok` **and the expected `version`**; open `/about`
-   through Cloudflare Access and confirm the same version and `Production`; open
-   Settings → Appearance and switch a theme, then reload.
+This four-step sequence applied when `0023` was the pending migration. It is
+superseded by [Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade),
+which covers the real `0006`–`0025` step and adds the backup as step 1.
 
 ### Optional: recording the build identifier
 
@@ -479,6 +484,13 @@ production deployment has been performed and verified**:
   on the provisioned remote D1 database and workspace, migrations `0001`–`0005`
   applied; the direct `workers.dev` origin returns 404 and Preview URLs are
   disabled.
+
+**Pending: the V2 release (`2.0.0`).** Production is still on the `0001`–`0005`
+schema and the pre-V2 Worker. Deploying V2 is the twenty-migration step documented
+in [Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade),
+followed by `pnpm run deploy:production`. The exact copy-and-paste command block,
+the preflight, and the post-deployment verification list are in
+[`RELEASE_CHECKLIST_V2.md`](../release/RELEASE_CHECKLIST_V2.md).
 
 FND-01 is `☑ Done` (see [ROADMAP_V2](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold)).
 Real production identifiers and secrets remain uncommitted.

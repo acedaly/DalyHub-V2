@@ -4,7 +4,14 @@
 
 It sits above task managers, note apps, calendars, and contact lists as the layer where the pieces of a life connect: responsibilities, intentions, work, people, knowledge, and reflection — one model, cross-linked, searchable, and owned by you. This repository is **DalyHub V2**, the redevelopment built on a shared design language, a shared data model, and an AI layer that *proposes* rather than acts.
 
-> **What is this repository right now?** It is the **product operating system** for DalyHub — the documentation, governance, and roadmap that drive development. DalyHub V2 is built by implementing the [roadmap](docs/roadmap/ROADMAP_V2.md) one item at a time, guided by the [constitution](AGENTS.md). The repository itself is the project's long-term memory.
+> **Current release: DalyHub V2 (`2.0.0`).** The V2 roadmap is **closed** — see the
+> [release notes](docs/release/RELEASE_NOTES_V2.md) for what shipped, the
+> [release checklist](docs/release/RELEASE_CHECKLIST_V2.md) for the evidence behind
+> it, and [`ROADMAP_V2_1.md`](docs/roadmap/ROADMAP_V2_1.md) for what comes next.
+> Backup and restore is deliberately **not** in V2: V2 ships a full, verifiable
+> export, and restore is targeted at V2.1 — keep your own copy of an export until it lands.
+
+> **What is this repository?** It is the **product operating system** for DalyHub — the documentation, governance, and roadmap that drive development, alongside the application itself. DalyHub is built by implementing the roadmap one item at a time, guided by the [constitution](AGENTS.md). The repository itself is the project's long-term memory.
 
 ---
 
@@ -14,13 +21,13 @@ Read these three, in order — that's enough to contribute:
 
 1. **[`AGENTS.md`](AGENTS.md)** — the constitution: product vision, engineering standards, architecture philosophy, licensing rules, and the Definition of Done.
 2. **[`docs/product/PRODUCT_PRINCIPLES.md`](docs/product/PRODUCT_PRINCIPLES.md)** — what DalyHub is, why it exists, and how it should feel.
-3. **[`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md)** — what we build next, as independently-implementable items.
+3. **[`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md)** — what V2 is, item by item, now closed; and **[`docs/roadmap/ROADMAP_V2_1.md`](docs/roadmap/ROADMAP_V2_1.md)** — what we build next.
 
 The full map is in **[`docs/README.md`](docs/README.md)**.
 
 ## The core idea
 
-DalyHub organises a life along a single backbone — **Area → Goal → Project → Task** — with supporting entities (**Notes, Meetings, People, Assets, Diary, Review**) woven across it through typed links, an **AI** layer that proposes changes for you to approve, and one shared design language so learning one module teaches you all of them.
+DalyHub organises a life along a single backbone — **Area → Goal → Project → Task** — with supporting entities (**Notes, Meetings, People, Assets, Diary, Review**) woven across it through typed links, and one shared design language so learning one module teaches you all of them. An **AI** layer that proposes changes for you to approve is the architecture's stated destination; it is **not** built, and `/ai` says so.
 
 ```
 Area        ongoing domain of life      (Health, Career, Home)
@@ -39,7 +46,7 @@ DalyHub is a **repository-driven** project: the docs carry the product philosoph
 AGENTS.md  →  ROADMAP_V2.md  →  a small implementation prompt
 ```
 
-A typical task is as short as: *"Implement the next unchecked ROADMAP_V2 item according to AGENTS.md."* The feature lifecycle behind that prompt is in [`IMPLEMENTATION_WORKFLOW.md`](docs/product/IMPLEMENTATION_WORKFLOW.md).
+A typical task is as short as: *"Implement the next unchecked roadmap item according to AGENTS.md."* Since the V2 closure, "the roadmap" means [`ROADMAP_V2_1.md`](docs/roadmap/ROADMAP_V2_1.md). The feature lifecycle behind that prompt is in [`IMPLEMENTATION_WORKFLOW.md`](docs/product/IMPLEMENTATION_WORKFLOW.md).
 
 ## Running the app
 

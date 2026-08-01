@@ -668,7 +668,7 @@ export function makeSnapshot(
       application: {
         name: "DalyHub",
         version: "2.0.0",
-        releaseName: "V2 Final Polish",
+        releaseName: "V2",
         environment: "development",
         buildCommit: null,
       },

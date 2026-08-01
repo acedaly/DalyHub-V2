@@ -19,9 +19,61 @@
 
 ---
 
+## V2 release closure review — 2026-08-01
+
+Every open entry was re-read against the code on `main` for the
+[V2 release closure](../roadmap/ROADMAP_V2.md#change-log-for-this-roadmap). The
+question asked of each was narrow and specific: **does this block the V2 release?**
+An entry blocks only if it is a release blocker, a data-integrity risk, a security
+or workspace-isolation risk, a broken primary workflow, a materially misleading
+user-facing behaviour, or a consistently failing required test. Nothing else was
+touched — a release closure is not a licence to refactor.
+
+**Verdict: no open debt item blocks the V2 release.**
+
+| | |
+|---|---|
+| **Blocks V2** | **None.** Two release blockers were found during the closure and both are fixed; both were E2E-gate defects, recorded under [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1). |
+| **Closed by this review (7)** | [DEBT-04](#-debt-04--filter-inconsistencies-across-lists--p2--resolved-2026-08-01), [DEBT-05](#-debt-05--legacy-modals-instead-of-the-drawer--p2--resolved-2026-08-01), [DEBT-06](#-debt-06--navigation-inconsistencies--lost-context--p2--resolved-2026-08-01), [DEBT-09](#-debt-09--legacy-pages--old-layouts-outside-the-design-system--p2--resolved-2026-08-01), [DEBT-10](#-debt-10--inconsistent-emptyloadingerror-states--p3--resolved-2026-08-01), [DEBT-11](#-debt-11--accessibility-gaps-in-legacy-ui--p1--resolved-2026-08-01), [DEBT-12](#-debt-12--inconsistent-markdown-handling--p3--resolved-2026-08-01) — all seven are **V1-inherited** entries describing screens that do not exist in this repository. V2 was built greenfield on the shared foundation, so the roadmap item each one named as its resolution has shipped and the divergence each one described has no code left to be true of. Each entry now carries its resolution and its evidence. Where a *narrower*, genuinely-V2 concern survives, it is named and stays open — that is not the same entry, and it was not folded in to make a count look better. |
+| **Retained, genuine, not blocking (30)** | Everything else still marked ☐/◐/◑ below. Each is P2 or P3, each has a named target release, and none touches data integrity, workspace isolation or a primary workflow. |
+| **Severity changes** | [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p2) and [DEBT-02](#-debt-02--inconsistent-record-headerslayouts--p2) drop **P1 → P2**. Both were P1 when the product had a bespoke card and a bespoke header per module. Today the shared Card and the shared Record Layout are what every collection and every canonical record composes, and what remains of each entry is **one deliberate, documented Diary exception** with a stated reason. A single accepted exception is friction, not a coherence failure — and calling it P1 alongside genuine P1s devalues the label. |
+
+**Target releases.** Every open entry is targeted at **V2.1 or later** and is reachable
+from the roadmap item that owns it. The mapping that matters for the release:
+
+- **V2.1, because a named V2.1 roadmap item resolves them:**
+  [DEBT-20](#-debt-20--no-health-specific-project-filter-yet-ds-07-clause-builder-still-deferred--p3)
+  and [DEBT-49](#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3)
+  (X-02) · [DEBT-24](#-debt-24--no-alignment-history--trend-is-stored--p3) and
+  [DEBT-34](#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
+  (REVIEW-03) · [DEBT-33](#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3)
+  (SET-03) · [DEBT-45 (capture context)](#-debt-45--a-captured-record-is-not-linked-to-the-context-it-was-captured-from--p2)
+  (PEOPLE-04).
+- **Later, because the capability they describe is not planned for V2.1:**
+  [DEBT-35](#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3),
+  [DEBT-53](#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3),
+  [DEBT-57](#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)
+  — each needs an integration or a notification channel that
+  [`ROADMAP_V2_1.md`](../roadmap/ROADMAP_V2_1.md) explicitly does not plan.
+- **Unscheduled cleanup, correctly so:** the remaining P3 entries. They are real, they
+  are small, and none of them has earned a place ahead of restore.
+
+**Deliberately NOT done in this closure.** The duplicate `DEBT-45` number is left as
+the register already decided — recorded, not renumbered — because renumbering would
+break every existing cross-reference to buy tidiness. The rule stands: **do not issue
+DEBT-45 again**; the next free ID is **DEBT-63**.
+
+---
+
 ## Debt register
 
-### ◐ DEBT-01 — Duplicate card implementations per module — P1
+### ◐ DEBT-01 — Duplicate card implementations per module — P2
+> **P1 → P2 (V2 release closure, 2026-08-01).** The shared DS-04 Card is what every
+> collection composes; UX-01 retired the last bespoke collection card (Meetings).
+> What remains is ONE deliberate, documented exception — the Diary timeline node,
+> split out as [DEBT-46](#-debt-46--diarys-timeline-node-is-still-not-the-shared-card--p3-deliberately-downgraded).
+> An accepted exception with a stated reason is friction, not a coherence failure.
+> **Target release:** V2.1 or later, with DEBT-46.
 
 - **Partly resolved by UX-01 (2026-07-28).** Meetings no longer uses the bespoke
   `dh-meeting-card` collection; `/meetings` now composes `CollectionLayout`,
@@ -34,7 +86,13 @@
 - **Update 2026-07-28 (PX-06).** The **Diary timeline node stays a deliberate, documented fork** rather than being forced into a Card variant. It is the strongest scanning surface in the product (subtype icon + badge + timestamp on a chronological spine), and every variant shape considered lost some of that for no user-visible gain — so PX-06 preserved the visual exactly and instead pulled Diary onto the shared pieces that *do* fit: the shared subtype-icon registry, the shared overflow menu and lifecycle, the shared create-label convention and one primary entry point per viewport. Meetings' bespoke settings section was retired onto the shared DS-10b surface in the same change. This entry stays ◐ for the Diary card itself, now as an **accepted exception with a stated reason** rather than an untracked divergence.
 - **Related roadmap item.** [DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards) (the shared Card) and [PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention) (retiring the Diary/Meetings forks); tracked alongside [DEBT-31](#-debt-31--cross-module-presentation-drift-todaydiary-forks-terminology-and-capitalisation--p2--presentation-half-resolved-2026-07-28).
 
-### ◐ DEBT-02 — Inconsistent record headers/layouts — P1
+### ◐ DEBT-02 — Inconsistent record headers/layouts — P2
+> **P1 → P2 (V2 release closure, 2026-08-01).** Every canonical record composes the
+> shared DS-02 Record Layout — verified at closure across Areas, Goals, Projects,
+> Tasks, Notes, People, Meetings, Assets and Reviews. The single exception is the
+> Diary entry, presented through the DS-10 Inspector, which is a deliberate
+> interaction choice for a chronological capture surface rather than an ad-hoc
+> layout. **Target release:** V2.1, with [DIARY-02](../roadmap/ROADMAP_V2.md#-diary-02--day-context-links).
 - **Current issue.** Tasks, projects, notes, and people each have ad-hoc top-of-record layouts; no shared header.
 - **Desired future state.** Universal [Record Layout](../design/DESIGN_SYSTEM.md#record-header) (header + summary + tabs) across all entities.
 - **Progress (2026-07-27 audit).** [DS-02](../roadmap/ROADMAP_V2.md#-ds-02--shared-record-layout-header--summary--tabs) shipped the entity-agnostic Record Layout and **every canonical record now composes it** — Areas, Goals, Projects, Notes, People, Meetings, Assets, Reviews and the shared Task record Drawer ([`TaskRecordDrawer.tsx`](../../app/shared/task-record/TaskRecordDrawer.tsx)) all import `~/shared/record-layout`. **The one exception is the Diary entry**, which is presented through the DS-10 Inspector rather than a Record Layout; that is a deliberate, documented interaction choice for a chronological capture surface, but it means a Diary entry has no record header, tabs or Activity tab like every other entity. Kept ◐ until [DIARY-02](../roadmap/ROADMAP_V2.md#-diary-02--day-context-links)/[PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention) confirm the Diary treatment as an accepted variant or converge it.
@@ -46,20 +104,24 @@
 - **Resolution.** [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls) delivers ONE shared [forms system](../design/DESIGN_SYSTEM.md#shared-forms--field-controls-ds-06) in which the save mode is a **declared, visible part of the component contract**, never inferred: `useForm` for explicit Save/Cancel (dirty tracking, duplicate-submit prevention, draft preservation on failure, unsaved-navigation interception) and `useAutosaveField` for calm, deterministic autosave (`Unsaved`/`Saving`/`Saved`/`Couldn’t save`, stale-response-safe, retry). No modal-save pattern is introduced. The predictable model now exists design-system-wide; each product create/edit surface simply adopts it (there are no product forms today that still diverge).
 - **Related roadmap item.** [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls).
 
-### ☐ DEBT-04 — Filter inconsistencies across lists — P2
+### ☑ DEBT-04 — Filter inconsistencies across lists — P2 — **RESOLVED 2026-08-01**
 - **Current issue.** Each list built its own filtering; syntax, chips, and saved-view behaviour differ.
 - **Desired future state.** One [Filters](../design/DESIGN_SYSTEM.md#filters) system used everywhere, URL-reflected, with saved views.
-- **Related roadmap item.** [DS-07](../roadmap/ROADMAP_V2.md#-ds-07--shared-filters).
+- **Resolved (V2 release closure, 2026-08-01).** This entry described V1 lists that each grew their own filtering. No such list exists here. [DS-07](../roadmap/ROADMAP_V2.md#-ds-07--shared-filters) shipped the one entity-agnostic filter system ([`app/shared/filters`](../../app/shared/filters)) with a typed definition model, a bounded AND/OR expression, a pure evaluator and a versioned URL contract; [TASKS-03](../roadmap/ROADMAP_V2.md#-tasks-03--tasks-collection-experience-filtering-sorting-grouping-and-saved-views) added persisted saved views over a validated declarative configuration ([ADR-059](../decisions/ARCHITECTURE_DECISIONS.md#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration)); [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience) gave every collection one shared filter/sort/view sheet. **Evidence:** `test/unit/filters/`, `e2e/cards-filters.spec.ts`, `e2e/tasks-collection.spec.ts`.
+- **The narrower V2 concern that survives is NOT this entry, and stays open.** Filter *depth* is still uneven between collections ([DEBT-20](#-debt-20--no-health-specific-project-filter-yet-ds-07-clause-builder-still-deferred--p3)) and two filter MODELS coexist ([DEBT-49](#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3)). Both are P3, both are owned by [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters), and neither is "each list built its own filtering".
+- **Related roadmap item.** [DS-07](../roadmap/ROADMAP_V2.md#-ds-07--shared-filters); successors under [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
 
-### ☐ DEBT-05 — Legacy modals instead of the Drawer — P2
+### ☑ DEBT-05 — Legacy modals instead of the Drawer — P2 — **RESOLVED 2026-08-01**
 - **Current issue.** V1 opened records in modals that lose context and can't stack or deep-link.
 - **Desired future state.** Records open in the shared [Drawer](../design/DESIGN_SYSTEM.md#drawer); modals reserved for true interruptions only.
+- **Resolved (V2 release closure, 2026-08-01).** No record in V2 opens in a modal. [DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer) is the record surface everywhere: URL-backed (so it deep-links), history-correct (so Back works), focus-managed and stackable, and [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience) made it the whole screen on a phone using the same implementation and the same URL/history/focus contract. The modal machinery is reused only for true interruptions — confirmation dialogs, the command palette, the Inspector sheet — which is exactly the target state this entry named. **Evidence:** `e2e/drawer.spec.ts`, `e2e/record-lifecycle.spec.ts`, `e2e/task-drawer.spec.ts` (deep-link, Back/Forward, Escape and focus restoration).
 - **Related roadmap item.** [DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer).
 
-### ☐ DEBT-06 — Navigation inconsistencies / lost context — P2
+### ☑ DEBT-06 — Navigation inconsistencies / lost context — P2 — **RESOLVED 2026-08-01**
 - **Current issue.** Navigating between modules discards scroll/selection/place; "back" is unreliable.
 - **Desired future state.** Context-preserving navigation and restored state ([UX philosophy](../../AGENTS.md#6-ux-philosophy)).
-- **Related roadmap item.** [FND-09](../roadmap/ROADMAP_V2.md#-fnd-09--app-shell-routing--auth) + [DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer).
+- **Resolved (V2 release closure, 2026-08-01).** The three specific failures this entry named are each closed by a shared mechanism, not by per-module care: opening a record no longer replaces the page (DS-03's URL-backed Drawer over the collection), Back is reliable (the Drawer's close is a history pop, made idempotent per history entry when [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) traced a double-Escape carrying the user off the record), and a paginated collection keeps the owner's place ([UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) replaced six near-identical paginators and two page-REPLACING links with the one [`useKeysetPagination`](../../app/shared/load-more/useKeysetPagination.ts)). UX-01 also fixed the rail and the phone bar disagreeing about the current module, through one shared rule ([`navigation-active.ts`](../../app/shared/shell/navigation-active.ts)). **Evidence:** `e2e/drawer.spec.ts`, `e2e/ux-01-daily-driver.spec.ts`, `e2e/px-03-navigation.spec.ts`, `test/unit/load-more/useKeysetPagination.test.tsx`.
+- **Related roadmap item.** [FND-09](../roadmap/ROADMAP_V2.md#-fnd-09--app-shell-routing--auth) + [DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer) + [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish).
 
 ### ◐ DEBT-07 — Fragmented activity/history — P2
 - **Current issue.** History (where it exists) is per-module and inconsistent; no unified timeline or audit trail.
@@ -74,24 +136,29 @@
 - **Backlinks half now done (NOTES-05 knowledge completion, 2026-08-01).** The shared `~/shared/references` surface reads the FND-04 graph directionally for ANY module, and the Note record's Backlinks tab presents it with a count, module-family grouping and a module filter. `dalyhub://` record links add a second way to CREATE a relationship from prose that resolves by stable id, and the shared `/links` endpoint gained `op=record-link` so a second picker reuses the same bounded, workspace-scoped search rather than inventing one. **Still open:** the backlinks surface is currently composed only by the Note record — other record types can consume it unchanged but do not yet.
 - **Related roadmap item.** [FND-04](../roadmap/ROADMAP_V2.md#-fnd-04--entitylinks) + [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls).
 
-### ☐ DEBT-09 — Legacy pages / old layouts outside the design system — P2
+### ☑ DEBT-09 — Legacy pages / old layouts outside the design system — P2 — **RESOLVED 2026-08-01**
 - **Current issue.** Some V1 screens predate any shared system and don't match current patterns.
 - **Desired future state.** All surfaces composed from [Design System](../design/DESIGN_SYSTEM.md) patterns; legacy pages retired module-by-module.
-- **Related roadmap item.** The per-module Phase 2–13 items in [ROADMAP_V2](../roadmap/ROADMAP_V2.md).
+- **Resolved (V2 release closure, 2026-08-01).** There are no V1 screens in this repository — V2 is a greenfield redevelopment, and every surface is composed from Design System patterns. Audited at closure: `ModuleComingSoon`, the PX-03 placeholder this entry's successors were measured against, is rendered by **exactly one** route — `/ai` — which is honestly deferred and says so. Every other module route renders real, shared-pattern product. **Evidence:** the only `ModuleComingSoon` import in `app/modules/` is `app/modules/ai/routes/index.tsx`; the two other files that mention it do so in a comment recording that they replaced it.
+- **Related roadmap item.** The per-module Phase 2–13 items in [ROADMAP_V2](../roadmap/ROADMAP_V2.md), all ☑.
 
-### ☐ DEBT-10 — Inconsistent empty/loading/error states — P3
+### ☑ DEBT-10 — Inconsistent empty/loading/error states — P3 — **RESOLVED 2026-08-01**
 - **Current issue.** Some screens dead-end when empty, spinner-block while loading, or show raw errors.
 - **Desired future state.** Shared [Empty](../design/DESIGN_SYSTEM.md#empty-states)/[Loading](../design/DESIGN_SYSTEM.md#loading)/[Error](../design/DESIGN_SYSTEM.md#error-feedback) patterns everywhere.
-- **Related roadmap item.** [DS-10](../roadmap/ROADMAP_V2.md#-ds-10--inspector-settings-and-feedback-states).
+- **Resolved (V2 release closure, 2026-08-01).** The shared `EmptyState`, skeleton loading and error patterns exist and are what modules compose; [PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention) swept the last forked/inert empty states off Today and made the copy convention *executable* rather than written down ([`app/shared/entity/copy.ts`](../../app/shared/entity/copy.ts) derives every empty-collection title and count label from the one identity map, so a module structurally cannot drift). Nothing spinner-blocks a blank screen and no surface shows a raw error. **Evidence:** `test/unit/empty-state/`, `test/unit/skeleton/`, `test/unit/feedback/`, `e2e/feedback.spec.ts`.
+- **Related roadmap item.** [DS-10](../roadmap/ROADMAP_V2.md#-ds-10--inspector-settings-and-feedback-states) + [PX-06](../roadmap/ROADMAP_V2.md#-px-06--cross-module-polish--copy-convention).
 
-### ☐ DEBT-11 — Accessibility gaps in legacy UI — P1
+### ☑ DEBT-11 — Accessibility gaps in legacy UI — P1 — **RESOLVED 2026-08-01**
 - **Current issue.** Legacy screens have keyboard traps, missing labels, and insufficient contrast.
 - **Desired future state.** WCAG 2.2 AA across shared components and every module ([accessibility](../../AGENTS.md#15-accessibility-requirements)).
+- **Resolved (V2 release closure, 2026-08-01).** There is no legacy UI to have gaps in. [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline) established a three-layer strategy — `eslint-plugin-jsx-a11y`, component/contrast unit tests, and an axe-core Playwright gate over real surfaces — and it is enforced, not aspirational: the WCAG 2.2 AA contrast of all five themes is asserted per theme rather than sampled ([THEME-01](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system)), and the gate has repeatedly caught genuine violations before release (the `aria-prohibited-attr` on the shared activity viewport, the duplicate `main` landmark on two create routes, the read-only sheet with no tab stop). **Evidence:** `e2e/accessibility.spec.ts`, `e2e/keyboard.spec.ts`, `e2e/touch-targets.spec.ts`, `e2e/themes.spec.ts`, `test/unit/tokens/`, and the per-module axe scans in light and dark.
+- **The narrower V2 concerns that survive are named individually and stay open**, each P3 and each with a stated reason: [DEBT-14](#-debt-14--grouped-rolefeed-interleaves-non-article-children--p3), [DEBT-15](#-debt-15--listbox-options-wrap-a-focusable-result-control--p3), [DEBT-26](#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3), [DEBT-50](#-debt-50--card-quick-actions-are-28px-on-a-narrow-viewport-with-a-mouse--p3), [DEBT-54](#-debt-54--border-strong-is-still-below-31-where-it-is-a-decorative-border--p3) and [DEBT-56](#-debt-56--axe-reports-label-title-only-for-one-shared-selectfield-in-the-tasks-drawer-and-the-dom-says-otherwise--p3). They are specific, known and non-blocking — which is a categorically different state from "legacy screens have keyboard traps".
 - **Related roadmap item.** [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
 
-### ☐ DEBT-12 — Inconsistent Markdown handling — P3
+### ☑ DEBT-12 — Inconsistent Markdown handling — P3 — **RESOLVED 2026-08-01**
 - **Current issue.** Text stored/rendered differently across features; some paths risk unsafe HTML.
 - **Desired future state.** One [Markdown pipeline](../decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy) with a single sanitising renderer.
+- **Resolved (V2 release closure, 2026-08-01).** [FND-08](../roadmap/ROADMAP_V2.md#-fnd-08--markdown-pipeline) ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)) is the ONE pipeline: Markdown is stored as a validated, branded `MarkdownSource` and rendered through one deterministic `unified` chain that drops raw HTML before it can become DOM and sanitises against a single frozen allowlist. The "some paths risk unsafe HTML" half is closed structurally, not by review — `app/shared/markdown/MarkdownContent` is the **only** `dangerouslySetInnerHTML` in `app/`, it accepts only the branded output, and **a repository test fails if a second one appears**. Notes, Diary, descriptions, Reviews and the export all consume it. **Evidence:** `test/unit/markdown-boundary.test.ts` (the one-sink rule), `test/unit/markdown-url-policy.test.ts`, `test/kernel/markdown-render.test.ts` (the XSS corpus, in the Workers runtime).
 - **Related roadmap item.** [FND-08](../roadmap/ROADMAP_V2.md#-fnd-08--markdown-pipeline).
 
 ### ☐ DEBT-13 — Reserved-spine-type guard lives in the D1 adapter — P3
@@ -251,8 +318,8 @@
 ### ☐ DEBT-35 — Assets: deferred capabilities (attachments, reminders, logbooks, ingestion, AI) — P3
 - **Current issue.** ASSET-01 ships a deliberately complete-but-bounded first version: no real file attachments, no external object storage (R2), no OCR, no barcode/QR scanning, no recurring reminders or automated warranty/renewal alerts, no service-history logbook, no depreciation/tax or insurance-claims workflow, no receipt/email ingestion, no external subscription sync, no AI extraction, and no household sharing beyond current workspace rules. These are intentionally absent (no dead UI ships for any of them), but they are the natural next capabilities users will expect. The kernel already stores the queryable warranty/renewal/service dates and exposes `AssetRepository.list({ view: "expiring" | "service_due" })` as the bounded read seam a future Today widget / reminder engine will consume.
 - **Desired future state.** ASSET-02 adds history & renewals (maintenance log, value-over-time, calm renewal reminders reading the existing dates) and a Today "expiring soon / service due" widget over the existing read seam; a later attachments story adds real object storage (R2) with OCR/barcode as optional enrichment — all reusing the shared seams, never a bespoke fork, and each documented with an ADR where it introduces a genuine new decision.
-- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals); [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile).
-- **Scope boundary (2026-07-27).** OCR, barcode/QR scanning, receipt or email ingestion, financial depreciation/tax workflows and external subscription sync stay in **this** entry as future debt. They are explicitly **not** part of [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals), whose scope is service/maintenance history, warranty and renewal tracking, value changes, calm due/expiry surfacing and the Today read seam.
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done); [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile).
+- **Scope boundary (2026-07-27).** OCR, barcode/QR scanning, receipt or email ingestion, financial depreciation/tax workflows and external subscription sync stay in **this** entry as future debt. They are explicitly **not** part of [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done), whose scope is service/maintenance history, warranty and renewal tracking, value changes, calm due/expiry surfacing and the Today read seam.
 
 ### ☑ DEBT-36 — Global search coverage is incomplete: several shipped modules register no provider — P2
 - **Original issue.** DS-08 discovered search providers from the module registry, but only **five** manifests contributed one: Assets, Meetings, People, Reviews and Tasks (plus the fixture-backed Today provider). **Notes, Projects, Areas, Goals and Diary declared no `searchProviders` at all**, even though all five shipped real, workspace-scoped records. Global search therefore could not find a note, a project, an area, a goal or a diary entry by title — while simultaneously returning **fabricated** project/note/meeting hits from the Today fixture provider ([DEBT-17](#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1)). Command-palette coverage remains separate: `commands.ts` exists for Assets, Meetings, People, Reviews, Settings, Tasks and Today, but **Areas, Goals, Projects, Notes and Diary register no commands**, so there is no "Open Notes" or "New project" anywhere in the palette.
@@ -298,9 +365,15 @@
 - **Current issue.** `migrations/0013_create_area_details.sql` ([AREA-05](../roadmap/ROADMAP_V2.md#-area-05--area-archive--safe-deletion-lifecycle), merged in #65) and `migrations/0013_create_person_details.sql` ([PEOPLE-01](../roadmap/ROADMAP_V2.md#-people-01--person-record), merged in #66) were authored in parallel and both claimed `0013`. Wrangler applies migrations in filename order and tracks them by name, and the two slices are independent, so there is **no known defect today** — `area_details` simply applies before `person_details`, deterministically.
 - **Impact.** Low now, latent later. The numbering is the only ordering contract the repository has; once it is not unique, "apply in order" stops being verifiable by inspection, and a future pair of same-numbered migrations with a real dependency between them would order by alphabetical accident. It also makes "which migration is `0013`?" ambiguous in every doc and ADR that cites a number.
 - **Desired future state.** Do **not** rename an applied migration (both are live in production). Instead: add a CI check that fails on a duplicate numeric prefix, and record the convention — claim the next number at PR-open time, and renumber before merge if another PR took it. Cite `0013_create_area_details` / `0013_create_person_details` by full filename, never by number alone.
-- **Related roadmap item.** [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage) (the migration convention); a future [SETUP_AND_CI](../development/SETUP_AND_CI.md) hardening item.
+- **The check now exists (V2 release closure, 2026-08-01) — [`test/unit/migrations/migration-numbering.test.ts`](../../test/unit/migrations/migration-numbering.test.ts).** It runs in the ordinary unit suite, so it gates every PR through the existing CI job with no new workflow. It asserts three things: the `NNNN_snake_case_description.sql` naming, that no number is issued twice, and that the sequence has no gap so "apply in order" stays verifiable by inspection. The historical collision is grandfathered **by exact filename, as a pair** — not by number — so it cannot be used to excuse a second one, and a *third* file numbered `0013` still fails. Neither live migration was renamed.
+- **Why it stays ☐ rather than ☑.** The check closes the "latent later" half. The entry's other half — the ambiguity of *"which migration is `0013`?"* in every doc and ADR that cites a number — is a documentation property the check cannot enforce, and both files are still live in production. It closes when the citation convention has been swept through the docs that name a number.
+- **Related roadmap item.** [FND-02](../roadmap/ROADMAP_V2.md#-fnd-02--data-kernel-entities--storage) (the migration convention); [SETUP_AND_CI](../development/SETUP_AND_CI.md).
 
 ### ◐ DEBT-41 — The E2E suite is unreliable on `main`, so "CI is green" claims are unverifiable — P1
+- **The two V2 release blockers, found here and fixed here (V2 release closure, 2026-08-01).** This entry's discipline — *"treat a red trunk as stop-the-line"* — is what turned up both. `main` was red on the two most recent runs, and neither cause was a product defect:
+  1. **A stale assertion on a surface the product had deliberately deleted.** `e2e/today.spec.ts:89` asserted a `[data-widget="focus"]` panel with a `Focus` toggle. [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) **removed** the "coming soon" Focus panel from Today — correctly, for the same reason POLISH-01 removed Weather and the calendar placeholder — but the spec was not updated with it, so from #95 onward `main` failed on a widget whose absence was the intended outcome. Fixed by taking the widget under test from the RENDERED catalogue (`[data-widget]` and its title) instead of naming one, so the test covers the personalisation behaviour it was written for and stops encoding which widgets happen to exist. **This is the failure mode this entry exists to catch, in its least dramatic form:** a green product and a red gate, where the test was wrong.
+  2. **The shard budget was exceeded again — the third time, with the same shape.** Run 30693899680 (`main` @ `ed666ca`) shard 4 of 10 reached Playwright's 900s `globalTimeout` with **102 passed, ZERO failed and 1 test never run**; run 30698894216 (`main` @ `6b50930`, the X-04 merge) reproduced it. MEASURED per-shard test time on 30693899680: 6m24 / 10m22 / 8m11 / **15m01+** / 4m28 / 4m21 / 4m14 / 4m11 / 13m41 / 7m46 — about **79 minutes** of tests against a ten-way split, so the mean was ~8 min and the worst shard was over the ceiling. NOTES-05, ASSET-02, UX-01 and X-04 each added specs. Split to **fourteen** shards, which is the same remedy and the same reasoning as the 3→5, 5→7 and 7→10 splits: **split finer rather than raise the ceiling**, because raising the ceiling only moves the line the growth is measured against and drags `timeout-minutes` up with it. Intra-shard `workers` stays 1, deliberately — a shard's tests share one dev server and one local D1, and some mutate owner-level state, so concurrent workers would trade a budget problem for a correctness one.
+- **What this means for the entry's status.** It is **narrowed again, and its closing condition is unchanged**: *"the complete gate reports reliably **and** current `main`-equivalent CI is green"*. The second half still cannot be asserted from a PR branch — it closes when `main` itself is green after the release closure merges. That is deliberate: this entry must not be closed by the change that hopes to fix it.
 - **Narrowed, not closed (2026-07-27).** Every specific problem this entry named is fixed and the gate now reports honestly, but the entry's own closing condition is *"the complete gate reports reliably **and** current `main`-equivalent CI is green"* — and the second half cannot be asserted from a PR branch. It closes when `main` itself is green after this merges.
 - **What was actually wrong with the gate.** Two faults, not one. The Playwright matrix had **no budget headroom** (run 30310393566: slowest shard 14.0 min of tests, 14m34s of job, 26 seconds inside `timeout-minutes: 15`), *and* both artefact-upload steps were conditioned on `failure()` — which is **false for a cancelled job**. So the single case the artefacts existed for was precisely the case that skipped them. Fixed by: a **5-way** matrix; a Playwright `globalTimeout` of 15 min set *below* the job's new 20-minute backstop, so an overrun is a Playwright failure **with** a report and traces rather than a GitHub cancellation; uploads keyed on `always() && steps.e2e.outcome != 'success'`; `strategy.job-total` deriving the `--shard=N/TOTAL` denominator from the matrix list; and a gate that prints a `job → result` table. Recorded with the measurements in [`SETUP_AND_CI.md`](../development/SETUP_AND_CI.md).
 - **Measured after the change** (run 30314062657, five shards, all green): tests 8m40s / **11m09s** / 5m24s / 5m03s / 7m53s. Reproduced on run 30317758251 with the whole gate green — jobs 9m32s / **10m34s** / 5m46s / 5m22s / 10m16s — so the numbers are a property of the split, not one lucky runner. The worst shard uses 74% of the Playwright ceiling and 60% of the job budget, against 97% of the old budget. Recorded honestly: the *spread* widened (5.0–11.2 min at five shards vs 11.7–14.0 at three) because Playwright shards by test count and finer splits expose more per-test variance. `playwright-report/results.json` now carries per-test durations so the split can be revisited from data.
@@ -363,11 +436,11 @@
 - **Related roadmap item.** [PEOPLE-04](../roadmap/ROADMAP_V2.md#-people-04--mobile) (which is ◐ for exactly this reason); [REL-01](../roadmap/ROADMAP_V2.md#-rel-01--universal-relationship-system-shared-linked-items).
 
 ### ☐ DEBT-46 — Diary's timeline node is still not the shared Card — P3 (deliberately downgraded)
-- **Status: outstanding, downgraded and re-scoped by [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience) (2026-07-28).** This is the Diary half of [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1), split out because the two halves no longer have the same answer.
+- **Status: outstanding, downgraded and re-scoped by [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience) (2026-07-28).** This is the Diary half of [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p2), split out because the two halves no longer have the same answer.
 - **Current issue.** The Diary day timeline renders a hand-rolled `dh-diary-entry` node rather than the shared DS-04 Card, so it does not inherit the Card's swipe accelerator, selection model or compact phone preset.
 - **What changed.** [DIARY-03](../roadmap/ROADMAP_V2.md#-diary-03--mobile) named this as a fork to resolve "here or in PX-06". MOBILE-01 deliberately did **not** resolve it. A day timeline node is a genuinely different presentation from a Card — it is positioned against a time rail and reads as a chronological event, not as a record in a list — and forcing it into a Card to close a debt entry would produce worse product on the very surface the mobile work exists to serve. The other half of DEBT-01 (Meetings) was already resolved by UX-01 adopting shared Cards.
 - **Desired future state.** Either a Card *variant* that can render against a time rail without the Card growing timeline knowledge, or an explicit, documented acceptance that a timeline node is its own shared primitive. Decide it deliberately; do not close it by conversion.
-- **Related roadmap item.** [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1); [DIARY-01B](../roadmap/ROADMAP_V2.md#-diary-01b--diary-responsive-day-timeline-workspace).
+- **Related roadmap item.** [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p2); [DIARY-01B](../roadmap/ROADMAP_V2.md#-diary-01b--diary-responsive-day-timeline-workspace).
 
 ### ◐ DEBT-47 — An open autosave editor does not adopt a server-side change to its field — P2
 - **Status: contract SHIPPED 2026-08-01, adoption partial.** Originally surfaced by [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience) (2026-07-28). Pre-existing behaviour of the shared autosave field; MOBILE-01 is the first workflow that makes it visible, so it is recorded here rather than left to be discovered.
@@ -392,7 +465,7 @@
   - **The two absences are closed too.** `/meetings` and `/reviews` paginated by NAVIGATING to the next page — replacing the list and discarding the owner's scroll position — and Meetings labelled that control "Load more", which is not what it did. Both now use the shared hook and the shared `LoadMore` affordance, so all eight collections behave identically.
   - **Notes' extra guard was subsumed, not dropped.** `useNotePagination` additionally discarded a page whose echoed `state` no longer matched the selected lifecycle view. The shared request-scoped rule is strictly stronger — it discards ANY response issued under a previous scope, not only one whose state field happens to disagree.
   - **Evidence.** [`test/unit/load-more/useKeysetPagination.test.tsx`](../../test/unit/load-more/useKeysetPagination.test.tsx) covers accumulation, boundary de-duplication, a retryable failed page that does not advance the cursor, and the exhausted no-op; [`e2e/ux-01-daily-driver.spec.ts`](../../e2e/ux-01-daily-driver.spec.ts) asserts neither collection offers a page-replacing link any more; the existing Projects/Goals/Areas/Notes/People/Assets "Load more" journeys pass unchanged.
-- **Related roadmap item.** [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) (resolved here); [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) (where collection-wide list behaviour is next revisited); tracked alongside [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p1) as another per-module duplication of one idea.
+- **Related roadmap item.** [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) (resolved here); [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) (where collection-wide list behaviour is next revisited); tracked alongside [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p2) as another per-module duplication of one idea.
 
 ---
 
@@ -484,12 +557,12 @@
 ---
 
 ### ☐ DEBT-57 — Asset obligations are tracked, but nothing reaches the owner outside the app — P2
-- **Current issue.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) gives an Asset real obligations: a registration renewal, a six-monthly service, a warranty expiry. They surface on the Asset record, on the collection card and on Today — **all of which require the owner to open DalyHub.** There is no scheduler, no background job and no notification channel of any kind. A rego that expires while the owner is on holiday expires silently.
+- **Current issue.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done) gives an Asset real obligations: a registration renewal, a six-monthly service, a warranty expiry. They surface on the Asset record, on the collection card and on Today — **all of which require the owner to open DalyHub.** There is no scheduler, no background job and no notification channel of any kind. A rego that expires while the owner is on holiday expires silently.
 - **Why it was not built here.** Deliberately excluded from ASSET-02's scope, and correctly so: a reminder that leaves the app is a NOTIFICATIONS capability, not an Assets one. It needs a delivery channel decision (push, email, or an external service), a scheduling mechanism the platform does not have, a quiet-hours and frequency policy, and an answer to what happens when the same obligation is also a Task that Tasks would want to remind about. Building any of that inside Assets would have created a second, module-local reminder engine — exactly the duplication AGENTS.md §9.8 forbids.
 - **Impact.** The single biggest gap between "tracked" and "reminded". It is also the reason ASSET-02's derived state is computed at READ time rather than stored: with nothing to fire on a schedule, a stored "overdue" flag would simply be stale data.
 - **Desired future state.** ONE workspace-level reminder capability that any module can contribute due items to — Tasks, Assets, Reviews — with a single delivery decision and a single quiet policy, rather than per-module notifications.
 - **Closing condition.** A shared reminder/notification capability exists, Assets contributes its obligations to it through the existing bounded `listAttention` seam (no new Assets-side scheduling), and an owner who has not opened DalyHub still learns that their registration expires next week.
-- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) (excluded there on purpose); a future notifications item.
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done) (excluded there on purpose); a future notifications item.
 
 ---
 
@@ -499,7 +572,7 @@
 - **Impact.** Low at a personal scale (a page is 30 Assets and few people own more), and the filter never LIES — everything it shows genuinely is overdue. But it narrows rather than searches, which is not what the other facets on the same bar do, and that inconsistency is a comprehension cost.
 - **Desired future state.** Either a materialised, refreshed-on-write "next attention state" column the SQL can filter honestly, or an explicit statement in the UI that this facet narrows the current page. The first is better and more work; the second is a one-line honesty fix if the first is not funded.
 - **Closing condition.** Selecting "Overdue" returns every overdue Asset in the workspace regardless of page, with the derived state still coming from ONE evaluator — or the control says plainly that it filters the loaded page.
-- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals), [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done), [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
 
 ---
 
@@ -509,7 +582,7 @@
 - **Impact.** Effectively zero today: an Asset with more than 50 obligations, each with its own linked Task, is not a real personal-life record. It matters as a pattern, not as a bug.
 - **Desired future state.** ONE grouped read for open-state, alongside the single `entities.getByIds` call that already resolves the titles — the same shape `listAttention` already uses in SQL via its `OPEN_TASK_EXISTS` join.
 - **Closing condition.** The Asset record's obligation load issues a fixed number of queries regardless of obligation count, proven by a query-counting kernel test (the harness already exists — see `countingDatabase` in `test/kernel/support.ts`).
-- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals).
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done).
 
 ---
 
