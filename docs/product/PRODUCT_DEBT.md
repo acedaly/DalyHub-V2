@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-64**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-65**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
@@ -616,6 +616,16 @@ DEBT-45 again**; the next free ID is **DEBT-63**.
 - **Regression coverage, stated honestly.** The two collection suites that reproduced it are the guard: they exercise the path and went from intermittently red to 40/40 green. An attempt to add a dedicated repeated-journey test to `useKeysetPagination.test.tsx` was **removed rather than shipped** — it passed 5/5 against the *pre-fix* hook, so it guarded nothing, and a check that cannot fail is worse than no check because it reads as protection. The race only opens in the larger collection component trees, not in the isolated harness.
 - **The lesson worth keeping.** `test/unit/load-more/useKeysetPagination.test.tsx` already carried a widened 5-second wait with a comment blaming "a fully-parallel suite run". That widening was masking this defect. **An intermittent test that is fixed by waiting longer has not been diagnosed** — the 8-second experiment is what turned a suspected flake into a found bug, and it cost one command.
 - **Related roadmap item.** [UX-01](../roadmap/ROADMAP_V2.md#-ux-01--daily-driver-ux-ui-and-product-polish) (which introduced the shared hook); [DEBT-45 (pagination)](#-debt-45--keyset-paginators-can-consume-a-revalidated-fetcher-page-after-a-scope-reset--p3--resolved-2026-08-01), whose rule this preserves.
+
+---
+
+### ☑ DEBT-64 — A test asserted an eventual focus outcome synchronously — P3 — **RESOLVED 2026-08-01**
+
+- **Current issue.** `test/unit/tasks/TasksQuickAdd.test.tsx` awaited the quick-add field being CLEARED after a save, then asserted `document.activeElement` **synchronously** on the next line. Those are two different eventual outcomes: the field is cleared by a state update, but it is refocused by an **effect** gated on the save no longer being in flight, so focus returns one effect later. The test therefore raced a behaviour the component always eventually gets right, and failed on CI (run 30716784330) while the product was correct.
+- **Impact.** Test-only. The refocus itself works, and its purpose — "the next task is one keystroke away" — is intact; only the assertion's timing was wrong. But it is a required check, so it is a red gate for a green product, which is the failure mode [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) exists to name.
+- **Resolution.** Await both outcomes. Verified 15/15 on the file and **4/4 consecutive full unit-suite runs (3128 tests)**.
+- **Swept, and deliberately narrow.** The whole unit suite was scanned for the same shape — a synchronous `document.activeElement` assertion following an `await`. Three other candidates were examined and all three are **correct**: `InspectorProvider.test.tsx` asserts *inside* its `waitFor`, and the two `SettingsLayout.test.tsx` cases are negative assertions that follow an already-awaited positive one, where "focus is not somewhere else" is immediate once "focus is here" has been established. Nothing else was changed.
+- **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence) (the quick-add refocus behaviour); [DEBT-41](#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1).
 
 ---
 
