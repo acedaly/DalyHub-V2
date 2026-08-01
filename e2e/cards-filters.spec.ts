@@ -191,6 +191,14 @@ test.describe("DS-04/DS-07 — desktop", () => {
     await expect(page.getByText(/1 of 12 result/)).toBeVisible();
 
     // Back removes the last filter; Forward restores it.
+    //
+    // Wait for BOTH filter pushes to be committed to the URL before touching
+    // history. `addFilter` updates the URL asynchronously, so going back while the
+    // second push is still in flight pops the FIRST filter instead — landing a
+    // whole entry too far. Asserting the state we are about to navigate away from
+    // is the same correction DEBT-41 applied to the Meetings drawer helper.
+    await expect(page).toHaveURL(/f=status/);
+    await expect(page).toHaveURL(/f=type/);
     await page.goBack();
     await expect(page.getByText(/2 of 12 result/)).toBeVisible();
     await page.goForward();
@@ -340,6 +348,13 @@ test.describe("DS-04/DS-07 — mobile 320px", () => {
     ).toBeVisible();
     await expect.poll(() => hasNoHorizontalOverflow(page)).toBe(true);
 
+    // The Drawer must own a history entry BEFORE Escape pops one. Closing is
+    // `navigate(-1)`, so pressing Escape while the drawer's own URL push is still
+    // in flight pops the FILTER entry instead and lands on the bare fixture URL
+    // with no query at all — which is exactly what CI observed. Same mechanism as
+    // the Meetings double-pop in DEBT-41, and the same correction: assert the
+    // precondition rather than assume it.
+    await expect(page).toHaveURL(/drawer=/);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page).toHaveURL(/f=type/);
