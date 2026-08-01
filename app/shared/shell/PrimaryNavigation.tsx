@@ -14,10 +14,19 @@
  * resolver returns a real icon for every row. The resolution rule lives in one
  * place; this component just renders it.
  *
- * React Router's `NavLink` sets `aria-current="page"` on the active item, so the
- * active state is conveyed SEMANTICALLY (reinforced by weight + a tint, never colour
+ * The current row carries `aria-current="page"`, so the active state is conveyed
+ * SEMANTICALLY (reinforced by weight + a tint, never colour
  * alone — AGENTS.md §15). The row leaves room for a future quiet count and a future
  * collapsed icon-rail without a redesign.
+ *
+ * UX-01 — which row is current is decided by the ONE shared navigation-active rule
+ * (`navigation-active.ts`), not by `NavLink`'s exact-match `end` prop. `end` meant a
+ * record route (`/projects/pr-1`, `/notes/n-2`) left the whole rail with NO current
+ * row, so the owner lost their "you are here" anchor on the screens they use most —
+ * while the phone bottom bar, reading the same registry model, correctly kept the
+ * module current. The rail and the bar now answer that question the same way.
+ * The rail therefore renders plain `Link`s and applies `aria-current`/the active
+ * class from that one rule, rather than from `NavLink`'s own exact-match matching.
  *
  * PX-03 — group dividers. `NavigationItem.group` (already derived from
  * `meta.navGroup`, FND-09) was carried through the model but never rendered. A
@@ -30,11 +39,12 @@
  */
 
 import { Fragment } from "react";
-import { NavLink } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
 import { NavIcon } from "./NavIcon";
+import { activeNavigationHref } from "./navigation-active";
 
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
@@ -50,12 +60,20 @@ export function PrimaryNavigation({
   items,
   onNavigate,
 }: PrimaryNavigationProps) {
+  const { pathname } = useLocation();
+  // Exactly one row is current for any route — the longest matching destination.
+  const currentHref = activeNavigationHref(
+    items.map((item) => item.href),
+    pathname,
+  );
+
   return (
     <nav id={id} className="dh-nav" aria-label="Primary">
       <ul className="dh-nav__list">
         {items.map((item, index) => {
           const previous = items[index - 1];
           const startsNewGroup = index > 0 && previous?.group !== item.group;
+          const current = item.href === currentHref;
           return (
             <Fragment key={item.id}>
               {startsNewGroup ? (
@@ -64,15 +82,15 @@ export function PrimaryNavigation({
                 </li>
               ) : null}
               <li className="dh-nav__item">
-                <NavLink
+                <Link
                   to={item.href}
-                  className={({ isActive }) =>
-                    isActive
+                  className={
+                    current
                       ? "dh-nav__link dh-nav__link--active"
                       : "dh-nav__link"
                   }
+                  aria-current={current ? "page" : undefined}
                   onClick={onNavigate}
-                  end
                 >
                   <span className="dh-nav__icon">
                     <NavIcon
@@ -81,7 +99,7 @@ export function PrimaryNavigation({
                     />
                   </span>
                   <span className="dh-nav__label">{item.label}</span>
-                </NavLink>
+                </Link>
               </li>
             </Fragment>
           );

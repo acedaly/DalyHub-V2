@@ -64,7 +64,6 @@ import {
   type TodayNavValue,
 } from "./keyboard/nav-target";
 import { useTodayRovingFocus } from "./keyboard/useTodayRovingFocus";
-import type { TodayData } from "./fixtures";
 import type { RenderEntityLink } from "~/shared/activity-feed";
 import type { ResolvedEntity } from "~/shared/activity-feed/model";
 import { MorningBrief } from "./landing/MorningBrief";
@@ -73,9 +72,9 @@ import {
   AreasWidget,
   AssetsWidget,
   DiaryWidget,
-  FocusWidget,
   GoalsWidget,
   InsightsWidget,
+  MeetingsWidget,
   NotesWidget,
 } from "./landing/widgets";
 import { TodayWidget } from "./landing/TodayWidget";
@@ -118,12 +117,6 @@ export type RecentProjectItem = {
 };
 
 export type TodayDashboardProps = {
-  /**
-   * Legacy fixture data. Retained for the drawer renderer's shape only; the
-   * command-centre widgets read REAL data through `landing`. No section renders
-   * from this any more (TODAY-08 retired the calendar/notes/timeline fixtures).
-   */
-  readonly data?: TodayData;
   /** The formatted current date, rendered as the pane-header subtitle. */
   readonly date: string;
   /** The owner's calendar date `YYYY-MM-DD`, for due/overdue comparisons. */
@@ -1207,8 +1200,12 @@ export function TodayDashboard({
             }
           />
         );
-      case "focus":
-        return <FocusWidget />;
+      case "meetings":
+        return (
+          <MeetingsWidget
+            data={landing?.meetings ?? { meetings: [], remainingCount: 0 }}
+          />
+        );
       case "insights":
         return <InsightsWidget signals={landing?.insights.signals ?? []} />;
       case "quick-capture":
@@ -1228,6 +1225,8 @@ export function TodayDashboard({
         return landing?.areas.length;
       case "goals":
         return landing?.goals.goals.length;
+      case "meetings":
+        return landing?.meetings.meetings.length;
       case "assets":
         return landing?.assets.items.length;
       case "insights":

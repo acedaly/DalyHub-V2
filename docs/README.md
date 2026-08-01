@@ -22,10 +22,13 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 |---|---|
 | [`/AGENTS.md`](../AGENTS.md) | **The constitution.** Product + engineering standards, architecture philosophy, licensing rules, Definition of Done. Read first. |
 | [`/README.md`](../README.md) | Project front door and quick orientation. |
+| [`/CHANGELOG.md`](../CHANGELOG.md) | **Owner-facing** record of what changed on screen and why, per delivered roadmap item. |
 | **Product** | |
 | [`product/PRODUCT_PRINCIPLES.md`](product/PRODUCT_PRINCIPLES.md) | What DalyHub is, why it exists, how it should feel; meaning of every entity. |
 | [`product/PRODUCT_DEBT.md`](product/PRODUCT_DEBT.md) | Known inconsistencies and their target states, linked to roadmap items. |
 | [`product/UX_01_IMPLEMENTATION_NOTE_2026_07_28.md`](product/UX_01_IMPLEMENTATION_NOTE_2026_07_28.md) | Exact completed and remaining scope for the UX-01 Tasks/Meetings usability slice. |
+| [`product/UI_UX_COHERENCE_AUDIT_2026_07.md`](product/UI_UX_COHERENCE_AUDIT_2026_07.md) | The 2026-07 cross-module UI/UX coherence audit that DS-12 → PX-06 implemented. |
+| [`product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md`](product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md) | The 2026-08 full-product daily-driver audit (UX-01): the documents reviewed, every finding by phase with severity, what was fixed, and what was deliberately left alone. |
 | [`product/IMPLEMENTATION_WORKFLOW.md`](product/IMPLEMENTATION_WORKFLOW.md) | The step-by-step lifecycle of every feature. |
 | **Roadmap** | |
 | [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of independently-implementable work items. |

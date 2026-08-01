@@ -17,6 +17,8 @@ import {
   type SubmitOutcome,
 } from "~/shared/forms";
 
+import { useSetMobileTopBar } from "~/shared/shell";
+
 import { useAttendeeSearch } from "../use-attendee-search";
 import type { Route } from "./+types/new";
 
@@ -130,6 +132,11 @@ export default function NewMeeting({ loaderData }: Route.ComponentProps) {
     titleInputRef.current?.focus();
   }, []);
 
+  // UX-01 — this page composes no `PaneHeader`, so it must publish its own phone
+  // top-bar identity; without it the bar showed the workspace name and offered no
+  // way back to the collection.
+  useSetMobileTopBar({ title: "New meeting", backTo: "/meetings" });
+
   const titleField = form.field("title");
   const attendeeField = form.field("attendeeIds");
   const attendeeOptions = attendeeSearch.optionsWithSelected(
@@ -137,8 +144,12 @@ export default function NewMeeting({ loaderData }: Route.ComponentProps) {
   );
 
   return (
-    <main className="dh-meeting-new">
-      <h1>New meeting</h1>
+    // UX-01 — a `section`, not a `main`. The app shell already renders the one
+    // `main` landmark this route is rendered INSIDE; a second one here gave the
+    // page two main landmarks (a WCAG 2.2 landmark defect). The heading is also
+    // labelled explicitly so the region is named for a screen reader.
+    <section className="dh-meeting-new" aria-labelledby="new-meeting-title">
+      <h1 id="new-meeting-title">New meeting</h1>
       <p>
         Times are interpreted in {loaderData.timezone}. Details can be filled in
         after creation.
@@ -233,6 +244,6 @@ export default function NewMeeting({ loaderData }: Route.ComponentProps) {
           </FormButton>
         </FormActions>
       </Form>
-    </main>
+    </section>
   );
 }

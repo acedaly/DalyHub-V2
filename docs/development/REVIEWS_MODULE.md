@@ -143,3 +143,19 @@ had worked. The Review's tab stack adopted the shared `.dh-record-stack` rhythm.
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+---
+
+## UX-01 — the collection paginates in place (2026-08-01)
+
+``/reviews`` was one of the two collections that paginated by **navigating** to the
+next page: the list was replaced, the owner's scroll position was discarded, and
+the control was a "Next page" link — a page-number idiom no other DalyHub collection used. It now uses the ONE shared
+[`useKeysetPagination`](../../app/shared/load-more/useKeysetPagination.ts) and the
+shared `LoadMore` button, exactly like Areas, Goals, Notes, Projects, People and
+Assets — so all eight collections behave identically, and the request-scoped guard
+that closes [DEBT-45](../product/PRODUCT_DEBT.md) applies here too.
+
+The path a later page is requested from carries the CURRENT view and filters
+(minus any cursor), so "Load more" resumes the same result set the cursor was
+issued for rather than the unfiltered default.

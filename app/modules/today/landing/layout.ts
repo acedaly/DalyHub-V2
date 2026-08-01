@@ -10,6 +10,16 @@
  * unknown persisted id is dropped and a newly-shipped widget is appended — is
  * unit-testable in isolation and can never drift between surfaces.
  *
+ * UX-01 removed the `focus` widget. It had never once shown information: it was a
+ * permanent "coming soon" panel listing three unbuilt capabilities, taking a
+ * section of the most-used screen in the product every single day. That is the
+ * exact reasoning POLISH-01 applied to the Weather and Upcoming-calendar panels
+ * (DEBT-53) — an honest absence beats a promise the product keeps failing to keep —
+ * and it was applied inconsistently while `focus` survived. In its place the
+ * catalogue gains `meetings`, a section backed by real records. A persisted layout
+ * that still names `focus` is normalised on read (unknown ids are dropped), so no
+ * owner's arrangement breaks.
+ *
  * The layout is a UI PREFERENCE, not workspace data: it is per-device and holds
  * no entity content, so it is persisted client-side (localStorage) rather than in
  * the server-derived workspace (ADR-016 §5.6 keeps the *workspace* server-derived;
@@ -27,8 +37,8 @@ export const TODAY_WIDGET_IDS = [
   "projects",
   "areas",
   "goals",
+  "meetings",
   "assets",
-  "focus",
   "insights",
   "quick-capture",
 ] as const;
@@ -95,15 +105,15 @@ export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
     description: "Goals in progress and whether recent action matches them.",
   },
   {
+    id: "meetings",
+    title: "Meetings",
+    description: "Today’s meetings, in order, with what is still to come.",
+  },
+  {
     id: "assets",
     title: "Assets",
     description:
       "Maintenance and renewals that are overdue or due soon on things you own.",
-  },
-  {
-    id: "focus",
-    title: "Focus",
-    description: "Deep-work, focus mode and a Pomodoro timer (coming soon).",
   },
   {
     id: "insights",

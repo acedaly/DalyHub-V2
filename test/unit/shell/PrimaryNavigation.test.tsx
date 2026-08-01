@@ -29,7 +29,9 @@ function item(label: string, order: number, group?: string): NavigationItem {
 function renderNav(items: readonly NavigationItem[], initialPath = "/") {
   const Stub = createRoutesStub([
     {
-      path: "/",
+      // A splat so any path renders the rail — the current-destination tests
+      // navigate to record routes (`/projects/pr-1`) that have no stub route.
+      path: "*",
       Component: () => <PrimaryNavigation id="nav" items={items} />,
     },
   ]);
@@ -82,5 +84,41 @@ describe("PX-03 PrimaryNavigation grouping", () => {
     ]);
     const divider = container.querySelector(".dh-nav__divider");
     expect(divider).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
+/**
+ * UX-01 — the rail keeps the owner's "you are here" anchor on record routes.
+ *
+ * Before UX-01 the rail used `NavLink`'s exact-match `end`, so opening any record
+ * left NO row current while the phone bar (same model, nested match) kept the
+ * module highlighted. These pin the corrected, shared behaviour.
+ */
+describe("UX-01 PrimaryNavigation current destination", () => {
+  const items = [item("Today", 5), item("Notes", 100), item("Projects", 110)];
+
+  it("marks the exact route as the current page", () => {
+    renderNav(items, "/notes");
+    expect(screen.getByRole("link", { name: "Notes" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("keeps the module current while one of its records is open", () => {
+    renderNav(items, "/projects/pr-1");
+    const projects = screen.getByRole("link", { name: "Projects" });
+    expect(projects).toHaveAttribute("aria-current", "page");
+    expect(projects).toHaveClass("dh-nav__link--active");
+  });
+
+  it("marks exactly one row current, and none for an unlisted route", () => {
+    const { container } = renderNav(items, "/projects/pr-1");
+    expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+
+    const other = renderNav(items, "/settings");
+    expect(
+      other.container.querySelectorAll('[aria-current="page"]'),
+    ).toHaveLength(0);
   });
 });

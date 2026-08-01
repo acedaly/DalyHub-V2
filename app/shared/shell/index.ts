@@ -11,6 +11,16 @@
 export { AppShell, type AppShellProps } from "./AppShell";
 export { Sidebar, type SidebarProps } from "./Sidebar";
 export { PaneHeader, type PaneHeaderProps } from "./PaneHeader";
+/**
+ * UX-01 — a full-page surface that does not compose a `PaneHeader` (a create page,
+ * for example) publishes its own phone top-bar identity with this. Without it the
+ * phone bar falls back to the workspace name, so the owner sees "DalyHub" where the
+ * screen's name belongs.
+ */
+export {
+  useSetMobileTopBar,
+  type MobileTopBarState,
+} from "./mobile-top-bar-context";
 export { PrimaryNavigation } from "./PrimaryNavigation";
 export { SidebarBrand } from "./SidebarBrand";
 export { SidebarSearch } from "./SidebarSearch";

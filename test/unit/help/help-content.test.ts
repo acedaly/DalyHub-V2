@@ -39,6 +39,9 @@ const REQUIRED_TOPICS = [
   "review-inbox",
   "search",
   "command-palette",
+  // UX-01 — `?` now shows the keyboard reference on every screen, so Help must
+  // say so; before UX-01 it only worked on Today and Help documented neither.
+  "keyboard",
   "mobile",
   "archive-delete",
   "themes",

@@ -11,8 +11,8 @@
  * reuse this one component.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useFetcher, useNavigate } from "react-router";
+import { useCallback, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router";
 
 import {
   Card,
@@ -36,7 +36,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { GridIcon, ListIcon } from "~/shared/icons";
-import { LoadMore } from "~/shared/load-more";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import {
   StayInTouchIndicator,
   formatRelationshipDate,
@@ -232,71 +232,36 @@ function toCardProps(
   };
 }
 
+/**
+ * UX-01 — replaced by the ONE shared `useKeysetPagination` (DEBT-45). This was one
+ * of five near-identical private copies of the same accumulate/de-duplicate/reset
+ * logic; the shared hook also fixes the request-scoping defect they all carried.
+ */
 function usePeoplePagination(
   firstPage: readonly SerializedPersonListItem[],
   initialCursor: string | null,
   view: PeopleView,
 ) {
-  const fetcher = useFetcher<PeoplePageData>();
-  const [appended, setAppended] = useState<SerializedPersonListItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const processed = useRef<PeoplePageData | null>(null);
+  return useKeysetPagination<SerializedPersonListItem, PeoplePageData>({
+    firstPage,
+    initialCursor,
+    path: BASE_PATH[view],
+    select: selectPeoplePage,
+    getId: personId,
+  });
+}
 
-  useEffect(() => {
-    setAppended([]);
-    setCursor(initialCursor);
-    setLoadFailed(false);
-    processed.current = null;
-  }, [initialCursor, view]);
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
-      return;
-    }
-    const data = fetcher.data;
-    if (processed.current === data) {
-      return;
-    }
-    processed.current = data;
-    if (data.view !== view) {
-      return;
-    }
-    if (data.failed) {
-      setLoadFailed(true);
-      return;
-    }
-    setAppended((prev) => [...prev, ...data.people]);
-    setCursor(data.nextCursor);
-    setLoadFailed(false);
-  }, [fetcher.state, fetcher.data, view]);
-
-  const loadMore = useCallback(() => {
-    if (cursor === null) {
-      return;
-    }
-    setLoadFailed(false);
-    fetcher.load(`${BASE_PATH[view]}?cursor=${encodeURIComponent(cursor)}`);
-  }, [cursor, fetcher, view]);
-
-  const items = useMemo(() => {
-    const seen = new Set<string>();
-    const out: SerializedPersonListItem[] = [];
-    for (const person of [...firstPage, ...appended]) {
-      if (seen.has(person.id)) continue;
-      seen.add(person.id);
-      out.push(person);
-    }
-    return out;
-  }, [firstPage, appended]);
-
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectPeoplePage(data: PeoplePageData) {
   return {
-    items,
-    hasMore: cursor !== null,
-    loading: fetcher.state !== "idle",
-    loadFailed,
-    loadMore,
+    items: data.people,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
   };
+}
+
+function personId(person: SerializedPersonListItem): string {
+  return person.id;
 }
 
 function useRestorePerson() {

@@ -9,8 +9,8 @@
  * an inaccessible clickable container.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useNavigate, useRevalidator } from "react-router";
+import { useMemo } from "react";
+import { useNavigate, useRevalidator } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
@@ -27,7 +27,7 @@ import {
 } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
-import { LoadMore } from "~/shared/load-more";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import type { SelectOption } from "~/shared/forms/types";
 import { HealthIndicator } from "~/shared/project-health";
 import { SegmentedFilter } from "~/shared/segmented-filter";
@@ -216,80 +216,38 @@ function toCardProps(
  * cross-filter lingers. Duplicate ids are collapsed defensively so a card can never
  * render twice even if a page boundary overlaps.
  */
+/**
+ * UX-01 — replaced by the ONE shared `useKeysetPagination` (DEBT-45). This was one
+ * of five near-identical private copies of the same accumulate/de-duplicate/reset
+ * logic; the shared hook also fixes the request-scoping defect they all carried.
+ */
 function useProjectPagination(
   firstPage: readonly SerializedProjectListItem[],
   initialCursor: string | null,
   state: ProjectState,
 ) {
-  const fetcher = useFetcher<ProjectsPageData>();
-  const [appended, setAppended] = useState<SerializedProjectListItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const processed = useRef<ProjectsPageData | null>(null);
+  return useKeysetPagination<SerializedProjectListItem, ProjectsPageData>({
+    firstPage,
+    initialCursor,
+    // The state filter is part of the cursor's scope, so it must be part of the
+    // path a later page is requested from.
+    path: `/projects?state=${encodeURIComponent(state)}`,
+    select: selectProjectsPage,
+    getId: projectId,
+  });
+}
 
-  // Reset the accumulation when the QUERY that defines the result set changes — the
-  // state filter or the first page's cursor. Keying on those (not the base array's
-  // identity) means a filter change or reload resets predictably, while an unrelated
-  // loader re-run — e.g. opening the new-project Drawer, which only adds a URL param
-  // — keeps the already-loaded pages instead of snapping back to page one.
-  useEffect(() => {
-    setAppended([]);
-    setCursor(initialCursor);
-    setLoadFailed(false);
-    processed.current = null;
-  }, [initialCursor, state]);
-
-  // Fold each fetched page into the accumulation exactly once.
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
-      return;
-    }
-    const data = fetcher.data;
-    if (processed.current === data) {
-      return;
-    }
-    processed.current = data;
-    if (data.failed) {
-      setLoadFailed(true);
-      return;
-    }
-    setAppended((prev) => [...prev, ...data.projects]);
-    setCursor(data.nextCursor);
-    setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
-
-  const loadMore = useCallback(() => {
-    if (cursor === null) {
-      return;
-    }
-    setLoadFailed(false);
-    fetcher.load(
-      `/projects?state=${encodeURIComponent(state)}&cursor=${encodeURIComponent(cursor)}`,
-    );
-  }, [cursor, fetcher, state]);
-
-  // De-duplicate defensively: the base page and any appended pages are merged in
-  // order, first occurrence wins, so an overlapping boundary never doubles a card.
-  const items = useMemo(() => {
-    const seen = new Set<string>();
-    const out: SerializedProjectListItem[] = [];
-    for (const project of [...firstPage, ...appended]) {
-      if (seen.has(project.id)) {
-        continue;
-      }
-      seen.add(project.id);
-      out.push(project);
-    }
-    return out;
-  }, [firstPage, appended]);
-
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectProjectsPage(data: ProjectsPageData) {
   return {
-    items,
-    hasMore: cursor !== null,
-    loading: fetcher.state !== "idle",
-    loadFailed,
-    loadMore,
+    items: data.projects,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
   };
+}
+
+function projectId(project: SerializedProjectListItem): string {
+  return project.id;
 }
 
 function ProjectsCollection({

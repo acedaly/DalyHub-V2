@@ -6,8 +6,8 @@
  * no server imports; loaders hand it JSON-safe Area summaries.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useNavigate } from "react-router";
+import { useMemo } from "react";
+import { useNavigate } from "react-router";
 
 import {
   Card,
@@ -28,7 +28,7 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { LoadMore } from "~/shared/load-more";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 
 import { NewAreaForm } from "./NewAreaForm";
 import { toAreaCardData, type SerializedAreaListItem } from "./area-view";
@@ -139,69 +139,40 @@ function toCardProps(
   };
 }
 
+/**
+ * UX-01 — replaced by the ONE shared `useKeysetPagination` (DEBT-45). This was one
+ * of five near-identical private copies of the same accumulate/de-duplicate/reset
+ * logic; the shared hook also fixes the request-scoping defect they all carried.
+ */
+/**
+ * UX-01 — replaced by the ONE shared `useKeysetPagination` (DEBT-45). This was one
+ * of five near-identical private copies of the same accumulate/de-duplicate/reset
+ * logic; the shared hook also fixes the request-scoping defect they all carried.
+ */
 function useAreaPagination(
   firstPage: readonly SerializedAreaListItem[],
   initialCursor: string | null,
 ) {
-  const fetcher = useFetcher<AreasPageData>();
-  const [appended, setAppended] = useState<SerializedAreaListItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const processed = useRef<AreasPageData | null>(null);
+  return useKeysetPagination<SerializedAreaListItem, AreasPageData>({
+    firstPage,
+    initialCursor,
+    path: "/areas",
+    select: selectAreasPage,
+    getId: areaId,
+  });
+}
 
-  useEffect(() => {
-    setAppended([]);
-    setCursor(initialCursor);
-    setLoadFailed(false);
-    processed.current = null;
-  }, [initialCursor]);
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) {
-      return;
-    }
-    const data = fetcher.data;
-    if (processed.current === data) {
-      return;
-    }
-    processed.current = data;
-    if (data.failed) {
-      setLoadFailed(true);
-      return;
-    }
-    setAppended((prev) => [...prev, ...data.areas]);
-    setCursor(data.nextCursor);
-    setLoadFailed(false);
-  }, [fetcher.state, fetcher.data]);
-
-  const loadMore = useCallback(() => {
-    if (cursor === null) {
-      return;
-    }
-    setLoadFailed(false);
-    fetcher.load(`/areas?cursor=${encodeURIComponent(cursor)}`);
-  }, [cursor, fetcher]);
-
-  const items = useMemo(() => {
-    const seen = new Set<string>();
-    const out: SerializedAreaListItem[] = [];
-    for (const area of [...firstPage, ...appended]) {
-      if (seen.has(area.id)) {
-        continue;
-      }
-      seen.add(area.id);
-      out.push(area);
-    }
-    return out;
-  }, [firstPage, appended]);
-
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectAreasPage(data: AreasPageData) {
   return {
-    items,
-    hasMore: cursor !== null,
-    loading: fetcher.state !== "idle",
-    loadFailed,
-    loadMore,
+    items: data.areas,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
   };
+}
+
+function areaId(area: SerializedAreaListItem): string {
+  return area.id;
 }
 
 function AreasCollection({

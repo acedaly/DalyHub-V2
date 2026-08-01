@@ -47,11 +47,11 @@ describe("TODAY-08 landing layout model", () => {
   });
 
   it("hiding a widget removes it from the visible set and lists it as hidden", () => {
-    const layout = toggleHidden(defaultTodayLayout(), "focus");
+    const layout = toggleHidden(defaultTodayLayout(), "meetings");
     expect(
-      resolveVisibleWidgets(layout).some((w) => w.definition.id === "focus"),
+      resolveVisibleWidgets(layout).some((w) => w.definition.id === "meetings"),
     ).toBe(false);
-    expect(resolveHiddenWidgets(layout).map((w) => w.id)).toEqual(["focus"]);
+    expect(resolveHiddenWidgets(layout).map((w) => w.id)).toEqual(["meetings"]);
   });
 
   it("hiding a pinned widget also unpins it", () => {
@@ -142,7 +142,7 @@ describe("TODAY-08 landing layout model", () => {
   it("survives a serialise → parse round trip", () => {
     let layout = defaultTodayLayout();
     layout = togglePinned(layout, "morning-brief");
-    layout = toggleHidden(layout, "focus");
+    layout = toggleHidden(layout, "meetings");
     layout = moveWidget(layout, "insights", "up");
     expect(parseTodayLayout(serialiseTodayLayout(layout))).toEqual(layout);
   });

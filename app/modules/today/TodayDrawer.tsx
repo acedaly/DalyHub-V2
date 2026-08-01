@@ -1,21 +1,25 @@
 /**
  * TODAY-01 — the Today drawer content resolver.
  *
- * Maps a DS-03 drawer key (`<kind>:<id>`) to a read-only DS-02 Record Layout for the
- * matching fixture, so a Card on Today opens its record over the pane without losing
- * the user's place — the canonical Card → drawer key → RecordLayout chain
- * (PRODUCT_EXPERIENCE Part IV §3). It is presentation only: no editing, CRUD,
- * persistence or task/note implementation (TODAY-02 owns the editable Task Drawer).
- * An unknown/stale key returns `null`, which the Drawer renders as its graceful
- * not-found panel.
+ * Maps a DS-03 drawer key (`<kind>:<id>`) to the panel it opens, so a Card on Today
+ * opens its record over the pane without losing the user's place — the canonical
+ * Card → drawer key → panel chain (PRODUCT_EXPERIENCE Part IV §3). An unknown or
+ * stale key returns `null`, which the Drawer renders as its graceful not-found
+ * panel.
+ *
+ * UX-01 — the resolver now handles exactly TWO real kinds: the editable Task record
+ * (TODAY-02) and the keyboard reference. The `upcoming:` / `project:` / `note:`
+ * branches were removed. They rendered TODAY-01 demonstration fixtures and told the
+ * owner things that stopped being true long ago — "The full Project overview arrives
+ * with PROJ-01", "Reading and editing notes arrives with NOTES-01" — for modules
+ * that have since shipped. Nothing produced those keys any more (X-01 retired the
+ * Today search provider), so they were unreachable dead copy on the most-visited
+ * screen in the product; the whole fixture payload they needed was also being
+ * serialised into every `/today` response for nothing.
  */
 
-import { EntityIcon } from "~/shared/entity";
 import type { DrawerEntry, DrawerRenderResult } from "~/shared/drawer";
-import { RecordContent, RecordLayout } from "~/shared/record-layout";
 
-import { UPCOMING_KIND } from "./fixtures";
-import type { TodayData } from "./fixtures";
 import { renderKeyboardHelpDrawer } from "./keyboard/KeyboardHelp";
 import { TaskDrawerContent } from "./task/TaskDrawerContent";
 
@@ -28,14 +32,11 @@ function splitKey(key: string): { readonly kind: string; readonly id: string } {
 }
 
 /**
- * Build the drawer resolver bound to a set of Today records. The fixture `data`
- * backs the non-task demo kinds (upcoming/project/note); `taskTitles` names a real
- * task's Drawer dialog by its title (a task may be in any planning section, or be a
- * shared/searched task not currently listed — then the body still loads its real
- * heading). TODAY-04 replaced the fixture focus lookup with the real planning tasks.
+ * Build the drawer resolver. `taskTitles` names a real task's Drawer dialog by its
+ * title (a task may be in any planning section, or be a shared/searched task not
+ * currently listed — then the body still loads its real heading).
  */
 export function createTodayDrawerRenderer(
-  data: TodayData,
   taskTitles: ReadonlyMap<string, string> = new Map(),
 ) {
   return function renderTodayDrawer(
@@ -60,94 +61,6 @@ export function createTodayDrawerRenderer(
         // `isTop` gates the task's keyboard-shortcut ownership: a lower task drawer
         // (with another drawer stacked above) keeps its state but not its shortcuts.
         children: <TaskDrawerContent taskId={id} isTop={entry.isTop} />,
-      };
-    }
-
-    if (kind === "upcoming") {
-      const item = data.upcoming.find((row) => row.id === id);
-      if (!item) return null;
-      // Label all three kinds explicitly (a deadline reads "Deadline", not
-      // "Reminder") — the same map the card uses, so they never disagree.
-      const identity = UPCOMING_KIND[item.kind];
-      return {
-        title: item.title,
-        description: "Upcoming item",
-        children: (
-          <RecordLayout
-            title={item.title}
-            headingLevel={3}
-            typeLabel={identity.label}
-            icon={<EntityIcon type={identity.entity} />}
-            summary={{
-              metadata: [
-                { id: "when", label: "When", value: item.when },
-                ...(item.context
-                  ? [{ id: "context", label: "Context", value: item.context }]
-                  : []),
-              ],
-            }}
-          >
-            <RecordContent>
-              <p>
-                Meetings, reminders and deadlines connect in their own modules.
-              </p>
-            </RecordContent>
-          </RecordLayout>
-        ),
-      };
-    }
-
-    if (kind === "project") {
-      const project = data.projects.find((row) => row.id === id);
-      if (!project) return null;
-      const percent = Math.round(project.progress * 100);
-      return {
-        title: project.title,
-        description: "Project record",
-        children: (
-          <RecordLayout
-            title={project.title}
-            headingLevel={3}
-            typeLabel="Project"
-            icon={<EntityIcon type="project" />}
-            summary={{
-              description: `A recently active project in ${project.area}.`,
-              metadata: [
-                { id: "area", label: "Area", value: project.area },
-                { id: "status", label: "Status", value: project.status },
-                { id: "progress", label: "Progress", value: `${percent}%` },
-              ],
-            }}
-          >
-            <RecordContent>
-              <p>The full Project overview arrives with PROJ-01.</p>
-            </RecordContent>
-          </RecordLayout>
-        ),
-      };
-    }
-
-    if (kind === "note") {
-      const note = data.notes.find((row) => row.id === id);
-      if (!note) return null;
-      return {
-        title: note.title,
-        description: "Note record",
-        size: "wide",
-        children: (
-          <RecordLayout
-            title={note.title}
-            headingLevel={3}
-            typeLabel="Note"
-            icon={<EntityIcon type="note" />}
-            summary={{ description: note.snippet }}
-          >
-            <RecordContent>
-              <p>{note.snippet}</p>
-              <p>Reading and editing notes arrives with NOTES-01.</p>
-            </RecordContent>
-          </RecordLayout>
-        ),
       };
     }
 

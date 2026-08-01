@@ -58,6 +58,18 @@ export type SheetProps = {
    * `full` fills the phone viewport (used for longer capture flows).
    */
   readonly variant?: "sheet" | "full";
+  /**
+   * UX-01 — make the scrolling body itself a tab stop.
+   *
+   * The body is the sheet's only scroll container. Every sheet built before UX-01
+   * held focusable content (a capture form, a list of options), so a keyboard user
+   * could always reach and scroll it. A READ-ONLY sheet — the keyboard-shortcut
+   * reference is the first — has no focusable content at all, which makes its
+   * scrollable region unreachable by keyboard (WCAG 2.1.1; axe
+   * `scrollable-region-focusable`). Such a sheet opts in here rather than every
+   * sheet gaining an extra tab stop it does not need.
+   */
+  readonly bodyFocusable?: boolean;
   /** Extra class on the panel, for surface-specific spacing only. */
   readonly className?: string;
   readonly "data-testid"?: string;
@@ -73,6 +85,7 @@ export function Sheet({
   children,
   footer,
   variant = "sheet",
+  bodyFocusable = false,
   className,
   ...rest
 }: SheetProps) {
@@ -152,7 +165,14 @@ export function Sheet({
           </button>
         </div>
 
-        <div className="dh-sheet__body">{children}</div>
+        <div
+          className="dh-sheet__body"
+          {...(bodyFocusable
+            ? { tabIndex: 0, role: "group", "aria-labelledby": titleId }
+            : {})}
+        >
+          {children}
+        </div>
 
         {footer ? <div className="dh-sheet__footer">{footer}</div> : null}
       </div>

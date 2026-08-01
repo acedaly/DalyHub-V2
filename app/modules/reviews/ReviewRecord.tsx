@@ -117,7 +117,7 @@ function SectionEditor({
             disabled={saving || value === section.body}
             onClick={() => void save()}
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving…" : "Save"}
           </button>
         ) : null}
       </div>
@@ -129,7 +129,7 @@ function SectionEditor({
           onChange={setValue}
           onBlur={() => void save()}
           label={section.label}
-          placeholder="Write your reflection..."
+          placeholder="Write your reflection…"
           error={error}
           rows={10}
         />
@@ -683,11 +683,11 @@ function ReviewSettings({
         <DangerousAction
           label="Delete this Review"
           description="Permanently remove this Review’s detail and section rows, plus its links. Linked source records are never deleted."
-          actionLabel="Delete Review..."
+          actionLabel="Delete Review…"
           confirmTitle={`Delete ${review.title}?`}
           confirmBody="This permanently removes the Review record and authored reflection. It cannot be undone."
           confirmLabel="Delete Review"
-          busyLabel="Deleting..."
+          busyLabel="Deleting…"
           successMessage="Review deleted"
           disabled={pending}
           typedConfirmation={{

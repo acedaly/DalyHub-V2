@@ -259,3 +259,57 @@ describe("PX-02 AppShell — user menu relocation", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 });
+
+/**
+ * UX-01 — the keyboard reference is available from every surface.
+ *
+ * Before UX-01 `?` opened the reference only on Today, while the reference's own
+ * first group told the owner it worked "Anywhere". The shell now provides it as a
+ * lowest-precedence FALLBACK binding, so it covers every other surface without
+ * taking the key away from a surface that hosts its own (Today's drawer stack).
+ */
+describe("UX-01 AppShell — app-wide keyboard reference", () => {
+  it("opens the shared shortcuts reference on ? from an ordinary surface", async () => {
+    renderShell();
+    expect(
+      screen.queryByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeNull();
+
+    fireEvent.keyDown(document, { key: "?", shiftKey: true });
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Keyboard shortcuts",
+    });
+    // The ONE shared catalogue, not a shell-local copy.
+    expect(
+      within(dialog).getByText(/fully operable from the keyboard/i),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("Open the Command Palette")).toBeVisible();
+  });
+
+  it("closes the reference on Escape", async () => {
+    renderShell();
+    fireEvent.keyDown(document, { key: "?", shiftKey: true });
+    await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(
+      screen.queryByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeNull();
+  });
+
+  it("does not fire while the owner is typing in a field", () => {
+    renderShell();
+    // `?` is an ordinary character shortcut, so the shared dispatcher must
+    // suppress it while a text field has focus — otherwise typing a question mark
+    // into a note or a task title would open a modal.
+    const field = document.createElement("input");
+    document.body.appendChild(field);
+    fireEvent.keyDown(field, { key: "?", shiftKey: true });
+    expect(
+      screen.queryByRole("dialog", { name: "Keyboard shortcuts" }),
+    ).toBeNull();
+    field.remove();
+  });
+});

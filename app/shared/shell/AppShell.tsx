@@ -60,6 +60,14 @@ const RAIL_NAV_ID = "primary-navigation";
  */
 const SearchSurface = lazy(() => import("~/shared/search/SearchSurface"));
 const CommandPalette = lazy(() => import("~/shared/commands/CommandPalette"));
+/**
+ * UX-01 — the app-wide keyboard reference. Lazy for the same reason: it is opened
+ * rarely, so its markup and the shared reference catalogue stay out of the initial
+ * bundle until `?` is actually pressed.
+ */
+const KeyboardShortcutsSheet = lazy(
+  () => import("~/shared/commands/KeyboardShortcutsSheet"),
+);
 
 /**
  * The phone bar, wired to the shared capture surface.
@@ -111,6 +119,7 @@ export function AppShell({
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // The control that opened the complete-navigation sheet ("More" on the phone
   // bar), so focus returns to it on close.
   const [navOpener, setNavOpener] = useState<HTMLElement | null>(null);
@@ -128,6 +137,9 @@ export function AppShell({
   searchOpenRef.current = searchOpen;
   const commandOpenRef = useRef(false);
   commandOpenRef.current = commandOpen;
+  const shortcutsOpenerRef = useRef<HTMLElement | null>(null);
+  const shortcutsOpenRef = useRef(false);
+  shortcutsOpenRef.current = shortcutsOpen;
 
   // Search and the Command Palette are MUTUALLY EXCLUSIVE: opening one closes the
   // other cleanly, so the two modal surfaces never overlap (ADR-024 §24.12).
@@ -186,6 +198,37 @@ export function AppShell({
     [toggleCommand, openSearch],
   );
 
+  /**
+   * UX-01 — the keyboard reference, available from EVERY surface. Before this the
+   * reference lived only on Today, while its own first row told the owner that `?`
+   * works "Anywhere". Registered as a FALLBACK binding, so Today's contextual `?`
+   * (which hosts the same reference inside its drawer stack) still wins there.
+   */
+  const openShortcuts = useCallback(() => {
+    if (shortcutsOpenRef.current) {
+      return;
+    }
+    shortcutsOpenerRef.current =
+      typeof document === "undefined"
+        ? null
+        : (document.activeElement as HTMLElement | null);
+    setNavOpen(false);
+    setSearchOpen(false);
+    setCommandOpen(false);
+    setShortcutsOpen(true);
+  }, []);
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
+
+  const fallbackShortcuts = useMemo<ShortcutBinding[]>(
+    () => [
+      {
+        shortcut: { key: "?", modifiers: ["shift"] },
+        onTrigger: openShortcuts,
+      },
+    ],
+    [openShortcuts],
+  );
+
   const openMoreNavigation = useCallback((opener: HTMLElement) => {
     setNavOpener(opener);
     setNavOpen(true);
@@ -197,7 +240,10 @@ export function AppShell({
       <CommandContextProvider>
         <CaptureProvider>
           <MobileTopBarProvider>
-            <CommandShortcutLayer reserved={reservedShortcuts} />
+            <CommandShortcutLayer
+              reserved={reservedShortcuts}
+              fallback={fallbackShortcuts}
+            />
             <div className="dh-app">
               <a className="skip-link" href="#main-content">
                 Skip to main content
@@ -266,6 +312,15 @@ export function AppShell({
                   <CommandPalette
                     onClose={closeCommand}
                     opener={commandOpenerRef.current}
+                  />
+                </Suspense>
+              ) : null}
+
+              {shortcutsOpen ? (
+                <Suspense fallback={null}>
+                  <KeyboardShortcutsSheet
+                    onClose={closeShortcuts}
+                    opener={shortcutsOpenerRef.current}
                   />
                 </Suspense>
               ) : null}

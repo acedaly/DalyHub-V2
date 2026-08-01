@@ -11,8 +11,8 @@
  * never reaches a card (§17). "Load more" appends cursor pages without re-loading.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useFetcher, useSearchParams } from "react-router";
+import { useCallback, useMemo } from "react";
+import { Link, useSearchParams } from "react-router";
 
 import { ASSET_STATUSES, ASSET_TYPES, type AssetView } from "~/kernel/assets";
 import {
@@ -28,7 +28,7 @@ import {
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { LoadMore } from "~/shared/load-more";
+import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 
 import { assetTypeIcon } from "./asset-icons";
 import { nextMeaningfulDate, type AssetDateStatus } from "./asset-dates";
@@ -117,55 +117,37 @@ function toCard(
   };
 }
 
-/** Accumulating cursor pagination over the collection route. */
+/**
+ * Accumulating cursor pagination over the collection route.
+ *
+ * UX-01 — the ONE shared `useKeysetPagination` (DEBT-45); this was one of five
+ * near-identical private copies.
+ */
 function usePagination(
   initial: readonly SerializedAssetListItem[],
   initialCursor: string | null,
   base: string,
 ) {
-  const fetcher = useFetcher<AssetsCollectionData>();
-  const [items, setItems] =
-    useState<readonly SerializedAssetListItem[]>(initial);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [failed, setFailed] = useState(false);
-  const processed = useRef<AssetsCollectionData | null>(null);
+  return useKeysetPagination<SerializedAssetListItem, AssetsCollectionData>({
+    firstPage: initial,
+    initialCursor,
+    path: base,
+    select: selectAssetsPage,
+    getId: assetId,
+  });
+}
 
-  // Reset when the loader delivers a fresh first page (filters/sort/view changed).
-  useEffect(() => {
-    setItems(initial);
-    setCursor(initialCursor);
-    setFailed(false);
-    processed.current = null;
-  }, [initial, initialCursor, base]);
-
-  useEffect(() => {
-    const data = fetcher.data;
-    if (!data || processed.current === data) return;
-    processed.current = data;
-    if (data.failed) {
-      setFailed(true);
-      return;
-    }
-    setItems((prev) => {
-      const seen = new Set(prev.map((p) => p.id));
-      return [...prev, ...data.assets.filter((a) => !seen.has(a.id))];
-    });
-    setCursor(data.nextCursor);
-  }, [fetcher.data]);
-
-  const loadMore = useCallback(() => {
-    if (!cursor) return;
-    const sep = base.includes("?") ? "&" : "?";
-    fetcher.load(`${base}${sep}cursor=${encodeURIComponent(cursor)}`);
-  }, [cursor, base, fetcher]);
-
+/** Stable module-level selectors, so the shared hook's memo identity is stable. */
+function selectAssetsPage(data: AssetsCollectionData) {
   return {
-    items,
-    hasMore: cursor !== null,
-    loading: fetcher.state === "loading",
-    loadFailed: failed,
-    loadMore,
+    items: data.assets,
+    nextCursor: data.nextCursor,
+    failed: data.failed,
   };
+}
+
+function assetId(asset: SerializedAssetListItem): string {
+  return asset.id;
 }
 
 export function AssetsCollectionView({

@@ -32,11 +32,12 @@ app/modules/today/
   task/planning-view.ts      — TODAY-04: the pure planning view-model (buckets,
                                summary, date arithmetic, target dates)
   task/TaskPlanningSection.tsx — TODAY-04: the Task Drawer Planning section
-  TodayDrawer.tsx      — maps a drawer key → a record (task → TaskDrawerContent)
+  TodayDrawer.tsx      — maps a drawer key → a panel. UX-01: exactly two kinds —
+                         the editable Task record and the keyboard reference. The
+                         fixture-backed upcoming/project/note branches are gone.
   task/                — TODAY-02/03: the task record composition (view-model,
                          TaskDrawerContent, Details/Links/Activity tabs,
                          TaskWaitingSection, waiting-view)
-  fixtures.ts          — demo data for the non-task sections (+ the focus seed shape)
 app/styles/today.css       — TODAY-01 layout/rhythm, every value a DS-01 token
 app/styles/task-drawer.css — TODAY-02 task-record layout, every value a DS-01 token
 ```
@@ -375,6 +376,13 @@ Today-only keyboard engine and no scattered document listeners.
 - **Keyboard help** ([`keyboard/KeyboardHelp.tsx`](../../app/modules/today/keyboard/KeyboardHelp.tsx)).
   The `?` shortcut and the "Keyboard shortcuts" command open a reference hosted by the
   SAME DS-03 Drawer (`help:shortcuts` key) — no bespoke modal, no second focus trap.
+  **UX-01** moved the CONTENT to the one shared catalogue
+  ([`~/shared/commands/shortcut-reference`](../../app/shared/commands/shortcut-reference.ts)),
+  because `?` now opens the same reference on every other surface too (through the
+  shell's fallback binding and the shared Sheet). Today deliberately keeps the Drawer
+  host: here the reference belongs inside the drawer STACK, which is what makes a task
+  drawer beneath it stop owning `C`/`P`/`Shift+P`. Today's host filters the catalogue
+  by scope, so it never advertises a shortcut that does not apply here.
 - **Multi-select.** Space selects the focused task; "Select all open tasks" fills the
   selection; the existing TODAY-04 bulk action bar (atomic `/today/plan`) — which lives
   in the CollectionLayout selection slot OUTSIDE the roving container, so it is reached
@@ -793,3 +801,39 @@ This is asserted, not assumed:
 [`test/kernel/task-inbox-parent.test.ts`](../../test/kernel/task-inbox-parent.test.ts)
 seeds one Task per state, all scheduled for the same day, and asserts that the
 planning bands and the `/tasks` active view AGREE on every one of them.
+
+---
+
+## UX-01 — the landing surface after the daily-driver audit (2026-08-01)
+
+Three changes, all to make Today answer its one question more honestly.
+
+**Meetings is now a section.** Today could say what to do, what had slipped, what
+was waiting and what the owner owns — but not what was already ON the day, even
+though Meetings shipped weeks earlier. `loadMeetings` in
+[`landing/load.ts`](../../app/modules/today/landing/load.ts) issues TWO bounded
+workspace-scoped reads (`recent` and `upcoming`, the repository's existing views,
+split at `now`), filters both to the owner's calendar day, and orders by start.
+Each row's time is formatted in the MEETING's own timezone — the same one its
+record shows — so the widget and the record can never disagree for a meeting
+booked in another zone. A meeting already under way is labelled **"Started" in
+words**, never by a colour or a dimmed row. Like every other widget it degrades to
+an empty section on failure, and its empty state teaches the next step.
+
+**The Focus widget is removed.** It listed three unbuilt capabilities under
+"coming soon" and had never once shown information, while taking a section of the
+most-used screen every day. That is the exact reasoning POLISH-01 recorded when it
+removed the Weather and Upcoming-calendar panels
+([DEBT-53](../product/PRODUCT_DEBT.md)); the rule had simply been applied to two
+panels and not the third. A persisted layout that still names `focus` is
+normalised on read (unknown ids are dropped), so no owner's arrangement breaks.
+
+**The last fixture seam is gone.** `fixtures.ts` was deleted. Its payload was
+still being serialised into every `/today` loader response although nothing
+rendered it, and its only consumer — the drawer resolver's `upcoming:`/`project:`/
+`note:` branches — rendered demonstration records whose copy ("The full Project
+overview arrives with PROJ-01", "Reading and editing notes arrives with NOTES-01")
+described modules that had long since shipped. Nothing produced those keys after
+X-01 retired the Today search provider, so the copy was unreachable — but a stale
+bookmark carrying one would have shown the owner a false statement about their own
+product. **Every section on `/today` now reads real workspace data.**

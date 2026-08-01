@@ -20,6 +20,7 @@ import type {
   AreaHealthItem,
   DiaryWidgetData,
   GoalsWidgetData,
+  MeetingsWidgetData,
   RecentNoteItem,
 } from "./types";
 import type { InsightSignal } from "./insights";
@@ -251,21 +252,73 @@ export function GoalsWidget({ data }: { readonly data: GoalsWidgetData }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Focus (placeholder)                                                        */
+/* Meetings (UX-01)                                                           */
 /* -------------------------------------------------------------------------- */
 
-export function FocusWidget() {
+/**
+ * What is actually on today.
+ *
+ * Today answers "what should I do now?", and for most days part of that answer is
+ * "you are in a meeting at 2". Meetings had shipped for weeks with no presence on
+ * the landing page at all, so the owner had to open a second screen to find out
+ * what their day already contained.
+ *
+ * A meeting whose start time has passed is labelled in WORDS ("Started"), never by
+ * a colour or a dimmed row alone, so the distinction survives every theme and a
+ * screen reader (§24).
+ */
+export function MeetingsWidget({
+  data,
+}: {
+  readonly data: MeetingsWidgetData;
+}) {
+  if (data.meetings.length === 0) {
+    return (
+      <WidgetEmpty
+        entityType="meeting"
+        title="Nothing scheduled today"
+        description="Meetings you plan will appear here on the day, in order."
+        action={
+          <Link className="dh-btn dh-btn--secondary" to="/meetings">
+            Open Meetings
+          </Link>
+        }
+      />
+    );
+  }
   return (
-    <div className="dh-focus-widget">
-      <p className="dh-focus-widget__lead">
-        A calm place to start a focus session — coming soon.
-      </p>
-      <ul className="dh-focus-widget__list">
-        <li>Focus mode to mute the rest of DalyHub</li>
-        <li>Deep-work sessions tied to a task</li>
-        <li>A Pomodoro timer for timeboxed work</li>
-      </ul>
-    </div>
+    <ul className="dh-today-list" aria-label="Today’s meetings">
+      {data.meetings.map((meeting) => (
+        <li key={meeting.id} className="dh-today-list__item">
+          <Link
+            className="dh-today-list__link"
+            to={`/meeting/${encodeURIComponent(meeting.id)}`}
+          >
+            <span className="dh-today-list__icon" aria-hidden="true">
+              <EntityIcon type="meeting" />
+            </span>
+            <span className="dh-today-list__body">
+              <span className="dh-today-list__title">{meeting.title}</span>
+              <span className="dh-today-list__meta">
+                <span>{meeting.timeLabel}</span>
+                {meeting.started ? (
+                  <>
+                    <span aria-hidden="true"> · </span>
+                    <span>Started</span>
+                  </>
+                ) : null}
+                {meeting.context ? (
+                  <>
+                    <span aria-hidden="true"> · </span>
+                    <span>{meeting.context}</span>
+                  </>
+                ) : null}
+              </span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

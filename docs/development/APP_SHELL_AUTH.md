@@ -357,3 +357,29 @@ users/sessions/preferences/theme table, or a local password/OAuth stack.
 - [DATA_KERNEL.md](./DATA_KERNEL.md) — workspace composition and the Activity actor.
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — deployment, secrets and the origin-bypass risk.
 - [REFERENCE_PRODUCTS.md](../reference/REFERENCE_PRODUCTS.md) — the `jose` dependency evaluation.
+
+---
+
+## UX-01 — one navigation-active rule (2026-08-01)
+
+The desktop rail, the phone "More" sheet and the phone bottom bar all render the
+SAME registry-derived navigation model, so they must agree about which destination
+the current route sits inside. Before UX-01 they did not: the bottom bar matched
+nested paths (`/tasks/tk-1` kept **Tasks** current) while the rail and the sheet
+used `NavLink`'s exact-match `end` prop — so opening ANY record (`/projects/pr-1`,
+`/notes/n-2`, `/asset/a-3`) left the rail with **no** current row at all, and the
+owner lost their structural anchor on the screens they use most.
+
+That rule now lives once, pure and React-free, in
+[`app/shared/shell/navigation-active.ts`](../../app/shared/shell/navigation-active.ts):
+
+- a destination matches its own path **or any path nested beneath it**;
+- `/` matches only `/`, so a home destination never claims every route;
+- matching is segment-aware (`/today` does not match `/todayish`);
+- when several match, the **longest href wins**, so exactly one row is ever
+  current.
+
+`PrimaryNavigation` therefore renders plain `Link`s and applies
+`aria-current="page"` and the active class from that rule;
+`mobile-navigation.ts` re-exports it so the bar cannot drift. A new module needs
+no change: it inherits the rule by appearing in the model.
