@@ -1,0 +1,235 @@
+/**
+ * X-04 — the snapshot validator.
+ *
+ * The validator is the gate that stops a malformed export becoming a download
+ * that looks valid. These tests assert BOTH halves of that: a correct snapshot
+ * passes untouched, and each way a snapshot can be wrong is caught with a path
+ * precise enough to fix.
+ */
+
+import { describe, expect, it } from "vitest";
+
+import {
+  FORBIDDEN_EXPORT_KEY_PATTERN,
+  INFRASTRUCTURE_KEY_HINTS,
+  SNAPSHOT_SCHEMA_NAME,
+  SnapshotValidationError,
+  assertValidWorkspaceSnapshot,
+  isIsoDate,
+  isIsoInstant,
+  validateWorkspaceSnapshot,
+  type WorkspaceSnapshotV1,
+} from "~/kernel/export";
+
+import { IDS, makeSnapshot } from "./snapshot-fixture";
+
+/** Deep-clone so a test can mutate the fixture without affecting the next one. */
+function mutable(snapshot: WorkspaceSnapshotV1): {
+  meta: Record<string, unknown>;
+  workspace: Record<string, unknown>;
+  owner: Record<string, unknown>;
+  records: Record<string, Record<string, unknown>[]>;
+  limitations: unknown[];
+} {
+  return JSON.parse(JSON.stringify(snapshot));
+}
+
+describe("workspace snapshot validation", () => {
+  it("accepts a complete, well-formed snapshot", () => {
+    expect(validateWorkspaceSnapshot(makeSnapshot())).toEqual([]);
+    expect(() => assertValidWorkspaceSnapshot(makeSnapshot())).not.toThrow();
+  });
+
+  it("rejects a value that is not an object at all", () => {
+    for (const value of [null, undefined, "snapshot", 42, []]) {
+      expect(validateWorkspaceSnapshot(value).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("requires the schema name and version", () => {
+    const wrongName = mutable(makeSnapshot());
+    wrongName.meta.schema = "something.else";
+    expect(validateWorkspaceSnapshot(wrongName)).toContainEqual({
+      path: "meta.schema",
+      message: `must be "${SNAPSHOT_SCHEMA_NAME}"`,
+    });
+
+    const wrongVersion = mutable(makeSnapshot());
+    wrongVersion.meta.schemaVersion = 99;
+    expect(
+      validateWorkspaceSnapshot(wrongVersion).some(
+        (issue) => issue.path === "meta.schemaVersion",
+      ),
+    ).toBe(true);
+  });
+
+  it("requires the real read-consistency guarantee to be stated", () => {
+    const overclaimed = mutable(makeSnapshot());
+    overclaimed.meta.consistency = "atomic-point-in-time";
+    expect(
+      validateWorkspaceSnapshot(overclaimed).some(
+        (issue) => issue.path === "meta.consistency",
+      ),
+    ).toBe(true);
+  });
+
+  it("requires ISO-8601 UTC instants, not loose date strings", () => {
+    expect(isIsoInstant("2026-08-01T09:00:00.000Z")).toBe(true);
+    expect(isIsoInstant("2026-08-01T09:00:00Z")).toBe(false);
+    expect(isIsoInstant("2026-08-01T09:00:00.000+10:00")).toBe(false);
+    expect(isIsoInstant("2026-08-01")).toBe(false);
+    expect(isIsoDate("2026-08-01")).toBe(true);
+    expect(isIsoDate("2026-8-1")).toBe(false);
+
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.entities[0]!.createdAt = "1 August 2026";
+    expect(
+      validateWorkspaceSnapshot(snapshot).some((issue) =>
+        issue.path.endsWith(".createdAt"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects `undefined` where an explicit null belongs", () => {
+    const snapshot = mutable(makeSnapshot());
+    // Simulate a key present with an undefined value (JSON cannot carry it, so
+    // it is set after the clone).
+    (snapshot.records.entities[0] as Record<string, unknown>).deletedAt =
+      undefined;
+    expect(
+      validateWorkspaceSnapshot(snapshot).some((issue) =>
+        issue.message.includes("explicit null"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a detail row that references an entity not in the snapshot", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.taskDetails[0]!.entityId = "e-99-not-here";
+    const issues = validateWorkspaceSnapshot(snapshot);
+    expect(
+      issues.some(
+        (issue) =>
+          issue.path.startsWith("records.taskDetails") &&
+          issue.message.includes("not in this snapshot"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects an EntityLink whose endpoint is not in the snapshot", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.entityLinks[0]!.targetEntityId = "e-99-not-here";
+    expect(
+      validateWorkspaceSnapshot(snapshot).some((issue) =>
+        issue.path.endsWith(".targetEntityId"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects an Activity subject whose event or entity is missing", () => {
+    const missingActivity = mutable(makeSnapshot());
+    missingActivity.records.activitySubjects[0]!.activityId = "a-99";
+    expect(
+      validateWorkspaceSnapshot(missingActivity).some((issue) =>
+        issue.path.endsWith(".activityId"),
+      ),
+    ).toBe(true);
+
+    const missingEntity = mutable(makeSnapshot());
+    missingEntity.records.activitySubjects[0]!.entityId = "e-99";
+    expect(
+      validateWorkspaceSnapshot(missingEntity).some((issue) =>
+        issue.path.endsWith(".entityId"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a collection that is out of its documented order", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.entities.reverse();
+    expect(
+      validateWorkspaceSnapshot(snapshot).some((issue) =>
+        issue.message.includes("not deterministic"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a child record whose parent is missing", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.reviewSections[0]!.reviewId = "e-99";
+    expect(
+      validateWorkspaceSnapshot(snapshot).some((issue) =>
+        issue.path.endsWith(".reviewId"),
+      ),
+    ).toBe(true);
+  });
+
+  it("throws a SnapshotValidationError that names paths, never record content", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.entities[0]!.createdAt = "not a date";
+    let thrown: unknown;
+    try {
+      assertValidWorkspaceSnapshot(snapshot);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(SnapshotValidationError);
+    const message = (thrown as Error).message;
+    expect(message).toContain("records.entities[0].createdAt");
+    // No title, body or other record content leaks into the message.
+    expect(message).not.toContain("Health");
+    expect(message).not.toContain("Training notes");
+  });
+
+  it("flags a forbidden field name anywhere in a record", () => {
+    const snapshot = mutable(makeSnapshot());
+    (snapshot.records.entities[0] as Record<string, unknown>).access_token =
+      "leaked";
+    expect(
+      validateWorkspaceSnapshot(snapshot).some((issue) =>
+        issue.message.includes("forbidden field name"),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("secret and infrastructure exclusion", () => {
+  const serialised = JSON.stringify(makeSnapshot());
+
+  it("carries no forbidden field name in the serialised snapshot", () => {
+    const keys = [...serialised.matchAll(/"([A-Za-z0-9_.]+)":/g)].map(
+      (match) => match[1] ?? "",
+    );
+    const offenders = keys.filter((key) =>
+      FORBIDDEN_EXPORT_KEY_PATTERN.test(key),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("carries no infrastructure identifier", () => {
+    for (const hint of INFRASTRUCTURE_KEY_HINTS) {
+      expect(serialised).not.toContain(hint);
+    }
+  });
+
+  it("carries no owner subject identifier", () => {
+    // The fixture's Activity actor id is a subject-shaped value, which is a real
+    // part of the audit trail; what must never appear is an owner_id FIELD on
+    // preferences or saved views.
+    const snapshot = makeSnapshot();
+    expect(Object.keys(snapshot.owner.preferences)).not.toContain("ownerId");
+    expect(Object.keys(snapshot.owner.preferences)).not.toContain("owner_id");
+    for (const view of snapshot.owner.taskSavedViews) {
+      expect(Object.keys(view)).not.toContain("ownerId");
+    }
+  });
+
+  it("includes archived and soft-deleted records rather than dropping them", () => {
+    const snapshot = makeSnapshot();
+    const ids = snapshot.records.entities.map((entity) => entity.id);
+    expect(ids).toContain(IDS.noteDeleted);
+    expect(ids).toContain(IDS.projectDeleted);
+    expect(ids).toContain(IDS.noteArchived);
+    expect(ids).toContain(IDS.areaArchived);
+  });
+});

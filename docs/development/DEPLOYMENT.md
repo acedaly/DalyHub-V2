@@ -202,6 +202,58 @@ Consequences for a deployment:
   triggers or queues.** The one new server capability is an extra `op` on the
   existing `/links` route.
 
+### X-04 workspace export — deployment notes (no migration)
+
+The full workspace export (structured archive + Obsidian vault) adds **no
+migration**. The migration sequence is unchanged at `0025`.
+
+That is a design outcome, not luck: the export is a READ over tables that already
+exist, and every ordering it pages by is already served by an existing key — the
+detail tables' composite primary keys, `entities`' primary key, and
+`activities_workspace_occurred_idx` for the chronological Activity read. Adding an
+index for a rare, deliberate, owner-initiated read would be write amplification on
+every ordinary mutation to save time on an action taken a handful of times a year.
+
+Consequences for a deployment:
+
+- **Nothing to migrate, in either order.** Deploy whenever; there is no schema
+  step to sequence around.
+- **Rolling the application back is safe.** The export writes nothing — the
+  snapshot repository has no mutating method — so a previous version reads
+  exactly the same data it did before.
+- **No new bindings, secrets, environment variables, external services, cron
+  triggers, queues or R2 buckets.** Nothing is persisted on the Worker and
+  nothing is sent anywhere. The two new routes are ordinary authenticated
+  resource routes behind the existing Access boundary.
+- **No new dependency.** The ZIP writer is first-party (`app/platform/export/zip.ts`)
+  and uses only platform primitives; `THIRD_PARTY_NOTICES.md` is unchanged.
+
+**Worker runtime characteristics worth knowing before the first production
+export.** The snapshot is assembled in memory and the archive is built from it,
+so an export's peak memory is roughly the workspace's text content plus the
+compressed archive. Both are bounded: 50,000 rows per collection and 64 MiB of
+archive content, and exceeding either produces an honest error rather than an
+isolate the runtime kills. A realistic personal workspace is orders of magnitude
+below both. Compression uses the runtime's own `CompressionStream("deflate-raw")`,
+feature-detected — a runtime without it produces a larger but perfectly valid
+STORED archive. There is no request-duration concern to plan around: the export is
+a read of a fixed, small number of statements, not a scan.
+
+**Verifying an export against production, after deploying.** Sign in, open
+`Settings → Privacy & data`, take both downloads, then — with no DalyHub
+involved — confirm the archive is intact:
+
+```bash
+unzip -q dalyhub-export-*.zip -d /tmp/dalyhub-export
+cd /tmp/dalyhub-export && sha256sum -c CHECKSUMS.txt
+jq '.meta, .workspace' dalyhub-snapshot.json
+jq '.recordsByModule' manifest.json
+```
+
+Then extract the vault and open `DalyHub Export/` as a folder in Obsidian. If
+`Home.md` renders and its links navigate, the export is good. Delete both files
+from any shared machine afterwards: they contain the whole workspace.
+
 ### Production migrations
 
 Apply migrations to the remote production D1 before (or as part of) going live,

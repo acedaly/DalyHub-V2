@@ -107,9 +107,27 @@ describe("HELP-01 honesty", () => {
     const text = JSON.stringify(notYet);
     // The weather decision in particular must be visible to the owner, not just
     // recorded in the roadmap.
-    for (const subject of ["Weather", "Export", "AI", "Notifications"]) {
+    for (const subject of ["Weather", "AI", "Notifications", "Import"]) {
       expect(text, `"${subject}" is not named as missing`).toContain(subject);
     }
+    // X-04 shipped export. RESTORE is what is still missing, and the two must
+    // not be conflated: a downloadable copy is not the ability to put it back.
+    expect(text).toContain("Backup and restore");
+    expect(text).toContain("cannot read one back in");
+  });
+
+  it("documents the export that now exists, and does not call it a restore", () => {
+    const exportTopic = HELP_TOPICS.find((t) => t.id === "export");
+    expect(exportTopic, "Help has no export topic").toBeDefined();
+    const text = JSON.stringify(exportTopic);
+
+    // Both downloads are named in the owner's words.
+    expect(text).toContain("Download full DalyHub export");
+    expect(text).toContain("Download Obsidian vault");
+    // The two honesty claims X-04 owes the owner.
+    expect(text).toContain("archived or deleted");
+    expect(text).toContain("never sends it anywhere");
+    expect(text).toContain("an export is not a restore");
   });
 
   it("avoids developer-only implementation language", () => {

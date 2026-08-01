@@ -30,6 +30,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`product/UI_UX_COHERENCE_AUDIT_2026_07.md`](product/UI_UX_COHERENCE_AUDIT_2026_07.md) | The 2026-07 cross-module UI/UX coherence audit that DS-12 → PX-06 implemented. |
 | [`product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md`](product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md) | The 2026-08 full-product daily-driver audit (UX-01): the documents reviewed, every finding by phase with severity, what was fixed, and what was deliberately left alone. |
 | [`product/IMPLEMENTATION_WORKFLOW.md`](product/IMPLEMENTATION_WORKFLOW.md) | The step-by-step lifecycle of every feature. |
+| [`product/X_04_EXPORT_AUDIT_2026_08.md`](product/X_04_EXPORT_AUDIT_2026_08.md) | The data-model audit taken before X-04's export was written: every persisted table and its authoritative repository, every lifecycle state and where it lives, the spine and EntityLink direction rules, Activity subjects, module child records, owner preferences, the exact Markdown-bearing fields, the existing single-record note export, what must never be exported, and the conclusions that shaped the design. |
 | **Roadmap** | |
 | [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of independently-implementable work items. |
 | **Design** | |
@@ -48,6 +49,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`development/DATA_KERNEL.md`](development/DATA_KERNEL.md) | The entity kernel & D1: migrations, kernel tests, inspecting local D1, remote provisioning. |
 | [`development/MODULES.md`](development/MODULES.md) | Building a module: the manifest convention, contribution types, discovery, id/namespacing rules, collisions, and the cross-module import rule. |
 | [`development/SPINE_MODEL.md`](development/SPINE_MODEL.md) | The Area→Goal→Project→Task spine: kinds, permitted hierarchy, structural links, exactly-one-parent, completion vs. deletion, derived rollups, move/reparent, reserved mutation paths, and Activity events. |
+| [`development/EXPORT_AND_PORTABILITY.md`](development/EXPORT_AND_PORTABILITY.md) | Full workspace export (X-04): the ONE canonical, versioned `DalyHubWorkspaceSnapshotV1` and the two serialisers derived from it — the structured archive (`manifest.json` / `dalyhub-snapshot.json` / `SCHEMA.md` / `README.md` / `CHECKSUMS.txt`) and the ready-to-open Obsidian vault. Covers the read-only snapshot repository (bounded, deterministic, no N+1, no mutating method), the validation gate, the stated read-consistency guarantee, the Markdown-bearing fields, what is never exported, deterministic collision-safe filenames, internal-link rewriting and unresolved-link reporting, the dependency-free ZIP writer and why no package was added, the Settings surface, the compatibility policy, the known limitations and the full verification matrix. |
 | [`development/MARKDOWN_PIPELINE.md`](development/MARKDOWN_PIPELINE.md) | The shared Markdown pipeline: source-of-truth & size limits, supported/unsupported profile, raw-HTML policy, sanitisation allowlist, URL & remote-image policy, code/task-list behaviour, the public API, the one React sink, Workers compatibility, and how Notes/Diary/descriptions consume it. |
 | [`development/APP_SHELL_AUTH.md`](development/APP_SHELL_AUTH.md) | The app shell & authentication: the request/auth flow, Cloudflare Access JWT validation, owner enforcement, session/identity types, authenticated workspace & Activity actor, development-auth mode, local setup, logout, the public `/health` boundary, registry-driven routing & navigation, theme behaviour, security headers, and the workers.dev/custom-domain deployment requirements. |
 | [`development/ACTIVITY_TIMELINE.md`](development/ACTIVITY_TIMELINE.md) | The Shared Timeline & Activity Feed (DS-05): one renderer for both scopes, the presentation view-model boundary, registering event descriptors, the unknown-type fallback, wiring a route, DS-07 filtering & DS-03 drawer reuse, ordering/grouping/dates, virtualisation, accessibility, the real product adopters (the task record, the Area record, the **Goal record Activity tab, AREA-02**, and the **project record Activity tab, PROJ-04**), and the development demonstration. |
@@ -85,6 +87,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   ├── PRODUCT_PRINCIPLES.md
     │   ├── PRODUCT_DEBT.md
     │   ├── UX_01_IMPLEMENTATION_NOTE_2026_07_28.md
+    │   ├── X_04_EXPORT_AUDIT_2026_08.md
     │   └── IMPLEMENTATION_WORKFLOW.md
     ├── roadmap/
     │   └── ROADMAP_V2.md
@@ -106,6 +109,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
         ├── DATA_KERNEL.md
         ├── MODULES.md
         ├── SPINE_MODEL.md
+        ├── EXPORT_AND_PORTABILITY.md
         ├── MARKDOWN_PIPELINE.md
         ├── APP_SHELL_AUTH.md
         ├── ACTIVITY_TIMELINE.md

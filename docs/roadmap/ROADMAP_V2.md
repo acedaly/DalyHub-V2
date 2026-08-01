@@ -1042,14 +1042,28 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 - **Dependencies.** FND-07, NOTES-01B, MEET-01.
 - **Expected outcome.** Reliable import/sync from named sources into the model. **P3.**
 - **Priority.** P3.
-- **Status.** ☐ Not started, and **deliberately last among the platform items.** No integration, credential store or import path exists; `/settings` says so plainly rather than shipping a dead control. Import is the highest-risk platform capability — imported content is untrusted input that must be validated at the boundary like any other, and a sync that writes without review would violate the same "never silently mutate the owner's data" principle that governs AI. Build [X-04](#-x-04--export--data-portability) and [SET-02](#-set-02--backup--restore) first: being able to export and restore is what makes importing a large external dataset a recoverable decision.
+- **Status.** ☐ Not started, and **deliberately last among the platform items.** No integration, credential store or import path exists; `/settings` says so plainly rather than shipping a dead control. Import is the highest-risk platform capability — imported content is untrusted input that must be validated at the boundary like any other, and a sync that writes without review would violate the same "never silently mutate the owner's data" principle that governs AI. Build [X-04](#-x-04--export--data-portability) and [SET-02](#-set-02--backup--restore) first: being able to export and restore is what makes importing a large external dataset a recoverable decision. **X-04 is now ☑ (2026-08-01)**, so half of that safety net exists — an owner can take a full copy before an import. SET-02 (restore) is still ☐, so the other half does not, and this item stays last.
 
-### ☐ X-04 — Export & data portability
+### ☑ X-04 — Export & data portability
 - **Purpose.** Full export (Markdown + structured) so the user is never locked in.
 - **Dependencies.** FND-02, FND-08.
 - **Expected outcome.** One-click export of all data in portable formats. **P2.**
 - **Priority.** P2.
-- **Status.** ☐ Not started — **no export capability exists anywhere in the product (verified 2026-07-27).** `/settings` → Privacy & data lists export/import as "Deferred" with no control, and no route serves a download. This is a **P2 trust obligation**, not a nicety: [PRODUCT_PRINCIPLES](../product/PRODUCT_PRINCIPLES.md) promise data the owner owns, and today there is no way to get it out. The foundations are favourable — Markdown is stored as exact canonical source ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)), every record is a workspace-scoped D1 row, and EntityLinks/Activity are uniform — so export is a serialisation problem, not a modelling one. Ship [NOTES-06](#-notes-06--note-export-and-portability) first as the single-record proof, then generalise. **X-04 must precede [SET-02](#-set-02--backup--restore): a backup is a scheduled, restorable export, and building restore before a proven export format means inventing the format twice.**
+- **Status: ☑ Done (2026-08-01).** The owner can now get **everything** out of DalyHub, in two shapes, from `Settings → Privacy & data`. Accepted via [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it); implementation in [`EXPORT_AND_PORTABILITY.md`](../development/EXPORT_AND_PORTABILITY.md); the data-model audit it was built from is [`X_04_EXPORT_AUDIT_2026_08.md`](../product/X_04_EXPORT_AUDIT_2026_08.md).
+
+  **One snapshot, two serialisers.** There is exactly ONE representation of a workspace — `DalyHubWorkspaceSnapshotV1` (`app/kernel/export`) — built once per request, validated, and handed to two serialisers that never touch the database again. Both downloads are pure functions of the same in-memory value, so "the structured export and the vault cannot drift" is structural rather than a promise. It carries 21 collections in a fixed order: entities, spine membership, every module's detail rows, every module's child records (meeting items and follow-up mappings, asset events and obligations, review sections, task recurrence rules), EntityLinks and the Activity stream with its subjects — plus owner preferences and saved Tasks views.
+
+  **Built on a read-only repository, not on view models.** Serialising the module read-projections was rejected: they are view models (which X-04 forbids) and they correctly hide archived, soft-deleted and unlinked rows from the product — an export that inherits the product's hiding rules is not a backup. `WorkspaceSnapshotRepository` is a bounded keyset projection with an explicit column list and **no mutating method**, so an export structurally cannot write data or append Activity. **No migration, no schema change and no new index**: every ordering it pages by is already served by an existing key.
+
+  **What ships.** `GET /settings/export/full` → a ZIP with `manifest.json`, `dalyhub-snapshot.json`, `SCHEMA.md`, `README.md` and `CHECKSUMS.txt` (verifiable with `sha256sum -c`, no DalyHub involved). `GET /settings/export/obsidian` → a ready-to-open Markdown vault: one file per record with YAML frontmatter, `Home.md`, per-module folders, chronological `Activity/`, and `_DalyHub/{Export Information, Settings, Unresolved Links}.md`. Standard Markdown and relative links only — it opens in Obsidian with no plugin and reads correctly in any editor.
+
+  **Honesty is encoded, not left to the reader.** Archived and soft-deleted records are exported and **marked** (frontmatter *and* a plain sentence in the body). Unlinked EntityLinks are exported with their state, so a restore can reproduce "explicitly unlinked, stays unlinked". Canonical Markdown is byte-exact — only genuine internal-link ranges are rewritten, working from the shared NOTES-02 analyser's mdast, so a `dalyhub://` inside a code fence is untouched. An unresolvable link keeps the author's words, is marked in place and is listed in `Unresolved Links.md`. **Nothing is fabricated** — no summaries, no insight, no computed health. And the read-consistency guarantee is **stated rather than overclaimed**: `per-statement-read-committed`, not an atomic point-in-time snapshot, said in the snapshot, the manifest, the README and the vault.
+
+  **No new dependency.** The ZIP writer is ~180 lines against the published format, using only `Uint8Array`/`DataView`/`TextEncoder` and the platform's `CompressionStream` (feature-detected; a runtime without `deflate-raw` gets a valid STORED archive). Measured client-bundle cost for the whole item: **+1.0 KB gzip** — the export path is server-only.
+
+  **Known limitations, recorded rather than hidden.** No restore (that is SET-02). Not an atomic snapshot. Bounded at 50,000 rows per collection and 64 MiB per archive, both *reported* when hit rather than silently truncated. A rename changes a vault filename (the id in frontmatter is the identity). Activity payloads are structural, and an unparseable one exports as `null` and is named. No attachments — DalyHub stores none.
+
+  **[SET-02](#-set-02--backup--restore) is now unblocked and remains not started.** `dalyhub-snapshot.json` + `manifest.json` is its documented input contract, and `SCHEMA.md` states the compatibility policy. Restore, scheduled backups, R2 storage, import, sync, email/sharing/public links, PDF and attachments were all explicitly out of scope and none of them was built.
 
 ---
 
@@ -1157,7 +1171,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 - **Dependencies.** FND-02, **[X-04](#-x-04--export--data-portability)** (unchanged and load-bearing — see below).
 - **Expected outcome.** Documented, tested backup and restore. **P1.**
 - **Priority.** P1.
-- **Status.** ☐ Not started — **nothing of this exists, and Cloudflare/D1 infrastructure is not a substitute (verified 2026-07-27).** `/settings` lists backup and restore as deferred with no control. The item's promise is *"documented, tested backup **and restore**"*: that means an owner-initiated backup they can hold, a documented format, and a **restore that has actually been exercised end to end**. Platform-level D1 durability, point-in-time features or a healthy production Worker do **not** satisfy it — an untested restore is not a backup, and infrastructure the owner cannot invoke or verify is not recoverability. **This item must not be marked ☑ on the strength of Cloudflare or D1 capabilities.** The X-04 dependency is deliberate and stays: a backup is a scheduled, restorable export, so the export format must exist and be proven first, or the same serialisation is designed twice and the two drift.
+- **Status.** ☐ Not started — **now UNBLOCKED (X-04 shipped 2026-08-01), and still not started.** Nothing of this exists, and Cloudflare/D1 infrastructure is not a substitute (verified 2026-07-27). `/settings` lists backup and restore as deferred with no control. The item's promise is *"documented, tested backup **and restore**"*: that means an owner-initiated backup they can hold, a documented format, and a **restore that has actually been exercised end to end**. Platform-level D1 durability, point-in-time features or a healthy production Worker do **not** satisfy it — an untested restore is not a backup, and infrastructure the owner cannot invoke or verify is not recoverability. **This item must not be marked ☑ on the strength of Cloudflare or D1 capabilities.** The X-04 dependency is deliberate and stays: a backup is a scheduled, restorable export, so the export format must exist and be proven first, or the same serialisation is designed twice and the two drift. **That dependency is now satisfied.** X-04 ships a canonical, versioned `DalyHubWorkspaceSnapshotV1` and a documented archive (`manifest.json` + `dalyhub-snapshot.json` + `SCHEMA.md` + `CHECKSUMS.txt`) that is explicitly designed as this item's INPUT contract, with a stated compatibility policy — see [`EXPORT_AND_PORTABILITY.md`](../development/EXPORT_AND_PORTABILITY.md) and [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it). What remains for SET-02 is everything on the WRITE side: reading an archive back, validating it against a workspace, deciding merge-versus-replace, exercising a restore end to end, and only then any scheduling. **X-04 having shipped is not partial credit for this item.**
 
 ### ☐ SET-03 — Account & security
 - **Purpose.** Auth, sessions, and security settings.
@@ -1174,7 +1188,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 The kernel (`FND`), the design system (`DS`), the product frame (`PX`), Today, Tasks, Projects, Areas & Goals, Notes, Meetings, People, Assets, Diary, the Reviews foundation and the [V2 Final Polish](#phase-12b--v2-final-polish--release-readiness-theme--help--release) pass are all delivered. What follows is the order to build the rest.
 
-**After the polish pass, the highest-value remaining work is unchanged and is a trust obligation, not a feature:** [X-04](#-x-04--export--data-portability) then [SET-02](#-set-02--backup--restore). DalyHub is now polished enough to use as a daily driver, which makes it the single copy of an increasing amount of a life — and there is still no way for the owner to get their data out. Help says so plainly in "What is not here yet"; that honesty is a stopgap, not a resolution.
+**The first half of that trust obligation is now discharged.** [X-04](#-x-04--export--data-portability) is ☑ (2026-08-01): the owner can download their entire workspace as a structured, versioned archive AND as a ready-to-open Obsidian vault, both derived from one canonical snapshot. **The highest-value remaining work is now [SET-02](#-set-02--backup--restore) — restore.** An export the owner can hold is not the same as data they can get *back in*, and until restore has been exercised end to end DalyHub is still a place where a bad day is unrecoverable. The export format SET-02 needs now exists and is proven, which is exactly why the dependency was ordered this way.
 
 1. **Make the E2E gate trustworthy again, and finish verifying Reviews.** *(Done — see the change log entry for this PR.)* Playwright is now a **5-way** shard matrix with a 20-minute job budget and a 15-minute `globalTimeout` inside it, so an overrunning shard is stopped by Playwright — which writes its report and traces — rather than cancelled by GitHub, which destroyed them; artefacts upload on any non-success, and the gate prints each job's result by name. The four identified defects are fixed at their real root causes: [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) (the notification region now takes pointer input only on its own controls), the shared DS-03 Drawer's re-entrant close (which was what made `meetings-follow-up.spec.ts` fail — it had navigated off the record, not lost a tab), and the `assets.spec.ts` strict-mode locator. See [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) for what remains.
 2. **Reconcile stale roadmap statuses.** *(This reconciliation.)* Keep it current from here: update an item's status in the PR that changes it, and say which commit the verification refers to.
@@ -1193,8 +1207,8 @@ The kernel (`FND`), the design system (`DS`), the product frame (`PX`), Today, T
     - [REVIEW-04](#-review-04--mobile) ◐ — writing surface and layout delivered; **the one-prompt-at-a-time stepper is not**, and belongs with [REVIEW-02](#-review-02--weekly-review) because it is a Review-flow feature, not a layout adjustment.
 
     The four already-☑ module mobile items ([TODAY-06](#-today-06--mobile), [PROJ-06](#-proj-06--mobile), [AREA-04](#-area-04--mobile), [NOTES-04](#-notes-04--mobile)) stay ☑ and were **not** re-opened: MOBILE-01 extended them (Today's capture became real, Notes' toolbar gained its More split, every record inherited the phone Drawer and tab overflow) without invalidating anything they delivered. **A module is not "mobile-complete" because it passes a no-overflow test** — the three ◐ items above are recorded as outstanding precisely because their workflows are not yet quick, even though their layouts now behave.
-11. **Build full export and data portability — [X-04](#-x-04--export--data-portability).** A P2 trust obligation, not a nicety: today there is no way for the owner to get their data out.
-12. **Build backup and restore — [SET-02](#-set-02--backup--restore).** Strictly after X-04. Cloudflare or D1 infrastructure does **not** satisfy this item; an untested restore is not a backup.
+11. ~~**Build full export and data portability — [X-04](#-x-04--export--data-portability).**~~ ☑ **Done (2026-08-01).** One canonical `DalyHubWorkspaceSnapshotV1`; a structured archive and an Obsidian vault derived from it; every shipped module and relationship type represented; archived, soft-deleted and unlinked records included and marked; no migration and no new dependency. Accepted via [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it).
+12. **Build backup and restore — [SET-02](#-set-02--backup--restore). ← the next item.** Its X-04 dependency is now satisfied: the format exists, is versioned, is documented in [`SCHEMA.md`](../development/EXPORT_AND_PORTABILITY.md) and is proven by tests. Cloudflare or D1 infrastructure still does **not** satisfy this item; an untested restore is not a backup.
 13. **Mature saved views and cross-module filters — [X-02](#-x-02--saved-views--cross-module-filters).** [X-01](#-x-01--global-search-maturity) is ☑; do not reopen it for imports, backup/restore, AI, or cross-module saved views.
 14. **Add optional imports and integrations — [X-03](#-x-03--import--sync-todoist-notion-calendar).** Deliberately after export and restore exist, so importing a large external dataset is a recoverable decision.
 15. **Build the AI proposal and approval system — [AI-01](#-ai-01--proposal-architecture--review-ui) … [AI-04](#-ai-04--privacy-controls).** Last, by design. AI may propose structured changes; the user must review, edit, accept or reject them; AI must not silently mutate DalyHub data. Ship [AI-04](#-ai-04--privacy-controls)'s consent boundary together with [AI-01](#-ai-01--proposal-architecture--review-ui), not after it.
@@ -1206,6 +1220,36 @@ Items not listed keep the status and sequencing recorded in their own entries �
 ---
 
 ## Change log for this roadmap
+
+- **2026-08-01 — Full workspace export and data portability.**
+  [X-04](#-x-04--export--data-portability) ships the first way for the owner to
+  get everything out of DalyHub: one canonical, versioned
+  `DalyHubWorkspaceSnapshotV1` and TWO serialisers derived from it — a structured
+  archive (`manifest.json`, `dalyhub-snapshot.json`, `SCHEMA.md`, `README.md`,
+  `CHECKSUMS.txt`) and a ready-to-open Obsidian vault. Accepted via
+  [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it).
+
+  **No migration, no schema change, no new dependency.** Export turned out to be
+  a serialisation problem, exactly as the item predicted: every ordering the new
+  read-only snapshot repository pages by is already served by an existing key,
+  and the ZIP writer is ~180 lines of platform primitives rather than a package.
+  Measured client cost: **+1.0 KB gzip**.
+
+  **Reconciled honestly.** [SET-02](#-set-02--backup--restore) moves from
+  "blocked" to **unblocked and still ☐** — the export format it needs now exists
+  and is proven, and that is explicitly *not* partial credit for restore.
+  [X-03](#-x-03--import--sync-todoist-notion-calendar) stays last: half its
+  safety net (export) exists, the other half (restore) does not.
+  [NOTES-06](#-notes-06--note-export-and-portability) stays ☑ and was
+  **extended, not reopened** — the single-Note export is untouched; X-04 reused
+  its security shape and deliberately did NOT reuse its ASCII slug, which is
+  right for one download and wrong for a vault.
+
+  **Recorded as limitations rather than hidden:** the export is not an atomic
+  point-in-time snapshot (D1 offers no cross-statement snapshot for this read
+  pattern, and every output says so); it is bounded at 50,000 rows per collection
+  and 64 MiB per archive, both *reported* when reached; and a record renamed in
+  DalyHub gets a different vault filename between exports.
 
 - **2026-08-01 — Notes knowledge completion.**
   [NOTES-07](#-notes-07--knowledge-completion-record-links-backlink-presentation-reconciliation-and-copyprint)

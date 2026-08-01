@@ -497,6 +497,14 @@ describe("module discovery", () => {
           moduleId: "settings",
           file: "routes/index.tsx",
         },
+        // X-04 adds the two workspace-export downloads as one resource route
+        // (`settings/export/:format`). It has no nav entry — it returns a file,
+        // not a page — and is reached from Settings → Privacy & data.
+        {
+          id: "settings.export",
+          moduleId: "settings",
+          file: "routes/export.tsx",
+        },
         { id: "help.index", moduleId: "help", file: "routes/index.tsx" },
         { id: "about.index", moduleId: "about", file: "routes/index.tsx" },
       ]);

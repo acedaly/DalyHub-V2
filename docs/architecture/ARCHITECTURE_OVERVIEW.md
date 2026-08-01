@@ -129,6 +129,31 @@ Modules self-register their capabilities through the **Module Registry** ([FND-0
 - **Static declaration vs runtime execution.** Command and search handlers carry an explicit `ModuleRuntimeContext` seam and are never invoked to build the registry; route contributions reference their page module by a declarative, module-relative `file` string (never loaded during construction — React Router code-splits it). A platform adapter resolves the contributions into a nesting tree and (in `react-router-route-adapter.ts`) into framework route config; the app shell ([FND-09](../roadmap/ROADMAP_V2.md#-fnd-09--app-shell-routing--auth) / [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)) now consumes these seams for routing and navigation. The FND-06 lazy `import` thunk was refined to the `file` reference because React Router v8 framework mode composes routes from build-time file references (ADR-016 §5.10).
 - **Module development guide.** [`docs/development/MODULES.md`](../development/MODULES.md) documents the manifest convention, every contribution type, discovery, id/namespacing rules, collision behaviour, kernel-reserved types, and how to add a module.
 
+### Workspace export: one canonical snapshot, two serialisers
+
+Getting the owner's whole workspace OUT is a kernel concern, not a module one — it
+spans every module and must not depend on any of them ([X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) / [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it)).
+
+- **The export kernel.** A storage-independent contract (`app/kernel/export`)
+  defines the versioned `DalyHubWorkspaceSnapshotV1` (21 ordered collections
+  covering entities, the spine, every module's detail and child records,
+  EntityLinks and Activity, plus owner preferences), the read-only
+  `WorkspaceSnapshotRepository`, and the validator that gates serialisation. It
+  imports no D1, React, Cloudflare or parser types.
+- **A read-only projection, in the PROJ-02/PEOPLE-03 shape.** The D1 adapter
+  (`app/platform/storage/d1/d1-workspace-snapshot-repository.ts`) is
+  workspace-bound at construction, selects explicit named columns, and pages by
+  keyset over each collection's documented total ordering. It has **no mutating
+  method**, so an export structurally cannot write data or append Activity.
+- **Two serialisers, one snapshot.** `app/platform/export` builds the snapshot
+  once, validates it, and derives BOTH the structured archive and the Obsidian
+  vault from that single in-memory value — so the two downloads cannot describe
+  different data. The ZIP writer is first-party and dependency-free.
+- **Read consistency is stated, not assumed.** `meta.consistency` is
+  `per-statement-read-committed`: each statement sees a consistent database, but
+  the sequence is not an atomic point-in-time snapshot. Every output says so.
+- **Full detail.** [`docs/development/EXPORT_AND_PORTABILITY.md`](../development/EXPORT_AND_PORTABILITY.md).
+
 ---
 
 ## Modules (userland)

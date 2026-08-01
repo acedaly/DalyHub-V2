@@ -64,8 +64,29 @@ test.describe("HELP-01 Help", () => {
     // The Today weather decision has to be visible to the owner, not buried in a
     // roadmap document they will never open.
     expect(text).toContain("Weather");
-    expect(text).toContain("Export");
     expect(text).toContain("AI");
+    expect(text).toContain("Import");
+    // X-04 shipped EXPORT, so it left this list. RESTORE did not, and the two
+    // must never be conflated: being able to download a copy is not being able
+    // to put it back. This assertion is what stops the shipped half quietly
+    // closing the whole bullet.
+    expect(text).toContain("Backup and restore");
+    expect(text).toContain("cannot read one back in");
+  });
+
+  test("documents the export that now exists, without calling it a restore", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/help?topic=export");
+
+    const topic = page.locator("#export");
+    await expect(topic).toBeVisible();
+    const text = await topic.innerText();
+    expect(text).toContain("Download full DalyHub export");
+    expect(text).toContain("Download Obsidian vault");
+    expect(text).toContain("archived or deleted");
+    expect(text).toContain("never sends it anywhere");
+    expect(text).toContain("an export is not a restore");
   });
 
   test("names the five themes it tells the owner about", async ({ page }) => {

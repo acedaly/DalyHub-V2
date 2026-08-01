@@ -613,6 +613,36 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         ],
       },
       {
+        id: "export",
+        title: "Getting your data out",
+        lead: "Everything you have put in, in two shapes, whenever you want it.",
+        blocks: [
+          {
+            kind: "text",
+            text: "Settings → Privacy & data offers two downloads. Both are built from the same snapshot of your workspace, taken the moment you press the button, so they always describe the same thing.",
+          },
+          {
+            kind: "list",
+            items: [
+              "Download full DalyHub export — a ZIP holding one structured file with every record, relationship and event in it, plus a description of what it contains and checksums you can verify. This is the complete, machine-readable copy.",
+              "Download Obsidian vault — a ZIP holding a folder of Markdown files, one per record, with working links between them. Extract it and open the folder in Obsidian, or read it in any text editor. No plugin needed.",
+            ],
+          },
+          {
+            kind: "text",
+            text: "Both include everything: your areas, goals, projects, tasks, notes, diary, meetings, people, assets, reviews, the links between them and the activity history. Records you archived or deleted are included too, clearly marked, so a copy is a real copy rather than a tidied one. Your writing is exported exactly as you wrote it.",
+          },
+          {
+            kind: "text",
+            text: "An export contains everything private in your workspace — people's contact details, diary entries, meeting notes, reflections. DalyHub generates it on demand, never stores it and never sends it anywhere. Once it is on your device, looking after it is up to you.",
+          },
+          {
+            kind: "text",
+            text: "One honest caveat: an export is not a restore. DalyHub cannot yet read one of these files back in. Keep a copy somewhere you control, and treat it as an archive you can read rather than an undo button.",
+          },
+        ],
+      },
+      {
         id: "not-yet",
         title: "What is not here yet",
         lead: "Said plainly, so you know what to rely on.",
@@ -624,7 +654,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           {
             kind: "list",
             items: [
-              "Export and backup. There is no way to take a full copy of your data out yet, so treat DalyHub as one copy rather than an archive.",
+              "Backup and restore. You can now download a full export (see \u201cGetting your data out\u201d), but DalyHub cannot read one back in, and it takes no backups on your behalf. Keep your own copy.",
               "Import and calendar sync. Nothing connects to Todoist, Notion or a calendar.",
               "Weather on Today. There is no weather data source, so there is no weather widget.",
               "Notifications and reminders. DalyHub will not email you, push to you or nag you.",
@@ -634,7 +664,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           },
           {
             kind: "text",
-            text: "This deployment is run by its owner. There is no support desk, no account recovery and no second copy of your data somewhere else.",
+            text: "This deployment is run by its owner. There is no support desk, no account recovery, and no second copy of your data somewhere else unless you download an export and keep it yourself.",
           },
         ],
       },

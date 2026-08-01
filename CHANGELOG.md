@@ -17,6 +17,69 @@ them.
 
 ---
 
+## 2026-08-01 — Take your data with you (`X-04`)
+
+You can now get **everything** out of DalyHub. Until today you could not, and that
+was the biggest thing wrong with trusting it: DalyHub had become good enough to be
+the single copy of an increasing amount of a life, with no way to hold that copy
+yourself.
+
+`Settings → Privacy & data` now has two downloads.
+
+### Added
+
+- **Download full DalyHub export.** A single ZIP containing your entire workspace
+  in one structured file, plus a plain description of what is in it, the format's
+  own documentation, and checksums you can verify without DalyHub
+  (`sha256sum -c CHECKSUMS.txt`). This is the complete, machine-readable copy —
+  every area, goal, project, task, note, diary entry, meeting, person, asset and
+  review, every link between them, and the whole activity history.
+- **Download Obsidian vault.** The same workspace as a folder of ordinary
+  Markdown files — one per record, with the details at the top and working links
+  between them. Extract it and open the folder in Obsidian, or just read it in any
+  text editor. No plugin, no import step, nothing DalyHub-specific.
+
+Both are built from one snapshot taken the moment you press the button, so they
+always describe the same thing.
+
+### What is in an export, and what is not
+
+- **Your writing is exactly your writing.** Notes, task descriptions, diary
+  entries, meeting notes and review responses come out as the Markdown you typed
+  — not a re-rendered version of it.
+- **Nothing is quietly left out.** Records you archived or deleted are included
+  and clearly marked as archived or deleted, because a copy that has been tidied
+  is not a copy. Relationships you removed are recorded as removed.
+- **Nothing is invented.** No summaries, no "insights", no scores. Where DalyHub
+  stores a fact, the export prints it; where it does not, the export is silent.
+- **Links keep working.** Internal links between your records become ordinary
+  links between files. If one cannot be resolved — usually because its target was
+  deleted — your own words are kept, the link is marked in place, and every such
+  case is listed in one file so nothing goes missing quietly.
+- **No credentials, ever.** Sign-in tokens, cookies, session data and DalyHub's
+  own configuration are never in an export.
+
+### Please read this before you export
+
+An export contains **everything private in your workspace** — people's contact
+details, diary entries, meeting notes, reflections. DalyHub says so above the
+buttons, generates the file only when you ask, never stores it and never sends it
+anywhere. Once it is on your device, looking after it is yours.
+
+### Honest limits
+
+- **An export is not a restore.** DalyHub cannot read one of these files back in
+  yet. Keep a copy somewhere you control and treat it as a readable archive, not
+  an undo button. Restore is the next thing being built.
+- **It is a copy, not a frozen instant.** If you export while actively editing,
+  one part of the file can be a couple of seconds newer than another. The export
+  says so in its own documentation rather than pretending otherwise.
+- **Renaming a record changes its filename** in the vault. Each file carries the
+  record's permanent id at the top, so identity survives even when the name does
+  not.
+
+---
+
 ## 2026-08-01 — Daily-driver polish (`UX-01`)
 
 A full-product UX, UI and product audit — every module, on desktop and on a
