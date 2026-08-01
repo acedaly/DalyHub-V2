@@ -16,7 +16,7 @@
 
 | | |
 |---|---|
-| **Verdict** | **Ready to release, once CI is green on this branch.** |
+| **Verdict** | **Ready to release, subject to one outstanding gate: the CI run.** Every blocker found is fixed and the full suite was run locally, but this repository's CI triggers only on a pull request or a push to `main`, so the authoritative run does not exist until a PR is opened. Open the PR, confirm the CI Gate is green, then deploy. |
 | **Version** | `2.0.0`, release name `V2`, from [`app/lib/version.ts`](../../app/lib/version.ts) |
 | **Blocking issues outstanding** | **0.** Two were found during closure; both fixed (§7). |
 | **The one thing V2 knowingly does not do** | Read an export back in. [SET-02 is deferred to V2.1](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) and is not claimed anywhere in the product. |
@@ -237,7 +237,7 @@ cause and fixed (§7).
 | Required check | **CI Gate** — fails if any of `static-quality`, `unit-test`, `kernel-test`, `build` or **any** Playwright shard is not `success` |
 | Shards | **14** (raised from 10 by this closure; see §7) |
 | `main` before this closure | ❌ Red — runs 30693899680 and 30698894216, both for the two causes in §7 |
-| This branch | Must be green before merge. Both causes are fixed; the branch run is the proof. |
+| This branch | **CI has not run on it yet, and cannot.** The workflow triggers on `pull_request` and on pushes to `main` only, so pushing the closure branch starts no run — the gate runs when a pull request is opened. Both blocker causes are fixed and the full suite was run locally (§8a); **the PR run is the authoritative proof and must be green before merge.** |
 | [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) | Stays ◐ **deliberately** — its closing condition is `main` itself being green *after* this merges. It must not be closed by the change that hopes to fix it. |
 
 ---

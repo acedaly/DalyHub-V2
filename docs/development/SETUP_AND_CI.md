@@ -85,7 +85,7 @@ sharded across multiple runners:
 | **Unit & component tests** | `pnpm run test:unit` |
 | **Kernel tests** | `pnpm run test:kernel` (real Workers runtime + local D1) |
 | **Production build** | `pnpm run build`, then uploads `build/` as the `production-build` artifact |
-| **Playwright E2E** | A 5-way matrix (`shard 1/5` … `5/5`); each shard downloads the `production-build` artifact and runs its slice of the full suite on its own runner |
+| **Playwright E2E** | A **14-way** matrix (`shard 1/14` … `14/14`); each shard downloads the `production-build` artifact and runs its slice of the full suite on its own runner |
 | **CI Gate** | Depends on every job above; the one stable required check (see below) |
 
 All jobs start as soon as their own dependencies are met — static quality,
@@ -95,8 +95,19 @@ need its artifact).
 
 ### Playwright sharding
 
-The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, 3, 4, 5]`),
-not five copy-pasted jobs, so changing the shard count is a one-line change.
+The Playwright job is a GitHub Actions **matrix** (`shard: [1, 2, … 14]`), not
+fourteen copy-pasted jobs, so changing the shard count is a one-line change.
+
+**The count is expected to keep rising, and rising is the correct response.** It
+has gone 3 → 5 → 7 → 10 → 14 as the suite grew, each time for the same measured
+reason and with the same remedy. The rule, recorded so it is not re-litigated:
+**when the worst shard approaches Playwright's `globalTimeout`, split finer —
+do not raise the ceiling.** Raising it pins the worst shard against whatever the
+new ceiling is, drags `timeout-minutes` up with it to preserve the ordering
+below, and hides a growing suite instead of distributing it. The 10 → 14 split
+(V2 release closure, 2026-08-01) followed shard 4 reaching the 900s ceiling with
+102 passed, **zero failed** and 1 never run, against ~79 minutes of total test
+time.
 The count has a **single source of truth**: both the job name and the
 `--shard=N/TOTAL` argument read `strategy.job-total`, which GitHub derives from
 the matrix list itself, so a `--shard` denominator can never drift out of step
@@ -122,12 +133,14 @@ with the number of jobs actually running. Each shard:
   `afterEach` cleanup (see `e2e/setup-local-db.mjs` and the mobile specs'
   cleanup helpers) — rather than depending on state a preceding test left
   behind. There is no hidden test-order dependency for sharding to break.
-- keeps `workers: 1` in `playwright.config.ts`. This is a conservative default,
-  not a proven requirement: within a shard's runner, tests still execute one
-  at a time regardless. The parallelism this PR adds comes from GitHub Actions
-  shards (separate runners, separate isolated local D1), not from raising the
-  in-runner worker count. Increasing `workers` is a separate, independently
-  testable change or future item.
+- keeps `workers: 1` in `playwright.config.ts`, and this is **no longer merely
+  conservative**. A shard's tests share ONE dev server and ONE local D1, and some
+  of them mutate owner-level state (the stored theme preference, the Today widget
+  arrangement). Running them concurrently inside a shard would trade a budget
+  problem for a correctness one. The parallelism comes from GitHub Actions shards
+  — separate runners, separate isolated local D1 — not from the in-runner worker
+  count. Raising `workers` would need the shared-state surfaces isolated first,
+  and is not a shortcut around a budget overrun.
 - installs **only the Playwright Chromium headless shell**
   (`playwright install --with-deps --only-shell chromium`), not the full
   Chrome/Chromium binary or ffmpeg. The suite runs headless with no video
@@ -163,8 +176,15 @@ distinction mattered: the report/trace upload steps were conditioned on
 artefacts at all and were invisible unless someone read the raw log
 ([DEBT-41](../product/PRODUCT_DEBT.md)). Three changes make that impossible:
 
-1. **Five shards instead of three.** Measured on run `30314062657` (five
-   shards, all green):
+1. **More shards.** Three became five here; five later became seven, then ten,
+   then **fourteen** (V2 release closure, 2026-08-01). The table below is the
+   original three-to-five measurement, kept because it is what established the
+   ~70%-of-ceiling target every later split has been tuned to. The most recent
+   measurement, on run `30693899680` at ten shards, was 6m24 / 10m22 / 8m11 /
+   **15m01+ (ceiling reached, 1 test never run)** / 4m28 / 4m21 / 4m14 / 4m11 /
+   13m41 / 7m46 — about **79 minutes** of tests, which is why fourteen.
+
+   Measured on run `30314062657` (five shards, all green):
 
    | shard | tests | job |
    | --- | --- | --- |
@@ -180,12 +200,15 @@ artefacts at all and were invisible unless someone read the raw log
    5.0–11.2 min at five shards versus 11.7–14.0 at three. Playwright shards by
    test **count**, so the finer the split, the more per-test duration variance
    shows through. That is acceptable, because the budget only has to cover the
-   *worst* shard, and if shard 2 keeps growing the failure mode is now a
+   *worst* shard, and if a shard keeps growing the failure mode is now a
    Playwright timeout with a full report rather than a silent cancellation. No
-   test was moved, skipped or reweighted to reach these numbers.
+   test was moved, skipped or reweighted to reach these numbers — at this split
+   or at any of the three since.
 2. **Playwright bounds itself first.** `playwright.config.ts` sets
    `globalTimeout` to **15 minutes in CI**, below the job's
-   `timeout-minutes: 20`. An overrunning shard is therefore stopped by
+   `timeout-minutes: 30` (raised from 20 once the `--with-deps` apt step was
+   observed taking up to ~9.5 minutes on a slow mirror, which was letting GitHub
+   reach its cap first and cancel — the exact outcome this ordering prevents). An overrunning shard is therefore stopped by
    *Playwright*, which writes its HTML report, traces and screenshots and exits
    non-zero — a **failure**, with evidence — instead of by GitHub, which
    cancels the job and destroys it. The job timeout is a backstop for the whole
