@@ -197,10 +197,23 @@ state for deferred work, not a gap this closure introduced.
 |---|---|---|---|
 | 1 | `e2e/today.spec.ts:89` asserted a `[data-widget="focus"]` panel that UX-01 (#95) **deliberately removed**. `main` was red from #95 onward for a widget whose absence was the intended outcome. | Consistently failing required test | Retargeted the test at the **rendered** widget catalogue (id + title read from the DOM), so it covers the personalisation behaviour it was written for and stops encoding which widgets exist. `e2e/today.spec.ts` |
 | 2 | Playwright shard 4 of 10 hit the 900s `globalTimeout` with **102 passed, 0 failed, 1 never run** — runs 30693899680 and 30698894216. ~79 min of tests against a ten-way split. | Consistently failing required test | Split to **fourteen** shards, the same remedy as the previous three splits. `.github/workflows/ci.yml`. Ceiling untouched; `workers` stays 1 inside a shard. |
+| 3 | `people.spec.ts:168` did a record creation, a touch-target check, **18 navigations** (9 viewports × collection + record) and an axe scan **inside one 30s per-test budget**. It fitted on a fast CI runner and not on a slower machine — found by running the complete suite in one process, and **reproduced deterministically with nothing else running**. | Consistently failing required test | **Split into one test per viewport**, which is how `responsive.spec.ts` already packages this matrix. Coverage is identical — same viewports, same overflow assertion on both surfaces, same touch target, same axe scan. Measured after: **13 tests, all green, each ~15s** on the same slow machine. |
 
-**No test was weakened, skipped, quarantined or deleted.** Fix 1 makes the assertion
-*less* brittle without reducing what it covers; fix 2 changes only how the suite is
-distributed across runners — the union of shards still runs every test exactly once.
+**No test was weakened, skipped, quarantined or deleted, and no budget was raised.**
+Fix 1 makes the assertion *less* brittle without reducing what it covers. Fix 2
+changes only how the suite is distributed across runners — the union of shards still
+runs every test exactly once. Fix 3 changes only how one test is packaged — the same
+assertions run, in smaller units.
+
+All three are the same remedy at different levels: **the budget only ever has to
+cover the worst unit, so make the unit smaller rather than the budget bigger.** That
+is the rule this repository already applied at the shard level three times; fix 3
+applies it at the test level for the first time.
+
+**One neighbour is recorded rather than swept.** `project-health.spec.ts:137` is the
+same shape as fix 3 and took **31.4s in the same run — and passed**. It carries the
+same latent fragility and the same one-line fix, and is deliberately left alone
+because it is not failing. If it fails it needs no diagnosis: split it the same way.
 
 ---
 
@@ -214,18 +227,44 @@ authoritative record.
 | Formatting | `pnpm run format:check` | ✅ pass |
 | Lint | `pnpm run lint` | ✅ pass |
 | Type check | `pnpm run typecheck` | ✅ pass |
-| Unit & component | `pnpm run test:unit` | ✅ **275 files / 3107 tests** at baseline; new tests added by this closure |
-| Kernel (Workers runtime + real D1) | `pnpm run test:kernel` | ✅ **117 files / 1695 tests** at baseline; new migration test added |
+| Unit & component | `pnpm run test:unit` | ✅ **277 files / 3120 tests**, green on two consecutive clean runs |
+| Kernel (Workers runtime + real D1) | `pnpm run test:kernel` | ✅ **118 files / 1704 tests** |
 | Migration tests | included in the two above | ✅ per-migration `0002`–`0024`, plus the new production-baseline test and the D1-parser-compatibility test |
 | Production build | `pnpm run build` | ✅ pass |
 | Deploy dry-run | `pnpm run deploy:dry-run` | ✅ pass |
-| End-to-end (all shards) | `pnpm run test:e2e` | see §8a |
+| End-to-end (complete suite, one process) | `pnpm run test:e2e` | ✅ **1026 passed, 6 skipped** after the fix in §7 (1.3h) |
 | Mobile viewport tests | within the E2E suite | ✅ `mobile-*.spec.ts`, `responsive.spec.ts`, `touch-targets.spec.ts` |
 | Export tests | `test/kernel/workspace-export*`, `test/unit/export/`, `e2e/export.spec.ts` | ✅ pass |
 | Workspace-isolation tests | ~50 kernel/route tests | ✅ pass |
 
-**No flaky test was quarantined.** The two failures found were diagnosed to root
-cause and fixed (§7).
+### 8a. The complete E2E run, and what it found
+
+The full suite was run **in one process** — something CI never does, since it splits
+across 14 runners. That is slower and less forgiving than CI, which is exactly why it
+was worth doing: a per-test budget that only fits on a fast runner looks green on CI
+and is one bad machine away from red.
+
+**Result: 1026 passed, 6 skipped, 2 failed.** Both failures were diagnosed, and they
+were not the same kind of thing:
+
+| Failure | Diagnosis | Outcome |
+|---|---|---|
+| `areas-goals-mobile.spec.ts:111` | **Contention.** Re-run in isolation with nothing else executing: **passes.** It overran the 30s budget while a 3,100-test vitest suite was competing for CPU on the same container. | No change. Recorded, not "fixed" by adjusting a budget. |
+| `people.spec.ts:168` | **A real test defect, reproduced deterministically with nothing else running.** One test performed a record creation, a touch-target check, **18 navigations** and an axe scan inside a single 30s budget. | **Fixed by splitting the test** — see §7. |
+
+**No flaky test was quarantined, and no budget was raised to make a failure go away.**
+All three failures found during this closure were diagnosed to root cause; two were
+fixed and one was proven environmental by re-running it clean.
+
+**Two unit tests also failed transiently, and are recorded rather than papered over.**
+`useKeysetPagination` and `ProjectsCollection` each failed once while the machine was
+heavily loaded, and a **different** one each time. Isolated: 3/3 green. Full suite on
+an idle machine: 2/2 green (277 files, 3120 tests). CI runs the unit suite on its own
+runner and is green. Raising their wait would have made the symptom go away **without
+a reproduction to verify the fix against**, which is guesswork wearing a green tick —
+so it is logged as [DEBT-63](../product/PRODUCT_DEBT.md#-debt-63--two-keyset-pagination-component-tests-fail-under-heavy-machine-load--p3)
+with the measurements and the two competing explanations a real diagnosis must choose
+between.
 
 ---
 
