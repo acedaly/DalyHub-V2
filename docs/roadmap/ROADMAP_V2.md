@@ -47,11 +47,16 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 | Classification | Items | Count |
 |---|---|---|
-| **Complete** | FND-01…09 · DS-01…13 · PX-02…06 · MOBILE-01 · TODAY-01…08 · TASKS-01, 02, 02b, 03, 04 · PROJ-01…06 · AREA-01…05 · NOTES-01A, 01B, 01C, 02…07 · REL-01 · MEET-01…04 · PEOPLE-01…03 · ASSET-01, 02 · DIARY-01A, 01, 01B, 03 · REVIEWS-01 · X-01 · THEME-01 · HELP-01 · RELEASE-01 · POLISH-01 · UX-01 · SET-01 | 71 |
-| **Complete with documented limitation** | [X-04](#-x-04--export--data-portability) (export only — no restore; not an atomic point-in-time snapshot; bounded at 50,000 rows/collection and 64 MiB/archive, both reported when hit) · [REVIEWS-01](#-reviews-01--dalyhub-reviews-foundation) (period context and Today integration are bounded first cuts — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)) · [ASSET-02](#-asset-02--history--renewals--done) (obligations are tracked in-app only; no notification channel — [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)) | 3 of the above |
+| **Complete** | FND-01…09 · DS-01…10, 10b, 11…13 · PX-02…06 · MOBILE-01 · TODAY-01…08 · TASKS-01, 02, 02b, 03, 04 · PROJ-01…06 · AREA-01…05 · NOTES-01A, 01B, 01C, 02…07 · REL-01 · MEET-01…04 · PEOPLE-01…03 · ASSET-01, 02 · DIARY-01A, 01, 01B, 03 · REVIEWS-01 · X-01 · X-04 · THEME-01 · HELP-01 · RELEASE-01 · POLISH-01 · UX-01 · SET-01 | **85** |
+| **Complete with documented limitation** | [X-04](#-x-04--export--data-portability) (export only — no restore; not an atomic point-in-time snapshot; bounded at 50,000 rows/collection and 64 MiB/archive, both reported when hit) · [REVIEWS-01](#-reviews-01--dalyhub-reviews-foundation) (period context and Today integration are bounded first cuts — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)) · [ASSET-02](#-asset-02--history--renewals--done) (obligations are tracked in-app only; no notification channel — [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)) | **3** of the 85 above |
 | **Deferred to V2.1** | [SET-02](#-set-02--backup--restore) *(moved out of V2 scope by this closure)* · [PEOPLE-04](#-people-04--mobile) · [ASSET-03](#-asset-03--mobile) · [REVIEW-04](#-review-04--mobile) · [X-02](#-x-02--saved-views--cross-module-filters) · [REVIEW-02](#-review-02--weekly-review) · [REVIEW-03](#-review-03--insights--alignment) · [DIARY-02](#-diary-02--day-context-links) · [SET-03](#-set-03--account--security) | 9 |
 | **Deferred to a later version** | [X-03](#-x-03--import--sync-todoist-notion-calendar) · [AI-01](#-ai-01--proposal-architecture--review-ui) · [AI-02](#-ai-02--meeting--tasksnotes-proposals) · [AI-03](#-ai-03--planning--review-assistance) · [AI-04](#-ai-04--privacy-controls) | 5 |
-| **Release blocker** | None outstanding. Two were found by this closure and both are fixed — see [the change log](#change-log-for-this-roadmap). | 0 |
+| **Release blocker** | None outstanding. Two were found by this closure and both are fixed — see [the change log](#change-log-for-this-roadmap). | **0** |
+
+**The counts add up, and are meant to be checked:** 85 complete + 9 deferred to
+V2.1 + 5 deferred later = **99 items**, which is every `###` item heading in this
+file. Three of the 85 carry a documented limitation and are listed twice above for
+that reason, not counted twice.
 
 **The four `◐`/`◑` items are honest, not rounded up.** PEOPLE-04, ASSET-03 and
 REVIEW-04 each have a module that shipped and a specific named remainder that did

@@ -21,6 +21,7 @@
 | **Blocking issues outstanding** | **0.** Two were found during closure; both fixed (§7). |
 | **The one thing V2 knowingly does not do** | Read an export back in. [SET-02 is deferred to V2.1](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) and is not claimed anywhere in the product. |
 | **Production state at time of writing** | Schema `0001`–`0005`, pre-V2 Worker. Deploying V2 is a twenty-migration step. |
+| **Roadmap arithmetic** | 99 items: **85 complete** (3 of them with a documented limitation), **9 deferred to V2.1**, **5 deferred later**. Counted from the item headings, not asserted. |
 
 ---
 
