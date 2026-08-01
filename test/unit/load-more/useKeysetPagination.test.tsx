@@ -176,6 +176,27 @@ describe("useKeysetPagination", () => {
     expect(itemIds()).toEqual(["a"]);
   });
 
+  it("stays retryable after a failure, so the button is never dead", async () => {
+    renderHarness({
+      firstPage: [{ id: "a" }],
+      initialCursor: "c1",
+      pages: {
+        // The harness answers an unknown cursor with `failed: true`, so the first
+        // attempt fails; the retry then finds the real page.
+        c1: { items: [{ id: "b" }], nextCursor: null, failed: false },
+      },
+    });
+
+    const button = await loadMoreButton();
+    fireEvent.click(button);
+    await waitFor(() => expect(itemIds()).toEqual(["a", "b"]), SETTLED);
+
+    // A completed request releases its slot: a further `loadMore` is not blocked
+    // behind an outstanding request that will never be answered.
+    expect(screen.getByText("exhausted")).toBeInTheDocument();
+    expect(screen.queryByText("failed")).toBeNull();
+  });
+
   it("does not fetch again once the cursor is exhausted", async () => {
     renderHarness({
       firstPage: [{ id: "a" }],

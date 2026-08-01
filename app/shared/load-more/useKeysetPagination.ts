@@ -101,7 +101,16 @@ export function useKeysetPagination<TItem, TData>({
       return;
     }
     const data = fetcher.data;
-    if (data === undefined || requested.current === null) {
+    if (requested.current === null) {
+      return;
+    }
+    if (data === undefined) {
+      // The fetcher settled with nothing to apply — the load did not produce a
+      // page. Release the outstanding request and offer a retry, rather than
+      // leaving `loadMore` permanently blocked behind a request that will never
+      // be answered (which would present an enabled button that does nothing).
+      requested.current = null;
+      setLoadFailed(true);
       return;
     }
     if (applied.current === data) {
