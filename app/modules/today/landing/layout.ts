@@ -27,6 +27,7 @@ export const TODAY_WIDGET_IDS = [
   "projects",
   "areas",
   "goals",
+  "assets",
   "focus",
   "insights",
   "quick-capture",
@@ -92,6 +93,12 @@ export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
     id: "goals",
     title: "Goals",
     description: "Goals in progress and whether recent action matches them.",
+  },
+  {
+    id: "assets",
+    title: "Assets",
+    description:
+      "Maintenance and renewals that are overdue or due soon on things you own.",
   },
   {
     id: "focus",

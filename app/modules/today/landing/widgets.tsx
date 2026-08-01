@@ -14,6 +14,8 @@ import { Link } from "react-router";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, type EntityType } from "~/shared/entity";
 
+import type { AssetsTodayData } from "~/kernel/assets";
+
 import type {
   AreaHealthItem,
   DiaryWidgetData,
@@ -311,5 +313,81 @@ export function InsightsWidget({
         );
       })}
     </ul>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Assets (ASSET-02)                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Maintenance and renewals that need the owner now.
+ *
+ * Deliberately NOT a list of every future obligation: the loader bounds it to a
+ * 30-day horizon and five rows, and the shared deduplication rule has already
+ * removed anything whose linked Task is carrying it in My Day. The suppressed
+ * count is STATED in words rather than silently dropped, so nothing vanishes
+ * without the owner being told (§8).
+ *
+ * Each row's urgency is a WORD ("Overdue", "Due soon", "Reading needed") beside
+ * the sentence, never a colour on its own — so it survives all five themes,
+ * greyscale and a screen reader alike (§24).
+ */
+export function AssetsWidget({ data }: { readonly data: AssetsTodayData }) {
+  if (data.items.length === 0) {
+    return (
+      <WidgetEmpty
+        entityType="asset"
+        title={
+          data.trackedAsTasksCount > 0
+            ? "Nothing outstanding here"
+            : "Nothing due soon"
+        }
+        description={
+          data.trackedAsTasksCount > 0
+            ? `${data.trackedAsTasksCount} asset ${data.trackedAsTasksCount === 1 ? "obligation is already tracked as a task" : "obligations are already tracked as tasks"} in My day.`
+            : "Assets with a service interval, registration or warranty will remind you here when they are due."
+        }
+        action={
+          <Link className="dh-btn dh-btn--secondary" to="/assets">
+            Open Assets
+          </Link>
+        }
+      />
+    );
+  }
+  return (
+    <>
+      <ul className="dh-today-list" aria-label="Assets needing attention">
+        {data.items.map((item) => (
+          <li key={item.obligationId} className="dh-today-list__item">
+            <Link className="dh-today-list__link" to={item.href}>
+              <span className="dh-today-list__icon" aria-hidden="true">
+                <EntityIcon type="asset" />
+              </span>
+              <span className="dh-today-list__body">
+                <span className="dh-today-list__title">{item.assetTitle}</span>
+                <span className="dh-today-list__meta">
+                  <span
+                    className={`dh-today-signal dh-today-signal--${item.state}`}
+                  >
+                    {item.stateLabel}
+                  </span>
+                  <span aria-hidden="true"> · </span>
+                  <span>{item.text}</span>
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {data.trackedAsTasksCount > 0 ? (
+        <p className="dh-today-list__note">
+          {data.trackedAsTasksCount === 1
+            ? "1 more is tracked as a task in My day."
+            : `${data.trackedAsTasksCount} more are tracked as tasks in My day.`}
+        </p>
+      ) : null}
+    </>
   );
 }

@@ -903,6 +903,20 @@
   background: var(--dh-color-hover-surface);
 }
 
+/**
+ * DS-06 — the compact button size, for dense action rows (an Asset obligation's
+ * Complete / Edit / Hold / Dismiss group, a history entry's Edit / Remove).
+ *
+ * It reduces the horizontal padding and the type size ONLY. `min-block-size` is
+ * deliberately left at `--dh-control-height-lg` so a "small" button is still a
+ * 44px touch target — compact must never mean unreachable on a phone
+ * (AGENTS.md §15, WCAG 2.2 AA target size).
+ */
+.dh-btn--sm {
+  padding-inline: var(--dh-space-3);
+  font-size: var(--dh-font-size-sm);
+}
+
 .dh-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

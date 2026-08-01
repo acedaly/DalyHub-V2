@@ -28,6 +28,8 @@
 
 import type { WorkspaceId } from "~/kernel/workspaces";
 
+import type { AssetMeterUnit } from "./asset-meter";
+
 /* -------------------------------------------------------------------------- */
 /* Closed vocabularies                                                        */
 /* -------------------------------------------------------------------------- */
@@ -149,6 +151,17 @@ export type AssetDetails = {
   readonly renewalDate: string | null;
   readonly url: string | null;
   readonly documentNotes: string | null;
+  /* Meter (ASSET-02) — the CURRENT reading, a canonical fact.
+   *
+   * Advanced forward-only by a meter-bearing Asset Event whose event date is not
+   * older than `currentMeterDate`, so back-filling last year's service can never
+   * rewind an odometer. All three are null together when no reading exists — and
+   * "no reading" is a first-class, honest state, not a zero: a meter obligation
+   * with no reading reads as "Current meter reading needed", never as overdue.
+   */
+  readonly currentMeterValue: number | null;
+  readonly currentMeterUnit: AssetMeterUnit | null;
+  readonly currentMeterDate: string | null;
 };
 
 /**

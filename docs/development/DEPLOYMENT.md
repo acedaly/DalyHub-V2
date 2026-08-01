@@ -151,6 +151,30 @@ pnpm run deploy:production
 > top-level config, so the name can only ever be `dalyhub-v2-production`. This is
 > validated by the deploy guard and its tests (`test/unit/deploy/`).
 
+### ASSET-02 (migration `0025`) — deployment notes
+
+`0025_asset_history_and_obligations.sql` is **purely additive and
+existing-data-safe**:
+
+- three `ALTER TABLE asset_details ADD COLUMN` (the current meter reading), each
+  nullable with no default backfill;
+- two new tables (`asset_events`, `asset_obligations`) and their indexes.
+
+No existing column changes type, gains a constraint or is rewritten, and there is
+no backfill step. The consequences for a deployment:
+
+- **Migrate-then-deploy and deploy-then-migrate are both safe.** The previous
+  application version ignores the new columns and tables entirely, so applying
+  `0025` ahead of the deploy leaves production working unchanged.
+- **Rolling back the APPLICATION with the migration still applied is safe.** The
+  prior version never reads `asset_events`, `asset_obligations` or the meter
+  columns. Nothing needs to be un-migrated, and nothing should be: the migration
+  sequence is forward-only.
+- **No new bindings, secrets, environment variables or external services.** Assets
+  history and obligations run entirely on the existing D1 binding.
+- **No scheduler, cron trigger or queue is introduced.** Obligation urgency is
+  computed at READ time, which is precisely why none is needed.
+
 ### Production migrations
 
 Apply migrations to the remote production D1 before (or as part of) going live,

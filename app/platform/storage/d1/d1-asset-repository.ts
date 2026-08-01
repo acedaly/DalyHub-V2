@@ -60,6 +60,7 @@ import {
   type AssetPage,
   type AssetRepository,
   type AssetScalarField,
+  type AssetMeterUnit,
   type AssetStatus,
   type AssetType,
   type CreateAssetInput,
@@ -207,6 +208,9 @@ const READ_COLUMNS = `
   d.renewal_date AS renewal_date,
   d.url AS url,
   d.document_notes AS document_notes,
+  d.current_meter_value AS current_meter_value,
+  d.current_meter_unit AS current_meter_unit,
+  d.current_meter_date AS current_meter_date,
   d.archived_at AS archived_at,
   CASE WHEN e.updated_at >= d.updated_at THEN e.updated_at ELSE d.updated_at END
     AS effective_updated_at`;
@@ -248,6 +252,9 @@ interface AssetJoinedRow {
   readonly renewal_date: string | null;
   readonly url: string | null;
   readonly document_notes: string | null;
+  readonly current_meter_value: number | null;
+  readonly current_meter_unit: string | null;
+  readonly current_meter_date: string | null;
   readonly archived_at: string | null;
   readonly effective_updated_at: string;
   /** The view/sort's primary ordering value, projected for the cursor. */
@@ -961,6 +968,9 @@ export class D1AssetRepository implements AssetRepository {
         renewalDate: row.renewal_date,
         url: row.url,
         documentNotes: row.document_notes,
+        currentMeterValue: row.current_meter_value,
+        currentMeterUnit: row.current_meter_unit as AssetMeterUnit | null,
+        currentMeterDate: row.current_meter_date,
         createdAt: fromStorageTimestamp(row.created_at),
         updatedAt: fromStorageTimestamp(row.effective_updated_at),
         deletedAt:

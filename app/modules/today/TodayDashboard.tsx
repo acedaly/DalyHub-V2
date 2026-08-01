@@ -71,6 +71,7 @@ import { MorningBrief } from "./landing/MorningBrief";
 import { RecentActivityWidget } from "./landing/RecentActivityWidget";
 import {
   AreasWidget,
+  AssetsWidget,
   DiaryWidget,
   FocusWidget,
   GoalsWidget,
@@ -1194,6 +1195,18 @@ export function TodayDashboard({
         return <AreasWidget areas={landing?.areas ?? []} />;
       case "goals":
         return <GoalsWidget data={landing?.goals ?? { goals: [] }} />;
+      case "assets":
+        return (
+          <AssetsWidget
+            data={
+              landing?.assets ?? {
+                items: [],
+                trackedAsTasksCount: 0,
+                overdueCount: 0,
+              }
+            }
+          />
+        );
       case "focus":
         return <FocusWidget />;
       case "insights":
@@ -1215,6 +1228,8 @@ export function TodayDashboard({
         return landing?.areas.length;
       case "goals":
         return landing?.goals.goals.length;
+      case "assets":
+        return landing?.assets.items.length;
       case "insights":
         return landing?.insights.signals.length;
       default:

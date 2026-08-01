@@ -7,6 +7,7 @@ import {
   createTaskViewRepository,
   createAreaRepository,
   createAreaSettingsRepository,
+  createAssetHistoryRepository,
   createAssetRepository,
   createDiaryRepository,
   createEntityLinkRepository,
@@ -29,6 +30,7 @@ import {
   type D1AppPreferencesRepositoryOptions,
   type D1TaskViewRepositoryOptions,
   type D1AreaSettingsRepositoryOptions,
+  type D1AssetHistoryRepositoryOptions,
   type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
@@ -277,6 +279,35 @@ export function makeAssetRepository(
   options?: D1AssetRepositoryOptions,
 ) {
   return createAssetRepository(env.DB, context, options);
+}
+
+/**
+ * Construct a workspace-scoped D1-backed AssetHistoryRepository over the isolated
+ * test database (ASSET-02: Asset events + obligations, bound to a
+ * `WorkspaceContext`). The Task write gateway is injected per-test so a suite that
+ * links no Tasks needs no Task repository at all.
+ */
+export function makeAssetHistoryRepository(
+  context: WorkspaceContext,
+  options?: D1AssetHistoryRepositoryOptions,
+) {
+  return createAssetHistoryRepository(env.DB, context, options);
+}
+
+/** Count all rows in `asset_events` directly. */
+export async function countAssetEventRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM asset_events WHERE deleted_at IS NULL",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Count all live rows in `asset_obligations` directly. */
+export async function countAssetObligationRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM asset_obligations WHERE deleted_at IS NULL",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 /** Count all rows in `asset_details` directly. */
@@ -584,6 +615,9 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM meeting_item_tasks").run();
   await env.DB.prepare("DELETE FROM meeting_items").run();
   await env.DB.prepare("DELETE FROM meeting_details").run();
+  // ASSET-02 children first: both reference entities ON DELETE RESTRICT.
+  await env.DB.prepare("DELETE FROM asset_events").run();
+  await env.DB.prepare("DELETE FROM asset_obligations").run();
   await env.DB.prepare("DELETE FROM asset_details").run();
   await env.DB.prepare("DELETE FROM review_sections").run();
   await env.DB.prepare("DELETE FROM review_details").run();

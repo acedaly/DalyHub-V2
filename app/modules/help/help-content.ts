@@ -288,6 +288,152 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
             kind: "text",
             text: "An asset record holds what a thing is, what it cost and the dates that matter — registration, warranty, insurance, service. It exists so a renewal never surprises you.",
           },
+          {
+            kind: "text",
+            text: "An asset keeps three separate things, and it helps to know which is which. Its details are what is true right now — the current warranty expiry, the current odometer reading. Its history is what has happened to it. Its obligations are what it will need next.",
+          },
+        ],
+      },
+      {
+        id: "asset-history",
+        title: "Asset history",
+        lead: "What has actually happened to the thing you own.",
+        blocks: [
+          {
+            kind: "text",
+            text: "The History tab is the asset's life: every service, repair, inspection, renewal, valuation, modification and anything else worth remembering. Each entry carries the date, what was done, and only the details that apply — a repair usually has a cost and a mechanic, an inspection might be a date and a sentence.",
+          },
+          {
+            kind: "text",
+            text: "There are six quick ways to add an entry: record a service, record a repair, update the meter, record a renewal, record a valuation, or add a general history entry. Each asks for the least that can work. Anything else is behind “More details”, and most entries never need it.",
+          },
+          {
+            kind: "text",
+            text: "Recording work can update the asset itself. A service with a next-service date moves the asset's next service; a renewal moves its renewal date; a warranty entry moves its warranty expiry. This only ever moves dates FORWARD, so writing up a service from three years ago will not pull today's schedule backwards.",
+          },
+          {
+            kind: "text",
+            text: "That is also why a mistake in a current date is fixed on the Details tab rather than by editing history. Editing an entry corrects the record of what happened; it does not rewrite a date you set on purpose.",
+          },
+          {
+            kind: "text",
+            text: "A provider can just be a name. Typing “Northside Auto” does not create a person record. If the provider IS someone in your People, you can link them as well — but you never have to.",
+          },
+          {
+            kind: "text",
+            text: "Receipts, service reports, policy documents and registration papers live in Notes, linked from the entry. DalyHub does not store files yet, so it does not pretend to.",
+          },
+        ],
+      },
+      {
+        id: "asset-obligations",
+        title: "Maintenance and renewals",
+        lead: "What an asset will need next, and when.",
+        blocks: [
+          {
+            kind: "text",
+            text: "An obligation is something the asset will need: registration renewed by September, a service every six months, new tyres at 60,000 km. Add them on the asset's Obligations tab. They show overdue first, then due soon, then later, with finished ones tucked away.",
+          },
+          {
+            kind: "text",
+            text: "There are two ways something can become due, and an obligation can use either or both.",
+          },
+          {
+            kind: "list",
+            items: [
+              "By date — registration renewed yearly, a service every six months, an inspection each January.",
+              "By meter — a service every 10,000 kilometres, maintenance after 200 running hours, a part replaced every 500 cycles.",
+            ],
+          },
+          {
+            kind: "text",
+            text: "When an obligation uses both, whichever comes first wins. Six months or 10,000 km means exactly that.",
+          },
+          {
+            kind: "text",
+            text: "Meter readings are only ever compared in the same unit. DalyHub will not quietly turn kilometres into miles — if the obligation is set in kilometres and the last reading was in miles, it says so rather than guessing.",
+          },
+          {
+            kind: "text",
+            text: "If an asset has a meter obligation and no recent reading, DalyHub says “Current meter reading needed”. It will not call you overdue for something it cannot measure. Use “Update meter” on the History tab and the state resolves itself.",
+          },
+          {
+            kind: "text",
+            text: "When you complete a repeating obligation, the next one is scheduled from the day the work was ACTUALLY done, not the day it was originally due. A service done two months late does not leave you permanently two months behind. You can always type the real next date instead — the one printed on the new registration certificate beats any calculation.",
+          },
+        ],
+      },
+      {
+        id: "asset-tasks",
+        title: "Asset tasks: doing it versus recording it",
+        lead: "Ticking off “book the service” is not the same as the car being serviced.",
+        blocks: [
+          {
+            kind: "text",
+            text: "An obligation can have a task, so it turns up in Tasks and on Today alongside everything else you have committed to. Create one with “Create task” on the obligation.",
+          },
+          {
+            kind: "text",
+            text: "The obligation stays in charge of the asset side — the due date, how often it repeats, what it means. The task is just the reminder to act. If you change the obligation's due date, the task follows, so the two never drift apart.",
+          },
+          {
+            kind: "text",
+            text: "Completing the TASK does not complete the obligation. Ticking off “book the service” means you booked it, not that the car was serviced. So the obligation stays open and says: its task is done, record what actually happened. Completing the OBLIGATION does the opposite — it records what happened as history, updates the asset, schedules the next one, and closes the task for you.",
+          },
+          {
+            kind: "text",
+            text: "Deleting a task never deletes the obligation. The obligation notices the task is gone and lets you create a fresh one.",
+          },
+          {
+            kind: "text",
+            text: "On Today, you will not see the same job twice. If an obligation already has an open task, the task carries it and the Assets section says how many it is holding. The moment that task is done, the obligation comes back — which is exactly when you need to write up what happened.",
+          },
+        ],
+      },
+      {
+        id: "asset-costs",
+        title: "Recorded costs and value",
+        lead: "What you have spent, and what it is worth — as far as DalyHub knows.",
+        blocks: [
+          {
+            kind: "text",
+            text: "Costs on history entries add up into a summary on the asset's Overview: service and maintenance, repairs, renewals and registration, upgrades and modifications.",
+          },
+          {
+            kind: "text",
+            text: "These are called RECORDED costs on purpose. DalyHub can only add up what you have entered, so it never claims to be the true cost of owning something. The purchase price is kept separate from ongoing costs, and combined only under a clearly labelled lifetime total.",
+          },
+          {
+            kind: "text",
+            text: "Amounts in different currencies are never added together. If some entries are in another currency, DalyHub totals the main one and tells you which it left out.",
+          },
+          {
+            kind: "text",
+            text: "Value history is whatever valuations you record — an insurance figure, a dealer quote. DalyHub does not estimate what anything is worth, and it will not draw a trend from two data points, because two points are not a trend.",
+          },
+        ],
+      },
+      {
+        id: "asset-lifecycle",
+        title: "Archiving and deleting an asset",
+        lead: "Putting something away without losing its story.",
+        blocks: [
+          {
+            kind: "text",
+            text: "Archiving an asset puts the record away without destroying anything. Its history and obligations are kept, and it stops asking for things — its renewals leave Today. Restore it and the outstanding ones come back; finished work stays finished.",
+          },
+          {
+            kind: "text",
+            text: "Deleting an asset permanently is only offered once nothing else links to it, and it takes the history with it. Archive is almost always the one you want.",
+          },
+          {
+            kind: "text",
+            text: "Removing a single history entry is safe: an obligation you completed stays completed and its schedule keeps running, it just loses the write-up.",
+          },
+          {
+            kind: "text",
+            text: "One thing to know: DalyHub reminds you inside the app. It shows renewals on Today, on the asset and on the Assets list — but it does not send you an email or a phone notification. If you have not opened DalyHub, it cannot reach you.",
+          },
         ],
       },
     ],

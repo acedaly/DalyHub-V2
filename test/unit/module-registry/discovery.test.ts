@@ -460,6 +460,12 @@ describe("module discovery", () => {
           moduleId: "assets",
           file: "routes/activity.tsx",
         },
+        // ASSET-02 adds the history + obligations resource route (no nav entry).
+        {
+          id: "assets.history",
+          moduleId: "assets",
+          file: "routes/history.tsx",
+        },
         {
           id: "reviews.index",
           moduleId: "reviews",

@@ -22,7 +22,11 @@ import {
 } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
-import type { AssetRepository } from "~/kernel/assets";
+import {
+  type AssetHistoryRepository,
+  type AssetRepository,
+  type ObligationTaskGateway,
+} from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
@@ -42,6 +46,7 @@ import type { ProjectSettingsRepository } from "~/kernel/project-settings";
 import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
+import { ownerCalendarIso } from "~/shared/datetime";
 import type { TaskViewRepository } from "~/kernel/task-views";
 import type {
   WorkspaceContext,
@@ -52,6 +57,7 @@ import {
   createAlignmentRepository,
   createAppPreferencesRepository,
   createAreaRepository,
+  createAssetHistoryRepository,
   createAssetRepository,
   createAreaSettingsRepository,
   createDiaryRepository,
@@ -188,6 +194,16 @@ export interface WorkspaceScope {
    * repositories.
    */
   readonly assets: AssetRepository;
+  /**
+   * The ASSET-02 authoritative Asset history + obligations repository: an Asset's
+   * recorded events (what happened) and its future maintenance/renewal obligations
+   * (what is due). It advances the Asset's canonical facts forward-only, creates at
+   * most ONE recurrence successor per completion, aggregates recorded costs in SQL,
+   * and serves the bounded Today attention read. Task WRITES route through the
+   * canonical `tasks` repository via an injected gateway, so Task completion
+   * authority is never duplicated.
+   */
+  readonly assetHistory: AssetHistoryRepository;
   readonly reviews: ReviewRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
@@ -300,6 +316,34 @@ export function bindWorkspaceRepositories(
   const people = createPersonRepository(env.DB, context, { actorContext });
   const meetings = createMeetingRepository(env.DB, context, { actorContext });
   const assets = createAssetRepository(env.DB, context, { actorContext });
+  // The narrow Task write port an Asset obligation uses. Completion and
+  // rescheduling stay the TaskRepository's — this only names them (§22).
+  const obligationTasks: ObligationTaskGateway = {
+    async completeTask(taskId) {
+      try {
+        const result = await tasks.completeTask(taskId, {
+          ownerTodayIso: ownerCalendarIso(new Date()),
+        });
+        return result.changed ? "completed" : "already_closed";
+      } catch {
+        // A missing/deleted/cross-workspace Task is not an error here: the
+        // obligation simply has nothing left to reconcile against.
+        return "missing";
+      }
+    },
+    async rescheduleTask(taskId, dueDate) {
+      try {
+        await tasks.updateTask(taskId, { dueDate });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+  const assetHistory = createAssetHistoryRepository(env.DB, context, {
+    actorContext,
+    taskGateway: obligationTasks,
+  });
   const reviews = createReviewRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const relationships = createRelationshipRepository(env.DB, context);
@@ -330,6 +374,7 @@ export function bindWorkspaceRepositories(
     people,
     meetings,
     assets,
+    assetHistory,
     reviews,
     projectHealth,
     relationships,

@@ -704,3 +704,23 @@ Settings.
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+---
+
+## People and Asset events (ASSET-02)
+
+An Asset Event — a service, a repair, a valuation — may name a **provider** and may
+link a **Person**. The two are independent, and the rule matters:
+
+- **A provider is plain text.** Typing "Northside Auto" records a name. It **never**
+  creates a Person record. Auto-minting People from typed strings would fill the
+  relationship graph with businesses the owner never meant to remember, which is
+  the opposite of what People is for (AGENTS.md §5).
+- **A linked Person is a canonical id**, validated to exist in the same workspace.
+  An event may carry a provider name, a Person, or both — a mechanic who is also a
+  friend is legitimately both.
+- **Cross-workspace ids are rejected**, indistinguishably from "does not exist".
+
+A Person's relationship timeline surfaces Asset work through the shared Activity
+stream and the existing `asset.linked_person` relationship, exactly as it does for
+every other module — Assets adds no second People surface and no second timeline.

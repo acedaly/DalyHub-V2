@@ -468,6 +468,36 @@
 
 ---
 
+### ☐ DEBT-57 — Asset obligations are tracked, but nothing reaches the owner outside the app — P2
+- **Current issue.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) gives an Asset real obligations: a registration renewal, a six-monthly service, a warranty expiry. They surface on the Asset record, on the collection card and on Today — **all of which require the owner to open DalyHub.** There is no scheduler, no background job and no notification channel of any kind. A rego that expires while the owner is on holiday expires silently.
+- **Why it was not built here.** Deliberately excluded from ASSET-02's scope, and correctly so: a reminder that leaves the app is a NOTIFICATIONS capability, not an Assets one. It needs a delivery channel decision (push, email, or an external service), a scheduling mechanism the platform does not have, a quiet-hours and frequency policy, and an answer to what happens when the same obligation is also a Task that Tasks would want to remind about. Building any of that inside Assets would have created a second, module-local reminder engine — exactly the duplication AGENTS.md §9.8 forbids.
+- **Impact.** The single biggest gap between "tracked" and "reminded". It is also the reason ASSET-02's derived state is computed at READ time rather than stored: with nothing to fire on a schedule, a stored "overdue" flag would simply be stale data.
+- **Desired future state.** ONE workspace-level reminder capability that any module can contribute due items to — Tasks, Assets, Reviews — with a single delivery decision and a single quiet policy, rather than per-module notifications.
+- **Closing condition.** A shared reminder/notification capability exists, Assets contributes its obligations to it through the existing bounded `listAttention` seam (no new Assets-side scheduling), and an owner who has not opened DalyHub still learns that their registration expires next week.
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) (excluded there on purpose); a future notifications item.
+
+---
+
+### ☐ DEBT-58 — The Assets obligation-state filter narrows a page, not the collection — P3
+- **Current issue.** `/assets` offers an **Obligations: Overdue / Due soon** facet. Unlike every other Assets filter — type, status, area, owner, tag — it is applied over the **loaded page** in the loader, not in the `AssetRepository.list` SQL. An Asset whose only overdue obligation sits on page three is not surfaced by selecting "Overdue" on page one.
+- **Why it is like this, honestly.** Obligation state is DERIVED: it depends on the owner-calendar day, the lead time and the Asset's current meter reading, and it is computed by one canonical evaluator ([ADR-063](../decisions/ARCHITECTURE_DECISIONS.md#adr-063-asset-ownership-history--canonical-facts-recorded-events-and-future-obligations-as-three-separate-things) §4). Pushing it into the collection query would mean re-expressing that evaluator in SQL and letting the two drift — at which point the collection and the record could disagree about whether the rego is overdue, which is precisely the failure the single-evaluator rule exists to prevent.
+- **Impact.** Low at a personal scale (a page is 30 Assets and few people own more), and the filter never LIES — everything it shows genuinely is overdue. But it narrows rather than searches, which is not what the other facets on the same bar do, and that inconsistency is a comprehension cost.
+- **Desired future state.** Either a materialised, refreshed-on-write "next attention state" column the SQL can filter honestly, or an explicit statement in the UI that this facet narrows the current page. The first is better and more work; the second is a one-line honesty fix if the first is not funded.
+- **Closing condition.** Selecting "Overdue" returns every overdue Asset in the workspace regardless of page, with the derived state still coming from ONE evaluator — or the control says plainly that it filters the loaded page.
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals), [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters).
+
+---
+
+### ☐ DEBT-59 — Linked-Task open state on the Asset obligations tab is resolved for at most 50 Tasks — P3
+- **Current issue.** The Asset record loads up to 50 obligations, and resolves each linked Task's OPEN state by reading the Task through `TaskRepository.getTask` — capped at 50 lookups per load. Beyond that cap, the remaining obligations read as "task not open", so the record shows the "record what actually happened" prompt for a Task that is in fact still open.
+- **Why it is like this.** The failure is conservative in the right direction: it shows the obligation and asks the owner to act, rather than hiding a live commitment. But it is N reads for N obligations, which is the shape [§27](../../AGENTS.md#16-performance-expectations) exists to prevent, and only the cap stops it being unbounded.
+- **Impact.** Effectively zero today: an Asset with more than 50 obligations, each with its own linked Task, is not a real personal-life record. It matters as a pattern, not as a bug.
+- **Desired future state.** ONE grouped read for open-state, alongside the single `entities.getByIds` call that already resolves the titles — the same shape `listAttention` already uses in SQL via its `OPEN_TASK_EXISTS` join.
+- **Closing condition.** The Asset record's obligation load issues a fixed number of queries regardless of obligation count, proven by a query-counting kernel test (the harness already exists — see `countingDatabase` in `test/kernel/support.ts`).
+- **Related roadmap item.** [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals).
+
+---
+
 ## Entry template
 
 ```markdown

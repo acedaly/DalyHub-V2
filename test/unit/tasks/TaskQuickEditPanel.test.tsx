@@ -135,7 +135,12 @@ describe("TaskQuickEditPanel", () => {
     expect(body.get("intent")).toBe("set_priority");
     expect(body.get("priority")).toBe("p1");
     expect(body.get("id")).toBe("t-1");
-    expect(onChanged).toHaveBeenCalled();
+    // `onChanged` needs its OWN wait. The route spy fires when the action is
+    // INVOKED; `onChanged` fires only once the fetcher has RESOLVED and the
+    // component has observed the result — strictly later. Reusing the route's
+    // wait for it asserted a state that had not happened yet, and passed only
+    // because the two usually land in the same tick.
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
   });
 
   it("posts a Time Sector change to the CANONICAL bulk route", async () => {
@@ -186,8 +191,13 @@ describe("TaskQuickEditPanel", () => {
     const body = taskRoute.mock.calls[0]![0];
     expect(body.get("intent")).toBe("set_parent");
     expect(body.get("parentId")).toBe("");
-    expect(onChanged).toHaveBeenCalledWith(
-      expect.stringContaining("moved to Inbox"),
+    // Same reason as the priority case above: the announcement is written after
+    // the fetcher resolves, so it gets its own wait rather than riding on the
+    // route spy's.
+    await waitFor(() =>
+      expect(onChanged).toHaveBeenCalledWith(
+        expect.stringContaining("moved to Inbox"),
+      ),
     );
   });
 

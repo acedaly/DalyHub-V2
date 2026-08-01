@@ -16,7 +16,7 @@ import type { ActivityRepository } from "~/kernel/activity";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
 import type { TaskViewRepository } from "~/kernel/task-views";
-import type { AssetRepository } from "~/kernel/assets";
+import type { AssetHistoryRepository, AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
@@ -52,6 +52,10 @@ import {
   D1TaskViewRepository,
   type D1TaskViewRepositoryOptions,
 } from "./d1-task-view-repository";
+import {
+  D1AssetHistoryRepository,
+  type D1AssetHistoryRepositoryOptions,
+} from "./d1-asset-history-repository";
 import {
   D1AssetRepository,
   type D1AssetRepositoryOptions,
@@ -133,6 +137,10 @@ export {
   type D1AssetRepositoryOptions,
   type D1AssetCreateFault,
 } from "./d1-asset-repository";
+export {
+  D1AssetHistoryRepository,
+  type D1AssetHistoryRepositoryOptions,
+} from "./d1-asset-history-repository";
 export { D1GoalRepository };
 export {
   D1GoalDetailsRepository,
@@ -370,6 +378,24 @@ export function createAssetRepository(
   options?: D1AssetRepositoryOptions,
 ): AssetRepository {
   return new D1AssetRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed AssetHistoryRepository — the ASSET-02
+ * authoritative owner of an Asset's history (`asset_events`) and its future
+ * obligations (`asset_obligations`). It records events, advances the Asset's
+ * canonical facts forward-only, creates AT MOST ONE recurrence successor per
+ * completion, aggregates recorded costs in SQL, and serves the bounded Today
+ * attention read. Task WRITES go through the injected `ObligationTaskGateway` so
+ * Task completion authority stays with the TaskRepository. Bound to a
+ * `WorkspaceContext`; there is no unscoped construction path.
+ */
+export function createAssetHistoryRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1AssetHistoryRepositoryOptions,
+): AssetHistoryRepository {
+  return new D1AssetHistoryRepository(db, context, options);
 }
 
 /**

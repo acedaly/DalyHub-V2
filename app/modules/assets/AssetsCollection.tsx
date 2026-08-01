@@ -32,6 +32,7 @@ import { LoadMore } from "~/shared/load-more";
 
 import { assetTypeIcon } from "./asset-icons";
 import { nextMeaningfulDate, type AssetDateStatus } from "./asset-dates";
+import type { SerializedObligationSignal } from "./asset-history-view";
 import type {
   AssetFilterOption,
   AssetsCollectionData,
@@ -70,8 +71,23 @@ function pathFor(view: AssetView): string {
   return VIEWS.find((v) => v.view === view)?.path ?? "/assets";
 }
 
-/** Build the NON-SENSITIVE card view-model for one Asset. */
-function toCard(item: SerializedAssetListItem, today: string): CardProps {
+/**
+ * Build the NON-SENSITIVE card view-model for one Asset.
+ *
+ * ASSET-02 — the card's single date line now prefers the OBLIGATION signal when
+ * the Asset has one, because that is the live commitment; it falls back to the
+ * canonical warranty/renewal/service date only when there are no obligations. The
+ * two are never shown together: a card carries one urgent line, not a maintenance
+ * history (§12).
+ *
+ * Phone priority (§12): the Card renders title → type → this date line → status,
+ * which is exactly the order an owner needs at 320px.
+ */
+function toCard(
+  item: SerializedAssetListItem,
+  today: string,
+  signal: SerializedObligationSignal | undefined,
+): CardProps {
   const Icon = assetTypeIcon(item.assetType);
   const nextDate = nextMeaningfulDate(item, today);
   const metadata: CardMetaItem[] = [];
@@ -80,6 +96,11 @@ function toCard(item: SerializedAssetListItem, today: string): CardProps {
   if (item.location) {
     metadata.push({ id: "location", label: "Location", value: item.location });
   }
+  const dateLabel = signal
+    ? { label: signal.text, tone: signal.tone as CardTone }
+    : nextDate
+      ? { label: nextDate.text, tone: DATE_TONE[nextDate.status] }
+      : undefined;
   return {
     id: item.id,
     title: item.title,
@@ -90,9 +111,7 @@ function toCard(item: SerializedAssetListItem, today: string): CardProps {
     subtitle: item.assetTypeLabel,
     status: { label: item.statusLabel },
     metadata,
-    dateLabel: nextDate
-      ? { label: nextDate.text, tone: DATE_TONE[nextDate.status] }
-      : undefined,
+    dateLabel,
     href: `/asset/${encodeURIComponent(item.id)}`,
     openAriaLabel: `Open ${item.title}`,
   };
@@ -268,6 +287,18 @@ export function AssetsCollectionView({
         onChange={(v) => setParam("person", v)}
       />
       <label className="dh-assets-filters__field">
+        <span className="dh-assets-filters__label">Obligations</span>
+        <select
+          className="dh-select"
+          value={data.obligations}
+          onChange={(e) => setParam("obligations", e.currentTarget.value)}
+        >
+          <option value="any">Any</option>
+          <option value="overdue">Overdue</option>
+          <option value="due_soon">Due soon</option>
+        </select>
+      </label>
+      <label className="dh-assets-filters__field">
         <span className="dh-assets-filters__label">Tag</span>
         <input
           type="text"
@@ -357,7 +388,9 @@ export function AssetsCollectionView({
         ariaLabel={`Assets — ${viewLabel}`}
         presentation="list"
         density="comfortable"
-        renderCard={(a) => <Card {...toCard(a, data.today)} />}
+        renderCard={(a) => (
+          <Card {...toCard(a, data.today, data.obligationSignals[a.id])} />
+        )}
       />
       {!data.failed && pagination.hasMore ? (
         <LoadMore

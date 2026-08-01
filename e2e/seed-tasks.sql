@@ -57,9 +57,17 @@ VALUES
   ('l-overdue-signal-area', 'local-dev-workspace', 't-overdue-signal', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:04.000Z', '2026-07-19T01:00:04.000Z', NULL),
   ('l-waiting-area', 'local-dev-workspace', 't-waiting', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:05.000Z', '2026-07-19T01:00:05.000Z', NULL),
   ('l-complete-area', 'local-dev-workspace', 't-complete', 'a-dh', 'task.belongs_to_area', '2026-07-19T01:00:06.000Z', '2026-07-19T01:00:06.000Z', NULL);
+-- `t-drawer`'s due date is deliberately FAR FUTURE, and must stay that way.
+-- The Drawer journey asserts the shared UrgencyChip's absolute form ("Due
+-- <date>"), which the chip only renders while the due date is neither today nor
+-- past: on the day it equals today it becomes "Due today", and every day after
+-- that "Overdue · due …". A near-future fixture date is therefore a time bomb
+-- that fails on one specific date and every date thereafter — which is exactly
+-- what happened to '2026-08-01'. This mirrors the always-overdue '2000-01-01'
+-- fixture below, in the opposite direction.
 INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at)
 VALUES
-  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2026-08-01', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z'),
+  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2099-12-31', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z'),
   ('local-dev-workspace', 't-overdue-signal', 'task', 'todo', NULL, '2000-01-01', NULL, 'Dedicated non-mutated overdue signal fixture.', '2026-07-19T01:00:04.000Z');
 
 -- Reset the seeded tasks' MUTABLE state so every e2e run starts from a known,
@@ -70,7 +78,7 @@ UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-overdue-signal', 't-waiting', 't-complete');
 UPDATE task_details
-SET status = 'todo', priority = 'p1', due_date = '2026-08-01',
+SET status = 'todo', priority = 'p1', due_date = '2099-12-31',
     scheduled_date = NULL, description = 'Draft the **proposal** document.',
     waiting_since = NULL, waiting_note = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-drawer';

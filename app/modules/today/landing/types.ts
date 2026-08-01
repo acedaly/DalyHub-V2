@@ -86,6 +86,12 @@ export interface InsightsWidgetData {
   readonly signals: readonly InsightSignal[];
 }
 
+/**
+ * ASSET-02 — the Assets section payload. Already deduplicated against linked
+ * Tasks by `dedupeAttention`, so Today never states the same job twice.
+ */
+export type { AssetsTodayData } from "~/kernel/assets";
+
 /** The full landing payload the loader adds alongside the existing planning data. */
 export interface TodayLandingData {
   readonly morningBrief: MorningBriefData;
@@ -94,6 +100,7 @@ export interface TodayLandingData {
   readonly areas: readonly AreaHealthItem[];
   readonly goals: GoalsWidgetData;
   readonly insights: InsightsWidgetData;
+  readonly assets: import("~/kernel/assets").AssetsTodayData;
 }
 
 /** The upcoming-item entity mapping is preserved for the Morning Brief calendar. */

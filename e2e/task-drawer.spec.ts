@@ -46,9 +46,14 @@ test.describe("TODAY-02 — desktop", () => {
     await expect(priority).toContainText("P1");
     await expect(priority).toContainText("Urgent");
     // The due date renders — now in both the Planning section and, since TASKS-02,
-    // the shared UrgencyChip ("Due 1 Aug 2026"); assert the chip form explicitly.
+    // the shared UrgencyChip; assert the chip's ABSOLUTE form explicitly.
+    //
+    // The fixture's due date is far future ON PURPOSE (see `seed-tasks.sql`):
+    // the chip only renders "Due <date>" while the date is neither today nor
+    // past, so a near-future fixture would make this assertion fail on one
+    // specific calendar day and every day after it.
     await expect(
-      dialog.locator(".dh-urgency").getByText("Due 1 Aug 2026"),
+      dialog.locator(".dh-urgency").getByText("Due 31 Dec 2099"),
     ).toBeVisible();
   });
 
