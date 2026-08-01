@@ -592,6 +592,21 @@ work. Any unregistered type falls through to the shared safe generic
 fallback — no Notes-only switch statement, no duplicated registry, no raw
 payload rendering.
 
+**Export records no Activity — a deliberate deviation.** The NOTES-05
+completion brief lists "Note exported" among the events to record, and it is
+**not** implemented. `GET /notes/:noteId/export` is a read: writing an Activity
+row from a loader would make a GET mutating, so a browser prefetch, a retry
+after a dropped connection, or a double-click would each append an event that
+represents no decision the owner made. The two things such an event could be for
+are both already served — DalyHub is single-owner, so "who exported" answers
+nothing, and the DS-05 Timeline is a **user-facing history of what happened to
+the record**, not a hidden audit log, so rows for reads would be noise on the
+surface a person actually reads. Recording it properly would mean either a POST
+export (breaking the download UX that deliberately avoids navigation) or a
+separate audit store, which is a larger decision than this milestone owns. If a
+genuine need appears — multi-user workspaces, or a compliance requirement — it
+belongs with that decision rather than bolted onto a loader.
+
 `NoteDetailsRepository` deliberately does not compute a combined "last
 updated" moment (see `NOTES_PERSISTENCE.md`'s content-timestamp contract) —
 `effectiveNoteUpdatedAt` (`app/modules/notes/note-view.ts`) is the one small,
@@ -1001,6 +1016,8 @@ no new relationship type — record links reuse `note.references`. See
 - **Reconciliation is opt-in per field.** Only the Note body passes
   `serverValue` today, so DEBT-47's shape remains for the other autosave
   surfaces until each adopts the contract.
+- **Export is not recorded in Activity**, deliberately — see
+  [Activity](#activity) for the reasoning.
 - **Record-link resolution is per-navigation.** Following a record link is one
   `getById`; there is no batched pre-resolution, so a note full of record links
   does not show its broken ones until each is followed. The Links tab does show
