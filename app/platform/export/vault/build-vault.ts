@@ -84,27 +84,57 @@ function block(lines: readonly (string | null)[]): string | null {
   return kept.length === 0 ? null : kept.join("\n");
 }
 
-/** A section with a heading, omitted when it has no content. */
+/**
+ * A section with a heading, omitted when it has no content.
+ *
+ * "No content" is `null` or the empty string — deliberately NOT
+ * whitespace-only. Some sections wrap a record's canonical Markdown (a task
+ * description, a diary body, a review response), and a body of `"\n\n"` is
+ * something the author wrote, not an absence. Every generated caller already
+ * passes `null` when it has nothing (`block` and `linkList` guarantee it), so
+ * this only ever changes the outcome for authored content.
+ */
 function section(heading: string, body: string | null): string | null {
-  return body === null || body.trim() === ""
-    ? null
-    : `## ${heading}\n\n${body}`;
+  return body === null || body === "" ? null : `## ${heading}\n\n${body}`;
 }
 
 /**
- * Assemble a document from its optional parts, separated by exactly ONE blank
- * line.
+ * Assemble a document from its optional parts, separated by a blank line.
  *
- * Each part's own trailing newlines are trimmed before joining — the frontmatter
- * block ends in a newline and a rewritten Markdown body usually does too, so
- * joining them raw produced two or three blank lines between every section. The
- * file still ends with exactly one newline.
+ * The separator is applied by ADDING ONLY: between two parts it appends however
+ * many newlines are still needed to reach one blank line, and never removes a
+ * byte. That rule is load-bearing, not tidiness.
+ *
+ * A record's canonical Markdown is one of these parts, and the export contract
+ * says it is reproduced byte for byte apart from rewritten internal links. An
+ * earlier version trimmed each part's trailing newlines before joining — which
+ * tidied the output and, in doing so, silently dropped the blank lines an author
+ * had actually typed at the end of a note. A body is also kept when it is
+ * whitespace-only: `""` is "no body" (the writers pass `null`), but `"\n\n"` is
+ * something the author wrote.
+ *
+ * Generated parts are unaffected in practice: `frontmatter` ends with exactly
+ * one newline and `section`/`block` end with none, so the rule produces exactly
+ * one blank line between them.
  */
 function document(parts: readonly (string | null)[]): string {
-  const kept = parts
-    .filter((part): part is string => part !== null && part.trim() !== "")
-    .map((part) => part.replace(/\n+$/, ""));
-  return `${kept.join("\n\n")}\n`;
+  const kept = parts.filter(
+    (part): part is string => part !== null && part !== "",
+  );
+  if (kept.length === 0) return "";
+
+  let out = "";
+  for (const part of kept) {
+    if (out !== "") {
+      // Append only what is missing to reach a blank-line separator. A part that
+      // already ends with two or more newlines gets nothing added.
+      const trailing = /\n*$/.exec(out)?.[0].length ?? 0;
+      out += "\n".repeat(Math.max(0, 2 - trailing));
+    }
+    out += part;
+  }
+  // End the file with a newline, without adding a second one.
+  return out.endsWith("\n") ? out : `${out}\n`;
 }
 
 /** An exact, locale-free money rendering: `1234.56 AUD`. */

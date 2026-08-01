@@ -147,6 +147,47 @@ describe("readability", () => {
     }
   });
 
+  it("preserves a body's trailing blank lines byte for byte", () => {
+    // Regression: an earlier `document()` trimmed every part's trailing
+    // newlines to tidy the output, which silently dropped blank lines the
+    // author had actually typed at the end of a note.
+    const authored = "# Knowledge hub\n\nBody text.\n\n\n\n";
+    const built = buildObsidianVault(
+      makeSnapshot({
+        records: {
+          ...makeSnapshot().records,
+          noteDetails: makeSnapshot().records.noteDetails.map((note) =>
+            note.entityId === IDS.noteLinks
+              ? { ...note, content: authored }
+              : note,
+          ),
+        },
+      }),
+    );
+    const note = built.files.find((f) => f.path === "Notes/Knowledge hub.md")!;
+    expect(note.contents).toContain(authored);
+  });
+
+  it("keeps a body the author wrote as nothing but blank lines", () => {
+    const built = buildObsidianVault(
+      makeSnapshot({
+        records: {
+          ...makeSnapshot().records,
+          noteDetails: makeSnapshot().records.noteDetails.map((note) =>
+            note.entityId === IDS.noteLinks
+              ? { ...note, content: "\n\n" }
+              : note,
+          ),
+        },
+      }),
+    );
+    const note = built.files.find((f) => f.path === "Notes/Knowledge hub.md")!;
+    // The generated title heading is still there, and the authored whitespace
+    // was not silently discarded.
+    expect(note.contents).toContain("# Knowledge hub");
+    expect(note.contents).toMatch(/# Knowledge hub\n{3,}/);
+  });
+
   it("does not repeat a title the note body already carries as its own H1", () => {
     // The fixture note's body opens with `# Knowledge hub`, matching its title.
     const note = file("Notes/Knowledge hub.md");

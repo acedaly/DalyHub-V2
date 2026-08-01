@@ -8,6 +8,7 @@
 
 export {
   WorkspaceSnapshotUnavailableError,
+  WorkspaceTooLargeError,
   buildWorkspaceSnapshot,
   type BuildSnapshotOptions,
 } from "./build-snapshot";

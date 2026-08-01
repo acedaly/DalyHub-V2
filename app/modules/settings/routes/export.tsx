@@ -38,6 +38,7 @@ import { SnapshotValidationError } from "~/kernel/export";
 import { buildInfo } from "~/lib/version";
 import {
   WorkspaceSnapshotUnavailableError,
+  WorkspaceTooLargeError,
   buildObsidianVaultArchive,
   buildStructuredExportArchive,
   buildWorkspaceSnapshot,
@@ -83,11 +84,14 @@ function failureMessage(error: unknown): { status: number; message: string } {
         "The export was stopped because the snapshot failed its own integrity check. No file was produced — a partial export would be worse than none.",
     };
   }
-  if (error instanceof ZipTooLargeError) {
+  if (
+    error instanceof ZipTooLargeError ||
+    error instanceof WorkspaceTooLargeError
+  ) {
     return {
       status: 507,
       message:
-        "This workspace is too large to export in a single archive. Please report this — the export needs to be split.",
+        "This workspace is too large to export in a single archive. No partial file was produced, because an export that is quietly missing records is worse than none. Please report this — the export needs to be split.",
     };
   }
   return {

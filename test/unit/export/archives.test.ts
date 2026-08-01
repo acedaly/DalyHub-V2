@@ -9,7 +9,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  WorkspaceTooLargeError,
   buildExportManifest,
+  buildWorkspaceSnapshot,
   buildObsidianVaultArchive,
   buildStructuredExportArchive,
   countRecordsByModule,
@@ -17,7 +19,10 @@ import {
   sha256Hex,
   type ExportManifest,
 } from "~/platform/export";
-import { SNAPSHOT_SCHEMA_NAME } from "~/kernel/export";
+import {
+  SNAPSHOT_SCHEMA_NAME,
+  type WorkspaceSnapshotRepository,
+} from "~/kernel/export";
 
 import { makeSnapshot } from "./snapshot-fixture";
 
@@ -135,6 +140,61 @@ describe("buildExportManifest", () => {
     expect(manifest.files).toEqual([
       { path: "README.md", bytes: 10, sha256: "abc" },
     ]);
+  });
+});
+
+describe("collection ceiling", () => {
+  it("fails closed rather than shipping a referentially broken partial snapshot", async () => {
+    // Regression: an earlier build truncated each collection independently at
+    // the ceiling. When `entities` truncated, the detail rows, links and
+    // Activity subjects still referenced records outside the retained prefix,
+    // the validator (correctly) rejected them, and the owner got a 500 instead
+    // of the archive the manifest promised. The ceiling is now a hard boundary.
+    const rows = snapshot.records.entities;
+    const repository: WorkspaceSnapshotRepository = {
+      readWorkspace: async () => snapshot.workspace,
+      readOwnerPreferences: async () => snapshot.owner.preferences,
+      readTaskSavedViews: async () => snapshot.owner.taskSavedViews,
+      listPage: async (collection) => ({
+        rows: (collection === "entities" ? rows : []) as never[],
+        nextCursor: null,
+      }),
+    };
+
+    await expect(
+      buildWorkspaceSnapshot(repository, {
+        ownerId: "owner",
+        exportedAt: new Date(snapshot.meta.exportedAt),
+        application: snapshot.meta.application,
+        maxRowsPerCollection: rows.length - 1,
+      }),
+    ).rejects.toBeInstanceOf(WorkspaceTooLargeError);
+  });
+
+  it("succeeds when the workspace fits inside the ceiling", async () => {
+    const repository: WorkspaceSnapshotRepository = {
+      readWorkspace: async () => snapshot.workspace,
+      readOwnerPreferences: async () => snapshot.owner.preferences,
+      readTaskSavedViews: async () => snapshot.owner.taskSavedViews,
+      listPage: async (collection) => ({
+        rows: snapshot.records[collection] as never[],
+        nextCursor: null,
+      }),
+    };
+
+    const built = await buildWorkspaceSnapshot(repository, {
+      ownerId: "owner",
+      exportedAt: new Date(snapshot.meta.exportedAt),
+      application: snapshot.meta.application,
+      maxRowsPerCollection: snapshot.records.entities.length,
+    });
+    expect(built.records.entities).toHaveLength(
+      snapshot.records.entities.length,
+    );
+    // No truncation limitation exists any more: the ceiling either fits or fails.
+    expect(built.limitations.map((l) => l.code)).not.toContain(
+      "collection_truncated",
+    );
   });
 });
 

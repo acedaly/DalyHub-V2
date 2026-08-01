@@ -296,7 +296,8 @@ Compression is only used when it actually shrinks the entry.
 
 Assembly is bounded at `ZIP_MAX_TOTAL_BYTES` (64 MiB of content). Exceeding it
 throws `ZipTooLargeError`, which the route reports as an honest 507 rather than
-exhausting the isolate. Archive paths are validated independently of the filename
+exhausting the isolate — the same fail-closed treatment
+`WorkspaceTooLargeError` gets for the per-collection row ceiling. Archive paths are validated independently of the filename
 generator, so a traversal bug in either is caught by the other.
 
 ---
@@ -365,9 +366,14 @@ These are real and recorded rather than hidden.
   is a complete readable copy — not a one-click undo.
 - **Not an atomic point-in-time snapshot** (§3). Exporting while actively editing
   can produce a file where one collection is a few seconds newer than another.
-- **Bounded at 50,000 rows per collection and 64 MiB per archive.** Reaching
-  either is reported in `limitations` and in the manifest, never silently
-  truncated. No realistic personal workspace is close.
+- **Bounded at 50,000 rows per collection and 64 MiB per archive**, and the
+  bound **fails the export** rather than truncating it. Truncating one collection
+  while still reading the others produces a snapshot that is not referentially
+  closed — detail rows, links and Activity subjects pointing at records outside
+  the retained prefix — and filtering the dependents down to match would ship a
+  silently partial copy of a life under the name "full export". Both are worse
+  than a clear error, so the owner gets a 507 and a sentence they can report. No
+  realistic personal workspace is close to either bound.
 - **A rename changes a filename.** The vault is keyed by title; the snapshot is
   keyed by id. Diffing two vaults across a rename shows a delete and an add.
 - **Activity payloads are structural.** An event whose stored payload is not

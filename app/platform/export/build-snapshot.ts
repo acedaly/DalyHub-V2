@@ -11,9 +11,12 @@
  *   - it **pages** each collection through the bounded repository until the
  *     source is exhausted or the collection ceiling is reached — never a single
  *     unbounded read;
- *   - it **records** every ceiling it hits, and every Activity payload that
- *     would not parse, as a named `SnapshotLimitation`, so an incomplete export
- *     says so in its own manifest instead of looking complete;
+ *   - it **fails closed** when a collection exceeds its ceiling, rather than
+ *     truncating: a truncated snapshot is not referentially closed, and a
+ *     silently partial copy of a life is worse than an honest error;
+ *   - it **records** every Activity payload that would not parse as a named
+ *     `SnapshotLimitation`, so a lossy export says so in its own manifest
+ *     instead of looking complete;
  *   - it **validates** the finished snapshot before returning it, so a caller
  *     cannot serialise a malformed one;
  *   - it **writes nothing**. There is no mutating repository in scope.
@@ -45,6 +48,35 @@ export class WorkspaceSnapshotUnavailableError extends Error {
   }
 }
 
+/**
+ * Thrown when a collection exceeds the ceiling a single snapshot can carry.
+ *
+ * The export FAILS rather than truncating. Truncating one collection while
+ * continuing to read the others produces a snapshot whose detail rows, links and
+ * Activity subjects reference records outside the retained prefix — it is not
+ * referentially closed, and it is exactly the "download that appears valid and
+ * is not" this feature exists to prevent. Filtering every dependent collection
+ * down to the retained prefix would avoid that, but it would ship a SILENTLY
+ * PARTIAL copy of a life under the name "full export", which is worse.
+ *
+ * So the ceiling is a hard, honest boundary: a clear error the owner can act on
+ * and report, never a file they discover is incomplete when they need it.
+ */
+export class WorkspaceTooLargeError extends Error {
+  readonly collection: string;
+  readonly limit: number;
+
+  constructor(collection: string, limit: number) {
+    super(
+      `This workspace has more than ${limit} ${collection} records, which is ` +
+        `more than one export archive can carry.`,
+    );
+    this.name = "WorkspaceTooLargeError";
+    this.collection = collection;
+    this.limit = limit;
+  }
+}
+
 export interface BuildSnapshotOptions {
   /** The authenticated owner, used ONLY as a query predicate. Never exported. */
   readonly ownerId: string;
@@ -54,14 +86,24 @@ export interface BuildSnapshotOptions {
   readonly application: SnapshotApplication;
   /** Test seam: override the per-page read size. Clamped by the repository. */
   readonly pageSize?: number;
+  /**
+   * Test seam: override the per-collection ceiling, so the fail-closed path can
+   * be exercised without seeding fifty thousand rows.
+   */
+  readonly maxRowsPerCollection?: number;
 }
 
-/** Page one collection to exhaustion (or its ceiling), preserving order. */
+/**
+ * Page one collection to exhaustion, preserving order.
+ *
+ * Throws {@link WorkspaceTooLargeError} rather than truncating — see that
+ * error's own note for why a partial snapshot is not an acceptable outcome.
+ */
 async function collect<K extends SnapshotCollection>(
   repository: WorkspaceSnapshotRepository,
   collection: K,
   pageSize: number,
-  limitations: SnapshotLimitation[],
+  maxRows: number,
 ): Promise<readonly SnapshotCollectionRowMap[K][]> {
   const rows: SnapshotCollectionRowMap[K][] = [];
   let cursor: string | null = null;
@@ -69,21 +111,8 @@ async function collect<K extends SnapshotCollection>(
     const page: SnapshotPage<SnapshotCollectionRowMap[K]> =
       await repository.listPage(collection, cursor, pageSize);
     rows.push(...page.rows);
-    if (rows.length >= SNAPSHOT_COLLECTION_MAX_ROWS) {
-      if (rows.length > SNAPSHOT_COLLECTION_MAX_ROWS) {
-        rows.length = SNAPSHOT_COLLECTION_MAX_ROWS;
-      }
-      if (page.nextCursor !== null) {
-        limitations.push({
-          code: "collection_truncated",
-          subject: collection,
-          detail:
-            `This export carries the first ${SNAPSHOT_COLLECTION_MAX_ROWS} ` +
-            `${collection} records in id order. The workspace holds more, and ` +
-            `the remainder is NOT in this file.`,
-        });
-      }
-      return rows;
+    if (rows.length > maxRows) {
+      throw new WorkspaceTooLargeError(collection, maxRows);
     }
     if (page.nextCursor === null) return rows;
     cursor = page.nextCursor;
@@ -106,6 +135,7 @@ export async function buildWorkspaceSnapshot(
 ): Promise<WorkspaceSnapshotV1> {
   const limitations: SnapshotLimitation[] = [];
   const pageSize = options.pageSize ?? SNAPSHOT_PAGE_SIZE;
+  const maxRows = options.maxRowsPerCollection ?? SNAPSHOT_COLLECTION_MAX_ROWS;
 
   const workspace = await repository.readWorkspace();
   if (workspace === null) {
@@ -123,7 +153,7 @@ export async function buildWorkspaceSnapshot(
       repository,
       collection,
       pageSize,
-      limitations,
+      maxRows,
     );
   }
   const records = collected as unknown as SnapshotRecords;
