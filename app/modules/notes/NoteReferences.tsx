@@ -18,11 +18,13 @@
  * Notes-only relationship representation.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { LoadMore } from "~/shared/load-more";
 import {
+  availableReferenceFamilies,
   ReferenceList,
+  referenceFamilyOf,
   referencesOfType,
   type RecordReference,
   type ReferencePage,
@@ -79,25 +81,82 @@ export interface NoteBacklinksTabProps {
   readonly page: ReferencePage;
 }
 
+/** The filter value meaning "show every module". */
+const ALL_FAMILIES = "all";
+
 export function NoteBacklinksTab({ noteId, page }: NoteBacklinksTabProps) {
   const { items, hasMore, loading, loadFailed, loadMore } = useReferencePages(
     noteId,
     "incoming",
     page,
   );
+  const [family, setFamily] = useState<string>(ALL_FAMILIES);
+
+  // The filter's options are derived from what is actually loaded, so it can
+  // never offer a module that would empty the list (§6: no empty groups). A
+  // family that disappears as pages load — or was only on a later page — simply
+  // stops being offered, and the selection falls back to "All".
+  const families = useMemo(() => availableReferenceFamilies(items), [items]);
+  const activeFamily = families.some((option) => option.id === family)
+    ? family
+    : ALL_FAMILIES;
+  const visible = useMemo(
+    () =>
+      activeFamily === ALL_FAMILIES
+        ? items
+        : items.filter(
+            (reference) =>
+              referenceFamilyOf(reference.record.type) === activeFamily,
+          ),
+    [items, activeFamily],
+  );
+
+  // Honest counting: "N loaded" while a page remains, never a claimed total —
+  // the same convention every DalyHub collection subtitle uses, because the
+  // bounded read genuinely does not know the total (§6, §26).
+  const countLabel = hasMore
+    ? `${items.length} loaded`
+    : `${items.length} ${items.length === 1 ? "backlink" : "backlinks"}`;
 
   return (
     <section className="dh-note-references" aria-labelledby="note-backlinks">
       <h2 id="note-backlinks" className="dh-note-references__heading">
         Referenced by
+        <span className="dh-note-references__count"> ({countLabel})</span>
       </h2>
       <p className="dh-note-references__help">
         Records that explicitly link to this note — through a{" "}
-        <code>[[wiki link]]</code> in their own text, or a relationship someone
-        created. Simply mentioning this note’s title in prose is not a link.
+        <code>[[wiki link]]</code> or a record link in their own text, or a
+        relationship someone created. Simply mentioning this note’s title in
+        prose is not a link.
       </p>
+
+      {/* A native <select>, matching the NOTES-03 filter bar's deliberate
+          choice: a real on-screen picker on a phone, keyboard-complete for
+          free, and no custom widget semantics to get wrong. Only offered when
+          there is genuinely more than one module to choose between. */}
+      {families.length > 1 ? (
+        <div className="dh-note-references__filter">
+          <label htmlFor="note-backlinks-module">Module</label>
+          <select
+            id="note-backlinks-module"
+            value={activeFamily}
+            onChange={(event) => setFamily(event.target.value)}
+          >
+            <option value={ALL_FAMILIES}>All modules ({items.length})</option>
+            {families.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label} ({option.count})
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
       <ReferenceList
-        references={items}
+        references={visible}
+        groupByFamily={activeFamily === ALL_FAMILIES}
+        groupHeadingLevel={3}
         label="Records linking to this note"
         emptyTitle="Nothing links here yet"
         emptyDescription="When another record links to this note — a project, a task, a meeting or another note — it will appear here."

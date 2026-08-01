@@ -23,6 +23,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 
 import {
+  groupReferencesByFamily,
   groupReferencesByType,
   type RecordReference,
 } from "./references-model";
@@ -31,6 +32,14 @@ export interface ReferenceListProps {
   readonly references: readonly RecordReference[];
   /** Group rows by the counterpart's entity type. Defaults to `false`. */
   readonly groupByType?: boolean;
+  /**
+   * NOTES-05 §6 — group rows by MODULE FAMILY (Notes; Projects, Areas and Goals;
+   * People and Meetings; …) instead of by raw entity type. This is what the
+   * Backlinks surface uses: fifty backlinks over eight types produce eight
+   * one-row groups by type, which is a table of contents rather than an aid.
+   * Ignored when `groupByType` is set.
+   */
+  readonly groupByFamily?: boolean;
   /** Heading level for group headings, so the page hierarchy stays logical. */
   readonly groupHeadingLevel?: 3 | 4 | 5;
   /** Rendered when there are no references. */
@@ -102,6 +111,7 @@ function ReferenceRow({ reference }: { readonly reference: RecordReference }) {
 export function ReferenceList({
   references,
   groupByType = false,
+  groupByFamily = false,
   groupHeadingLevel = 4,
   emptyTitle,
   emptyDescription,
@@ -115,6 +125,33 @@ export function ReferenceList({
         headingLevel={3}
         size="compact"
       />
+    );
+  }
+
+  if (groupByFamily && !groupByType) {
+    const FamilyHeading = `h${groupHeadingLevel}` as "h4";
+    return (
+      <div className="dh-reference-groups">
+        {groupReferencesByFamily(references).map((group) => (
+          <section key={group.id} className="dh-reference-group">
+            <FamilyHeading className="dh-reference-group__heading">
+              {group.label}
+              <span className="dh-reference-group__count">
+                {" "}
+                ({group.items.length})
+              </span>
+            </FamilyHeading>
+            <ul
+              className="dh-reference-list"
+              aria-label={`${label}: ${group.label}`}
+            >
+              {group.items.map((reference) => (
+                <ReferenceRow key={reference.linkId} reference={reference} />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     );
   }
 

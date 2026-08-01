@@ -435,3 +435,112 @@
     border-inline-start-color: CanvasText;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * NOTES-05 §5 — the record-link picker.
+ *
+ * A transient in-flow surface between the toolbar and the writing area, NOT an
+ * overlay: on a phone the software keyboard already owns the bottom of the
+ * screen, and a floating popover there either sits under the keyboard or covers
+ * the line being written. Keeping it in flow means it simply pushes the writing
+ * surface down, stays fully scrollable, and needs no focus trap of its own.
+ * ------------------------------------------------------------------------- */
+
+.dh-record-link-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-3);
+  border-block-end: var(--dh-border-width-thin) solid var(--dh-color-border);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-record-link-picker__label {
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-record-link-picker__input {
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font: inherit;
+}
+
+.dh-record-link-picker__list {
+  /* Bounded height: a long result set scrolls inside the picker rather than
+   * pushing the writing surface off the screen. */
+  max-block-size: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-record-link-picker__list:empty {
+  display: none;
+}
+
+.dh-record-link-picker__option {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+/* The active option is signalled by BOTH a surface change and a start rule —
+ * never colour alone (AGENTS.md §15). */
+.dh-record-link-picker__option[data-active="true"] {
+  background: var(--dh-color-surface-raised);
+  box-shadow: inset var(--dh-space-1) 0 0 0 var(--dh-color-accent);
+}
+
+.dh-record-link-picker__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-record-link-picker__title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  color: var(--dh-color-text);
+  /* A long record title truncates rather than forcing the row wider than the
+   * editor — the phone requirement of no horizontal overflow. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-record-link-picker__type {
+  flex: 0 0 auto;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dh-record-link-picker__status {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-record-link-picker__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (forced-colors: active) {
+  .dh-record-link-picker__option[data-active="true"] {
+    outline: var(--dh-border-width-thin) solid Highlight;
+    box-shadow: none;
+  }
+}

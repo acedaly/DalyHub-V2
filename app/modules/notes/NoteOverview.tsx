@@ -20,8 +20,10 @@
 
 import { useRef, type ReactNode } from "react";
 
+import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { EntityIcon } from "~/shared/entity";
-import { DownloadIcon, TagIcon } from "~/shared/icons";
+import { CopyIcon, DownloadIcon, PrinterIcon, TagIcon } from "~/shared/icons";
+import { MarkdownContent } from "~/shared/markdown";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   RecordLayout,
@@ -52,6 +54,13 @@ interface NoteOverviewProps {
   readonly activityTab: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
+  /**
+   * NOTES-05 §21 — the note rendered by the server through the ONE FND-08
+   * pipeline, for the print-only view. `null` when the note is empty or could
+   * not be rendered, in which case printing simply omits the body rather than
+   * printing an error.
+   */
+  readonly printHtml?: SanitizedMarkdownHtml | null;
 }
 
 function dateLabel(iso: string): string | null {
@@ -69,6 +78,7 @@ export function NoteOverview({
   activityTab,
   activeTabId,
   onTabChange,
+  printHtml = null,
 }: NoteOverviewProps) {
   const created = dateLabel(overview.createdAt);
   // The record's "Updated" value must reflect a content-only save too — the
@@ -114,10 +124,11 @@ export function NoteOverview({
     unarchiveNote,
     pending: archivePending,
   } = useArchiveNote(overview.id);
-  const { exportNote, pending: exportPending } = useNoteExport(
-    overview.id,
-    overview.title,
-  );
+  const {
+    exportNote,
+    copyNote,
+    pending: exportPending,
+  } = useNoteExport(overview.id, overview.title);
 
   const renameAction: RecordAction = {
     id: "rename",
@@ -149,6 +160,32 @@ export function NoteOverview({
       icon: <DownloadIcon />,
       disabled: exportPending,
       onSelect: () => void exportNote("txt"),
+    },
+    // NOTES-05 §21 — copy and print. They join the SAME overflow rather than
+    // adding a Notes-only action bar (DS-12), and copy serves the identical
+    // bytes the matching export writes, so "copy" and "export" can never
+    // disagree about what the note is.
+    {
+      id: "note-copy-md",
+      label: "Copy Markdown",
+      icon: <CopyIcon />,
+      disabled: exportPending,
+      onSelect: () => void copyNote("md"),
+    },
+    {
+      id: "note-copy-txt",
+      label: "Copy plain text",
+      icon: <CopyIcon />,
+      disabled: exportPending,
+      onSelect: () => void copyNote("txt"),
+    },
+    {
+      id: "note-print",
+      label: "Print",
+      icon: <PrinterIcon />,
+      // `window.print()` is synchronous and always available; the print-only
+      // view is already in the DOM, so nothing needs loading first.
+      onSelect: () => window.print(),
     },
   ];
 
@@ -206,6 +243,31 @@ export function NoteOverview({
         ]}
       />
       {lifecycle.dialogs}
+
+      {/*
+        NOTES-05 §21 — the print-friendly view.
+
+        Hidden on screen and revealed only by `@media print`, so ⌘P works from
+        ANY tab and in either editor mode. This matters: the writing surface is
+        CodeMirror, and printing a live editor prints its scroller, its
+        decorations and its concealed markers rather than the note.
+
+        It is rendered SERVER-side through the one FND-08 pipeline into the one
+        sanctioned `MarkdownContent` sink — no second renderer, no second sink,
+        and nothing here can print content the reader was not authorised to see.
+        Because it is real DOM rather than a screenshot of the editor, it also
+        carries no hidden UI text: only the title, the dates and the note.
+      */}
+      <div className="dh-note-print" aria-hidden="true">
+        <h1 className="dh-note-print__title">{overview.title}</h1>
+        <p className="dh-note-print__meta">
+          {created ? `Created ${created}` : null}
+          {created && updated ? " · " : null}
+          {updated ? `Updated ${updated}` : null}
+          {details.tags.length > 0 ? ` · ${details.tags.join(", ")}` : null}
+        </p>
+        {printHtml ? <MarkdownContent html={printHtml} /> : null}
+      </div>
     </>
   );
 }

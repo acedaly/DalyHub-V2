@@ -38,6 +38,20 @@ export interface UseAutosaveFieldOptions<TValue> {
   /** The committed initial value. */
   readonly initialValue: TValue;
   /**
+   * NOTES-05 §18 — the field's CURRENT server-side value, when the caller can
+   * keep it fresh (e.g. a route loader that revalidates).
+   *
+   * Supply this and the hook applies the documented reconciliation contract on
+   * every change: adopt silently while the field is clean, and park the newer
+   * value in `remoteValue` while it is dirty, so the caller can offer it rather
+   * than the product silently losing one version or the other (DEBT-47).
+   *
+   * Omit it entirely and behaviour is exactly as before — `initialValue` seeds
+   * the draft once and the hook owns it. Every existing autosave field therefore
+   * keeps its current semantics until it opts in.
+   */
+  readonly serverValue?: TValue;
+  /**
    * Persist the value. Reject (throw) to signal failure — the message shown is
    * `errorMessage`, never the raw exception. The signal is aborted if the hook
    * unmounts or the save is superseded.
@@ -75,6 +89,16 @@ export interface UseAutosaveFieldResult<TValue> {
    * MUST treat `false` as "do not proceed", never as "proceed anyway".
    */
   readonly flush: () => Promise<boolean>;
+  /**
+   * NOTES-05 §18 — a newer server-side value that could not be adopted because
+   * the field was dirty, or `null` when there is nothing to reconcile. Non-null
+   * is the caller's cue to show a conflict banner.
+   */
+  readonly remoteValue: TValue | null;
+  /** Take the server's version, discarding the local draft. An explicit act. */
+  readonly adoptRemote: () => void;
+  /** Keep the local draft and stop offering the server's version. */
+  readonly dismissRemote: () => void;
 }
 
 export function useAutosaveField<TValue>(
@@ -192,6 +216,27 @@ export function useAutosaveField<TValue>(
     dispatch({ type: "retry" });
   }, [clearTimer, dispatch]);
 
+  // NOTES-05 §18 — feed server-side changes into the reconciliation contract.
+  // The reducer decides whether to adopt or park; this effect only reports. The
+  // common case is a no-op: after our own save the caller revalidates and hands
+  // back exactly what we just committed, which the reducer recognises as
+  // agreement and ignores.
+  const { serverValue } = options;
+  const hasServerValue = "serverValue" in options;
+  useEffect(() => {
+    if (!hasServerValue) return;
+    dispatch({ type: "external", value: serverValue as TValue });
+  }, [hasServerValue, serverValue, dispatch]);
+
+  const adoptRemote = useCallback(() => {
+    clearTimer();
+    dispatch({ type: "adoptRemote" });
+  }, [clearTimer, dispatch]);
+
+  const dismissRemote = useCallback(() => {
+    dispatch({ type: "dismissRemote" });
+  }, [dispatch]);
+
   const flush = useCallback((): Promise<boolean> => {
     clearTimer();
     if (isPersisted(stateRef.current, isEqual)) {
@@ -219,5 +264,8 @@ export function useAutosaveField<TValue>(
     onBlur,
     retry,
     flush,
+    remoteValue: state.remote,
+    adoptRemote,
+    dismissRemote,
   };
 }

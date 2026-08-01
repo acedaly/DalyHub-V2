@@ -95,6 +95,38 @@ const field = useAutosaveField<string>({
 
 The trigger is documented and deterministic (a restrained debounce and a valid blur). The pure coordinator guarantees one save in flight, coalesce-to-latest, stale-response rejection, input preservation on failure, and no save while invalid. No per-keystroke toast — the quiet inline `SaveStatusIndicator` is the whole feedback.
 
+### Reconciling a server-side change (NOTES-05, closing DEBT-47)
+
+A field can change on the SERVER while an editor is mounted — another tab, another device, another surface writing the same field. Pass the field's current server value and the coordinator applies one documented contract:
+
+```tsx
+const field = useAutosaveField<string>({
+  initialValue: content,
+  serverValue: content,   // the loader revalidates, so this IS the server's value
+  onSave,
+});
+
+{field.remoteValue !== null ? (
+  <RemoteChangeBanner
+    what="This note"
+    saving={field.status === "saving"}
+    onAdopt={field.adoptRemote}
+    onDismiss={field.dismissRemote}
+  />
+) : null}
+```
+
+| Field state | Behaviour |
+| --- | --- |
+| **Clean** — no pending edit, no save in flight, no failed save | The external value is **adopted silently**. There is no draft to lose, so asking would be noise. |
+| **Dirty** | **Nothing visible changes.** The draft is untouched and the newer value is parked in `remoteValue` for the UI to offer. |
+
+`adoptRemote` takes the server's version (discarding the draft — destructive, so never automatic, and refused while a save is in flight because that save would land afterwards); `dismissRemote` keeps the draft and stops offering. "Keep mine" IS last-write-wins, but a **deliberate** one the user asked for.
+
+**Deliberately not built: automatic merging.** There is no deterministic safe merge for prose, and a wrong merge produces content neither person wrote — worse than either version. An honest banner beats a clever guess.
+
+**It is opt-in.** Omit `serverValue` and behaviour is exactly as before: `initialValue` seeds the draft once and the hook owns it. Adopt the contract per field, as each field's workflow needs it.
+
 ## Dates
 
 `DateField kind="date"` stores the literal ISO `YYYY-MM-DD` — validated/compared as integers, never routed through `Date`, so it cannot shift by timezone. `kind="datetime"` stores an ISO-8601 **UTC** instant; the control edits the UTC wall-clock explicitly (labelled). Use the model's `validateDateOnly` / `validateDateTimeLocal` as field validators. A zone-less wall-clock time is deliberately not a field type.

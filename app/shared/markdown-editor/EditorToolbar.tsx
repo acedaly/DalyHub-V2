@@ -44,6 +44,23 @@ import {
   type MarkdownFormattingAction,
 } from "./formatting-actions";
 
+/**
+ * An extra, host-supplied toolbar command that is not a pure source transform —
+ * it opens something (NOTES-05 §5's record-link picker is the first and only
+ * one). It renders as an ordinary primary toolbar button INSIDE the same roving
+ * model, so it costs no extra Tab stop and needs no second focus surface.
+ */
+export interface EditorToolbarCommand {
+  readonly id: string;
+  /** Visible button text AND accessible name — a plain, unambiguous word. */
+  readonly label: string;
+  /** Longer tooltip/help text. */
+  readonly hint: string;
+  /** Whether the command currently owns an expanded surface (sets `aria-expanded`). */
+  readonly expanded?: boolean;
+  readonly onSelect: () => void;
+}
+
 export interface EditorToolbarProps {
   /** Apply a formatting action to the host editor's Markdown source. */
   readonly onAction: (action: MarkdownFormattingAction) => void;
@@ -52,12 +69,17 @@ export interface EditorToolbarProps {
   readonly label?: string;
   /** Disable the whole toolbar (e.g. while in Read mode). */
   readonly disabled?: boolean;
+  /** Host-supplied commands, rendered after the primary formatting actions. */
+  readonly commands?: readonly EditorToolbarCommand[];
 }
+
+const NO_COMMANDS: readonly EditorToolbarCommand[] = [];
 
 export function EditorToolbar({
   onAction,
   label = "Formatting",
   disabled = false,
+  commands = NO_COMMANDS,
 }: EditorToolbarProps) {
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   // Roving tabindex: only the active control is a Tab stop; Arrow/Home/End move
@@ -75,9 +97,13 @@ export function EditorToolbar({
         : PRIMARY_FORMATTING_ACTIONS,
     [moreOpen],
   );
-  // The More toggle sits immediately after the primary actions.
-  const moreIndex = PRIMARY_FORMATTING_ACTIONS.length;
-  const controlCount = actions.length + 1;
+  // Keyboard order: primary actions, then any host commands, then the More
+  // toggle, then the secondary actions once revealed. Host commands sit with the
+  // primary group because they are things a writer reaches for while writing
+  // (linking a record), not less-used formatting.
+  const commandsStart = PRIMARY_FORMATTING_ACTIONS.length;
+  const moreIndex = commandsStart + commands.length;
+  const controlCount = actions.length + commands.length + 1;
 
   const focusControl = useCallback((index: number) => {
     const button = buttonsRef.current[index];
@@ -151,6 +177,31 @@ export function EditorToolbar({
       {PRIMARY_FORMATTING_ACTIONS.map((action, index) =>
         renderAction(action, index),
       )}
+
+      {commands.map((command, offset) => {
+        const index = commandsStart + offset;
+        return (
+          <button
+            key={command.id}
+            ref={(node) => {
+              buttonsRef.current[index] = node;
+            }}
+            type="button"
+            className="dh-md-toolbar__button"
+            data-action={command.id}
+            title={command.hint}
+            disabled={disabled}
+            aria-expanded={command.expanded}
+            tabIndex={index === activeIndex ? 0 : -1}
+            onKeyDown={(event) => onKeyDown(event, index)}
+            onFocus={() => setActiveIndex(index)}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={command.onSelect}
+          >
+            {command.label}
+          </button>
+        );
+      })}
 
       <button
         ref={(node) => {

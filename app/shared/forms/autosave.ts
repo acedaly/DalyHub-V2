@@ -19,6 +19,35 @@
  *   - A failed save keeps the user's latest input intact and offers retry; it
  *     never auto-discards or auto-retries.
  *   - No save is dispatched while the current value is invalid.
+ *   - **An external (server-side) change is never allowed to destroy a draft.**
+ *     See the reconciliation contract below.
+ *
+ * ## The reconciliation contract (NOTES-05 §18, closing DEBT-47)
+ *
+ * A field can change on the SERVER while an editor is mounted — another tab,
+ * another device, or another surface writing the same field. Before this, the
+ * hook seeded its draft from `initialValue` once and then owned it, so such a
+ * change was invisible until the next load, and whoever saved last silently won.
+ *
+ * The unsafe-looking fix — adopt a new external value whenever one arrives —
+ * would overwrite a draft out from under someone who is typing, which is exactly
+ * the data loss this machine exists to prevent. So adoption is CONDITIONAL:
+ *
+ *   - **Clean field** (nothing pending, nothing in flight, no failed save, and
+ *     the current value equals the committed one) → adopt silently. There is no
+ *     draft to lose and nothing to ask about, so asking would be noise.
+ *   - **Dirty field** (a pending edit, an in-flight save, or a failed save) →
+ *     change NOTHING. The draft stays exactly as the user left it, and the newer
+ *     server value is parked in `remote` for the UI to offer explicitly.
+ *
+ * The user then chooses: `adoptRemote` takes the server's version (discarding the
+ * draft, but only ever on an explicit act), or `dismissRemote` keeps the draft
+ * and stops asking. A "keep mine" that later saves IS last-write-wins — but a
+ * deliberate one the user asked for, which is a different thing from a silent one.
+ *
+ * Deliberately NOT built: automatic Markdown merging. There is no deterministic
+ * safe merge for prose, and a wrong merge corrupts content in a way neither
+ * version does. An honest banner beats a clever guess.
  *
  * The reducer is pure: it returns the next state and, optionally, an EFFECT — a
  * request to the hook to run the persistence callback with a specific value and
@@ -45,6 +74,12 @@ export interface AutosaveState<TValue> {
   readonly nextSeq: number;
   /** The message of the latest failed save, or null. */
   readonly error: string | null;
+  /**
+   * A server-side value newer than `committed` that could NOT be adopted because
+   * the field was dirty — parked for the UI to offer, never applied silently.
+   * `null` whenever there is nothing outstanding to reconcile.
+   */
+  readonly remote: TValue | null;
 }
 
 /** A request from the reducer to the hook to run the persistence callback. */
@@ -75,7 +110,13 @@ export type AutosaveAction<TValue> =
       readonly message: string;
     }
   /** The user asked to retry after a failure. */
-  | { readonly type: "retry" };
+  | { readonly type: "retry" }
+  /** The server's value for this field is now `value` (see the contract above). */
+  | { readonly type: "external"; readonly value: TValue }
+  /** The user chose the parked server version over their draft. */
+  | { readonly type: "adoptRemote" }
+  /** The user chose to keep their draft; stop offering the server version. */
+  | { readonly type: "dismissRemote" };
 
 /** Build the initial coordinator state around a committed value. */
 export function initAutosave<TValue>(committed: TValue): AutosaveState<TValue> {
@@ -88,6 +129,7 @@ export function initAutosave<TValue>(committed: TValue): AutosaveState<TValue> {
     inFlightValue: null,
     nextSeq: 1,
     error: null,
+    remote: null,
   };
 }
 
@@ -170,6 +212,10 @@ export function reduceAutosave<TValue>(
         inFlightSeq: null,
         inFlightValue: null,
         error: null,
+        // Our save just became the server's value, so any parked remote version
+        // is superseded — continuing to offer it would offer content that no
+        // longer exists anywhere.
+        remote: null,
       };
       // Edited during the save? Coalesce to the latest value if it is valid.
       if (!isEqual(settled.current, committed)) {
@@ -203,9 +249,77 @@ export function reduceAutosave<TValue>(
       return dispatchSave({ ...state, error: null });
     }
 
+    case "external": {
+      // The server already agrees with what we hold — nothing to reconcile, and
+      // any previously-parked version is stale.
+      if (isEqual(action.value, state.committed)) {
+        return noEffect(
+          state.remote === null ? state : { ...state, remote: null },
+        );
+      }
+      // Clean field: adopt silently. There is no draft to lose, so asking would
+      // be noise, and the editor simply shows the current truth.
+      if (isClean(state, isEqual)) {
+        return noEffect({
+          ...state,
+          committed: action.value,
+          current: action.value,
+          // A value the server accepted is valid by construction.
+          valid: true,
+          status: "idle",
+          error: null,
+          remote: null,
+        });
+      }
+      // Dirty field: change NOTHING the user can see. Park the newer version.
+      return noEffect({ ...state, remote: action.value });
+    }
+
+    case "adoptRemote": {
+      if (state.remote === null) return noEffect(state);
+      // Defensive: adopting mid-save would be resolved over by the in-flight
+      // save's own completion, so the UI does not offer it and the reducer
+      // refuses it. (The banner's action is disabled while `saving`.)
+      if (state.inFlightSeq !== null) return noEffect(state);
+      const adopted = state.remote;
+      return noEffect({
+        ...state,
+        committed: adopted,
+        current: adopted,
+        valid: true,
+        status: "idle",
+        error: null,
+        remote: null,
+      });
+    }
+
+    case "dismissRemote": {
+      // Keep the draft exactly as it is and stop offering the server version.
+      // The next save WILL overwrite it — deliberately, because the user said so.
+      return noEffect(
+        state.remote === null ? state : { ...state, remote: null },
+      );
+    }
+
     default:
       return noEffect(state);
   }
+}
+
+/**
+ * True when the field holds nothing the user could lose: no pending edit, no
+ * save in flight, and no failed save waiting to be retried. This is the exact
+ * precondition for adopting an external value silently.
+ */
+function isClean<TValue>(
+  state: AutosaveState<TValue>,
+  isEqual: IsEqual<TValue>,
+): boolean {
+  return (
+    state.inFlightSeq === null &&
+    state.status !== "error" &&
+    isEqual(state.current, state.committed)
+  );
 }
 
 /** True when the current value is persisted (idle or saved with no pending edit). */
@@ -213,9 +327,5 @@ export function isPersisted<TValue>(
   state: AutosaveState<TValue>,
   isEqual: IsEqual<TValue> = valuesEqual,
 ): boolean {
-  return (
-    state.inFlightSeq === null &&
-    state.status !== "error" &&
-    isEqual(state.current, state.committed)
-  );
+  return isClean(state, isEqual);
 }

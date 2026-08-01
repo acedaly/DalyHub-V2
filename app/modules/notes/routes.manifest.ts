@@ -27,9 +27,11 @@ const routes: readonly RouteContribution[] = [
     file: "routes/new.tsx",
   },
   {
-    // The [[Wiki Link]] resolver — a static segment registered BEFORE the dynamic
-    // `:noteId` route so it is never shadowed. Resolves a title to a record and
-    // redirects to its canonical destination.
+    // The internal-link resolver — a static segment registered BEFORE the
+    // dynamic `:noteId` route so it is never shadowed. Resolves a `[[Wiki
+    // Link]]` title (`?title=`) or a `dalyhub://type/id` record link
+    // (`?type=&id=`) to a record and redirects to its canonical destination;
+    // an id that resolves to nothing renders an honest "unavailable" page.
     id: "notes.resolve",
     path: "notes/resolve",
     file: "routes/resolve.tsx",

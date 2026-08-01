@@ -25,15 +25,20 @@
  * record's own Delete (`suppressGuard`).
  */
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 
 import { MARKDOWN_SOURCE_MAX_BYTES } from "~/kernel/markdown";
+import { EntityIcon, getEntityIdentity, isEntityType } from "~/shared/entity";
 import {
+  RemoteChangeBanner,
   SaveStatusIndicator,
   UnsavedChangesGuard,
   useAutosaveField,
 } from "~/shared/forms";
-import { LiveMarkdownEditor } from "~/shared/markdown-editor";
+import {
+  LiveMarkdownEditor,
+  type RecordLinkOption,
+} from "~/shared/markdown-editor";
 
 import { validateNoteContentSize } from "./note-content-validation";
 import { useOnlineStatus } from "./use-online-status";
@@ -90,6 +95,13 @@ export function NoteContentForm({
 
   const field = useAutosaveField<string>({
     initialValue: initialContent,
+    // NOTES-05 §18 — opt into the shared reconciliation contract. The record
+    // route revalidates its loader (on our own save, on navigation, and whenever
+    // another surface mutates this note), so `initialContent` IS the note's
+    // current server-side content. Handing it to the hook lets a change made
+    // elsewhere be adopted while this editor is clean, and be OFFERED rather
+    // than silently applied or silently lost while it is dirty ([DEBT-47]).
+    serverValue: initialContent,
     debounceMs: NOTE_AUTOSAVE_DEBOUNCE_MS,
     validate: validateNoteContentSize,
     onSave: async (value, signal) => {
@@ -138,6 +150,43 @@ export function NoteContentForm({
     }
   }, [online]);
 
+  // NOTES-05 §5 — the record-link picker's search. It goes through the SHARED
+  // `/links` endpoint (`op=record-link`), so the editor's picker and the Linked
+  // Items picker are backed by one bounded, workspace-scoped, anchor-excluding
+  // query. The `dalyhub://` destination arrives already formatted by the server;
+  // this client never builds one.
+  const searchRecords = useCallback(
+    async (
+      query: string,
+      signal: AbortSignal,
+    ): Promise<readonly RecordLinkOption[]> => {
+      const params = new URLSearchParams({
+        op: "record-link",
+        anchor: noteId,
+        q: query,
+      });
+      const response = await fetch(`/links?${params.toString()}`, { signal });
+      if (!response.ok) throw new Error("Failed to search records");
+      const data = (await response.json()) as {
+        readonly options?: readonly RecordLinkOption[];
+      };
+      return data.options ?? [];
+    },
+    [noteId],
+  );
+
+  const recordLink = useMemo(
+    () => ({
+      search: searchRecords,
+      renderIcon: (type: string) =>
+        isEntityType(type) ? <EntityIcon type={type} /> : null,
+      // The type is named in WORDS in the picker, so it uses the SAME nouns as
+      // the rest of the product (AGENTS.md §7) rather than a raw kernel slug.
+      typeLabel: (type: string) => getEntityIdentity(type)?.label ?? type,
+    }),
+    [searchRecords],
+  );
+
   const isOffline = !online;
   const displayError =
     field.status === "error"
@@ -159,6 +208,14 @@ export function NoteContentForm({
   return (
     <>
       <UnsavedChangesGuard when={hasUnsettledChanges} />
+      {field.remoteValue !== null ? (
+        <RemoteChangeBanner
+          what="This note"
+          saving={field.status === "saving"}
+          onAdopt={field.adoptRemote}
+          onDismiss={field.dismissRemote}
+        />
+      ) : null}
       <LiveMarkdownEditor
         label="Note"
         value={field.value}
@@ -168,6 +225,7 @@ export function NoteContentForm({
         error={field.validationError}
         placeholder="Start writing…"
         toolbarLabel="Formatting"
+        recordLink={recordLink}
         statusSlot={
           <SaveStatusIndicator
             status={field.status}

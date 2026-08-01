@@ -240,8 +240,12 @@ describe("Note relationship tabs", () => {
         page={{ items: [reference()], nextCursor: null }}
       />,
     );
+    // NOTES-05 §6 — the heading carries an honest count alongside its name.
     expect(
-      screen.getByRole("heading", { level: 2, name: "Referenced by" }),
+      screen.getByRole("heading", { level: 2, name: /Referenced by/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: /\(1 backlink\)/ }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -504,5 +508,113 @@ describe("ProjectKnowledgeTab", () => {
     expect(
       screen.getByRole("textbox", { name: /New note title/ }),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * NOTES-05 §6 — the Backlinks tab's count, family grouping and module filter.
+ *
+ * The rule these prove: the surface never claims more than the bounded read
+ * knows, never offers a filter that can only empty the list, and never invents
+ * a group that has nothing in it.
+ */
+describe("Backlinks presentation", () => {
+  const backlink = (id: string, type: string, title: string): RecordReference =>
+    reference({
+      linkId: id,
+      record: { id: `${id}-r`, type, title, archived: false },
+    });
+
+  it("groups backlinks by module family and omits families with nothing in them", () => {
+    renderAt(
+      <NoteBacklinksTab
+        noteId="n1"
+        page={{
+          items: [
+            backlink("a", "note", "Another note"),
+            backlink("b", "project", "Atlas"),
+          ],
+          nextCursor: null,
+        }}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { level: 3, name: /Notes \(1\)/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: /Projects, Areas and Goals \(1\)/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /Diary/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("counts honestly — 'loaded' while a page remains, never a claimed total", () => {
+    renderAt(
+      <NoteBacklinksTab
+        noteId="n1"
+        page={{ items: [backlink("a", "note", "N")], nextCursor: "next" }}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: /1 loaded/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: /1 backlink\)/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no module filter when there is only one module to choose between", () => {
+    renderAt(
+      <NoteBacklinksTab
+        noteId="n1"
+        page={{
+          items: [backlink("a", "note", "One"), backlink("b", "note", "Two")],
+          nextCursor: null,
+        }}
+      />,
+    );
+    expect(screen.queryByLabelText("Module")).not.toBeInTheDocument();
+  });
+
+  it("filters to one module, offering only modules that are actually present", () => {
+    renderAt(
+      <NoteBacklinksTab
+        noteId="n1"
+        page={{
+          items: [
+            backlink("a", "note", "Another note"),
+            backlink("b", "project", "Atlas"),
+          ],
+          nextCursor: null,
+        }}
+      />,
+    );
+    const filter = screen.getByLabelText("Module");
+    expect(
+      within(filter).getByRole("option", {
+        name: /Projects, Areas and Goals \(1\)/,
+      }),
+    ).toBeInTheDocument();
+    // A module with no backlinks is never offered — it could only empty the list.
+    expect(
+      within(filter).queryByRole("option", { name: /Assets/ }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(filter, { target: { value: "planning" } });
+
+    expect(screen.getByText("Atlas")).toBeInTheDocument();
+    expect(screen.queryByText("Another note")).not.toBeInTheDocument();
+  });
+
+  it("still shows the calm empty state when nothing links here", () => {
+    renderAt(
+      <NoteBacklinksTab noteId="n1" page={{ items: [], nextCursor: null }} />,
+    );
+    expect(screen.getByText("Nothing links here yet")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Module")).not.toBeInTheDocument();
   });
 });

@@ -175,6 +175,33 @@ no backfill step. The consequences for a deployment:
 - **No scheduler, cron trigger or queue is introduced.** Obligation urgency is
   computed at READ time, which is precisely why none is needed.
 
+### NOTES-05 knowledge completion — deployment notes (no migration)
+
+The Notes knowledge completion (`dalyhub://` record links, backlink
+presentation, autosave reconciliation, copy/print) adds **no migration at all**.
+The migration sequence is unchanged at `0025`.
+
+That is a design outcome, not luck: a record link reconciles into the existing
+`note.references` EntityLink type, so the relationship model needed nothing new;
+the reconciliation contract is client state on an existing shared hook; and the
+print view is rendered on demand from the Markdown already stored. Adding schema
+for presentational convenience is exactly what the completion brief forbids.
+
+Consequences for a deployment:
+
+- **Nothing to migrate, in either order.** Deploy the application whenever; there
+  is no schema step to sequence around.
+- **Rolling the application back is safe.** No data written by this version is
+  unreadable by the previous one — a record link is ordinary Markdown text in a
+  column that already held Markdown, and its relationship row is an ordinary
+  `note.references` link the previous version already reads and renders.
+- **Notes written with record links stay valid on an older build.** The link
+  simply renders as inert text again (which is precisely the behaviour this work
+  fixed), rather than breaking the note.
+- **No new bindings, secrets, environment variables, external services, cron
+  triggers or queues.** The one new server capability is an extra `op` on the
+  existing `/links` route.
+
 ### Production migrations
 
 Apply migrations to the remote production D1 before (or as part of) going live,

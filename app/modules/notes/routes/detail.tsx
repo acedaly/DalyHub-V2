@@ -22,10 +22,12 @@ import {
   useSearchParams,
 } from "react-router";
 
+import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import {
   DEFAULT_REFERENCE_PAGE,
   loadNoteReferences,
 } from "~/platform/entity-links/note-references";
+import { renderMarkdownSource } from "~/platform/markdown";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -87,11 +89,25 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     }).catch<ReferencePage>(() => ({ items: [], nextCursor: null })),
   ]);
 
+  // NOTES-05 §21 — the print-only body, rendered here through the ONE FND-08
+  // pipeline. Rendering it server-side keeps printing instantaneous and keeps
+  // the renderer out of the client bundle for this route; a render failure
+  // degrades to no printable body rather than costing the user the record.
+  let printHtml: SanitizedMarkdownHtml | null = null;
+  if (content.trim() !== "") {
+    try {
+      printHtml = renderMarkdownSource(content).html;
+    } catch {
+      printHtml = null;
+    }
+  }
+
   return {
     overview: serializeNoteOverview(entity),
     details: serializeNoteDetails(details),
     backlinks,
     outgoing,
+    printHtml,
   };
 }
 
@@ -226,6 +242,7 @@ function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
       onSaved={() => revalidator.revalidate()}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
+      printHtml={props.printHtml}
       backlinksTab={
         <NoteBacklinksTab noteId={props.overview.id} page={props.backlinks} />
       }

@@ -32,9 +32,14 @@
  * ones Notes happens to own.
  */
 
+import {
+  EntityLinkEndpointArchivedError,
+  EntityLinkEndpointNotFoundError,
+} from "~/kernel/entity-links";
 import { isReservedSpineLinkType } from "~/kernel/spine";
 import type { NoteQueryRepository, ReferenceTarget } from "~/kernel/notes";
 import {
+  distinctRecordLinkIds,
   distinctReferenceTitles,
   excerptAroundMatch,
   extractReferences,
@@ -107,7 +112,7 @@ export async function reconcileNoteReferences(
       ? await deps.notes.resolveReferenceTargets(titles)
       : new Map<string, ReferenceTarget>();
 
-  const wanted = new Map<string, ReferenceTarget>();
+  const wanted = new Set<string>();
   const unresolved: string[] = [];
   for (const title of titles) {
     const target = resolved.get(title.toLocaleLowerCase());
@@ -117,13 +122,33 @@ export async function reconcileNoteReferences(
       if (!target) unresolved.push(title);
       continue;
     }
-    wanted.set(target.id, target);
+    wanted.add(target.id);
+  }
+
+  // NOTES-05 §5 — `dalyhub://type/id` record links are references too, and
+  // stronger ones: the author picked the record from a picker, so there is no
+  // title to resolve and no tie-break to apply. They join the SAME
+  // `note.references` set, which is what makes an id-picked link and a
+  // title-written link produce one indistinguishable backlink rather than two
+  // parallel relationship models.
+  //
+  // The parsed id is NOT trusted (§28). It arrives from the note body, which is
+  // user input, so nothing here verifies it locally — `entityLinks.create` is
+  // the authority, and it rejects an id that is missing, of the wrong workspace
+  // or archived. A rejected target is reported as unresolved exactly like an
+  // unmatched title; it is a normal state in a knowledge base, not an error.
+  const recordLinkIds = distinctRecordLinkIds(source);
+  const unverifiedRecordIds = new Set<string>();
+  for (const id of recordLinkIds) {
+    if (id === noteId) continue; // a record cannot reference itself
+    if (wanted.has(id)) continue; // already wanted via a title reference
+    unverifiedRecordIds.add(id);
   }
 
   const existing = await listOutgoingReferenceTargets(deps, noteId);
 
   let created = 0;
-  for (const [targetId] of wanted) {
+  for (const targetId of wanted) {
     if (existing.has(targetId)) continue;
     const result = await deps.entityLinks.create({
       sourceEntityId: noteId,
@@ -131,6 +156,36 @@ export async function reconcileNoteReferences(
       type: NOTE_REFERENCES_LINK,
     });
     if (result.outcome !== "already_exists") created += 1;
+  }
+
+  // Record-link targets the kernel accepts join `wanted`, so the removal pass
+  // below keeps them; ones it rejects never enter it, so a link to a record
+  // that has since been deleted is simply dropped — never written, never
+  // half-written. An id already linked is verified by construction (it could
+  // not have been created otherwise) and skips the round trip entirely.
+  for (const targetId of unverifiedRecordIds) {
+    if (existing.has(targetId)) {
+      wanted.add(targetId);
+      continue;
+    }
+    try {
+      const result = await deps.entityLinks.create({
+        sourceEntityId: noteId,
+        targetEntityId: targetId,
+        type: NOTE_REFERENCES_LINK,
+      });
+      wanted.add(targetId);
+      if (result.outcome !== "already_exists") created += 1;
+    } catch (cause) {
+      if (
+        cause instanceof EntityLinkEndpointNotFoundError ||
+        cause instanceof EntityLinkEndpointArchivedError
+      ) {
+        unresolved.push(targetId);
+        continue;
+      }
+      throw cause;
+    }
   }
 
   let removed = 0;

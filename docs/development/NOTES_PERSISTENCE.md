@@ -72,6 +72,13 @@ ALTER TABLE note_details ADD COLUMN archived_at TEXT;
 - **Relationships are NOT modelled here.** Note↔Project knowledge associations
   and `[[Wiki Link]]` references are ordinary FND-04 `entity_links` rows. See
   [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-wiki-link-is-a-persisted-reference-and-knowledge-relationships-stay-entitylinks).
+- **`dalyhub://` record links added NO schema** (NOTES-05 knowledge completion,
+  2026-08-01). A record link is ordinary Markdown text inside the `content`
+  column that already holds Markdown, and it reconciles into the SAME
+  `note.references` EntityLink type a `[[Wiki Link]]` produces. There is no
+  link-identity column, no second relationship table and no migration — the
+  sequence is unchanged at `0025`. See
+  [ADR-064](../decisions/ARCHITECTURE_DECISIONS.md#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave).
 
 ### Indexes
 

@@ -275,7 +275,39 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         blocks: [
           {
             kind: "text",
-            text: "Notes are written and stored as Markdown, so they stay portable and you can always take them elsewhere. Use [[double brackets]] to link a note to another record; those links work in both directions.",
+            text: "Notes are written and stored as Markdown, so they stay portable and you can always take them elsewhere. A note saves itself as you write — there is no Save button. The small status beside the toolbar tells you where a save is up to, and if a save fails your writing stays exactly where it is with a Retry beside it.",
+          },
+          {
+            kind: "text",
+            text: "There are two ways to link a note to another record, and both create a real relationship the other record can see. Type [[double brackets]] around a record's title while you are writing — quickest, and it finds the record by name. Or use the Record link button in the toolbar to search for a specific record and insert it. Use the button when the exact record matters: it links by identity, so the link keeps working if the record is renamed, and two records with the same title can never be confused.",
+          },
+          {
+            kind: "text",
+            text: "Simply writing a note's title in a sentence does not link anything, and neither does a link written inside a code block. A link has to be one you actually made.",
+          },
+          {
+            kind: "text",
+            text: "The Backlinks tab shows every record that links TO this note, grouped by the part of DalyHub it came from, with the sentence that mentions it where we can show one. The Links tab shows what this note points AT. If a link's target is later deleted, the note is untouched — following the link just tells you the record is no longer there.",
+          },
+          {
+            kind: "text",
+            text: "Tags group notes across projects and areas. Filters on the Notes list narrow by search text, tag, project, area, or whether a note is linked to anything at all — “Unlinked notes” is there so you can find notes that never got connected, and leave them that way if that is what you want.",
+          },
+          {
+            kind: "text",
+            text: "Search looks inside a note's body, not just its title, so you can find a note by something you remember writing in it.",
+          },
+          {
+            kind: "text",
+            text: "Archiving a note puts it away but keeps it — it stays readable and still turns up in search, marked as archived. Deleting is separate and also reversible: a deleted note leaves the list and its page stops opening, and you can restore it from the Undo message or the Deleted view.",
+          },
+          {
+            kind: "text",
+            text: "From the ⋯ menu you can export one note as Markdown or plain text, copy either to the clipboard, or print it. The export includes the note's title, dates, tags and links, and the Markdown is exactly what you wrote.",
+          },
+          {
+            kind: "text",
+            text: "If a note is changed somewhere else — another tab or another device — while you have unsaved writing open, DalyHub tells you rather than picking a winner. Your writing is never overwritten. You choose whether to load the newer version or keep what you have. Nothing is merged automatically, because merging two versions of prose reliably is not something we can promise.",
           },
         ],
       },

@@ -52,6 +52,10 @@ export {
   UnsavedChangesGuard,
   type UnsavedChangesGuardProps,
 } from "./UnsavedChangesGuard";
+export {
+  RemoteChangeBanner,
+  type RemoteChangeBannerProps,
+} from "./RemoteChangeBanner";
 
 // Field controls.
 export { TextField, type TextFieldProps } from "./TextField";

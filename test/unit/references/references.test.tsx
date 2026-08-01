@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   ReferenceList,
+  availableReferenceFamilies,
+  groupReferencesByFamily,
   groupReferencesByType,
+  referenceFamilyOf,
   referencesOfType,
   relationshipLabel,
   type RecordReference,
@@ -179,6 +182,124 @@ describe("ReferenceList", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("list", { name: /Records this note links to: Notes/ }),
+    ).toBeInTheDocument();
+  });
+});
+
+/**
+ * NOTES-05 §6 — module-family grouping for the Backlinks surface.
+ *
+ * The property that matters is that the presentation ADDS no ordering and DROPS
+ * no reference: families appear in one fixed order so a reader learns where to
+ * look, empty families never appear, and anything unrecognised still lands
+ * somewhere rather than vanishing.
+ */
+describe("module families", () => {
+  const ref = (id: string, type: string, title = type) =>
+    reference({
+      linkId: id,
+      record: { id: `${id}-r`, type, title, archived: false },
+    });
+
+  it("maps every supported type to a family, and the unknown to 'other'", () => {
+    expect(referenceFamilyOf("note")).toBe("notes");
+    expect(referenceFamilyOf("project")).toBe("planning");
+    expect(referenceFamilyOf("area")).toBe("planning");
+    expect(referenceFamilyOf("goal")).toBe("planning");
+    expect(referenceFamilyOf("person")).toBe("people");
+    expect(referenceFamilyOf("meeting")).toBe("people");
+    expect(referenceFamilyOf("task")).toBe("work");
+    expect(referenceFamilyOf("review")).toBe("work");
+    expect(referenceFamilyOf("diary")).toBe("diary");
+    expect(referenceFamilyOf("asset")).toBe("assets");
+    expect(referenceFamilyOf("widget")).toBe("other");
+  });
+
+  it("groups in the FIXED family order regardless of input order", () => {
+    const groups = groupReferencesByFamily([
+      ref("1", "asset"),
+      ref("2", "project"),
+      ref("3", "note"),
+    ]);
+    expect(groups.map((group) => group.id)).toEqual([
+      "notes",
+      "planning",
+      "assets",
+    ]);
+  });
+
+  it("omits empty families entirely", () => {
+    const groups = groupReferencesByFamily([ref("1", "note")]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.label).toBe("Notes");
+  });
+
+  it("puts unrecognised types last, and never drops them", () => {
+    const groups = groupReferencesByFamily([
+      ref("1", "widget"),
+      ref("2", "note"),
+    ]);
+    expect(groups.map((group) => group.id)).toEqual(["notes", "other"]);
+    expect(groups.flatMap((group) => group.items)).toHaveLength(2);
+  });
+
+  it("preserves the server's order inside a family", () => {
+    const groups = groupReferencesByFamily([
+      ref("a", "project", "First"),
+      ref("b", "area", "Second"),
+      ref("c", "goal", "Third"),
+    ]);
+    expect(groups[0]!.items.map((item) => item.record.title)).toEqual([
+      "First",
+      "Second",
+      "Third",
+    ]);
+  });
+
+  it("offers as filter options only the families actually present, with counts", () => {
+    expect(
+      availableReferenceFamilies([
+        ref("1", "note"),
+        ref("2", "note"),
+        ref("3", "person"),
+      ]),
+    ).toEqual([
+      { id: "notes", label: "Notes", count: 2 },
+      { id: "people", label: "People and Meetings", count: 1 },
+    ]);
+  });
+
+  it("offers nothing for an empty set, so a filter is never shown over nothing", () => {
+    expect(availableReferenceFamilies([])).toEqual([]);
+  });
+
+  it("renders one accessible, named list per family with its count", () => {
+    renderList(
+      <ReferenceList
+        references={[
+          ref("1", "note", "A note"),
+          ref("2", "person", "A person"),
+        ]}
+        groupByFamily
+        groupHeadingLevel={3}
+        label="Records linking to this note"
+        emptyTitle="none"
+        emptyDescription="none"
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { level: 3, name: /Notes \(1\)/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: /People and Meetings \(1\)/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", {
+        name: "Records linking to this note: Notes",
+      }),
     ).toBeInTheDocument();
   });
 });

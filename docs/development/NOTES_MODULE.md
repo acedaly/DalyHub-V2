@@ -240,6 +240,35 @@ toolbar/shortcut action is just a programmatic `onChange` into the SAME
 coordinator; there is **no parallel save state machine**. `onSave` posts the
 identical `intent=update_content` to `POST /notes/:noteId/mutate`.
 
+**Reconciliation — a note that changed somewhere else.** The knowledge
+completion closed [DEBT-47](../product/PRODUCT_DEBT.md). The record route
+revalidates its loader, so `initialContent` IS the note's current server-side
+content; `NoteContentForm` hands it to the coordinator as `serverValue` and the
+shared contract decides:
+
+| Editor state | What happens |
+| --- | --- |
+| **Clean** (nothing pending, nothing in flight, no failed save) | The newer content is adopted **silently**. There is no draft to lose, so asking would be noise. |
+| **Dirty** (a pending edit, an in-flight save, or a failed save) | **Nothing the user can see changes.** The draft stays exactly as they left it and the newer version is parked, then OFFERED by the shared `RemoteChangeBanner`. |
+
+The banner's two choices are the only two: **Load the newer version** (takes the
+server's content, discarding the draft — destructive, so never automatic and
+never the default, and disabled while a save is in flight because an in-flight
+save would land afterwards) and **Keep mine** (dismiss and go on saving). "Keep
+mine" IS last-write-wins — but a *deliberate* one the user asked for, which is a
+different thing from a silent one.
+
+There is deliberately **no merge option**. Markdown has no deterministic safe
+merge, and a wrong merge produces content neither person wrote — worse than
+either version. An honest banner beats a clever guess. Once our own save lands,
+any parked version is cleared: continuing to offer it would offer content that no
+longer exists anywhere.
+
+This is a change to the SHARED DS-06 coordinator, but an **opt-in** one: a field
+that does not pass `serverValue` behaves exactly as before, so every other
+autosave surface keeps its current semantics until it adopts the contract
+deliberately.
+
 **Save-state UX, offline, navigation guard.** `SaveStatusIndicator` (rendered in
 the editor's top bar via its `statusSlot`) presents unsaved/saving/saved/error
 directly from the hook's status, pairing an icon glyph with words (never
@@ -342,6 +371,49 @@ reference is never disturbed. Title resolution is ONE bounded, indexed query
 recorded — preferring a Note, then the earliest-created record, when several
 records share a title.
 
+### `dalyhub://` record links — the id-stable half
+
+`[[Wiki Links]]` are the right tool while writing prose: fast, readable, and
+resolved by title. They cannot answer one question honestly, though — *which*
+record did the author mean? Two records sharing a title are told apart only by a
+tie-break, and the resolution is redone on every save.
+
+A **record link** is the other half:
+
+```markdown
+See [Project: DalyHub V2](dalyhub://project/9f1c…).
+```
+
+It is an ordinary Markdown link, so the source stays readable in any editor, and
+its destination names a RECORD rather than a host — so it does not rot when the
+deployment moves, the way a `https://…` self-link would.
+
+NOTES-06's export already **wrote** this form. Until the knowledge completion the
+product could not **read** it: `dalyhub:` is not in the FND-08 URL allowlist, so
+a record link — including one pasted back from an export DalyHub itself produced
+— rendered as inert plain text. That round trip is now closed.
+
+| Concern | How it works |
+| --- | --- |
+| Rendering | `remarkRecordLinks` rewrites `dalyhub://type/id` to the relative resolver path BEFORE `remark-rehype`, exactly as `remarkWikiLinks` does for `[[…]]`. The URL policy and sanitisation schema are **untouched**; no `dalyhub:` href ever reaches the DOM. |
+| Resolution | `GET /notes/resolve?type=&id=` — the one place with a trusted workspace scope. The declared type is checked against the STORED type, so a link cannot claim a record is something it is not. |
+| Relationships | Record links reconcile into the SAME `note.references` set as `[[…]]`. A record link and a wiki link to the same record collapse to ONE relationship. |
+| Trust | The id in a note body is user input and is never trusted. `entityLinks.create` is the authority: a missing, cross-workspace or archived target is reported as unresolved and nothing is written. |
+| Broken targets | A deleted target renders normally and lands on a calm "That link doesn't go anywhere" page. Deleted, wrong-type and cross-workspace ids are one indistinguishable outcome. A malformed `dalyhub://` URL is left alone, fails the URL policy, and becomes readable inert text — never a link to something unverified. |
+| Authoring | A **Record link** toolbar command opens a searchable picker (`~/shared/markdown-editor/RecordLinkPicker`), composed from the same headless `useCombobox` the DS-06 picker uses and staying inside the toolbar's ONE Tab stop. Options — destination included — are formatted by the SERVER and returned from the shared `/links` endpoint (`op=record-link`), so the client never mints a link destination. |
+
+Choosing a record inserts text; it does **not** directly create an EntityLink.
+The next save reconciles that text into the relationship, the same path a
+`[[…]]` takes — so undoing the insertion (⌘Z) also undoes the relationship, and
+there is never a relationship the note's own text cannot explain.
+
+The pure format (`formatRecordLink`/`parseRecordLink`) lives in
+[`~/shared/markdown/record-link`](../../app/shared/markdown/record-link.ts)
+rather than the platform layer, because its three consumers sit in three layers
+— the remark transform, the export transformer and the editor's picker (a
+component, which must not depend on platform). See
+[ADR-064](../decisions/ARCHITECTURE_DECISIONS.md#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave).
+
 ### Reading the graph
 
 `~/shared/references` is a NEW, ISOLATED shared contract that reads the FND-04
@@ -353,7 +425,18 @@ timeline representation.
 - **Backlinks (incoming)** come from every module, not just Notes — a Project,
   Task, Diary entry, Meeting, Person, Review, Area or Goal that links to this
   Note appears here, labelled with its own relationship type
-  (`Related`, `Mentioned in note`, `Meeting attendee`, …).
+  (`Related`, `Mentioned in note`, `Meeting attendee`, …). The tab states an
+  **honest count** ("N loaded" while a page remains, never a claimed total —
+  the bounded read genuinely does not know the total), groups rows by **module
+  family** rather than raw entity type, and offers a native **module filter**.
+  The families are fixed, so a reader learns where to look:
+
+  > Notes · Projects, Areas and Goals · People and Meetings · Tasks and Reviews · Diary · Assets · Other records
+
+  A family with nothing in it is never rendered, and the filter offers only
+  families actually present — a filter that can only empty the list is not a
+  filter. Grouping by raw type instead would turn fifty backlinks across eight
+  types into eight one-row groups: a table of contents, not an aid.
 - **Outgoing** links are grouped by counterpart type, with linked **Projects**
   called out in their own section.
 - Reserved **structural spine links** are excluded from both directions, exactly
@@ -509,6 +592,21 @@ work. Any unregistered type falls through to the shared safe generic
 fallback — no Notes-only switch statement, no duplicated registry, no raw
 payload rendering.
 
+**Export records no Activity — a deliberate deviation.** The NOTES-05
+completion brief lists "Note exported" among the events to record, and it is
+**not** implemented. `GET /notes/:noteId/export` is a read: writing an Activity
+row from a loader would make a GET mutating, so a browser prefetch, a retry
+after a dropped connection, or a double-click would each append an event that
+represents no decision the owner made. The two things such an event could be for
+are both already served — DalyHub is single-owner, so "who exported" answers
+nothing, and the DS-05 Timeline is a **user-facing history of what happened to
+the record**, not a hidden audit log, so rows for reads would be noise on the
+surface a person actually reads. Recording it properly would mean either a POST
+export (breaking the download UX that deliberately avoids navigation) or a
+separate audit store, which is a larger decision than this milestone owns. If a
+genuine need appears — multi-user workspaces, or a compliance requirement — it
+belongs with that decision rather than bolted onto a loader.
+
 `NoteDetailsRepository` deliberately does not compute a combined "last
 updated" moment (see `NOTES_PERSISTENCE.md`'s content-timestamp contract) —
 `effectiveNoteUpdatedAt` (`app/modules/notes/note-view.ts`) is the one small,
@@ -564,6 +662,30 @@ record — and any unsaved editor state — is untouched, on desktop and phone a
 The client never invents a filename; it reads the server's
 `Content-Disposition`, so the safe-filename and duplicate rules live in exactly
 one place. Bulk export stays out of scope (X-04).
+
+### Copy and print
+
+Both live in the SAME shared overflow (⋯) as Export — there is still no
+Notes-only action bar.
+
+- **Copy Markdown / Copy plain text** fetch the SAME export route rather than
+  re-serialising in the browser. That is the point: "Copy Markdown" and "Export
+  as Markdown" must produce identical bytes, and the only way to guarantee it is
+  one projection with one producer. It also means copied content can never carry
+  hidden UI text or internal state — the client copies exactly what the server
+  serialised from storage, not what the DOM happens to contain. A missing
+  `navigator.clipboard` (an insecure origin, an embedded browser) is reported
+  honestly rather than silently doing nothing.
+- **Print** renders a print-only view, hidden on screen and revealed by
+  `@media print`, so ⌘P works from ANY tab and in either editor mode. This
+  matters because the writing surface is CodeMirror: printing the live editor
+  prints its scroller, its decorations and its concealed markers rather than the
+  note. The print body is rendered SERVER-side through the one FND-08 pipeline
+  into the one sanctioned `MarkdownContent` sink — no second renderer, no second
+  sink. The print stylesheet hides everything and reveals only the opt-in print
+  view, rather than enumerating chrome (a list that would silently rot).
+
+PDF generation stays out of scope — see [Deferrals](#deferrals).
 
 ## Accessibility and responsive behaviour
 
@@ -874,8 +996,32 @@ rendering always goes through the one sanitising pipeline; the editor is an
 *authoring surface*, never a second representation. Search reads that same
 source; export SERVES that same source; nothing here introduced a derived copy.
 
+**The knowledge completion (2026-08-01)** added the last four capabilities the
+completion brief called for, all on the existing contracts:
+**`dalyhub://` record links** (id-stable internal links, an editor picker, a
+resolver that presents a broken target honestly, and the closed export round
+trip); **backlink count, module-family grouping and a module filter**;
+**autosave reconciliation** closing [DEBT-47](../product/PRODUCT_DEBT.md); and
+**Copy Markdown / Copy plain text / Print**. No migration, no schema change and
+no new relationship type — record links reuse `note.references`. See
+[ADR-064](../decisions/ARCHITECTURE_DECISIONS.md#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave).
+
 **Known limitations (all deliberate and documented).**
 
+- **Two internal link syntaxes now exist.** `[[Wiki Links]]` resolve by title
+  (fast while writing prose); `dalyhub://` record links resolve by id (exact when
+  the record matters). Both produce the same relationship, so a backlink cannot
+  tell you which was used — but a reader of the SOURCE has two forms to
+  recognise. Help explains when to reach for each.
+- **Reconciliation is opt-in per field.** Only the Note body passes
+  `serverValue` today, so DEBT-47's shape remains for the other autosave
+  surfaces until each adopts the contract.
+- **Export is not recorded in Activity**, deliberately — see
+  [Activity](#activity) for the reasoning.
+- **Record-link resolution is per-navigation.** Following a record link is one
+  `getById`; there is no batched pre-resolution, so a note full of record links
+  does not show its broken ones until each is followed. The Links tab does show
+  the resolved set, which is where a reader looks for that answer.
 - **Backlink context is note-source only.** Other source types show their
   relationship name. See [Context](#context).
 - **Reference reconciliation is best-effort.** It runs after the content write

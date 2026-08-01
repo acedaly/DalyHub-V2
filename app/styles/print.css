@@ -1,0 +1,111 @@
+/**
+ * NOTES-05 §21 — the print stylesheet.
+ *
+ * DalyHub is a screen application, so until now printing any record produced the
+ * app: a sidebar, a bottom nav, tab strips, toolbars, and — worst of all for a
+ * Note — the live CodeMirror surface with its scroller, its decorations and its
+ * concealed Markdown markers, none of which is the note.
+ *
+ * The approach here is deliberately the conservative one. Rather than trying to
+ * enumerate and hide every piece of chrome the app will ever grow (a list that
+ * would silently rot), it hides EVERYTHING and then reveals only the explicit
+ * print-only view a record opts into by rendering `.dh-note-print`. A surface
+ * that has not opted in prints nothing extra rather than printing chrome, which
+ * is the failure mode worth having.
+ *
+ * `visibility` (not `display`) is what does the hiding, because it is the one
+ * property that survives being applied to every ancestor: the print view lives
+ * INSIDE the app shell, so `display: none` on an ancestor would take the print
+ * view with it. The print view is then lifted out of the layout with
+ * `position: absolute`, so the hidden-but-still-laid-out chrome cannot push it
+ * onto a second page or leave a blank first one.
+ */
+
+/**
+ * Off-screen by default. It is `aria-hidden` in the markup as well, because the
+ * on-screen record already presents this content — announcing it twice would be
+ * a duplicate reading, not extra information.
+ *
+ * This MUST come before the `@media print` block: the print rule that reveals it
+ * has the same specificity, so at equal specificity the later rule wins. Declared
+ * afterwards, this `display: none` would beat it and printing would produce a
+ * blank page.
+ */
+.dh-note-print {
+  display: none;
+}
+
+.dh-note-print__title {
+  margin: 0 0 var(--dh-space-1);
+  font-size: 1.6rem;
+}
+
+.dh-note-print__meta {
+  margin: 0 0 var(--dh-space-4);
+  font-size: 0.85rem;
+}
+
+@media print {
+  /* Print on white with black text regardless of the active theme: an Ember or
+   * Daly Dark background would waste an entire cartridge and read badly. */
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .dh-note-print,
+  .dh-note-print * {
+    visibility: visible;
+  }
+
+  .dh-note-print {
+    display: block;
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    padding: 0;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  /* The shell is a `min-height: 100dvh` grid; collapsing it stops the hidden
+   * chrome from reserving a full viewport of empty paper. */
+  .dh-app {
+    display: block;
+    min-height: 0;
+  }
+
+  /* A link's destination is useless on paper, and internal resolver paths are
+   * noise. Print the words, not the URL. */
+  .dh-note-print a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  /* Never split a heading from what it introduces, and keep code and tables
+   * whole where the page allows. */
+  .dh-note-print h1,
+  .dh-note-print h2,
+  .dh-note-print h3,
+  .dh-note-print h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .dh-note-print pre,
+  .dh-note-print table,
+  .dh-note-print blockquote {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

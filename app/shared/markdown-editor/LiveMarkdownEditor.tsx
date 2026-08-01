@@ -28,6 +28,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -39,7 +40,8 @@ import type { EditorView } from "@codemirror/view";
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { MarkdownContent } from "~/shared/markdown";
 
-import { EditorToolbar } from "./EditorToolbar";
+import { EditorToolbar, type EditorToolbarCommand } from "./EditorToolbar";
+import { RecordLinkPicker, type RecordLinkOption } from "./RecordLinkPicker";
 import { applyMarkdownTransform } from "./editor-commands";
 import {
   editorViewModeLabel,
@@ -47,6 +49,10 @@ import {
   type EditorViewMode,
 } from "./editor-view-mode";
 import type { MarkdownFormattingAction } from "./formatting-actions";
+import {
+  recordLinkTransform,
+  type MarkdownTransform,
+} from "./markdown-transforms";
 import { deriveFieldIds, composeDescribedBy } from "~/shared/forms/field-ids";
 
 export interface LiveMarkdownEditorProps {
@@ -71,6 +77,27 @@ export interface LiveMarkdownEditorProps {
   readonly statusSlot?: ReactNode;
   /** Number of rows for the no-JS/SSR fallback textarea. */
   readonly rows?: number;
+  /**
+   * NOTES-05 §5 — enable the record-link picker.
+   *
+   * Optional, so the editor keeps working with no linking capability at all (the
+   * Diary body, its intended second consumer, may not want one). When supplied,
+   * a "Link" command joins the toolbar; choosing a record splices
+   * `[Label](dalyhub://type/id)` into the source as ONE undoable edit.
+   *
+   * The search is the caller's, because only the caller has a workspace-scoped
+   * server to ask — this component never fetches and never mints a destination.
+   */
+  readonly recordLink?: {
+    readonly search: (
+      query: string,
+      signal: AbortSignal,
+    ) => Promise<readonly RecordLinkOption[]>;
+    /** Render an identity glyph for a record type (optional). */
+    readonly renderIcon?: (type: string) => ReactNode;
+    /** Human label for a record type, e.g. `project` → "Project". */
+    readonly typeLabel?: (type: string) => string;
+  };
 }
 
 export function LiveMarkdownEditor({
@@ -84,6 +111,7 @@ export function LiveMarkdownEditor({
   toolbarLabel = "Formatting",
   statusSlot,
   rows = 18,
+  recordLink,
 }: LiveMarkdownEditorProps) {
   const [mode, setMode] = useState<EditorViewMode>("write");
   const [editorReady, setEditorReady] = useState(false);
@@ -190,17 +218,19 @@ export function LiveMarkdownEditor({
     }
   }, [value]);
 
-  // Apply a formatting action to whichever surface is live.
-  const applyAction = useCallback((action: MarkdownFormattingAction) => {
+  // Apply a pure Markdown-source transform to whichever surface is live. Both
+  // paths commit ONE change and restore the selection, so a toolbar action, a
+  // keyboard shortcut and a record-link insertion are all a single undo step.
+  const applyTransform = useCallback((transform: MarkdownTransform) => {
     const view = viewRef.current;
     if (view) {
-      applyMarkdownTransform(view, action.transform);
+      applyMarkdownTransform(view, transform);
       return;
     }
     const textarea = fallbackRef.current;
     if (!textarea) return;
     const currentValue = textarea.value;
-    const result = action.transform({
+    const result = transform({
       value: currentValue,
       selectionStart: textarea.selectionStart ?? currentValue.length,
       selectionEnd: textarea.selectionEnd ?? currentValue.length,
@@ -215,6 +245,65 @@ export function LiveMarkdownEditor({
       // Detached-node environments can throw; focus alone is acceptable.
     }
   }, []);
+
+  const applyAction = useCallback(
+    (action: MarkdownFormattingAction) => applyTransform(action.transform),
+    [applyTransform],
+  );
+
+  /* -- Record-link picker (NOTES-05 §5) ----------------------------------- */
+
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+
+  /** Return focus to the live writing surface, whichever one it is. */
+  const focusEditor = useCallback(() => {
+    const view = viewRef.current;
+    if (view) {
+      view.focus();
+      return;
+    }
+    fallbackRef.current?.focus();
+  }, []);
+
+  const closeLinkPicker = useCallback(() => {
+    setLinkPickerOpen(false);
+    // Focus must come back to the document, not be dropped on the page — the
+    // author was mid-sentence (DS-11: a transient surface always restores focus).
+    focusEditor();
+  }, [focusEditor]);
+
+  const chooseRecord = useCallback(
+    (option: RecordLinkOption) => {
+      setLinkPickerOpen(false);
+      // Insert first, then restore focus: `applyTransform` sets the selection,
+      // and focusing afterwards keeps the caret exactly where it put it.
+      applyTransform(
+        recordLinkTransform({ url: option.url, title: option.title }),
+      );
+      focusEditor();
+    },
+    [applyTransform, focusEditor],
+  );
+
+  const toolbarCommands = useMemo<readonly EditorToolbarCommand[]>(
+    () =>
+      recordLink
+        ? [
+            {
+              id: "record-link",
+              // NOT "Link": the formatting catalogue already has a "Link"
+              // action (an ordinary Markdown link). Two toolbar buttons sharing
+              // one accessible name is indistinguishable to a screen-reader
+              // user, and the visible word IS the accessible name here.
+              label: "Record link",
+              hint: "Link a DalyHub record (project, person, meeting, asset…)",
+              expanded: linkPickerOpen,
+              onSelect: () => setLinkPickerOpen((wasOpen) => !wasOpen),
+            },
+          ]
+        : [],
+    [recordLink, linkPickerOpen],
+  );
 
   // Reading mode: render the note through the ONE FND-08 pipeline.
   const [readHtml, setReadHtml] = useState<
@@ -264,7 +353,11 @@ export function LiveMarkdownEditor({
     >
       <div className="dh-md-editor__bar">
         {mode === "write" ? (
-          <EditorToolbar onAction={applyAction} label={toolbarLabel} />
+          <EditorToolbar
+            onAction={applyAction}
+            label={toolbarLabel}
+            commands={toolbarCommands}
+          />
         ) : (
           <span className="dh-md-editor__reading-note">Reading</span>
         )}
@@ -280,6 +373,20 @@ export function LiveMarkdownEditor({
           </button>
         </div>
       </div>
+
+      {/* The picker sits between the toolbar and the writing surface so the
+          reading order matches the visual order and the results never cover the
+          line being written — on a phone especially, where the software keyboard
+          already owns the bottom of the screen. */}
+      {mode === "write" && recordLink && linkPickerOpen ? (
+        <RecordLinkPicker
+          search={recordLink.search}
+          onChoose={chooseRecord}
+          onCancel={closeLinkPicker}
+          renderIcon={recordLink.renderIcon}
+          typeLabel={recordLink.typeLabel}
+        />
+      ) : null}
 
       {mode === "write" ? (
         <div className="dh-md-editor__surface">
