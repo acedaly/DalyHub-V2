@@ -73,6 +73,17 @@ One allowlist (`markdown-url-policy.ts`), used for every link (and for an image'
 
 It mirrors how a browser resolves an `href` so obfuscation cannot smuggle a scheme: it strips tab/newline/CR anywhere, trims leading/trailing whitespace (including unusual Unicode spaces), rejects any remaining control character, and only then checks the scheme. HTML-entity and numeric-reference obfuscation is already decoded by the parser before the policy sees the value; percent-encoded colons stay inert (a harmless relative URL that never executes). Unsafe links are **unwrapped to plain text**. `target` is never accepted; external links are not auto-opened in a new tab (a later Design System decision may add an affordance).
 
+### `dalyhub://` is NOT in this allowlist — deliberately
+
+DalyHub's own internal record links look like `[Label](dalyhub://project/<id>)`, and `dalyhub:` is **not** an allowed scheme. That is not an oversight, it is the design:
+
+- a `dalyhub://` href is not something a browser can navigate, so allowing it would render a dead link;
+- widening this allowlist is the last thing that should be done casually — it is the one boundary standing between user Markdown and the DOM.
+
+Instead, [`record-links.ts`](../../app/platform/markdown/record-links.ts) rewrites a record link into an **ordinary relative path** (the internal resolver route) before the tree ever reaches `remark-rehype` — exactly as `remarkWikiLinks` already does for `[[…]]`. **The URL policy and the sanitisation schema are therefore completely untouched**, and the rendered output contains only relative hrefs both already permit.
+
+A `dalyhub://` URL the parser rejects (extra path segments, a query, a fragment, a malformed id) is deliberately left alone. It then fails this policy and is unwrapped to plain text — an honest, inert non-link rather than a clickable link to a destination that could not be verified. Resolution itself is not the renderer's job: the pipeline stays stateless (ADR-015 §4.7) and the workspace-scoped lookup happens in the resolver route. See [ADR-064](../decisions/ARCHITECTURE_DECISIONS.md#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave).
+
 ## Remote-image policy
 
 Markdown image syntax **never** produces an `<img>` and never causes a fetch. An image node is transformed **before** sanitisation into safe non-embedded content:
@@ -176,6 +187,7 @@ renderer's idea of a code block.
 | `markdownToPlainText` | `.txt` export, excerpt cleaning |
 | `excerptAtOffset` / `excerptAroundMatch` | search excerpts, backlink context, card excerpts |
 | `transformReferencesForExport` | `.md` and `.txt` export |
+| `extractRecordLinks` / `distinctRecordLinkIds` | `dalyhub://` relationship reconciliation |
 
 **The rules it exists to enforce.**
 
@@ -184,6 +196,17 @@ renderer's idea of a code block.
   tokeniser; the remark transform, the reference extractor and the export
   transformer all go through it. No route, repository or component may declare a
   Markdown pattern of its own.
+- **ONE record-link format, in the SHARED layer.** `formatRecordLink` /
+  `parseRecordLink` in
+  [`~/shared/markdown/record-link.ts`](../../app/shared/markdown/record-link.ts)
+  are the only producer and the only parser of the `dalyhub://type/id` form. It
+  lives in `shared` rather than here because its three consumers sit in three
+  layers — the remark transform, the export transformer, and the editor's record
+  picker (a component, which must not depend on platform). One authority is what
+  stops the written form and the accepted form from drifting apart.
+- **Record links are extracted from LINK NODES, not by pattern.** A
+  `dalyhub://…` written inside a fenced or inline code span is not a link node at
+  all, so it is never extracted — there is no range-exclusion pass to get wrong.
 - **Link-like text inside code is never a relationship.** Reference extraction
   excludes the source ranges of `code`, `inlineCode`, `link`, `linkReference`,
   `definition`, `image` and `html` nodes, so a `[[…]]` in a sample never becomes

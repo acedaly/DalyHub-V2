@@ -768,6 +768,17 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 - **Priority.** P2.
 - **Status: ☑ Done (2026-07-28).** A Note exports as **Markdown `.md`** and **plain text `.txt`** from the ONE shared DS-12 overflow. Because a Note is stored as exact, byte-for-byte validated `MarkdownSource` ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)), the `.md` export is a **serve-what-is-stored** operation: YAML front matter (`title`, `created`, `updated`, `tags`, `archived`, `source`) — the portable convention every Markdown tool already understands — then the title as an H1, then the canonical source with headings, lists, tables, links, code fences and line endings preserved byte-for-byte. `.txt` is the shared analyser's plain-text projection. **No format goes through the renderer**, so re-rendered HTML is never exported as if it were the note and no second HTML sink exists. **Entity links** export as `[Label](dalyhub://type/id)` when resolvable and as plain `Label` when not — a readable, explicit DalyHub reference, never broken internal syntax. **Filenames** are conservative by construction (lower-case alphanumerics and single hyphens, bounded, never a path separator or a header-breaking quote, `note` as the fallback), with a **stable** id suffix when another active note would export to the same stem, so two same-titled notes never collide and the same note always exports to the same name. The route is the authorisation boundary: authenticated session, server-derived workspace, an ACTIVE `note` anchor, calm 404 for missing/deleted/wrong-type/cross-workspace ids, typed 400 for an unsupported format. The client fetches rather than following a link so a failure becomes an **announced** error and a success an announced confirmation, with no page reload and no navigation away from the record — on desktop and phone alike. Bulk/workspace export stays [X-04](#-x-04--export--data-portability), which should generalise this contract; a printable/PDF render is deliberately left there too, since it would be the first *rendered* export. See [`NOTES_MODULE.md → Export`](../development/NOTES_MODULE.md).
 
+### ☑ NOTES-07 — Knowledge completion: record links, backlink presentation, reconciliation and copy/print
+- **Purpose.** Close the last gaps between the shipped Notes module and the "practical knowledge layer" the completion brief describes, without turning DalyHub into a separate wiki product.
+- **Dependencies.** NOTES-02, NOTES-03, NOTES-05, NOTES-06, PROJ-03, DS-06, FND-04, FND-08.
+- **Priority.** P2.
+- **Status: ☑ Done (2026-08-01).** Four capabilities, all on existing contracts — **no migration, no schema change and no new relationship type**. Accepted via [ADR-064](../decisions/ARCHITECTURE_DECISIONS.md#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave).
+  1. **`dalyhub://` record links.** NOTES-06 already *wrote* this form into exports; the product could not *read* it, because `dalyhub:` is not in the FND-08 URL allowlist — so a record link, including one pasted back from an export DalyHub itself produced, rendered as inert text. A remark transform now rewrites it to the internal resolver path before `remark-rehype`, exactly as `remarkWikiLinks` does for `[[…]]`; **the URL policy and sanitisation schema are untouched**. Record links reconcile into the SAME `note.references` set as wiki links, so an id-picked and a title-written link give ONE relationship — the difference is robustness: an id survives a rename and cannot confuse two same-titled records. A **Record link** toolbar command opens a searchable picker sharing the DS-06 headless combobox and the shared `/links` endpoint (`op=record-link`); the destination is formatted SERVER-side, so the client never mints one. The id in a note body is never trusted: a missing, cross-workspace or archived target is reported as unresolved and nothing is written, and following a link to a deleted record lands on an honest "unavailable" page rather than dead-ending or crashing the note.
+  2. **Backlink presentation.** An honest count ("N loaded" while a page remains, never a claimed total), grouping by **module family** rather than raw entity type, and a native module filter offering only families actually present. Empty families are never shown.
+  3. **Autosave reconciliation**, closing the shipped half of [DEBT-47](../product/PRODUCT_DEBT.md). The shared DS-06 coordinator adopts an external value **silently while the field is clean** and **parks it while dirty**, offering it through the shared `RemoteChangeBanner` — take theirs, or keep mine. Nothing is applied over a draft; nothing is silently dropped. **No automatic Markdown merge**: there is no deterministic safe merge for prose, and a wrong one produces content neither person wrote. Opt-in via `serverValue`, so every other autosave surface keeps its semantics until it adopts the contract deliberately.
+  4. **Copy Markdown / Copy plain text / Print.** Copy fetches the SAME export route rather than re-serialising in the browser, so copy and export cannot disagree and copied content can never carry hidden UI text. Print renders a print-only view — server-rendered through the one FND-08 pipeline — because printing the live CodeMirror surface prints its scroller and concealed markers rather than the note.
+- **Deliberately excluded.** Whole-workspace export ([X-04](#-x-04--export--data-portability)), PDF, attachments, collaborative editing, folder hierarchy, aliases, transclusion, a graph view and every AI capability. See [`NOTES_MODULE.md → Deferrals`](../development/NOTES_MODULE.md#deferrals).
+
 ## Phase 6 — Meetings (`MEET`)
 
 ### ☑ MEET-01 — Meeting record
@@ -1169,6 +1180,22 @@ Items not listed keep the status and sequencing recorded in their own entries �
 ---
 
 ## Change log for this roadmap
+
+- **2026-08-01 — Notes knowledge completion.**
+  [NOTES-07](#-notes-07--knowledge-completion-record-links-backlink-presentation-reconciliation-and-copyprint)
+  closes the last gaps in the Notes knowledge layer: `dalyhub://` record links
+  (id-stable internal links, an editor picker, an honest broken-target page, and
+  the closed export round trip), backlink count/family grouping/module filter,
+  the autosave reconciliation contract, and Copy/Print. Accepted via
+  [ADR-064](../decisions/ARCHITECTURE_DECISIONS.md#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave).
+
+  **Reconciled honestly.** NOTES-02/03/04/05/06 and PROJ-03 stay ☑ and were
+  **extended, not reopened** — the audit found the knowledge module genuinely
+  shipped, and this item is the delta rather than a rewrite. **No migration and
+  no schema change**: record links reuse `note.references`, so the relationship
+  model is unchanged. [DEBT-47](../product/PRODUCT_DEBT.md) moves to ◐ rather
+  than ☑ — the contract ships, but only the Note body has adopted it, and the
+  Meeting capture workflow that surfaced the entry has not.
 
 - **2026-07-31 — V2 Final Polish & Release Readiness.** The completion pass that
   makes DalyHub a daily driver: [THEME-01](#-theme-01--the-curated-theme-system)

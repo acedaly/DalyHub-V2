@@ -327,6 +327,36 @@ DEBT-39, and adds the first surface that reads the graph *directionally*.
   - A **deleted** counterpart simply stops appearing (the kernel's own
     `listForEntity` contract) and returns intact when restored; link rows are
     never rewritten by a lifecycle change.
+
+### `dalyhub://` record links join the SAME set (NOTES-05 knowledge completion)
+
+A `[Label](dalyhub://type/id)` **record link** in a note body reconciles into the
+same `note.references` relationship a `[[Wiki Link]]` produces. This is the point
+worth stating explicitly: **there are two authoring syntaxes and ONE relationship
+model.** A record link and a wiki link to the same record collapse to one link
+row, and a backlink cannot tell you which syntax produced it — because that is a
+detail of how the author typed, not of what the note means.
+
+What differs is how the target is identified, and therefore how robust the link
+is:
+
+| | `[[Wiki Link]]` | `dalyhub://type/id` |
+| --- | --- | --- |
+| Identified by | title, resolved at save time with a tie-break | stable id |
+| Two records share a title | the tie-break picks one | unambiguous |
+| Target renamed | relationship survives; the prose still reads the old title | identical |
+| Written by | typing, while composing prose | the editor's **Record link** picker |
+
+**The id is never trusted.** It arrives from the note body, which is user input,
+so nothing verifies it locally: `entityLinks.create` is the authority, and a
+missing, cross-workspace or archived target is reported as *unresolved* with
+nothing written. That is the same outcome an unmatched title already produces —
+a dangling reference is a normal state in a knowledge base, not an error.
+
+The backlink reading surface groups rows by **module family** (Notes; Projects,
+Areas and Goals; People and Meetings; Tasks and Reviews; Diary; Assets; Other),
+in a fixed order, omitting empty families. See
+[ADR-064](../decisions/ARCHITECTURE_DECISIONS.md#adr-064-the-dalyhub-record-link-and-a-reconciliation-contract-for-autosave).
 - **Project Knowledge (PROJ-03) is the same graph, filtered to notes** — no
   `project_notes` join table and no `note.project_id` column. Cardinality is
   **many-to-many**, uniqueness is the kernel's
