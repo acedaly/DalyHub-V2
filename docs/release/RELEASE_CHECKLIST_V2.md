@@ -105,6 +105,40 @@ Each row was exercised as a coherent workflow, on desktop **and** at phone width
 
 ---
 
+## 3a. Cross-cutting consistency
+
+Reviewed across all modules. The headline finding is that **most of this was
+already done** — DS-12 → PX-04 → PX-05 → PX-06, MOBILE-01, THEME-01, POLISH-01 and
+UX-01 were consistency passes, and the register says so. What this closure verified
+is that the shared mechanism is what modules actually use, so drift is structurally
+prevented rather than periodically swept.
+
+| Concern | Status | The mechanism that prevents drift |
+|---|---|---|
+| Record titles and breadcrumbs | ✅ | One DS-02 Record Header composed by every canonical record (verified across nine modules) |
+| Create / edit / detail layouts | ✅ | The shared Record Layout plus DS-06 forms; save mode is a *declared* part of the component contract, never inferred |
+| Overflow menus | ✅ | One shared overflow menu (DS-12); the Record Header slot and the Card `overflowAction` slot host the same action set |
+| Archive / restore / delete | ✅ | `app/shared/record-lifecycle` derives every label, confirmation title, busy label and success message from ONE input — the entity type (ADR-053) |
+| Confirmation dialogs | ✅ | The shared `ConfirmationDialog`/`DangerousAction` over the DS-03 modal machinery; no module-local dialog |
+| Entity and subtype icons | ✅ | One `ENTITY_IDENTITY` map plus one subtype-icon registry (PX-05). A test forbids a competing entity-icon map |
+| Empty states | ✅ | Shared `EmptyState`; titles and count labels derived from the identity map by `app/shared/entity/copy.ts`, so a module *structurally* cannot fork the wording |
+| Loading indicators | ✅ | Shared skeletons with their own tokens; no spinner-blocked blank screens |
+| Error messages | ✅ | The DS-10 feedback platform; no raw error reaches a surface |
+| Keyboard focus | ✅ | One dispatcher and one shortcut catalogue (`shortcut-reference.ts`); focus restoration is asserted on close paths in `e2e/drawer.spec.ts` |
+| Mobile touch targets | ✅ | 44px token; `e2e/touch-targets.spec.ts` |
+| Responsive layouts | ✅ | Container queries and the no-overflow matrix from 320px up |
+| Dates and timezone handling | ⚠️ | One owner-timezone authority (SET-01) used by Today, Tasks urgency and Diary grouping; wall-calendar dates are `YYYY-MM-DD` compared as integers. **Known:** three copies of calendar-day arithmetic remain in the kernel ([DEBT-52](../product/PRODUCT_DEBT.md#-debt-52--three-copies-of-calendar-day-arithmetic-in-the-kernel-and-a-fourth-capture-surface--p3), P3) — they agree today; the duplication is the risk, not a current defect |
+| Links between related records | ✅ | One `entityDestination` helper; shared `EntityLink` renders its icon by default so related-record rows cannot drift between iconned and bare |
+| Success feedback | ✅ | One notification/undo framework; the region takes pointer input only on its own controls (DEBT-38) |
+| Unsaved-change behaviour | ⚠️ | `useForm` intercepts unsaved navigation; autosave has an explicit reconciliation contract that adopts an external value only while clean and *offers* it otherwise (ADR-064). **Known:** the contract is opt-in and only the Note body has adopted it ([DEBT-47](../product/PRODUCT_DEBT.md#-debt-47--an-open-autosave-editor-does-not-adopt-a-server-side-change-to-its-field--p2), P2) |
+
+**No release-blocking inconsistency was found, and no module-specific alternative
+was created.** The two ⚠️ rows are pre-existing, recorded, P2/P3, and each names the
+shared contract that already exists for the fix to adopt — which is the correct
+state for deferred work, not a gap this closure introduced.
+
+---
+
 ## 4. Mobile usability
 
 | Check | Status | Evidence |
