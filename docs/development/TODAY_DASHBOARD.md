@@ -610,13 +610,17 @@ subject, reminders or notifications.
   Activity model) is [DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed);
   this section is not it and does not invent an event source.
 
-## Built for replacement
+## Built for replacement *(historical — the replacement is complete)*
 
-All demo data lives in [`fixtures.ts`](../../app/modules/today/fixtures.ts) with
-typed shapes and stable ids. When Tasks, Notes, Meetings and the Diary connect,
-only the data source (the loader and the fixtures) is swapped for
-workspace-scoped repository reads — the `TodayDashboard` composition does not
-change.
+TODAY-01 kept all demo data behind one clearly-labelled seam, `fixtures.ts`, with
+typed shapes and stable ids, so that connecting Tasks, Notes, Meetings and the
+Diary would swap only the data source and never the `TodayDashboard` composition.
+
+**That worked, and the seam is now gone.** Every section reads real
+workspace-scoped data, and UX-01 deleted `fixtures.ts` (see the UX-01 section at
+the end of this document) — so the file this paragraph used to link to no longer
+exists, by design rather than by omission. The composition it describes did not
+change once, which is the property the seam existed to protect.
 
 ## Two disclosed deviations
 
