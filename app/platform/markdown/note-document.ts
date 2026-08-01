@@ -163,9 +163,19 @@ export interface NoteReference {
 }
 
 /**
- * The most references one Note contributes. A relationship set has to be
- * bounded — reconciling links is a write per reference — and a note with more
- * than this many distinct targets is not expressing a knowledge relationship.
+ * The most references one Note contributes **per syntax**. A relationship set
+ * has to be bounded — reconciling links is a write per reference — and a note
+ * with more than this many distinct targets is not expressing a knowledge
+ * relationship.
+ *
+ * Applied independently to `[[Wiki Links]]` ({@link distinctReferenceTitles})
+ * and to `dalyhub://` record links ({@link distinctRecordLinkIds}), so a single
+ * note's worst case is **twice** this number of distinct targets. That is
+ * deliberate: capping the two jointly would mean silently dropping links the
+ * author actually made, once a note happened to use both forms heavily, and a
+ * silently-missing relationship is worse than a bounded one-off cost. The cost
+ * is only paid on the save that first introduces a link — reconciliation skips
+ * every target already linked, so the steady state is zero writes.
  */
 export const MAX_NOTE_REFERENCES = 100;
 
