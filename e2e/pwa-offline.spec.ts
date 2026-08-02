@@ -348,6 +348,30 @@ test.describe("offline lifecycle", () => {
     await expect(page.getByText(/offline surface/i)).toBeVisible();
   });
 
+  test("says it is offline, in words, on a page that is already open", async ({
+    page,
+    context,
+  }) => {
+    await primeOfflineSession(page);
+
+    // Nothing is shown while DalyHub is healthy — the absence of a warning IS
+    // the healthy state, so asserting it is absent is asserting the design.
+    await expect(page.getByText("Offline", { exact: true })).toHaveCount(0);
+
+    await goOffline(context);
+    // Force the connection state to be re-derived from a real request outcome,
+    // exactly as the `offline` event does in a browser.
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+
+    // The status surface must SAY it, in text: colour is never the only signal.
+    await expect(page.getByText("Offline", { exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/stored offline snapshot/i)).toBeVisible();
+
+    await goOnline(context);
+  });
+
   test("repeated offline reloads behave identically", async ({
     page,
     context,

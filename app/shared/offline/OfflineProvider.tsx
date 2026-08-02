@@ -271,7 +271,11 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
         // it here keeps the document the owner sees offline in step with the
         // snapshot they will see inside it.
         void refreshOfflineShell();
-      } else if (result.kind === "skipped") {
+      } else {
+        // BOTH `skipped` and `failed` carry the connection state, and both must
+        // apply it. Handling only `skipped` left the state stuck on its previous
+        // value when the request failed outright — so a device that had just
+        // lost its connection went on claiming it was online.
         setConnection(result.connection);
       }
 

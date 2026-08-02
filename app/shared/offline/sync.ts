@@ -67,7 +67,17 @@ const CREATE_ENDPOINTS = {
 export type SnapshotSyncResult =
   | { readonly kind: "updated"; readonly meta: OfflineMetaRecord }
   | { readonly kind: "skipped"; readonly connection: OfflineConnectionState }
-  | { readonly kind: "failed"; readonly reason: string };
+  | {
+      readonly kind: "failed";
+      readonly reason: string;
+      /**
+       * What the failure says about reachability. Carried because dropping the
+       * pre-probe made the snapshot request the ONLY signal: a caller that
+       * ignored this would leave the connection state stuck on its last value,
+       * and the owner would never see that they had gone offline.
+       */
+      readonly connection: OfflineConnectionState;
+    };
 
 /**
  * Turn a create route's response into a replay outcome.
@@ -297,18 +307,30 @@ export async function syncSnapshot(options?: {
     }
     snapshot = (await response.json()) as OfflineSnapshot;
   } catch {
-    return { kind: "failed", reason: "The snapshot could not be downloaded." };
+    // The request did not complete: no network, DNS, TLS, or an abort. From
+    // here these are one fact.
+    return {
+      kind: "failed",
+      reason: "The snapshot could not be downloaded.",
+      connection: "offline",
+    };
   }
 
   if (typeof snapshot?.namespace !== "string" || !snapshot.window) {
+    // The backend ANSWERED — it just answered with something unusable. That is
+    // a failure while reachable, not a loss of connection.
     return {
       kind: "failed",
       reason: "The snapshot was not in a usable shape.",
+      connection,
     };
   }
 
   const saved = await saveSnapshot(snapshot);
-  if (!saved.ok) return { kind: "failed", reason: saved.failure.message };
+  if (!saved.ok) {
+    // The download worked; this device could not store it.
+    return { kind: "failed", reason: saved.failure.message, connection };
+  }
 
   // Retention runs immediately after a successful sync (one of the four points
   // the policy names), against the window resolved for THIS device's clock in the
