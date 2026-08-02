@@ -1,11 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-import {
-  gotoFixture,
-  mobileNavigationOpener,
-  waitForInteractive,
-} from "./helpers";
+import { gotoFixture, mobileNavigationOpener } from "./helpers";
 
 /**
  * DS-09 Command Palette — driven end to end against the development-auth server.
@@ -17,17 +13,27 @@ import {
  * plus the execution/failure states via the `/design/command-palette` fixture.
  * Role-based and non-brittle.
  *
- * Navigation goes through `gotoFixture` / `waitForInteractive` rather than a bare
- * `waitForLoadState("networkidle")`. The difference matters here more than in most
- * specs: several of these tests fire a GLOBAL KEYBOARD SHORTCUT (`/`, `Mod+K`) as
- * their first interaction, and a keypress is a one-shot event — if React has not
- * attached `CommandShortcutLayer` yet, the key is swallowed and never retried, so
- * the surface simply never opens. A settle proves the network is quiet, not that
- * the document is interactive; `[data-hydrated]`, which Today publishes and
- * `waitForInteractive` waits for, is the real gate. (Observed in CI on 2026-08-02:
- * "is mutually exclusive with Search" pressed `/` and the Search combobox never
- * appeared. Clicking tests were unaffected, because Playwright retries a click
- * until it is actionable.)
+ * ── Which wait belongs where ─────────────────────────────────────────────────
+ * Several of these tests fire a GLOBAL KEYBOARD SHORTCUT (`/`, `Mod+K`) as their
+ * first interaction, and a keypress is a ONE-SHOT event: pressed before React
+ * attaches `CommandShortcutLayer`, it is swallowed and there is nothing to retry,
+ * so the surface never opens. A network settle proves the network is quiet, not
+ * that the document is interactive. (Observed in CI on 2026-08-02: "is mutually
+ * exclusive with Search" pressed `/` and the Search combobox never appeared.
+ * Clicking tests were unaffected — Playwright retries a click until it is
+ * actionable.)
+ *
+ * So the two waits are used deliberately, and they are NOT interchangeable:
+ *
+ *   - ENTERING a journey → `gotoFixture`, which settles AND waits for the
+ *     `[data-hydrated]` marker. This is the gate that makes a first keypress safe.
+ *   - MID-journey, after a command has navigated → a plain settle. The marker is
+ *     published only by Today and the design routes, so waiting for it on Projects,
+ *     Areas, Goals or Diary hits the document-swap race `waitForInteractive`'s own
+ *     comment describes: the count sees the outgoing document's marker and the
+ *     assertion then finds nothing on the one we landed on. (Also observed in CI on
+ *     2026-08-02, from over-applying the fix above.) By that point the journey has
+ *     already driven the palette, so the dispatcher is attached regardless.
  */
 
 async function hasNoHorizontalOverflow(page: Page) {
@@ -45,8 +51,13 @@ function palette(page: Page) {
   return page.getByRole("combobox", { name: "Search commands and records" });
 }
 
+// A settle, NOT `waitForInteractive`: this helper is also called mid-journey,
+// after a command has navigated to another module, and the hydration marker is
+// published only by Today and the design routes. It does not need the stronger
+// gate anyway — it CLICKS the trigger, and Playwright retries a click until the
+// target is actionable.
 async function openPalette(page: Page) {
-  await waitForInteractive(page);
+  await page.waitForLoadState("networkidle");
   await commandTrigger(page).click();
   const input = palette(page);
   await expect(input).toBeVisible();
@@ -459,7 +470,18 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
     name: RegExp,
     urlPattern: RegExp,
   ) {
-    await waitForInteractive(page);
+    // A settle, NOT `waitForInteractive`. This helper runs REPEATEDLY within one
+    // journey, and every call after the first begins on whichever module the last
+    // command navigated to — Projects, Areas, Goals, Diary — none of which publish
+    // `[data-hydrated]`. Waiting for that marker here hits the document-swap race
+    // the helper's own comment describes: the count sees the marker on the document
+    // being navigated away from, and the assertion then finds nothing on the one we
+    // landed on. Observed in CI on 2026-08-02.
+    //
+    // The shortcut below is still safe: by this point the journey has already
+    // interacted with the page through the palette, so the dispatcher is attached.
+    // The gate that matters is on the initial navigation, which uses `gotoFixture`.
+    await page.waitForLoadState("networkidle");
     await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeVisible();
@@ -470,7 +492,7 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
   }
 
   test("opens each module collection from the palette", async ({ page }) => {
-    await page.goto("/today");
+    await gotoFixture(page, "/today");
     await runCommand(page, "Open Projects", /Open Projects/, /\/projects$/);
     await runCommand(page, "Open Areas", /Open Areas/, /\/areas$/);
     await runCommand(page, "Open Goals", /Open Goals/, /\/goals$/);
@@ -523,7 +545,7 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
   test("opens the Diary for today and the Diary capture panel", async ({
     page,
   }) => {
-    await page.goto("/today");
+    await gotoFixture(page, "/today");
     await runCommand(
       page,
       "Diary for today",
