@@ -33,6 +33,8 @@ const DESIGN_FIXTURES = [
   "/design/command-palette",
   "/design/feedback",
   "/design/settings",
+  // PWA-01 — the icon review surface.
+  "/design/app-icon",
 ] as const;
 
 /** Real product surfaces (rendered through the authenticated dev shell). */
@@ -95,6 +97,12 @@ const PRODUCT_ROUTES = [
   "/ai",
   "/settings",
   "/help",
+  // PWA — the offline surfaces. `/offline` renders OUTSIDE the app shell (it is
+  // the cacheable shell document), so it is the one product route whose
+  // landmarks, headings and focus order are entirely its own; and the Settings
+  // offline section carries three destructive controls and a live status region.
+  "/offline",
+  "/settings?section=offline",
 ] as const;
 
 test.describe("automated accessibility — resting surfaces (light)", () => {

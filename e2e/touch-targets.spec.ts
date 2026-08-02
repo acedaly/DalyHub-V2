@@ -21,6 +21,30 @@ import {
 } from "./helpers";
 import { cleanupNoteByTitle, uniqueNoteTitle } from "./notes-fixtures";
 
+test.describe("touch targets — the offline surfaces (mobile)", () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test("the offline capture and sync controls meet the 44px minimum", async ({
+    page,
+  }) => {
+    // The offline page renders OUTSIDE the app shell, so it does not inherit the
+    // shell's target sizing — these are its own, and they are the controls
+    // someone uses one-handed on a phone with no signal.
+    await gotoFixture(page, "/offline");
+    await expectMinTouchTarget(page.getByRole("button", { name: /Sync now/ }));
+  });
+
+  test("the Settings offline controls meet the minimum", async ({ page }) => {
+    await gotoFixture(page, "/settings?section=offline");
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /Refresh now|Refreshing/ }),
+    );
+    for (const name of [/Clear snapshot/, /Reset offline data/]) {
+      await expectMinTouchTarget(page.getByRole("button", { name }));
+    }
+  });
+});
+
 test.describe("touch targets — shell (mobile)", () => {
   test.use({ viewport: { width: 320, height: 720 } });
 

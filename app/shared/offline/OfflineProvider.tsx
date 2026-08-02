@@ -156,14 +156,9 @@ export function useRequiredOffline(): OfflineContextValue {
 
 export interface OfflineProviderProps {
   readonly children: ReactNode;
-  /**
-   * Skip registration and probing. Used by the offline shell document, which
-   * mounts its own read-only provider, and by unit tests.
-   */
-  readonly passive?: boolean;
 }
 
-export function OfflineProvider({ children, passive }: OfflineProviderProps) {
+export function OfflineProvider({ children }: OfflineProviderProps) {
   // The initial value is `online`, not `reconnecting`. Nothing is RENDERED while
   // online, so this claims nothing — whereas starting at `reconnecting` put a
   // "Checking the connection" banner at the top of every page load for the few
@@ -265,7 +260,6 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
 
   /* ---- service worker + install --------------------------------------- */
   useEffect(() => {
-    if (passive) return;
     setStandalone(isRunningStandalone());
     const stopWorker = registerServiceWorker({ onStatus: setServiceWorker });
     const stopInstall = watchInstallability(setDeferredPrompt);
@@ -273,7 +267,7 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
       stopWorker();
       stopInstall();
     };
-  }, [passive]);
+  }, []);
 
   /* ---- first load: read what the device already has, then sync --------- */
   useEffect(() => {
@@ -293,7 +287,6 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
       }
       if (cancelled) return;
       setInitialised(true);
-      if (passive) return;
       await sync();
     })();
     return () => {
@@ -305,7 +298,7 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
 
   /* ---- event-driven probing ------------------------------------------- */
   useEffect(() => {
-    if (passive || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
     const onOnline = () => void probe();
     const onVisible = () => {
       if (document.visibilityState === "visible") void probe();
@@ -320,11 +313,10 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
       window.removeEventListener("offline", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [passive, probe]);
+  }, [probe]);
 
   /* ---- unhealthy heartbeat, with backoff ------------------------------- */
   useEffect(() => {
-    if (passive) return;
     if (connection === "online") return;
     // An expired sign-in is NOT retried on a timer. Retrying is a redirect to
     // the identity provider every time, and it cannot succeed until the owner
@@ -350,7 +342,7 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [connection, passive, probe, sync]);
+  }, [connection, probe, sync]);
 
   /* ---- retention on open ---------------------------------------------- */
   useEffect(() => {
