@@ -17,6 +17,70 @@ no version number to group them under.
 
 ---
 
+## Unreleased — Install DalyHub, and use it without a connection
+
+DalyHub can now be installed as an app and keeps working when your connection
+does not. Full detail:
+[`PWA_AND_OFFLINE.md`](docs/development/PWA_AND_OFFLINE.md).
+
+**This has not been tested on a physical iPhone, iPad or installed desktop app
+yet.** The steps to do that are written down, and until they have been worked
+through, treat the offline behaviour below as built and automatically tested but
+not device-verified.
+
+### Added
+
+- **Install DalyHub as an app.** It gets its own icon, opens in its own window
+  without browser chrome, and starts without a tab. On iPhone and iPad this is
+  Safari's Share → Add to Home Screen; Settings → Offline & app gives the exact
+  steps rather than pretending a button can do it. On Chrome and Edge, Settings
+  offers an **Install** button.
+- **A real DalyHub app icon**, at every size a browser or device asks for — the
+  tab favicon, the iPhone home screen and the Android adaptive icon. It keeps the
+  hub mark you already see in the sidebar, redrawn so it stays legible at 16
+  pixels.
+- **DalyHub opens without a connection**, once you have opened it online while
+  signed in at least once on that device. Instead of the browser's error page you
+  get DalyHub's offline surface.
+- **A seven-day offline snapshot.** Tasks due, scheduled or overdue around today;
+  anything you completed in the last week; notes and diary entries from the last
+  week, as excerpts; and meetings in the surrounding fortnight — with the project,
+  area and person names those records need. You can search, filter and sort all of
+  it with no connection.
+- **Capture without a connection.** A new Inbox task, a quick note or a diary
+  entry can be captured offline. It waits on your device and reaches DalyHub when
+  a connection returns — **exactly once**, even if the connection drops
+  mid-attempt.
+- **A calm connection status.** Nothing is shown while everything is working.
+  When something is wrong it says which: no connection, sign-in expired, DalyHub
+  unavailable, or work waiting to sync — always in words, never colour alone.
+- **Settings → Offline & app.** Whether DalyHub is installed, what is stored on
+  this device, when it last synchronised, roughly how much space it uses, how many
+  captures are waiting, and which sign-in the data belongs to. Plus three separate
+  controls — clear the cached copy, discard queued captures, or reset everything —
+  each explaining exactly what it removes.
+- **An honest note about what this data is.** DalyHub does **not** encrypt what it
+  stores on your device; it relies on your device and browser's own protection.
+  And having offline data is not the same as being signed in — anything that
+  touches the server still needs a valid DalyHub sign-in.
+
+### Changed
+
+- Your sign-in still expires the way it always did. When it does, anything you
+  captured offline stays safe on the device and syncs after you sign in again —
+  DalyHub stops retrying rather than repeatedly bouncing you to the sign-in page.
+
+### Known limitations
+
+- You cannot **edit, complete or delete** existing records offline. That needs a
+  design for what happens when two versions disagree, which has deliberately not
+  been rushed.
+- Notes and diary entries are stored as excerpts, not in full.
+- Signing out does not automatically clear this device's offline data — use
+  Settings → Reset offline data.
+
+---
+
 ## 2.0.1 — Hotfix & release hardening (2026-08-02)
 
 A small, deliberate hotfix on top of V2. Five confirmed defects fixed, four

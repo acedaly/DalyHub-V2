@@ -690,6 +690,30 @@ authority now.)
 - **Closing condition.** A custom interval can be set and changed from the Task record, with unit coverage mirroring `TaskQuickEditPanel.test.tsx`'s preservation cases.
 - **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence) (follow-on).
 
+### ☐ DEBT-67 — Logging out does not clear the device's offline data automatically — P2
+
+- **Current issue.** DalyHub's sign-out is a Cloudflare Access sign-out: the session ends at the edge, and there is no client-side hook that runs before it does. So the PWA milestone's local-data clearing is an explicit control (`/settings?section=offline` → *Reset offline data*), not something that happens on logout. After logging out, a previously synced snapshot and any queued captures remain in IndexedDB on that device until the owner clears them, the browser evicts them, or a different identity signs in (which deletes the previous namespace's snapshot but deliberately keeps its queued captures).
+- **Impact.** On a shared or borrowed device, "I logged out" does not mean "my data is off this machine". The Settings surface states this plainly and the behaviour is documented, so nothing is misrepresented — but the owner has to take a second action they may not think to take.
+- **Desired future state.** A sign-out path DalyHub owns end to end: an in-app control that clears the offline database and DalyHub's caches BEFORE redirecting to the Access logout endpoint, plus a "clear offline data when I sign out" preference for anyone who wants it unconditional. This belongs with [SET-03](../roadmap/ROADMAP_V2_1.md#-set-03--account--security), which is already the owner-facing session/identity surface.
+- **Closing condition.** Signing out through the DalyHub control leaves no `dalyhub-offline` database and no `dalyhub-*` cache on the device, proven by a Playwright assertion, with queued captures either synced first or explicitly confirmed as discarded.
+- **Related roadmap item.** [SET-03](../roadmap/ROADMAP_V2_1.md#-set-03--account--security).
+
+### ☐ DEBT-68 — Offline capture receipts accumulate with no prune — P3
+
+- **Current issue.** `offline_capture_receipts` (migration `0026`) is written once per replayed offline capture and never deleted. Its purpose is to survive the retry window — minutes, not years — but nothing removes an old row. `created_at` is indexed for exactly this, and the table is bounded by how many captures the owner actually makes offline, so this is small and slow-growing rather than dangerous.
+- **Impact.** Unbounded row growth in a table with no reader after its retry window. At a realistic capture rate it is measured in kilobytes a year; the debt is that "unbounded" is still unbounded.
+- **Desired future state.** An age-based prune (delete receipts older than a documented horizon) attached to whatever scheduled maintenance DalyHub gains first — the V2.0.1 backup workflow is the obvious host.
+- **Closing condition.** Receipts older than the horizon are removed, with a kernel test proving a receipt inside the horizon still prevents a duplicate.
+- **Related roadmap item.** [PWA/offline](../development/PWA_AND_OFFLINE.md#11-known-limitations) (follow-on).
+
+### ☐ DEBT-69 — Hydrated offline rendering is not covered by automation — P2
+
+- **Current issue.** `e2e/pwa-offline.spec.ts` runs against the development server, because it is the only Playwright server with an authenticated session (the production-mode server is deliberately fail-closed, which is its own test). A Vite dev server has no hashed bundles to precache, so an offline reload renders the cached shell DOCUMENT but cannot hydrate it. The suite therefore proves the service worker's runtime behaviour and asserts the snapshot and queue directly in IndexedDB, but not that the fully hydrated offline application renders from the precached production bundle.
+- **Impact.** The single most user-visible offline behaviour — "I opened DalyHub on a plane and it worked" — rests on the manual device checklist rather than on CI.
+- **Desired future state.** A third Playwright server: the real production build served with the development authenticator, so the precached production bundle can be exercised offline. It needs a build directory that is not shared with the fail-closed preview server.
+- **Closing condition.** A Playwright test loads the production bundle authenticated, goes offline, reloads, and asserts the offline snapshot renders from IndexedDB with hydration complete.
+- **Related roadmap item.** [PWA/offline](../development/PWA_AND_OFFLINE.md#10-testing) (follow-on).
+
 ---
 
 ## Entry template

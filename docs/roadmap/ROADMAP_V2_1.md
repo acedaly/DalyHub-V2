@@ -255,7 +255,12 @@ because a reader would otherwise wonder whether it was forgotten:
   ([DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2)
   records the honest consequence for Asset obligations);
 - transcription and advanced analytics;
-- offline mode;
+- ~~offline mode~~ — **this changed.** A first offline milestone has shipped: an
+  installable PWA, a service worker, a read-only seven-day snapshot and an
+  append-only capture queue. See
+  [PWA-02 below](#-pwa-02--offline-editing-and-the-rest-of-the-offline-story)
+  for what it deliberately did NOT do, and
+  [`PWA_AND_OFFLINE.md`](../development/PWA_AND_OFFLINE.md) for what it did;
 - collaboration, multi-user permissions and roles;
 - subscriptions and billing;
 - file attachments and R2 storage
@@ -264,6 +269,58 @@ because a reader would otherwise wonder whether it was forgotten:
   ([DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3)
   — when a real source exists, weather returns as an OPTIONAL widget that is off
   until configured, never as reserved space).
+
+## Shipped after V2.0.1 — the first offline milestone
+
+### ☑ PWA-01 — Installable PWA, icon system and offline foundation
+
+- **Not in the original V2 roadmap.** "Offline mode" was in the *not planned*
+  list above. It was brought forward deliberately, and the list has been
+  corrected rather than quietly edited.
+- **Delivered.** A standards-compliant web app manifest and device metadata; a
+  first-party, generated icon system with a canonical parametric vector source
+  and a deterministic `--check`-able build; a service worker with an allow-listed
+  cache strategy, a small precache set and a wait-then-offer update model; a
+  read-only, minimised, identity- and workspace-namespaced fifteen-day IndexedDB
+  snapshot; an append-only offline capture queue for Inbox tasks, quick notes and
+  diary entries, replayed through the modules' own create routes with
+  database-level idempotency; a shared connection/sync state model derived from
+  real request outcomes; an Offline & app Settings section with three separate,
+  individually-explained destructive controls; an explicit offline schema ladder
+  with real recovery paths; automated coverage across unit, Workers-runtime and
+  Playwright layers; and enforced performance/storage budgets.
+- **Documented.** [`PWA_AND_OFFLINE.md`](../development/PWA_AND_OFFLINE.md),
+  [ADR-066](../decisions/ARCHITECTURE_DECISIONS.md#adr-066-a-read-only-offline-snapshot-an-append-only-capture-queue-and-a-service-worker-that-caches-exactly-one-html-document).
+- **Not production-verified.** Physical-device testing (iPhone/iPad Safari,
+  installed desktop) has NOT been performed. The manual checklist is written and
+  must be worked through before this is called production-ready.
+
+### ☐ PWA-02 — Offline editing, and the rest of the offline story
+
+- **What PWA-01 deliberately did not do, and why.** Offline **editing,
+  completion and deletion** of existing records need a conflict model, and a
+  milestone that shipped last-write-wins would have quietly corrupted the
+  owner's data. This item owns that design: which mutations are safe, how a
+  concurrent server change is detected, what the owner sees when two versions
+  disagree, and what "resolve" means in a product whose principle is that
+  DalyHub never silently mutates the owner's data.
+- **The named remainders**, each already recorded honestly:
+  - editing a queued capture before retrying it;
+  - full note and diary bodies offline (excerpts only today);
+  - a pinning capability for records outside the seven-day window;
+  - [DEBT-67](../product/PRODUCT_DEBT.md) — logout does not clear local data;
+  - [DEBT-68](../product/PRODUCT_DEBT.md) — capture receipts are never pruned;
+  - [DEBT-69](../product/PRODUCT_DEBT.md) — hydrated offline rendering is not
+    covered by automation.
+- **Still out of scope, and still deliberately so.** Collaborative or real-time
+  sync, background/periodic sync, push notifications, attachment
+  synchronisation, cross-device queue transfer, storing credentials on a device,
+  encrypting local storage, native wrappers and app-store distribution.
+- **Priority.** P3. **Do not start it before the manual device verification of
+  PWA-01 is done** — an editing model built on an unverified foundation inherits
+  every unverified assumption.
+
+---
 
 ---
 
@@ -281,6 +338,13 @@ because a reader would otherwise wonder whether it was forgotten:
 6. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore
    exists.
 7. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design.
+
+Ahead of all of them, and not a numbered item because it is verification rather
+than construction: **work through the PWA-01 manual device checklist** in
+[`PWA_AND_OFFLINE.md`](../development/PWA_AND_OFFLINE.md#manual-device-checklist).
+Offline support that has never been opened on a real phone in a real dead spot
+is not finished, and nothing in this file should be built on top of it until it
+has been.
 
 ---
 
