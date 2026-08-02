@@ -76,6 +76,58 @@ export function Layout({ children }: { children: React.ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
+        {/* PWA-01 — installation and device metadata.
+         *
+         * `crossOrigin="use-credentials"` on the manifest is LOAD-BEARING, not
+         * boilerplate: a manifest is fetched with `credentials: "omit"` by
+         * default, and DalyHub sits entirely behind Cloudflare Access, so an
+         * anonymous manifest fetch is redirected to the Access login page and the
+         * browser concludes the app has no manifest — no install prompt, no
+         * standalone launch, no icon. Sending credentials makes the fetch carry
+         * the Access cookie, so the manifest resolves for an authenticated
+         * device and 401s for anyone else. See PWA_AND_OFFLINE.md.
+         */}
+        <link
+          rel="manifest"
+          href="/manifest.webmanifest"
+          crossOrigin="use-credentials"
+        />
+        {/* Favicons. The SVG is preferred by browsers that support it and scales
+         * to any surface; the `.ico` covers the rest and the Windows shortcut. */}
+        <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+        <link rel="icon" href="/icons/dalyhub-mark.svg" type="image/svg+xml" />
+        {/* iOS/iPadOS home screen. Opaque and full-bleed: iOS applies its own
+         * mask (PWA-01 icon system). */}
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        {/* The browser/OS chrome colour, matched to the DEFAULT light and dark
+         * themes' page background so an installed window's chrome continues the
+         * page rather than framing it. The alternate themes (eucalypt, coastal,
+         * ember) deliberately do not each get a value: `theme-color` cannot be
+         * changed per stored preference without a client script, and a
+         * near-neutral surface reads correctly under all of them. */}
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: light)"
+          content="#faf9f7"
+        />
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: dark)"
+          content="#101215"
+        />
+        {/* Standalone launch. `mobile-web-app-capable` is the standard name;
+         * `apple-mobile-web-app-capable` is kept ALONGSIDE it because current
+         * iOS Safari still reads only the Apple-prefixed name when deciding
+         * whether an Add to Home Screen launch opens without browser chrome.
+         * It is retained for that demonstrated compatibility reason, not habit. */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        {/* `default` keeps the iOS status bar opaque and lets it follow the
+         * system appearance. `black-translucent` would put content under the
+         * status bar for no gain — the shell already respects safe-area insets. */}
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="DalyHub" />
+        <meta name="application-name" content="DalyHub" />
         <Meta />
         <Links />
       </head>
