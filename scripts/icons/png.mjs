@@ -40,6 +40,10 @@ const CRC_TABLE = (() => {
   return table;
 })();
 
+/**
+ * @param {Buffer} buffer
+ * @returns {number}
+ */
 function crc32(buffer) {
   let c = 0xffffffff;
   for (let i = 0; i < buffer.length; i += 1) {
@@ -48,7 +52,11 @@ function crc32(buffer) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-/** Build one PNG chunk: length, type, data, CRC over type+data. */
+/**
+ * Build one PNG chunk: length, type, data, CRC over type+data.
+ * @param {string} type @param {Buffer} data
+ * @returns {Buffer}
+ */
 function chunk(type, data) {
   const length = Buffer.alloc(4);
   length.writeUInt32BE(data.length, 0);

@@ -7,6 +7,9 @@
     "app/**/.client/**/*",
     "workers/**/*",
     "test/**/*",
+    "scripts/icons/*.mjs",
+    "scripts/generate-icons.mjs",
+    "vite-plugins/service-worker.ts",
     "worker-configuration.d.ts"
   ],
   "compilerOptions": {

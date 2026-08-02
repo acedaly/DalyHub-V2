@@ -20,10 +20,22 @@
 
 import { CANVAS } from "./geometry.mjs";
 
+/**
+ * @typedef {{ kind: "roundedRect", x: number, y: number, width: number, height: number, radius: number, colour: string }} RoundedRectShape
+ * @typedef {{ kind: "circle", cx: number, cy: number, r: number, colour: string }} CircleShape
+ * @typedef {{ kind: "capsule", x1: number, y1: number, x2: number, y2: number, width: number, colour: string }} CapsuleShape
+ * @typedef {RoundedRectShape | CircleShape | CapsuleShape} IconShape
+ * @typedef {{ width: number, height: number, data: Uint8Array }} Raster
+ */
+
 /** Samples per axis, per pixel. 4 × 4 = 16 samples is ample for flat shapes. */
 const SAMPLES = 4;
 
-/** Parse `#rrggbb` into a linear-free 0-255 RGB triple. */
+/**
+ * Parse `#rrggbb` into a linear-free 0-255 RGB triple.
+ * @param {string} hex
+ * @returns {[number, number, number]}
+ */
 function parseColour(hex) {
   const value = hex.replace("#", "");
   return [
@@ -33,7 +45,11 @@ function parseColour(hex) {
   ];
 }
 
-/** Signed distance from a point to a rounded rectangle (negative = inside). */
+/**
+ * Signed distance from a point to a rounded rectangle (negative = inside).
+ * @param {number} px @param {number} py @param {RoundedRectShape} shape
+ * @returns {number}
+ */
 function roundedRectDistance(px, py, shape) {
   const halfWidth = shape.width / 2;
   const halfHeight = shape.height / 2;
@@ -49,12 +65,20 @@ function roundedRectDistance(px, py, shape) {
   return outside + inside - radius;
 }
 
-/** Signed distance from a point to a circle. */
+/**
+ * Signed distance from a point to a circle.
+ * @param {number} px @param {number} py @param {CircleShape} shape
+ * @returns {number}
+ */
 function circleDistance(px, py, shape) {
   return Math.hypot(px - shape.cx, py - shape.cy) - shape.r;
 }
 
-/** Signed distance from a point to a capsule (a round-capped thick segment). */
+/**
+ * Signed distance from a point to a capsule (a round-capped thick segment).
+ * @param {number} px @param {number} py @param {CapsuleShape} shape
+ * @returns {number}
+ */
 function capsuleDistance(px, py, shape) {
   const ax = shape.x1;
   const ay = shape.y1;
@@ -71,7 +95,11 @@ function capsuleDistance(px, py, shape) {
   return Math.hypot(px - (ax + bx * t), py - (ay + by * t)) - shape.width / 2;
 }
 
-/** Dispatch to the right signed distance function. */
+/**
+ * Dispatch to the right signed distance function.
+ * @param {number} px @param {number} py @param {IconShape} shape
+ * @returns {number}
+ */
 function distanceTo(px, py, shape) {
   switch (shape.kind) {
     case "roundedRect":
@@ -81,16 +109,18 @@ function distanceTo(px, py, shape) {
     case "capsule":
       return capsuleDistance(px, py, shape);
     default:
-      throw new Error(`Unknown shape kind: ${shape.kind}`);
+      throw new Error(
+        `Unknown shape kind: ${/** @type {{ kind: string }} */ (shape).kind}`,
+      );
   }
 }
 
 /**
  * Rasterise a shape list to straight (non-premultiplied) RGBA bytes.
  *
- * @param {ReadonlyArray<object>} shapes painter-order shapes in CANVAS units.
+ * @param {ReadonlyArray<IconShape>} shapes painter-order shapes in CANVAS units.
  * @param {number} size output width and height in pixels.
- * @returns {{ width: number, height: number, data: Uint8Array }}
+ * @returns {Raster}
  */
 export function rasterise(shapes, size) {
   const prepared = shapes.map((shape) => ({
@@ -157,6 +187,10 @@ export function rasterise(shapes, size) {
  * Composite a straight-alpha RGBA raster onto an opaque background colour. Used
  * for the Apple touch icon, which must not be transparent: iOS composites a
  * transparent icon onto black, which would put a black ring around the tile.
+ *
+ * @param {Raster} raster
+ * @param {string} backgroundHex
+ * @returns {Raster}
  */
 export function flattenOnto(raster, backgroundHex) {
   const [br, bg, bb] = parseColour(backgroundHex);

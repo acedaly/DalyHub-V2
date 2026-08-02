@@ -30,9 +30,20 @@ import { TILE_COLOUR, iconShapes, iconSvg } from "./icons/geometry.mjs";
 import { encodeIco, encodePng } from "./icons/png.mjs";
 import { flattenOnto, rasterise } from "./icons/raster.mjs";
 
-const ROOT = fileURLToPath(new URL("..", import.meta.url));
+/**
+ * The repository root. Resolved lazily and ONLY by the filesystem modes: the
+ * pure `buildIconAssets()` below must stay importable from a test runner whose
+ * module environment does not give this file a `file:` URL.
+ */
+function repositoryRoot() {
+  return fileURLToPath(new URL("..", import.meta.url));
+}
 
-/** Render one declared PNG asset to bytes. Pure: the same entry always wins. */
+/**
+ * Render one declared PNG asset to bytes. Pure: the same entry always wins.
+ * @param {{ size: number, tile: "rounded" | "square", markScale: number, opaque: boolean }} asset
+ * @returns {Buffer}
+ */
 function renderPng(asset) {
   const shapes = iconShapes({
     tile: asset.tile,
@@ -45,6 +56,8 @@ function renderPng(asset) {
 /**
  * Build every asset in memory: `{ repositoryRelativePath -> Buffer }`. Shared by
  * both write and check modes so they can never diverge.
+ *
+ * @returns {Map<string, Buffer>}
  */
 export function buildIconAssets() {
   /** @type {Map<string, Buffer>} */
@@ -80,21 +93,23 @@ export function buildIconAssets() {
   return assets;
 }
 
+/** @param {Map<string, Buffer>} assets */
 function write(assets) {
   for (const [relativePath, bytes] of assets) {
-    const absolute = join(ROOT, relativePath);
+    const absolute = join(repositoryRoot(), relativePath);
     mkdirSync(dirname(absolute), { recursive: true });
     writeFileSync(absolute, bytes);
     process.stdout.write(`wrote ${relativePath} (${bytes.length} bytes)\n`);
   }
 }
 
+/** @param {Map<string, Buffer>} assets */
 function check(assets) {
   const stale = [];
   for (const [relativePath, bytes] of assets) {
     let committed;
     try {
-      committed = readFileSync(join(ROOT, relativePath));
+      committed = readFileSync(join(repositoryRoot(), relativePath));
     } catch {
       stale.push(`${relativePath} (missing)`);
       continue;

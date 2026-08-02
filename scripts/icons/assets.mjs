@@ -32,6 +32,16 @@ export const FAVICON_ICO_SIZES = [16, 32, 48];
  * `markScale` — the hub's scale about the centre (the maskable icon shrinks the
  *               mark into the W3C 40%-radius safe zone).
  * `opaque`    — flatten onto the tile colour so the PNG carries no alpha at all.
+ *
+ * @type {ReadonlyArray<{
+ *   file: string,
+ *   size: number,
+ *   tile: "rounded" | "square",
+ *   markScale: number,
+ *   opaque: boolean,
+ *   purpose: "any" | "maskable" | "apple-touch-icon",
+ *   why: string,
+ * }>}
  */
 export const PNG_ASSETS = [
   {

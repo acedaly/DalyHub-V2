@@ -101,7 +101,11 @@ export const HUB = {
   satelliteAngles: [45, 135, 225, 315],
 };
 
-/** Round to 3 decimal places so generated text is stable across platforms. */
+/**
+ * Round to 3 decimal places so generated text is stable across platforms.
+ * @param {number} value
+ * @returns {number}
+ */
 function round(value) {
   return Number.parseFloat(value.toFixed(3));
 }
@@ -109,6 +113,9 @@ function round(value) {
 /**
  * The satellite centres, in canvas units, for a given mark scale. Pure and
  * deterministic — the SVG writer and the rasteriser consume the same list.
+ *
+ * @param {number} [markScale]
+ * @returns {{ x: number, y: number }[]}
  */
 export function satellitePositions(markScale = 1) {
   const { centre, satelliteDistance, satelliteAngles } = HUB;
@@ -126,16 +133,18 @@ export function satellitePositions(markScale = 1) {
  * (SVG writer, rasteriser, the review page) renders THIS list, so a change to the
  * geometry reaches every output at once.
  *
- * @param {object} options
+ * @param {object} [options]
  * @param {"rounded" | "square"} [options.tile] tile shape; `square` is full-bleed.
  * @param {number} [options.markScale] uniform scale of the hub about the centre.
  * @param {boolean} [options.transparentTile] omit the tile entirely.
+ * @returns {import("./raster.mjs").IconShape[]}
  */
 export function iconShapes({
   tile = "rounded",
   markScale = 1,
   transparentTile = false,
 } = {}) {
+  /** @type {import("./raster.mjs").IconShape[]} */
   const shapes = [];
   if (!transparentTile) {
     shapes.push({
@@ -191,11 +200,19 @@ export function maskableMarkScale() {
 }
 
 /** The furthest a painted pixel sits from the centre, in canvas units. */
+/**
+ * @param {number} [markScale]
+ * @returns {number}
+ */
 export function markReach(markScale = 1) {
   return (HUB.satelliteDistance + HUB.satelliteRadius) * markScale;
 }
 
-/** Serialise one shape as an SVG element. */
+/**
+ * Serialise one shape as an SVG element.
+ * @param {import("./raster.mjs").IconShape} shape
+ * @returns {string}
+ */
 function shapeToSvg(shape) {
   switch (shape.kind) {
     case "roundedRect":
@@ -220,13 +237,19 @@ function shapeToSvg(shape) {
         `stroke-linecap="round"/>`
       );
     default:
-      throw new Error(`Unknown shape kind: ${shape.kind}`);
+      throw new Error(
+        `Unknown shape kind: ${/** @type {{ kind: string }} */ (shape).kind}`,
+      );
   }
 }
 
 /**
  * The distributed vector artwork for one surface. `title` becomes the accessible
  * name; pass `null` for a purely decorative surface.
+ */
+/**
+ * @param {{ title?: string | null, tile?: "rounded" | "square", markScale?: number, transparentTile?: boolean }} [options]
+ * @returns {string}
  */
 export function iconSvg(options = {}) {
   const { title = "DalyHub", ...shapeOptions } = options;

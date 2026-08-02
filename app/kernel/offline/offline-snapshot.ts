@@ -76,7 +76,12 @@ export interface OfflineNote {
   readonly id: string;
   readonly title: string;
   readonly excerpt: string;
-  /** True when the body was longer than the excerpt limit. */
+  /**
+   * True when there is more note than the stored excerpt — which is the case for
+   * ANY note with a body, because the full Markdown is never stored offline. The
+   * offline card says so, rather than letting a short excerpt read as a complete
+   * note.
+   */
   readonly truncated: boolean;
   readonly tags: readonly string[];
   readonly updatedAt: string;

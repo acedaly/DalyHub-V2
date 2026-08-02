@@ -26,7 +26,7 @@
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import type { Plugin } from "vite";
 
@@ -42,11 +42,13 @@ export const PUBLIC_PRECACHE_URLS: readonly string[] = [
   "/icons/apple-touch-icon.png",
 ];
 
-const TEMPLATE_URL = new URL("./sw-template.js", import.meta.url);
-
-/** Read the worker template. Read per call so a dev edit is picked up. */
+/**
+ * Read the worker template. Read per call so a dev edit is picked up, and
+ * resolved from `import.meta.dirname` rather than a `file:` URL so this module
+ * also loads under a test runner whose module environment does not give it one.
+ */
 function readTemplate(): string {
-  return readFileSync(fileURLToPath(TEMPLATE_URL), "utf8");
+  return readFileSync(join(import.meta.dirname, "sw-template.js"), "utf8");
 }
 
 /**

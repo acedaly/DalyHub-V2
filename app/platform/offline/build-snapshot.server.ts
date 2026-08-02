@@ -184,12 +184,18 @@ async function buildNotes(
     // the offline card shows exactly what the online card shows. The full
     // Markdown body is deliberately NOT retained: a seven-day window of complete
     // note bodies is unbounded, and it is the most sensitive text in the product.
-    const { excerpt, truncated } = toExcerpt(item.excerpt);
+    //
+    // `truncated` therefore means "there is more note than this", which is true
+    // whenever the note has a body at all — the offline copy is NEVER the whole
+    // note. It is not "the snapshot shortened it", because the shortening
+    // already happened in the collection projection. Saying otherwise would
+    // imply a short excerpt was the complete note.
+    const { excerpt } = toExcerpt(item.excerpt);
     notes.push({
       id: item.id,
       title: item.title,
       excerpt,
-      truncated: truncated || item.excerpt.length > excerpt.length,
+      truncated: excerpt.length > 0,
       tags: item.tags,
       updatedAt: item.effectiveUpdatedAt.toISOString(),
     });
