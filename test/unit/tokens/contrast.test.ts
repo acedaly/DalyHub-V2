@@ -2,7 +2,7 @@
  * DS-01 / THEME-01 — WCAG 2.2 contrast for every curated theme.
  *
  * Computes the WCAG relative-luminance contrast ratio for the token pairs that
- * carry text or a meaningful UI boundary, in ALL FIVE themes, and asserts they meet
+ * carry text or a meaningful UI boundary, in EVERY curated theme, and asserts they meet
  * AA (4.5:1 normal text, 3:1 large text / non-text UI). The palette is checked, not
  * assumed (AGENTS.md §15), and a new theme cannot be added without passing.
  *
@@ -110,6 +110,23 @@ const TINTED_PAIRS: readonly Pair[] = [
   { fg: "state-waiting-text", bg: "state-waiting-surface", note: "waiting" },
   { fg: "state-on-hold-text", bg: "state-on-hold-surface", note: "on hold" },
   { fg: "selection-text", bg: "selection-bg", note: "text selection" },
+  // THEME-02 — the selected navigation row. Its label sits on its own tint, so it
+  // is checked like every other tinted surface rather than assumed readable
+  // because the tint is "subtle".
+  //
+  // This pair carries TWO things, which is why it is not merely a text check: the
+  // row's label AND the leading indicator bar are both painted with
+  // `nav-selected-text` on `nav-selected-surface`. The bar is a non-text cue that
+  // conveys state, so it needs 3:1; holding the pair at 4.5:1 here covers both at
+  // once. Painting the bar with `accent` instead would NOT be covered — `accent`
+  // guarantees its contrast against the page surfaces, not against this tint, and
+  // in a dark theme it falls under 3:1. `e2e/themes.spec.ts` measures the rendered
+  // bar so that substitution fails there too.
+  {
+    fg: "nav-selected-text",
+    bg: "nav-selected-surface",
+    note: "selected navigation row (label and indicator bar)",
+  },
 ];
 
 /** Foregrounds that must also be readable directly on the page background. */
@@ -125,6 +142,14 @@ const ON_BACKGROUND_PAIRS: readonly Pair[] = [
   { fg: "info-text", bg: "bg", note: "info text on background" },
   { fg: "state-waiting-text", bg: "surface", note: "waiting text on surface" },
   { fg: "state-on-hold-text", bg: "surface", note: "on-hold text on surface" },
+  // The selected row is painted on the navigation surface, so its label has to
+  // clear AA there too: a theme could otherwise pick a tint that is invisible
+  // against its own rail and only the tint pairing above would notice.
+  {
+    fg: "nav-selected-text",
+    bg: "surface-nav",
+    note: "selected navigation label on the rail",
+  },
 ];
 
 /** Text on a filled control, in every interactive state. */

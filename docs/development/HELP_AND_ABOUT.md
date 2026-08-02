@@ -77,7 +77,7 @@ highlight is never the only signal.
 
 One column on a phone; a contents rail plus content from the `lg` breakpoint, with the
 rail sticky only where there is vertical room. Ordinary DalyHub chrome and theme
-tokens throughout, so Help looks like the product in all five themes. There is no
+tokens throughout, so Help looks like the product in every theme. There is no
 separate mobile design to maintain.
 
 ---

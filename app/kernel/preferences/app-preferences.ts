@@ -42,7 +42,7 @@ export interface NavigationPreferences {
 
 export interface AppPreferences {
   /**
-   * THEME-01 — the owner's chosen theme: one of the five curated theme ids, or
+   * THEME-01 — the owner's chosen theme: one of the curated theme ids, or
    * `system` to follow the operating-system appearance. Stored on the owner record
    * (not device-local) so the theme follows the owner between browsers; a cookie
    * mirrors it only so the first byte of a document can carry the right
