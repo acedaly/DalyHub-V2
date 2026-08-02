@@ -1,0 +1,467 @@
+/*
+ * PWA — offline, connection-state and installation surfaces.
+ *
+ * Tokens only: every colour, space, radius, duration and font value comes from
+ * `tokens.css` (AGENTS.md §9.8), so all five DalyHub themes and both colour
+ * schemes are supported without a single value declared here.
+ *
+ * State is never carried by colour alone (AGENTS.md §15): every status element
+ * pairs its tone with a text label and a distinct icon shape, and the tone
+ * classes below only tint a border and a background that the text sits on.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Connection status                                                          */
+/* -------------------------------------------------------------------------- */
+
+.dh-connection-status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  margin-bottom: var(--dh-space-4);
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-normal);
+}
+
+.dh-connection-status--attention {
+  border-color: var(--dh-color-warning);
+  background: var(--dh-color-warning-surface);
+}
+
+.dh-connection-status__icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 0.15em;
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-connection-status__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+}
+
+.dh-connection-status__label {
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-connection-status__detail {
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-connection-status__action {
+  flex: none;
+  align-self: center;
+  margin-inline-start: auto;
+  min-height: var(--dh-touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--dh-space-3);
+  border-radius: var(--dh-radius-sm);
+  color: var(--dh-color-accent-text);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared button used by the offline surfaces                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-offline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* WCAG 2.2 target size, and the project's established mobile minimum. */
+  min-height: var(--dh-touch-target-min);
+  min-width: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-4);
+  border: 1px solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  cursor: pointer;
+}
+
+.dh-offline-button:hover:not(:disabled) {
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-offline-button:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-offline-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dh-offline-button--danger {
+  border-color: var(--dh-color-danger);
+  color: var(--dh-color-danger-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The offline page (/offline)                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-offline-page {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: var(--dh-space-6) var(--dh-space-4);
+  /* The offline shell renders OUTSIDE the app shell, so it owns its own safe
+   * areas: an installed iPhone launch lands here with a notch and a home
+   * indicator and no shell chrome to absorb them. */
+  padding-top: max(var(--dh-space-6), env(safe-area-inset-top));
+  padding-bottom: max(var(--dh-space-8), env(safe-area-inset-bottom));
+  padding-left: max(var(--dh-space-4), env(safe-area-inset-left));
+  padding-right: max(var(--dh-space-4), env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-6);
+  color: var(--dh-color-text);
+}
+
+.dh-offline-page__title {
+  font-size: var(--dh-font-size-2xl);
+  font-weight: var(--dh-font-weight-semibold);
+  margin: 0 0 var(--dh-space-2);
+}
+
+.dh-offline-page__lead,
+.dh-offline-page__links {
+  margin: 0 0 var(--dh-space-2);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-offline-page__footer {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-xs);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Snapshot                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dh-offline-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-offline-snapshot__banner {
+  padding: var(--dh-space-4);
+  border: 1px solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-offline-snapshot__banner-title {
+  margin: 0 0 var(--dh-space-2);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-offline-snapshot__banner-body,
+.dh-offline-snapshot__banner-warning {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-offline-snapshot__banner-warning {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-offline-snapshot__search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-offline-snapshot__search input {
+  min-height: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-3);
+  border: 1px solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-raised);
+  color: var(--dh-color-text);
+  font: inherit;
+}
+
+.dh-offline-snapshot__search input:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-offline-snapshot__footnote {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-font-size-xs);
+}
+
+.dh-offline-section__title {
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+  margin: 0 0 var(--dh-space-2);
+}
+
+.dh-offline-section__count {
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-font-weight-regular);
+}
+
+.dh-offline-section__empty {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-offline-section__list,
+.dh-offline-sync__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-offline-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-3);
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-card);
+}
+
+.dh-offline-row__title {
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-offline-row__body {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-offline-row__meta {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+/* A completed task is marked by TEXT ("Completed" in its meta line) as well as
+ * this treatment — the strike-through is redundant reinforcement, never the only
+ * signal. */
+.dh-offline-row[data-status="completed"] .dh-offline-row__title {
+  text-decoration: line-through;
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Capture + sync                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-offline-capture,
+.dh-offline-sync {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-4);
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-raised);
+}
+
+.dh-offline-capture__title,
+.dh-offline-sync__title {
+  margin: 0;
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-offline-capture__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-offline-capture__kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.dh-offline-capture__kinds legend {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  padding: 0;
+  margin-bottom: var(--dh-space-2);
+}
+
+.dh-offline-capture__kind {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0 var(--dh-space-2);
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
+}
+
+.dh-offline-capture__kind:focus-within {
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-offline-capture__kind-hint {
+  grid-column: 2;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-offline-capture__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-offline-capture__field input {
+  min-height: var(--dh-touch-target-min);
+  padding: 0 var(--dh-space-3);
+  border: 1px solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font: inherit;
+}
+
+.dh-offline-capture__field input:focus-visible {
+  outline: none;
+  box-shadow: var(--dh-shadow-focus);
+}
+
+.dh-offline-capture__error,
+.dh-offline-sync__item-error {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-danger-text);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-offline-capture__status,
+.dh-offline-sync__note,
+.dh-offline-sync__summary,
+.dh-offline-capture__unavailable {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-offline-sync__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-3);
+}
+
+.dh-offline-sync__head .dh-offline-sync__summary {
+  flex: 1 1 16rem;
+}
+
+.dh-offline-sync__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  align-items: flex-start;
+  padding: var(--dh-space-3);
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-card);
+}
+
+.dh-offline-sync__item-main {
+  flex: 1 1 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+}
+
+.dh-offline-sync__item-kind {
+  font-size: var(--dh-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-offline-sync__item-title {
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.dh-offline-sync__item-meta {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-offline-sync__item-actions {
+  display: flex;
+  gap: var(--dh-space-2);
+  flex-wrap: wrap;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Settings panel                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-offline-facts {
+  display: grid;
+  grid-template-columns: minmax(10rem, auto) 1fr;
+  gap: var(--dh-space-2) var(--dh-space-4);
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-offline-facts dt {
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-offline-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-offline-install__steps {
+  margin: var(--dh-space-2) 0 0;
+  padding-inline-start: var(--dh-space-5);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+@media (max-width: 30rem) {
+  .dh-offline-facts {
+    grid-template-columns: 1fr;
+    gap: var(--dh-space-1) 0;
+  }
+
+  .dh-offline-facts dd {
+    margin-bottom: var(--dh-space-2);
+  }
+}

@@ -77,6 +77,17 @@ export default [
   // date and the re-verified default Task capture parent the shared capture sheet
   // needs. A shell-owned JSON resource route; it renders no shell.
   route("capture/context", "routes/capture-context.ts"),
+  // PWA — the offline surfaces. All three are authenticated (Cloudflare Access
+  // gates them like everything else); none of them renders the app shell.
+  //   /offline           the cacheable offline shell DOCUMENT. It sits outside the
+  //                      app-shell layout deliberately: the shell's loader reads
+  //                      the owner's identity and preferences, and none of that
+  //                      may be baked into a document a service worker caches.
+  //   /offline/snapshot  the minimised seven-day snapshot (JSON resource route).
+  //   /offline/ping      the reachability probe (JSON resource route).
+  route("offline", "routes/offline.tsx"),
+  route("offline/snapshot", "routes/offline-snapshot.ts"),
+  route("offline/ping", "routes/offline-ping.ts"),
   layout("routes/app-shell.tsx", { id: "app-shell" }, [
     index("routes/home.tsx"),
     ...moduleRoutes,

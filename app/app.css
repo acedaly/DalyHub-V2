@@ -22,6 +22,7 @@
  *  13. forms.css             — the DS-06 Shared Forms & field controls.
  *  14. today.css             — the TODAY-01 Today dashboard layout (tokens only).
  *  15. segmented-filter.css  — the shared restrained segmented state filter.
+ *  16. offline.css           — the PWA offline/connection/installation surfaces.
  *
  * Theme mechanism (ADR-016 §5.11, extended by THEME-01/ADR-061): the root layout
  * sets `data-theme` on <html> during SSR from the owner's persisted preference. Any
@@ -79,5 +80,8 @@
 @import "./styles/meetings.css";
 @import "./styles/assets.css";
 @import "./styles/reviews.css";
+/* PWA — the offline, connection-state and installation surfaces. Late in the
+ * cascade because the connection status sits inside the pane the shell owns. */
+@import "./styles/offline.css";
 /* Last: the print stylesheet hides all on-screen chrome, so it must win. */
 @import "./styles/print.css";
