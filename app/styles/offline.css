@@ -148,6 +148,12 @@
   font-size: var(--dh-font-size-xs);
 }
 
+/* The page owns its own width behaviour: it renders OUTSIDE the app shell, so
+ * nothing above it constrains a long line. */
+.dh-offline-page * {
+  min-width: 0;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Snapshot                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -175,6 +181,7 @@
   margin: 0 0 var(--dh-space-2);
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .dh-offline-snapshot__banner-warning {
@@ -245,18 +252,24 @@
   background: var(--dh-color-surface-card);
 }
 
+/* An owner's own words can contain an unbroken run longer than a 320px column
+ * (a URL, a long identifier). Breaking inside it is the only way the narrowest
+ * supported viewport stays free of horizontal overflow (DS-11). */
 .dh-offline-row__title {
   font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
 }
 
 .dh-offline-row__body {
   font-size: var(--dh-font-size-sm);
   color: var(--dh-color-text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .dh-offline-row__meta {
   font-size: var(--dh-font-size-xs);
   color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 /* A completed task is marked by TEXT ("Completed" in its meta line) as well as

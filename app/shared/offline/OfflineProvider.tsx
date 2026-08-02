@@ -55,6 +55,7 @@ import {
   type InstallCapability,
 } from "./install";
 import type { OfflineDatabaseFailure } from "./offline-database";
+import { afterPageIdle } from "./page-idle";
 import {
   EMPTY_OFFLINE_DATASET,
   clearAllOfflineData,
@@ -261,9 +262,18 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
   /* ---- service worker + install --------------------------------------- */
   useEffect(() => {
     setStandalone(isRunningStandalone());
-    const stopWorker = registerServiceWorker({ onStatus: setServiceWorker });
+    // The install prompt listener is free and must be attached IMMEDIATELY: the
+    // browser fires `beforeinstallprompt` once, and a listener attached later
+    // misses it entirely.
     const stopInstall = watchInstallability(setDeferredPrompt);
+    // Registration is not free — the worker immediately precaches the shell —
+    // so it waits for the page to finish loading and the browser to go idle.
+    let stopWorker = () => {};
+    const cancelIdle = afterPageIdle(() => {
+      stopWorker = registerServiceWorker({ onStatus: setServiceWorker });
+    });
     return () => {
+      cancelIdle();
       stopWorker();
       stopInstall();
     };
@@ -272,7 +282,7 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
   /* ---- first load: read what the device already has, then sync --------- */
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
+    const readAndSync = async () => {
       // The device may already hold a snapshot from a previous session. Read it
       // FIRST so the offline views have data before any network work — this is
       // what makes an offline cold launch instant instead of waiting out a probe
@@ -288,9 +298,15 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       if (cancelled) return;
       setInitialised(true);
       await sync();
-    })();
+    };
+    // Reading this device's own storage is local and cheap, so it happens now —
+    // it is what lets an offline cold launch render immediately. The SYNC inside
+    // it is network work, and `readAndSync` is scheduled as one unit after the
+    // page is idle so neither competes with the page being loaded.
+    const cancelIdle = afterPageIdle(() => void readAndSync());
     return () => {
       cancelled = true;
+      cancelIdle();
     };
     // Deliberately once per mount: the shell mounts one provider for the session.
     // eslint-disable-next-line react-hooks/exhaustive-deps

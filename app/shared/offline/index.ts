@@ -38,6 +38,8 @@ export {
 
 export { MASK_SHAPES, PNG_SIZES } from "./icon-preview";
 
+export { afterPageIdle } from "./page-idle";
+
 export {
   GENERIC_INSTALL_STEPS,
   IOS_INSTALL_STEPS,
