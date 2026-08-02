@@ -31,6 +31,7 @@ import { buildInfo } from "~/lib/version";
 import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { OfflineSettingsPanel } from "~/shared/offline";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { SelectField } from "~/shared/forms";
 import { ThemePicker } from "~/shared/shell/ThemePicker";
@@ -46,6 +47,7 @@ type SectionId =
   | "appearance"
   | "navigation"
   | "privacy-data"
+  | "offline"
   | "about";
 
 type ActionResult =
@@ -58,6 +60,7 @@ const SECTIONS: readonly { readonly id: SectionId; readonly label: string }[] =
     { id: "appearance", label: "Appearance" },
     { id: "navigation", label: "Navigation" },
     { id: "privacy-data", label: "Privacy & data" },
+    { id: "offline", label: "Offline & app" },
     { id: "about", label: "About" },
   ];
 
@@ -338,6 +341,7 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
           <NavigationSection data={loaderData} />
         ) : null}
         {active === "privacy-data" ? <PrivacyDataSection /> : null}
+        {active === "offline" ? <OfflineSection /> : null}
         {active === "about" ? <AboutSection data={loaderData} /> : null}
       </div>
     </div>
@@ -538,6 +542,23 @@ function PrivacyDataSection() {
           align="start"
         />
       </SettingsGroup>
+    </SettingsLayout>
+  );
+}
+
+/**
+ * PWA-06 — the offline & installed-app section. Everything it shows is read from
+ * the shell's one offline context on the CLIENT: none of it is loader data,
+ * because none of it is a server fact — the service worker, the stored snapshot
+ * and the capture queue all live on this device.
+ */
+function OfflineSection() {
+  return (
+    <SettingsLayout
+      title="Offline & app"
+      description="What DalyHub keeps on this device so it still opens and stays useful without a connection — and how to remove it."
+    >
+      <OfflineSettingsPanel />
     </SettingsLayout>
   );
 }
