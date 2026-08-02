@@ -19,6 +19,7 @@ import { DIARY_ENTRY_CREATED, DIARY_ENTRY_UPDATED } from "~/kernel/diary";
 import { defineModule } from "~/kernel/modules";
 
 import routes from "./routes.manifest";
+import { diaryCommands } from "./commands";
 import { diarySearchProvider } from "./search";
 
 export default defineModule({
@@ -29,6 +30,7 @@ export default defineModule({
   routes,
   entityTypes: [{ type: "diary", singular: "Diary", plural: "Diary" }],
   searchProviders: [diarySearchProvider],
+  commands: diaryCommands,
   activityTypes: [
     {
       type: DIARY_ENTRY_CREATED,

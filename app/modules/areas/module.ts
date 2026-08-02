@@ -23,6 +23,7 @@ import {
 } from "~/kernel/area-settings";
 
 import routes from "./routes.manifest";
+import { areasCommands } from "./commands";
 import { areasSearchProvider } from "./search";
 
 export default defineModule({
@@ -33,6 +34,7 @@ export default defineModule({
   routes,
   entityTypes: [{ type: AREA, singular: "Area", plural: "Areas" }],
   searchProviders: [areasSearchProvider],
+  commands: areasCommands,
   // AREA-05: the reversible archival transitions and the irreversible permanent
   // deletion (a subject-less workspace audit fact). Areas still never complete, so
   // there is no completion Activity type.

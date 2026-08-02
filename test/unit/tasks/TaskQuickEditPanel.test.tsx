@@ -242,6 +242,111 @@ describe("TaskQuickEditPanel", () => {
     );
   });
 
+  it("displays a custom interval TRUTHFULLY rather than as the nearest listed rule", () => {
+    // Quick capture accepts "every 3 weeks"; the predefined list stops at 2. The
+    // rule must appear as itself — never coerced, never leaked as a raw token.
+    renderPanel({
+      ...TASK,
+      recurrence: {
+        frequency: "week",
+        interval: 3,
+        dateKind: "scheduled",
+        weekdays: [],
+        anchorDay: null,
+        anchorMonth: null,
+      },
+    } as SerializedTaskListItem);
+    expect(screen.getByRole("combobox", { name: /Repeat/ })).toHaveValue(
+      "Every 3 weeks",
+    );
+    expect(screen.queryByText(/no longer available/)).not.toBeInTheDocument();
+  });
+
+  it("displays a weekday-pinned weekly rule as its own rule, not 'Every week'", () => {
+    // "Every Monday" is stored as week:1 + weekdays [1]. Mapping it onto the
+    // plain "Every week" option would silently misstate the stored rule.
+    renderPanel({
+      ...TASK,
+      recurrence: {
+        frequency: "week",
+        interval: 1,
+        dateKind: "scheduled",
+        weekdays: [1],
+        anchorDay: null,
+        anchorMonth: null,
+      },
+    } as SerializedTaskListItem);
+    expect(screen.getByRole("combobox", { name: /Repeat/ })).toHaveValue(
+      "Every Monday",
+    );
+  });
+
+  it("re-committing the current custom rule posts NOTHING, preserving the rule", async () => {
+    const { taskRoute, bulkRoute } = renderPanel({
+      ...TASK,
+      recurrence: {
+        frequency: "week",
+        interval: 3,
+        dateKind: "scheduled",
+        weekdays: [],
+        anchorDay: null,
+        anchorMonth: null,
+      },
+    } as SerializedTaskListItem);
+    // A regex makes the helper clear the filter first: the input already shows
+    // the custom label, and re-typing the identical text would never re-open
+    // the popup.
+    await choose(/Repeat/, /^Every 3 weeks$/);
+
+    // The panel cannot round-trip a custom rule through the predefined
+    // vocabulary, so confirming the current selection must be a no-op — not a
+    // write that flattens the interval.
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(taskRoute).not.toHaveBeenCalled();
+    expect(bulkRoute).not.toHaveBeenCalled();
+  });
+
+  it("replaces a custom rule when a predefined option is deliberately chosen", async () => {
+    const { taskRoute } = renderPanel({
+      ...TASK,
+      recurrence: {
+        frequency: "week",
+        interval: 3,
+        dateKind: "scheduled",
+        weekdays: [],
+        anchorDay: null,
+        anchorMonth: null,
+      },
+    } as SerializedTaskListItem);
+    await choose(/Repeat/, "Every month");
+
+    await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
+    const body = taskRoute.mock.calls[0]![0];
+    expect(body.get("intent")).toBe("set_recurrence");
+    expect(body.get("frequency")).toBe("month");
+    expect(body.get("interval")).toBe("1");
+  });
+
+  it("removes a CUSTOM rule by choosing 'Does not repeat'", async () => {
+    const { taskRoute } = renderPanel({
+      ...TASK,
+      recurrence: {
+        frequency: "week",
+        interval: 3,
+        dateKind: "scheduled",
+        weekdays: [],
+        anchorDay: null,
+        anchorMonth: null,
+      },
+    } as SerializedTaskListItem);
+    await choose(/Repeat/, "Does not repeat");
+
+    await waitFor(() => expect(taskRoute).toHaveBeenCalledTimes(1));
+    const body = taskRoute.mock.calls[0]![0];
+    expect(body.get("intent")).toBe("set_recurrence");
+    expect(body.get("frequency")).toBeNull();
+  });
+
   it("removes a repeat by choosing 'Does not repeat'", async () => {
     const { taskRoute } = renderPanel({
       ...TASK,

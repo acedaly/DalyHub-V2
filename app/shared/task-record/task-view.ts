@@ -248,7 +248,13 @@ export function taskPriorityTag(priority: TaskPriority | null): string {
  * `null` means the task does not repeat.
  */
 export function taskRecurrenceLabel(
-  rule: TaskRecurrenceRule | null | undefined,
+  rule:
+    | Pick<
+        TaskRecurrenceRule,
+        "frequency" | "interval" | "dateKind" | "weekdays"
+      >
+    | null
+    | undefined,
 ): string | null {
   if (!rule) return null;
   const every = (unit: string) =>

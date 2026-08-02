@@ -511,11 +511,22 @@ describe("module discovery", () => {
       // DS-09: Today registers registry-discovered navigation commands; TODAY-03
       // adds "Open Waiting". TASKS-01 adds the Tasks module's navigation commands.
       // PEOPLE-01 adds the People module's navigation commands; REVIEWS-01 adds
-      // Reviews navigation/create commands.
+      // Reviews navigation/create commands. V2.0.1 closes the palette gap for the
+      // four modules that registered none: Areas, Goals, Projects and Diary.
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
         "today.focus_quick_capture",
         "today.open_waiting",
+        // V2.0.1 navigation commands, in module order (Areas 10 → Goals 20 →
+        // Projects 30) ahead of Tasks at 40. Goals contributes NO create
+        // command on purpose: a Goal is created from an Area record (the only
+        // surface that hosts `NewGoalForm`), so a workspace-level "New Goal"
+        // would be a command for something the product cannot do.
+        "areas.open",
+        "areas.new",
+        "goals.open",
+        "projects.open",
+        "projects.new",
         "tasks.open",
         "tasks.new",
         // TASKS-04 adds the Inbox view and its triage flow to the palette.
@@ -532,6 +543,11 @@ describe("module discovery", () => {
         "notes.recent",
         "notes.unlinked",
         "notes.archived",
+        // V2.0.1 Diary commands (module order 110, between Notes and Meetings):
+        // the Timeline, today's day view, and Inspector-deep-linked capture.
+        "diary.open",
+        "diary.today",
+        "diary.capture",
         "meetings.open",
         "meetings.new",
         "meetings.search",

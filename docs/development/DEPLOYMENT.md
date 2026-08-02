@@ -121,6 +121,9 @@ pnpm run deploy:production
    `development`) and no private values, and that every real value above is
    supplied and well-formed. Any gap exits non-zero here — nothing is built or
    uploaded. Run just this step any time with `pnpm run deploy:production:preflight`.
+1.5. **Release preflight (V2.0.1 — before any build).** Refuses to continue when
+   the repository or production state is not what a release should ship. See
+   [Release preflight](#release-preflight-overrides-and-post-deploy-verification-v201).
 2. **Builds** the Worker for production (`CLOUDFLARE_ENV=production`), which
    forces `ENVIRONMENT=production` (so development auth cannot activate and the
    theme cookie is always `Secure`) and produces the **flattened**
@@ -150,6 +153,86 @@ pnpm run deploy:production
 > with `--env=""` (and `CLOUDFLARE_ENV` cleared) targets the already-final
 > top-level config, so the name can only ever be `dalyhub-v2-production`. This is
 > validated by the deploy guard and its tests (`test/unit/deploy/`).
+
+### Release preflight, overrides and post-deploy verification (V2.0.1)
+
+`deploy:production` now guards the **repository and production state**, not just
+the configuration. Before anything is built, it refuses to continue when:
+
+- the **git working tree is dirty**;
+- the **current branch is not `main`**;
+- **local HEAD does not match `origin/main`** (after a real `git fetch`, so the
+  comparison is against the remote as it is now);
+- the release commit does **not** have a **successful `CI Gate`** check run on
+  GitHub (red, cancelled, still running and missing all refuse; verifying a
+  private repository needs a read-only `GITHUB_TOKEN` in the environment — an
+  unverifiable gate refuses rather than passing blind);
+- production has **pending D1 migrations** that have not been explicitly
+  acknowledged.
+
+The three states are deliberately distinct and stay distinct: **checking** for
+pending migrations (part of this preflight, read-only), **applying** them
+(`pnpm run db:production:apply`, a separate deliberate command), and
+**deploying the Worker**. Running the deploy never applies a migration.
+
+Each refusal has exactly one explicit, narrowly-named override flag, logged
+loudly when used — there is no `--force`:
+
+| Flag | Exactly what it bypasses |
+| --- | --- |
+| `--allow-dirty-tree` | The clean-working-tree check only. |
+| `--allow-non-main` | The branch-is-main and HEAD-equals-origin/main checks (deploying any ref other than pushed `main` is one decision). |
+| `--skip-ci-check` | The CI Gate verification only — for when CI has been verified green by hand. |
+| `--acknowledge-pending-migrations` | The pending-migrations refusal only. Records that the listed migrations were reviewed and are ready; it does **not** apply them. |
+
+Run the release checks on their own (no build, no upload) with
+`pnpm run deploy:production:release-check`.
+
+**After a successful upload, the deploy asserts production health.** It fetches
+the public `/health` endpoint with redirects disabled and requires: a direct
+`200` (a Cloudflare Access redirect is a misconfiguration, not a health
+response — `/health` is public by design), `status: "ok"`, `name: "DalyHub"`,
+`environment: "production"`, and `version` exactly equal to the release being
+deployed (`package.json`, pinned to `app/lib/version.ts` by test). The payload
+deliberately carries no commit (it is public; the commit is on the
+authenticated About screen), so build identity is asserted only if a `commit`
+field is ever present. A failed assertion exits non-zero and says so plainly —
+the Worker is live but unverified. Run the assertion on its own at any time
+with `pnpm run deploy:production:verify`. Covered by
+`test/unit/deploy/release-preflight.test.ts` with every external command and
+request injected — no real git remote, GitHub API, database or Worker is
+touched by tests.
+
+### Automated production backups (V2.0.1)
+
+`.github/workflows/production-backup.yml` exports the production D1 database on
+a schedule, through the SAME audited wrapper the manual release steps use
+(`pnpm run db:production:export` → `scripts/production-d1.mjs`).
+
+- **Where backups appear.** GitHub → Actions → *Production D1 backup* → the
+  run's artifact, named
+  `dalyhub-v2-production-d1-<UTC timestamp>-<short commit>`. Each artifact
+  contains the SQL dump plus a `metadata.json` recording the database name,
+  environment, export timestamp, repository commit and workflow-run identity.
+- **Schedule.** Daily at 16:30 UTC (02:30 Australia/Sydney — a quiet hour so
+  the export is coherent). **Manual runs** any time via *Run workflow*
+  (`workflow_dispatch`).
+- **Retention.** Artifacts are kept **30 days** (`retention-days: 30`). Anything
+  the owner wants longer-term must be downloaded and stored elsewhere.
+- **Downloading.** Open the workflow run → Artifacts → download the ZIP; the
+  `.sql` file inside is a plain-text dump readable anywhere.
+- **Failure is visible.** The job fails if the export file is missing, empty or
+  contains no schema, and `if-no-files-found: error` refuses to upload an empty
+  artifact. Credentials come from repository/environment secrets
+  (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`
+  in the `production` GitHub environment), are never printed, and the dump goes
+  to a file — never to the log. No export is ever committed to the repository.
+- **What this is NOT.** Restore. **Automated restore remains V2.1 SET-02**
+  ([`ROADMAP_V2_1.md`](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21))
+  and nothing here claims a tested restore capability. Recovery today is a
+  **manual** process — importing the SQL dump into a D1 database by hand — and
+  it has not been exercised end to end. Until SET-02 ships, a backup artifact
+  is a readable copy, not an undo button.
 
 ### ASSET-02 (migration `0025`) — deployment notes
 
@@ -367,7 +450,7 @@ and leave the schema where it is.
 Wrangler prints the deployed URL (or your configured route). Verify by opening it
 and checking:
 
-- `GET /health` returns `{"status":"ok","name":"DalyHub","version":"2.0.0","environment":"production"}` (public).
+- `GET /health` returns `{"status":"ok","name":"DalyHub","version":"<the current release version>","environment":"production"}` (public — `2.0.1` for the V2.0.1 release).
   Since RELEASE-01 the `version` comes from the ONE version authority
   (`app/lib/version.ts`), the same value the in-app **About** screen shows — so a
   deployment check and the running application can never disagree about which build
@@ -536,12 +619,16 @@ production deployment has been performed and verified**:
   applied; the direct `workers.dev` origin returns 404 and Preview URLs are
   disabled.
 
-**Pending: the V2 release (`2.0.0`).** Production is still on the `0001`–`0005`
-schema and the pre-V2 Worker. Deploying V2 is the twenty-migration step documented
-in [Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade),
-followed by `pnpm run deploy:production`. The exact copy-and-paste command block,
-the preflight, and the post-deployment verification list are in
-[`RELEASE_CHECKLIST_V2.md`](../release/RELEASE_CHECKLIST_V2.md).
+**V2 (`2.0.0`) is deployed to production (2026-08).** The twenty-migration
+upgrade documented in
+[Production migrations — the V2 upgrade](#production-migrations--the-v2-upgrade)
+has been performed; production runs the V2 Worker on the `0001`–`0025` schema.
+That section is kept as the record of how the upgrade was proven and sequenced.
+
+**Next: the V2.0.1 hotfix.** V2.0.1 ships **no new migration** (the sequence is
+unchanged at `0025`), so deploying it is: release preflight → deploy → health
+assertion, with a fresh backup first. The exact sequence is in
+[`RELEASE_CHECKLIST_V2_0_1.md`](../release/RELEASE_CHECKLIST_V2_0_1.md).
 
 FND-01 is `☑ Done` (see [ROADMAP_V2](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold)).
 Real production identifiers and secrets remain uncommitted.

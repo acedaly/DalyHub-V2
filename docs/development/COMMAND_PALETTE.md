@@ -326,3 +326,55 @@ help could not be summoned from the keyboard on fourteen of fifteen modules.
 Converging the two hosts is the remainder of
 [DEBT-18](../product/PRODUCT_DEBT.md), alongside the still-unbuilt reserved
 vocabulary (`g`+letter, `j/k`, `x`, `o`/`e`, `[`).
+
+---
+
+## V2.0.1 — the four modules that contributed no commands
+
+Areas, Goals, Projects and Diary shipped in V2 with routes, navigation entries
+and Search providers but **no `commands` in their manifests** — so the four
+modules at the top of the spine, plus the daily capture surface, were the only
+ones a keyboard-first owner could not reach through `⌘K`. V2.0.1 closes that
+using the existing contract only: `commands.ts` per module, `kind: "navigate"`,
+validated `SearchResultTarget`s, no new command system and no `run` handler.
+
+| Module | Commands |
+|---|---|
+| Areas (order 10) | `areas.open`, `areas.new` |
+| Goals (order 20) | `goals.open` |
+| Projects (order 30) | `projects.open`, `projects.new` |
+| Diary (order 110) | `diary.open`, `diary.today`, `diary.capture` |
+
+Four things about these worth recording, because each was a decision — and the
+first three are all the same rule: **a command must land on a surface that
+exists.**
+
+- **A create command targets the create DRAWER, not the create route.**
+  `/projects/new` and `/areas/new` are **action-only resource routes with no
+  UI** — navigating to one renders a blank `main`. (This was caught by the e2e
+  test, not by inspection: the first draft of these commands pointed at those
+  routes and the URL assertion passed while the page was empty.) The commands
+  therefore target `/projects?drawer=new-project` and `/areas?drawer=new-area`,
+  the DS-03 Drawer keys the collections already host — the same convention
+  `notes.new` (`/notes?drawer=new-note`) established.
+- **Goals contributes NO create command, deliberately.** A Goal belongs to
+  exactly one Area, and the only surface hosting `NewGoalForm` is an Area
+  record's Drawer (`AreaOverview.tsx`, key `new-goal`), where the parent is
+  already known. There is no workspace-level create-Goal surface to point at:
+  `/goals/new` is action-only, and `/goals` would promise creation and deliver a
+  collection. Either would be a fake control. `goals.open` carries `new` and
+  `create` among its keywords so the search still leads somewhere useful, and an
+  e2e test asserts no create-Goal command is offered. If a Goal-creation surface
+  with an Area picker is ever built, `goals.new` belongs with it — not before.
+- **Diary capture is a deep link, not a route.** `/diary/new` is also
+  action-only, so `diary.capture` targets `/diary?inspector=new` — the same
+  DS-10 Inspector key `DiaryWorkspace` already honours and the capture panel
+  already deep-links with. `diary.today` targets `/diary?mode=day`, which pins
+  day mode regardless of the owner's default; an absent `date` resolves to today
+  in the owner's timezone, so no date is computed at command-definition time.
+- **No duplicates were introduced.** Nothing auto-contributes navigation
+  commands for modules — the sidebar builds from `routes.manifest.ts`
+  `meta.navLabel`, an entirely separate mechanism — so these are the only
+  contributions for these ids. `test/unit/module-registry/discovery.test.ts`
+  pins the complete ordered catalogue, and duplicate ids throw
+  `DuplicateContributionError` at registry construction.

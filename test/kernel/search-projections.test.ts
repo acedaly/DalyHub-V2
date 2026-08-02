@@ -181,6 +181,71 @@ describe("global Search D1 projections", () => {
     expect(hits[0]?.title).toBe("Public diary title");
   });
 
+  it("finds UPCOMING meetings as well as recent ones, ordered by proximity (V2.0.1)", async () => {
+    // Seed relative to the real clock — the defect this guards against survived
+    // precisely because every meeting fixture pinned a hard-coded past date.
+    const context = makeContext(WS);
+    const meetings = makeMeetingRepository(context);
+    const day = 24 * 60 * 60 * 1000;
+    await meetings.create({
+      title: "Projection meeting next week",
+      startsAt: new Date(Date.now() + 7 * day).toISOString(),
+      timezone: "UTC",
+    });
+    await meetings.create({
+      title: "Projection meeting tomorrow",
+      startsAt: new Date(Date.now() + 1 * day).toISOString(),
+      timezone: "UTC",
+    });
+    await meetings.create({
+      title: "Projection meeting last month",
+      startsAt: new Date(Date.now() - 30 * day).toISOString(),
+      timezone: "UTC",
+    });
+    await meetings.create({
+      title: "Projection meeting yesterday",
+      startsAt: new Date(Date.now() - 1 * day).toISOString(),
+      timezone: "UTC",
+    });
+
+    const repo = createMeetingRepository(env.DB, context);
+    const hits = await repo.searchMeetings({ text: "Projection meeting" });
+    // Upcoming soonest-first, then past newest-first — and each meeting exactly
+    // once (one query, no overlapping windows).
+    expect(hits.map((hit) => hit.title)).toEqual([
+      "Projection meeting tomorrow",
+      "Projection meeting next week",
+      "Projection meeting yesterday",
+      "Projection meeting last month",
+    ]);
+    expect(new Set(hits.map((hit) => hit.id)).size).toBe(hits.length);
+  });
+
+  it("keeps searchMeetings lifecycle-honest and workspace-isolated", async () => {
+    const context = makeContext(WS);
+    const meetings = makeMeetingRepository(context);
+    const future = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    const archived = await meetings.create({
+      title: "Lifecycle archived meeting",
+      startsAt: future,
+      timezone: "UTC",
+    });
+    await meetings.archive(archived.id);
+    await makeMeetingRepository(makeContext(OTHER)).create({
+      title: "Lifecycle foreign meeting",
+      startsAt: future,
+      timezone: "UTC",
+    });
+
+    const repo = createMeetingRepository(env.DB, context);
+    expect(await repo.searchMeetings({ text: "Lifecycle" })).toEqual([]);
+    // Bounded like every repository-backed search: an oversized input returns
+    // an empty page rather than failing the statement.
+    await expect(
+      repo.searchMeetings({ text: "x".repeat(500), limit: 5 }),
+    ).resolves.toEqual([]);
+  });
+
   it("keeps meeting search bounded and treats backslashes as literal text", async () => {
     const context = makeContext(WS);
     await makeMeetingRepository(context).create({

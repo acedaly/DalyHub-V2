@@ -38,6 +38,7 @@ import {
   type MeetingItemKind,
   type MeetingPage,
   type MeetingRepository,
+  type MeetingSearchHit,
   type MeetingSort,
   type MeetingView,
   type UpdateMeetingInput,
@@ -298,6 +299,61 @@ export class D1MeetingRepository implements MeetingRepository {
             )
           : null,
     };
+  }
+  async searchMeetings(input: {
+    readonly text: string;
+    readonly limit?: number;
+  }): Promise<readonly MeetingSearchHit[]> {
+    const text = input.text.trim().toLowerCase();
+    if (text.length === 0) return [];
+    const limit = Math.max(1, Math.min(input.limit ?? 20, 50));
+    const like = likeContains(text);
+    const now = toStorageTimestamp(this.#clock());
+    // One query over the whole non-archived collection — no per-view time
+    // window, so upcoming and recent meetings are both findable and no window
+    // overlap can duplicate a hit. Ordering: upcoming soonest-first, then past
+    // newest-first, `id` tiebreaker — deterministic, and the nearest meetings
+    // survive the bound when more than `limit` match.
+    const rows = (
+      await this.#db
+        .prepare(
+          `SELECT e.id, e.title, d.location, d.starts_at
+           FROM entities e
+           JOIN meeting_details d
+             ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
+           WHERE e.workspace_id = ? AND e.type = ? AND e.deleted_at IS NULL
+             AND d.archived_at IS NULL
+             AND (lower(e.title) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(d.location,'')) LIKE ? ESCAPE '\\')
+           ORDER BY CASE WHEN d.starts_at >= ? THEN 0 ELSE 1 END,
+                    CASE WHEN d.starts_at >= ? THEN d.starts_at ELSE '' END ASC,
+                    CASE WHEN d.starts_at < ? THEN d.starts_at ELSE '' END DESC,
+                    e.id ASC
+           LIMIT ?`,
+        )
+        .bind(
+          this.#workspaceId,
+          MEETING_ENTITY_TYPE,
+          like,
+          like,
+          now,
+          now,
+          now,
+          limit,
+        )
+        .all<{
+          id: string;
+          title: string;
+          location: string | null;
+          starts_at: string;
+        }>()
+    ).results;
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      location: row.location,
+      startsAt: fromStorageTimestamp(row.starts_at),
+    }));
   }
   async update(id: string, input: UpdateMeetingInput) {
     const current = await this.get(id);

@@ -628,7 +628,7 @@ and removing one restores the user's words exactly as typed.
 | Explicit markers | `due tomorrow`, `on friday`, `due 15/11` |
 | ISO dates | `2026-09-15` |
 | Australian dates | `14/8`, `14/08/2026` (day-first; a bare day/month rolls forward a year when it has passed) |
-| Recurrence | `every day`, `every weekday`, `every Monday`, `every week`, `every 2 weeks`, `every month`, `every year` |
+| Recurrence | `every day`, `every weekday`, `every Monday`, `every week`, `every month`, `every year`, and **any `every N weeks/months/years` with N between 2 and 99** (`every 3 weeks`, `every 6 months`) |
 
 Two rules keep it trustworthy:
 
@@ -637,6 +637,22 @@ Two rules keep it trustworthy:
   else needs `due …` or `on …`;
 - recurrence phrases are consumed **before** the date pass, so "Water the plants
   tomorrow every week" reads as a date AND a repeat rather than as prose.
+
+**The parser's vocabulary is wider than the quick-edit panel's option list, and
+that is deliberate (V2.0.1).** The recurrence MODEL accepts any interval 1–99
+over five frequencies plus weekday-pinned weekly rules; the panel's `Repeat`
+select offers the seven common choices. A rule outside that list is now
+presented as **its own option, labelled by the shared `taskRecurrenceLabel`** —
+so "every 3 weeks" reads as *Every 3 weeks* and a Monday rule reads as *Every
+Monday* — and re-selecting it is a guaranteed no-op, so opening the panel can
+never flatten a rule it cannot re-encode. Before V2.0.1 the panel showed the raw
+`week:3` token with a false "no longer available" note, and displayed a
+weekday-pinned rule as plain "Every week" while any interaction silently
+rewrote it. Replacing the rule with a predefined option and removing it entirely
+both still work. Authoring a custom interval outside quick capture remains
+unbuilt and is recorded as
+[DEBT-66](../product/PRODUCT_DEBT.md); the recurrence model was **not** narrowed
+to the option list.
 
 Dates resolve against the **owner's calendar day**, passed from the server (ADR-022) —
 never the browser's local date and never the CI runner's timezone.

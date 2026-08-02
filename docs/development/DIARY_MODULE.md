@@ -513,6 +513,32 @@ The Search payload selects title, entry type and occurrence time only; Diary bod
 prose is not selected and cannot appear in a global Search snippet or Recent
 history.
 
+### The canonical deep link to a Diary entry (V2.0.1)
+
+There is **one** way to link to a Diary entry from outside Diary, and every
+producer uses it — Search, Quick Capture's success link, and (since V2.0.1) the
+Reviews period context:
+
+```
+/diary?inspector=view:<entryId>              # opens the entry's details panel
+/diary?mode=day&date=<YYYY-MM-DD>&inspector=view:<entryId>
+```
+
+The `inspector` key is the shared DS-10 Inspector parameter (`view:` / `edit:` /
+`new`), read client-side by `DiaryWorkspace`; the entry is fetched by id through
+the `/diary/:entryId` resource route, so the panel opens **even when the entry
+is not on the loaded page**. The optional `mode=day&date=` pair is a positioning
+nicety, not a requirement: without it the panel still opens correctly but the
+timeline behind it shows today. Reviews sends it because it already holds the
+entry's owner-local day.
+
+**Reviews previously emitted `/diary?entry=<id>`, which the Diary route never
+read** — no parser, no test, no consumer. The link therefore navigated to
+`/diary`, dropped the unknown parameter, and left the owner on today's day with
+nothing open: a dead link that failed silently rather than erroring. Fixed in
+V2.0.1 by adopting the URL above; **no second Diary URL convention was
+introduced**, and the click-through is covered end to end in `e2e/reviews.spec.ts`.
+
 ---
 
 ## The consistency pass (DS-12 / PX-04 / PX-05 / PX-06, 2026-07-28)

@@ -14,6 +14,38 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 ---
 
+## What V2.0.1 did, and did not, take from this file
+
+**Nothing in this roadmap moved into V2.0.1.** The
+[V2.0.1 hotfix](../release/RELEASE_NOTES_V2_0_1.md) fixed confirmed V2 defects
+and hardened release operations; it started no item below, and no item's status
+changed because of it. It is recorded here only so a reader does not have to
+wonder whether it quietly consumed part of V2.1.
+
+Two entries are worth reading *alongside* it, because V2.0.1 touched adjacent
+ground without doing their work:
+
+- **[SET-02](#-set-02--backup--restore-v21) is untouched.** V2.0.1 added a
+  scheduled workflow that **exports** production D1 to a retained artifact.
+  That is the automated half of a backup and nothing more: there is still **no
+  import, no restore and no proven end-to-end restoration test**, which is the
+  entirety of what SET-02 owes. The rule this file already states applies
+  unchanged — *an untested restore is not a backup* — and a scheduled export is
+  not partial credit for SET-02 any more than X-04's on-demand export was. The
+  workflow, its retention and its explicit "restore is V2.1 SET-02" statement
+  are documented in
+  [`DEPLOYMENT.md`](../development/DEPLOYMENT.md#automated-production-backups-v201).
+  - One genuine input for SET-02, recorded rather than lost:
+    [DEBT-61](../product/PRODUCT_DEBT.md) already named scheduled backups as the
+    thing that would hit the export's read-consistency window more often than a
+    hand-pressed export does. A daily unattended export now exists, so that
+    entry has a real consumer to be evaluated against when SET-02 is built.
+- **[DIARY-02](#-diary-02--day-context-links) is untouched.** V2.0.1 repaired a
+  **broken link Reviews already emitted** to Diary, by adopting the canonical
+  Diary deep-link URL that Search and Quick Capture already used. It added no
+  linking affordance to the Diary surface and made Diary no more a Linked Items
+  consumer than it was — which is DIARY-02's actual scope.
+
 ## How an item got here
 
 Nothing was moved into this file to make V2 look finished. An item is here for one

@@ -14,9 +14,10 @@
  *
  * Planning NEVER changes a task's due date, waiting state or completion (ADR-030);
  * waiting tasks are excluded from the planning sections by the loader, and completed
- * tasks appear only under the collapsed "Completed today". The non-task sections
- * (calendar, projects, notes, timeline, quick capture) stay fixture-backed until
- * their modules connect — the preserved seam.
+ * tasks appear only under the collapsed "Completed today". Every section on this
+ * route reads REAL workspace data — the fixture seam this header once described was
+ * retired by TODAY-08 and UX-01 (see `routes/index.tsx`), and Quick Capture is the
+ * shared capture surface posting to canonical routes.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

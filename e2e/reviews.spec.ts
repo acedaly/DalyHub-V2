@@ -36,9 +36,16 @@ async function createWeeklyReview(page: Page, title: string) {
   owned.add(title);
   await gotoFixture(page, "/reviews/new");
   await expect(page.getByRole("heading", { name: "New Review" })).toBeVisible();
-  await expect(page.getByText(/27 Jul 2026–2 Aug 2026/)).toBeVisible();
+  // Assert the SHAPE of the computed weekly period, not a specific week: the
+  // original assertions pinned the then-current calendar week ("27 Jul 2026–
+  // 2 Aug 2026"), which made the whole suite go red on the next Monday
+  // rollover with nothing broken (found during the V2.0.1 closure). The
+  // period arithmetic itself is covered by the kernel tests.
+  await expect(
+    page.getByText(/\d{1,2} \w{3} \d{4}–\d{1,2} \w{3} \d{4}/),
+  ).toBeVisible();
   const titleInput = page.getByRole("textbox", { name: "Review title" });
-  await expect(titleInput).toHaveValue("Weekly Review — 27 July–2 August 2026");
+  await expect(titleInput).toHaveValue(/^Weekly Review — .+\d{4}$/);
   await titleInput.fill(title);
   await page.getByRole("button", { name: "Start Review" }).click();
   await expect(page).toHaveURL(/\/reviews\/[^/?#]+$/);
@@ -191,5 +198,88 @@ test("Reviews search, command palette, mobile overflow and axe", async ({
     await expectNoHorizontalOverflow(page);
     await page.getByRole("tab", { name: "Settings" }).click();
     await expectNoHorizontalOverflow(page);
+  }
+});
+
+/**
+ * V2.0.1 — the Review period context must deep-link a Diary entry with the
+ * CANONICAL Diary URL (`?mode=day&date=…&inspector=view:<id>`), not the dead
+ * `/diary?entry=<id>` shape the Diary route never read: the click must land on
+ * the entry's own day with its details panel open, and Back must return to the
+ * Review.
+ */
+test("Review period context opens the correct Diary entry (V2.0.1)", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const { execFileSync } = await import("node:child_process");
+  const WS = "local-dev-workspace";
+  const entryId = `reviews-e2e-diary-${Date.now()}`;
+  const entryTitle = `Reviews e2e diary link target ${Date.now()}`;
+  const occurred = new Date().toISOString();
+  const expectedDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(occurred));
+
+  const d1Execute = (command: string) =>
+    execFileSync(
+      "pnpm",
+      [
+        "exec",
+        "wrangler",
+        "d1",
+        "execute",
+        "DB",
+        "--local",
+        "--command",
+        command,
+      ],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
+        stdio: "pipe",
+      },
+    );
+
+  d1Execute(
+    [
+      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${entryId}', '${WS}', 'diary', '${entryTitle}', '${occurred}', '${occurred}', NULL);`,
+      `INSERT INTO diary_entry_details (workspace_id, entity_id, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at) VALUES ('${WS}', '${entryId}', 'note', NULL, '${occurred}', 'Australia/Sydney', 'manual', NULL, '${occurred}');`,
+    ].join("\n"),
+  );
+
+  try {
+    const title = uniqueReviewTitle("diary-link");
+    const reviewUrl = await createWeeklyReview(page, title);
+
+    await page.getByRole("tab", { name: "Diary" }).click();
+    const entryLink = page.getByRole("link", { name: entryTitle });
+    await expect(entryLink).toBeVisible();
+    await entryLink.click();
+
+    // The canonical Diary deep link: the entry's own day, panel open.
+    await expect(page).toHaveURL(/\/diary\?/);
+    await expect(page).toHaveURL(new RegExp(`date=${expectedDay}`));
+    await expect(page).toHaveURL(/inspector=view/);
+    await expect(
+      page.getByRole("button", { name: "Edit entry" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: entryTitle }).first(),
+    ).toBeVisible();
+
+    // Back returns to the Review — the deep link is ONE navigation.
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`${reviewUrl.split("/").pop()}`));
+  } finally {
+    d1Execute(
+      [
+        `DELETE FROM diary_entry_details WHERE workspace_id = '${WS}' AND entity_id = '${entryId}';`,
+        `DELETE FROM entities WHERE workspace_id = '${WS}' AND id = '${entryId}';`,
+      ].join("\n"),
+    );
   }
 });

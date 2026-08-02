@@ -889,6 +889,23 @@ export class D1AssetRepository implements AssetRepository {
            AND ${emptyGuard}`,
       )
       .bind(this.#workspaceId, assetId, assetId, ...g);
+    // ASSET-02's history and obligations reference the Asset's entity row with
+    // ON DELETE RESTRICT (migration 0025) — they are the Asset's OWN dependent
+    // records, so an authorised purge removes them (including soft-deleted rows,
+    // which still hold the FK) in the same batch. Without these two statements
+    // the entity DELETE below violates the constraint and the whole purge fails.
+    const deleteEvents = this.#db
+      .prepare(
+        `DELETE FROM asset_events
+         WHERE workspace_id = ? AND asset_id = ? AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, assetId, ...g);
+    const deleteObligations = this.#db
+      .prepare(
+        `DELETE FROM asset_obligations
+         WHERE workspace_id = ? AND asset_id = ? AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, assetId, ...g);
     const deleteSubjects = this.#db
       .prepare(
         `DELETE FROM activity_subjects
@@ -914,10 +931,12 @@ export class D1AssetRepository implements AssetRepository {
       const results = await this.#db.batch([
         deleteLinks,
         deleteSubjects,
+        deleteEvents,
+        deleteObligations,
         deleteDetails,
         deleteEntity,
       ]);
-      const entityResult = results[3];
+      const entityResult = results[5];
       const removed = (entityResult?.meta?.changes ?? 0) > 0;
       if (removed) return { deleted: true };
       // The guard blocked at commit (a concurrent link appeared): report it.

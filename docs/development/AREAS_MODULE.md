@@ -338,7 +338,16 @@ Tasks, Notes, Diary entries or links. Accepted via
 
 - **Eligibility & dependency guards.** `Delete area permanently` is refused while
   the Area still has ANY active link referencing it — child Goals/Projects/Tasks
-  or a linked Note/Diary/other entity whose link would become invalid. When
+  or a linked Note/Diary/other entity whose link would become invalid — **or
+  while any Asset records it as its home Area (V2.0.1)**. The Asset case needs
+  its own clause because an Asset names its Area through `asset_details.area_id`,
+  a plain column with **no foreign key and no EntityLink** (migration `0016`), so
+  the link-only guard could not see it: an Area full of Assets read as "empty",
+  deleted successfully, and left every `area_id` dangling. A **soft-deleted**
+  Asset blocks too — its detail row and reference survive, and restoring it must
+  never resurface a record pointing at a purged Area, which mirrors how a
+  soft-deleted spine child's preserved active link already blocks. Covered by
+  `test/kernel/area-lifecycle.test.ts`. When
   blocked, the danger section shows a calm explanation, the counts **grouped by
   dependent kind** (with links to the relevant tabs/records where practical), tells
   the user to move, archive or delete them first, and offers **no delete button at

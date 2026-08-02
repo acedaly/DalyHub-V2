@@ -316,8 +316,34 @@ reports `cancelled`, a failed one `failure`, and a job that never started
 `skipped`. All three fail the gate, so a shard that runs out of time is
 represented as honestly as one that fails an assertion. The gate prints a
 `job → result` table to the run summary, so the reason a gate is red is legible
-from the gate itself rather than only from whichever job happens to be red. This PR does not change branch
-protection settings itself; that's a repository-settings change for a human to
-make.
+from the gate itself rather than only from whichever job happens to be red.
+
+#### Enabling it (owner action — exact steps)
+
+Branch protection is a repository setting; it cannot be applied from this
+codebase, and no checked-in ruleset mechanism is in use. The repository OWNER
+enables it once, in GitHub:
+
+1. Open **github.com/acedaly/DalyHub-V2 → Settings → Rules → Rulesets → New
+   ruleset → New branch ruleset** (or the classic path: **Settings → Branches →
+   Add branch protection rule**).
+2. Name it (e.g. `main protection`), set **Enforcement status: Active**, and
+   target the default branch (`main` — "Include default branch").
+3. Enable **Require a pull request before merging** (0 required approvals is
+   fine for a single-owner repository — the gate below is the review that
+   matters).
+4. Enable **Require status checks to pass**, click **Add checks**, and add the
+   check named exactly **`CI Gate`** (it appears in the picker once any PR has
+   run the workflow). Also enable **Require branches to be up to date before
+   merging** so the gate ran against the merge state.
+5. Do **not** add a routine bypass: leave the bypass list empty. GitHub blocks
+   merging while a required check is failing, cancelled or still pending — a
+   pending gate is not a green gate.
+6. Save. Verify on any open PR that **`CI Gate`** now shows as **Required**.
+
+Verification that this rule is ACTIVE is a per-release checklist item (see
+[`RELEASE_CHECKLIST_V2_0_1.md`](../release/RELEASE_CHECKLIST_V2_0_1.md)); the
+governance item is not to be marked complete until the rule is actually
+enabled and observed blocking.
 
 Deployment is documented separately in [`DEPLOYMENT.md`](DEPLOYMENT.md).
