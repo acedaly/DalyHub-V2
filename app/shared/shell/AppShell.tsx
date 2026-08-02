@@ -40,7 +40,11 @@ import type { ShortcutBinding } from "~/shared/commands/useCommandShortcuts";
 
 import { FeedbackProvider } from "~/shared/feedback";
 import { CaptureProvider, useCapture } from "~/shared/capture";
-import { ConnectionStatus, OfflineProvider } from "~/shared/offline";
+// Imported from the specific modules rather than the `~/shared/offline` barrel.
+// The barrel also exports the Settings panel and the snapshot view, and a barrel
+// import pulls their whole graph into the SHELL — which every page loads.
+import { ConnectionStatus } from "~/shared/offline/ConnectionStatus";
+import { OfflineProvider } from "~/shared/offline/OfflineProvider";
 import { useKeyboardInset } from "~/shared/viewport";
 
 import { BottomNav } from "./BottomNav";
