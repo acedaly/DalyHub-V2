@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-import { mobileNavigationOpener } from "./helpers";
+import {
+  gotoFixture,
+  mobileNavigationOpener,
+  waitForInteractive,
+} from "./helpers";
 
 /**
  * DS-09 Command Palette — driven end to end against the development-auth server.
@@ -12,6 +16,18 @@ import { mobileNavigationOpener } from "./helpers";
  * the Today Quick Capture focus command, contextual actions, and the Card adapter —
  * plus the execution/failure states via the `/design/command-palette` fixture.
  * Role-based and non-brittle.
+ *
+ * Navigation goes through `gotoFixture` / `waitForInteractive` rather than a bare
+ * `waitForLoadState("networkidle")`. The difference matters here more than in most
+ * specs: several of these tests fire a GLOBAL KEYBOARD SHORTCUT (`/`, `Mod+K`) as
+ * their first interaction, and a keypress is a one-shot event — if React has not
+ * attached `CommandShortcutLayer` yet, the key is swallowed and never retried, so
+ * the surface simply never opens. A settle proves the network is quiet, not that
+ * the document is interactive; `[data-hydrated]`, which Today publishes and
+ * `waitForInteractive` waits for, is the real gate. (Observed in CI on 2026-08-02:
+ * "is mutually exclusive with Search" pressed `/` and the Search combobox never
+ * appeared. Clicking tests were unaffected, because Playwright retries a click
+ * until it is actionable.)
  */
 
 async function hasNoHorizontalOverflow(page: Page) {
@@ -30,7 +46,7 @@ function palette(page: Page) {
 }
 
 async function openPalette(page: Page) {
-  await page.waitForLoadState("networkidle");
+  await waitForInteractive(page);
   await commandTrigger(page).click();
   const input = palette(page);
   await expect(input).toBeVisible();
@@ -62,8 +78,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
   });
 
   test("opens with Mod+K and closes with a second Mod+K", async ({ page }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.keyboard.press("ControlOrMeta+k");
     await expect(palette(page)).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
@@ -211,8 +226,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
   });
 
   test("is mutually exclusive with Search", async ({ page }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.keyboard.press("/");
     await expect(
       page.getByRole("combobox", { name: "Search everything" }),
@@ -228,8 +242,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
   test("opens over an existing Drawer and keeps it behind", async ({
     page,
   }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.getByRole("link", { name: "Finish PX-02" }).first().click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
@@ -247,8 +260,7 @@ test.describe("DS-09 Command Palette — mobile 320px", () => {
   test("opens from the mobile navigation without horizontal overflow", async ({
     page,
   }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await mobileNavigationOpener(page).click();
     await page
       .getByRole("dialog", { name: "Navigation" })
@@ -288,8 +300,7 @@ test.describe("DS-09 Command Palette — reduced motion", () => {
 
 test.describe("DS-09 Command Palette — execution & failure states (design fixture)", () => {
   async function openFixturePalette(page: Page) {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
     await expect(input).toBeVisible();
@@ -308,8 +319,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   });
 
   test("shows a failure with a Retry that re-invokes", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Failure", exact: true }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -321,8 +331,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   });
 
   test("blocks a duplicate activation while pending", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Pending (hang)" }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -337,8 +346,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   test("keeps commands usable when record search fails partially", async ({
     page,
   }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Partial failure" }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -384,8 +392,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   });
 
   test("shows the Card and Record Header adapter proof", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     const proof = page.getByRole("region", {
       name: "Quick Action adapter proof",
     });
@@ -412,8 +419,7 @@ test.describe("DS-09 Command Palette — touch targets (mobile 44px)", () => {
   }
 
   test("the close control has a 44×44px touch target", async ({ page }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await mobileNavigationOpener(page).click();
     await page
       .getByRole("dialog", { name: "Navigation" })
@@ -426,8 +432,7 @@ test.describe("DS-09 Command Palette — touch targets (mobile 44px)", () => {
   });
 
   test("the Retry control has a 44×44px touch target", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Failure", exact: true }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -454,7 +459,7 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
     name: RegExp,
     urlPattern: RegExp,
   ) {
-    await page.waitForLoadState("networkidle");
+    await waitForInteractive(page);
     await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeVisible();
@@ -498,8 +503,7 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
     // A Goal is created from an Area record (the only host of `NewGoalForm`).
     // A workspace-level "New Goal" command would promise something the product
     // cannot do, so the palette must not offer one.
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeVisible();
