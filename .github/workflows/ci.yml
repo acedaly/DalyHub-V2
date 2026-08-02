@@ -47,6 +47,14 @@ jobs:
       - name: Type-check
         run: pnpm run typecheck
 
+      # PWA-01 — the committed icon assets must be exactly what the canonical
+      # geometry produces. The rasteriser and encoders are deterministic, so this
+      # regenerates in memory and compares bytes: a hand-edited PNG, or a
+      # geometry change committed without regenerating, fails here rather than
+      # shipping artwork that no longer matches its source.
+      - name: Icon assets match the canonical geometry
+        run: pnpm run icons:check
+
   unit-test:
     name: Unit & component tests
     runs-on: ubuntu-latest
