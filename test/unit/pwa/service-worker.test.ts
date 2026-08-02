@@ -16,6 +16,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import { applyBaseSecurityHeaders } from "~/platform/request/security-headers";
 import {
   OFFLINE_DOCUMENT_PATH,
   PUBLIC_PRECACHE_URLS,
@@ -251,13 +252,62 @@ describe("renderServiceWorker", () => {
   it("tries the network FIRST for navigations", () => {
     // So an online owner never sees a stale page, and an expired Access session
     // still redirects to the identity provider exactly as it would without a
-    // service worker.
+    // service worker. The offline branch is reached only from the `catch`.
     const navigation = worker.slice(
       worker.indexOf("async function serveNavigation"),
     );
     expect(navigation.indexOf("await fetch(request)")).toBeLessThan(
-      navigation.indexOf("caches.match(OFFLINE_DOCUMENT"),
+      navigation.indexOf("serveOfflineNavigation(url)"),
     );
+  });
+
+  it("answers the offline document ONLY for a genuine document navigation", () => {
+    // PWA-11 — the rule the iPhone crash came from. The behaviour is asserted
+    // for real in `service-worker-runtime.test.ts`; this keeps the rule itself
+    // visible in the artefact that ships.
+    expect(worker).toContain('request.mode !== "navigate"');
+    expect(worker).toContain('request.method !== "GET"');
+    expect(worker).toContain('destination === "document"');
+  });
+
+  it("redirects a non-offline navigation rather than serving the shell there", () => {
+    expect(worker).toContain("Response.redirect");
+    expect(worker).toContain("url.pathname !== OFFLINE_DOCUMENT");
+  });
+
+  it("fails a static-asset miss cleanly, never with HTML", () => {
+    const statics = worker.slice(
+      worker.indexOf("async function serveStatic"),
+      worker.indexOf("/* ---- the offline-boot loop breaker"),
+    );
+    expect(statics).toContain("status: 504");
+    expect(statics).toContain('"Content-Type": "text/plain; charset=utf-8"');
+    expect(statics).not.toContain("text/html");
+  });
+
+  it("applies the Worker's baseline security headers to responses it synthesises", () => {
+    // A response the worker builds itself never passed through the Worker
+    // boundary, so it would otherwise be the one DalyHub document served with no
+    // CSP, no `nosniff` and no frame protection. `security-headers.ts` stays the
+    // source of truth, and this reads the REAL values out of it — so the copy in
+    // the worker cannot drift from the boundary's policy without failing here.
+    const baseline = new Headers();
+    applyBaseSecurityHeaders(baseline);
+    for (const [name, value] of baseline.entries()) {
+      // Permissions-Policy is deliberately not duplicated: it governs powerful
+      // device features that the offline documents do not use, and repeating a
+      // long list in the worker would be the kind of duplication that rots.
+      if (name.toLowerCase() === "permissions-policy") continue;
+      expect(worker, `${name} must be applied by the worker too`).toContain(
+        value,
+      );
+    }
+  });
+
+  it("carries a bounded offline-boot loop breaker", () => {
+    expect(worker).toContain("OFFLINE_BOOT_LIMIT");
+    expect(worker).toContain("OFFLINE_BOOT_WINDOW_MS");
+    expect(worker).toContain("safeModeDocument");
   });
 
   it("requires DalyHub's own marker before caching the offline shell", () => {
@@ -269,6 +319,11 @@ describe("renderServiceWorker", () => {
   });
 
   it("stays small enough to read in one sitting", () => {
-    expect(worker.length).toBeLessThan(20_000);
+    // Raised from 20 kB when PWA-11 added the navigation-redirect rule, the
+    // clean-failure path for non-document requests, and the offline-boot loop
+    // breaker — along with the reasoning for each, which is the part that has to
+    // survive. The ceiling exists to stop the worker growing a framework, not to
+    // ration comments, and it is still one sitting's reading.
+    expect(worker.length).toBeLessThan(26_000);
   });
 });

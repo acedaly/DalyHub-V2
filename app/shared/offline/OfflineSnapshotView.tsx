@@ -22,8 +22,9 @@ import { useMemo, useState } from "react";
 import { calendarDaysBetween, isSnapshotStale } from "~/kernel/offline";
 import { EmptyState } from "~/shared/empty-state";
 
+import { localStateCopy } from "./local-state";
 import { useOffline } from "./OfflineProvider";
-import type { OfflineDataset } from "./offline-store";
+import { sanitiseOfflineDataset, type OfflineDataset } from "./offline-store";
 
 /** Format an ISO instant as an owner-readable local date and time. */
 function formatInstant(iso: string | null): string {
@@ -63,7 +64,15 @@ export function OfflineSnapshotView({
   const offline = useOffline();
   const [query, setQuery] = useState("");
 
-  const dataset = datasetOverride ?? offline?.dataset;
+  const raw = datasetOverride ?? offline?.dataset;
+  // PWA-11 — stored data is not trusted input. A truncated or half-written row
+  // used to walk straight into a render and throw, which on the offline page
+  // means a blank screen and no way back. Dropping the unreadable row is the
+  // smaller loss; see `sanitiseOfflineDataset`.
+  const dataset = useMemo(
+    () => (raw ? sanitiseOfflineDataset(raw) : undefined),
+    [raw],
+  );
   const meta = dataset?.meta ?? null;
 
   const filtered = useMemo(() => {
@@ -85,23 +94,40 @@ export function OfflineSnapshotView({
   }, [dataset, query]);
 
   if (!dataset || !meta || !filtered) {
-    // Before this device's storage has been read — which includes a
-    // server-rendered document that has not hydrated yet — say so. Asserting
-    // "no offline copy" before looking would be a claim, not a status.
-    const looking = offline !== null && !offline.initialised;
+    // PWA-11 — one of five BOUNDED outcomes, never an open-ended wait. The
+    // provider's read is on a deadline, so `checking` is a state this component
+    // passes through rather than one it can be stranded in, and every other
+    // value says something the owner can act on.
+    const state = offline?.local ?? { kind: "empty" as const };
+    const copy = localStateCopy(state);
     return (
-      <EmptyState
-        title={
-          looking
-            ? "Reading the copy stored on this device"
-            : "No offline copy on this device"
-        }
-        description={
-          looking
-            ? "One moment."
-            : "DalyHub stores a seven-day snapshot after you have opened it online while signed in. Once you have, this page works without a connection."
-        }
-      />
+      <div data-dh-offline-local={state.kind}>
+        <EmptyState title={copy.title} description={copy.description} />
+        {state.kind === "checking" && (
+          /* PWA-11 — the last indefinite state, closed by CSS rather than by
+           * JavaScript, deliberately.
+           *
+           * Everything else on this page is bounded by a timer in the provider.
+           * This one case cannot be: it is what the owner sees when the
+           * application's own JavaScript never ran — a device whose precached
+           * bundles were evicted (Safari does evict them) still has the cached
+           * shell DOCUMENT, so it paints this server-rendered markup and then
+           * nothing further happens, forever.
+           *
+           * A delayed CSS reveal needs no script to fire and no script to
+           * cancel: if the page hydrates, React unmounts this element long
+           * before the delay elapses; if it never hydrates, the sentence appears
+           * on its own and says what actually happened. A `<noscript>` would not
+           * do — JavaScript is enabled here, it simply could not be fetched. */
+          <p className="dh-offline-stalled" role="status">
+            This page has not been able to finish loading on this device, which
+            means DalyHub's application files are not stored here. Reconnect and
+            open DalyHub once to store them. Nothing you captured offline has
+            been lost — it is still on this device and will sync when DalyHub is
+            reachable.
+          </p>
+        )}
+      </div>
     );
   }
 
@@ -125,7 +151,10 @@ export function OfflineSnapshotView({
   );
 
   return (
-    <div className={`dh-offline-snapshot${className ? ` ${className}` : ""}`}>
+    <div
+      className={`dh-offline-snapshot${className ? ` ${className}` : ""}`}
+      data-dh-offline-local="loaded"
+    >
       <div className="dh-offline-snapshot__banner" role="note">
         <p className="dh-offline-snapshot__banner-title">
           Offline snapshot — stored on this device

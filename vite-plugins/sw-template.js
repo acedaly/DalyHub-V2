@@ -43,6 +43,37 @@
  * automatically when there is no controlled page to disturb. On activation the
  * superseded caches are deleted, so storage does not accumulate one dead cache
  * per deployment.
+ *
+ * ── PWA-11 — the two rules that keep an offline launch from looping ──────────
+ * Both of these were learned from a real iPhone failure, in which an installed
+ * DalyHub launched offline, painted the offline shell, and was then killed by
+ * WebKit with "A problem repeatedly occurred". See `PWA_AND_OFFLINE.md §4.5`.
+ *
+ *   1. **The offline document is only ever served at its OWN url.** The installed
+ *      app's `start_url` is `/`, so an offline launch is a navigation to `/`.
+ *      Answering it with the `/offline` document's HTML put a document that was
+ *      server-rendered for one route under a DIFFERENT url: React Router then
+ *      hydrated against `/`, lazily imported the route modules for `/` — which
+ *      are deliberately NOT precached — and, when that import failed with no
+ *      network, called `window.location.reload()` from inside
+ *      `loadRouteModule`. That reload re-entered exactly the same path. A
+ *      navigation whose url is not the offline document is therefore REDIRECTED
+ *      to it, so the document the browser renders always matches the url it was
+ *      rendered for.
+ *   2. **Nothing but a document navigation may ever receive HTML.** A script,
+ *      module, stylesheet, image, font, manifest or API request that cannot be
+ *      served from the cache fails CLEANLY (a 504 with an empty text body). HTML
+ *      arriving where JavaScript was expected is a syntax error inside the
+ *      running application, which is the other way this page ends up in a
+ *      restart loop.
+ *
+ * And one backstop for causes nobody has thought of yet: a bounded loop breaker.
+ * If the offline document is served more than `OFFLINE_BOOT_LIMIT` times inside
+ * `OFFLINE_BOOT_WINDOW_MS`, the worker stops serving it and answers with a
+ * SCRIPT-FREE safe-mode page instead. A page with no JavaScript cannot reload
+ * itself, so the loop terminates deterministically rather than being terminated
+ * by the platform. A successful network navigation, or the page telling the
+ * worker it booted, clears the evidence.
  */
 
 /** The deployment identifier every cache name is tied to. */
@@ -82,6 +113,18 @@ const STATIC_PREFIXES = ["/assets/", "/icons/"];
 /** Individual static files safe to serve cache-first. */
 const STATIC_FILES = ["/favicon.ico", "/manifest.webmanifest"];
 
+/**
+ * The loop breaker's bookkeeping. The log lives in the shell cache rather than in
+ * a module variable because a service worker is terminated between navigations —
+ * an in-memory counter would reset exactly when it is needed.
+ */
+const OFFLINE_BOOT_LOG_URL = "/__dalyhub/offline-boot-log";
+const OFFLINE_BOOT_WINDOW_MS = 60_000;
+const OFFLINE_BOOT_LIMIT = 4;
+
+/** The query parameter safe mode's "try again" link carries. */
+const OFFLINE_RECOVER_PARAM = "dh-recover";
+
 /** True for a request whose response must never enter a cache. */
 function isNeverCacheable(url) {
   if (url.searchParams.has("_data")) return true;
@@ -95,6 +138,22 @@ function isStaticAsset(url) {
     STATIC_PREFIXES.some((prefix) => url.pathname.startsWith(prefix)) ||
     STATIC_FILES.includes(url.pathname)
   );
+}
+
+/**
+ * True for a request that is a genuine top-level document navigation.
+ *
+ * This is the ONLY shape of request the offline HTML document may answer. The
+ * `destination` check is what separates a document from a `fetch()` a page made
+ * with `mode: "navigate"`-adjacent options, and the empty string is accepted
+ * because some engines (and some test doubles) leave `destination` unset on a
+ * request that is still, by `mode`, a navigation.
+ */
+function isDocumentNavigation(request) {
+  if (request.method !== "GET") return false;
+  if (request.mode !== "navigate") return false;
+  const destination = request.destination;
+  return destination === "document" || destination === "";
 }
 
 /** True when a response is safe to store (a complete, same-origin 200). */
@@ -131,6 +190,9 @@ async function cacheOfflineDocument() {
     if (response.headers.get("X-DalyHub-Shell") !== "offline") return false;
     const cache = await caches.open(SHELL_CACHE);
     await cache.put(OFFLINE_DOCUMENT, response.clone());
+    // A shell that was just fetched over a working connection supersedes any
+    // record of the previous one failing to boot.
+    await clearBootLog();
     return true;
   } catch {
     return false;
@@ -188,16 +250,214 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-/** Cache-first for immutable build assets; the network fills a miss. */
+/**
+ * Cache-first for immutable build assets; the network fills a miss.
+ *
+ * A miss that the network cannot fill fails CLEANLY — an empty 504 with a plain
+ * text content type. It is deliberately not the offline document: a script,
+ * module or stylesheet that receives an HTML body is a syntax error inside the
+ * running application, and that is one of the two ways an offline launch ends up
+ * restarting until the platform kills it.
+ */
 async function serveStatic(request) {
   const cached = await caches.match(request, { cacheName: STATIC_CACHE });
   if (cached) return cached;
-  const response = await fetch(request);
-  if (isStorable(response)) {
-    const cache = await caches.open(STATIC_CACHE);
-    await cache.put(request, response.clone());
+  try {
+    const response = await fetch(request);
+    if (isStorable(response)) {
+      const cache = await caches.open(STATIC_CACHE);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return new Response("", {
+      status: 504,
+      statusText: "Offline",
+      headers: securityHeaders({
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "X-DalyHub-Offline": "unavailable",
+      }),
+    });
   }
-  return response;
+}
+
+/* ---- the offline-boot loop breaker --------------------------------------- */
+
+/** Read the recorded offline-boot timestamps. Never throws. */
+async function readBootLog() {
+  try {
+    const cache = await caches.open(SHELL_CACHE);
+    const stored = await cache.match(OFFLINE_BOOT_LOG_URL);
+    if (!stored) return [];
+    const parsed = await stored.json();
+    return Array.isArray(parsed)
+      ? parsed.filter((value) => typeof value === "number")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Forget every recorded offline boot. Never throws. */
+async function clearBootLog() {
+  try {
+    const cache = await caches.open(SHELL_CACHE);
+    await cache.delete(OFFLINE_BOOT_LOG_URL);
+  } catch {
+    /* The breaker is a backstop; failing to clear it must never fail a request. */
+  }
+}
+
+/**
+ * Record one offline boot and answer how many happened inside the window.
+ * Bounded on write, so the log cannot grow with uptime.
+ */
+async function recordOfflineBoot(now) {
+  const recent = (await readBootLog()).filter(
+    (at) => now - at < OFFLINE_BOOT_WINDOW_MS,
+  );
+  recent.push(now);
+  try {
+    const cache = await caches.open(SHELL_CACHE);
+    await cache.put(
+      OFFLINE_BOOT_LOG_URL,
+      new Response(JSON.stringify(recent.slice(-(OFFLINE_BOOT_LIMIT + 2))), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  } catch {
+    /* Unwritable storage disables the breaker; it must not disable the page. */
+  }
+  return recent.length;
+}
+
+/**
+ * The Worker's baseline security headers, restated here.
+ *
+ * A response this worker SYNTHESISES never passed through the Worker boundary,
+ * so it would otherwise be the one DalyHub document served without them. They
+ * are duplicated deliberately rather than derived: `security-headers.ts` remains
+ * the source of truth, and the emitted-worker test asserts they are present here
+ * too, so the duplication cannot rot silently.
+ */
+function securityHeaders(extra) {
+  return new Headers({
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Content-Security-Policy":
+      "base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    "X-Frame-Options": "DENY",
+    ...extra,
+  });
+}
+
+/** A complete document with NO script of any kind, so it cannot reload itself. */
+function plainDocument(status, marker, title, body) {
+  return new Response(
+    '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' +
+      `<title>${title} · DalyHub</title>` +
+      '<meta name="theme-color" content="#faf9f7">' +
+      "<style>body{font:16px/1.6 system-ui,-apple-system,sans-serif;margin:0;" +
+      "padding:2rem 1.25rem;background:#faf9f7;color:#26221c;max-width:34rem}" +
+      "h1{font-size:1.25rem;margin:0 0 .75rem}p{margin:0 0 .75rem}" +
+      "a{color:#26221c}@media(prefers-color-scheme:dark){body{background:#101215;color:#e7e5e1}a{color:#e7e5e1}}" +
+      "</style></head><body>" +
+      `<h1>${title}</h1>${body}</body></html>`,
+    {
+      status,
+      headers: securityHeaders({
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "X-DalyHub-Offline": marker,
+      }),
+    },
+  );
+}
+
+/** Served when this device has no connection AND has never stored the shell. */
+function missingShellDocument() {
+  return plainDocument(
+    503,
+    "unavailable",
+    "DalyHub is offline",
+    "<p>This device has no connection, and DalyHub has not yet stored an offline " +
+      "copy of the application. Reconnect and open DalyHub once to make it " +
+      "available offline.</p>",
+  );
+}
+
+/**
+ * Served when the offline shell has restarted too many times too quickly.
+ *
+ * The link is the ONLY way out, and it is the owner's choice rather than a timer:
+ * an automatic retry is how a loop breaker becomes a loop.
+ */
+function safeModeDocument() {
+  return plainDocument(
+    200,
+    "safe-mode",
+    "DalyHub offline — safe mode",
+    "<p>The offline page restarted several times in a row, so DalyHub stopped it " +
+      "rather than letting it keep trying. This page has no moving parts, so it " +
+      "will stay exactly as it is.</p>" +
+      "<p><strong>Nothing has been lost.</strong> Anything you captured offline is " +
+      "still stored on this device and will still sync when DalyHub is reachable " +
+      "again.</p>" +
+      "<p>Reconnecting and opening DalyHub is the reliable fix. If you would rather " +
+      `try the offline page again now, <a href="${OFFLINE_DOCUMENT}?${OFFLINE_RECOVER_PARAM}=1">open it once more</a>.</p>`,
+  );
+}
+
+/**
+ * Answer a navigation that the network could not.
+ *
+ * The order here is the fix: a navigation whose url is NOT the offline document
+ * is redirected to it rather than being answered with its HTML, because a
+ * server-rendered document served under a foreign url hydrates against routes
+ * whose modules are not on this device. `/offline` itself never redirects, so the
+ * chain is exactly one hop and cannot cycle.
+ */
+async function serveOfflineNavigation(url) {
+  const shell = await caches.match(OFFLINE_DOCUMENT, {
+    cacheName: SHELL_CACHE,
+  });
+  if (!shell) return missingShellDocument();
+
+  if (url.pathname !== OFFLINE_DOCUMENT) {
+    try {
+      return Response.redirect(
+        new URL(OFFLINE_DOCUMENT, self.location.origin).toString(),
+        302,
+      );
+    } catch {
+      // An engine that refuses a worker-synthesised redirect for a navigation
+      // would otherwise turn the fix into a hard navigation failure. Falling
+      // through and serving the document is the lesser evil, and it is not
+      // unguarded: the shell corrects its own url with `history.replaceState`
+      // before React Router reads it (`app/routes/offline.tsx`).
+    }
+  }
+
+  if (url.searchParams.get(OFFLINE_RECOVER_PARAM) === "1") {
+    await clearBootLog();
+  } else if ((await recordOfflineBoot(Date.now())) > OFFLINE_BOOT_LIMIT) {
+    return safeModeDocument();
+  }
+
+  // Served with 200 so the browser renders it as a normal page. The document
+  // itself states plainly that it is the offline shell, and shows the last
+  // successful sync time — it never pretends to be the live page.
+  return new Response(shell.body, {
+    status: 200,
+    statusText: "OK",
+    headers: securityHeaders({
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-DalyHub-Offline": "shell",
+    }),
+  });
 }
 
 /**
@@ -207,41 +467,18 @@ async function serveStatic(request) {
  * genuine network failure falls back — the request outcome is authoritative, not
  * `navigator.onLine`.
  */
-async function serveNavigation(request) {
+async function serveNavigation(request, url, background) {
   try {
-    return await fetch(request);
+    const response = await fetch(request);
+    // The device reached DalyHub, so whatever the loop breaker had recorded is
+    // about a connection that no longer applies. Deliberately NOT awaited: this
+    // is bookkeeping for a failure that is not happening, and putting a cache
+    // round trip in front of every online page load to do it would make the
+    // healthy path pay for the broken one.
+    background(clearBootLog());
+    return response;
   } catch {
-    const shell = await caches.match(OFFLINE_DOCUMENT, {
-      cacheName: SHELL_CACHE,
-    });
-    if (shell) {
-      // Served with 200 so the browser renders it as a normal page. The document
-      // itself states plainly that it is the offline shell, and shows the last
-      // successful sync time — it never pretends to be the live page.
-      return new Response(shell.body, {
-        status: 200,
-        statusText: "OK",
-        headers: new Headers({
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-          "X-DalyHub-Offline": "shell",
-        }),
-      });
-    }
-    return new Response(
-      "<!doctype html><meta charset=utf-8><title>DalyHub is offline</title>" +
-        '<body style="font:16px/1.5 system-ui,sans-serif;margin:0;padding:2rem;background:#faf9f7;color:#26221c">' +
-        '<h1 style="font-size:1.25rem">DalyHub is offline</h1>' +
-        "<p>This device has no connection, and DalyHub has not yet stored an offline copy of the application. " +
-        "Reconnect and open DalyHub once to make it available offline.</p>",
-      {
-        status: 503,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          "Cache-Control": "no-store",
-        },
-      },
-    );
+    return serveOfflineNavigation(url);
   }
 }
 
@@ -256,12 +493,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (url.origin !== self.location.origin) return;
-  if (isNeverCacheable(url)) return;
 
-  if (request.mode === "navigate") {
-    event.respondWith(serveNavigation(request));
+  // Navigations are handled FIRST, and are the only requests the offline HTML
+  // document can answer. The handler is network-first and writes to no cache, so
+  // it is unaffected by the never-cache rules below.
+  if (isDocumentNavigation(request)) {
+    event.respondWith(
+      serveNavigation(request, url, (work) => event.waitUntil(work)),
+    );
     return;
   }
+
+  if (isNeverCacheable(url)) return;
+
+  // Everything else is either a static asset (cache-first, failing cleanly) or
+  // not this worker's business at all. A request that is not answered here goes
+  // to the network untouched and fails as an ordinary network error — which is
+  // what an API, a JSON fetch, a `.data` request or an authentication endpoint
+  // must do offline. None of them can receive an HTML document from this worker.
   if (isStaticAsset(url)) {
     event.respondWith(serveStatic(request));
   }
@@ -285,6 +534,13 @@ self.addEventListener("message", (event) => {
         }
       }),
     );
+    return;
+  }
+  if (type === "OFFLINE_SHELL_READY") {
+    // The offline page reached the point where it can show the owner a resolved
+    // state. Whatever the loop breaker had recorded describes a boot that is now
+    // known to have succeeded, so it is discarded.
+    event.waitUntil(clearBootLog());
     return;
   }
   if (type === "GET_VERSION" && event.source) {

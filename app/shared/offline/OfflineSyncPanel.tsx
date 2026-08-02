@@ -26,6 +26,7 @@ import {
 } from "~/kernel/offline";
 import { ConfirmationDialog } from "~/shared/settings";
 
+import type { OfflineLocalState } from "./local-state";
 import { useOffline } from "./OfflineProvider";
 
 /** A colour-independent label for each queue status. */
@@ -68,6 +69,33 @@ function formatWhen(iso: string): string {
   }).format(parsed);
 }
 
+/**
+ * PWA-11 — what the panel says about the queue, for every bounded outcome of
+ * reading this device's storage. There is no branch that reports an
+ * indefinite wait: `checking` is bounded by the provider's storage deadline, and
+ * a failed read says the queue could not be read rather than that it is empty —
+ * claiming "nothing is waiting" when the queue could not be opened would be the
+ * one lie this surface must never tell.
+ */
+export function queueSummary(
+  local: OfflineLocalState,
+  pending: number,
+): string {
+  switch (local.kind) {
+    case "checking":
+      return "Checking what this device has stored. This finishes either way.";
+    case "unavailable":
+      return `Offline capture is unavailable on this device. ${local.reason}`;
+    case "unreadable":
+      return `Queued captures could not be read from this device. ${local.reason}`;
+    case "empty":
+    case "loaded":
+      return pending === 0
+        ? "Nothing is waiting to sync."
+        : `${pending} capture${pending === 1 ? "" : "s"} on this device.`;
+  }
+}
+
 export interface OfflineSyncPanelProps {
   /** Heading level, so the panel nests correctly in Settings or on a page. */
   readonly headingLevel?: 2 | 3;
@@ -100,17 +128,21 @@ export function OfflineSyncPanel({
           Offline captures
         </Heading>
         <p className="dh-offline-sync__summary">
-          {!offline.initialised
-            ? "Checking what this device has stored…"
-            : queue.length === 0
-              ? "Nothing is waiting to sync."
-              : `${queue.length} capture${queue.length === 1 ? "" : "s"} on this device.`}{" "}
-          {!offline.initialised
+          {queueSummary(offline.local, queue.length)}{" "}
+          {offline.local.kind === "checking"
             ? ""
             : offline.status.lastSyncedAt
               ? `Last synchronised ${formatWhen(offline.status.lastSyncedAt)}.`
               : "This device has not synchronised yet."}
         </p>
+        {/* PWA-11 — reconnecting OFFERS. Nothing reloads, nothing navigates and
+         * nothing is sent until the owner presses the button below. */}
+        {offline.reconnectAvailable && !offline.busy && (
+          <p className="dh-offline-sync__note" role="status">
+            A connection may be available again. Press <b>Sync now</b> when you
+            are ready — nothing has been sent yet.
+          </p>
+        )}
         <button
           type="button"
           className="dh-offline-button"

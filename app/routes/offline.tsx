@@ -32,12 +32,11 @@
  * cached copy is NOT equivalent to holding a valid session, and the page says so.
  */
 
-import { Link } from "react-router";
-
 import { APP_VERSION } from "~/lib/version";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
   OfflineCaptureForm,
+  OfflineDiagnosticsPanel,
   OfflineProvider,
   OfflineSnapshotView,
   OfflineSyncPanel,
@@ -75,7 +74,36 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 export default function OfflineRoute({ loaderData }: Route.ComponentProps) {
   return (
-    <OfflineProvider>
+    // PWA-11 — `autoSyncOnReconnect={false}`. On every other surface a regained
+    // connection may synchronise silently, because the owner is inside the
+    // running application and a background refresh is what they want. HERE the
+    // owner is looking at the one page whose whole job is to be stable and
+    // predictable, so a returning connection OFFERS a sync and waits to be
+    // asked. Nothing on this page reloads, navigates or authenticates on its own.
+    <OfflineProvider autoSyncOnReconnect={false}>
+      {/* PWA-11 — the second line of defence behind the service worker's
+       * redirect, and the reason this page cannot be made to hydrate against a
+       * route whose code is not on the device.
+       *
+       * The worker redirects an offline navigation to `/offline` so this
+       * document is only ever rendered at the url it was rendered FOR. If any
+       * engine ever refuses that redirect — a worker-synthesised redirect for a
+       * navigation is well specified but this is the one failure mode that
+       * bricks an installed app — the worker serves this document anyway, and
+       * this line makes that safe: `replaceState` changes what
+       * `window.location` reports without a navigation, and it runs while the
+       * parser is still ahead of `<Scripts />`, so React Router's hydration
+       * matches `/offline` rather than whatever url the launch used.
+       *
+       * Inline rather than a module: a module is a network fetch, and the whole
+       * point is the case where the network is gone. It is a single assignment
+       * with no listener, no timer and no navigation, so it cannot loop. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            'if(location.pathname!=="/offline"){try{history.replaceState(null,"","/offline")}catch(e){}}',
+        }}
+      />
       <main className="dh-offline-page" id="main">
         <header className="dh-offline-page__header">
           <h1 className="dh-offline-page__title">DalyHub offline</h1>
@@ -85,16 +113,27 @@ export default function OfflineRoute({ loaderData }: Route.ComponentProps) {
             connection returns. Being able to open this page is not a DalyHub
             sign-in: anything that touches the server still needs one.
           </p>
+          {/* Plain anchors, not `<Link>`, and that is load-bearing rather than
+           * an oversight. A client-side `<Link>` here makes React Router import
+           * the target route's module, which is deliberately NOT precached; with
+           * no connection that import fails, and React Router answers a failed
+           * route-module import by calling `window.location.reload()`. A full
+           * document navigation instead hands the decision to the service
+           * worker, which serves this same page again — a bounded, deterministic
+           * outcome instead of a reload the page did not ask for. They also
+           * carry no `data-discover`, so nothing here triggers React Router's
+           * route-discovery fetches while there is no network to answer them. */}
           <p className="dh-offline-page__links">
-            <Link to="/today">Try DalyHub online</Link>
+            <a href="/today">Try DalyHub online</a>
             <span aria-hidden="true"> · </span>
-            <Link to="/settings?section=offline">Offline settings</Link>
+            <a href="/settings?section=offline">Offline settings</a>
           </p>
         </header>
 
         <OfflineCaptureForm headingLevel={2} />
         <OfflineSyncPanel headingLevel={2} />
         <OfflineSnapshotView />
+        <OfflineDiagnosticsPanel />
 
         <footer className="dh-offline-page__footer">
           <p>DalyHub {loaderData.version}</p>

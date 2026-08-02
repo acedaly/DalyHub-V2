@@ -37,9 +37,12 @@ import {
 import { ownerCalendarDateResolver } from "~/shared/datetime";
 
 import {
+  OFFLINE_DATABASE_TIMEOUT_MS,
   openOfflineDatabase,
   requestToPromise,
+  storageTimeoutFailure,
   transactionToPromise,
+  withDeadline,
   type OfflineDatabaseFailure,
 } from "./offline-database";
 
@@ -87,18 +90,81 @@ export const EMPTY_OFFLINE_DATASET: OfflineDataset = {
   references: [],
 };
 
+/**
+ * PWA-11 — is this stored row still the shape the views were written against?
+ *
+ * Stored data is not trusted input. A device that ran out of quota mid-write, a
+ * schema that changed under a rolled-back release, or a browser that truncated
+ * its database leaves rows that are `null`, or missing the fields every card
+ * reads. The old code walked them straight into `.toLowerCase()` and threw
+ * inside a render — which on the offline page means a blank screen with no way
+ * back, on the one surface whose whole job is to work when nothing else does.
+ *
+ * Dropping an unreadable row is the right trade: one record the owner cannot see
+ * is a smaller loss than a page they cannot open.
+ */
+function isRenderableRecord(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const row = value as { id?: unknown; title?: unknown };
+  return typeof row.id === "string" && typeof row.title === "string";
+}
+
+/** As above, for references — which carry a label rather than a title. */
+function isRenderableReference(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  return typeof (value as { id?: unknown }).id === "string";
+}
+
+/**
+ * Return a dataset containing only rows a view can safely render.
+ *
+ * Applied on the way OUT of storage AND again in the view, deliberately: the
+ * view also renders datasets it was handed rather than read, and this is the one
+ * invariant whose failure takes the offline page down entirely.
+ */
+export function sanitiseOfflineDataset(
+  dataset: OfflineDataset,
+): OfflineDataset {
+  const keep = <T>(
+    rows: readonly T[] | undefined,
+    renderable: (row: unknown) => boolean,
+  ) => (Array.isArray(rows) ? (rows.filter(renderable) as T[]) : []);
+  return {
+    meta: dataset.meta ?? null,
+    tasks: keep(dataset.tasks, isRenderableRecord),
+    notes: keep(dataset.notes, isRenderableRecord),
+    diary: keep(dataset.diary, isRenderableRecord),
+    meetings: keep(dataset.meetings, isRenderableRecord),
+    references: keep(dataset.references, isRenderableReference),
+  };
+}
+
 /** Every store operation resolves to this, so a caller never has to try/catch. */
 export type OfflineStoreResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly failure: OfflineDatabaseFailure };
 
+/**
+ * Run one unit of storage work, and ALWAYS answer.
+ *
+ * PWA-11 — the deadline is the reason no offline surface can be left "checking".
+ * An IndexedDB transaction is supposed to fire `complete`, `abort` or `error`;
+ * on iOS a transaction opened moments after an installed PWA cold-launches can
+ * fire none of them, and the promise wrapping it never settles. Every caller
+ * here already handles a failure result, so a deadline converts a hang into a
+ * state the interface can render instead of a state it waits on.
+ */
 async function withDatabase<T>(
   run: (database: IDBDatabase) => Promise<T>,
 ): Promise<OfflineStoreResult<T>> {
   const opened = await openOfflineDatabase();
   if (!opened.ok) return { ok: false, failure: opened.failure };
   try {
-    return { ok: true, value: await run(opened.database) };
+    return await withDeadline<OfflineStoreResult<T>>(
+      run(opened.database).then((value) => ({ ok: true, value }) as const),
+      OFFLINE_DATABASE_TIMEOUT_MS,
+      () => ({ ok: false, failure: storageTimeoutFailure() }) as const,
+    );
   } catch (cause) {
     return {
       ok: false,
@@ -111,6 +177,9 @@ async function withDatabase<T>(
       },
     };
   } finally {
+    // Safe even for the timed-out case: `close()` sets a pending flag and the
+    // connection is released once any outstanding transaction settles. It never
+    // aborts a write, so a unit of work that answered late still commits.
     opened.database.close();
   }
 }
@@ -301,14 +370,14 @@ export async function readDataset(
     const bucket = <T>(kind: string): T[] =>
       rows.filter((row) => row.kind === kind).map((row) => row.value as T);
 
-    return {
+    return sanitiseOfflineDataset({
       meta: meta ?? null,
       tasks: bucket<OfflineTask>("task"),
       notes: bucket<OfflineNote>("note"),
       diary: bucket<OfflineDiaryEntry>("diary"),
       meetings: bucket<OfflineMeeting>("meeting"),
       references: bucket<OfflineReference>("reference"),
-    };
+    });
   });
 }
 

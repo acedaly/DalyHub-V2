@@ -49,7 +49,12 @@ export function OfflineCaptureForm({
 
   if (!offline) return null;
   const Heading = `h${headingLevel}` as const;
-  const ready = offline.namespace !== null && offline.storageFailure === null;
+  // PWA-11 — one of three bounded answers ("checking" is itself bounded by the
+  // provider's storage deadline), and the unavailable one always carries the
+  // reason. A disabled form that does not say why is a bug report waiting to be
+  // written by the only person who uses this.
+  const availability = offline.capture;
+  const ready = availability.kind === "available";
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -90,6 +95,7 @@ export function OfflineCaptureForm({
     <section
       className={`dh-offline-capture${className ? ` ${className}` : ""}`}
       aria-labelledby={`${titleId}-heading`}
+      data-dh-offline-capture={availability.kind}
     >
       <Heading id={`${titleId}-heading`} className="dh-offline-capture__title">
         Capture something
@@ -97,11 +103,9 @@ export function OfflineCaptureForm({
 
       {!ready ? (
         <p className="dh-offline-capture__unavailable">
-          {offline.storageFailure
-            ? offline.storageFailure.message
-            : !offline.initialised
-              ? "Checking what this device has stored…"
-              : "Offline capture becomes available after DalyHub has loaded online at least once on this device, so a capture is always filed under the right sign-in and workspace."}
+          {availability.kind === "checking"
+            ? "Checking what this device has stored. This finishes either way."
+            : availability.reason}
         </p>
       ) : (
         <form className="dh-offline-capture__form" onSubmit={submit}>

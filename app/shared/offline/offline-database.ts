@@ -49,7 +49,72 @@ export type OfflineDatabaseFailure =
   /** Another tab is holding the database open and blocking the upgrade. */
   | { readonly kind: "blocked"; readonly message: string }
   /** The upgrade could not complete. Recovery is available. */
-  | { readonly kind: "migrationFailed"; readonly message: string };
+  | { readonly kind: "migrationFailed"; readonly message: string }
+  /** The request was made and NO event ever arrived. See `withDeadline`. */
+  | { readonly kind: "timedOut"; readonly message: string };
+
+/**
+ * PWA-11 — how long any one IndexedDB operation may take before it is treated as
+ * a failure.
+ *
+ * IndexedDB's contract is "an event will arrive", and on iOS that contract is not
+ * always kept: an `open` issued moments after an installed PWA cold-launches can
+ * fire neither `success`, nor `error`, nor `blocked`, and the promise wrapping it
+ * simply never settles. Every "Checking what this device has stored…" that never
+ * resolved was a promise waiting on an event that was never going to come.
+ *
+ * Six seconds is far longer than a healthy open takes (single-digit
+ * milliseconds), so this never fires for a working device; when it does fire, it
+ * turns an indefinite wait into a stated outcome.
+ */
+export const OFFLINE_DATABASE_TIMEOUT_MS = 6_000;
+
+/**
+ * Resolve to `onTimeout` if `work` has not settled within `timeoutMs`.
+ *
+ * A REJECTION passes straight through: "it failed" and "it never answered" are
+ * different facts and the callers here report them differently. The abandoned
+ * promise is not cancelled — IndexedDB has no cancellation — it is simply no
+ * longer waited on, which is the correct trade: a stale answer to a question the
+ * page has already answered is worse than no answer.
+ */
+export function withDeadline<T>(
+  work: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => T,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(onTimeout());
+    }, timeoutMs);
+    work.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (cause: unknown) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(cause instanceof Error ? cause : new Error(String(cause)));
+      },
+    );
+  });
+}
+
+/** The failure a timed-out storage operation reports. */
+export function storageTimeoutFailure(): OfflineDatabaseFailure {
+  return {
+    kind: "timedOut",
+    message:
+      "This device's offline storage did not respond. Nothing has been lost — reopen DalyHub to try again.",
+  };
+}
 
 export type OfflineDatabaseResult =
   | { readonly ok: true; readonly database: IDBDatabase }
@@ -98,9 +163,11 @@ function hasRequiredStores(database: IDBDatabase): boolean {
 }
 
 /** Delete the DalyHub offline database. Never touches anything else. */
-export function deleteOfflineDatabase(): Promise<void> {
+export function deleteOfflineDatabase(
+  timeoutMs = OFFLINE_DATABASE_TIMEOUT_MS,
+): Promise<void> {
   if (!isOfflineStorageAvailable()) return Promise.resolve();
-  return new Promise((resolve) => {
+  const deletion = new Promise<void>((resolve) => {
     const request = indexedDB.deleteDatabase(OFFLINE_DATABASE_NAME);
     // Resolve on every terminal outcome: a failed delete must not wedge the app,
     // and the caller re-checks by attempting to open.
@@ -108,6 +175,10 @@ export function deleteOfflineDatabase(): Promise<void> {
     request.onerror = () => resolve();
     request.onblocked = () => resolve();
   });
+  // A delete blocked by a connection this page cannot see fires NO event at all
+  // in some engines. The caller re-checks by opening, so giving up is safe and
+  // waiting forever is not.
+  return withDeadline(deletion, timeoutMs, () => undefined);
 }
 
 /**
@@ -119,6 +190,8 @@ export function deleteOfflineDatabase(): Promise<void> {
  */
 export async function openOfflineDatabase(options?: {
   readonly attemptRecovery?: boolean;
+  /** Overridable so a test can assert the deadline without waiting for it. */
+  readonly timeoutMs?: number;
 }): Promise<OfflineDatabaseResult> {
   if (!isOfflineStorageAvailable()) {
     return {
@@ -132,9 +205,25 @@ export async function openOfflineDatabase(options?: {
   }
 
   const attemptRecovery = options?.attemptRecovery ?? true;
+  const timeoutMs = options?.timeoutMs ?? OFFLINE_DATABASE_TIMEOUT_MS;
   let opened: OfflineDatabaseResult;
+  let abandoned = false;
   try {
-    opened = await openOnce();
+    // The deadline is what stops an `open` that never fires an event from
+    // leaving the offline surface saying "checking…" forever.
+    opened = await withDeadline(
+      openOnce().then((result) => {
+        // A connection that arrives AFTER the deadline is closed on the spot:
+        // an abandoned open connection blocks the next version upgrade forever.
+        if (abandoned && result.ok) result.database.close();
+        return result;
+      }),
+      timeoutMs,
+      () => {
+        abandoned = true;
+        return { ok: false, failure: storageTimeoutFailure() };
+      },
+    );
   } catch (cause) {
     opened = {
       ok: false,
@@ -158,7 +247,7 @@ export async function openOfflineDatabase(options?: {
       };
     }
     await deleteOfflineDatabase();
-    return openOfflineDatabase({ attemptRecovery: false });
+    return openOfflineDatabase({ attemptRecovery: false, timeoutMs });
   }
 
   if (
@@ -167,8 +256,11 @@ export async function openOfflineDatabase(options?: {
     attemptRecovery
   ) {
     await deleteOfflineDatabase();
-    return openOfflineDatabase({ attemptRecovery: false });
+    return openOfflineDatabase({ attemptRecovery: false, timeoutMs });
   }
+  // A TIMEOUT is deliberately not recovered from. Recovery deletes the database,
+  // and "it did not answer in time" is not evidence that it is broken — deleting
+  // an owner's un-synced captures on that evidence would be indefensible.
 
   return opened;
 }

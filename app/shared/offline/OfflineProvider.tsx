@@ -49,12 +49,25 @@ import {
 import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
+  installOfflineDiagnostics,
+  recordOfflineDiagnostic,
+} from "./diagnostics";
+import {
   installCapability,
   isIosSafari,
   watchInstallability,
   type BeforeInstallPromptEvent,
   type InstallCapability,
 } from "./install";
+import {
+  OFFLINE_LOCAL_CHECKING,
+  captureAvailability,
+  isLocalStateResolved,
+  localStateFromFailure,
+  localStateFromMeta,
+  type OfflineCaptureAvailability,
+  type OfflineLocalState,
+} from "./local-state";
 import type { OfflineDatabaseFailure } from "./offline-database";
 import { afterPageIdle } from "./page-idle";
 import {
@@ -80,6 +93,7 @@ import {
   isRunningStandalone,
   refreshOfflineShell,
   registerServiceWorker,
+  reportOfflineShellReady,
   type ServiceWorkerStatus,
 } from "./service-worker";
 import {
@@ -120,9 +134,23 @@ export interface OfflineContextValue {
   /**
    * True once this device's storage has been read at least once. Until then the
    * offline surfaces say they are looking, rather than reporting an emptiness
-   * they have not yet checked for.
+   * they have not yet checked for. Derived from `local`, which is the value to
+   * read: a boolean cannot say WHY a read produced nothing.
    */
   readonly initialised: boolean;
+  /**
+   * PWA-11 — the bounded outcome of reading this device's own storage. Always
+   * resolves to one of five states; never waits indefinitely.
+   */
+  readonly local: OfflineLocalState;
+  /** Whether an offline capture can be filed here, and the reason when it cannot. */
+  readonly capture: OfflineCaptureAvailability;
+  /**
+   * True when a probe has found DalyHub reachable again but nothing has been
+   * synchronised yet. It is an OFFER, never an action: reconnecting must not
+   * reload, navigate or sync on the owner's behalf on this surface.
+   */
+  readonly reconnectAvailable: boolean;
 
   probe(): Promise<OfflineConnectionState>;
   /** Refresh the snapshot AND replay the queue. The one "sync now" action. */
@@ -163,9 +191,22 @@ export function useRequiredOffline(): OfflineContextValue {
 
 export interface OfflineProviderProps {
   readonly children: ReactNode;
+  /**
+   * Whether regaining a connection may synchronise on its own.
+   *
+   * True inside the running application, where a sync is invisible and welcome.
+   * FALSE on the offline shell (`/offline`), where the owner is looking at a
+   * page whose entire job is to be stable: there, reconnecting sets
+   * `reconnectAvailable` and waits for "Sync now". PWA-11 — automatic recovery
+   * is only acceptable when it cannot surprise the surface the owner is on.
+   */
+  readonly autoSyncOnReconnect?: boolean;
 }
 
-export function OfflineProvider({ children }: OfflineProviderProps) {
+export function OfflineProvider({
+  children,
+  autoSyncOnReconnect = true,
+}: OfflineProviderProps) {
   // The initial value is `online`, not `reconnecting`. Nothing is RENDERED while
   // online, so this claims nothing — whereas starting at `reconnecting` put a
   // "Checking the connection" banner at the top of every page load for the few
@@ -190,10 +231,13 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     quotaBytes: null,
   });
   const [busy, setBusy] = useState(false);
-  // False until the FIRST read of this device's storage has completed. It is
-  // what stops a server-rendered (or not-yet-hydrated) offline page asserting
-  // "no offline copy on this device" before it has looked.
-  const [initialised, setInitialised] = useState(false);
+  // PWA-11 — the bounded outcome of the FIRST read of this device's storage.
+  // `checking` is what stops a server-rendered (or not-yet-hydrated) offline
+  // page asserting "no offline copy on this device" before it has looked; every
+  // other value is a resolved answer, and the read that produces it is on a
+  // deadline so one of them always arrives.
+  const [local, setLocal] = useState<OfflineLocalState>(OFFLINE_LOCAL_CHECKING);
+  const [reconnectAvailable, setReconnectAvailable] = useState(false);
 
   // A ref as well as state: the heartbeat closure must read the CURRENT value
   // without being re-created (and thus rescheduled) on every change.
@@ -236,8 +280,11 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       setDataset(data.value);
       setMeta(data.value.meta);
       setStorageFailure(null);
+      setLocal(localStateFromMeta(data.value.meta));
     } else {
       setStorageFailure(data.failure);
+      setLocal(localStateFromFailure(data.failure));
+      recordOfflineDiagnostic("indexedDb", data.failure.message);
     }
     // Reclaiming here (rather than only inside a replay pass) means a capture
     // stranded by a tab that was closed mid-request stops claiming to be
@@ -256,11 +303,23 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       abortRef.current?.signal,
     );
     setConnection(state);
+    // A surface that does not sync on its own says so instead, so "the network
+    // came back" is visible without anything having happened behind the owner.
+    if (!autoSyncOnReconnect) setReconnectAvailable(state === "online");
     return state;
-  }, []);
+  }, [autoSyncOnReconnect]);
 
-  const sync = useCallback(async () => {
+  // PWA-11 — the in-flight pass, so a second "Sync now" JOINS the running one
+  // instead of starting a second. The button's `disabled` state is a courtesy;
+  // this is the guarantee. Without it two passes can both read the queue before
+  // either has marked a record `syncing`, and the same capture is sent twice —
+  // which the server's idempotency key then has to catch, at the cost of a
+  // wasted round trip and a race the client should never have created.
+  const syncInFlight = useRef<Promise<void> | null>(null);
+
+  const runSync = useCallback(async () => {
     setBusy(true);
+    setReconnectAvailable(false);
     let syncedConnection: OfflineConnectionState | null = null;
     try {
       const result = await syncSnapshot({ signal: abortRef.current?.signal });
@@ -300,7 +359,17 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
           signal: abortRef.current?.signal,
           ...(syncedConnection ? { connection: syncedConnection } : {}),
         });
-        if (pass.blocked > 0) setConnection("authRequired");
+        if (pass.blocked > 0) {
+          setConnection("authRequired");
+          // An expired sign-in is REPORTED, never navigated to. The queued
+          // captures stay exactly where they are; the owner signs in again from
+          // a page they chose to open. Redirecting from here is how an offline
+          // page ends up bouncing between DalyHub and an identity provider.
+          recordOfflineDiagnostic(
+            "authRedirect",
+            "Sync paused: the DalyHub sign-in has expired. Queued captures are untouched.",
+          );
+        }
         await pruneSyncedQueue(active);
         await reload(active);
       }
@@ -308,6 +377,21 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       setBusy(false);
     }
   }, [reload]);
+
+  /** The one "sync now" entry point. Re-entrant calls join the running pass. */
+  const sync = useCallback(async () => {
+    if (syncInFlight.current) return syncInFlight.current;
+    const pass = runSync().finally(() => {
+      syncInFlight.current = null;
+    });
+    syncInFlight.current = pass;
+    return pass;
+  }, [runSync]);
+
+  /* ---- diagnostics ------------------------------------------------------ */
+  // Attached FIRST and synchronously: an error thrown while the rest of this
+  // provider is still setting itself up is exactly the error worth having.
+  useEffect(() => installOfflineDiagnostics(), []);
 
   /* ---- service worker + install --------------------------------------- */
   useEffect(() => {
@@ -341,16 +425,41 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       // FIRST so the offline views have data before any network work — this is
       // what makes an offline cold launch instant instead of waiting out a probe
       // timeout on a page with nothing to show.
-      const latest = await readLatestMeta();
-      if (cancelled) return;
-      if (!latest.ok) {
-        setStorageFailure(latest.failure);
-      } else if (latest.value) {
-        namespaceRef.current = latest.value.namespace;
-        await reload(latest.value.namespace);
+      //
+      // PWA-11 — every branch below RESOLVES `local`. `readLatestMeta` is itself
+      // on a deadline (`offline-store.ts`), and the `try/catch` covers the one
+      // remaining way this could end without an answer: an exception thrown
+      // somewhere in the read. There is no path from here that leaves the offline
+      // page saying "checking…" forever.
+      try {
+        const latest = await readLatestMeta();
+        if (cancelled) return;
+        if (!latest.ok) {
+          setStorageFailure(latest.failure);
+          setLocal(localStateFromFailure(latest.failure));
+          recordOfflineDiagnostic("indexedDb", latest.failure.message);
+        } else if (latest.value) {
+          namespaceRef.current = latest.value.namespace;
+          setLocal(localStateFromMeta(latest.value));
+          await reload(latest.value.namespace);
+        } else {
+          setLocal({ kind: "empty" });
+        }
+      } catch (cause) {
+        if (cancelled) return;
+        setLocal({
+          kind: "unreadable",
+          reason:
+            "The copy stored on this device could not be read. Nothing has been lost — reconnect and DalyHub will store a fresh one.",
+        });
+        recordOfflineDiagnostic("snapshotCorrupt", cause);
       }
       if (cancelled) return;
-      setInitialised(true);
+      // The offline surface has reached a settled state, so the worker's
+      // offline-boot loop breaker can forget this launch. Reporting it here —
+      // after the read resolved, not on mount — is what makes the breaker
+      // measure "did this page get anywhere", rather than "did it start".
+      void reportOfflineShellReady();
       await sync();
     };
     // Reading this device's own storage is local and cheap, so it happens now —
@@ -401,7 +510,13 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       const state = await probe();
       if (cancelled) return;
       if (state === "online") {
-        void sync();
+        // PWA-11 — reconnecting NEVER reloads and never navigates. Inside the
+        // running application it synchronises, which is invisible and wanted.
+        // On the offline shell it does neither: it offers. The heartbeat stops
+        // either way, so this transition happens once per disconnection rather
+        // than on a timer.
+        if (autoSyncOnReconnect) void sync();
+        else setReconnectAvailable(true);
         return;
       }
       delay = Math.min(MAX_HEARTBEAT_MS, delay * 2);
@@ -412,7 +527,7 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [connection, probe, sync]);
+  }, [autoSyncOnReconnect, connection, probe, sync]);
 
   /* ---- retention on open ---------------------------------------------- */
   useEffect(() => {
@@ -437,6 +552,7 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     const stored = await putQueueRecord(record);
     if (!stored.ok) {
       setStorageFailure(stored.failure);
+      recordOfflineDiagnostic("storageUnavailable", stored.failure.message);
       return null;
     }
     const queued = await readQueue(active);
@@ -484,6 +600,7 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     await clearSnapshot(active);
     setDataset(EMPTY_OFFLINE_DATASET);
     setMeta(null);
+    setLocal({ kind: "empty" });
     setStorage(await estimateOfflineStorage());
   }, []);
 
@@ -505,6 +622,7 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     setDataset(EMPTY_OFFLINE_DATASET);
     setMeta(null);
     setQueue([]);
+    setLocal({ kind: "empty" });
     setStorage(await estimateOfflineStorage());
   }, []);
 
@@ -547,7 +665,10 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       storageFailure,
       storage,
       busy,
-      initialised,
+      initialised: isLocalStateResolved(local),
+      local,
+      capture: captureAvailability({ local, namespace }),
+      reconnectAvailable,
       probe,
       sync,
       enqueue,
@@ -568,12 +689,13 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     discard,
     discardQueued,
     enqueue,
-    initialised,
+    local,
     meta,
     namespace,
     probe,
     promptInstall,
     queue,
+    reconnectAvailable,
     resetDevice,
     retry,
     serviceWorker,

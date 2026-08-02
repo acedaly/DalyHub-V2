@@ -43,6 +43,41 @@ no version number to group them under.
   The same treatment applies to the section list in Settings, and to every theme,
   not just the new ones.
 
+### Fixed — the installed iPhone app crashing when opened offline
+
+- **The installed DalyHub app no longer restarts itself until iPhone gives up.**
+  Opening it from the Home Screen with no connection showed the offline page for
+  a moment and was then replaced by Safari's _"A problem repeatedly occurred"_.
+  The cause was specific: an installed app opens at `/`, and DalyHub was
+  answering that with the offline page's contents while leaving the address as
+  `/`. The application then tried to load the code for the _home_ page, which is
+  deliberately not stored on your device, and restarted itself when it could not
+  — over and over. It now opens the offline page **at the offline page's own
+  address**, so there is nothing left to fail.
+- **Nothing else can be handed a web page by mistake.** A stylesheet, an image or
+  a piece of the application's own code that is not stored on your device now
+  fails cleanly rather than receiving the offline page, which was the second way
+  DalyHub could break itself while offline.
+- **A last-resort stop.** If the offline page ever does restart repeatedly — for
+  any reason, including one nobody has thought of — DalyHub now notices and shows
+  a plain, completely static page instead, which says clearly that nothing has
+  been lost and offers to try again. It cannot restart, so it cannot loop.
+- **No more waiting forever.** _"Checking what this device has stored…"_ and
+  _"Reading the copy stored on this device"_ could both sit there indefinitely if
+  your browser's storage never answered — which iPhone's sometimes does not.
+  Every one of those now ends in a plain statement: the stored copy loaded,
+  there is no stored copy yet, storage is unavailable on this device, or the
+  stored copy could not be read. Offline capture says which of those applies, and
+  why it is or is not available.
+- **Reconnecting asks before it acts.** On the offline page, getting a connection
+  back now says _A connection may be available again_ and waits for you to press
+  **Sync now**. It never reloads the page, never sends you to sign in and never
+  syncs behind your back. Pressing **Sync now** repeatedly runs one sync, not
+  several, so nothing can be created twice.
+- **A Diagnostics panel** at the bottom of the offline page, collapsed by
+  default, showing what has and has not worked on this device. It contains no
+  sign-in details and is never sent anywhere.
+
 ### Added — installation and offline support
 
 DalyHub can now be installed as an app and keeps working when your connection

@@ -793,3 +793,189 @@ test.describe("offline lifecycle", () => {
       .toBe("pending");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* PWA-11 — an installed cold launch with no connection                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The failure these tests were written from.
+ *
+ * An installed DalyHub launches at the manifest's `start_url`, which is `/`.
+ * With no connection that is a navigation the network cannot answer, and the
+ * service worker used to answer it with the `/offline` document's HTML — a
+ * document server-rendered for one route, handed to the browser under a
+ * different url. React Router then hydrated against `/`, lazily imported the
+ * route modules for `/` (deliberately not precached), and answered the failed
+ * import the only way it knows how: `window.location.reload()`. That reload
+ * re-entered the same path, and iOS WebKit eventually replaced the app with
+ * "A problem repeatedly occurred".
+ *
+ * Everything below is about that one sentence: the offline document is served
+ * only for a document navigation, only at its own url, and nothing else on the
+ * device can ever receive an HTML body.
+ */
+test.describe("installed cold launch, offline", () => {
+  test.beforeEach(async ({ context }) => {
+    await context.setOffline(false);
+  });
+
+  test("launching at the installed start_url lands on the offline page, once", async ({
+    page,
+    context,
+  }) => {
+    await primeOfflineSession(page);
+    await goOffline(context);
+
+    // `/` is what an installed DalyHub opens. This is the launch under test.
+    const response = await page.goto("/");
+
+    expect(response?.status()).toBe(200);
+    // The url MATCHES the document, which is the whole fix: a document rendered
+    // for `/offline` is only ever shown at `/offline`.
+    expect(new URL(page.url()).pathname).toBe("/offline");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "DalyHub offline" }),
+    ).toBeVisible();
+  });
+
+  test("does not reload itself after landing", async ({ page, context }) => {
+    await primeOfflineSession(page);
+    await goOffline(context);
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "DalyHub offline" }),
+    ).toBeVisible();
+
+    // A marker on `window` — destroyed by any reload or document navigation, and
+    // by nothing else. Checking it later is a direct observation of the loop,
+    // not a proxy for one.
+    await page.evaluate(() => {
+      (window as unknown as { __dhLaunchMark?: number }).__dhLaunchMark = 1;
+    });
+    const navigations: string[] = [];
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) navigations.push(frame.url());
+    });
+
+    // An explicit observation window. Everything else in this file waits on a
+    // condition, but proving that something does NOT happen requires letting
+    // time pass — and the reload loop this replaced fired within a second or
+    // two of landing, several times over.
+    await page.waitForTimeout(10_000);
+
+    expect(navigations).toEqual([]);
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __dhLaunchMark?: number }).__dhLaunchMark,
+      ),
+    ).toBe(1);
+    expect(new URL(page.url()).pathname).toBe("/offline");
+  });
+
+  test("repeated offline launches at / behave identically", async ({
+    page,
+    context,
+  }) => {
+    await primeOfflineSession(page);
+    await goOffline(context);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await page.goto("/");
+      expect(new URL(page.url()).pathname).toBe("/offline");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "DalyHub offline" }),
+      ).toBeVisible();
+    }
+  });
+
+  test("no request but a document navigation can receive the offline HTML", async ({
+    page,
+    context,
+  }) => {
+    await primeOfflineSession(page);
+    await goOffline(context);
+    await page.goto("/");
+
+    // A script, a module, a stylesheet and an API request, all uncached and all
+    // issued while offline. HTML arriving at any of them is a syntax error
+    // inside the running application — the second half of the crash.
+    const outcomes = await page.evaluate(async () => {
+      const paths = [
+        "/assets/never-precached-abc123.js",
+        "/assets/never-precached-abc123.css",
+        "/assets/never-precached-abc123.woff2",
+        "/offline/snapshot",
+        "/offline/ping",
+        "/search?q=x",
+        "/health",
+      ];
+      const results: {
+        path: string;
+        ok: boolean;
+        status: number | null;
+        contentType: string | null;
+        body: string;
+        threw: boolean;
+      }[] = [];
+      for (const path of paths) {
+        try {
+          const response = await fetch(path, { cache: "no-store" });
+          results.push({
+            path,
+            ok: response.ok,
+            status: response.status,
+            contentType: response.headers.get("Content-Type"),
+            body: (await response.text()).slice(0, 200),
+            threw: false,
+          });
+        } catch {
+          // A network error is the CORRECT outcome for an uncacheable request
+          // with no connection. It is clean: it rejects, it does not resolve
+          // with a document.
+          results.push({
+            path,
+            ok: false,
+            status: null,
+            contentType: null,
+            body: "",
+            threw: true,
+          });
+        }
+      }
+      return results;
+    });
+
+    for (const outcome of outcomes) {
+      expect(outcome.ok, `${outcome.path} must not succeed offline`).toBe(
+        false,
+      );
+      expect(outcome.contentType ?? "", outcome.path).not.toContain(
+        "text/html",
+      );
+      expect(outcome.body, outcome.path).not.toContain("DalyHub offline");
+      expect(outcome.body, outcome.path).not.toContain("<!doctype html");
+    }
+  });
+
+  test("says what happened rather than loading forever when the bundles are gone", async ({
+    page,
+    context,
+  }) => {
+    // The development server has no hashed bundles to precache, so an offline
+    // launch here reproduces exactly the production edge case this notice exists
+    // for: the cached shell DOCUMENT paints and its JavaScript never arrives.
+    // A page in that state used to say "Reading the copy stored on this device"
+    // and mean it indefinitely.
+    await primeOfflineSession(page);
+    await goOffline(context);
+    await page.goto("/");
+
+    await expect(
+      page.getByText(/has not been able to finish loading on this device/),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByText(/Nothing you captured offline has been lost/),
+    ).toBeVisible();
+  });
+});
