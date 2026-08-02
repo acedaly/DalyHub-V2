@@ -11,18 +11,25 @@
  * Settings UI and the tests have one import site and there is still exactly one
  * theme list in the codebase.
  *
- * ── The five curated themes ───────────────────────────────────────────────────
- *   daly-light  light   the calm warm-neutral default
- *   daly-dark   dark    a designed dark theme, not an inversion
- *   eucalypt    light   warm stone surfaces, muted sage accent
- *   coastal     light   cool neutrals, sea-glass blue accent
- *   ember       light   warm neutrals, terracotta accent
+ * ── The seven curated themes ──────────────────────────────────────────────────
+ *   daly-light    light   the calm warm-neutral default
+ *   daly-dark     dark    a designed dark theme, not an inversion
+ *   modern-light  light   THEME-02: warm off-white page, white cards, teal accent
+ *   modern-dark   dark    THEME-02: layered charcoal, controlled indigo accent
+ *   eucalypt      light   warm stone surfaces, muted sage accent
+ *   coastal       light   cool neutrals, sea-glass blue accent
+ *   ember         light   warm neutrals, terracotta accent
  *
  * plus the `system` APPEARANCE MODE, which pairs Daly Light with Daly Dark.
  *
+ * Modern Light and Modern Dark are the one PAIR in the registry: they are designed
+ * as two treatments of a single visual system, so an owner can move between them
+ * for time of day without the application changing shape. Every other theme is a
+ * standalone palette.
+ *
  * Components never branch on the theme. A theme is a complete map over the same
  * semantic tokens (`app/styles/tokens.css`), so a component styled once is correct
- * in all five.
+ * in all of them.
  */
 
 import {
@@ -64,12 +71,13 @@ export interface ThemeDescriptor {
 }
 
 /**
- * The five curated themes, in the order Settings presents them: the default first,
- * its dark counterpart second, then the three character themes.
+ * The curated themes, in the order Settings presents them: the default first, its
+ * dark counterpart second, the Modern pair next, then the three character themes.
  *
- * Each theme is SELF-CONTAINED — one complete palette, not a light/dark pair. A
- * theme therefore never changes when the operating-system appearance changes; only
- * the `system` appearance mode does that.
+ * Each theme is SELF-CONTAINED — one complete palette. Even the Modern pair, which
+ * is designed as a light/dark set, is two separately choosable themes: a theme
+ * never changes when the operating-system appearance changes, because only the
+ * `system` appearance mode does that.
  */
 export const THEMES: readonly ThemeDescriptor[] = [
   {
@@ -84,6 +92,20 @@ export const THEMES: readonly ThemeDescriptor[] = [
     name: "Daly Dark",
     description:
       "Layered charcoal surfaces and softened text, built for dark rooms and long evenings.",
+    appearance: "dark",
+  },
+  {
+    id: "modern-light",
+    name: "Modern Light",
+    description:
+      "A soft off-white page with clean white cards and a teal accent. Bright, calm and personal.",
+    appearance: "light",
+  },
+  {
+    id: "modern-dark",
+    name: "Modern Dark",
+    description:
+      "Layered charcoal surfaces with a controlled indigo accent. The same layout, dimmed for the evening.",
     appearance: "dark",
   },
   {

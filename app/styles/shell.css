@@ -6,8 +6,13 @@
  * navigation, and a full-height content pane with its own scroll so Pane Headers and
  * filter bars can pin (PRODUCT_EXPERIENCE #1, #2, #11). On mobile the rail collapses
  * to an animated overlay sheet (MobileNav). Active navigation is conveyed
- * semantically (aria-current) and reinforced with weight + a tint — never colour
- * alone (AGENTS.md §15).
+ * semantically (aria-current) and reinforced with weight, a leading indicator bar
+ * and a tint — never colour alone (AGENTS.md §15).
+ *
+ * THEME-02 refined the rail so it reads as part of the application rather than as a
+ * navigation panel beside it: a divider instead of a full border on the edge, and a
+ * selected row that uses the shared `nav-selected-*` tokens a theme controls
+ * directly. Both changes are token-level and apply in every theme.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -49,14 +54,21 @@
 /* -------------------------------------------------------------------------- */
 
 /* THEME-01 — navigation has its own surface token, so a theme can separate the
- * rail from the page without every panel moving with it. */
+ * rail from the page without every panel moving with it.
+ *
+ * THEME-02 — the rail is separated by a DIVIDER, not by the same border a card or
+ * an input uses. A full-strength border on a full-height edge is what makes a
+ * sidebar read as a separate enterprise navigation rail bolted to the side of the
+ * page; the divider token is the semantic for an internal separation and lets the
+ * rail sit inside the application. Every theme still gets a real edge — the token
+ * has a value in all of them — it is simply the quieter one. */
 .dh-sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-2);
   padding: var(--dh-space-4) var(--dh-space-3);
   background: var(--dh-color-surface-nav);
-  border-right: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-right: var(--dh-border-width-thin) solid var(--dh-color-divider);
   min-width: 0;
 }
 
@@ -150,16 +162,20 @@
 }
 
 .dh-nav__link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--dh-space-3);
   min-height: var(--dh-control-height-md);
-  padding: var(--dh-space-2) var(--dh-space-2);
-  border-radius: var(--dh-radius-sm);
+  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-2)
+    var(--dh-space-3);
+  border-radius: var(--dh-radius-md);
   text-decoration: none;
   color: var(--dh-color-text-secondary);
   font-size: var(--dh-font-size-sm);
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 
 .dh-nav__link:hover {
@@ -167,13 +183,40 @@
   color: var(--dh-color-text);
 }
 
-/* Active nav: aria-current (semantic) + weight + accent-surface tint — never
- * colour alone. */
+/* Active nav: aria-current (semantic) + weight + a leading indicator BAR (shape)
+ * + the selected-navigation tint — never colour alone (AGENTS.md §15).
+ *
+ * THEME-02 gives navigation selection its OWN token pair rather than borrowing the
+ * generic accent tint, because the two are different jobs: `accent-surface` marks a
+ * tinted informational region anywhere in the product, while this marks "you are
+ * here" in the one place a theme most wants to control. The bar mirrors the phone
+ * bar's top indicator, so selection is expressed the same way on both. */
 .dh-nav__link--active,
 .dh-nav__link[aria-current="page"] {
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-text);
+  background: var(--dh-color-nav-selected-surface);
+  color: var(--dh-color-nav-selected-text);
   font-weight: var(--dh-font-weight-semibold);
+}
+
+.dh-nav__link--active::before,
+.dh-nav__link[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 22%;
+  inset-inline-start: 0;
+  inline-size: var(--dh-border-width-thick);
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-accent);
+}
+
+/* Forced colours: the tint and the bar are both dropped by the OS palette, so the
+ * selected row is restated with the system's own selection colours. */
+@media (forced-colors: active) {
+  .dh-nav__link--active,
+  .dh-nav__link[aria-current="page"] {
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 
 .dh-nav__icon {

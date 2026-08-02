@@ -87,12 +87,14 @@ describe("HELP-01 coverage", () => {
 });
 
 describe("HELP-01 honesty", () => {
-  it("names the five themes it tells the owner about", () => {
+  it("names every theme it tells the owner about", () => {
     const themes = HELP_TOPICS.find((t) => t.id === "themes");
     const text = JSON.stringify(themes);
     for (const name of [
       "Daly Light",
       "Daly Dark",
+      "Modern Light",
+      "Modern Dark",
       "Eucalypt",
       "Coastal",
       "Ember",

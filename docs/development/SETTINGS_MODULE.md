@@ -21,7 +21,7 @@
 |---|---|
 | General | default landing page, default Tasks view, default Task capture parent, default Diary mode |
 | Date & time | owner timezone, date display, first day of week |
-| Appearance | the THEME-01 theme picker: five curated themes plus Match system, with previews |
+| Appearance | the theme picker: seven curated themes (THEME-01's five plus THEME-02's Modern pair) and Match system, with previews |
 | Navigation | optional module visibility and reset |
 | Privacy & data | current handling, the two **workspace exports** (X-04), and explicitly deferred data tools |
 | About | stable app information already available to the app |

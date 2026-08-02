@@ -21,6 +21,8 @@
 export const THEME_IDS = [
   "daly-light",
   "daly-dark",
+  "modern-light",
+  "modern-dark",
   "eucalypt",
   "coastal",
   "ember",
@@ -32,7 +34,7 @@ export type ThemeId = (typeof THEME_IDS)[number];
 /**
  * The appearance-mode value that follows the operating-system setting.
  *
- * `system` is NOT a sixth palette: it pairs Daly Light with Daly Dark and is
+ * `system` is NOT a palette of its own: it pairs Daly Light with Daly Dark and is
  * resolved by `prefers-color-scheme` in the stylesheet, because the server has no
  * way to know the OS setting. Supporting the OS preference must not cost a curated
  * theme (ADR-061).
@@ -40,8 +42,8 @@ export type ThemeId = (typeof THEME_IDS)[number];
 export const SYSTEM_THEME = "system";
 
 /**
- * Everything the owner can CHOOSE: the five curated themes plus `system`. This is
- * the set the preference stores and Settings renders.
+ * Everything the owner can CHOOSE: every curated theme plus `system`. This is the
+ * set the preference stores and Settings renders.
  */
 export const THEME_PREFERENCES = [SYSTEM_THEME, ...THEME_IDS] as const;
 
@@ -66,7 +68,7 @@ export const DEFAULT_DARK_THEME: ThemeId = "daly-dark";
 /** Whether a theme presents as light or dark. */
 export type ThemeAppearance = "light" | "dark";
 
-/** True when `value` is one of the five curated theme ids. */
+/** True when `value` is one of the curated theme ids. */
 export function isThemeId(value: unknown): value is ThemeId {
   return (
     typeof value === "string" &&

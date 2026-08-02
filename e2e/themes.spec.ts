@@ -1,5 +1,5 @@
 /**
- * THEME-01 — the curated theme system, driven through the real product.
+ * THEME-01 / THEME-02 — the curated theme system, driven through the real product.
  *
  * These are the assertions the milestone's acceptance matrix rests on, and they
  * deliberately check BEHAVIOUR rather than pixels: which theme is applied, that it
@@ -31,14 +31,20 @@ import {
 const WORKSPACE_ID = "local-dev-workspace";
 const OWNER_ID = "local-development-user";
 
-/** The five curated themes, with the display name the picker shows. */
+/** Every curated theme, with the display name the picker shows. */
 const THEMES = [
   { id: "daly-light", name: "Daly Light", appearance: "light" },
   { id: "daly-dark", name: "Daly Dark", appearance: "dark" },
+  { id: "modern-light", name: "Modern Light", appearance: "light" },
+  { id: "modern-dark", name: "Modern Dark", appearance: "dark" },
   { id: "eucalypt", name: "Eucalypt", appearance: "light" },
   { id: "coastal", name: "Coastal", appearance: "light" },
   { id: "ember", name: "Ember", appearance: "light" },
 ] as const;
+
+/** THEME-02 — the pair, referenced by name where a test is about the pair. */
+const MODERN_LIGHT = THEMES[2];
+const MODERN_DARK = THEMES[3];
 
 function d1Execute(command: string): void {
   execFileSync(
@@ -113,7 +119,7 @@ test.afterEach(async ({ request }) => {
 });
 
 test.describe("THEME-01 the theme picker", () => {
-  test("offers all five curated themes plus Match system", async ({ page }) => {
+  test("offers every curated theme plus Match system", async ({ page }) => {
     await gotoFixture(page, "/settings?section=appearance");
 
     for (const theme of THEMES) {
@@ -407,4 +413,249 @@ test.describe("THEME-01 reduced motion", () => {
       true,
     );
   });
+});
+
+/* -------------------------------------------------------------------------- */
+/* THEME-02 — the Modern pair                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The modules the Modern pair is verified across. The THEME-01 sweep above walks
+ * SIX surfaces in EVERY theme; this walks the whole product in the two themes this
+ * milestone actually introduced, which is where an unthemed component would show
+ * up. Splitting it this way keeps the Playwright budget proportionate to what
+ * changed instead of multiplying every module by every theme.
+ */
+const MODERN_MODULES = [
+  { path: "/today", label: "Today" },
+  { path: "/tasks", label: "Tasks" },
+  { path: "/projects", label: "Projects" },
+  { path: "/areas", label: "Areas" },
+  { path: "/meetings", label: "Meetings" },
+  { path: "/notes", label: "Notes" },
+  { path: "/people", label: "People" },
+  { path: "/reviews", label: "Reviews" },
+  { path: "/settings", label: "Settings" },
+];
+
+/** Parse a computed `rgb()` / `rgba()` string into WCAG relative luminance. */
+async function surfaceLuminance(page: Page, selector: string): Promise<number> {
+  return page.evaluate((sel) => {
+    const element = document.querySelector(sel);
+    if (element === null) {
+      return Number.NaN;
+    }
+    const parsed = /rgba?\(([^)]+)\)/.exec(
+      getComputedStyle(element).backgroundColor,
+    );
+    if (parsed === null) {
+      return Number.NaN;
+    }
+    const [r, g, b] = parsed[1]
+      .split(",")
+      .slice(0, 3)
+      .map((part) => Number(part.trim()) / 255)
+      .map((channel) =>
+        channel <= 0.03928
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4,
+      );
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }, selector);
+}
+
+test.describe("THEME-02 the Modern pair across the product", () => {
+  for (const theme of [MODERN_LIGHT, MODERN_DARK]) {
+    for (const module of MODERN_MODULES) {
+      test(`${module.label} renders correctly in ${theme.name}`, async ({
+        page,
+        request,
+      }) => {
+        await storeTheme(request, theme.id);
+        await gotoFixture(page, module.path);
+
+        await expect(appliedTheme(page)).toHaveAttribute(
+          "data-theme",
+          theme.id,
+        );
+        await expectNoHorizontalOverflow(page);
+        await expectNoAxeViolations(page);
+      });
+    }
+  }
+});
+
+test.describe("THEME-02 no light surface leaks into Modern Dark", () => {
+  /**
+   * The failure a dark theme actually ships with is not a wrong hex in the token
+   * file — the unit tests catch that — it is a component that never consumed a
+   * token and stays light. So this measures the RENDERED background of the shell,
+   * the rail, the pane and a real card, and fails if any of them is light.
+   */
+  const DARK_SURFACES = [
+    { selector: ".dh-app", label: "application frame" },
+    { selector: ".dh-sidebar", label: "navigation rail" },
+    { selector: ".dh-pane", label: "content pane" },
+  ];
+
+  for (const surface of DARK_SURFACES) {
+    test(`the ${surface.label} is painted dark`, async ({ page, request }) => {
+      await storeTheme(request, MODERN_DARK.id);
+      await gotoFixture(page, "/today");
+      const luminance = await surfaceLuminance(page, surface.selector);
+      // Not NaN: a missing element would silently pass a "< 0.1" assertion.
+      expect(Number.isNaN(luminance), `${surface.selector} not found`).toBe(
+        false,
+      );
+      expect(
+        luminance,
+        `${surface.label} luminance ${luminance.toFixed(3)} is a light surface`,
+      ).toBeLessThan(0.1);
+    });
+  }
+
+  test("the whole page paints dark, with no light block left behind", async ({
+    page,
+    request,
+  }) => {
+    await storeTheme(request, MODERN_DARK.id);
+    await gotoFixture(page, "/today");
+
+    // Every element with its OWN (non-transparent) background must be dark. This
+    // catches an unthemed panel that inherits nothing and paints white.
+    const lightElements = await page.evaluate(() => {
+      const relativeLuminance = (colour: string): number | null => {
+        const parsed = /rgba?\(([^)]+)\)/.exec(colour);
+        if (parsed === null) return null;
+        const parts = parsed[1].split(",").map((part) => Number(part.trim()));
+        // Fully transparent backgrounds paint nothing.
+        if (parts.length > 3 && parts[3] === 0) return null;
+        const [r, g, b] = parts
+          .slice(0, 3)
+          .map((value) => value / 255)
+          .map((channel) =>
+            channel <= 0.03928
+              ? channel / 12.92
+              : ((channel + 0.055) / 1.055) ** 2.4,
+          );
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+
+      const offenders: string[] = [];
+      for (const element of Array.from(document.querySelectorAll("*"))) {
+        const rect = element.getBoundingClientRect();
+        // Only surfaces big enough to be a panel — a small light chip is a
+        // legitimate status tint, not a leak.
+        if (rect.width < 160 || rect.height < 60) continue;
+        const luminance = relativeLuminance(
+          getComputedStyle(element).backgroundColor,
+        );
+        if (luminance !== null && luminance > 0.3) {
+          offenders.push(
+            `${element.tagName.toLowerCase()}.${element.className.toString().slice(0, 60)}`,
+          );
+        }
+      }
+      return offenders;
+    });
+
+    expect(lightElements).toEqual([]);
+  });
+});
+
+test.describe("THEME-02 the pair changes treatment, not structure", () => {
+  /** Measure the geometry a theme must NOT be able to change. */
+  async function geometry(page: Page) {
+    return page.evaluate(() => {
+      const read = (selector: string) => {
+        const element = document.querySelector(selector);
+        if (element === null) return null;
+        const style = getComputedStyle(element);
+        return {
+          radius: style.borderRadius,
+          padding: style.padding,
+          fontSize: style.fontSize,
+          minHeight: style.minHeight,
+        };
+      };
+      return {
+        rail: read(".dh-sidebar"),
+        navLink: read(".dh-nav__link"),
+        pane: read(".dh-pane"),
+      };
+    });
+  }
+
+  test("keeps identical geometry, spacing and type between the two", async ({
+    page,
+    request,
+  }) => {
+    await storeTheme(request, MODERN_LIGHT.id);
+    await gotoFixture(page, "/today");
+    const light = await geometry(page);
+
+    await storeTheme(request, MODERN_DARK.id);
+    await gotoFixture(page, "/today");
+    const dark = await geometry(page);
+
+    expect(light.rail).not.toBeNull();
+    expect(light.navLink).not.toBeNull();
+    expect(dark).toEqual(light);
+  });
+});
+
+test.describe("THEME-02 selected navigation", () => {
+  for (const theme of [MODERN_LIGHT, MODERN_DARK]) {
+    test(`marks the current module with more than colour in ${theme.name}`, async ({
+      page,
+      request,
+    }) => {
+      await storeTheme(request, theme.id);
+      await gotoFixture(page, "/tasks");
+
+      const current = page.locator('.dh-nav__link[aria-current="page"]');
+      await expect(current).toHaveCount(1);
+      // Semantics first: `aria-current` is what a screen reader announces.
+      await expect(current).toHaveAttribute("aria-current", "page");
+      // Then the non-colour reinforcement: a heavier weight and a real tint that
+      // is not simply the rail's own background.
+      const treatment = await current.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const rail = document.querySelector(".dh-sidebar");
+        return {
+          weight: Number(style.fontWeight),
+          background: style.backgroundColor,
+          railBackground:
+            rail === null ? "" : getComputedStyle(rail).backgroundColor,
+          indicator: getComputedStyle(element, "::before").backgroundColor,
+        };
+      });
+      expect(treatment.weight).toBeGreaterThanOrEqual(600);
+      expect(treatment.background).not.toBe(treatment.railBackground);
+      expect(treatment.indicator).not.toBe("rgba(0, 0, 0, 0)");
+    });
+  }
+});
+
+test.describe("THEME-02 the pair on a phone", () => {
+  for (const theme of [MODERN_LIGHT, MODERN_DARK]) {
+    test(`Today and Tasks stay usable at 375px in ${theme.name}`, async ({
+      page,
+      request,
+    }) => {
+      await storeTheme(request, theme.id);
+      await page.setViewportSize({ width: 375, height: 812 });
+
+      for (const path of ["/today", "/tasks"]) {
+        await gotoFixture(page, path);
+        await expect(appliedTheme(page)).toHaveAttribute(
+          "data-theme",
+          theme.id,
+        );
+        await expect(page.locator("[data-testid='bottom-nav']")).toBeVisible();
+        await expectNoHorizontalOverflow(page);
+        await expectNoAxeViolations(page);
+      }
+    });
+  }
 });

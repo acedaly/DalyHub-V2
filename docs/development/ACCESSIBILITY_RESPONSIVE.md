@@ -153,10 +153,11 @@ fails fast and locally:
 2. **Unit/component tests** — role-based RTL assertions per component, plus the
    DS-01/THEME-01 token **contrast**, **coverage** and **dark-block parity** tests
    (the authoritative, deterministic colour-contrast guarantee). Since THEME-01
-   these run over **all five curated themes**, not a light/dark pair, and cover the
-   text ramp on every surface, every tinted surface, filled controls in all three
-   interactive states, focus rings, control boundaries, progress and every chart
-   series. A theme cannot be added without passing them.
+   these run over **every curated theme** — seven of them since THEME-02 — not a
+   light/dark pair, and cover the text ramp on every surface, every tinted surface,
+   the selected navigation row, filled controls in all three interactive states,
+   focus rings, control boundaries, progress and every chart series. The list comes
+   from the registry, so a theme cannot be added without passing them.
 3. **Playwright end-to-end** (the DS-11 additions), all run by `pnpm test:e2e` and
    in CI:
    - **`e2e/accessibility.spec.ts`** — an **axe-core** (`@axe-core/playwright`,

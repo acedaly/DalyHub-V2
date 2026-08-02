@@ -17,6 +17,34 @@ no version number to group them under.
 
 ---
 
+## Unreleased
+
+### Added
+
+- **Two new themes: Modern Light and Modern Dark.** Settings → Appearance now
+  offers a matched pair — the same DalyHub, one bright and one dimmed — so you can
+  move between them by time of day without anything shifting position. Modern
+  Light is a warm off-white page with clean white cards and a teal accent; Modern
+  Dark is layered charcoal with a controlled indigo. They use the same spacing,
+  type and shapes as each other, so switching changes how DalyHub looks and
+  nothing about how it works.
+- Both are ordinary choices, saved to your account like any other theme, so they
+  follow you to any browser you sign in from. **Match system** is unchanged and
+  still pairs Daly Light with Daly Dark. **No existing theme was removed** — Daly
+  Light, Daly Dark, Eucalypt, Coastal and Ember are all still there, and if you
+  are already on one of them, nothing changes for you.
+
+### Changed
+
+- **The navigation rail sits inside the application rather than beside it.** The
+  hard edge between the sidebar and the page is now a quieter divider, and the
+  module you are currently on is marked with a small leading bar as well as its
+  tint and heavier text — so "where am I" no longer depends on noticing a colour.
+  The same treatment applies to the section list in Settings, and to every theme,
+  not just the new ones.
+
+---
+
 ## 2.0.1 — Hotfix & release hardening (2026-08-02)
 
 A small, deliberate hotfix on top of V2. Five confirmed defects fixed, four

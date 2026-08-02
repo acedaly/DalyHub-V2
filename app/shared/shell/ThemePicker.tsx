@@ -41,7 +41,7 @@ import {
 /** The route the theme forms post to. */
 export const THEME_ACTION_PATH = "/preferences/theme";
 
-/** One option row: `system` first, then the five curated themes in registry order. */
+/** One option row: `system` first, then the curated themes in registry order. */
 const OPTIONS: readonly {
   readonly id: ThemePreference;
   readonly name: string;

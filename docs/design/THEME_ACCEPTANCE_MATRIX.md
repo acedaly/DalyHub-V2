@@ -1,6 +1,7 @@
 # THEME_ACCEPTANCE_MATRIX.md — What was actually verified, per theme
 
-> The acceptance record for [THEME-01](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system).
+> The acceptance record for [THEME-01](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system)
+> and [THEME-02](../roadmap/ROADMAP_V2_1.md#-theme-02--the-modern-visual-system).
 >
 > **This matrix records verification that happened.** Every ✅ below names the check
 > that produced it — an automated assertion or a driven browser inspection — so a
@@ -9,10 +10,16 @@
 > make the next person believe a surface was reviewed when it was not.
 
 Verified at commit on branch `claude/v2-final-polish-m3pihp`, 31 July 2026.
+**THEME-02** (the Modern pair) was verified separately on branch
+`claude/dalyhub-premium-visual-system-7trseq`, 2 August 2026 — see
+[section 8](#8-theme-02--the-modern-pair). Sections 1-7 are the THEME-01 record and
+are left as they were written: they describe a pass over five themes, and re-ticking
+them for two themes that pass did not exist for would be a claim about work that
+session did not do.
 
 ---
 
-## The five themes
+## The five themes THEME-01 shipped
 
 | Theme | `data-theme` | Appearance | Role |
 |---|---|---|---|
@@ -23,6 +30,7 @@ Verified at commit on branch `claude/v2-final-polish-m3pihp`, 31 July 2026.
 | Ember | `ember` | light | Warm neutrals + terracotta |
 
 Plus the `system` appearance mode, which resolves to Daly Light or Daly Dark.
+THEME-02 added two more — see [section 8](#8-theme-02--the-modern-pair).
 
 ---
 
@@ -153,7 +161,124 @@ Recorded honestly, including what was **not** done.
 
 ---
 
+## 8. THEME-02 — the Modern pair
+
+Verified 2 August 2026 on branch `claude/dalyhub-premium-visual-system-7trseq`.
+
+| Theme | `data-theme` | Appearance | Role |
+|---|---|---|---|
+| Modern Light | `modern-light` | light | Cream page, near-white panels, white cards, teal accent |
+| Modern Dark | `modern-dark` | dark | Layered charcoal, controlled indigo accent |
+
+The registry is now **seven themes plus `system`**. No existing theme was removed, and
+a unit test (`test/unit/shell/theme.test.ts`) fails if one ever is.
+
+### 8.1 Everything in sections 1-5 now runs over seven themes
+
+The automated suites in sections 1, 2, 3 and 5 iterate the **registry**, not a
+hard-coded list, so the Modern pair was covered the moment it was registered. Token
+coverage, entity accents, CSS/TS parity, the full WCAG pair set, distinctness,
+per-theme selection, first-byte paint and the picker checks all ran green for
+`modern-light` and `modern-dark` alongside the original five.
+
+### 8.2 What is specific to the pair (automated)
+
+| Check | Evidence | Result |
+|---|---|---|
+| Both halves registered, one light and one dark | `theme.test.ts` → Modern pair | ✅ |
+| Same token NAMES declared in both blocks | `modern-pair.test.ts` | ✅ |
+| Only colour, entity accent and elevation differ | `modern-pair.test.ts` | ✅ |
+| Rendered geometry, spacing, type and control height identical between the two | `themes.spec.ts` → "changes treatment, not structure" (computed styles, real page) | ✅ |
+| Every surface, tint, hover, disabled and skeleton value in the dark half is dark | `modern-pair.test.ts` (luminance, as data) | ✅ |
+| Rendered frame, rail and pane are dark in Modern Dark | `themes.spec.ts` → light-surface leak | ✅ |
+| No element wider than a chip paints light anywhere on the page | `themes.spec.ts` → whole-page sweep of computed backgrounds | ✅ |
+| Card distinguishable from the page it sits on (`sunken < bg < card < raised`) | `modern-pair.test.ts` | ✅ |
+| No pure black across large areas | `modern-pair.test.ts` | ✅ |
+| Light half is off-white, not sterile white, and the card sits above the page | `modern-pair.test.ts` | ✅ |
+| Text ramp genuinely stepped in both halves (not three names for one colour) | `modern-pair.test.ts` | ✅ |
+| Selected navigation is `aria-current` + weight ≥ 600 + a tint + an indicator bar | `themes.spec.ts` → selected navigation, both themes | ✅ |
+| Selected-navigation label ≥ 4.5:1 on its own tint **and** on the rail | `contrast.test.ts` (every theme, not just the pair) | ✅ |
+
+### 8.3 Modules driven in a browser, in both halves
+
+Each cell = theme applied to `<html>`, **no horizontal overflow**, **no axe violation**
+(WCAG 2.2 AA tags). Source: `e2e/themes.spec.ts` → "the Modern pair across the product".
+
+| Module | Modern Light | Modern Dark |
+|---|---|---|
+| Today | ✅ | ✅ |
+| Tasks | ✅ | ✅ |
+| Projects | ✅ | ✅ |
+| Areas | ✅ | ✅ |
+| Meetings | ✅ | ✅ |
+| Notes | ✅ | ✅ |
+| People | ✅ | ✅ |
+| Reviews | ✅ | ✅ |
+| Settings | ✅ | ✅ |
+| Assets, Help, About | ✅ | ✅ |
+
+The last row comes from the section 2 sweep, which now runs over all seven themes.
+
+**Why the pair is parameterised over the whole product while the other five are not:**
+the section 2 rationale still holds — no component branches on the theme, so a surface
+correct in one theme is correct in all of them by construction. The pair gets the wider
+sweep because it is what this milestone introduced, which is where an unthemed component
+would actually surface. Multiplying nine modules by seven themes would buy CI time, not
+coverage.
+
+### 8.4 Responsive and mobile
+
+| Check | Evidence | Result |
+|---|---|---|
+| Today and Tasks at 375 px in both halves — bottom nav visible, no overflow, no axe violation | `themes.spec.ts` → the pair on a phone | ✅ |
+| Theme picker usable at 320 px with seven options | `themes.spec.ts` → phone (list-driven) | ✅ |
+| Whole-registry sweep of the Assets state language | `assets-ownership.spec.ts` (extended from five themes to seven) | ✅ |
+
+### 8.5 Visual QA — screenshots
+
+Section 6 recorded that THEME-01 captured none. THEME-02 does: a dedicated, opt-in pass
+([`e2e/theme-02-screenshots.spec.ts`](../../e2e/theme-02-screenshots.spec.ts)) drives the
+real routes against the seeded development database, storing the theme through the
+product's own preferences action, and writes to
+[`assets/theme-02-2026-08/`](assets/theme-02-2026-08).
+
+    CAPTURE_SCREENSHOTS=1 pnpm exec playwright test e2e/theme-02-screenshots.spec.ts
+
+| Surface | Modern Light | Modern Dark |
+|---|---|---|
+| Today, desktop 1440×900 | [`today-desktop-light.png`](assets/theme-02-2026-08/today-desktop-light.png) | [`today-desktop-dark.png`](assets/theme-02-2026-08/today-desktop-dark.png) |
+| Tasks, desktop | [`tasks-desktop-light.png`](assets/theme-02-2026-08/tasks-desktop-light.png) | [`tasks-desktop-dark.png`](assets/theme-02-2026-08/tasks-desktop-dark.png) |
+| Project detail, desktop | [`project-detail-desktop-light.png`](assets/theme-02-2026-08/project-detail-desktop-light.png) | [`project-detail-desktop-dark.png`](assets/theme-02-2026-08/project-detail-desktop-dark.png) |
+| Settings (Appearance), desktop | [`settings-desktop-light.png`](assets/theme-02-2026-08/settings-desktop-light.png) | [`settings-desktop-dark.png`](assets/theme-02-2026-08/settings-desktop-dark.png) |
+| Command palette (a floating surface), desktop | [`command-palette-desktop-light.png`](assets/theme-02-2026-08/command-palette-desktop-light.png) | [`command-palette-desktop-dark.png`](assets/theme-02-2026-08/command-palette-desktop-dark.png) |
+| Today, phone 390×844 | [`today-mobile-light.png`](assets/theme-02-2026-08/today-mobile-light.png) | [`today-mobile-dark.png`](assets/theme-02-2026-08/today-mobile-dark.png) |
+| Tasks, phone | [`tasks-mobile-light.png`](assets/theme-02-2026-08/tasks-mobile-light.png) | [`tasks-mobile-dark.png`](assets/theme-02-2026-08/tasks-mobile-dark.png) |
+
+Reviewed for clipped text, inconsistent spacing, wrong surface colours, unreadable muted
+text, unthemed components, weak active states, excessive card borders, awkward mobile
+stacking and broken overlays. One change came directly out of that review and is worth
+recording, because it is the kind of thing only a screenshot catches: the first Modern
+Light page background sat too close to its own panel surface, so panels read as muddy
+rather than as paper on a surround. The page was deepened and the panel lifted (a
+token-level change, re-validated against the whole contrast harness) and the pass
+re-captured.
+
+### 8.6 What section 8 does not claim
+
+- It does not claim a human has looked at these screenshots on a calibrated display and
+  approved the taste of the palettes. The images exist so that judgement can now happen
+  against evidence rather than against a description.
+- It does not claim every module was captured — nine were driven in both themes and
+  seven surfaces were captured. Modules without a screenshot are covered by the driven
+  assertions in 8.3, not by an image.
+- It does not extend to the five THEME-01 themes' visual review, which section 6 still
+  records honestly as not performed.
+
+
+---
+
 ## Related documents
 - [`DESIGN_SYSTEM.md → Theme mapping`](DESIGN_SYSTEM.md#theme-mapping-theme-01) — the contract.
-- [`ROADMAP_V2.md → THEME-01`](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system) — the milestone item.
+- [`ROADMAP_V2.md → THEME-01`](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system) — the original milestone item.
+- [`ROADMAP_V2_1.md → THEME-02`](../roadmap/ROADMAP_V2_1.md#-theme-02--the-modern-visual-system) — the Modern pair.
 - [`ARCHITECTURE_DECISIONS.md → ADR-061`](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner) — why it is built this way.

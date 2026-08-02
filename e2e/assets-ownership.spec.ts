@@ -657,13 +657,15 @@ for (const scheme of ["light", "dark"] as const) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* All five themes                                                            */
+/* Every curated theme                                                        */
 /* -------------------------------------------------------------------------- */
 
-/** The five curated themes, by the id the document carries. */
+/** Every curated theme, by the id the document carries. */
 const THEMES = [
   "daly-light",
   "daly-dark",
+  "modern-light",
+  "modern-dark",
   "eucalypt",
   "coastal",
   "ember",
@@ -682,16 +684,18 @@ async function storeTheme(
   expect(response.status()).toBeLessThan(400);
 }
 
-test("the obligation and history states read correctly in all five themes", async ({
+test("the obligation and history states read correctly in every theme", async ({
   page,
   request,
 }) => {
-  // MEASURED at 31.9s on an idle machine against the 30s default: a five-theme sweep
-  // is genuinely long work, not a hang. Sized to it, as the sibling theme and
-  // responsive tests in this suite already are. No assertion changes.
-  test.setTimeout(90_000);
-  // This one journey walks FIVE themes over THREE tabs, running an axe scan on
-  // each — roughly fifteen real scans plus the setup that creates the states.
+  // MEASURED at 31.9s on an idle machine at five themes, against the 30s default:
+  // a whole-registry sweep is genuinely long work, not a hang. THEME-02 took the
+  // registry to seven, so the same per-theme cost lands near 45s. Sized to it, as
+  // the sibling theme and responsive tests in this suite already are. No assertion
+  // changes.
+  test.setTimeout(120_000);
+  // This one journey walks EVERY theme over THREE tabs, running an axe scan on
+  // each — roughly twenty-one real scans plus the setup that creates the states.
   // The extended budget reflects that genuine work; it is not covering a race
   // (every step below waits on a real condition, and none of them polls).
   test.slow();
