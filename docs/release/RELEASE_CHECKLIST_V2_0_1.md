@@ -75,6 +75,15 @@ before merge.
 | Build | `pnpm run build` | ✅ |
 | New/affected Playwright specs | `reviews.spec.ts`, `search.spec.ts`, `command-palette.spec.ts` (new tests) | ✅ run locally; full suite is CI's job |
 
+### 6a. The authoritative CI run
+
+| | |
+|---|---|
+| **Run** | [30736926599](https://github.com/acedaly/DalyHub-V2/actions/runs/30736926599) on `67a5b2b` (PR #98) |
+| **CI Gate** | ✅ **success** (2026-08-02 07:13 UTC) |
+| **Jobs** | 19/19 green — `static-quality`, `unit-test`, `kernel-test`, `build`, and **all 14 Playwright shards**. Slowest shard 12m25s, inside the 15-minute `globalTimeout`; no shard reached the ceiling. |
+| **A superseded run, recorded so the history reads honestly** | The first run (30736565351, on `99d2442`) reported `CI Gate` **failed** with `playwright: cancelled`. That was **not a test failure**: pushing the `migrations_dir` fix triggered the workflow's own `concurrency: cancel-in-progress` for the same ref, which cancels in-flight shards. Its four non-Playwright jobs had already succeeded. The gate behaved exactly as designed — a cancelled shard is not a green shard — and the run above is the authoritative one. |
+
 ## 7. Deployment runbook — V2.0.1
 
 No migration ships in this release, so the sequence is shorter than V2's — but
