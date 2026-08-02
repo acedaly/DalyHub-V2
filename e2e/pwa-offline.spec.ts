@@ -35,12 +35,35 @@ const PROD_BASE = "http://localhost:4174";
 /* Deterministic waits over real browser state                                */
 /* -------------------------------------------------------------------------- */
 
-/** Wait until a DalyHub service worker is controlling the page. */
+/**
+ * Wait until a DalyHub service worker is ACTIVE and controlling the page.
+ *
+ * `serviceWorker.ready` resolves when a worker is activated; the controller
+ * check then confirms this document is actually under its control (activation
+ * and control are separate steps, and only the second one makes the navigation
+ * fallback apply). The timeout is generous because the dev server compiles the
+ * offline shell on demand during the worker's install, which on a cold server is
+ * genuinely slow — a shorter timeout would produce a flaky test, not a faster one.
+ */
 async function waitForServiceWorker(page: Page): Promise<void> {
-  await page.waitForFunction(
-    () => navigator.serviceWorker?.controller !== null,
+  await page.evaluate(
+    () =>
+      navigator.serviceWorker.ready.then(() => {
+        if (navigator.serviceWorker.controller) return;
+        return new Promise<void>((resolve) => {
+          navigator.serviceWorker.addEventListener(
+            "controllerchange",
+            () => resolve(),
+            { once: true },
+          );
+        });
+      }),
     undefined,
-    { timeout: 20_000 },
+  );
+  await page.waitForFunction(
+    () => navigator.serviceWorker?.controller != null,
+    undefined,
+    { timeout: 60_000 },
   );
 }
 

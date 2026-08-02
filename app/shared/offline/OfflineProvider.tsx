@@ -110,6 +110,12 @@ export interface OfflineContextValue {
   readonly storage: OfflineStorageEstimate;
   /** True while a sync pass is running. */
   readonly busy: boolean;
+  /**
+   * True once this device's storage has been read at least once. Until then the
+   * offline surfaces say they are looking, rather than reporting an emptiness
+   * they have not yet checked for.
+   */
+  readonly initialised: boolean;
 
   probe(): Promise<OfflineConnectionState>;
   /** Refresh the snapshot AND replay the queue. The one "sync now" action. */
@@ -158,8 +164,14 @@ export interface OfflineProviderProps {
 }
 
 export function OfflineProvider({ children, passive }: OfflineProviderProps) {
+  // The initial value is `online`, not `reconnecting`. Nothing is RENDERED while
+  // online, so this claims nothing — whereas starting at `reconnecting` put a
+  // "Checking the connection" banner at the top of every page load for the few
+  // hundred milliseconds before the first probe resolved, which is exactly the
+  // restless chrome `AGENTS.md §2` rules out. A real failure still surfaces:
+  // the probe that follows is what sets the state from then on.
   const [connection, setConnection] =
-    useState<OfflineConnectionState>("reconnecting");
+    useState<OfflineConnectionState>("online");
   const [serviceWorker, setServiceWorker] = useState<ServiceWorkerStatus>({
     kind: "pending",
   });
@@ -176,6 +188,10 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
     quotaBytes: null,
   });
   const [busy, setBusy] = useState(false);
+  // False until the FIRST read of this device's storage has completed. It is
+  // what stops a server-rendered (or not-yet-hydrated) offline page asserting
+  // "no offline copy on this device" before it has looked.
+  const [initialised, setInitialised] = useState(false);
 
   // A ref as well as state: the heartbeat closure must read the CURRENT value
   // without being re-created (and thus rescheduled) on every change.
@@ -275,7 +291,9 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
         namespaceRef.current = latest.value.namespace;
         await reload(latest.value.namespace);
       }
-      if (cancelled || passive) return;
+      if (cancelled) return;
+      setInitialised(true);
+      if (passive) return;
       await sync();
     })();
     return () => {
@@ -465,6 +483,7 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
       storageFailure,
       storage,
       busy,
+      initialised,
       probe,
       sync,
       enqueue,
@@ -485,6 +504,7 @@ export function OfflineProvider({ children, passive }: OfflineProviderProps) {
     discard,
     discardQueued,
     enqueue,
+    initialised,
     meta,
     namespace,
     probe,

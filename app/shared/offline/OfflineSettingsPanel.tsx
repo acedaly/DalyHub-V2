@@ -187,27 +187,33 @@ export function OfflineSettingsPanel() {
         <SettingsRow
           label="Status"
           description={
-            offline.status.lastSyncedAt
-              ? `Last synchronised ${new Date(offline.status.lastSyncedAt).toLocaleString("en-AU")}.`
-              : "This device has not stored a snapshot yet."
+            // Until this device's storage has been read, say so. Reporting
+            // "not stored offline yet" before looking would be a claim.
+            !offline.initialised
+              ? "Checking what this device has stored…"
+              : offline.status.lastSyncedAt
+                ? `Last synchronised ${new Date(offline.status.lastSyncedAt).toLocaleString("en-AU")}.`
+                : "This device has not stored a snapshot yet."
           }
           control={
             <span className="dh-settings-page__text-value">
-              {syncStateLabel(offline.status.sync)}
+              {offline.initialised ? syncStateLabel(offline.status.sync) : "…"}
             </span>
           }
         />
         <SettingsRow
           label="Offline sign-in"
           description={
-            offline.meta
-              ? `Stored for ${offline.meta.identityLabel} in ${offline.meta.workspaceLabel}. Data is filed under an identity key (…${namespaceDisplayFragment(offline.meta.namespace)}) so a different sign-in on this browser never sees it.`
-              : "No offline data is stored for any sign-in on this device."
+            !offline.initialised
+              ? "Checking what this device has stored…"
+              : offline.meta
+                ? `Stored for ${offline.meta.identityLabel} in ${offline.meta.workspaceLabel}. Data is filed under an identity key (…${namespaceDisplayFragment(offline.meta.namespace)}) so a different sign-in on this browser never sees it.`
+                : "No offline data is stored for any sign-in on this device."
           }
           align="start"
           control={
             <span className="dh-settings-page__text-value">
-              {offline.meta ? "Scoped" : "None"}
+              {!offline.initialised ? "…" : offline.meta ? "Scoped" : "None"}
             </span>
           }
         />

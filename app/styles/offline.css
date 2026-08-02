@@ -465,3 +465,57 @@
     margin-bottom: var(--dh-space-2);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* The dev-only icon review surface (never shipped to production)             */
+/* -------------------------------------------------------------------------- */
+
+.dh-icon-review {
+  padding: var(--dh-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-6);
+  color: var(--dh-color-text);
+}
+
+.dh-icon-review__row {
+  list-style: none;
+  margin: var(--dh-space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--dh-space-6);
+}
+
+.dh-icon-review__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--dh-space-2);
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-icon-review__mask {
+  display: inline-flex;
+  overflow: hidden;
+  width: 128px;
+  height: 128px;
+}
+
+.dh-icon-review__chrome {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  border-radius: var(--dh-radius-sm);
+}
+
+.dh-icon-review__chrome--light {
+  background: #ffffff;
+}
+
+.dh-icon-review__chrome--dark {
+  background: #101215;
+}

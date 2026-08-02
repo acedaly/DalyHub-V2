@@ -56,6 +56,9 @@ const devFixtureRoutes =
         route("design/command-palette", "routes/design-command-palette.tsx"),
         route("design/feedback", "routes/design-feedback.tsx"),
         route("design/settings", "routes/design-settings.tsx"),
+        // PWA-01 — the icon review surface. Dev-only, like its siblings, so the
+        // review page never reaches a deployed Worker.
+        route("design/app-icon", "routes/design-app-icon.tsx"),
       ];
 
 export default [

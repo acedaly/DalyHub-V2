@@ -85,10 +85,22 @@ export function OfflineSnapshotView({
   }, [dataset, query]);
 
   if (!dataset || !meta || !filtered) {
+    // Before this device's storage has been read — which includes a
+    // server-rendered document that has not hydrated yet — say so. Asserting
+    // "no offline copy" before looking would be a claim, not a status.
+    const looking = offline !== null && !offline.initialised;
     return (
       <EmptyState
-        title="No offline copy on this device"
-        description="DalyHub stores a seven-day snapshot after you have opened it online while signed in. Once you have, this page works without a connection."
+        title={
+          looking
+            ? "Reading the copy stored on this device"
+            : "No offline copy on this device"
+        }
+        description={
+          looking
+            ? "One moment."
+            : "DalyHub stores a seven-day snapshot after you have opened it online while signed in. Once you have, this page works without a connection."
+        }
       />
     );
   }

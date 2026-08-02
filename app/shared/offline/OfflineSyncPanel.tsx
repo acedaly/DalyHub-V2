@@ -100,12 +100,16 @@ export function OfflineSyncPanel({
           Offline captures
         </Heading>
         <p className="dh-offline-sync__summary">
-          {queue.length === 0
-            ? "Nothing is waiting to sync."
-            : `${queue.length} capture${queue.length === 1 ? "" : "s"} on this device.`}{" "}
-          {offline.status.lastSyncedAt
-            ? `Last synchronised ${formatWhen(offline.status.lastSyncedAt)}.`
-            : "This device has not synchronised yet."}
+          {!offline.initialised
+            ? "Checking what this device has stored…"
+            : queue.length === 0
+              ? "Nothing is waiting to sync."
+              : `${queue.length} capture${queue.length === 1 ? "" : "s"} on this device.`}{" "}
+          {!offline.initialised
+            ? ""
+            : offline.status.lastSyncedAt
+              ? `Last synchronised ${formatWhen(offline.status.lastSyncedAt)}.`
+              : "This device has not synchronised yet."}
         </p>
         <button
           type="button"

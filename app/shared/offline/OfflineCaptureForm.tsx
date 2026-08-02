@@ -99,7 +99,9 @@ export function OfflineCaptureForm({
         <p className="dh-offline-capture__unavailable">
           {offline.storageFailure
             ? offline.storageFailure.message
-            : "Offline capture becomes available after DalyHub has loaded online at least once on this device, so a capture is always filed under the right sign-in and workspace."}
+            : !offline.initialised
+              ? "Checking what this device has stored…"
+              : "Offline capture becomes available after DalyHub has loaded online at least once on this device, so a capture is always filed under the right sign-in and workspace."}
         </p>
       ) : (
         <form className="dh-offline-capture__form" onSubmit={submit}>
