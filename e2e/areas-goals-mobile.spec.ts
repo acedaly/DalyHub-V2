@@ -105,6 +105,20 @@ async function enterAreasFromMobileShell(page: Page) {
 }
 
 test.describe("AREA-04 — mobile Areas & Goals", () => {
+  /*
+   * MEASURED at 47.6s, 21.1s and 20.4s on an idle machine against the 30s default. These are multi-step
+   * phone journeys, and the specs that already hit this ceiling — `tasks.spec`,
+   * `tasks-collection`, `people-timeline`, `people-relationship`,
+   * `meetings-people-history`, `project-health` and this suite's own accessibility
+   * blocks — each sized their budget to the work with the reason stated. This does
+   * the same, before it fails rather than after. No assertion changes.
+   *
+   * This is NOT the "raise the ceiling" move rejected for the shard matrix: that
+   * pins the worst SHARD against a moving line and hides a growing suite. A per-test
+   * budget is a bound on ONE interaction, and 30s was never sized for a journey.
+   */
+  test.describe.configure({ timeout: 90_000 });
+
   test.beforeAll(() => cleanupMobileFixtures());
   test.afterEach(() => cleanupMobileFixtures());
 

@@ -676,7 +676,7 @@ sending or SMS. This PR is the DalyHub foundation only.
 - **Filtering matches over loaded pages**, per the shared DS-05/DS-07 contract — narrowing a long history is filter + Load more, not a server-side query.
 - **Cadence is read from a bounded sample.** Exact totals (`totalInteractions`, first and last interaction) are exact and unbounded; only the interval arithmetic reads the most recent `RELATIONSHIP_INTERACTION_SAMPLE_LIMIT` moments, and the panel discloses when it did.
 - **Stay-in-touch exposes state, not reminders.** [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) deliberately ships the calculated state only. Notifications, digests and reminders are a later item that consumes it.
-- **The DS-13 summary cards are shared but not yet adopted elsewhere.** Projects, Assets and Today still render their own stat grids ([DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p1)); converging them is follow-on debt work, not part of PEOPLE-03.
+- **The DS-13 summary cards are shared but not yet adopted elsewhere.** Projects, Assets and Today still render their own stat grids ([DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p2)); converging them is follow-on debt work, not part of PEOPLE-03.
 - Some record quick actions (Diary / Meeting / New note) are honest placeholders rather than wired flows.
 
 **Deferred work.** Per-attendee meeting substance (blocked on the Meetings item model); follow-up reminders and notifications over the PEOPLE-03 derived state; mobile completion beyond the DS-11 baseline; and all external integrations (Google Contacts, Microsoft 365, calendar, email/SMS) — the kernel is designed to accept these without an API break.

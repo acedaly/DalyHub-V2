@@ -541,7 +541,7 @@ derived state is computed at read time rather than stored.
 ## Status (2026-07-31, after ASSET-02)
 
 **Current status.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ ·
-[ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals) ☑ ·
+[ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done) ☑ ·
 [ASSET-03](../roadmap/ROADMAP_V2.md#-asset-03--mobile) ◐.
 
 **Delivered by ASSET-01.** Assets as first-class entities with a STRICT

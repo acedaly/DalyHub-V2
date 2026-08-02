@@ -86,18 +86,47 @@ export function useKeysetPagination<TItem, TData>({
   const nextRequestId = useRef(0);
   const requested = useRef<number | null>(null);
   const applied = useRef<unknown>(null);
+  // Whether the fetcher has actually LEFT idle for the outstanding request. See the
+  // `data === undefined` branch below for why "idle" alone cannot be trusted.
+  const started = useRef(false);
+
+  // The scope this accumulation belongs to. Compared by VALUE, and seeded with the
+  // scope the hook mounted in, so the reset below fires on a genuine scope CHANGE
+  // and never merely because an effect ran.
+  const scopeKey = `${path}\u0000${initialCursor ?? ""}`;
+  const scope = useRef(scopeKey);
 
   // A scope change (new filter, new view, new first page) restarts the accumulation.
+  //
+  // The guard is load-bearing, and its absence was a real defect. `useEffect` runs
+  // AFTER paint, and `findBy*`/a fast click can land before React has flushed the
+  // mount effect — so this effect would run for the FIRST time after `loadMore` had
+  // already stamped its request, clear `requested.current`, and the page that then
+  // arrived was discarded as belonging to a previous scope. The owner saw "Load
+  // more" clear its spinner and add nothing, with the cursor un-advanced; a second
+  // click worked. Intermittent, scheduler-dependent, and present in all eight
+  // collections that share this hook.
+  //
+  // Resetting only on a REAL change fixes it without weakening the DEBT-45 rule this
+  // hook exists to encode: a scope that genuinely changes still discards an in-flight
+  // request, which is exactly what must happen.
   useEffect(() => {
+    if (scope.current === scopeKey) {
+      return;
+    }
+    scope.current = scopeKey;
     setAppended([]);
     setCursor(initialCursor);
     setLoadFailed(false);
     requested.current = null;
     applied.current = null;
-  }, [initialCursor, path]);
+    started.current = false;
+  }, [scopeKey, initialCursor]);
 
   useEffect(() => {
     if (fetcher.state !== "idle") {
+      // The fetch is genuinely under way, so a later idle state is a real result.
+      started.current = true;
       return;
     }
     const data = fetcher.data;
@@ -105,11 +134,27 @@ export function useKeysetPagination<TItem, TData>({
       return;
     }
     if (data === undefined) {
+      // `fetcher.load()` does NOT synchronously leave the idle state, so
+      // `idle && data === undefined` has TWO meanings: "settled with nothing" and
+      // "has not started yet". Treating them alike is what made this branch drop
+      // real pages — it fired in the render between stamping the request and the
+      // fetcher going "loading", cleared the request, and the page that then
+      // arrived was discarded as unrequested. The owner saw "Load more" clear its
+      // spinner, add nothing and leave the cursor un-advanced; a second click
+      // worked. Intermittent, scheduler-dependent, and shared by all eight
+      // collections.
+      //
+      // `started` is the discriminator: only a fetcher that actually left idle can
+      // have settled. Until then this effect simply waits.
+      if (!started.current) {
+        return;
+      }
       // The fetcher settled with nothing to apply — the load did not produce a
       // page. Release the outstanding request and offer a retry, rather than
       // leaving `loadMore` permanently blocked behind a request that will never
       // be answered (which would present an enabled button that does nothing).
       requested.current = null;
+      started.current = false;
       setLoadFailed(true);
       return;
     }
@@ -118,6 +163,7 @@ export function useKeysetPagination<TItem, TData>({
     }
     applied.current = data;
     requested.current = null;
+    started.current = false;
 
     // React Router types a fetcher's data as `SerializeFrom<TData>`. Every
     // collection loader here already returns a plain, JSON-safe payload (no `Date`,
@@ -141,6 +187,7 @@ export function useKeysetPagination<TItem, TData>({
     setLoadFailed(false);
     nextRequestId.current += 1;
     requested.current = nextRequestId.current;
+    started.current = false;
     const separator = path.includes("?") ? "&" : "?";
     fetcher.load(`${path}${separator}cursor=${encodeURIComponent(cursor)}`);
   }, [cursor, path, fetcher]);

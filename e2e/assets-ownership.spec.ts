@@ -686,6 +686,10 @@ test("the obligation and history states read correctly in all five themes", asyn
   page,
   request,
 }) => {
+  // MEASURED at 31.9s on an idle machine against the 30s default: a five-theme sweep
+  // is genuinely long work, not a hang. Sized to it, as the sibling theme and
+  // responsive tests in this suite already are. No assertion changes.
+  test.setTimeout(90_000);
   // This one journey walks FIVE themes over THREE tabs, running an axe scan on
   // each — roughly fifteen real scans plus the setup that creates the states.
   // The extended budget reflects that genuine work; it is not covering a race

@@ -92,27 +92,44 @@ test.describe("TODAY-01 — desktop", () => {
     await page.goto("/today");
     await page.locator('.dh-today[data-hydrated="true"]').waitFor();
 
-    // Collapse the Focus widget: its body hides, the heading toggle flips.
-    const focus = page.locator('[data-widget="focus"]');
-    const focusToggle = focus.getByRole("button", { name: /Focus/ });
-    await expect(focusToggle).toHaveAttribute("aria-expanded", "true");
-    await focusToggle.click();
-    await expect(focusToggle).toHaveAttribute("aria-expanded", "false");
+    // Take the widget under test from the RENDERED catalogue rather than naming
+    // one. This test is about the personalisation behaviour, not about any
+    // particular widget existing: it previously hard-coded the "focus" panel,
+    // which UX-01 removed along with the rest of the "coming soon" surfaces, and
+    // the assertion then failed on `main` for a widget the product had
+    // deliberately deleted. Reading the id and title from the DOM keeps the
+    // behaviour covered while the catalogue is free to change.
+    const widget = page.locator("[data-widget]").first();
+    await expect(widget).toBeVisible();
+    const widgetId = await widget.getAttribute("data-widget");
+    expect(widgetId).toBeTruthy();
+    const title = (
+      await widget.locator(".dh-today-widget__title").innerText()
+    ).trim();
+    const selector = `[data-widget="${widgetId}"]`;
 
-    // Enter Customise, hide Focus, and confirm it leaves the surface.
+    // Collapse it: its body hides, the heading toggle flips.
+    const toggle = widget.locator(".dh-today-widget__toggle");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    // Enter Customise, hide it, and confirm it leaves the surface.
     await page.getByRole("button", { name: "Customise" }).click();
-    await focus.getByRole("button", { name: "Hide Focus" }).click();
-    await expect(page.locator('[data-widget="focus"]')).toHaveCount(0);
+    await widget.getByRole("button", { name: `Hide ${title}` }).click();
+    await expect(page.locator(selector)).toHaveCount(0);
 
     // The arrangement survives a reload (per-device persistence).
     await page.reload();
     await page.locator('.dh-today[data-hydrated="true"]').waitFor();
-    await expect(page.locator('[data-widget="focus"]')).toHaveCount(0);
+    await expect(page.locator(selector)).toHaveCount(0);
 
     // Restore it so the shared dev database's UI state is left clean.
     await page.getByRole("button", { name: "Customise" }).click();
-    await page.getByRole("button", { name: "Show Focus" }).click();
-    await expect(page.locator('[data-widget="focus"]')).toBeVisible();
+    await page.getByRole("button", { name: `Show ${title}` }).click();
+    await expect(page.locator(selector)).toBeVisible();
   });
 
   test("opens a record in the Drawer over the pane", async ({ page }) => {

@@ -194,3 +194,31 @@ describe("production deploy preflight (scripts/deploy-production.mjs)", () => {
     expect(result.stderr).toContain("no env.production");
   });
 });
+
+describe("production deploy preflight — the optional build identifier", () => {
+  it("passes with no BUILD_COMMIT, and says the deployment records none", () => {
+    const result = runPreflight({ ...VALID_ENV, BUILD_COMMIT: "" });
+    expect(result.status).toBe(0);
+    // It still reports SOMETHING, because the checkout supplies a default — the
+    // assertion that matters is that an unset value is not an error.
+    expect(result.stdout).toContain("build identifier");
+  });
+
+  it("accepts a supplied commit hash and reports the short form", () => {
+    const result = runPreflight({
+      ...VALID_ENV,
+      BUILD_COMMIT: "9f2c1b7a4e5d6c8b0a1f2e3d4c5b6a7980abcdef",
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("build identifier: 9f2c1b7");
+  });
+
+  it("FAILS on a malformed BUILD_COMMIT rather than dropping it silently", () => {
+    // version.ts drops a malformed value at render time, which is right for a
+    // page. At deploy time it is wrong: a typo'd commit would ship a build that
+    // quietly claims to record nothing. Loud here, quiet there.
+    const result = runPreflight({ ...VALID_ENV, BUILD_COMMIT: "not-a-hash" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("BUILD_COMMIT");
+  });
+});

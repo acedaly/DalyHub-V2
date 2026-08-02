@@ -126,6 +126,32 @@ async function runBulk(
 const JOURNEY_LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 
 test.describe("TASKS-01 — full journey", () => {
+  /*
+   * These are multi-step STATEFUL journeys — create, open the Drawer, edit details,
+   * delegate, Someday, reactivate, On hold, Cancel — and they were left on the 30s
+   * default while the accessibility block below (same file, same suite) had already
+   * been given 90s and 120s for exactly this reason.
+   *
+   * MEASURED on an idle machine: 22.5s and 27.2s for two of the four, i.e. 75-90% of
+   * the default consumed before any CI load. They live on the heaviest shard
+   * (tasks.spec 1.9m + tasks-collection 1.8m + themes 1.7m alongside them, ~10.4min
+   * total), and they duly tipped over there — twice, on DIFFERENT steps of different
+   * journeys (`:187` waiting for a task link, `:253` in `selectTask`), which is what
+   * budget exhaustion looks like rather than a defect in any one step.
+   *
+   * Sizing the budget to the work is the remedy this repository already chose for the
+   * sibling block, with the reason stated. It is NOT the "raise the ceiling" move
+   * rejected for the shard matrix: that pins the worst SHARD against a moving line
+   * and hides a growing suite, whereas this sizes ONE test's budget to what that test
+   * genuinely does. No assertion changes.
+   *
+   * Splitting — the fix used for `people.spec.ts` — is deliberately NOT used here.
+   * There each viewport was independent, so nine small tests were strictly better.
+   * A journey's steps depend on the state the previous step left, so splitting would
+   * mean re-creating that state per test and would test something weaker.
+   */
+  test.describe.configure({ timeout: 90_000 });
+
   test("create under a Project via the parent selector, then move across the Matrix and Sectors", async ({
     page,
   }) => {

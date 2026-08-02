@@ -27,15 +27,26 @@ export const APPLICATION_NAME = "DalyHub";
 /**
  * The current application version.
  *
- * Hand-maintained here on purpose. `package.json` is `0.0.0` and private, and the
- * Worker bundle has no reliable way to read it at runtime, so a "read it from
- * package.json" scheme would be a second authority that silently disagrees. One
- * constant, bumped in the release commit, is honest and greppable.
+ * Hand-maintained here on purpose. The Worker bundle has no reliable way to read
+ * `package.json` at runtime, so a "read it from package.json" scheme would be a
+ * second authority that silently disagrees. One constant, bumped in the release
+ * commit, is honest and greppable.
+ *
+ * `package.json` carries the SAME string so build metadata and the running
+ * application agree, and `test/unit/about/package-version.test.ts` fails if they
+ * ever drift. That test — not a runtime read — is what keeps the two in step,
+ * so this module stays the only thing the Worker consults.
  */
 export const APP_VERSION = "2.0.0";
 
-/** The release this version ships under. Shown beside the number in About. */
-export const APP_RELEASE_NAME = "V2 Final Polish";
+/**
+ * The release this version ships under. Shown beside the number in About.
+ *
+ * This is the release NAME, not a milestone name. It was "V2 Final Polish" while
+ * that milestone was in flight; the shipped product is DalyHub V2, so that is
+ * what About, Settings and every export archive now say.
+ */
+export const APP_RELEASE_NAME = "V2";
 
 /** Environment labels that are safe to display. Anything else reads "unknown". */
 const KNOWN_ENVIRONMENTS: ReadonlySet<string> = new Set([

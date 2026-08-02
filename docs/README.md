@@ -22,7 +22,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 |---|---|
 | [`/AGENTS.md`](../AGENTS.md) | **The constitution.** Product + engineering standards, architecture philosophy, licensing rules, Definition of Done. Read first. |
 | [`/README.md`](../README.md) | Project front door and quick orientation. |
-| [`/CHANGELOG.md`](../CHANGELOG.md) | **Owner-facing** record of what changed on screen and why, per delivered roadmap item. |
+| [`/CHANGELOG.md`](../CHANGELOG.md) | **Owner-facing** record of what changed on screen and why. Versioned from `2.0.0`; earlier entries are grouped by date and roadmap item. |
 | **Product** | |
 | [`product/PRODUCT_PRINCIPLES.md`](product/PRODUCT_PRINCIPLES.md) | What DalyHub is, why it exists, how it should feel; meaning of every entity. |
 | [`product/PRODUCT_DEBT.md`](product/PRODUCT_DEBT.md) | Known inconsistencies and their target states, linked to roadmap items. |
@@ -31,8 +31,12 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md`](product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md) | The 2026-08 full-product daily-driver audit (UX-01): the documents reviewed, every finding by phase with severity, what was fixed, and what was deliberately left alone. |
 | [`product/IMPLEMENTATION_WORKFLOW.md`](product/IMPLEMENTATION_WORKFLOW.md) | The step-by-step lifecycle of every feature. |
 | [`product/X_04_EXPORT_AUDIT_2026_08.md`](product/X_04_EXPORT_AUDIT_2026_08.md) | The data-model audit taken before X-04's export was written: every persisted table and its authoritative repository, every lifecycle state and where it lives, the spine and EntityLink direction rules, Activity subjects, module child records, owner preferences, the exact Markdown-bearing fields, the existing single-record note export, what must never be exported, and the conclusions that shaped the design. |
+| **Release** | |
+| [`release/RELEASE_NOTES_V2.md`](release/RELEASE_NOTES_V2.md) | **DalyHub V2 (`2.0.0`) release notes** — what V2 is, the modules and workflows delivered, mobile and daily-driver usability, themes/Help/About, search and command actions, export and Obsidian portability, reliability/migration/accessibility, the known limitations, what is deferred to V2.1, and the owner's upgrade section. |
+| [`release/RELEASE_CHECKLIST_V2.md`](release/RELEASE_CHECKLIST_V2.md) | **The evidence behind the V2 release verdict** — every roadmap item, every primary module journey, mobile, accessibility, workspace isolation, migration safety, export integrity, CI status, deployment readiness, Help/About accuracy, documentation status and the Backup & Restore deferral, each with a test/file/PR reference and any limitation. Nothing is marked complete without evidence. |
 | **Roadmap** | |
-| [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of independently-implementable work items. |
+| [`roadmap/ROADMAP_V2.md`](roadmap/ROADMAP_V2.md) | The master, phased list of V2 work items — **closed** at the V2 release, with a reconciled scope-and-status table at the top. |
+| [`roadmap/ROADMAP_V2_1.md`](roadmap/ROADMAP_V2_1.md) | **What comes after V2**, and where new work goes: SET-02 backup & restore (V2.1's first item), the named remainders from shipped V2 modules, module completion, and the items that were never in V2's scope — with the build order. |
 | **Design** | |
 | [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md) | The shared interaction language every module reuses. |
 | [`design/THEME_ACCEPTANCE_MATRIX.md`](design/THEME_ACCEPTANCE_MATRIX.md) | What was actually verified for each of the five curated themes (THEME-01), with the evidence for every claim and an honest record of what was not checked. |
@@ -89,8 +93,12 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   ├── UX_01_IMPLEMENTATION_NOTE_2026_07_28.md
     │   ├── X_04_EXPORT_AUDIT_2026_08.md
     │   └── IMPLEMENTATION_WORKFLOW.md
+    ├── release/
+    │   ├── RELEASE_NOTES_V2.md
+    │   └── RELEASE_CHECKLIST_V2.md
     ├── roadmap/
-    │   └── ROADMAP_V2.md
+    │   ├── ROADMAP_V2.md            (closed at the V2 release)
+    │   └── ROADMAP_V2_1.md          (where new work goes)
     ├── design/
     │   ├── DESIGN_SYSTEM.md
     │   ├── THEME_ACCEPTANCE_MATRIX.md

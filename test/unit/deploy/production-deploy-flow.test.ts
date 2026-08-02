@@ -345,3 +345,68 @@ describe("the deploy entry points stay credential-free by construction", () => {
     );
   });
 });
+
+describe("the build identifier is recorded, optional, and never a channel for junk", () => {
+  it("normalises a full commit hash to the short form About renders", () => {
+    expect(
+      deploy.normaliseBuildCommit("9F2C1B7A4E5D6C8B0A1F2E3D4C5B6A7980ABCDEF"),
+    ).toBe("9f2c1b7");
+  });
+
+  it("treats an absent or malformed identifier as none, exactly as the renderer does", () => {
+    // The SAME rule `app/lib/version.ts` applies. Keeping them identical is the
+    // point: a value that passes the deploy guard is a value About will show, so
+    // a deploy can never succeed while silently shipping something the page drops.
+    for (const value of [
+      "",
+      "   ",
+      "not-a-hash",
+      "9f2c1b",
+      "zzzzzzz",
+      "9f2c1b7 extra",
+      "<script>alert(1)</script>",
+      undefined,
+      null,
+      42,
+    ]) {
+      expect(deploy.normaliseBuildCommit(value), String(value)).toBeNull();
+    }
+  });
+
+  it("writes BUILD_COMMIT into the generated config when there is one", () => {
+    const finalised = deploy.finaliseGeneratedConfig(flattenedConfig(), {
+      ...VALUES,
+      buildCommit: "9f2c1b7",
+    }) as { vars: Record<string, string> };
+    expect(finalised.vars.BUILD_COMMIT).toBe("9f2c1b7");
+  });
+
+  it("writes NO BUILD_COMMIT var at all when there is none", () => {
+    // Not an empty string: an empty var would read as "supplied but blank", and
+    // About would have to guess. Absent means absent, and About says so.
+    const finalised = deploy.finaliseGeneratedConfig(flattenedConfig(), {
+      ...VALUES,
+      buildCommit: null,
+    }) as { vars: Record<string, string> };
+    expect("BUILD_COMMIT" in finalised.vars).toBe(false);
+  });
+
+  it("defaults the identifier from the checkout, and survives a git failure", () => {
+    const fromGit = deploy.resolveBuildCommitFromGit(() => ({
+      status: 0,
+      stdout: "9f2c1b7a4e5d6c8b0a1f2e3d4c5b6a7980abcdef\n",
+    }));
+    expect(fromGit).toBe("9f2c1b7");
+
+    // Recording a commit is a convenience, never a gate: a non-git checkout or a
+    // failing git must not stop a deployment.
+    expect(
+      deploy.resolveBuildCommitFromGit(() => ({ status: 128 })),
+    ).toBeNull();
+    expect(
+      deploy.resolveBuildCommitFromGit(() => {
+        throw new Error("git is not installed");
+      }),
+    ).toBeNull();
+  });
+});

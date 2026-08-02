@@ -115,8 +115,14 @@ describe("quick add", () => {
     fireEvent.change(input(), { target: { value: "First" } });
     fireEvent.submit(input().closest("form")!);
 
+    // TWO eventual outcomes, so two waits. The field is cleared by a state update
+    // and refocused by an EFFECT gated on the save no longer being in flight, so
+    // focus returns one effect after the value empties. Awaiting only the clear and
+    // then asserting focus synchronously is a race the component always eventually
+    // wins — it just had not won yet, which is how this failed on CI while the
+    // behaviour was correct.
     await waitFor(() => expect(input().value).toBe(""));
-    expect(document.activeElement).toBe(input());
+    await waitFor(() => expect(document.activeElement).toBe(input()));
   });
 
   it("announces a save politely", async () => {

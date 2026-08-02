@@ -165,18 +165,37 @@ test.describe("PEOPLE-01 — the People foundation", () => {
     ).toBeVisible();
   });
 
-  test("no WCAG violations, 44px touch targets and no overflow from 320px up", async ({
-    page,
-  }) => {
-    const name = `${TITLE_PREFIX}${Date.now()}`;
-    const url = await createPerson(page, name);
+  /*
+   * DS-11 coverage, split into units that fit the per-test budget.
+   *
+   * This was ONE test doing a record creation, a touch-target check, EIGHTEEN
+   * navigations (nine viewports x collection + record) and an axe scan inside a
+   * single 30-second budget. It fitted on a fast runner and did not fit on a
+   * slower one, which made it a reliable-looking test that was one bad machine
+   * away from failing — reproduced deterministically during the V2 release
+   * closure, where it timed out in `page.goto` with nothing else running.
+   *
+   * The coverage below is IDENTICAL: the same viewports, the same overflow
+   * assertion on both surfaces, the same touch target, the same axe scan. Only
+   * the packaging changed, and it changed the way `responsive.spec.ts` already
+   * packages this matrix — one test per viewport. That is the same remedy the
+   * CI shard split uses, applied a level down: the budget only ever has to cover
+   * the worst UNIT, so make the unit smaller rather than the budget bigger.
+   *
+   * It also distributes: Playwright shards by test COUNT, so one 30-second test
+   * is indivisible across runners while nine small ones are not.
+   */
 
-    // Touch targets on the record header actions.
+  test("record header actions meet the 44px touch target", async ({ page }) => {
+    await createPerson(page, `${TITLE_PREFIX}${Date.now()}`);
     await expectMinTouchTarget(page.getByRole("tab", { name: "Summary" }));
+  });
 
-    // No horizontal overflow across the responsive matrix, on both the
-    // collection and the record.
-    for (const viewport of RESPONSIVE_VIEWPORTS) {
+  for (const viewport of RESPONSIVE_VIEWPORTS) {
+    test(`collection and record are overflow-free at ${viewport.label} (${viewport.width}px)`, async ({
+      page,
+    }) => {
+      const url = await createPerson(page, `${TITLE_PREFIX}${Date.now()}`);
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,
@@ -185,8 +204,10 @@ test.describe("PEOPLE-01 — the People foundation", () => {
       await expectNoHorizontalOverflow(page);
       await page.goto(url);
       await expectNoHorizontalOverflow(page);
-    }
+    });
+  }
 
+  test("the People collection has no WCAG violations", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoFixture(page, "/people");
     await expectNoAxeViolations(page);
