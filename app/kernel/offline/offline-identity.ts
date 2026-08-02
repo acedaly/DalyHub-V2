@@ -1,0 +1,112 @@
+/**
+ * PWA-04 — the offline identity + workspace namespace.
+ *
+ * Every byte DalyHub stores on a device is filed under ONE opaque key derived
+ * from three things: the authenticated subject, the workspace, and the offline
+ * schema version. That key is the isolation boundary on the device, mirroring the
+ * workspace isolation the server enforces in SQL (`ADR-003`, `ADR-010`).
+ *
+ * ── Why a digest and not the raw ids ─────────────────────────────────────────
+ * The obvious implementation is `${subject}:${workspaceId}`. It is rejected for
+ * two reasons:
+ *
+ *   1. It writes the Access `sub` and the workspace id into `IndexedDB`, where
+ *      any script on the origin, any devtools user and any future XSS can read
+ *      them. Neither is a credential, but neither is something to scatter around
+ *      a device either, and `SETTINGS` must be able to display "which identity is
+ *      this data for?" without showing an internal identifier.
+ *   2. It makes the key's length and shape depend on an email-like value, which
+ *      leaks the identity into storage-inspection surfaces.
+ *
+ * A SHA-256 digest of the three inputs gives a fixed-length opaque key that is
+ * stable for one identity + workspace + schema, and different for every other
+ * combination. It is NOT a secret and is not treated as one: it protects against
+ * mixing data, not against an attacker with the device.
+ *
+ * ── What this does NOT claim ─────────────────────────────────────────────────
+ * This is namespacing, not encryption. DalyHub does not encrypt browser storage
+ * and does not claim to: doing so honestly requires a key the device cannot
+ * silently hold, and the milestone explicitly forbids implying encryption that
+ * does not exist. Local data is protected by the device and browser's own
+ * security, and the product says exactly that in Settings.
+ */
+
+/** The offline database schema version. See `offline-schema.ts` for the ladder. */
+export const OFFLINE_SCHEMA_VERSION = 1;
+
+/** The prefix every namespace digest carries, so a stray key is recognisable. */
+const NAMESPACE_PREFIX = "dh1";
+
+/** How many hex characters of the digest are kept. 128 bits of the hash. */
+const NAMESPACE_DIGEST_LENGTH = 32;
+
+/**
+ * Derive the offline namespace for an identity + workspace + schema version.
+ *
+ * `subtle` is injected rather than reached for so this runs unchanged in the
+ * Worker (building a snapshot), in the browser (checking whether stored data
+ * belongs to the current session) and in a test.
+ */
+export async function deriveOfflineNamespace(
+  input: {
+    readonly subject: string;
+    readonly workspaceId: string;
+    readonly schemaVersion?: number;
+  },
+  subtle: Pick<SubtleCrypto, "digest"> = globalThis.crypto.subtle,
+): Promise<string> {
+  const schemaVersion = input.schemaVersion ?? OFFLINE_SCHEMA_VERSION;
+  if (!input.subject || !input.workspaceId) {
+    throw new Error(
+      "An offline namespace requires both an authenticated subject and a workspace.",
+    );
+  }
+  // NUL is the separator, written as an ESCAPE rather than a literal control
+  // character: a raw NUL in a source file makes git treat the whole file as
+  // binary, which silently destroys its diffs and its greppability.
+  //
+  // It is the separator because it is the one character that cannot appear in
+  // an Access subject or a workspace id, so ("a", "b c") and ("a b", "c")
+  // cannot be made to collide by moving it. A space would not do: both inputs
+  // can contain one.
+  const material =
+    `dalyhub-offline\u0000v${schemaVersion}` +
+    `\u0000${input.subject}\u0000${input.workspaceId}`;
+  const digest = await subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(material),
+  );
+  const hex = [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `${NAMESPACE_PREFIX}-${schemaVersion}-${hex.slice(0, NAMESPACE_DIGEST_LENGTH)}`;
+}
+
+/** True for a well-formed namespace produced by this module. */
+export function isOfflineNamespace(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    new RegExp(
+      `^${NAMESPACE_PREFIX}-\\d+-[0-9a-f]{${NAMESPACE_DIGEST_LENGTH}}$`,
+    ).test(value)
+  );
+}
+
+/**
+ * The schema version a namespace was minted for. Used to recognise data written
+ * by an older release before a migration decides what to do with it.
+ */
+export function namespaceSchemaVersion(namespace: string): number | null {
+  const match = /^dh1-(\d+)-[0-9a-f]+$/.exec(namespace);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * A short, non-identifying fragment safe to show in Settings ("this device holds
+ * offline data for …"). It is a prefix of the digest, never the subject, the
+ * email or the workspace id.
+ */
+export function namespaceDisplayFragment(namespace: string): string {
+  const parts = namespace.split("-");
+  return (parts[2] ?? "").slice(0, 8);
+}

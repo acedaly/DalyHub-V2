@@ -21,6 +21,35 @@ import {
 } from "./helpers";
 import { cleanupNoteByTitle, uniqueNoteTitle } from "./notes-fixtures";
 
+test.describe("touch targets — the offline surfaces (mobile)", () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  test("the offline capture and sync controls meet the 44px minimum", async ({
+    page,
+  }) => {
+    // The offline page renders OUTSIDE the app shell, so it does not inherit the
+    // shell's target sizing — these are its own, and they are the controls
+    // someone uses one-handed on a phone with no signal.
+    await gotoFixture(page, "/offline");
+    await expectMinTouchTarget(page.getByRole("button", { name: /Sync now/ }));
+  });
+
+  test("the Settings offline controls meet the minimum", async ({ page }) => {
+    await gotoFixture(page, "/settings?section=offline");
+    await expectMinTouchTarget(
+      page.getByRole("button", { name: /Refresh now|Refreshing/ }),
+    );
+    // The section's destructive controls ("Clear snapshot…", "Reset offline
+    // data…") are deliberately NOT asserted here. They are the shared
+    // `.dh-settings-danger-button`, which reaches the 44px minimum behind
+    // `@media (pointer: coarse)` rather than unconditionally — so under this
+    // file's plain viewport resize they measure the 36px control height, and
+    // asserting on them here would contradict the scope stated at the top of
+    // this file. Their offline-specific behaviour is covered by the offline
+    // lifecycle spec; their sizing belongs to the shared settings surface.
+  });
+});
+
 test.describe("touch targets — shell (mobile)", () => {
   test.use({ viewport: { width: 320, height: 720 } });
 

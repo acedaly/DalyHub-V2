@@ -88,6 +88,11 @@ const PRODUCT_ROUTES = [
   "/reviews",
   "/ai",
   "/settings",
+  // PWA — the Settings offline section (three destructive rows, a facts grid)
+  // and the offline surface, which renders OUTSIDE the app shell and therefore
+  // owns its own width behaviour and safe-area padding.
+  "/settings?section=offline",
+  "/offline",
   "/help",
 ] as const;
 

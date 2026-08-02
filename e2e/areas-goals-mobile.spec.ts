@@ -61,26 +61,66 @@ const MOBILE_CLEANUP_SQL = [
   `DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND id IN (${MOBILE_ENTITY_QUERY});`,
 ] as const;
 
-function cleanupMobileFixtures() {
+/**
+ * `wrangler d1 execute` opens the local SQLite file from a SEPARATE process
+ * while the development server still holds it, so a cleanup statement can lose
+ * the race and come back `SQLITE_BUSY: database is locked`. That is a lock
+ * contention, not a failed delete: the same statement succeeds moments later.
+ *
+ * This mirrors the retry `assets-fixtures.ts` and `meetings-fixtures.ts` already
+ * apply to their own cleanups — this cleanup simply never got it, and failed CI
+ * on an unrelated pull request as a result.
+ */
+function isTransientD1Error(output: string): boolean {
+  return (
+    output.includes("SQLITE_BUSY") ||
+    output.includes("FOREIGN KEY constraint failed")
+  );
+}
+
+async function runCleanupCommand(command: string): Promise<void> {
+  const attempts = 5;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      execFileSync(
+        "pnpm",
+        [
+          "exec",
+          "wrangler",
+          "d1",
+          "execute",
+          "DB",
+          "--local",
+          "--command",
+          command,
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
+          stdio: "pipe",
+        },
+      );
+      return;
+    } catch (error) {
+      const err = error as {
+        message?: string;
+        stdout?: unknown;
+        stderr?: unknown;
+      };
+      const output = [err.message, err.stdout, err.stderr]
+        .map((part) => String(part ?? ""))
+        .join("\n");
+      // A non-transient failure still throws: a cleanup that genuinely cannot
+      // delete its fixtures must fail loudly, or the next run inherits them.
+      if (attempt === attempts || !isTransientD1Error(output)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    }
+  }
+}
+
+async function cleanupMobileFixtures(): Promise<void> {
   for (const command of MOBILE_CLEANUP_SQL) {
-    execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "d1",
-        "execute",
-        "DB",
-        "--local",
-        "--command",
-        command,
-      ],
-      {
-        cwd: process.cwd(),
-        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-        stdio: "pipe",
-      },
-    );
+    await runCleanupCommand(command);
   }
 }
 

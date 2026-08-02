@@ -43,6 +43,83 @@ no version number to group them under.
   The same treatment applies to the section list in Settings, and to every theme,
   not just the new ones.
 
+### Added — installation and offline support
+
+DalyHub can now be installed as an app and keeps working when your connection
+does not. Full detail:
+[`PWA_AND_OFFLINE.md`](docs/development/PWA_AND_OFFLINE.md).
+
+**This has not been tested on a physical iPhone, iPad or installed desktop app
+yet.** The steps to do that are written down, and until they have been worked
+through, treat the offline behaviour below as built and automatically tested but
+not device-verified.
+
+- **Install DalyHub as an app.** It gets its own icon, opens in its own window
+  without browser chrome, and starts without a tab. On iPhone and iPad this is
+  Safari's Share → Add to Home Screen; Settings → Offline & app gives the exact
+  steps rather than pretending a button can do it. On Chrome and Edge, Settings
+  offers an **Install** button.
+- **The browser and app window take on your theme's colour.** Whichever of the
+  seven themes you are using, an installed DalyHub's window chrome matches the
+  page instead of framing it.
+- **A real DalyHub app icon**, at every size a browser or device asks for — the
+  tab favicon, the iPhone home screen and the Android adaptive icon. It keeps the
+  hub mark you already see in the sidebar, redrawn so it stays legible at 16
+  pixels.
+- **DalyHub opens without a connection**, once you have opened it online while
+  signed in at least once on that device. Instead of the browser's error page you
+  get DalyHub's offline surface.
+- **A seven-day offline snapshot.** Tasks due, scheduled or overdue around today
+  — including the ones you are **waiting on someone else for**; anything you
+  completed in the last week; notes and diary entries from the last week, as
+  excerpts; and meetings in the surrounding fortnight — with the project, area and
+  person names those records need. You can search, filter and sort all of it with
+  no connection.
+- **Capture without a connection.** A new Inbox task, a quick note or a diary
+  entry can be captured offline. It waits on your device and reaches DalyHub when
+  a connection returns — **exactly once**, even if the connection drops
+  mid-attempt.
+- **A calm connection status.** Nothing is shown while everything is working.
+  When something is wrong it says which: no connection, sign-in expired, DalyHub
+  unavailable, or work waiting to sync — always in words, never colour alone.
+- **Settings → Offline & app.** Whether DalyHub is installed, what is stored on
+  this device, when it last synchronised, roughly how much space it uses, how many
+  captures are waiting, and which sign-in the data belongs to. Plus three separate
+  controls — clear the cached copy, discard queued captures, or reset everything —
+  each explaining exactly what it removes.
+- **An honest note about what this data is.** DalyHub does **not** encrypt what it
+  stores on your device; it relies on your device and browser's own protection.
+  And having offline data is not the same as being signed in — anything that
+  touches the server still needs a valid DalyHub sign-in.
+
+### Changed — offline behaviour
+
+- Your sign-in still expires the way it always did. When it does, anything you
+  captured offline stays safe on the device and syncs after you sign in again —
+  DalyHub stops retrying rather than repeatedly bouncing you to the sign-in page.
+- **Closing a tab mid-sync no longer strands a capture.** A capture that was
+  being sent when DalyHub was closed used to sit on the device showing
+  "Synchronising…" with nothing able to move it. It now returns to the queue by
+  itself and syncs on the next connection.
+- **A capture whose result DalyHub genuinely cannot determine now says so.** In
+  the rare case where the server stopped mid-creation, DalyHub asks you to check
+  whether the capture arrived instead of quietly creating a second copy.
+- **A record from earlier in the day is no longer dropped from the offline copy.**
+  Retention now measures dates in your own timezone rather than UTC, so a note or
+  diary entry from the first morning of the window stays where you expect it.
+
+### Known limitations — offline
+
+- You cannot **edit, complete or delete** existing records offline. That needs a
+  design for what happens when two versions disagree, which has deliberately not
+  been rushed.
+- Notes and diary entries are stored as excerpts, not in full.
+- Signing out does not automatically clear this device's offline data — use
+  Settings → Reset offline data.
+- A waiting task with no due or scheduled date is not stored offline: the same
+  seven-day rule applies to it as to every other task, and an undated task has no
+  date to place inside that window.
+
 ---
 
 ## 2.0.1 — Hotfix & release hardening (2026-08-02)

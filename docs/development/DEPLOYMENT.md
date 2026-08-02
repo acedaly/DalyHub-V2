@@ -258,6 +258,35 @@ no backfill step. The consequences for a deployment:
 - **No scheduler, cron trigger or queue is introduced.** Obligation urgency is
   computed at READ time, which is precisely why none is needed.
 
+### PWA / offline (migration `0027`) — deployment notes
+
+`0027_create_offline_capture_receipts.sql` is **purely additive and
+existing-data-safe**: one new table plus one index. No existing table is
+rebuilt, no column is added to an existing table, and no existing row is read
+or rewritten.
+
+The table exists solely to make a replayed OFFLINE capture idempotent, so it is
+written only when a device replays a queued capture. A deployment that never
+sees an offline capture never writes a row.
+
+- **Migrate-then-deploy and deploy-then-migrate are both safe.** The previous
+  application version does not know the table exists, so applying `0027` ahead
+  of the deploy leaves production working unchanged. Deploying the application
+  first is also safe with one honest caveat: until the migration is applied, a
+  REPLAYED offline capture fails (the create route's claim insert errors) and
+  the capture stays queued on the device with its reason. Nothing is lost and
+  nothing is duplicated — but prefer migrate-then-deploy so no owner sees it.
+- **Rolling back the APPLICATION with the migration applied is safe.** The prior
+  version never reads the table. Nothing needs to be un-migrated.
+- **No new bindings, secrets, environment variables or external services.** The
+  offline milestone runs entirely on the existing D1 binding.
+- **No scheduler, cron trigger or queue.** Sync is driven by the device.
+- **The service worker is the one part that outlives a rollback.** Deploying a
+  previous release does not remove an installed worker from a device: it keeps
+  serving its cached shell assets. Rolling the PWA back therefore also means
+  unregistering it — see
+  [`PWA_AND_OFFLINE.md` → Rollback](PWA_AND_OFFLINE.md#rollback).
+
 ### NOTES-05 knowledge completion — deployment notes (no migration)
 
 The Notes knowledge completion (`dalyhub://` record links, backlink
@@ -349,8 +378,11 @@ from any shared machine afterwards: they contain the whole workspace.
 
 **The gap, stated once.** Production has migrations **`0001`–`0005`** applied
 (verified 2026-07-18 — see [Verified production deployment](#verified-production-deployment-2026-07-18)).
-The V2 release ships **`0025`**. So going live is a **twenty-migration step**,
-`0006` through `0025`, over a database that already holds the owner's data.
+The V2 release shipped **`0025`**; THEME-02 added **`0026`** and the PWA/offline
+milestone adds **`0027`**. So going live is a **twenty-two-migration step**,
+`0006` through `0027`, over a database that already holds the owner's data.
+(`0027` is a single new table — see
+[its note above](#pwa--offline-migration-0027--deployment-notes).)
 
 **Every migration in that range is additive and existing-data-safe.** No column
 changes type, gains a narrowing constraint, or is dropped; no row of any table that

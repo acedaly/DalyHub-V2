@@ -9,8 +9,9 @@ import { beforeAll, describe, expect, it } from "vitest";
  * migration over data shaped for it. None of them answers the question a deployment
  * actually asks, which is the whole sequence at once against the schema production
  * is really on. Production has migrations **`0001`–`0005`** applied (verified
- * 2026-07-18; see `docs/development/DEPLOYMENT.md`), so V2 is a twenty-one-migration
- * step — `0006` through `0026` — over a live database with real rows in it.
+ * 2026-07-18; see `docs/development/DEPLOYMENT.md`), so V2 is a
+ * twenty-two-migration step — `0006` through `0027` — over a live database with
+ * real rows in it.
  *
  * So this test does exactly that, against a database that is NOT empty:
  *
@@ -205,6 +206,9 @@ describe("production baseline (0001-0005) → V2 (committed head)", () => {
     // rebuild over a populated table, so it is named explicitly here: this test is
     // the one that proves the whole sequence survives real rows.
     expect(names.some((name) => name.startsWith("0026"))).toBe(true);
+    // PWA-05 added `0027`, the offline capture receipts. Named for the same
+    // reason: this test is where a migration proves it survives real rows.
+    expect(names.some((name) => name.startsWith("0027"))).toBe(true);
   });
 
   it("loses no entity, and rewrites none of them", async () => {

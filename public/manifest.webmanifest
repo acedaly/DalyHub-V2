@@ -1,0 +1,48 @@
+{
+  "id": "/",
+  "name": "DalyHub",
+  "short_name": "DalyHub",
+  "description": "A calm personal operating system — tasks, projects, notes, meetings, people and diary in one place.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#faf9f7",
+  "background_color": "#faf9f7",
+  "lang": "en-AU",
+  "dir": "ltr",
+  "categories": ["productivity", "personalization"],
+  "icons": [
+    {
+      "src": "/icons/dalyhub-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

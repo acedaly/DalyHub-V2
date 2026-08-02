@@ -26,6 +26,7 @@ import {
   compensateCapturedRecord,
   validateCaptureContextForCreate,
 } from "~/platform/capture/capture-context.server";
+import { readIdempotencyKey, withReplayGuard } from "~/platform/offline";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -51,16 +52,13 @@ function json(data: CreateNoteResult, status = 200): Response {
   });
 }
 
-export async function action({ request, context }: Route.ActionArgs) {
-  if (request.method !== "POST") {
-    throw new Response("Method Not Allowed", { status: 405 });
-  }
-  const session = requireAuthenticatedSession(context);
-  const form = await request.formData();
+/** Create the note. Unchanged NOTES-01B behaviour, extracted so the PWA-05
+ * replay guard can wrap it without touching how a note is created. */
+async function handleCreate(
+  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+  form: FormData,
+): Promise<CreateNoteResult> {
   const title = String(form.get("title") ?? "");
-
-  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-
   try {
     const captureContext = await validateCaptureContextForCreate(
       scope,
@@ -76,22 +74,49 @@ export async function action({ request, context }: Route.ActionArgs) {
         note.id,
         "note",
       );
-      return json({
+      return {
         ok: false,
         createdId: note.id,
         formError: compensated
           ? "The note couldn’t be linked to that context, so it was not kept. Try again from the record or create it without the context."
           : "The note was created but could not be linked to that context. Open the note and link it manually.",
-      });
+      };
     }
-    return json({ ok: true, noteId: note.id });
+    return { ok: true, noteId: note.id };
   } catch (cause) {
     if (cause instanceof EntityValidationError) {
-      return json({ ok: false, fieldErrors: { title: cause.message } });
+      return { ok: false, fieldErrors: { title: cause.message } };
     }
-    return json({
+    return {
       ok: false,
       formError: "That note couldn’t be created. Please try again.",
-    });
+    };
   }
+}
+
+export async function action({ request, context }: Route.ActionArgs) {
+  if (request.method !== "POST") {
+    throw new Response("Method Not Allowed", { status: 405 });
+  }
+  const session = requireAuthenticatedSession(context);
+  const form = await request.formData();
+  const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+  // PWA-05 — a replayed offline capture carries the key it was queued with, so a
+  // retry returns the already-created note instead of creating a second one.
+  return json(
+    await withReplayGuard(
+      {
+        db: env.DB,
+        workspaceId: scope.context.workspaceId,
+        ownerSubject: session.user.subject,
+        kind: "note",
+        now: new Date(),
+      },
+      readIdempotencyKey(form),
+      () => handleCreate(scope, form),
+      (result) => (result.ok ? result.noteId : null),
+      (noteId) => ({ ok: true, noteId }),
+      (reason) => ({ ok: false, formError: reason }),
+    ),
+  );
 }

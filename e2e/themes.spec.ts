@@ -108,10 +108,23 @@ function appliedTheme(page: Page) {
   return page.locator("html");
 }
 
+/**
+ * The theme picker's own live region.
+ *
+ * Scoped to the picker rather than matched page-wide: PWA-03 added a second
+ * `role="status"` to the shell for the connection state, so an unscoped
+ * `getByRole("status")` is now ambiguous. Scoping is the more precise assertion
+ * anyway — it proves the PICKER announced the change, not merely that something
+ * on the page did.
+ */
+function themeStatus(page: Page) {
+  return page.locator(".dh-theme-picker").getByRole("status");
+}
+
 /** Choose a theme through the Settings picker, exactly as an owner would. */
 async function chooseTheme(page: Page, name: string): Promise<void> {
   await page.getByRole("button", { name, exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(`Using ${name}`);
+  await expect(themeStatus(page)).toContainText(`Using ${name}`);
 }
 
 test.afterEach(async ({ request }) => {
@@ -348,9 +361,9 @@ test.describe("THEME-01 accessibility of the picker", () => {
     page,
   }) => {
     await gotoFixture(page, "/settings?section=appearance");
-    await expect(page.getByRole("status")).toBeVisible();
+    await expect(themeStatus(page)).toBeVisible();
     await chooseTheme(page, "Coastal");
-    await expect(page.getByRole("status")).toContainText("Using Coastal");
+    await expect(themeStatus(page)).toContainText("Using Coastal");
   });
 
   test("keeps the priority chips readable as text in the dark theme", async ({

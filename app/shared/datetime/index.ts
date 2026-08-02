@@ -55,6 +55,51 @@ export function ownerCalendarIso(
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
+/**
+ * A reusable "instant → the owner's calendar date" function for one timezone.
+ *
+ * `ownerCalendarIso` builds an `Intl.DateTimeFormat` on every call, which is the
+ * right shape for the once-per-request use it was written for and the wrong one
+ * for a loop: the offline snapshot resolves a calendar date for every record it
+ * stores, hundreds at a time, on a phone. This binds the formatter once.
+ *
+ * It also accepts the ISO string form directly, because the callers that need it
+ * in bulk are reading stored records rather than holding `Date` objects. A value
+ * that is not a usable instant resolves to `null` rather than to a plausible
+ * wrong date.
+ *
+ * An unusable timezone falls back to the UTC reading instead of throwing. That
+ * is wrong by at most one day at a day boundary, which is strictly better than
+ * failing whatever the caller was doing — and every caller here is doing
+ * something (storing a snapshot, pruning) that must not be lost to a bad
+ * preference value.
+ */
+export function ownerCalendarDateResolver(
+  timeZone: string = OWNER_TIME_ZONE,
+): (value: Date | string | null | undefined) => string | null {
+  let formatter: Intl.DateTimeFormat | null;
+  try {
+    formatter = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone,
+    });
+  } catch {
+    formatter = null;
+  }
+  return (value) => {
+    if (value === null || value === undefined) return null;
+    const at = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(at.getTime())) return null;
+    if (formatter === null) return at.toISOString().slice(0, 10);
+    const parts = formatter.formatToParts(at);
+    const get = (type: string) =>
+      parts.find((part) => part.type === type)?.value ?? "";
+    return `${get("year")}-${get("month")}-${get("day")}`;
+  };
+}
+
 /** A local wall-clock, as the value a native `datetime-local` control uses. */
 const LOCAL_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 

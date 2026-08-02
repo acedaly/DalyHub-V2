@@ -154,6 +154,34 @@ spans every module and must not depend on any of them ([X-04](../roadmap/ROADMAP
   the sequence is not an atomic point-in-time snapshot. Every output says so.
 - **Full detail.** [`docs/development/EXPORT_AND_PORTABILITY.md`](../development/EXPORT_AND_PORTABILITY.md).
 
+### Offline: a read-only snapshot and an append-only queue, on the device
+
+Offline support spans every module, so like export it is a kernel concern rather
+than a module one ([ADR-066](../decisions/ARCHITECTURE_DECISIONS.md#adr-066-a-read-only-offline-snapshot-an-append-only-capture-queue-and-a-service-worker-that-caches-exactly-one-html-document)).
+
+- **The offline kernel** (`app/kernel/offline`) holds the storage- and
+  platform-independent contracts: the seven-day retention window (calendar
+  arithmetic in the owner's timezone, never millisecond subtraction), the
+  minimised snapshot shape, the append-only queue model, the connection-state
+  machine, the identity namespace and the IndexedDB schema ladder. It imports no
+  IndexedDB, D1, React or `fetch`.
+- **The server half** (`app/platform/offline`) builds the snapshot through the
+  SAME workspace-bound repositories every online loader uses — so a snapshot
+  cannot see across the FND-03 isolation boundary — and owns the idempotency
+  receipts that make a replayed offline capture safe.
+- **The browser half** (`app/shared/offline`) is the only code that touches
+  IndexedDB, `caches` and the service worker. Every read and write is namespaced
+  by `sha256(subject | workspaceId | schemaVersion)`, so neither the Access
+  subject nor the workspace id is written to a device and a second sign-in on the
+  same profile cannot see the first's records.
+- **Exactly one HTML document is cacheable** — `/offline`, whose loader resolves
+  no workspace scope and reads no repository. Every other document, every
+  React Router `.data` response and every API surface is never cached.
+- **Replay uses the modules' own create routes** (`/tasks/new`, `/notes/new`,
+  `/diary/new`) with an idempotency key, so there is no second creation
+  authority.
+- **Full detail.** [`docs/development/PWA_AND_OFFLINE.md`](../development/PWA_AND_OFFLINE.md).
+
 ---
 
 ## Modules (userland)

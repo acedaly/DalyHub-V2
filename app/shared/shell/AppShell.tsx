@@ -40,6 +40,11 @@ import type { ShortcutBinding } from "~/shared/commands/useCommandShortcuts";
 
 import { FeedbackProvider } from "~/shared/feedback";
 import { CaptureProvider, useCapture } from "~/shared/capture";
+// Imported from the specific modules rather than the `~/shared/offline` barrel.
+// The barrel also exports the Settings panel and the snapshot view, and a barrel
+// import pulls their whole graph into the SHELL — which every page loads.
+import { ConnectionStatus } from "~/shared/offline/ConnectionStatus";
+import { OfflineProvider } from "~/shared/offline/OfflineProvider";
 import { useKeyboardInset } from "~/shared/viewport";
 
 import { BottomNav } from "./BottomNav";
@@ -237,97 +242,109 @@ export function AppShell({
 
   return (
     <FeedbackProvider>
-      <CommandContextProvider>
-        <CaptureProvider>
-          <MobileTopBarProvider>
-            <CommandShortcutLayer
-              reserved={reservedShortcuts}
-              fallback={fallbackShortcuts}
-            />
-            <div className="dh-app">
-              <a className="skip-link" href="#main-content">
-                Skip to main content
-              </a>
-
-              <Sidebar
-                workspaceName={workspaceName}
-                email={email}
-                theme={theme}
-                navigation={navigation}
-                settingsHref="/settings"
-                navId={RAIL_NAV_ID}
-                variant="rail"
-                onOpenSearch={openSearch}
-                onOpenCommand={openCommand}
+      {/* PWA-03 — ONE offline/connection context for the authenticated session.
+       * It registers the service worker, owns the connection-state machine and
+       * holds the device's snapshot + capture queue. It wraps the shell (rather
+       * than a page) because the status surface, the capture sheet and the
+       * Settings panel all read the same state, and because registration must
+       * survive navigation between modules. */}
+      <OfflineProvider>
+        <CommandContextProvider>
+          <CaptureProvider>
+            <MobileTopBarProvider>
+              <CommandShortcutLayer
+                reserved={reservedShortcuts}
+                fallback={fallbackShortcuts}
               />
+              <div className="dh-app">
+                <a className="skip-link" href="#main-content">
+                  Skip to main content
+                </a>
 
-              <div className="dh-main-col">
-                {/* A `header` so the phone bar’s title and actions are contained by a
-                landmark (the `banner`) on mobile, where the rail sidebar banner is
-                hidden — otherwise its content sits outside every landmark (WCAG
-                region, DS-11). On desktop this bar is `display:none` and ignored. */}
-                <MobileTopBar
-                  workspaceName={workspaceName}
-                  onOpenSearch={openSearch}
-                />
-
-                <main id="main-content" className="dh-pane" tabIndex={-1}>
-                  {children}
-                </main>
-              </div>
-
-              {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
-              desktop rail experience is byte-for-byte unchanged. */}
-              <ShellBottomNav
-                navigation={navigation}
-                onOpenMore={openMoreNavigation}
-                moreOpen={navOpen}
-              />
-
-              {navOpen ? (
-                <MobileNav
+                <Sidebar
                   workspaceName={workspaceName}
                   email={email}
                   theme={theme}
                   navigation={navigation}
                   settingsHref="/settings"
-                  opener={navOpener}
-                  onClose={closeMoreNavigation}
+                  navId={RAIL_NAV_ID}
+                  variant="rail"
                   onOpenSearch={openSearch}
                   onOpenCommand={openCommand}
                 />
-              ) : null}
 
-              {searchOpen ? (
-                <Suspense fallback={null}>
-                  <SearchSurface
-                    onClose={closeSearch}
-                    opener={searchOpenerRef.current}
+                <div className="dh-main-col">
+                  {/* A `header` so the phone bar’s title and actions are contained by a
+                landmark (the `banner`) on mobile, where the rail sidebar banner is
+                hidden — otherwise its content sits outside every landmark (WCAG
+                region, DS-11). On desktop this bar is `display:none` and ignored. */}
+                  <MobileTopBar
+                    workspaceName={workspaceName}
+                    onOpenSearch={openSearch}
                   />
-                </Suspense>
-              ) : null}
 
-              {commandOpen ? (
-                <Suspense fallback={null}>
-                  <CommandPalette
-                    onClose={closeCommand}
-                    opener={commandOpenerRef.current}
-                  />
-                </Suspense>
-              ) : null}
+                  <main id="main-content" className="dh-pane" tabIndex={-1}>
+                    {/* PWA-03 — the calm connection/sync surface. It renders
+                  NOTHING while DalyHub is online, up to date and has nothing
+                  queued: the absence of a warning is the healthy state. */}
+                    <ConnectionStatus className="dh-pane__connection" />
+                    {children}
+                  </main>
+                </div>
 
-              {shortcutsOpen ? (
-                <Suspense fallback={null}>
-                  <KeyboardShortcutsSheet
-                    onClose={closeShortcuts}
-                    opener={shortcutsOpenerRef.current}
+                {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
+              desktop rail experience is byte-for-byte unchanged. */}
+                <ShellBottomNav
+                  navigation={navigation}
+                  onOpenMore={openMoreNavigation}
+                  moreOpen={navOpen}
+                />
+
+                {navOpen ? (
+                  <MobileNav
+                    workspaceName={workspaceName}
+                    email={email}
+                    theme={theme}
+                    navigation={navigation}
+                    settingsHref="/settings"
+                    opener={navOpener}
+                    onClose={closeMoreNavigation}
+                    onOpenSearch={openSearch}
+                    onOpenCommand={openCommand}
                   />
-                </Suspense>
-              ) : null}
-            </div>
-          </MobileTopBarProvider>
-        </CaptureProvider>
-      </CommandContextProvider>
+                ) : null}
+
+                {searchOpen ? (
+                  <Suspense fallback={null}>
+                    <SearchSurface
+                      onClose={closeSearch}
+                      opener={searchOpenerRef.current}
+                    />
+                  </Suspense>
+                ) : null}
+
+                {commandOpen ? (
+                  <Suspense fallback={null}>
+                    <CommandPalette
+                      onClose={closeCommand}
+                      opener={commandOpenerRef.current}
+                    />
+                  </Suspense>
+                ) : null}
+
+                {shortcutsOpen ? (
+                  <Suspense fallback={null}>
+                    <KeyboardShortcutsSheet
+                      onClose={closeShortcuts}
+                      opener={shortcutsOpenerRef.current}
+                    />
+                  </Suspense>
+                ) : null}
+              </div>
+            </MobileTopBarProvider>
+          </CaptureProvider>
+        </CommandContextProvider>
+      </OfflineProvider>
     </FeedbackProvider>
   );
 }
