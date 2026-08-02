@@ -585,11 +585,11 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       {
         id: "themes",
         title: "Themes and Settings",
-        lead: "Five themes, and the defaults that shape how DalyHub opens.",
+        lead: "Seven themes, and the defaults that shape how DalyHub opens.",
         blocks: [
           {
             kind: "text",
-            text: "Settings → Appearance offers five themes: Daly Light, Daly Dark, Eucalypt, Coastal and Ember, plus Match system, which follows your device between Daly Light and Daly Dark. A theme applies straight away and is saved to your account, so it follows you to any browser you sign in from.",
+            text: "Settings → Appearance offers seven themes: Daly Light, Daly Dark, Modern Light, Modern Dark, Eucalypt, Coastal and Ember, plus Match system, which follows your device between Daly Light and Daly Dark. Modern Light and Modern Dark are a matched pair — the same layout, one bright and one dimmed — so you can move between them by time of day without anything moving. A theme applies straight away and is saved to your account, so it follows you to any browser you sign in from.",
           },
           {
             kind: "text",

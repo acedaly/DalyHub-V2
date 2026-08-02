@@ -62,6 +62,56 @@ file does not restate it; it records the target release and the sequence.
 
 ---
 
+## Delivered after V2.0.1
+
+*Work that landed against this file rather than against ROADMAP_V2, recorded here so
+the V2 record stays closed.*
+
+### ☑ THEME-02 — The Modern visual system
+
+- **Why it exists.** V2 shipped five curated themes, but the light/dark story was
+  "Daly Light, or the Daly Dark that `system` pairs it with". THEME-02 adds the one
+  thing the registry did not have: a **matched pair** designed together, so the owner
+  can move between a bright and a dimmed treatment of the *same* visual system by time
+  of day and have nothing about the application move.
+- **What shipped.**
+  - **Modern Light** (`modern-light`) — a warm cream page, near-white panels,
+    genuinely white cards, teal as the primary accent and blue as the informational
+    one, with green/orange/red held back for meaning. Soft realistic shadows, quiet
+    borders, and a near-white navigation surface so the rail sits inside the
+    application rather than beside it.
+  - **Modern Dark** (`modern-dark`) — deep charcoal with four clearly separated
+    elevations (`sunken < bg < card < raised`), a controlled indigo accent, violet
+    confined to the waiting state and one chart series, and no glow on ordinary
+    interactive elements.
+  - **Two new semantic tokens, in every theme:** `nav-selected-surface` and
+    `nav-selected-text` — the selected-navigation treatment, split out of the generic
+    `accent-surface` tint so a theme can control "you are here" without moving every
+    tinted panel with it. The sidebar and the Settings section list both consume them.
+  - **A shell refinement that applies to all seven themes:** the rail is separated by
+    the divider token rather than the full border token, and the selected row gains a
+    leading indicator bar (shape, mirroring the phone bar's top indicator) alongside
+    its existing `aria-current`, weight and tint.
+  - **Migration `0026`** widens the `owner_app_preferences.theme` CHECK so the two new
+    ids can be persisted. A rebuild, because SQLite cannot alter a CHECK in place —
+    additive in effect, copied by explicit column list, no stored value rewritten.
+- **What it deliberately did not do.** It did not redesign the information
+  architecture, replace working functionality, restructure a module, change the type
+  or spacing scales, or add a Today widget the product does not already have. It is a
+  visual-system and theme change applied to the existing product.
+- **Evidence.**
+  [`THEME_ACCEPTANCE_MATRIX.md → section 8`](../design/THEME_ACCEPTANCE_MATRIX.md#8-theme-02--the-modern-pair)
+  records what was verified and how, including the screenshot pass in
+  [`docs/design/assets/theme-02-2026-08/`](../design/assets/theme-02-2026-08).
+- **Recommended follow-up, not done here.** The registry is now seven themes plus
+  `system`, which is more choice than one person needs. A consolidation
+  recommendation is recorded as **DEBT-67** in
+  [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) rather than acted on, because
+  removing a theme takes a choice away from an owner who may already be on it and
+  that is not a decision to make inside a change that was meant to add one.
+
+---
+
 ## V2.1 — Recoverability
 
 *The one thing V2 knowingly does not give the owner: a way to get their data back
@@ -308,9 +358,9 @@ because a reader would otherwise wonder whether it was forgotten:
   - editing a queued capture before retrying it;
   - full note and diary bodies offline (excerpts only today);
   - a pinning capability for records outside the seven-day window;
-  - [DEBT-67](../product/PRODUCT_DEBT.md) — logout does not clear local data;
-  - [DEBT-68](../product/PRODUCT_DEBT.md) — capture receipts are never pruned;
-  - [DEBT-69](../product/PRODUCT_DEBT.md) — hydrated offline rendering is not
+  - [DEBT-68](../product/PRODUCT_DEBT.md) — logout does not clear local data;
+  - [DEBT-69](../product/PRODUCT_DEBT.md) — capture receipts are never pruned;
+  - [DEBT-70](../product/PRODUCT_DEBT.md) — hydrated offline rendering is not
     covered by automation.
 - **Still out of scope, and still deliberately so.** Collaborative or real-time
   sync, background/periodic sync, push notifications, attachment

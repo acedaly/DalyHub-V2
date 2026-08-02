@@ -611,7 +611,7 @@ The milestone is additive. To roll back:
    installed worker persists and keeps serving cached assets — so also
    **unregister** it, either by shipping a `/sw.js` whose `install` calls
    `self.registration.unregister()`, or by having owners clear site data.
-2. **Migration `0026` can stay.** It is one new table with no reader outside the
+2. **Migration `0027` can stay.** It is one new table with no reader outside the
    offline queue; leaving it is inert. Dropping it is safe only if no queued
    capture is mid-replay.
 3. **Local data can be left in place.** It is namespaced by schema version, so a

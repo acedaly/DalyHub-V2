@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-import { mobileNavigationOpener } from "./helpers";
+import { gotoFixture, mobileNavigationOpener } from "./helpers";
 
 /**
  * DS-09 Command Palette — driven end to end against the development-auth server.
@@ -12,6 +12,28 @@ import { mobileNavigationOpener } from "./helpers";
  * the Today Quick Capture focus command, contextual actions, and the Card adapter —
  * plus the execution/failure states via the `/design/command-palette` fixture.
  * Role-based and non-brittle.
+ *
+ * ── Which wait belongs where ─────────────────────────────────────────────────
+ * Several of these tests fire a GLOBAL KEYBOARD SHORTCUT (`/`, `Mod+K`) as their
+ * first interaction, and a keypress is a ONE-SHOT event: pressed before React
+ * attaches `CommandShortcutLayer`, it is swallowed and there is nothing to retry,
+ * so the surface never opens. A network settle proves the network is quiet, not
+ * that the document is interactive. (Observed in CI on 2026-08-02: "is mutually
+ * exclusive with Search" pressed `/` and the Search combobox never appeared.
+ * Clicking tests were unaffected — Playwright retries a click until it is
+ * actionable.)
+ *
+ * So the two waits are used deliberately, and they are NOT interchangeable:
+ *
+ *   - ENTERING a journey → `gotoFixture`, which settles AND waits for the
+ *     `[data-hydrated]` marker. This is the gate that makes a first keypress safe.
+ *   - MID-journey, after a command has navigated → a plain settle. The marker is
+ *     published only by Today and the design routes, so waiting for it on Projects,
+ *     Areas, Goals or Diary hits the document-swap race `waitForInteractive`'s own
+ *     comment describes: the count sees the outgoing document's marker and the
+ *     assertion then finds nothing on the one we landed on. (Also observed in CI on
+ *     2026-08-02, from over-applying the fix above.) By that point the journey has
+ *     already driven the palette, so the dispatcher is attached regardless.
  */
 
 async function hasNoHorizontalOverflow(page: Page) {
@@ -29,6 +51,11 @@ function palette(page: Page) {
   return page.getByRole("combobox", { name: "Search commands and records" });
 }
 
+// A settle, NOT `waitForInteractive`: this helper is also called mid-journey,
+// after a command has navigated to another module, and the hydration marker is
+// published only by Today and the design routes. It does not need the stronger
+// gate anyway — it CLICKS the trigger, and Playwright retries a click until the
+// target is actionable.
 async function openPalette(page: Page) {
   await page.waitForLoadState("networkidle");
   await commandTrigger(page).click();
@@ -62,8 +89,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
   });
 
   test("opens with Mod+K and closes with a second Mod+K", async ({ page }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.keyboard.press("ControlOrMeta+k");
     await expect(palette(page)).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
@@ -211,8 +237,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
   });
 
   test("is mutually exclusive with Search", async ({ page }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.keyboard.press("/");
     await expect(
       page.getByRole("combobox", { name: "Search everything" }),
@@ -228,8 +253,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
   test("opens over an existing Drawer and keeps it behind", async ({
     page,
   }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.getByRole("link", { name: "Finish PX-02" }).first().click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
@@ -247,8 +271,7 @@ test.describe("DS-09 Command Palette — mobile 320px", () => {
   test("opens from the mobile navigation without horizontal overflow", async ({
     page,
   }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await mobileNavigationOpener(page).click();
     await page
       .getByRole("dialog", { name: "Navigation" })
@@ -288,8 +311,7 @@ test.describe("DS-09 Command Palette — reduced motion", () => {
 
 test.describe("DS-09 Command Palette — execution & failure states (design fixture)", () => {
   async function openFixturePalette(page: Page) {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
     await expect(input).toBeVisible();
@@ -308,8 +330,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   });
 
   test("shows a failure with a Retry that re-invokes", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Failure", exact: true }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -321,8 +342,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   });
 
   test("blocks a duplicate activation while pending", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Pending (hang)" }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -337,8 +357,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   test("keeps commands usable when record search fails partially", async ({
     page,
   }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Partial failure" }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -384,8 +403,7 @@ test.describe("DS-09 Command Palette — execution & failure states (design fixt
   });
 
   test("shows the Card and Record Header adapter proof", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     const proof = page.getByRole("region", {
       name: "Quick Action adapter proof",
     });
@@ -412,8 +430,7 @@ test.describe("DS-09 Command Palette — touch targets (mobile 44px)", () => {
   }
 
   test("the close control has a 44×44px touch target", async ({ page }) => {
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await mobileNavigationOpener(page).click();
     await page
       .getByRole("dialog", { name: "Navigation" })
@@ -426,8 +443,7 @@ test.describe("DS-09 Command Palette — touch targets (mobile 44px)", () => {
   });
 
   test("the Retry control has a 44×44px touch target", async ({ page }) => {
-    await page.goto("/design/command-palette");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/design/command-palette");
     await page.getByRole("button", { name: "Failure", exact: true }).click();
     await page.getByRole("button", { name: "Open Command Palette" }).click();
     const input = palette(page);
@@ -454,6 +470,17 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
     name: RegExp,
     urlPattern: RegExp,
   ) {
+    // A settle, NOT `waitForInteractive`. This helper runs REPEATEDLY within one
+    // journey, and every call after the first begins on whichever module the last
+    // command navigated to — Projects, Areas, Goals, Diary — none of which publish
+    // `[data-hydrated]`. Waiting for that marker here hits the document-swap race
+    // the helper's own comment describes: the count sees the marker on the document
+    // being navigated away from, and the assertion then finds nothing on the one we
+    // landed on. Observed in CI on 2026-08-02.
+    //
+    // The shortcut below is still safe: by this point the journey has already
+    // interacted with the page through the palette, so the dispatcher is attached.
+    // The gate that matters is on the initial navigation, which uses `gotoFixture`.
     await page.waitForLoadState("networkidle");
     await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
@@ -465,7 +492,7 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
   }
 
   test("opens each module collection from the palette", async ({ page }) => {
-    await page.goto("/today");
+    await gotoFixture(page, "/today");
     await runCommand(page, "Open Projects", /Open Projects/, /\/projects$/);
     await runCommand(page, "Open Areas", /Open Areas/, /\/areas$/);
     await runCommand(page, "Open Goals", /Open Goals/, /\/goals$/);
@@ -498,8 +525,7 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
     // A Goal is created from an Area record (the only host of `NewGoalForm`).
     // A workspace-level "New Goal" command would promise something the product
     // cannot do, so the palette must not offer one.
-    await page.goto("/today");
-    await page.waitForLoadState("networkidle");
+    await gotoFixture(page, "/today");
     await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeVisible();
@@ -519,7 +545,7 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
   test("opens the Diary for today and the Diary capture panel", async ({
     page,
   }) => {
-    await page.goto("/today");
+    await gotoFixture(page, "/today");
     await runCommand(
       page,
       "Diary for today",

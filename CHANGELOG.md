@@ -17,7 +17,33 @@ no version number to group them under.
 
 ---
 
-## Unreleased — Install DalyHub, and use it without a connection
+## Unreleased
+
+### Added
+
+- **Two new themes: Modern Light and Modern Dark.** Settings → Appearance now
+  offers a matched pair — the same DalyHub, one bright and one dimmed — so you can
+  move between them by time of day without anything shifting position. Modern
+  Light is a warm off-white page with clean white cards and a teal accent; Modern
+  Dark is layered charcoal with a controlled indigo. They use the same spacing,
+  type and shapes as each other, so switching changes how DalyHub looks and
+  nothing about how it works.
+- Both are ordinary choices, saved to your account like any other theme, so they
+  follow you to any browser you sign in from. **Match system** is unchanged and
+  still pairs Daly Light with Daly Dark. **No existing theme was removed** — Daly
+  Light, Daly Dark, Eucalypt, Coastal and Ember are all still there, and if you
+  are already on one of them, nothing changes for you.
+
+### Changed
+
+- **The navigation rail sits inside the application rather than beside it.** The
+  hard edge between the sidebar and the page is now a quieter divider, and the
+  module you are currently on is marked with a small leading bar as well as its
+  tint and heavier text — so "where am I" no longer depends on noticing a colour.
+  The same treatment applies to the section list in Settings, and to every theme,
+  not just the new ones.
+
+### Added — installation and offline support
 
 DalyHub can now be installed as an app and keeps working when your connection
 does not. Full detail:
@@ -27,8 +53,6 @@ does not. Full detail:
 yet.** The steps to do that are written down, and until they have been worked
 through, treat the offline behaviour below as built and automatically tested but
 not device-verified.
-
-### Added
 
 - **Install DalyHub as an app.** It gets its own icon, opens in its own window
   without browser chrome, and starts without a tab. On iPhone and iPad this is
@@ -64,13 +88,13 @@ not device-verified.
   And having offline data is not the same as being signed in — anything that
   touches the server still needs a valid DalyHub sign-in.
 
-### Changed
+### Changed — offline behaviour
 
 - Your sign-in still expires the way it always did. When it does, anything you
   captured offline stays safe on the device and syncs after you sign in again —
   DalyHub stops retrying rather than repeatedly bouncing you to the sign-in page.
 
-### Known limitations
+### Known limitations — offline
 
 - You cannot **edit, complete or delete** existing records offline. That needs a
   design for what happens when two versions disagree, which has deliberately not

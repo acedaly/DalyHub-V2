@@ -1,7 +1,7 @@
 /**
  * THEME-01 — the theme registry and the persisted theme-preference contract.
  *
- * Covers the acceptance criteria that are pure logic: the registry ships five
+ * Covers the acceptance criteria that are pure logic: the registry ships the
  * curated themes with owner-facing names, valid values are accepted, invalid ones
  * are rejected safely, the legacy `light`/`dark` preference migrates onto the
  * curated themes rather than resetting, `system` resolves to a real theme, and the
@@ -36,6 +36,18 @@ describe("THEME-01 theme registry", () => {
     expect(THEMES).toHaveLength(THEME_IDS.length);
   });
 
+  it("ships the Modern pair: one light and one dark, both selectable", () => {
+    // THEME-02's whole premise is a PAIR. Two themes with matching structure are
+    // only a pair if both are in the registry and they present as opposite
+    // appearances — otherwise "switch by time of day" is not actually offered.
+    const light = themeById("modern-light");
+    const dark = themeById("modern-dark");
+    expect(light.appearance).toBe("light");
+    expect(dark.appearance).toBe("dark");
+    expect(THEME_PREFERENCES).toContain("modern-light");
+    expect(THEME_PREFERENCES).toContain("modern-dark");
+  });
+
   it("describes every registered theme, with no duplicate ids or names", () => {
     expect(THEMES.map((theme) => theme.id)).toEqual([...THEME_IDS]);
     expect(new Set(THEMES.map((theme) => theme.name)).size).toBe(THEMES.length);
@@ -53,14 +65,30 @@ describe("THEME-01 theme registry", () => {
     }
   });
 
-  it("includes the five themes this milestone requires, by name", () => {
+  it("includes every theme the milestones require, by name and in order", () => {
     expect(THEMES.map((theme) => theme.name)).toEqual([
       "Daly Light",
       "Daly Dark",
+      "Modern Light",
+      "Modern Dark",
       "Eucalypt",
       "Coastal",
       "Ember",
     ]);
+  });
+
+  it("keeps every existing theme, so no owner's choice is taken away", () => {
+    // THEME-02 ADDS a pair. A theme an owner may already be on must never be
+    // dropped by a release that was only meant to add one.
+    for (const id of [
+      "daly-light",
+      "daly-dark",
+      "eucalypt",
+      "coastal",
+      "ember",
+    ] as const) {
+      expect(THEME_IDS, `theme "${id}" was removed`).toContain(id);
+    }
   });
 
   it("declares at least one fully supported dark theme", () => {
@@ -102,7 +130,7 @@ describe("THEME-01 preference validation", () => {
 
   it("does not treat `system` as a curated theme id", () => {
     // `system` is an appearance mode; it has no palette of its own, so it must
-    // never be treated as one of the five when a concrete theme is required.
+    // never be treated as a curated theme when a concrete theme is required.
     expect(isThemeId(SYSTEM_THEME)).toBe(false);
     expect(isThemePreference(SYSTEM_THEME)).toBe(true);
   });
@@ -146,6 +174,9 @@ describe("THEME-01 resolving what actually paints", () => {
     // A chosen theme is not an appearance mode: Ember stays Ember in a dark OS.
     expect(resolveThemeId("ember", "dark")).toBe("ember");
     expect(resolveThemeId("daly-dark", "light")).toBe("daly-dark");
+    // The Modern pair is two chosen themes, not one theme that follows the OS.
+    expect(resolveThemeId("modern-light", "dark")).toBe("modern-light");
+    expect(resolveThemeId("modern-dark", "light")).toBe("modern-dark");
   });
 
   it("always resolves to a theme that has a palette", () => {

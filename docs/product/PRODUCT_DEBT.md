@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-67**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-68**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
@@ -690,7 +690,16 @@ authority now.)
 - **Closing condition.** A custom interval can be set and changed from the Task record, with unit coverage mirroring `TaskQuickEditPanel.test.tsx`'s preservation cases.
 - **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence) (follow-on).
 
-### ☐ DEBT-67 — Logging out does not clear the device's offline data automatically — P2
+### ☐ DEBT-67 — Seven curated themes is more choice than one owner needs — P3
+
+- **Current issue.** THEME-02 added the Modern pair, taking the registry to **seven** curated themes plus the `system` appearance mode ([`theme-preference.ts`](../../app/kernel/preferences/theme-preference.ts), [`tokens.css`](../../app/styles/tokens.css)). Three of them — Eucalypt, Coastal and Ember — are *character* themes: single light palettes that differ from Daly Light mainly in hue. There is now visible overlap, most obviously between **Daly Light**, **Modern Light**, **Coastal** and **Eucalypt**, all of which are light themes with a cool-to-neutral surround and a restrained blue-green or green accent.
+- **Impact.** Cost is carried in three places, none of them the owner's data: a settings list long enough that the choice takes thought rather than a glance; a maintenance tax where **every new colour token must be authored eight times** (seven themes plus the duplicated `prefers-color-scheme` dark block) and pass the full contrast harness in each; and CI time in the whole-registry sweeps (`assets-ownership.spec.ts` now walks seven themes, and the THEME-01 surface matrix is seven × six). It is friction and drag, not a defect — every theme is complete, distinct and AA-clean today.
+- **Desired future state.** A registry of roughly **four**: one default pair and one alternative pair, or a default plus two genuinely distinct characters. The obvious candidates for retirement are the character themes whose distance from a shipped default is smallest, but **that is a product judgement, not a mechanical one, and it is deliberately not being made here.** Removing a theme takes a choice away from an owner who may already be on it, and this change existed to add a theme, not to delete four.
+- **How a removal would have to be done, when it is decided.** The registry entry, the `tokens.css` block and the TS colour map come out together; the `theme` CHECK is narrowed by a further rebuild migration; and `parseThemePreference` already degrades a retired value to the default rather than leaving the document unstyled — there is an E2E test for exactly that case, so a removal has a proven safe landing. It should also be announced in the release notes rather than discovered by an owner whose theme silently changed.
+- **Closing condition.** Either a decision recorded in an ADR to keep all seven (with the maintenance cost accepted explicitly), or a consolidation shipped with the removal path above and the acceptance matrix updated to the reduced set.
+- **Related roadmap item.** [THEME-02](../roadmap/ROADMAP_V2_1.md#-theme-02--the-modern-visual-system).
+
+### ☐ DEBT-68 — Logging out does not clear the device's offline data automatically — P2
 
 - **Current issue.** DalyHub's sign-out is a Cloudflare Access sign-out: the session ends at the edge, and there is no client-side hook that runs before it does. So the PWA milestone's local-data clearing is an explicit control (`/settings?section=offline` → *Reset offline data*), not something that happens on logout. After logging out, a previously synced snapshot and any queued captures remain in IndexedDB on that device until the owner clears them, the browser evicts them, or a different identity signs in (which deletes the previous namespace's snapshot but deliberately keeps its queued captures).
 - **Impact.** On a shared or borrowed device, "I logged out" does not mean "my data is off this machine". The Settings surface states this plainly and the behaviour is documented, so nothing is misrepresented — but the owner has to take a second action they may not think to take.
@@ -698,15 +707,15 @@ authority now.)
 - **Closing condition.** Signing out through the DalyHub control leaves no `dalyhub-offline` database and no `dalyhub-*` cache on the device, proven by a Playwright assertion, with queued captures either synced first or explicitly confirmed as discarded.
 - **Related roadmap item.** [SET-03](../roadmap/ROADMAP_V2_1.md#-set-03--account--security).
 
-### ☐ DEBT-68 — Offline capture receipts accumulate with no prune — P3
+### ☐ DEBT-69 — Offline capture receipts accumulate with no prune — P3
 
-- **Current issue.** `offline_capture_receipts` (migration `0026`) is written once per replayed offline capture and never deleted. Its purpose is to survive the retry window — minutes, not years — but nothing removes an old row. `created_at` is indexed for exactly this, and the table is bounded by how many captures the owner actually makes offline, so this is small and slow-growing rather than dangerous.
+- **Current issue.** `offline_capture_receipts` (migration `0027`) is written once per replayed offline capture and never deleted. Its purpose is to survive the retry window — minutes, not years — but nothing removes an old row. `created_at` is indexed for exactly this, and the table is bounded by how many captures the owner actually makes offline, so this is small and slow-growing rather than dangerous.
 - **Impact.** Unbounded row growth in a table with no reader after its retry window. At a realistic capture rate it is measured in kilobytes a year; the debt is that "unbounded" is still unbounded.
 - **Desired future state.** An age-based prune (delete receipts older than a documented horizon) attached to whatever scheduled maintenance DalyHub gains first — the V2.0.1 backup workflow is the obvious host.
 - **Closing condition.** Receipts older than the horizon are removed, with a kernel test proving a receipt inside the horizon still prevents a duplicate.
 - **Related roadmap item.** [PWA/offline](../development/PWA_AND_OFFLINE.md#11-known-limitations) (follow-on).
 
-### ☐ DEBT-69 — Hydrated offline rendering is not covered by automation — P2
+### ☐ DEBT-70 — Hydrated offline rendering is not covered by automation — P2
 
 - **Current issue.** `e2e/pwa-offline.spec.ts` runs against the development server, because it is the only Playwright server with an authenticated session (the production-mode server is deliberately fail-closed, which is its own test). A Vite dev server has no hashed bundles to precache, so an offline reload renders the cached shell DOCUMENT but cannot hydrate it. The suite therefore proves the service worker's runtime behaviour and asserts the snapshot and queue directly in IndexedDB, but not that the fully hydrated offline application renders from the precached production bundle.
 - **Impact.** The single most user-visible offline behaviour — "I opened DalyHub on a plane and it worked" — rests on the manual device checklist rather than on CI.

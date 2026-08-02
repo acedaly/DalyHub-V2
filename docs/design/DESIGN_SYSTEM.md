@@ -28,6 +28,7 @@ The foundations above are made concrete by the **design token system** ([DS-01](
 
 - **Authoritative source:** [`app/styles/tokens.css`](../../app/styles/tokens.css) defines every token as a CSS custom property. A typed, greppable registry over the same names lives in [`app/shared/tokens`](../../app/shared/tokens) (`cssVar`/`colorVar` helpers, the breakpoint scale, and the colour maps as data used by the contrast and parity tests).
 - **Consumed once, correct everywhere:** components style themselves in CSS classes that read `var(--dh-*)`. Because the same semantic name carries a different value per theme, a component styled once is correct in light and dark.
+- **Adding a theme is a registry edit plus a CSS block plus a stored-value migration.** The `theme` column carries a CHECK naming the legal set, so a new theme id needs all three or it cannot be saved; `migrations/0026_extend_theme_preference_choices.sql` is the worked example.
 
 ### Naming rules
 
@@ -43,7 +44,7 @@ Colour tokens are split by **role** so opposite theme requirements don't collide
 | Group | Tokens (examples) | Notes |
 |---|---|---|
 | **Colour — surfaces/text** | `bg`, `surface`, `surface-raised`, `surface-sunken`, `surface-nav`, `surface-header`, `surface-card`, `text`, `text-secondary`, `text-muted`, `on-accent`, `link`, `link-hover`, `border`, `border-strong`, `border-subtle`, `control-border`, `divider` | semantic surfaces & text, mapped in every theme. `surface-nav`/`surface-header`/`surface-card` let a theme separate navigation, chrome and cards independently. `control-border` is the **3:1** boundary that identifies a form control (WCAG 1.4.11); `border-strong` stays the decorative emphasis border |
-| **Colour — brand/interactive** | `accent`, `accent-hover`, `accent-active`, `accent-text`, `accent-surface`, `secondary`, `secondary-hover`, `hover-surface`, `active-surface`, `disabled-surface`, `disabled-text`, `disabled-border` | fills vs foreground kept distinct |
+| **Colour — brand/interactive** | `accent`, `accent-hover`, `accent-active`, `accent-text`, `accent-surface`, `secondary`, `secondary-hover`, `hover-surface`, `active-surface`, `nav-selected-surface`, `nav-selected-text`, `disabled-surface`, `disabled-text`, `disabled-border` | fills vs foreground kept distinct. `nav-selected-*` (THEME-02) is the **selected navigation row** specifically — the sidebar's current module and the Settings section list — kept separate from `accent-surface` (a tinted informational region anywhere) so a theme can control "you are here" without moving every tinted panel with it |
 | **Colour — feedback** | `success{,-surface,-text}`, `warning{,-surface,-text}`, `danger{,-surface,-text}`, `info{,-surface,-text}` | never colour-only — always paired with a label/icon |
 | **Colour — priority** | `priority-p1{,-surface,-text}` … `priority-p4{,-surface,-text}` | P1–P4 are their OWN tokens, not the feedback triples: a P1 task is not an error |
 | **Colour — record states** | `state-overdue{,-surface,-text}`, `state-due-soon{…}`, `state-completed{…}`, `state-waiting{…}`, `state-on-hold{…}` | lifecycle, not feedback: "waiting on someone" is not a warning |
@@ -58,25 +59,41 @@ Colour tokens are split by **role** so opposite theme requirements don't collide
 | **Motion** | `--dh-duration-instant/fast/base/slow`, `--dh-ease-standard/emphasized/exit` | quick, purposeful; zeroed under reduced-motion |
 | **Layout** | `--dh-breakpoint-sm…2xl`, `--dh-z-base…tooltip` | breakpoints (also in TS) & z-index layers |
 
-### Theme mapping (THEME-01)
+### Theme mapping (THEME-01, extended by THEME-02)
 
-DalyHub ships **five curated themes**. Each is a complete map over **the same semantic names**; only colour and elevation tokens change between them, so a component styled once is correct in all five and **no component ever branches on the theme** (a test enforces this).
+DalyHub ships **seven curated themes**. Each is a complete map over **the same semantic names**; only colour and elevation tokens change between them, so a component styled once is correct in all of them and **no component ever branches on the theme** (a test enforces this).
 
 | Theme | `data-theme` | Appearance | Character |
 |---|---|---|---|
 | **Daly Light** | `daly-light` | light | Warm off-white surfaces, restrained blue-green accent. The default and the safe fallback. |
 | **Daly Dark** | `daly-dark` | dark | Layered charcoal surfaces, softened text, desaturated status colours. A designed dark theme, not an inversion. |
+| **Modern Light** | `modern-light` | light | Warm cream page, near-white panels, genuinely white cards, teal accent with blue as the informational colour. The light half of the Modern pair. |
+| **Modern Dark** | `modern-dark` | dark | Deep charcoal with four separated elevations and a controlled indigo accent. The dark half of the Modern pair. |
 | **Eucalypt** | `eucalypt` | light | Warm stone surfaces, muted sage accent. |
 | **Coastal** | `coastal` | light | Cool neutral surfaces, sea-glass blue accent. |
 | **Ember** | `ember` | light | Warm neutral surfaces, terracotta accent; danger deliberately shifted cooler so a primary button never reads as destructive. |
 
-Every theme is **self-contained** — one palette, not a light/dark pair — so a chosen theme never changes when the OS appearance changes.
+Every theme is **self-contained** — one palette, and choosing it never makes the application follow the OS appearance.
 
-`system` is an **appearance mode**, not a sixth palette: it pairs Daly Light with Daly Dark and follows `prefers-color-scheme`. Supporting the OS preference must never cost a curated theme.
+#### The Modern pair (THEME-02)
+
+Modern Light and Modern Dark are the one **pair** in the registry: two treatments of a single visual system, so an owner can move between them by time of day and have nothing move. They are still two separately choosable themes — the pair is a design relationship, not a new mechanism, and neither half follows `prefers-color-scheme` on its own.
+
+What "a pair" means concretely, and what is asserted rather than asked for on trust ([`test/unit/tokens/modern-pair.test.ts`](../../test/unit/tokens/modern-pair.test.ts), [`e2e/themes.spec.ts`](../../e2e/themes.spec.ts)):
+
+- **the same token names**, declared in both blocks, so no value can fall back to the base map on one side only;
+- **only colour, entity accent and elevation** differ — geometry, spacing, type, motion and layout live on `:root` and are theme-independent, so switching cannot change the shape of the application. The E2E check measures the *rendered* radius, padding, type size and control height in both and requires them equal;
+- **no light surface leaks into the dark half** — every surface, tint, hover, disabled and skeleton value is below a luminance threshold as data, and the rendered page is swept for any element larger than a chip that paints light;
+- **the dark half is layered, not flat or black** — `sunken < bg < card < raised`, with the page held away from `#000000`;
+- **the light half is warm, not sterile** — the page is off-white, the card sits *above* it.
+
+Design intent, for anyone extending them: Modern Light is a cream surround with the content plane reading as paper — a card is separated by its surface and a soft shadow rather than a hard outline. Modern Dark keeps the accent inside the narrow band that is both ≥3:1 against the page and ≥4.5:1 under white label text, which is why its hover and active states step only slightly *lighter*: a brighter indigo would lose its own button label. Violet is confined to the waiting state and one chart series, and nothing glows.
+
+`system` is an **appearance mode**, not an eighth palette: it pairs Daly Light with Daly Dark and follows `prefers-color-scheme`. Supporting the OS preference must never cost a curated theme. Choosing Modern Dark is a *choice*, so it stays Modern Dark in a light OS — an owner who wants the pair to follow their device today should use `system`, which is documented in the picker as pairing Daly Light with Daly Dark.
 
 **Mechanism** ([ADR-016 §5.11](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing), extended by [ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner)): the server renders `data-theme` on `<html>` from the owner's **persisted preference**, so the first byte is already correct — **no flash, no client theme script, no inline bootstrapping**. `:root` carries the Daly Light map, so an unknown or missing `data-theme` degrades to a complete, readable theme rather than to unstyled colour.
 
-**Persistence**: the authority is the owner/workspace preferences record (`theme` column, migration `0023`), so a theme follows the owner between browsers. A cookie MIRRORS it purely so a document that never reaches the authenticated shell loader (a root error boundary) still gets the right first byte. Stored values are validated against the registry on read and on write; a removed theme degrades to the default. Legacy `light`/`dark` values map to Daly Light / Daly Dark.
+**Persistence**: the authority is the owner/workspace preferences record (`theme` column, migration `0023`, its legal set widened by migration `0026`), so a theme follows the owner between browsers. A cookie MIRRORS it purely so a document that never reaches the authenticated shell loader (a root error boundary) still gets the right first byte. Stored values are validated against the registry on read and on write; a removed theme degrades to the default. Legacy `light`/`dark` values map to Daly Light / Daly Dark.
 
 **The registry is the only theme list.** `app/kernel/preferences/theme-preference.ts` owns the ids and validation; `app/shared/shell/theme.ts` adds the owner-facing names and descriptions and re-exports the rest. Settings renders the registry, the tests iterate it. Adding a theme is a registry edit plus a CSS block — the tests fail if either is missing.
 
@@ -86,7 +103,7 @@ Every theme is **self-contained** — one palette, not a light/dark pair — so 
 
 1. **Use tokens, not literals.** Any colour/space/size/radius/shadow/duration in application CSS or components must be a `var(--dh-*)`. A test scans `app/` and fails if a `var(--dh-*)` references an undefined token.
 2. **Extend by adding a token first**, then consuming it. Never widen a component with a one-off literal.
-3. **A new colour token must be given a value in EVERY theme block**, including both dark blocks (the explicit one and the `prefers-color-scheme` one, which a parity test keeps byte-identical). Coverage, cross-theme parity, and WCAG contrast (4.5:1 text, 3:1 UI) are enforced by `test/unit/tokens` in all five themes.
+3. **A new colour token must be given a value in EVERY theme block**, including both dark blocks (the explicit one and the `prefers-color-scheme` one, which a parity test keeps byte-identical). Coverage, cross-theme parity, and WCAG contrast (4.5:1 text, 3:1 UI) are enforced by `test/unit/tokens` in every theme.
 5. **Never branch on the theme in a component.** If a component needs to know which theme is active, the missing thing is a token. The one documented exception is the theme PREVIEW swatch (`app/shared/shell/ThemePreview.tsx`), which must paint a theme it is not in and therefore sets `--dh-preview-*` inline from the colour data; a test confines those properties to that component.
 4. **Prefer a semantic token over a raw palette value.** There is no exposed raw palette; semantics are the API.
 

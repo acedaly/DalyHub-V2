@@ -45,8 +45,8 @@ describe("THEME-01 theme picker", () => {
     expect(
       screen.getByRole("button", { name: /Match system/ }),
     ).toBeInTheDocument();
-    // Six controls: five themes plus the appearance mode. `system` must be an
-    // ADDITION, never a replacement for a curated theme.
+    // One control per curated theme, plus the appearance mode. `system` must be
+    // an ADDITION, never a replacement for a curated theme.
     expect(screen.getAllByRole("button")).toHaveLength(THEME_IDS.length + 1);
   });
 

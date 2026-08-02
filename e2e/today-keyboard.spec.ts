@@ -36,8 +36,11 @@ async function openTodayList(page: Page) {
 
 test.describe("TODAY-05 — keyboard navigation", () => {
   test("opens Today through the Command Palette", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    // `gotoFixture`, not a bare settle: the first interaction here is a GLOBAL
+    // SHORTCUT, and a keypress is one-shot — pressed before React attaches the
+    // dispatcher it is swallowed with nothing to retry. Same reasoning as
+    // `command-palette.spec.ts`.
+    await gotoFixture(page, "/");
     await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeFocused();

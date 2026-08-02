@@ -258,9 +258,9 @@ no backfill step. The consequences for a deployment:
 - **No scheduler, cron trigger or queue is introduced.** Obligation urgency is
   computed at READ time, which is precisely why none is needed.
 
-### PWA / offline (migration `0026`) — deployment notes
+### PWA / offline (migration `0027`) — deployment notes
 
-`0026_create_offline_capture_receipts.sql` is **purely additive and
+`0027_create_offline_capture_receipts.sql` is **purely additive and
 existing-data-safe**: one new table plus one index. No existing table is
 rebuilt, no column is added to an existing table, and no existing row is read
 or rewritten.
@@ -270,7 +270,7 @@ written only when a device replays a queued capture. A deployment that never
 sees an offline capture never writes a row.
 
 - **Migrate-then-deploy and deploy-then-migrate are both safe.** The previous
-  application version does not know the table exists, so applying `0026` ahead
+  application version does not know the table exists, so applying `0027` ahead
   of the deploy leaves production working unchanged. Deploying the application
   first is also safe with one honest caveat: until the migration is applied, a
   REPLAYED offline capture fails (the create route's claim insert errors) and
@@ -378,10 +378,11 @@ from any shared machine afterwards: they contain the whole workspace.
 
 **The gap, stated once.** Production has migrations **`0001`–`0005`** applied
 (verified 2026-07-18 — see [Verified production deployment](#verified-production-deployment-2026-07-18)).
-The V2 release shipped **`0025`**; the PWA/offline milestone adds **`0026`**. So
-going live is a **twenty-one-migration step**, `0006` through `0026`, over a
-database that already holds the owner's data. (`0026` is a single new table —
-see [its note above](#pwa--offline-migration-0026--deployment-notes).)
+The V2 release shipped **`0025`**; THEME-02 added **`0026`** and the PWA/offline
+milestone adds **`0027`**. So going live is a **twenty-two-migration step**,
+`0006` through `0027`, over a database that already holds the owner's data.
+(`0027` is a single new table — see
+[its note above](#pwa--offline-migration-0027--deployment-notes).)
 
 **Every migration in that range is additive and existing-data-safe.** No column
 changes type, gains a narrowing constraint, or is dropped; no row of any table that

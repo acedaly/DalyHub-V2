@@ -9,10 +9,9 @@ import { beforeAll, describe, expect, it } from "vitest";
  * migration over data shaped for it. None of them answers the question a deployment
  * actually asks, which is the whole sequence at once against the schema production
  * is really on. Production has migrations **`0001`–`0005`** applied (verified
- * 2026-07-18; see `docs/development/DEPLOYMENT.md`), so every deploy since is a
- * multi-migration step — `0006` onward — over a live database with real rows in
- * it. The end of the range is derived from the committed migrations rather than
- * pinned, so adding one extends this test instead of breaking it.
+ * 2026-07-18; see `docs/development/DEPLOYMENT.md`), so V2 is a
+ * twenty-two-migration step — `0006` through `0027` — over a live database with
+ * real rows in it.
  *
  * So this test does exactly that, against a database that is NOT empty:
  *
@@ -181,12 +180,11 @@ beforeAll(async () => {
     ).bind(WS),
   ]);
 
-  // 3. The upgrade production is about to perform: everything after 0005, over
-  //    live data.
+  // 3. The upgrade production is about to perform: 0006 → the head, over live data.
   await applyD1Migrations(DB, env.TEST_MIGRATIONS);
 });
 
-describe("production baseline (0001-0005) → the newest committed migration", () => {
+describe("production baseline (0001-0005) → V2 (committed head)", () => {
   it("applies the whole remaining sequence over a populated database", async () => {
     const applied = await DB.prepare(
       `SELECT name FROM d1_migrations ORDER BY name`,
@@ -198,15 +196,19 @@ describe("production baseline (0001-0005) → the newest committed migration", (
     expect(names.length).toBe(env.TEST_MIGRATIONS.length);
     expect(names).toEqual([...names].sort());
     expect(new Set(names).size).toBe(names.length);
-    // The sequence reaches the NEWEST committed migration, derived rather than
-    // hardcoded: a pinned number turns "we added a migration" into an unrelated
-    // failing assertion that teaches nobody anything, while this keeps asserting
-    // the property that matters — the whole committed sequence applied.
-    const newestCommitted = [...env.TEST_MIGRATIONS]
-      .map((migration: MigrationEntry) => migration.name)
-      .sort()
-      .at(-1);
-    expect(names.at(-1)).toBe(newestCommitted);
+    // Pinned to the committed set rather than to a hard-coded number, so a new
+    // migration is covered by this test the moment it lands instead of failing it.
+    const committed = env.TEST_MIGRATIONS.map(
+      (migration: MigrationEntry) => migration.name,
+    ).sort();
+    expect(names).toEqual(committed);
+    // THEME-02 rebuilt `owner_app_preferences` to widen the theme CHECK. It is a
+    // rebuild over a populated table, so it is named explicitly here: this test is
+    // the one that proves the whole sequence survives real rows.
+    expect(names.some((name) => name.startsWith("0026"))).toBe(true);
+    // PWA-05 added `0027`, the offline capture receipts. Named for the same
+    // reason: this test is where a migration proves it survives real rows.
+    expect(names.some((name) => name.startsWith("0027"))).toBe(true);
   });
 
   it("loses no entity, and rewrites none of them", async () => {

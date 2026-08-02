@@ -1,5 +1,11 @@
 -- PWA-05: idempotency receipts for offline capture replay.
 --
+-- Numbered 0027, not 0026. THEME-02 (#99) landed 0026 on main while this branch
+-- was open, and the repository already carries one duplicate number (0013,
+-- recorded as DEBT-40) whose cost is documented in the migration tests: a
+-- positional slice over `migrations/` is one merge away from selecting the wrong
+-- set. Renumbering here rather than shipping a second collision.
+--
 -- ADDITIVE ONLY. One new table. No existing table is rebuilt, no column is added
 -- to an existing table, and no existing row is read or rewritten. Nothing in
 -- DalyHub depends on this table existing except the offline capture queue, so a

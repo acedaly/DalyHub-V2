@@ -269,16 +269,27 @@ and [MODULES.md](./MODULES.md).
 
 ## Theme preference behaviour
 
-Five curated themes (`daly-light`, `daly-dark`, `eucalypt`, `coastal`, `ember`)
-plus the `system` appearance mode, default `system` (THEME-01,
-[ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner)).
+Seven curated themes (`daly-light`, `daly-dark`, `modern-light`, `modern-dark`,
+`eucalypt`, `coastal`, `ember`) plus the `system` appearance mode, default `system`
+(THEME-01,
+[ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner);
+the Modern pair added by THEME-02).
+
+`modern-light` and `modern-dark` are a designed PAIR, but they are still two ordinary
+chosen themes as far as the shell is concerned: neither follows `prefers-color-scheme`,
+and the resolution order below is unchanged. Only `system` reacts to the device.
 
 **The owner preferences record is the authority.** The theme is a column on
-`owner_app_preferences` (migration `0023`), so it follows the owner between
-browsers — a change from FND-09/SET-01, which kept appearance device-local. With
-three appearance modes that was a cosmetic device setting; with five curated themes
-it is a personal choice, and a personal choice that does not follow the owner to
-their phone is a broken one.
+`owner_app_preferences` (migration `0023`, its legal set widened by `0026`), so it
+follows the owner between browsers — a change from FND-09/SET-01, which kept
+appearance device-local. With three appearance modes that was a cosmetic device
+setting; with a registry of curated themes it is a personal choice, and a personal
+choice that does not follow the owner to their phone is a broken one.
+
+The column carries a CHECK naming the legal themes, so **adding a theme needs a
+migration as well as a registry entry**. `0026` is the worked example: SQLite cannot
+alter a CHECK in place, so widening the set is a table rebuild — additive in effect,
+copied by explicit column list, no stored value rewritten.
 
 **The cookie is now only a first-paint mirror.** It is still same-site, HttpOnly and
 bounded (`Secure` in non-development environments), but it is a cache, not the
