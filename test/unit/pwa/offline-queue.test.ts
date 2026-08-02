@@ -281,12 +281,31 @@ describe("reclaiming a stalled attempt", () => {
   it("counts the interruption as an attempt and explains it to the owner", () => {
     expect(reclaimed.attempts).toBe(1);
     expect(reclaimed.lastError).toMatch(/interrupted/i);
-    expect(reclaimed.lastAttemptAt).toBe(after.toISOString());
   });
 
-  it("becomes replayable once its backoff has elapsed", () => {
-    const later = new Date(after.getTime() + retryDelayMs(reclaimed.attempts));
-    expect(isReplayable(reclaimed, NAMESPACE, later)).toBe(true);
+  it("dates the attempt from when it STARTED, not from the recovery", () => {
+    // Otherwise the owner serves a fresh backoff on top of however long the
+    // capture was already stranded, and the pass that reclaims a record can
+    // never be the pass that replays it.
+    expect(reclaimed.lastAttemptAt).toBe(NOW.toISOString());
+  });
+
+  it("is replayable immediately, because its backoff is long past", () => {
+    expect(isReplayable(reclaimed, NAMESPACE, after)).toBe(true);
+    expect(retryDelayMs(reclaimed.attempts)).toBeLessThan(
+      OFFLINE_ATTEMPT_LEASE_MS,
+    );
+  });
+
+  it("falls back to the recovery instant when the record has no lease at all", () => {
+    const legacy = queued({
+      status: "syncing",
+      attemptStartedAt: null,
+      lastAttemptAt: null,
+    });
+    expect(reclaimStalledAttempt(legacy, after).lastAttemptAt).toBe(
+      after.toISOString(),
+    );
   });
 
   it("stops retrying a capture that reliably interrupts this device", () => {

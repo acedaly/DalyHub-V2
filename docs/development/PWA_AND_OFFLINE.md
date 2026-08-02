@@ -77,13 +77,26 @@ this first.
 
 ### Document metadata (`app/root.tsx`)
 
-Favicons (`.ico` + SVG), the Apple touch icon, `theme-color` for light and dark,
+Favicons (`.ico` + SVG), the Apple touch icon, a per-theme `theme-color`,
 `mobile-web-app-capable` **and** `apple-mobile-web-app-capable` (kept because
 current iOS Safari still reads only the Apple-prefixed name when deciding whether
 an Add to Home Screen launch opens without browser chrome — a demonstrated
 compatibility purpose, not habit), `apple-mobile-web-app-status-bar-style`,
 `apple-mobile-web-app-title`, `application-name`. `viewport-fit=cover` was
 already present and is what makes `env(safe-area-inset-*)` resolve.
+
+**`theme-color` is resolved server-side, per theme.** It is derived from the same
+`theme` value that writes `data-theme`, so every curated theme — including
+eucalypt, coastal and ember — gets browser chrome matching its own page
+background, with no client script and no first-paint correction. Only the
+`system` preference emits a `prefers-color-scheme` pair, because only `system`
+genuinely defers the choice to the OS; emitting one for an explicitly chosen
+theme would let the OS contradict the owner.
+
+The colour has to be duplicated in `root.tsx` as a literal, because `theme-color`
+is read before any stylesheet is parsed and cannot reference a custom property.
+`tokens.css` stays the source of truth and
+`test/unit/pwa/manifest-and-icons.test.ts` fails if the two drift apart.
 
 ### The install paths
 
@@ -624,8 +637,9 @@ needs a real device.
 7. **`offline_capture_receipts` are never pruned.** They are small and bounded by
    how many offline captures the owner makes, and `created_at` is indexed for a
    future age-based prune. Nothing prunes them today.
-8. **`theme-color` does not follow the five DalyHub themes** — only light/dark.
-   Changing it per stored preference needs a client script.
+8. **`theme-color` is a flat page background, not a gradient or an image.** The
+   installed window's chrome matches the theme's `--dh-color-bg`; a surface that
+   varies across the viewport cannot be represented in a single colour.
 9. **A snapshot is a full replacement, not an incremental delta.** At the measured
    8.5 kB this is not worth the complexity; revisit if it grows.
 10. **A capture whose replay request never came back is reported, not resolved.**

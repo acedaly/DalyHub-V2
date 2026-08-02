@@ -255,9 +255,14 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
     // The tab that reaches the timeline meets the shared 44px target floor.
     await expectMinTouchTarget(page.getByRole("tab", { name: "Activity" }));
 
-    // The stream announces loaded events politely.
+    // The stream announces loaded events politely — exactly one live region,
+    // scoped to the stream itself. Page-wide, this count is no longer 1: PWA-03
+    // added a persistent shell-level `role="status"` for the connection state,
+    // and scoping is the more precise assertion anyway, since what matters here
+    // is that the TIMELINE announces once, not that the page contains one
+    // region in total.
     await expect(
-      page.locator('[role="status"][aria-live="polite"]'),
+      page.locator('.dh-activity [role="status"][aria-live="polite"]'),
     ).toHaveCount(1);
   });
 

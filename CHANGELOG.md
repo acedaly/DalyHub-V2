@@ -59,6 +59,9 @@ not device-verified.
   Safari's Share → Add to Home Screen; Settings → Offline & app gives the exact
   steps rather than pretending a button can do it. On Chrome and Edge, Settings
   offers an **Install** button.
+- **The browser and app window take on your theme's colour.** Whichever of the
+  seven themes you are using, an installed DalyHub's window chrome matches the
+  page instead of framing it.
 - **A real DalyHub app icon**, at every size a browser or device asks for — the
   tab favicon, the iPhone home screen and the Android adaptive icon. It keeps the
   hub mark you already see in the sidebar, redrawn so it stays legible at 16

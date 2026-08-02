@@ -150,9 +150,50 @@ describe("the document metadata", () => {
     expect(rootTsx).toMatch(/name="application-name"/);
   });
 
-  it("declares a theme colour for both light and dark appearance", () => {
+  it("declares a theme colour, deferring to the OS ONLY for `system`", () => {
+    // `system` is the one preference that genuinely defers the choice, so it is
+    // the one that emits a media pair. Every other theme is resolved server-side
+    // and gets a single value, because a media query there would let the OS
+    // contradict the owner's explicit choice — and would reintroduce the
+    // `prefers-color-scheme` that THEME-01's first-paint test forbids.
+    expect(rootTsx).toMatch(/name="theme-color"/);
     expect(rootTsx).toMatch(/media="\(prefers-color-scheme: light\)"/);
     expect(rootTsx).toMatch(/media="\(prefers-color-scheme: dark\)"/);
+    expect(rootTsx).toMatch(/theme === "system"/);
+  });
+
+  it("keeps every theme's chrome colour equal to that theme's background", () => {
+    // `theme-color` is read before any stylesheet is parsed, so it cannot
+    // reference a custom property and the value has to be duplicated in
+    // `root.tsx`. This is the guard that stops the duplicate drifting from
+    // `tokens.css`, which is the source of truth.
+    const tokens = read("app/styles/tokens.css").toString("utf8");
+    const rootBackground = /^:root \{(?:[\s\S]*?)\n\}/m
+      .exec(tokens)?.[0]
+      .match(/--dh-color-bg:\s*([^;]+);/)?.[1]
+      .trim();
+    expect(rootBackground).toBeTruthy();
+
+    for (const theme of [
+      "daly-dark",
+      "modern-light",
+      "modern-dark",
+      "eucalypt",
+      "coastal",
+      "ember",
+    ]) {
+      const block = new RegExp(
+        `:root\\[data-theme="${theme}"\\]\\s*\\{([\\s\\S]*?)\\n\\}`,
+      ).exec(tokens)?.[1];
+      expect(block, `${theme} must exist in tokens.css`).toBeTruthy();
+      const background = block?.match(/--dh-color-bg:\s*([^;]+);/)?.[1]?.trim();
+      // A theme with no background of its own inherits `:root`'s.
+      const expected = background ?? rootBackground;
+      expect(
+        rootTsx,
+        `root.tsx must carry ${theme}'s chrome colour ${expected}`,
+      ).toContain(expected as string);
+    }
   });
 
   it("keeps `viewport-fit=cover`, so safe-area insets resolve in standalone mode", () => {

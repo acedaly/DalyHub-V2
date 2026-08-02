@@ -39,9 +39,14 @@ test.describe("touch targets — the offline surfaces (mobile)", () => {
     await expectMinTouchTarget(
       page.getByRole("button", { name: /Refresh now|Refreshing/ }),
     );
-    for (const name of [/Clear snapshot/, /Reset offline data/]) {
-      await expectMinTouchTarget(page.getByRole("button", { name }));
-    }
+    // The section's destructive controls ("Clear snapshot…", "Reset offline
+    // data…") are deliberately NOT asserted here. They are the shared
+    // `.dh-settings-danger-button`, which reaches the 44px minimum behind
+    // `@media (pointer: coarse)` rather than unconditionally — so under this
+    // file's plain viewport resize they measure the 36px control height, and
+    // asserting on them here would contradict the scope stated at the top of
+    // this file. Their offline-specific behaviour is covered by the offline
+    // lifecycle spec; their sizing belongs to the shared settings surface.
   });
 });
 

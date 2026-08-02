@@ -320,13 +320,22 @@ export function reclaimStalledAttempt(
   record: OfflineQueueRecord,
   now: Date,
 ): OfflineQueueRecord {
+  // The backoff is measured from when the attempt STARTED, not from now. The
+  // attempt is already at least a lease old — far longer than the 30s backoff
+  // ceiling — so dating it now would make the owner serve a fresh delay on top
+  // of however long the capture was already stranded, and would mean the pass
+  // that reclaims a record can never be the pass that replays it.
+  const startedAt = Date.parse(
+    record.attemptStartedAt ?? record.lastAttemptAt ?? "",
+  );
+  const attemptEndedAt = Number.isFinite(startedAt) ? new Date(startedAt) : now;
   return applyReplayOutcome(
     record,
     {
       kind: "retryable",
       reason: "This device was interrupted while syncing this capture.",
     },
-    now,
+    attemptEndedAt,
   );
 }
 
