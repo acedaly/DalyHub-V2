@@ -90,11 +90,33 @@ export function checkProductionDatabaseId(env = process.env) {
   return { ok: true, problems: [], id };
 }
 
+/** The committed migrations directory, as an ABSOLUTE path. See below. */
+export const MIGRATIONS_DIR = join(ROOT, "migrations");
+
 /**
  * The temporary top-level config Wrangler will read. Deliberately minimal: a name,
  * a compatibility date, and the ONE D1 binding with the real id and the committed
  * migrations directory. No `env`, no vars, no secrets — a D1 command needs none of
  * them, and anything extra would be another thing that could drift. PURE.
+ *
+ * **`migrations_dir` must be ABSOLUTE, and that is load-bearing.** Wrangler
+ * resolves a relative `migrations_dir` against the directory holding the CONFIG
+ * FILE, not the working directory — and this config is deliberately written
+ * outside the repository (see the header). A relative `"migrations"` therefore
+ * pointed at `/tmp/dalyhub-d1-XXXX/migrations`, which never exists, so Wrangler
+ * exited 1 with `No migrations present at /tmp/…/migrations` and **every**
+ * migrations command failed:
+ *
+ *   - `pnpm run db:production:list` and `db:production:apply` — the documented
+ *     production migration path — could not work;
+ *   - and once the V2.0.1 deploy preflight began consulting this wrapper to
+ *     CHECK for pending migrations, a fail-closed check would have refused every
+ *     production deploy, with no override covering it.
+ *
+ * Verified empirically against the pinned Wrangler (4.112.0), not inferred: with
+ * a relative path the CLI reports the `/tmp` path and exits 1; with the absolute
+ * path it lists the real migrations and exits 0. `test/unit/deploy/production-d1.test.ts`
+ * holds the rule by resolving the emitted value the way Wrangler does.
  */
 export function productionD1Config(databaseId) {
   return {
@@ -105,7 +127,7 @@ export function productionD1Config(databaseId) {
         binding: "DB",
         database_name: PRODUCTION_DATABASE_NAME,
         database_id: databaseId,
-        migrations_dir: "migrations",
+        migrations_dir: MIGRATIONS_DIR,
       },
     ],
   };

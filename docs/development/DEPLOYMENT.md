@@ -430,6 +430,22 @@ failure. Nothing real is ever written into a tracked file. Use it for any other
 production D1 command too: `node scripts/production-d1.mjs d1 info dalyhub-v2`.
 Verified by `test/unit/deploy/production-d1.test.ts`.
 
+> **Fixed in V2.0.1 — until then, both migration commands were broken.** That
+> temporary config set `migrations_dir` to the RELATIVE string `"migrations"`,
+> and Wrangler resolves a relative `migrations_dir` against the directory holding
+> the **config file** — which is deliberately the OS temp directory, outside the
+> repository. So it pointed at `/tmp/dalyhub-d1-XXXX/migrations`, which never
+> exists: Wrangler exited 1 with `No migrations present at /tmp/…/migrations`,
+> and **`pnpm run db:production:list` and `db:production:apply` could not work as
+> documented**. The config now carries an absolute repository path. Verified
+> empirically against the pinned Wrangler (4.112.0) — relative: exit 1 with that
+> message; absolute: the full `0001`–`0025` list, exit 0 — and held by a test
+> that resolves the emitted value the way Wrangler does, because a test with an
+> injected command runner cannot catch a path bug.
+>
+> If you applied the V2 migrations some other way (the dashboard, or a hand-built
+> config), that is why. `pnpm run db:production:list` is now the honest check.
+
 **Migrate before deploy, not after.** The application queries the detail tables
 unconditionally (`project_details`, `goal_details`, `task_details`, `note_details`,
 `person_details`, `meeting_details`, `asset_details`, `review_details`,

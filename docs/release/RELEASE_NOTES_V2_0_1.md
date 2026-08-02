@@ -72,6 +72,12 @@
   public `/health` endpoint answers directly (a Cloudflare Access login redirect
   is treated as a failure, not a pass) and reports the application name, the
   production environment and exactly the version being released.
+- **The production migration commands actually work now.**
+  `pnpm run db:production:list` and `db:production:apply` pointed Wrangler at a
+  migrations folder that never existed (a path resolved relative to a temporary
+  file rather than to the repository), so both failed outright. Found by review
+  on the release PR; it was a pre-existing defect, not one this release
+  introduced.
 - **Branch protection:** the exact owner steps for requiring the **CI Gate**
   check before merging to `main` are documented in
   [`SETUP_AND_CI.md`](../development/SETUP_AND_CI.md#enabling-it-owner-action--exact-steps),
