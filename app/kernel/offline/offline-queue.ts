@@ -98,6 +98,17 @@ export interface OfflineQueueRecord {
   readonly attempts: number;
   /** The last attempt's instant, for the retry backoff. */
   readonly lastAttemptAt: string | null;
+  /**
+   * When the in-flight attempt started, or null when none is.
+   *
+   * This is the LEASE that makes `syncing` recoverable. A replay marks the record
+   * `syncing` before it sends, so a tab closed mid-request — or a device that
+   * simply lost power — leaves a record no automatic pass and no Retry button
+   * would ever touch again. Stamping the attempt's start means a later pass can
+   * tell "someone is working on this right now" from "someone was working on
+   * this and never came back", and reclaim only the second.
+   */
+  readonly attemptStartedAt: string | null;
   /** A short, owner-readable explanation of the last failure. Never a stack. */
   readonly lastError: string | null;
   /** The server record id, once creation is confirmed. */
@@ -157,11 +168,74 @@ export function createQueueRecord(input: {
     status: "pending",
     attempts: 0,
     lastAttemptAt: null,
+    attemptStartedAt: null,
     lastError: null,
     serverId: null,
     syncedAt: null,
   };
 }
+
+/**
+ * How long an in-flight replay attempt is trusted before it counts as abandoned.
+ *
+ * Generous on purpose: it must comfortably exceed a slow request on a bad
+ * connection (the exact circumstance a replay runs in), because reclaiming an
+ * attempt that is genuinely still in flight sends the capture a second time.
+ * That second send is *safe* — the server keys creation on the record's
+ * idempotency key, so a duplicate send returns the first attempt's record id
+ * rather than creating anything — but it is still a wasted round trip on a
+ * connection that has already proven itself scarce.
+ */
+export const OFFLINE_ATTEMPT_LEASE_MS = 120_000;
+
+/** Mark a record as having an attempt in flight, stamping its lease. */
+export function beginReplayAttempt(
+  record: OfflineQueueRecord,
+  now: Date,
+): OfflineQueueRecord {
+  return {
+    ...record,
+    status: "syncing",
+    attemptStartedAt: now.toISOString(),
+  };
+}
+
+/**
+ * True when a record claims an attempt is in flight but nothing can still be
+ * running it.
+ *
+ * A record stored before this field existed has no lease at all; treating that as
+ * stalled is the correct reading, because the only way to reach `syncing` without
+ * a lease is to have been written by the version that could strand it.
+ */
+export function isStalledAttempt(
+  record: OfflineQueueRecord,
+  now: Date,
+): boolean {
+  if (record.status !== "syncing") return false;
+  if (record.attemptStartedAt === null) return true;
+  const startedAt = Date.parse(record.attemptStartedAt);
+  if (!Number.isFinite(startedAt)) return true;
+  return now.getTime() - startedAt >= OFFLINE_ATTEMPT_LEASE_MS;
+}
+
+/**
+ * What the server answers when a replay arrives while an EARLIER attempt at the
+ * same capture may still be in flight.
+ *
+ * A shared contract rather than a message: the create routes report it as an
+ * ordinary form error (their result shapes are each module's own), and the sync
+ * engine has to be able to tell it apart from a real rejection. Without that the
+ * commonest network failure there is — the connection dropping after the request
+ * was sent but before its answer arrived — would present the owner's capture as
+ * permanently failed, when in fact the right thing to do is wait a moment and
+ * ask again.
+ *
+ * It lives in the kernel because both ends need it and neither may import the
+ * other: `capture-receipts.server.ts` is Worker-only code.
+ */
+export const OFFLINE_CAPTURE_IN_PROGRESS =
+  "That capture is already being created. Try again shortly.";
 
 /** The outcome of one replay attempt, as the sync engine classifies it. */
 export type OfflineReplayOutcome =
@@ -189,10 +263,13 @@ export function applyReplayOutcome(
 ): OfflineQueueRecord {
   const attempts = record.attempts + 1;
   const lastAttemptAt = now.toISOString();
+  // Every outcome ENDS the attempt, so every branch releases the lease. Clearing
+  // it here rather than in four places is what stops a future branch forgetting.
+  const base = { ...record, attemptStartedAt: null };
   switch (outcome.kind) {
     case "created":
       return {
-        ...record,
+        ...base,
         status: "synced",
         attempts,
         lastAttemptAt,
@@ -202,7 +279,7 @@ export function applyReplayOutcome(
       };
     case "blocked":
       return {
-        ...record,
+        ...base,
         // A blocked attempt does NOT consume a retry budget: the owner has not
         // done anything wrong, and burning attempts on an expired session would
         // eventually present valid work as failed.
@@ -212,7 +289,7 @@ export function applyReplayOutcome(
       };
     case "rejected":
       return {
-        ...record,
+        ...base,
         status: "failed",
         attempts,
         lastAttemptAt,
@@ -220,7 +297,7 @@ export function applyReplayOutcome(
       };
     case "retryable":
       return {
-        ...record,
+        ...base,
         status:
           attempts >= OFFLINE_MAX_AUTOMATIC_ATTEMPTS ? "failed" : "pending",
         attempts,
@@ -228,6 +305,29 @@ export function applyReplayOutcome(
         lastError: outcome.reason,
       };
   }
+}
+
+/**
+ * Recover a record whose attempt was interrupted, so it is queued again.
+ *
+ * Interruption is treated as a RETRYABLE outcome rather than as a fresh start:
+ * the attempt really did happen and really might have reached the server, so it
+ * consumes a retry and observes the backoff like any other. A capture whose
+ * replay reliably crashes this device therefore ends up `failed` with an honest
+ * explanation instead of retrying forever.
+ */
+export function reclaimStalledAttempt(
+  record: OfflineQueueRecord,
+  now: Date,
+): OfflineQueueRecord {
+  return applyReplayOutcome(
+    record,
+    {
+      kind: "retryable",
+      reason: "This device was interrupted while syncing this capture.",
+    },
+    now,
+  );
 }
 
 /**
@@ -239,7 +339,14 @@ export function retryDelayMs(attempts: number): number {
   return Math.min(30_000, 1_000 * 2 ** Math.max(0, attempts - 1));
 }
 
-/** True when a record is eligible for an automatic replay attempt now. */
+/**
+ * True when a record is eligible for an automatic replay attempt now.
+ *
+ * `syncing` is deliberately NOT eligible here even once its lease has expired: a
+ * stalled attempt must be reclaimed first (`reclaimStalledAttempt`), so the
+ * interruption is recorded as an attempt and shown to the owner, rather than
+ * being replayed silently as though it had never been tried.
+ */
 export function isReplayable(
   record: OfflineQueueRecord,
   namespace: string,

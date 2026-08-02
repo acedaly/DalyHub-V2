@@ -503,6 +503,64 @@ test.describe("offline lifecycle", () => {
     expect(await countByTitle(page, title)).toBe(1);
   });
 
+  test("a capture stranded mid-sync by a closed tab is recovered, not lost", async ({
+    page,
+  }) => {
+    await primeOfflineSession(page);
+    const namespace = (await readMeta(page))[0].namespace;
+
+    // Exactly what a tab closed mid-request leaves behind: a record that says an
+    // attempt is in flight, with nothing running it. Nothing in the automatic
+    // pass or the Retry button touches `syncing`, so before the attempt lease
+    // existed this capture stayed on the device forever, permanently displayed
+    // as "Synchronising…".
+    const title = `E2E stranded capture ${Date.now()}`;
+    await page.evaluate(
+      async ([ns, text]) => {
+        const open = (): Promise<IDBDatabase> =>
+          new Promise((resolve, reject) => {
+            const request = indexedDB.open("dalyhub-offline");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        const database = await open();
+        const transaction = database.transaction("queue", "readwrite");
+        const queuedAt = new Date(Date.now() - 3_600_000).toISOString();
+        transaction.objectStore("queue").put({
+          id: crypto.randomUUID(),
+          namespace: ns,
+          kind: "task",
+          payload: { kind: "task", title: text, dueDate: null },
+          payloadVersion: 1,
+          createdAt: queuedAt,
+          queuedAt,
+          status: "syncing",
+          attempts: 1,
+          lastAttemptAt: queuedAt,
+          // An hour ago: far beyond any lease a live request could hold.
+          attemptStartedAt: queuedAt,
+          lastError: null,
+          serverId: null,
+          syncedAt: null,
+        });
+        await new Promise<void>((resolve, reject) => {
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+        });
+        database.close();
+      },
+      [namespace, title] as const,
+    );
+
+    await page.goto("/today");
+    await waitForServiceWorker(page);
+    await waitForQueueDrained(page);
+
+    // Recovered AND replayed — and the server's idempotency key means the
+    // recovery cannot have produced a second copy.
+    expect(await countByTitle(page, title)).toBe(1);
+  });
+
   test("queued captures stay pending while authentication has expired", async ({
     page,
     context,

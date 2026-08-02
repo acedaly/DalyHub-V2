@@ -34,6 +34,7 @@ import {
 
 import {
   applyReplayOutcome,
+  beginReplayAttempt,
   createQueueRecord,
   deriveSyncState,
   isSnapshotStale,
@@ -81,7 +82,12 @@ import {
   registerServiceWorker,
   type ServiceWorkerStatus,
 } from "./service-worker";
-import { replayCapture, replayQueue, syncSnapshot } from "./sync";
+import {
+  reclaimStalled,
+  replayCapture,
+  replayQueue,
+  syncSnapshot,
+} from "./sync";
 
 /** The heartbeat interval while the connection is unhealthy. */
 const UNHEALTHY_HEARTBEAT_MS = 15_000;
@@ -233,7 +239,13 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     } else {
       setStorageFailure(data.failure);
     }
-    if (queued.ok) setQueue(queued.value);
+    // Reclaiming here (rather than only inside a replay pass) means a capture
+    // stranded by a tab that was closed mid-request stops claiming to be
+    // "Synchronising…" the moment the app comes back, not whenever the next
+    // pass happens to run.
+    if (queued.ok) {
+      setQueue(await reclaimStalled(queued.value, targetNamespace, new Date()));
+    }
     setStorage(await estimateOfflineStorage());
   }, []);
 
@@ -441,12 +453,10 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
       // A manual retry resets the automatic attempt budget: the owner has looked
       // at the failure and chosen to try again, which is a different fact from
       // the machine trying five times.
-      const reset: OfflineQueueRecord = {
-        ...current,
-        status: "syncing",
-        attempts: 0,
-        lastError: null,
-      };
+      const reset: OfflineQueueRecord = beginReplayAttempt(
+        { ...current, attempts: 0, lastError: null },
+        new Date(),
+      );
       await putQueueRecord(reset);
       const outcome = await replayCapture(
         reset,

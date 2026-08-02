@@ -24,11 +24,29 @@
  *
  * ── Two-phase, and what happens if phase two never runs ──────────────────────
  * The claim is written before the record exists, so a crash between the two
- * leaves a claimed key with no record id. That case is handled explicitly rather
- * than left as a silent hole: a receipt with an empty `record_id` is treated as
- * UNFINISHED, and the next attempt is allowed to take it over and complete it.
- * The alternative — creating first, claiming second — is worse: it can duplicate,
- * which is the exact failure this exists to prevent.
+ * leaves a claimed key with no record id. The alternative — creating first,
+ * claiming second — is worse: it can duplicate, which is the exact failure this
+ * exists to prevent.
+ *
+ * D1 has no interactive transaction that can span the module's own creation code,
+ * so an unfinished receipt is genuinely ambiguous: the Worker may have died
+ * BEFORE the create committed (nothing exists) or AFTER it committed but before
+ * the receipt was finished (the record exists). Nothing on the server can tell
+ * those apart after the fact.
+ *
+ * An earlier revision of this file resolved that ambiguity by letting the next
+ * attempt take the claim over and create. That is the wrong trade: half the time
+ * it silently writes a second task, note or diary entry — the precise failure the
+ * table exists to prevent — and the owner has no way to know it happened.
+ *
+ * So an abandoned claim is resolved the honest way instead. It is finalised as
+ * UNRESOLVED, which is terminal: no attempt ever creates under that key again,
+ * and every later replay of it receives the same stable answer telling the owner
+ * to check whether the capture arrived. That converts a rare invisible duplicate
+ * into a rare visible question, which is the trade DalyHub wants. The capture
+ * itself is never lost — it stays on the device, in the sync panel, with its text
+ * intact. `PWA_AND_OFFLINE.md` records this as a known limitation rather than
+ * implying the two-phase write is atomic.
  *
  * ── Isolation ────────────────────────────────────────────────────────────────
  * Every statement is scoped to the workspace, and reconciliation additionally
@@ -38,13 +56,36 @@
  * task endpoint.
  */
 
-import type { OfflineCaptureKind } from "~/kernel/offline";
+import {
+  OFFLINE_CAPTURE_IN_PROGRESS,
+  type OfflineCaptureKind,
+} from "~/kernel/offline";
 
 /** The sentinel stored while a claim is held but the record does not exist yet. */
 const UNFINISHED = "";
 
-/** How long an unfinished claim may be held before another attempt takes it. */
-const UNFINISHED_CLAIM_TAKEOVER_MS = 60_000;
+/**
+ * The sentinel that retires a key whose outcome can no longer be determined.
+ *
+ * Deliberately not a valid record id: it can never be mistaken for one, and every
+ * read path checks for it before it checks for "already created".
+ */
+const UNRESOLVED = "unresolved";
+
+/**
+ * How long an unfinished claim is assumed to still be in flight.
+ *
+ * Below this a concurrent attempt is asked to try again shortly; above it the
+ * claim is treated as abandoned and retired. Five minutes is far longer than any
+ * Cloudflare Worker request can survive, so a claim that has passed it is not a
+ * slow request — it is a request that will never come back.
+ */
+const UNFINISHED_CLAIM_ABANDONED_MS = 300_000;
+
+/** What the owner is told when a capture's fate cannot be determined. */
+const UNRESOLVED_REASON =
+  "DalyHub could not confirm whether this capture was saved. " +
+  "Check whether it is already there before capturing it again.";
 
 /** Idempotency keys are client-generated UUIDs; the shape is enforced here too. */
 const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]{7,127}$/;
@@ -61,8 +102,10 @@ export type CaptureClaim =
   /** Another attempt already created the record. Return this id; create nothing. */
   | { readonly kind: "alreadyCreated"; readonly recordId: string }
   /**
-   * The key exists but belongs to a different identity, workspace-scoped kind, or
-   * is still being completed by a concurrent attempt. The caller must NOT create.
+   * The key exists but belongs to a different identity or record kind, is still
+   * being completed by a concurrent attempt, or was retired as unresolved. The
+   * caller must NOT create; `reason` is owner-readable and says which it is
+   * without disclosing anything about another identity's data.
    */
   | { readonly kind: "conflict"; readonly reason: string };
 
@@ -140,30 +183,61 @@ export async function claimCapture(
       reason: "That capture belongs to a different sign-in.",
     };
   }
+  if (existing.record_id === UNRESOLVED) {
+    // Checked BEFORE "already created", so the sentinel can never be handed back
+    // as though it were a record id.
+    return { kind: "conflict", reason: UNRESOLVED_REASON };
+  }
   if (existing.record_id !== UNFINISHED) {
     return { kind: "alreadyCreated", recordId: existing.record_id };
   }
 
-  // An unfinished claim. A concurrent attempt is probably mid-flight, so the
-  // default is to wait; but a claim abandoned by a crashed request must not
-  // strand the owner's capture forever, so after the takeover window this
-  // request adopts it.
+  // An unfinished claim. Below the abandonment window a concurrent attempt is
+  // probably still mid-flight, so this one waits rather than racing it.
   const claimedAt = Date.parse(existing.created_at);
   const abandoned =
     Number.isFinite(claimedAt) &&
-    context.now.getTime() - claimedAt >= UNFINISHED_CLAIM_TAKEOVER_MS;
-  return abandoned
-    ? { kind: "claimed" }
-    : {
-        kind: "conflict",
-        reason: "That capture is already being created. Try again shortly.",
-      };
+    context.now.getTime() - claimedAt >= UNFINISHED_CLAIM_ABANDONED_MS;
+  if (!abandoned) {
+    return { kind: "conflict", reason: OFFLINE_CAPTURE_IN_PROGRESS };
+  }
+
+  // Abandoned. Retire the key rather than adopt it: whether the crashed attempt
+  // committed its record is unknowable, and creating anyway is how duplicates
+  // are made. The `record_id = ''` predicate is the compare-and-swap — any
+  // number of concurrent attempts may run this statement, at most one changes
+  // the row, and all of them return the same terminal answer, so none creates.
+  await context.db
+    .prepare(
+      `UPDATE offline_capture_receipts
+          SET record_id = ?1
+        WHERE workspace_id = ?2
+          AND idempotency_key = ?3
+          AND owner_subject = ?4
+          AND record_kind = ?5
+          AND record_id = ''`,
+    )
+    .bind(
+      UNRESOLVED,
+      context.workspaceId,
+      idempotencyKey,
+      context.ownerSubject,
+      context.kind,
+    )
+    .run();
+  return { kind: "conflict", reason: UNRESOLVED_REASON };
 }
 
 /**
  * Record the created record's id against a claimed key. Scoped so it can only
  * complete a receipt this identity claimed, for this record kind, that is not
  * already completed.
+ *
+ * A receipt retired as UNRESOLVED is also completable, because the only caller
+ * that reaches here is the attempt that actually created the record: it knows
+ * the answer the retirement had to guess at. Correcting the receipt turns a
+ * pessimistic "check whether this arrived" into the truth for every later
+ * replay. A receipt already carrying a real id is never overwritten.
  */
 export async function completeClaim(
   context: CaptureReceiptContext,
@@ -178,7 +252,7 @@ export async function completeClaim(
           AND idempotency_key = ?3
           AND owner_subject = ?4
           AND record_kind = ?5
-          AND record_id = ''`,
+          AND record_id IN ('', 'unresolved')`,
     )
     .bind(
       recordId,

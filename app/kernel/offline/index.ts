@@ -33,15 +33,20 @@ export {
 } from "./offline-identity";
 
 export {
+  OFFLINE_ATTEMPT_LEASE_MS,
+  OFFLINE_CAPTURE_IN_PROGRESS,
   OFFLINE_CAPTURE_KINDS,
   OFFLINE_CAPTURE_PAYLOAD_VERSION,
   OFFLINE_MAX_AUTOMATIC_ATTEMPTS,
   OFFLINE_QUEUE_STATUSES,
   applyReplayOutcome,
+  beginReplayAttempt,
   createQueueRecord,
   isOfflineCaptureKind,
   isReplayable,
+  isStalledAttempt,
   newCaptureId,
+  reclaimStalledAttempt,
   retryDelayMs,
   summariseQueue,
   type OfflineCaptureKind,

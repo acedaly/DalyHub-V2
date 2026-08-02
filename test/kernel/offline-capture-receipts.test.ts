@@ -23,6 +23,7 @@ import { env } from "cloudflare:test";
 
 import {
   claimCapture,
+  completeClaim,
   isIdempotencyKey,
   releaseClaim,
   withCaptureIdempotency,
@@ -173,19 +174,76 @@ describe("offline capture idempotency — D1", () => {
     });
   });
 
-  it("takes over a claim abandoned by a crashed request", async () => {
+  it("asks a concurrent attempt to wait while a claim may still be in flight", async () => {
     // A claim written but never completed (the process died between the two
-    // statements). Immediately afterwards a concurrent attempt should wait…
+    // statements). Immediately afterwards a concurrent attempt must not create.
     await claimCapture(context(), KEY);
     const immediately = await claimCapture(context(), KEY);
     expect(immediately.kind).toBe("conflict");
+    if (immediately.kind !== "conflict") throw new Error("unreachable");
+    expect(immediately.reason).toMatch(/try again shortly/i);
+  });
 
-    // …but it must not strand the owner's capture forever.
+  it("NEVER creates under a key whose earlier attempt never came back", async () => {
+    // The crash could have happened before OR after the create committed, and
+    // nothing on the server can tell the difference. Creating anyway is how a
+    // duplicate task reaches a module the owner trusts, so the key is retired.
+    await claimCapture(context(), KEY);
+    const later = new Date(NOW.getTime() + 10 * 60_000);
+
+    const first = await claimCapture(context({ now: later }), KEY);
+    expect(first.kind).toBe("conflict");
+    if (first.kind !== "conflict") throw new Error("unreachable");
+    expect(first.reason).toMatch(/could not confirm/i);
+  });
+
+  it("gives every later replay of a retired key the SAME answer", async () => {
+    // Stability matters: an answer that changed between retries would eventually
+    // let one of them create.
+    await claimCapture(context(), KEY);
+    const later = new Date(NOW.getTime() + 10 * 60_000);
+    const answers = await Promise.all([
+      claimCapture(context({ now: later }), KEY),
+      claimCapture(context({ now: later }), KEY),
+      claimCapture(context({ now: later }), KEY),
+    ]);
+    for (const answer of answers) expect(answer.kind).toBe("conflict");
+
     const muchLater = await claimCapture(
-      context({ now: new Date(NOW.getTime() + 5 * 60_000) }),
+      context({ now: new Date(NOW.getTime() + 86_400_000) }),
       KEY,
     );
-    expect(muchLater.kind).toBe("claimed");
+    expect(muchLater.kind).toBe("conflict");
+
+    // And the sentinel is never handed back as though it were a record id.
+    const guarded = await withCaptureIdempotency(
+      context({ now: new Date(NOW.getTime() + 86_400_000) }),
+      KEY,
+      async () => {
+        throw new Error("nothing may be created under a retired key");
+      },
+    );
+    expect(guarded).toEqual({
+      ok: false,
+      reason: expect.stringMatching(/could not confirm/i),
+    });
+  });
+
+  it("lets the slow attempt that DID create correct a retired receipt", async () => {
+    // The claim was retired while its creation was still running. That attempt
+    // knows the truth the retirement had to guess at, so it writes the real id
+    // and every later replay gets the right answer instead of the cautious one.
+    await claimCapture(context(), KEY);
+    const later = new Date(NOW.getTime() + 10 * 60_000);
+    await claimCapture(context({ now: later }), KEY);
+
+    await completeClaim(context(), KEY, "task-created-slowly");
+
+    const replay = await claimCapture(context({ now: later }), KEY);
+    expect(replay).toEqual({
+      kind: "alreadyCreated",
+      recordId: "task-created-slowly",
+    });
   });
 
   it("rejects a malformed key without touching the database", async () => {

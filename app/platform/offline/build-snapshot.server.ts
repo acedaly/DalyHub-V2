@@ -70,6 +70,31 @@ function boundsFor(window: OfflineWindow) {
   return windowInstantBounds(window, ownerLocalToUtc);
 }
 
+/** How many waiting tasks are read. Bounded like every other section. */
+const WAITING_TASK_LIMIT = 60;
+
+/**
+ * The task projection the snapshot builds from, unified across the two reads it
+ * makes. `listPlanningTasks` and `listWaitingTasks` return different row shapes;
+ * only these fields are used, and only `timeSector` differs between them.
+ */
+interface SnapshotTaskSource {
+  readonly id: string;
+  readonly title: string;
+  readonly priority: string | null;
+  readonly timeSector: string | null;
+  readonly dueDate: string | null;
+  readonly scheduledDate: string | null;
+  readonly completedAt: Date | null;
+  readonly updatedAt: Date;
+  readonly parent: {
+    readonly id: string;
+    readonly kind: string;
+    readonly title: string;
+  } | null;
+  readonly waiting: boolean;
+}
+
 /**
  * Tasks in the window: everything due or scheduled inside it, everything overdue
  * and still open (regardless of how far back it slipped — an overdue task from
@@ -79,6 +104,16 @@ function boundsFor(window: OfflineWindow) {
  * `listPlanningTasks` is reused rather than a new query: it is the established,
  * bounded planning read that already returns scheduled work first, the backlog,
  * and recent completions in one call.
+ *
+ * It does NOT return waiting tasks — the planning read excludes them by contract
+ * (`waiting_since IS NULL`), because the Today surface deliberately separates
+ * "what I can do" from "what I am blocked on". Offline has no such separation to
+ * make: a task the owner is waiting on is exactly the kind of thing they need to
+ * see when they cannot check DalyHub. So `listWaitingTasks` is read alongside it,
+ * through the same workspace-bound repository, and its rows are subject to the
+ * same window rule as every other open task. Without this second read the
+ * `waiting` field on the offline task contract could never be true, and the
+ * offline view would quietly claim the owner had no blocked work at all.
  */
 async function buildTasks(
   scope: WorkspaceScope,
@@ -94,11 +129,42 @@ async function buildTasks(
     backlogLimit: 60,
     completedLimit: 120,
   });
+  // Guarded separately: a failing waiting read must cost the owner their waiting
+  // tasks, not their whole task section.
+  const waitingPage = await section(
+    () =>
+      scope.tasks.listWaitingTasks({
+        todayIso: window.todayIso,
+        limit: WAITING_TASK_LIMIT,
+      }),
+    { items: [] as const },
+  );
+
+  const sources: SnapshotTaskSource[] = [
+    ...page.items.map((item): SnapshotTaskSource => ({
+      ...item,
+      waiting: item.waiting !== null,
+    })),
+    ...waitingPage.items.map((item): SnapshotTaskSource => ({
+      ...item,
+      // The waiting projection carries no time sector — it is a planning
+      // field the Waiting collection does not render. Absent rather than
+      // invented; the offline card simply shows no sector for these.
+      timeSector: null,
+      completedAt: null,
+      waiting: true,
+    })),
+  ];
 
   const references = new Map<string, OfflineReference>();
   const tasks: OfflineTask[] = [];
+  const seen = new Set<string>();
 
-  for (const item of page.items) {
+  for (const item of sources) {
+    // The two reads are disjoint by contract, but a task that changes waiting
+    // state between them would otherwise appear twice on the device.
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
     const completedIso = item.completedAt
       ? ownerCalendarIso(item.completedAt, window.timezone)
       : null;
@@ -149,14 +215,16 @@ async function buildTasks(
       updatedAt: item.updatedAt.toISOString(),
       parentId: item.parent?.id ?? null,
       parentLabel: item.parent?.title ?? null,
-      waiting: item.waiting !== null,
+      waiting: item.waiting,
     });
   }
 
   return {
     tasks,
     references: [...references.values()],
-    bounded: page.items.length >= OFFLINE_SNAPSHOT_LIMITS.tasks,
+    bounded:
+      page.items.length >= OFFLINE_SNAPSHOT_LIMITS.tasks ||
+      waitingPage.items.length >= WAITING_TASK_LIMIT,
   };
 }
 

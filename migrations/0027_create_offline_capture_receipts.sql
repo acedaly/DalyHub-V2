@@ -60,7 +60,13 @@ CREATE TABLE offline_capture_receipts (
   -- for a note being reconciled by the task endpoint.
   record_kind TEXT NOT NULL,
   -- The id of the record that WAS created. This is what a losing retry reads
-  -- back. The empty string means the claim is held but creation has not finished.
+  -- back. Two values are sentinels rather than ids: the empty string means the
+  -- claim is held but creation has not finished, and 'unresolved' means the
+  -- claiming request never came back, so whether it created anything cannot be
+  -- determined. 'unresolved' is terminal, and no attempt creates under that key
+  -- again -- an unknowable outcome is reported to the owner rather than guessed
+  -- at, because guessing wrong writes a duplicate into the modules this table
+  -- exists to protect.
   record_id TEXT NOT NULL,
   created_at TEXT NOT NULL,
   PRIMARY KEY (workspace_id, idempotency_key),

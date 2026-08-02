@@ -21,7 +21,11 @@ import {
   offlineWindow,
   windowInstantBounds,
 } from "~/kernel/offline";
-import { ownerCalendarIso, ownerLocalToUtc } from "~/shared/datetime";
+import {
+  ownerCalendarDateResolver,
+  ownerCalendarIso,
+  ownerLocalToUtc,
+} from "~/shared/datetime";
 
 const SYDNEY = "Australia/Sydney";
 
@@ -113,5 +117,54 @@ describe("windowInstantBounds", () => {
     expect(window.endIso).toBe("2026-04-12");
     expect(startUtc.toISOString()).toBe("2026-03-28T13:00:00.000Z"); // UTC+11
     expect(endUtc.toISOString()).toBe("2026-04-12T14:00:00.000Z"); // UTC+10
+  });
+});
+
+describe("the retention date a stored record is pruned by", () => {
+  // Retention compares a record's date against the window's OWNER-calendar
+  // bounds, so the record's date has to be resolved the same way. A UTC reading
+  // is a different date for part of every Sydney day, and on the window's first
+  // day that difference is the difference between keeping the owner's record and
+  // deleting it the moment it arrives.
+  const resolve = ownerCalendarDateResolver(SYDNEY);
+
+  it("resolves an instant to the owner's day, not the UTC day", () => {
+    // 09:00 Sydney on 2 August is still 1 August in UTC.
+    expect(resolve("2026-08-01T23:00:00.000Z")).toBe("2026-08-02");
+    expect("2026-08-01T23:00:00.000Z".slice(0, 10)).toBe("2026-08-01");
+  });
+
+  it("keeps a record written on the FIRST day of the window inside it", () => {
+    const window = offlineWindow("2026-08-02", SYDNEY);
+    expect(window.startIso).toBe("2026-07-26");
+    // 09:00 on 26 July in Sydney — the first retained day.
+    const retentionIso = resolve("2026-07-25T23:00:00.000Z")!;
+    expect(retentionIso).toBe("2026-07-26");
+    expect(isWithinWindow(retentionIso, window)).toBe(true);
+    // The UTC reading would have fallen a day short, and been pruned.
+    expect(isWithinWindow("2026-07-25", window)).toBe(false);
+  });
+
+  it("uses the offset in effect on the record's own day across a DST change", () => {
+    // Sydney leaves DST on 2026-04-05: UTC+11 before, UTC+10 after.
+    expect(resolve("2026-04-04T13:30:00.000Z")).toBe("2026-04-05"); // +11
+    expect(resolve("2026-04-05T13:30:00.000Z")).toBe("2026-04-05"); // +10
+  });
+
+  it("accepts a Date as readily as an ISO string", () => {
+    expect(resolve(new Date("2026-08-01T23:00:00.000Z"))).toBe("2026-08-02");
+  });
+
+  it("answers null rather than a plausible wrong date for unusable input", () => {
+    expect(resolve(null)).toBeNull();
+    expect(resolve(undefined)).toBeNull();
+    expect(resolve("")).toBeNull();
+    expect(resolve("not a date")).toBeNull();
+  });
+
+  it("falls back to the UTC reading rather than throwing on a bad timezone", () => {
+    // A corrupt stored preference must not cost the owner their snapshot.
+    const fallback = ownerCalendarDateResolver("Not/AZone");
+    expect(fallback("2026-08-01T23:00:00.000Z")).toBe("2026-08-01");
   });
 });

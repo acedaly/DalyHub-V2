@@ -34,6 +34,7 @@ import {
   type OfflineTodaySummary,
   type OfflineWindow,
 } from "~/kernel/offline";
+import { ownerCalendarDateResolver } from "~/shared/datetime";
 
 import {
   openOfflineDatabase,
@@ -156,33 +157,46 @@ async function readNamespaceKeys(
   return keys;
 }
 
+/** Narrow an unknown stored field to something a date resolver can read. */
+function asInstant(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 /**
- * The calendar date a record is retained by. Returning `null` means "retained
- * for as long as its namespace's snapshot is", which applies to references — they
- * exist only to label other records and are replaced wholesale on every sync.
+ * The calendar date a record is retained by, in the OWNER's timezone.
+ *
+ * The timezone matters here, and getting it wrong deletes the owner's data.
+ * Retention compares this date against a window whose bounds are the owner's
+ * calendar dates (`offline-window.ts`), so the record's date has to be the
+ * owner's too. Slicing the first ten characters off an ISO instant answers a
+ * different question — the date in UTC — and the two disagree for part of every
+ * day: in Australia/Sydney a diary entry written at 09:00 on the window's FIRST
+ * day is `T23:00Z` on the day before it, so a UTC slice puts it outside the
+ * window and the next prune deletes it the moment it arrives.
+ *
+ * Returning `null` means "retained for as long as its namespace's snapshot is",
+ * which applies to references — they exist only to label other records and are
+ * replaced wholesale on every sync.
  */
-function retentionIsoFor(kind: string, value: unknown): string | null {
+function retentionIsoFor(
+  kind: string,
+  value: unknown,
+  ownerDate: (value: Date | string | null | undefined) => string | null,
+): string | null {
   const record = value as Record<string, unknown>;
   switch (kind) {
     case "task": {
       // An OPEN overdue task is retained however old its date is: it is still
       // owed, and dropping it would hide exactly the work the owner most needs.
       if (record.status !== "completed") return null;
-      const completedAt = record.completedAt;
-      return typeof completedAt === "string" ? completedAt.slice(0, 10) : null;
+      return ownerDate(asInstant(record.completedAt));
     }
     case "note":
-      return typeof record.updatedAt === "string"
-        ? record.updatedAt.slice(0, 10)
-        : null;
+      return ownerDate(asInstant(record.updatedAt));
     case "diary":
-      return typeof record.occurredAt === "string"
-        ? record.occurredAt.slice(0, 10)
-        : null;
+      return ownerDate(asInstant(record.occurredAt));
     case "meeting":
-      return typeof record.startsAt === "string"
-        ? record.startsAt.slice(0, 10)
-        : null;
+      return ownerDate(asInstant(record.startsAt));
     default:
       return null;
   }
@@ -229,6 +243,7 @@ export async function saveSnapshot(
         ["reference", snapshot.references],
       ];
     const counts: Record<string, number> = {};
+    const ownerDate = ownerCalendarDateResolver(snapshot.window.timezone);
     for (const [kind, values] of sections) {
       counts[kind] = values.length;
       for (const value of values) {
@@ -237,7 +252,7 @@ export async function saveSnapshot(
           namespace: snapshot.namespace,
           kind,
           id: value.id,
-          retentionIso: retentionIsoFor(kind, value),
+          retentionIso: retentionIsoFor(kind, value, ownerDate),
           value,
         };
         records.put(stored);

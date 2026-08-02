@@ -31,11 +31,15 @@
  */
 
 import {
+  OFFLINE_CAPTURE_IN_PROGRESS,
   applyReplayOutcome,
+  beginReplayAttempt,
   canReachBackend,
   classifyProbe,
   isReplayable,
+  isStalledAttempt,
   offlineWindow,
+  reclaimStalledAttempt,
   shouldPauseSync,
   type OfflineConnectionState,
   type OfflineQueueRecord,
@@ -121,6 +125,14 @@ export async function classifyCreateResponse(
   if (payload.ok === true && typeof recordId === "string") {
     return { kind: "created", recordId };
   }
+  if (payload.formError === OFFLINE_CAPTURE_IN_PROGRESS) {
+    // An EARLIER attempt at this same capture may still be in flight — which is
+    // exactly what the commonest network failure produces: the request was sent,
+    // the answer never arrived, and the client asked again. Waiting a moment is
+    // the right response; reporting the owner's capture as permanently failed is
+    // not.
+    return { kind: "retryable", reason: payload.formError };
+  }
   const fieldError = payload.fieldErrors
     ? Object.values(payload.fieldErrors)[0]
     : undefined;
@@ -177,6 +189,32 @@ export async function replayCapture(
   }
 }
 
+/**
+ * Return this namespace's records with any abandoned attempt returned to the
+ * queue, persisting each recovery.
+ *
+ * Exported so the provider can run it the moment the app starts, rather than
+ * leaving a stranded capture displayed as "Synchronising…" until the first pass
+ * happens to run.
+ */
+export async function reclaimStalled(
+  records: readonly OfflineQueueRecord[],
+  namespace: string,
+  now: Date,
+): Promise<readonly OfflineQueueRecord[]> {
+  const recovered: OfflineQueueRecord[] = [];
+  for (const record of records) {
+    if (record.namespace !== namespace || !isStalledAttempt(record, now)) {
+      recovered.push(record);
+      continue;
+    }
+    const reclaimed = reclaimStalledAttempt(record, now);
+    await putQueueRecord(reclaimed);
+    recovered.push(reclaimed);
+  }
+  return recovered;
+}
+
 /** What one replay pass did. */
 export interface ReplayPassResult {
   readonly attempted: number;
@@ -210,11 +248,21 @@ export async function replayQueue(options: {
   // discover there was no work.
   const queue = await readQueue(options.namespace);
   const now = options.now ?? new Date();
-  const due = queue.ok
-    ? queue.value
-        .filter((record) => isReplayable(record, options.namespace, now))
-        .slice(0, options.batchSize ?? REPLAY_BATCH_SIZE)
-    : [];
+
+  // Reclaim before selecting. A tab closed mid-request — or a device that lost
+  // power — leaves a record marked `syncing` with nothing running it, and
+  // `syncing` is a status neither the automatic pass nor the Retry button will
+  // touch. Without this the owner's capture is stranded on the device forever,
+  // which is precisely the failure the queue exists to prevent.
+  const records = await reclaimStalled(
+    queue.ok ? queue.value : [],
+    options.namespace,
+    now,
+  );
+
+  const due = records
+    .filter((record) => isReplayable(record, options.namespace, now))
+    .slice(0, options.batchSize ?? REPLAY_BATCH_SIZE);
   if (due.length === 0) {
     return {
       attempted: 0,
@@ -244,7 +292,9 @@ export async function replayQueue(options: {
   let blocked = 0;
 
   for (const record of due) {
-    await putQueueRecord({ ...record, status: "syncing" });
+    // The lease is stamped BEFORE the request, so an interruption anywhere in
+    // the next few lines is recoverable rather than terminal.
+    await putQueueRecord(beginReplayAttempt(record, new Date()));
     const outcome = await replayCapture(record, fetchImpl, options.signal);
     const updated = applyReplayOutcome(record, outcome, new Date());
     await putQueueRecord(updated);

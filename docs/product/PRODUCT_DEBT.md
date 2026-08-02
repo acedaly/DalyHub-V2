@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-68**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-72**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
@@ -713,6 +713,14 @@ authority now.)
 - **Impact.** Unbounded row growth in a table with no reader after its retry window. At a realistic capture rate it is measured in kilobytes a year; the debt is that "unbounded" is still unbounded.
 - **Desired future state.** An age-based prune (delete receipts older than a documented horizon) attached to whatever scheduled maintenance DalyHub gains first — the V2.0.1 backup workflow is the obvious host.
 - **Closing condition.** Receipts older than the horizon are removed, with a kernel test proving a receipt inside the horizon still prevents a duplicate.
+- **Related roadmap item.** [PWA/offline](../development/PWA_AND_OFFLINE.md#11-known-limitations) (follow-on).
+
+### ☐ DEBT-71 — A replayed capture whose Worker died mid-creation cannot be resolved automatically — P2
+
+- **Current issue.** Offline capture replay claims an idempotency key in `offline_capture_receipts` *before* the module creates anything, and finishes the receipt with the created id afterwards. D1 has no interactive transaction that can span the module's own creation code, so a Worker that dies between those two writes leaves a receipt whose outcome is undecidable: the create may have committed just before the process ended, or never run at all. DalyHub retires the key rather than guessing (`capture-receipts.server.ts`), so no duplicate is ever created — but the owner is asked to check whether the capture arrived, and the queued capture is marked as needing attention rather than syncing.
+- **Impact.** Rare (it needs a Worker to die inside a one-round-trip window) and never destructive: the capture's text stays on the device and nothing is duplicated. The debt is that a resolvable situation is handed to the owner.
+- **Desired future state.** Make the creation itself idempotent so there is no second write to lose: derive the created record's primary key from the idempotency key, so replay is an `INSERT … ON CONFLICT DO NOTHING` against the record table and the receipt becomes an optimisation rather than the guarantee. That is a change to how the three modules mint ids, which is why it was not folded into the PWA milestone.
+- **Closing condition.** A kernel test kills the request between create and receipt completion, replays the same key, and asserts exactly one record exists and the replay reports its id — with no owner-facing "check whether this arrived" message.
 - **Related roadmap item.** [PWA/offline](../development/PWA_AND_OFFLINE.md#11-known-limitations) (follow-on).
 
 ### ☐ DEBT-70 — Hydrated offline rendering is not covered by automation — P2

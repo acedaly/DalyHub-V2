@@ -218,6 +218,15 @@ architecture cleanly enough to justify a second retention rule.
 an **allow-list**, so a new field on a repository projection cannot silently flow
 onto every owner's device.
 
+**Waiting tasks need a second read.** `listPlanningTasks` excludes them by
+contract (`waiting_since IS NULL`) — Today deliberately separates "what I can do"
+from "what I am blocked on". Offline has no such separation to make, so
+`listWaitingTasks` is read alongside it (bounded at 60, guarded independently)
+and its rows are subject to the same window rule as every other open task.
+Without it the `waiting` field could never be true and the offline view would
+quietly claim the owner had no blocked work at all. The waiting projection carries
+no `timeSector`, so those rows store `null` for it rather than inventing one.
+
 ### 5.3 Bounds
 
 `tasks: 400, notes: 100, diary: 150, meetings: 100, references: 300`. When a bound
@@ -234,6 +243,14 @@ has dropped from the window cannot survive on the device.
 One deliberate exception: an **open overdue task is retained however old it is**.
 It is still owed, and dropping it would hide exactly the work the owner most needs
 offline.
+
+The date a record is pruned by is resolved in the **owner's** timezone, exactly
+like the window's bounds — `ownerCalendarDateResolver` in `app/shared/datetime`,
+one formatter bound per snapshot. Slicing the first ten characters off an ISO
+instant answers a different question (the date in UTC) and the two disagree for
+part of every day: a Sydney diary entry written at 09:00 on the window's *first*
+day is `T23:00Z` on the day before it, so a UTC reading would put it outside the
+window and the next prune would delete it the moment it arrived.
 
 Queued captures are **exempt from retention entirely** — they hold work that
 exists only on the device, and no automatic policy may discard it.
@@ -276,12 +293,30 @@ scope for this milestone and must not be added here without that analysis.
 
 `id` (a collision-safe UUID, also the server idempotency key), `namespace`,
 `kind`, `payload`, `payloadVersion`, `createdAt`, `queuedAt`, `status`,
-`attempts`, `lastAttemptAt`, `lastError`, `serverId`, `syncedAt`.
+`attempts`, `lastAttemptAt`, `attemptStartedAt`, `lastError`, `serverId`,
+`syncedAt`.
 
 Statuses: `pending` → `syncing` → `synced` | `failed` | `blocked`.
 
 `blocked` is separate from `failed` on purpose: a blocked record is waiting for a
 valid sign-in, is not the owner's mistake, and **does not consume retry budget**.
+
+**`syncing` is leased, so it is recoverable.** A replay marks a record `syncing`
+before it sends. A tab closed mid-request — or a device that simply loses power —
+therefore leaves a record claiming an attempt is in flight with nothing running
+it, and neither the automatic pass nor the Retry button will touch a `syncing`
+record. `attemptStartedAt` is what makes that state recoverable: an attempt older
+than the two-minute lease is treated as abandoned, returned to `pending`, and
+shown to the owner as "This device was interrupted while syncing this capture."
+
+The interruption **counts as an attempt**, so a capture whose replay reliably
+crashes this device ends up `failed` with an honest explanation instead of
+retrying forever. Reclaiming runs both inside a replay pass and whenever the
+provider reloads the queue, so a stranded capture stops displaying as
+"Synchronising…" as soon as DalyHub is reopened. Reclaiming a capture that was in
+fact still in flight is safe: the server keys creation on the record's idempotency
+key, so the second send returns the first attempt's record id rather than creating
+anything.
 
 ### 6.3 Idempotency
 
@@ -303,11 +338,39 @@ offline_capture_receipts (workspace_id, idempotency_key) PRIMARY KEY
 3. A loser reads the receipt back and returns the **already-created** id.
 4. A creation that fails (validation or exception) **releases** the claim, so the
    owner's retry is not permanently answered with "already being created".
-5. A claim abandoned by a crashed request is taken over after 60 seconds, so a
-   capture is never stranded.
+5. A claim whose request **never came back** is retired as `unresolved` after
+   five minutes, and no attempt ever creates under that key again. See below.
 6. A receipt is scoped by workspace, owner subject and record kind: a replay
    cannot cross a workspace, be attributed to another identity, or have a note's
    receipt satisfied by the task endpoint.
+
+**The one case the two-phase write cannot decide.** The claim is written before
+the record exists, so a Worker that dies between the two leaves a receipt with no
+record id. That is genuinely ambiguous: the create may have committed just before
+the process ended, or never run at all, and D1 has no interactive transaction that
+could have spanned the module's own creation code to make it atomic.
+
+An earlier revision resolved this by letting the next attempt take the claim over
+and create. That is the wrong trade — half the time it silently writes a second
+task, note or diary entry, which is the exact failure the receipts table exists to
+prevent, and the owner has no way to know it happened. So the key is **retired**
+instead: every later replay of it receives the same stable answer telling the
+owner to check whether the capture arrived, the queued capture is marked as
+needing attention with that message, and its text stays intact on the device.
+
+If the slow attempt does eventually finish and it *did* create the record, it
+corrects the retired receipt with the real id — so a retirement is pessimistic
+only for as long as the truth is unknown.
+
+A rare visible question, never a silent duplicate. Recorded in §11 as a known
+limitation.
+
+**Before that window, "try again shortly" is RETRYABLE.** A request that was sent
+but whose answer never arrived is the commonest network failure there is, and the
+retry that follows finds the first attempt's claim still held. That answer is a
+shared kernel constant (`OFFLINE_CAPTURE_IN_PROGRESS`) precisely so the sync
+engine can tell it apart from a real validation rejection — otherwise a dropped
+connection would present the owner's capture as permanently failed.
 
 ### 6.4 The sync pass
 
@@ -565,6 +628,18 @@ needs a real device.
    Changing it per stored preference needs a client script.
 9. **A snapshot is a full replacement, not an incremental delta.** At the measured
    8.5 kB this is not worth the complexity; revisit if it grows.
+10. **A capture whose replay request never came back is reported, not resolved.**
+   D1 has no interactive transaction that can span the module's own creation
+   code, so a Worker that dies between claiming the key and finishing the receipt
+   leaves an outcome nothing can determine after the fact. The key is retired and
+   the owner is asked to check whether the capture arrived (§6.3). Making this
+   decidable needs the create itself to be idempotent — a record whose primary key
+   derives from the idempotency key — which is the next milestone's work, not a
+   patch on this one.
+11. **A waiting task with no due or scheduled date is not stored offline.** The
+   same window rule applies to waiting work as to every other open task, and an
+   undated task has no date to place inside the window. Consistent, and stated
+   rather than surprising.
 
 ---
 

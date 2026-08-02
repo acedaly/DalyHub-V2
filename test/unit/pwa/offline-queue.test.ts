@@ -11,13 +11,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  OFFLINE_ATTEMPT_LEASE_MS,
   OFFLINE_CAPTURE_PAYLOAD_VERSION,
   OFFLINE_MAX_AUTOMATIC_ATTEMPTS,
   applyReplayOutcome,
+  beginReplayAttempt,
   createQueueRecord,
   isOfflineCaptureKind,
   isReplayable,
+  isStalledAttempt,
   newCaptureId,
+  reclaimStalledAttempt,
   retryDelayMs,
   summariseQueue,
   type OfflineQueueRecord,
@@ -53,6 +57,7 @@ describe("createQueueRecord", () => {
     expect(record.attempts).toBe(0);
     expect(record.lastError).toBeNull();
     expect(record.serverId).toBeNull();
+    expect(record.attemptStartedAt).toBeNull();
   });
 });
 
@@ -218,5 +223,100 @@ describe("the supported capture kinds are a closed set", () => {
     expect(isOfflineCaptureKind("meeting")).toBe(false);
     expect(isOfflineCaptureKind("delete")).toBe(false);
     expect(isOfflineCaptureKind(undefined)).toBe(false);
+  });
+});
+
+describe("an interrupted replay attempt", () => {
+  const inFlight = beginReplayAttempt(queued(), NOW);
+
+  it("is marked syncing with its lease stamped, so it can be recognised later", () => {
+    expect(inFlight.status).toBe("syncing");
+    expect(inFlight.attemptStartedAt).toBe(NOW.toISOString());
+  });
+
+  it("is not stalled while the lease holds", () => {
+    const during = new Date(NOW.getTime() + OFFLINE_ATTEMPT_LEASE_MS - 1);
+    expect(isStalledAttempt(inFlight, during)).toBe(false);
+  });
+
+  it("is stalled once the lease has expired", () => {
+    const after = new Date(NOW.getTime() + OFFLINE_ATTEMPT_LEASE_MS);
+    expect(isStalledAttempt(inFlight, after)).toBe(true);
+  });
+
+  it("is stalled when the record predates the lease field entirely", () => {
+    // The ONLY way to be `syncing` with no lease is to have been written by the
+    // version that could strand a capture, so this must be recoverable.
+    const legacy = queued({ status: "syncing", attemptStartedAt: null });
+    expect(isStalledAttempt(legacy, NOW)).toBe(true);
+  });
+
+  it("is never confused with a record that is not syncing", () => {
+    expect(isStalledAttempt(queued({ status: "pending" }), NOW)).toBe(false);
+    expect(isStalledAttempt(queued({ status: "failed" }), NOW)).toBe(false);
+    expect(isStalledAttempt(queued({ status: "blocked" }), NOW)).toBe(false);
+    expect(isStalledAttempt(queued({ status: "synced" }), NOW)).toBe(false);
+  });
+
+  it("is NOT automatically replayable while it still says syncing", () => {
+    // Reclaiming has to happen first, so the interruption is counted as an
+    // attempt and shown to the owner instead of being replayed invisibly.
+    const after = new Date(NOW.getTime() + OFFLINE_ATTEMPT_LEASE_MS);
+    expect(isReplayable(inFlight, NAMESPACE, after)).toBe(false);
+  });
+});
+
+describe("reclaiming a stalled attempt", () => {
+  const after = new Date(NOW.getTime() + OFFLINE_ATTEMPT_LEASE_MS);
+  const reclaimed = reclaimStalledAttempt(
+    beginReplayAttempt(queued(), NOW),
+    after,
+  );
+
+  it("returns the capture to the queue, so it is never stranded", () => {
+    expect(reclaimed.status).toBe("pending");
+    expect(reclaimed.attemptStartedAt).toBeNull();
+  });
+
+  it("counts the interruption as an attempt and explains it to the owner", () => {
+    expect(reclaimed.attempts).toBe(1);
+    expect(reclaimed.lastError).toMatch(/interrupted/i);
+    expect(reclaimed.lastAttemptAt).toBe(after.toISOString());
+  });
+
+  it("becomes replayable once its backoff has elapsed", () => {
+    const later = new Date(after.getTime() + retryDelayMs(reclaimed.attempts));
+    expect(isReplayable(reclaimed, NAMESPACE, later)).toBe(true);
+  });
+
+  it("stops retrying a capture that reliably interrupts this device", () => {
+    let record = queued();
+    for (
+      let attempt = 0;
+      attempt < OFFLINE_MAX_AUTOMATIC_ATTEMPTS;
+      attempt += 1
+    ) {
+      record = reclaimStalledAttempt(beginReplayAttempt(record, NOW), after);
+    }
+    // Not discarded — surfaced, so the owner decides.
+    expect(record.status).toBe("failed");
+    expect(record.payload).toEqual(queued().payload);
+  });
+});
+
+describe("every replay outcome releases the attempt lease", () => {
+  const inFlight = beginReplayAttempt(queued(), NOW);
+
+  it.each([
+    ["created", { kind: "created", recordId: "task-1" }] as const,
+    ["blocked", { kind: "blocked", reason: "Signed out." }] as const,
+    ["rejected", { kind: "rejected", reason: "Too long." }] as const,
+    ["retryable", { kind: "retryable", reason: "Unreachable." }] as const,
+  ])("clears it on a %s outcome", (_label, outcome) => {
+    const applied = applyReplayOutcome(inFlight, outcome, NOW);
+    expect(applied.attemptStartedAt).toBeNull();
+    expect(
+      isStalledAttempt(applied, new Date(NOW.getTime() + 86_400_000)),
+    ).toBe(false);
   });
 });

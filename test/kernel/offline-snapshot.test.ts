@@ -135,6 +135,88 @@ describe("the seven-day snapshot — D1", () => {
     expect(ids).not.toContain(dayAfter.id);
   });
 
+  it("carries the tasks the owner is WAITING on, which planning excludes", async () => {
+    // `listPlanningTasks` deliberately omits waiting tasks — Today separates
+    // "what I can do" from "what I am blocked on". Offline has no such
+    // separation: a task blocked on someone else is exactly what an owner needs
+    // to see when they cannot reach DalyHub. Without the second read this
+    // section would quietly claim there was no blocked work at all.
+    const tasks = makeTaskRepository(makeContext(WS));
+    const blocked = await tasks.createTask({
+      title: "Waiting on the builder",
+      parent: null,
+      scheduledDate: "2026-08-05",
+    });
+    await tasks.setWaiting(blocked.id, {
+      target: { kind: "text", note: "Quote promised Friday" },
+    });
+
+    const snapshot = await build();
+    const stored = snapshot.tasks.find((task) => task.id === blocked.id);
+    expect(stored).toBeDefined();
+    expect(stored?.waiting).toBe(true);
+  });
+
+  it("never stores a waiting task twice", async () => {
+    const tasks = makeTaskRepository(makeContext(WS));
+    const blocked = await tasks.createTask({
+      title: "Waiting once",
+      parent: null,
+      scheduledDate: "2026-08-05",
+    });
+    await tasks.setWaiting(blocked.id, {
+      target: { kind: "text", note: "Someone else" },
+    });
+    const snapshot = await build();
+    const occurrences = snapshot.tasks.filter(
+      (task) => task.id === blocked.id,
+    ).length;
+    expect(occurrences).toBe(1);
+  });
+
+  it("applies the SAME window rule to waiting work as to everything else", async () => {
+    const tasks = makeTaskRepository(makeContext(WS));
+    const beyond = await tasks.createTask({
+      title: "Waiting, far beyond the window",
+      parent: null,
+      scheduledDate: "2026-09-30",
+    });
+    await tasks.setWaiting(beyond.id, {
+      target: { kind: "text", note: "Not soon" },
+    });
+    const snapshot = await build();
+    expect(snapshot.tasks.map((task) => task.id)).not.toContain(beyond.id);
+  });
+
+  it("loses only the waiting tasks, not the whole section, if that read fails", async () => {
+    const base = scope();
+    const planned = await makeTaskRepository(makeContext(WS)).createTask({
+      title: "Still planned",
+      parent: null,
+      scheduledDate: "2026-08-05",
+    });
+    const broken = {
+      ...base,
+      tasks: {
+        ...base.tasks,
+        listPlanningTasks: base.tasks.listPlanningTasks.bind(base.tasks),
+        listWaitingTasks: async () => {
+          throw new Error("D1 was unavailable");
+        },
+      },
+    } as unknown as WorkspaceScope;
+
+    const snapshot = await buildOfflineSnapshot({
+      scope: broken,
+      subject: SUBJECT,
+      identityLabel: "owner@example.test",
+      workspaceLabel: "DalyHub",
+      timezone: SYDNEY,
+      now: NOW,
+    });
+    expect(snapshot.tasks.map((task) => task.id)).toContain(planned.id);
+  });
+
   it("stores only the minimised task fields", async () => {
     const tasks = makeTaskRepository(makeContext(WS));
     await tasks.createTask({

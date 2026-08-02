@@ -19,7 +19,10 @@ import {
   classifyCreateResponse,
   replayQueue,
 } from "~/shared/offline/sync";
-import { createQueueRecord } from "~/kernel/offline";
+import {
+  OFFLINE_CAPTURE_IN_PROGRESS,
+  createQueueRecord,
+} from "~/kernel/offline";
 
 const SYDNEY = "Australia/Sydney";
 const WINDOW = offlineWindow("2026-08-02", SYDNEY);
@@ -197,6 +200,20 @@ describe("classifyCreateResponse", () => {
       new Response("", { status: 503 }),
     );
     expect(outcome.kind).toBe("retryable");
+  });
+
+  it("waits, rather than failing, when an earlier attempt may still be running", async () => {
+    // The commonest network failure there is: the request was sent, the answer
+    // never arrived, the client asked again — and the server is still holding the
+    // first attempt's claim. Reporting the owner's capture as permanently failed
+    // here would be wrong; asking again in a moment is right.
+    const outcome = await classifyCreateResponse(
+      json({ ok: false, formError: OFFLINE_CAPTURE_IN_PROGRESS }),
+    );
+    expect(outcome).toEqual({
+      kind: "retryable",
+      reason: OFFLINE_CAPTURE_IN_PROGRESS,
+    });
   });
 
   it("reports a real validation rejection with the server's own message", async () => {

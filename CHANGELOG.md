@@ -66,11 +66,12 @@ not device-verified.
 - **DalyHub opens without a connection**, once you have opened it online while
   signed in at least once on that device. Instead of the browser's error page you
   get DalyHub's offline surface.
-- **A seven-day offline snapshot.** Tasks due, scheduled or overdue around today;
-  anything you completed in the last week; notes and diary entries from the last
-  week, as excerpts; and meetings in the surrounding fortnight — with the project,
-  area and person names those records need. You can search, filter and sort all of
-  it with no connection.
+- **A seven-day offline snapshot.** Tasks due, scheduled or overdue around today
+  — including the ones you are **waiting on someone else for**; anything you
+  completed in the last week; notes and diary entries from the last week, as
+  excerpts; and meetings in the surrounding fortnight — with the project, area and
+  person names those records need. You can search, filter and sort all of it with
+  no connection.
 - **Capture without a connection.** A new Inbox task, a quick note or a diary
   entry can be captured offline. It waits on your device and reaches DalyHub when
   a connection returns — **exactly once**, even if the connection drops
@@ -93,6 +94,16 @@ not device-verified.
 - Your sign-in still expires the way it always did. When it does, anything you
   captured offline stays safe on the device and syncs after you sign in again —
   DalyHub stops retrying rather than repeatedly bouncing you to the sign-in page.
+- **Closing a tab mid-sync no longer strands a capture.** A capture that was
+  being sent when DalyHub was closed used to sit on the device showing
+  "Synchronising…" with nothing able to move it. It now returns to the queue by
+  itself and syncs on the next connection.
+- **A capture whose result DalyHub genuinely cannot determine now says so.** In
+  the rare case where the server stopped mid-creation, DalyHub asks you to check
+  whether the capture arrived instead of quietly creating a second copy.
+- **A record from earlier in the day is no longer dropped from the offline copy.**
+  Retention now measures dates in your own timezone rather than UTC, so a note or
+  diary entry from the first morning of the window stays where you expect it.
 
 ### Known limitations — offline
 
@@ -102,6 +113,9 @@ not device-verified.
 - Notes and diary entries are stored as excerpts, not in full.
 - Signing out does not automatically clear this device's offline data — use
   Settings → Reset offline data.
+- A waiting task with no due or scheduled date is not stored offline: the same
+  seven-day rule applies to it as to every other task, and an undated task has no
+  date to place inside that window.
 
 ---
 
