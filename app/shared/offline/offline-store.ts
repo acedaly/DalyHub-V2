@@ -114,7 +114,17 @@ async function withDatabase<T>(
   }
 }
 
-/** Read every row of a store for one namespace, via the namespace index. */
+/**
+ * Read every row of a store for one namespace, via the namespace index.
+ *
+ * Reads and writes are deliberately kept in SEPARATE transactions throughout
+ * this file. An IndexedDB transaction auto-commits as soon as its microtask
+ * checkpoint drains with no pending request, so `await`-ing a read and then
+ * issuing writes on the SAME transaction is the classic way to get an
+ * intermittent `TransactionInactiveError` that appears only under load or in one
+ * engine. Every write transaction below therefore receives the keys it needs up
+ * front and contains nothing but synchronous `put`/`delete` calls.
+ */
 async function readNamespace(
   database: IDBDatabase,
   storeName: string,
@@ -128,6 +138,22 @@ async function readNamespace(
   );
   await transactionToPromise(transaction);
   return rows as unknown[];
+}
+
+/** Read the KEYS of every row of a store for one namespace. Its own transaction. */
+async function readNamespaceKeys(
+  database: IDBDatabase,
+  storeName: string,
+  indexName: string,
+  namespace: string,
+): Promise<IDBValidKey[]> {
+  const transaction = database.transaction(storeName, "readonly");
+  const index = transaction.objectStore(storeName).index(indexName);
+  const keys = await requestToPromise(
+    index.getAllKeys(IDBKeyRange.only(namespace)),
+  );
+  await transactionToPromise(transaction);
+  return keys;
 }
 
 /**
@@ -174,21 +200,24 @@ export async function saveSnapshot(
   snapshot: OfflineSnapshot,
 ): Promise<OfflineStoreResult<OfflineMetaRecord>> {
   return withDatabase(async (database) => {
+    // READ first, in its own transaction. Clearing this namespace ONLY — never
+    // `records.clear()`, which would delete another identity's or workspace's
+    // data on a shared browser profile.
+    const existingKeys = await readNamespaceKeys(
+      database,
+      OFFLINE_STORES.records,
+      OFFLINE_INDEXES.recordsByNamespace,
+      snapshot.namespace,
+    );
+
     const transaction = database.transaction(
       [OFFLINE_STORES.records, OFFLINE_STORES.meta],
       "readwrite",
     );
     const records = transaction.objectStore(OFFLINE_STORES.records);
     const meta = transaction.objectStore(OFFLINE_STORES.meta);
-
-    // Clear this namespace only — never `records.clear()`, which would delete
-    // another identity's or workspace's data on a shared browser profile.
-    const namespaceIndex = records.index(OFFLINE_INDEXES.recordsByNamespace);
-    const existingKeys = await requestToPromise(
-      namespaceIndex.getAllKeys(IDBKeyRange.only(snapshot.namespace)),
-    );
     for (const key of existingKeys) {
-      records.delete(key as IDBValidKey);
+      records.delete(key);
     }
 
     const sections: readonly (readonly [string, readonly { id: string }[]])[] =
@@ -306,31 +335,29 @@ export async function pruneRetention(
   window: OfflineWindow,
 ): Promise<OfflineStoreResult<number>> {
   return withDatabase(async (database) => {
+    const rows = (await readNamespace(
+      database,
+      OFFLINE_STORES.records,
+      OFFLINE_INDEXES.recordsByNamespace,
+      namespace,
+    )) as StoredRecord[];
+
+    const expired = rows.filter(
+      (row) =>
+        row.retentionIso !== null &&
+        (row.retentionIso < window.startIso ||
+          row.retentionIso > window.endIso),
+    );
+    if (expired.length === 0) return 0;
+
     const transaction = database.transaction(
       OFFLINE_STORES.records,
       "readwrite",
     );
     const store = transaction.objectStore(OFFLINE_STORES.records);
-    const rows = (await requestToPromise(
-      store
-        .index(OFFLINE_INDEXES.recordsByNamespace)
-        .getAll(IDBKeyRange.only(namespace)),
-    )) as StoredRecord[];
-
-    let removed = 0;
-    for (const row of rows) {
-      if (row.retentionIso === null) continue;
-      if (
-        row.retentionIso >= window.startIso &&
-        row.retentionIso <= window.endIso
-      ) {
-        continue;
-      }
-      store.delete(row.key);
-      removed += 1;
-    }
+    for (const row of expired) store.delete(row.key);
     await transactionToPromise(transaction);
-    return removed;
+    return expired.length;
   });
 }
 
@@ -339,28 +366,32 @@ export async function clearOtherNamespaces(
   keepNamespace: string,
 ): Promise<OfflineStoreResult<number>> {
   return withDatabase(async (database) => {
+    const readTransaction = database.transaction(
+      [OFFLINE_STORES.records, OFFLINE_STORES.meta],
+      "readonly",
+    );
+    const rows = (await requestToPromise(
+      readTransaction.objectStore(OFFLINE_STORES.records).getAll(),
+    )) as StoredRecord[];
+    const metas = (await requestToPromise(
+      readTransaction.objectStore(OFFLINE_STORES.meta).getAll(),
+    )) as OfflineMetaRecord[];
+    await transactionToPromise(readTransaction);
+
+    const staleRecords = rows.filter((row) => row.namespace !== keepNamespace);
+    const staleMetas = metas.filter((row) => row.namespace !== keepNamespace);
+    if (staleRecords.length === 0 && staleMetas.length === 0) return 0;
+
     const transaction = database.transaction(
       [OFFLINE_STORES.records, OFFLINE_STORES.meta],
       "readwrite",
     );
     const records = transaction.objectStore(OFFLINE_STORES.records);
     const meta = transaction.objectStore(OFFLINE_STORES.meta);
-    const rows = (await requestToPromise(records.getAll())) as StoredRecord[];
-    let removed = 0;
-    for (const row of rows) {
-      if (row.namespace === keepNamespace) continue;
-      records.delete(row.key);
-      removed += 1;
-    }
-    const metas = (await requestToPromise(
-      meta.getAll(),
-    )) as OfflineMetaRecord[];
-    for (const row of metas) {
-      if (row.namespace === keepNamespace) continue;
-      meta.delete(row.namespace);
-    }
+    for (const row of staleRecords) records.delete(row.key);
+    for (const row of staleMetas) meta.delete(row.namespace);
     await transactionToPromise(transaction);
-    return removed;
+    return staleRecords.length;
   });
 }
 
@@ -369,17 +400,18 @@ export async function clearSnapshot(
   namespace: string,
 ): Promise<OfflineStoreResult<void>> {
   return withDatabase(async (database) => {
+    const keys = await readNamespaceKeys(
+      database,
+      OFFLINE_STORES.records,
+      OFFLINE_INDEXES.recordsByNamespace,
+      namespace,
+    );
     const transaction = database.transaction(
       [OFFLINE_STORES.records, OFFLINE_STORES.meta],
       "readwrite",
     );
     const records = transaction.objectStore(OFFLINE_STORES.records);
-    const keys = await requestToPromise(
-      records
-        .index(OFFLINE_INDEXES.recordsByNamespace)
-        .getAllKeys(IDBKeyRange.only(namespace)),
-    );
-    for (const key of keys) records.delete(key as IDBValidKey);
+    for (const key of keys) records.delete(key);
     transaction.objectStore(OFFLINE_STORES.meta).delete(namespace);
     await transactionToPromise(transaction);
   });
@@ -446,21 +478,20 @@ export async function pruneSyncedQueue(
   namespace: string,
 ): Promise<OfflineStoreResult<number>> {
   return withDatabase(async (database) => {
+    const rows = (await readNamespace(
+      database,
+      OFFLINE_STORES.queue,
+      OFFLINE_INDEXES.queueByNamespace,
+      namespace,
+    )) as OfflineQueueRecord[];
+    const synced = rows.filter((row) => row.status === "synced");
+    if (synced.length === 0) return 0;
+
     const transaction = database.transaction(OFFLINE_STORES.queue, "readwrite");
     const store = transaction.objectStore(OFFLINE_STORES.queue);
-    const rows = (await requestToPromise(
-      store
-        .index(OFFLINE_INDEXES.queueByNamespace)
-        .getAll(IDBKeyRange.only(namespace)),
-    )) as OfflineQueueRecord[];
-    let removed = 0;
-    for (const row of rows) {
-      if (row.status !== "synced") continue;
-      store.delete(row.id);
-      removed += 1;
-    }
+    for (const row of synced) store.delete(row.id);
     await transactionToPromise(transaction);
-    return removed;
+    return synced.length;
   });
 }
 
