@@ -13,6 +13,7 @@
 
 import { env } from "cloudflare:workers";
 
+import { readIdempotencyKey, withReplayGuard } from "~/platform/offline";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
   applyCaptureRelationship,
@@ -245,5 +246,28 @@ export async function action({ request, context }: Route.ActionArgs) {
   const session = requireAuthenticatedSession(context);
   const form = await request.formData();
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
-  return json(await handleCreate(scope, form));
+  // PWA-05 — an OFFLINE capture being replayed carries the idempotency key it was
+  // queued with, so a retry whose response was never seen returns the ALREADY
+  // created task instead of making a second one. Online captures and the full
+  // form send no key and take the unchanged path below.
+  return json(
+    await withReplayGuard(
+      {
+        db: env.DB,
+        workspaceId: scope.context.workspaceId,
+        ownerSubject: session.user.subject,
+        kind: "task",
+        now: new Date(),
+      },
+      readIdempotencyKey(form),
+      () => handleCreate(scope, form),
+      (result) => (result.ok ? result.taskId : null),
+      (taskId): TasksCreateResult => ({ kind: "create", ok: true, taskId }),
+      (reason): TasksCreateResult => ({
+        kind: "create",
+        ok: false,
+        formError: reason,
+      }),
+    ),
+  );
 }
