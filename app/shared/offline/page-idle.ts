@@ -30,6 +30,23 @@ const IDLE_TIMEOUT_MS = 3_000;
 /** The fallback delay where `requestIdleCallback` is unavailable (Safari < 16.4). */
 const FALLBACK_DELAY_MS = 1_000;
 
+/**
+ * A further settling delay after the browser reports idle, before any network
+ * work starts.
+ *
+ * `load` and `requestIdleCallback` say the page has finished its own work; they
+ * do not say the page has finished SETTLING. A framework's dev server can still
+ * trigger a full reload moments later, and a request in flight when a document
+ * is destroyed is simply lost — it never reports as finished or failed. That
+ * showed up as an end-to-end test hanging on a probe that had been issued into a
+ * document that no longer existed.
+ *
+ * Waiting a further beat costs the owner nothing — offline priming is by
+ * definition not time-critical — and moves every request this provider makes
+ * clear of the window in which the page is still stabilising.
+ */
+const SETTLE_DELAY_MS = 1_500;
+
 type IdleWindow = Window & {
   requestIdleCallback?: (
     callback: () => void,
@@ -55,7 +72,10 @@ export function afterPageIdle(work: () => void): () => void {
 
   const run = () => {
     if (cancelled) return;
-    work();
+    timerHandle = setTimeout(() => {
+      if (cancelled) return;
+      work();
+    }, SETTLE_DELAY_MS);
   };
 
   const scheduleIdle = () => {
