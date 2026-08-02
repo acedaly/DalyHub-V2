@@ -1,8 +1,21 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { reactRouter } from "@react-router/dev/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { defineConfig, type Plugin } from "vite";
+
+import { dalyhubServiceWorker } from "./vite-plugins/service-worker";
+
+/**
+ * The application version, read from `package.json` at config time. The
+ * service-worker plugin prefixes its cache-name build id with it, so a release
+ * is legible in devtools. Read with `fs` rather than an import attribute so the
+ * config compiles under the repository's `module: ES2022` setting.
+ */
+const APP_VERSION: string = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+).version;
 
 /**
  * Resolve the `~/* -> app/*` path mapping in EVERY Vite environment, including the
@@ -38,6 +51,9 @@ export default defineConfig({
     tildePathAlias(),
     cloudflare({ viteEnvironment: { name: "ssr" } }),
     reactRouter(),
+    // PWA-02 — emits `/sw.js` from `vite-plugins/sw-template.js` with a
+    // content-derived build id and the real hashed shell bundles.
+    dalyhubServiceWorker({ version: APP_VERSION }),
   ],
   resolve: {
     tsconfigPaths: true,

@@ -40,5 +40,13 @@ export default tseslint.config(
     files: ["app/**/*.{ts,tsx}"],
     ...jsxA11y.flatConfigs.recommended,
   },
+  {
+    // PWA-02 — the service-worker template runs in the ServiceWorkerGlobalScope,
+    // not a window or Node, and carries build-time placeholders that are not
+    // valid JavaScript until the Vite plugin substitutes them.
+    files: ["vite-plugins/sw-template.js"],
+    languageOptions: { globals: globals.serviceworker },
+    rules: { "no-undef": "off" },
+  },
   prettier,
 );

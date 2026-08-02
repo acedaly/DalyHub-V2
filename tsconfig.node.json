@@ -5,7 +5,8 @@
     "vitest.config.ts",
     "vitest.workers.config.ts",
     "playwright.config.ts",
-    "e2e/**/*.ts"
+    "e2e/**/*.ts",
+    "vite-plugins/**/*.ts"
   ],
   "compilerOptions": {
     "composite": true,
