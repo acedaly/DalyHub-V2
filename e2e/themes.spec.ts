@@ -464,6 +464,29 @@ async function surfaceLuminance(page: Page, selector: string): Promise<number> {
   }, selector);
 }
 
+/** WCAG relative luminance of a computed `rgb()` / `rgba()` colour string. */
+function computedLuminance(colour: string): number {
+  const parsed = /rgba?\(([^)]+)\)/.exec(colour);
+  if (parsed === null) {
+    return Number.NaN;
+  }
+  const [r, g, b] = parsed[1]
+    .split(",")
+    .slice(0, 3)
+    .map((part) => Number(part.trim()) / 255)
+    .map((channel) =>
+      channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+    );
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two computed colour strings. */
+function contrastRatio(a: string, b: string): number {
+  const la = computedLuminance(a);
+  const lb = computedLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
 test.describe("THEME-02 the Modern pair across the product", () => {
   for (const theme of [MODERN_LIGHT, MODERN_DARK]) {
     for (const module of MODERN_MODULES) {
@@ -633,6 +656,20 @@ test.describe("THEME-02 selected navigation", () => {
       expect(treatment.weight).toBeGreaterThanOrEqual(600);
       expect(treatment.background).not.toBe(treatment.railBackground);
       expect(treatment.indicator).not.toBe("rgba(0, 0, 0, 0)");
+
+      // The bar is a non-text cue carrying state, so it owes 3:1 against the
+      // surface it is actually painted on (AGENTS.md §15). Measured on the
+      // RENDERED colours rather than on a token pair, because the token test can
+      // only check the pair it is told about — it cannot notice the bar being
+      // repainted with a different token. This caught a real regression: the bar
+      // first used `accent`, whose contrast is guaranteed against the PAGE
+      // surfaces, and on the darker selected tint it fell to 2.96:1 in Daly Dark
+      // and 2.73:1 in Modern Dark.
+      const ratio = contrastRatio(treatment.indicator, treatment.background);
+      expect(
+        ratio,
+        `indicator ${treatment.indicator} on ${treatment.background} = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(3);
     });
   }
 });

@@ -197,7 +197,23 @@ per-theme selection, first-byte paint and the picker checks all ran green for
 | Light half is off-white, not sterile white, and the card sits above the page | `modern-pair.test.ts` | ✅ |
 | Text ramp genuinely stepped in both halves (not three names for one colour) | `modern-pair.test.ts` | ✅ |
 | Selected navigation is `aria-current` + weight ≥ 600 + a tint + an indicator bar | `themes.spec.ts` → selected navigation, both themes | ✅ |
+| Indicator bar ≥ 3:1 against the tint it is painted on, measured on the RENDERED colours | `themes.spec.ts` → selected navigation (see note below) | ✅ |
 | Selected-navigation label ≥ 4.5:1 on its own tint **and** on the rail | `contrast.test.ts` (every theme, not just the pair) | ✅ |
+
+**One defect this pass found and fixed, recorded because it is instructive.** The
+indicator bar was first painted with `accent`. That token's contrast is guaranteed
+against the PAGE surfaces (`bg`, `surface`, `surface-card`) — not against
+`nav-selected-surface`, which in a dark theme is *darker* than the page. The bar
+measured **2.96:1 in Daly Dark and 2.73:1 in Modern Dark**, under the 3:1 a non-text
+cue carrying state owes. It now uses `nav-selected-text`, the foreground token for
+that exact surface, which the contrast test already holds at 4.5:1 in every theme
+(5.28:1 at worst). Raised by an automated review on PR #99 and verified
+independently before acting.
+
+The guard added with the fix measures the **rendered** bar against the **rendered**
+row background, not a token pair, because a token-pair assertion can only check the
+pair it is told about — it cannot notice the bar being repainted with a different
+token. It was confirmed to fail on the pre-fix CSS before being kept.
 
 ### 8.3 Modules driven in a browser, in both halves
 

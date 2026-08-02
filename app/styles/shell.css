@@ -198,6 +198,19 @@
   font-weight: var(--dh-font-weight-semibold);
 }
 
+/* The bar is painted with `nav-selected-text`, NOT `accent`.
+ *
+ * `accent` is a FILL token, and the contrast it guarantees is against the page
+ * surfaces — bg, surface, surface-card. This bar sits on `nav-selected-surface`,
+ * which is not in that set: in a dark theme the selected tint is DARKER than the
+ * page, so it squeezes the accent rather than framing it, and the bar lands at
+ * 2.96:1 (Daly Dark) and 2.73:1 (Modern Dark) — under the 3:1 that a non-text cue
+ * carrying meaning has to meet (AGENTS.md §15).
+ *
+ * `nav-selected-text` is the FOREGROUND token for this exact surface, already held
+ * at 4.5:1 against it in every theme by `contrast.test.ts`, so the bar clears the
+ * UI threshold with room to spare (5.28:1 at worst). It also makes the bar and the
+ * label one signal rather than two colours saying the same thing. */
 .dh-nav__link--active::before,
 .dh-nav__link[aria-current="page"]::before {
   content: "";
@@ -206,7 +219,7 @@
   inset-inline-start: 0;
   inline-size: var(--dh-border-width-thick);
   border-radius: var(--dh-radius-full);
-  background: var(--dh-color-accent);
+  background: var(--dh-color-nav-selected-text);
 }
 
 /* Forced colours: the tint and the bar are both dropped by the OS palette, so the

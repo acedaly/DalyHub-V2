@@ -113,10 +113,19 @@ const TINTED_PAIRS: readonly Pair[] = [
   // THEME-02 — the selected navigation row. Its label sits on its own tint, so it
   // is checked like every other tinted surface rather than assumed readable
   // because the tint is "subtle".
+  //
+  // This pair carries TWO things, which is why it is not merely a text check: the
+  // row's label AND the leading indicator bar are both painted with
+  // `nav-selected-text` on `nav-selected-surface`. The bar is a non-text cue that
+  // conveys state, so it needs 3:1; holding the pair at 4.5:1 here covers both at
+  // once. Painting the bar with `accent` instead would NOT be covered — `accent`
+  // guarantees its contrast against the page surfaces, not against this tint, and
+  // in a dark theme it falls under 3:1. `e2e/themes.spec.ts` measures the rendered
+  // bar so that substitution fails there too.
   {
     fg: "nav-selected-text",
     bg: "nav-selected-surface",
-    note: "selected navigation row",
+    note: "selected navigation row (label and indicator bar)",
   },
 ];
 
