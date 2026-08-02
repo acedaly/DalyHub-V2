@@ -150,6 +150,15 @@ The worker additionally requires the `X-DalyHub-Shell: offline` response header
 before caching it, because a Cloudflare Access challenge page is also an HTML 200
 and must never be stored as the offline shell.
 
+**It is cached by a message from the page, not during install.** The shell is a
+server-rendered document, so fetching it inside `install` makes the server render
+a second document while it is still serving the one the owner is waiting for —
+measurably so on a cold development server, where it doubled the first page
+load's compile work. The page asks for it once it is idle
+(`REFRESH_OFFLINE_SHELL`), and again after every successful sync. The message
+goes to the ACTIVE registration rather than to `controller`, because immediately
+after a first registration the worker is active but not yet controlling the page.
+
 Everything the owner then sees is read client-side from IndexedDB, which is
 namespaced per identity + workspace.
 

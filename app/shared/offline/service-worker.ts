@@ -175,12 +175,25 @@ export async function applyServiceWorkerUpdate(): Promise<void> {
   waiting.postMessage({ type: "SKIP_WAITING" });
 }
 
-/** Ask the worker to re-fetch and re-cache the offline shell document. */
-export function refreshOfflineShell(): void {
+/**
+ * Ask the worker to fetch and cache the offline shell document.
+ *
+ * Posts to the ACTIVE registration rather than to `controller`, because the two
+ * differ exactly when this matters most: immediately after a first registration
+ * the worker is active but is not yet controlling this page, and a
+ * `controller`-only message would be dropped — leaving a device with a worker
+ * and no offline shell until its next sync.
+ */
+export async function refreshOfflineShell(): Promise<void> {
   if (!isServiceWorkerSupported()) return;
-  navigator.serviceWorker.controller?.postMessage({
-    type: "REFRESH_OFFLINE_SHELL",
-  });
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    (registration.active ?? navigator.serviceWorker.controller)?.postMessage({
+      type: "REFRESH_OFFLINE_SHELL",
+    });
+  } catch {
+    // No worker: DalyHub degrades to an ordinary online web app.
+  }
 }
 
 /**

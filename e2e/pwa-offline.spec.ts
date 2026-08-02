@@ -136,6 +136,34 @@ async function readQueue(page: Page) {
   });
 }
 
+/**
+ * Wait until the offline SHELL DOCUMENT is actually in a DalyHub cache.
+ *
+ * A deterministic state check, not a sleep. It matters because the shell is
+ * cached by a message from the page rather than during the worker's install
+ * (install must not make the server render a second document while it is still
+ * serving the one being loaded), so "the worker is controlling" no longer
+ * implies "the fallback is ready".
+ */
+async function waitForOfflineShellCached(page: Page): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(async () => {
+          const names = (await caches.keys()).filter((name) =>
+            name.startsWith("dalyhub-shell-"),
+          );
+          for (const name of names) {
+            const cache = await caches.open(name);
+            if (await cache.match("/offline")) return true;
+          }
+          return false;
+        }),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+}
+
 /** Wait until the device holds a snapshot for some namespace. */
 async function waitForSnapshot(page: Page): Promise<void> {
   await expect
@@ -210,6 +238,7 @@ async function primeOfflineSession(page: Page): Promise<void> {
   ).toBeVisible();
   await waitForServiceWorker(page);
   await waitForSnapshot(page);
+  await waitForOfflineShellCached(page);
 }
 
 /* -------------------------------------------------------------------------- */

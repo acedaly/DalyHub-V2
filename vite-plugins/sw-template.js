@@ -108,9 +108,10 @@ function isStorable(response) {
 }
 
 /**
- * Fetch and cache the offline shell document. Runs at install and whenever the
- * application asks for a refresh (after a successful sign-in, and after a
- * snapshot sync), so the cached shell tracks the running deployment.
+ * Fetch and cache the offline shell document. Driven ENTIRELY by the page: once
+ * after registration when the page is idle, and again after every successful
+ * snapshot sync, so the cached shell tracks the running deployment. It is not
+ * fetched during install — see the note there.
  *
  * A failure is swallowed on purpose: the offline shell is a resilience feature,
  * and a worker that refuses to install because one optional document 403'd would
@@ -157,7 +158,13 @@ self.addEventListener("install", (event) => {
           }
         }),
       );
-      await cacheOfflineDocument();
+      // The offline SHELL DOCUMENT is deliberately NOT fetched here. It is a
+      // server-rendered page, so fetching it during install makes the server
+      // render a second document while it is still serving the one the owner is
+      // waiting for — measurably so on a cold development server, where it
+      // doubled the first page load's compile work and timed out an unrelated
+      // test. The page asks for it instead, once it is idle
+      // (`REFRESH_OFFLINE_SHELL`), and again after every successful sync.
     })(),
   );
 });

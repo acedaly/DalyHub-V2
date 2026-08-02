@@ -242,7 +242,7 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
         // The cached offline shell belongs to the running deployment; refreshing
         // it here keeps the document the owner sees offline in step with the
         // snapshot they will see inside it.
-        refreshOfflineShell();
+        void refreshOfflineShell();
       } else if (result.kind === "skipped") {
         setConnection(result.connection);
       }
@@ -271,6 +271,10 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
     let stopWorker = () => {};
     const cancelIdle = afterPageIdle(() => {
       stopWorker = registerServiceWorker({ onStatus: setServiceWorker });
+      // Cache the offline shell document once, here, rather than inside the
+      // worker's install: install must not make the server render a second
+      // document while it is still serving the one being loaded.
+      void refreshOfflineShell();
     });
     return () => {
       cancelIdle();
