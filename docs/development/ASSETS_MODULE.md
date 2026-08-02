@@ -374,6 +374,22 @@ accepts a `workspaceId`; the trusted Activity actor is bound at construction.
   Asset (`{ deleted: false, blockedReason: "has_links" }`), then purges the Asset's
   footprint child-first in one atomic, race-closing batch. Never touches a linked
   record.
+  - **The purge includes the Asset's OWN `asset_events` and `asset_obligations`
+    (V2.0.1).** Both reference the Asset's `entities` row with `ON DELETE
+    RESTRICT` (migration `0025`), and until V2.0.1 the batch omitted them — so
+    **any Asset with a single recorded event or obligation could never be
+    permanently deleted**: the database refused the entity DELETE, the whole
+    batch rolled back safely, and the route surfaced a generic "try again" for an
+    operation retrying could not fix. The owner could not clear the blockage
+    either, because `deleteEvent`/`deleteObligation` are SOFT deletes whose rows
+    (and whose foreign-key references) survive. The purge now removes both
+    tables' rows for that Asset — soft-deleted ones included — inside the same
+    batch, before the entity. **The foreign keys were not weakened**, the purge
+    is still one transaction, and the link guard is unchanged: a deletion blocked
+    by a link still removes nothing at all, history included. Proven in
+    `test/kernel/asset.test.ts` (a create → event → obligation → delete journey
+    asserting zero remaining rows across all six tables, plus the
+    blocked-purge-removes-nothing and cross-workspace cases).
 
 ### `AssetHistoryRepository` (ASSET-02)
 

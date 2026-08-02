@@ -37,7 +37,7 @@ export const APPLICATION_NAME = "DalyHub";
  * ever drift. That test — not a runtime read — is what keeps the two in step,
  * so this module stays the only thing the Worker consults.
  */
-export const APP_VERSION = "2.0.0";
+export const APP_VERSION = "2.0.1";
 
 /**
  * The release this version ships under. Shown beside the number in About.

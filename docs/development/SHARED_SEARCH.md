@@ -269,7 +269,7 @@ Current production providers are all registry-discovered and repository-backed:
 | Tasks | `tasks.search` | Task title | Parent Project/Area plus generic priority/urgency signals from one bounded projection. |
 | Notes | `notes.search` | Title, Markdown body/headings, tags | Existing syntax-free match source/excerpt; deleted excluded, archived labelled. |
 | Diary | `diary.search` | Diary title only | Title, entry type and owner-local occurrence time; body prose is not selected. |
-| Meetings | `meetings.search` | Meeting title and safe structured fields | No private notes or agenda content by default. |
+| Meetings | `meetings.search` | Meeting title and location, across **upcoming and recent** meetings (archived and deleted excluded) | No private notes or agenda content by default. Until V2.0.1 this provider queried the recent-only collection view, so a meeting starting in the future was unfindable; it now uses a dedicated `searchMeetings` projection with no time window, ordered upcoming-soonest-first then past-newest-first. |
 | People | `people.search` | Name plus accepted safe structured fields | No email, phone or private notes in snippets. |
 | Assets | `assets.search` | Title/type/tags and accepted safe fields | No serial/reference numbers, prices or private notes. |
 | Reviews | `reviews.search` | Review title/type/period metadata | No section/reflection content in previews. |

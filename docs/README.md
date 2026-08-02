@@ -32,6 +32,8 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | [`product/IMPLEMENTATION_WORKFLOW.md`](product/IMPLEMENTATION_WORKFLOW.md) | The step-by-step lifecycle of every feature. |
 | [`product/X_04_EXPORT_AUDIT_2026_08.md`](product/X_04_EXPORT_AUDIT_2026_08.md) | The data-model audit taken before X-04's export was written: every persisted table and its authoritative repository, every lifecycle state and where it lives, the spine and EntityLink direction rules, Activity subjects, module child records, owner preferences, the exact Markdown-bearing fields, the existing single-record note export, what must never be exported, and the conclusions that shaped the design. |
 | **Release** | |
+| [`release/RELEASE_NOTES_V2_0_1.md`](release/RELEASE_NOTES_V2_0_1.md) | **DalyHub V2.0.1 (`2.0.1`) release notes** — the hotfix on top of V2: permanent deletion of Assets with history, the Area guard, upcoming Meetings in search, Review→Diary deep links, truthful custom recurrence display, the Projects/Areas/Goals/Diary command-palette actions, and the release hardening (deploy preflight, post-deploy health assertion, automated backups). Explicitly **not** V2.1. |
+| [`release/RELEASE_CHECKLIST_V2_0_1.md`](release/RELEASE_CHECKLIST_V2_0_1.md) | **The evidence and runbook for V2.0.1** — every fix mapped to the change and its tests, the release-hardening record, the branch-protection governance item (owner action, honestly marked outstanding until done), the stale-PR decisions, the quality-gate results, and the step-by-step deployment sequence for a no-migration release. |
 | [`release/RELEASE_NOTES_V2.md`](release/RELEASE_NOTES_V2.md) | **DalyHub V2 (`2.0.0`) release notes** — what V2 is, the modules and workflows delivered, mobile and daily-driver usability, themes/Help/About, search and command actions, export and Obsidian portability, reliability/migration/accessibility, the known limitations, what is deferred to V2.1, and the owner's upgrade section. |
 | [`release/RELEASE_CHECKLIST_V2.md`](release/RELEASE_CHECKLIST_V2.md) | **The evidence behind the V2 release verdict** — every roadmap item, every primary module journey, mobile, accessibility, workspace isolation, migration safety, export integrity, CI status, deployment readiness, Help/About accuracy, documentation status and the Backup & Restore deferral, each with a test/file/PR reference and any limitation. Nothing is marked complete without evidence. |
 | **Roadmap** | |
@@ -95,7 +97,9 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   └── IMPLEMENTATION_WORKFLOW.md
     ├── release/
     │   ├── RELEASE_NOTES_V2.md
-    │   └── RELEASE_CHECKLIST_V2.md
+    │   ├── RELEASE_CHECKLIST_V2.md
+    │   ├── RELEASE_NOTES_V2_0_1.md
+    │   └── RELEASE_CHECKLIST_V2_0_1.md
     ├── roadmap/
     │   ├── ROADMAP_V2.md            (closed at the V2 release)
     │   └── ROADMAP_V2_1.md          (where new work goes)

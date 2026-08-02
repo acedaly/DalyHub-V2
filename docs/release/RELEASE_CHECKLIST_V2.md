@@ -299,7 +299,7 @@ Drawer, edits it and walks four lifecycle states.
 The remaining bare tests in the 20–27s band are **recorded and deliberately not
 touched** — they have not failed, and a release closure is not the place to edit nine
 more passing specs. If one fails it needs no diagnosis; the table in
-[DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1)
+[DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02)
 already names it.
 
 **No flaky test was quarantined, and no budget was raised to make a failure go away.**
@@ -375,7 +375,7 @@ reads as protection.
 | Shards | **14** (raised from 10 by this closure; see §7) |
 | `main` before this closure | ❌ Red — runs 30693899680 and 30698894216, both for the two causes in §7 |
 | This branch | **CI has not run on it yet, and cannot.** The workflow triggers on `pull_request` and on pushes to `main` only, so pushing the closure branch starts no run — the gate runs when a pull request is opened. Both blocker causes are fixed and the full suite was run locally (§8a); **the PR run is the authoritative proof and must be green before merge.** |
-| [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1) | Stays ◐ **deliberately** — its closing condition is `main` itself being green *after* this merges. It must not be closed by the change that hopes to fix it. |
+| [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) | Stays ◐ **deliberately** — its closing condition is `main` itself being green *after* this merges. It must not be closed by the change that hopes to fix it. |
 
 ---
 

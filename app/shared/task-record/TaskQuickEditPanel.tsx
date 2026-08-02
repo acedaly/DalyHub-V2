@@ -30,6 +30,7 @@ import { DateField, FormButton, SelectField } from "~/shared/forms";
 import { useTaskParentSearch } from "./use-task-parent-search";
 import {
   taskPriorityLabel,
+  taskRecurrenceLabel,
   timeSectorLabel,
   type SerializedTaskListItem,
   type SerializedTaskView,
@@ -65,7 +66,14 @@ export interface TaskQuickEditPanelProps {
   readonly footer?: React.ReactNode;
 }
 
-/** The repeat options, in the same restrained vocabulary the parser recognises. */
+/**
+ * The common repeat choices. This list is deliberately smaller than the recurrence
+ * MODEL: quick capture accepts any "every N weeks/months/years" up to 99 and weekly
+ * rules pinned to specific weekdays, and those rules are all valid. A rule outside
+ * this list is presented as its own labelled option (see `repeatOptionsFor`), never
+ * coerced to the nearest listed value — the owner must always see the rule the task
+ * actually has.
+ */
 const REPEAT_OPTIONS: ReadonlyArray<{
   readonly value: string;
   readonly label: string;
@@ -78,6 +86,14 @@ const REPEAT_OPTIONS: ReadonlyArray<{
   { value: "month:1", label: "Every month" },
   { value: "year:1", label: "Every year" },
 ];
+
+/**
+ * The sentinel value for a rule the predefined list cannot represent — a custom
+ * interval ("every 3 weeks") or a weekday-pinned weekly rule ("every Monday").
+ * Selecting it is an explicit no-op (`setRepeat` never posts it), so opening the
+ * panel and re-committing the current choice can never rewrite the stored rule.
+ */
+const CUSTOM_REPEAT_VALUE = "custom";
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "No priority" },
@@ -100,11 +116,41 @@ const COMMITMENT_OPTIONS = [
   { value: "someday", label: "Someday / Maybe" },
 ];
 
-/** `frequency:interval`, the value REPEAT_OPTIONS uses, for the task's current rule. */
+/**
+ * The select value for the task's current rule: `frequency:interval` when a
+ * predefined option represents the rule EXACTLY (which requires no pinned
+ * weekdays — "every Monday" is stored as `week:1` plus `weekdays: [1]`, and
+ * mapping it to plain "Every week" would silently misstate the rule), otherwise
+ * the custom sentinel.
+ */
 function repeatValueOf(task: QuickEditTask): string {
   const rule = task.recurrence ?? null;
   if (!rule) return "";
-  return `${rule.frequency}:${rule.interval}`;
+  const value = `${rule.frequency}:${rule.interval}`;
+  const predefined = REPEAT_OPTIONS.some((option) => option.value === value);
+  return predefined && rule.weekdays.length === 0 ? value : CUSTOM_REPEAT_VALUE;
+}
+
+/**
+ * The repeat options for this task: the predefined list, plus — only when the
+ * current rule is not in it — that rule as a selectable option labelled by the
+ * same `taskRecurrenceLabel` every read-only surface uses, so "Every 3 weeks"
+ * reads here exactly as it does on the record.
+ */
+function repeatOptionsFor(
+  task: QuickEditTask,
+): ReadonlyArray<{ readonly value: string; readonly label: string }> {
+  const rule = task.recurrence ?? null;
+  if (!rule || repeatValueOf(task) !== CUSTOM_REPEAT_VALUE) {
+    return REPEAT_OPTIONS;
+  }
+  return [
+    ...REPEAT_OPTIONS,
+    {
+      value: CUSTOM_REPEAT_VALUE,
+      label: taskRecurrenceLabel(rule) ?? "Custom repeat",
+    },
+  ];
 }
 
 export function TaskQuickEditPanel({
@@ -214,6 +260,10 @@ export function TaskQuickEditPanel({
 
   const setRepeat = useCallback(
     (value: string) => {
+      // Re-committing the task's own custom rule is "leave it unchanged": the
+      // panel cannot round-trip a weekday set or custom interval through the
+      // predefined vocabulary, so it must never post one.
+      if (value === CUSTOM_REPEAT_VALUE) return;
       if (value.length === 0) {
         record(
           { intent: "set_recurrence" },
@@ -385,7 +435,7 @@ export function TaskQuickEditPanel({
         help="A repeat needs a scheduled or due date to repeat from."
         showOptionalCue={false}
         value={repeatValueOf(task)}
-        options={REPEAT_OPTIONS}
+        options={repeatOptionsFor(task)}
         disabled={busy}
         onChange={setRepeat}
       />

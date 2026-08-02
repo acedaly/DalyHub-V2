@@ -244,8 +244,13 @@ jobs:
         # 2026-08-01 (V2 release closure) — ten shards became fourteen, for the
         # third time and by the same reasoning. MEASURED on run 30693899680
         # (`main` @ ed666ca) shard 4 reached the 900s globalTimeout with 102
-        # passed, ZERO failed and 1 never run, and run 30698894216 (`main` @
-        # 6b50930, the X-04 merge) reproduced the same shape. The per-shard test
+        # passed, ZERO failed and 1 never run.
+        #
+        # Correction (V2.0.1): this note originally claimed run 30698894216
+        # (`main` @ 6b50930, the X-04 merge) "reproduced the same shape". It did
+        # not — that run's failure was shard 10/10 failing ordinarily after
+        # ~7.5 minutes with its report uploaded, nowhere near the ceiling, and
+        # shard 4/10 succeeded. The split decision stands on 30693899680 alone. The per-shard test
         # times on 30693899680 were 6m24 / 10m22 / 8m11 / 15m01+ / 4m28 / 4m21 /
         # 4m14 / 4m11 / 13m41 / 7m46 — about 79 minutes of tests against a
         # ten-way split, so the mean was ~8 min and the worst shard was over the

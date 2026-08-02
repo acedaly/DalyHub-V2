@@ -146,6 +146,19 @@ export interface MeetingPage {
 }
 
 /**
+ * V2.0.1 — one lightweight global-search hit. A projection, not a `Meeting`:
+ * Search needs the identity, the title, the safe subtitle field and the start
+ * instant for ordering — never agenda/notes content and never the per-meeting
+ * items read the full record pays for.
+ */
+export interface MeetingSearchHit {
+  readonly id: string;
+  readonly title: string;
+  readonly location: string | null;
+  readonly startsAt: Date;
+}
+
+/**
  * MEET-02 — one durable source-item → Task mapping row. `itemId` is the stable
  * `MeetingItem.id` that produced the Task, or `null` for a direct meeting follow-up
  * (source is the Meeting itself). This is the smallest seam that records WHICH item

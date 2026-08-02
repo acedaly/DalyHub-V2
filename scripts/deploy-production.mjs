@@ -344,6 +344,430 @@ export function checkProductionDeployReadiness({
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* V2.0.1 — release preflight: refuse to deploy the wrong repository state.   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The explicit, individually-named override flags a legitimate release workflow
+ * may need. Each bypasses EXACTLY ONE refusal, is logged loudly when used, and
+ * none is a general `--force`. Production defaults are fail-closed: with no
+ * flag, every check must pass.
+ */
+export const RELEASE_OVERRIDE_FLAGS = Object.freeze({
+  /** Bypass the clean-working-tree refusal. */
+  allowDirtyTree: "--allow-dirty-tree",
+  /**
+   * Bypass the current-branch-is-main AND the HEAD-equals-origin/main refusals
+   * (deploying from any ref other than pushed `main` is one decision, not two).
+   */
+  allowNonMain: "--allow-non-main",
+  /** Bypass the required CI Gate verification for the release commit. */
+  skipCiCheck: "--skip-ci-check",
+  /**
+   * Acknowledge that the pending production D1 migrations listed by the check
+   * have been reviewed and are ready to apply. This flag NEVER applies them —
+   * migrating is `pnpm run db:production:apply`, a separate, deliberate step.
+   */
+  acknowledgePendingMigrations: "--acknowledge-pending-migrations",
+});
+
+/** Parse the release-override flags out of an argv array. PURE. */
+export function parseReleaseOverrides(argv) {
+  return {
+    allowDirtyTree: argv.includes(RELEASE_OVERRIDE_FLAGS.allowDirtyTree),
+    allowNonMain: argv.includes(RELEASE_OVERRIDE_FLAGS.allowNonMain),
+    skipCiCheck: argv.includes(RELEASE_OVERRIDE_FLAGS.skipCiCheck),
+    acknowledgePendingMigrations: argv.includes(
+      RELEASE_OVERRIDE_FLAGS.acknowledgePendingMigrations,
+    ),
+  };
+}
+
+/** Run one git command, capturing stdout. Returns `null` on any failure. */
+function gitOutput(runner, args) {
+  try {
+    const result = runner("git", args, { cwd: ROOT, encoding: "utf8" });
+    if (result.status !== 0) return null;
+    return (result.stdout ?? "").trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Verify the checkout is the state a production release should ship from: a
+ * CLEAN working tree, on `main`, with local HEAD exactly `origin/main` (after a
+ * real fetch, so the comparison is against the remote as it is now — not a
+ * stale local ref). Fail-closed: a git command that cannot run is a refusal,
+ * never a pass. `runner` is injectable for tests; nothing here touches the
+ * network beyond `git fetch`.
+ */
+export function checkReleaseGitState({
+  runner = spawnSync,
+  overrides = {},
+  log = console.log,
+} = {}) {
+  const problems = [];
+
+  const porcelain = gitOutput(runner, ["status", "--porcelain"]);
+  if (porcelain === null) {
+    problems.push(
+      "could not read the git working-tree state (`git status --porcelain` failed).",
+    );
+  } else if (porcelain !== "") {
+    if (overrides.allowDirtyTree) {
+      log(
+        `deploy:production — OVERRIDE ${RELEASE_OVERRIDE_FLAGS.allowDirtyTree}: the working tree is DIRTY and the clean-tree check is bypassed. The deployed Worker may not match any commit.`,
+      );
+    } else {
+      problems.push(
+        `the git working tree is dirty — commit, stash or discard local changes first (override: ${RELEASE_OVERRIDE_FLAGS.allowDirtyTree}).`,
+      );
+    }
+  }
+
+  const branch = gitOutput(runner, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const head = gitOutput(runner, ["rev-parse", "HEAD"]);
+  if (branch === null || head === null) {
+    problems.push(
+      "could not resolve the current git branch or HEAD commit — refusing to deploy an unknown state.",
+    );
+    return { ok: problems.length === 0, problems, head: null };
+  }
+
+  if (overrides.allowNonMain) {
+    log(
+      `deploy:production — OVERRIDE ${RELEASE_OVERRIDE_FLAGS.allowNonMain}: deploying from "${branch}" @ ${head.slice(0, 7)} without requiring pushed main.`,
+    );
+    return { ok: problems.length === 0, problems, head };
+  }
+
+  if (branch !== "main") {
+    problems.push(
+      `the current branch is "${branch}", not "main" — production releases ship from pushed main (override: ${RELEASE_OVERRIDE_FLAGS.allowNonMain}).`,
+    );
+  }
+
+  // A real fetch, so "matches origin/main" means the remote as it is NOW.
+  const fetched = gitOutput(runner, ["fetch", "origin", "main"]);
+  const originMain =
+    fetched === null ? null : gitOutput(runner, ["rev-parse", "origin/main"]);
+  if (originMain === null) {
+    problems.push(
+      "could not fetch or resolve origin/main — refusing to deploy without confirming the release commit is pushed.",
+    );
+  } else if (head !== originMain) {
+    problems.push(
+      `local HEAD (${head.slice(0, 7)}) does not match origin/main (${originMain.slice(0, 7)}) — push or fast-forward first (override: ${RELEASE_OVERRIDE_FLAGS.allowNonMain}).`,
+    );
+  }
+
+  return { ok: problems.length === 0, problems, head };
+}
+
+/** The GitHub repository this checkout deploys, derived from the origin URL. */
+export function resolveGitHubRepo({ runner = spawnSync } = {}) {
+  const url = gitOutput(runner, ["config", "--get", "remote.origin.url"]);
+  if (url === null) return null;
+  const match = url.match(/github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
+}
+
+/**
+ * Verify the release commit has a SUCCESSFUL required `CI Gate` check run on
+ * GitHub. Red, cancelled, still-running, queued and missing all refuse — a gate
+ * that has not finished is not a green gate. Fail-closed: an unreachable API,
+ * a missing token on a private repository, or an unparseable response is a
+ * refusal, never a pass. `fetcher` is injectable for tests.
+ */
+export async function checkReleaseCiGate({
+  commit,
+  repo,
+  env = process.env,
+  fetcher = fetch,
+  checkName = "CI Gate",
+} = {}) {
+  const problems = [];
+  if (!repo) {
+    return {
+      ok: false,
+      problems: [
+        "could not derive the GitHub repository from the git remote — cannot verify the CI Gate.",
+      ],
+    };
+  }
+  const token = (env.GITHUB_TOKEN ?? env.GH_TOKEN ?? "").trim();
+  const url = `https://api.github.com/repos/${repo.owner}/${repo.repo}/commits/${commit}/check-runs?check_name=${encodeURIComponent(checkName)}&per_page=100`;
+  let payload;
+  try {
+    const response = await fetcher(url, {
+      headers: {
+        accept: "application/vnd.github+json",
+        "user-agent": "dalyhub-deploy-preflight",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      return {
+        ok: false,
+        problems: [
+          `GitHub returned ${response.status} for the ${checkName} check runs of ${commit.slice(0, 7)} — cannot verify CI. Set GITHUB_TOKEN (a read-only token) or, deliberately, ${RELEASE_OVERRIDE_FLAGS.skipCiCheck}.`,
+        ],
+      };
+    }
+    payload = await response.json();
+  } catch (error) {
+    return {
+      ok: false,
+      problems: [
+        `could not reach the GitHub API to verify the ${checkName} status: ${error instanceof Error ? error.message : error}`,
+      ],
+    };
+  }
+
+  const runs = Array.isArray(payload?.check_runs) ? payload.check_runs : [];
+  const gates = runs.filter((run) => run?.name === checkName);
+  if (gates.length === 0) {
+    problems.push(
+      `no "${checkName}" check run exists for ${commit.slice(0, 7)} — CI has not run on the release commit.`,
+    );
+  } else {
+    // The newest run for the commit is the authoritative one.
+    const gate = gates[0];
+    if (gate.status !== "completed") {
+      problems.push(
+        `the "${checkName}" check for ${commit.slice(0, 7)} is still ${gate.status} — wait for it to finish.`,
+      );
+    } else if (gate.conclusion !== "success") {
+      problems.push(
+        `the "${checkName}" check for ${commit.slice(0, 7)} concluded "${gate.conclusion}", not "success" — do not release over a red gate.`,
+      );
+    }
+  }
+  return { ok: problems.length === 0, problems };
+}
+
+/**
+ * CHECK for pending production D1 migrations — this never applies one. Runs the
+ * same audited wrapper the manual steps use (`scripts/production-d1.mjs`, which
+ * refuses placeholders and never writes a real id into the repository) with
+ * `d1 migrations list`, and reports every unapplied migration it names.
+ * Fail-closed: a wrapper failure (missing credentials, network) is a refusal,
+ * never a pass. `runner` is injectable for tests.
+ */
+export function checkPendingProductionMigrations({ runner = spawnSync } = {}) {
+  let result;
+  try {
+    result = runner(
+      "node",
+      [
+        join(ROOT, "scripts", "production-d1.mjs"),
+        "d1",
+        "migrations",
+        "list",
+        "dalyhub-v2",
+      ],
+      { cwd: ROOT, encoding: "utf8" },
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      pending: [],
+      problems: [
+        `could not run the production migrations check: ${error instanceof Error ? error.message : error}`,
+      ],
+    };
+  }
+  if (result.status !== 0) {
+    return {
+      ok: false,
+      pending: [],
+      problems: [
+        "the production migrations check failed (`production-d1.mjs d1 migrations list`) — supply CLOUDFLARE_D1_DATABASE_ID and Cloudflare credentials, and retry.",
+      ],
+    };
+  }
+  // `wrangler d1 migrations list` names only UNAPPLIED migrations; every
+  // migration filename in its output is therefore pending.
+  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const pending = [...new Set(output.match(/\d{4}_[\w-]+\.sql/g) ?? [])];
+  return { ok: true, pending, problems: [] };
+}
+
+/**
+ * The V2.0.1 release preflight: refuse to continue when the repository or
+ * production state is not what a release should ship — a dirty tree, a branch
+ * other than pushed `main`, a missing/red/pending CI Gate, or unacknowledged
+ * pending production migrations. Every dependency (git, the GitHub API, the
+ * migrations wrapper) is injectable so tests never touch a real remote,
+ * database or Worker. Returns `{ ok, problems }`; logs each check's outcome.
+ */
+export async function runReleasePreflight({
+  argv = process.argv,
+  env = process.env,
+  runner = spawnSync,
+  fetcher = fetch,
+  log = console.log,
+} = {}) {
+  const overrides = parseReleaseOverrides(argv);
+  const problems = [];
+
+  const git = checkReleaseGitState({ runner, overrides, log });
+  problems.push(...git.problems);
+  if (git.ok) {
+    log("deploy:production — release check: git state OK.");
+  }
+
+  if (overrides.skipCiCheck) {
+    log(
+      `deploy:production — OVERRIDE ${RELEASE_OVERRIDE_FLAGS.skipCiCheck}: the required CI Gate verification is bypassed. Only do this when CI is verified green by hand.`,
+    );
+  } else if (git.head === null) {
+    problems.push(
+      "cannot verify the CI Gate without a resolvable HEAD commit.",
+    );
+  } else {
+    const ci = await checkReleaseCiGate({
+      commit: git.head,
+      repo: resolveGitHubRepo({ runner }),
+      env,
+      fetcher,
+    });
+    problems.push(...ci.problems);
+    if (ci.ok) {
+      log(
+        `deploy:production — release check: CI Gate is green for ${git.head.slice(0, 7)}.`,
+      );
+    }
+  }
+
+  const migrations = checkPendingProductionMigrations({ runner });
+  problems.push(...migrations.problems);
+  if (migrations.ok && migrations.pending.length === 0) {
+    log("deploy:production — release check: no pending production migrations.");
+  } else if (migrations.ok && migrations.pending.length > 0) {
+    if (overrides.acknowledgePendingMigrations) {
+      log(
+        `deploy:production — OVERRIDE ${RELEASE_OVERRIDE_FLAGS.acknowledgePendingMigrations}: ${migrations.pending.length} pending migration(s) acknowledged as reviewed (${migrations.pending.join(", ")}). This deploy does NOT apply them — run \`pnpm run db:production:apply\` deliberately.`,
+      );
+    } else {
+      problems.push(
+        `production has ${migrations.pending.length} pending D1 migration(s): ${migrations.pending.join(", ")}. Review and apply them first (\`pnpm run db:production:apply\`), or acknowledge deliberately with ${RELEASE_OVERRIDE_FLAGS.acknowledgePendingMigrations}. This deploy never applies migrations itself.`,
+      );
+    }
+  }
+
+  return { ok: problems.length === 0, problems };
+}
+
+/* -------------------------------------------------------------------------- */
+/* V2.0.1 — post-deploy health & version assertion.                           */
+/* -------------------------------------------------------------------------- */
+
+/** Where the public production health endpoint lives. Overridable for drills. */
+export const DEFAULT_PRODUCTION_HEALTH_URL = "https://hub.daly.id.au/health";
+
+/**
+ * Assert the deployed production application is the release we just shipped.
+ * `/health` is public by design, so a Cloudflare Access redirect (3xx) is NOT a
+ * valid health response — it means the endpoint is misconfigured behind Access,
+ * and the check refuses rather than following the redirect to a login page that
+ * returns 200. The payload must report the application name, the production
+ * environment and EXACTLY the version being released (read from the single
+ * version authority's mirror in `package.json`). The payload deliberately
+ * carries no commit (it is public; the commit is on the authenticated About
+ * screen), so build identity is asserted only if a `commit` field is present.
+ * Retries briefly to ride out propagation. `fetcher`/`delay` are injectable.
+ */
+export async function assertProductionHealth({
+  url = process.env.PRODUCTION_HEALTH_URL ?? DEFAULT_PRODUCTION_HEALTH_URL,
+  expectedVersion,
+  expectedCommit = null,
+  fetcher = fetch,
+  attempts = 5,
+  delayMs = 3000,
+  delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  log = console.log,
+} = {}) {
+  const version =
+    expectedVersion ??
+    JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
+
+  let lastProblems = [];
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const problems = [];
+    try {
+      const response = await fetcher(url, { redirect: "manual" });
+      if (response.status >= 300 && response.status < 400) {
+        problems.push(
+          `${url} answered ${response.status} (a redirect — almost certainly Cloudflare Access). /health must be publicly reachable; an Access login page is not an application health response.`,
+        );
+      } else if (!response.ok) {
+        problems.push(`${url} answered HTTP ${response.status}.`);
+      } else {
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch {
+          problems.push(`${url} did not return JSON.`);
+        }
+        if (payload !== null) {
+          if (payload.status !== "ok") {
+            problems.push(
+              `health status is ${JSON.stringify(payload.status)}, not "ok".`,
+            );
+          }
+          if (payload.name !== "DalyHub") {
+            problems.push(
+              `health name is ${JSON.stringify(payload.name)}, not "DalyHub".`,
+            );
+          }
+          if (payload.environment !== "production") {
+            problems.push(
+              `health environment is ${JSON.stringify(payload.environment)}, not "production".`,
+            );
+          }
+          if (payload.version !== version) {
+            problems.push(
+              `health version is ${JSON.stringify(payload.version)} but this release is ${JSON.stringify(version)} — the deployed Worker is not this release.`,
+            );
+          }
+          if (
+            expectedCommit &&
+            typeof payload.commit === "string" &&
+            payload.commit !== expectedCommit
+          ) {
+            problems.push(
+              `health commit is ${JSON.stringify(payload.commit)} but this release commit is ${JSON.stringify(expectedCommit)}.`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      problems.push(
+        `could not reach ${url}: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+
+    if (problems.length === 0) {
+      log(
+        `deploy:production — health verified: ${url} reports DalyHub ${version} in production.`,
+      );
+      return { ok: true, problems: [] };
+    }
+    lastProblems = problems;
+    if (attempt < attempts) {
+      log(
+        `deploy:production — health check attempt ${attempt}/${attempts} failed; retrying in ${delayMs}ms…`,
+      );
+      await delay(delayMs);
+    }
+  }
+  return { ok: false, problems: lastProblems };
+}
+
 function fail(message, problems = []) {
   console.error(`\ndeploy:production — ${message}`);
   for (const problem of problems) {
@@ -574,10 +998,38 @@ function defaultRunDeploy(args) {
   return result.status ?? 1;
 }
 
-function main() {
+async function main() {
   const preflightOnly =
     process.argv.includes("--preflight-only") ||
     process.env.DEPLOY_PRODUCTION_PREFLIGHT_ONLY === "1";
+  const releaseCheckOnly = process.argv.includes("--release-check-only");
+  const verifyHealthOnly = process.argv.includes("--verify-health-only");
+
+  // Standalone post-deploy verification (`pnpm run deploy:production:verify`):
+  // assert the LIVE production /health reports this release, and nothing else.
+  if (verifyHealthOnly) {
+    const health = await assertProductionHealth({
+      expectedCommit: resolveBuildCommitFromGit(),
+    });
+    if (!health.ok) {
+      fail("the production health assertion failed.", health.problems);
+    }
+    return;
+  }
+
+  // Standalone release-state check (`pnpm run deploy:production:release-check`):
+  // git state, CI Gate and pending-migration checks, with no build and no upload.
+  if (releaseCheckOnly) {
+    const release = await runReleasePreflight();
+    if (!release.ok) {
+      fail(
+        "the release preflight refused — the repository or production state is not releasable.",
+        release.problems,
+      );
+    }
+    console.log("deploy:production — release preflight passed.");
+    return;
+  }
 
   // 1. Preflight — runs BEFORE any build or upload.
   //
@@ -610,6 +1062,19 @@ function main() {
   if (preflightOnly) {
     return;
   }
+
+  // 1.5 Release preflight (V2.0.1) — refuse to ship the wrong repository state:
+  //     a dirty tree, a branch other than pushed main, a missing/red/pending CI
+  //     Gate, or unacknowledged pending production migrations. Fail-closed, with
+  //     explicit, individually-named and loudly-logged override flags only.
+  const release = await runReleasePreflight();
+  if (!release.ok) {
+    fail(
+      "the release preflight refused — the repository or production state is not releasable.",
+      release.problems,
+    );
+  }
+  console.log("deploy:production — release preflight passed.");
 
   // 2. Build for the production environment. The Cloudflare Vite plugin applies
   //    the named production environment exactly once here, producing the flattened
@@ -654,10 +1119,30 @@ function main() {
   //    secrets atomically with the code via a single temporary secrets file that
   //    is always deleted afterwards. No secrets-only Worker is ever created first.
   const status = deployWithSecrets({ values: readiness.values });
-  process.exit(status);
+  if (status !== 0) {
+    process.exit(status);
+  }
+
+  // 5. Post-deploy assertion (V2.0.1): the public /health must answer directly
+  //    (never via a Cloudflare Access redirect) and report this exact release.
+  //    A deploy whose health check fails exits non-zero so the failure is never
+  //    silent — the Worker is live, but it is not verified.
+  const health = await assertProductionHealth({
+    expectedCommit: readiness.values.buildCommit,
+  });
+  if (!health.ok) {
+    fail(
+      "the Worker was deployed but the production health assertion FAILED — investigate before trusting this release.",
+      health.problems,
+    );
+  }
+  process.exit(0);
 }
 
 // Only run the orchestration when executed directly (not when imported by tests).
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main();
+  main().catch((error) => {
+    console.error(`deploy:production — unexpected failure: ${error}`);
+    process.exit(1);
+  });
 }

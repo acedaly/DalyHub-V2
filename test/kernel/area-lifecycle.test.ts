@@ -23,8 +23,10 @@ import {
   ensureWorkspace,
   makeAreaRepository,
   makeAreaSettingsRepository,
+  makeAssetRepository,
   makeContext,
   makeLinkRepository,
+  makeRepository,
   makeSpineRepository,
   resetTables,
   seedEntity,
@@ -244,6 +246,48 @@ describe("Area permanent deletion", () => {
       .bind(area.id)
       .first<{ n: number }>();
     expect(tombstoneSubjects?.n ?? 0).toBe(0);
+  });
+
+  it("blocks deletion while an Asset records the Area as its home (V2.0.1)", async () => {
+    // Assets reference an Area through `asset_details.area_id` — a plain column
+    // with no foreign key and no EntityLink — so the link-only guard used to
+    // treat an Area full of Assets as empty and purge it, leaving every
+    // `area_id` dangling.
+    const { spine } = repos();
+    const area = await spine.createArea({ title: "Garage" });
+    const assetRepo = makeAssetRepository(makeContext(WS), {
+      idGenerator: sequentialIds("asset"),
+    });
+    const asset = await assetRepo.create({
+      title: "Ride-on mower",
+      assetType: "equipment",
+      areaId: area.id,
+    });
+
+    await expect(spine.permanentlyDeleteArea(area.id)).rejects.toBeInstanceOf(
+      SpineHasDependentsError,
+    );
+    let after = await areaRowCounts(area.id);
+    expect(after.entities).toBe(1);
+    expect(after.spineRecords).toBe(1);
+
+    // A SOFT-deleted Asset still blocks: its detail row (and the reference)
+    // survives, and restoring it must never resurface a record pointing at a
+    // purged Area — the same rule a soft-deleted spine child's preserved link
+    // already enforces.
+    await makeRepository(makeContext(WS)).softDelete(asset.id);
+    await expect(spine.permanentlyDeleteArea(area.id)).rejects.toBeInstanceOf(
+      SpineHasDependentsError,
+    );
+    after = await areaRowCounts(area.id);
+    expect(after.entities).toBe(1);
+
+    // Once the Asset is permanently deleted, the Area is genuinely empty.
+    const purged = await assetRepo.permanentlyDelete(asset.id);
+    expect(purged.deleted).toBe(true);
+    const result = await spine.permanentlyDeleteArea(area.id);
+    expect(result.outcome).toBe("deleted");
+    expect((await areaRowCounts(area.id)).entities).toBe(0);
   });
 
   it("blocks deletion when a Goal exists and purges nothing", async () => {

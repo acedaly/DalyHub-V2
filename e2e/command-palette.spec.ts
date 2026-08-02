@@ -437,3 +437,104 @@ test.describe("DS-09 Command Palette — touch targets (mobile 44px)", () => {
     await expectMin44(page.getByRole("button", { name: "Retry" }));
   });
 });
+
+/**
+ * V2.0.1 — the four modules that previously contributed NO palette commands
+ * (Projects, Areas, Goals, Diary) now register navigation commands through the
+ * same registry contract every other module uses. Each command must appear in
+ * the palette and land on a surface that really exists — the create commands
+ * open the DS-03 create Drawer (the create ROUTES are action-only and render
+ * nothing), and Goals contributes no create command at all because a Goal is
+ * created from an Area record.
+ */
+test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", () => {
+  async function runCommand(
+    page: Page,
+    query: string,
+    name: RegExp,
+    urlPattern: RegExp,
+  ) {
+    await page.waitForLoadState("networkidle");
+    await page.keyboard.press("ControlOrMeta+k");
+    const input = palette(page);
+    await expect(input).toBeVisible();
+    await input.fill(query);
+    await option(page, name).first().click();
+    await expect(page).toHaveURL(urlPattern);
+    await expect(palette(page)).toHaveCount(0);
+  }
+
+  test("opens each module collection from the palette", async ({ page }) => {
+    await page.goto("/today");
+    await runCommand(page, "Open Projects", /Open Projects/, /\/projects$/);
+    await runCommand(page, "Open Areas", /Open Areas/, /\/areas$/);
+    await runCommand(page, "Open Goals", /Open Goals/, /\/goals$/);
+    // Exact-title ranking puts "Open Diary" above "Open Diary for today", so
+    // the first option for this query is the collection command.
+    await runCommand(page, "Open Diary", /Open Diary/, /\/diary$/);
+  });
+
+  test("opens the real create Drawer for a Project and an Area", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    // The command must open the actual create form, not merely change the URL —
+    // this is what makes it a real action rather than a link to a blank
+    // action-only route.
+    await runCommand(
+      page,
+      "New Project",
+      /New Project/,
+      /\/projects\?drawer=new-project$/,
+    );
+    await expect(page.getByRole("form", { name: "New Project" })).toBeVisible();
+    await runCommand(page, "New Area", /New Area/, /\/areas\?drawer=new-area$/);
+    await expect(page.getByRole("form", { name: "New Area" })).toBeVisible();
+  });
+
+  test("contributes NO create-Goal command, because there is no such surface", async ({
+    page,
+  }) => {
+    // A Goal is created from an Area record (the only host of `NewGoalForm`).
+    // A workspace-level "New Goal" command would promise something the product
+    // cannot do, so the palette must not offer one.
+    await page.goto("/today");
+    await page.waitForLoadState("networkidle");
+    await page.keyboard.press("ControlOrMeta+k");
+    const input = palette(page);
+    await expect(input).toBeVisible();
+
+    // The Goals command that DOES exist is offered…
+    await input.fill("Goals");
+    await expect(option(page, /Open Goals/).first()).toBeVisible();
+
+    // …and no create-Goal command is, under any of the words that would find one.
+    for (const query of ["New Goal", "Create Goal"]) {
+      await input.fill(query);
+      await expect(option(page, /^New Goal/)).toHaveCount(0);
+      await expect(option(page, /^Create Goal/)).toHaveCount(0);
+    }
+  });
+
+  test("opens the Diary for today and the Diary capture panel", async ({
+    page,
+  }) => {
+    await page.goto("/today");
+    await runCommand(
+      page,
+      "Diary for today",
+      /Open Diary for today/,
+      /\/diary\?mode=day$/,
+    );
+    await runCommand(
+      page,
+      "Capture Diary",
+      /Capture Diary entry/,
+      /\/diary\?inspector=new$/,
+    );
+    // The deep link must actually open the capture surface, not just change the URL.
+    await expect(
+      page.getByRole("form", { name: "Quick capture" }),
+    ).toBeVisible();
+  });
+});

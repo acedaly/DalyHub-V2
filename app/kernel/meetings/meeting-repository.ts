@@ -7,6 +7,7 @@ import type {
   MeetingItem,
   MeetingItemKind,
   MeetingPage,
+  MeetingSearchHit,
   MeetingSort,
   MeetingView,
   UpdateMeetingInput,
@@ -67,6 +68,24 @@ export interface MeetingRepository {
     limit?: number;
     cursor?: string;
   }): Promise<MeetingPage>;
+  /**
+   * V2.0.1 — the bounded global-search projection, mirroring the dedicated
+   * `search*` projections Tasks, Projects, Notes, Goals and Areas already have.
+   *
+   * Unlike `list`, it applies NO time window: a meeting is findable by its title
+   * or location whether it starts next week or happened last month — the
+   * recent-only `list` view had made every upcoming meeting unfindable. Archived
+   * and soft-deleted meetings stay excluded (the same lifecycle rule as the
+   * non-archived collection views), the match fields stay title + location only
+   * (never agenda/notes content), and it is ONE query — no overlapping windows,
+   * so no duplicate hits by construction. Ordering is deterministic and
+   * proximity-useful: upcoming meetings soonest-first, then past meetings
+   * newest-first, with `id` as the tiebreaker.
+   */
+  searchMeetings(input: {
+    readonly text: string;
+    readonly limit?: number;
+  }): Promise<readonly MeetingSearchHit[]>;
   update(
     id: string,
     input: UpdateMeetingInput,

@@ -20,12 +20,15 @@ const search: SearchExecutor = async (query, context) => {
     context.workspace,
     createSystemActorContext(),
   );
-  const page = await scope.meetings.list({
-    view: "recent",
-    query: text,
+  // The dedicated search projection covers upcoming AND recent meetings in one
+  // bounded query (V2.0.1). The previous `list({ view: "recent" })` call carried
+  // that view's `starts_at < now` window into Search, which made every future
+  // meeting unfindable by its own title.
+  const hits = await scope.meetings.searchMeetings({
+    text,
     limit: query.limit,
   });
-  return page.items.map<SearchResultItem>((m) => ({
+  return hits.map<SearchResultItem>((m) => ({
     id: `meeting:${m.id}`,
     // The canonical, unprefixed kernel id — so linked-record boosting matches.
     entityId: m.id,

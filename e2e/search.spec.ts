@@ -501,3 +501,65 @@ test.describe("DS-08 Shared Search — stale selection is not activatable", () =
     expect(page.url()).not.toContain("drawer=");
   });
 });
+
+/**
+ * V2.0.1 — an UPCOMING meeting must be findable by its title. The V2.0.0
+ * provider queried the recent-only view (`starts_at < now`), so a meeting the
+ * owner just planned for next week was invisible to global search — the single
+ * most likely meeting to search for. Seeded relative to the clock on purpose:
+ * the defect survived because every meeting fixture pinned a past date.
+ */
+test("global search finds an upcoming meeting and opens it (V2.0.1)", async ({
+  page,
+}) => {
+  const { execFileSync } = await import("node:child_process");
+  const WS = "local-dev-workspace";
+  const stamp = Date.now();
+  const meetingId = `search-e2e-upcoming-meeting-${stamp}`;
+  const title = `Upcoming Search E2E Meeting ${stamp}`;
+  const startsAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
+  const now = new Date().toISOString();
+
+  const d1Execute = (command: string) =>
+    execFileSync(
+      "pnpm",
+      [
+        "exec",
+        "wrangler",
+        "d1",
+        "execute",
+        "DB",
+        "--local",
+        "--command",
+        command,
+      ],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
+        stdio: "pipe",
+      },
+    );
+
+  d1Execute(
+    [
+      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${meetingId}', '${WS}', 'meeting', '${title}', '${now}', '${now}', NULL);`,
+      `INSERT INTO meeting_details (workspace_id, entity_id, starts_at, timezone, status, updated_at) VALUES ('${WS}', '${meetingId}', '${startsAt}', 'Australia/Sydney', 'planned', '${now}');`,
+    ].join("\n"),
+  );
+
+  try {
+    await page.goto("/today");
+    const input = await openSearch(page);
+    await expectSearchResult(page, input, title, title);
+    await optionFor(page, title).getByRole("link").click();
+    await expect(page).toHaveURL(new RegExp(`/meeting/${meetingId}$`));
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  } finally {
+    d1Execute(
+      [
+        `DELETE FROM meeting_details WHERE workspace_id = '${WS}' AND entity_id = '${meetingId}';`,
+        `DELETE FROM entities WHERE workspace_id = '${WS}' AND id = '${meetingId}';`,
+      ].join("\n"),
+    );
+  }
+});

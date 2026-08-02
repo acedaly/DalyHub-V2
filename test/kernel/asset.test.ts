@@ -24,12 +24,15 @@ import {
 } from "~/kernel/assets";
 import { ReservedEntityTypeError } from "~/kernel/entities";
 
+import { env } from "cloudflare:test";
+
 import {
   countActivitiesOfType,
   countAssetRows,
   countRows,
   FakeClock,
   latestActivityPayload,
+  makeAssetHistoryRepository,
   makeAssetRepository,
   makeContext,
   makeLinkRepository,
@@ -352,5 +355,135 @@ describe("permanent deletion (guarded)", () => {
     expect(ok.deleted).toBe(true);
     expect(await repo.get(asset.id)).toBeNull();
     expect(await countAssetRows()).toBe(0);
+  });
+
+  /** Rows in `table` whose `column` references this asset, INCLUDING soft-deleted. */
+  async function rowsReferencing(table: string, column: string, id: string) {
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM ${table} WHERE ${column} = ?`,
+    )
+      .bind(id)
+      .first<{ n: number }>();
+    return row?.n ?? 0;
+  }
+
+  it("permanently deletes an Asset that HAS history events and obligations (V2.0.1)", async () => {
+    // The V2.0.0 defect: `asset_events` / `asset_obligations` reference the
+    // entity row with ON DELETE RESTRICT (migration 0025), and the purge batch
+    // never deleted them — so any Asset with history could never be permanently
+    // deleted, and the UI offered a retry that could not succeed.
+    const repo = assets();
+    const history = makeAssetHistoryRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
+    const asset = await repo.create({ title: "Car", assetType: "vehicle" });
+    await history.recordEvent(asset.id, {
+      category: "service",
+      title: "Major service",
+      eventDate: "2026-07-01",
+    });
+    const softDeleted = await history.recordEvent(asset.id, {
+      category: "repair",
+      title: "Old repair",
+      eventDate: "2026-06-01",
+    });
+    await history.createObligation(asset.id, {
+      category: "registration",
+      title: "Renew registration",
+      dueDate: "2026-09-30",
+    });
+    // A soft-deleted event keeps its physical row — and its RESTRICT reference —
+    // so an owner "deleting the history first" could never unblock the purge.
+    // The purge itself must remove it.
+    await history.deleteEvent(softDeleted.id);
+
+    const result = await repo.permanentlyDelete(asset.id);
+    expect(result.deleted).toBe(true);
+    expect(await repo.get(asset.id, { includeDeleted: true })).toBeNull();
+
+    // No rows remain for this Asset anywhere — the full six-table footprint.
+    expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(0);
+    expect(
+      await rowsReferencing("asset_obligations", "asset_id", asset.id),
+    ).toBe(0);
+    expect(await rowsReferencing("asset_details", "entity_id", asset.id)).toBe(
+      0,
+    );
+    expect(
+      await rowsReferencing("entity_links", "source_entity_id", asset.id),
+    ).toBe(0);
+    expect(
+      await rowsReferencing("entity_links", "target_entity_id", asset.id),
+    ).toBe(0);
+    expect(
+      await rowsReferencing("activity_subjects", "entity_id", asset.id),
+    ).toBe(0);
+    expect(await rowsReferencing("entities", "id", asset.id)).toBe(0);
+  });
+
+  it("a link-blocked purge removes NOTHING — history and obligations survive intact", async () => {
+    const repo = assets();
+    const history = makeAssetHistoryRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
+    const links = makeLinkRepository(makeContext(WS), {
+      idGenerator: sequentialIds("lnk"),
+    });
+    const asset = await repo.create({ title: "Boat", assetType: "vehicle" });
+    await history.recordEvent(asset.id, {
+      category: "service",
+      title: "Antifoul",
+      eventDate: "2026-05-01",
+    });
+    await history.createObligation(asset.id, {
+      category: "insurance",
+      title: "Renew insurance",
+      dueDate: "2026-12-01",
+    });
+    const note = await makeRepository(makeContext(WS), {
+      idGenerator: sequentialIds("note"),
+    }).create({ type: "note", title: "Mooring details" });
+    await links.create({
+      sourceEntityId: asset.id,
+      targetEntityId: note.id,
+      type: "link.related",
+    });
+
+    const blocked = await repo.permanentlyDelete(asset.id);
+    expect(blocked.deleted).toBe(false);
+    expect(blocked.blockedReason).toBe("has_links");
+    // All-or-nothing: the blocked purge left every row in place.
+    expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(1);
+    expect(
+      await rowsReferencing("asset_obligations", "asset_id", asset.id),
+    ).toBe(1);
+    expect(await rowsReferencing("asset_details", "entity_id", asset.id)).toBe(
+      1,
+    );
+    expect(await rowsReferencing("entities", "id", asset.id)).toBe(1);
+  });
+
+  it("a cross-workspace caller cannot purge an Asset or its history", async () => {
+    const repo = assets();
+    const history = makeAssetHistoryRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
+    const asset = await repo.create({
+      title: "Camera",
+      assetType: "equipment",
+    });
+    await history.recordEvent(asset.id, {
+      category: "purchase",
+      title: "Bought",
+      eventDate: "2026-01-15",
+    });
+
+    const foreign = assets(OTHER, "f");
+    // Fail-closed: the foreign workspace observes nothing to delete, and the
+    // rows are untouched.
+    const result = await foreign.permanentlyDelete(asset.id);
+    expect(result.deleted).toBe(false);
+    expect(await rowsReferencing("entities", "id", asset.id)).toBe(1);
+    expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(1);
   });
 });

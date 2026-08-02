@@ -1412,14 +1412,30 @@ export class D1SpineRepository implements SpineRepository {
     const nowTs = toStorageTimestamp(now);
 
     // The "genuinely empty" guard: no ACTIVE link (structural child, or any other
-    // relationship) references the Area. Soft-deleted / historical links (e.g. a
-    // child that was moved away) do NOT block. Binds (workspaceId, areaId, areaId).
+    // relationship) references the Area, AND no Asset records this Area as its
+    // home. Assets reference an Area through `asset_details.area_id` — a plain
+    // column with no foreign key (migration 0016) — not an EntityLink, so the
+    // link check alone would treat an Area full of Assets as empty and leave
+    // every `area_id` dangling. A soft-deleted Asset still blocks, matching how
+    // a soft-deleted spine child's preserved active link blocks: restoring it
+    // must never resurface a record pointing at a purged Area. Soft-deleted /
+    // historical links (e.g. a child that was moved away) do NOT block.
+    // Binds (workspaceId, areaId, areaId, workspaceId, areaId).
     const emptyGuard = `NOT EXISTS (
         SELECT 1 FROM entity_links dl
         WHERE dl.workspace_id = ? AND dl.deleted_at IS NULL
           AND (dl.target_entity_id = ? OR dl.source_entity_id = ?)
+      ) AND NOT EXISTS (
+        SELECT 1 FROM asset_details ad
+        WHERE ad.workspace_id = ? AND ad.area_id = ?
       )`;
-    const guardBinds = [this.#workspaceId, areaId, areaId];
+    const guardBinds = [
+      this.#workspaceId,
+      areaId,
+      areaId,
+      this.#workspaceId,
+      areaId,
+    ];
 
     const deleteLinks = this.#db
       .prepare(

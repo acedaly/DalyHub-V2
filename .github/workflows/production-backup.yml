@@ -1,0 +1,112 @@
+name: Production D1 backup
+
+# V2.0.1 — scheduled production D1 exports (the automated half of the manual
+# backup step every release already requires). Each run exports the production
+# database through the SAME audited wrapper the owner uses by hand
+# (`scripts/production-d1.mjs`, via `pnpm run db:production:export`) and stores
+# the dump as a dated workflow artifact.
+#
+# What this deliberately is NOT: restore. Automated restore remains V2.1 SET-02
+# (docs/roadmap/ROADMAP_V2_1.md). A backup artifact here is a readable copy the
+# owner can download — recovery from it is a manual, untested-in-app process
+# until SET-02 ships. Documented in docs/development/DEPLOYMENT.md.
+#
+# Security posture:
+#   - Credentials come only from repository/environment secrets and are consumed
+#     by Wrangler; no secret value is ever echoed. The export itself goes to a
+#     file, never to the log.
+#   - The job runs in the `production` GitHub environment so environment
+#     protection rules (if configured) gate it, and the schedule/dispatch
+#     triggers mean it can never run from an untrusted pull request.
+#   - Workflow permissions are read-only; artifact upload needs nothing more.
+
+on:
+  schedule:
+    # Daily at 16:30 UTC — 02:30 in the owner's timezone (Australia/Sydney,
+    # AEST), a quiet hour for the workspace so the export is coherent.
+    - cron: "30 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Export production D1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The `production` GitHub environment holds the Cloudflare secrets and any
+    # protection rules the owner configures for it.
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Export the production database
+        id: export
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          short_sha="$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          dir="backup"
+          file="dalyhub-v2-production-${stamp}.sql"
+          mkdir -p "${dir}"
+          pnpm run db:production:export -- --output "${dir}/${file}"
+
+          echo "Verifying the export exists and is non-empty…"
+          if [ ! -s "${dir}/${file}" ]; then
+            echo "::error::The production export was not created or is empty."
+            exit 1
+          fi
+          if ! grep -q "CREATE TABLE" "${dir}/${file}"; then
+            echo "::error::The production export contains no schema — refusing to store it as a backup."
+            exit 1
+          fi
+          size_bytes="$(wc -c < "${dir}/${file}")"
+          echo "Export OK: ${file} (${size_bytes} bytes). Contents are never printed."
+
+          cat > "${dir}/metadata.json" <<EOF
+          {
+            "database": "dalyhub-v2 (production)",
+            "environment": "production",
+            "exportedAtUtc": "${stamp}",
+            "workflowRunId": "${GITHUB_RUN_ID}",
+            "workflowRunUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "repositoryCommit": "${GITHUB_SHA}",
+            "sizeBytes": ${size_bytes},
+            "restoreNote": "Automated restore is V2.1 SET-02 and does not exist yet. Recovery from this file is a manual process — see docs/development/DEPLOYMENT.md."
+          }
+          EOF
+
+          echo "artifact_name=dalyhub-v2-production-d1-${stamp}-${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.export.outputs.artifact_name }}
+          path: backup/
+          # Retention is 30 days, documented in docs/development/DEPLOYMENT.md.
+          # A backup older than that has been superseded by ~30 newer dailies;
+          # the owner keeps longer-term copies by downloading them.
+          retention-days: 30
+          if-no-files-found: error

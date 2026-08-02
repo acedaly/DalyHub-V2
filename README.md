@@ -4,10 +4,13 @@
 
 It sits above task managers, note apps, calendars, and contact lists as the layer where the pieces of a life connect: responsibilities, intentions, work, people, knowledge, and reflection — one model, cross-linked, searchable, and owned by you. This repository is **DalyHub V2**, the redevelopment built on a shared design language, a shared data model, and an AI layer that *proposes* rather than acts.
 
-> **Current release: DalyHub V2 (`2.0.0`).** The V2 roadmap is **closed** — see the
-> [release notes](docs/release/RELEASE_NOTES_V2.md) for what shipped, the
-> [release checklist](docs/release/RELEASE_CHECKLIST_V2.md) for the evidence behind
+> **Current release: DalyHub V2 (`2.0.1`).** The V2 roadmap is **closed** — see the
+> [V2 release notes](docs/release/RELEASE_NOTES_V2.md) for what shipped, the
+> [V2 release checklist](docs/release/RELEASE_CHECKLIST_V2.md) for the evidence behind
 > it, and [`ROADMAP_V2_1.md`](docs/roadmap/ROADMAP_V2_1.md) for what comes next.
+> `2.0.1` is a **hotfix and release-hardening release** on top of V2 (not V2.1):
+> [V2.0.1 release notes](docs/release/RELEASE_NOTES_V2_0_1.md) ·
+> [V2.0.1 checklist & runbook](docs/release/RELEASE_CHECKLIST_V2_0_1.md).
 > Backup and restore is deliberately **not** in V2: V2 ships a full, verifiable
 > export, and restore is targeted at V2.1 — keep your own copy of an export until it lands.
 

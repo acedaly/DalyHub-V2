@@ -27,6 +27,7 @@ import {
   PROJECT_RESTORED,
   PROJECT_STATUS_CHANGED,
 } from "~/kernel/project-settings";
+import { projectsCommands } from "./commands";
 import { projectsSearchProvider } from "./search";
 
 export default defineModule({
@@ -37,6 +38,7 @@ export default defineModule({
   routes,
   entityTypes: [{ type: PROJECT, singular: "Project", plural: "Projects" }],
   searchProviders: [projectsSearchProvider],
+  commands: projectsCommands,
   entityLinkTypes: [
     {
       type: PROJECT_BELONGS_TO_AREA,

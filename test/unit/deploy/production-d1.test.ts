@@ -15,7 +15,9 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { join } from "node:path";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -115,8 +117,49 @@ describe("production D1 guard — the generated config", () => {
       binding: "DB",
       database_name: d1.PRODUCTION_DATABASE_NAME,
       database_id: REAL_ID,
-      migrations_dir: "migrations",
     });
+  });
+
+  /**
+   * The regression this test exists for, stated plainly: `migrations_dir` was
+   * the relative string `"migrations"`, and Wrangler resolves a relative
+   * `migrations_dir` against the directory holding the CONFIG FILE — which this
+   * script deliberately writes to the OS temp directory, outside the repository.
+   * So it pointed at `/tmp/dalyhub-d1-XXXX/migrations`, which never exists:
+   * Wrangler exited 1 with `No migrations present at /tmp/…/migrations`, and
+   * BOTH documented production migration commands (`db:production:list` and
+   * `db:production:apply`) could not work at all.
+   *
+   * A test using an injected/fake command runner cannot catch this — the bug is
+   * in a PATH, not in control flow — so this resolves the emitted value exactly
+   * the way Wrangler does and checks the real directory is on the other end.
+   */
+  it("resolves migrations_dir to the REAL migrations from a config written outside the repository", () => {
+    const config = d1.productionD1Config(REAL_ID) as {
+      d1_databases: { migrations_dir: string }[];
+    };
+    const emitted = config.d1_databases[0]!.migrations_dir;
+
+    // Absolute, so where the config file lives cannot change what it means.
+    expect(isAbsolute(emitted)).toBe(true);
+
+    // Resolve it the way Wrangler does: against the config file's own directory,
+    // in a temp dir exactly like the one `main()` creates.
+    const configDir = mkdtempSync(join(tmpdir(), "dalyhub-d1-test-"));
+    try {
+      const resolved = resolve(configDir, emitted);
+      expect(existsSync(resolved)).toBe(true);
+      // It is the committed sequence, not merely some directory that exists.
+      expect(existsSync(join(resolved, "0001_create_entities.sql"))).toBe(true);
+      expect(
+        readdirSync(resolved).filter((name) => name.endsWith(".sql")).length,
+      ).toBeGreaterThan(20);
+
+      // And the old relative value would NOT have resolved — the failure mode.
+      expect(existsSync(resolve(configDir, "migrations"))).toBe(false);
+    } finally {
+      rmSync(configDir, { recursive: true, force: true });
+    }
   });
 
   it("is a plain TOP-LEVEL config, so no environment can be applied twice", () => {

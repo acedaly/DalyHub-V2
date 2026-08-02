@@ -90,15 +90,22 @@ export async function loadReviewPeriodContext(
         input.periodEnd,
       ),
     )
-    .map((entry) => ({
-      id: entry.id,
-      title: entry.title,
-      dateLabel: ownerCalendarIso(entry.occurredAt, input.timezone),
-      target: {
-        kind: "route" as const,
-        to: `/diary?entry=${encodeURIComponent(entry.id)}`,
-      },
-    }));
+    .map((entry) => {
+      // The canonical Diary deep link (the same shape Search and Quick Capture
+      // emit): the shared Inspector param opens the entry's view panel, and the
+      // explicit day-mode date puts the timeline behind it on the entry's own
+      // day rather than today's.
+      const day = ownerCalendarIso(entry.occurredAt, input.timezone);
+      return {
+        id: entry.id,
+        title: entry.title,
+        dateLabel: day,
+        target: {
+          kind: "route" as const,
+          to: `/diary?mode=day&date=${encodeURIComponent(day)}&inspector=${encodeURIComponent(`view:${entry.id}`)}`,
+        },
+      };
+    });
 
   const meetings = [...recentMeetings.items, ...upcomingMeetings.items]
     .filter(

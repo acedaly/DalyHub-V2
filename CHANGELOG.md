@@ -17,6 +17,57 @@ no version number to group them under.
 
 ---
 
+## 2.0.1 — Hotfix & release hardening (2026-08-02)
+
+A small, deliberate hotfix on top of V2. Five confirmed defects fixed, four
+modules given the command-palette actions they were missing, and the machinery
+around production deployments made harder to get wrong. **This is not V2.1** —
+no module was redesigned and nothing moved out of the
+[V2.1 roadmap](docs/roadmap/ROADMAP_V2_1.md). Full notes:
+[V2.0.1 release notes](docs/release/RELEASE_NOTES_V2_0_1.md).
+
+### Fixed
+
+- **You can now permanently delete an Asset that has history.** Any Asset with a
+  recorded event or an obligation simply could not be deleted — the attempt
+  failed and the message said "Please try again", for something retrying could
+  never fix. The Asset's own history and obligations are now removed with it, in
+  one all-or-nothing operation. Deletion is still refused while other records
+  are linked to the Asset, and archiving is unchanged.
+- **An Area that still holds Assets can no longer be deleted out from under
+  them.** The check that stops you deleting an Area that still has records could
+  not see Assets. Now it can.
+- **Meetings you have not had yet now appear in search.** Searching a meeting by
+  name only found meetings that had already started — so next Tuesday's meeting,
+  the one you were most likely looking for, returned nothing.
+- **Diary entries open properly from a Review.** Clicking a diary entry in a
+  Review's period context used to land you on today's Diary with nothing open.
+  It now opens that entry, on its own day, and Back returns to the Review.
+- **Unusual repeat rules are described honestly.** A task repeating "every 3
+  weeks" showed an internal code and a wrong "no longer available" note, and one
+  repeating "every Monday" claimed to repeat "every week". Both now read as what
+  they are, and leaving the rule alone leaves it alone.
+
+### Added
+
+- **Projects, Areas, Goals and Diary in the command palette** (`⌘K`): open each
+  module, create a new Project or Area, open the Diary for today, and capture a
+  diary entry. (No "New Goal" command — a Goal is created on the Area it belongs
+  to, and offering one from the palette would lead nowhere.)
+- **Automatic daily backups of your production data**, kept for 30 days and
+  downloadable. **This is a copy, not a restore** — reading a backup back in is
+  still not something DalyHub can do (that is V2.1), so keep taking your own
+  exports too.
+
+### Changed
+
+- Deployments now refuse to run from an unclean or unpushed checkout, or over a
+  failing or unfinished CI check, and verify afterwards that the site really is
+  running the version that was just released. Applying database migrations stays
+  a separate, deliberate step — deploying never does it for you.
+
+---
+
 ## 2.0.0 — DalyHub V2 (2026-08-01)
 
 The V2 release. The full owner-facing description of what DalyHub V2 is and what it
