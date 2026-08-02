@@ -468,18 +468,28 @@ async function serveOfflineNavigation(url) {
  * `navigator.onLine`.
  */
 async function serveNavigation(request, url, background) {
+  let response;
   try {
-    const response = await fetch(request);
-    // The device reached DalyHub, so whatever the loop breaker had recorded is
-    // about a connection that no longer applies. Deliberately NOT awaited: this
-    // is bookkeeping for a failure that is not happening, and putting a cache
-    // round trip in front of every online page load to do it would make the
-    // healthy path pay for the broken one.
-    background(clearBootLog());
-    return response;
+    response = await fetch(request);
   } catch {
     return serveOfflineNavigation(url);
   }
+
+  // The bookkeeping sits OUTSIDE the try above, and that placement is the point.
+  // Inside it, anything this threw — `waitUntil` on an event the browser has
+  // decided is no longer active is the realistic one — would be caught by the
+  // navigation's own `catch` and answered with the OFFLINE DOCUMENT, for a
+  // request that had just succeeded. A failure to tidy up after a problem that
+  // is not happening must never be mistaken for the problem.
+  //
+  // Not awaited, either: this is a cache round trip, and putting one in front of
+  // every online page load would make the healthy path pay for the broken one.
+  try {
+    background(clearBootLog());
+  } catch {
+    /* The breaker is a backstop; failing to reset it cannot fail a navigation. */
+  }
+  return response;
 }
 
 self.addEventListener("fetch", (event) => {
