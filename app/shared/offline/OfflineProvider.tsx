@@ -193,6 +193,28 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
   // without being re-created (and thus rescheduled) on every change.
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
+
+  // One abort signal for every request this provider makes, fired when the
+  // document goes away. A request still in flight when its document is destroyed
+  // is LOST — the browser reports it as neither finished nor failed — so ending
+  // them deliberately is the difference between a clean teardown and a dangling
+  // request. `pagehide` is used rather than `beforeunload` because it also fires
+  // when a page enters the back/forward cache, which is exactly when continuing
+  // to probe would be pointless.
+  const abortRef = useRef<AbortController | null>(null);
+  if (abortRef.current === null && typeof AbortController !== "undefined") {
+    abortRef.current = new AbortController();
+  }
+  useEffect(() => {
+    const controller = abortRef.current;
+    if (typeof window === "undefined" || !controller) return;
+    const abort = () => controller.abort();
+    window.addEventListener("pagehide", abort);
+    return () => {
+      window.removeEventListener("pagehide", abort);
+      controller.abort();
+    };
+  }, []);
   const namespace = meta?.namespace ?? null;
   const namespaceRef = useRef<string | null>(null);
   namespaceRef.current = namespace;
@@ -216,16 +238,22 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
   }, []);
 
   const probe = useCallback(async () => {
-    const state = await probeConnection();
+    const state = await probeConnection(
+      fetch,
+      undefined,
+      abortRef.current?.signal,
+    );
     setConnection(state);
     return state;
   }, []);
 
   const sync = useCallback(async () => {
     setBusy(true);
+    let syncedConnection: OfflineConnectionState | null = null;
     try {
-      const result = await syncSnapshot();
+      const result = await syncSnapshot({ signal: abortRef.current?.signal });
       if (result.kind === "updated") {
+        syncedConnection = "online";
         const previous = namespaceRef.current;
         setMeta(result.meta);
         setConnection("online");
@@ -249,7 +277,13 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
 
       const active = namespaceRef.current;
       if (active) {
-        const pass = await replayQueue({ namespace: active });
+        // The snapshot request has already established the connection state, so
+        // the replay pass never spends a second round trip re-establishing it.
+        const pass = await replayQueue({
+          namespace: active,
+          signal: abortRef.current?.signal,
+          ...(syncedConnection ? { connection: syncedConnection } : {}),
+        });
         if (pass.blocked > 0) setConnection("authRequired");
         await pruneSyncedQueue(active);
         await reload(active);
@@ -410,7 +444,11 @@ export function OfflineProvider({ children }: OfflineProviderProps) {
         lastError: null,
       };
       await putQueueRecord(reset);
-      const outcome = await replayCapture(reset);
+      const outcome = await replayCapture(
+        reset,
+        fetch,
+        abortRef.current?.signal,
+      );
       await putQueueRecord(applyReplayOutcome(reset, outcome, new Date()));
       await reload(active);
     },

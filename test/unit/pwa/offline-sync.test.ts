@@ -14,7 +14,11 @@ import { OFFLINE_EXCERPT_LIMIT, toExcerpt } from "~/kernel/offline";
 import { summariseToday } from "~/platform/offline";
 import type { OfflineMeeting, OfflineTask } from "~/kernel/offline";
 import { offlineWindow } from "~/kernel/offline";
-import { captureFormData, classifyCreateResponse } from "~/shared/offline/sync";
+import {
+  captureFormData,
+  classifyCreateResponse,
+  replayQueue,
+} from "~/shared/offline/sync";
 import { createQueueRecord } from "~/kernel/offline";
 
 const SYDNEY = "Australia/Sydney";
@@ -222,5 +226,47 @@ describe("classifyCreateResponse", () => {
       }),
     );
     expect(outcome.kind).toBe("retryable");
+  });
+});
+
+describe("the request budget of a sync pass", () => {
+  it("costs ZERO requests when there is nothing queued", async () => {
+    // The overwhelmingly common case. Probing before knowing whether there is
+    // work spends a round trip to discover there is none — and every request the
+    // provider makes is one that can be in flight when the page navigates away.
+    const calls: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      throw new Error("no request should have been made");
+    }) as unknown as typeof fetch;
+
+    const result = await replayQueue({
+      namespace: "dh1-1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      fetchImpl,
+    });
+
+    expect(calls).toEqual([]);
+    expect(result.attempted).toBe(0);
+    expect(result.synced).toBe(0);
+  });
+
+  it("accepts a connection the caller already established", async () => {
+    // The sync pass has just fetched a snapshot, which carries the same
+    // authentication marker a probe would. Re-probing would be a second round
+    // trip for an answer already in hand.
+    const calls: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      throw new Error("no request should have been made");
+    }) as unknown as typeof fetch;
+
+    const result = await replayQueue({
+      namespace: "dh1-1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      fetchImpl,
+      connection: "online",
+    });
+
+    expect(calls).toEqual([]);
+    expect(result.connection).toBe("online");
   });
 });

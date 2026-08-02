@@ -33,6 +33,7 @@
 import {
   applyReplayOutcome,
   canReachBackend,
+  classifyProbe,
   isReplayable,
   offlineWindow,
   shouldPauseSync,
@@ -146,6 +147,7 @@ export function captureFormData(record: OfflineQueueRecord): FormData {
 export async function replayCapture(
   record: OfflineQueueRecord,
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<OfflineReplayOutcome> {
   try {
     const response = await fetchImpl(CREATE_ENDPOINTS[record.kind], {
@@ -154,6 +156,7 @@ export async function replayCapture(
       credentials: "same-origin",
       redirect: "manual",
       headers: { Accept: "application/json" },
+      ...(signal ? { signal } : {}),
     });
     return await classifyCreateResponse(response);
   } catch {
@@ -185,9 +188,38 @@ export async function replayQueue(options: {
   readonly now?: Date;
   readonly fetchImpl?: typeof fetch;
   readonly batchSize?: number;
+  readonly signal?: AbortSignal;
+  /** The connection state the caller already established, if it has one. */
+  readonly connection?: OfflineConnectionState;
 }): Promise<ReplayPassResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const connection = await probeConnection(fetchImpl);
+
+  // Read the queue FIRST. The overwhelmingly common case is an empty queue, and
+  // in that case this pass costs zero requests — no probe, nothing. Probing
+  // before knowing whether there is anything to replay was a round trip spent to
+  // discover there was no work.
+  const queue = await readQueue(options.namespace);
+  const now = options.now ?? new Date();
+  const due = queue.ok
+    ? queue.value
+        .filter((record) => isReplayable(record, options.namespace, now))
+        .slice(0, options.batchSize ?? REPLAY_BATCH_SIZE)
+    : [];
+  if (due.length === 0) {
+    return {
+      attempted: 0,
+      synced: 0,
+      failed: 0,
+      blocked: 0,
+      connection: options.connection ?? "online",
+    };
+  }
+
+  // There IS work, so the connection now has to be established — unless the
+  // caller already knows it (the sync pass has just fetched a snapshot).
+  const connection =
+    options.connection ??
+    (await probeConnection(fetchImpl, undefined, options.signal));
   const empty: ReplayPassResult = {
     attempted: 0,
     synced: 0,
@@ -197,21 +229,13 @@ export async function replayQueue(options: {
   };
   if (!canReachBackend(connection)) return empty;
 
-  const queue = await readQueue(options.namespace);
-  if (!queue.ok) return empty;
-
-  const now = options.now ?? new Date();
-  const due = queue.value
-    .filter((record) => isReplayable(record, options.namespace, now))
-    .slice(0, options.batchSize ?? REPLAY_BATCH_SIZE);
-
   let synced = 0;
   let failed = 0;
   let blocked = 0;
 
   for (const record of due) {
     await putQueueRecord({ ...record, status: "syncing" });
-    const outcome = await replayCapture(record, fetchImpl);
+    const outcome = await replayCapture(record, fetchImpl, options.signal);
     const updated = applyReplayOutcome(record, outcome, new Date());
     await putQueueRecord(updated);
     if (updated.status === "synced") synced += 1;
@@ -238,14 +262,18 @@ export async function replayQueue(options: {
 export async function syncSnapshot(options?: {
   readonly fetchImpl?: typeof fetch;
   readonly now?: Date;
+  readonly signal?: AbortSignal;
 }): Promise<SnapshotSyncResult> {
   const fetchImpl = options?.fetchImpl ?? fetch;
-  const connection = await probeConnection(fetchImpl);
-  if (shouldPauseSync(connection) || !canReachBackend(connection)) {
-    return { kind: "skipped", connection };
-  }
 
+  // There is deliberately NO probe before this request. The snapshot response IS
+  // the probe: it carries the same `X-DalyHub-Authenticated` marker and the same
+  // status information, so a separate `/offline/ping` beforehand would be a
+  // second round trip that answers a question this one already answers. Halving
+  // the requests also halves the chance of one being in flight at an awkward
+  // moment — see `page-idle.ts`.
   let snapshot: OfflineSnapshot;
+  let connection: OfflineConnectionState;
   try {
     const response = await fetchImpl("/offline/snapshot", {
       method: "GET",
@@ -253,11 +281,19 @@ export async function syncSnapshot(options?: {
       redirect: "manual",
       cache: "no-store",
       headers: { Accept: "application/json" },
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
-    if (response.headers.get("X-DalyHub-Authenticated") !== "1") {
+    connection = classifyProbe({
+      kind: "response",
+      status: response.status,
+      type: response.type,
+      authenticated:
+        response.headers.get("X-DalyHub-Authenticated") === "1" || false,
+    });
+    if (shouldPauseSync(connection) || !canReachBackend(connection)) {
       // Something other than DalyHub's authenticated Worker answered. Storing
       // that body would be storing an unknown document as the owner's data.
-      return { kind: "skipped", connection: "authRequired" };
+      return { kind: "skipped", connection };
     }
     snapshot = (await response.json()) as OfflineSnapshot;
   } catch {

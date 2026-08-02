@@ -27,12 +27,19 @@ export const PROBE_TIMEOUT_MS = 6_000;
 export async function probeConnection(
   fetchImpl: typeof fetch = fetch,
   timeoutMs: number = PROBE_TIMEOUT_MS,
+  externalSignal?: AbortSignal,
 ): Promise<OfflineConnectionState> {
   const controller =
     typeof AbortController === "undefined" ? null : new AbortController();
   const timer = controller
     ? setTimeout(() => controller.abort(), timeoutMs)
     : null;
+  // A request still in flight when its document is destroyed is LOST — the
+  // browser reports it as neither finished nor failed. Aborting on the caller's
+  // signal (which the provider fires on `pagehide`) means the request ends
+  // definitively instead of dangling.
+  const onExternalAbort = () => controller?.abort();
+  externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
   try {
     const response = await fetchImpl(OFFLINE_PING_PATH, {
       method: "GET",
@@ -58,6 +65,7 @@ export async function probeConnection(
     return "offline";
   } finally {
     if (timer !== null) clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
   }
 }
 
