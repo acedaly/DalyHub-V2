@@ -21,7 +21,12 @@ export function meta() {
 
 export default function DesignAppIcon() {
   return (
-    <main className="dh-icon-review" id="main">
+    // A `div`, not a `main`: this fixture renders INSIDE the app shell, which
+    // already provides the document's one `main` landmark. Nesting a second one
+    // is a WCAG landmark violation, and the sibling `/design/*` fixtures use a
+    // plain container for the same reason. (`/offline` does use `main` — it
+    // renders outside the shell and owns the landmark itself.)
+    <div className="dh-icon-review">
       <h1>DalyHub app icon</h1>
       <p>
         The generated assets, at the sizes the icon system ships. Regenerate
@@ -93,6 +98,6 @@ export default function DesignAppIcon() {
           </li>
         </ul>
       </section>
-    </main>
+    </div>
   );
 }
