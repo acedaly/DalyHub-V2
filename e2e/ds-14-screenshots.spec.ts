@@ -442,7 +442,13 @@ const MODULE_SURFACES = [
   { name: "sparse-goal", path: `/goals/${SPARSE_PREFIX}goal` },
   { name: "sparse-project", path: `/projects/${SPARSE_PREFIX}project` },
   { name: "sparse-note", path: `/notes/${SPARSE_PREFIX}note` },
-  { name: "sparse-diary", path: `/diary/${SPARSE_PREFIX}diary` },
+  /*
+   * A Diary entry has no record ROUTE — `/diary/:entryId` is a data endpoint,
+   * like `/search`. The entry is rendered by the day it happened on, so the
+   * sparse entry is photographed there, on the date `SPARSE_TS` falls on in the
+   * fixture's timezone.
+   */
+  { name: "sparse-diary", path: "/diary?date=2026-08-03" },
   { name: "sparse-meeting", path: `/meeting/${SPARSE_PREFIX}meeting` },
   { name: "sparse-person", path: `/person/${SPARSE_PREFIX}person` },
   { name: "sparse-asset", path: `/asset/${SPARSE_PREFIX}asset` },
@@ -458,6 +464,30 @@ const MODULE_VIEWPORTS = [
   { label: "mobile-320", width: 320, height: 720 },
 ] as const;
 
+/**
+ * Chunked, and each surface gets a FRESH PAGE.
+ *
+ * The first shape of this pass drove all ~28 surfaces through one long-lived
+ * page in a single test, and it hung — not on any particular route (each one
+ * loads in well under a second in isolation) but on the accumulated state of a
+ * page that had already navigated twenty times against a dev server holding an
+ * HMR socket open. `networkidle` never arrived, and the failure read exactly
+ * like a broken route.
+ *
+ * A page per surface removes the accumulation, and chunking keeps any single
+ * test's budget honest rather than pushing the timeout up until it passes.
+ */
+const MODULE_CHUNK_SIZE = 7;
+
+const MODULE_CHUNKS = Array.from(
+  { length: Math.ceil(MODULE_SURFACES.length / MODULE_CHUNK_SIZE) },
+  (_, index) =>
+    MODULE_SURFACES.slice(
+      index * MODULE_CHUNK_SIZE,
+      (index + 1) * MODULE_CHUNK_SIZE,
+    ),
+);
+
 test.describe("DS-14 module coverage", () => {
   for (const viewport of MODULE_VIEWPORTS) {
     test.describe(viewport.label, () => {
@@ -466,25 +496,45 @@ test.describe("DS-14 module coverage", () => {
       });
 
       for (const themeId of MODULE_THEMES) {
-        test(`captures every module in ${themeId}`, async ({ page }) => {
-          test.slow();
-          await useTheme(page, themeId);
-
-          for (const surface of MODULE_SURFACES) {
-            await gotoFixture(page, surface.path);
-            await expect(page.locator("html")).toHaveAttribute(
-              "data-theme",
-              themeId,
-            );
-            await page.screenshot({
-              path: join(
-                OUT,
-                `${surface.name}-${themeId}-${viewport.label}.png`,
-              ),
-              fullPage: false,
+        for (const [index, chunk] of MODULE_CHUNKS.entries()) {
+          test(`captures ${themeId} surfaces ${index + 1}`, async ({
+            browser,
+          }) => {
+            test.slow();
+            const context = await browser.newContext({
+              viewport: { width: viewport.width, height: viewport.height },
             });
-          }
-        });
+            try {
+              // Stored through the product's own validated preferences action,
+              // so what these images show is the theme an owner would get.
+              const primer = await context.newPage();
+              await useTheme(primer, themeId);
+              await primer.close();
+
+              for (const surface of chunk) {
+                const page = await context.newPage();
+                try {
+                  await gotoFixture(page, surface.path);
+                  await expect(page.locator("html")).toHaveAttribute(
+                    "data-theme",
+                    themeId,
+                  );
+                  await page.screenshot({
+                    path: join(
+                      OUT,
+                      `${surface.name}-${themeId}-${viewport.label}.png`,
+                    ),
+                    fullPage: false,
+                  });
+                } finally {
+                  await page.close();
+                }
+              }
+            } finally {
+              await context.close();
+            }
+          });
+        }
       }
     });
   }

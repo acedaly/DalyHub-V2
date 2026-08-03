@@ -149,11 +149,19 @@
   margin-block-start: var(--dh-space-1);
 }
 
+/*
+ * DS-14 — a full-width inset band on a card is a near-black slab in a dark
+ * theme (and a grey hole in a light one), which the direction rules out. The
+ * line is bounded by a hairline instead: the same grouping, no second surface.
+ * The overdue/due-soon variants keep their role tint, because there the surface
+ * IS carrying state and is always accompanied by the words.
+ */
 .dh-asset-summary__next {
   margin-block-start: var(--dh-space-3);
   padding: var(--dh-space-2) var(--dh-space-3);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
+  border-radius: var(--dh-radius-control);
+  border: var(--dh-border-width-thin) solid var(--dh-color-divider-subtle);
+  background: transparent;
 }
 
 .dh-asset-summary__next--overdue {
@@ -224,6 +232,8 @@
   gap: var(--dh-space-2);
 }
 
+/* A single-sided accent rule stays SQUARE — a rounded corner needs a border all
+   the way around it (brief §2). */
 .dh-asset-dates__row {
   display: flex;
   flex-wrap: wrap;
@@ -231,8 +241,13 @@
   align-items: baseline;
   padding: var(--dh-space-2) var(--dh-space-3);
   border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-sunken);
+  border-radius: 0;
+  background: transparent;
+}
+
+.dh-asset-dates__row + .dh-asset-dates__row {
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
 }
 
 .dh-asset-dates__row--overdue {
@@ -389,8 +404,9 @@
 .dh-asset-next {
   margin-block-start: var(--dh-space-3);
   padding: var(--dh-space-3);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
+  border-radius: var(--dh-radius-control);
+  border: var(--dh-border-width-thin) solid var(--dh-color-divider-subtle);
+  background: transparent;
 }
 
 .dh-asset-next__line {
