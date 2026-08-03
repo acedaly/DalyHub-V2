@@ -126,6 +126,19 @@ body {
   cursor: pointer;
 }
 
+/*
+ * A link is the product's accent, not the user agent's blue.
+ *
+ * `.page` and `.dh-pane-body` already set this for the document surfaces, which
+ * left every link OUTSIDE those two wrappers — the offline shell's "Try DalyHub
+ * online", the recovery links, anything a module rendered directly — rendering
+ * in default browser blue and visited purple, on a themed page, in seven
+ * themes. Zero specificity, so every existing link treatment still wins.
+ */
+:where(a) {
+  color: var(--dh-color-accent-text);
+}
+
 /* Honour the user's reduced-motion preference: motion never carries meaning that
  * is lost when it is disabled (AGENTS.md §15, DESIGN_SYSTEM.md → Motion). */
 @media (prefers-reduced-motion: reduce) {

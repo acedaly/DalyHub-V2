@@ -332,17 +332,26 @@ function securityHeaders(extra) {
 
 /** A complete document with NO script of any kind, so it cannot reload itself. */
 function plainDocument(status, marker, title, body) {
+  // DS-14 §16: card-on-tint, with every value INLINED — no stylesheet, no
+  // token layer, no persisted theme, no font request, and in safe mode no
+  // script. The only two documents in the product not painted by tokens.
+  // This file is SERVED, so its comments cost budget: see PWA_AND_OFFLINE.md.
   return new Response(
     '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' +
       `<title>${title} · DalyHub</title>` +
-      '<meta name="theme-color" content="#faf9f7">' +
-      "<style>body{font:16px/1.6 system-ui,-apple-system,sans-serif;margin:0;" +
-      "padding:2rem 1.25rem;background:#faf9f7;color:#26221c;max-width:34rem}" +
-      "h1{font-size:1.25rem;margin:0 0 .75rem}p{margin:0 0 .75rem}" +
-      "a{color:#26221c}@media(prefers-color-scheme:dark){body{background:#101215;color:#e7e5e1}a{color:#e7e5e1}}" +
-      "</style></head><body>" +
-      `<h1>${title}</h1>${body}</body></html>`,
+      '<meta name="theme-color" content="#ecebe8">' +
+      "<style>:root{--p:#ecebe8;--c:#f6f5f4;--t:#26221c;--s:#5c564c;--b:#dedbd4}" +
+      "@media(prefers-color-scheme:dark){:root{--p:#101215;--c:#181c22;--t:#e7e5e1;--s:#a9a49c;--b:#2a2f37}}" +
+      "body{font:16px/1.6 system-ui,-apple-system,sans-serif;margin:0;" +
+      "padding:2.5rem 1.25rem;background:var(--p);color:var(--t)}" +
+      "main{max-width:34rem;margin:0 auto;padding:1.75rem;background:var(--c);" +
+      "border:1px solid var(--b);border-radius:16px}" +
+      "h1{font-size:1.25rem;font-weight:500;margin:0 0 .75rem;letter-spacing:-.01em}" +
+      "p{margin:0 0 .75rem;color:var(--s)}p:last-child{margin-bottom:0}" +
+      "strong{color:var(--t);font-weight:500}a{color:var(--t)}" +
+      "</style></head><body><main>" +
+      `<h1>${title}</h1>${body}</main></body></html>`,
     {
       status,
       headers: securityHeaders({
