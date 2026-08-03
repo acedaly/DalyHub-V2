@@ -40,7 +40,24 @@ export function MarkdownContent({ html, className }: MarkdownContentProps) {
     : "markdown-content";
 
   return (
+    /*
+     * DS-14 §4 — rendered Markdown IS the Reading region.
+     *
+     * Declared once, here, for the same reason `CollectionLayout` declares the
+     * Collection region once: this component is the product's definition of
+     * "prose the owner reads", and it is the ONE sanctioned place Markdown
+     * reaches the DOM (ADR-015 §4.5). So a note body, a diary entry, a meeting
+     * summary, an area vision, a project description, a review response and a
+     * task description all take 16px at 1.75 over a 46ch measure in the serif
+     * — and a module that adds a prose surface gets the reading column by
+     * rendering Markdown through the boundary it already has to use.
+     *
+     * The chrome AROUND the prose stays sans, because the region carries only
+     * the body values and the serif is applied by `.markdown-content` itself
+     * (see `base.css`), never by the wrapper.
+     */
     <div
+      data-density="reading"
       className={wrapperClassName}
       // Safe by construction: `html` is `SanitizedMarkdownHtml`, a branded value
       // only the shared sanitising pipeline can produce (ADR-015 §4.5). This is
