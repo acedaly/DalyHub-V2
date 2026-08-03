@@ -713,10 +713,22 @@
   display: contents;
 }
 
+/*
+ * WRAPS, and the wrap is not optional.
+ *
+ * With the line held to one row, the title (`min-width: 0`, and
+ * `overflow-wrap: anywhere` so a long title never widens the page) shrank to
+ * whatever the status pill left it — at 390px that was a few pixels, and the
+ * title broke ONE CHARACTER PER LINE. `min-inline-size` gives the title a floor
+ * it will not be squeezed below, and wrapping lets the pill drop to its own row
+ * instead of taking the title's width. The title is the one thing the owner is
+ * scanning for, so it never truncates and never collapses.
+ */
 [data-density="collection"] .dh-card__line {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--dh-space-2);
+  gap: 2px var(--dh-space-2);
   min-width: 0;
 }
 
@@ -752,6 +764,7 @@
 [data-density="collection"] .dh-card__title {
   flex: 1 1 auto;
   min-width: 0;
+  min-inline-size: 12ch;
   font-size: var(--dh-font-size-base);
   font-weight: var(--dh-font-weight-medium);
   line-height: var(--dh-line-height-snug);
@@ -840,20 +853,44 @@
   border-color: var(--dh-color-border-strong);
 }
 
-/* At 320–480px the row gives the supporting run its own full line rather than
- * competing with the title for a 260px column. */
+/*
+ * Narrow widths. The group tightens its inline inset, and the row's quick
+ * actions keep MOBILE-01's own line beneath the body — which is not a
+ * concession but the only correct layout: inline at 390px the action pair
+ * ("Complete", "Today") took 167px of a 332px row and squeezed the body to
+ * 126px, which is what made a task title wrap one character per line. The
+ * content gets the width; the actions get the row under it.
+ */
 @media (max-width: 30rem) {
   [data-density="collection"] .dh-card-collection--list {
     padding-inline: var(--dh-space-3);
   }
 
   [data-density="collection"] .dh-card-collection--list .dh-card {
-    flex-wrap: nowrap;
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
+  /*
+   * `flex-basis: 0`, and this is the difference between a row and three stacked
+   * blocks. A wrapping flex line places an item on a new line when its
+   * HYPOTHETICAL size — flex-basis, which at `auto` is the content width —
+   * exceeds the free space, and it does that BEFORE it considers shrinking. So
+   * the body, whose content is wider than the 275px left beside a 45px
+   * selection cell, wrapped below the checkbox instead of shrinking to fit
+   * beside it. A zero basis makes the body ask for nothing and then grow into
+   * what is left, which is the intent.
+   */
+  [data-density="collection"] .dh-card-collection--list .dh-card__body {
+    flex: 1 1 0;
+  }
+
+  /* The actions row aligns with the body rather than with the selection column,
+   * so the row still reads as one record and not as two. */
   [data-density="collection"] .dh-card-collection--list .dh-card__actions {
-    flex-basis: auto;
-    margin-top: 0;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    margin-block-start: var(--dh-space-1);
   }
 }
 
