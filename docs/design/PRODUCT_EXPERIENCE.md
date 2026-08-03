@@ -140,7 +140,7 @@ Legend — **Difficulty:** S (hours) / M (days) / L (its own roadmap item). **Wh
 #### 11. Sticky collection headers
 
 - **Why.** In long lists the title, view switcher and active filters are orientation; scrolling them away costs place-keeping (the product's "never lose the user's place" rule applied *within* a screen).
-- **What.** Inside CollectionLayout (#5): pane header and FilterBar `position: sticky; top: 0` on `--dh-color-bg` with a divider on scrolled state. Needs #2's per-pane scroll container.
+- **What.** Inside CollectionLayout (#5): pane header and FilterBar `position: sticky; top: 0` on `--dh-color-surface-page` with a divider on scrolled state. Needs #2's per-pane scroll container.
 - **S; with #5.**
 
 #### 12. Calmer list-card hover
@@ -244,7 +244,7 @@ Accessibility *is* the quality bar, not a compliance pass: semantic elements fir
 ## Part III — Visual hierarchy rules
 
 1. **Surfaces (elevation doctrine).**
-   - `--dh-color-bg` — the pane and the page. The default ground everything sits on.
+   - `--dh-color-surface-page` — the pane and the page. The tinted canvas everything sits on (DS-14 renamed this from `bg` and retired the old name).
    - `--dh-color-surface` — grouped/secondary regions *within* the ground: sidebar, summary panels, pane headers, code blocks, pill backgrounds.
    - `--dh-color-surface-raised` — things that sit *above* the ground and could be picked up or opened: cards, drawers, popovers, menus. Raised implies interactive containment; never use it for static grouping.
    - `--dh-color-surface-sunken` — things *inset into* the ground: progress tracks, wells, badge backgrounds.
@@ -303,7 +303,7 @@ Normative layout references for the surfaces the roadmap will build. ASCII wiref
 │  (A) Aidan ▾ │                                                              │
 └──────────────┴──────────────────────────────────────────────────────────────┘
  sidebar: --dh-color-surface, 15rem, icons 16px + labels, active = accent-surface
- tint + semibold + aria-current (never colour alone). Pane: --dh-color-bg.
+ tint + semibold + aria-current (never colour alone). Pane: --dh-color-surface-page.
 ```
 
 ### Today (TODAY-01)

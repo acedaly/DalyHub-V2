@@ -1,0 +1,97 @@
+/*
+ * DS-14 §4 — the two density presets.
+ *
+ * There are exactly TWO, they are keyed to SURFACE TYPE, and they are neither a
+ * module property nor a user setting. A region declares what KIND of surface it
+ * is with `data-density`, and the preset resolves that declaration into sizing
+ * tokens the components inside it consume. Nothing takes a density prop, nothing
+ * branches on a module, and there is no owner-facing switch (brief §9).
+ *
+ *   data-density="reading"     prose the owner READS — a note body, a diary
+ *                              entry, a meeting summary, a review response
+ *   data-density="collection"  everything the owner SCANS — every list, table,
+ *                              Today, search results, linked items, settings
+ *
+ * A single route routinely contains both. That is expected, not a special case:
+ * a Note record is a Reading region for its body and a Collection region for its
+ * metadata and links. Regions nest, and the nearest wrapper wins, because every
+ * value below is a custom property resolved by the cascade.
+ *
+ * WHY A REGION AND NOT A PROP. A prop puts the decision at every call site, where
+ * it is a hundred independent judgements that drift. An attribute on a wrapper
+ * puts it in ONE place per surface, where it can be read off the markup in
+ * review, and where classifying a new surface is answering a question rather than
+ * threading a value.
+ *
+ * The serif applies to the PROSE BODY ONLY. Titles, labels, metadata, controls,
+ * pills and every other piece of chrome stay sans on both presets — which is why
+ * `--dh-density-body-family` is consumed by the prose element itself and never by
+ * the region wrapper.
+ *
+ * Rhythm (brief §2): vertical spacing in rem on a 4px base; component-internal
+ * gaps in px. Row padding and card padding are component-internal and are
+ * therefore authored in px; section gaps are rem and land on the shared scale.
+ *
+ * The preset VALUES live in `tokens.css` beside every other design value, under
+ * "DS-14 density presets" — add a token there first, then consume it here. This
+ * file is what a region PAINTS with them.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* What a region actually paints                                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The region itself carries the preset's body type, so anything inside it that
+ * does not override the value inherits the right size and rhythm. It does NOT
+ * carry the family: chrome is sans on both presets, and only the prose element
+ * opts into the serif.
+ */
+[data-density] {
+  font-size: var(--dh-density-body-size);
+  line-height: var(--dh-density-line-height);
+  font-variant-numeric: var(--dh-density-numerals);
+}
+
+/*
+ * Cards inside a region take the preset's padding. `.dh-region-card` is the
+ * DS-14 card-on-tint surface: the card plane, a full border (which is what
+ * entitles it to rounded corners), a hairline rather than a shadow, and the
+ * preset's inset.
+ */
+[data-density] .dh-region-card {
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-card);
+  padding-block: var(--dh-density-card-padding-block);
+  padding-inline: var(--dh-density-card-padding-inline);
+}
+
+/*
+ * A collection row. The hairline sits BETWEEN rows and never before the first or
+ * after the last, so a card's own border is the only edge at its ends.
+ */
+[data-density] .dh-region-row {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  min-block-size: var(--dh-density-row-min-height);
+  padding-block: var(--dh-density-row-padding-block);
+}
+
+[data-density] .dh-region-row + .dh-region-row {
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
+}
+
+/*
+ * Only the primitives something actually uses live here. The preset's remaining
+ * values — the section gap, the Reading family and measure, the linked-items
+ * hairline — are consumed directly by the surfaces that need them (see
+ * `.dh-note-body` in `markdown-editor.css`, which is the Reading column). A
+ * shared class nothing renders is speculative CSS, and a foundation is the worst
+ * place to ship it: the whole point of one revertible commit is that everything
+ * in it is load-bearing. A module group that finds it needs a shared prose class
+ * adds it HERE, by amendment to the foundation commit, never forward into the
+ * group (ADR-068 F3).
+ */

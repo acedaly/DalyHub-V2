@@ -20,7 +20,24 @@ const APP_DIR = path.join(
   "..",
   "app",
 );
-const ALLOWED = path.join("shared", "markdown", "MarkdownContent.tsx");
+/**
+ * The sink is permitted in exactly two places, and the second is not a markdown
+ * sink at all:
+ *
+ *   - the shared `MarkdownContent` boundary, which is what this test exists for;
+ *   - PWA-11's `/offline` route, which inlines a fixed, source-literal one-line
+ *     script to normalise the launch url before hydration. It interpolates
+ *     NOTHING — there is no value from a request, a loader or a record anywhere
+ *     near it — so it cannot carry injected content, and it has to be inline
+ *     because a module would be a network fetch on the one page whose entire
+ *     premise is that the network is gone.
+ *
+ * Anything else appearing here is a real second HTML injection point.
+ */
+const ALLOWED = [
+  path.join("routes", "offline.tsx"),
+  path.join("shared", "markdown", "MarkdownContent.tsx"),
+];
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -41,6 +58,6 @@ describe("dangerouslySetInnerHTML boundary", () => {
       .filter((file) => readFileSync(file, "utf8").includes(SINK))
       .map((file) => path.relative(APP_DIR, file));
 
-    expect(offenders).toEqual([ALLOWED]);
+    expect(offenders.sort()).toEqual(ALLOWED);
   });
 });

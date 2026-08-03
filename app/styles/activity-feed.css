@@ -41,7 +41,7 @@
   top: 0;
   z-index: var(--dh-z-raised);
   padding: var(--dh-space-2) var(--dh-space-1);
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
   border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
 }
 

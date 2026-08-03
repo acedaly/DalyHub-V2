@@ -1,79 +1,41 @@
 /**
  * PWA-02 — the DalyHub service worker.
  *
- * This file is a TEMPLATE. `vite-plugins/service-worker.ts` substitutes the three
- * build-time placeholders below at build time and emits the result as `/sw.js`, so
- * the cache names are tied to a real deployment identifier and the precache list
- * is the actual hashed filenames Vite produced. It is plain, dependency-free
- * JavaScript: a service worker is the one place in DalyHub where a bug is
- * genuinely hard to roll back, so it stays small enough to read in one sitting.
+ * A TEMPLATE: `vite-plugins/service-worker.ts` substitutes the three placeholders
+ * below and emits the result as `/sw.js`, so the cache names are tied to a real
+ * deployment identifier and the precache list is the actual hashed filenames Vite
+ * produced. Plain, dependency-free JavaScript — a service worker is the one place
+ * in DalyHub where a bug is genuinely hard to roll back.
  *
- * ── What it will and will not cache ──────────────────────────────────────────
- * DalyHub is entirely behind Cloudflare Access, every authenticated response
- * leaves the Worker boundary with `Cache-Control: private, no-store`, and the
- * owner's data is the most private data they have. So the rules are deliberately
- * restrictive and stated as an ALLOW-LIST, never "cache what works":
+ * The FULL rationale — the cache allow-list and why it is an allow-list, the
+ * update-and-wait protocol, and the two PWA-11 rules learned from a real iPhone
+ * restart loop — lives in `docs/development/PWA_AND_OFFLINE.md` (§4, §4.5). It
+ * used to be restated here at length; that duplication was both a doc-rot source
+ * and, because this file is SERVED, real bytes on every device's first install.
+ * The rules themselves are stated inline beside the code that enforces each one.
  *
- *   CACHED  build-versioned bundles under `/assets/` (JS, CSS, fonts) — content
- *           hashed, identical for every identity, no user data.
- *   CACHED  the icon set, `favicon.ico` and the web app manifest — static, public
- *           by nature.
- *   CACHED  exactly ONE HTML document: the `/offline` shell. Its loader is
- *           deliberately incapable of reading workspace data (it returns build
- *           metadata only), which is the data-classification decision that makes
- *           caching an authenticated document acceptable here. Everything the
- *           offline shell then shows is read client-side from IndexedDB, which is
- *           namespaced per identity + workspace.
- *   NEVER   any other HTML document. An authenticated page carries the owner's
- *           content and identity; caching one could show it to a different
- *           identity signing in on the same device.
- *   NEVER   React Router loader/action data requests (`.data`), and never any
- *           `/offline/*`, `/search`, `/commands*`, `/links`, `/capture/*`,
- *           `/preferences/*` or `/health` response. These are API surfaces whose
- *           bodies are user data or authentication-sensitive.
- *   NEVER   a non-GET request, a cross-origin request, or a partial (206)
- *           response.
+ * The four load-bearing rules, in one line each:
  *
- * ── Update behaviour ─────────────────────────────────────────────────────────
- * A new deployment installs alongside the running one and WAITS. It never
- * activates under a page that is already running, because swapping the asset
- * cache beneath a loaded document is how a user ends up running one build's
- * JavaScript against another build's server. The page is told an update is ready
- * and offers it; `SKIP_WAITING` is sent only on that explicit action, or
- * automatically when there is no controlled page to disturb. On activation the
- * superseded caches are deleted, so storage does not accumulate one dead cache
- * per deployment.
+ *   1. Cache only content-hashed build assets (`/assets/`), the static public
+ *      files (`/icons/`, `/fonts/`, the manifest, the favicon), and EXACTLY ONE
+ *      HTML document — the `/offline` shell, whose loader is incapable of reading
+ *      workspace data. Never another document, never a `.data` request, never an
+ *      API surface, never a non-GET, cross-origin or partial response.
+ *   2. A new deployment installs alongside the running one and WAITS, because
+ *      swapping the asset cache beneath a loaded document runs one build's
+ *      JavaScript against another build's server.
+ *   3. The offline document is only ever served at its OWN url; a navigation
+ *      elsewhere is redirected to it, so the document always matches the url it
+ *      was rendered for.
+ *   4. Nothing but a document navigation may ever receive HTML. Everything else
+ *      fails CLEANLY (504, empty body) — HTML arriving where JavaScript was
+ *      expected is a syntax error inside the running application.
  *
- * ── PWA-11 — the two rules that keep an offline launch from looping ──────────
- * Both of these were learned from a real iPhone failure, in which an installed
- * DalyHub launched offline, painted the offline shell, and was then killed by
- * WebKit with "A problem repeatedly occurred". See `PWA_AND_OFFLINE.md §4.5`.
- *
- *   1. **The offline document is only ever served at its OWN url.** The installed
- *      app's `start_url` is `/`, so an offline launch is a navigation to `/`.
- *      Answering it with the `/offline` document's HTML put a document that was
- *      server-rendered for one route under a DIFFERENT url: React Router then
- *      hydrated against `/`, lazily imported the route modules for `/` — which
- *      are deliberately NOT precached — and, when that import failed with no
- *      network, called `window.location.reload()` from inside
- *      `loadRouteModule`. That reload re-entered exactly the same path. A
- *      navigation whose url is not the offline document is therefore REDIRECTED
- *      to it, so the document the browser renders always matches the url it was
- *      rendered for.
- *   2. **Nothing but a document navigation may ever receive HTML.** A script,
- *      module, stylesheet, image, font, manifest or API request that cannot be
- *      served from the cache fails CLEANLY (a 504 with an empty text body). HTML
- *      arriving where JavaScript was expected is a syntax error inside the
- *      running application, which is the other way this page ends up in a
- *      restart loop.
- *
- * And one backstop for causes nobody has thought of yet: a bounded loop breaker.
- * If the offline document is served more than `OFFLINE_BOOT_LIMIT` times inside
- * `OFFLINE_BOOT_WINDOW_MS`, the worker stops serving it and answers with a
+ * Plus one backstop: if the offline document is served more than
+ * `OFFLINE_BOOT_LIMIT` times inside `OFFLINE_BOOT_WINDOW_MS`, the worker serves a
  * SCRIPT-FREE safe-mode page instead. A page with no JavaScript cannot reload
- * itself, so the loop terminates deterministically rather than being terminated
- * by the platform. A successful network navigation, or the page telling the
- * worker it booted, clears the evidence.
+ * itself, so a loop terminates deterministically rather than being terminated by
+ * the platform.
  */
 
 /** The deployment identifier every cache name is tied to. */
@@ -108,7 +70,7 @@ const NEVER_CACHE_PREFIXES = [
 ];
 
 /** Static asset prefixes safe to serve cache-first. */
-const STATIC_PREFIXES = ["/assets/", "/icons/"];
+const STATIC_PREFIXES = ["/assets/", "/icons/", "/fonts/"];
 
 /** Individual static files safe to serve cache-first. */
 const STATIC_FILES = ["/favicon.ico", "/manifest.webmanifest"];

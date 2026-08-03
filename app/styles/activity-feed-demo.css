@@ -78,7 +78,7 @@
   margin-top: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
   padding: 0 var(--dh-space-3);
 }
 

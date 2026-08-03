@@ -1,6 +1,25 @@
 /*
  * TODAY-01 — the Today dashboard layout (design tokens only).
  *
+ * DS-14 REFERENCE IMPLEMENTATION (Collection). Today is the surface the direction
+ * is proved on for everything the owner SCANS. The route is one Collection region
+ * (`TodayDashboard.tsx`), so every value below that sets rhythm, size or padding
+ * reads it from the preset rather than choosing a number: the section gap, the
+ * body size, the tabular figures and the row padding all arrive from
+ * `data-density="collection"`.
+ *
+ * What DS-14 changed here, and nothing else changed:
+ *   - each widget is a CARD on the tinted canvas — `surface-card`, a full
+ *     hairline border and `radius-card` — rather than an unbounded band of the
+ *     page. That is constraint 1, and it is what makes the page tint do work;
+ *   - separation is carried by surface value and a hairline, never a shadow
+ *     (constraint 8). Nothing on Today floats;
+ *   - the pinned cue thickens and recolours ONE edge of the card's existing full
+ *     border rather than adding a separate accent rule outside it, so the corners
+ *     stay rounded and brief §2's "a single-sided accent border stays square" is
+ *     not contradicted — there is no single-sided border here, there is a full
+ *     border with one loud edge.
+ *
  * Layout and rhythm ONLY — every visual value is a DS-01 `var(--dh-*)` token, and
  * all real chrome (cards, empty state, pane header, drawer) comes from the shared
  * components. No new colour, shadow or type treatment; no bespoke visual language
@@ -13,7 +32,8 @@
 .dh-today {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-8);
+  /* The Collection preset's section gap (12px). Not a Today number. */
+  gap: var(--dh-density-section-gap);
   max-width: var(--dh-width-content);
 }
 
@@ -24,7 +44,7 @@
 .dh-today__section {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--dh-space-2);
 }
 
 /* A quiet section label — xs, muted, medium weight (PRODUCT_EXPERIENCE Part V,
@@ -218,24 +238,28 @@
 }
 
 /* TODAY-03 — the Waiting summary section on Today. */
+/* DS-14 — the Collection preset's separator rule: a hairline between every row,
+   and never before the first or after the last. The rows themselves are
+   `.dh-region-row`, so their padding and minimum target come from the preset. */
 .dh-today__waiting {
   list-style: none;
   margin: 0 0 var(--dh-space-2);
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-1);
 }
 
 .dh-today__waiting-link {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
-  padding: var(--dh-space-2);
-  border-radius: var(--dh-radius-sm);
+  flex: 1;
+  border-radius: var(--dh-radius-control);
   color: inherit;
   text-decoration: none;
-  min-height: var(--dh-touch-target-min);
+  /* The row supplies the rhythm; the LINK is the thing a finger hits, so it
+     carries the target floor itself rather than inheriting a content box the
+     row's own padding has already eaten into (WCAG 2.2 §2.5.8). */
+  min-block-size: var(--dh-density-row-min-height);
 }
 
 .dh-today__waiting-link:hover {
@@ -454,18 +478,30 @@
 }
 
 /* One widget = a labelled region with a collapsible body. */
+/* DS-14 — a widget is a card on the tinted canvas. The surface, border, radius
+   and the preset's inset all come from the shared `.dh-region-card` primitive
+   (`density.css`); this rule only adds the widget's own internal layout. */
 .dh-today-widget {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--dh-space-2);
+}
+
+/* The widget header needs breathing room the 4px block inset deliberately does
+   not give the rows, so it takes it itself rather than widening the preset. */
+.dh-today-widget__header {
+  padding-block-start: var(--dh-space-3);
+}
+
+.dh-today-widget__body {
+  padding-block-end: var(--dh-space-3);
 }
 
 .dh-today-widget[data-pinned="true"] {
   /* A pinned widget carries a quiet accent edge — an identity cue, not colour-only
-     state (the "Pinned" text in the heading names it too). */
-  border-left: var(--dh-border-width-thick) solid var(--dh-color-accent);
-  padding-left: var(--dh-space-4);
-  margin-left: calc(var(--dh-border-width-thick) * -1 - var(--dh-space-4));
+     state (the "Pinned" text in the heading names it too). It thickens ONE edge of
+     the card's own full border; it is not a separate single-sided accent rule. */
+  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-accent);
 }
 
 .dh-today-widget__header {
@@ -548,7 +584,7 @@
   color: var(--dh-color-text-secondary);
   background: var(--dh-color-surface-raised);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 
@@ -587,9 +623,9 @@
   flex-direction: column;
   gap: var(--dh-space-3);
   padding: var(--dh-space-5);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+  border-radius: var(--dh-radius-card);
 }
 
 .dh-morning-brief__greeting {

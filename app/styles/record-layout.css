@@ -136,7 +136,7 @@
   font-size: var(--dh-font-size-xl);
   line-height: var(--dh-line-height-tight);
   letter-spacing: var(--dh-letter-spacing-tight);
-  font-weight: var(--dh-font-weight-bold);
+  font-weight: var(--dh-font-weight-semibold);
   /* Long titles wrap and break rather than force the page wider. */
   min-width: 0;
   overflow-wrap: anywhere;

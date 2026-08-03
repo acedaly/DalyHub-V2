@@ -27,7 +27,7 @@
   display: grid;
   grid-template-columns: var(--dh-shell-nav-width) 1fr;
   min-height: 100dvh;
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
   color: var(--dh-color-text);
 }
 
@@ -94,7 +94,7 @@
 }
 
 .dh-sidebar__brand-name {
-  font-weight: var(--dh-font-weight-bold);
+  font-weight: var(--dh-font-weight-semibold);
   font-size: var(--dh-font-size-lg);
   letter-spacing: var(--dh-letter-spacing-tight);
 }

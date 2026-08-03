@@ -127,7 +127,7 @@ describe("THEME-01 five curated themes", () => {
     // differ: the page background, the navigation surface, the card surface and
     // the accent.
     const dimensions = [
-      "dh-color-bg",
+      "dh-color-surface-page",
       "dh-color-surface-nav",
       "dh-color-surface-card",
       "dh-color-accent",
@@ -152,7 +152,7 @@ describe("THEME-01 five curated themes", () => {
 
   it("gives every theme a distinct page background", () => {
     const backgrounds = THEME_IDS.map((id) =>
-      effectiveThemeTokens(id).get("dh-color-bg"),
+      effectiveThemeTokens(id).get("dh-color-surface-page"),
     );
     expect(new Set(backgrounds).size).toBe(THEME_IDS.length);
   });
@@ -180,7 +180,9 @@ describe("THEME-01 dark block parity", () => {
   it("actually changes colour values between light and dark", () => {
     const light = effectiveThemeTokens("daly-light");
     const dark = effectiveThemeTokens("daly-dark");
-    expect(dark.get("dh-color-bg")).not.toBe(light.get("dh-color-bg"));
+    expect(dark.get("dh-color-surface-page")).not.toBe(
+      light.get("dh-color-surface-page"),
+    );
     expect(dark.get("dh-color-text")).not.toBe(light.get("dh-color-text"));
   });
 });

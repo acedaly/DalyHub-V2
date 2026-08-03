@@ -38,7 +38,7 @@ export function loader({ request }: Route.LoaderArgs) {
 /**
  * PWA-01 — the browser/OS chrome colour for the resolved theme.
  *
- * Each curated theme's `--dh-color-bg`, duplicated here as a literal because
+ * Each curated theme's `--dh-color-surface-page`, duplicated here as a literal because
  * `theme-color` is read by the browser BEFORE any stylesheet is parsed — it
  * cannot reference a CSS custom property. `tokens.css` remains the source of
  * truth, and `test/unit/pwa/manifest-and-icons.test.ts` fails if these drift
@@ -49,17 +49,17 @@ export function loader({ request }: Route.LoaderArgs) {
  */
 const THEME_CHROME: Partial<Record<ThemePreference, string>> = {
   "daly-dark": "#101215",
-  "modern-light": "#f2eee6",
+  "modern-light": "#efeae0",
   "modern-dark": "#0f1116",
-  eucalypt: "#f7f5ef",
-  coastal: "#f4f7f9",
-  ember: "#faf6f2",
+  eucalypt: "#eae8e0",
+  coastal: "#e7ebee",
+  ember: "#ede8e3",
 };
 
-/** The `:root` background, used by `daly-light` and as the light fallback. */
-const LIGHT_CHROME = "#faf9f7";
+/** The `:root` page canvas, used by `daly-light` and as the light fallback. */
+const LIGHT_CHROME = "#ecebe8";
 
-/** The `daly-dark` background, used as the dark half of the `system` pair. */
+/** The `daly-dark` page canvas, used as the dark half of the `system` pair. */
 const DARK_CHROME = "#101215";
 
 function ThemeColor({ theme }: { readonly theme: ThemePreference }) {
@@ -144,6 +144,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
           rel="manifest"
           href="/manifest.webmanifest"
           crossOrigin="use-credentials"
+        />
+        {/* DS-14 — the chrome family, preloaded.
+         *
+         * The SANS ONLY. It paints every label, control, collection row and
+         * piece of metadata in the product, so it is on the critical path of
+         * every page; the serif paints prose bodies inside Reading regions and
+         * is fetched when one renders. Preloading both would spend the second
+         * request on a font most navigations never use.
+         *
+         * `crossOrigin` is required even though the file is same-origin: a font
+         * is always fetched in CORS mode, and a preload whose mode does not
+         * match the eventual request is downloaded twice. `font-display: swap`
+         * in `fonts.css` means the system stack paints while this is in flight,
+         * so text is never invisible and this is an optimisation rather than a
+         * dependency. */}
+        <link
+          rel="preload"
+          href="/fonts/inter-4.1-latin-wght400-600.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
         />
         {/* Favicons. The SVG is preferred by browsers that support it and scales
          * to any surface; the `.ico` covers the rest and the Windows shortcut. */}

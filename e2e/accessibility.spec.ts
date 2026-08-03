@@ -76,6 +76,11 @@ const PRODUCT_ROUTES = [
   // editor states, are covered by `e2e/notes.spec.ts`'s own journey).
   "/notes",
   "/notes?state=deleted",
+  // DS-14 — the Reading reference implementation, audited in the shared sweep
+  // rather than only in the Notes journey. The restyle moves the note body into
+  // a Reading region with its own family, size and measure; contrast, focus
+  // order and landmark structure all have to survive that.
+  "/notes/n-search-e2e",
   // PEOPLE-01 — the real People collection, its Recent/Archived sub-views and the
   // create-person page (the record itself is covered by `e2e/people.spec.ts`).
   "/people",

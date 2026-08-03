@@ -43,7 +43,27 @@
  *
  * Only COLOUR and ELEVATION tokens change between themes; every other token
  * (type, space, shape, motion, layout) is theme-independent and defined once on
- * `:root`.
+ * `:root`. The one group scoped to something other than a theme is DS-14's two
+ * DENSITY PRESETS, which hang off `data-density` on a region wrapper rather than
+ * off `data-theme` — see "DS-14 density presets" below.
+ *
+ * ── DS-14 ─────────────────────────────────────────────────────────────────────
+ * The card-on-tint foundation. `--dh-color-surface-page` is the tinted page
+ * canvas cards sit on; it REPLACED `--dh-color-bg`, which is retired rather than
+ * kept beside it, because two names for the page canvas lets a theme satisfy the
+ * elevation contract on the token nothing paints (ADR-068 decision 2).
+ *
+ * The contract every theme's surface ramp must satisfy, asserted by
+ * `test/unit/tokens/ds-14-theme-invariants.test.ts` and not by review:
+ *
+ *     ΔL* (CIELAB) surface-page → surface-card  >= 3
+ *     ΔL* (CIELAB) surface-card → surface-raised >= 3
+ *
+ * Five of the seven themes could not satisfy that before DS-14 and three had
+ * `surface-card` and `surface-raised` byte-identical at `#ffffff`, so their light
+ * neutral ramps were recomposed. Each theme's HUE is still its own; only the
+ * lightness relationships are prescribed. If you change a surface value here,
+ * that test tells you which pair you broke and by how much.
  *
  * ── Extension rules ───────────────────────────────────────────────────────────
  * Add a token here first, then consume it. Prefer adding a semantic token over
@@ -66,8 +86,19 @@
   /* ---------------------------------------------------------------------- */
   /* Typography                                                             */
   /* ---------------------------------------------------------------------- */
+  /* DS-14 — the self-hosted variable sans is the chrome family everywhere: every
+   * label, control, collection row and piece of metadata in the product. The
+   * system stack behind it is a complete fallback, not a decoration: `swap` in
+   * `fonts.css` means it paints first and is replaced, so nothing ever blanks. */
   --dh-font-sans:
-    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  /* DS-14 — the reading family. Applied to PROSE BODIES ONLY, and only inside a
+   * Reading region (see `density.css`). Titles, labels, metadata, controls and
+   * pills stay sans on both presets. */
+  --dh-font-serif:
+    "Source Serif 4 Variable", Charter, "Bitstream Charter", "Iowan Old Style",
+    Georgia, "Times New Roman", serif;
   --dh-font-mono:
     ui-monospace, "SF Mono", "SFMono-Regular", "Menlo", "Consolas",
     "Liberation Mono", monospace;
@@ -76,8 +107,12 @@
   --dh-font-size-2xs: 0.6875rem; /* 11px — dense metadata */
   --dh-font-size-xs: 0.75rem; /* 12px — labels, chips */
   --dh-font-size-sm: 0.8125rem; /* 13px — secondary text */
+  /* DS-14 §4 — the Collection preset's body. Authored in rem, not px, so OS text
+   * scaling still applies to the densest surfaces in the product (AGENTS.md §15);
+   * the rendered size at the default root is the brief's 14px. */
+  --dh-font-size-compact: 0.875rem; /* 14px — collection rows */
   --dh-font-size-base: 0.9375rem; /* 15px — body */
-  --dh-font-size-md: 1rem; /* 16px — emphasised body */
+  --dh-font-size-md: 1rem; /* 16px — emphasised body, and the Reading preset */
   --dh-font-size-lg: 1.125rem; /* 18px — small headings */
   --dh-font-size-xl: 1.375rem; /* 22px — record titles */
   --dh-font-size-2xl: 1.75rem; /* 28px — page headings */
@@ -85,15 +120,24 @@
 
   /* Line heights. */
   --dh-line-height-tight: 1.2;
+  --dh-line-height-dense: 1.4; /* DS-14 §4 — the Collection preset */
   --dh-line-height-snug: 1.35;
   --dh-line-height-normal: 1.5;
   --dh-line-height-relaxed: 1.65;
+  --dh-line-height-loose: 1.75; /* DS-14 §4 — the Reading preset */
 
-  /* Weights. */
+  /* Weights.
+   *
+   * THREE weights (ADR-068 decision 8). The brief asked for two, 400 and 500;
+   * `semibold` is kept because 115 call sites use it and `e2e/themes.spec.ts`
+   * asserts the selected navigation row's computed weight is >= 600 — an
+   * assertion that exists because THEME-02 found a real contrast defect in that
+   * exact treatment. `bold` (700) IS removed: it was the widest gap in the ramp,
+   * its 11 call sites moved to `semibold`, and dropping it is what keeps the
+   * preloaded variable range narrow enough to matter for the font budget. */
   --dh-font-weight-regular: 400;
   --dh-font-weight-medium: 500;
   --dh-font-weight-semibold: 600;
-  --dh-font-weight-bold: 700;
 
   /* Letter spacing. */
   --dh-letter-spacing-tight: -0.01em;
@@ -125,6 +169,11 @@
   --dh-control-height-lg: max(2.75rem, 45px); /* 44px target + rounding guard */
   --dh-touch-target-min: max(2.75rem, 45px); /* WCAG 2.2 target size */
 
+  /* DS-14 §4 — the Reading preset's measure cap. Supersedes `--dh-width-prose`
+   * INSIDE a Reading region: 46ch is the deliberate choice for a serif column at
+   * 16px/1.75. `--dh-width-prose` stays for long-form that is not inside a preset
+   * region. */
+  --dh-width-reading: 46ch;
   --dh-width-prose: 68ch; /* readable long-form measure */
   --dh-width-narrow: 42rem; /* single-column pages */
   --dh-width-content: 72rem; /* dense record content */
@@ -163,12 +212,35 @@
   --dh-border-width-thin: 1px;
   --dh-border-width-thick: 2px;
 
+  /* DS-14 §2 — the SEMANTIC radius scale. Four names, chosen by what a thing IS
+   * rather than by how round it looks, so a new surface is shaped by classifying
+   * it rather than by picking a number:
+   *
+   *   pill     anything fully rounded — status pills, area pills, avatars, dots
+   *   card     an in-flow card, a panel, a floating layer
+   *   control  a button, a tab, a menu item, a chip with a square-ish shoulder
+   *   field    a form input, a select, a textarea
+   *
+   * `control` and `field` deliberately share a value: a button and the input
+   * beside it must agree, and giving them one number each means they can only
+   * drift apart on purpose. Rounded corners are only ever applied WITH a full
+   * border; a single-sided accent border stays square (brief §2). */
+  --dh-radius-pill: 999px;
+  --dh-radius-card: 16px;
+  --dh-radius-control: 10px;
+  --dh-radius-field: 10px;
+
+  /* The geometric scale DS-14 supersedes. Kept while the module groups migrate to
+   * the semantic names above (ADR-068 decision 7 — the foundation defines the
+   * vocabulary, the module groups adopt it), and expressed IN TERMS of the
+   * semantic scale wherever the two coincide so the two can never drift apart.
+   * Do not reach for these in new work. */
   --dh-radius-xs: 3px;
   --dh-radius-sm: 5px;
   --dh-radius-md: 8px;
   --dh-radius-lg: 12px;
-  --dh-radius-xl: 16px;
-  --dh-radius-full: 9999px;
+  --dh-radius-xl: var(--dh-radius-card);
+  --dh-radius-full: var(--dh-radius-pill);
 
   /* ---------------------------------------------------------------------- */
   /* Motion                                                                 */
@@ -214,13 +286,13 @@
   /* ---------------------------------------------------------------------- */
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #faf9f7;
-  --dh-color-surface: #f2f1ed;
+  --dh-color-surface-page: #ecebe8;
+  --dh-color-surface: #f1f0ec;
   --dh-color-surface-raised: #ffffff;
-  --dh-color-surface-sunken: #eae8e3;
-  --dh-color-surface-nav: #f5f4f0;
-  --dh-color-surface-header: #fbfaf8;
-  --dh-color-surface-card: #ffffff;
+  --dh-color-surface-sunken: #e0dfdc;
+  --dh-color-surface-nav: #e7e6e3;
+  --dh-color-surface-header: #eae9e6;
+  --dh-color-surface-card: #f6f5f4;
 
   /* Text & foreground. */
   --dh-color-text: #1c1e22;
@@ -231,11 +303,11 @@
   --dh-color-link-hover: #0e4a54;
 
   /* Borders & dividers. */
-  --dh-color-border: #dedcd6;
-  --dh-color-border-strong: #c2bfb7;
-  --dh-color-border-subtle: #ebe9e4;
+  --dh-color-border: #d0cec8;
+  --dh-color-border-strong: #b5b2aa;
+  --dh-color-border-subtle: #dddbd6;
   --dh-color-control-border: #83817b;
-  --dh-color-divider: #e6e4de;
+  --dh-color-divider: #d8d6d0;
 
   /* Accent / brand. */
   --dh-color-accent: #176b78;
@@ -245,8 +317,8 @@
   --dh-color-accent-surface: #e2f0f2;
 
   /* Secondary (neutral) action. */
-  --dh-color-secondary: #eceae5;
-  --dh-color-secondary-hover: #e2dfd8;
+  --dh-color-secondary: #dedcd7;
+  --dh-color-secondary-hover: #d4d1ca;
 
   /* Feedback — solid / surface tint / text-on-surface. */
   --dh-color-success: #1f7a44;
@@ -263,13 +335,13 @@
   --dh-color-info-text: #155677;
 
   /* Interactive states. */
-  --dh-color-hover-surface: #efede8;
-  --dh-color-active-surface: #e5e2dc;
+  --dh-color-hover-surface: #e1dfda;
+  --dh-color-active-surface: #d7d4ce;
   --dh-color-nav-selected-surface: #e2f0f2;
   --dh-color-nav-selected-text: #14606c;
-  --dh-color-disabled-surface: #efede8;
+  --dh-color-disabled-surface: #e1dfda;
   --dh-color-disabled-text: #8d8f92;
-  --dh-color-disabled-border: #e2e0da;
+  --dh-color-disabled-border: #d4d2cc;
 
   /* Focus, selection & overlay. */
   --dh-color-focus-ring: #176b78;
@@ -309,9 +381,9 @@
   --dh-color-state-on-hold-text: #565b63;
 
   /* Progress & chart series. */
-  --dh-color-progress-track: #e5e2dc;
-  --dh-color-progress-fill: #176b78;
-  --dh-color-progress-complete: #1f7a44;
+  --dh-color-progress-track: #8d8b85;
+  --dh-color-progress-fill: #00454f;
+  --dh-color-progress-complete: #004921;
   --dh-color-chart-1: #176b78;
   --dh-color-chart-2: #9a6300;
   --dh-color-chart-3: #6d5aa8;
@@ -320,8 +392,8 @@
   --dh-color-chart-6: #1c6b95;
 
   /* Loading / skeleton. */
-  --dh-color-skeleton-base: #eae8e3;
-  --dh-color-skeleton-highlight: #f6f5f2;
+  --dh-color-skeleton-base: #dcdad5;
+  --dh-color-skeleton-highlight: #e8e7e4;
 
   /* Entity identity accents (PX-02). */
   --dh-entity-area-accent: #0f6f66;
@@ -334,6 +406,112 @@
   --dh-entity-asset-accent: #5c6470;
   --dh-entity-diary-accent: #96189e;
   --dh-entity-review-accent: #0b5f92;
+
+  /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+   * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+   * its own pill tint pair. Role colours are never used as an Area accent. */
+  --dh-color-pill-neutral-surface: #dfdeda;
+  --dh-color-pill-neutral-text: #525761;
+  --dh-color-divider-subtle: #e7e5df;
+  --dh-color-area-accent-1: #007877;
+  --dh-color-area-accent-1-surface: #c4f1ef;
+  --dh-color-area-accent-1-text: #005d5d;
+  --dh-color-area-accent-2: #00739f;
+  --dh-color-area-accent-2-surface: #d0ecff;
+  --dh-color-area-accent-2-text: #00597d;
+  --dh-color-area-accent-3: #67659d;
+  --dh-color-area-accent-3-surface: #e9e5ff;
+  --dh-color-area-accent-3-text: #4d4d83;
+  --dh-color-area-accent-4: #925782;
+  --dh-color-area-accent-4-surface: #fee0f4;
+  --dh-color-area-accent-4-text: #783f69;
+  --dh-color-area-accent-5: #51743f;
+  --dh-color-area-accent-5-surface: #ddedd2;
+  --dh-color-area-accent-5-text: #395b28;
+  --dh-color-area-accent-6: #8d6136;
+  --dh-color-area-accent-6-surface: #fee4ce;
+  --dh-color-area-accent-6-text: #724a1f;
+}
+
+/* -------------------------------------------------------------------------- */
+/* DS-14 density presets — sizing values, keyed to SURFACE TYPE                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Brief §4's two presets, as token values. They live here, with every other
+ * design value, rather than in the stylesheet that consumes them — the extension
+ * rule is "add a token here first, then consume it", and a preset is a set of
+ * tokens like any other.
+ *
+ * They are the one group in this file scoped to something other than a theme:
+ * `data-density` on a region wrapper, resolved by the cascade, so a Reading
+ * region nested inside a Collection region simply wins for its own subtree. What
+ * a region paints with them is `app/styles/density.css`.
+ *
+ * There are exactly TWO and there is no third. A surface that does not obviously
+ * fall into one is CLASSIFIED using the rule in DESIGN_SYSTEM.md → "Surface
+ * type"; it does not get a preset of its own.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Reading                                                                     */
+/* -------------------------------------------------------------------------- */
+
+[data-density="reading"] {
+  /* 16px — exactly `--dh-font-size-md`, in rem so OS text scaling applies. */
+  --dh-density-body-size: var(--dh-font-size-md);
+  --dh-density-line-height: var(--dh-line-height-loose); /* 1.75 */
+  --dh-density-measure: var(--dh-width-reading); /* 46ch */
+  --dh-density-body-family: var(--dh-font-serif);
+  --dh-density-numerals: normal;
+
+  /* 24px — exactly `--dh-space-6`. */
+  --dh-density-section-gap: var(--dh-space-6);
+
+  /* Card padding is read as BLOCK / INLINE: 24px block, 28px inline. The wider
+   * inline inset is what gives a serif column its margin without narrowing the
+   * measure the text itself is capped at. */
+  --dh-density-card-padding-block: var(--dh-space-6);
+  --dh-density-card-padding-inline: 28px;
+
+  /* A Reading region has no rows of its own; when it hosts a linked-items list
+   * the list is its own Collection region. These exist so a component that reads
+   * them unconditionally still resolves to something sane. */
+  --dh-density-row-padding-block: var(--dh-space-2);
+  --dh-density-row-min-height: var(--dh-touch-target-min);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Collection                                                                  */
+/* -------------------------------------------------------------------------- */
+
+[data-density="collection"] {
+  /* 14px — a new step in the ramp, authored in rem for the same reason. */
+  --dh-density-body-size: var(--dh-font-size-compact);
+  --dh-density-line-height: var(--dh-line-height-dense); /* 1.4 */
+  /* No measure cap: a collection row is as wide as its container. */
+  --dh-density-measure: none;
+  --dh-density-body-family: var(--dh-font-sans);
+  /* Tabular figures so a column of dates, counts and money aligns. This does
+   * nothing on a family without tabular figures, which is why "has tabular
+   * figures" is a selection criterion for the sans, not an afterthought. */
+  --dh-density-numerals: tabular-nums;
+
+  /* 12px — exactly `--dh-space-3`. */
+  --dh-density-section-gap: var(--dh-space-3);
+
+  /* 4px block / 18px inline: the card supplies the horizontal inset and each row
+   * supplies its own vertical padding, which is what makes a list with a hairline
+   * between every row have even rhythm at both of its ends. */
+  --dh-density-card-padding-block: var(--dh-space-1);
+  --dh-density-card-padding-inline: 18px;
+
+  /* 9px vertical. The 44px minimum target in the brief is served by the existing
+   * `--dh-touch-target-min` (45px, with its recorded rounding guard) rather than
+   * by a 44px literal that would sit a hair under the floor the rest of the
+   * product already clears (ADR-068 decision 3). */
+  --dh-density-row-padding-block: 9px;
+  --dh-density-row-min-height: var(--dh-touch-target-min);
 }
 
 /*
@@ -370,12 +548,12 @@
   --dh-shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.6);
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #101215;
+  --dh-color-surface-page: #101215;
   --dh-color-surface: #171a1f;
-  --dh-color-surface-raised: #1e222a;
-  --dh-color-surface-sunken: #0a0c0f;
-  --dh-color-surface-nav: #13161a;
-  --dh-color-surface-header: #13161a;
+  --dh-color-surface-raised: #20242c;
+  --dh-color-surface-sunken: #090c10;
+  --dh-color-surface-nav: #0d0f12;
+  --dh-color-surface-header: #0e1014;
   --dh-color-surface-card: #181c22;
 
   /* Text & foreground. */
@@ -465,9 +643,9 @@
   --dh-color-state-on-hold-text: #a3aab6;
 
   /* Progress & chart series. */
-  --dh-color-progress-track: #242932;
-  --dh-color-progress-fill: #4fb3bf;
-  --dh-color-progress-complete: #2f9c5c;
+  --dh-color-progress-track: #666970;
+  --dh-color-progress-fill: #88cedb;
+  --dh-color-progress-complete: #6fd893;
   --dh-color-chart-1: #4fb3bf;
   --dh-color-chart-2: #d9a24a;
   --dh-color-chart-3: #a08ae6;
@@ -490,6 +668,31 @@
   --dh-entity-asset-accent: #94a3b8;
   --dh-entity-diary-accent: #e879f9;
   --dh-entity-review-accent: #38bdf8;
+
+  /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+   * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+   * its own pill tint pair. Role colours are never used as an Area accent. */
+  --dh-color-pill-neutral-surface: #272a30;
+  --dh-color-pill-neutral-text: #afb6c3;
+  --dh-color-divider-subtle: #24282f;
+  --dh-color-area-accent-1: #40c2c1;
+  --dh-color-area-accent-1-surface: #0b3b3b;
+  --dh-color-area-accent-1-text: #80d1d0;
+  --dh-color-area-accent-2: #5fbaee;
+  --dh-color-area-accent-2-surface: #16384b;
+  --dh-color-area-accent-2-text: #92cbf0;
+  --dh-color-area-accent-3: #aeaaeb;
+  --dh-color-area-accent-3-surface: #34324a;
+  --dh-color-area-accent-3-text: #c3bfef;
+  --dh-color-area-accent-4: #e09bcc;
+  --dh-color-area-accent-4-surface: #462d3f;
+  --dh-color-area-accent-4-text: #e7b5d8;
+  --dh-color-area-accent-5: #95bb7f;
+  --dh-color-area-accent-5-surface: #2b3923;
+  --dh-color-area-accent-5-text: #b0cc9f;
+  --dh-color-area-accent-6: #dba674;
+  --dh-color-area-accent-6-surface: #44311f;
+  --dh-color-area-accent-6-text: #e5bc97;
 }
 
 /*
@@ -515,13 +718,13 @@
   --dh-shadow-lg: 0 16px 40px rgba(32, 28, 22, 0.14);
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #f2eee6;
-  --dh-color-surface: #f7f4ed;
+  --dh-color-surface-page: #efeae0;
+  --dh-color-surface: #f3f0e9;
   --dh-color-surface-raised: #ffffff;
-  --dh-color-surface-sunken: #e8e3d9;
-  --dh-color-surface-nav: #fdfcfa;
-  --dh-color-surface-header: #ffffff;
-  --dh-color-surface-card: #ffffff;
+  --dh-color-surface-sunken: #e3ded4;
+  --dh-color-surface-nav: #eae5db;
+  --dh-color-surface-header: #ede8de;
+  --dh-color-surface-card: #f7f5f1;
 
   /* Text & foreground. */
   --dh-color-text: #181d21;
@@ -532,11 +735,11 @@
   --dh-color-link-hover: #08505f;
 
   /* Borders & dividers. */
-  --dh-color-border: #e2ddd3;
-  --dh-color-border-strong: #c3bcb0;
-  --dh-color-border-subtle: #ece9e1;
+  --dh-color-border: #ded9cf;
+  --dh-color-border-strong: #bfb8ac;
+  --dh-color-border-subtle: #e8e5dd;
   --dh-color-control-border: #7f8890;
-  --dh-color-divider: #e7e3da;
+  --dh-color-divider: #e3dfd6;
 
   /* Accent / brand. */
   --dh-color-accent: #0d7285;
@@ -546,8 +749,8 @@
   --dh-color-accent-surface: #daeef1;
 
   /* Secondary (neutral) action. */
-  --dh-color-secondary: #eae5dc;
-  --dh-color-secondary-hover: #e0dad0;
+  --dh-color-secondary: #e6e1d8;
+  --dh-color-secondary-hover: #dcd6cc;
 
   /* Feedback — solid / surface tint / text-on-surface. */
   --dh-color-success: #177f4d;
@@ -564,13 +767,13 @@
   --dh-color-info-text: #14567f;
 
   /* Interactive states, including the selected navigation row. */
-  --dh-color-hover-surface: #ece8df;
-  --dh-color-active-surface: #e4dfd5;
+  --dh-color-hover-surface: #e8e4db;
+  --dh-color-active-surface: #e0dbd1;
   --dh-color-nav-selected-surface: #dcedf0;
   --dh-color-nav-selected-text: #0a5a6a;
-  --dh-color-disabled-surface: #edeae2;
+  --dh-color-disabled-surface: #e9e6de;
   --dh-color-disabled-text: #8a8f93;
-  --dh-color-disabled-border: #e4e0d7;
+  --dh-color-disabled-border: #e0dcd3;
 
   /* Focus, selection & overlay. */
   --dh-color-focus-ring: #0d7285;
@@ -610,9 +813,9 @@
   --dh-color-state-on-hold-text: #535c65;
 
   /* Progress & chart series. */
-  --dh-color-progress-track: #e3ded4;
-  --dh-color-progress-fill: #0d7285;
-  --dh-color-progress-complete: #177f4d;
+  --dh-color-progress-track: #8e8b84;
+  --dh-color-progress-fill: #004552;
+  --dh-color-progress-complete: #004927;
   --dh-color-chart-1: #0d7285;
   --dh-color-chart-2: #1a6a9c;
   --dh-color-chart-3: #5d55a6;
@@ -621,8 +824,8 @@
   --dh-color-chart-6: #a8425c;
 
   /* Loading / skeleton. */
-  --dh-color-skeleton-base: #e8e4db;
-  --dh-color-skeleton-highlight: #f4f1ea;
+  --dh-color-skeleton-base: #e4e0d7;
+  --dh-color-skeleton-highlight: #f0ede6;
 
   /* Entity identity accents (PX-02). */
   --dh-entity-area-accent: #0d7285;
@@ -635,6 +838,31 @@
   --dh-entity-asset-accent: #5c6670;
   --dh-entity-diary-accent: #8e2c93;
   --dh-entity-review-accent: #155f8c;
+
+  /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+   * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+   * its own pill tint pair. Role colours are never used as an Area accent. */
+  --dh-color-pill-neutral-surface: #e1ded7;
+  --dh-color-pill-neutral-text: #4c5963;
+  --dh-color-divider-subtle: #e9e5dc;
+  --dh-color-area-accent-1: #007877;
+  --dh-color-area-accent-1-surface: #c4f1ef;
+  --dh-color-area-accent-1-text: #005d5d;
+  --dh-color-area-accent-2: #00739f;
+  --dh-color-area-accent-2-surface: #d0ecff;
+  --dh-color-area-accent-2-text: #00597d;
+  --dh-color-area-accent-3: #67659d;
+  --dh-color-area-accent-3-surface: #e9e5ff;
+  --dh-color-area-accent-3-text: #4d4d83;
+  --dh-color-area-accent-4: #925782;
+  --dh-color-area-accent-4-surface: #fee0f4;
+  --dh-color-area-accent-4-text: #783f69;
+  --dh-color-area-accent-5: #51743f;
+  --dh-color-area-accent-5-surface: #ddedd2;
+  --dh-color-area-accent-5-text: #395b28;
+  --dh-color-area-accent-6: #8d6136;
+  --dh-color-area-accent-6-surface: #fee4ce;
+  --dh-color-area-accent-6-text: #724a1f;
 }
 
 /*
@@ -659,12 +887,12 @@
   --dh-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.66);
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #0f1116;
+  --dh-color-surface-page: #0f1116;
   --dh-color-surface: #161a21;
   --dh-color-surface-raised: #1f242e;
-  --dh-color-surface-sunken: #0a0c10;
-  --dh-color-surface-nav: #12151b;
-  --dh-color-surface-header: #12151b;
+  --dh-color-surface-sunken: #080a11;
+  --dh-color-surface-nav: #0b0e13;
+  --dh-color-surface-header: #0d0f15;
   --dh-color-surface-card: #171b23;
 
   /* Text & foreground. */
@@ -754,9 +982,9 @@
   --dh-color-state-on-hold-text: #a1a9b6;
 
   /* Progress & chart series. */
-  --dh-color-progress-track: #242a36;
-  --dh-color-progress-fill: #6d7eee;
-  --dh-color-progress-complete: #35a066;
+  --dh-color-progress-track: #66696f;
+  --dh-color-progress-fill: #c3bbff;
+  --dh-color-progress-complete: #6fd799;
   --dh-color-chart-1: #6d7eee;
   --dh-color-chart-2: #4bb8c4;
   --dh-color-chart-3: #c98f36;
@@ -779,6 +1007,31 @@
   --dh-entity-asset-accent: #9aa4b4;
   --dh-entity-diary-accent: #e987f0;
   --dh-entity-review-accent: #5aa9e8;
+
+  /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+   * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+   * its own pill tint pair. Role colours are never used as an Area accent. */
+  --dh-color-pill-neutral-surface: #252931;
+  --dh-color-pill-neutral-text: #aeb6c5;
+  --dh-color-divider-subtle: #22272f;
+  --dh-color-area-accent-1: #40c2c1;
+  --dh-color-area-accent-1-surface: #0b3b3b;
+  --dh-color-area-accent-1-text: #80d1d0;
+  --dh-color-area-accent-2: #5fbaee;
+  --dh-color-area-accent-2-surface: #16384b;
+  --dh-color-area-accent-2-text: #92cbf0;
+  --dh-color-area-accent-3: #aeaaeb;
+  --dh-color-area-accent-3-surface: #34324a;
+  --dh-color-area-accent-3-text: #c3bfef;
+  --dh-color-area-accent-4: #e09bcc;
+  --dh-color-area-accent-4-surface: #462d3f;
+  --dh-color-area-accent-4-text: #e7b5d8;
+  --dh-color-area-accent-5: #95bb7f;
+  --dh-color-area-accent-5-surface: #2b3923;
+  --dh-color-area-accent-5-text: #b0cc9f;
+  --dh-color-area-accent-6: #dba674;
+  --dh-color-area-accent-6-surface: #44311f;
+  --dh-color-area-accent-6-text: #e5bc97;
 }
 
 /*
@@ -797,13 +1050,13 @@
   --dh-shadow-lg: 0 12px 32px rgba(34, 38, 26, 0.16);
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #f7f5ef;
-  --dh-color-surface: #eeebe1;
+  --dh-color-surface-page: #eae8e0;
+  --dh-color-surface: #f0ede3;
   --dh-color-surface-raised: #fdfcf8;
-  --dh-color-surface-sunken: #e5e1d4;
-  --dh-color-surface-nav: #f1eee5;
-  --dh-color-surface-header: #f8f6f1;
-  --dh-color-surface-card: #fdfcf8;
+  --dh-color-surface-sunken: #dedcd4;
+  --dh-color-surface-nav: #e5e3db;
+  --dh-color-surface-header: #e8e6de;
+  --dh-color-surface-card: #f3f2ef;
 
   /* Text & foreground. */
   --dh-color-text: #22261f;
@@ -814,11 +1067,11 @@
   --dh-color-link-hover: #2b4d31;
 
   /* Borders & dividers. */
-  --dh-color-border: #dbd6c7;
-  --dh-color-border-strong: #bdb7a4;
-  --dh-color-border-subtle: #e8e4d9;
+  --dh-color-border: #cec9ba;
+  --dh-color-border-strong: #b0ab98;
+  --dh-color-border-subtle: #dbd7cc;
   --dh-color-control-border: #85826f;
-  --dh-color-divider: #e2ded1;
+  --dh-color-divider: #d5d1c4;
 
   /* Accent / brand. */
   --dh-color-accent: #3f6b47;
@@ -828,8 +1081,8 @@
   --dh-color-accent-surface: #e1ebdc;
 
   /* Secondary (neutral) action. */
-  --dh-color-secondary: #e9e5d9;
-  --dh-color-secondary-hover: #ded9ca;
+  --dh-color-secondary: #dcd8cc;
+  --dh-color-secondary-hover: #d1ccbd;
 
   /* Feedback — solid / surface tint / text-on-surface. */
   --dh-color-success: #2f7040;
@@ -846,13 +1099,13 @@
   --dh-color-info-text: #22505d;
 
   /* Interactive states. */
-  --dh-color-hover-surface: #ece8dd;
-  --dh-color-active-surface: #e2ded1;
+  --dh-color-hover-surface: #dfdbd0;
+  --dh-color-active-surface: #d5d1c4;
   --dh-color-nav-selected-surface: #e1ebdc;
   --dh-color-nav-selected-text: #3a6242;
-  --dh-color-disabled-surface: #eceadf;
+  --dh-color-disabled-surface: #dfddd2;
   --dh-color-disabled-text: #8b8b7f;
-  --dh-color-disabled-border: #e0dccf;
+  --dh-color-disabled-border: #d3cfc2;
 
   /* Focus, selection & overlay. */
   --dh-color-focus-ring: #3f6b47;
@@ -892,9 +1145,9 @@
   --dh-color-state-on-hold-text: #565b4e;
 
   /* Progress & chart series. */
-  --dh-color-progress-track: #ded9ca;
-  --dh-color-progress-fill: #3f6b47;
-  --dh-color-progress-complete: #2f7040;
+  --dh-color-progress-track: #8c8983;
+  --dh-color-progress-fill: #1a4524;
+  --dh-color-progress-complete: #00471b;
   --dh-color-chart-1: #3f6b47;
   --dh-color-chart-2: #8f6108;
   --dh-color-chart-3: #5f5a94;
@@ -903,8 +1156,8 @@
   --dh-color-chart-6: #6b7061;
 
   /* Loading / skeleton. */
-  --dh-color-skeleton-base: #e5e1d4;
-  --dh-color-skeleton-highlight: #f3f0e7;
+  --dh-color-skeleton-base: #d8d4c7;
+  --dh-color-skeleton-highlight: #e6e3da;
 
   /* Entity identity accents (PX-02). */
   --dh-entity-area-accent: #0f6a5c;
@@ -917,6 +1170,31 @@
   --dh-entity-asset-accent: #5f6455;
   --dh-entity-diary-accent: #8a2b8f;
   --dh-entity-review-accent: #1f5a80;
+
+  /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+   * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+   * its own pill tint pair. Role colours are never used as an Area accent. */
+  --dh-color-pill-neutral-surface: #dedbd1;
+  --dh-color-pill-neutral-text: #53594a;
+  --dh-color-divider-subtle: #e6e2d5;
+  --dh-color-area-accent-1: #007877;
+  --dh-color-area-accent-1-surface: #c4f1ef;
+  --dh-color-area-accent-1-text: #005d5d;
+  --dh-color-area-accent-2: #00739f;
+  --dh-color-area-accent-2-surface: #d0ecff;
+  --dh-color-area-accent-2-text: #00597d;
+  --dh-color-area-accent-3: #67659d;
+  --dh-color-area-accent-3-surface: #e9e5ff;
+  --dh-color-area-accent-3-text: #4d4d83;
+  --dh-color-area-accent-4: #925782;
+  --dh-color-area-accent-4-surface: #fee0f4;
+  --dh-color-area-accent-4-text: #783f69;
+  --dh-color-area-accent-5: #51743f;
+  --dh-color-area-accent-5-surface: #ddedd2;
+  --dh-color-area-accent-5-text: #395b28;
+  --dh-color-area-accent-6: #8d6136;
+  --dh-color-area-accent-6-surface: #fee4ce;
+  --dh-color-area-accent-6-text: #724a1f;
 }
 
 /*
@@ -935,13 +1213,13 @@
   --dh-shadow-lg: 0 12px 32px rgba(16, 28, 36, 0.16);
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #f4f7f9;
-  --dh-color-surface: #e8eef2;
+  --dh-color-surface-page: #e7ebee;
+  --dh-color-surface: #ebf1f5;
   --dh-color-surface-raised: #ffffff;
-  --dh-color-surface-sunken: #dce5eb;
-  --dh-color-surface-nav: #eef3f6;
-  --dh-color-surface-header: #f6f9fa;
-  --dh-color-surface-card: #ffffff;
+  --dh-color-surface-sunken: #dbdfe2;
+  --dh-color-surface-nav: #e2e6e9;
+  --dh-color-surface-header: #e5e9ec;
+  --dh-color-surface-card: #f4f5f7;
 
   /* Text & foreground. */
   --dh-color-text: #16232b;
@@ -952,11 +1230,11 @@
   --dh-color-link-hover: #124a62;
 
   /* Borders & dividers. */
-  --dh-color-border: #d3dee5;
-  --dh-color-border-strong: #b3c2cc;
-  --dh-color-border-subtle: #e2eaef;
+  --dh-color-border: #c7d2d9;
+  --dh-color-border-strong: #a8b6c0;
+  --dh-color-border-subtle: #d6dee3;
   --dh-color-control-border: #76848e;
-  --dh-color-divider: #dde6ec;
+  --dh-color-divider: #d1dae0;
 
   /* Accent / brand. */
   --dh-color-accent: #1c6b8c;
@@ -966,8 +1244,8 @@
   --dh-color-accent-surface: #dbeaf2;
 
   /* Secondary (neutral) action. */
-  --dh-color-secondary: #e4ebf0;
-  --dh-color-secondary-hover: #d8e2e9;
+  --dh-color-secondary: #d8dfe4;
+  --dh-color-secondary-hover: #ccd6dd;
 
   /* Feedback — solid / surface tint / text-on-surface. */
   --dh-color-success: #1c7554;
@@ -984,13 +1262,13 @@
   --dh-color-info-text: #18567e;
 
   /* Interactive states. */
-  --dh-color-hover-surface: #e7edf1;
-  --dh-color-active-surface: #dbe4ea;
+  --dh-color-hover-surface: #dbe1e5;
+  --dh-color-active-surface: #cfd8de;
   --dh-color-nav-selected-surface: #dbeaf2;
   --dh-color-nav-selected-text: #175f7d;
-  --dh-color-disabled-surface: #e9eef1;
+  --dh-color-disabled-surface: #dde2e5;
   --dh-color-disabled-text: #82909a;
-  --dh-color-disabled-border: #dce4e9;
+  --dh-color-disabled-border: #d0d8dd;
 
   /* Focus, selection & overlay. */
   --dh-color-focus-ring: #1c6b8c;
@@ -1030,9 +1308,9 @@
   --dh-color-state-on-hold-text: #526069;
 
   /* Progress & chart series. */
-  --dh-color-progress-track: #d8e2e9;
-  --dh-color-progress-fill: #1c6b8c;
-  --dh-color-progress-complete: #1c7554;
+  --dh-color-progress-track: #848c91;
+  --dh-color-progress-fill: #00435c;
+  --dh-color-progress-complete: #00482f;
   --dh-color-chart-1: #1c6b8c;
   --dh-color-chart-2: #1c7554;
   --dh-color-chart-3: #5f5da3;
@@ -1041,8 +1319,8 @@
   --dh-color-chart-6: #3d7f9c;
 
   /* Loading / skeleton. */
-  --dh-color-skeleton-base: #dce5eb;
-  --dh-color-skeleton-highlight: #eef3f6;
+  --dh-color-skeleton-base: #d0d9df;
+  --dh-color-skeleton-highlight: #e2e7ea;
 
   /* Entity identity accents (PX-02). */
   --dh-entity-area-accent: #0e6f70;
@@ -1055,6 +1333,31 @@
   --dh-entity-asset-accent: #5a6873;
   --dh-entity-diary-accent: #8f2496;
   --dh-entity-review-accent: #1f6b9e;
+
+  /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+   * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+   * its own pill tint pair. Role colours are never used as an Area accent. */
+  --dh-color-pill-neutral-surface: #d9dfe3;
+  --dh-color-pill-neutral-text: #495964;
+  --dh-color-divider-subtle: #dee7ed;
+  --dh-color-area-accent-1: #007877;
+  --dh-color-area-accent-1-surface: #c4f1ef;
+  --dh-color-area-accent-1-text: #005d5d;
+  --dh-color-area-accent-2: #00739f;
+  --dh-color-area-accent-2-surface: #d0ecff;
+  --dh-color-area-accent-2-text: #00597d;
+  --dh-color-area-accent-3: #67659d;
+  --dh-color-area-accent-3-surface: #e9e5ff;
+  --dh-color-area-accent-3-text: #4d4d83;
+  --dh-color-area-accent-4: #925782;
+  --dh-color-area-accent-4-surface: #fee0f4;
+  --dh-color-area-accent-4-text: #783f69;
+  --dh-color-area-accent-5: #51743f;
+  --dh-color-area-accent-5-surface: #ddedd2;
+  --dh-color-area-accent-5-text: #395b28;
+  --dh-color-area-accent-6: #8d6136;
+  --dh-color-area-accent-6-surface: #fee4ce;
+  --dh-color-area-accent-6-text: #724a1f;
 }
 
 /*
@@ -1074,13 +1377,13 @@
   --dh-shadow-lg: 0 12px 32px rgba(48, 30, 20, 0.17);
 
   /* Backgrounds & surfaces. */
-  --dh-color-bg: #faf6f2;
-  --dh-color-surface: #f1eae4;
+  --dh-color-surface-page: #ede8e3;
+  --dh-color-surface: #f4ede7;
   --dh-color-surface-raised: #fffdfb;
-  --dh-color-surface-sunken: #e9e0d8;
-  --dh-color-surface-nav: #f5efe9;
-  --dh-color-surface-header: #fbf7f4;
-  --dh-color-surface-card: #fffdfb;
+  --dh-color-surface-sunken: #e1dcd7;
+  --dh-color-surface-nav: #e8e3de;
+  --dh-color-surface-header: #ebe6e1;
+  --dh-color-surface-card: #f5f3f1;
 
   /* Text & foreground. */
   --dh-color-text: #241c18;
@@ -1091,11 +1394,11 @@
   --dh-color-link-hover: #75311c;
 
   /* Borders & dividers. */
-  --dh-color-border: #e0d5cb;
-  --dh-color-border-strong: #c5b6a9;
-  --dh-color-border-subtle: #ece3db;
+  --dh-color-border: #d2c8be;
+  --dh-color-border-strong: #b8a99c;
+  --dh-color-border-subtle: #ded5cd;
   --dh-color-control-border: #8b8079;
-  --dh-color-divider: #e7ddd4;
+  --dh-color-divider: #d9cfc7;
 
   /* Accent / brand. */
   --dh-color-accent: #a8482b;
@@ -1105,8 +1408,8 @@
   --dh-color-accent-surface: #f7e2d7;
 
   /* Secondary (neutral) action. */
-  --dh-color-secondary: #ece3db;
-  --dh-color-secondary-hover: #e1d5cb;
+  --dh-color-secondary: #ded5cd;
+  --dh-color-secondary-hover: #d3c8be;
 
   /* Feedback — solid / surface tint / text-on-surface. */
   --dh-color-success: #2c7248;
@@ -1123,13 +1426,13 @@
   --dh-color-info-text: #194f6b;
 
   /* Interactive states. */
-  --dh-color-hover-surface: #f0e8e1;
-  --dh-color-active-surface: #e6dcd3;
+  --dh-color-hover-surface: #e2dad3;
+  --dh-color-active-surface: #d8cec6;
   --dh-color-nav-selected-surface: #f7e2d7;
   --dh-color-nav-selected-text: #9a4227;
-  --dh-color-disabled-surface: #f0e9e3;
+  --dh-color-disabled-surface: #e2dbd5;
   --dh-color-disabled-text: #94867d;
-  --dh-color-disabled-border: #e4dad1;
+  --dh-color-disabled-border: #d6ccc4;
 
   /* Focus, selection & overlay. */
   --dh-color-focus-ring: #a8482b;
@@ -1169,9 +1472,9 @@
   --dh-color-state-on-hold-text: #5c4f47;
 
   /* Progress & chart series. */
-  --dh-color-progress-track: #e6dcd3;
-  --dh-color-progress-fill: #a8482b;
-  --dh-color-progress-complete: #2c7248;
+  --dh-color-progress-track: #8f8984;
+  --dh-color-progress-fill: #761d04;
+  --dh-color-progress-complete: #004824;
   --dh-color-chart-1: #a8482b;
   --dh-color-chart-2: #8a6100;
   --dh-color-chart-3: #2c7248;
@@ -1180,8 +1483,8 @@
   --dh-color-chart-6: #8c4a5e;
 
   /* Loading / skeleton. */
-  --dh-color-skeleton-base: #e9e0d8;
-  --dh-color-skeleton-highlight: #f5efe9;
+  --dh-color-skeleton-base: #dbd2ca;
+  --dh-color-skeleton-highlight: #e7e1db;
 
   /* Entity identity accents (PX-02). */
   --dh-entity-area-accent: #0f6a63;
@@ -1194,6 +1497,31 @@
   --dh-entity-asset-accent: #6a5c53;
   --dh-entity-diary-accent: #8d2489;
   --dh-entity-review-accent: #1f6285;
+
+  /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+   * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+   * its own pill tint pair. Role colours are never used as an Area accent. */
+  --dh-color-pill-neutral-surface: #e2dbd6;
+  --dh-color-pill-neutral-text: #61554d;
+  --dh-color-divider-subtle: #ece2d9;
+  --dh-color-area-accent-1: #007877;
+  --dh-color-area-accent-1-surface: #c4f1ef;
+  --dh-color-area-accent-1-text: #005d5d;
+  --dh-color-area-accent-2: #00739f;
+  --dh-color-area-accent-2-surface: #d0ecff;
+  --dh-color-area-accent-2-text: #00597d;
+  --dh-color-area-accent-3: #67659d;
+  --dh-color-area-accent-3-surface: #e9e5ff;
+  --dh-color-area-accent-3-text: #4d4d83;
+  --dh-color-area-accent-4: #925782;
+  --dh-color-area-accent-4-surface: #fee0f4;
+  --dh-color-area-accent-4-text: #783f69;
+  --dh-color-area-accent-5: #51743f;
+  --dh-color-area-accent-5-surface: #ddedd2;
+  --dh-color-area-accent-5-text: #395b28;
+  --dh-color-area-accent-6: #8d6136;
+  --dh-color-area-accent-6-surface: #fee4ce;
+  --dh-color-area-accent-6-text: #724a1f;
 }
 
 /*
@@ -1218,12 +1546,12 @@
     --dh-shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.6);
 
     /* Backgrounds & surfaces. */
-    --dh-color-bg: #101215;
+    --dh-color-surface-page: #101215;
     --dh-color-surface: #171a1f;
-    --dh-color-surface-raised: #1e222a;
-    --dh-color-surface-sunken: #0a0c0f;
-    --dh-color-surface-nav: #13161a;
-    --dh-color-surface-header: #13161a;
+    --dh-color-surface-raised: #20242c;
+    --dh-color-surface-sunken: #090c10;
+    --dh-color-surface-nav: #0d0f12;
+    --dh-color-surface-header: #0e1014;
     --dh-color-surface-card: #181c22;
 
     /* Text & foreground. */
@@ -1313,9 +1641,9 @@
     --dh-color-state-on-hold-text: #a3aab6;
 
     /* Progress & chart series. */
-    --dh-color-progress-track: #242932;
-    --dh-color-progress-fill: #4fb3bf;
-    --dh-color-progress-complete: #2f9c5c;
+    --dh-color-progress-track: #666970;
+    --dh-color-progress-fill: #88cedb;
+    --dh-color-progress-complete: #6fd893;
     --dh-color-chart-1: #4fb3bf;
     --dh-color-chart-2: #d9a24a;
     --dh-color-chart-3: #a08ae6;
@@ -1338,6 +1666,31 @@
     --dh-entity-asset-accent: #94a3b8;
     --dh-entity-diary-accent: #e879f9;
     --dh-entity-review-accent: #38bdf8;
+
+    /* DS-14 — the neutral absence pill, the within-card hairline, and the six
+     * Area identity accents. Each accent is a dot colour (>= 3:1 on a card) with
+     * its own pill tint pair. Role colours are never used as an Area accent. */
+    --dh-color-pill-neutral-surface: #272a30;
+    --dh-color-pill-neutral-text: #afb6c3;
+    --dh-color-divider-subtle: #24282f;
+    --dh-color-area-accent-1: #40c2c1;
+    --dh-color-area-accent-1-surface: #0b3b3b;
+    --dh-color-area-accent-1-text: #80d1d0;
+    --dh-color-area-accent-2: #5fbaee;
+    --dh-color-area-accent-2-surface: #16384b;
+    --dh-color-area-accent-2-text: #92cbf0;
+    --dh-color-area-accent-3: #aeaaeb;
+    --dh-color-area-accent-3-surface: #34324a;
+    --dh-color-area-accent-3-text: #c3bfef;
+    --dh-color-area-accent-4: #e09bcc;
+    --dh-color-area-accent-4-surface: #462d3f;
+    --dh-color-area-accent-4-text: #e7b5d8;
+    --dh-color-area-accent-5: #95bb7f;
+    --dh-color-area-accent-5-surface: #2b3923;
+    --dh-color-area-accent-5-text: #b0cc9f;
+    --dh-color-area-accent-6: #dba674;
+    --dh-color-area-accent-6-surface: #44311f;
+    --dh-color-area-accent-6-text: #e5bc97;
   }
 }
 

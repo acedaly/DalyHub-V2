@@ -50,7 +50,7 @@ export function TodayWidget({
   const bodyId = `today-widget-${id}-body`;
   return (
     <section
-      className="dh-today-widget"
+      className="dh-region-card dh-today-widget"
       aria-labelledby={headingId}
       data-widget={id}
       data-pinned={pinned ? "true" : undefined}

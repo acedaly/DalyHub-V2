@@ -157,7 +157,7 @@
   padding: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
   color: var(--dh-color-text);
   font-family: var(--dh-font-mono);
   font-size: var(--dh-font-size-base);
@@ -170,7 +170,7 @@
 .dh-md-editor__cm {
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
   overflow: hidden;
 }
 
@@ -221,7 +221,7 @@
 /* --- Live-preview construct styling (applied to source ranges) ------------ */
 
 .dh-md-editor__cm .cm-dh-heading {
-  font-weight: var(--dh-font-weight-bold);
+  font-weight: var(--dh-font-weight-semibold);
   line-height: var(--dh-line-height-normal);
 }
 .dh-md-editor__cm .cm-dh-h1 {
@@ -243,7 +243,7 @@
 }
 
 .dh-md-editor__cm .cm-dh-strong {
-  font-weight: var(--dh-font-weight-bold);
+  font-weight: var(--dh-font-weight-semibold);
 }
 .dh-md-editor__cm .cm-dh-em {
   font-style: italic;
@@ -371,7 +371,7 @@
   padding: var(--dh-space-4);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
   overflow-wrap: anywhere;
 }
 
@@ -402,7 +402,7 @@
   font-size: var(--dh-font-size-sm);
 }
 .dh-md-editor__error-icon {
-  font-weight: var(--dh-font-weight-bold);
+  font-weight: var(--dh-font-weight-semibold);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -543,4 +543,54 @@
     outline: var(--dh-border-width-thin) solid Highlight;
     box-shadow: none;
   }
+}
+
+/* ------------------------------------------------------------------------- *
+ * DS-14 — the serif reading column.
+ *
+ * Scoped to `.dh-note-body`, the Reading region the Note record wraps its
+ * writing surface in, so the same editor stays sans everywhere else it is used
+ * (a project description field, a meeting summary field) until those modules are
+ * classified and restyled by their own group.
+ *
+ * The COLUMN is the prose; the CHROME is not. `.cm-content` takes the serif, the
+ * Reading preset's size and rhythm, and the 46ch cap. The toolbar, the save
+ * status, the help text, the error and the remote-change banner all sit outside
+ * it and keep the sans they already had — which is the whole point of the
+ * reference implementation: prove the two families coexist on one surface
+ * without either leaking into the other.
+ *
+ * `padding-inline` is what actually centres a capped column inside a wider
+ * editor: `max-inline-size` alone would pin the text to the left edge of a
+ * 1440px pane and leave the caret a very long way from the words.
+ * ------------------------------------------------------------------------- */
+
+.dh-note-body .dh-md-editor__cm .cm-content {
+  font-family: var(--dh-density-body-family);
+  font-size: var(--dh-density-body-size);
+  max-inline-size: var(--dh-density-measure);
+  margin-inline: auto;
+}
+
+.dh-note-body .dh-md-editor__cm .cm-scroller {
+  line-height: var(--dh-density-line-height);
+}
+
+/* Reading mode renders the same note through the FND-08 pipeline rather than
+ * through CodeMirror. It is the same column and must read identically. */
+.dh-note-body .dh-md-editor__reading {
+  font-family: var(--dh-density-body-family);
+  font-size: var(--dh-density-body-size);
+  line-height: var(--dh-density-line-height);
+  max-inline-size: var(--dh-density-measure);
+  margin-inline: auto;
+  border-radius: var(--dh-radius-card);
+  background: var(--dh-color-surface-card);
+}
+
+/* Headings inside the column stay serif — they are part of the prose, not
+ * chrome — but never take the removed `bold` weight. */
+.dh-note-body .dh-md-editor__reading :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--dh-density-body-family);
+  font-weight: var(--dh-font-weight-semibold);
 }

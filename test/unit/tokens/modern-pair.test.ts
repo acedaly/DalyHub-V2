@@ -42,7 +42,7 @@ function luminance(hex: string): number {
 
 /** Every surface a page, panel or card is painted with. */
 const SURFACES = [
-  "bg",
+  "surface-page",
   "surface",
   "surface-raised",
   "surface-sunken",
@@ -139,7 +139,20 @@ describe("THEME-02 no light surface leaks into Modern Dark", () => {
       "secondary-hover",
       "skeleton-base",
       "skeleton-highlight",
-      "progress-track",
+      // `progress-track` is deliberately NOT in this list any more.
+      //
+      // DS-14 §6.5 requires the track to clear 3:1 against `surface-card`, so
+      // that the EXTENT of a progress bar — not only its filled portion — is a
+      // visible boundary rather than a suggestion. On a dark card that can only
+      // be satisfied by a mid-tone track, which is by construction lighter than
+      // the ceiling this assertion holds every other surface to.
+      //
+      // The two rules genuinely conflict and the newer, explicitly-decided one
+      // wins (ADR-068 decision 6 over THEME-02; AGENTS.md's "a later, explicitly
+      // dated decision supersedes"). The track is still asserted, harder, in
+      // `ds-14-theme-invariants.test.ts` — in BOTH directions, against the card
+      // and against the fill — so it is not unpoliced, it is policed by the rule
+      // that actually applies to it.
       "nav-selected-surface",
     ] as const) {
       const value = dark[name];
@@ -175,17 +188,21 @@ describe("THEME-02 Modern Dark is layered, not flat or black", () => {
   it("separates the card from the page it sits on", () => {
     // "Cards indistinguishable from the page background" is an explicit failure
     // mode for this theme, so the separation is asserted rather than eyeballed.
-    expect(dark["surface-card"]).not.toBe(dark.bg);
-    expect(luminance(dark["surface-card"])).toBeGreaterThan(luminance(dark.bg));
+    expect(dark["surface-card"]).not.toBe(dark["surface-page"]);
+    expect(luminance(dark["surface-card"])).toBeGreaterThan(
+      luminance(dark["surface-page"]),
+    );
     expect(luminance(dark["surface-raised"])).toBeGreaterThan(
       luminance(dark["surface-card"]),
     );
-    expect(luminance(dark["surface-sunken"])).toBeLessThan(luminance(dark.bg));
+    expect(luminance(dark["surface-sunken"])).toBeLessThan(
+      luminance(dark["surface-page"]),
+    );
   });
 
   it("avoids pure black across the large areas", () => {
     for (const surface of [
-      "bg",
+      "surface-page",
       "surface",
       "surface-nav",
       "surface-card",
@@ -212,17 +229,17 @@ describe("THEME-02 Modern Light is warm, not sterile", () => {
   const light = THEME_COLOR_MAPS[LIGHT];
 
   it("uses an off-white page rather than pure white", () => {
-    expect(light.bg.toLowerCase()).not.toBe("#ffffff");
-    expect(luminance(light.bg)).toBeLessThan(0.95);
-    expect(luminance(light.bg)).toBeGreaterThan(0.8);
+    expect(light["surface-page"].toLowerCase()).not.toBe("#ffffff");
+    expect(luminance(light["surface-page"])).toBeLessThan(0.95);
+    expect(luminance(light["surface-page"])).toBeGreaterThan(0.8);
   });
 
   it("lifts the card ABOVE the page, so content reads as paper on a surround", () => {
     expect(luminance(light["surface-card"])).toBeGreaterThan(
-      luminance(light.bg),
+      luminance(light["surface-page"]),
     );
     expect(luminance(light["surface-sunken"])).toBeLessThan(
-      luminance(light.bg),
+      luminance(light["surface-page"]),
     );
   });
 

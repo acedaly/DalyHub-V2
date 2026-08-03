@@ -293,6 +293,145 @@ re-captured.
 
 ---
 
+## 9. DS-14 — the card-on-tint foundation
+
+[DS-14](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul) changes what
+the tokens *paint*, not how the theme system works: no theme added, removed or renamed, and
+the `theme` CHECK untouched. The foundation therefore has to prove one thing this matrix has
+never asserted before — that the **elevation relationships between surfaces** hold in every
+theme, rather than being assumed because someone looked at two of them.
+
+Everything in sections 1–5 and 8 still runs, unchanged, over all seven themes. This section
+records only what DS-14 adds.
+
+### 9.1 The theme invariant test (automated, per theme, enumerated)
+
+[`test/unit/tokens/ds-14-theme-invariants.test.ts`](../../test/unit/tokens/ds-14-theme-invariants.test.ts)
+enumerates `THEME_IDS` from the kernel registry — never a hand-written list — so an eighth
+theme is covered the moment it is registered and **cannot be registered while failing**. It
+runs in `pnpm test`, which `pnpm verify` runs, so it gates every merge.
+
+Why a test and not a row in this matrix: THEME-02's selected-navigation indicator bar was
+reviewed, shipped, and measured 2.96:1 in Daly Dark and 2.73:1 in Modern Dark (§8.2). Review
+did not catch it; measurement did. DS-14 multiplies that exact class of pairing across six
+Area accents, a neutral pill, every role pill, a progress fill on a track on a card, and a
+focus ring on two canvases — eight assertion families over seven themes.
+
+| § | Assertion | Floor |
+|---|---|---|
+| 6.1 | Every DS-14 token resolves to a non-empty colour | — |
+| 6.2 | ΔL\* `surface-page` → `surface-card`, and `surface-card` → `surface-raised` | **≥ 3** |
+| 6.3 | `text`, `text-secondary`, `text-muted` on `surface-card` | ≥ 4.5:1 |
+| 6.4 | Every pill surface/text pair — six Area accents, the neutral absence pill, every role pill | ≥ 4.5:1 |
+| 6.5 | `progress-fill` on `progress-track`; `progress-track` on `surface-card` | ≥ 3:1 |
+| 6.6 | Every Area dot on `surface-card` | ≥ 3:1 |
+| 6.7 | `focus-ring` on **both** `surface-card` and `surface-page` | ≥ 3:1 |
+| 6.8 | `nav-selected-text` on `nav-selected-surface` | ≥ 4.5:1 |
+
+Failure messages name the theme id, the token pair and the measured value.
+
+### 9.2 The elevation contract, measured per theme
+
+Five of the seven themes did not satisfy this before DS-14, and three had `surface-card` and
+`surface-raised` **byte-identical at `#ffffff`** — there is nothing above white. Their light
+neutral ramps were recomposed: no theme was exempted, no escape hatch was added, and no
+theme was deleted to avoid the work ([DEBT-67](../product/PRODUCT_DEBT.md) records a
+theme-consolidation recommendation that DS-14 deliberately does **not** act on).
+
+| Theme | `data-theme` | `surface-page` (L\*) | `surface-card` (L\*) | ΔL\* | `surface-raised` (L\*) | ΔL\* | ≥ 3 |
+|---|---|---|---|---|---|---|---|
+| **Daly Light** | `daly-light` | `#ecebe8` (93.05) | `#f6f5f4` (96.59) | **3.54** | `#ffffff` (100.00) | **3.41** | ✅ |
+| **Daly Dark** | `daly-dark` | `#101215` (5.39) | `#181c22` (10.11) | **4.72** | `#20242c` (14.12) | **4.01** | ✅ |
+| **Modern Light** | `modern-light` | `#efeae0` (92.83) | `#f7f5f1` (96.59) | **3.76** | `#ffffff` (100.00) | **3.41** | ✅ |
+| **Modern Dark** | `modern-dark` | `#0f1116` (5.06) | `#171b23` (9.70) | **4.64** | `#1f242e` (14.12) | **4.42** | ✅ |
+| **Eucalypt** | `eucalypt` | `#eae8e0` (91.95) | `#f3f2ef` (95.49) | **3.55** | `#fdfcf8` (98.94) | **3.45** | ✅ |
+| **Coastal** | `coastal` | `#e7ebee` (92.83) | `#f4f5f7` (96.51) | **3.68** | `#ffffff` (100.00) | **3.49** | ✅ |
+| **Ember** | `ember` | `#ede8e3` (92.25) | `#f5f3f1` (95.94) | **3.69** | `#fffdfb` (99.41) | **3.47** | ✅ |
+
+Each theme's **hue** is its own; only the lightness relationships are prescribed. The
+recomposition ran back through the full existing contrast harness (§1) in every theme, so the
+darker canvases did not buy elevation at the cost of a text or UI floor.
+
+### 9.3 One superseded assertion, recorded rather than quietly dropped
+
+§8.2's "no light surface leaks into Modern Dark" held `progress-track` below a luminance
+ceiling along with every other surface. DS-14 §6.5 requires that track to clear 3:1 against
+`surface-card`, which on a dark card can only be satisfied by a mid-tone value — by
+construction above that ceiling. The two rules genuinely conflict; the newer, explicitly
+dated decision wins ([ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback)
+over THEME-02, per [AGENTS.md](../../AGENTS.md)). `progress-track` was removed from that list
+and is now asserted **harder**, in both directions, by 6.5. It is not unpoliced; it is policed
+by the rule that applies to it.
+
+### 9.4 The two reference surfaces (automated, driven)
+
+DS-14's foundation restyles exactly two surfaces, as reference implementations, and nothing
+else. Both are driven in a browser by the existing gates — `e2e/accessibility.spec.ts`
+(axe-core), `e2e/responsive.spec.ts` (no horizontal overflow), `e2e/keyboard.spec.ts`,
+`e2e/touch-targets.spec.ts`, `e2e/today.spec.ts` and `e2e/notes.spec.ts` — at every width in
+brief §10: **320, 375, 390, 430, 768, 1280, 1440**.
+
+| Surface | Preset | What it proves |
+|---|---|---|
+| **Today** | Collection | Widgets as cards on the tinted canvas; separation by surface value and a hairline, never a shadow; rhythm, body size, tabular figures and row padding all resolved from the preset |
+| **A Note record** | Reading **and** Collection | The serif column at its 46ch cap inside entirely sans chrome, and the "both, on separate regions" case — the body is Reading while Backlinks, Links and Activity are Collection on the same route |
+
+### 9.5 Visual QA — screenshots
+
+An opt-in pass ([`e2e/ds-14-screenshots.spec.ts`](../../e2e/ds-14-screenshots.spec.ts)) drives
+the real routes against the seeded development database, storing the theme through the
+product's own preferences action, and writes to
+[`assets/ds-14-2026-08/`](assets/ds-14-2026-08).
+
+    CAPTURE_SCREENSHOTS=1 pnpm exec playwright test e2e/ds-14-screenshots.spec.ts
+
+Both reference surfaces, in **all seven themes**, under **both operating-system colour
+schemes** — 28 images. A curated theme does not follow the OS (ADR-061), and the cheapest way
+for that to break is a surface consulting `prefers-color-scheme` instead of a token, so the
+pair per theme is the evidence it did not.
+
+**Measured: all 14 pairs are byte-identical.** Every theme renders the same under a dark OS as
+under a light one, including the two dark palettes — Modern Dark under a light OS is still
+Modern Dark. That is a stronger claim than "they look the same", and it is checkable in one
+line:
+
+    cd docs/design/assets/ds-14-2026-08
+    for f in *-os-light.png; do
+      cmp -s "$f" "${f%-os-light.png}-os-dark.png" || echo "DIFFERS: $f"
+    done
+
+The Reading pass **seeds its own note** rather than photographing a shared fixture. A 46ch
+measure only shows up as a measure when there are enough words to wrap several times, and the
+seeded search fixture is a single line whose newline escapes are stored literally — an image of
+it would show the serif and prove nothing about the column. The note is created and removed
+through the same local-D1 path the other journeys use.
+
+| Theme | Today (OS light · OS dark) | Note record (OS light · OS dark) |
+|---|---|---|
+| **Daly Light** | [`today-daly-light-os-light.png`](assets/ds-14-2026-08/today-daly-light-os-light.png) · [`today-daly-light-os-dark.png`](assets/ds-14-2026-08/today-daly-light-os-dark.png) | [`note-record-daly-light-os-light.png`](assets/ds-14-2026-08/note-record-daly-light-os-light.png) · [`note-record-daly-light-os-dark.png`](assets/ds-14-2026-08/note-record-daly-light-os-dark.png) |
+| **Daly Dark** | [`today-daly-dark-os-light.png`](assets/ds-14-2026-08/today-daly-dark-os-light.png) · [`today-daly-dark-os-dark.png`](assets/ds-14-2026-08/today-daly-dark-os-dark.png) | [`note-record-daly-dark-os-light.png`](assets/ds-14-2026-08/note-record-daly-dark-os-light.png) · [`note-record-daly-dark-os-dark.png`](assets/ds-14-2026-08/note-record-daly-dark-os-dark.png) |
+| **Modern Light** | [`today-modern-light-os-light.png`](assets/ds-14-2026-08/today-modern-light-os-light.png) · [`today-modern-light-os-dark.png`](assets/ds-14-2026-08/today-modern-light-os-dark.png) | [`note-record-modern-light-os-light.png`](assets/ds-14-2026-08/note-record-modern-light-os-light.png) · [`note-record-modern-light-os-dark.png`](assets/ds-14-2026-08/note-record-modern-light-os-dark.png) |
+| **Modern Dark** | [`today-modern-dark-os-light.png`](assets/ds-14-2026-08/today-modern-dark-os-light.png) · [`today-modern-dark-os-dark.png`](assets/ds-14-2026-08/today-modern-dark-os-dark.png) | [`note-record-modern-dark-os-light.png`](assets/ds-14-2026-08/note-record-modern-dark-os-light.png) · [`note-record-modern-dark-os-dark.png`](assets/ds-14-2026-08/note-record-modern-dark-os-dark.png) |
+| **Eucalypt** | [`today-eucalypt-os-light.png`](assets/ds-14-2026-08/today-eucalypt-os-light.png) · [`today-eucalypt-os-dark.png`](assets/ds-14-2026-08/today-eucalypt-os-dark.png) | [`note-record-eucalypt-os-light.png`](assets/ds-14-2026-08/note-record-eucalypt-os-light.png) · [`note-record-eucalypt-os-dark.png`](assets/ds-14-2026-08/note-record-eucalypt-os-dark.png) |
+| **Coastal** | [`today-coastal-os-light.png`](assets/ds-14-2026-08/today-coastal-os-light.png) · [`today-coastal-os-dark.png`](assets/ds-14-2026-08/today-coastal-os-dark.png) | [`note-record-coastal-os-light.png`](assets/ds-14-2026-08/note-record-coastal-os-light.png) · [`note-record-coastal-os-dark.png`](assets/ds-14-2026-08/note-record-coastal-os-dark.png) |
+| **Ember** | [`today-ember-os-light.png`](assets/ds-14-2026-08/today-ember-os-light.png) · [`today-ember-os-dark.png`](assets/ds-14-2026-08/today-ember-os-dark.png) | [`note-record-ember-os-light.png`](assets/ds-14-2026-08/note-record-ember-os-light.png) · [`note-record-ember-os-dark.png`](assets/ds-14-2026-08/note-record-ember-os-dark.png) |
+
+### 9.6 What section 9 does not claim
+
+- It does not claim the rest of the product has been restyled. It has not, deliberately —
+  DS-14's foundation restyles two surfaces and the module groups follow. Every other surface
+  renders the pre-DS-14 shared primitives under the **new** ramp, which is a visible change in
+  the light themes and is expected.
+- It does not claim a human has approved the taste of seven recomposed light ramps on a
+  calibrated display. It claims the relationships between their surfaces are measured, in
+  every theme, and that the images exist so that judgement can happen against evidence.
+- It does not claim card-on-tint has been proven above 1440px, which is
+  [DEBT-72](../product/PRODUCT_DEBT.md), not an assumption.
+- It does not extend brief §8's empty-record screenshot requirement, which belongs to the
+  module groups that render those records.
+
+---
+
 ## Related documents
 - [`DESIGN_SYSTEM.md → Theme mapping`](DESIGN_SYSTEM.md#theme-mapping-theme-01) — the contract.
 - [`ROADMAP_V2.md → THEME-01`](../roadmap/ROADMAP_V2.md#-theme-01--the-curated-theme-system) — the original milestone item.
