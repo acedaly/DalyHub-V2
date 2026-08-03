@@ -26,6 +26,7 @@
 import { namespaceDisplayFragment, syncStateLabel } from "~/kernel/offline";
 import { DangerousAction, SettingsGroup, SettingsRow } from "~/shared/settings";
 
+import { localStateCopy } from "./local-state";
 import { useOffline } from "./OfflineProvider";
 import { OfflineSyncPanel } from "./OfflineSyncPanel";
 import { GENERIC_INSTALL_STEPS, IOS_INSTALL_STEPS } from "./install";
@@ -187,25 +188,35 @@ export function OfflineSettingsPanel() {
         <SettingsRow
           label="Status"
           description={
-            // Until this device's storage has been read, say so. Reporting
-            // "not stored offline yet" before looking would be a claim.
-            !offline.initialised
-              ? "Checking what this device has stored…"
-              : offline.status.lastSyncedAt
-                ? `Last synchronised ${new Date(offline.status.lastSyncedAt).toLocaleString("en-AU")}.`
-                : "This device has not stored a snapshot yet."
+            // PWA-11 — one of the bounded outcomes. Reporting "not stored
+            // offline yet" before looking would be a claim; reporting it after a
+            // read that FAILED would be a false one.
+            offline.local.kind === "checking"
+              ? "Checking what this device has stored. This finishes either way."
+              : offline.local.kind === "unavailable" ||
+                  offline.local.kind === "unreadable"
+                ? localStateCopy(offline.local).description
+                : offline.status.lastSyncedAt
+                  ? `Last synchronised ${new Date(offline.status.lastSyncedAt).toLocaleString("en-AU")}.`
+                  : "This device has not stored a snapshot yet."
           }
           control={
             <span className="dh-settings-page__text-value">
-              {offline.initialised ? syncStateLabel(offline.status.sync) : "…"}
+              {offline.local.kind === "checking"
+                ? "Checking"
+                : offline.local.kind === "unavailable"
+                  ? "Unavailable"
+                  : offline.local.kind === "unreadable"
+                    ? "Unreadable"
+                    : syncStateLabel(offline.status.sync)}
             </span>
           }
         />
         <SettingsRow
           label="Offline sign-in"
           description={
-            !offline.initialised
-              ? "Checking what this device has stored…"
+            offline.local.kind === "checking"
+              ? "Checking what this device has stored. This finishes either way."
               : offline.meta
                 ? `Stored for ${offline.meta.identityLabel} in ${offline.meta.workspaceLabel}. Data is filed under an identity key (…${namespaceDisplayFragment(offline.meta.namespace)}) so a different sign-in on this browser never sees it.`
                 : "No offline data is stored for any sign-in on this device."
@@ -213,7 +224,11 @@ export function OfflineSettingsPanel() {
           align="start"
           control={
             <span className="dh-settings-page__text-value">
-              {!offline.initialised ? "…" : offline.meta ? "Scoped" : "None"}
+              {offline.local.kind === "checking"
+                ? "Checking"
+                : offline.meta
+                  ? "Scoped"
+                  : "None"}
             </span>
           }
         />

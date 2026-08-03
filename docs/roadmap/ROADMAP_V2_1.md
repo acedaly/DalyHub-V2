@@ -345,6 +345,41 @@ because a reader would otherwise wonder whether it was forgotten:
   installed desktop) has NOT been performed. The manual checklist is written and
   must be worked through before this is called production-ready.
 
+### ☑ PWA-11 — Offline launch stability on an installed iPhone
+
+- **Not planned. Reported from production.** An installed DalyHub opened with no
+  connection rendered the offline shell and was then replaced by WebKit's
+  *"A problem repeatedly occurred on https://hub.daly.id.au/"*. This item exists
+  because PWA-01's foundation was, in one specific way, wrong — and an unverified
+  foundation is exactly what the PWA-02 note above warns against building on.
+- **Root cause, stated once.** The manifest's `start_url` is `/`, so an offline
+  launch is a document navigation to `/`. The service worker answered it with the
+  `/offline` document's HTML, leaving a document server-rendered for one route
+  under a different url. React Router hydrated against `/`, lazily imported the
+  route modules for `/` — deliberately not precached — and, when that import
+  failed with no network, called `window.location.reload()` from inside
+  `loadRouteModule`. The reload re-entered the same path until iOS terminated
+  the app.
+- **Delivered.** The navigation fallback now redirects a non-`/offline`
+  navigation to `/offline` rather than serving its body there; the fallback is
+  restricted to genuine GET document navigations by `mode` **and** `destination`;
+  every non-document request fails cleanly (empty `504 text/plain`) so no script,
+  module, stylesheet, image, font, manifest or API request can receive HTML; a
+  bounded offline-boot loop breaker serves a script-free safe-mode page if the
+  shell is served more than four times in sixty seconds; every IndexedDB
+  operation is on a deadline, so the five local-storage outcomes always resolve
+  and no indefinite loading state remains; stored rows are sanitised before
+  render, so corrupt data cannot blank the page; the service-worker update reload
+  is a one-shot guard at module scope; reconnecting on the offline shell offers a
+  sync instead of performing one; concurrent sync passes are deduplicated; and a
+  redacted, bounded diagnostics channel distinguishes the seven failure modes
+  that could not be told apart when this was first reported.
+- **Documented.** [`PWA_AND_OFFLINE.md §4.5`](../development/PWA_AND_OFFLINE.md),
+  and the iPhone offline-stability acceptance test in the same file.
+- **Still not device-verified.** The acceptance test is written and has **not**
+  been run on physical hardware. PWA-01's checklist remains the gate before
+  PWA-02.
+
 ### ☐ PWA-02 — Offline editing, and the rest of the offline story
 
 - **What PWA-01 deliberately did not do, and why.** Offline **editing,

@@ -25,6 +25,7 @@ export {
   type OfflineProviderProps,
   type OfflineStorageEstimate,
 } from "./OfflineProvider";
+export { OfflineDiagnosticsPanel } from "./OfflineDiagnostics";
 export { OfflineSettingsPanel, formatBytes } from "./OfflineSettingsPanel";
 export {
   OfflineSnapshotView,
@@ -33,8 +34,35 @@ export {
 export {
   OfflineSyncPanel,
   queueStatusLabel,
+  queueSummary,
   type OfflineSyncPanelProps,
 } from "./OfflineSyncPanel";
+
+export {
+  OFFLINE_DIAGNOSTIC_LIMIT,
+  classifyOfflineFailure,
+  installOfflineDiagnostics,
+  readOfflineDiagnostics,
+  recordOfflineDiagnostic,
+  redactDetail,
+  redactUrl,
+  resetOfflineDiagnostics,
+  subscribeOfflineDiagnostics,
+  summariseOfflineDiagnostics,
+  type OfflineDiagnostic,
+  type OfflineDiagnosticCode,
+} from "./diagnostics";
+
+export {
+  OFFLINE_LOCAL_CHECKING,
+  captureAvailability,
+  isLocalStateResolved,
+  localStateCopy,
+  localStateFromFailure,
+  localStateFromMeta,
+  type OfflineCaptureAvailability,
+  type OfflineLocalState,
+} from "./local-state";
 
 export { MASK_SHAPES, PNG_SIZES } from "./icon-preview";
 
@@ -51,9 +79,12 @@ export {
 } from "./install";
 
 export {
+  OFFLINE_DATABASE_TIMEOUT_MS,
   deleteOfflineDatabase,
   isOfflineStorageAvailable,
   openOfflineDatabase,
+  storageTimeoutFailure,
+  withDeadline,
   type OfflineDatabaseFailure,
   type OfflineDatabaseResult,
 } from "./offline-database";
@@ -90,11 +121,14 @@ export {
   SERVICE_WORKER_URL,
   applyServiceWorkerUpdate,
   clearServiceWorkerCaches,
+  hasUsedUpdateReload,
   isRunningStandalone,
   isServiceWorkerSupported,
   refreshOfflineShell,
   registerServiceWorker,
+  reportOfflineShellReady,
   requestBuildId,
+  resetUpdateReloadGuardForTests,
   type ServiceWorkerStatus,
 } from "./service-worker";
 

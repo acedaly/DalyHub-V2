@@ -155,24 +155,72 @@ export function requestBuildId(timeoutMs = 1_500): Promise<string | null> {
 }
 
 /**
+ * The one-shot update-reload guard, at MODULE scope.
+ *
+ * PWA-11 — deliberately not a local variable. A guard inside
+ * `applyServiceWorkerUpdate` protects one call; two calls (two presses, or a
+ * press plus a retry) each installed their own `controllerchange` listener with
+ * its own flag, so the page could be reloaded more than once per lifecycle. A
+ * page lifecycle gets at most ONE service-worker-driven reload, full stop —
+ * because an unbounded reload is precisely how an installed PWA ends up being
+ * killed by the platform.
+ */
+let updateReloadArmed = false;
+let updateReloadUsed = false;
+
+/** True when a service-worker update has already reloaded this page lifecycle. */
+export function hasUsedUpdateReload(): boolean {
+  return updateReloadUsed;
+}
+
+/** Test seam: forget the one-shot guard. Never called by application code. */
+export function resetUpdateReloadGuardForTests(): void {
+  updateReloadArmed = false;
+  updateReloadUsed = false;
+}
+
+/**
  * Activate a waiting worker and reload once it takes control.
  *
  * The reload is what makes the update real: after `controllerchange` the page is
  * still running the OLD bundle, which is precisely the stale-JavaScript state
- * this whole mechanism exists to avoid. Guarded so it can only reload once.
+ * this whole mechanism exists to avoid. Guarded so it can only reload once per
+ * page lifecycle, however many times this is called and however many times the
+ * controller changes.
  */
 export async function applyServiceWorkerUpdate(): Promise<void> {
   if (!isServiceWorkerSupported()) return;
   const registration = await navigator.serviceWorker.getRegistration();
   const waiting = registration?.waiting;
   if (!waiting) return;
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloaded) return;
-    reloaded = true;
-    window.location.reload();
-  });
+  if (!updateReloadArmed) {
+    updateReloadArmed = true;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (updateReloadUsed) return;
+      updateReloadUsed = true;
+      window.location.reload();
+    });
+  }
   waiting.postMessage({ type: "SKIP_WAITING" });
+}
+
+/**
+ * Tell the ACTIVE worker that the offline surface reached a resolved state.
+ *
+ * This is what clears the worker's offline-boot loop breaker: a boot that got as
+ * far as showing the owner a settled state is, by definition, not the restart
+ * loop the breaker exists to stop.
+ */
+export async function reportOfflineShellReady(): Promise<void> {
+  if (!isServiceWorkerSupported()) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    (registration.active ?? navigator.serviceWorker.controller)?.postMessage({
+      type: "OFFLINE_SHELL_READY",
+    });
+  } catch {
+    // No worker: there is no breaker to clear, and nothing to report.
+  }
 }
 
 /**

@@ -130,9 +130,9 @@ which substitutes a build id and a precache list and emits `/sw.js`.
 
 | Request | Strategy | Cache |
 |---|---|---|
-| `/assets/**` (hashed build output) | Cache-first, network fills a miss | `dalyhub-static-<buildId>` |
-| `/icons/**`, `/favicon.ico`, `/manifest.webmanifest` | Cache-first | `dalyhub-static-<buildId>` |
-| Navigations | **Network-first**, falling back to the cached `/offline` document | `dalyhub-shell-<buildId>` |
+| `/assets/**` (hashed build output) | Cache-first; a miss the network cannot fill fails **cleanly** (empty `504 text/plain`) | `dalyhub-static-<buildId>` |
+| `/icons/**`, `/favicon.ico`, `/manifest.webmanifest` | Cache-first, same clean failure | `dalyhub-static-<buildId>` |
+| **Document navigations only** (`mode === "navigate"`, `destination` `document`, GET) | **Network-first**, falling back to the cached `/offline` document — see §4.5 | `dalyhub-shell-<buildId>` |
 | `/offline/**`, `/search`, `/commands*`, `/links`, `/capture/**`, `/preferences/**`, `/health` | **Never cached, never intercepted** | — |
 | Anything with `?_data` or ending `.data` (React Router loader data) | **Never cached** | — |
 | Non-GET, cross-origin, non-200 | **Never cached** | — |
@@ -140,6 +140,12 @@ which substitutes a build id and a precache list and emits `/sw.js`.
 Navigation is network-first on purpose: an online owner never sees a stale page,
 and an expired Access session still redirects to the identity provider exactly as
 it would with no service worker.
+
+Everything that is **not** a document navigation and **not** a static asset is
+left alone entirely — no `respondWith`, straight to the network — so an API
+request, a JSON fetch, a `.data` request, a background sync request and an
+authentication endpoint all fail as ordinary network errors offline. **No request
+other than a document navigation can ever receive an HTML body from this worker.**
 
 ### 4.2 The precache set, and why it is small
 
@@ -188,6 +194,91 @@ accumulate one dead cache per deployment.
 Cache names are `dalyhub-{static,shell}-<version>-<sha256 of the sorted precache
 list>`. Two builds of identical source produce the same id (a redeploy does not
 needlessly evict a healthy cache); any change to a shell bundle produces a new one.
+
+### 4.5 The two rules that keep an offline launch from looping
+
+Both were learned from a real installed-iPhone failure in which DalyHub launched
+offline, painted the offline shell, and was then replaced by WebKit's
+*"A problem repeatedly occurred on https://hub.daly.id.au/"*.
+
+**Rule 1 — the offline document is only ever served at its own url.**
+
+The manifest's `start_url` is `/`, so an offline launch of the installed app is a
+document navigation to `/`. The worker used to answer that with the `/offline`
+document's **HTML**. That put a document server-rendered for one route under a
+different url, and the consequences were entirely deterministic:
+
+1. React Router hydrates against `window.location`, which is `/`.
+2. It matches `/` → the app-shell layout and the home index route.
+3. Neither of those route modules is precached (§4.2 — precaching them all is what
+   this milestone forbids), so it `import()`s them.
+4. With no connection the import fails, and React Router's `loadRouteModule`
+   answers a failed route-module import by calling `window.location.reload()`
+   (`react-router/lib/dom/ssr/routeModules.ts` — it is deliberate framework
+   behaviour: normally the import failed because the deployment moved).
+5. The reload re-enters step 1. Forever, until iOS terminates the app.
+
+So a navigation whose pathname is not the offline document is now **redirected**
+to it (302) instead of being answered with its body. `/offline` itself never
+redirects, so the chain is exactly one hop and cannot cycle.
+
+**Rule 2 — nothing but a document navigation may receive HTML.**
+
+A script, module, stylesheet, image, font, manifest or API request that misses the
+cache fails with an empty `504 text/plain`. HTML arriving where JavaScript was
+expected is a syntax error inside the running application, which is the other way
+a page ends up restarting until the platform kills it.
+
+**The backstop: a bounded offline-boot loop breaker.**
+
+For causes nobody has thought of yet. The worker records each time it serves the
+offline document with no network; if that happens more than **4 times in 60
+seconds**, it stops serving the shell and answers with a **script-free safe-mode
+page** instead. A page with no JavaScript cannot reload itself, so the loop
+terminates deterministically rather than being terminated by the platform. The
+page says plainly that nothing has been lost and offers one link
+(`/offline?dh-recover=1`) — the owner's choice, never a timer, because an
+automatic retry is how a loop breaker becomes a loop.
+
+The record is cleared by the offline shell caching successfully, or by the page
+telling the worker it reached a settled state (`OFFLINE_SHELL_READY`). A redirect
+is **not** counted, so one launch at `/` costs one boot rather than two.
+
+It is deliberately **not** cleared by an ordinary successful navigation, and that
+is a measured decision rather than an omission. Doing so put a Cache Storage open
+and delete on the success path of every page load; `tasks-journey`'s "no
+horizontal overflow" test — thirty-six real navigations, each gated on
+`waitForLoadState("networkidle")` — went from passing to exceeding its
+ninety-second budget, reproducibly, against a clean run on the commit before.
+The loop breaker is a backstop for a broken device and must cost a healthy one
+nothing. Nothing is lost: entries expire after sixty seconds on their own, and
+both remaining signals fire on any healthy online session.
+
+Responses the worker synthesises carry the same baseline security headers the
+Worker boundary applies (`security-headers.ts`), since they never passed through
+it.
+
+**Rolling this out to a device that is already broken.**
+
+Deleting and reinstalling the Home Screen app is **not** required — the manifest
+is unchanged, so the installed app's identity, icon and scope are unchanged. What
+*is* required is one online session, because a device stuck in the loop cannot
+fetch the fix:
+
+1. With a connection, open DalyHub (from the Home Screen or Safari — online it was
+   never broken). The new worker downloads and **waits**, as §4.4 requires.
+2. Activate it: either Settings → Offline & app → *Reload to update*, or
+   force-close the app and reopen it, which lets the waiting worker take over
+   because no client is left to disturb.
+3. Stay on the page for a few seconds. Cache names are keyed by build id, so the
+   new worker starts with an **empty** shell cache and refills it from the page's
+   `REFRESH_OFFLINE_SHELL` message once the page is idle. An offline launch
+   attempted in that window gets the script-free "not yet stored" page, correctly
+   — the fix is in place, the shell simply is not yet.
+
+Only step 2 is easy to skip, and skipping it leaves the old worker running. The
+PWA-11 acceptance test below starts from a full delete-and-clear precisely so it
+tests the fix rather than a leftover registration.
 
 ---
 
@@ -537,7 +628,12 @@ reinterpreting it.
 | Data minimisation, Today derivation, replay-outcome classification | `test/unit/pwa/offline-sync.test.ts` |
 | Idempotency against **real D1**, including concurrency and boundaries | `test/kernel/offline-capture-receipts.test.ts` |
 | The snapshot against **real repositories**, with field allow-lists | `test/kernel/offline-snapshot.test.ts` |
-| The lifecycle in a **real browser** | `e2e/pwa-offline.spec.ts` |
+| The service worker's **runtime behaviour** (navigation redirect, clean failure for every non-document request, the loop breaker) | `test/unit/pwa/service-worker-runtime.test.ts` — the real emitted worker, evaluated against fake `caches`/`fetch` |
+| Bounded storage reads and the five local-state outcomes | `test/unit/pwa/offline-local-state.test.ts` |
+| The offline runtime end to end through the provider | `test/unit/pwa/offline-runtime.test.tsx` |
+| Diagnostics: classification and redaction | `test/unit/pwa/offline-diagnostics.test.ts` |
+| That nothing offline navigates the page | `test/unit/pwa/offline-reload-guard.test.ts` |
+| The lifecycle in a **real browser**, including an installed cold launch at `/` with no connection | `e2e/pwa-offline.spec.ts` |
 | Performance and storage ceilings | `e2e/pwa-budget.spec.ts` |
 | Review screenshots | `e2e/pwa-screenshots.spec.ts` |
 
@@ -561,6 +657,91 @@ Vite dev server's module graph is not precached, so **fully hydrated offline
 rendering from the precached production bundle is not covered by automation.**
 It is item 8 on the manual checklist below and must be verified on a device
 before this is called production-ready.
+
+### PWA-11 — the iPhone offline-stability acceptance test
+
+The test that reproduces, and then disproves, the failure described in §4.5:
+an installed DalyHub launched with no connection, showed the offline page, and
+was then replaced by WebKit's *"A problem repeatedly occurred on
+https://hub.daly.id.au/"*.
+
+Run it exactly as written, in order. Steps 12–13 are the whole point — the loop
+this replaced fired within seconds and iOS gave up after roughly a dozen
+restarts, so a five-minute quiet period is a decisive result rather than a
+cautious one.
+
+**Status:** ⛔️ **not yet run on physical hardware.** No iPhone is reachable from
+the environment this change was made in. Record the date, iOS version and outcome
+in the table at the end of this section when it has been worked through.
+
+**Preparation**
+
+1. Delete the existing DalyHub app from the Home Screen (touch and hold → Remove
+   App → Delete App). This is required, not hygiene: the fix changes what the
+   service worker does with a launch at `/`, and a stale registration would be
+   the thing under test.
+2. Settings → Apps → Safari → Advanced → Website Data → search `daly` → swipe to
+   delete every `hub.daly.id.au` entry. This clears the old service worker, both
+   `dalyhub-*` caches and the offline database.
+3. Open `https://hub.daly.id.au` in Safari.
+4. Authenticate through Cloudflare Access.
+5. Wait for DalyHub to populate its offline snapshot: **Settings → Offline & app
+   → Status** must say *Last synchronised …* rather than *Checking* or *This
+   device has not stored a snapshot yet*.
+6. Share → Add to Home Screen → Add.
+7. Launch it from the Home Screen once, **online**. Wait for Today to render.
+8. Force-close it (swipe up from the bottom and flick the DalyHub card away).
+
+**The test**
+
+9. Enable Airplane Mode **and** turn Wi-Fi off. Both: Airplane Mode alone leaves
+   Wi-Fi on for many people, and the whole test depends on there being no
+   connection at all.
+10. Launch DalyHub from the Home Screen.
+11. ✅ The offline page loads: heading **DalyHub offline**, the capture form, the
+    **Offline captures** panel and the stored snapshot.
+12. Leave it open, screen on, untouched, for **at least five minutes**.
+13. ✅ No *"A problem repeatedly occurred"* page appears. The app does not blink,
+    re-paint from scratch or return to a loading state.
+14. ✅ Every loading state has resolved. Specifically: no *"Checking what this
+    device has stored"* and no *"Reading the copy stored on this device"* remains
+    on screen. What is shown instead is one of — *Local snapshot loaded* (with the
+    snapshot below it), *No local snapshot exists yet*, *Local storage is
+    unavailable*, or *Local data could not be read*.
+15. Capture at least one offline item (an Inbox task is enough). ✅ It appears
+    under **Offline captures** as *Waiting to sync*.
+16. Force-close DalyHub and reopen it from the Home Screen, still offline.
+17. ✅ The capture is still listed, still *Waiting to sync*.
+18. Turn Wi-Fi back on and disable Airplane Mode. ✅ Within about fifteen seconds
+    the page says *A connection may be available again* — and **nothing has been
+    sent, nothing has reloaded and nothing has navigated.**
+19. Press **Sync now**.
+20. ✅ The capture syncs. Open the relevant module online and confirm it exists
+    **exactly once**. Press **Sync now** twice more in quick succession and
+    confirm no duplicate is created.
+
+**Then also test, each from step 9**
+
+| Scenario | How to set it up | Expected |
+|---|---|---|
+| No local snapshot | Settings → Offline & app → *Clear stored snapshot*, then go offline and relaunch | *No local snapshot exists yet*; the capture form explains it is unavailable and why. No loop. |
+| Expired Cloudflare Access session | Delete only the `CF_Authorization` cookie (Safari → Website Data), then go offline, relaunch, reconnect and press Sync now | Captures stay queued and are reported as *Waiting for sign-in*. **No redirect to the identity provider from the offline page**, and no reload. |
+| Service-worker update | Deploy a new build while the installed app is open online | *Update available*; "Reload to update" reloads **once**. Reopening does not prompt again. |
+| Corrupted local snapshot | Safari → Advanced → Web Inspector, then from a Mac overwrite a row in the `records` store with `null` | The page renders; the bad row is not shown; no exception, no blank screen. |
+| Storage permission / quota failure | Open the installed app in a Private tab equivalent, or fill the origin quota | *Local storage is unavailable* with the browser's reason. Capture is unavailable **and says why**. No loop. |
+
+**If step 13 ever fails**, open the Diagnostics panel at the bottom of the offline
+page before doing anything else. It records the last twenty failures by code
+(`moduleLoad`, `indexedDb`, `serviceWorker`, `authRedirect`, `snapshotCorrupt`,
+`storageUnavailable`, `network`, `runtime`) with redacted detail, which is the
+distinction that could not be made when this was first reported. If the worker's
+loop breaker has fired you will see the script-free **safe mode** page instead of
+the shell — that is the backstop working, and the diagnostic in that case is the
+`X-DalyHub-Offline: safe-mode` header on the document.
+
+| Date | iOS version | Device | Result | Notes |
+|---|---|---|---|---|
+| _not yet run_ | | | | |
 
 ### Manual device checklist
 
@@ -654,6 +835,24 @@ needs a real device.
    same window rule applies to waiting work as to every other open task, and an
    undated task has no date to place inside the window. Consistent, and stated
    rather than surprising.
+12. **If iOS has evicted the precached bundles, the offline page renders but does
+   not become interactive.** Safari evicts an origin's Cache Storage under
+   pressure, and it can evict the `dalyhub-static-*` cache while the
+   `dalyhub-shell-*` document survives. The server-rendered document then paints
+   and its JavaScript never arrives — no snapshot, no capture form, no
+   diagnostics. There is nothing a page can do about its own missing code, so
+   what it does instead is **say so**: a CSS-revealed notice appears after eight
+   seconds explaining that the application files are not stored on this device
+   and that nothing captured has been lost (§4.5, `.dh-offline-stalled`). A
+   delayed CSS reveal is used rather than a timer precisely because no script is
+   running in this case. Reconnecting once repopulates the cache.
+13. **Safe mode has no offline capture.** The loop breaker's page is script-free
+   by construction — that is what makes it unable to loop — so it can only
+   explain and link. Anything already captured is untouched and still syncs.
+14. **The redirect from `/` to `/offline` is visible in the url bar** of a
+   non-installed browser tab. An installed app has no url bar, which is the case
+   this matters for; in a tab, the alternative (serving one route's document
+   under another route's url) is the bug this replaced.
 
 ---
 

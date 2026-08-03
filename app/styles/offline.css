@@ -532,3 +532,94 @@
 .dh-icon-review__chrome--dark {
   background: #101215;
 }
+
+/* PWA-11 — the offline surface's diagnostic state.
+ *
+ * Collapsed by default and visually quiet: this is evidence for the one moment
+ * something has gone wrong, not a permanent instrument panel. It uses the same
+ * secondary text colour as every other supporting line on the page, so an open
+ * panel reads as part of the page rather than as an alarm. */
+.dh-offline-diagnostics {
+  margin-top: var(--dh-space-6);
+  border-top: 1px solid var(--dh-color-border-subtle);
+  padding-top: var(--dh-space-4);
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-offline-diagnostics summary {
+  cursor: pointer;
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-offline-diagnostics__lead,
+.dh-offline-diagnostics__empty {
+  margin: var(--dh-space-3) 0 0;
+}
+
+.dh-offline-diagnostics__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--dh-space-2) var(--dh-space-4);
+  margin: var(--dh-space-3) 0 0;
+}
+
+.dh-offline-diagnostics__list dt {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-offline-diagnostics__list dd {
+  margin: 0;
+}
+
+.dh-offline-diagnostics__failures {
+  list-style: none;
+  margin: var(--dh-space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+.dh-offline-diagnostics__failures li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-offline-diagnostics__code {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-offline-diagnostics__detail {
+  font-family: var(--dh-font-mono);
+  overflow-wrap: anywhere;
+}
+
+/* PWA-11 — the stalled-boot notice.
+ *
+ * Revealed by a delayed CSS animation rather than by a timer, because the case
+ * it exists for is precisely the one where no JavaScript is running: a device
+ * whose precached bundles were evicted still paints the cached offline shell
+ * document and then stops. If the page DOES hydrate, React unmounts this element
+ * within a few hundred milliseconds and the reveal never happens.
+ *
+ * `visibility` rather than `display` so the element keeps its place in the
+ * accessibility tree's reading order once shown, and `forwards` so it stays
+ * visible rather than blinking back out at the end of the animation. */
+.dh-offline-stalled {
+  visibility: hidden;
+  margin: var(--dh-space-4) 0 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  animation: dh-offline-stalled-reveal 1ms linear 8s forwards;
+}
+
+@keyframes dh-offline-stalled-reveal {
+  to {
+    visibility: visible;
+  }
+}
