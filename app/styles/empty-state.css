@@ -54,12 +54,7 @@
  * linked-items panel — the empty state does NOT draw a second one, for the same
  * reason a nested collection does not.
  */
-:where(
-  .dh-region-card,
-  .record-tabs__panel,
-  .record-layout__content,
-  .dh-card
-)
+:where(.dh-region-card, .record-tabs__panel, .record-layout__content, .dh-card)
   .dh-empty-state {
   background: transparent;
   border: 0;

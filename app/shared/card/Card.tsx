@@ -265,66 +265,69 @@ export function Card(props: CardProps) {
 
         <div className="dh-card__support">
           {context ? (
-          <p className="dh-card__context">
-            <span className="dh-visually-hidden">In </span>
-            {context.href ? (
-              <a
-                className="dh-card__context-link"
-                href={context.href}
-                onClick={(event) => event.stopPropagation()}
-              >
-                {context.label}
-              </a>
-            ) : (
-              <span>{context.label}</span>
-            )}
-          </p>
-        ) : null}
+            <p className="dh-card__context">
+              <span className="dh-visually-hidden">In </span>
+              {context.href ? (
+                <a
+                  className="dh-card__context-link"
+                  href={context.href}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {context.label}
+                </a>
+              ) : (
+                <span>{context.label}</span>
+              )}
+            </p>
+          ) : null}
 
-        {normalisedProgress ? (
-          <div className="dh-card__progress">
-            <div
-              className="dh-card__progress-track"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={normalisedProgress.percent}
-              aria-valuetext={normalisedProgress.text}
-              aria-label="Progress"
-            >
+          {normalisedProgress ? (
+            <div className="dh-card__progress">
               <div
-                className="dh-card__progress-fill"
-                style={{ inlineSize: `${normalisedProgress.percent}%` }}
-              />
-            </div>
-            <span className="dh-card__progress-text">
-              {normalisedProgress.text}
-            </span>
-          </div>
-        ) : null}
-
-        {metadata && metadata.length > 0 ? (
-          <ul className="dh-card__metadata">
-            {metadata.map((item) => (
-              // MOBILE-01: the module's declared scanning priority. Low-priority
-              // detail is de-emphasised on a narrow card, never removed — it stays
-              // in the DOM and the accessibility tree at every width.
-              <li
-                key={item.id}
-                className="dh-card__meta"
-                data-priority={item.priority ?? "high"}
+                className="dh-card__progress-track"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={normalisedProgress.percent}
+                aria-valuetext={normalisedProgress.text}
+                aria-label="Progress"
               >
-                {item.label ? (
-                  <span className="dh-card__meta-label">{item.label}: </span>
-                ) : null}
-                <span className="dh-card__meta-value">{item.value}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+                <div
+                  className="dh-card__progress-fill"
+                  style={{ inlineSize: `${normalisedProgress.percent}%` }}
+                />
+              </div>
+              <span className="dh-card__progress-text">
+                {normalisedProgress.text}
+              </span>
+            </div>
+          ) : null}
 
-        {dateLabel ? (
-            <p className="dh-card__date" data-tone={dateLabel.tone ?? "neutral"}>
+          {metadata && metadata.length > 0 ? (
+            <ul className="dh-card__metadata">
+              {metadata.map((item) => (
+                // MOBILE-01: the module's declared scanning priority. Low-priority
+                // detail is de-emphasised on a narrow card, never removed — it stays
+                // in the DOM and the accessibility tree at every width.
+                <li
+                  key={item.id}
+                  className="dh-card__meta"
+                  data-priority={item.priority ?? "high"}
+                >
+                  {item.label ? (
+                    <span className="dh-card__meta-label">{item.label}: </span>
+                  ) : null}
+                  <span className="dh-card__meta-value">{item.value}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {dateLabel ? (
+            <p
+              className="dh-card__date"
+              data-tone={dateLabel.tone ?? "neutral"}
+            >
               {dateLabel.label}
             </p>
           ) : null}

@@ -21,14 +21,26 @@ no version number to group them under.
 
 ### Added
 
-- **DalyHub reads on a tinted page with cards raised above it.** Every theme's
-  page is now a soft tint rather than near-white, and the cards, panels and rows
-  you work in sit visibly on top of it. The separation is carried by the surfaces
-  themselves and a fine line, not by drop shadows — so the screen has depth
-  without looking busy. This is a groundwork change: **Today** and a **note
-  record** have been rebuilt on it as the two worked examples; the rest of the
-  application will follow, and in the meantime it picks up the new page tint and
-  otherwise looks as it did.
+- **DalyHub reads on a tinted page with cards raised above it — everywhere.**
+  Every theme's page is now a soft tint rather than near-white, and the cards,
+  panels and rows you work in sit visibly on top of it. The separation is carried
+  by the surfaces themselves and a fine line, not by drop shadows — so the screen
+  has depth without looking busy. Every module has been rebuilt on it: Today,
+  Tasks, Areas, Goals, Projects, Notes, Diary, Meetings, People, Assets, Reviews,
+  Settings, Search, Help, About and the offline screens.
+- **Lists are lists again.** A task, a note or a project used to be its own boxed
+  card with its own border and shadow, so a list of forty was forty boxes. Now the
+  list is one card and each record is a row inside it, separated by a hairline.
+  Roughly a third more fits on screen without anything getting smaller or harder
+  to tap, and nothing was removed from any row.
+- **Your Areas have colours.** Each Area gets its own small coloured dot,
+  consistently, so you can pick Health out of a list without reading. The colour
+  is only ever a dot — it never fills a card or tints a row — and the Area's name
+  is always beside it, so it is a shortcut rather than something you have to
+  learn. You cannot choose the colours yet.
+- **Empty pages look deliberate.** A list with nothing in it now sits in the same
+  card a full one would, saying what would go there and how to add it, instead of
+  a message floating in the middle of blank space.
 - **Two typefaces, chosen and shipped with DalyHub.** Chrome, labels and lists
   use Inter; the body of a note now reads in Source Serif, set in a narrow column
   at a comfortable size. Both are served from DalyHub itself — nothing is fetched
@@ -36,9 +48,15 @@ no version number to group them under.
   they work with no connection at all. Together they add about 62 kB, which is
   roughly a tenth of a second on a slow phone connection, and text is never
   invisible while they load.
-- **Absence is stated in words.** Where a note has no tags, DalyHub now says "No
-  tags" on a quiet pill instead of leaving a gap. Nothing shows an empty bar or a
-  dash to mean "there is nothing here".
+- **Absence is stated in words.** Where a note has no tags, DalyHub says "No tags"
+  on a quiet pill instead of leaving a gap. Nothing shows an empty bar or a dash to
+  mean "there is nothing here" — a Goal with nothing measuring it says so, rather
+  than showing a progress bar sitting at zero as though you had made no progress.
+- **Prose reads like prose.** Note bodies, diary entries, meeting summaries, area
+  visions, project descriptions and review answers are set in a serif, in a narrow
+  column, with room between the lines. Everything you operate — titles, buttons,
+  labels, lists — stays in the interface typeface, so there is a visible line
+  between what you read and what you click.
 - **Two new themes: Modern Light and Modern Dark.** Settings → Appearance now
   offers a matched pair — the same DalyHub, one bright and one dimmed — so you can
   move between them by time of day without anything shifting position. Modern
@@ -53,6 +71,24 @@ no version number to group them under.
   are already on one of them, nothing changes for you.
 
 ### Changed
+
+- **Labels are written in sentence case.** Metadata headings across the product
+  used to be SHOUTED IN CAPITALS WITH WIDE SPACING. They now read as ordinary
+  words, which is easier to scan and much less like a piece of admin software.
+- **Settings is grouped into cards.** Each section — Startup, Module defaults and
+  the rest — is a card with its heading inside it, instead of a long page of rows
+  divided by lines.
+- **Wide screens get a page, not a stretched phone.** On a large monitor a list no
+  longer runs the full width with the record's name at one end and its status at
+  the other; content is held to a comfortable measure and stays beside the
+  navigation.
+- **Every drop-down and text box matches.** A few filter menus were still the
+  browser's own controls sitting next to DalyHub's — different height, different
+  shape. They are all one style now.
+- **The offline and safe-mode screens look like DalyHub.** They keep working with
+  no connection, no stored settings and — in safe mode — no scripts at all, but
+  they now use the same page tint, card and shapes as the rest of the app instead
+  of looking like a browser error page.
 
 - **Every theme's page and card colours were re-tuned.** All seven themes now put
   a real, measured step between the page, the cards on it and anything floating

@@ -8,12 +8,21 @@ import { expect, test, type Page } from "@playwright/test";
 import { gotoFixture } from "./helpers";
 
 /**
- * DS-14 — the foundation's visual acceptance pass.
+ * DS-14 — the visual acceptance pass.
  *
- * Captures the TWO reference surfaces the foundation restyles — Today (the
- * Collection reference) and a Note record (the Reading reference, the serif
- * column at its capped measure inside sans chrome) — in every registered theme,
- * under both operating-system colour schemes.
+ * Two passes, because they answer different questions and a single matrix would
+ * be either too shallow or unreasonably long (7 themes x 2 schemes x every
+ * module x seven widths is thousands of images nobody reviews):
+ *
+ *   THEME COVERAGE — the two reference surfaces (Today for Collection, a Note
+ *   record for Reading) in every registered theme under BOTH operating-system
+ *   colour schemes. This is the pass that proves the token layer.
+ *
+ *   MODULE COVERAGE — every module and application edge, plus a deliberately
+ *   SPARSE record of each kind, in one light theme and one dark theme at
+ *   desktop, and at the two phone widths. This is the pass that proves the
+ *   system was actually applied, and it is the one that catches a module left
+ *   on the old language.
  *
  * WHY BOTH SCHEMES FOR EVERY THEME, when five of the seven are light-only
  * palettes: because "a curated theme does not follow the OS" is an invariant
@@ -120,6 +129,155 @@ function removeReadingNote(): void {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Deliberately SPARSE records — brief §11                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * One record of every entity type carrying the MINIMUM its schema permits: no
+ * description, no dates, no links, no progress, no metadata beyond a title.
+ *
+ * These are the records the design is most likely to be wrong on, and the
+ * reason is structural rather than incidental: a visual system built on
+ * progress bars, status pills and metadata rows has a defined appearance for
+ * every value it was designed around and an UNDEFINED one for every value that
+ * is absent. A populated fixture never exercises the second case. So the sparse
+ * record is photographed alongside the populated one, and "how does this look
+ * with nothing in it" stops being a question nobody asked.
+ *
+ * They are seeded and removed by the pass, so they never leak into the fixtures
+ * the behavioural journeys assert against.
+ */
+const SPARSE_PREFIX = "ds14-sparse-";
+const SPARSE_TS = "2026-08-03T00:00:00.000Z";
+
+/** `[entity type, id suffix, title, the details INSERT (or null)]`. */
+const SPARSE_RECORDS: readonly (readonly [
+  string,
+  string,
+  string,
+  string | null,
+])[] = [
+  [
+    "area",
+    "area",
+    "Sparse area",
+    `INSERT INTO area_details (workspace_id, entity_id, entity_type, archived_at, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "area")}, 'area', NULL, ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "goal",
+    "goal",
+    "Sparse goal",
+    `INSERT INTO goal_details (workspace_id, entity_id, entity_type, target_date, definition_of_done, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "goal")}, 'goal', NULL, NULL, ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "project",
+    "project",
+    "Sparse project",
+    `INSERT INTO project_details (workspace_id, entity_id, entity_type, status, archived_at, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "project")}, 'project', 'planned', NULL, ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "task",
+    "task",
+    "Sparse task",
+    `INSERT INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "task")}, 'task', 'todo', NULL, NULL, NULL, NULL, ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "note",
+    "note",
+    "Sparse note",
+    `INSERT INTO note_details (workspace_id, entity_id, entity_type, content, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "note")}, 'note', '', ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "diary",
+    "diary",
+    "Sparse diary entry",
+    `INSERT INTO diary_entry_details (workspace_id, entity_id, entity_type, entry_type, occurred_at, timezone, source_channel, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "diary")}, 'diary', 'reflection', ${lit(SPARSE_TS)}, 'Australia/Sydney', 'manual', ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "meeting",
+    "meeting",
+    "Sparse meeting",
+    `INSERT INTO meeting_details (workspace_id, entity_id, entity_type, starts_at, timezone, status, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "meeting")}, 'meeting', ${lit(SPARSE_TS)}, 'Australia/Sydney', 'planned', ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "person",
+    "person",
+    "Sparse person",
+    `INSERT INTO person_details (workspace_id, entity_id, entity_type, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "person")}, 'person', ${lit(SPARSE_TS)});`,
+  ],
+  [
+    "asset",
+    "asset",
+    "Sparse asset",
+    `INSERT INTO asset_details (workspace_id, entity_id, entity_type, asset_type, status, updated_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "asset")}, 'asset', 'equipment', 'active', ${lit(SPARSE_TS)});`,
+  ],
+];
+
+/** The spine kinds need a `spine_records` row to be complete records. */
+const SPINE_KINDS = new Set(["area", "goal", "project", "task"]);
+
+function removeSparseRecords(): void {
+  const ids = SPARSE_RECORDS.map(([, suffix]) =>
+    lit(SPARSE_PREFIX + suffix),
+  ).join(", ");
+  // Dependent rows first — every endpoint is ON DELETE RESTRICT.
+  d1Execute(
+    [
+      `DELETE FROM activity_subjects WHERE workspace_id = ${lit(WORKSPACE_ID)} AND entity_id IN (${ids});`,
+      `DELETE FROM entity_links WHERE workspace_id = ${lit(WORKSPACE_ID)} AND (source_entity_id IN (${ids}) OR target_entity_id IN (${ids}));`,
+      "area_details",
+      "goal_details",
+      "project_details",
+      "task_details",
+      "note_details",
+      "diary_entry_details",
+      "meeting_details",
+      "person_details",
+      "asset_details",
+    ]
+      .map((entry) =>
+        entry.startsWith("DELETE")
+          ? entry
+          : `DELETE FROM ${entry} WHERE workspace_id = ${lit(WORKSPACE_ID)} AND entity_id IN (${ids});`,
+      )
+      .concat([
+        `DELETE FROM spine_records WHERE workspace_id = ${lit(WORKSPACE_ID)} AND entity_id IN (${ids});`,
+        `DELETE FROM entities WHERE workspace_id = ${lit(WORKSPACE_ID)} AND id IN (${ids});`,
+      ])
+      .join(""),
+  );
+}
+
+/*
+ * The ONE link a sparse record needs, and it is structural rather than content.
+ *
+ * A Goal lives in an Area — that is the spine, not a field the owner filled in —
+ * so a Goal with no parent is not a sparse record, it is an unreachable one (the
+ * route 404s). The link is created so the record is sparse in everything the
+ * DESIGN renders and complete in everything the MODEL requires, which is the
+ * distinction the pass is trying to photograph.
+ */
+const SPARSE_GOAL_AREA_LINK = `INSERT INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at) VALUES (${lit(SPARSE_PREFIX + "goal-area")}, ${lit(WORKSPACE_ID)}, ${lit(SPARSE_PREFIX + "goal")}, ${lit(SPARSE_PREFIX + "area")}, 'goal.belongs_to_area', ${lit(SPARSE_TS)}, ${lit(SPARSE_TS)}, NULL);`;
+
+function seedSparseRecords(): void {
+  removeSparseRecords();
+  for (const [type, suffix, title, details] of SPARSE_RECORDS) {
+    const id = SPARSE_PREFIX + suffix;
+    const statements = [
+      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES (${lit(id)}, ${lit(WORKSPACE_ID)}, ${lit(type)}, ${lit(title)}, ${lit(SPARSE_TS)}, ${lit(SPARSE_TS)}, NULL);`,
+    ];
+    if (details) statements.push(details);
+    if (SPINE_KINDS.has(type)) {
+      statements.push(
+        `INSERT INTO spine_records (workspace_id, entity_id, kind, completed_at) VALUES (${lit(WORKSPACE_ID)}, ${lit(id)}, ${lit(type)}, NULL);`,
+      );
+    }
+    d1Execute(statements.join(""));
+  }
+  d1Execute(SPARSE_GOAL_AREA_LINK);
+}
+
 function seedReadingNote(): void {
   removeReadingNote();
   d1Execute(
@@ -171,10 +329,12 @@ test.skip(
 test.beforeAll(() => {
   mkdirSync(OUT, { recursive: true });
   seedReadingNote();
+  seedSparseRecords();
 });
 
 test.afterAll(() => {
   removeReadingNote();
+  removeSparseRecords();
 });
 
 /** Store the owner's theme through the real, validated preferences action. */
@@ -215,6 +375,112 @@ test.describe("DS-14 reference surfaces", () => {
 
             await page.screenshot({
               path: join(OUT, `${surface.name}-${themeId}-os-${scheme}.png`),
+              fullPage: false,
+            });
+          }
+        });
+      }
+    });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Module coverage                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every module and every application edge.
+ *
+ * The list is deliberately explicit rather than derived from the route manifest:
+ * a manifest walk would capture parameterised routes with no record to render
+ * and would silently stop covering a surface whose route id changed, whereas a
+ * missing entry here is a missing image somebody notices in review.
+ *
+ * SPARSE records are named separately from populated ones and are the point of
+ * the pass rather than an afterthought — brief §11's "load and verify at least
+ * one deliberately sparse record for every entity type". A design built on
+ * progress bars and status pills regresses first on the record that has neither,
+ * so the empty case is photographed, not assumed.
+ */
+const MODULE_SURFACES = [
+  // Shell and the two collection reference surfaces
+  { name: "today", path: "/today" },
+  { name: "tasks-list", path: "/tasks" },
+  { name: "tasks-matrix", path: "/tasks?view=matrix" },
+  { name: "tasks-sectors", path: "/tasks?view=sectors" },
+  { name: "tasks-inbox", path: "/tasks?project=none" },
+  // The spine
+  { name: "areas", path: "/areas" },
+  { name: "goals", path: "/goals" },
+  { name: "projects", path: "/projects" },
+  // Capture and memory
+  { name: "notes", path: "/notes" },
+  { name: "diary", path: "/diary" },
+  { name: "meetings", path: "/meetings" },
+  { name: "people", path: "/people" },
+  { name: "assets", path: "/assets" },
+  { name: "reviews", path: "/reviews" },
+  // Application edges
+  { name: "settings", path: "/settings" },
+  /*
+   * Search and the Command Palette are OVERLAYS, not routes — `/search` is the
+   * JSON provider endpoint. The `/design/*` fixtures render those exact shared
+   * components inside the real application shell (see `e2e/helpers.ts`), which
+   * is the only way to photograph them without driving a keystroke per theme
+   * per width.
+   */
+  { name: "search", path: "/design/search" },
+  { name: "command-palette", path: "/design/command-palette" },
+  { name: "forms", path: "/design/forms" },
+  { name: "feedback", path: "/design/feedback" },
+  { name: "help", path: "/help" },
+  { name: "about", path: "/about" },
+  { name: "ai-placeholder", path: "/ai" },
+  { name: "offline-shell", path: "/offline" },
+  // Deliberately SPARSE records — one of every entity type (brief §11).
+  { name: "sparse-area", path: `/areas/${SPARSE_PREFIX}area` },
+  { name: "sparse-goal", path: `/goals/${SPARSE_PREFIX}goal` },
+  { name: "sparse-project", path: `/projects/${SPARSE_PREFIX}project` },
+  { name: "sparse-note", path: `/notes/${SPARSE_PREFIX}note` },
+  { name: "sparse-diary", path: `/diary/${SPARSE_PREFIX}diary` },
+  { name: "sparse-meeting", path: `/meeting/${SPARSE_PREFIX}meeting` },
+  { name: "sparse-person", path: `/person/${SPARSE_PREFIX}person` },
+  { name: "sparse-asset", path: `/asset/${SPARSE_PREFIX}asset` },
+] as const;
+
+/** One light theme and one dark theme: the module pass proves APPLICATION. */
+const MODULE_THEMES = ["daly-light", "daly-dark"] as const;
+
+const MODULE_VIEWPORTS = [
+  { label: "desktop-1440", width: 1440, height: 900 },
+  { label: "desktop-1280", width: 1280, height: 800 },
+  { label: "mobile-390", width: 390, height: 844 },
+  { label: "mobile-320", width: 320, height: 720 },
+] as const;
+
+test.describe("DS-14 module coverage", () => {
+  for (const viewport of MODULE_VIEWPORTS) {
+    test.describe(viewport.label, () => {
+      test.use({
+        viewport: { width: viewport.width, height: viewport.height },
+      });
+
+      for (const themeId of MODULE_THEMES) {
+        test(`captures every module in ${themeId}`, async ({ page }) => {
+          test.slow();
+          await useTheme(page, themeId);
+
+          for (const surface of MODULE_SURFACES) {
+            await gotoFixture(page, surface.path);
+            await expect(page.locator("html")).toHaveAttribute(
+              "data-theme",
+              themeId,
+            );
+            await page.screenshot({
+              path: join(
+                OUT,
+                `${surface.name}-${themeId}-${viewport.label}.png`,
+              ),
               fullPage: false,
             });
           }

@@ -190,6 +190,20 @@ import { Region } from "~/shared/region";
 
 That renders `data-density` on the wrapper, which [`tokens.css`](../../app/styles/tokens.css) resolves into `--dh-density-*` and [`density.css`](../../app/styles/density.css) paints with. Regions **nest**, and the nearest one wins, because every value is a custom property resolved by the cascade.
 
+#### You will almost never write one
+
+**Three shared boundaries already declare the region, so a surface inherits its classification from the component it was always going to use** ([ADR-069 decision 2](../decisions/ARCHITECTURE_DECISIONS.md#adr-069-ds-14-applied--the-group-is-the-card-the-shared-boundary-is-the-region-and-what-a-whole-application-restyle-cost-in-one-pr)):
+
+| Boundary | Declares | So this is automatic for |
+|---|---|---|
+| [`CollectionLayout`](../../app/shared/collection-layout) | Collection | every routed collection surface |
+| [`RecordLayout`](../../app/shared/record-layout) | Collection | every record's header, metadata, tabs, links and activity |
+| [`MarkdownContent`](../../app/shared/markdown) | **Reading** | every prose body in the product |
+
+The third is the important one. `MarkdownContent` is the ONE sanctioned place rendered Markdown reaches the DOM ([ADR-015](../decisions/ARCHITECTURE_DECISIONS.md) §4.5) — a boundary that already exists for a security reason — so a note body, a diary entry, a meeting summary, an area vision, a project description, a review response and a task description all get the reading column without any of them asking for it.
+
+**Write a `<Region>` by hand only for prose that does not go through the Markdown boundary** (Help topics are the shipped example) **or for a Collection surface that is not a routed collection**. If you find yourself wrapping a module's prose in a Reading region, check first whether it should be rendering through `MarkdownContent`.
+
 #### The classification rule
 
 Ask one question about the surface:
@@ -227,7 +241,7 @@ Sizes are authored in **rem**, never px, so OS text scaling still applies to the
 
 **The serif is the prose body and nothing else.** Titles, labels, metadata, controls, pills, toolbars, save status and empty states stay sans on both presets. `--dh-density-body-family` and `--dh-density-measure` are consumed by the **prose element itself**, never by the region wrapper — which is what stops the serif leaking into the chrome around it. The worked example is `.dh-note-body` in [`markdown-editor.css`](../../app/styles/markdown-editor.css): the region wrapper carries the size and rhythm, and only the editor's content area takes the family and the cap.
 
-There is deliberately **no shared `.dh-prose` class yet**. `density.css` ships only the primitives something actually renders — a shared class nothing uses is speculative CSS, and the foundation is one revertible commit in which everything should be load-bearing. The first module group that needs one adds it to `density.css` by amendment to the foundation commit, never forward into the group ([ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback) F3).
+**The shared prose class is `.markdown-content`**, in [`base.css`](../../app/styles/base.css). It is the reading column: the measure, the family, the size and the rhythm, plus the rules for what inside a column is NOT prose — headings, code and tables are chrome and stay sans, and a table takes the collection's hairlines, tabular figures and its own horizontal scroll rather than widening the page. A blockquote's single-sided rule stays **square**, because one rounded edge on a three-sided shape is exactly the malformed corner [Shape](#shape) rules out.
 
 ### Typography
 
@@ -271,14 +285,79 @@ For **every registered theme**, enumerated from the kernel registry:
 
 Failure messages name the theme id, the token pair and the measured value. This is the enforcement mechanism — not a review checklist item, and not a row in the acceptance matrix.
 
+### The group is the card
+
+**Inside a Collection region, the COLLECTION is the card and the row is not.** This is the single rule that carries card-on-tint across every list in the product, and it lives in one place — [`card.css`](../../app/styles/card.css), against the shared [`CardCollection`](../../app/shared/card)/[`Card`](../../app/shared/card).
+
+| | The group (`.dh-card-collection--list`) | The row (`.dh-card` inside it) |
+|---|---|---|
+| Surface | `surface-card` | `surface-card` — opaque, see below |
+| Border | full hairline | none |
+| Radius | `radius-card` | none |
+| Shadow | none | none |
+| Separator | — | `divider-subtle` **between** rows only |
+| Padding | 4px block / 18px inline (the preset) | 9px block, `--dh-touch-target-min` floor |
+
+**Why.** Fifty cards on a tint is fifty elevation decisions the eye has to make; one card holding fifty hairline rows is one. It is also what makes a dense list dense — a per-row border, radius, shadow and gap costs roughly 28px of vertical space per row carrying no information, which on Tasks is the difference between nine rows and fourteen on a laptop.
+
+**The row's opaque background is load-bearing, not decorative.** TODAY-06's swipe tray is a real element parked *behind* the card surface and revealed by translating it. A transparent row shows the tray at rest, on every row, at every width.
+
+**A collection already inside a card does not draw a second one.** Today's widgets, a record's tab panel, a linked-items panel and the record summary all host row collections; inside them the group drops its surface, border, radius and padding and only the hairlines remain. Same rule for the empty state.
+
+**Grid and board keep genuine cards.** Those presentations exist precisely because their items are tiles rather than rows. They take the card plane and radius and still take no shadow.
+
+### Mixed surfaces
+
+A record is routinely both, and that is the expected case rather than an exception:
+
+```
+RecordLayout ─────────────── Collection region (header, status, metadata, tabs)
+ └─ tab panel ────────────── one card
+     ├─ MarkdownContent ──── Reading region — the serif column at 46ch
+     └─ CardCollection ───── Collection rows, hairlines, no second card
+```
+
+Both regions are declared by shared components, so a mixed record composes without either surface knowing about the other. Anything inside the Reading region that is *not* prose — the record's title, its toolbar, its save status, its metadata, its pills — stays sans, because the region carries only the body values and the family is applied by `.markdown-content` itself.
+
+### Responsive
+
+**The measure applies to collections, not only to prose.** `.dh-collection__content` is capped at `--dh-width-wide` and aligned to the inline **start**, not centred: the navigation rail is on the left, so a centred column drifts away from it as the viewport grows and leaves the navigation pointing at nothing. Without the cap, a 1440px row puts a record's title at one end and its status pill at the other — the "stretched mobile application" failure ([ADR-069 decision 7](../decisions/ARCHITECTURE_DECISIONS.md#adr-069-ds-14-applied--the-group-is-the-card-the-shared-boundary-is-the-region-and-what-a-whole-application-restyle-cost-in-one-pr), [DEBT-72](../product/PRODUCT_DEBT.md)).
+
+**Below 480px** the row keeps its content on one line beside the selection control and moves its quick actions to their own row beneath. Two flexbox behaviours make this fiddly and both were shipped-then-fixed, so they are written down:
+
+- a wrapping flex line places an item on a new line when its **hypothetical** size (flex-basis, `auto` = content width) exceeds the free space, and it does that *before* it considers shrinking. The card body therefore needs `flex-basis: 0` at narrow widths, or it drops below the checkbox instead of fitting beside it;
+- a title with `min-width: 0` and `overflow-wrap: anywhere` will shrink to whatever a status pill leaves it and then break **one character per line**. It needs a `min-inline-size` floor and a wrapping line.
+
+Verification widths: **320, 375, 390, 430, 768, 1280, 1440**, plus the DS-11 sweep's 1024 and 2560. Every theme, light and dark.
+
+### Correct vs incorrect
+
+| Do | Don't |
+|---|---|
+| Let `CollectionLayout` / `RecordLayout` / `MarkdownContent` declare the region | Thread a density prop through components, or branch on the module |
+| Make the collection the card and the rows hairlines | Give every row its own border, radius, shadow and gap |
+| Stand the container down when a collection is already inside a card | Nest a card in a card with the same surface and radius |
+| Reserve shadow for genuinely floating layers — drawer, sheet, menu, dialogue | Put a shadow on an in-flow card to "lift" it |
+| Separate with surface value plus a complete hairline | Separate with a heavier border, or with nothing |
+| Use `radius-card` / `-control` / `-field` / `-pill` | Reach for `radius-xs`/`-sm` outside component internals, or write a literal px |
+| Keep a single-sided accent square | Round one edge of a three-sided shape |
+| State an absent value with the neutral pill, in the owner's words | Leave a blank, a hyphen, or a 0% bar for a metric that does not exist |
+| Put an Area's colour in a dot or a pill, always beside its name | Fill a card or tint a row with an Area's colour; reuse a role colour for it |
+| Write labels in sentence case | SHOUT A LABEL IN UPPER CASE WITH LETTER-SPACING |
+| Set the reading column's serif on the prose body | Set a serif on a heading, a control, a pill or any other chrome |
+
 ### Reference implementations
 
-Two surfaces prove the tokens carry the direction end to end, and are the worked examples to copy from:
+Every module uses the system. These are the worked examples to copy from, because each one shows a different part of it:
 
 - **[Today](../../app/modules/today/TodayDashboard.tsx)** — the Collection reference. One region; every widget is a card on the tint with a hairline and no shadow; rhythm, body size, tabular figures and row padding all come from the preset.
 - **[A Note record](../../app/modules/notes/NoteOverview.tsx)** — the Reading reference, and the "both, on separate regions" case. The body is a Reading region — the serif column at 46ch — inside entirely sans chrome; Backlinks, Links and Activity are Collection regions on the same route.
 
-Screenshots of both, in all seven themes under both OS colour schemes: [`docs/design/assets/ds-14-2026-08/`](assets/ds-14-2026-08/), captured by [`e2e/ds-14-screenshots.spec.ts`](../../e2e/ds-14-screenshots.spec.ts).
+- **[Tasks](../../app/modules/tasks)** — the densest collection in the product, and the clearest view of "the group is the card": one card, hairline rows, 9px block padding, 44px targets, tabular figures.
+- **[The Areas collection](../../app/modules/areas/AreasCollection.tsx)** — Area identity, and the only place the rank that drives it is available for free.
+- **[Settings](../../app/modules/settings)** — sections as cards, and the shared control baseline.
+
+Screenshots in all seven themes under both OS colour schemes: [`docs/design/assets/ds-14-2026-08/`](assets/ds-14-2026-08/), captured by [`e2e/ds-14-screenshots.spec.ts`](../../e2e/ds-14-screenshots.spec.ts).
 
 ---
 

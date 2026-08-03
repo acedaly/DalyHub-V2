@@ -365,8 +365,9 @@ by the rule that applies to it.
 
 ### 9.4 The two reference surfaces (automated, driven)
 
-DS-14's foundation restyles exactly two surfaces, as reference implementations, and nothing
-else. Both are driven in a browser by the existing gates — `e2e/accessibility.spec.ts`
+The two surfaces the foundation restyled first, kept here because they remain the worked
+examples for the two presets. **Every other module now uses the system too — see §9.7.** Both
+are driven in a browser by the existing gates — `e2e/accessibility.spec.ts`
 (axe-core), `e2e/responsive.spec.ts` (no horizontal overflow), `e2e/keyboard.spec.ts`,
 `e2e/touch-targets.spec.ts`, `e2e/today.spec.ts` and `e2e/notes.spec.ts` — at every width in
 brief §10: **320, 375, 390, 430, 768, 1280, 1440**.
@@ -386,7 +387,8 @@ product's own preferences action, and writes to
     CAPTURE_SCREENSHOTS=1 pnpm exec playwright test e2e/ds-14-screenshots.spec.ts
 
 Both reference surfaces, in **all seven themes**, under **both operating-system colour
-schemes** — 28 images. A curated theme does not follow the OS (ADR-061), and the cheapest way
+schemes** — 28 images. This is the pass that proves the TOKEN LAYER; §9.7 is the pass that
+proves the system was applied. A curated theme does not follow the OS (ADR-061), and the cheapest way
 for that to break is a surface consulting `prefers-color-scheme` instead of a token, so the
 pair per theme is the evidence it did not.
 
@@ -416,19 +418,53 @@ through the same local-D1 path the other journeys use.
 | **Coastal** | [`today-coastal-os-light.png`](assets/ds-14-2026-08/today-coastal-os-light.png) · [`today-coastal-os-dark.png`](assets/ds-14-2026-08/today-coastal-os-dark.png) | [`note-record-coastal-os-light.png`](assets/ds-14-2026-08/note-record-coastal-os-light.png) · [`note-record-coastal-os-dark.png`](assets/ds-14-2026-08/note-record-coastal-os-dark.png) |
 | **Ember** | [`today-ember-os-light.png`](assets/ds-14-2026-08/today-ember-os-light.png) · [`today-ember-os-dark.png`](assets/ds-14-2026-08/today-ember-os-dark.png) | [`note-record-ember-os-light.png`](assets/ds-14-2026-08/note-record-ember-os-light.png) · [`note-record-ember-os-dark.png`](assets/ds-14-2026-08/note-record-ember-os-dark.png) |
 
-### 9.6 What section 9 does not claim
+### 9.6 Module coverage — every module, every application edge, and a sparse record of each type
 
-- It does not claim the rest of the product has been restyled. It has not, deliberately —
-  DS-14's foundation restyles two surfaces and the module groups follow. Every other surface
-  renders the pre-DS-14 shared primitives under the **new** ramp, which is a visible change in
-  the light themes and is expected.
+The second pass in the same spec. Where §9.5 answers "does the token layer hold in every
+theme", this answers "was the system actually applied", which is the question a whole-product
+restyle fails on. It runs in **one light and one dark theme** at **four widths** —
+`desktop-1440`, `desktop-1280`, `mobile-390`, `mobile-320` — over every module and every
+application edge.
+
+Two themes rather than seven, deliberately: what varies between modules is composition, not
+palette, and the palette is already asserted for all seven both numerically (§9.1) and visually
+(§9.5). Seven themes here would be five times the images and none of the extra information.
+
+**Surfaces covered.** Today; Tasks (list, matrix, sectors, inbox); Areas; Goals; Projects;
+Notes; Diary; Meetings; People; Assets; Reviews; Settings; Search; the Command Palette; Forms;
+Feedback; Help; About; the `/ai` placeholder; and the offline shell.
+
+Search and the Command Palette are photographed through their `/design/*` fixtures, which
+render the exact shared components inside the real application shell — `/search` is the JSON
+provider endpoint, not a page, and driving a keystroke per theme per width to open an overlay
+would buy nothing the fixture does not already show.
+
+**Sparse records, which are the point rather than an afterthought.** One record of every entity
+type carrying the minimum its schema permits — no description, no dates, no links, no progress,
+no metadata beyond a title — seeded and removed by the pass: Area, Goal, Project, Note, Diary
+entry, Meeting, Person, Asset.
+
+A visual system built on progress bars, status pills and metadata rows has a defined appearance
+for every value it was designed around and an **undefined** one for every value that is absent,
+and a populated fixture never exercises the second case. That is [brief §8](DS_14_OVERHAUL_BRIEF.md)'s
+"the most common way a design built on progress bars and status badges regresses", and it is why
+these records are photographed rather than reasoned about.
+
+### 9.7 What section 9 does not claim
+
 - It does not claim a human has approved the taste of seven recomposed light ramps on a
   calibrated display. It claims the relationships between their surfaces are measured, in
   every theme, and that the images exist so that judgement can happen against evidence.
-- It does not claim card-on-tint has been proven above 1440px, which is
-  [DEBT-72](../product/PRODUCT_DEBT.md), not an assumption.
-- It does not extend brief §8's empty-record screenshot requirement, which belongs to the
-  module groups that render those records.
+- It does not claim the direction has been **lived with**. The desktop soak gate was removed by
+  the owner's direction ([DS-14 roadmap entry](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul)),
+  so "is this still pleasant after five days on a real workspace" is unanswered. The
+  wide-desktop *defect* it was raised to catch was found and fixed inside the work
+  ([DEBT-72](../product/PRODUCT_DEBT.md)); the *judgement* it was also meant to collect was not.
+- It does not claim every module is photographed in all seven themes. §9.6 covers two by
+  design, for the reason stated there.
+- It does not claim the screenshots are diffed automatically. They are evidence for review, not
+  a regression gate; the regression gates are the invariant test (§9.1), axe (§4), the overflow
+  sweep (§5) and the keyboard suite.
 
 ---
 
