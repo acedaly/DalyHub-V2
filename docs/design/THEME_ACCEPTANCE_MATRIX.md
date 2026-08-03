@@ -352,7 +352,7 @@ Each theme's **hue** is its own; only the lightness relationships are prescribed
 recomposition ran back through the full existing contrast harness (§1) in every theme, so the
 darker canvases did not buy elevation at the cost of a text or UI floor.
 
-### 9.3 One superseded assertion, recorded rather than quietly dropped
+### 9.3 Two superseded assertions, recorded rather than quietly dropped
 
 §8.2's "no light surface leaks into Modern Dark" held `progress-track` below a luminance
 ceiling along with every other surface. DS-14 §6.5 requires that track to clear 3:1 against
@@ -362,6 +362,24 @@ dated decision wins ([ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds
 over THEME-02, per [AGENTS.md](../../AGENTS.md)). `progress-track` was removed from that list
 and is now asserted **harder**, in both directions, by 6.5. It is not unpoliced; it is policed
 by the rule that applies to it.
+
+The second is TODAY-06's **"swipe-wrapped task cards keep their elevation on desktop"**
+([`e2e/today.spec.ts`](../../e2e/today.spec.ts)). It asserted that the swipe WRAPPER carries a
+`box-shadow`, because the wrapper clips its surface with `overflow: hidden` and an element
+never clips its own shadow — so elevation had to live on the wrapper or every Today card would
+silently lose it.
+
+DS-14 constraint 8 reserves shadow for genuinely floating layers, and a task row is not one:
+the collection is the card and the row is a hairline-separated row inside it. Asserting "the
+wrapper has a shadow" is therefore asserting the pre-DS-14 design, and keeping it would hold
+the restyle hostage to a treatment the direction removed deliberately.
+
+**It was restated, not deleted, and the replacement is the stronger test.** What the original
+was really protecting is the class of silent visual defect the swipe wrapper makes possible —
+and that defect is still possible, and it *occurred* during DS-14: the tray is a real element
+parked behind the card surface, so a row that stops painting an opaque background reveals the
+tray at rest, on every row, at every width. The test now asserts the row's surface is opaque
+and untranslated at rest, which is the invariant that was actually load-bearing.
 
 ### 9.4 The two reference surfaces (automated, driven)
 

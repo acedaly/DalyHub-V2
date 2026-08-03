@@ -142,21 +142,49 @@ test.describe("TODAY-01 — desktop", () => {
     ).toBeVisible();
   });
 
-  test("swipe-wrapped task cards keep their elevation on desktop (shadow not clipped)", async ({
+  test("swipe-wrapped task rows hide their action tray at rest", async ({
     page,
   }) => {
-    // TODAY-06 regression: the swipe wrapper clips its surface with overflow:hidden,
-    // so the card elevation must live on the WRAPPER (an element never clips its own
-    // box-shadow) — otherwise every Today task card would silently lose its shadow,
-    // including on desktop where swipe is inactive.
+    /*
+     * TODAY-06's regression, restated for DS-14 — same defect, different
+     * mechanism, and the supersession is recorded in
+     * THEME_ACCEPTANCE_MATRIX.md §9.3 rather than quietly dropped.
+     *
+     * The original assertion was that the swipe WRAPPER carries a box-shadow,
+     * because the wrapper clips its surface with `overflow: hidden` and an
+     * element never clips its own shadow — so elevation had to live on the
+     * wrapper or every Today card would silently lose it.
+     *
+     * DS-14 constraint 8 reserves shadow for genuinely floating layers, and a
+     * task row in a collection is not one: the COLLECTION is the card and the
+     * row is a hairline-separated row inside it. So "the wrapper has a shadow"
+     * is now asserting the pre-DS-14 design, and asserting it would hold the
+     * restyle hostage to a treatment the direction removed on purpose.
+     *
+     * What the original test was really protecting is the thing that CAN still
+     * break, and it broke once during DS-14: the tray is a real element parked
+     * behind the card surface, so a row that stops painting an opaque
+     * background reveals the tray at rest, on every row, at every width. That
+     * is asserted here instead — it is the same class of silent visual defect,
+     * and it is the one that is still possible.
+     */
     await page.goto("/today");
     const wrapper = page.locator(".dh-card-swipe").first();
     await expect(wrapper).toBeVisible();
-    const shadow = await wrapper.evaluate(
-      (el) => getComputedStyle(el).boxShadow,
+
+    const surface = wrapper.locator(".dh-card").first();
+    const background = await surface.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
     );
-    expect(shadow).not.toBe("none");
-    expect(shadow.trim()).not.toBe("");
+    // Opaque: neither `transparent` nor any zero-alpha colour.
+    expect(background).not.toBe("transparent");
+    expect(background).not.toMatch(/rgba\([^)]*,\s*0\s*\)$/);
+
+    // At rest the surface is not translated, so the tray behind it is covered.
+    const reveal = await surface.evaluate(
+      (el) => getComputedStyle(el).transform,
+    );
+    expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(reveal);
   });
 });
 
