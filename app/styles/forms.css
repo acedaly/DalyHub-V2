@@ -207,7 +207,7 @@
   color: var(--dh-color-text);
   background: var(--dh-color-surface-raised);
   border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--dh-radius-field);
   transition: border-color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 

@@ -55,6 +55,77 @@ body {
   border-radius: var(--dh-radius-xs);
 }
 
+/* -------------------------------------------------------------------------- */
+/* DS-14 — the CONTROL BASELINE                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Every native form control in the product, whether or not a module remembered
+ * to reach for `.dh-input`.
+ *
+ * The shared field components were always styled; the controls modules dropped
+ * straight into a filter row were not, so Reviews, Notes and Diary each shipped
+ * a bare user-agent `<select>` sitting beside a designed one — different height,
+ * different radius, different border, different font. That is the "different
+ * form-control heights without reason" the direction rules out, and it cannot be
+ * fixed surface by surface without the next filter row reintroducing it.
+ *
+ * Stated at the ELEMENT so it is the floor rather than an opt-in. `:where()`
+ * keeps specificity at zero, so `.dh-input` and every module's own control
+ * styling still win without needing `!important` or a more specific selector.
+ * Only appearance is set — no layout, no width — so nothing reflows.
+ */
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ):not([type="color"]),
+  select,
+  textarea
+) {
+  min-block-size: var(--dh-control-height-md);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  font: inherit;
+  font-size: var(--dh-font-size-base);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
+  border-radius: var(--dh-radius-field);
+}
+
+:where(select) {
+  /* A select keeps its native disclosure arrow (drawing our own would break the
+   * platform picker on touch); the inline-end inset just stops the value text
+   * colliding with it. */
+  padding-inline-end: var(--dh-space-2);
+  cursor: pointer;
+}
+
+:where(textarea) {
+  padding-block: var(--dh-space-2);
+  line-height: var(--dh-line-height-normal);
+  resize: vertical;
+}
+
+:where(input, select, textarea)::placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+:where(input, select, textarea):disabled {
+  color: var(--dh-color-disabled-text);
+  background: var(--dh-color-disabled-surface);
+  border-color: var(--dh-color-disabled-border);
+  cursor: not-allowed;
+}
+
+/* Selection and toggle controls take the accent so they are unmistakably the
+ * product's, and a 44px target on touch is provided by their labels/cells. */
+:where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--dh-color-accent);
+  inline-size: var(--dh-space-5);
+  block-size: var(--dh-space-5);
+  cursor: pointer;
+}
+
 /* Honour the user's reduced-motion preference: motion never carries meaning that
  * is lost when it is disabled (AGENTS.md §15, DESIGN_SYSTEM.md → Motion). */
 @media (prefers-reduced-motion: reduce) {
