@@ -25,6 +25,55 @@
 }
 
 /*
+ * DS-14 — a filter bar is a row of CONTROLS, not a form.
+ *
+ * Several modules laid their filters out with fields that stretch to the
+ * container, so Meetings opened with a full-width search box and a full-width
+ * sort select above an empty list — the controls were larger than the content
+ * they filter, which inverts the hierarchy. The cap is stated once here rather
+ * than per module, and at the specificity of `.dh-collection__filters` alone,
+ * so any module that has deliberately sized its own controls still wins.
+ */
+.dh-collection__filters :where(input, select, textarea),
+.dh-collection__filters .dh-input,
+.dh-collection-toolbar :where(input, select, textarea),
+.dh-collection-toolbar .dh-input {
+  max-inline-size: 18rem;
+}
+
+/*
+ * `.dh-collection-toolbar` is Meetings' own control row, rendered into the
+ * CONTENT slot rather than the filter slot. It is included here rather than
+ * fixed in `meetings.css` because the rule is about what a control row IS, not
+ * about Meetings — and a rule stated once is the only kind that the next module
+ * inherits instead of re-deriving.
+ */
+.dh-collection-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--dh-space-3);
+  margin-block-end: var(--dh-space-4);
+}
+
+/* A shared field inside a filter bar sizes to its control rather than to the
+   bar: `.dh-field` is a column layout meant for a form, and left to grow it
+   stretches the control it wraps to the full width of the collection. */
+.dh-collection__filters .dh-field,
+.dh-collection-toolbar .dh-field {
+  flex: 0 1 auto;
+  inline-size: auto;
+  max-inline-size: 18rem;
+}
+
+/* A filter label names its control; it is not a section heading. */
+.dh-collection__filters :where(label),
+.dh-collection-toolbar :where(.dh-field__label-text) {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+}
+
+/*
  * DS-14 — a page has a MEASURE, on collections as well as on prose.
  *
  * At 1440px an uncapped list is a 1200px row with a title at one end and a

@@ -259,10 +259,31 @@
   max-inline-size: var(--dh-width-content);
 }
 
+/*
+ * DS-14 — a day is a CARD, and its entries are the rows in it.
+ *
+ * The day view rendered its timeline directly onto the page, so a day with two
+ * entries read as two fragments floating on the tint with a rule between them
+ * and no edge anywhere — the "uncontained section that visually merges into the
+ * page" the direction rules out. The day is the container the entries already
+ * belonged to, so it takes the card the rest of the product's collections take.
+ */
 .dh-diary-day {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-2);
+  padding: var(--dh-density-card-padding-block, var(--dh-space-2))
+    var(--dh-density-card-padding-inline, var(--dh-space-4));
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-card);
+}
+
+/* Entries are rows inside it, separated by the within-card hairline. */
+.dh-diary-day__entries > .dh-diary-entry-item + .dh-diary-entry-item,
+.dh-diary-day__entries > li + li {
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
 }
 
 .dh-diary-day__heading {
