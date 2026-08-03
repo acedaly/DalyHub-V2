@@ -1,9 +1,15 @@
-# DS-NN — visual overhaul brief
+# DS-14 — visual overhaul brief
 
-> **Commit this file to `docs/design/DS_NN_OVERHAUL_BRIEF.md` before running any
-> DS-NN prompt.** Every prompt in the pack cites it by path and section number.
-> Replace `DS-NN` throughout with the next free `DS-` number in
-> `ROADMAP_V2_1.md`, and rename the file to match.
+> **Numbered and committed.** `DS-14` is the next free `DS-` number after DS-01…DS-13
+> in [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md); the roadmap entry is
+> [`ROADMAP_V2_1.md → DS-14`](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul)
+> and the decisions this brief's open questions were resolved into are
+> [ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback).
+> Every prompt in the pack cites this file by path and section number.
+>
+> **This document is the brief as written.** Where ADR-068 adopts a value it says so;
+> where it argues against one (§2's two-weight rule) it says so and gives the reason.
+> The ADR is the decision of record — this file is not edited to match it.
 
 A restyle of every DalyHub surface to a card-on-tint visual system, with a serif
 reading column on prose surfaces. Delivered without adding a theme, without a new
@@ -170,16 +176,16 @@ the most common way a design built on progress bars and status badges regresses.
 
 ## §9 Out of scope
 
-**Not changed by any DS-NN PR:** information architecture; the
+**Not changed by any DS-14 PR:** information architecture; the
 Area → Goal → Project → Task model; entity fields; routes and deep-link URLs
 (Search, Quick Capture and Reviews all emit them); the export snapshot format and
 its serialisers; auth; the module registry; owner-facing copy about what is and
 is not implemented; the theme CHECK constraint; the number of themes; restore,
 weekly review, mobile remainders or any other V2.1 roadmap item.
 
-**Not added by any DS-NN PR:** a new theme; a density, shape, type or measure
+**Not added by any DS-14 PR:** a new theme; a density, shape, type or measure
 switch; a Today widget that does not already exist; a progress metric on Goals
-(a separate roadmap item — DS-NN renders absence honestly instead); stored area
+(a separate roadmap item — DS-14 renders absence honestly instead); stored area
 colours; an animation system.
 
 ## §10 Accessibility baseline
@@ -190,5 +196,5 @@ beside it, a status pill needs its state in text. Touch targets stay at 44px
 minimum on the collection preset. Focus order and visible focus survive the
 restyle. Every keyboard path that worked before still works.
 
-Verification widths for every DS-NN PR: 320, 375, 390, 430, 768, 1280, 1440.
+Verification widths for every DS-14 PR: 320, 375, 390, 430, 768, 1280, 1440.
 Every theme, light and dark.

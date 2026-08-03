@@ -268,6 +268,89 @@ They are small and well-understood; none of them blocks the V2 release.*
 
 ---
 
+## V2.1 — Whole-application restyle
+
+### ☐ DS-14 — Whole-application visual overhaul
+
+- **Not in ROADMAP_V2.** A new item, taking the next free number in the `DS-` series
+  (`DS-01`…`DS-13` are all in [`ROADMAP_V2.md`](ROADMAP_V2.md)). It is a *design
+  system* item, which is why it keeps the `DS-` prefix rather than becoming a second
+  `THEME-` item: it adds no theme and changes no theme's identity.
+- **What it is.** A restyle of every DalyHub surface to a **card-on-tint** visual
+  system — a tinted page canvas with cards raised above it — with a serif reading
+  column on prose surfaces and two density presets keyed to *surface type* rather
+  than to module. Delivered **without adding a theme, without a new user-facing
+  switch, and without changing what any module does**.
+- **The brief is the scope.** [`DS_14_OVERHAUL_BRIEF.md`](../design/DS_14_OVERHAUL_BRIEF.md)
+  states the direction as eight checkable constraints, the token set, the elevation
+  contract, the density presets, the typography budget, the theme invariant
+  specification, the surface classification, the absence-state rule, the accessibility
+  baseline, and — at least as importantly — **§9, what no DS-14 PR may change or add**.
+  The decisions taken against it, with their reasoning and their measurements, are
+  [ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback).
+- **How it is delivered — one foundation PR, one gate, six module groups.**
+  1. **The foundation PR.** The new semantic tokens in all seven themes, the
+     recomposed light-theme neutral ramp the elevation contract requires, the radius
+     scale, the two density presets, the self-hosted type, the neutral absence pill,
+     the one progress component, the derived area accent, the restyled application
+     frame, and the theme invariant test. It is **one squashed commit and the only
+     commit in DS-14 permitted to touch `tokens.css`, the DS-14 stylesheet, the font
+     assets or the invariant test** — which is what makes the rollback below a
+     single-commit revert rather than an unwind. See ADR-068 §7.
+  2. **The desktop soak gate.** A hold between the foundation PR and the first module
+     group. Card-on-tint is a phone-native pattern and its behaviour at 1440px and
+     above is unproven ([DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)).
+     The gate exists so that answer arrives after **one** revertible commit rather
+     than after seven.
+  3. **Six module-group PRs.** One roadmap item per PR is
+     [AGENTS.md §12](../../AGENTS.md#12-development-workflow)'s rule, so each group is
+     a PR against this one item, each strictly subtractive at the CSS level (it
+     deletes bespoke module CSS and adopts the shared primitives; it adds no visual
+     direction of its own). They are the six sub-items below, in order.
+- **The six module groups.** None is started; the item is done when all six are.
+- **☐ Group 1 — global interaction surfaces.** Drawer, Inspector, Search, Command
+  Palette, overflow menu, feedback/toasts, keyboard reference. First, because they
+  overlay every other surface and they own the *floating* elevations the contract
+  caps at two.
+- **☐ Group 2 — Today and Tasks.** Today, the Eisenhower Matrix, Time Sectors, the
+  Inbox, saved views. The densest collection surfaces in the product and the
+  hardest test of the Collection preset.
+- **☐ Group 3 — Areas, Goals and Projects.** The spine. Both presets on separate
+  regions, the area accent dot, and the main consumer of the one progress
+  component.
+- **☐ Group 4 — Notes and Diary.** The serif reading column's real home, and the
+  surfaces where a capped measure is most visible.
+- **☐ Group 5 — Meetings and People.** Reading summary plus collection attendees,
+  follow-ups and directory; the Stay-in-touch and Health pills against the new
+  pill vocabulary.
+- **☐ Group 6 — Assets, Reviews, Settings, Help and About.** The review stepper's
+  discretised progress, the asset history and obligation surfaces, and the
+  remaining system pages.
+- **Why it is sequenced here, and this is deliberate.** DS-14 sits **after
+  [SET-02](#-set-02--backup--restore-v21) and [REVIEW-02](#-review-02--weekly-review)**
+  in Build order on purpose, not by accident of drafting. **Recoverability and the
+  weekly flow are worth more than a restyle.** SET-02 is the one gap V2 knowingly
+  leaves — a bad day is still unrecoverable — and REVIEW-02 is the flagship weekly
+  ritual the product exists to run. A restyle changes how DalyHub looks; neither of
+  those two changes what it can do for the owner on their worst day. And a whole-app
+  restyle taken out of order is how a roadmap stops moving: it touches every surface,
+  so it collides with every item built beside it, it makes every later diff harder to
+  read, and it is large enough and pleasant enough to absorb the attention that
+  restore and the weekly review have a stronger claim on. It is sequenced third
+  because it is worth doing, and third because it is not worth doing first.
+- **Not partial credit for anything, and nothing is partial credit for it.**
+  [THEME-02](#-theme-02--the-modern-visual-system) shipped a matched light/dark pair
+  and is ☑; it restyled no module and DS-14 is not "more THEME-02". Equally, DS-14
+  must never be marked ☑ because the foundation landed — the item is done when all
+  six groups are, verified per the brief's §10 matrix.
+- **Dependencies.** DS-01 (tokens), DS-11 (the accessibility and responsive
+  baseline), THEME-01/THEME-02 (the seven-theme registry the invariant test
+  enumerates) — all ☑ and satisfied. Sequenced behind SET-02 and REVIEW-02 for the
+  reason above, which is a sequencing decision, not a technical dependency.
+- **Priority.** P2. Third item of V2.1.
+
+---
+
 ## V2.5 and later — never in V2's scope
 
 *Recorded so the decisions are not re-litigated, and deliberately not started.*
@@ -415,14 +498,21 @@ because a reader would otherwise wonder whether it was forgotten:
    leaves, and the reason a bad day is still unrecoverable.
 2. **[REVIEW-02](#-review-02--weekly-review)** + REVIEW-04's stepper — the flagship
    weekly flow, and the mobile ergonomic that belongs with it.
-3. **[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
+3. **[DS-14](#-ds-14--whole-application-visual-overhaul)** — the whole-application
+   restyle. **Third deliberately**, and the entry says why: recoverability and the
+   weekly flow are worth more than a restyle, and a whole-app restyle taken out of
+   order is how a roadmap stops moving. It touches every surface, so it is cheapest
+   once the two items above have stopped changing them — and it is large and pleasant
+   enough that putting it first would quietly cost the owner the two things they
+   actually cannot do today.
+4. **[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
    the two named mobile remainders, now unblocked.
-4. **[DIARY-02](#-diary-02--day-context-links)**, **[REVIEW-03](#-review-03--insights--alignment)**,
+5. **[DIARY-02](#-diary-02--day-context-links)**, **[REVIEW-03](#-review-03--insights--alignment)**,
    **[SET-03](#-set-03--account--security)** — module completion.
-5. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
-6. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore
+6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
+7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore
    exists.
-7. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design.
+8. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design.
 
 Ahead of all of them, and not a numbered item because it is verification rather
 than construction: **work through the PWA-01 manual device checklist** in
