@@ -159,6 +159,39 @@ IN. Everything else in this file can wait behind it.*
   - a **proven end-to-end restoration test**: export a populated workspace, restore
     it into an empty one, and assert the result is equivalent. Until that test
     exists and passes, this item is not done.
+- **The restore model is now decided:
+  [ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-restore-replaces-a-whole-workspace-preserves-every-id-and-declares-the-state-between-batches).**
+  It answers the questions above so the implementing PR does not have to relitigate
+  them, and **it is a decision, not an implementation — nothing of the write side
+  exists yet and this item stays ☐.** What it fixes:
+  - **Replace, never merge**, into a workspace that is empty or one the owner has
+    explicitly confirmed emptying, with a typed confirmation that names the counts
+    about to be destroyed and offers the X-04 export first. **Merge is out of
+    scope and recorded**, not deferred by silence — it is import semantics, which
+    is [X-03](#-x-03--import--sync-todoist-notion-calendar).
+  - **The transactional boundary, stated honestly.** D1 offers only
+    `D1Database.batch()`, so a ceiling-sized snapshot cannot be one transaction.
+    A restore is an ordered sequence of individually-atomic batches under a
+    durable `workspace_restores` journal, and the guarantee is *untouched, fully
+    restored, or a declared `restoring` state* that the app shows instead of the
+    workspace and that resolves to resume (same file, checksum-matched) or
+    discard (delete back to empty).
+  - **Ids are preserved, never reissued** — because ids live inside the owner's
+    Markdown as `dalyhub://` links, inside stored Activity payloads, and inside
+    every exported vault file. EntityLinks (including unlinked ones), Activity
+    rows, and soft-deleted/archived state are restored exactly as marked, and the
+    restore fabricates no per-record Activity.
+  - **Validation and refusal**: checksum against `manifest.json`, a major
+    `schemaVersion` this build understands or an outright refusal, and the
+    export's own `assertValidWorkspaceSnapshot`. A checksum proves the file is
+    intact, not authentic — **no tamper detection is claimed**.
+  - **The preview** is a pure function of the validated snapshot and a count-only
+    read of the target, through a read-only repository that structurally cannot
+    write, with its confirmation bound to the checksum and observed counts and
+    re-asserted before the first insert.
+  - **Still open by design** (see the ADR's closing section): selective or
+    single-record restore, undo of a completed restore, restoring into a second
+    workspace, snapshot signing, and an upgrade path for older snapshot schemas.
 - **Still true, and still the rule.** Cloudflare or D1 platform durability does
   **not** satisfy this item. An untested restore is not a backup, and
   infrastructure the owner cannot invoke or verify is not recoverability. **This
