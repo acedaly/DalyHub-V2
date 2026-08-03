@@ -37,7 +37,7 @@ html {
 }
 
 body {
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
   color: var(--dh-color-text);
   font-family: var(--dh-font-sans);
   font-size: var(--dh-font-size-base);

@@ -64,7 +64,7 @@ interface Pair {
 
 /** The surfaces text is actually rendered on. */
 const TEXT_SURFACES = [
-  "bg",
+  "surface-page",
   "surface",
   "surface-raised",
   "surface-card",
@@ -131,15 +131,23 @@ const TINTED_PAIRS: readonly Pair[] = [
 
 /** Foregrounds that must also be readable directly on the page background. */
 const ON_BACKGROUND_PAIRS: readonly Pair[] = [
-  { fg: "accent-text", bg: "bg", note: "accent link on background" },
+  { fg: "accent-text", bg: "surface-page", note: "accent link on background" },
   { fg: "accent-text", bg: "surface", note: "accent link on surface" },
-  { fg: "link", bg: "bg", note: "link on background" },
+  { fg: "link", bg: "surface-page", note: "link on background" },
   { fg: "link", bg: "surface-card", note: "link on a card" },
-  { fg: "link-hover", bg: "bg", note: "hovered link on background" },
-  { fg: "success-text", bg: "bg", note: "success text on background" },
-  { fg: "warning-text", bg: "bg", note: "warning text on background" },
-  { fg: "danger-text", bg: "bg", note: "danger text on background" },
-  { fg: "info-text", bg: "bg", note: "info text on background" },
+  { fg: "link-hover", bg: "surface-page", note: "hovered link on background" },
+  {
+    fg: "success-text",
+    bg: "surface-page",
+    note: "success text on background",
+  },
+  {
+    fg: "warning-text",
+    bg: "surface-page",
+    note: "warning text on background",
+  },
+  { fg: "danger-text", bg: "surface-page", note: "danger text on background" },
+  { fg: "info-text", bg: "surface-page", note: "info text on background" },
   { fg: "state-waiting-text", bg: "surface", note: "waiting text on surface" },
   { fg: "state-on-hold-text", bg: "surface", note: "on-hold text on surface" },
   // The selected row is painted on the navigation surface, so its label has to
@@ -165,14 +173,18 @@ const ON_ACCENT_PAIRS: readonly Pair[] = [
  * dot, a status dot and every chart series.
  */
 const UI_PAIRS: readonly Pair[] = [
-  { fg: "focus-ring", bg: "bg", note: "focus ring on background" },
+  { fg: "focus-ring", bg: "surface-page", note: "focus ring on background" },
   { fg: "focus-ring", bg: "surface", note: "focus ring on surface" },
   { fg: "focus-ring", bg: "surface-card", note: "focus ring on a card" },
   { fg: "focus-ring", bg: "surface-nav", note: "focus ring in navigation" },
-  { fg: "accent", bg: "bg", note: "accent fill on background" },
+  { fg: "accent", bg: "surface-page", note: "accent fill on background" },
   { fg: "accent", bg: "surface", note: "accent fill on surface" },
   { fg: "accent", bg: "surface-card", note: "accent fill on a card" },
-  { fg: "control-border", bg: "bg", note: "control boundary on background" },
+  {
+    fg: "control-border",
+    bg: "surface-page",
+    note: "control boundary on background",
+  },
   { fg: "control-border", bg: "surface", note: "control boundary on surface" },
   {
     fg: "control-border",
@@ -190,15 +202,15 @@ const UI_PAIRS: readonly Pair[] = [
     bg: "progress-track",
     note: "completed progress against track",
   },
-  { fg: "priority-p1", bg: "bg", note: "P1 indicator" },
-  { fg: "priority-p2", bg: "bg", note: "P2 indicator" },
-  { fg: "priority-p3", bg: "bg", note: "P3 indicator" },
-  { fg: "priority-p4", bg: "bg", note: "P4 indicator" },
-  { fg: "state-overdue", bg: "bg", note: "overdue indicator" },
-  { fg: "state-due-soon", bg: "bg", note: "due-soon indicator" },
-  { fg: "state-completed", bg: "bg", note: "completed indicator" },
-  { fg: "state-waiting", bg: "bg", note: "waiting indicator" },
-  { fg: "state-on-hold", bg: "bg", note: "on-hold indicator" },
+  { fg: "priority-p1", bg: "surface-page", note: "P1 indicator" },
+  { fg: "priority-p2", bg: "surface-page", note: "P2 indicator" },
+  { fg: "priority-p3", bg: "surface-page", note: "P3 indicator" },
+  { fg: "priority-p4", bg: "surface-page", note: "P4 indicator" },
+  { fg: "state-overdue", bg: "surface-page", note: "overdue indicator" },
+  { fg: "state-due-soon", bg: "surface-page", note: "due-soon indicator" },
+  { fg: "state-completed", bg: "surface-page", note: "completed indicator" },
+  { fg: "state-waiting", bg: "surface-page", note: "waiting indicator" },
+  { fg: "state-on-hold", bg: "surface-page", note: "on-hold indicator" },
   { fg: "chart-1", bg: "surface-card", note: "chart series 1" },
   { fg: "chart-2", bg: "surface-card", note: "chart series 2" },
   { fg: "chart-3", bg: "surface-card", note: "chart series 3" },
@@ -248,10 +260,10 @@ describe.each(THEME_IDS)("THEME-01 contrast — %s", (themeId) => {
   it("keeps every entity identity accent visible on the page background", () => {
     for (const entity of ENTITY_ACCENT_NAMES) {
       const accent = THEME_ENTITY_ACCENTS[themeId][entity];
-      const ratio = contrastRatio(accent, theme.bg);
+      const ratio = contrastRatio(accent, theme["surface-page"]);
       expect(
         ratio,
-        `${themeId} — ${entity} accent ${accent} on ${theme.bg} = ${ratio.toFixed(2)}:1`,
+        `${themeId} — ${entity} accent ${accent} on ${theme["surface-page"]} = ${ratio.toFixed(2)}:1`,
       ).toBeGreaterThanOrEqual(3);
     }
   });

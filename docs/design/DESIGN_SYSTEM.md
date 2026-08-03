@@ -43,18 +43,21 @@ Colour tokens are split by **role** so opposite theme requirements don't collide
 
 | Group | Tokens (examples) | Notes |
 |---|---|---|
-| **Colour — surfaces/text** | `bg`, `surface`, `surface-raised`, `surface-sunken`, `surface-nav`, `surface-header`, `surface-card`, `text`, `text-secondary`, `text-muted`, `on-accent`, `link`, `link-hover`, `border`, `border-strong`, `border-subtle`, `control-border`, `divider` | semantic surfaces & text, mapped in every theme. `surface-nav`/`surface-header`/`surface-card` let a theme separate navigation, chrome and cards independently. `control-border` is the **3:1** boundary that identifies a form control (WCAG 1.4.11); `border-strong` stays the decorative emphasis border |
+| **Colour — surfaces/text** | `surface-page`, `surface`, `surface-raised`, `surface-sunken`, `surface-nav`, `surface-header`, `surface-card`, `text`, `text-secondary`, `text-muted`, `on-accent`, `link`, `link-hover`, `border`, `border-strong`, `border-subtle`, `control-border`, `divider` | semantic surfaces & text, mapped in every theme. `surface-page` (DS-14) is the tinted page canvas cards sit on — it replaced `bg`, which is **retired**: two names for the page canvas is a drift generator and lets a theme satisfy the elevation contract on the token nothing paints. `surface-nav`/`surface-header`/`surface-card` let a theme separate navigation, chrome and cards independently. `control-border` is the **3:1** boundary that identifies a form control (WCAG 1.4.11); `border-strong` stays the decorative emphasis border |
 | **Colour — brand/interactive** | `accent`, `accent-hover`, `accent-active`, `accent-text`, `accent-surface`, `secondary`, `secondary-hover`, `hover-surface`, `active-surface`, `nav-selected-surface`, `nav-selected-text`, `disabled-surface`, `disabled-text`, `disabled-border` | fills vs foreground kept distinct. `nav-selected-*` (THEME-02) is the **selected navigation row** specifically — the sidebar's current module and the Settings section list — kept separate from `accent-surface` (a tinted informational region anywhere) so a theme can control "you are here" without moving every tinted panel with it |
 | **Colour — feedback** | `success{,-surface,-text}`, `warning{,-surface,-text}`, `danger{,-surface,-text}`, `info{,-surface,-text}` | never colour-only — always paired with a label/icon |
 | **Colour — priority** | `priority-p1{,-surface,-text}` … `priority-p4{,-surface,-text}` | P1–P4 are their OWN tokens, not the feedback triples: a P1 task is not an error |
 | **Colour — record states** | `state-overdue{,-surface,-text}`, `state-due-soon{…}`, `state-completed{…}`, `state-waiting{…}`, `state-on-hold{…}` | lifecycle, not feedback: "waiting on someone" is not a warning |
-| **Colour — progress & charts** | `progress-track`, `progress-fill`, `progress-complete`, `chart-1`…`chart-6` | track/fill hold 3:1; the six series are distinct in every theme |
+| **Colour — progress & charts** | `progress-track`, `progress-fill`, `progress-complete`, `chart-1`…`chart-6` | track/fill hold 3:1 — and since DS-14 the **track holds 3:1 against `surface-card` too**, so the extent of a bar is a visible boundary rather than a suggestion. The six series are distinct in every theme |
+| **Colour — Area identity (DS-14)** | `area-accent-1…6`, each with `-surface` and `-text` | the six-step identity ramp. The bare token is the **dot** (≥3:1 on a card); the `-surface`/`-text` pair is its **pill** (≥4.5:1). Role colours (`danger`, `success`, `warning`) are reserved for state and are **never** an Area accent |
+| **Colour — absence & hairlines (DS-14)** | `pill-neutral-surface`, `pill-neutral-text`, `divider-subtle` | the neutral pill is the **absence** state ("No date", "Not linked"); `divider-subtle` is within-card row separation, deliberately quieter than `border`, which stays the boundary of the card itself |
 | **Colour — loading** | `skeleton-base`, `skeleton-highlight` | the shimmer pair, tuned per theme |
 | **Colour — focus/selection/overlay** | `focus-ring`, `selection-bg`, `selection-text`, `overlay` | focus ring meets 3:1 in every theme |
-| **Typography** | `--dh-font-sans/-mono`, `--dh-font-size-2xs…3xl`, `--dh-line-height-*`, `--dh-font-weight-*`, `--dh-letter-spacing-*` | one restrained, dense ramp (base 15px) with heading/body/label/metadata/code roles |
+| **Typography** | `--dh-font-sans/-serif/-mono`, `--dh-font-size-2xs…3xl` (incl. `-compact`, 14px), `--dh-line-height-*` (incl. `-dense` 1.4, `-loose` 1.75), `--dh-font-weight-regular/medium/semibold`, `--dh-letter-spacing-*` | one restrained, dense ramp (base 15px). `--dh-font-serif` is for **prose bodies inside a Reading region only** — every title, label, control and pill stays sans. **Three weights**: `bold` (700) was removed by DS-14 and its call sites moved to `semibold` |
 | **Spacing** | `--dh-space-0…16` (+ `-px`) | 4px base scale |
-| **Sizing** | `--dh-control-height-sm/md/lg`, `--dh-touch-target-min` (44px), `--dh-width-narrow/prose/content/wide`, `--dh-shell-*`, `--dh-gutter` | control heights & content widths |
-| **Shape** | `--dh-border-width-thin/thick`, `--dh-radius-xs…xl/full` | radius scale + border widths |
+| **Sizing** | `--dh-control-height-sm/md/lg`, `--dh-touch-target-min` (44px), `--dh-width-reading/narrow/prose/content/wide`, `--dh-shell-*`, `--dh-gutter` | control heights & content widths. `--dh-width-reading` (46ch) is the Reading preset's measure cap and supersedes `--dh-width-prose` **inside a region** |
+| **Density (DS-14)** | `--dh-density-body-size/-line-height/-measure/-body-family/-numerals/-section-gap/-card-padding-block/-card-padding-inline/-row-padding-block/-row-min-height` | resolved by `data-density` on a region wrapper, not set directly. See [Surface type](#surface-type-ds-14) |
+| **Shape** | `--dh-border-width-thin/thick`, `--dh-radius-pill/card/control/field` | the **semantic** radius scale (DS-14). The geometric `--dh-radius-xs…xl/full` scale it supersedes is retained only while module groups migrate; do not reach for it in new work |
 | **Elevation** | `--dh-shadow-sm/md/lg`, `--dh-shadow-focus` | shadows are theme-mapped (softer in light, deeper in dark) |
 | **Motion** | `--dh-duration-instant/fast/base/slow`, `--dh-ease-standard/emphasized/exit` | quick, purposeful; zeroed under reduced-motion |
 | **Layout** | `--dh-breakpoint-sm…2xl`, `--dh-z-base…tooltip` | breakpoints (also in TS) & z-index layers |
@@ -84,10 +87,10 @@ What "a pair" means concretely, and what is asserted rather than asked for on tr
 - **the same token names**, declared in both blocks, so no value can fall back to the base map on one side only;
 - **only colour, entity accent and elevation** differ — geometry, spacing, type, motion and layout live on `:root` and are theme-independent, so switching cannot change the shape of the application. The E2E check measures the *rendered* radius, padding, type size and control height in both and requires them equal;
 - **no light surface leaks into the dark half** — every surface, tint, hover, disabled and skeleton value is below a luminance threshold as data, and the rendered page is swept for any element larger than a chip that paints light;
-- **the dark half is layered, not flat or black** — `sunken < bg < card < raised`, with the page held away from `#000000`;
+- **the dark half is layered, not flat or black** — `sunken < surface-page < card < raised`, with the page held away from `#000000`;
 - **the light half is warm, not sterile** — the page is off-white, the card sits *above* it.
 
-Design intent, for anyone extending them: Modern Light is a cream surround with the content plane reading as paper — a card is separated by its surface and a soft shadow rather than a hard outline. Modern Dark keeps the accent inside the narrow band that is both ≥3:1 against the page and ≥4.5:1 under white label text, which is why its hover and active states step only slightly *lighter*: a brighter indigo would lose its own button label. Violet is confined to the waiting state and one chart series, and nothing glows.
+Design intent, for anyone extending them: Modern Light is a cream surround with the content plane reading as paper. **DS-14 changed how that separation is carried**: a card was separated by its surface and a soft shadow rather than a hard outline; it is now separated by its surface value and a **hairline**, and shadow is reserved for genuinely floating layers (brief §1.8, adopted whole by ADR-068 decision 1). The character — paper on a cream surround — is unchanged; the mechanism is not. Modern Dark keeps the accent inside the narrow band that is both ≥3:1 against the page and ≥4.5:1 under white label text, which is why its hover and active states step only slightly *lighter*: a brighter indigo would lose its own button label. Violet is confined to the waiting state and one chart series, and nothing glows.
 
 `system` is an **appearance mode**, not an eighth palette: it pairs Daly Light with Daly Dark and follows `prefers-color-scheme`. Supporting the OS preference must never cost a curated theme. Choosing Modern Dark is a *choice*, so it stays Modern Dark in a light OS — an owner who wants the pair to follow their device today should use `system`, which is documented in the picker as pairing Daly Light with Daly Dark.
 
@@ -106,6 +109,176 @@ Design intent, for anyone extending them: Modern Light is a cream surround with 
 3. **A new colour token must be given a value in EVERY theme block**, including both dark blocks (the explicit one and the `prefers-color-scheme` one, which a parity test keeps byte-identical). Coverage, cross-theme parity, and WCAG contrast (4.5:1 text, 3:1 UI) are enforced by `test/unit/tokens` in every theme.
 5. **Never branch on the theme in a component.** If a component needs to know which theme is active, the missing thing is a token. The one documented exception is the theme PREVIEW swatch (`app/shared/shell/ThemePreview.tsx`), which must paint a theme it is not in and therefore sets `--dh-preview-*` inline from the colour data; a test confines those properties to that component.
 4. **Prefer a semantic token over a raw palette value.** There is no exposed raw palette; semantics are the API.
+
+---
+
+## The card-on-tint foundation (DS-14)
+
+[DS-14](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul) restyles DalyHub to a **card-on-tint** visual system: a tinted page canvas with cards raised above it, a serif reading column on prose surfaces, and two density presets keyed to what a surface *is*. The brief is [`DS_14_OVERHAUL_BRIEF.md`](DS_14_OVERHAUL_BRIEF.md); the decisions are [ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback).
+
+The direction is stated as **constraints, not adjectives** — every one of them is checkable in a diff:
+
+1. A tinted page canvas with cards raised above it at `radius-card`.
+2. Area identity carried by a small colour dot or pill. Never a filled card background, never a tinted row.
+3. Sans for all chrome, labels, controls, metadata and collection rows.
+4. Serif at a capped measure for prose bodies only.
+5. Two density presets keyed to **surface type**, not to module.
+6. Status pills, including a neutral variant that states absence in words.
+7. One progress component ([`ProgressMeter`](../../app/shared/progress)).
+8. Separation carried by surface value and a hairline, **not by shadow**, except on genuinely floating layers.
+
+### The elevation contract
+
+Every theme must satisfy, in the resolution it actually paints:
+
+> `surface-card` is perceptibly lighter than `surface-page`, and `surface-raised` perceptibly lighter than `surface-card` — **ΔL\* ≥ 3 in CIELAB**, in both light and dark palettes.
+
+ΔL\* rather than a WCAG luminance ratio because the question is "does this read as a step up", not "can this be read". The floor is 3 because that is the low end of a reliably perceptible step across a large flat area, which is the right place to put a floor every theme must clear rather than a target.
+
+It is **measured, not reviewed**, by [`test/unit/tokens/ds-14-theme-invariants.test.ts`](../../test/unit/tokens/ds-14-theme-invariants.test.ts), which enumerates the theme registry so a future theme is covered the moment it is registered and **cannot be registered while failing**. As measured on the values in `tokens.css`:
+
+| Theme | `data-theme` | `surface-page` (L\*) | `surface-card` (L\*) | ΔL\* | `surface-raised` (L\*) | ΔL\* |
+|---|---|---|---|---|---|---|
+| **Daly Light** | `daly-light` | `#ecebe8` (93.05) | `#f6f5f4` (96.59) | **3.54** | `#ffffff` (100.00) | **3.41** |
+| **Daly Dark** | `daly-dark` | `#101215` (5.39) | `#181c22` (10.11) | **4.72** | `#20242c` (14.12) | **4.01** |
+| **Modern Light** | `modern-light` | `#efeae0` (92.83) | `#f7f5f1` (96.59) | **3.76** | `#ffffff` (100.00) | **3.41** |
+| **Modern Dark** | `modern-dark` | `#0f1116` (5.06) | `#171b23` (9.70) | **4.64** | `#1f242e` (14.12) | **4.42** |
+| **Eucalypt** | `eucalypt` | `#eae8e0` (91.95) | `#f3f2ef` (95.49) | **3.55** | `#fdfcf8` (98.94) | **3.45** |
+| **Coastal** | `coastal` | `#e7ebee` (92.83) | `#f4f5f7` (96.51) | **3.68** | `#ffffff` (100.00) | **3.49** |
+| **Ember** | `ember` | `#ede8e3` (92.25) | `#f5f3f1` (95.94) | **3.69** | `#fffdfb` (99.41) | **3.47** |
+
+**No theme is exempt and there is no per-theme escape hatch.** Five of the seven light palettes could not satisfy this before DS-14 — three had `surface-card` and `surface-raised` both at `#ffffff`, with nothing above white — so their neutral ramps were recomposed. Each theme's *hue* is its own; only the lightness relationships are prescribed. A contract with an exemption is a review checklist with extra steps.
+
+The full surface ramp, ascending, in **every** theme and in both light and dark palettes:
+
+| Ordinal | Token | What it is |
+|---|---|---|
+| 1 | `surface-sunken` | wells and inset areas, below the canvas |
+| 2 | `surface-nav` / `surface-header` | the application **frame** — the rail and the header. One small step below the canvas, so the frame reads as the plane the canvas sits on, separated by a hairline |
+| 3 | `surface-page` | the tinted page canvas |
+| 4 | `surface` | in-flow secondary panels, between the canvas and a card |
+| 5 | `surface-card` | the card plane |
+| 6 | `surface-raised` | genuinely floating layers — menus, popovers, drawers |
+
+At most **two floating elevations** on screen at once; in-flow cards do not count, and drawer depth 3+ stops adding shadow rather than the stack being capped.
+
+### Shape
+
+Four semantic radius tokens. Pick by what a thing **is**, not by how round it should look:
+
+| Token | Value | Use |
+|---|---|---|
+| `--dh-radius-pill` | 999px | anything fully rounded — status pills, Area pills, dots, avatars |
+| `--dh-radius-card` | 16px | in-flow cards, panels, floating layers |
+| `--dh-radius-control` | 10px | buttons, tabs, menu items, chips with a square-ish shoulder |
+| `--dh-radius-field` | 10px | inputs, selects, textareas |
+
+`control` and `field` share a value deliberately: a button and the input beside it must agree, and one number each means they can only drift apart on purpose.
+
+**Two rules, not preferences.** There are no literal `border-radius` values in `app/` — every one is a token. And **rounded corners only ever go with a full border**; a single-sided accent border stays square. Where a state needs a loud edge on a card, it thickens or recolours one edge of the card's *existing full border* rather than adding a separate single-sided rule.
+
+### Surface type (DS-14)
+
+**Density is a property of the surface, not of a component, a module or the owner.** There is no density prop, no module branch and no user-facing switch. A region declares what kind of surface it is; the preset resolves that into sizing tokens; the components inside consume them.
+
+```tsx
+import { Region } from "~/shared/region";
+
+<Region density="collection">…</Region>   // scanned
+<Region density="reading">…</Region>      // read
+```
+
+That renders `data-density` on the wrapper, which [`tokens.css`](../../app/styles/tokens.css) resolves into `--dh-density-*` and [`density.css`](../../app/styles/density.css) paints with. Regions **nest**, and the nearest one wins, because every value is a custom property resolved by the cascade.
+
+#### The classification rule
+
+Ask one question about the surface:
+
+> **Is the owner reading this prose, or scanning this for something?**
+
+- **Reading** — continuous prose the owner reads from the start: a note body, a diary entry, a meeting summary, a review prompt and response, a project description, an area vision, a help page, release notes.
+- **Collection** — anything scanned for an item: every list and table, Today, the Eisenhower Matrix, Time Sectors, search results, the command palette, linked-items lists, the people directory, the asset list, the activity timeline, settings sections.
+
+Three follow-ups resolve almost every remaining case:
+
+1. **A record is usually both, on separate regions.** A Note record is Reading for its body and Collection for its metadata, links and activity — one route, two regions, which is expected rather than a special case. Same for a meeting, a project, an asset and a review session.
+2. **A form is Collection.** Fields, labels and controls are chrome; the owner is operating them, not reading them. A form *inside* a Reading region does not make the form Reading.
+3. **When it is genuinely ambiguous, it is Collection.** Collection is the denser, safer default: a surface wrongly set to Reading gets a serif and a 46ch cap it does not want, which is a visible error; one wrongly set to Collection is merely denser than ideal.
+
+**Do not add a third preset.** If a surface fits neither, classify it with the rule above and record the classification in the PR that touches it — a third preset is a second design system.
+
+#### The two presets
+
+|  | Reading | Collection |
+|---|---|---|
+| Body size | 16px (`--dh-font-size-md`) | 14px (`--dh-font-size-compact`) |
+| Line height | 1.75 (`--dh-line-height-loose`) | 1.4 (`--dh-line-height-dense`) |
+| Measure cap | 46ch (`--dh-width-reading`) | none |
+| Family | **serif — prose body only** | sans |
+| Row padding | n/a | 9px block, `--dh-touch-target-min` minimum |
+| Section gap | 24px (`--dh-space-6`) | 12px (`--dh-space-3`) |
+| Card padding (block / inline) | 24px / 28px | 4px / 18px |
+| Numerals | default | tabular |
+| Separator | one hairline before linked items | hairline between every row |
+
+Sizes are authored in **rem**, never px, so OS text scaling still applies to the densest surfaces in the product ([AGENTS.md §15](../../AGENTS.md#15-accessibility-requirements)); the rendered size at the default root is the number above. Row and card padding are component-internal and are px, per the brief's rhythm rule.
+
+**Card padding is block / inline.** The Collection preset's 4px block is not a mistake: the card supplies the horizontal inset and each row supplies its own 9px vertical padding, which is what makes a list with a hairline between every row have even rhythm at both of its ends.
+
+**The serif is the prose body and nothing else.** Titles, labels, metadata, controls, pills, toolbars, save status and empty states stay sans on both presets. `--dh-density-body-family` and `--dh-density-measure` are consumed by the **prose element itself**, never by the region wrapper — which is what stops the serif leaking into the chrome around it. The worked example is `.dh-note-body` in [`markdown-editor.css`](../../app/styles/markdown-editor.css): the region wrapper carries the size and rhythm, and only the editor's content area takes the family and the cap.
+
+There is deliberately **no shared `.dh-prose` class yet**. `density.css` ships only the primitives something actually renders — a shared class nothing uses is speculative CSS, and the foundation is one revertible commit in which everything should be load-bearing. The first module group that needs one adds it to `density.css` by amendment to the foundation commit, never forward into the group ([ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback) F3).
+
+### Typography
+
+Two self-hosted variable families, subset to the Latin range actually used and precached so a first offline launch has them:
+
+| Family | Role | Transferred |
+|---|---|---|
+| **Inter** (`--dh-font-sans`) | all chrome, controls, collections | 31,200 B |
+| **Source Serif 4** (`--dh-font-serif`) | prose bodies in Reading regions | 32,292 B |
+
+Both are roman only — the browser synthesises an oblique — and both declare `font-weight: 400 600`, matching the instanced axis exactly so no weight can be synthesised. `font-display: swap` means the system stack paints first and text is never invisible. Provenance, licences and the exact regeneration commands are in [`public/fonts/README.md`](../../public/fonts/README.md); the measured budget impact is in [`PWA_AND_OFFLINE.md §12`](../development/PWA_AND_OFFLINE.md#12-measurements).
+
+**Three weights: 400, 500, 600.** `bold` (700) was removed. The brief asked for two (400/500); `semibold` is kept because `e2e/themes.spec.ts` asserts the selected navigation row's *computed* weight is ≥600 — an assertion that exists because THEME-02 found a real contrast defect in exactly that treatment, and a restyle is not entitled to weaken a state cue holding a WCAG floor ([ADR-068 decision 8](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback)).
+
+### Absence, pills and Area identity
+
+**Every field, badge and progress affordance has a defined rendering when the value does not exist.** Never an empty slot, never a zeroed bar, never a hyphen — the neutral pill, stating the absence in the owner's words:
+
+```tsx
+import { StatusPill } from "~/shared/pill";
+
+<StatusPill tone="neutral">No tags</StatusPill>
+<StatusPill tone="neutral">No date</StatusPill>
+<StatusPill tone="neutral">Not linked</StatusPill>
+```
+
+A status pill always says its state in text; colour is never the sole carrier of meaning. Area identity is a **dot or a pill**, never a filled card background and never a tinted row, and the dot always carries an accessible name. An Area's accent is **derived from its stable rank** in the workspace (`(rank mod 6) + 1`) — no column, no migration, no owner-facing picker ([ADR-068 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback), and [`areaAccentForRank`](../../app/shared/pill)).
+
+### What the invariant test asserts
+
+For **every registered theme**, enumerated from the kernel registry:
+
+1. every DS-14 token resolves to a non-empty colour;
+2. ΔL\* ≥ 3 from `surface-page` → `surface-card` → `surface-raised`;
+3. `text`, `text-secondary` and `text-muted` ≥ 4.5:1 on `surface-card`;
+4. every pill surface/text pairing ≥ 4.5:1 — all six Area accents, the neutral absence pill, every role pill;
+5. `progress-fill` ≥ 3:1 on `progress-track`, and `progress-track` ≥ 3:1 on `surface-card`;
+6. every Area dot ≥ 3:1 on `surface-card`;
+7. `focus-ring` ≥ 3:1 on **both** `surface-card` and `surface-page`;
+8. `nav-selected-text` ≥ 4.5:1 on `nav-selected-surface`.
+
+Failure messages name the theme id, the token pair and the measured value. This is the enforcement mechanism — not a review checklist item, and not a row in the acceptance matrix.
+
+### Reference implementations
+
+Two surfaces prove the tokens carry the direction end to end, and are the worked examples to copy from:
+
+- **[Today](../../app/modules/today/TodayDashboard.tsx)** — the Collection reference. One region; every widget is a card on the tint with a hairline and no shadow; rhythm, body size, tabular figures and row padding all come from the preset.
+- **[A Note record](../../app/modules/notes/NoteOverview.tsx)** — the Reading reference, and the "both, on separate regions" case. The body is a Reading region — the serif column at 46ch — inside entirely sans chrome; Backlinks, Links and Activity are Collection regions on the same route.
+
+Screenshots of both, in all seven themes under both OS colour schemes: [`docs/design/assets/ds-14-2026-08/`](assets/ds-14-2026-08/), captured by [`e2e/ds-14-screenshots.spec.ts`](../../e2e/ds-14-screenshots.spec.ts).
 
 ---
 
@@ -958,7 +1131,7 @@ The shared patterns above are composed by ONE application frame ([PX-02](../road
 └──────────────┴───────────────────────────────────────────────┘
 sidebar: --dh-color-surface, --dh-shell-nav-width, icon+label rows,
 active = accent-surface tint + semibold + aria-current (never colour alone).
-Pane: --dh-color-bg. Grid: var(--dh-shell-nav-width) 1fr.
+Pane: --dh-color-surface-page. Grid: var(--dh-shell-nav-width) 1fr.
 ```
 
 - **Layout.** `AppShell` is a grid `grid-template-columns: var(--dh-shell-nav-width) 1fr`. The **document** is the scroll container and the sidebar is `position: sticky` — this preserves the [DS-03 Drawer](#shared-drawer-ds-03)'s body-scroll-lock and `ScrollRestoration` (which act on the window) while sticky Pane Headers and FilterBars still pin to the viewport (ADR-020 §20.2). There is exactly one frame; no surface builds its own.

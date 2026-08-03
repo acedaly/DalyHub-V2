@@ -297,6 +297,29 @@ They are small and well-understood; none of them blocks the V2 release.*
      commit in DS-14 permitted to touch `tokens.css`, the DS-14 stylesheet, the font
      assets or the invariant test** — which is what makes the rollback below a
      single-commit revert rather than an unwind. See ADR-068 §7.
+
+     **☑ Landed.** The token set in all seven themes (`surface-page` replacing a
+     retired `bg`, the neutral absence pill, the six Area accents with their tint
+     pairs, `divider-subtle`), the recomposed light neutral ramps — five of the
+     seven themes could not satisfy the elevation contract and three had
+     `surface-card` and `surface-raised` byte-identical at `#ffffff` — the
+     semantic radius scale, both density presets as `data-density` on a region
+     wrapper, the self-hosted Inter + Source Serif 4 subsets inside the fixed PWA
+     budgets, three weights with `bold` removed, the neutral pill and Area
+     identity primitives, and the theme invariant test wired into `pnpm verify`.
+
+     **Two deviations from the list above, stated rather than left to be
+     discovered.** The foundation restyles **two reference surfaces** — Today
+     (Collection) and a Note record (Reading + Collection on separate regions) —
+     and no others, so the direction is proved end to end on one commit's worth
+     of surface area rather than across the frame as well. The application frame
+     therefore *inherits* the recomposed ramp (it is painted from
+     `surface-page`/`surface-nav`/`surface-header`) but is not itself restyled;
+     it belongs to Group 1, which owns the floating elevations anyway. And the
+     derived Area accent ships as its token ramp plus the pure
+     `areaAccentForRank` primitive; wiring an Area's rank through the loaders
+     that would consume it is data plumbing for the surfaces that render Areas,
+     which is Group 3.
   2. **The desktop soak gate.** A hold between the foundation PR and the first module
      group. Card-on-tint is a phone-native pattern and its behaviour at 1440px and
      above is unproven ([DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)).

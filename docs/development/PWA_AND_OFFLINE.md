@@ -819,7 +819,7 @@ needs a real device.
    how many offline captures the owner makes, and `created_at` is indexed for a
    future age-based prune. Nothing prunes them today.
 8. **`theme-color` is a flat page background, not a gradient or an image.** The
-   installed window's chrome matches the theme's `--dh-color-bg`; a surface that
+   installed window's chrome matches the theme's `--dh-color-surface-page`; a surface that
    varies across the viewport cannot be represented in a single colour.
 9. **A snapshot is a full replacement, not an incremental delta.** At the measured
    8.5 kB this is not worth the complexity; revisit if it grows.
@@ -858,20 +858,76 @@ needs a real device.
 
 ## 12. Measurements
 
-Measured 2026-08-02 against the production build of V2.0.1. The same numbers are
-enforced as ceilings by `e2e/pwa-budget.spec.ts`.
+Re-measured **2026-08-03** against the production build of the DS-14 foundation.
+The same numbers are enforced as ceilings by `e2e/pwa-budget.spec.ts`. **No budget
+has been raised** — DS-14's font payload was sized to fit inside the fixed ones
+(brief §5, ADR-068 decision 4).
 
 | Metric | Measured | Budget |
 |---|---|---|
-| Service-worker script | 12,147 B | 24 kB |
-| Precached assets | 23 | 40 |
-| Precache size (uncompressed) | 674,322 B | 1.2 MB |
+| Service-worker script | 21,186 B | 24 kB |
+| Precached assets | 26 | 40 |
+| Precache size (uncompressed) | 775,431 B | 1.2 MB |
 | Snapshot payload | 8,549 B (23 tasks, 3 notes, 4 diary, 1 meeting, 7 references) | 2 MB |
 | Snapshot build (end to end) | 166–179 ms | 5 s |
 | Origin storage after priming | 78,252 B | 20 MB |
 | Origin storage after 3 syncs | 78,252 B → 78,252 B → 78,252 B (flat) | no growth |
+| Self-hosted fonts (transferred) | 63,492 B across 2 files | ≤ 70,000 B per family, ≤ 120,000 B combined (derived) |
 | Added runtime dependencies | **none** | — |
 | Effect on the online bundle | The offline provider and status surface are in the shell chunk; the offline page and its view are a separate route chunk. | — |
+
+### What DS-14 changed, and what it did not
+
+Against the immediately preceding build (24 assets, 698,257 B, service worker
+23,929 B):
+
+| | Before | After | Δ |
+|---|---|---|---|
+| Precached assets | 24 | 26 | **+2** — the two font files |
+| Precache size | 698,257 B | 775,431 B | **+77,174 B** — 63,492 B of fonts, ~13.7 kB of new shell CSS/JS (the density presets, the pill vocabulary, the region wrapper) |
+| Service-worker script | 23,929 B | 21,186 B | **−2,743 B** |
+
+**The service worker got smaller while the precache grew, and that was necessary.**
+The worker was at 23,929 B of a 24,000 B budget — 99.7%, with 71 B of headroom —
+before DS-14 touched it, and adding two precache URLs alone would have exceeded
+the ceiling. The budget was **not** raised. Instead the worker's header comment,
+roughly 3 kB of prose that restated §4 and §4.5 of this document at length, was
+reduced to a summary and a pointer. That prose was duplication (a doc-rot source)
+and, because `sw-template.js` is **served verbatim**, it was real bytes on every
+device's first install. The four load-bearing rules are still stated in the file,
+one line each, beside the code that enforces them.
+
+### Why the font ceiling is tighter than the byte budget
+
+For a `woff2` the "uncompressed" and "transferred" figures are the same number:
+the format carries its own Brotli-class compression, so a transfer-encoding pass
+gains essentially nothing. Everything else in the precache is JavaScript and CSS,
+which compresses roughly 3.7:1 over the wire. The fixed byte budget therefore
+under-counts a font by ~3.7× relative to what it counts for everything else —
+two families using 4% of the byte headroom would add over half again to what a
+first install actually downloads.
+
+So ADR-068 decision 4 **derived** a selection ceiling from the wire cost rather
+than from the byte headroom: ≤ 70,000 B transferred per family, ≤ 120,000 B
+combined. The two chosen families use **53% of it**. The fixed budget is still
+the gate; the ceiling is what decides whether a family may be chosen at all.
+
+The pre-committed drop rule (keep the sans, drop the serif) was **not** triggered:
+both families fit. Two enforcement defects ADR-068 identified were fixed in the
+same change, without which none of the above would be true:
+
+- `PUBLIC_PRECACHE_URLS` gained the font files. The plugin builds its list by
+  walking chunks and their `viteMetadata.importedCss`; a font emitted as a Rollup
+  **asset** from a CSS `url()` is neither, so it would not have been precached at
+  all — and brief §5's "no font request may be made while offline" would have
+  failed on the first offline launch.
+- `e2e/pwa-budget.spec.ts`'s URL pattern gained `woff2`. It could not previously
+  see a font, so the fonts would have been invisible to the ratchet they are
+  claimed to fit inside. A budget that structurally cannot see the thing being
+  added to it is not a budget.
+
+`/fonts/` was also added to the worker's cache-first `STATIC_PREFIXES`, so a font
+request is served from the install-time cache rather than reaching the network.
 
 ---
 

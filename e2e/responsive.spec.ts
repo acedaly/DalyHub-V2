@@ -75,6 +75,12 @@ const PRODUCT_ROUTES = [
   // journey).
   "/notes",
   "/notes?state=deleted",
+  // DS-14 — the Reading reference implementation. The record is now in the
+  // shared matrix rather than only in the Notes journey, because it is where
+  // the serif column meets its 46ch cap: a capped measure is exactly the kind
+  // of rule that overflows at 320px or strands a caret at 1440px, and the
+  // foundation is entitled to no less scrutiny than a collection.
+  "/notes/n-search-e2e",
   // PX-03 — the remaining navigation-shell Coming Soon placeholder routes
   // (Search's own sidebar affordance, /goals?tab= etc. remain covered by
   // their own suites).

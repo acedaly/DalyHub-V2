@@ -80,7 +80,7 @@ describe("PX-02 entity accent tokens", () => {
   it("meets 3:1 non-text contrast against every theme's background", () => {
     for (const themeId of THEME_IDS) {
       const effective = effectiveThemeTokens(themeId);
-      const background = effective.get("dh-color-bg")!;
+      const background = effective.get("dh-color-surface-page")!;
       for (const type of ENTITY_TYPES) {
         const accent = effective.get(`dh-entity-${type}-accent`)!;
         const ratio = contrastRatio(accent, background);

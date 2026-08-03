@@ -30,6 +30,7 @@ import { CAPTURE_TYPE_DESCRIPTORS, useCapture } from "~/shared/capture";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { Region } from "~/shared/region";
 import {
   HealthIndicator,
   healthNeedsAttention,
@@ -1052,7 +1053,10 @@ export function TodayDashboard({
             {waiting.preview.map((item) => {
               const key = `task:${item.id}`;
               return (
-                <li key={item.id} className="dh-today__waiting-item">
+                <li
+                  key={item.id}
+                  className="dh-region-row dh-today__waiting-item"
+                >
                   <a
                     className="dh-today__waiting-link"
                     href={`?${withDrawerPushed(searchParams, key).toString()}`}
@@ -1252,7 +1256,16 @@ export function TodayDashboard({
         </button>
       }
     >
-      <div className="dh-today" data-hydrated={hydrated ? "true" : "false"}>
+      {/* DS-14 reference implementation — Today is a COLLECTION region.
+          Everything on it is scanned rather than read: widgets of task rows,
+          counts, statuses and links. The preset supplies the 14px/1.4 body, the
+          tabular figures, the 12px section gap, the 9px row padding and the
+          hairline between every row; nothing here restates any of those. */}
+      <Region
+        density="collection"
+        className="dh-today"
+        data-hydrated={hydrated ? "true" : "false"}
+      >
         {/* Personalisation (TODAY-08): a calm "Customise" toggle reveals each
             widget’s move/pin/hide controls; the arrangement is remembered per device.
             Rendered only after hydration so the server markup stays stable. */}
@@ -1321,7 +1334,7 @@ export function TodayDashboard({
             </TodayWidget>
           );
         })}
-      </div>
+      </Region>
     </CollectionLayout>
   );
 }

@@ -170,7 +170,7 @@ describe("the document metadata", () => {
     const tokens = read("app/styles/tokens.css").toString("utf8");
     const rootBackground = /^:root \{(?:[\s\S]*?)\n\}/m
       .exec(tokens)?.[0]
-      .match(/--dh-color-bg:\s*([^;]+);/)?.[1]
+      .match(/--dh-color-surface-page:\s*([^;]+);/)?.[1]
       .trim();
     expect(rootBackground).toBeTruthy();
 
@@ -186,7 +186,9 @@ describe("the document metadata", () => {
         `:root\\[data-theme="${theme}"\\]\\s*\\{([\\s\\S]*?)\\n\\}`,
       ).exec(tokens)?.[1];
       expect(block, `${theme} must exist in tokens.css`).toBeTruthy();
-      const background = block?.match(/--dh-color-bg:\s*([^;]+);/)?.[1]?.trim();
+      const background = block
+        ?.match(/--dh-color-surface-page:\s*([^;]+);/)?.[1]
+        ?.trim();
       // A theme with no background of its own inherits `:root`'s.
       const expected = background ?? rootBackground;
       expect(

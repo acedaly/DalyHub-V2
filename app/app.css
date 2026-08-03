@@ -7,7 +7,10 @@
  * or duration values where a token exists (AGENTS.md §9.8).
  *
  *   1. tokens.css            — the authoritative token definitions + theme maps.
+ *   1b. fonts.css            — DS-14 self-hosted variable sans + serif.
  *   2. base.css              — document reset, typography, focus, reduced-motion.
+ *   2b. density.css          — DS-14 the two density presets (region wrappers).
+ *   2c. pill.css             — DS-14 the one pill vocabulary + Area identity mark.
  *   3. icons.css             — the PX-02 icon + entity-identity primitives.
  *   4. shell.css             — the PX-02 application frame (sidebar + pane).
  *   5. collection-layout.css — the PX-02 Shared Collection Layout.
@@ -33,7 +36,13 @@
  */
 
 @import "./styles/tokens.css";
+/* DS-14 — the two self-hosted variable families, before anything consumes them. */
+@import "./styles/fonts.css";
 @import "./styles/base.css";
+/* DS-14 — the two density presets. Early, so every later stylesheet can consume
+ * the sizing tokens a region resolves. */
+@import "./styles/density.css";
+@import "./styles/pill.css";
 @import "./styles/icons.css";
 @import "./styles/shell.css";
 @import "./styles/collection-layout.css";

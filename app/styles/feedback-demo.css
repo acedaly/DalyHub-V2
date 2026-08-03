@@ -12,7 +12,7 @@
 .fb-demo__header h1 {
   margin: 0 0 var(--dh-space-2);
   font-size: var(--dh-font-size-2xl);
-  font-weight: var(--dh-font-weight-bold);
+  font-weight: var(--dh-font-weight-semibold);
 }
 
 .fb-demo__header p {

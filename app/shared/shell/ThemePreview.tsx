@@ -37,7 +37,7 @@ function previewStyle(preference: ThemePreference): CSSProperties {
   // appearance, which is what the option's description already says it does.
   const colors = THEME_COLOR_MAPS[resolveThemeId(preference)];
   return {
-    "--dh-preview-bg": colors.bg,
+    "--dh-preview-bg": colors["surface-page"],
     "--dh-preview-card": colors["surface-card"],
     "--dh-preview-border": colors.border,
     "--dh-preview-accent": colors.accent,

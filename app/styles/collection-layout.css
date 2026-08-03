@@ -17,7 +17,7 @@
   position: sticky;
   top: 0;
   z-index: var(--dh-z-sticky);
-  background: var(--dh-color-bg);
+  background: var(--dh-color-surface-page);
 }
 
 .dh-collection__filters {
@@ -168,7 +168,7 @@
   background: var(--dh-color-accent);
   color: var(--dh-color-on-accent);
   font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-bold);
+  font-weight: var(--dh-font-weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 

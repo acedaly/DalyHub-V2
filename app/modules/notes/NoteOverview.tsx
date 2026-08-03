@@ -24,6 +24,8 @@ import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { EntityIcon } from "~/shared/entity";
 import { CopyIcon, DownloadIcon, PrinterIcon, TagIcon } from "~/shared/icons";
 import { MarkdownContent } from "~/shared/markdown";
+import { StatusPill } from "~/shared/pill";
+import { Region } from "~/shared/region";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   RecordLayout,
@@ -98,10 +100,18 @@ export function NoteOverview({
   if (updated) {
     summaryMetadata.push({ id: "updated", label: "Updated", value: updated });
   }
+  // DS-14 §8 — absence is a DESIGNED rendering, in the owner's words, not an
+  // empty slot, a zeroed count or a hyphen. The neutral pill is the one shape
+  // that says "there is nothing here yet" across the whole product.
   summaryMetadata.push({
     id: "tags",
     label: "Tags",
-    value: details.tags.length > 0 ? details.tags.join(", ") : "None",
+    value:
+      details.tags.length > 0 ? (
+        details.tags.join(", ")
+      ) : (
+        <StatusPill tone="neutral">No tags</StatusPill>
+      ),
   });
   if (archived) {
     // State in words — never a colour-only or icon-only signal (AGENTS.md §15).
@@ -227,19 +237,47 @@ export function NoteOverview({
           {
             id: "note",
             label: "Note",
-            content: (
-              <NoteContentForm
-                noteId={overview.id}
-                initialContent={details.content}
-                onSaved={onSaved}
-                suppressGuard={deleted}
-                flushRef={flushContentRef}
-              />
-            ),
+            content:
+              (
+                /* DS-14 reference implementation (Reading).
+                 *
+                 * The note body is the one thing on this record the owner READS,
+                 * so it is the one region that takes the serif at the capped
+                 * measure. Everything around it — the record header, the tabs, the
+                 * summary metadata, the editor's own toolbar and save status —
+                 * stays sans, because chrome is chrome on both presets. That
+                 * contrast, serif column inside sans chrome, is the direction this
+                 * record exists to prove. */
+                <Region density="reading" className="dh-note-body">
+                  <NoteContentForm
+                    noteId={overview.id}
+                    initialContent={details.content}
+                    onSaved={onSaved}
+                    suppressGuard={deleted}
+                    flushRef={flushContentRef}
+                  />
+                </Region>
+              ),
           },
-          { id: "backlinks", label: "Backlinks", content: backlinksTab },
-          { id: "linked", label: "Links", content: linksTab },
-          { id: "activity", label: "Activity", content: activityTab },
+          /* The same record's other three tabs are COLLECTION regions: backlinks,
+           * links and activity are all scanned, not read. One route, both
+           * presets, on separate regions — brief §7's "both" case, and the reason
+           * density is a property of the region rather than of the module. */
+          {
+            id: "backlinks",
+            label: "Backlinks",
+            content: <Region density="collection">{backlinksTab}</Region>,
+          },
+          {
+            id: "linked",
+            label: "Links",
+            content: <Region density="collection">{linksTab}</Region>,
+          },
+          {
+            id: "activity",
+            label: "Activity",
+            content: <Region density="collection">{activityTab}</Region>,
+          },
         ]}
       />
       {lifecycle.dialogs}

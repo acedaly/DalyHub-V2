@@ -127,7 +127,7 @@ describe("THEME-01 theme picker", () => {
       const style = (preview as HTMLElement).getAttribute("style") ?? "";
       // The swatch carries that theme's own background and accent, even though a
       // different theme is currently applied.
-      expect(style).toContain(THEME_COLOR_MAPS[theme.id].bg);
+      expect(style).toContain(THEME_COLOR_MAPS[theme.id]["surface-page"]);
       expect(style).toContain(THEME_COLOR_MAPS[theme.id].accent);
     }
   });

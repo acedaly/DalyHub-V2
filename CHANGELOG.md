@@ -21,6 +21,24 @@ no version number to group them under.
 
 ### Added
 
+- **DalyHub reads on a tinted page with cards raised above it.** Every theme's
+  page is now a soft tint rather than near-white, and the cards, panels and rows
+  you work in sit visibly on top of it. The separation is carried by the surfaces
+  themselves and a fine line, not by drop shadows — so the screen has depth
+  without looking busy. This is a groundwork change: **Today** and a **note
+  record** have been rebuilt on it as the two worked examples; the rest of the
+  application will follow, and in the meantime it picks up the new page tint and
+  otherwise looks as it did.
+- **Two typefaces, chosen and shipped with DalyHub.** Chrome, labels and lists
+  use Inter; the body of a note now reads in Source Serif, set in a narrow column
+  at a comfortable size. Both are served from DalyHub itself — nothing is fetched
+  from a font service, so no third party ever sees that you opened a page, and
+  they work with no connection at all. Together they add about 62 kB, which is
+  roughly a tenth of a second on a slow phone connection, and text is never
+  invisible while they load.
+- **Absence is stated in words.** Where a note has no tags, DalyHub now says "No
+  tags" on a quiet pill instead of leaving a gap. Nothing shows an empty bar or a
+  dash to mean "there is nothing here".
 - **Two new themes: Modern Light and Modern Dark.** Settings → Appearance now
   offers a matched pair — the same DalyHub, one bright and one dimmed — so you can
   move between them by time of day without anything shifting position. Modern
@@ -36,6 +54,17 @@ no version number to group them under.
 
 ### Changed
 
+- **Every theme's page and card colours were re-tuned.** All seven themes now put
+  a real, measured step between the page, the cards on it and anything floating
+  above them — before this, five of them had page and card colours close enough to
+  read as one flat surface, and three had cards and menus at exactly the same
+  white. The change is most visible in the light themes, including the default:
+  the page is a few shades deeper and cards are no longer pure white. Each theme
+  keeps its own warmth or coolness; only the relationship between its surfaces
+  changed.
+- **Progress bars are legible rather than decorative.** The track behind a
+  progress bar now has enough contrast against the card it sits on that you can
+  see how far the bar has to go, not only how far it has come.
 - **The navigation rail sits inside the application rather than beside it.** The
   hard edge between the sidebar and the page is now a quieter divider, and the
   module you are currently on is marked with a small leading bar as well as its

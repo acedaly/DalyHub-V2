@@ -64,8 +64,15 @@ test("the service worker and its precache stay within budget", async ({
   const workerBytes = Buffer.byteLength(source, "utf8");
   expect(workerBytes).toBeLessThan(SERVICE_WORKER_MAX_BYTES);
 
+  // `woff2` is in this alternation deliberately (ADR-068 decision 4). DS-14
+  // precaches two self-hosted font files; before they were added, this pattern
+  // could not see a font at all, which would have made the budget structurally
+  // blind to the one asset class being added to it. A budget that cannot see the
+  // thing it is measuring is not a budget.
   const urls = [
-    ...source.matchAll(/"(\/[^"]+\.(?:js|css|png|svg|ico|webmanifest))"/g),
+    ...source.matchAll(
+      /"(\/[^"]+\.(?:js|css|png|svg|ico|webmanifest|woff2))"/g,
+    ),
   ]
     .map((match) => match[1])
     .filter((url, index, all) => all.indexOf(url) === index);

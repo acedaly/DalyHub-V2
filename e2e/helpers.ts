@@ -26,8 +26,9 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * The canonical responsive matrix (DESIGN_SYSTEM.md → Responsive behaviour). The
  * widths are the required checkpoints — the common small phones (320/375/390),
  * a large phone (430), the tablet/`md` boundary (768), the `lg` desktop boundary
- * (1024), a common laptop (1440) and an ultra-wide monitor (2560) — so a surface
- * is proven from the narrowest supported viewport through the widest.
+ * (1024), the `xl` boundary and most common laptop width (1280), a larger laptop
+ * (1440) and an ultra-wide monitor (2560) — so a surface is proven from the
+ * narrowest supported viewport through the widest.
  *
  * MOBILE-01 added the two the matrix genuinely lacked:
  *
@@ -47,6 +48,11 @@ export const RESPONSIVE_VIEWPORTS = [
   { label: "phone-landscape", width: 844, height: 390 },
   { label: "tablet-768", width: 768, height: 1024 },
   { label: "desktop-1024", width: 1024, height: 768 },
+  // DS-14 brief §10 sets the verification widths at 320/375/390/430/768/1280/1440.
+  // 1280 was the one this matrix did not carry — it is the `xl` breakpoint and the
+  // most common laptop width, and a matrix that skips its own breakpoint boundary
+  // is proving the two sides of it and not the edge.
+  { label: "desktop-1280", width: 1280, height: 800 },
   { label: "desktop-1440", width: 1440, height: 900 },
   { label: "ultrawide-2560", width: 2560, height: 1440 },
 ] as const;
