@@ -103,33 +103,23 @@
 }
 
 /*
- * Separation while PINNED only. An always-on rule under the header is a band of
- * chrome on a page that has none; a rule that appears when content has scrolled
- * beneath it is the same information, shown when it is true. `animation-timeline`
- * is progressively enhanced — where it is unsupported the header simply keeps
- * the page tint, which is the pre-DS-14 behaviour and never a broken one.
+ * The pinned header's separation is a plain, always-on hairline.
+ *
+ * It was briefly a SCROLL-DRIVEN animation (`animation-timeline: scroll()`),
+ * fading the rule in only once content had scrolled beneath — the same
+ * information, shown when it is true. That is removed: CI produced an identical
+ * Chromium renderer SEGV (`signal 11`, same stack, `cr2: 0x1b0`) in two
+ * unrelated specs on two shards, and a scroll timeline was by a distance the
+ * most exotic thing in this change. Causation is not proven, but the trade is
+ * not close: the effect is decorative, and no decoration is worth a chance of
+ * crashing the renderer.
+ *
+ * `divider-subtle` rather than `divider` keeps it quiet enough that an
+ * always-on rule does not become the band of chrome the fade was avoiding.
  */
-@supports (animation-timeline: scroll()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .dh-collection__sticky {
-      animation: dh-sticky-separate linear both;
-      animation-timeline: scroll();
-      animation-range: 0 var(--dh-space-6);
-    }
-  }
-}
-
-@keyframes dh-sticky-separate {
-  from {
-    border-block-end-color: transparent;
-  }
-  to {
-    border-block-end-color: var(--dh-color-divider);
-  }
-}
-
 .dh-collection__sticky {
-  border-block-end: var(--dh-border-width-thin) solid transparent;
+  border-block-end: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
 }
 
 /* The bottom-anchored selection / bulk-action bar sticks to the pane bottom. */

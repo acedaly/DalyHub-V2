@@ -91,14 +91,26 @@ function NewAreaFormHost() {
 }
 
 /*
- * DS-14 §8 — the Area identity dot, keyed to the Area's RANK in its workspace.
+ * DS-14 §8 — the Area identity dot, keyed to the Area's position in this list.
  *
- * The rank is the row's index in this accumulated list, and that is exact
- * rather than convenient: `listAreas` returns the workspace's Areas in the
- * canonical `(created_at, id)` order (ADR-065 decision 3) and the keyset
- * pagination accumulates pages in that order, so the index IS the rank
- * ADR-068 decision 5 defines. No column, no migration, no new query and no
- * second ordering to keep in step.
+ * The accent comes from the row's index in the accumulated collection.
+ * `listAreas` returns Areas in the canonical `(created_at, id)` order
+ * (ADR-065 decision 3) and the keyset pagination accumulates pages in that
+ * order, so the index is stable across pagination, deterministic, and costs no
+ * column, no migration and no new query.
+ *
+ * IT IS NOT ADR-068 decision 5's rank, and the difference matters. That
+ * decision ranks over EVERY `area` row regardless of lifecycle state, precisely
+ * so archiving or soft-deleting one Area leaves every other Area's colour
+ * untouched. This list is the ACTIVE one — `listAreas` filters
+ * `deleted_at IS NULL AND archived_at IS NULL` — so archiving an early Area
+ * renumbers and recolours every Area created after it.
+ *
+ * Closing that gap needs the rank resolved where Areas are READ, which is a
+ * query change and outside this restyle's scope. Recorded as DEBT-74 with the
+ * shape of the fix rather than left to be discovered; it is bounded by brief
+ * §10, which is why the dot is never the only thing telling two Areas apart —
+ * it always carries an accessible name and always sits beside the Area's title.
  */
 function toCardProps(
   card: ReturnType<typeof toAreaCardData> & { readonly rank: number },
