@@ -47,8 +47,6 @@
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
   color: var(--dh-color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
 }
 
 .af-demo__controls label {

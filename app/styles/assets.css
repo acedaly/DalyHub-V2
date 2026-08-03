@@ -473,7 +473,6 @@
   margin: 0 0 var(--dh-space-2);
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--dh-color-text-muted);
 }

@@ -14,6 +14,7 @@
 
 import { useId } from "react";
 
+import { Region } from "~/shared/region";
 import { useSetMobileTopBar } from "~/shared/shell/mobile-top-bar-context";
 
 import { RecordHeader } from "./RecordHeader";
@@ -64,7 +65,23 @@ export function RecordLayout({
   });
 
   return (
-    <article className="record-layout" aria-labelledby={resolvedTitleId}>
+    /*
+     * DS-14 §4 — a record is a Collection region by default.
+     *
+     * Its header, status, metadata, tabs, linked items and activity are all
+     * things the owner SCANS, and that is the majority of every record in the
+     * product. The minority — a note body, an area vision, a project
+     * description, a meeting summary, a review response — declares its own
+     * Reading region around the prose itself, and the nearest wrapper wins. So
+     * the mixed record the brief describes composes without either surface
+     * having to know about the other.
+     */
+    <Region
+      as="article"
+      density="collection"
+      className="record-layout"
+      aria-labelledby={resolvedTitleId}
+    >
       <RecordHeader
         title={title}
         titleId={resolvedTitleId}
@@ -101,6 +118,6 @@ export function RecordLayout({
           <div className="record-layout__content">{children}</div>
         )
       )}
-    </article>
+    </Region>
   );
 }

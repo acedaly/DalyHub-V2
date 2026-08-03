@@ -178,8 +178,6 @@
   gap: var(--dh-space-1);
   color: var(--dh-color-text-muted);
   font-size: var(--dh-font-size-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
   font-weight: var(--dh-font-weight-medium);
 }
 
@@ -560,6 +558,288 @@
    * having to order the array by hand. */
   .dh-card__meta[data-priority="high"] {
     order: -1;
+  }
+}
+
+/* ========================================================================== */
+/* DS-14 — the card as a COLLECTION ROW                                       */
+/* ========================================================================== */
+
+/*
+ * Inside a Collection region the shared Card stops being a card and becomes a
+ * ROW, and the COLLECTION becomes the card. This is the single change that
+ * carries the card-on-tint direction across every module at once: Tasks, Areas,
+ * Goals, Projects, Notes, Diary, Meetings, People, Assets, Reviews, Search and
+ * every linked-items list render through this one component, so they all adopt
+ * the row density here rather than each growing its own list CSS.
+ *
+ * WHY THE GROUP, NOT THE ITEM, IS THE CARD. Fifty cards on a tint is fifty
+ * elevation decisions the eye has to make; one card holding fifty hairline rows
+ * is one. It is also what makes a dense list dense — a per-row border, radius,
+ * shadow and gap cost ~28px of vertical space per row that carries no
+ * information. Brief §3: separation by surface value and a hairline, and
+ * shadows reserved for genuinely floating layers.
+ *
+ * Nothing is removed. The row keeps every element the card had, its selection
+ * control, its actions, its accessible names and its 44px targets — the
+ * elements are REGROUPED into a primary line and a supporting run (see
+ * `Card.tsx`), not edited.
+ */
+
+/* The group: one in-flow card, hairline border, no shadow. */
+[data-density="collection"] .dh-card-collection--list {
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-card);
+  padding-block: var(--dh-density-card-padding-block);
+  padding-inline: var(--dh-density-card-padding-inline);
+  gap: 0;
+}
+
+/*
+ * A collection ALREADY INSIDE a card does not draw a second one.
+ *
+ * Today's widgets, a record's tab panel and a linked-items panel are all cards
+ * that host a row collection; without this the group paints its surface, border
+ * and radius inside a surface, border and radius that are already there — the
+ * nested-card failure the direction rules out, and the one that shows up
+ * wherever a shared list is embedded rather than routed to. The rows keep their
+ * hairlines; only the container steps aside.
+ */
+[data-density="collection"]
+  :where(
+    .dh-region-card,
+    .dh-card,
+    .record-tabs__panel,
+    .record-layout__content,
+    .record-summary,
+    .dh-panel-card
+  )
+  .dh-card-collection--list {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* The hairline sits BETWEEN rows — never before the first or after the last, so
+ * the group's own border is the only edge at its ends. */
+[data-density="collection"]
+  .dh-card-collection--list
+  > .dh-card-collection__item
+  + .dh-card-collection__item {
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
+}
+
+/*
+ * The row itself: no border, no radius, no shadow — but it keeps an OPAQUE
+ * surface, and that is load-bearing rather than incidental. TODAY-06's swipe
+ * tray is a real element parked behind the card surface and revealed by
+ * translating it; a transparent row shows the tray at rest on every row at
+ * every width. The row paints the group's own `surface-card`, so it is
+ * invisible against it and the tray stays hidden until a finger moves it.
+ */
+[data-density="collection"] .dh-card-collection--list .dh-card {
+  align-items: center;
+  gap: var(--dh-space-3);
+  padding-block: var(--dh-density-row-padding-block);
+  padding-inline: 0;
+  min-block-size: var(--dh-density-row-min-height);
+  background: var(--dh-color-surface-card);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* A row highlights by SURFACE, not by growing an outline that would reflow the
+ * hairline grid. The paired shadows bleed the highlight into the group's inline
+ * padding so it reads as a full-width row rather than a floating strip. */
+[data-density="collection"] .dh-card-collection--list .dh-card:hover {
+  border-color: transparent;
+  background: var(--dh-color-hover-surface);
+  box-shadow:
+    calc(-1 * var(--dh-density-card-padding-inline)) 0 0
+      var(--dh-color-hover-surface),
+    var(--dh-density-card-padding-inline) 0 0 var(--dh-color-hover-surface);
+}
+
+/* Selection stays a surface + the native checked control, never colour alone. */
+[data-density="collection"]
+  .dh-card-collection--list
+  .dh-card[data-selected="true"] {
+  border-color: transparent;
+  background: var(--dh-color-accent-surface);
+  box-shadow:
+    calc(-1 * var(--dh-density-card-padding-inline)) 0 0
+      var(--dh-color-accent-surface),
+    var(--dh-density-card-padding-inline) 0 0 var(--dh-color-accent-surface);
+}
+
+/* The swipe wrapper owns elevation and shape on a standalone card; inside a row
+ * collection the GROUP owns both, so the wrapper carries neither. */
+[data-density="collection"] .dh-card-collection--list .dh-card-swipe,
+[data-density="collection"] .dh-card-collection--list .dh-card-swipe:hover {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/*
+ * A single-sided accent stays SQUARE (brief §2): a 3px rule against a 16px
+ * radius produces a malformed corner, so the row — which has no radius — is
+ * where an accent rule belongs, and it is drawn as an inset shadow rather than
+ * a border so it never shifts the row's text off the group's inline rhythm.
+ */
+[data-density="collection"] .dh-card-collection--list .dh-card[data-accent] {
+  border-inline-start: 0;
+}
+
+/* The primary line: what the owner scans. Title left, state right. */
+.dh-card__line {
+  display: contents;
+}
+
+[data-density="collection"] .dh-card__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+[data-density="collection"] .dh-card__body {
+  gap: 2px;
+}
+
+[data-density="collection"] .dh-card__heading {
+  display: contents;
+}
+
+/* The type cue keeps its icon and drops the shouted label — the collection's own
+ * heading already says what these are, and "TASK" repeated fifty times down a
+ * left edge is noise, not information. The label stays in the accessibility
+ * tree, so a mixed collection (Search, linked items) still announces the type. */
+[data-density="collection"] .dh-card__type {
+  flex: 0 0 auto;
+  order: -1;
+}
+
+[data-density="collection"] .dh-card__type-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+[data-density="collection"] .dh-card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--dh-font-size-base);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-snug);
+}
+
+[data-density="collection"] .dh-card__status {
+  flex: 0 0 auto;
+  order: 9;
+  margin-inline-start: auto;
+}
+
+/* The supporting run: everything that QUALIFIES the row, on one wrapped line. */
+.dh-card__support {
+  display: contents;
+}
+
+[data-density="collection"] .dh-card__support {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--dh-space-3);
+  min-width: 0;
+}
+
+[data-density="collection"] .dh-card__support:empty {
+  display: none;
+}
+
+[data-density="collection"] .dh-card__subtitle,
+[data-density="collection"] .dh-card__context,
+[data-density="collection"] .dh-card__date,
+[data-density="collection"] .dh-card__meta {
+  font-size: var(--dh-font-size-xs);
+  line-height: var(--dh-line-height-snug);
+  color: var(--dh-color-text-secondary);
+}
+
+[data-density="collection"] .dh-card__metadata {
+  margin: 0;
+  gap: 2px var(--dh-space-3);
+}
+
+[data-density="collection"] .dh-card__date {
+  margin: 0;
+}
+
+/* Progress in a row is compact and always keeps its text value beside it. */
+[data-density="collection"] .dh-card__progress {
+  margin: 0;
+  flex: 0 1 12rem;
+  min-width: 6rem;
+  gap: var(--dh-space-2);
+}
+
+[data-density="collection"] .dh-card__progress-track {
+  block-size: 6px;
+  background: var(--dh-color-progress-track);
+}
+
+[data-density="collection"] .dh-card__progress-fill {
+  background: var(--dh-color-progress-fill);
+}
+
+/* Actions stay visible on touch and reveal on hover/focus on a pointer device —
+ * unchanged behaviour, sized down so a row does not grow to fit them. */
+[data-density="collection"] .dh-card-collection--list .dh-card__actions {
+  align-self: center;
+}
+
+/*
+ * A GRID or BOARD collection keeps genuine cards: those presentations exist
+ * precisely because their items are tiles, not rows. They take the group's
+ * surface and hairline treatment so they match the rest of the system, and they
+ * still take no shadow.
+ */
+[data-density="collection"] .dh-card-collection--grid .dh-card,
+[data-density="collection"] .dh-card-collection--board .dh-card {
+  background: var(--dh-color-surface-card);
+  border-radius: var(--dh-radius-card);
+  box-shadow: none;
+}
+
+[data-density="collection"] .dh-card-collection--grid .dh-card:hover,
+[data-density="collection"] .dh-card-collection--board .dh-card:hover {
+  box-shadow: none;
+  border-color: var(--dh-color-border-strong);
+}
+
+/* At 320–480px the row gives the supporting run its own full line rather than
+ * competing with the title for a 260px column. */
+@media (max-width: 30rem) {
+  [data-density="collection"] .dh-card-collection--list {
+    padding-inline: var(--dh-space-3);
+  }
+
+  [data-density="collection"] .dh-card-collection--list .dh-card {
+    flex-wrap: nowrap;
+  }
+
+  [data-density="collection"] .dh-card-collection--list .dh-card__actions {
+    flex-basis: auto;
+    margin-top: 0;
   }
 }
 

@@ -88,8 +88,6 @@
 .dh-capture-chips__label {
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
   color: var(--dh-color-text-muted);
 }
 

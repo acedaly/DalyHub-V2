@@ -220,34 +220,48 @@ export function Card(props: CardProps) {
       ) : null}
 
       <div className="dh-card__body">
-        <div className="dh-card__heading">
-          <div className="dh-card__type">
-            {icon ? (
-              <span className="dh-card__icon" aria-hidden="true">
-                {icon}
+        {/*
+         * DS-14 — the PRIMARY line and the SUPPORTING run.
+         *
+         * The two wrappers exist so a Collection region can lay a card out as a
+         * dense ROW without the module changing anything: the primary line is
+         * what the owner scans (type cue, title, state), the supporting run is
+         * everything that qualifies it. In a Reading region they stack exactly
+         * as they did before, so the wrappers cost nothing where a card is
+         * still a card. No information moves between them and none is dropped —
+         * this is grouping, not editing.
+         */}
+        <div className="dh-card__line">
+          <div className="dh-card__heading">
+            <div className="dh-card__type">
+              {icon ? (
+                <span className="dh-card__icon" aria-hidden="true">
+                  {icon}
+                </span>
+              ) : null}
+              {typeLabel ? (
+                <span className="dh-card__type-label">{typeLabel}</span>
+              ) : null}
+            </div>
+            {status ? (
+              <span
+                className="dh-card__status"
+                data-tone={status.tone ?? "neutral"}
+              >
+                {status.label}
               </span>
             ) : null}
-            {typeLabel ? (
-              <span className="dh-card__type-label">{typeLabel}</span>
-            ) : null}
           </div>
-          {status ? (
-            <span
-              className="dh-card__status"
-              data-tone={status.tone ?? "neutral"}
-            >
-              {status.label}
-            </span>
-          ) : null}
-        </div>
 
-        <TitleHeading id={titleId} className="dh-card__title">
-          {titleNode}
-        </TitleHeading>
+          <TitleHeading id={titleId} className="dh-card__title">
+            {titleNode}
+          </TitleHeading>
+        </div>
 
         {subtitle ? <p className="dh-card__subtitle">{subtitle}</p> : null}
 
-        {context ? (
+        <div className="dh-card__support">
+          {context ? (
           <p className="dh-card__context">
             <span className="dh-visually-hidden">In </span>
             {context.href ? (
@@ -307,10 +321,11 @@ export function Card(props: CardProps) {
         ) : null}
 
         {dateLabel ? (
-          <p className="dh-card__date" data-tone={dateLabel.tone ?? "neutral"}>
-            {dateLabel.label}
-          </p>
-        ) : null}
+            <p className="dh-card__date" data-tone={dateLabel.tone ?? "neutral"}>
+              {dateLabel.label}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {(quickActions && quickActions.length > 0) || overflowItems.length > 0 ? (

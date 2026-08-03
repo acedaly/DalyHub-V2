@@ -62,13 +62,23 @@
  * page; the divider token is the semantic for an internal separation and lets the
  * rail sit inside the application. Every theme still gets a real edge — the token
  * has a value in all of them — it is simply the quieter one. */
+/*
+ * DS-14 — the rail sits ON the tint, not beside it.
+ *
+ * THEME-02 quietened the rail's edge from a border to a divider for exactly this
+ * reason; card-on-tint finishes the job. With cards carrying the structure, a
+ * rail that paints its own surface and draws its own full-height edge is a
+ * second panel competing with them — the enterprise silhouette the direction is
+ * moving away from. Removing both leaves navigation as part of the canvas, and
+ * the selected row (a tinted pill on the page tint) becomes the only thing on
+ * the rail with a surface, which is what "you are here" should be.
+ */
 .dh-sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-2);
-  padding: var(--dh-space-4) var(--dh-space-3);
-  background: var(--dh-color-surface-nav);
-  border-right: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding: var(--dh-space-5) var(--dh-space-3) var(--dh-space-4);
+  background: transparent;
   min-width: 0;
 }
 
@@ -402,8 +412,6 @@
 
 .dh-user-menu__section .theme-control legend {
   font-size: var(--dh-font-size-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
   color: var(--dh-color-text-muted);
   padding: 0 0 var(--dh-space-1);
 }
@@ -532,15 +540,24 @@
 /* The pane header is a structural header; stickiness is applied by the collection
  * sticky wrapper (collection-layout.css) so the header and filter bar pin together.
  * Standalone document pages use it non-sticky. */
+/*
+ * DS-14 — the page header is part of the canvas, not a bar bolted above it.
+ *
+ * Its own surface plus a full-width rule made every route open with a band of
+ * chrome before any content. On the tint it simply IS the top of the page: the
+ * title carries the hierarchy, and the cards below carry the structure. It
+ * still pins (the sticky wrapper paints `surface-page`, so scrolled content
+ * never shows through) and it still separates when pinned — see the shadow on
+ * `.dh-collection__sticky` in collection-layout.css.
+ */
 .dh-pane-header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--dh-space-3) var(--dh-space-4);
-  padding: var(--dh-space-4) var(--dh-gutter);
-  background: var(--dh-color-surface-header);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-4);
+  background: transparent;
 }
 
 .dh-pane-header__lead {
@@ -554,9 +571,17 @@
   min-width: 0;
 }
 
+/*
+ * DS-14 typography — a page title is a heading, not a banner. It steps down from
+ * the display size a marketing page would use to one that leads the content
+ * beneath it, at `medium` rather than `bold`: hierarchy comes from size, colour
+ * and space, and reserving weight means the WEIGHT still means something where
+ * it is used (a selected nav row, a title against its metadata).
+ */
 .dh-pane-header__title {
   margin: 0;
-  font-size: var(--dh-font-size-2xl);
+  font-size: var(--dh-font-size-xl);
+  font-weight: var(--dh-font-weight-medium);
   line-height: var(--dh-line-height-tight);
   letter-spacing: var(--dh-letter-spacing-tight);
   overflow-wrap: anywhere;

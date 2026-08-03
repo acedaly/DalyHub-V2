@@ -228,8 +228,6 @@
   color: var(--dh-color-text-muted);
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wider);
-  text-transform: uppercase;
 }
 
 .dh-theme-switch__options {

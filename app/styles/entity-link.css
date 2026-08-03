@@ -69,8 +69,6 @@
 
 .dh-entity-relationship__kind {
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
   color: var(--dh-color-text-muted);
 }
 

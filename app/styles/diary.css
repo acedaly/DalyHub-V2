@@ -271,8 +271,6 @@
   border-block-end: var(--dh-border-width-thin) solid var(--dh-color-divider);
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-secondary);
 }
 
@@ -407,8 +405,6 @@
   border-radius: var(--dh-radius-full);
   font-size: var(--dh-font-size-2xs);
   font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-secondary);
   background: var(--dh-color-surface-sunken);
 }
@@ -497,8 +493,6 @@
 .dh-diary-detail__fact dt {
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-muted);
 }
 
@@ -517,8 +511,6 @@
   border-radius: var(--dh-radius-full);
   font-size: var(--dh-font-size-2xs);
   font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-secondary);
   background: var(--dh-color-surface-sunken);
 }
@@ -589,8 +581,6 @@
   margin-block-end: var(--dh-space-2);
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-muted);
 }
 

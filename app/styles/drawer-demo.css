@@ -50,8 +50,6 @@
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-medium);
   color: var(--dh-color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
 }
 
 .drawer-demo__field input {
@@ -109,8 +107,6 @@
   display: block;
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
   color: var(--dh-color-accent-text);
 }
 

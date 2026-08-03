@@ -21,13 +21,66 @@
 }
 
 .dh-collection__filters {
-  padding: var(--dh-space-3) var(--dh-gutter);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding: var(--dh-space-2) var(--dh-gutter) var(--dh-space-3);
 }
 
+/*
+ * DS-14 — a page has a MEASURE, on collections as well as on prose.
+ *
+ * At 1440px an uncapped list is a 1200px row with a title at one end and a
+ * status pill at the other and a quarter-second of eye travel between them;
+ * that is the "stretched mobile application" the brief names. The cap is
+ * generous enough that a dense list still uses the desktop — `--dh-width-wide`
+ * (90rem) is wider than the reading measure by an order of magnitude — and it
+ * keeps the card a card rather than a full-bleed slab.
+ *
+ * Aligned to the START rather than centred: the rail is on the left, so a
+ * centred column would drift away from it as the viewport grows and leave the
+ * navigation pointing at nothing. `--dh-gutter` on the inline end keeps the
+ * ultra-wide case from running the card to the window edge.
+ */
 .dh-collection__content {
   flex: 1;
-  padding: var(--dh-space-5) var(--dh-gutter) var(--dh-space-8);
+  padding: var(--dh-space-4) var(--dh-gutter) var(--dh-space-8);
+  max-inline-size: calc(var(--dh-width-wide) + 2 * var(--dh-gutter));
+}
+
+/* The header shares the content measure, so a title and its list start on the
+ * same line and a primary action never floats off to a far edge. */
+.dh-collection__sticky > .dh-pane-header,
+.dh-collection__filters,
+.dh-collection__mobile-controls {
+  max-inline-size: calc(var(--dh-width-wide) + 2 * var(--dh-gutter));
+}
+
+/*
+ * Separation while PINNED only. An always-on rule under the header is a band of
+ * chrome on a page that has none; a rule that appears when content has scrolled
+ * beneath it is the same information, shown when it is true. `animation-timeline`
+ * is progressively enhanced — where it is unsupported the header simply keeps
+ * the page tint, which is the pre-DS-14 behaviour and never a broken one.
+ */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .dh-collection__sticky {
+      animation: dh-sticky-separate linear both;
+      animation-timeline: scroll();
+      animation-range: 0 var(--dh-space-6);
+    }
+  }
+}
+
+@keyframes dh-sticky-separate {
+  from {
+    border-block-end-color: transparent;
+  }
+  to {
+    border-block-end-color: var(--dh-color-divider);
+  }
+}
+
+.dh-collection__sticky {
+  border-block-end: var(--dh-border-width-thin) solid transparent;
 }
 
 /* The bottom-anchored selection / bulk-action bar sticks to the pane bottom. */
@@ -201,8 +254,6 @@
   margin: 0;
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
   color: var(--dh-color-text-muted);
 }
 

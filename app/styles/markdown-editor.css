@@ -523,7 +523,6 @@
   flex: 0 0 auto;
   color: var(--dh-color-text-secondary);
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 

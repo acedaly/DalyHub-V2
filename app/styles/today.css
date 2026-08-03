@@ -517,6 +517,15 @@
 }
 
 /* The collapse toggle IS the heading — a quiet, calm label in the Today rhythm. */
+/*
+ * DS-14 — a widget heading is a SECTION HEADING, not a caption.
+ *
+ * It was 12px, letter-spaced and muted, which reads as a label attached to the
+ * card rather than as the name of what is in it — so a page of six widgets had
+ * six equally quiet labels and no hierarchy between the card and its contents.
+ * At the collection body size in the primary text colour it leads its rows,
+ * and the count beside it stays secondary.
+ */
 .dh-today-widget__toggle {
   display: inline-flex;
   align-items: center;
@@ -524,15 +533,15 @@
   min-height: var(--dh-control-height-sm);
   padding: 0;
   font: inherit;
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--dh-font-size-base);
   font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
+  color: var(--dh-color-text);
   background: transparent;
   border: none;
   cursor: pointer;
   text-align: left;
 }
+
 
 .dh-today-widget__toggle:hover {
   color: var(--dh-color-text);
@@ -560,6 +569,8 @@
 
 .dh-today-widget__count {
   font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-font-weight-regular);
 }
 
 .dh-today-widget__pin-flag {
@@ -618,20 +629,26 @@
 
 /* -- Morning Brief ---------------------------------------------------------- */
 
+/*
+ * DS-14 — the brief is the widget's CONTENT, not a card inside a card.
+ *
+ * It painted its own `surface-card` and its own 16px radius while sitting
+ * inside a widget already doing both, which is the "cards inside cards without
+ * meaningful hierarchy" the direction rules out: two identical surfaces, one
+ * inset in the other, communicating nothing by being two. The widget is the
+ * card; the brief lives on it.
+ */
 .dh-morning-brief {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
-  padding: var(--dh-space-5);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  padding-block: var(--dh-space-2) var(--dh-space-1);
 }
 
 .dh-morning-brief__greeting {
   margin: 0;
-  font-size: var(--dh-font-size-xl);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-medium);
   color: var(--dh-color-text);
 }
 

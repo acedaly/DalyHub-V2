@@ -71,8 +71,6 @@
 
 .dh-task-drawer__relationship-kind {
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
   color: var(--dh-color-text-muted);
 }
 
@@ -112,8 +110,6 @@
 .dh-task-waiting__badge {
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
   color: var(--dh-color-warning-text);
 }
 
@@ -142,8 +138,6 @@
 
 .dh-task-waiting__legend {
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
   color: var(--dh-color-text-muted);
   padding: 0;
   margin-bottom: var(--dh-space-1);
@@ -192,8 +186,6 @@
 
 .dh-task-planning__date dt {
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
   color: var(--dh-color-text-muted);
 }
 
