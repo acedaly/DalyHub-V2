@@ -48,6 +48,7 @@ export function Card(props: CardProps) {
     id,
     typeLabel,
     icon,
+    identity,
     accent = "neutral",
     title,
     titleEditor,
@@ -197,6 +198,8 @@ export function Card(props: CardProps) {
           {reorderHandle}
         </div>
       ) : null}
+
+      {identity ? <div className="dh-card__identity">{identity}</div> : null}
 
       {selection ? (
         // A `label` wrapping the checkbox so the whole cell is a 44px touch target

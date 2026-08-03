@@ -29,6 +29,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { AreaDot } from "~/shared/pill";
 
 import { NewAreaForm } from "./NewAreaForm";
 import { toAreaCardData, type SerializedAreaListItem } from "./area-view";
@@ -89,8 +90,19 @@ function NewAreaFormHost() {
   );
 }
 
+/*
+ * DS-14 §8 — the Area identity dot, keyed to the Area's RANK in its workspace.
+ *
+ * The rank is the row's index in this accumulated list, and that is exact
+ * rather than convenient: `listAreas` returns the workspace's Areas in the
+ * canonical `(created_at, id)` order (ADR-065 decision 3) and the keyset
+ * pagination accumulates pages in that order, so the index IS the rank
+ * ADR-068 decision 5 defines. No column, no migration, no new query and no
+ * second ordering to keep in step.
+ */
 function toCardProps(
-  card: ReturnType<typeof toAreaCardData>,
+  card: ReturnType<typeof toAreaCardData> & { readonly rank: number },
+  rank: number,
   onOpenArea: (id: string) => void,
 ): CardProps {
   const metadata: CardMetaItem[] = [
@@ -121,6 +133,7 @@ function toCardProps(
     title: card.title,
     typeLabel: "Area",
     icon: <EntityIcon type="area" />,
+    identity: <AreaDot rank={rank} name={card.title} />,
     headingLevel: 2,
     status: card.state,
     metadata,
@@ -191,7 +204,8 @@ function AreasCollection({
     nextCursor,
   );
   const cards = useMemo(
-    () => items.map((area) => toAreaCardData(area)),
+    // The index is the Area's rank in the workspace — see `toCardProps`.
+    () => items.map((area, rank) => ({ ...toAreaCardData(area), rank })),
     [items],
   );
   const count = items.length;
@@ -252,7 +266,9 @@ function AreasCollection({
         ariaLabel="Areas"
         presentation="list"
         density="comfortable"
-        renderCard={(card) => <Card {...toCardProps(card, onOpenArea)} />}
+        renderCard={(card) => (
+          <Card {...toCardProps(card, card.rank, onOpenArea)} />
+        )}
       />
       {!failed && hasMore ? (
         <LoadMore

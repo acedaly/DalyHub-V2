@@ -694,6 +694,20 @@
   border-inline-start: 0;
 }
 
+/*
+ * The identity mark sits at the head of the row, in its own column, so a column
+ * of Area dots lines up down the list and the eye can use it. Sized to the
+ * touch-target height rather than to the dot, so the mark never shrinks the row
+ * or crowds the selection control beside it.
+ */
+.dh-card__identity {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  min-block-size: var(--dh-space-6);
+}
+
 /* The primary line: what the owner scans. Title left, state right. */
 .dh-card__line {
   display: contents;

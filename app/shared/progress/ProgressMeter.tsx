@@ -28,6 +28,8 @@
 
 import { useId } from "react";
 
+import { StatusPill } from "~/shared/pill";
+
 export interface ProgressMeterProps {
   /**
    * The label naming what is progressing (e.g. "Roll-up progress"). Always
@@ -65,12 +67,28 @@ export function ProgressMeter({
   const complete = available && value >= 100;
 
   return (
-    <div className="dh-progress">
+    <div className="dh-progress" data-available={available ? "true" : "false"}>
       <p className="dh-progress__header">
         <span className="dh-progress__label" id={labelId}>
           {label}
         </span>
-        <span className="dh-progress__summary">{summary}</span>
+        {/*
+         * DS-14 §8 — when there is nothing to measure, the summary IS the
+         * absence state, so it is rendered as the shared neutral absence pill
+         * rather than as a sentence that happens to say "no".
+         *
+         * The wording is unchanged and still comes from the caller: the pill
+         * accepts whatever truthful phrase the surface owns ("No Projects
+         * contributing yet", "No progress metric", "No tasks yet"), because the
+         * surface knows what is absent and the design system only knows how
+         * absence should look. Absence is now a designed rendering everywhere
+         * it occurs instead of being styled once per module.
+         */}
+        {available ? (
+          <span className="dh-progress__summary">{summary}</span>
+        ) : (
+          <StatusPill>{summary}</StatusPill>
+        )}
       </p>
       {available ? (
         <div

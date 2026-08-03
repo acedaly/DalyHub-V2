@@ -146,6 +146,18 @@ export interface CardProps {
   readonly typeLabel?: string;
   /** Optional entity icon/glyph (decorative; `typeLabel` names it). */
   readonly icon?: ReactNode;
+  /**
+   * DS-14 — an identity MARK for this record, rendered at the head of the row:
+   * an `AreaDot`, or an `AreaPill` where the Area's name is not already
+   * adjacent.
+   *
+   * A slot rather than an `areaRank` prop, because the card must not learn what
+   * an Area is — it renders a mark, and the Areas module decides what the mark
+   * says. Unlike `icon` this is NOT wrapped in `aria-hidden`: an identity mark
+   * carries its own accessible name, which is what keeps the colour from being
+   * the only thing distinguishing two records (brief §10).
+   */
+  readonly identity?: ReactNode;
   /** Optional semantic entity accent (a tone) — a restrained type cue, not status. */
   readonly accent?: CardTone;
   /** The card title (required). Also the primary open target's accessible name. */

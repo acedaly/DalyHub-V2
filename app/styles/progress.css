@@ -25,7 +25,7 @@
 
 .dh-progress__label {
   color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: var(--dh-font-weight-medium);
   font-size: var(--dh-font-size-sm);
 }
 
@@ -40,7 +40,10 @@
 .dh-progress__track {
   position: relative;
   inline-size: 100%;
-  block-size: var(--dh-space-2);
+  /* 6px — a meter, not a bar. At 8px on a card the track competed with the
+     text beside it for the same attention; the number is the authority and the
+     track illustrates it. */
+  block-size: 6px;
   border-radius: var(--dh-radius-full);
   background: var(--dh-color-progress-track);
   overflow: hidden;
