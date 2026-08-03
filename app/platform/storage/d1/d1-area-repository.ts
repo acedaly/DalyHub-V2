@@ -80,6 +80,8 @@ interface AreaDependencyRow {
 }
 
 interface AreaListRow extends AreaRow {
+  /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
+  readonly colour_rank: number;
   readonly goal_total: number | null;
   readonly goal_completed: number | null;
   readonly project_total: number | null;
@@ -325,6 +327,30 @@ export class D1AreaRepository implements AreaRepository {
       this.#db
         .prepare(
           `WITH
+           /*
+            * DS-14 / ADR-068 decision 5 — the Area's colour rank.
+            *
+            * Ranked over EVERY \`area\` row in the workspace, deliberately
+            * WITHOUT the \`deleted_at\` / \`archived_at\` filters the outer
+            * query applies. That is the whole point: the accent must not move
+            * when an Area is archived or soft-deleted, and it only moves on a
+            * permanent delete, which is already a typed-confirmation
+            * destructive act. Ranking over the ACTIVE set instead would make
+            * archiving one Area recolour every Area created after it.
+            *
+            * \`(created_at, id)\` is the canonical total ordering (ADR-065
+            * decision 3), already served by
+            * \`entities_workspace_type_created_idx\` on
+            * \`(workspace_id, type, created_at, id)\` — so this needs no new
+            * index. 0-based to match \`areaAccentForRank\`.
+            */
+           area_ranks AS (
+             SELECT id,
+                    ROW_NUMBER() OVER (ORDER BY created_at ASC, id ASC) - 1
+                      AS colour_rank
+             FROM entities
+             WHERE workspace_id = ? AND type = '${AREA}'
+           ),
            active_goals AS (
              SELECT gl.target_entity_id AS area_id, ge.id AS goal_id
              FROM entity_links gl
@@ -402,6 +428,7 @@ export class D1AreaRepository implements AreaRepository {
              GROUP BY at.area_id
            )
            SELECT e.id, e.workspace_id, e.title, e.created_at, e.updated_at,
+                  ar.colour_rank,
                   COALESCE(gc.total, 0) AS goal_total,
                   COALESCE(gc.completed, 0) AS goal_completed,
                   COALESCE(pc.total, 0) AS project_total,
@@ -413,6 +440,7 @@ export class D1AreaRepository implements AreaRepository {
            FROM entities e
            JOIN spine_records sr
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           JOIN area_ranks ar ON ar.id = e.id
            LEFT JOIN goal_counts gc ON gc.area_id = e.id
            LEFT JOIN project_counts pc ON pc.area_id = e.id
            LEFT JOIN task_counts tc ON tc.area_id = e.id
@@ -424,6 +452,8 @@ export class D1AreaRepository implements AreaRepository {
            LIMIT ?`,
         )
         .bind(
+          // `area_ranks` is the first CTE, so its workspace binds first.
+          this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
           this.#workspaceId,
@@ -920,6 +950,7 @@ export class D1AreaRepository implements AreaRepository {
   #toAreaListItem(row: AreaListRow): AreaListItem {
     return {
       ...this.#toAreaOverview(row),
+      colourRank: Number(row.colour_rank),
       rollup: areaRollup(row),
       activeProjectCount: Number(row.active_project_count ?? 0),
       completedProjectCount: Number(row.completed_project_count ?? 0),

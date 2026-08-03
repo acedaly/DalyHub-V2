@@ -106,16 +106,23 @@
  * The pinned header's separation is a plain, always-on hairline.
  *
  * It was briefly a SCROLL-DRIVEN animation (`animation-timeline: scroll()`),
- * fading the rule in only once content had scrolled beneath — the same
- * information, shown when it is true. That is removed: CI produced an identical
- * Chromium renderer SEGV (`signal 11`, same stack, `cr2: 0x1b0`) in two
- * unrelated specs on two shards, and a scroll timeline was by a distance the
- * most exotic thing in this change. Causation is not proven, but the trade is
- * not close: the effect is decorative, and no decoration is worth a chance of
- * crashing the renderer.
+ * fading the rule in only once content had scrolled beneath it. It was removed
+ * because CI produced a Chromium renderer SEGV and a scroll timeline was the
+ * most exotic thing in the change — a reasonable first suspect.
+ *
+ * IT WAS NOT THE CAUSE, and that is recorded here rather than left as an
+ * unearned accusation: the identical crash (`signal 11 SEGV_MAPERR`,
+ * `cr2: 0x1b0`, same stack, same `chrome-headless-shell-1228`) is present on
+ * `main` at the DS-14 foundation commit, before this file ever contained a
+ * scroll timeline. It is a pre-existing runner flake — see DEBT-76.
+ *
+ * The plain hairline stays anyway. Now that the fade is not buying a fix for a
+ * crash, it is buying only a small refinement, and it is not worth a
+ * non-standard animation on the most-rendered element in the product. Simpler
+ * is the right default when the sophisticated version has no case left.
  *
  * `divider-subtle` rather than `divider` keeps it quiet enough that an
- * always-on rule does not become the band of chrome the fade was avoiding.
+ * always-on rule does not become a band of chrome.
  */
 .dh-collection__sticky {
   border-block-end: var(--dh-border-width-thin) solid

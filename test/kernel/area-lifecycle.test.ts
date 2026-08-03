@@ -146,6 +146,54 @@ describe("Area archive / restore", () => {
     expect(after.items.map((a) => a.id)).toContain(hide.id);
   });
 
+  /*
+   * DS-14 / ADR-068 decision 5 — the identity accent must survive archiving.
+   *
+   * The decision ranks Areas over EVERY `area` row regardless of lifecycle
+   * state precisely so that archiving and soft-deleting are colour-neutral, and
+   * only a permanent delete (already a typed-confirmation destructive act)
+   * shifts anything. The first implementation used the index into the ACTIVE
+   * collection, which silently violated that; the defect was invisible to every
+   * existing test because nothing asserted a rank at all.
+   *
+   * This is that assertion. It is deliberately about the RANK rather than about
+   * the rendered colour: `areaAccentForRank` is a pure function of the rank, so
+   * pinning the rank pins the colour without coupling a repository test to a
+   * six-entry palette.
+   */
+  it("keeps every other Area's colour rank stable when one is archived", async () => {
+    const { spine, settings, areas } = repos();
+    const first = await spine.createArea({ title: "Health" });
+    const second = await spine.createArea({ title: "Career" });
+    const third = await spine.createArea({ title: "Home" });
+
+    const before = await areas.listAreas();
+    expect(before.items.map((a) => [a.id, a.colourRank] as const)).toEqual([
+      [first.id, 0],
+      [second.id, 1],
+      [third.id, 2],
+    ]);
+
+    // Archive the EARLIEST Area — the worst case, because every other Area
+    // sits after it in the ordering.
+    await settings.archive(first.id);
+
+    const after = await areas.listAreas();
+    expect(after.items.map((a) => a.id)).toEqual([second.id, third.id]);
+    // The ranks are UNCHANGED. Under an active-set index these would collapse
+    // to 0 and 1, and both Areas would change colour.
+    expect(after.items.map((a) => a.colourRank)).toEqual([1, 2]);
+
+    // Restoring is symmetric — nothing moved in either direction.
+    await settings.restore(first.id);
+    const restored = await areas.listAreas();
+    expect(restored.items.map((a) => [a.id, a.colourRank] as const)).toEqual([
+      [first.id, 0],
+      [second.id, 1],
+      [third.id, 2],
+    ]);
+  });
+
   it("excludes archived Areas from the creation-picker candidate filter", async () => {
     const { spine, settings, areas } = repos();
     const active = await spine.createArea({ title: "Health" });

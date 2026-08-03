@@ -43,6 +43,8 @@ export type SerializedAreaListItem = {
   readonly title: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
+  readonly colourRank: number;
   readonly rollup: SerializedAreaRollup;
   readonly activeProjectCount: number;
   readonly completedProjectCount: number;
@@ -103,6 +105,8 @@ export type RollupProgress = {
 export type AreaCardData = {
   readonly id: string;
   readonly title: string;
+  /** ADR-068 decision 5's lifecycle-independent colour rank (0-based). */
+  readonly colourRank: number;
   readonly state: { readonly label: string; readonly tone: CardTone };
   readonly goals: RollupProgress;
   readonly projects: RollupProgress;
@@ -135,6 +139,7 @@ export function serializeAreaListItem(
     title: item.title,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
+    colourRank: item.colourRank,
     rollup: serializeAreaRollup(item.rollup),
     activeProjectCount: item.activeProjectCount,
     completedProjectCount: item.completedProjectCount,
@@ -314,6 +319,7 @@ export function toAreaCardData(item: SerializedAreaListItem): AreaCardData {
   return {
     id: item.id,
     title: item.title,
+    colourRank: item.colourRank,
     state: areaStateLabel(),
     goals: rollupProgress(item.rollup.goals, "goal"),
     projects: rollupProgress(item.rollup.projects, "project"),

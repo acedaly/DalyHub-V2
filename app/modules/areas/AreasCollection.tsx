@@ -91,30 +91,23 @@ function NewAreaFormHost() {
 }
 
 /*
- * DS-14 §8 — the Area identity dot, keyed to the Area's position in this list.
+ * DS-14 §8 / ADR-068 decision 5 — the Area identity dot.
  *
- * The accent comes from the row's index in the accumulated collection.
- * `listAreas` returns Areas in the canonical `(created_at, id)` order
- * (ADR-065 decision 3) and the keyset pagination accumulates pages in that
- * order, so the index is stable across pagination, deterministic, and costs no
- * column, no migration and no new query.
+ * The accent comes from `colourRank`, which the repository computes with a
+ * window function over EVERY `area` row in the workspace — deliberately without
+ * the `deleted_at` / `archived_at` filters the collection query applies.
  *
- * IT IS NOT ADR-068 decision 5's rank, and the difference matters. That
- * decision ranks over EVERY `area` row regardless of lifecycle state, precisely
- * so archiving or soft-deleting one Area leaves every other Area's colour
- * untouched. This list is the ACTIVE one — `listAreas` filters
- * `deleted_at IS NULL AND archived_at IS NULL` — so archiving an early Area
- * renumbers and recolours every Area created after it.
- *
- * Closing that gap needs the rank resolved where Areas are READ, which is a
- * query change and outside this restyle's scope. Recorded as DEBT-74 with the
- * shape of the fix rather than left to be discovered; it is bounded by brief
- * §10, which is why the dot is never the only thing telling two Areas apart —
- * it always carries an accessible name and always sits beside the Area's title.
+ * That distinction is the whole decision. Ranking over the ACTIVE set (this
+ * page's index, which is what shipped first and review caught) makes archiving
+ * one Area recolour every Area created after it; ranking over all rows means
+ * only a permanent delete shifts anything, and that is already a
+ * typed-confirmation destructive act. `(created_at, id)` is the canonical
+ * ordering (ADR-065 decision 3) and the existing
+ * `entities_workspace_type_created_idx` already serves it, so this costs no new
+ * index, no column and no migration.
  */
 function toCardProps(
-  card: ReturnType<typeof toAreaCardData> & { readonly rank: number },
-  rank: number,
+  card: ReturnType<typeof toAreaCardData>,
   onOpenArea: (id: string) => void,
 ): CardProps {
   const metadata: CardMetaItem[] = [
@@ -145,7 +138,7 @@ function toCardProps(
     title: card.title,
     typeLabel: "Area",
     icon: <EntityIcon type="area" />,
-    identity: <AreaDot rank={rank} name={card.title} />,
+    identity: <AreaDot rank={card.colourRank} name={card.title} />,
     headingLevel: 2,
     status: card.state,
     metadata,
@@ -216,8 +209,7 @@ function AreasCollection({
     nextCursor,
   );
   const cards = useMemo(
-    // The index is the Area's rank in the workspace — see `toCardProps`.
-    () => items.map((area, rank) => ({ ...toAreaCardData(area), rank })),
+    () => items.map((area) => toAreaCardData(area)),
     [items],
   );
   const count = items.length;
@@ -278,9 +270,7 @@ function AreasCollection({
         ariaLabel="Areas"
         presentation="list"
         density="comfortable"
-        renderCard={(card) => (
-          <Card {...toCardProps(card, card.rank, onOpenArea)} />
-        )}
+        renderCard={(card) => <Card {...toCardProps(card, onOpenArea)} />}
       />
       {!failed && hasMore ? (
         <LoadMore

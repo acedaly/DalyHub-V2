@@ -33,6 +33,18 @@ export type AreaListItem = {
   readonly title: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  /**
+   * DS-14 / ADR-068 decision 5 — the Area's stable position in the workspace's
+   * `(created_at, id)` ordering, 0-based, used to derive its identity accent.
+   *
+   * Ranked over EVERY `area` row regardless of lifecycle state, which is the
+   * property that makes the accent survive archiving and soft-deletion: only a
+   * permanent delete shifts it, and that is already a typed-confirmation
+   * destructive act. It is NOT the item's index in this page — that would be
+   * the position in the ACTIVE set, and archiving one Area would then recolour
+   * every Area created after it.
+   */
+  readonly colourRank: number;
   readonly rollup: AreaRollup;
   readonly activeProjectCount: number;
   readonly completedProjectCount: number;

@@ -468,16 +468,41 @@ and a populated fixture never exercises the second case. That is [brief §8](DS_
 "the most common way a design built on progress bars and status badges regresses", and it is why
 these records are photographed rather than reasoned about.
 
-### 9.7 What section 9 does not claim
+### 9.7 The wide-desktop review, done against the images rather than deferred
+
+The desktop soak gate was removed by the owner's direction. What the gate would have produced
+— a recorded verdict against real captures at desktop widths, in every theme — is produced here
+instead, from the §9.5 and §9.6 image sets at **1280 and 1440**. This is the substitutable half
+of the gate; §9.8 states plainly which half is not.
+
+**The three risks [DEBT-72](../product/PRODUCT_DEBT.md) named, assessed against the images:**
+
+| Risk | Verdict |
+|---|---|
+| The canvas becomes a large expanse of flat colour rather than a surround | **Did not occur.** The group-is-the-card decision means a wide viewport shows ONE card holding many rows, not many cards on a field. The tint is a margin around a single object; there is no expanse. |
+| A grid of cards reads as a scattered board instead of one contained workspace | **Did not occur, same cause.** Only grid/board presentations keep per-item cards, and those are deliberately tiles. |
+| ΔL\* ≥ 3 is comfortable on a phone but invisible or banded on a wide bright display | **Holds, and is deliberately quiet.** In Eucalypt and Ember — the two narrowest separations at 3.55 and 3.69 — the card reads as lighter than the page but the hairline is doing real work at that width; the pair is what makes the edge legible, not the value alone. No banding at any width. |
+
+**One weakness the review did find, and it is not fixed.** On Today at 1440 a widget card is
+~1135px wide while a task row's content (title, project, priority, date) ends around 40% of it,
+leaving a long empty run to the right of every row. It is not the "stretched application"
+failure — the content measure cap stops the row itself widening, and the eye travel problem
+[ADR-069 decision 7](../decisions/ARCHITECTURE_DECISIONS.md) fixed was the severe form — but it
+is the mild version of "cards must not become enormous empty containers". It is honest to say
+the Collection preset is tuned for scanning density rather than for filling a 1440px card, and
+that a future pass could earn that space back (a second column on Today, or trailing metadata
+right-aligned into it). It is recorded rather than quietly accepted.
+
+### 9.8 What section 9 does not claim
 
 - It does not claim a human has approved the taste of seven recomposed light ramps on a
   calibrated display. It claims the relationships between their surfaces are measured, in
   every theme, and that the images exist so that judgement can happen against evidence.
-- It does not claim the direction has been **lived with**. The desktop soak gate was removed by
-  the owner's direction ([DS-14 roadmap entry](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul)),
-  so "is this still pleasant after five days on a real workspace" is unanswered. The
-  wide-desktop *defect* it was raised to catch was found and fixed inside the work
-  ([DEBT-72](../product/PRODUCT_DEBT.md)); the *judgement* it was also meant to collect was not.
+- **It does not claim the direction has been LIVED WITH.** §9.7 reviews still images; the soak
+  gate was also meant to collect the judgement that only comes from using a restyle on a real
+  workspace for days — whether the density stays comfortable, whether the quiet separations
+  stay legible in daylight, whether anything becomes irritating on the twentieth visit. Nothing
+  in this PR substitutes for that, and no amount of screenshot review does.
 - It does not claim every module is photographed in all seven themes. §9.6 covers two by
   design, for the reason stated there.
 - It does not claim the screenshots are diffed automatically. They are evidence for review, not

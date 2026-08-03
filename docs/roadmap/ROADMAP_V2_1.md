@@ -297,8 +297,14 @@ They are small and well-understood; none of them blocks the V2 release.*
   original sequencing is still the reasoning for the commit boundaries.
 
   **What that changes, stated rather than left to be discovered.**
-  - **The soak gate is gone, so the wide-desktop question is answered IN this PR
-    rather than after it.** [DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)
+  - **The soak gate is gone. Its reviewable half was done anyway; its other half
+    was not, and that is stated rather than blurred.** A recorded verdict against
+    desktop captures in every theme is in
+    [`THEME_ACCEPTANCE_MATRIX.md §9.7`](../design/THEME_ACCEPTANCE_MATRIX.md),
+    including one weakness it found and did not fix. What no screenshot review can
+    substitute for — living with the restyle on a real workspace for days — is
+    unanswered, and §9.8 says so.
+  - **The wide-desktop question is answered IN this PR rather than after it.** [DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)
     recorded that card-on-tint's behaviour at 1440px and above was unproven; the
     answer turned out to be a real one — an uncapped collection at 1440px is a
     1200px row with a title at one end and a status pill at the other — and the
@@ -339,7 +345,11 @@ They are small and well-understood; none of them blocks the V2 release.*
   measuring: a title wrapping one character per line at 390px, and the body
   dropping below the selection checkbox.
 - **☑ Group 3 — Areas, Goals and Projects.** The Area identity dot, keyed to the
-  Area's rank in its workspace with no column, no migration and no new query. The
+  Area's rank over every `area` row in the workspace regardless of lifecycle state,
+  so archiving is colour-neutral (ADR-068 decision 5). No column and no migration;
+  a window function on the existing index rather than a new one. The first
+  implementation used the active list's index and was caught in review — see
+  ADR-069 decision 9. The
   record layout — summary card, tab panel, sentence-case metadata — which covers
   every record view in the product, not only the spine. Goal progress absence
   renders as the neutral pill rather than as a sentence that happens to say "no".
