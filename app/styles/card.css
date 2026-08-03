@@ -728,12 +728,27 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px var(--dh-space-2);
+  gap: var(--dh-space-1) var(--dh-space-2);
   min-width: 0;
 }
 
+/*
+ * The row gap between the primary line and the supporting run is
+ * `--dh-space-1`, NOT a hairline, and this is a WCAG requirement rather than a
+ * taste one.
+ *
+ * The card title and the context breadcrumb are both LINKS and both short text
+ * targets (~19px and ~15px tall). WCAG 2.2 target size (2.5.8) is satisfied for
+ * an undersized target by SPACING, so the vertical gap between them is
+ * load-bearing: at 2px the breadcrumb had 21.2px of safe clickable space
+ * against a 24px minimum and axe failed the Areas/Goals phone journey. This is
+ * the same defect `card.css` already documented at the phone breakpoint — DS-14
+ * reintroduced it by tightening the collection row and is not entitled to.
+ *
+ * Two pixels of vertical density is not worth a target a thumb misses.
+ */
 [data-density="collection"] .dh-card__body {
-  gap: 2px;
+  gap: var(--dh-space-1);
 }
 
 [data-density="collection"] .dh-card__heading {
@@ -785,7 +800,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px var(--dh-space-3);
+  /* Same rule as the body gap above: the supporting run wraps, and a wrapped
+     line puts two short links directly above one another. */
+  gap: var(--dh-space-1) var(--dh-space-3);
   min-width: 0;
 }
 
@@ -804,7 +821,7 @@
 
 [data-density="collection"] .dh-card__metadata {
   margin: 0;
-  gap: 2px var(--dh-space-3);
+  gap: var(--dh-space-1) var(--dh-space-3);
 }
 
 [data-density="collection"] .dh-card__date {
