@@ -240,10 +240,19 @@ page says plainly that nothing has been lost and offers one link
 (`/offline?dh-recover=1`) — the owner's choice, never a timer, because an
 automatic retry is how a loop breaker becomes a loop.
 
-The record is cleared by any of: a navigation reaching the network, the offline
-shell caching successfully, or the page telling the worker it reached a settled
-state (`OFFLINE_SHELL_READY`). A redirect is **not** counted, so one launch at `/`
-costs one boot rather than two.
+The record is cleared by the offline shell caching successfully, or by the page
+telling the worker it reached a settled state (`OFFLINE_SHELL_READY`). A redirect
+is **not** counted, so one launch at `/` costs one boot rather than two.
+
+It is deliberately **not** cleared by an ordinary successful navigation, and that
+is a measured decision rather than an omission. Doing so put a Cache Storage open
+and delete on the success path of every page load; `tasks-journey`'s "no
+horizontal overflow" test — thirty-six real navigations, each gated on
+`waitForLoadState("networkidle")` — went from passing to exceeding its
+ninety-second budget, reproducibly, against a clean run on the commit before.
+The loop breaker is a backstop for a broken device and must cost a healthy one
+nothing. Nothing is lost: entries expire after sixty seconds on their own, and
+both remaining signals fire on any healthy online session.
 
 Responses the worker synthesises carry the same baseline security headers the
 Worker boundary applies (`security-headers.ts`), since they never passed through

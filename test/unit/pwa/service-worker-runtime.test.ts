@@ -450,15 +450,24 @@ describe("the offline-boot loop breaker", () => {
     }
   });
 
-  it("forgets the evidence when a navigation reaches the network", async () => {
+  it("forgets the evidence when the shell refreshes over a working connection", async () => {
     await primeShell(worker);
     goOffline(worker);
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await worker.navigate(OFFLINE_DOCUMENT);
     }
 
-    worker.fetchMock.mockResolvedValue(new Response("<h1>live</h1>"));
-    await worker.navigate("/today");
+    // A shell fetched from the network is proof the device is healthy again.
+    worker.fetchMock.mockResolvedValue(
+      new Response("<!doctype html><h1>DalyHub offline</h1>", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "X-DalyHub-Shell": "offline",
+        },
+      }),
+    );
+    await worker.message({ type: "REFRESH_OFFLINE_SHELL" });
     goOffline(worker);
 
     expect(
@@ -466,6 +475,29 @@ describe("the offline-boot loop breaker", () => {
         "X-DalyHub-Offline",
       ),
     ).toBe("shell");
+  });
+
+  it("does NOT touch the boot log on a successful navigation", async () => {
+    // The hot path must stay exactly as fast as it was. Clearing the log per
+    // navigation put a Cache Storage open and delete on every page load and blew
+    // the budget of a thirty-six-navigation end-to-end test; see `clearBootLog`.
+    await primeShell(worker);
+    const shellCache = await worker.cacheStorage.open(
+      "dalyhub-shell-test-build",
+    );
+    goOffline(worker);
+    await worker.navigate(OFFLINE_DOCUMENT);
+    expect(shellCache.entries.has(`${ORIGIN}/__dalyhub/offline-boot-log`)).toBe(
+      true,
+    );
+
+    worker.fetchMock.mockResolvedValue(new Response("<h1>live</h1>"));
+    await worker.navigate("/today");
+
+    // Still there: a healthy navigation neither reads nor writes it.
+    expect(shellCache.entries.has(`${ORIGIN}/__dalyhub/offline-boot-log`)).toBe(
+      true,
+    );
   });
 
   it("does not count a redirected navigation twice", async () => {

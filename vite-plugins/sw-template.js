@@ -299,7 +299,23 @@ async function readBootLog() {
   }
 }
 
-/** Forget every recorded offline boot. Never throws. */
+/**
+ * Forget every recorded offline boot. Never throws.
+ *
+ * Called from the two places that are EVIDENCE the device is healthy — a shell
+ * that refreshed over a working connection, and the page reporting it reached a
+ * settled state — and deliberately NOT from the navigation handler.
+ *
+ * Clearing it per navigation was tried and reverted. It put a Cache Storage open
+ * and delete on the success path of every page load, and `tasks-journey`'s
+ * "no horizontal overflow" test — thirty-six real navigations, each gated on
+ * `waitForLoadState("networkidle")` — went from passing to exceeding its
+ * ninety-second budget. The hot path must stay exactly as fast as it was: this
+ * is a backstop for a broken device, and a broken device is not the common case.
+ *
+ * Nothing is lost by the omission. Entries expire after `OFFLINE_BOOT_WINDOW_MS`
+ * on their own, and both callers below fire on any healthy online session.
+ */
 async function clearBootLog() {
   try {
     const cache = await caches.open(SHELL_CACHE);
@@ -467,29 +483,12 @@ async function serveOfflineNavigation(url) {
  * genuine network failure falls back — the request outcome is authoritative, not
  * `navigator.onLine`.
  */
-async function serveNavigation(request, url, background) {
-  let response;
+async function serveNavigation(request, url) {
   try {
-    response = await fetch(request);
+    return await fetch(request);
   } catch {
     return serveOfflineNavigation(url);
   }
-
-  // The bookkeeping sits OUTSIDE the try above, and that placement is the point.
-  // Inside it, anything this threw — `waitUntil` on an event the browser has
-  // decided is no longer active is the realistic one — would be caught by the
-  // navigation's own `catch` and answered with the OFFLINE DOCUMENT, for a
-  // request that had just succeeded. A failure to tidy up after a problem that
-  // is not happening must never be mistaken for the problem.
-  //
-  // Not awaited, either: this is a cache round trip, and putting one in front of
-  // every online page load would make the healthy path pay for the broken one.
-  try {
-    background(clearBootLog());
-  } catch {
-    /* The breaker is a backstop; failing to reset it cannot fail a navigation. */
-  }
-  return response;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -508,9 +507,7 @@ self.addEventListener("fetch", (event) => {
   // document can answer. The handler is network-first and writes to no cache, so
   // it is unaffected by the never-cache rules below.
   if (isDocumentNavigation(request)) {
-    event.respondWith(
-      serveNavigation(request, url, (work) => event.waitUntil(work)),
-    );
+    event.respondWith(serveNavigation(request, url));
     return;
   }
 
