@@ -100,7 +100,23 @@ export interface TodayWidgetDefinition {
 export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
   {
     id: "morning-brief",
-    title: "Morning brief",
+    /*
+     * "Brief", not "Morning brief".
+     *
+     * The greeting inside it has always been resolved from the owner-local hour
+     * ("Good morning" / "Good afternoon" / "Good evening"), but the LABEL above it
+     * claimed the morning all day — so at 9pm the surface read "Morning brief /
+     * Good evening, Aidan." The product should not tell the owner the time of day
+     * incorrectly on the one screen they open most.
+     *
+     * The id stays `morning-brief`: it is the persistence key for every owner's
+     * saved arrangement, and `normaliseTodayLayout` drops ids it does not know, so
+     * renaming it would silently reset the layout of anyone who has customised
+     * theirs. The internal type and component names (`MorningBriefData`,
+     * `MorningBrief`) likewise keep the TODAY-08 vocabulary — this is a label
+     * change, not a concept change.
+     */
+    title: "Brief",
     column: "hero",
     description: "Greeting, date, focus and what needs attention right now.",
   },

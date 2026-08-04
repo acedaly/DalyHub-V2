@@ -497,14 +497,27 @@ layer (ADR-045) and preserves the TODAY-02…06 execution core bit-for-bit.
   this is the only personalisation surface that does not follow the owner between
   devices — recorded as [DEBT-55](../product/PRODUCT_DEBT.md#-debt-55--today-widget-arrangement-is-still-device-local-while-the-theme-is-not--p3). A calm "Customise" toggle reveals each widget's
   move/pin/hide controls ([`TodayWidget.tsx`](../../app/modules/today/landing/TodayWidget.tsx)).
-- **The widgets.** In canonical order: **Morning brief** (greeting · date · a focus
-  line · at-a-glance planned/overdue/inbox counts · a capture entry), **My day** (the preserved planning bands +
-  Waiting + roving keyboard + swipe + bulk bar — unchanged), **Recent activity**
-  (below), **Diary**, **Notes**, **Continue working** (the real Active projects),
-  **Areas**, **Goals**, **Focus** (a placeholder for focus mode / deep work /
-  Pomodoro), **Insights**, and **Capture** (the honest inert Quick Capture, TODAY-07
-  wires it). A widget with no data source in demo/fixture rendering simply does not
-  appear.
+- **The widgets, and the region each declares (POLISH-02).** Every widget names the
+  dashboard region it belongs to, and the surface renders three real containers
+  rather than auto-flowing cards around a hand-placed grid. In canonical order:
+
+  - **hero** — **Brief** (greeted by name · date · a focus line · today's progress ·
+    the ONE at-a-glance rail · a capture entry). Labelled "Brief", not "Morning
+    brief": the greeting inside it is resolved from the owner-local hour, so a
+    fixed "Morning" would be wrong for most of the day. Its **id stays
+    `morning-brief`** — that is the persistence key for saved arrangements.
+  - **primary** (~66%, what the owner ACTS on) — **My day** (the planning bands +
+    Waiting + roving keyboard + swipe + bulk bar; the discretionary Upcoming and
+    Anytime bands preview eight rows with the true total and a link to `/tasks`),
+    **Meetings** (today's, as a timeline), **Continue working** (the real Active
+    projects), **Recent activity** (below).
+  - **secondary** (~34%, what the owner REFERS to) — **Insights** (minus whatever
+    the hero rail already states), **Capture** (the shared Quick Capture entries),
+    **Goals**, **Areas**, **Notes**, **Diary**, **Assets**.
+
+  A widget with no data source in demo/fixture rendering simply does not appear,
+  and a region with nothing visible in it renders nothing at all. The **Focus**
+  placeholder listed here before was removed by UX-01.
 - **Weather and calendar were REMOVED (POLISH-01, 2026-07-31).** The Morning Brief
   used to reserve two panels labelled "Weather" and "Upcoming calendar", each saying
   the data would appear "once connected". They were honest about having no data, but

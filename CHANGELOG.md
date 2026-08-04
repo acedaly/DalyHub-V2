@@ -113,6 +113,11 @@ no version number to group them under.
   what you are waiting on other people for, projects that need a look, and what
   you have finished today. Each count that has an answer somewhere links to it.
 
+  It is also just called **Brief** now. The greeting inside it has always changed
+  with the time of day, but the heading above it said "Morning brief" at nine in
+  the evening. If you had customised your Today layout, it keeps its place —
+  nothing was reset.
+
   Beneath it, the page is two deliberate columns instead of cards falling wherever
   they fitted: **your day, your meetings, the projects you are working on and what
   just changed** on the left; **signals, capture, goals, areas, notes, diary and

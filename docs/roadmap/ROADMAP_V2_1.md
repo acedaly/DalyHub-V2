@@ -291,7 +291,11 @@ They are small and well-understood; none of them blocks the V2 release.*
     date, the day's shape, today's progress against what is committed, and ONE
     at-a-glance rail carrying six counts — including the cross-module ones that
     previously required scrolling (meetings still to come, work waiting on other
-    people, projects that need a look).
+    people, projects that need a look). It is labelled **Brief**, not "Morning
+    brief": the greeting inside it has always adapted to the owner-local hour, so
+    the fixed label was telling the owner it was morning at 9pm. The widget **id**
+    is unchanged (`morning-brief`) because it is the persistence key for every
+    saved arrangement, and an unknown id is dropped on read.
   - **Every number is stated once.** The planning summary strip inside `My day`
     repeated the brief's counts a few hundred pixels away; it is gone, and `My day`
     now opens on the owner's tasks. The Insights panel subtracts whatever the hero

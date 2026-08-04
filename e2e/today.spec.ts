@@ -42,7 +42,9 @@ test.describe("TODAY-01 — desktop", () => {
     ).toBeVisible();
     // The personalisable command-centre widgets are labelled h2 regions (TODAY-08).
     for (const name of [
-      /Morning brief/,
+      // "Brief", not "Morning brief" — the greeting adapts to the hour, so the
+      // label must not claim the morning at 9pm (POLISH-02).
+      /^Brief/,
       /My day/,
       /Recent activity/,
       /Continue working/,

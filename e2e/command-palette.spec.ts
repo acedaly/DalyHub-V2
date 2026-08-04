@@ -192,7 +192,9 @@ test.describe("DS-09 Command Palette — desktop", () => {
       const planning = page
         .getByRole("dialog")
         .getByRole("group", { name: "Planning" });
-      await planning.getByRole("button", { name: "Today", exact: true }).click();
+      await planning
+        .getByRole("button", { name: "Today", exact: true })
+        .click();
       await expect(
         planning.getByRole("button", { name: "Clear" }),
       ).toBeVisible();
