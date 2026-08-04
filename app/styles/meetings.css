@@ -21,8 +21,8 @@
   gap: var(--dh-space-2) var(--dh-space-3);
   padding: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-raised);
+  border-radius: var(--dh-radius-card);
+  background: var(--dh-color-surface-card);
 }
 
 .dh-meeting-item__body {
@@ -104,7 +104,7 @@
   gap: var(--dh-space-2) var(--dh-space-3);
   padding: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--dh-radius-control);
 }
 
 .dh-follow-up-row__title {
@@ -193,7 +193,7 @@
   padding: var(--dh-space-1) var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font: inherit;
   font-size: var(--dh-font-size-sm);

@@ -25,9 +25,9 @@
 
 .dh-area-momentum {
   border: 1px solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-card);
   padding: var(--dh-space-4);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
 }
 
 .dh-area-momentum__header {

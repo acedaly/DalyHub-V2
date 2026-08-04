@@ -56,13 +56,13 @@
   gap: var(--dh-space-2);
   min-width: 0;
   padding: var(--dh-space-3) var(--dh-space-4);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  box-shadow: var(--dh-shadow-sm);
+  border-radius: var(--dh-radius-card);
+  box-shadow: none;
   transition:
     border-color var(--dh-duration-fast) var(--dh-ease-standard),
-    box-shadow var(--dh-duration-fast) var(--dh-ease-standard);
+    background-color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 
 .dh-card--compact {
@@ -72,7 +72,7 @@
 
 .dh-card:hover {
   border-color: var(--dh-color-border-strong);
-  box-shadow: var(--dh-shadow-md);
+  background: var(--dh-color-surface-card);
 }
 
 /* Selected state: a clear border/background cue AND the native checked checkbox —
@@ -196,7 +196,8 @@
   border-radius: var(--dh-radius-full);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-pill-neutral-surface);
+  color: var(--dh-color-pill-neutral-text);
   white-space: nowrap;
 }
 
@@ -399,7 +400,7 @@
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-medium);
   color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-sm);
   text-decoration: none;
@@ -932,15 +933,14 @@
 .dh-card-swipe {
   position: relative;
   min-width: 0;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-card);
   overflow: hidden;
   isolation: isolate;
-  box-shadow: var(--dh-shadow-sm);
-  transition: box-shadow var(--dh-duration-fast) var(--dh-ease-standard);
+  box-shadow: none;
 }
 
 .dh-card-swipe:hover {
-  box-shadow: var(--dh-shadow-md);
+  box-shadow: none;
 }
 
 /* DS-12: a swipe-enabled card still gets the shared overflow menu. The clip that

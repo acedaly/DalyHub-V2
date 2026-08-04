@@ -15,7 +15,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-pill);
   overflow: hidden;
   flex: none;
   color: var(--dh-color-on-accent);
@@ -86,8 +86,8 @@
   min-block-size: var(--dh-control-height-md);
   padding: var(--dh-space-2) var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface);
+  border-radius: var(--dh-radius-field);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font: inherit;
 }
@@ -402,8 +402,8 @@
 .dh-person-timeline__note {
   padding: var(--dh-space-3);
   border: 1px solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
+  border-radius: var(--dh-radius-card);
+  background: var(--dh-color-surface-card);
 }
 
 /* -------------------------------------------------------------------------- */

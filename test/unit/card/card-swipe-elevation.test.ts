@@ -1,13 +1,10 @@
 /**
- * DS-04 (TODAY-06) — regression guard for the swipe wrapper's elevation.
+ * DS-04 (TODAY-06) — regression guard for the swipe wrapper's surface treatment.
  *
- * The swipe wrapper clips the moving surface + tray with `overflow: hidden`. An
- * element never clips its OWN box-shadow (overflow only clips descendants), so the
- * card elevation MUST live on the wrapper — never on the clipped `.dh-card` inside,
- * whose shadow would be swallowed by the clip, silently flattening every Today task
- * card (including on desktop, where swipe is inactive). This source-level guard
- * prevents that structure from returning; the visible shadow is additionally proven
- * in a real browser by `e2e/today.spec.ts`.
+ * The swipe wrapper clips the moving surface + tray with `overflow: hidden`.
+ * In-flow cards are no longer raised surfaces, so neither the wrapper nor the
+ * clipped `.dh-card` inside may paint a resting or hover shadow. The focus ring is
+ * asserted in the browser suites.
  */
 
 import { readFileSync } from "node:fs";
@@ -29,19 +26,15 @@ function ruleBody(selector: string): string {
   return match ? match[1] : "";
 }
 
-describe("swipe wrapper elevation (regression)", () => {
+describe("swipe wrapper surface treatment (regression)", () => {
   it("clips the surface with overflow:hidden on the wrapper", () => {
     expect(ruleBody(".dh-card-swipe")).toMatch(/overflow:\s*hidden/);
   });
 
-  it("puts the card elevation shadow on the WRAPPER (not the clipped article)", () => {
-    // The wrapper owns the resting shadow so it is not clipped by its own overflow.
-    expect(ruleBody(".dh-card-swipe")).toMatch(
-      /box-shadow:\s*var\(--dh-shadow/,
-    );
-    // And a hover elevation on the wrapper.
+  it("keeps swipe wrappers shadowless at rest and on hover", () => {
+    expect(ruleBody(".dh-card-swipe")).toMatch(/box-shadow:\s*none/);
     expect(cardCss).toMatch(
-      /\.dh-card-swipe:hover\s*\{[^}]*box-shadow:\s*var\(--dh-shadow/,
+      /\.dh-card-swipe:hover\s*\{[^}]*box-shadow:\s*none/,
     );
   });
 

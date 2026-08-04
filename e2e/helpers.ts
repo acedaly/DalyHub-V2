@@ -126,13 +126,25 @@ export async function waitForInteractive(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");
 
   // `[data-hydrated]` is published only by the surfaces that have a meaningful
-  // hydration boundary — Today and the design routes. Where it exists it is the
-  // real gate, because server-rendered markup is interactive-looking well before
-  // React attaches. Where it does not, the settle above is the gate.
-  const marker = page.locator("[data-hydrated]");
-  if ((await marker.count()) > 0) {
-    await expect(marker.first()).toHaveAttribute("data-hydrated", "true");
+  // hydration boundary — Today and the design routes. A product navigation can
+  // leave a stale marker mounted briefly while the new route is already usable,
+  // so only routes that own the marker wait on it.
+  const pathname = new URL(page.url()).pathname;
+  if (!pathname.startsWith("/today") && !pathname.startsWith("/design/")) {
+    return;
   }
+
+  // Where the marker belongs to the active route it is the real gate, because
+  // server-rendered markup is interactive-looking well before React attaches.
+  const marker = page.locator("[data-hydrated]").first();
+  await expect
+    .poll(async () => {
+      if ((await marker.count()) === 0) {
+        return true;
+      }
+      return (await marker.getAttribute("data-hydrated")) === "true";
+    })
+    .toBe(true);
 }
 
 /**

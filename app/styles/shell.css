@@ -146,7 +146,7 @@
   padding: var(--dh-space-1) var(--dh-space-2);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text-secondary);
   font: inherit;
   font-size: var(--dh-font-size-sm);
@@ -443,7 +443,7 @@
   padding: var(--dh-space-1) var(--dh-space-2);
   border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
   border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font: inherit;
   font-size: var(--dh-font-size-xs);
@@ -686,7 +686,7 @@
   min-block-size: var(--dh-touch-target-min);
   border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
   border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font-size: var(--dh-font-size-lg);
   cursor: pointer;

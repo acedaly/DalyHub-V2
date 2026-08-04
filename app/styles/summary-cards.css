@@ -6,7 +6,7 @@
  * upward via `auto-fill` + `minmax`, so it never produces horizontal overflow — a
  * DS-11 requirement from 320px up. Every card clears the shared 44px minimum touch
  * target, and a linked card carries the ordinary shared link affordance (hover
- * elevation + the global visible focus ring) rather than inventing one.
+ * surface + the global visible focus ring) rather than inventing one.
  */
 
 .dh-summary-cards {
@@ -32,8 +32,8 @@
   min-height: var(--dh-control-height-lg);
   padding: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  border-radius: var(--dh-radius-card);
+  background: var(--dh-color-surface-card);
   text-decoration: none;
   color: inherit;
 }
@@ -79,7 +79,7 @@
 
 .dh-summary-card--link:hover {
   border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-hover-surface);
 }
 
 @media (prefers-reduced-motion: reduce) {
