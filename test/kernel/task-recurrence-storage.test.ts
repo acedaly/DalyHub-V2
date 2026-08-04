@@ -2,13 +2,15 @@
  * TASKS-04 / ADR-062 — real Workers/D1 integration tests for the PERSISTED
  * recurrence lifecycle: validation at the mutation boundary, storage and read-back,
  * update and removal, exactly-one successor on completion (including under a retry
- * and a concurrent completion), the documented field-copy contract, and the SAFE undo
- * of a recurring completion.
+ * and a concurrent completion), the documented field-copy contract, the SAFE undo
+ * of a recurring completion, and RE-completing an occurrence whose completion was
+ * undone (AUDIT-FIX-01).
  *
  * These are the tests that stop recurrence being a rule the product parses but never
  * keeps: every assertion goes through the real repository against real D1.
  */
 
+import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -16,6 +18,7 @@ import {
   TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TaskNotFoundError,
   TaskProjectArchivedError,
+  TaskStorageError,
   TaskValidationError,
 } from "~/kernel/tasks";
 
@@ -77,6 +80,43 @@ async function seedScheduledTask(
     ...(overrides.dueDate ? { dueDate: overrides.dueDate } : {}),
   });
   return { area, task };
+}
+
+/**
+ * The series ledger, read directly: `(sequence → entity_id)` for every row a series
+ * owns, ordered. This is the ONE invariant the public repository view cannot expose —
+ * a recurrence row that outlives the task holding it is invisible through `getTask`,
+ * and it is exactly what wedged the series in AUDIT-01. Behaviour is asserted through
+ * the repository everywhere else.
+ */
+async function seriesLedger(
+  ws: string,
+  seriesId: string,
+): Promise<
+  readonly { readonly sequence: number; readonly entityId: string }[]
+> {
+  const rows = await env.DB.prepare(
+    `SELECT sequence, entity_id FROM task_recurrence_rules
+      WHERE workspace_id = ? AND series_id = ?
+      ORDER BY sequence`,
+  )
+    .bind(ws, seriesId)
+    .all<{ readonly sequence: number; readonly entity_id: string }>();
+  return (rows.results ?? []).map((row) => ({
+    sequence: row.sequence,
+    entityId: row.entity_id,
+  }));
+}
+
+/** Every ACTIVE (non-deleted) task in the workspace carrying the given title. */
+async function liveTasksTitled(ws: string, title: string) {
+  const tasks = taskRepo(ws);
+  const page = await tasks.listWorkspaceTasks({
+    limit: 50,
+    todayIso: "2026-07-20",
+    filters: { completedVisibility: "include" },
+  });
+  return page.items.filter((item) => item.title === title);
 }
 
 beforeEach(async () => {
@@ -722,5 +762,384 @@ describe("safe undo of a recurring completion", () => {
     // Nothing was written: the occurrence is still complete and its successor stands.
     expect((await tasks.getTask(task.id))?.completedAt).not.toBeNull();
     expect(await tasks.getTask(successor!.id)).not.toBeNull();
+  });
+});
+
+/**
+ * AUDIT-FIX-01 — a completion that was UNDONE must be able to happen again.
+ *
+ * A recurrence row reserves a `(series_id, sequence)` slot under a UNIQUE index. Before
+ * this fix, withdrawing a successor soft-deleted its task and left that reservation
+ * behind, so re-completing the reopened predecessor re-planned the same sequence, hit
+ * `UNIQUE (workspace_id, series_id, sequence)`, rolled the whole completion batch back
+ * and left the occurrence permanently un-completable in-product.
+ *
+ * The correction is a pair: the withdrawal RELEASES the slot it emptied, and the
+ * successor group declines entirely when a LIVE occurrence already holds the slot.
+ */
+describe("re-completing a reopened recurring occurrence (AUDIT-FIX-01)", () => {
+  it("completes again after the untouched successor was withdrawn, leaving one of everything", async () => {
+    const { task } = await seedScheduledTask(WS);
+    const tasks = taskRepo(WS);
+    await tasks.setTaskRecurrence(task.id, {
+      frequency: "week",
+      dateKind: "scheduled",
+    });
+
+    const first = await tasks.completeTask(task.id, {
+      ownerTodayIso: "2026-07-20",
+    });
+    expect(first.successor!.recurrenceSeries).toEqual({
+      seriesId: task.id,
+      sequence: 1,
+    });
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: first.successor!.id },
+    ]);
+
+    const undo = await tasks.reopenTask(task.id);
+    expect(undo.successorOutcome).toBe("removed");
+    // The withdrawal released the slot it emptied — the defect was this row surviving.
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+    ]);
+
+    const again = await taskRepo(WS, "2026-07-20T10:00:00.000Z").completeTask(
+      task.id,
+      { ownerTodayIso: "2026-07-20" },
+    );
+
+    // The reported defect: this is the call that used to throw.
+    expect(again.changed).toBe(true);
+    expect(again.task.completedAt).not.toBeNull();
+    expect((await tasks.getTask(task.id))?.completedAt).not.toBeNull();
+
+    // Exactly one successor, and it is a REAL one: fully built, in the series.
+    const replacement = again.successor!;
+    expect(replacement.id).not.toBe(first.successor!.id);
+    expect(replacement.completedAt).toBeNull();
+    expect(replacement.scheduledDate).toBe("2026-07-27");
+    expect(replacement.recurrence).toEqual(
+      expect.objectContaining({ frequency: "week", dateKind: "scheduled" }),
+    );
+    expect(replacement.recurrenceSeries).toEqual({
+      seriesId: task.id,
+      sequence: 1,
+    });
+    expect(replacement.area?.id).toBe((await tasks.getTask(task.id))!.area?.id);
+
+    // Exactly one recurrence row occupies sequence 1, and it is the new successor's.
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: replacement.id },
+    ]);
+
+    // No orphaned active task and no partial replacement: the withdrawn occurrence
+    // stays withdrawn, and the only open task is the one successor.
+    expect(await tasks.getTask(first.successor!.id)).toBeNull();
+    const live = await liveTasksTitled(WS, "Water the garden");
+    expect(live.map((item) => item.id).sort()).toEqual(
+      [task.id, replacement.id].sort(),
+    );
+    expect(live.filter((item) => item.completedAt === null)).toHaveLength(1);
+
+    // The timeline stays truthful: one withdrawal, and one creation per successor
+    // that actually exists — never a second creation for one effective successor.
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_WITHDRAWN),
+    ).toBe(1);
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_CREATED),
+    ).toBe(2);
+  });
+
+  it("recognises a RETAINED successor instead of creating a second one", async () => {
+    const { task } = await seedScheduledTask(WS);
+    const tasks = taskRepo(WS);
+    await tasks.setTaskRecurrence(task.id, {
+      frequency: "week",
+      dateKind: "scheduled",
+    });
+    const first = await tasks.completeTask(task.id, {
+      ownerTodayIso: "2026-07-20",
+    });
+    // Real work on the successor, so the withdrawal must decline.
+    const later = taskRepo(WS, "2026-07-21T09:00:00.000Z");
+    await later.updateTask(first.successor!.id, {
+      title: "Water the new beds",
+    });
+    const edited = (await tasks.getTask(first.successor!.id))!;
+
+    const undo = await later.reopenTask(task.id);
+    expect(undo.successorOutcome).toBe("retained");
+    // A retained successor keeps its seat in the series.
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: first.successor!.id },
+    ]);
+
+    const again = await taskRepo(WS, "2026-07-21T10:00:00.000Z").completeTask(
+      task.id,
+      { ownerTodayIso: "2026-07-21" },
+    );
+
+    // Completion succeeds, and reports the occurrence that already holds sequence 1.
+    expect(again.changed).toBe(true);
+    expect(again.task.completedAt).not.toBeNull();
+    expect(again.successor?.id).toBe(first.successor!.id);
+
+    // The retained successor is untouched — not overwritten, not deleted, not reset.
+    const kept = (await tasks.getTask(first.successor!.id))!;
+    expect(kept.title).toBe("Water the new beds");
+    expect(kept.scheduledDate).toBe(edited.scheduledDate);
+    expect(kept.updatedAt.toISOString()).toBe(edited.updatedAt.toISOString());
+    expect(kept.completedAt).toBeNull();
+
+    // No second sequence-1 task and no second sequence-1 row.
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: first.successor!.id },
+    ]);
+    const live = [
+      ...(await liveTasksTitled(WS, "Water the garden")),
+      ...(await liveTasksTitled(WS, "Water the new beds")),
+    ];
+    expect(live.map((item) => item.id).sort()).toEqual(
+      [task.id, first.successor!.id].sort(),
+    );
+
+    // No withdrawn event for a successor that was retained, and no duplicate
+    // creation event for the one effective successor.
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_WITHDRAWN),
+    ).toBe(0);
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_CREATED),
+    ).toBe(1);
+  });
+
+  it("keeps the series coherent across repeated complete/reopen/complete cycles", async () => {
+    const tasks = taskRepo(WS);
+    const task = await tasks.createTask({
+      title: "Weekly review",
+      scheduledDate: "2026-07-20",
+      recurrence: { frequency: "week", dateKind: "scheduled" },
+    });
+
+    // Cycle 1: sequence 0 → sequence 1.
+    const one = await tasks.completeTask(task.id, {
+      ownerTodayIso: "2026-07-20",
+    });
+    const seq1 = one.successor!;
+
+    // Cycle 2: sequence 1 → sequence 2.
+    const two = await taskRepo(WS, "2026-07-27T09:00:00.000Z").completeTask(
+      seq1.id,
+      { ownerTodayIso: "2026-07-27" },
+    );
+    const seq2 = two.successor!;
+    expect(seq2.recurrenceSeries).toEqual({ seriesId: task.id, sequence: 2 });
+
+    // Undo sequence 1's completion, then redo it.
+    const midCycle = taskRepo(WS, "2026-07-27T10:00:00.000Z");
+    const undo = await midCycle.reopenTask(seq1.id);
+    expect(undo.successorOutcome).toBe("removed");
+    expect(
+      (await seriesLedger(WS, task.id)).map((row) => row.sequence),
+    ).toEqual([0, 1]);
+
+    const redo = await taskRepo(WS, "2026-07-27T11:00:00.000Z").completeTask(
+      seq1.id,
+      { ownerTodayIso: "2026-07-27" },
+    );
+    expect(redo.changed).toBe(true);
+    const newSeq2 = redo.successor!;
+    expect(newSeq2.id).not.toBe(seq2.id);
+    expect(newSeq2.scheduledDate).toBe("2026-08-03");
+
+    // Cycle 3 continues from the replacement: the chain did not fork or stall.
+    const three = await taskRepo(WS, "2026-08-03T09:00:00.000Z").completeTask(
+      newSeq2.id,
+      { ownerTodayIso: "2026-08-03" },
+    );
+    const seq3 = three.successor!;
+    expect(seq3.recurrenceSeries).toEqual({ seriesId: task.id, sequence: 3 });
+    expect(seq3.scheduledDate).toBe("2026-08-10");
+
+    // One row per sequence, no gaps, no duplicates, and the live occupants are the
+    // three that were never withdrawn plus the one open task.
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: seq1.id },
+      { sequence: 2, entityId: newSeq2.id },
+      { sequence: 3, entityId: seq3.id },
+    ]);
+    expect(await tasks.getTask(seq2.id)).toBeNull();
+    const live = await liveTasksTitled(WS, "Weekly review");
+    expect(live).toHaveLength(4);
+    expect(live.filter((item) => item.completedAt === null)).toHaveLength(1);
+  });
+
+  it("still creates exactly one successor when two RE-completions race", async () => {
+    const { task } = await seedScheduledTask(WS);
+    const tasks = taskRepo(WS);
+    await tasks.setTaskRecurrence(task.id, {
+      frequency: "week",
+      dateKind: "scheduled",
+    });
+    await tasks.completeTask(task.id, { ownerTodayIso: "2026-07-20" });
+    await tasks.reopenTask(task.id);
+
+    // Two repositories, each having read the reopened task, both completing it.
+    const a = taskRepo(WS, "2026-07-20T10:00:00.000Z");
+    const b = taskRepo(WS, "2026-07-20T10:00:01.000Z");
+    const [first, second] = await Promise.all([
+      a.completeTask(task.id, { ownerTodayIso: "2026-07-20" }),
+      b.completeTask(task.id, { ownerTodayIso: "2026-07-20" }),
+    ]);
+
+    const winners = [first, second].filter((result) => result.changed);
+    expect(winners).toHaveLength(1);
+    const loser = [first, second].find((result) => !result.changed)!;
+    // The loser reports the ONE successor that exists, never a second one.
+    expect(loser.successor?.id).toBe(winners[0]!.successor?.id);
+
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: winners[0]!.successor!.id },
+    ]);
+    // One withdrawal, and one creation per cycle — the race added neither.
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_CREATED),
+    ).toBe(2);
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_WITHDRAWN),
+    ).toBe(1);
+
+    // And a plain retry of the now-completed task is still an idempotent no-op.
+    const retry = await taskRepo(WS, "2026-07-20T11:00:00.000Z").completeTask(
+      task.id,
+      { ownerTodayIso: "2026-07-20" },
+    );
+    expect(retry.changed).toBe(false);
+    expect(retry.successor ?? null).toBeNull();
+    expect(
+      (await seriesLedger(WS, task.id)).map((row) => row.sequence),
+    ).toEqual([0, 1]);
+  });
+
+  it("re-completes after the owner TRASHED the successor rather than undoing", async () => {
+    const { task } = await seedScheduledTask(WS);
+    const tasks = taskRepo(WS);
+    await tasks.setTaskRecurrence(task.id, {
+      frequency: "week",
+      dateKind: "scheduled",
+    });
+    const first = await tasks.completeTask(task.id, {
+      ownerTodayIso: "2026-07-20",
+    });
+    // The owner deletes the generated occurrence outright, so the reopen finds no
+    // successor to withdraw — and the reservation is left behind by the DELETE, not
+    // by the withdrawal. Re-completion must still release the slot it holds.
+    await makeSpineRepository(makeContext(WS), {
+      clock: new FakeClock("2026-07-20T09:30:00.000Z").now,
+      idGenerator: nextEntityId,
+      activityIdGenerator: nextActivityId,
+    }).softDelete(first.successor!.id);
+    const undo = await tasks.reopenTask(task.id);
+    expect(undo.successorOutcome).toBe("none");
+
+    const again = await taskRepo(WS, "2026-07-20T10:00:00.000Z").completeTask(
+      task.id,
+      { ownerTodayIso: "2026-07-20" },
+    );
+    expect(again.changed).toBe(true);
+    expect(again.successor!.id).not.toBe(first.successor!.id);
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: again.successor!.id },
+    ]);
+    // The trashed occurrence stays trashed — it was not revived or overwritten.
+    expect(await tasks.getTask(first.successor!.id)).toBeNull();
+  });
+
+  it("rolls the reopen, the withdrawal and the slot release back together", async () => {
+    const { task } = await seedScheduledTask(WS);
+    const tasks = taskRepo(WS);
+    await tasks.setTaskRecurrence(task.id, {
+      frequency: "week",
+      dateKind: "scheduled",
+    });
+    const first = await tasks.completeTask(task.id, {
+      ownerTodayIso: "2026-07-20",
+    });
+
+    const faulty = makeTaskRepository(makeContext(WS), {
+      clock: new FakeClock("2026-07-20T10:00:00.000Z").now,
+      idGenerator: nextEntityId,
+      activityIdGenerator: nextActivityId,
+      reopenFault: true,
+    });
+    await expect(faulty.reopenTask(task.id)).rejects.toBeInstanceOf(
+      TaskStorageError,
+    );
+
+    // NOTHING committed: not the reopen, not the withdrawal, not the slot release.
+    expect((await tasks.getTask(task.id))?.completedAt).not.toBeNull();
+    expect(await tasks.getTask(first.successor!.id)).not.toBeNull();
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+      { sequence: 1, entityId: first.successor!.id },
+    ]);
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_WITHDRAWN),
+    ).toBe(0);
+
+    // The record is not wedged: an ordinary reopen still works afterwards.
+    const undo = await taskRepo(WS, "2026-07-20T11:00:00.000Z").reopenTask(
+      task.id,
+    );
+    expect(undo.successorOutcome).toBe("removed");
+    expect(
+      await taskRepo(WS, "2026-07-20T12:00:00.000Z").completeTask(task.id, {
+        ownerTodayIso: "2026-07-20",
+      }),
+    ).toEqual(expect.objectContaining({ changed: true }));
+  });
+
+  it("cannot commit a slot release or a successor without the completion", async () => {
+    const { task } = await seedScheduledTask(WS);
+    const tasks = taskRepo(WS);
+    await tasks.setTaskRecurrence(task.id, {
+      frequency: "week",
+      dateKind: "scheduled",
+    });
+    const first = await tasks.completeTask(task.id, {
+      ownerTodayIso: "2026-07-20",
+    });
+    await tasks.reopenTask(task.id);
+
+    // A fault immediately after the completion write: the successor group — including
+    // the release of any stale slot — is in the SAME batch and must vanish with it.
+    const faulty = makeTaskRepository(makeContext(WS), {
+      clock: new FakeClock("2026-07-20T10:00:00.000Z").now,
+      idGenerator: nextEntityId,
+      activityIdGenerator: nextActivityId,
+      completeFault: "after-completion",
+    });
+    await expect(
+      faulty.completeTask(task.id, { ownerTodayIso: "2026-07-20" }),
+    ).rejects.toBeInstanceOf(TaskStorageError);
+
+    expect((await tasks.getTask(task.id))?.completedAt).toBeNull();
+    expect(await seriesLedger(WS, task.id)).toEqual([
+      { sequence: 0, entityId: task.id },
+    ]);
+    expect(await liveTasksTitled(WS, "Water the garden")).toHaveLength(1);
+    expect(
+      await countActivitiesOfType(TASK_RECURRENCE_OCCURRENCE_CREATED),
+    ).toBe(1);
+    expect(await tasks.getTask(first.successor!.id)).toBeNull();
   });
 });

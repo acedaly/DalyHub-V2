@@ -22,14 +22,20 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 > These are **the first work to do**, ahead of everything below including SET-02.
 > Two are confirmed, reproduced, release-blocking data-integrity defects on core
 > daily-use paths; the audit reproduced both against the committed migration schema
-> and deliberately did **not** fix them. The audit's verdict is **"Not ready for
-> normal daily use pending these two blockers."**
+> and deliberately did **not** fix them. The audit's verdict, as written against
+> `ca3577d`, is **"Not ready for normal daily use pending these two blockers."**
+>
+> **Status since.** AUDIT-FIX-01 (recurring re-completion) is **resolved** —
+> see its entry below. **AUDIT-FIX-02 (meeting-item remove-then-add) remains the
+> outstanding release blocker**, so the audit's verdict still stands until it is
+> fixed. The audit report itself is left as the historical assessment of `ca3577d`
+> and is not rewritten.
 >
 > These are **product defects**, so they live here in the roadmap; their testing,
 > security and observability dimensions are recorded in
 > [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-79…DEBT-88).
 
-### ☐ AUDIT-FIX-01 — Recurring task cannot be completed again after reopen (P1)
+### ☑ AUDIT-FIX-01 — Recurring task cannot be completed again after reopen (P1)
 
 - **Finding.** [AUDIT-01](../product/END_TO_END_AUDIT_2026_08_05.md#audit-01--recurring-task-cannot-be-completed-again-after-reopen--p1).
   Completing a recurring task, reopening it, then completing it again violates
@@ -49,6 +55,59 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 - **This reopens the recurrence half of [TASKS-04](ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence).**
   TASKS-04 is otherwise delivered; only recurring re-completion is broken.
 - **Size.** Small. **Priority.** P1 — first item of V2.1.
+
+- **Resolved (2026-08-05).** Reproduced first against real Workers/D1 through the
+  task repository — occurrence seq 0 completed → successor at seq 1 → reopen
+  soft-deleted the successor's `entities` row while its `task_recurrence_rules` row
+  kept seq 1 → the second completion raised `TaskStorageError` wrapping
+  `UNIQUE constraint failed: task_recurrence_rules.workspace_id, series_id, sequence`
+  and rolled the whole batch back.
+
+  **The lifecycle correction — both halves, because the slot has two meanings.** A
+  recurrence row RESERVES a `(series_id, sequence)` slot, so the fix makes the
+  reservation follow the occupancy rather than suppressing the constraint (the
+  constraint is untouched, no exception is caught, and no migration was needed):
+
+  1. **The withdrawal releases the slot it empties.** `reopenTask` now runs
+     `#releaseWithdrawnRecurrenceStatement` in the SAME batch as the withdrawal,
+     gated on the successor carrying *this batch's* `deleted_at` — so the row goes
+     only when the successor actually went, and a successor the guarded withdrawal
+     declined to touch keeps both its task and its place in the series. Per
+     [ADR-062](../decisions/ARCHITECTURE_DECISIONS.md#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence)
+     §6 a recurrence row is per-occurrence configuration, not history: a COMPLETED
+     occurrence keeps its row (that is what preserves the series for undo), while a
+     WITHDRAWN one has nothing left to configure.
+  2. **The successor group recognises a live occupant, and releases a stale one.**
+     `#buildSuccessorGroup` gained two complementary SQL predicates: it declines
+     ENTIRELY when a LIVE task already holds the slot (a successor retained because
+     it was edited/linked/completed, or one a concurrent completion just created),
+     and it releases a STALE row first when the slot's task is soft-deleted (the
+     reopen withdrew it, or the owner trashed it). The group is a cascade off the
+     entity insert, so declining writes no entity, spine record, detail row,
+     recurrence row or Activity — never a detached half-task. `completeTask` then
+     reports the occurrence that already holds the slot, read back by series
+     identity inside the workspace, so a retained successor is recognised rather
+     than duplicated, overwritten or silently reported as missing.
+
+  Unchanged by design: exactly-one-successor under retry and concurrency, the
+  completion gate, the withdrawal safety rules, atomicity, and the activity contract
+  (no `withdrawn` event for a retained successor; no second `created` event for one
+  effective successor).
+
+  **Source.** [`app/platform/storage/d1/d1-task-repository.ts`](../../app/platform/storage/d1/d1-task-repository.ts)
+  (`completeTask`, `#buildSuccessorGroup`, `reopenTask`,
+  `#releaseWithdrawnRecurrenceStatement`, plus a TEST-ONLY `reopenFault` injection
+  point); contract wording in [`app/kernel/tasks/task.ts`](../../app/kernel/tasks/task.ts).
+
+  **Regression tests.** Seven new real Workers/D1 cases in
+  [`test/kernel/task-recurrence-storage.test.ts`](../../test/kernel/task-recurrence-storage.test.ts)
+  (§"re-completing a reopened recurring occurrence"): the reported regression
+  (complete → reopen → complete, asserting success, one active seq-1 successor, one
+  recurrence row and no orphan); a RETAINED edited successor (completion succeeds,
+  the existing successor is returned unchanged, no second task or row); a repeated
+  three-cycle lifecycle; a concurrent RE-completion plus retry; the owner-trashed
+  successor; and two atomic-rollback cases proving neither the slot release nor the
+  successor can commit without their reopen/completion.
 
 ### ☐ AUDIT-FIX-02 — Meeting item remove-then-add throws HTTP 500 (P1)
 
@@ -745,9 +804,10 @@ because a reader would otherwise wonder whether it was forgotten:
 
 0. **[Immediate blockers](#immediate-blockers--5-august-2026-end-to-end-audit)** —
    the 5 August 2026 audit's remediation, **ahead of SET-02**. AUDIT-FIX-01 and
-   AUDIT-FIX-02 are confirmed, reproduced, release-blocking P1 data-integrity
+   AUDIT-FIX-02 were confirmed, reproduced, release-blocking P1 data-integrity
    defects on core daily-use paths (recurring-task completion; meeting-item
-   editing); AUDIT-FIX-03/04/05 are the P2 permanent-delete, CSRF and
+   editing); **AUDIT-FIX-01 is now resolved and AUDIT-FIX-02 is the remaining
+   blocker.** AUDIT-FIX-03/04/05 are the P2 permanent-delete, CSRF and
    documentation follow-ups. Restore is worth more than a restyle, but a product
    that bricks a recurring task on a checkbox toggle is worth fixing before either.
 1. **[SET-02](#-set-02--backup--restore-v21)** — restore. The one gap V2 knowingly
