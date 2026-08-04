@@ -166,14 +166,41 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await page.request.post("/tasks/t-complete", {
       form: { intent: "reopen" },
     });
+    /*
+     * Also normalise it to PLANNED FOR TODAY, through its own Drawer.
+     *
+     * The task is unscheduled in the seed, which put it in Today's Anytime band.
+     * POLISH-02 previews that band (a real workspace has a backlog of dozens, and
+     * the landing page is not a place to read one), so an unscheduled task is not
+     * reliably on the page. Planning it for today puts it in the band Today never
+     * truncates. The Drawer's own Planning control is used rather than a date
+     * computed in the test, so the owner's calendar day comes from the product.
+     */
     await page.goto("/today");
     // Scope to the My day widget region so the task card is unambiguous — the
     // Recent Activity feed (TODAY-08) also mentions the task by title elsewhere.
-    await expect(
-      page
-        .getByRole("region", { name: "My day" })
-        .locator(".dh-card", { hasText: COMPLETE_TITLE }),
-    ).toBeVisible();
+    const card = page
+      .getByRole("region", { name: "My day" })
+      .locator(".dh-card", { hasText: COMPLETE_TITLE });
+
+    // Plan it only if it is not already on the page: the dev database is shared,
+    // so an unconditional write is an Activity row that pushes the seeded events
+    // off the first page of the workspace feed (which `activity-actor.spec.ts`
+    // reads). A normaliser should be a no-op when the state is already correct.
+    if ((await card.count()) === 0) {
+      await page.goto("/today?drawer=task%3At-complete");
+      const planning = page
+        .getByRole("dialog")
+        .getByRole("group", { name: "Planning" });
+      await planning.getByRole("button", { name: "Today", exact: true }).click();
+      await expect(
+        planning.getByRole("button", { name: "Clear" }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toBeHidden();
+    }
+
+    await expect(card).toBeVisible();
   }
 
   test("runs a contextual action bound to an open task Drawer", async ({
@@ -253,8 +280,12 @@ test.describe("DS-09 Command Palette — desktop", () => {
   test("opens over an existing Drawer and keeps it behind", async ({
     page,
   }) => {
-    await gotoFixture(page, "/today");
-    await page.getByRole("link", { name: "Finish PX-02" }).first().click();
+    // Open a Drawer over Today by its URL rather than by clicking a task named in
+    // the seed: POLISH-02 previews Today's discretionary bands, so an unscheduled
+    // seed task is no longer guaranteed to be on the page. What this test is
+    // about is the palette layering over an already-open Drawer, and the deep
+    // link is the more direct way to get one open.
+    await gotoFixture(page, "/today?drawer=task%3At-drawer");
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
     await expect(palette(page)).toBeVisible();

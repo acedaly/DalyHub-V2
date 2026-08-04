@@ -103,6 +103,25 @@
 }
 
 /*
+ * POLISH-02 — the DASHBOARD measure.
+ *
+ * A collection whose content is a multi-column dashboard rather than one list
+ * opts into a wider cap. The measure rule above exists to stop a ROW becoming a
+ * 1200px span between a title and a pill; a two-column dashboard at 108rem has a
+ * primary column of ~66rem, which is shorter than a single column at the standard
+ * cap — so the rule's reason is satisfied by the shape, not violated by the width.
+ * Header, filters and content move together so nothing detaches from the list it
+ * belongs to. Today is currently the only opt-in; anything else that takes it must
+ * be genuinely multi-column, not merely long.
+ */
+.dh-collection--dashboard .dh-collection__content,
+.dh-collection--dashboard .dh-collection__sticky > .dh-pane-header,
+.dh-collection--dashboard .dh-collection__filters,
+.dh-collection--dashboard .dh-collection__mobile-controls {
+  max-inline-size: calc(var(--dh-width-dashboard) + 2 * var(--dh-gutter));
+}
+
+/*
  * The pinned header's separation is a plain, always-on hairline.
  *
  * It was briefly a SCROLL-DRIVEN animation (`animation-timeline: scroll()`),

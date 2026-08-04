@@ -14,6 +14,12 @@ import type { InsightSignal } from "./insights";
 export interface MorningBriefData {
   /** A calm greeting resolved from the owner-local hour ("Good morning"). */
   readonly greeting: string;
+  /**
+   * The owner's first name, so the hero greets a person rather than a session
+   * ("Good morning, Aidan"). Null when the session carries no usable name — the
+   * greeting then stands on its own rather than falling back to an email.
+   */
+  readonly ownerName: string | null;
   /** The owner's calendar date, long form ("Sunday 19 July 2026"). */
   readonly dateLong: string;
   /** One calm line describing the shape of the day. */
@@ -74,6 +80,15 @@ export interface GoalProgressItem {
   readonly alignmentLabel: string;
   /** Whether recent action does NOT match the goal (a calm "at risk" cue). */
   readonly atRisk: boolean;
+  /**
+   * Contributing Projects, total and completed — the goal's completion, stated as
+   * the same roll-up the Goal record shows. It comes from the contribution read the
+   * alignment evaluation ALREADY performs, so surfacing it costs no extra query.
+   * `projectTotal === 0` is a goal with nothing contributing yet, which is not the
+   * same as 0% done and is rendered as an absence, never as an empty bar.
+   */
+  readonly projectTotal: number;
+  readonly projectCompleted: number;
 }
 
 /** Everything the Goals widget needs. */

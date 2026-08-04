@@ -45,11 +45,37 @@ export const TODAY_WIDGET_IDS = [
 
 export type TodayWidgetId = (typeof TODAY_WIDGET_IDS)[number];
 
-/** A widget's static definition — its title and whether it may be hidden. */
+/**
+ * Which region of the dashboard a widget belongs to (POLISH-02).
+ *
+ * Today used to be ONE flow of widgets with three hand-placed grid cells and
+ * everything else auto-flowed around them. Auto-placement around a five-row span
+ * put the surface's tallest sections wherever the packing algorithm happened to
+ * land them, so a section could sit in a 20rem column one day and full-width the
+ * next, and short cards left ragged holes beside the task list. The arrangement was
+ * emergent rather than designed.
+ *
+ * A widget now DECLARES its region and the surface renders three real containers,
+ * so column flow is independent and no card is placed by accident:
+ *
+ *   hero       the full-width orientation band — greeting, date, day at a glance
+ *   primary    what the owner ACTS on: the day's tasks, the schedule, the projects
+ *              in motion, what just changed (≈2/3 of the width)
+ *   secondary  what the owner REFERS to: signals, capture, goals, areas, notes,
+ *              diary, assets (≈1/3)
+ *
+ * Regions stack in this order on a phone, which is the same order the hierarchy
+ * asks for, so the mobile layout is the desktop one with the columns unwrapped.
+ */
+export type TodayWidgetColumn = "hero" | "primary" | "secondary";
+
+/** A widget's static definition — its title, its region and its description. */
 export interface TodayWidgetDefinition {
   readonly id: TodayWidgetId;
   /** The section label / accessible name. */
   readonly title: string;
+  /** The dashboard region this widget lives in. */
+  readonly column: TodayWidgetColumn;
   /**
    * A one-line description shown in the "Customise" panel so the owner knows what
    * a hidden widget would restore.
@@ -59,65 +85,57 @@ export interface TodayWidgetDefinition {
 
 /**
  * The catalogue in its CANONICAL order — the calm, sensible default arrangement a
- * first-time owner sees, top to bottom: orient (brief), execute (my day), then the
- * surrounding context and capture surfaces. Personalisation reorders/toggles over
- * this; a reset returns to exactly this order with everything visible.
+ * first-time owner sees. The order is the ATTENTION order the surface is designed
+ * around, and it now reads the same way down the page as it does down each column:
+ *
+ *   orient        the hero brief
+ *   act           today's tasks → today's schedule → the projects in motion →
+ *                 what just changed
+ *   refer         signals → capture → goals → areas → notes → diary → assets
+ *
+ * Personalisation reorders/toggles over this; a reset returns to exactly this order
+ * with everything visible. Reordering is scoped to a widget's own region (see
+ * `moveWidget`), so a move never silently teleports a card across the dashboard.
  */
 export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
   {
     id: "morning-brief",
     title: "Morning brief",
+    column: "hero",
     description: "Greeting, date, focus and what needs attention right now.",
   },
   {
     id: "my-day",
     title: "My day",
+    column: "primary",
     description: "Today’s planned, overdue, upcoming and backlog tasks.",
   },
   {
-    id: "recent-activity",
-    title: "Recent activity",
-    description: "A unified timeline of recent changes across DalyHub.",
-  },
-  {
-    id: "diary",
-    title: "Diary",
-    description: "Today’s journal entry and recent moments.",
-  },
-  {
-    id: "notes",
-    title: "Notes",
-    description: "Recently created notes to continue writing.",
+    id: "meetings",
+    // "Meetings", not "Schedule": the product speaks in its own nouns everywhere
+    // (AGENTS.md §7), and a synonym on the most-visited screen is where vocabulary
+    // drift starts. What makes it read as the day's schedule is its POSITION —
+    // directly under the day's tasks — and its timeline treatment, not a rename.
+    title: "Meetings",
+    column: "primary",
+    description: "Today’s meetings, in order, with what is still to come.",
   },
   {
     id: "projects",
     title: "Continue working",
+    column: "primary",
     description: "Active projects, most recently touched first.",
   },
   {
-    id: "areas",
-    title: "Areas",
-    description: "A calm health summary across your areas of life.",
-  },
-  {
-    id: "goals",
-    title: "Goals",
-    description: "Goals in progress and whether recent action matches them.",
-  },
-  {
-    id: "meetings",
-    title: "Meetings",
-    description: "Today’s meetings, in order, with what is still to come.",
-  },
-  {
-    id: "assets",
-    title: "Assets",
-    description:
-      "Maintenance and renewals that are overdue or due soon on things you own.",
+    id: "recent-activity",
+    title: "Recent activity",
+    column: "primary",
+    description: "A unified timeline of recent changes across DalyHub.",
   },
   {
     id: "insights",
     title: "Insights",
+    column: "secondary",
     description: "Overdue, waiting, stalled and at-risk signals at a glance.",
   },
   {
@@ -125,7 +143,39 @@ export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
     // "Capture" (not "Quick capture") so the widget heading never collides with the
     // pane header's one primary "Quick capture" action.
     title: "Capture",
+    column: "secondary",
     description: "Capture a task, note or thought without leaving Today.",
+  },
+  {
+    id: "goals",
+    title: "Goals",
+    column: "secondary",
+    description: "Goals in progress and whether recent action matches them.",
+  },
+  {
+    id: "areas",
+    title: "Areas",
+    column: "secondary",
+    description: "A calm health summary across your areas of life.",
+  },
+  {
+    id: "notes",
+    title: "Notes",
+    column: "secondary",
+    description: "Recently created notes to continue writing.",
+  },
+  {
+    id: "diary",
+    title: "Diary",
+    column: "secondary",
+    description: "Today’s journal entry and recent moments.",
+  },
+  {
+    id: "assets",
+    title: "Assets",
+    column: "secondary",
+    description:
+      "Maintenance and renewals that are overdue or due soon on things you own.",
   },
 ];
 
@@ -247,34 +297,46 @@ export function togglePinned(
   };
 }
 
+/** The region a widget id renders in (`null` for an unknown id). */
+function columnOf(id: TodayWidgetId): TodayWidgetColumn | null {
+  return WIDGET_BY_ID.get(id)?.column ?? null;
+}
+
 /**
- * The RENDERED (visible) sequence of widget ids in the SAME pin group as `id` —
- * i.e. the sequence a Move up/down actually reorders. Because pinned widgets always
- * float above non-pinned ones, a move only ever changes order WITHIN a group;
- * hidden widgets are not rendered and so are skipped. Returns `null` for a hidden or
- * unknown id (nothing to move).
+ * The RENDERED (visible) sequence of widget ids in the SAME rendered group as `id`
+ * — i.e. the sequence a Move up/down actually reorders. A group is one region
+ * (`column`) and one pin state, because those are exactly the two things that
+ * decide where a widget is drawn: regions are separate containers, and within a
+ * region pinned widgets always float above the rest. Hidden widgets are not
+ * rendered and so are skipped. Returns `null` for a hidden or unknown id (nothing
+ * to move).
  */
 function visibleGroupOf(
   layout: TodayLayout,
   id: TodayWidgetId,
 ): readonly TodayWidgetId[] | null {
   const hidden = new Set(layout.hidden);
-  if (hidden.has(id) || !layout.order.includes(id)) {
+  const column = columnOf(id);
+  if (hidden.has(id) || column === null || !layout.order.includes(id)) {
     return null;
   }
   const pinned = new Set(layout.pinned);
-  const sameGroup = pinned.has(id);
+  const samePin = pinned.has(id);
   return layout.order.filter(
-    (member) => !hidden.has(member) && pinned.has(member) === sameGroup,
+    (member) =>
+      !hidden.has(member) &&
+      pinned.has(member) === samePin &&
+      columnOf(member) === column,
   );
 }
 
 /**
- * Move a widget one step earlier/later **within the rendered sequence** (its pin
- * group), by swapping it with its adjacent VISIBLE, same-group neighbour in `order`.
- * Operating on the rendered sequence — not raw `order` — means a Move up/down always
- * produces a visible change (or is a clamped no-op at a group boundary), never a
- * silent no-op caused by an intervening pinned or hidden widget.
+ * Move a widget one step earlier/later **within the rendered sequence** (its region
+ * and pin group), by swapping it with its adjacent VISIBLE, same-group neighbour in
+ * `order`. Operating on the rendered sequence — not raw `order` — means a Move
+ * up/down always produces a visible change (or is a clamped no-op at a group
+ * boundary), never a silent no-op caused by an intervening pinned, hidden or
+ * other-column widget, and never a card jumping between columns.
  */
 export function moveWidget(
   layout: TodayLayout,
@@ -314,6 +376,11 @@ export interface ResolvedTodayWidget {
  * first (in their relative `order`), then the rest (in `order`), with hidden
  * widgets removed. Pure — the render order is a deterministic function of the
  * layout, so it is stable across renders and reproducible in tests.
+ *
+ * The sequence is still FLAT and region-agnostic; `groupVisibleWidgets` splits it
+ * into the three rendered containers. Keeping both means the move-boundary flags
+ * (`isFirst`/`isLast`) are computed once, against the same groups `moveWidget`
+ * reorders, rather than twice in two places that can disagree.
  */
 export function resolveVisibleWidgets(
   layout: TodayLayout,
@@ -326,10 +393,13 @@ export function resolveVisibleWidgets(
   const unpinnedGroup = visible.filter((id) => !pinned.has(id));
   const ordered = [...pinnedGroup, ...unpinnedGroup];
   return ordered.map((id, position) => {
-    // `isFirst`/`isLast` reflect movability WITHIN the widget's pin group (a move
-    // never crosses the pin boundary), so the Move up/down controls are disabled
-    // exactly when they could not change the rendered order.
-    const group = pinned.has(id) ? pinnedGroup : unpinnedGroup;
+    // `isFirst`/`isLast` reflect movability WITHIN the widget's rendered group —
+    // its region AND its pin state, the two things a move never crosses — so the
+    // Move up/down controls are disabled exactly when they could not change the
+    // rendered order.
+    const group = (pinned.has(id) ? pinnedGroup : unpinnedGroup).filter(
+      (member) => columnOf(member) === columnOf(id),
+    );
     const withinGroup = group.indexOf(id);
     return {
       definition: WIDGET_BY_ID.get(id)!,
@@ -340,6 +410,29 @@ export function resolveVisibleWidgets(
       isLast: withinGroup === group.length - 1,
     };
   });
+}
+
+/** The visible widgets split into the three rendered dashboard regions. */
+export interface TodayWidgetRegions {
+  readonly hero: readonly ResolvedTodayWidget[];
+  readonly primary: readonly ResolvedTodayWidget[];
+  readonly secondary: readonly ResolvedTodayWidget[];
+}
+
+/**
+ * Split the resolved widgets into the containers the dashboard renders. Order
+ * within each region is preserved from `resolveVisibleWidgets`, so pinned widgets
+ * still lead their own column.
+ */
+export function groupVisibleWidgets(layout: TodayLayout): TodayWidgetRegions {
+  const visible = resolveVisibleWidgets(layout);
+  const of = (column: TodayWidgetColumn) =>
+    visible.filter((widget) => widget.definition.column === column);
+  return {
+    hero: of("hero"),
+    primary: of("primary"),
+    secondary: of("secondary"),
+  };
 }
 
 /** The widgets currently hidden (for the "Customise" restore list), in order. */

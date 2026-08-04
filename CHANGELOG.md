@@ -106,6 +106,44 @@ no version number to group them under.
 
 ### Changed
 
+- **Today has been rebuilt as a command centre.** The screen you land on every
+  morning now opens with a proper hero: it greets you by name, states the date,
+  says what shape the day has, shows how far through today's committed work you
+  are, and carries one row of counts — planned, overdue, meetings still to come,
+  what you are waiting on other people for, projects that need a look, and what
+  you have finished today. Each count that has an answer somewhere links to it.
+
+  Beneath it, the page is two deliberate columns instead of cards falling wherever
+  they fitted: **your day, your meetings, the projects you are working on and what
+  just changed** on the left; **signals, capture, goals, areas, notes, diary and
+  assets** on the right. On a phone the same order simply stacks. Every card now
+  shares one header, one shape and one hover response, and each list has a single
+  "see the rest" link in its header rather than a link at the bottom of some
+  sections and none in others.
+
+  **Nothing is counted twice any more.** The day used to be summarised in the
+  header, again in the brief, and again inside _My day_; it is now stated once, at
+  the top. _Insights_ keeps only what the top of the page does not already say.
+
+  **Today is no longer somewhere you read your whole backlog.** _Anytime_ and
+  _Upcoming_ show the eight most pressing items with the true total beside the
+  heading and a link to the rest — so what is actually due today is not buried
+  under sixty things that are not. What you have committed to — today's tasks and
+  anything overdue — is never shortened.
+
+  Along the way: meetings read as a real timeline down the left of the card;
+  project cards always say how healthy the project is, how far along it is and how
+  much is left; goals say how complete they are next to whether they have had
+  recent action; the two remaining empty sections now offer you something to do;
+  and on a wide monitor the dashboard fills the screen instead of leaving a band
+  of empty space down the right.
+
+  Two things in the brief were deliberately left out rather than faked: a
+  **weather** panel (there is still no weather data source, and an empty box that
+  promises one is worse than no box) and **card shadows** (DalyHub separates cards
+  by surface tone and a hairline, which stays legible in all seven themes where a
+  single shadow does not).
+
 - **On an iPhone that already has DalyHub on the Home Screen, the old icon may
   stay.** iOS copies a home-screen icon in when you add the app and does not go
   back for a new one — not when the app updates, and not when you reopen it.

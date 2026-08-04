@@ -28,6 +28,7 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import { DrawerProvider } from "~/shared/drawer";
+import { greetingNameFor } from "~/shared/shell/identity-display";
 import {
   createOwnerHealthContext,
   healthNeedsAttention,
@@ -110,6 +111,7 @@ function emptyLanding(
   now: Date,
   dateLong: string,
   timeZone: string,
+  ownerName: string | null,
 ): TodayLandingData {
   const input = {
     overdueCount: 0,
@@ -126,6 +128,7 @@ function emptyLanding(
   return {
     morningBrief: {
       greeting: greetingFor(dayPartForHour(ownerLocalHour(now, timeZone))),
+      ownerName,
       dateLong,
       focusLine: briefFocusLine(input),
       plannedTodayCount: 0,
@@ -146,6 +149,13 @@ export async function loader({ context }: Route.LoaderArgs) {
   // Authentication is guaranteed by the Worker boundary; re-check (401 propagates).
   const session = requireAuthenticatedSession(context);
   const now = new Date();
+  // The hero greets the owner by their first name. Derived from the SAME shared
+  // display-identity helper the shell's User menu uses (never a second rule), and
+  // resolved server-side so the greeting is correct on the first byte.
+  const ownerName = greetingNameFor(
+    session.user.displayName,
+    session.user.email,
+  );
   let timeZone = DEFAULT_APP_PREFERENCES.timezone;
   let date = formatTodayDate(now, timeZone);
   let todayIso = ownerCalendarIso(now, timeZone);
@@ -253,6 +263,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       timezone: timeZone,
       todayIso,
       dateLong: date,
+      ownerName,
       plannedTodayCount: buckets.today.length,
       overdueCount: buckets.overdue.length,
       inboxCount: buckets.anytime.length,
@@ -268,7 +279,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     buckets = EMPTY_BUCKETS;
     waiting = EMPTY_WAITING_SUMMARY;
     recentProjects = [];
-    landing = emptyLanding(now, date, timeZone);
+    landing = emptyLanding(now, date, timeZone, ownerName);
   }
 
   const planning: PlanningData = {

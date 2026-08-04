@@ -24,35 +24,23 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 
+import { displayNameFromEmail, initialsFromName } from "./identity-display";
 import { ThemeQuickSwitch } from "./ThemePicker";
 import type { ThemePreference } from "./theme";
 
 /** The Cloudflare Access application logout endpoint (ADR-016 §5.7). */
 export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
 
-/** Derive a friendly display name from an email local part (e.g. "aidan" → "Aidan"). */
-export function displayNameFromEmail(email: string): string {
-  const local = email.split("@")[0] ?? email;
-  const words = local.split(/[._-]+/).filter(Boolean);
-  if (words.length === 0) {
-    return email;
-  }
-  return words
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-/** Derive up-to-two-letter initials for the avatar. */
-export function initialsFromName(name: string): string {
-  const words = name.split(/\s+/).filter(Boolean);
-  if (words.length === 0) {
-    return "?";
-  }
-  if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase();
-  }
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-}
+/**
+ * The display-identity derivations now live in `identity-display.ts` (pure, no
+ * React) so a server loader can reuse them without importing this component. They
+ * are re-exported here because this module has always been their import path.
+ */
+export {
+  displayNameFromEmail,
+  greetingNameFor,
+  initialsFromName,
+} from "./identity-display";
 
 export type UserMenuProps = {
   /** The authenticated owner's verified email (safe display identity). */

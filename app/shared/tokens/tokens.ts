@@ -85,6 +85,7 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "dh-width-narrow",
     "dh-width-content",
     "dh-width-wide",
+    "dh-width-dashboard",
     "dh-shell-header-height",
     "dh-shell-nav-width",
     "dh-gutter",

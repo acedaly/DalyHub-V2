@@ -24,12 +24,12 @@ export {
 export { PrimaryNavigation } from "./PrimaryNavigation";
 export { SidebarBrand } from "./SidebarBrand";
 export { SidebarSearch } from "./SidebarSearch";
+export { UserMenu, ACCESS_LOGOUT_PATH } from "./UserMenu";
 export {
-  UserMenu,
-  ACCESS_LOGOUT_PATH,
   displayNameFromEmail,
+  greetingNameFor,
   initialsFromName,
-} from "./UserMenu";
+} from "./identity-display";
 export {
   ThemePicker,
   ThemeQuickSwitch,

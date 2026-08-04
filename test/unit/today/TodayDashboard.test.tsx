@@ -537,6 +537,257 @@ function renderTodayWithProjects(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* POLISH-02 — the hero, the regions and the de-duplicated surface             */
+/* -------------------------------------------------------------------------- */
+
+import type { TodayLandingData } from "~/modules/today/landing/types";
+
+const LANDING: TodayLandingData = {
+  morningBrief: {
+    greeting: "Good morning",
+    ownerName: "Aidan",
+    dateLong: "Sunday 19 July 2026",
+    focusLine: "2 tasks planned for today",
+    plannedTodayCount: 2,
+    overdueCount: 1,
+    inboxCount: 1,
+  },
+  notes: [{ id: "n-1", title: "Reading list", createdLabel: "Created Today" }],
+  diary: { today: [], recent: [], capturedToday: false },
+  areas: [],
+  goals: {
+    goals: [
+      {
+        id: "g-1",
+        title: "Run a half-marathon",
+        areaLabel: "Health",
+        alignmentLabel: "Recent action",
+        atRisk: false,
+        projectTotal: 4,
+        projectCompleted: 1,
+      },
+    ],
+  },
+  meetings: {
+    meetings: [
+      {
+        id: "m-1",
+        title: "Team standup",
+        timeLabel: "09:30",
+        context: "Online",
+        started: false,
+      },
+    ],
+    remainingCount: 1,
+  },
+  insights: {
+    signals: [
+      { id: "overdue", label: "Tasks overdue", count: 1, tone: "attention" },
+      {
+        id: "waiting",
+        label: "Waiting on others",
+        count: 3,
+        tone: "neutral",
+        href: "/today/waiting",
+      },
+      {
+        id: "goals-risk",
+        label: "Goals at risk",
+        count: 2,
+        tone: "attention",
+        href: "/goals",
+      },
+    ],
+  },
+  assets: { items: [], trackedAsTasksCount: 0, overdueCount: 0 },
+};
+
+function renderTodayWithLanding() {
+  return renderInDataRouter(
+    <FeedbackProvider>
+      <DrawerProvider renderDrawer={createTodayDrawerRenderer(taskTitles())}>
+        <TodayDashboard
+          date="Sunday 19 July 2026"
+          todayIso="2026-07-19"
+          planning={PLANNING}
+          waiting={{ count: 3, preview: [] }}
+          landing={LANDING}
+          recentProjects={[
+            {
+              id: "p-real",
+              title: "DalyHub V2",
+              areaLabel: "Career",
+              taskTotal: 8,
+              taskCompleted: 3,
+              health: null,
+            },
+          ]}
+        />
+      </DrawerProvider>
+    </FeedbackProvider>,
+  );
+}
+
+describe("POLISH-02 Today hero", () => {
+  it("greets the owner by name and states the date exactly once", () => {
+    renderTodayWithLanding();
+    expect(screen.getByText("Good morning, Aidan.")).toBeInTheDocument();
+    // The pane header no longer repeats the date as a subtitle — the surface used
+    // to open with the same long date twice, forty pixels apart.
+    expect(screen.getAllByText("Sunday 19 July 2026")).toHaveLength(1);
+  });
+
+  it("summarises the whole day in one at-a-glance rail, including cross-module counts", () => {
+    renderTodayWithLanding();
+    const glance = screen.getByRole("group", { name: /Today at a glance/ });
+    for (const label of [
+      "planned",
+      "overdue",
+      // Singular, because one meeting is still to come — the rail counts in the
+      // owner's words, not in a template.
+      "meeting left",
+      "waiting",
+      "need a look",
+      "completed today",
+    ]) {
+      expect(within(glance).getByText(label)).toBeInTheDocument();
+    }
+    // A count with an in-app answer is a real link; the rest are plain text.
+    expect(
+      within(glance).getByRole("link", { name: /waiting/ }),
+    ).toHaveAttribute("href", "/today/waiting");
+  });
+
+  it("counts the day once — My day no longer restates the summary", () => {
+    renderTodayWithLanding();
+    // Exactly ONE "Today at a glance" group on the surface, and it is in the hero
+    // (My day opens directly on the owner's tasks).
+    expect(
+      screen.getAllByRole("group", { name: /Today at a glance/ }),
+    ).toHaveLength(1);
+    const myDay = screen.getByRole("region", { name: /^My day/ });
+    expect(
+      within(myDay).queryByRole("group", { name: /Today at a glance/ }),
+    ).toBeNull();
+  });
+
+  it("does not repeat a hero number in Insights — the panel keeps only what is additional", () => {
+    renderTodayWithLanding();
+    const insights = screen.getByRole("region", { name: /^Insights/ });
+    // Overdue and waiting are already counted in the hero rail a few hundred
+    // pixels above; goals at risk is not, so it stays.
+    expect(within(insights).getByText("Goals at risk")).toBeInTheDocument();
+    expect(within(insights).queryByText("Tasks overdue")).toBeNull();
+    expect(within(insights).queryByText("Waiting on others")).toBeNull();
+    // The heading count matches what the panel actually renders.
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Insights 1" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows today’s progress against what is committed to the day", () => {
+    renderTodayWithLanding();
+    // 1 completed of (2 planned + 1 completed) = 3 committed.
+    expect(screen.getByText("1 of 3 done")).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: /Today’s progress/ }),
+    ).toHaveAttribute("aria-valuenow", "33");
+  });
+
+  it("omits cross-module counts entirely when the landing read is unavailable", () => {
+    renderToday();
+    const glance = screen.getByRole("group", { name: /Today at a glance/ });
+    // Never "0 meetings left" for a module that was never read.
+    expect(within(glance).queryByText(/meeting/)).toBeNull();
+    expect(within(glance).getByText("planned")).toBeInTheDocument();
+  });
+});
+
+describe("POLISH-02 widget chrome", () => {
+  it("gives a populated list widget ONE destination, in its header", () => {
+    renderTodayWithLanding();
+    const projects = screen.getByRole("region", { name: /Continue working/ });
+    expect(
+      within(projects).getByRole("link", { name: "All projects" }),
+    ).toHaveAttribute("href", "/projects");
+  });
+
+  it("omits the header destination when the widget is empty — its empty state already offers one", () => {
+    renderTodayWithLanding();
+    const areas = screen.getByRole("region", { name: /^Areas/ });
+    expect(within(areas).queryByRole("link", { name: "All areas" })).toBeNull();
+    expect(
+      within(areas).getByRole("link", { name: "Browse Areas" }),
+    ).toBeInTheDocument();
+  });
+
+  it("states a goal’s completion beside whether recent action matches it", () => {
+    renderTodayWithLanding();
+    const goals = screen.getByRole("region", { name: /^Goals/ });
+    expect(within(goals).getByText("Recent action")).toBeInTheDocument();
+    expect(within(goals).getByText("25% complete")).toBeInTheDocument();
+  });
+
+  it("renders the day’s meetings as an ordered schedule with their times", () => {
+    renderTodayWithLanding();
+    const schedule = screen.getByRole("list", { name: "Today’s meetings" });
+    expect(within(schedule).getByText("09:30")).toBeInTheDocument();
+    expect(within(schedule).getByText("Team standup")).toBeInTheDocument();
+  });
+
+  it("previews a long backlog and states the true total with a way to the rest", () => {
+    const anytime = Array.from({ length: 30 }, (_, index) => ({
+      id: `t-any-${index}`,
+      title: `Backlog task ${index}`,
+      parent: null,
+      scheduledDate: null,
+      priority: null,
+      dueDate: null,
+      completed: false,
+      completedDate: null,
+    }));
+    renderToday({ planning: { ...PLANNING, anytime } });
+
+    const list = screen.getByRole("list", { name: /Anytime tasks/ });
+    // The landing page previews the backlog rather than becoming it…
+    expect(within(list).getAllByRole("article")).toHaveLength(8);
+    // …but the heading still states how much work there really is, and the rest
+    // is one link away in the canonical Tasks view. Nothing is silently dropped.
+    expect(
+      screen.getByRole("heading", { level: 3, name: /Anytime 30/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View all 30 anytime" }),
+    ).toHaveAttribute("href", "/tasks?system=inbox");
+  });
+
+  it("never truncates the day’s own commitments", () => {
+    const today = Array.from({ length: 20 }, (_, index) => ({
+      id: `t-today-${index}`,
+      title: `Committed task ${index}`,
+      parent: null,
+      scheduledDate: "2026-07-19",
+      priority: null,
+      dueDate: null,
+      completed: false,
+      completedDate: null,
+    }));
+    renderToday({ planning: { ...PLANNING, today } });
+    const list = screen.getByRole("list", { name: /Tasks planned for today/ });
+    // A commitment you can only see by following a link is one the product hid.
+    expect(within(list).getAllByRole("article")).toHaveLength(20);
+  });
+
+  it("teaches the next action from an empty planned section instead of dead-ending", () => {
+    renderToday({
+      planning: { ...PLANNING, today: [], summary: PLANNING.summary },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Capture a Task" }));
+    expect(screen.getByTestId("today-capture-task")).toHaveFocus();
+  });
+});
+
 describe("PROJ-05 Slice 4 — Continue working empty state", () => {
   it("reads 'No active projects to continue' with a quiet explanation, not the stale open-projects copy", () => {
     renderTodayWithProjects([]);

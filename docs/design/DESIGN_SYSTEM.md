@@ -330,6 +330,10 @@ Both regions are declared by shared components, so a mixed record composes witho
 
 Verification widths: **320, 375, 390, 430, 768, 1280, 1440**, plus the DS-11 sweep's 1024 and 2560. Every theme, light and dark.
 
+**Ask the container, not the window (POLISH-02).** A surface's layout thresholds belong in a `@container` query wherever the surface is not the full width of the viewport — and inside the app shell, nothing is. The shell's navigation rail is `--dh-shell-nav-width` (15rem) plus two gutters, so a media query written against the window is wrong by ~17rem on every authenticated route. Today split into two columns at a 1024px *viewport* breakpoint and landed a primary column of ~390px: wide enough to pass a no-overflow check, narrow enough that a task row wrapped its project onto a second line. Container queries also survive the rail being collapsed, resized, or the surface being embedded somewhere narrower — none of which a viewport number can know about.
+
+Declare the container on the surface's own wrapper (`container-type: inline-size` plus a `container-name`, so a nested container cannot silently capture the query) and reserve media queries for things that genuinely are facts about the device: whether a phone bottom bar exists, `hover`/`pointer`, `prefers-reduced-motion`, `prefers-color-scheme`. Existing containers: [`.dh-today`](../../app/styles/today.css), [`.dh-record`](../../app/styles/record-layout.css), the [Activity Feed](../../app/styles/activity-feed.css) and [Settings](../../app/styles/settings.css).
+
 ### Correct vs incorrect
 
 | Do | Don't |
@@ -350,7 +354,7 @@ Verification widths: **320, 375, 390, 430, 768, 1280, 1440**, plus the DS-11 swe
 
 Every module uses the system. These are the worked examples to copy from, because each one shows a different part of it:
 
-- **[Today](../../app/modules/today/TodayDashboard.tsx)** — the Collection reference. One region; every widget is a card on the tint with a hairline and no shadow; rhythm, body size, tabular figures and row padding all come from the preset.
+- **[Today](../../app/modules/today/TodayDashboard.tsx)** — the Collection reference, and (since POLISH-02) the reference for [dashboard regions](#dashboard-regions-polish-02), the [at-a-glance rail](#at-a-glance-rail-polish-02) and [bounded section previews](#bounded-section-preview-polish-02). One region; every widget is a card on the tint with a hairline and no shadow; rhythm, body size, tabular figures and row padding all come from the preset; layout thresholds are container queries, not media queries.
 - **[A Note record](../../app/modules/notes/NoteOverview.tsx)** — the Reading reference, and the "both, on separate regions" case. The body is a Reading region — the serif column at 46ch — inside entirely sans chrome; Backlinks, Links and Activity are Collection regions on the same route.
 
 - **[Tasks](../../app/modules/tasks)** — the densest collection in the product, and the clearest view of "the group is the card": one card, hairline rows, 9px block padding, 44px targets, tabular figures.
@@ -524,6 +528,24 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Anatomy.** A short, warm explanation of what belongs here · the primary action to create the first one · optional example/illustration.
 **Behaviour.** Distinguishes *empty* (no data yet — teach + invite) from *filtered-empty* (no matches — offer to clear filters). Contextual to the module.
 **Rules.** No dead-end empty states. Every one teaches the next step (see [UX philosophy](../../AGENTS.md#6-ux-philosophy)).
+
+### Dashboard regions (POLISH-02)
+**Purpose.** Compose a landing surface out of many independent widgets without the arrangement becoming emergent.
+**Anatomy.** Three containers — a full-width **hero** band, a **primary** column (~66%) and a **secondary** column (~34%) — and a catalogue in which every widget *declares* the region it belongs to ([`landing/layout.ts`](../../app/modules/today/landing/layout.ts)). The columns are two real DOM containers, not grid cells.
+**Behaviour.** Each column flows independently, so a short card never leaves a hole beside a tall one and no widget is positioned by grid auto-placement. Below the container threshold the regions stack in DOM order — hero, primary, secondary — which is the same order the hierarchy asks for, so the phone layout is the desktop one unwrapped rather than a second arrangement. A region with nothing visible in it renders nothing at all, so hiding every widget in a column cannot leave an empty container holding a gap open. Personalisation (move / pin) is scoped to a widget's own region: a move never teleports a card across the page, and a widget alone in its region draws no move controls rather than two permanently disabled ones.
+**Rules.** Primary carries what the owner ACTS on; secondary carries what they REFER to. A widget's region is a property of the widget, never a rule in CSS keyed to its id. Never place cards with `grid-auto-flow` on a surface whose widget list is reorderable — the arrangement stops being designed the moment the third widget is added.
+
+### At-a-glance rail (POLISH-02)
+**Purpose.** State the shape of the surface once, at the top, where the eye lands first.
+**Anatomy.** A fixed-track grid of stat tiles: a tabular number, a word beneath it, an optional in-app destination and an optional tone.
+**Behaviour.** A tile with somewhere to go is a link; one without is plain text — a tile that looks clickable and is not is worse than one that does not look clickable. Tone is spent on two things only: work that has **slipped** (`attention`) and work that is **done** (`positive`); everything else is a fact in the plain colour. The tone is drawn as one loud edge on an otherwise neutral tile, the same treatment the Insights rows use, and the label always names the signal so nothing depends on seeing a colour. A count derived from data the surface did not read is **omitted**, never rendered as `0`. Use a fixed track count, not `auto-fit`: auto-fit packs as many tiles per row as happen to fit and strands the last one.
+**Rules.** The rail is the ONE place the surface is counted. Any panel that would restate one of its numbers drops that number instead (Today's Insights widget subtracts the rail's signals while the hero is on screen, and restores them when the owner hides it). A number stated twice is a number nobody reads.
+
+### Bounded section preview (POLISH-02)
+**Purpose.** Let a landing surface show a band of a large collection without becoming that collection.
+**Anatomy.** A section heading carrying the **true** total, a bounded slice of rows, and one "View all *N*" link in the heading row pointing at the same records in their canonical collection view.
+**Behaviour.** Only *discretionary* bands are previewed. Anything the owner has committed to — today's tasks, overdue work — is never truncated: a commitment you can only see by following a link is one the product has hidden. Any keyboard/roving model over the section is built from the **rendered** slice, so an arrow key can never travel to a row that is not on the page.
+**Rules.** The heading count is the total, not the slice. The link goes in the heading row, not after the rows — inside a roving collection a control placed after the last card sits between the owner and the exit from a long list. Never truncate silently.
 
 ---
 

@@ -448,10 +448,12 @@ test.describe("DS-08 Shared Search — coexists with an open Drawer", () => {
   test("opens over an already-open Drawer and restores it on close", async ({
     page,
   }) => {
-    await page.goto("/today");
+    // Open a record in the DS-03 Drawer first, by its deep link rather than by
+    // clicking a task named in the seed: POLISH-02 previews Today's discretionary
+    // planning bands, so an unscheduled seed task is no longer guaranteed to be on
+    // the page. This test is about Search layering over an already-open Drawer.
+    await page.goto("/today?drawer=task%3At-drawer");
     await page.waitForLoadState("networkidle");
-    // Open a record in the DS-03 Drawer first.
-    await page.getByRole("link", { name: "Finish PX-02" }).first().click();
     await expect(page.getByRole("dialog")).toBeVisible();
     // Open Search over the Drawer via `/` (focus is on a Drawer control, not a
     // text field). Search renders on top and is focused.

@@ -21,8 +21,9 @@ import {
  * with the swipe tray open.
  *
  * It mutates only the dedicated `t-drawer` task's scheduled date (which the seed
- * resets each server start) and restores it to unplanned, so the other journeys
- * stay stable.
+ * resets each server start) and restores it to "planned for today", so the other
+ * journeys stay stable. See `normalisePlannedToday` for why that baseline changed
+ * from "unplanned".
  *
  * Touch caveat: Playwright cannot dispatch a native OS touch-DRAG in this setup, so
  * the swipe is driven by explicit `pointerType: "touch"` pointer events (see
@@ -105,17 +106,38 @@ async function touchTap(card: Locator) {
   await card.dispatchEvent("pointerup", { ...base, clientX: x, clientY: y });
 }
 
-/** Ensure `t-drawer` is unplanned via its Drawer, then close it. */
-async function normaliseUnplanned(page: Page) {
+/**
+ * Ensure `t-drawer` is planned for TODAY via its Drawer, then close it.
+ *
+ * This spec's baseline used to be "unplanned", which put the task in the Anytime
+ * band. POLISH-02 previews that band on the landing page (the seeded workspace
+ * has sixty-odd backlog tasks, and Today is not a place to read a backlog), and
+ * this task — which has no due date — sorts well past the preview. The spec is
+ * about swipe, selection and Drawer BEHAVIOUR on a task row, not about the
+ * backlog, so it now bases its dedicated task in the Today band, which the
+ * surface never truncates. That also removes this file's long-standing hidden
+ * dependency on the seed's backlog ordering.
+ */
+async function normalisePlannedToday(page: Page) {
+  // Check first, mutate only if needed. The dev database is shared and only
+  // reseeds at server start, so every avoidable write here is an Activity row
+  // that pushes the seeded events off the first page of the workspace feed —
+  // which `activity-actor.spec.ts` reads. A normaliser should be a no-op when
+  // the state is already correct.
+  await gotoFixture(page, "/today");
+  const alreadyToday = page
+    .getByRole("list", { name: "Tasks planned for today" })
+    .locator(CARD);
+  if ((await alreadyToday.count()) > 0) {
+    return;
+  }
+
   await gotoFixture(page, "/today?drawer=task%3At-drawer");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   const planning = dialog.getByRole("group", { name: "Planning" });
-  const clear = planning.getByRole("button", { name: "Clear" });
-  if ((await clear.count()) > 0) {
-    await clear.first().click();
-    await expect(planning.getByText("Not planned")).toBeVisible();
-  }
+  await planning.getByRole("button", { name: "Today", exact: true }).click();
+  await expect(planning.getByRole("button", { name: "Clear" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
 }
@@ -150,7 +172,7 @@ test.describe("TODAY-06 — mobile Today", () => {
   test("swipes a task to reveal its tray and plans it through the shared route", async ({
     page,
   }) => {
-    await normaliseUnplanned(page);
+    await normalisePlannedToday(page);
     await gotoFixture(page, "/today");
 
     const card = taskCard(page);
@@ -161,28 +183,34 @@ test.describe("TODAY-06 — mobile Today", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // Run the planning action from the revealed tray (same path as the visible
-    // quick action / bulk bar / keyboard command).
+    // quick action / bulk bar / keyboard command). A task planned for today
+    // offers "Tomorrow"; the assertion is that the tray's action mutates through
+    // the trusted route and the row re-buckets, which is what makes the swipe a
+    // real accelerator rather than a gesture with its own code path.
     const tray = page.locator(
       `.dh-card-swipe:has(${CARD}) .dh-card__swipe-tray`,
     );
-    await tray.getByText("Plan today", { exact: true }).click();
+    await tray.getByText("Tomorrow", { exact: true }).click();
 
-    // After the mutation + revalidation the task appears in the Today section
+    // After the mutation + revalidation the task has left Today for Upcoming
     // (planning persisted through the trusted /today/plan route).
-    const todayList = page.getByRole("list", {
-      name: "Tasks planned for today",
-    });
-    await expect(todayList.getByText(TITLE)).toBeVisible();
+    const upcomingList = page.getByRole("list", { name: "Upcoming tasks" });
+    await expect(upcomingList.getByText(TITLE)).toBeVisible();
+    await expect(
+      page
+        .getByRole("list", { name: "Tasks planned for today" })
+        .getByText(TITLE),
+    ).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
 
-    // Restore: clear the plan from the Drawer so shared journeys stay stable.
-    await normaliseUnplanned(page);
+    // Restore: plan it back to today so the later journeys start where they expect.
+    await normalisePlannedToday(page);
   });
 
   test("swipe suppresses its compatibility click but never swallows a later tap", async ({
     page,
   }) => {
-    await normaliseUnplanned(page);
+    await normalisePlannedToday(page);
     await gotoFixture(page, "/today");
     const card = taskCard(page);
     const title = page.getByRole("link", { name: TITLE }).first();
@@ -214,7 +242,7 @@ test.describe("TODAY-06 — mobile Today", () => {
     await expect(card).toHaveAttribute("data-swipe-open", "true");
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);
-    await normaliseUnplanned(page);
+    await normalisePlannedToday(page);
   });
 
   test("opens the task Drawer as a full-height sheet and returns to Today", async ({

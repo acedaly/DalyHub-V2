@@ -18,6 +18,28 @@
  * route reads REAL workspace data — the fixture seam this header once described was
  * retired by TODAY-08 and UX-01 (see `routes/index.tsx`), and Quick Capture is the
  * shared capture surface posting to canonical routes.
+ *
+ * ── POLISH-02: the composition, restated ─────────────────────────────────────
+ * The surface is THREE regions rather than one flow of widgets around three
+ * hand-placed grid cells (see `landing/layout.ts` for why auto-placement was the
+ * defect, not the spacing):
+ *
+ *   hero       one full-width band: greeted by name, the date, the day's shape,
+ *              today's progress, and the ONE at-a-glance rail;
+ *   primary    what the owner acts on — My day, Meetings, Continue working,
+ *              Recent activity;
+ *   secondary  what they refer to — Insights, Capture, Goals, Areas, Notes,
+ *              Diary, Assets.
+ *
+ * Reading order down the page is the attention order, and it is the same order the
+ * regions stack in on a phone, so the mobile layout is the desktop one unwrapped
+ * rather than a second arrangement to keep in step.
+ *
+ * Nothing is counted twice: the planning summary strip that used to sit inside My
+ * day repeating the brief's numbers is gone, and each list widget's "see the rest"
+ * link is one header affordance rather than a link at the foot of some bodies and
+ * not others. No new data is fetched for any of it — every number here comes from
+ * the payload the loader already returns.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,6 +90,7 @@ import {
 import { useTodayRovingFocus } from "./keyboard/useTodayRovingFocus";
 import type { RenderEntityLink } from "~/shared/activity-feed";
 import type { ResolvedEntity } from "~/shared/activity-feed/model";
+import { briefFocusLine } from "./landing/insights";
 import { MorningBrief } from "./landing/MorningBrief";
 import { RecentActivityWidget } from "./landing/RecentActivityWidget";
 import {
@@ -82,11 +105,13 @@ import {
 import { TodayWidget } from "./landing/TodayWidget";
 import { useTodayLayout } from "./landing/useTodayLayout";
 import {
+  groupVisibleWidgets,
   resolveHiddenWidgets,
-  resolveVisibleWidgets,
+  type ResolvedTodayWidget,
   type TodayWidgetId,
 } from "./landing/layout";
-import type { TodayLandingData } from "./landing/types";
+import type { MorningBriefData, TodayLandingData } from "./landing/types";
+import type { BriefStat } from "./landing/MorningBrief";
 import type { PlanActionData } from "./routes/plan";
 import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
 import { UrgencyChip } from "~/shared/task-record/UrgencyChip";
@@ -119,7 +144,7 @@ export type RecentProjectItem = {
 };
 
 export type TodayDashboardProps = {
-  /** The formatted current date, rendered as the pane-header subtitle. */
+  /** The formatted current date, rendered once — under the hero's greeting. */
   readonly date: string;
   /** The owner's calendar date `YYYY-MM-DD`, for due/overdue comparisons. */
   readonly todayIso?: string;
@@ -183,6 +208,33 @@ const SECTION_HEADING_ID: Record<string, string> = {
   anytime: "today-anytime-label",
 };
 
+/**
+ * How many rows the DISCRETIONARY planning sections preview on Today (POLISH-02).
+ * Overdue and Today have no limit — see `shownTasks`. The overflow is never
+ * hidden: the heading count is the true total and each section links to the same
+ * tasks in the canonical `/tasks` system view.
+ */
+const UPCOMING_PREVIEW = 8;
+const ANYTIME_PREVIEW = 8;
+
+/**
+ * The `deriveInsights` signal ids the hero's at-a-glance rail already states, and
+ * which the Insights widget therefore drops while the hero is on screen. Keyed by
+ * signal id so the relationship is explicit: adding a stat to the rail without
+ * adding its id here is what would put the same number on the page twice.
+ */
+const HERO_COVERED_SIGNALS: ReadonlySet<string> = new Set([
+  "overdue",
+  "waiting",
+  "projects-attention",
+]);
+
+/** Where a truncated section's full list lives — a real `/tasks` system view. */
+const BUCKET_ALL_HREF: Partial<Record<PlanBucket, string>> = {
+  upcoming: "/tasks?system=upcoming",
+  anytime: "/tasks?system=inbox",
+};
+
 /** Human labels for the open planning buckets (for "Go to <section>" commands). */
 const BUCKET_LABEL: Record<string, string> = {
   overdue: "Overdue",
@@ -201,6 +253,7 @@ function TodaySection({
   label,
   count,
   level = 2,
+  action,
   children,
 }: {
   readonly id: string;
@@ -212,59 +265,105 @@ function TodaySection({
    * single, non-skipping outline under the CollectionLayout `h1`.
    */
   readonly level?: 2 | 3;
+  /**
+   * The section's one trailing affordance, on the HEADING row — the same place a
+   * widget puts its destination, so a section and a widget read alike.
+   *
+   * It sits in the header rather than after the rows for a keyboard reason as
+   * well as a visual one: the planning sections live inside ONE roving container
+   * (TODAY-05), which is a single tab stop for every task card. A control placed
+   * after the last card would sit between the owner and the exit from a
+   * thirty-row list; in the header it precedes the cards, so Tab from a task still
+   * leaves the collection.
+   */
+  readonly action?: React.ReactNode;
   readonly children: React.ReactNode;
 }) {
   const headingId = `${id}-label`;
   const Heading = level === 3 ? "h3" : "h2";
   return (
     <section className="dh-today__section" aria-labelledby={headingId}>
-      {/* `tabIndex={-1}`: not in the tab order, but a "Go to <section>" command can
-          move focus here (announcing the section) without adding a tab stop. */}
-      <Heading id={headingId} tabIndex={-1} className="dh-today__section-label">
-        {label}
-        {count !== undefined ? (
-          <span className="dh-today__section-count"> {count}</span>
-        ) : null}
-      </Heading>
+      <div className="dh-today__section-head">
+        {/* `tabIndex={-1}`: not in the tab order, but a "Go to <section>" command
+            can move focus here (announcing the section) without adding a tab stop. */}
+        <Heading
+          id={headingId}
+          tabIndex={-1}
+          className="dh-today__section-label"
+        >
+          {label}
+          {count !== undefined ? (
+            <span className="dh-today__section-count"> {count}</span>
+          ) : null}
+        </Heading>
+        {action}
+      </div>
       {children}
     </section>
   );
 }
 
-/** The calm planning summary strip — operational awareness, never analytics. */
-function PlanningSummary({
-  summary,
-}: {
-  readonly summary: PlanningData["summary"];
-}) {
-  const stats: readonly {
-    readonly id: string;
-    readonly value: number;
-    readonly label: string;
-  }[] = [
-    { id: "planned", value: summary.planned, label: "planned" },
-    { id: "overdue", value: summary.overdue, label: "overdue" },
-    { id: "waiting", value: summary.waiting, label: "waiting" },
+/**
+ * The hero's "at a glance" rail (POLISH-02).
+ *
+ * This is the ONE place the day is counted. It used to be a strip inside My day
+ * repeating three of the numbers the Morning Brief had already shown in the column
+ * beside it; the counts are now stated once, at the top, where the eye lands first,
+ * and My day opens directly on the owner's tasks.
+ *
+ * Colour is spent deliberately (AGENTS.md §15, PRODUCT_EXPERIENCE): only slipped
+ * work is `attention` and only finished work is `positive`. Meetings, waiting and
+ * projects-in-motion are facts, not alarms, and stay neutral. A count with an
+ * in-app answer carries an `href`; the rest are plain text rather than dead links.
+ *
+ * Cross-module counts are omitted entirely (rather than shown as `0`) when the
+ * landing payload is absent — a fixture render must not claim "0 meetings" for a
+ * module it never read.
+ */
+function heroStats(input: {
+  readonly summary: PlanningData["summary"] | undefined;
+  readonly meetingsRemaining: number | null;
+  readonly projectsNeedingAttention: number | null;
+}): readonly BriefStat[] {
+  const stats: BriefStat[] = [
+    { id: "planned", value: input.summary?.planned ?? 0, label: "planned" },
     {
-      id: "completed",
-      value: summary.completedToday,
-      label: "completed today",
+      id: "overdue",
+      value: input.summary?.overdue ?? 0,
+      label: "overdue",
+      tone: (input.summary?.overdue ?? 0) > 0 ? "attention" : "neutral",
     },
   ];
-  return (
-    <div
-      className="dh-today__summary"
-      role="group"
-      aria-label="Today at a glance"
-    >
-      {stats.map((stat) => (
-        <p key={stat.id} className="dh-today__summary-stat">
-          <span className="dh-today__summary-value">{stat.value}</span>
-          <span className="dh-today__summary-label">{stat.label}</span>
-        </p>
-      ))}
-    </div>
-  );
+  if (input.meetingsRemaining !== null) {
+    stats.push({
+      id: "meetings",
+      value: input.meetingsRemaining,
+      label: input.meetingsRemaining === 1 ? "meeting left" : "meetings left",
+      href: "/meetings",
+    });
+  }
+  stats.push({
+    id: "waiting",
+    value: input.summary?.waiting ?? 0,
+    label: "waiting",
+    href: "/today/waiting",
+  });
+  if (input.projectsNeedingAttention !== null) {
+    stats.push({
+      id: "attention",
+      value: input.projectsNeedingAttention,
+      label: "need a look",
+      href: "/projects",
+      tone: input.projectsNeedingAttention > 0 ? "attention" : "neutral",
+    });
+  }
+  stats.push({
+    id: "completed",
+    value: input.summary?.completedToday ?? 0,
+    label: "completed today",
+    tone: (input.summary?.completedToday ?? 0) > 0 ? "positive" : "neutral",
+  });
+  return stats;
 }
 
 export function TodayDashboard({
@@ -406,18 +505,51 @@ export function TodayDashboard({
     [onPlan, planFetcher],
   );
 
+  /**
+   * What each open section actually RENDERS (POLISH-02).
+   *
+   * The planning query bounds its bands at 100–200 rows, which is right for a
+   * query and wrong for a landing page: on a real workspace the unscheduled
+   * backlog is the biggest band by an order of magnitude, so Today opened with
+   * eighty "Anytime" rows between the day's tasks and everything else on the page.
+   * The screen answering "what should I do now?" became a place to read the whole
+   * backlog, and Recent activity ended up four screens below the fold.
+   *
+   * So the two DISCRETIONARY bands preview, and say so. Nothing is silently
+   * dropped: the section heading keeps the true count and a "View all" link goes
+   * to the same tasks in the canonical `/tasks` system view.
+   *
+   * Overdue and Today are NEVER truncated. They are the owner's commitments, and a
+   * commitment you can only see by following a link is one the product has hidden.
+   */
+  const shownTasks = useMemo(() => {
+    const preview = (
+      items: readonly PlanningTaskItem[],
+      limit: number | null,
+    ) => (limit === null ? items : items.slice(0, limit));
+    return {
+      overdue: preview(planning?.overdue ?? [], null),
+      today: preview(planning?.today ?? [], null),
+      upcoming: preview(planning?.upcoming ?? [], UPCOMING_PREVIEW),
+      anytime: preview(planning?.anytime ?? [], ANYTIME_PREVIEW),
+      completedToday: preview(planning?.completedToday ?? [], null),
+    } satisfies Record<PlanBucket, readonly PlanningTaskItem[]>;
+  }, [planning]);
+
   // The keyboard-navigable open-task collection, in visual order (TODAY-05). Only
   // the OPEN planning sections are roving members; the collapsed "Completed today"
   // section keeps natural tab behaviour and is not navigated with the arrow keys.
+  // It is built from the RENDERED slice, so an arrow key can never travel to a row
+  // that is not on the page.
   const rovingOrder = useMemo<RovingOrder>(() => {
     if (!planning) {
       return [];
     }
     return OPEN_BUCKETS.map((bucket) => ({
       id: bucket,
-      taskIds: planning[bucket].map((item) => item.id),
+      taskIds: shownTasks[bucket].map((item) => item.id),
     }));
-  }, [planning]);
+  }, [planning, shownTasks]);
 
   const roving = useTodayRovingFocus({
     order: rovingOrder,
@@ -493,7 +625,10 @@ export function TodayDashboard({
     toggleCollapsed: toggleWidgetCollapsed,
   } = layoutController;
   const [customising, setCustomising] = useState(false);
-  const visibleWidgets = useMemo(() => resolveVisibleWidgets(layout), [layout]);
+  // The three rendered regions (POLISH-02). Each column flows independently, so a
+  // short card never leaves a hole beside the task list and no widget is placed by
+  // grid auto-flow.
+  const regions = useMemo(() => groupVisibleWidgets(layout), [layout]);
   const hiddenWidgets = useMemo(() => resolveHiddenWidgets(layout), [layout]);
 
   const openProps = (key: string) => ({
@@ -856,23 +991,46 @@ export function TodayDashboard({
     };
   };
 
+  /**
+   * One planning section. The heading count is the TRUE total; the collection
+   * renders the previewed slice, and when those differ the section says so in
+   * words and links to the rest. A truncation the owner cannot see is a lie about
+   * how much work there is.
+   */
   const planningSection = (
     id: string,
     label: string,
     bucket: PlanBucket,
-    items: readonly PlanningTaskItem[],
-  ) => (
-    <TodaySection id={id} label={label} count={items.length} level={3}>
-      <CardCollection
-        items={items}
-        getItemId={(item) => item.id}
-        renderCard={(item) => <Card {...planningCard(item, bucket)} />}
-        ariaLabel={`${label} tasks`}
-        presentation="list"
-        density="compact"
-      />
-    </TodaySection>
-  );
+    total: number,
+  ) => {
+    const items = shownTasks[bucket];
+    const hidden = total - items.length;
+    const href = BUCKET_ALL_HREF[bucket];
+    return (
+      <TodaySection
+        id={id}
+        label={label}
+        count={total}
+        level={3}
+        action={
+          hidden > 0 && href ? (
+            <Link className="dh-today__section-all" to={href}>
+              {`View all ${total} ${label.toLowerCase()}`}
+            </Link>
+          ) : null
+        }
+      >
+        <CardCollection
+          items={items}
+          getItemId={(item) => item.id}
+          renderCard={(item) => <Card {...planningCard(item, bucket)} />}
+          ariaLabel={`${label} tasks`}
+          presentation="list"
+          density="compact"
+        />
+      </TodaySection>
+    );
+  };
 
   const bulkBar =
     planning && targets && selected.size > 0 ? (
@@ -900,18 +1058,36 @@ export function TodayDashboard({
   // section could otherwise show (Planned/On hold/Completed/Archived never reach it).
   const projectCard = (project: RecentProjectItem): CardProps => {
     const href = `/projects/${encodeURIComponent(project.id)}`;
-    // Keep Today calm: only surface a health cue when the project genuinely needs
-    // attention (at-risk / blocked / stale). On-track projects show nothing extra.
-    const metadata: CardMetaItem[] =
-      project.health && healthNeedsAttention(project.health)
-        ? [
-            {
-              id: "health",
-              label: "Health",
-              value: <HealthIndicator health={project.health} showReason />,
-            },
-          ]
-        : [];
+    const needsAttention =
+      project.health !== null && healthNeedsAttention(project.health);
+    const metadata: CardMetaItem[] = [];
+    // POLISH-02 — the health signal is now shown for EVERY project, not only for
+    // the ones in trouble. Showing it only on at-risk projects made the absence of
+    // a pill ambiguous: it could mean "on track" or "health unknown", and a card
+    // that says nothing about a project's state is a card the owner has to open to
+    // learn anything. The REASON is still reserved for projects that need a look,
+    // so an on-track project stays a single quiet word rather than a sentence.
+    if (project.health) {
+      metadata.push({
+        id: "health",
+        value: (
+          <HealthIndicator
+            health={project.health}
+            showReason={needsAttention}
+          />
+        ),
+      });
+    }
+    // What is actually left to do, when there is anything — the number the owner
+    // is deciding on. Supporting detail, so it de-emphasises on a phone card.
+    const openCount = Math.max(0, project.taskTotal - project.taskCompleted);
+    if (openCount > 0) {
+      metadata.push({
+        id: "open",
+        value: `${openCount} open`,
+        priority: "low",
+      });
+    }
     return {
       id: project.id,
       title: project.title,
@@ -940,8 +1116,6 @@ export function TodayDashboard({
 
   const myDayBody = planning ? (
     <>
-      <PlanningSummary summary={planning.summary} />
-
       {/* The roving task collection (TODAY-05): ONE tab stop for every open
                 task, arrow-navigable across sections. The keyboard handler owns
                 Arrow/Home/End/Enter/Space; the direct action shortcuts (P/Shift+P/C)
@@ -956,7 +1130,7 @@ export function TodayDashboard({
               "today-overdue",
               "Overdue",
               "overdue",
-              planning.overdue,
+              planning.overdue.length,
             )
           : null}
 
@@ -985,7 +1159,16 @@ export function TodayDashboard({
               headingLevel={3}
               icon={<EntityIcon type="task" />}
               title="Nothing planned yet"
-              description="Pull a Task in from Anytime to commit to your day."
+              description="Pull a Task in from Anytime to commit to your day, or capture a new one."
+              primaryAction={
+                <button
+                  type="button"
+                  className="dh-btn dh-btn--secondary"
+                  onClick={focusCapture}
+                >
+                  Capture a Task
+                </button>
+              }
             />
           )}
         </TodaySection>
@@ -995,7 +1178,7 @@ export function TodayDashboard({
               "today-upcoming-tasks",
               "Upcoming",
               "upcoming",
-              planning.upcoming,
+              planning.upcoming.length,
             )
           : null}
 
@@ -1004,7 +1187,7 @@ export function TodayDashboard({
               "today-anytime",
               "Anytime",
               "anytime",
-              planning.anytime,
+              planning.anytime.length,
             )
           : null}
       </div>
@@ -1096,6 +1279,15 @@ export function TodayDashboard({
       icon={<EntityIcon type="task" />}
       title="No Tasks yet"
       description="Your day’s tasks will appear here once you capture or plan one."
+      primaryAction={
+        <button
+          type="button"
+          className="dh-btn dh-btn--secondary"
+          onClick={focusCapture}
+        >
+          Capture a Task
+        </button>
+      }
     />
   );
 
@@ -1166,12 +1358,89 @@ export function TodayDashboard({
 
   /* -- The widget registry → body map (null = the widget does not render) -- */
 
+  /**
+   * The hero's payload. When the landing read succeeded it is the server-derived
+   * brief; otherwise it is composed from the planning data this component already
+   * has, so the top of Today is never an empty band — the same "degrade, never
+   * blank" rule the loader applies section by section (see `routes/index.tsx`).
+   */
+  const briefData: MorningBriefData = landing?.morningBrief ?? {
+    // No time-of-day greeting without the landing read (the owner-local hour is
+    // resolved server-side), and no name — so the hero leads with the day itself
+    // rather than guessing at either.
+    greeting: "Here’s your day",
+    ownerName: null,
+    dateLong: date,
+    focusLine: briefFocusLine({
+      overdueCount: planning?.summary.overdue ?? 0,
+      plannedTodayCount: planning?.summary.planned ?? 0,
+      inboxCount: planning?.anytime.length ?? 0,
+      waitingCount: waiting?.count ?? 0,
+      completedTodayCount: planning?.summary.completedToday ?? 0,
+      activeProjectCount: recentProjects.length,
+      projectsNeedingAttentionCount: 0,
+      areasNeedingReviewCount: 0,
+      goalsAtRiskCount: 0,
+      hasDiaryToday: false,
+    }),
+    plannedTodayCount: planning?.summary.planned ?? 0,
+    overdueCount: planning?.summary.overdue ?? 0,
+    inboxCount: planning?.anytime.length ?? 0,
+  };
+
+  const stats = heroStats({
+    summary: planning?.summary,
+    meetingsRemaining: landing ? landing.meetings.remainingCount : null,
+    projectsNeedingAttention: landing
+      ? recentProjects.filter(
+          (project) =>
+            project.health !== null && healthNeedsAttention(project.health),
+        ).length
+      : null,
+  });
+
+  // Today's completion: what has been finished against everything committed to the
+  // day (planned + already done). Overdue work is deliberately excluded — a day's
+  // progress bar that can never reach the end is a guilt meter, not a measure.
+  const committedToday =
+    (planning?.summary.planned ?? 0) + (planning?.summary.completedToday ?? 0);
+
+  /**
+   * Insights, minus whatever the hero rail already states (POLISH-02).
+   *
+   * The two surfaces were derived from the same facts, so the page said "12
+   * overdue", "5 waiting" and "3 projects needing attention" twice — once in the
+   * hero and once in a panel a few hundred pixels away. Insights is now what the
+   * hero does NOT carry: areas to review, goals at risk, the inbox. Whatever
+   * remains is genuinely additional.
+   *
+   * The subtraction is conditional on the hero actually being rendered. The owner
+   * can hide any widget, and a signal must not disappear from the product because
+   * the surface that was covering it is switched off.
+   */
+  const heroVisible = regions.hero.length > 0;
+  const insightSignals = useMemo(() => {
+    const signals = landing?.insights.signals ?? [];
+    if (!heroVisible) {
+      return signals;
+    }
+    return signals.filter((signal) => !HERO_COVERED_SIGNALS.has(signal.id));
+  }, [landing, heroVisible]);
+
   const renderWidgetBody = (id: TodayWidgetId): React.ReactNode => {
     switch (id) {
       case "morning-brief":
-        return landing ? (
-          <MorningBrief data={landing.morningBrief} onCapture={focusCapture} />
-        ) : null;
+        return (
+          <MorningBrief
+            data={briefData}
+            onCapture={focusCapture}
+            stats={stats}
+            progress={{
+              done: planning?.summary.completedToday ?? 0,
+              total: committedToday,
+            }}
+          />
+        );
       case "my-day":
         return myDayBody;
       case "recent-activity":
@@ -1212,7 +1481,7 @@ export function TodayDashboard({
           />
         );
       case "insights":
-        return <InsightsWidget signals={landing?.insights.signals ?? []} />;
+        return <InsightsWidget signals={insightSignals} />;
       case "quick-capture":
         return captureBody;
       default:
@@ -1235,16 +1504,107 @@ export function TodayDashboard({
       case "assets":
         return landing?.assets.items.length;
       case "insights":
-        return landing?.insights.signals.length;
+        // The count is of what the widget RENDERS, not of what was derived —
+        // the hero has already taken some of the signals.
+        return landing ? insightSignals.length : undefined;
       default:
         return undefined;
     }
   };
 
+  /**
+   * A widget's ONE trailing destination, in the header (POLISH-02).
+   *
+   * Each list widget previews a bounded slice of a module, so each needs a way to
+   * reach the rest. Those links used to be scattered — some at the foot of a body,
+   * some absent, some duplicated by the empty state's own action — which is exactly
+   * the inconsistency that makes a dashboard read as assembled rather than
+   * designed. They are now one affordance in one place with one treatment.
+   *
+   * It is omitted when the widget is EMPTY, because an empty state already carries
+   * its own next action and two links to the same module is one too many.
+   */
+  const widgetActionFor = (id: TodayWidgetId): React.ReactNode => {
+    const link = (to: string, label: string, when: boolean) =>
+      when ? (
+        <Link className="dh-today-widget__link" to={to}>
+          {label}
+        </Link>
+      ) : null;
+    const count = widgetCountFor(id) ?? 0;
+    switch (id) {
+      case "notes":
+        return link("/notes", "All notes", count > 0);
+      case "projects":
+        return link("/projects", "All projects", count > 0);
+      case "areas":
+        return link("/areas", "All areas", count > 0);
+      case "goals":
+        return link("/goals", "All goals", count > 0);
+      case "meetings":
+        return link("/meetings", "All meetings", count > 0);
+      case "assets":
+        return link("/assets", "All assets", count > 0);
+      case "diary":
+        return link(
+          "/diary",
+          "Open diary",
+          (landing?.diary.today.length ?? 0) +
+            (landing?.diary.recent.length ?? 0) >
+            0,
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderWidget = (widget: ResolvedTodayWidget): React.ReactNode => {
+    const id = widget.definition.id;
+    const body = renderWidgetBody(id);
+    if (body === null) {
+      return null;
+    }
+    return (
+      <TodayWidget
+        key={id}
+        definition={widget.definition}
+        count={widgetCountFor(id)}
+        action={widgetActionFor(id)}
+        variant={widget.definition.column === "hero" ? "hero" : "panel"}
+        // A widget alone in its region has nothing to reorder against, so the
+        // move/pin controls would be permanently dead chrome.
+        reorderable={widget.definition.column !== "hero"}
+        collapsed={widget.collapsed}
+        pinned={widget.pinned}
+        isFirst={widget.isFirst}
+        isLast={widget.isLast}
+        customising={customising}
+        onToggleCollapsed={layoutController.toggleCollapsed}
+        onTogglePinned={layoutController.togglePinned}
+        onHide={layoutController.toggleHidden}
+        onMove={layoutController.move}
+      >
+        {body}
+      </TodayWidget>
+    );
+  };
+
   return (
     <CollectionLayout
       title="Today"
-      subtitle={date}
+      // POLISH-02 — the date is stated ONCE, in the hero, where it sits under the
+      // greeting as part of the orientation the owner actually reads. It used to
+      // be here as the pane subtitle AS WELL, so the surface opened with the same
+      // long date twice, forty pixels apart. The pane header keeps the screen's
+      // name and its one primary action.
+      // POLISH-02 — Today opts into the WIDE dashboard measure. DS-14 caps a
+      // collection at 90rem because a single list at 1440px becomes one row with a
+      // title at one end and a pill at the other. That reasoning is about ROW
+      // LENGTH, and it still binds here: Today is two columns, so at 108rem its
+      // primary column is ~66rem — SHORTER than a capped single-column list, while
+      // the secondary column stops a widescreen monitor from ending in 800px of
+      // empty canvas. The measure is still capped; it is capped for this shape.
+      className="dh-collection--dashboard"
       selection={bulkBar}
       primaryAction={
         <button
@@ -1310,30 +1670,28 @@ export function TodayDashboard({
           </div>
         ) : null}
 
-        {visibleWidgets.map((widget) => {
-          const body = renderWidgetBody(widget.definition.id);
-          if (body === null) {
-            return null;
-          }
-          return (
-            <TodayWidget
-              key={widget.definition.id}
-              definition={widget.definition}
-              count={widgetCountFor(widget.definition.id)}
-              collapsed={widget.collapsed}
-              pinned={widget.pinned}
-              isFirst={widget.isFirst}
-              isLast={widget.isLast}
-              customising={customising}
-              onToggleCollapsed={layoutController.toggleCollapsed}
-              onTogglePinned={layoutController.togglePinned}
-              onHide={layoutController.toggleHidden}
-              onMove={layoutController.move}
-            >
-              {body}
-            </TodayWidget>
-          );
-        })}
+        {/* The three rendered regions (POLISH-02). The hero spans the surface;
+            the two columns flow independently so neither leaves a hole waiting
+            for the other, and they unwrap into one stack on a phone in the same
+            order — orient, act, refer. A region with nothing visible in it
+            renders NOTHING, so hiding every widget in a column can never leave an
+            empty container holding a gap open. */}
+        {regions.hero.map(renderWidget)}
+
+        {regions.primary.length > 0 || regions.secondary.length > 0 ? (
+          <div className="dh-today__columns">
+            {regions.primary.length > 0 ? (
+              <div className="dh-today__column dh-today__column--primary">
+                {regions.primary.map(renderWidget)}
+              </div>
+            ) : null}
+            {regions.secondary.length > 0 ? (
+              <div className="dh-today__column dh-today__column--secondary">
+                {regions.secondary.map(renderWidget)}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </Region>
     </CollectionLayout>
   );

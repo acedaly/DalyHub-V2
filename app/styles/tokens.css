@@ -178,6 +178,13 @@
   --dh-width-narrow: 42rem; /* single-column pages */
   --dh-width-content: 72rem; /* dense record content */
   --dh-width-wide: 90rem; /* multi-pane shells */
+  /* POLISH-02 — the measure for a MULTI-COLUMN dashboard (Today). DS-14 caps a
+   * collection at `--dh-width-wide` because one uncapped list at 1440px becomes a
+   * row with a title at one end and a status pill at the other. That reasoning is
+   * about ROW LENGTH, and a two-column dashboard at this width still has a shorter
+   * primary row than a capped single column — while a widescreen monitor stops
+   * ending in a band of empty canvas. It is a wider cap, not the absence of one. */
+  --dh-width-dashboard: 108rem;
 
   --dh-shell-header-height: 3.5rem;
   --dh-shell-nav-width: 15rem;

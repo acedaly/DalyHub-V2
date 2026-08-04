@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   defaultTodayLayout,
+  groupVisibleWidgets,
   moveWidget,
   normaliseTodayLayout,
   parseTodayLayout,
@@ -35,12 +36,12 @@ describe("TODAY-08 landing layout model", () => {
 
   it("resolves visible widgets with pinned ones leading, in relative order", () => {
     let layout = defaultTodayLayout();
-    layout = togglePinned(layout, "insights");
     layout = togglePinned(layout, "notes");
+    layout = togglePinned(layout, "insights");
     const visible = resolveVisibleWidgets(layout);
-    // Notes precedes Insights in canonical order, so pinned-lead preserves that.
-    expect(visible[0]!.definition.id).toBe("notes");
-    expect(visible[1]!.definition.id).toBe("insights");
+    // Insights precedes Notes in canonical order, so pinned-lead preserves that.
+    expect(visible[0]!.definition.id).toBe("insights");
+    expect(visible[1]!.definition.id).toBe("notes");
     expect(visible[0]!.pinned).toBe(true);
     expect(visible[0]!.isFirst).toBe(true);
     expect(visible.at(-1)!.isLast).toBe(true);
@@ -77,25 +78,31 @@ describe("TODAY-08 landing layout model", () => {
     ).toBe(true);
   });
 
-  it("moves a widget up and down within the order, clamped at the ends", () => {
+  it("moves a widget up and down within its column, clamped at the ends", () => {
     const layout = defaultTodayLayout();
-    const first = layout.order[0]!;
-    // Moving the first widget up is a no-op (clamped).
+    const primary = groupVisibleWidgets(layout).primary.map(
+      (w) => w.definition.id,
+    );
+    const first = primary[0]!;
+    // Moving the column's first widget up is a no-op (clamped).
     expect(moveWidget(layout, first, "up").order).toEqual(layout.order);
-    const moved = moveWidget(layout, first, "down");
-    expect(moved.order[0]).not.toBe(first);
-    expect(moved.order[1]).toBe(first);
+    const moved = groupVisibleWidgets(
+      moveWidget(layout, first, "down"),
+    ).primary;
+    expect(moved[0]!.definition.id).toBe(primary[1]);
+    expect(moved[1]!.definition.id).toBe(first);
   });
 
   it("move controls and moves operate on the RENDERED sequence, not raw order", () => {
-    // Pin the last widget: it floats to the top. The first UNPINNED widget must then
-    // report isFirst (its "Move up" is a boundary no-op — it can't cross the pin
-    // boundary), even though its raw-order index is 0.
-    const layout = togglePinned(defaultTodayLayout(), "insights");
-    const visible = resolveVisibleWidgets(layout);
-    expect(visible[0]!.definition.id).toBe("insights");
-    expect(visible[0]!.isFirst).toBe(true); // first (only) pinned widget
-    const firstUnpinned = visible[1]!;
+    // Pin a secondary widget that is NOT first in its column: it floats to the top
+    // of that column. The first UNPINNED widget in the same column must then report
+    // isFirst (its "Move up" is a boundary no-op — it cannot cross the pin
+    // boundary), even though it leads the column in raw order.
+    const layout = togglePinned(defaultTodayLayout(), "goals");
+    const secondary = groupVisibleWidgets(layout).secondary;
+    expect(secondary[0]!.definition.id).toBe("goals");
+    expect(secondary[0]!.isFirst).toBe(true); // first (only) pinned widget
+    const firstUnpinned = secondary[1]!;
     expect(firstUnpinned.pinned).toBe(false);
     expect(firstUnpinned.isFirst).toBe(true); // first in the unpinned group
 
@@ -106,22 +113,57 @@ describe("TODAY-08 landing layout model", () => {
 
     // Moving it "down" swaps it with the NEXT unpinned widget — a real change.
     const moved = moveWidget(layout, firstUnpinned.definition.id, "down");
-    const movedVisible = resolveVisibleWidgets(moved);
-    expect(movedVisible[1]!.definition.id).not.toBe(
+    const movedSecondary = groupVisibleWidgets(moved).secondary;
+    expect(movedSecondary[1]!.definition.id).not.toBe(
       firstUnpinned.definition.id,
     );
-    expect(movedVisible[2]!.definition.id).toBe(firstUnpinned.definition.id);
+    expect(movedSecondary[2]!.definition.id).toBe(firstUnpinned.definition.id);
   });
 
   it("moving skips hidden widgets (swaps the adjacent VISIBLE neighbour)", () => {
     let layout = defaultTodayLayout();
-    // Hide my-day (order: morning-brief, [my-day hidden], recent-activity, …).
-    layout = toggleHidden(layout, "my-day");
-    // Moving morning-brief down swaps it past the hidden my-day with recent-activity.
-    const moved = moveWidget(layout, "morning-brief", "down");
-    const visible = resolveVisibleWidgets(moved).map((w) => w.definition.id);
-    expect(visible[0]).toBe("recent-activity");
-    expect(visible[1]).toBe("morning-brief");
+    // Primary column order: my-day, [meetings hidden], projects, recent-activity.
+    layout = toggleHidden(layout, "meetings");
+    // Moving my-day down swaps it past the hidden meetings with projects.
+    const moved = moveWidget(layout, "my-day", "down");
+    const primary = groupVisibleWidgets(moved).primary.map(
+      (w) => w.definition.id,
+    );
+    expect(primary[0]).toBe("projects");
+    expect(primary[1]).toBe("my-day");
+  });
+
+  it("a move never crosses a column boundary", () => {
+    const layout = defaultTodayLayout();
+    const primary = groupVisibleWidgets(layout).primary;
+    const last = primary.at(-1)!;
+    // The last primary widget is followed in RAW order by the first secondary one.
+    // Moving it down must be a clamped no-op rather than a jump between columns.
+    expect(last.isLast).toBe(true);
+    expect(moveWidget(layout, last.definition.id, "down")).toEqual(layout);
+  });
+
+  it("groups the visible widgets into the three rendered regions", () => {
+    const regions = groupVisibleWidgets(defaultTodayLayout());
+    expect(regions.hero.map((w) => w.definition.id)).toEqual(["morning-brief"]);
+    // The primary column leads with the day's work; the secondary carries
+    // reference material. Every widget lands in exactly one region.
+    expect(regions.primary[0]!.definition.id).toBe("my-day");
+    expect(
+      regions.hero.length + regions.primary.length + regions.secondary.length,
+    ).toBe(TODAY_WIDGET_IDS.length);
+    for (const region of ["hero", "primary", "secondary"] as const) {
+      for (const widget of regions[region]) {
+        expect(widget.definition.column).toBe(region);
+      }
+    }
+  });
+
+  it("omits a hidden widget from its region", () => {
+    const layout = toggleHidden(defaultTodayLayout(), "my-day");
+    expect(
+      groupVisibleWidgets(layout).primary.map((w) => w.definition.id),
+    ).not.toContain("my-day");
   });
 
   it("normalises a stale snapshot: drops unknown ids and appends new widgets", () => {

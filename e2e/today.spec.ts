@@ -134,11 +134,34 @@ test.describe("TODAY-01 — desktop", () => {
 
   test("opens a record in the Drawer over the pane", async ({ page }) => {
     await page.goto("/today");
-    await page.getByRole("link", { name: "Finish PX-02" }).click();
+    // Opening a record over the pane is a HYDRATED behaviour (the card's click
+    // handler pushes the Drawer). Wait for hydration rather than racing it — the
+    // test only passed before because the page was slow enough to render a
+    // sixty-row backlog first.
+    await page.locator('.dh-today[data-hydrated="true"]').waitFor();
+    /*
+     * Take the task from the RENDERED list rather than naming a seeded one.
+     *
+     * This test is about the Drawer opening over the pane for whatever task the
+     * owner clicks — not about a particular task being on the page. It used to
+     * name "Finish PX-02", an unscheduled seed task, which worked only because
+     * Today rendered its entire backlog; POLISH-02 previews the discretionary
+     * bands (a seeded workspace has sixty-odd backlog rows, and a landing page is
+     * not a backlog), so a named task deep in Anytime is legitimately not there.
+     * Reading the title off the first card keeps the behaviour covered while the
+     * surface is free to bound what it shows.
+     */
+    const card = page.locator("[data-today-tasklist] .dh-card").first();
+    await expect(card).toBeVisible();
+    const title = (
+      await card.locator(".dh-card__title-text").innerText()
+    ).trim();
+    await card.getByRole("link", { name: title }).click();
+
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(
-      dialog.getByRole("heading", { level: 3, name: "Finish PX-02" }),
+      dialog.getByRole("heading", { level: 3, name: title }),
     ).toBeVisible();
   });
 

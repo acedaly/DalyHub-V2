@@ -18,18 +18,51 @@ import {
 
 const DRAWER_URL = "/today?drawer=task%3At-drawer";
 
+/**
+ * Put `t-drawer` on Today and return its My day opener.
+ *
+ * The task is unscheduled in the seed, which places it in Today's Anytime band.
+ * POLISH-02 previews that band — a real workspace's backlog runs to dozens of
+ * rows, and the landing page is not a place to read one — so an unscheduled task
+ * is not reliably rendered. These journeys are about opening a task FROM Today,
+ * which is worth keeping exactly as written, so the task is first planned for
+ * today through its own Drawer (using the product's own control, so the owner's
+ * calendar day is never computed in the test).
+ *
+ * The opener is scoped to the My day widget region because the Recent Activity
+ * feed (TODAY-08) also links the same task by title.
+ */
+async function openerOnToday(page: import("@playwright/test").Page) {
+  await gotoFixture(page, "/today");
+  const opener = page
+    .getByRole("region", { name: "My day" })
+    .getByRole("link", { name: "Draft the proposal" });
+
+  // Plan it only if it is not already on the page. The dev database is shared and
+  // reseeds only at server start, so an unconditional write here is an Activity
+  // row that pushes the seeded events off the first page of the workspace feed
+  // (which `activity-actor.spec.ts` reads). A normaliser should be a no-op when
+  // the state is already correct.
+  if ((await opener.count()) === 0) {
+    await gotoFixture(page, DRAWER_URL);
+    const planning = page
+      .getByRole("dialog")
+      .getByRole("group", { name: "Planning" });
+    await planning.getByRole("button", { name: "Today", exact: true }).click();
+    await expect(planning.getByRole("button", { name: "Clear" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+
+  await expect(opener).toBeVisible();
+  return opener;
+}
+
 test.describe("TODAY-02 — desktop", () => {
   test("opens a task from Today and updates the Drawer URL state", async ({
     page,
   }) => {
-    await gotoFixture(page, "/today");
-    // Open from the specific My day task card — the Recent Activity feed (TODAY-08)
-    // also links the same task by title, so the opener is scoped to the My day
-    // widget region (no ordinal locator).
-    await page
-      .getByRole("region", { name: "My day" })
-      .getByRole("link", { name: "Draft the proposal" })
-      .click();
+    await (await openerOnToday(page)).click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
@@ -150,12 +183,8 @@ test.describe("TODAY-02 — desktop", () => {
   test("closes on Escape and restores focus to the opener", async ({
     page,
   }) => {
-    await gotoFixture(page, "/today");
-    // The My day task card link (the Recent Activity feed links the same task too,
-    // TODAY-08). Focus restores to this exact opener on Escape.
-    const opener = page
-      .getByRole("region", { name: "My day" })
-      .getByRole("link", { name: "Draft the proposal" });
+    // Focus restores to this exact opener on Escape.
+    const opener = await openerOnToday(page);
     await opener.click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
@@ -164,11 +193,7 @@ test.describe("TODAY-02 — desktop", () => {
   });
 
   test("Back closes the Drawer and Forward reopens it", async ({ page }) => {
-    await gotoFixture(page, "/today");
-    await page
-      .getByRole("region", { name: "My day" })
-      .getByRole("link", { name: "Draft the proposal" })
-      .click();
+    await (await openerOnToday(page)).click();
     await expect(page.getByRole("dialog")).toBeVisible();
 
     await page.goBack();
