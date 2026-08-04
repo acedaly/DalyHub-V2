@@ -225,6 +225,64 @@ describe("the actor directory", () => {
     ).toBe("s2@example.com");
   });
 
+  it("resolves EVERY actor when there are more than one statement's worth", async () => {
+    // Regression: the directory used to cap the lookup and silently render the
+    // overflow as "Unknown user" even when a membership row existed. The vault
+    // export passes an unpaginated actor set, so the cap was reachable.
+    const repository = members();
+    const subjects = Array.from({ length: 250 }, (_, i) => `sub-${i}`);
+    for (const subject of subjects) {
+      await repository.ensureMember({
+        subject,
+        email: `${subject}@example.com`,
+      });
+    }
+
+    const identities = await createActorDirectory(
+      env.DB,
+      makeContext(WS),
+    ).resolveActors(subjects.map((id) => ({ type: "user", id })));
+
+    for (const subject of subjects) {
+      expect(
+        identities.get(actorKey({ type: "user", id: subject }))?.displayName,
+      ).toBe(`${subject}@example.com`);
+    }
+  });
+
+  it("does not spend lookup slots on actors a membership row cannot name", async () => {
+    let prepared = 0;
+    const counting = new Proxy(env.DB, {
+      get(target, prop, receiver) {
+        if (prop === "prepare") {
+          return (query: string) => {
+            prepared += 1;
+            return target.prepare(query);
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as D1Database;
+
+    // Every actor here is answered by the canonical rule from its type alone.
+    const identities = await createActorDirectory(
+      counting,
+      makeContext(WS),
+    ).resolveActors([
+      { type: "system", id: null },
+      { type: "ai", id: "assistant-1" },
+      { type: "import", id: "job-1" },
+      { type: "integration", id: "calendar-1" },
+    ]);
+
+    expect(prepared).toBe(0);
+    expect(identities.size).toBe(4);
+    expect(
+      identities.get(actorKey({ type: "ai", id: "assistant-1" }))?.displayName,
+    ).toBe("Assistant");
+  });
+
   it("resolves an actor with no membership row to Unknown user", async () => {
     const identities = await createActorDirectory(
       env.DB,

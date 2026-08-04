@@ -145,7 +145,89 @@ describe("planning the identity repair", () => {
     expect(plan.notes.join(" ")).toContain("share the email");
   });
 
-  it("does NOT apply the owner email when more than one subject exists", () => {
+  it("applies the owner email at INSERT time to an explicitly named subject", () => {
+    // Regression: with several subjects and NO membership rows, the documented
+    // `--subject … --owner-email … --apply` flow used to insert every row with a
+    // null email, leaving the named actor "Unknown user" until a second run.
+    const plan = planIdentityRepair({
+      ...base,
+      actors: [
+        {
+          actor_type: "user",
+          actor_id: "sub-a",
+          events: 3,
+          first_at: "a",
+          last_at: "a",
+        },
+        {
+          actor_type: "user",
+          actor_id: "sub-b",
+          events: 5,
+          first_at: "a",
+          last_at: "a",
+        },
+      ],
+      preferenceOwners: [],
+      options: { ...base.options, subject: "sub-a" },
+    });
+
+    const named = plan.statements.find((s) => s.subject === "sub-a");
+    const other = plan.statements.find((s) => s.subject === "sub-b");
+    expect(renderStatement(named!)).toContain("'aidan@daly.id.au'");
+    // The subject the operator did NOT name is still left unattributed.
+    expect(renderStatement(other!)).not.toContain("aidan@daly.id.au");
+    expect(
+      plan.unresolved
+        .filter((u) => u.reason === UNRESOLVED_REASONS.NO_IDENTITY_EVIDENCE)
+        .map((u) => u.subject),
+    ).toEqual(["sub-b"]);
+    // Naming a subject is the answer to the ambiguity, so it is not also nagged
+    // about in the notes.
+    expect(plan.notes.join(" ")).not.toContain("not applied automatically");
+  });
+
+  it("plans nothing for an explicit name or Person link that is already set", () => {
+    const members = [
+      {
+        subject: SUB,
+        email: "aidan@daly.id.au",
+        display_name: "Aidan Daly",
+        auth_display_name: null,
+        person_entity_id: "person-1",
+      },
+    ];
+    const people = [
+      { id: "person-1", title: "Aidan Daly", email: "aidan@daly.id.au" },
+    ];
+
+    // Re-running the exact same repair must be a genuine no-op, not an update
+    // that silently advances `updated_at` every time.
+    const repeat = planIdentityRepair({
+      ...base,
+      members,
+      people,
+      options: {
+        ...base.options,
+        subject: SUB,
+        displayName: "Aidan Daly",
+        personEntityId: "person-1",
+      },
+    });
+    expect(repeat.statements).toHaveLength(0);
+    expect(repeat.counts.display_name_explicit).toBe(0);
+    expect(repeat.counts.person_link_explicit).toBe(0);
+
+    // A genuinely different value is still planned.
+    const changed = planIdentityRepair({
+      ...base,
+      members,
+      people,
+      options: { ...base.options, subject: SUB, displayName: "A. Daly" },
+    });
+    expect(changed.counts.display_name_explicit).toBe(1);
+  });
+
+  it("does NOT apply the owner email when no subject is named", () => {
     const plan = planIdentityRepair({
       ...base,
       actors: [

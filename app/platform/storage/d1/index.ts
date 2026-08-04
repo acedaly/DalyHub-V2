@@ -179,7 +179,7 @@ export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export {
   D1WorkspaceMemberRepository,
   type D1WorkspaceMemberRepositoryOptions,
-  MAX_DIRECTORY_ACTORS,
+  DIRECTORY_LOOKUP_CHUNK,
 } from "./d1-workspace-member-repository";
 export { D1ActivityRecorder } from "./d1-activity-recorder";
 export {

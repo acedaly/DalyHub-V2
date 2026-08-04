@@ -61,11 +61,21 @@ const SELECT_MEMBERS = `
   WHERE m.workspace_id = ?`;
 
 /**
- * How many distinct subjects one directory lookup will resolve. A page of
- * activity has at most as many actors as events, and pages are bounded well below
- * this; the cap simply keeps the `IN (…)` list from ever being unbounded.
+ * How many subjects one `IN (…)` list carries. This is a STATEMENT-SIZE bound,
+ * not a cap on how many actors can be resolved: a larger set is split across
+ * this many per statement and every actor is still resolved. Silently dropping
+ * actors past a cap would render a real member as `Unknown user`, which is
+ * exactly the kind of quiet wrong answer this whole change exists to remove.
+ *
+ * The unpaginated vault export is the one caller whose actor set is not already
+ * bounded by a page size, so it is the case this must be right for.
+ *
+ * The value is bounded by D1, not chosen for taste: a statement may bind at most
+ * 100 variables, and this one also binds the workspace id. 90 leaves headroom
+ * and is verified by a test that resolves more subjects than fit in one
+ * statement — an earlier 100 raised `too many SQL variables` against real D1.
  */
-export const MAX_DIRECTORY_ACTORS = 200;
+export const DIRECTORY_LOOKUP_CHUNK = 90;
 
 export type D1WorkspaceMemberRepositoryOptions = {
   readonly clock?: Clock;
@@ -274,11 +284,19 @@ export class D1WorkspaceMemberRepository
   }
 
   /**
-   * Resolve a batch of actor references in ONE bounded query.
+   * Resolve a batch of actor references.
    *
-   * Non-`user` actors (and `user` actors with no id) need no lookup at all — the
-   * canonical rule answers them from the actor type alone — so only identified
-   * subjects reach the database, deduped.
+   * Only actors whose identity can COME from a membership row are looked up: a
+   * `system`, `ai`, `import` or `integration` actor is answered by the canonical
+   * rule from its type alone, so including it would waste a lookup slot on an
+   * actor that has no row to find. That test is the rule itself, not a hard-coded
+   * list here, so the two can never drift.
+   *
+   * The distinct subjects are then resolved in chunks of
+   * {@link DIRECTORY_LOOKUP_CHUNK}. EVERY actor is resolved — the chunk bounds
+   * the statement, not the answer. One page of activity is a single chunk, so
+   * this stays one query for every product surface; the unpaginated vault export
+   * costs one statement per hundred distinct authors instead of a wrong name.
    */
   async resolveActors(
     actors: readonly ActorRef[],
@@ -287,19 +305,31 @@ export class D1WorkspaceMemberRepository
     const subjects = new Set<string>();
 
     for (const actor of actors) {
-      if (typeof actor.id === "string" && actor.id.trim().length > 0) {
-        subjects.add(actor.id.trim());
+      if (typeof actor.id !== "string" || actor.id.trim().length === 0) {
+        continue;
       }
+      // `person` (a human) or `unknown` (an unfamiliar type) are the kinds a
+      // membership row can name; the rest resolve from the type alone.
+      const kind = resolveActorIdentity(actor, null).kind;
+      if (kind === "system" || kind === "automation") {
+        continue;
+      }
+      subjects.add(actor.id.trim());
     }
 
     const members = new Map<string, WorkspaceMember>();
-    const wanted = [...subjects].slice(0, MAX_DIRECTORY_ACTORS);
-    if (wanted.length > 0) {
-      const placeholders = wanted.map(() => "?").join(", ");
+    const wanted = [...subjects];
+    for (
+      let start = 0;
+      start < wanted.length;
+      start += DIRECTORY_LOOKUP_CHUNK
+    ) {
+      const chunk = wanted.slice(start, start + DIRECTORY_LOOKUP_CHUNK);
+      const placeholders = chunk.map(() => "?").join(", ");
       try {
         const result = await this.#db
           .prepare(`${SELECT_MEMBERS} AND m.subject IN (${placeholders})`)
-          .bind(this.#workspaceId, ...wanted)
+          .bind(this.#workspaceId, ...chunk)
           .all<WorkspaceMemberRow>();
         for (const row of result.results ?? []) {
           members.set(row.subject, this.#toMember(row));

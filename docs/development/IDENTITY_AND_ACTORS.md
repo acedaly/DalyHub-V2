@@ -114,9 +114,12 @@ providers) are read-only. An authenticated request never falls back to it.
 
 ## Rendering an actor
 
-Server routes resolve the whole page's distinct actors in **one** bounded query and
-hand the pure mapper a synchronous resolver — the same batching rule referenced
-entities already follow (no N+1):
+Server routes resolve the whole page's distinct actors up front and hand the pure
+mapper a synchronous resolver — the same batching rule referenced entities already
+follow (no N+1). One page of activity is a single query; only actors a membership
+row could actually name are looked up, and a set larger than one statement can
+bind is split across statements rather than truncated, so no real member is ever
+mis-rendered as `Unknown user`:
 
 ```ts
 import { createActivityActorResolver } from "~/platform/activity";
@@ -203,6 +206,10 @@ CLOUDFLARE_D1_DATABASE_ID=<uuid> node scripts/repair-activity-identity.mjs \
 #    …or by linking their own Person record, so the name follows the profile.
 CLOUDFLARE_D1_DATABASE_ID=<uuid> node scripts/repair-activity-identity.mjs \
   --workspace <workspace-id> --subject <access-sub> --person <person-entity-id> --apply
+
+#    Naming a subject also resolves the ambiguity in step 1: in a workspace with
+#    several recorded subjects, `--subject … --owner-email …` attaches the email
+#    to that subject on the same run, and leaves the others unattributed.
 
 # 3. Re-run the dry run. A correct repair is now a no-op.
 CLOUDFLARE_D1_DATABASE_ID=<uuid> node scripts/repair-activity-identity.mjs \

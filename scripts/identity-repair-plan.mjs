@@ -155,36 +155,51 @@ export function planIdentityRepair(input) {
     counts[method] += 1;
   };
 
-  // The ONLY case where the configured owner email may be attached automatically
+  // The ONLY case where the configured owner email may be attached AUTOMATICALLY
   // is an unambiguous one: exactly one subject exists in the whole workspace, so
   // there is no second identity it could belong to.
   const unambiguous = knownSubjects.size === 1;
   const autoEmail = unambiguous && ownerEmail !== null ? ownerEmail : null;
-  if (!unambiguous && ownerEmail !== null) {
+  const named = EMPTY(options.subject) ? null : String(options.subject);
+  if (!unambiguous && ownerEmail !== null && named === null) {
     notes.push(
       `More than one authenticated subject is recorded (${knownSubjects.size}); ` +
         `OWNER_EMAIL is not applied automatically. Use --subject to name one.`,
     );
   }
 
+  /**
+   * The email to store for a subject.
+   *
+   * An operator who NAMES a subject has supplied the missing evidence
+   * themselves, so the owner email applies to that subject even in an ambiguous
+   * workspace — and it applies on the INSERT, not only to a row that already
+   * exists. Without that, the documented `--subject … --owner-email … --apply`
+   * flow left the named actor unresolved until a second run.
+   *
+   * @param {string} subject
+   * @returns {string | null}
+   */
+  const emailFor = (subject) =>
+    named !== null && subject === named && ownerEmail !== null
+      ? ownerEmail
+      : autoEmail;
+
   for (const subject of activitySubjects.keys()) {
     if (!memberBySubject.has(subject)) {
-      insert(subject, autoEmail, "member_from_activity_actor");
+      insert(subject, emailFor(subject), "member_from_activity_actor");
     }
   }
   for (const subject of preferenceSubjects) {
     if (!memberBySubject.has(subject) && !activitySubjects.has(subject)) {
-      insert(subject, autoEmail, "member_from_preferences_owner");
+      insert(subject, emailFor(subject), "member_from_preferences_owner");
     }
   }
 
   /* -- 3. Fill an existing row's missing email ----------------------------- */
 
   for (const member of members) {
-    const wanted =
-      options.subject && member.subject === options.subject
-        ? ownerEmail
-        : autoEmail;
+    const wanted = emailFor(member.subject);
     if (member.email === null && wanted !== null) {
       statements.push({
         method: "email_from_owner_evidence",
@@ -203,25 +218,26 @@ export function planIdentityRepair(input) {
   /* -- 4. Explicit, operator-supplied identity ----------------------------- */
 
   if (!EMPTY(options.displayName)) {
-    if (EMPTY(options.subject)) {
+    const desiredName = String(options.displayName).trim();
+    const existing = named === null ? undefined : memberBySubject.get(named);
+    if (named === null) {
       notes.push("--display-name requires --subject; skipped.");
-    } else if (!knownSubjects.has(options.subject)) {
+    } else if (!knownSubjects.has(named)) {
       notes.push(
         "--subject is not a recorded subject in this workspace; skipped.",
       );
+    } else if (existing && existing.display_name === desiredName) {
+      // Already exactly this name. Planning the update anyway would advance
+      // `updated_at` and make a re-run report work it did not need to do, which
+      // is precisely the idempotency the report promises.
     } else {
       statements.push({
         method: "display_name_explicit",
-        subject: options.subject,
+        subject: named,
         sql: `UPDATE workspace_members
                  SET display_name = ?, updated_at = ?
                WHERE workspace_id = ? AND subject = ?`,
-        params: [
-          String(options.displayName).trim(),
-          now,
-          workspaceId,
-          options.subject,
-        ],
+        params: [desiredName, now, workspaceId, named],
         description: "set the owner-curated display name",
       });
       counts.display_name_explicit += 1;
@@ -248,18 +264,19 @@ export function planIdentityRepair(input) {
   };
 
   if (!EMPTY(options.personEntityId)) {
-    const subject = EMPTY(options.subject)
-      ? unambiguous
-        ? [...knownSubjects][0]
-        : null
-      : options.subject;
+    const subject =
+      named === null ? (unambiguous ? [...knownSubjects][0] : null) : named;
     const person = people.find((p) => p.id === options.personEntityId);
+    const linked = subject === null ? undefined : memberBySubject.get(subject);
     if (subject === null) {
       notes.push("--person requires --subject when several subjects exist.");
     } else if (!person) {
       notes.push(
         "--person does not name an active Person in this workspace; skipped.",
       );
+    } else if (linked && linked.person_entity_id === person.id) {
+      // Already linked to exactly this Person — same reason as the display name
+      // above: a re-run must plan nothing.
     } else {
       linkPerson(
         subject,
@@ -276,10 +293,16 @@ export function planIdentityRepair(input) {
     if (member.person_entity_id !== null) {
       continue;
     }
-    if (counts.person_link_explicit > 0 && member.subject === options.subject) {
+    if (
+      named !== null &&
+      member.subject === named &&
+      !EMPTY(options.personEntityId)
+    ) {
+      // The operator named this subject's Person explicitly; that decision wins
+      // over an email match, whether or not it produced a statement above.
       continue;
     }
-    const email = canonicalEmail(member.email) ?? autoEmail;
+    const email = canonicalEmail(member.email) ?? emailFor(member.subject);
     if (email === null) {
       continue;
     }
