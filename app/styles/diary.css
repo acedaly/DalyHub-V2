@@ -78,7 +78,7 @@
   min-inline-size: var(--dh-touch-target-min);
   min-block-size: var(--dh-touch-target-min);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-control);
   color: var(--dh-color-text-secondary);
   background: var(--dh-color-surface);
   cursor: pointer;
@@ -107,8 +107,8 @@
   min-block-size: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  border-radius: var(--dh-radius-field);
+  background: var(--dh-color-surface-card);
 }
 
 .dh-diary-datenav__label {
@@ -147,7 +147,7 @@
   min-block-size: var(--dh-touch-target-min);
   padding: 0 var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-control);
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-medium);
   color: var(--dh-color-text-secondary);
@@ -323,7 +323,7 @@
   column-gap: var(--diary-tl-gap);
   align-items: start;
   padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-2) 0;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-control);
 }
 
 .dh-diary-entry:hover {
@@ -353,7 +353,7 @@
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-full);
   color: var(--dh-entity-diary-accent);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
 }
 
 .dh-diary-entry__node svg {
@@ -400,7 +400,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-control);
 }
 
 .dh-diary-entry__excerpt {
@@ -447,7 +447,7 @@
   min-inline-size: var(--dh-touch-target-min);
   min-block-size: var(--dh-touch-target-min);
   border: 0;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-control);
   color: var(--dh-color-text-muted);
   background: transparent;
   cursor: pointer;

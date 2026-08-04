@@ -30,11 +30,30 @@
  */
 
 .dh-today {
-  display: flex;
-  flex-direction: column;
-  /* The Collection preset's section gap (12px). Not a Today number. */
-  gap: var(--dh-density-section-gap);
-  max-width: var(--dh-width-content);
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.85fr);
+  align-items: start;
+  gap: var(--dh-space-4);
+  max-width: min(100%, 76rem);
+}
+
+.dh-today__toolbar {
+  grid-column: 1 / -1;
+}
+
+.dh-today-widget[data-widget="my-day"] {
+  grid-column: 1;
+  grid-row: 1 / span 5;
+}
+
+.dh-today-widget[data-widget="morning-brief"] {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.dh-today-widget[data-widget="quick-capture"] {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -133,10 +152,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
-  padding: var(--dh-space-4);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+  padding-block: var(--dh-space-1);
 }
 
 .dh-today__capture-hint {
@@ -160,7 +176,7 @@
   padding: var(--dh-space-2) var(--dh-space-4);
   border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
   border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font: inherit;
   font-size: var(--dh-font-size-sm);
@@ -221,7 +237,7 @@
 }
 
 .dh-today__secondary {
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   border-color: var(--dh-color-border);
 }
@@ -397,7 +413,7 @@
 .dh-today__tasklist {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-8);
+  gap: var(--dh-space-5);
 }
 
 /* A visible, non-colour-only focus indication when a "Go to <section>" command moves
@@ -412,7 +428,7 @@
    ring, so the keyboard position is unmistakable. Not colour-only — it is a ring. */
 .dh-today__tasklist .dh-card:focus-within {
   box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-card);
 }
 
 /* TODAY-06: task cards are wrapped in the swipe container (which clips with
@@ -421,9 +437,7 @@
    wrapper also owns the card elevation, so the focused card keeps its shadow AND
    gains the ring (the focus treatment is added, never removed). */
 .dh-today__tasklist .dh-card-swipe:focus-within {
-  box-shadow:
-    0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring),
-    var(--dh-shadow-sm);
+  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -592,7 +606,7 @@
   font: inherit;
   font-size: var(--dh-font-size-xs);
   color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-control);
   cursor: pointer;
@@ -791,7 +805,7 @@
   padding: var(--dh-space-2) var(--dh-space-3);
   border-radius: var(--dh-radius-md);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-surface-card);
   color: inherit;
   text-decoration: none;
   min-height: var(--dh-touch-target-min);
@@ -1116,7 +1130,7 @@
   padding-inline: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font-size: var(--dh-font-size-sm);
 }
@@ -1274,7 +1288,7 @@
 .dh-tasks-capture__token {
   padding: var(--dh-space-1) var(--dh-space-2);
   border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   font-size: var(--dh-font-size-xs);
   color: var(--dh-color-text);
@@ -1306,7 +1320,7 @@
   padding: var(--dh-space-1) var(--dh-space-3);
   border-radius: var(--dh-radius-full);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface-raised);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font-size: var(--dh-font-size-sm);
   text-decoration: none;
@@ -1407,7 +1421,14 @@
   /* Tighter vertical rhythm: the first viewport must answer "what must I do,
    * what is due, what am I waiting on" without scrolling past decoration. */
   .dh-today {
+    display: flex;
+    flex-direction: column;
     gap: var(--dh-space-5);
+  }
+
+  .dh-today-widget[data-widget] {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .dh-today__section {
@@ -1450,6 +1471,87 @@
    * stops competing with the day's work for the top of the screen. */
   .dh-today__toolbar {
     order: 99;
+  }
+}
+
+@media (max-width: 14rem) {
+  .dh-today {
+    gap: var(--dh-space-3);
+  }
+
+  .dh-today .dh-region-card {
+    padding-inline: var(--dh-space-3);
+  }
+
+  .dh-today-widget__header,
+  .dh-morning-brief__signals {
+    gap: var(--dh-space-2);
+  }
+
+  .dh-today-widget__toggle,
+  .dh-morning-brief__signal,
+  .dh-today__secondary,
+  .dh-today__capture-type {
+    min-inline-size: 0;
+  }
+
+  .dh-today .dh-card__title {
+    min-inline-size: 0;
+  }
+
+  .dh-today .dh-card__support {
+    column-gap: var(--dh-space-2);
+  }
+
+  .dh-today .dh-card__meta-value,
+  .dh-today .dh-urgency,
+  .dh-today .dh-urgency__label {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .dh-today .dh-card__actions {
+    flex-wrap: wrap;
+    min-inline-size: 0;
+  }
+
+  .dh-today .dh-card__swipe-tray {
+    flex-wrap: wrap;
+  }
+
+  .dh-today__summary {
+    gap: var(--dh-space-2);
+  }
+
+  .dh-today__summary-stat {
+    flex: 1 1 4.5rem;
+    min-inline-size: 0;
+    flex-wrap: wrap;
+    column-gap: var(--dh-space-1);
+  }
+
+  .dh-today__summary-label {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .dh-today-widget__toggle,
+  .dh-today__secondary,
+  .dh-today__capture-type {
+    max-inline-size: 100%;
+  }
+
+  .dh-today__secondary,
+  .dh-today__capture-type {
+    white-space: normal;
+  }
+
+  .dh-morning-brief__capture,
+  .dh-today__secondary {
+    align-self: stretch;
+    justify-content: center;
   }
 }
 

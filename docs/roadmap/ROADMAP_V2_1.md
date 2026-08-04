@@ -270,6 +270,38 @@ They are small and well-understood; none of them blocks the V2 release.*
 
 ## V2.1 — Whole-application restyle
 
+### ☑ DS-15 — Today reference layout and app-wide surface contract correction
+
+- **Why it exists.** PR #108's branch name and owner direction required a visible
+  Today rebuild and whole-application visual correction, not another plan layered
+  on top of DS-14. DS-15 records that implementation: Today becomes the reference
+  layout for the card-on-tint system, and the remaining in-flow cards, filters,
+  forms, empty states and application edges are brought back to the shared surface
+  contract.
+- **What changed.** Today now puts current work first at desktop width, with
+  `My day` as the primary column and `Morning brief` plus quick capture in the
+  secondary column; phone widths keep the existing fast single-column stack.
+  Shared cards use `surface-card`, complete borders and `radius-card` without
+  raised shadows. Floating surfaces keep raised elevation. Module CSS that still
+  used generic surfaces, raw radii or hover shadows was retargeted to the semantic
+  system.
+- **What it deliberately does not change.** No information architecture, spine
+  semantics, route or deep link, entity field, query, validation, permission,
+  Activity row, link, export format or serialiser, authentication, module-registry
+  contract, product copy, theme id/CHECK constraint/count, Restore, weekly review,
+  mobile reminders or other V2.1 work. It adds no theme or appearance/density/shape/
+  typography/measure switch, Today widget, Goal metric, stored Area colour or
+  animation system. Area colour remains the workspace-rank algorithm accepted by
+  ADR-068.
+- **Acceptance evidence.** The shared visual contract is applied across Today,
+  Tasks, Areas, Goals, Projects, Notes, Diary, Meetings, People, Assets, Reviews,
+  Settings, Search, Command Palette and application edges; the theme/token,
+  accessibility, responsive, PWA/offline and e2e checks pass; and desktop/mobile
+  screenshots from the running application show the populated, sparse, collection,
+  reading, form and floating-layer states.
+- **Decision record.** [ADR-070](../decisions/ARCHITECTURE_DECISIONS.md#adr-070-ds-15--today-reference-layout-and-app-wide-surface-contract-correction).
+- **Priority.** P2. Completed in PR #108.
+
 ### ☑ DS-14 — Whole-application visual overhaul
 
 - **Not in ROADMAP_V2.** A new item, taking the next free number in the `DS-` series
@@ -288,39 +320,20 @@ They are small and well-understood; none of them blocks the V2 release.*
   baseline, and — at least as importantly — **§9, what no DS-14 PR may change or add**.
   The decisions taken against it, with their reasoning and their measurements, are
   [ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback).
-- **How it is delivered — ONE PR, by the owner's direction.** The item was planned
-  as a foundation PR, a desktop soak gate and six module-group PRs. The owner
-  directed a single complete delivery instead: *"There is no five-day test, desktop
-  soak gate or staged owner-approval process. Apply the visual system to every
-  module, complete the verification and present the finished PR for review."* That
-  supersedes the staged plan below, which is kept because the reasoning behind the
-  original sequencing is still the reasoning for the commit boundaries.
+- **How it is delivered.** DS-14 is a single complete visual implementation, not a
+  staged rollout plan. Its evidence is repository evidence: shared primitives,
+  theme invariants, accessibility/responsive/offline checks and screenshots from
+  the running application.
 
-  **What that changes, stated rather than left to be discovered.**
-  - **The soak gate is gone. Its reviewable half was done anyway; its other half
-    was not, and that is stated rather than blurred.** A recorded verdict against
-    desktop captures in every theme is in
-    [`THEME_ACCEPTANCE_MATRIX.md §9.7`](../design/THEME_ACCEPTANCE_MATRIX.md),
-    including one weakness it found and did not fix. What no screenshot review can
-    substitute for — living with the restyle on a real workspace for days — is
-    unanswered, and §9.8 says so.
+  **What that means, stated rather than left to be discovered.**
   - **The wide-desktop question is answered IN this PR rather than after it.** [DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)
     recorded that card-on-tint's behaviour at 1440px and above was unproven; the
     answer turned out to be a real one — an uncapped collection at 1440px is a
     1200px row with a title at one end and a status pill at the other — and the
     fix (a content measure on collections, not only on prose) is in the PR.
-  - **ADR-068's F1–F4 rollback structure still holds, and holds MORE simply.** The
-    PR squash-merges as one commit, so "revert exactly one commit" is satisfied by
-    construction rather than by a path guard and a per-group revert rehearsal.
-    What is lost is the intermediate position — there is no longer a state in which
-    the foundation is reverted and the module work is kept, because there are no
-    separately-landed module commits to keep. That is the real cost of the
-    direction and it is accepted here, not hidden: the choice is a whole-product
-    restyle taken or not taken, rather than a direction that can be withdrawn from
-    underneath work that has already shipped.
-  - **The commit boundaries survive as review structure.** The branch is nine
-    deliberate commits along roughly the original group lines, so the diff is
-    reviewable in passes even though it merges as one.
+  - **Rollback is a whole-PR rollback.** There are no separately-landed module
+    groups to keep. Reverting the merged visual implementation removes the visual
+    implementation; it does not leave behind a partially-restyled product.
 
 - **☑ The foundation.** The token set in all seven themes (`surface-page` replacing
   a retired `bg`, the neutral absence pill, the six Area accents with their tint
@@ -387,8 +400,8 @@ They are small and well-understood; none of them blocks the V2 release.*
   every group is, verified per the brief's §10 matrix. **It is marked ☑ here on
   that basis and no other:** every module and every application edge uses the
   system, the invariant test passes in all seven themes, and the responsive,
-  accessibility, offline and budget gates are green. What is NOT claimed is that
-  the direction has been lived with — see the note on the removed soak gate above.
+  accessibility, offline and budget gates are green. That is an implementation,
+  screenshot and automation claim; no owner soak process is part of the item.
 - **Dependencies.** DS-01 (tokens), DS-11 (the accessibility and responsive
   baseline), THEME-01/THEME-02 (the seven-theme registry the invariant test
   enumerates) — all ☑ and satisfied. Sequenced behind SET-02 and REVIEW-02 for the
@@ -544,7 +557,8 @@ because a reader would otherwise wonder whether it was forgotten:
    leaves, and the reason a bad day is still unrecoverable.
 2. **[REVIEW-02](#-review-02--weekly-review)** + REVIEW-04's stepper — the flagship
    weekly flow, and the mobile ergonomic that belongs with it.
-3. **[DS-14](#-ds-14--whole-application-visual-overhaul)** — the whole-application
+3. **[DS-14](#-ds-14--whole-application-visual-overhaul)** and
+   **[DS-15](#-ds-15--today-reference-layout-and-app-wide-surface-contract-correction)** — the whole-application
    restyle. **Third deliberately**, and the entry says why: recoverability and the
    weekly flow are worth more than a restyle, and a whole-app restyle taken out of
    order is how a roadmap stops moving. It touches every surface, so it is cheapest

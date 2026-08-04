@@ -1790,27 +1790,23 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
      - The token names are `--dh-color-text`, `-text-secondary`, `-text-muted` and `--dh-color-surface-raised`. There is no `text-primary`.
      - **"in both light and dark resolution" does not apply per theme.** Every curated theme is a single self-contained palette — `resolveThemeId` branches only for `system`, and choosing Modern Dark keeps it Modern Dark under a light OS ([ADR-061](#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner)). So the test runs each of the seven themes once, and `system`'s two resolutions are `daly-light` and `daly-dark`, which are already in the enumeration. Asserting a "dark resolution" of Eucalypt would be asserting something that cannot be reached.
 
-  7. **The rollback position: if the direction is rejected after two module groups, a reviewer reverts EXACTLY ONE COMMIT — the foundation commit — and the foundation PR is structured until that is true.**
-
-     **What is reverted.** `git revert <foundation-sha>`. One commit. That removes the tinted canvas, the recomposed light neutral ramp, `surface-page`, the radius scale, both density presets and their sizing tokens, the self-hosted fonts and their precache entries, the neutral absence pill, the one progress component, the derived area accent, the restyled application frame, and the invariant test — because every one of those lives in that commit and nowhere else. **The two module-group commits stay.** They are strictly subtractive at the CSS level: each one deletes bespoke module CSS, adopts the shared primitives, and attaches density attributes that resolve to nothing once the preset stylesheet is gone. With the foundation reverted those surfaces render as the pre-DS-14 shared primitives under the pre-DS-14 ramp — the old product, with less bespoke CSS behind it than before. **The module work is worth keeping whether or not the direction is.**
-
-     **DS-14 ships no migration** — the area accent is derived, no theme is added, the `theme` CHECK is untouched (brief §9) — so a code-only revert is a *complete* revert. There is no stored state left behind pointing at a direction that no longer exists.
-
-     **Four structural rules on the foundation PR make this true by construction rather than by hope.** These are the restructuring; without them the answer would be "three commits, growing to seven", which is not acceptable:
-     - **F1 — the foundation PR merges as exactly one squashed commit**, and contains everything that expresses the direction. A direction split across two commits is a two-commit revert on day one.
-     - **F2 — it is the only commit in DS-14 permitted to touch `app/styles/tokens.css`, the DS-14 stylesheet, the font assets, `PUBLIC_PRECACHE_URLS` or the invariant test.** This is what keeps the revert conflict-free: `git revert` of an ancestor conflicts precisely when a later commit edited the same lines. A CI path guard enforces it for the duration of DS-14 and a module-group PR that touches those paths does not merge.
-     - **F3 — module-group PRs add no visual direction of their own.** They delete bespoke CSS, adopt shared components, and set density attributes. Any new shared visual primitive a group discovers it needs goes back into the foundation commit by amendment before that group merges — never forward into the group.
-     - **F4 — every module-group PR runs a revert rehearsal in CI.** The job applies `git revert -n <foundation-sha>`, then runs build, typecheck, the unit suite and the token tests — including the existing scan that fails on a `var(--dh-*)` referencing an undefined token, which is precisely the failure a non-subtractive module group would produce. **A module-group PR whose revert rehearsal fails is not mergeable.** The rollback is therefore proven green at every point it could be needed, rather than attempted for the first time on the day the direction is rejected.
-
-     **The alternative that was rejected: reverting all three commits.** It works today and gets worse every week — a rejection after two groups costs three reverts, after four groups five, after six groups seven, and each one is a conflict surface. The cost of undoing a direction must not scale with how far the direction got, because a rollback that is expensive late is a rollback nobody takes late, and then the direction is decided by sunk cost instead of by the soak gate.
+  7. **The original staged rollback mechanics are superseded by the single-PR
+     implementation.** ADR-068 originally described a foundation commit that could
+     be reverted while keeping later module-group work. ADR-069 and ADR-070 record
+     the actual delivery: the visual system landed as one coherent application
+     change, with no separately-landed module groups and no rollout gate. The
+     rollback property that remains true is simpler: DS-14/DS-15 ship no migration,
+     no stored Area colour and no new theme id, so reverting the visual PR is a
+     code-only rollback to the previous visual state. There is no intermediate
+     "foundation removed, module work kept" state to preserve.
 
   8. **The one value in the brief this ADR does NOT adopt: §2's "two font weights only, 400 and 500".** DalyHub uses `--dh-font-weight-semibold` (600) at **115 call sites** — more than any other weight — and `bold` (700) at 11. More decisively, [`e2e/themes.spec.ts:669`](../../e2e/themes.spec.ts) asserts the selected navigation row's *computed* weight is **≥ 600**, and [`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/THEME_ACCEPTANCE_MATRIX.md#82-what-is-specific-to-the-pair-automated) records that row as passing. Adopting 400/500 means deleting 126 call sites and failing a green assertion that exists because a real defect was found in that exact treatment — a restyle is not entitled to weaken a state cue that is holding a WCAG floor.
 
      **Decided instead: three weights — 400, 500 and 600 — and `bold` (700) is removed.** This keeps the restraint the rule is reaching for (one weight fewer than today, and the widest gap in the ramp closed), keeps `semibold` available where state is carried by weight, and lets the preloaded variable range stay narrow enough to matter for decision 4's ceiling. The 11 `bold` call sites move to `semibold` in the foundation PR. This is a substitution, so it is stated as one rather than shipped quietly.
 
-- **Consequences.** The product gets one visual language with the direction expressed as measurable constraints, and — for the first time — the elevation relationships between its surfaces are asserted rather than assumed in all seven themes. The costs are real and are accepted here rather than discovered in a module group: **the light themes visibly change**, including the default Daly Light, whose page drops at least four L\* points and whose card leaves pure white; Modern Light's documented "soft shadow, no hard outline" character is superseded by constraint 8; `--dh-color-bg` is retired and every consumer repointed; three new type tokens, two new line-height tokens, a new radius scale and eight new colour tokens must be authored **eight times** (seven themes plus the duplicated `prefers-color-scheme` dark block) and clear the full contrast harness in each, which is precisely the maintenance tax [DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3) already priced; a seventh Area shares an accent with the first; the owner cannot choose an Area's colour ([DEBT-73](../product/PRODUCT_DEBT.md)); and card-on-tint's behaviour at 1440px and above is **unproven**, which is why the desktop soak gate exists and why it is recorded as [DEBT-72](../product/PRODUCT_DEBT.md) rather than assumed away. Against that: no migration, no new dependency beyond the font files themselves, no theme added or removed, no route or entity field touched, and a rollback that is one commit at every point in the delivery.
+- **Consequences.** The product gets one visual language with the direction expressed as measurable constraints, and — for the first time — the elevation relationships between its surfaces are asserted rather than assumed in all seven themes. The costs are real and are accepted here rather than discovered in a module group: **the light themes visibly change**, including the default Daly Light, whose page drops at least four L\* points and whose card leaves pure white; Modern Light's documented "soft shadow, no hard outline" character is superseded by constraint 8; `--dh-color-bg` is retired and every consumer repointed; three new type tokens, two new line-height tokens, a new radius scale and eight new colour tokens must be authored **eight times** (seven themes plus the duplicated `prefers-color-scheme` dark block) and clear the full contrast harness in each, which is precisely the maintenance tax [DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3) already priced; a seventh Area shares an accent with the first; the owner cannot choose an Area's colour ([DEBT-73](../product/PRODUCT_DEBT.md)); and wide-desktop behaviour is treated as implementation evidence rather than an owner-process gate ([DEBT-72](../product/PRODUCT_DEBT.md)). Against that: no migration, no new dependency beyond the font files themselves, no theme added or removed, no route or entity field touched, and a code-only rollback.
 
-- **Alternatives considered.** *A per-theme exemption from the elevation contract* — rejected: it turns a contract into a checklist, and seven themes is already more surface than review can police ([DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3)). *Keeping `bg` alongside a new `surface-page`* — rejected: two names for the page canvas is a drift generator and lets a theme satisfy the contract on the token nothing paints. *Area colour hashed from the id* — rejected on the arithmetic in decision 5 (≈91% collision at five Areas). *Area colour stored on the Area* — rejected here, recorded as [DEBT-73](../product/PRODUCT_DEBT.md); it needs a migration and an owner-facing picker that brief §9 explicitly excludes, and derivation is reversible into it later while the reverse is not. *Enforcing the invariants through an acceptance-matrix row* — rejected: THEME-02's 2.96:1 indicator bar is the counter-example, in this repository, on this exact class of pairing. *Reverting the foundation and each module group together* — rejected in decision 7: the cost of undoing must not grow with how far the work got. *A build-time kill switch instead of a revert* — rejected: it means both visual systems coexist in the codebase, which contradicts brief §2's "no literal `border-radius` values anywhere after the foundation PR" and makes the invariant test assert two ramps at once; a squashed commit and a rehearsed revert give the same recoverability with none of that.
+- **Alternatives considered.** *A per-theme exemption from the elevation contract* — rejected: it turns a contract into a checklist, and seven themes is already more surface than review can police ([DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3)). *Keeping `bg` alongside a new `surface-page`* — rejected: two names for the page canvas is a drift generator and lets a theme satisfy the contract on the token nothing paints. *Area colour hashed from the id* — rejected on the arithmetic in decision 5 (≈91% collision at five Areas). *Area colour stored on the Area* — rejected here, recorded as [DEBT-73](../product/PRODUCT_DEBT.md); it needs a migration and an owner-facing picker that brief §9 explicitly excludes, and derivation is reversible into it later while the reverse is not. *Enforcing the invariants through an acceptance-matrix row* — rejected: THEME-02's 2.96:1 indicator bar is the counter-example, in this repository, on this exact class of pairing. *A build-time kill switch instead of a revert* — rejected: it means both visual systems coexist in the codebase, which contradicts brief §2's "no literal `border-radius` values anywhere after the foundation PR" and makes the invariant test assert two ramps at once.
 
 - **Deliberately not decided here.** Which specific sans and serif families are chosen (decision 4 sets the ceiling and the drop rule; the selection is the foundation PR's, reported with measured bytes); the exact hex values of the recomposed light ramps (decision 2 sets the L\* ceilings, the hues stay each theme's own); the surface classification of anything brief §7 does not list (classified in the PR that touches it, per §7); consolidating the theme registry ([DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3) — DS-14 restyles seven themes, it does not choose how many there should be); a progress metric on Goals; a density, shape, type or measure switch for the owner; an animation system; and everything else in brief §9's out-of-scope list, which stands unamended.
 
@@ -1820,9 +1816,9 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 - **Status.** Accepted (DS-14 — whole-application visual overhaul). Extends [ADR-068](#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback), which decided the direction, the elevation contract, the presets, the typography ceiling, the area-colour derivation and the rollback. ADR-068 stands unamended except where decision 6 below says otherwise. This ADR records what applying that direction to every surface actually decided — the questions that could only be answered against real modules.
 
-- **Context.** ADR-068 was written against the repository but before the direction touched more than two reference surfaces. The owner then directed a single complete delivery rather than a foundation PR, a soak gate and six module-group PRs (recorded in the [DS-14 roadmap entry](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul)). Applying the system to twelve modules surfaced five things the plan did not have an answer for, and one thing it had the wrong answer for.
+- **Context.** ADR-068 was written against the repository but before the direction touched more than two reference surfaces. The owner then directed a single complete delivery (recorded in the [DS-14 roadmap entry](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul)). Applying the system to twelve modules surfaced five things the plan did not have an answer for, and one thing it had the wrong answer for.
 
-  **Finding 1 — the module-by-module plan would have produced twelve different lists.** Every collection surface in the product renders through the same two components: `CardCollection`/`Card` (DS-04) and `CollectionLayout` (PX-02). Six module-group PRs each "adopting the shared primitives" would have been six opportunities to adopt them slightly differently, and the sixth would have arrived months after the first.
+  **Finding 1 — module-local restyling would have produced twelve different lists.** Every collection surface in the product renders through the same two components: `CardCollection`/`Card` (DS-04) and `CollectionLayout` (PX-02). Restyling modules independently would have been twelve opportunities to adopt them slightly differently.
 
   **Finding 2 — a card per row is what made the product look like an administration console, and it is a density problem before it is a taste problem.** A task row carried its own border, radius, shadow and 8px gap: roughly 28px of vertical space per row spent on separation that a 1px hairline provides. On Tasks, the densest surface in the product, that is the difference between nine rows and fourteen on a laptop screen.
 
@@ -1832,7 +1828,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
   **Finding 5 — two phone layout defects were invisible to review and obvious to measurement.** A task title wrapped ONE CHARACTER PER LINE at 390px, and the card body dropped below its selection checkbox. Both are flexbox behaviours, both reproduce only under a real narrow viewport, and both were found by reading computed geometry out of the browser rather than by looking at a screenshot.
 
-  **Finding 6 — the wide-desktop question ADR-068 deferred to a soak gate had a real answer.** [DEBT-72](../product/PRODUCT_DEBT.md) recorded card-on-tint's behaviour above 1440px as unproven. It is: an uncapped collection row at 1440px puts the title at one end and the status pill at the other with 1000px between them.
+  **Finding 6 — the wide-desktop question had a real answer.** [DEBT-72](../product/PRODUCT_DEBT.md) recorded card-on-tint's behaviour above 1440px as unproven. It is: an uncapped collection row at 1440px puts the title at one end and the status pill at the other with 1000px between them.
 
 - **Decision.**
 
@@ -1878,8 +1874,87 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 - **Consequences.** The product has one visual language, and — more durably than the language itself — the four shared boundaries that produce it: a collection is a card of rows, a record is a Collection region, rendered Markdown is a Reading region, and a native control has a floor. A module written next year gets the system by using the components it already has to use, which is the property that makes a restyle survive contact with future work.
 
-  The costs are real. **The intermediate rollback is gone** (decision 6). **The self-hosted fonts leave 2,185 B of service-worker budget** (21,815 / 24,000) — enough, but this file is SERVED, so its own comments cost budget and the comment added here was trimmed once measured. **Area dots stop at the Areas surfaces** ([DEBT-74](../product/PRODUCT_DEBT.md)). **`--dh-radius-xs`/`-sm` remain a second, smaller shape vocabulary** — deliberately, per decision 4, but they are two more numbers. And the direction has not been LIVED WITH: the soak gate existed so that the answer to "is this pleasant after five days" arrived before six module groups depended on it, and that question is now answered after the fact or not at all.
+  The costs are real. **The intermediate rollback is gone** (decision 6). **The self-hosted fonts leave 2,185 B of service-worker budget** (21,815 / 24,000) — enough, but this file is SERVED, so its own comments cost budget and the comment added here was trimmed once measured. **Area dots stop at the Areas surfaces** ([DEBT-74](../product/PRODUCT_DEBT.md)). **`--dh-radius-xs`/`-sm` remain a second, smaller shape vocabulary** — deliberately, per decision 4, but they are two more numbers.
 
-- **Alternatives considered.** *Restyling each module's own CSS rather than the shared components* — rejected on Finding 1: twelve modules render through two components, so twelve edits would be eleven opportunities to diverge and one to get it right. *Keeping a card per row and tightening its padding* — rejected: it addresses the density symptom and not the elevation one, and fifty simultaneous card boundaries is the thing that reads as an administration console. *A `<Region density="reading">` in each module's prose surface* — rejected: brief §4 forbids threading the preset through call sites, and a rule that must be remembered once per surface is a rule that decays. *Editing ~90 `radius-md`/`-lg` call sites individually* — rejected as churn that buys nothing an alias does not, and that leaves the next call site free to pick either scale. *Fixing the unstyled `<select>` on Reviews, Notes and Diary* — rejected: three fixes and no floor, so the fourth filter row reintroduces it. *Deferring the wide-desktop measure to a follow-up* — rejected: the owner's direction removed the gate that would have hosted it, and the defect is real at the most common laptop width.
+- **Alternatives considered.** *Restyling each module's own CSS rather than the shared components* — rejected on Finding 1: twelve modules render through two components, so twelve edits would be eleven opportunities to diverge and one to get it right. *Keeping a card per row and tightening its padding* — rejected: it addresses the density symptom and not the elevation one, and fifty simultaneous card boundaries is the thing that reads as an administration console. *A `<Region density="reading">` in each module's prose surface* — rejected: brief §4 forbids threading the preset through call sites, and a rule that must be remembered once per surface is a rule that decays. *Editing ~90 `radius-md`/`-lg` call sites individually* — rejected as churn that buys nothing an alias does not, and that leaves the next call site free to pick either scale. *Fixing the unstyled `<select>` on Reviews, Notes and Diary* — rejected: three fixes and no floor, so the fourth filter row reintroduces it. *Deferring the wide-desktop measure to a follow-up* — rejected: the defect is real at the most common laptop width.
 
 - **Deliberately not decided here.** Whether seven themes is the right number ([DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3)); stored, owner-chosen Area colour ([DEBT-73](../product/PRODUCT_DEBT.md)); propagating Area identity to cross-module rows ([DEBT-74](../product/PRODUCT_DEBT.md)); a progress metric on Goals; any owner-facing density, shape, type or measure switch; an animation system; and everything else in brief §9's out-of-scope list, which stands unamended.
+
+---
+
+## ADR-070: DS-15 — Today reference layout and app-wide surface contract correction
+
+- **Status.** Accepted and implemented in PR #108. This ADR replaces the rejected
+  documentation-only staged rollout with the implementation that actually landed on
+  `codex/rebuild-dalyhub-today-page-layout`. It does not create a new delivery
+  gate, a soak process, another theme, or another roadmap lane.
+
+- **Context.** ADR-068 and ADR-069 already accepted and implemented DS-14's
+  card-on-tint visual system. PR #108 initially contradicted that repository state:
+  it described eight future PRs, a mandatory desktop soak, undefined approval
+  answers, and an Area-colour hash that conflicted with ADR-068's accepted
+  workspace-rank derivation. The owner rejected that delivery model and required
+  the visible Today rebuild plus app-wide visual correction to remain one PR.
+
+- **Decision 1 — Today is the reference implementation.** At normal desktop width,
+  Today presents current work first: `My day` owns the primary left column, while
+  `Morning brief` and quick capture sit in the secondary right column. At phone
+  widths the page returns to the existing single-column stack so capture and task
+  completion stay fast. The route, loader data, actions, task interactions, sparse
+  states and product meaning are unchanged; only layout and visual hierarchy move.
+
+- **Decision 2 — in-flow surfaces are cards, not floating layers.** Shared cards
+  use `surface-card`, a complete subtle border, `radius-card` and no box shadow.
+  Rows inside grouped collections remain compact list rows. Raised shadows are
+  reserved for genuinely floating surfaces: dialogs, drawers, command palette,
+  menus and popovers. The implementation corrects module CSS that was still using
+  `surface`, ad hoc radii or hover elevation for ordinary in-flow cards.
+
+- **Decision 3 — the correction applies through shared primitives first.** The
+  changed contracts live in `Card`, `CardCollection`, `CollectionLayout`, shared
+  shell/application surfaces, native controls, pills and token-backed CSS. Module
+  styles for Today, Tasks, Areas, Goals, Projects, Notes, Diary, Meetings, People,
+  Assets, Reviews, Settings, Search, Command Palette and application edges consume
+  those surfaces rather than introducing a competing module-local system.
+
+- **Decision 4 — DS-14 density, typography and offline constraints stand.** The
+  two region-level treatments remain Collection and Reading. Inter remains the
+  application/chrome face and Source Serif 4 remains prose-only through
+  `MarkdownContent`; headings, controls, labels, pills, tabs and metadata stay
+  sans-serif. The existing font preload and precache strategy is retained, and no
+  PWA budget is raised to preserve a font.
+
+- **Decision 5 — Area colour remains workspace-rank derived.** ADR-068's accepted
+  algorithm remains the one implementation: rank Areas in the workspace by the
+  canonical `(created_at, id)` order and map that rank to `area-accent-1` through
+  `area-accent-6`. PR #108 does not introduce an immutable-id hash, stored Area
+  colour, a picker, a schema change or a migration. Area colour remains restrained
+  to identity dots, small pills, icons and progress treatments; semantic success,
+  warning and danger colours remain separate.
+
+- **Decision 6 — theme coverage remains executable.** The existing DS-14 token and
+  contrast suites continue to enumerate registered themes and validate surface
+  hierarchy, text contrast, pill/badge contrast, progress contrast, focus-ring
+  contrast and selected-navigation contrast. PR #108 adds an end-to-end visual
+  contract for Today's desktop/mobile layout, no-horizontal-overflow behaviour,
+  no-shadow in-flow cards and raised command-palette layering.
+
+- **Decision 7 — unchanged still means unchanged.** This PR changes visual
+  presentation only. It does not change information architecture, Area/Goal/
+  Project/Task semantics, entity fields, database schema, migrations, validation,
+  permissions, authentication, routes, deep links, data queries, export formats,
+  serialisers, module registry behaviour, Activity meaning, restore behaviour,
+  weekly-review behaviour, reminders, existing workflows or existing user data. It
+  adds no fake data, Today widget, Goal progress field, stored Area colour, new
+  appearance preference, density switch, shape switch, typography switch, measure
+  switch or animation framework.
+
+- **Rollback.** DS-14 is already part of the repository. Reverting PR #108 returns
+  the branch to the pre-PR #108 DS-14 implementation; it is not a delayed
+  foundation rollback and does not promise to keep separate module-group work,
+  because no module-group rollout exists in this PR.
+
+- **Consequences.** PR #108 is now a visible implementation PR rather than a plan.
+  The rejected staged rollout, mandatory soak and undefined approval answers are
+  removed. The documentation records the actual surface contract that landed, and
+  the tests assert the parts review previously had to infer from screenshots.

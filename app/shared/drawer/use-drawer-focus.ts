@@ -96,7 +96,7 @@ export function useDrawerFocus({
       container;
     // A microtask defer lets the panel finish mounting before focus moves.
     const id = window.requestAnimationFrame(() => {
-      target.focus();
+      target.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(id);
     // Mount-only: initial focus is deterministic and must not re-fire on updates.
@@ -112,7 +112,7 @@ export function useDrawerFocus({
         restoreTarget.isConnected &&
         typeof restoreTarget.focus === "function"
       ) {
-        restoreTarget.focus();
+        restoreTarget.focus({ preventScroll: true });
       }
     };
   }, []);
@@ -134,7 +134,7 @@ export function useDrawerFocus({
       if (focusable.length === 0) {
         // Nothing focusable inside: keep focus on the panel itself.
         event.preventDefault();
-        container.focus();
+        container.focus({ preventScroll: true });
         return;
       }
       const first = focusable[0];
@@ -143,15 +143,15 @@ export function useDrawerFocus({
 
       if (!container.contains(activeElement)) {
         event.preventDefault();
-        first.focus();
+        first.focus({ preventScroll: true });
         return;
       }
       if (event.shiftKey && activeElement === first) {
         event.preventDefault();
-        last.focus();
+        last.focus({ preventScroll: true });
       } else if (!event.shiftKey && activeElement === last) {
         event.preventDefault();
-        first.focus();
+        first.focus({ preventScroll: true });
       }
     };
 

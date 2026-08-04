@@ -58,7 +58,7 @@
   align-items: center;
   min-height: var(--dh-control-height-lg);
   padding: var(--dh-space-1) var(--dh-space-3);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-control);
   color: var(--dh-color-text-muted);
   text-decoration: none;
 }
@@ -102,8 +102,8 @@
   min-height: var(--dh-control-height-lg);
   padding: 0 var(--dh-space-2);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-raised);
+  border-radius: var(--dh-radius-field);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font: inherit;
   max-inline-size: 100%;
@@ -130,7 +130,7 @@
   justify-content: center;
   inline-size: 3.5rem;
   block-size: 3.5rem;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-control);
   background: var(--dh-color-accent-surface);
   color: var(--dh-color-accent-text);
   flex: none;
@@ -205,7 +205,7 @@
 
 .dh-asset-summary__tag {
   padding: var(--dh-space-1) var(--dh-space-2);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-accent-surface);
   color: var(--dh-color-accent-text);
   font-size: var(--dh-font-size-sm);
@@ -468,8 +468,8 @@
   min-height: var(--dh-control-height-lg);
   padding: 0 var(--dh-space-2);
   border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-raised);
+  border-radius: var(--dh-radius-field);
+  background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   /* Never wider than its column at 320px. */
   max-width: 100%;
@@ -509,7 +509,7 @@
 .dh-asset-obligation {
   padding: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-card);
   background: var(--dh-color-surface-card);
   /* Stacks on a phone; side-by-side once there is room for both. */
   display: flex;
@@ -589,7 +589,7 @@
 .dh-asset-history__item {
   padding: var(--dh-space-3);
   border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-card);
   background: var(--dh-color-surface-card);
 }
 
