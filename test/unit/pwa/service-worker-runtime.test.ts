@@ -313,7 +313,7 @@ describe("nothing but a document may receive the offline document", () => {
     { url: "/assets/entry-abc.js", destination: "script" },
     { url: "/assets/route-abc.js", destination: "script", mode: "cors" },
     { url: "/assets/app-abc.css", destination: "style" },
-    { url: "/icons/icon-192.png", destination: "image" },
+    { url: "/icons/icon-192-v2.png", destination: "image" },
     { url: "/assets/font-abc.woff2", destination: "font" },
     { url: "/manifest.webmanifest", destination: "manifest" },
   ] as const;

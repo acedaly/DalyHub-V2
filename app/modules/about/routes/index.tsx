@@ -18,6 +18,7 @@
 import { env } from "cloudflare:workers";
 
 import { buildInfo } from "~/lib/version";
+import { BrandLockup } from "~/shared/brand";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 
 import type { Route } from "./+types/index";
@@ -53,6 +54,13 @@ export default function AboutRoute({ loaderData }: Route.ComponentProps) {
   return (
     <div className="dh-about">
       <header className="dh-about__header">
+        {/* BRAND-01 — the one surface in the product that shows the full
+         * identity: mark, wordmark and tagline. The wordmark and tagline are
+         * live text (see `~/shared/brand`), so they scale with the owner's text
+         * size, follow the resolved theme and are readable by a screen reader.
+         * The `h1` below remains the page's heading; the lockup's name is a
+         * `span`, so the document outline still has exactly one top heading. */}
+        <BrandLockup />
         <h1 className="dh-about__title">About DalyHub</h1>
         <p className="dh-about__lead">
           A personal operating system for one life. This page shows exactly

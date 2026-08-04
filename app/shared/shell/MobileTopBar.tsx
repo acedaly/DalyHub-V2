@@ -21,7 +21,8 @@
 import { useRef } from "react";
 import { useNavigate } from "react-router";
 
-import { ChevronRightIcon, SearchIcon } from "~/shared/icons";
+import { PRODUCT_NAME } from "~/shared/brand";
+import { BrandMark, ChevronRightIcon, SearchIcon } from "~/shared/icons";
 
 import { useMobileTopBar } from "./mobile-top-bar-context";
 
@@ -39,6 +40,11 @@ export function MobileTopBar({
   const navigate = useNavigate();
   const searchRef = useRef<HTMLButtonElement>(null);
   const { title, backTo, actions } = useMobileTopBar();
+  // BRAND-01 — the product name is the floor, never an empty bar. The BRAND
+  // itself is carried by the mark below rather than by this label, so a
+  // differently-named workspace can still label the fallback state without the
+  // phone losing sight of what application it is.
+  const fallbackLabel = workspaceName.trim() || PRODUCT_NAME;
 
   return (
     <header className="dh-mobilebar">
@@ -62,7 +68,17 @@ export function MobileTopBar({
        * duplicated title PRODUCT_EXPERIENCE tells us to avoid. This is a chrome
        * label that survives scrolling, so it is plain text.
        */}
-      <p className="dh-mobilebar__title">{title ?? workspaceName}</p>
+      {/* BRAND-01 — the mark appears ONLY in the fallback state, where the bar
+       * would otherwise be a bare workspace name. A route that publishes its own
+       * title keeps the bar entirely for that title: content before chrome, and
+       * a logo repeated on every screen of a 393 px phone is chrome. The mobile
+       * navigation sheet carries the full product identity (`SidebarBrand`). */}
+      {title === null ? (
+        <span className="dh-mobilebar__mark" aria-hidden="true">
+          <BrandMark />
+        </span>
+      ) : null}
+      <p className="dh-mobilebar__title">{title ?? fallbackLabel}</p>
 
       <div className="dh-mobilebar__actions">
         {actions}

@@ -37,9 +37,17 @@ export const OFFLINE_DOCUMENT_PATH = "/offline";
 export const PUBLIC_PRECACHE_URLS: readonly string[] = [
   "/manifest.webmanifest",
   "/favicon.ico",
-  "/icons/dalyhub-mark.svg",
-  "/icons/icon-192.png",
-  "/icons/apple-touch-icon.png",
+  /*
+   * BRAND-01 — the icon generation is in the filename (`-v2`), so a mark change
+   * changes this list, which changes the content-derived build id, which evicts
+   * the previous generation's `dalyhub-static-*` cache along with the superseded
+   * artwork. Renaming the files is what makes that automatic;
+   * `test/unit/pwa/manifest-and-icons.test.ts` fails if a name here is not one
+   * the generator actually produces.
+   */
+  "/icons/dalyhub-mark-v2.svg",
+  "/icons/icon-192-v2.png",
+  "/icons/apple-touch-icon-v2.png",
   /*
    * DS-14 — the two self-hosted variable families.
    *

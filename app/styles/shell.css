@@ -96,17 +96,38 @@
   padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-3);
 }
 
+/* BRAND-01 — the mark paints the brand gradient itself, so it takes no text
+ * colour. Slightly larger than the old outline glyph because it carries real
+ * detail (the D's counter and the three-node network) rather than seven dots. */
 .dh-sidebar__brand-mark {
   display: inline-flex;
-  color: var(--dh-color-accent);
-  font-size: var(--dh-font-size-2xl);
+  font-size: 1.75rem;
   line-height: 0;
+}
+
+.dh-sidebar__brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .dh-sidebar__brand-name {
   font-weight: var(--dh-font-weight-semibold);
   font-size: var(--dh-font-size-lg);
   letter-spacing: var(--dh-letter-spacing-tight);
+  line-height: var(--dh-line-height-tight);
+}
+
+/* BRAND-01 — the workspace, when it has a name of its own. Secondary by every
+ * available signal (smaller, quieter token, second line) so it reads as context
+ * for the product rather than as the product. */
+.dh-sidebar__brand-workspace {
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-xs);
+  line-height: var(--dh-line-height-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Search + Command entries. */
@@ -510,6 +531,16 @@
 .dh-mobilebar__back-icon {
   display: inline-flex;
   transform: scaleX(-1);
+}
+
+/* BRAND-01 — the mark, shown only when the route publishes no title of its own.
+ * Repeating a logo on every phone screen wastes the most valuable row on the
+ * display, so it appears exactly where the bar has nothing better to say. */
+.dh-mobilebar__mark {
+  display: inline-flex;
+  flex: none;
+  font-size: 1.375rem;
+  line-height: 0;
 }
 
 /* The route title, not the workspace name: repeating "DalyHub" on every phone

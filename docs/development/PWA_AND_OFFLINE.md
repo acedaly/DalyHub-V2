@@ -67,6 +67,10 @@ All three are authenticated. None is a public path.
 `display_override`, `orientation: any`, theme and background colours, and five
 icons (SVG + 192/512 `any` + 192/512 `maskable`).
 
+`id` stays `/` across an icon change on purpose: it is what keeps an installed
+DalyHub the *same* application, and versioning it would make a new mark look like
+a new app.
+
 **`crossorigin="use-credentials"` on the `<link rel="manifest">` is load-bearing.**
 A manifest is fetched with `credentials: "omit"` by default. DalyHub sits behind
 Cloudflare Access, so an anonymous manifest fetch is redirected to the Access
@@ -77,7 +81,7 @@ this first.
 
 ### Document metadata (`app/root.tsx`)
 
-Favicons (`.ico` + SVG), the Apple touch icon, a per-theme `theme-color`,
+Favicons (`.ico?v=` + versioned SVG), the versioned Apple touch icon, a per-theme `theme-color`,
 `mobile-web-app-capable` **and** `apple-mobile-web-app-capable` (kept because
 current iOS Safari still reads only the Apple-prefixed name when deciding whether
 an Add to Home Screen launch opens without browser chrome — a demonstrated
@@ -97,6 +101,90 @@ The colour has to be duplicated in `root.tsx` as a literal, because `theme-color
 is read before any stylesheet is parsed and cannot reference a custom property.
 `tokens.css` stays the source of truth and
 `test/unit/pwa/manifest-and-icons.test.ts` fails if the two drift apart.
+
+### The icon system (BRAND-01)
+
+**One canonical source, eleven generated files.** `scripts/icons/geometry.mjs`
+describes the approved DalyHub mark as reviewable numbers: a rounded-square
+blue-to-teal/green gradient tile, a white "D" built from a heavy open arc and a
+short stem, and a connected three-node network breaking out of its lower-left.
+Nothing else in the repository is artwork.
+
+```
+scripts/icons/geometry.mjs   the mark, as numbers (the ONLY drawing)
+scripts/icons/raster.mjs     signed-distance rasteriser + linear gradients
+scripts/icons/png.mjs        deterministic PNG/ICO writer (node:zlib only)
+scripts/icons/assets.mjs     the declarative asset list + ICON_VERSION
+scripts/generate-icons.mjs   pnpm run icons:generate | icons:check
+```
+
+| Generated | Purpose |
+|---|---|
+| `public/favicon.ico` | 16/32/48 packed; linked as `/favicon.ico?v=2` |
+| `public/icons/dalyhub-mark-v2.svg` | the scalable browser icon, and the readable rendering of the geometry |
+| `icon-16-v2.png`, `icon-32-v2.png`, `icon-48-v2.png` | tab and Windows shortcut sizes |
+| `icon-192-v2.png`, `icon-512-v2.png` | the manifest's `any` icons |
+| `icon-maskable-192-v2.png`, `icon-maskable-512-v2.png` | full-bleed adaptive sources |
+| `apple-touch-icon-v2.png` | 180 px, full-bleed and **opaque** |
+| `app/shared/icons/brand-mark.generated.ts` | the in-application `BrandMark`'s geometry |
+
+**The in-app mark and the app icon are the same drawing.** The last row is the
+point: `BrandMark` renders generated geometry rather than a hand-copied SVG, so
+the sidebar glyph and the home-screen tile cannot drift. It carries the mark
+*without* the tile — a 22%-rounded square at the rail's 28 px is a smudge — and
+`icons:check` fails if either half is regenerated without the other.
+
+**Determinism.** The rasteriser is analytic coverage by 4×4 supersampling over
+closed-form signed distance functions, with no randomness, no platform library
+and no image-processing dependency; the PNG writer emits a fixed compression
+level and no ancillary chunks. Two runs on any supported Node produce identical
+bytes, which is what lets `icons:check` assert in CI that the committed assets
+really are what the geometry produces. BRAND-01 added two capabilities to that
+rasteriser — a round-capped **arc** primitive (the "D") and **linear gradient**
+fills, interpolated in sRGB exactly as an SVG `<linearGradient>` is, so the
+`.svg` and the `.png` are the same picture. No dependency was added.
+
+**Contrast.** White on the gradient measures **5.74:1** at the blue end and
+**3.94:1** at the green end, so the mark clears WCAG 2.2's 3:1 minimum for a
+graphical object at *every* point of the tile rather than on average. The bare
+gradient glyph — the in-application mark, drawn straight onto the page with no
+tile — measures **3.30:1** at worst against the lightest page canvas (`#ecebe8`)
+and **3.27:1** at worst against the darkest (`#101215`). All of it is measured by
+`test/unit/pwa/manifest-and-icons.test.ts`, which samples the whole ramp rather
+than trusting the endpoints.
+
+**Maskable safe zone.** The mark's furthest painted pixel from the centre is
+*measured* from the shapes, and the maskable scale is derived from it, so the
+scaled mark sits at exactly 36% of the width — inside the 40% radius the
+specification guarantees, with visible margin under a circle, a squircle and a
+rounded square. At full size the mark reaches 41.4%, so this is a real constraint
+rather than one that happens to hold.
+
+**Why the filenames carry `-v2`.** A browser and an installed PWA both key their
+icon caches by URL. Replacing the *bytes* behind `/icons/icon-192.png` can leave
+the superseded mark on a home screen for a very long time; a new path is a new
+resource. Renaming also changes the service worker's precache list, which changes
+the content-derived build id, which evicts the previous generation's
+`dalyhub-static-*` cache along with the old artwork. `favicon.ico` is the one
+exception — user agents fetch it from the origin root whether or not a document
+links to one — so it carries the generation as `?v=2` instead. Bump
+`ICON_VERSION` in `scripts/icons/assets.mjs` when the mark changes; the tests
+fail on a partial rename.
+
+**Where the mark deliberately does NOT appear.** The two documents the service
+worker synthesises — "DalyHub is offline" and safe mode (§4.5) — carry no
+`<link rel="icon">` and no inline mark. Their defining property is **zero
+subresources**: no script, no stylesheet, no font, no image, nothing to fetch.
+That is what makes safe mode survivable on a device whose static cache has been
+evicted, and `test/unit/pwa/service-worker-runtime.test.ts` asserts it (`no
+<link\b`). A tab icon is not worth spending it, so BRAND-01 left both alone
+rather than relaxing the assertion. The `/offline` route — the real offline
+surface, and the one an owner actually uses — does carry the mark, as inline SVG
+from the generated geometry.
+
+**What this does NOT promise: see [§11 limitation 15](#11-known-limitations) —
+an iPhone that has already added DalyHub to the Home Screen may keep the old
+icon until the owner removes and re-adds it.**
 
 ### The install paths
 
@@ -636,6 +724,12 @@ reinterpreting it.
 | The lifecycle in a **real browser**, including an installed cold launch at `/` with no connection | `e2e/pwa-offline.spec.ts` |
 | Performance and storage ceilings | `e2e/pwa-budget.spec.ts` |
 | Review screenshots | `e2e/pwa-screenshots.spec.ts` |
+| The icon system: generation naming, undeclared/superseded assets, byte-level opacity and transparency, measured maskable safe zone, measured mark contrast | `test/unit/pwa/manifest-and-icons.test.ts` |
+| The in-application mark against the canonical geometry, its accessibility contract and its per-instance gradient | `test/unit/icons/BrandMark.test.tsx` |
+| The sidebar's product identity (product first, workspace secondary, no tagline in the rail) | `test/unit/shell/SidebarBrand.test.tsx`, `e2e/product-frame.spec.ts` |
+| The full lockup: live text rather than artwork, the exact approved wording, and no second `h1` | `test/unit/brand/BrandLockup.test.tsx`, `e2e/help-about.spec.ts` |
+| That the superseded PWA-01 icon urls are no longer served by the production build | `e2e/pwa-offline.spec.ts` |
+| Branding review screenshots (sidebar light/dark, phone, About lockup, every icon size, Apple full-bleed, the three masks) | `e2e/brand-screenshots.spec.ts` (opt-in: `CAPTURE_SCREENSHOTS=1`) |
 
 Two things the E2E setup forced into the open, both handled rather than worked
 around:
@@ -756,8 +850,12 @@ needs a real device.
 **iPhone Safari (current iOS)**
 
 2. Open DalyHub signed in. Share → Add to Home Screen → Add.
-3. The home-screen icon is the DalyHub mark, correctly masked, with no black ring
-   or double-rounded edge.
+3. The home-screen icon is the DalyHub mark — the gradient tile with the white D
+   and its three-node network — correctly masked, with no black ring or
+   double-rounded edge. **If DalyHub was already on the Home Screen before this
+   release, expect the OLD icon** until it is removed and re-added (§11
+   limitation 15); that is iOS behaviour, not a defect in the build. Add it fresh
+   to check what a new install actually gets.
 4. Launch from the home screen: it opens **without** browser chrome.
 5. The status bar is legible in both light and dark appearance.
 6. No content is obscured by the notch/Dynamic Island or the home indicator;
@@ -853,21 +951,35 @@ needs a real device.
    non-installed browser tab. An installed app has no url bar, which is the case
    this matters for; in a tab, the alternative (serving one route's document
    under another route's url) is the bug this replaced.
+15. **An iPhone that has already added DalyHub to the Home Screen may keep the
+   OLD icon.** iOS copies the touch icon into the springboard when the app is
+   added and does not re-read it on a schedule, on a manifest change, or on a
+   service-worker update. BRAND-01 does everything a web app can do about this —
+   the touch icon is at a NEW url (`/icons/apple-touch-icon-v2.png`), so nothing
+   is served from a cached response, and the service worker's build id changes,
+   so the previous generation's cache is evicted — but none of that is a
+   guarantee that iOS re-reads the icon, and this document will not claim it is.
+   **If the home-screen icon is still the old mark: remove DalyHub from the Home
+   Screen and add it again.** That is the only reliable route, it takes about ten
+   seconds, and it loses nothing — the offline snapshot and the capture queue
+   live in the origin's storage, which survives removing the home-screen
+   shortcut. Safari tabs, Chrome, Edge, Firefox and an installed Android app all
+   pick the new icon up on their own, because each of those reads it from a url
+   that changed.
 
 ---
 
 ## 12. Measurements
 
-Re-measured **2026-08-03** against the production build of the DS-14 foundation.
-The same numbers are enforced as ceilings by `e2e/pwa-budget.spec.ts`. **No budget
-has been raised** — DS-14's font payload was sized to fit inside the fixed ones
-(brief §5, ADR-068 decision 4).
+Re-measured **2026-08-04** against the production build carrying BRAND-01. The
+same numbers are enforced as ceilings by `e2e/pwa-budget.spec.ts`. **No budget has
+been raised**, by DS-14 or by BRAND-01.
 
 | Metric | Measured | Budget |
 |---|---|---|
-| Service-worker script | 21,186 B | 24 kB |
-| Precached assets | 26 | 40 |
-| Precache size (uncompressed) | 775,431 B | 1.2 MB |
+| Service-worker script | 21,903 B | 24 kB |
+| Precached assets | 27 | 40 |
+| Precache size (uncompressed) | 794,648 B | 1.2 MB |
 | Snapshot payload | 8,549 B (23 tasks, 3 notes, 4 diary, 1 meeting, 7 references) | 2 MB |
 | Snapshot build (end to end) | 166–179 ms | 5 s |
 | Origin storage after priming | 78,252 B | 20 MB |
@@ -875,6 +987,37 @@ has been raised** — DS-14's font payload was sized to fit inside the fixed one
 | Self-hosted fonts (transferred) | 63,492 B across 2 files | ≤ 70,000 B per family, ≤ 120,000 B combined (derived) |
 | Added runtime dependencies | **none** | — |
 | Effect on the online bundle | The offline provider and status surface are in the shell chunk; the offline page and its view are a separate route chunk. | — |
+
+### What BRAND-01 changed, and what it did not
+
+Against the immediately preceding build (`fafcf97`: 26 assets, 781,808 B, service
+worker 21,863 B), measured by rebuilding both commits and summing the precache
+list the emitted `sw.js` actually names:
+
+| | Before | After | Δ |
+|---|---|---|---|
+| Precached assets | 26 | 27 | **+1** — a 624 B `brand.js` chunk |
+| Precache size | 781,808 B | 794,648 B | **+12,840 B** |
+| ...of which icons | 6,115 B | 15,006 B | **+8,891 B** |
+| Service-worker script | 21,863 B | 21,903 B | **+40 B** — three longer file names |
+| Whole committed icon set (on disk, not all precached) | 20,893 B | 55,899 B | **+35,006 B** |
+
+**The icons got bigger because the tile is now a gradient.** A flat single-colour
+tile compresses to almost nothing; a corner-to-corner ramp does not. Four icon
+files are precached (`favicon.ico`, the SVG, `icon-192`, the Apple touch icon),
+so the cost a device actually pays at install is the **+8.7 kB** row, and the
+remaining +26 kB sits in `public/` for the platform to fetch when it wants a
+launcher or splash size.
+
+**The one thing that was NOT accepted** was the first measurement. Putting the
+brand mark on the offline shell initially pulled the ENTIRE ninety-glyph outline
+set into the precache — `icons.tsx` builds every icon with a top-level
+`createIcon(...)` call, which a bundler cannot treat as side-effect free, so
+importing one imports all of them. That was **+13,585 B to draw a single glyph on
+a page whose whole point is having no connection.** `BrandMark` therefore lives in
+its own module (`app/shared/icons/BrandMark.tsx`, re-exported from `icons.tsx` so
+no import path changed) and `~/shared/brand` re-exports it from there. The 624 B
+`brand.js` chunk in the table is the whole of what the offline shell now pays.
 
 ### What DS-14 changed, and what it did not
 

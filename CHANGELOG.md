@@ -21,6 +21,24 @@ no version number to group them under.
 
 ### Added
 
+- **DalyHub has its own mark.** The app icon and the mark in the sidebar are now
+  the approved DalyHub identity: a rounded blue-to-green tile carrying a white
+  **D** with a small connected network of dots inside it. It replaces the plain
+  dark-teal hub-and-spokes icon everywhere at once — the browser tab, the
+  bookmark, the icon on your phone's Home Screen, the Android launcher, the
+  install dialog, the sidebar, the phone header and the offline screen. The
+  sidebar glyph and the Home Screen icon are drawn from the same source, so they
+  are the same picture rather than two that look alike.
+- **The sidebar says DalyHub.** The top of the sidebar used to show only your
+  workspace's name, which meant that if you renamed the workspace, DalyHub
+  stopped calling itself DalyHub anywhere on screen. It now always says
+  **DalyHub**, with a differently-named workspace shown underneath it in smaller,
+  quieter text. If your workspace is simply called "DalyHub", nothing is
+  repeated.
+- **About shows the full DalyHub identity** — the mark, the name and the line
+  _"Your life. Connected."_ The words are real text, so they scale with your text
+  size setting, follow whichever theme you are using and can be read aloud by a
+  screen reader. Nothing about the branding is a picture of words.
 - **DalyHub reads on a tinted page with cards raised above it — everywhere.**
   Every theme's page is now a soft tint rather than near-white, and the cards,
   panels and rows you work in sit visibly on top of it. The separation is carried
@@ -72,6 +90,16 @@ no version number to group them under.
 
 ### Changed
 
+- **On an iPhone that already has DalyHub on the Home Screen, the old icon may
+  stay.** iOS copies a home-screen icon in when you add the app and does not go
+  back for a new one — not when the app updates, and not when you reopen it.
+  Everything that can be done from DalyHub's side has been: the new icon is at a
+  new address, so nothing is being served from a stale copy. If your Home Screen
+  still shows the old icon, **remove DalyHub from the Home Screen and add it
+  again** — it takes a few seconds and loses nothing, because your offline
+  snapshot and anything waiting to sync are stored separately from the shortcut.
+  Safari tabs, Chrome, Edge, Firefox and Android all pick the new icon up on
+  their own.
 - **Labels are written in sentence case.** Metadata headings across the product
   used to be SHOUTED IN CAPITALS WITH WIDE SPACING. They now read as ordinary
   words, which is easier to scan and much less like a piece of admin software.

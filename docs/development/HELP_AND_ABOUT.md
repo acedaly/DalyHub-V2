@@ -114,6 +114,24 @@ read it at runtime. A "read it from package.json" scheme would be a second autho
 that silently disagrees with the first. One constant, bumped deliberately in the
 release commit, is honest and greppable.
 
+### The brand lockup on About (BRAND-01)
+
+About leads with the full DalyHub identity — the mark, the wordmark and the
+tagline *"Your life. Connected."* — rendered by `BrandLockup`
+([`~/shared/brand`](../../app/shared/brand)). It is the product's one branded
+surface, so it is the one place the tagline appears.
+
+The wordmark and tagline are **live text**, and that is a requirement rather than
+a shortcut. Baked-in type does not scale with the owner's OS text size, does not
+reflow at a phone width, is invisible to a screen reader, cannot follow a theme,
+and costs bytes on a connection that may not have them. Only the gradient mark is
+artwork, and it is inline SVG generated from the canonical icon geometry.
+
+The lockup's name renders as a `<span>`, not a heading: `About DalyHub` remains
+the page's one `h1`, so adding the identity did not change the document outline.
+The mark is `aria-hidden` because the product name sits beside it as real text.
+`e2e/help-about.spec.ts` pins all three of those.
+
 ### Why About is its own module
 
 It answers a different question from Settings. Settings is *how do I want this

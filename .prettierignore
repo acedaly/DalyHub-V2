@@ -14,3 +14,8 @@ docs/
 AGENTS.md
 README.md
 THIRD_PARTY_NOTICES.md
+
+# Generated from the canonical icon geometry by `pnpm run icons:generate`.
+# Reformatting it would make `pnpm run icons:check` fail for a reason that has
+# nothing to do with the artwork.
+app/shared/icons/brand-mark.generated.ts

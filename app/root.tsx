@@ -167,12 +167,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
           crossOrigin="anonymous"
         />
         {/* Favicons. The SVG is preferred by browsers that support it and scales
-         * to any surface; the `.ico` covers the rest and the Windows shortcut. */}
-        <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-        <link rel="icon" href="/icons/dalyhub-mark.svg" type="image/svg+xml" />
+         * to any surface; the `.ico` covers the rest and the Windows shortcut.
+         *
+         * BRAND-01 — the `-v2` suffix is the icon system's generation, and it is
+         * load-bearing rather than tidy: a browser and an installed PWA both key
+         * their icon caches by URL, so replacing the BYTES behind
+         * `/icons/icon-192.png` can leave the superseded mark on a home screen
+         * indefinitely. A new path is a new resource. `favicon.ico` cannot be
+         * renamed — user agents request it at the origin root whether or not a
+         * document links to one — so it carries the generation as a query
+         * instead, which refreshes a returning visitor's tab icon while the bare
+         * path keeps working for everything that guesses it. */}
+        <link rel="icon" href="/favicon.ico?v=2" sizes="16x16 32x32 48x48" />
+        <link
+          rel="icon"
+          href="/icons/dalyhub-mark-v2.svg"
+          type="image/svg+xml"
+        />
         {/* iOS/iPadOS home screen. Opaque and full-bleed: iOS applies its own
-         * mask (PWA-01 icon system). */}
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+         * mask (BRAND-01 icon system). */}
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon-v2.png" />
         {/* The browser/OS chrome colour, matched to the resolved theme's page
          * background so an installed window's chrome continues the page rather
          * than framing it.

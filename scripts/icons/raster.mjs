@@ -1,11 +1,12 @@
 /**
- * PWA-01 — a tiny, first-party rasteriser for the DalyHub app mark.
+ * BRAND-01 — a tiny, first-party rasteriser for the DalyHub app mark.
  *
  * DalyHub has no image-processing dependency and this milestone is not a good
- * reason to add one (`AGENTS.md §10`, and the brief's "avoid introducing a large
- * dependency"): the mark is deliberately three primitive shapes, every one of
- * which has a closed-form signed distance function, so rasterising it exactly is
- * about eighty lines of arithmetic rather than a native binary.
+ * reason to add one (`AGENTS.md §10`, and the brief's "avoid adding a large
+ * image-processing dependency merely to generate simple first-party geometry"):
+ * the mark is four primitive shapes, every one of which has a closed-form signed
+ * distance function, so rasterising it exactly is about a hundred lines of
+ * arithmetic rather than a native binary.
  *
  * The approach is analytic coverage by supersampling: each output pixel is
  * sampled `SAMPLES × SAMPLES` times, each sample is tested against each shape's
@@ -15,16 +16,28 @@
  * floating-point arithmetic with no randomness and no platform library — it is
  * bit-for-bit reproducible on any machine running the same Node version.
  *
+ * What BRAND-01 added to it, and why:
+ *   - an `arc` shape (a round-capped stroked circular arc), because the approved
+ *     mark's "D" is one. Its signed distance function is two lines;
+ *   - LINEAR GRADIENT fills, because the approved tile is a blue-to-teal/green
+ *     gradient. Evaluated per sample and interpolated in sRGB — which is exactly
+ *     what an SVG `<linearGradient>` does by default, so the committed `.svg` and
+ *     the generated `.png` agree by construction rather than by eye.
+ *
  * Provenance: first-party. No third-party code.
  */
 
 import { CANVAS } from "./geometry.mjs";
 
 /**
- * @typedef {{ kind: "roundedRect", x: number, y: number, width: number, height: number, radius: number, colour: string }} RoundedRectShape
- * @typedef {{ kind: "circle", cx: number, cy: number, r: number, colour: string }} CircleShape
- * @typedef {{ kind: "capsule", x1: number, y1: number, x2: number, y2: number, width: number, colour: string }} CapsuleShape
- * @typedef {RoundedRectShape | CircleShape | CapsuleShape} IconShape
+ * @typedef {{ offset: number, colour: string }} GradientStop
+ * @typedef {{ kind: "linear", id: string, x1: number, y1: number, x2: number, y2: number, stops: ReadonlyArray<GradientStop> }} LinearGradientFill
+ * @typedef {string | LinearGradientFill} Fill
+ * @typedef {{ kind: "roundedRect", x: number, y: number, width: number, height: number, radius: number, fill: Fill }} RoundedRectShape
+ * @typedef {{ kind: "circle", cx: number, cy: number, r: number, fill: Fill }} CircleShape
+ * @typedef {{ kind: "capsule", x1: number, y1: number, x2: number, y2: number, width: number, fill: Fill }} CapsuleShape
+ * @typedef {{ kind: "arc", cx: number, cy: number, radius: number, width: number, from: number, to: number, fill: Fill }} ArcShape
+ * @typedef {RoundedRectShape | CircleShape | CapsuleShape | ArcShape} IconShape
  * @typedef {{ width: number, height: number, data: Uint8Array }} Raster
  */
 
@@ -32,7 +45,7 @@ import { CANVAS } from "./geometry.mjs";
 const SAMPLES = 4;
 
 /**
- * Parse `#rrggbb` into a linear-free 0-255 RGB triple.
+ * Parse `#rrggbb` into a 0-255 RGB triple.
  * @param {string} hex
  * @returns {[number, number, number]}
  */
@@ -96,6 +109,38 @@ function capsuleDistance(px, py, shape) {
 }
 
 /**
+ * Signed distance from a point to a round-capped circular arc.
+ *
+ * Two cases, and both are exact. If the point's bearing from the arc's centre
+ * lies inside the sweep, the nearest point on the centreline is radially opposite
+ * it, so the distance is `| |p - c| - radius |`. Otherwise the nearest point is
+ * whichever end the arc stops at, which is what gives the round caps.
+ *
+ * Bearings are degrees clockwise from 12 o'clock, matching `geometry.mjs`.
+ *
+ * @param {number} px @param {number} py @param {ArcShape} shape
+ * @returns {number}
+ */
+function arcDistance(px, py, shape) {
+  const dx = px - shape.cx;
+  const dy = py - shape.cy;
+  const bearing = ((((Math.atan2(dx, -dy) * 180) / Math.PI) % 360) + 360) % 360;
+  const offset = (((bearing - shape.from) % 360) + 360) % 360;
+  const half = shape.width / 2;
+  if (offset <= shape.to - shape.from) {
+    return Math.abs(Math.hypot(dx, dy) - shape.radius) - half;
+  }
+  let nearest = Infinity;
+  for (const end of [shape.from, shape.to]) {
+    const radians = ((end - 90) * Math.PI) / 180;
+    const ex = shape.cx + Math.cos(radians) * shape.radius;
+    const ey = shape.cy + Math.sin(radians) * shape.radius;
+    nearest = Math.min(nearest, Math.hypot(px - ex, py - ey));
+  }
+  return nearest - half;
+}
+
+/**
  * Dispatch to the right signed distance function.
  * @param {number} px @param {number} py @param {IconShape} shape
  * @returns {number}
@@ -108,11 +153,88 @@ function distanceTo(px, py, shape) {
       return circleDistance(px, py, shape);
     case "capsule":
       return capsuleDistance(px, py, shape);
+    case "arc":
+      return arcDistance(px, py, shape);
     default:
       throw new Error(
         `Unknown shape kind: ${/** @type {{ kind: string }} */ (shape).kind}`,
       );
   }
+}
+
+/**
+ * A fill, pre-parsed into the cheapest form the sampling loop can evaluate.
+ *
+ * @typedef {{ flat: [number, number, number] } | {
+ *   gradient: {
+ *     x1: number, y1: number,
+ *     dx: number, dy: number, lengthSquared: number,
+ *     stops: ReadonlyArray<{ offset: number, rgb: [number, number, number] }>,
+ *   }
+ * }} PreparedFill
+ */
+
+/**
+ * @param {Fill} fill
+ * @returns {PreparedFill}
+ */
+function prepareFill(fill) {
+  if (typeof fill === "string") return { flat: parseColour(fill) };
+  const dx = fill.x2 - fill.x1;
+  const dy = fill.y2 - fill.y1;
+  return {
+    gradient: {
+      x1: fill.x1,
+      y1: fill.y1,
+      dx,
+      dy,
+      lengthSquared: dx * dx + dy * dy,
+      stops: fill.stops.map((stop) => ({
+        offset: stop.offset,
+        rgb: parseColour(stop.colour),
+      })),
+    },
+  };
+}
+
+/**
+ * Evaluate a prepared fill at one sample point.
+ *
+ * The gradient is projected onto its own axis and interpolated in sRGB — the
+ * same, deliberately naive, component-wise interpolation an SVG renderer
+ * performs for a `<linearGradient>` with no `color-interpolation` override. That
+ * equivalence is the whole point: it is what lets the `.svg` and the `.png` be
+ * the same picture rather than two pictures that happen to look similar.
+ *
+ * @param {PreparedFill} fill @param {number} px @param {number} py
+ * @returns {[number, number, number]}
+ */
+function sampleFill(fill, px, py) {
+  if ("flat" in fill) return fill.flat;
+  const { x1, y1, dx, dy, lengthSquared, stops } = fill.gradient;
+  const t =
+    lengthSquared === 0
+      ? 0
+      : Math.min(
+          1,
+          Math.max(0, ((px - x1) * dx + (py - y1) * dy) / lengthSquared),
+        );
+  let lower = stops[0];
+  let upper = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    if (t >= stops[i].offset && t <= stops[i + 1].offset) {
+      lower = stops[i];
+      upper = stops[i + 1];
+      break;
+    }
+  }
+  const span = upper.offset - lower.offset;
+  const local = span === 0 ? 0 : (t - lower.offset) / span;
+  return [
+    lower.rgb[0] + (upper.rgb[0] - lower.rgb[0]) * local,
+    lower.rgb[1] + (upper.rgb[1] - lower.rgb[1]) * local,
+    lower.rgb[2] + (upper.rgb[2] - lower.rgb[2]) * local,
+  ];
 }
 
 /**
@@ -125,7 +247,7 @@ function distanceTo(px, py, shape) {
 export function rasterise(shapes, size) {
   const prepared = shapes.map((shape) => ({
     shape,
-    rgb: parseColour(shape.colour),
+    fill: prepareFill(shape.fill),
   }));
   const data = new Uint8Array(size * size * 4);
   const scale = CANVAS / size;
@@ -143,15 +265,15 @@ export function rasterise(shapes, size) {
           const px = (x + (sx + 0.5) * step) * scale;
           const py = (y + (sy + 0.5) * step) * scale;
           // Painter's order: the LAST shape covering this sample wins. Shapes are
-          // flat and opaque, so there is no partial blending to accumulate — only
-          // the sub-pixel average below, which is what produces the anti-aliasing.
+          // opaque, so there is no partial blending to accumulate — only the
+          // sub-pixel average below, which is what produces the anti-aliasing.
           let hitR = 0;
           let hitG = 0;
           let hitB = 0;
           let hit = 0;
-          for (const { shape, rgb } of prepared) {
+          for (const { shape, fill } of prepared) {
             if (distanceTo(px, py, shape) <= 0) {
-              [hitR, hitG, hitB] = rgb;
+              [hitR, hitG, hitB] = sampleFill(fill, px, py);
               hit = 1;
             }
           }

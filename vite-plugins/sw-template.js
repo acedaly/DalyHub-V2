@@ -335,7 +335,8 @@ function plainDocument(status, marker, title, body) {
   // DS-14 §16: card-on-tint, with every value INLINED — no stylesheet, no
   // token layer, no persisted theme, no font request, and in safe mode no
   // script. The only two documents in the product not painted by tokens.
-  // This file is SERVED, so its comments cost budget: see PWA_AND_OFFLINE.md.
+  // No favicon link either (BRAND-01): zero subresources is what makes this
+  // page survivable. This file is SERVED, so its comments cost budget too.
   return new Response(
     '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' +
