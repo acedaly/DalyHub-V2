@@ -31,11 +31,13 @@ export {
 export {
   EMAIL_MAX_LENGTH,
   SUBJECT_MAX_LENGTH,
+  DISPLAY_NAME_MAX_LENGTH,
   EMAIL_PATTERN,
   canonicaliseEmail,
   isValidEmail,
   normaliseEmailClaim,
   normaliseSubjectClaim,
+  normaliseDisplayNameClaim,
   createAuthenticatedUser,
   emailMatchesOwner,
 } from "./auth-validation";

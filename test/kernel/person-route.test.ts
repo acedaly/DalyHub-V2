@@ -18,7 +18,7 @@ const WS = "test-default-workspace";
 
 function sessionFor(subject = "owner-subject"): AuthenticatedSession {
   return {
-    user: { subject, email: "owner@example.com" },
+    user: { subject, email: "owner@example.com", displayName: null },
     issuedAt: new Date(0),
     expiresAt: new Date(Date.parse("2999-01-01")),
   };

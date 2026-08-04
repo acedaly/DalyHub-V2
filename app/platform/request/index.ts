@@ -26,4 +26,12 @@ export {
   PUBLIC_PATHS,
   type ReactRouterRequestHandler,
   type AuthenticatorFactory,
+  type RequestBoundaryEnv,
 } from "./request-boundary";
+
+export {
+  provisionAuthenticatedMember,
+  provisionMemberSafely,
+  type IdentityProvisioningEnv,
+  type MemberProvisioner,
+} from "./identity-provisioning";

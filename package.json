@@ -34,6 +34,10 @@
     "db:production:list": "node scripts/production-d1.mjs d1 migrations list dalyhub-v2",
     "db:production:apply": "node scripts/production-d1.mjs d1 migrations apply dalyhub-v2",
     "db:production:export": "node scripts/production-d1.mjs d1 export dalyhub-v2",
+    "identity:report:local": "node scripts/repair-activity-identity.mjs --local",
+    "identity:repair:local": "node scripts/repair-activity-identity.mjs --local --apply",
+    "identity:report:production": "node scripts/repair-activity-identity.mjs",
+    "identity:repair:production": "node scripts/repair-activity-identity.mjs --apply",
     "postinstall": "wrangler types"
   },
   "dependencies": {

@@ -30,6 +30,7 @@ import {
   type ActivityPayload,
   type ActivityRecord,
 } from "~/kernel/activity";
+import { resolveActorIdentity, type ActorIdentity } from "~/kernel/identity";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 import {
   ActivityFeed,
@@ -104,18 +105,30 @@ const ACTOR_NAMES: Record<string, string> = {
   "u-sam": "Sam Rivers",
 };
 
-const resolveActorLabel = (actor: ActivityActor): string => {
-  if (actor.type === "user" && actor.id && ACTOR_NAMES[actor.id]) {
-    return ACTOR_NAMES[actor.id];
-  }
-  if (actor.type === "system") {
-    return "System";
-  }
-  if (actor.type === "ai") {
-    return "Assistant";
-  }
-  return "Someone";
-};
+/**
+ * The gallery's stand-in for the IDENT-01 actor directory: a fixed set of
+ * "member" rows fed through the SAME canonical resolution rule the application
+ * uses, so the demo cannot drift from production behaviour. An actor with no row
+ * resolves to `Unknown user`, exactly as it would in the real feed.
+ */
+const resolveActor = (actor: ActivityActor): ActorIdentity =>
+  resolveActorIdentity(
+    actor,
+    actor.id && ACTOR_NAMES[actor.id]
+      ? {
+          workspaceId: parseWorkspaceId("ws-design-gallery"),
+          subject: actor.id,
+          email: null,
+          displayName: ACTOR_NAMES[actor.id],
+          authDisplayName: null,
+          personEntityId: null,
+          personDisplayName: null,
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+          lastSeenAt: new Date(0),
+        }
+      : null,
+  );
 
 /* -------------------------------------------------------------------------- */
 /* Descriptors: kernel defaults + a few module examples + one UNKNOWN type      */
@@ -379,7 +392,7 @@ function makeLoader(
       items: toActivityItems(slice, {
         descriptors: DESCRIPTORS,
         resolveEntity,
-        resolveActorLabel,
+        resolveActor,
         anchorEntityId,
       }),
       nextCursor: hasMore ? String(nextStart) : null,

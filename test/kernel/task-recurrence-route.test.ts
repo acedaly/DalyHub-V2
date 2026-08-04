@@ -47,7 +47,11 @@ function taskRepo() {
 
 function authedContext(): RouterContextProvider {
   const session: AuthenticatedSession = {
-    user: { subject: "dev@dalyhub.test", email: "dev@dalyhub.test" },
+    user: {
+      subject: "dev@dalyhub.test",
+      email: "dev@dalyhub.test",
+      displayName: null,
+    },
   } as AuthenticatedSession;
   const context = new RouterContextProvider();
   setAuthenticatedSession(context, session);

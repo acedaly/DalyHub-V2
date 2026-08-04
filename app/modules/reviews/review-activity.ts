@@ -9,7 +9,7 @@ import {
   REVIEW_UPDATED,
 } from "~/kernel/reviews";
 import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
   type ActivityDescriptionSegment,
   type ActivityDescriptorContext,
   type ActivityDescriptorMap,
@@ -52,7 +52,7 @@ function reviewEvent(
 }
 
 export const REVIEWS_ACTIVITY_DESCRIPTORS: ActivityDescriptorMap =
-  createActivityDescriptorMap({
+  buildWorkspaceActivityDescriptors([], {
     [REVIEW_CREATED]: reviewEvent("Review created", "created", "success"),
     [REVIEW_UPDATED]: reviewEvent("Review updated", "updated", "accent"),
     [REVIEW_STATUS_CHANGED]: reviewEvent(

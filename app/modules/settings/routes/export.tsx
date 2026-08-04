@@ -35,6 +35,7 @@
 import { env } from "cloudflare:workers";
 
 import { SnapshotValidationError } from "~/kernel/export";
+import { actorKey, resolveActorIdentity } from "~/kernel/identity";
 import { buildInfo } from "~/lib/version";
 import {
   WorkspaceSnapshotUnavailableError,
@@ -122,10 +123,29 @@ export async function loader({ params, context }: Route.LoaderArgs) {
         buildCommit: build.commit,
       },
     });
-    archive =
-      format === "full"
-        ? await buildStructuredExportArchive(snapshot)
-        : await buildObsidianVaultArchive(snapshot);
+    if (format === "full") {
+      archive = await buildStructuredExportArchive(snapshot);
+    } else {
+      // IDENT-01: the vault is prose the owner reads in Obsidian, so its activity
+      // lines carry the actor's NAME. Resolve every distinct actor in ONE bounded
+      // directory query; an actor with no membership row writes "Unknown user"
+      // rather than the raw Access subject, which must never leave the server.
+      const identities = await scope.actors.resolveActors(
+        snapshot.records.activities.map((activity) => ({
+          type: activity.actorType,
+          id: activity.actorId,
+        })),
+      );
+      archive = await buildObsidianVaultArchive(snapshot, {
+        resolveActorName: (actorType, actorId) => {
+          const actor = { type: actorType, id: actorId };
+          return (
+            identities.get(actorKey(actor))?.displayName ??
+            resolveActorIdentity(actor, null).displayName
+          );
+        },
+      });
+    }
   } catch (error) {
     // Keep a server-side trace: swallowing this entirely would leave a failed
     // export with no record anywhere. Only the error's NAME and MESSAGE are

@@ -41,6 +41,7 @@ export class DevelopmentAuthenticator implements Authenticator {
     const user = createAuthenticatedUser({
       subject: this.#config.subject,
       email: this.#config.email,
+      displayName: this.#config.displayName,
     });
     const issuedAt = this.#now();
     return Promise.resolve({

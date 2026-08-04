@@ -10,7 +10,7 @@ import { getAuthenticatedSession } from "~/platform/request/authenticated-reques
 import { handleAuthenticatedRequest } from "~/platform/request/request-boundary";
 
 const OWNER_SESSION: AuthenticatedSession = {
-  user: { subject: "owner-sub", email: "owner@example.com" },
+  user: { subject: "owner-sub", email: "owner@example.com", displayName: null },
   issuedAt: new Date(0),
   expiresAt: new Date(Date.parse("2999-01-01")),
 };

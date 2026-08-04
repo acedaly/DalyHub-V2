@@ -27,6 +27,12 @@ export {
   type ActivityDayHeadingProps,
 } from "./ActivityDayHeading";
 
+// The one shared actor presentation (name + initials chip).
+export {
+  ActivityActorName,
+  type ActivityActorNameProps,
+} from "./ActivityActorName";
+
 // Hooks (for advanced consumers composing their own layout).
 export {
   useActivityStream,

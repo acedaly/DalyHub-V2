@@ -25,6 +25,11 @@ import type {
   ActivitySubjectRole,
   ActivityType,
 } from "~/kernel/activity";
+import type {
+  ActorIdentity,
+  ActorIdentitySource,
+  ActorKind,
+} from "~/kernel/identity";
 
 /**
  * A restrained tone for an event marker. Tones map to DS-01 feedback/accent
@@ -64,14 +69,32 @@ export interface ResolvedEntity {
   readonly href?: string;
 }
 
-/** The trusted actor, mapped for presentation. Preserves the kernel fields. */
+/**
+ * The trusted actor, mapped for presentation. Preserves the kernel fields and
+ * adds the IDENT-01 resolved identity.
+ *
+ * The actor ID is deliberately ABSENT. It is the Cloudflare Access subject, and
+ * this view model is serialised to the browser by every activity endpoint — so
+ * carrying it would ship a raw authentication identifier to the client for no
+ * rendering purpose (AGENTS.md §17). Identity is resolved server-side, where the
+ * id is available, and only the safe result crosses the boundary. The kernel
+ * `ActivityRecord` keeps the id, unchanged.
+ */
 export interface ActivityItemActor {
   /** Preserved kernel actor kind (`system`, `user`, …) — an open validated string. */
   readonly type: ActivityActorType;
-  /** Preserved kernel actor id (`null` for the system actor). */
-  readonly id: string | null;
-  /** A human, non-technical label ("System", "You", a person's name). */
+  /**
+   * The human, non-technical display name: a real person's name, `System` for
+   * genuine automated activity, or `Unknown user` for an identity that genuinely
+   * cannot be recovered. Never `Someone`.
+   */
   readonly label: string;
+  /** 1–2 letter initials for an avatar chip; empty for non-person actors. */
+  readonly initials: string;
+  /** The coarse actor kind, so the UI can mark system/unknown actors calmly. */
+  readonly kind: ActorKind;
+  /** Which rule produced `label` (see the identity kernel). Diagnostics only. */
+  readonly source: ActorIdentitySource;
 }
 
 /** A subject association mapped for presentation. Preserves the kernel fields. */
@@ -174,7 +197,21 @@ export type ActivityDescriptorMap = Readonly<
 /** Resolves a referenced entity id to its identity, or `null` when unresolvable. */
 export type EntityResolver = (entityId: string) => ResolvedEntity | null;
 
-/** Resolves the trusted actor to a human label. */
+/**
+ * Resolves the trusted actor to a full IDENT-01 identity. Callers build one of
+ * these from a SINGLE batched directory lookup (see
+ * `~/platform/activity/activity-actors`), so a feed of 30 events costs one query.
+ * Returning `null` falls back to the canonical rule with no membership facts —
+ * i.e. `System` / `Unknown user`, never a guess and never the viewer.
+ */
+export type ActorResolver = (actor: ActivityActor) => ActorIdentity | null;
+
+/**
+ * Resolves the trusted actor to a human label only.
+ *
+ * Retained for callers (the design gallery, focused tests) that only need a
+ * label; `resolveActor` supersedes it and wins when both are supplied.
+ */
 export type ActorLabelResolver = (actor: ActivityActor) => string;
 
 /** Options controlling how a kernel record is mapped to an item. */
@@ -183,7 +220,13 @@ export interface ActivityMapOptions {
   readonly descriptors?: ActivityDescriptorMap;
   /** Batch entity resolver (no per-item fetching in the UI). */
   readonly resolveEntity?: EntityResolver;
-  /** Actor-label resolver; defaults to a conservative built-in. */
+  /**
+   * Batch actor resolver (no per-item fetching in the UI). Supersedes
+   * `resolveActorLabel`; when omitted the canonical identity rule still applies,
+   * so an unresolved authenticated actor reads `Unknown user`.
+   */
+  readonly resolveActor?: ActorResolver;
+  /** Label-only actor resolver; used when `resolveActor` is not supplied. */
   readonly resolveActorLabel?: ActorLabelResolver;
   /**
    * The Timeline anchor entity id. Marks the matching subject as the anchor and

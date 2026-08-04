@@ -32,6 +32,10 @@ import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type {
+  ActorDirectory,
+  WorkspaceMemberRepository,
+} from "~/kernel/identity";
 import type { WorkspaceSnapshotRepository } from "~/kernel/export";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type {
@@ -78,6 +82,7 @@ import {
   createSpineRepository,
   createTaskRepository,
   createTaskViewRepository,
+  createWorkspaceMemberRepository,
   createWorkspaceRepository,
   createWorkspaceSnapshotRepository,
 } from "~/platform/storage/d1";
@@ -227,6 +232,20 @@ export interface WorkspaceScope {
   readonly relationships: RelationshipRepository;
   readonly activity: ActivityRepository;
   /**
+   * The IDENT-01 workspace-membership repository: the durable link between an
+   * authenticated subject (the value the Activity stream already stores as the
+   * actor id) and this workspace, optionally linked to a Person record. It is the
+   * ONLY writer of `workspace_members` and records no Activity.
+   */
+  readonly members: WorkspaceMemberRepository;
+  /**
+   * The IDENT-01 READ-ONLY actor directory: resolves a batch of Activity actor
+   * references to display identities in one bounded query. EVERY surface that
+   * renders activity or history names its actors through this, so there is one
+   * actor-resolution rule for the whole application.
+   */
+  readonly actors: ActorDirectory;
+  /**
    * The AREA-03 Alignment activity-facts projection (ADR-040): a READ-ONLY,
    * non-persisted view over structural `entity_links` and the Activity stream
    * resolving how recently Task activity has contributed to each Goal, for a
@@ -363,6 +382,9 @@ export function bindWorkspaceRepositories(
     actorContext,
   });
   const activity = createActivityRepository(env.DB, context);
+  // Membership and the actor directory are the SAME workspace-bound adapter: both
+  // read one joined table, and one instance keeps a single actor-resolution rule.
+  const members = createWorkspaceMemberRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
   const appPreferences = createAppPreferencesRepository(env.DB, context);
   const taskViews = createTaskViewRepository(env.DB, context);
@@ -391,6 +413,8 @@ export function bindWorkspaceRepositories(
     relationships,
     projectSettings,
     activity,
+    members,
+    actors: members,
     alignment,
     appPreferences,
     taskViews,

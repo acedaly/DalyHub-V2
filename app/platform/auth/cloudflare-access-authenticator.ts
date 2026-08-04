@@ -48,6 +48,12 @@ type AccessTokenPayload = {
   readonly email?: unknown;
   readonly iat?: unknown;
   readonly exp?: unknown;
+  /**
+   * The identity provider's human name for the user, when the IdP supplies one.
+   * Optional and cosmetic: it is used only as a display fallback in the IDENT-01
+   * actor-resolution order, never as an identifier and never for authorization.
+   */
+  readonly name?: unknown;
   /** Present only on service tokens — its presence marks a non-identity token. */
   readonly common_name?: unknown;
   readonly [claim: string]: unknown;
@@ -169,6 +175,7 @@ export class CloudflareAccessAuthenticator implements Authenticator {
     const user = createAuthenticatedUser({
       subject: payload.sub,
       email: payload.email,
+      displayName: payload.name,
     });
 
     // Independently enforce the owner, regardless of the Access policy.

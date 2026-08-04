@@ -32,6 +32,8 @@ export {
 export {
   buildObsidianVault,
   describeRecurrence,
+  type VaultActorNameResolver,
+  type VaultBuildOptions,
   type VaultBuildResult,
   type VaultFile,
 } from "./vault/build-vault";

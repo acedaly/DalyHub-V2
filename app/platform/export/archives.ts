@@ -28,7 +28,10 @@ import {
   EXPORT_EXCLUSIONS,
   type ManifestFile,
 } from "./manifest";
-import { buildObsidianVault } from "./vault/build-vault";
+import {
+  buildObsidianVault,
+  type VaultBuildOptions,
+} from "./vault/build-vault";
 import { VAULT_META_FOLDER, VAULT_ROOT } from "./vault/vault-filenames";
 import { createZipArchive, textEntry, type ZipEntry } from "./zip";
 
@@ -302,8 +305,9 @@ export async function buildStructuredExportArchive(
 /** Build the ready-to-open Obsidian vault archive. */
 export async function buildObsidianVaultArchive(
   snapshot: WorkspaceSnapshotV1,
+  options: VaultBuildOptions = {},
 ): Promise<ExportArchive> {
-  const vault = buildObsidianVault(snapshot);
+  const vault = buildObsidianVault(snapshot, options);
   const files: ZipEntry[] = vault.files.map((file) =>
     textEntry(`${VAULT_ROOT}/${file.path}`, file.contents),
   );

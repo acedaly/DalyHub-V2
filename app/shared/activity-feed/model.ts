@@ -29,6 +29,7 @@ export type {
   ActivityTone,
   ActivityTypeDescriptor,
   ActorLabelResolver,
+  ActorResolver,
   EntityResolver,
   ResolvedEntity,
 } from "./types";
@@ -74,6 +75,11 @@ export {
   type RowOffsets,
   type WindowResult,
 } from "./activity-window";
+
+export {
+  WORKSPACE_ACTIVITY_DESCRIPTORS,
+  buildWorkspaceActivityDescriptors,
+} from "./workspace-activity-descriptors";
 
 export {
   ACTIVITY_FILTER_FIELD_IDS,

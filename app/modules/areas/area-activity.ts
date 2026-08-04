@@ -13,7 +13,7 @@
 
 import { AREA_ARCHIVED, AREA_RESTORED } from "~/kernel/area-settings";
 import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
   type ActivityItem,
   type ActivityTypeDescriptor,
 } from "~/shared/activity-feed/model";
@@ -34,7 +34,8 @@ export const AREA_ACTIVITY_DESCRIPTORS: Record<string, ActivityTypeDescriptor> =
 
 /** The frozen descriptor map the Area Timeline resolves against: the kernel
  * lifecycle defaults with the two Area lifecycle events merged on top. */
-export const AREA_ACTIVITY_DESCRIPTOR_MAP = createActivityDescriptorMap(
+export const AREA_ACTIVITY_DESCRIPTOR_MAP = buildWorkspaceActivityDescriptors(
+  [],
   AREA_ACTIVITY_DESCRIPTORS,
 );
 

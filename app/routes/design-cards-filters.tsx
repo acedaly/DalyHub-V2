@@ -214,7 +214,7 @@ const RECORDS: readonly FixtureRecord[] = [
     typeLabel: "Person",
     accent: "neutral",
     title: "Dana Lee",
-    description: "Someone linked across your projects and goals.",
+    description: "A person linked across your projects and goals.",
     status: "linked",
     statusLabel: "Linked",
     statusTone: "neutral",

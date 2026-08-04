@@ -5,44 +5,34 @@
  * Activity stream (`activity.listForWorkspace(…)`) — it is the first product
  * consumer of the workspace-wide feed. It invents no second history model.
  *
- * Because a workspace feed spans every module's events, this file assembles ONE
- * descriptor map that gives calm labels to the cross-module event types. It imports
- * only the KERNEL activity-type CONSTANTS (`~/kernel/*` — shared, not modules) and
- * the shared activity model, so Today never reaches into another module's internals
- * (the module import boundary holds); every type without a specialised label falls
- * through to the shared safe generic fallback, never a raw payload dump.
+ * Because a workspace feed spans EVERY module's events, its descriptors come from
+ * the SHARED cross-module set plus the FND-06 module registry
+ * (`buildWorkspaceActivityDescriptors`), not from a partial list maintained here.
+ * That is what fixed the feed rendering registered-but-undescribed events (a
+ * Meeting item conversion, a Person or Asset change) as unrecognised: every type a
+ * module declares now has a readable line, and Today still never imports another
+ * module's internals — the registry and the kernel constants are shared surfaces,
+ * so the module import boundary holds.
  */
 
+import { DIARY_ENTRY_CREATED } from "~/kernel/diary";
+import {
+  MEETING_HELD,
+  MEETING_ITEM_CONVERTED_TO_TASK,
+} from "~/kernel/meetings";
+import { NOTE_CONTENT_UPDATED } from "~/kernel/notes";
+import { PERSON_UPDATED } from "~/kernel/people";
 import {
   GOAL_COMPLETED,
-  GOAL_REOPENED,
   PROJECT_COMPLETED,
-  PROJECT_REOPENED,
   TASK_COMPLETED,
-  TASK_REOPENED,
 } from "~/kernel/spine";
+import { TASK_PLANNED } from "~/kernel/tasks";
+import { discoverModuleRegistry } from "~/modules/discover-modules";
 import {
-  TASK_PLANNED,
-  TASK_PLAN_CLEARED,
-  TASK_RECURRENCE_OCCURRENCE_CREATED,
-  TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
-  TASK_RESCHEDULED,
-  TASK_WAITING_CHANGED,
-  TASK_WAITING_CLEARED,
-  TASK_WAITING_STARTED,
-} from "~/kernel/tasks";
-import { NOTE_CONTENT_UPDATED } from "~/kernel/notes";
-import { GOAL_DETAILS_UPDATED } from "~/kernel/goals";
-import {
-  PROJECT_ARCHIVED,
-  PROJECT_RESTORED,
-  PROJECT_STATUS_CHANGED,
-} from "~/kernel/project-settings";
-import { DIARY_ENTRY_CREATED, DIARY_ENTRY_UPDATED } from "~/kernel/diary";
-import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
+  type ActivityDescriptorMap,
   type ActivityItem,
-  type ActivityTypeDescriptor,
 } from "~/shared/activity-feed/model";
 import type { FilterOption } from "~/shared/filters/model";
 
@@ -50,63 +40,22 @@ import type { FilterOption } from "~/shared/filters/model";
 export const TODAY_ACTIVITY_PAGE_SIZE = 30;
 
 /**
- * Calm cross-module descriptors, layered over the seven kernel lifecycle defaults
- * (`entity.created/updated/deleted/restored`, `entity_link.*`). Each sets a plain
- * label, the subject's entity type (for its identity glyph) and a restrained tone;
- * the shared mapper renders the standard `actor · label — subject` line.
+ * The descriptor map the Today feed resolves against, built ONCE per isolate:
+ *
+ *   kernel lifecycle defaults → every module's declared labels → the shared
+ *   curated cross-module set
+ *
+ * The registry is build-time data, identical for every request and workspace, so
+ * it is resolved once rather than per page read.
  */
-export const TODAY_ACTIVITY_DESCRIPTORS: Record<
-  string,
-  ActivityTypeDescriptor
-> = {
-  [TASK_COMPLETED]: {
-    label: "Completed task",
-    entityType: "task",
-    tone: "success",
-  },
-  [TASK_REOPENED]: { label: "Reopened task", entityType: "task" },
-  [TASK_PLANNED]: { label: "Planned task", entityType: "task" },
-  [TASK_RESCHEDULED]: { label: "Rescheduled task", entityType: "task" },
-  [TASK_PLAN_CLEARED]: { label: "Cleared task plan", entityType: "task" },
-  [TASK_RECURRENCE_OCCURRENCE_CREATED]: {
-    label: "Created the next occurrence",
-    entityType: "task",
-  },
-  [TASK_RECURRENCE_OCCURRENCE_WITHDRAWN]: {
-    label: "Withdrew the next occurrence",
-    entityType: "task",
-  },
-  [TASK_WAITING_STARTED]: { label: "Started waiting", entityType: "task" },
-  [TASK_WAITING_CHANGED]: { label: "Changed waiting", entityType: "task" },
-  [TASK_WAITING_CLEARED]: { label: "Cleared waiting", entityType: "task" },
-  [PROJECT_COMPLETED]: {
-    label: "Completed project",
-    entityType: "project",
-    tone: "success",
-  },
-  [PROJECT_REOPENED]: { label: "Reopened project", entityType: "project" },
-  [PROJECT_STATUS_CHANGED]: {
-    label: "Changed project status",
-    entityType: "project",
-  },
-  [PROJECT_ARCHIVED]: { label: "Archived project", entityType: "project" },
-  [PROJECT_RESTORED]: { label: "Restored project", entityType: "project" },
-  [GOAL_COMPLETED]: {
-    label: "Completed goal",
-    entityType: "goal",
-    tone: "success",
-  },
-  [GOAL_REOPENED]: { label: "Reopened goal", entityType: "goal" },
-  [GOAL_DETAILS_UPDATED]: { label: "Updated goal", entityType: "goal" },
-  [NOTE_CONTENT_UPDATED]: { label: "Updated note", entityType: "note" },
-  [DIARY_ENTRY_CREATED]: { label: "Added diary entry", entityType: "diary" },
-  [DIARY_ENTRY_UPDATED]: { label: "Edited diary entry", entityType: "diary" },
-};
+let cachedDescriptors: ActivityDescriptorMap | null = null;
 
-/** The frozen descriptor map the Today feed resolves against (defaults + above). */
-export const TODAY_ACTIVITY_DESCRIPTOR_MAP = createActivityDescriptorMap(
-  TODAY_ACTIVITY_DESCRIPTORS,
-);
+export function todayActivityDescriptors(): ActivityDescriptorMap {
+  cachedDescriptors ??= buildWorkspaceActivityDescriptors(
+    discoverModuleRegistry().listActivityTypes(),
+  );
+  return cachedDescriptors;
+}
 
 /**
  * The "Referenced entity" filter options for the DS-07 FilterBar — filter the feed
@@ -120,6 +69,9 @@ export const TODAY_ACTIVITY_ENTITY_OPTIONS: readonly FilterOption[] = [
   { value: "area", label: "Areas" },
   { value: "note", label: "Notes" },
   { value: "diary", label: "Diary" },
+  { value: "meeting", label: "Meetings" },
+  { value: "person", label: "People" },
+  { value: "asset", label: "Assets" },
 ];
 
 /**
@@ -136,6 +88,9 @@ export const TODAY_ACTIVITY_EVENT_OPTIONS: readonly FilterOption[] = [
   { value: GOAL_COMPLETED, label: "Goal completed" },
   { value: NOTE_CONTENT_UPDATED, label: "Note updated" },
   { value: DIARY_ENTRY_CREATED, label: "Diary entry" },
+  { value: MEETING_HELD, label: "Meeting held" },
+  { value: MEETING_ITEM_CONVERTED_TO_TASK, label: "Meeting item converted" },
+  { value: PERSON_UPDATED, label: "Person updated" },
 ];
 
 /** The JSON-safe shape of an `ActivityItem` (its only `Date` → ISO string). */

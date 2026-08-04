@@ -37,6 +37,7 @@ import type {
   SnapshotTaskRecurrenceRule,
   WorkspaceSnapshotV1,
 } from "~/kernel/export";
+import { resolveActorIdentity } from "~/kernel/identity";
 import { minorUnitsToDecimalString } from "~/kernel/money";
 import {
   buildVaultIndex,
@@ -63,6 +64,27 @@ export interface VaultBuildResult {
   readonly files: readonly VaultFile[];
   readonly unresolved: readonly UnresolvedLink[];
 }
+
+/**
+ * Turns a stored Activity actor into the name the vault should write.
+ *
+ * The vault is prose the owner reads in Obsidian, so it must never carry the raw
+ * actor id — that is a Cloudflare Access subject (AGENTS.md §17). The route
+ * supplies a resolver built from the IDENT-01 actor directory; without one the
+ * default falls back to the SAME canonical rule with no membership facts, so an
+ * unresolvable actor writes `Unknown user`, never an authentication identifier.
+ */
+export type VaultActorNameResolver = (
+  actorType: string,
+  actorId: string | null,
+) => string;
+
+export interface VaultBuildOptions {
+  readonly resolveActorName?: VaultActorNameResolver;
+}
+
+const defaultActorName: VaultActorNameResolver = (actorType, actorId) =>
+  resolveActorIdentity({ type: actorType, id: actorId }, null).displayName;
 
 /* -------------------------------------------------------------------------- */
 /* Small formatting helpers                                                   */
@@ -322,6 +344,7 @@ interface WriterContext {
   readonly path: string;
   readonly entity: SnapshotEntity;
   readonly unresolved: UnresolvedLink[];
+  readonly actorName: VaultActorNameResolver;
 }
 
 /** Rewrite a Markdown body for the vault, collecting unresolved links. */
@@ -980,11 +1003,11 @@ function writeGeneric(context: WriterContext): string {
 const RECORD_ACTIVITY_LIMIT = 20;
 
 /** One activity line: when, what and who. Never a fabricated narrative. */
-function activityLine(activity: SnapshotActivity): string {
-  const actor =
-    activity.actorType === "system"
-      ? "system"
-      : (activity.actorId ?? activity.actorType);
+function activityLine(
+  activity: SnapshotActivity,
+  actorName: VaultActorNameResolver,
+): string {
+  const actor = actorName(activity.actorType, activity.actorId);
   return `- **${activity.occurredAt}** — ${humanise(activity.type)} (${actor})`;
 }
 
@@ -996,7 +1019,9 @@ function activityExcerpt(context: WriterContext): string | null {
     events.length > RECORD_ACTIVITY_LIMIT
       ? `\n\n_${events.length - RECORD_ACTIVITY_LIMIT} earlier event(s) are in the \`Activity\` folder._`
       : "";
-  return `${recent.map(activityLine).join("\n")}${more}`;
+  return `${recent
+    .map((activity) => activityLine(activity, context.actorName))
+    .join("\n")}${more}`;
 }
 
 /** The `YYYY-MM` bucket an event belongs to. */
@@ -1004,7 +1029,10 @@ function activityMonth(occurredAt: string): string {
   return occurredAt.slice(0, 7);
 }
 
-function writeActivityFiles(index: VaultIndex): readonly VaultFile[] {
+function writeActivityFiles(
+  index: VaultIndex,
+  actorName: VaultActorNameResolver,
+): readonly VaultFile[] {
   const activities = index.snapshot.records.activities;
   if (activities.length === 0) return [];
 
@@ -1029,10 +1057,7 @@ function writeActivityFiles(index: VaultIndex): readonly VaultFile[] {
   )) {
     const path = `Activity/${month}.md`;
     const rows = events.map((activity) => {
-      const actor =
-        activity.actorType === "system"
-          ? "system"
-          : (activity.actorId ?? activity.actorType);
+      const actor = actorName(activity.actorType, activity.actorId);
       const subjects = (subjectsByActivity.get(activity.id) ?? [])
         .map((entityId) => recordLink(index, path, entityId))
         .filter((link): link is string => link !== null);
@@ -1284,7 +1309,9 @@ function writeExportInformation(
 /** Build the complete vault from a snapshot. Pure and deterministic. */
 export function buildObsidianVault(
   snapshot: WorkspaceSnapshotV1,
+  options: VaultBuildOptions = {},
 ): VaultBuildResult {
+  const actorName = options.resolveActorName ?? defaultActorName;
   const index = buildVaultIndex(snapshot);
   const unresolved: UnresolvedLink[] = [];
   const files: VaultFile[] = [];
@@ -1297,6 +1324,7 @@ export function buildObsidianVault(
       path: location.path,
       entity,
       unresolved,
+      actorName,
     };
     let contents: string;
     switch (entity.type) {
@@ -1337,7 +1365,7 @@ export function buildObsidianVault(
     files.push({ path: location.path, contents });
   }
 
-  files.push(...writeActivityFiles(index));
+  files.push(...writeActivityFiles(index, actorName));
   files.push(writeHome(index));
   files.push(writeExportInformation(index, unresolved.length));
   files.push(writeSettings(index));

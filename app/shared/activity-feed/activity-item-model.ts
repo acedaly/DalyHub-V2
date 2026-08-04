@@ -13,11 +13,12 @@
  *     unknown/newly-registered type that never crashes and never dumps raw JSON.
  */
 
-import type {
-  ActivityActor,
-  ActivityRecord,
-  ActivitySubject,
-} from "~/kernel/activity";
+import type { ActivityRecord, ActivitySubject } from "~/kernel/activity";
+import {
+  actorInitials,
+  resolveActorIdentity,
+  type ActorIdentity,
+} from "~/kernel/identity";
 
 import {
   buildFallbackPresentation,
@@ -35,27 +36,35 @@ import type {
   ResolvedEntity,
 } from "./types";
 
-/** A conservative default actor label when the caller supplies no resolver. */
-function defaultActorLabel(actor: ActivityActor): string {
-  switch (actor.type) {
-    case "system":
-      return "System";
-    case "user":
-      return "Someone";
-    case "ai":
-      return "Assistant";
-    case "import":
-      return "Import";
-    case "integration":
-      return "Integration";
-    default: {
-      const t = actor.type.trim();
-      if (t.length === 0) {
-        return "Someone";
-      }
-      return t.charAt(0).toUpperCase() + t.slice(1);
+/**
+ * Resolve the actor for one record.
+ *
+ * There is no local fallback table here — actor naming is the identity kernel's
+ * ONE rule (`resolveActorIdentity`), so a surface that forgets to pass a resolver
+ * degrades to the honest `Unknown user` / `System`, never to an anonymous
+ * placeholder and never to the viewer's own name.
+ */
+function resolveActorFor(
+  actor: ActivityRecord["actor"],
+  options: ActivityMapOptions,
+): ActorIdentity {
+  const resolved = options.resolveActor?.(actor);
+  if (resolved) {
+    return resolved;
+  }
+  if (options.resolveActorLabel) {
+    const label = options.resolveActorLabel(actor);
+    const trimmed = label.trim();
+    if (trimmed.length > 0) {
+      return {
+        displayName: trimmed,
+        initials: actorInitials(trimmed),
+        kind: actor.type === "system" ? "system" : "person",
+        source: actor.type === "system" ? "system" : "member",
+      };
     }
   }
+  return resolveActorIdentity(actor, null);
 }
 
 function mapSubject(
@@ -98,10 +107,13 @@ export function toActivityItem(
   record: ActivityRecord,
   options: ActivityMapOptions = {},
 ): ActivityItem {
+  const identity = resolveActorFor(record.actor, options);
   const actor: ActivityItemActor = {
     type: record.actor.type,
-    id: record.actor.id,
-    label: (options.resolveActorLabel ?? defaultActorLabel)(record.actor),
+    label: identity.displayName,
+    initials: identity.initials,
+    kind: identity.kind,
+    source: identity.source,
   };
 
   const subjects: readonly ActivityItemSubject[] = record.subjects.map(

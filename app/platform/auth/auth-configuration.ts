@@ -18,6 +18,7 @@ import {
   AuthConfigurationError,
   canonicaliseEmail,
   isValidEmail,
+  normaliseDisplayNameClaim,
 } from "~/kernel/auth";
 
 /** The two supported authentication modes. */
@@ -53,6 +54,11 @@ export type DevelopmentAuthConfig = {
   readonly subject: string;
   /** The fixed, server-configured email (canonicalised). */
   readonly email: string;
+  /**
+   * An optional fixed display name for the local identity, so local development
+   * and e2e runs exercise the same IDENT-01 name resolution production uses.
+   */
+  readonly displayName: string | null;
 };
 
 /** The validated authentication configuration. */
@@ -67,6 +73,7 @@ export interface AuthConfigEnv {
   readonly OWNER_EMAIL?: string;
   readonly DEV_AUTH_SUBJECT?: string;
   readonly DEV_AUTH_EMAIL?: string;
+  readonly DEV_AUTH_NAME?: string;
 }
 
 function required(value: string | undefined, name: string): string {
@@ -163,6 +170,7 @@ export function resolveAuthConfig(env: AuthConfigEnv): AuthConfig {
       mode: "development",
       subject,
       email: canonicaliseEmail(rawEmail),
+      displayName: normaliseDisplayNameClaim(env.DEV_AUTH_NAME),
     };
   }
 

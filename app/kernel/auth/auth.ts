@@ -22,11 +22,15 @@
  *     the Activity actor id — never the email, which can change.
  *   - `email` is the verified, normalised email, used only as the safe display
  *     identity in the shell.
+ *   - `displayName` is the provider's human name for the identity when the
+ *     credential carries one (many do not), used ONLY as a display fallback in
+ *     the IDENT-01 actor-resolution order — never as an identifier.
  * It holds no token, no raw claims and no provider internals.
  */
 export type AuthenticatedUser = {
   readonly subject: string;
   readonly email: string;
+  readonly displayName: string | null;
 };
 
 /**

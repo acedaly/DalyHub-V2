@@ -30,6 +30,7 @@ import {
   PERSON_UPDATED,
 } from "~/kernel/people";
 import {
+  buildWorkspaceActivityDescriptors,
   createActivityDescriptorMap,
   type ActivityDescriptionSegment,
   type ActivityDescriptorContext,
@@ -116,26 +117,22 @@ export interface PersonTimelineActivityTypeContribution {
 /**
  * Build the descriptor map the Person Timeline renders with: the kernel lifecycle
  * defaults, then every module's DECLARED activity types (label only — no payload
- * exposure, see the file header), then the People-owned descriptors last so a
- * Person's own events keep their warmer, purpose-written line.
+ * exposure, see the file header), then the SHARED cross-module set, then the
+ * People-owned descriptors last so a Person's own events keep their warmer,
+ * purpose-written line.
  *
- * An event type no module has declared still renders, through DS-05's conservative
- * generic fallback. Nothing here needs editing when a module is added.
+ * The registry pass and the shared set now live in ONE place
+ * (`buildWorkspaceActivityDescriptors`) that every cross-module surface uses, so
+ * the workspace feed and a Person's timeline describe the same event identically.
+ * An event type no module has declared still renders, through DS-05's
+ * conservative generic fallback. Nothing here needs editing when a module is
+ * added.
  */
 export function buildPersonTimelineDescriptors(
   contributions: readonly PersonTimelineActivityTypeContribution[],
 ): ActivityDescriptorMap {
-  const declared: Record<string, ActivityTypeDescriptor> = {};
-  for (const contribution of contributions) {
-    if (
-      typeof contribution?.type !== "string" ||
-      contribution.type.length === 0 ||
-      typeof contribution.label !== "string" ||
-      contribution.label.length === 0
-    ) {
-      continue;
-    }
-    declared[contribution.type] = { label: contribution.label };
-  }
-  return createActivityDescriptorMap(declared, PEOPLE_ACTIVITY_DESCRIPTORS);
+  return buildWorkspaceActivityDescriptors(
+    contributions,
+    PEOPLE_ACTIVITY_DESCRIPTORS,
+  );
 }

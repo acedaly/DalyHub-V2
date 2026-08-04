@@ -14,7 +14,7 @@
 import { GOAL_COMPLETED, GOAL_REOPENED } from "~/kernel/spine";
 import { GOAL_DETAILS_UPDATED } from "~/kernel/goals";
 import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
   type ActivityItem,
   type ActivityTypeDescriptor,
 } from "~/shared/activity-feed/model";
@@ -41,7 +41,14 @@ export const GOAL_ACTIVITY_DESCRIPTORS: Record<string, ActivityTypeDescriptor> =
     },
   };
 
-export const GOAL_ACTIVITY_DESCRIPTOR_MAP = createActivityDescriptorMap(
+/**
+ * The frozen descriptor map the Goal Timeline resolves against: the kernel
+ * lifecycle defaults, then the SHARED cross-module set (so an event another
+ * module recorded against this Goal still reads as a sentence rather than a
+ * generic fallback), then the Goal-owned descriptors last.
+ */
+export const GOAL_ACTIVITY_DESCRIPTOR_MAP = buildWorkspaceActivityDescriptors(
+  [],
   GOAL_ACTIVITY_DESCRIPTORS,
 );
 

@@ -156,20 +156,33 @@ describe("the Person Timeline line comes from the registry", () => {
   });
 
   it("still renders safely if the type were ever undeclared", () => {
-    // DS-05's conservative fallback keeps the surface total even if a manifest
-    // entry is removed — it must never throw and never dump the payload.
-    const fallback = resolveActivityDescriptor(
+    // IDENT-01: a PERSISTED event type is now covered by the shared cross-module
+    // set as well as the manifest, so removing a manifest entry no longer leaves
+    // the event unrecognised — it keeps a readable line and a `meeting` marker.
+    const withoutManifest = resolveActivityDescriptor(
       buildPersonTimelineDescriptors([]),
       MEETING_HELD,
     );
-    expect(fallback.isKnown).toBe(false);
-    expect(() =>
-      toActivityItem(heldRecord(), {
-        descriptors: buildPersonTimelineDescriptors([]),
-        resolveEntity: resolve,
-        anchorEntityId: PERSON,
-      }),
-    ).not.toThrow();
+    expect(withoutManifest.isKnown).toBe(true);
+    expect(withoutManifest.descriptor?.label).toBeTruthy();
+
+    // Whichever layer supplies it, the surface stays total: no throw, and still
+    // no payload content on a Person's timeline.
+    const item = toActivityItem(heldRecord(), {
+      descriptors: buildPersonTimelineDescriptors([]),
+      resolveEntity: resolve,
+      anchorEntityId: PERSON,
+    });
+    expect(item.presentation.metadata ?? []).toHaveLength(0);
+    expect(JSON.stringify(item.presentation)).not.toContain("Brisbane");
+
+    // A genuinely unregistered type still falls through to DS-05's conservative
+    // fallback rather than crashing or dumping JSON.
+    const unknown = resolveActivityDescriptor(
+      buildPersonTimelineDescriptors([]),
+      "nonexistent_module.did_something",
+    );
+    expect(unknown.isKnown).toBe(false);
   });
 });
 

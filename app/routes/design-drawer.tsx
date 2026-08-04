@@ -220,7 +220,7 @@ function PersonDrawerBody() {
       title="Dana Lee"
       headingLevel={3}
       summary={{
-        description: "Someone linked across your projects and goals.",
+        description: "A person linked across your projects and goals.",
       }}
     >
       <RecordContent label="Person overview">

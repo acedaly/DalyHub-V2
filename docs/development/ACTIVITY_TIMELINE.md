@@ -53,7 +53,9 @@ it). Import the **UI** from `~/shared/activity-feed`.
 `ActivityItem`. It **preserves** the kernel's types unchanged:
 
 - the branded `ActivityType` (never down-branded to `string`);
-- the open validated-string actor kind and subject roles;
+- the open validated-string actor kind and subject roles (the actor's stable id is
+  deliberately dropped at this boundary — it is an authentication subject, and the
+  item is serialised to the browser; see [`IDENTITY_AND_ACTORS.md`](IDENTITY_AND_ACTORS.md));
 - the UTC `occurredAt` `Date`;
 - the validated `payload`;
 - every subject and its role, plus resolved entity identity where available.
@@ -65,7 +67,14 @@ it). Import the **UI** from `~/shared/activity-feed`.
 - `resolveEntity(entityId) → ResolvedEntity | null` — a **batch** resolver the route
   supplies (resolve every referenced entity once, up front — the UI never fetches per
   item, so there is no N+1). Return `null` for a deleted/inaccessible/unknown entity.
-- `resolveActorLabel(actor) → string` — optional; defaults to a conservative label.
+- `resolveActor(actor) → ActorIdentity | null` — the **batch** actor resolver, built
+  once per page from the workspace's actor directory
+  (`createActivityActorResolver(scope.actors, page.items)` — one query, no N+1). When
+  omitted, actors still resolve through the ONE canonical identity rule with no
+  membership facts, i.e. `System` / `Unknown user` — never an anonymous placeholder
+  and never the current viewer. See [`IDENTITY_AND_ACTORS.md`](IDENTITY_AND_ACTORS.md).
+- `resolveActorLabel(actor) → string` — a label-only variant, for a surface (the
+  design gallery, a focused test) that has no directory. `resolveActor` wins.
 - `anchorEntityId` — the Timeline anchor (marks the anchor subject and biases
   primary-subject selection). Omit for a Feed.
 
@@ -110,12 +119,43 @@ unfamiliar payload. To surface payload fields safely, use `summarizeActivityPayl
 which shows only a bounded set of primitive top-level fields and skips nested
 objects/arrays; **never** stringify a payload into the UI.
 
+### Cross-module surfaces: use the shared builder, not a partial list
+
+A surface that renders MORE than one module's events — the workspace feed, a
+Person's relationship timeline, any record whose history other modules write to —
+must build its map with `buildWorkspaceActivityDescriptors`:
+
+```ts
+import { buildWorkspaceActivityDescriptors } from "~/shared/activity-feed/model";
+
+// Cross-module surface: registry labels + the shared curated set.
+const DESCRIPTORS = buildWorkspaceActivityDescriptors(
+  discoverModuleRegistry().listActivityTypes(),
+);
+
+// A record-scoped surface layers its own warmer wording last.
+const RECORD_DESCRIPTORS = buildWorkspaceActivityDescriptors([], MY_DESCRIPTORS);
+```
+
+Order: kernel lifecycle defaults → every module manifest's declared labels → the
+shared curated cross-module set (entity marker, tone, and the sentence naming both
+records for events that join two) → your overrides. The **manifest** stays
+authoritative for an event type's label; the shared set contributes structure only.
+
+This is what stopped the workspace feed reporting fully-registered events as
+unrecognised, and `test/unit/activity-feed/activity-type-coverage.test.ts` fails if
+a registered or kernel-persistable type ever loses its renderer.
+
 ### The unknown-type fallback
 
 Any type with no descriptor renders through a conservative generic fallback that
 stays readable, shows the humanised event type (`widget.frobnicated` → "Widget
 frobnicated"), the actor, the time and available subjects, never crashes, and emits
 **no** payload metadata. `ActivityItem.isKnownType` is `false` for these.
+
+The raw dotted type is shown as a badge in **development only**. Production never
+puts a machine identifier in front of the owner (AGENTS.md §7) — but the event is
+never hidden either.
 
 ### Which record a label-only line refers to
 

@@ -21,6 +21,11 @@ import { createAuthenticator, type AuthConfigEnv } from "~/platform/auth";
 
 import { setAuthenticatedSession } from "./authenticated-request-context";
 import {
+  provisionMemberSafely,
+  type IdentityProvisioningEnv,
+  type MemberProvisioner,
+} from "./identity-provisioning";
+import {
   buildUnauthenticatedResponse,
   withSecurityHeaders,
 } from "./security-headers";
@@ -33,6 +38,9 @@ export type ReactRouterRequestHandler = (
 
 /** Builds the request authenticator for an environment. */
 export type AuthenticatorFactory = (env: AuthConfigEnv) => Authenticator;
+
+/** Everything the boundary reads from the environment. */
+export type RequestBoundaryEnv = AuthConfigEnv & IdentityProvisioningEnv;
 
 /**
  * Application routes that are public at the DalyHub layer. Matched EXACTLY, so
@@ -52,9 +60,10 @@ export function isPublicPath(pathname: string): boolean {
  */
 export async function handleAuthenticatedRequest(
   request: Request,
-  env: AuthConfigEnv,
+  env: RequestBoundaryEnv,
   requestHandler: ReactRouterRequestHandler,
   authenticatorFactory: AuthenticatorFactory = createAuthenticator,
+  provisionMember?: MemberProvisioner,
 ): Promise<Response> {
   const { pathname } = new URL(request.url);
 
@@ -64,14 +73,20 @@ export async function handleAuthenticatedRequest(
   }
 
   let context: RouterContextProvider;
+  let session;
   try {
-    const session = await authenticatorFactory(env).authenticate(request);
+    session = await authenticatorFactory(env).authenticate(request);
     context = new RouterContextProvider();
     setAuthenticatedSession(context, session);
   } catch (error) {
     // Return BEFORE invoking the handler: no protected loader/action runs.
     return buildUnauthenticatedResponse(error);
   }
+
+  // IDENT-01: record the subject ↔ workspace membership exactly once per
+  // request, so every event this request goes on to record is resolvable to a
+  // real name. Best-effort — it can never fail the request (see its module).
+  await provisionMemberSafely(env, session, provisionMember);
 
   const response = await requestHandler(request, context);
   return withSecurityHeaders(response, { authenticated: true });

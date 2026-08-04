@@ -88,7 +88,9 @@ describe("toActivityItem — mapping preserves the kernel model", () => {
     expect(item.occurredAt).toBe(src.occurredAt);
     expect(item.payload).toEqual({ field: "title" });
     expect(item.actor.type).toBe("user");
-    expect(item.actor.id).toBe("u-1");
+    // The Access subject is deliberately NOT carried into the view model: the
+    // item is serialised to the browser, and the id has no rendering purpose.
+    expect(item.actor).not.toHaveProperty("id");
     expect(item.isKnownType).toBe(true);
     expect(item.primarySubject?.entity?.label).toBe("Entity p1");
   });

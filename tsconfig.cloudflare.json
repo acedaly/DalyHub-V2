@@ -9,6 +9,9 @@
     "test/**/*",
     "scripts/icons/*.mjs",
     "scripts/generate-icons.mjs",
+    "scripts/production-d1.mjs",
+    "scripts/identity-repair-plan.mjs",
+    "scripts/repair-activity-identity.mjs",
     "vite-plugins/service-worker.ts",
     "worker-configuration.d.ts"
   ],

@@ -13,6 +13,8 @@ import { Link } from "react-router";
 import { isEntityType, EntityIcon } from "~/shared/entity";
 import { DrawerTrigger } from "~/shared/drawer";
 
+import { ActivityActorName } from "./ActivityActorName";
+
 import type {
   ActivityDateFormatter,
   ActivityDescriptionSegment,
@@ -121,11 +123,7 @@ export const ActivityEventItem = memo(function ActivityEventItem({
   ): ReactNode => {
     switch (segment.kind) {
       case "actor":
-        return (
-          <span key={index} className="dh-activity-item__actor">
-            {item.actor.label}
-          </span>
-        );
+        return <ActivityActorName key={index} actor={item.actor} />;
       case "text":
         return <span key={index}>{segment.text}</span>;
       case "emphasis":
@@ -207,8 +205,16 @@ export const ActivityEventItem = memo(function ActivityEventItem({
       >
         {formatter.formatTimeOfDay(item.occurredAt)}
       </time>
-      {!item.isKnownType ? (
-        <span className="dh-activity-item__unknown">Unrecognised event</span>
+      {/*
+       * An event with no registered formatter still renders a readable line (the
+       * shared humanised fallback) — it is never hidden. The RAW machine type is
+       * a development diagnostic only: production must not show dotted
+       * identifiers to the owner (AGENTS.md §7 — speak in the user's nouns).
+       */}
+      {!item.isKnownType && import.meta.env.DEV ? (
+        <span className="dh-activity-item__unknown">
+          No formatter: <code>{item.type}</code>
+        </span>
       ) : null}
     </article>
   );

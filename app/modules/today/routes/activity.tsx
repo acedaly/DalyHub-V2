@@ -13,6 +13,7 @@
 import { env } from "cloudflare:workers";
 
 import { InvalidActivityCursorError } from "~/kernel/activity";
+import { createActivityActorResolver } from "~/platform/activity";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -21,7 +22,7 @@ import {
 } from "~/shared/activity-feed/model";
 
 import {
-  TODAY_ACTIVITY_DESCRIPTOR_MAP,
+  todayActivityDescriptors,
   TODAY_ACTIVITY_PAGE_SIZE,
   type SerializedTodayActivityItem,
   type TodayActivityPage,
@@ -80,8 +81,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     });
   }
 
+  // Name every actor on the page through the ONE shared identity rule, in a
+  // single bounded directory lookup (no N+1). Historic events keep the
+  // identity of whoever performed them — never the current viewer's.
+  const resolveActor = await createActivityActorResolver(
+    scope.actors,
+    page.items,
+  );
+
   const items = toActivityItems(page.items, {
-    descriptors: TODAY_ACTIVITY_DESCRIPTOR_MAP,
+    resolveActor,
+    descriptors: todayActivityDescriptors(),
     resolveEntity: (id) => resolved.get(id) ?? null,
   });
 
