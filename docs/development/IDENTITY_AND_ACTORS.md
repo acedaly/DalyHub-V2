@@ -90,6 +90,26 @@ upsert. It is best-effort: a storage failure is swallowed and the request
 proceeds, because identity plumbing must never break a page. The consequence of a
 failure is `Unknown user`, which is honest.
 
+### Which code paths this covers
+
+Every mutation in the product resolves its repositories through
+`resolveAuthenticatedWorkspaceScope`, which binds the trusted actor once at the
+composition boundary. A module method cannot supply or override it. So the actor
+is correct by construction on all of these, with nothing per-path to remember:
+
+diary entries · meetings and meeting items · task creation, updates, completion
+and reopening · meeting-item-to-task conversion and direct follow-ups · project,
+goal, area and task links · People and asset links · relationship creation and
+removal · notes · status changes · archive, restore and permanent delete ·
+recurring-task occurrences · quick actions · command-palette actions · the mobile
+layouts (same routes) · replayed OFFLINE captures (they run through the same
+authenticated routes when the device reconnects, so the event is attributed to
+the person whose session replays it — the person who queued it).
+
+The `system` actor is used deliberately and only by `resolveWorkspaceScope`, the
+non-request composition. Its two current callers (the Goals and Projects search
+providers) are read-only. An authenticated request never falls back to it.
+
 ---
 
 ## Rendering an actor
