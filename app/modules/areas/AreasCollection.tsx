@@ -29,6 +29,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { AreaDot } from "~/shared/pill";
 
 import { NewAreaForm } from "./NewAreaForm";
 import { toAreaCardData, type SerializedAreaListItem } from "./area-view";
@@ -89,6 +90,22 @@ function NewAreaFormHost() {
   );
 }
 
+/*
+ * DS-14 §8 / ADR-068 decision 5 — the Area identity dot.
+ *
+ * The accent comes from `colourRank`, which the repository computes with a
+ * window function over EVERY `area` row in the workspace — deliberately without
+ * the `deleted_at` / `archived_at` filters the collection query applies.
+ *
+ * That distinction is the whole decision. Ranking over the ACTIVE set (this
+ * page's index, which is what shipped first and review caught) makes archiving
+ * one Area recolour every Area created after it; ranking over all rows means
+ * only a permanent delete shifts anything, and that is already a
+ * typed-confirmation destructive act. `(created_at, id)` is the canonical
+ * ordering (ADR-065 decision 3) and the existing
+ * `entities_workspace_type_created_idx` already serves it, so this costs no new
+ * index, no column and no migration.
+ */
 function toCardProps(
   card: ReturnType<typeof toAreaCardData>,
   onOpenArea: (id: string) => void,
@@ -121,6 +138,7 @@ function toCardProps(
     title: card.title,
     typeLabel: "Area",
     icon: <EntityIcon type="area" />,
+    identity: <AreaDot rank={card.colourRank} name={card.title} />,
     headingLevel: 2,
     status: card.state,
     metadata,

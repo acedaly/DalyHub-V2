@@ -48,6 +48,7 @@ export function Card(props: CardProps) {
     id,
     typeLabel,
     icon,
+    identity,
     accent = "neutral",
     title,
     titleEditor,
@@ -198,6 +199,8 @@ export function Card(props: CardProps) {
         </div>
       ) : null}
 
+      {identity ? <div className="dh-card__identity">{identity}</div> : null}
+
       {selection ? (
         // A `label` wrapping the checkbox so the whole cell is a 44px touch target
         // on touch devices (the input stays visually compact) — TODAY-06 selection
@@ -220,97 +223,115 @@ export function Card(props: CardProps) {
       ) : null}
 
       <div className="dh-card__body">
-        <div className="dh-card__heading">
-          <div className="dh-card__type">
-            {icon ? (
-              <span className="dh-card__icon" aria-hidden="true">
-                {icon}
+        {/*
+         * DS-14 — the PRIMARY line and the SUPPORTING run.
+         *
+         * The two wrappers exist so a Collection region can lay a card out as a
+         * dense ROW without the module changing anything: the primary line is
+         * what the owner scans (type cue, title, state), the supporting run is
+         * everything that qualifies it. In a Reading region they stack exactly
+         * as they did before, so the wrappers cost nothing where a card is
+         * still a card. No information moves between them and none is dropped —
+         * this is grouping, not editing.
+         */}
+        <div className="dh-card__line">
+          <div className="dh-card__heading">
+            <div className="dh-card__type">
+              {icon ? (
+                <span className="dh-card__icon" aria-hidden="true">
+                  {icon}
+                </span>
+              ) : null}
+              {typeLabel ? (
+                <span className="dh-card__type-label">{typeLabel}</span>
+              ) : null}
+            </div>
+            {status ? (
+              <span
+                className="dh-card__status"
+                data-tone={status.tone ?? "neutral"}
+              >
+                {status.label}
               </span>
             ) : null}
-            {typeLabel ? (
-              <span className="dh-card__type-label">{typeLabel}</span>
-            ) : null}
           </div>
-          {status ? (
-            <span
-              className="dh-card__status"
-              data-tone={status.tone ?? "neutral"}
-            >
-              {status.label}
-            </span>
-          ) : null}
-        </div>
 
-        <TitleHeading id={titleId} className="dh-card__title">
-          {titleNode}
-        </TitleHeading>
+          <TitleHeading id={titleId} className="dh-card__title">
+            {titleNode}
+          </TitleHeading>
+        </div>
 
         {subtitle ? <p className="dh-card__subtitle">{subtitle}</p> : null}
 
-        {context ? (
-          <p className="dh-card__context">
-            <span className="dh-visually-hidden">In </span>
-            {context.href ? (
-              <a
-                className="dh-card__context-link"
-                href={context.href}
-                onClick={(event) => event.stopPropagation()}
-              >
-                {context.label}
-              </a>
-            ) : (
-              <span>{context.label}</span>
-            )}
-          </p>
-        ) : null}
+        <div className="dh-card__support">
+          {context ? (
+            <p className="dh-card__context">
+              <span className="dh-visually-hidden">In </span>
+              {context.href ? (
+                <a
+                  className="dh-card__context-link"
+                  href={context.href}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {context.label}
+                </a>
+              ) : (
+                <span>{context.label}</span>
+              )}
+            </p>
+          ) : null}
 
-        {normalisedProgress ? (
-          <div className="dh-card__progress">
-            <div
-              className="dh-card__progress-track"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={normalisedProgress.percent}
-              aria-valuetext={normalisedProgress.text}
-              aria-label="Progress"
-            >
+          {normalisedProgress ? (
+            <div className="dh-card__progress">
               <div
-                className="dh-card__progress-fill"
-                style={{ inlineSize: `${normalisedProgress.percent}%` }}
-              />
-            </div>
-            <span className="dh-card__progress-text">
-              {normalisedProgress.text}
-            </span>
-          </div>
-        ) : null}
-
-        {metadata && metadata.length > 0 ? (
-          <ul className="dh-card__metadata">
-            {metadata.map((item) => (
-              // MOBILE-01: the module's declared scanning priority. Low-priority
-              // detail is de-emphasised on a narrow card, never removed — it stays
-              // in the DOM and the accessibility tree at every width.
-              <li
-                key={item.id}
-                className="dh-card__meta"
-                data-priority={item.priority ?? "high"}
+                className="dh-card__progress-track"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={normalisedProgress.percent}
+                aria-valuetext={normalisedProgress.text}
+                aria-label="Progress"
               >
-                {item.label ? (
-                  <span className="dh-card__meta-label">{item.label}: </span>
-                ) : null}
-                <span className="dh-card__meta-value">{item.value}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+                <div
+                  className="dh-card__progress-fill"
+                  style={{ inlineSize: `${normalisedProgress.percent}%` }}
+                />
+              </div>
+              <span className="dh-card__progress-text">
+                {normalisedProgress.text}
+              </span>
+            </div>
+          ) : null}
 
-        {dateLabel ? (
-          <p className="dh-card__date" data-tone={dateLabel.tone ?? "neutral"}>
-            {dateLabel.label}
-          </p>
-        ) : null}
+          {metadata && metadata.length > 0 ? (
+            <ul className="dh-card__metadata">
+              {metadata.map((item) => (
+                // MOBILE-01: the module's declared scanning priority. Low-priority
+                // detail is de-emphasised on a narrow card, never removed — it stays
+                // in the DOM and the accessibility tree at every width.
+                <li
+                  key={item.id}
+                  className="dh-card__meta"
+                  data-priority={item.priority ?? "high"}
+                >
+                  {item.label ? (
+                    <span className="dh-card__meta-label">{item.label}: </span>
+                  ) : null}
+                  <span className="dh-card__meta-value">{item.value}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {dateLabel ? (
+            <p
+              className="dh-card__date"
+              data-tone={dateLabel.tone ?? "neutral"}
+            >
+              {dateLabel.label}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       {(quickActions && quickActions.length > 0) || overflowItems.length > 0 ? (

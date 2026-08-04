@@ -137,8 +137,6 @@
 
 .dh-health-panel__fact dt {
   font-size: var(--dh-font-size-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
   color: var(--dh-color-text-secondary);
 }
 

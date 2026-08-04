@@ -75,6 +75,7 @@ describe("Area view model", () => {
       title: "A very long Area title that should wrap across several lines",
       createdAt: "2026-07-18T00:00:00.000Z",
       updatedAt: "2026-07-20T00:00:00.000Z",
+      colourRank: 0,
       rollup: serializeAreaRollup(rollup),
       activeProjectCount: 2,
       completedProjectCount: 1,

@@ -49,8 +49,6 @@
   margin: 0;
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-muted);
 }
 

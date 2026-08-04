@@ -59,7 +59,6 @@
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-semibold);
   color: var(--dh-color-text-muted);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
@@ -177,7 +176,6 @@
   padding: var(--dh-space-2) var(--dh-space-3);
   font-size: var(--dh-font-size-2xs);
   font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--dh-color-text-muted);
 }
@@ -239,7 +237,6 @@
   color: var(--dh-color-text-muted);
   font-size: var(--dh-font-size-2xs);
   font-weight: var(--dh-font-weight-medium);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
@@ -279,7 +276,6 @@
   padding-left: var(--dh-space-2);
   color: var(--dh-color-text-muted);
   font-size: var(--dh-font-size-2xs);
-  text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
@@ -409,8 +405,6 @@
 .dh-keyboard-help__group-title {
   margin: 0;
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
   color: var(--dh-color-text-muted);
 }
 

@@ -112,8 +112,6 @@
   gap: var(--dh-space-1);
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wider);
-  text-transform: uppercase;
   color: var(--dh-color-text-muted);
 }
 
@@ -131,12 +129,17 @@
   min-width: 0;
 }
 
+/*
+ * DS-14 — a record title is the largest thing on its page and does not also
+ * need to be the heaviest. Size and the space around it carry the hierarchy;
+ * `medium` keeps it from reading as a banner.
+ */
 .record-title {
   margin: 0;
-  font-size: var(--dh-font-size-xl);
+  font-size: var(--dh-font-size-2xl);
   line-height: var(--dh-line-height-tight);
   letter-spacing: var(--dh-letter-spacing-tight);
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: var(--dh-font-weight-medium);
   /* Long titles wrap and break rather than force the page wider. */
   min-width: 0;
   overflow-wrap: anywhere;
@@ -336,14 +339,22 @@
 /* Summary                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * DS-14 — the summary is the record's first CARD on the tint.
+ *
+ * It painted `surface` (the generic panel token) at `radius-lg`, which is the
+ * pre-DS-14 panel language; on the tinted canvas it takes the card plane, the
+ * card radius and a hairline like every other in-flow card in the product, and
+ * no shadow.
+ */
 .record-summary {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-4);
-  padding: var(--dh-space-4);
-  background: var(--dh-color-surface);
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+  border-radius: var(--dh-radius-card);
   min-width: 0;
 }
 
@@ -356,8 +367,8 @@
 
 .record-summary__meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: var(--dh-space-3) var(--dh-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--dh-space-4) var(--dh-space-5);
   margin: 0;
 }
 
@@ -368,11 +379,20 @@
   min-width: 0;
 }
 
+/*
+ * Sentence case, not upper (brief §2).
+ *
+ * SHOUTED, LETTER-SPACED LABELS are the single most recognisable tell of the
+ * enterprise-admin look the direction is moving away from, and they cost
+ * legibility for nothing: a metadata label is read once to find its value, and
+ * upper-case removes the word-shape that makes that quick. The label stays
+ * quiet by COLOUR and SIZE, which is the same hierarchy with none of the
+ * shouting.
+ */
 .record-summary__meta-item dt {
   font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-regular);
   color: var(--dh-color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
 }
 
 .record-summary__meta-item dd {
@@ -481,13 +501,16 @@
  * per-module border. Cards inside sit on `--dh-color-surface-raised`, one shade
  * above this `--dh-color-surface` panel, so nested cards stay distinct without
  * doubling the boundary. */
+/* The active panel is the record's working surface — one card, card radius,
+ * hairline, no shadow, and the Collection preset's inset so a row list inside it
+ * lands on the same inline rhythm as a routed collection. */
 .record-tabs__panel,
 .record-layout__content {
   min-width: 0;
-  padding: var(--dh-space-4);
-  background: var(--dh-color-surface);
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+  border-radius: var(--dh-radius-card);
 }
 
 .record-tabs__panel:focus-visible {
@@ -693,8 +716,6 @@
   margin: 0;
   font-size: var(--dh-font-size-xs);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-muted);
 }
 

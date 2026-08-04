@@ -416,7 +416,6 @@
 
 .dh-offline-sync__item-kind {
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--dh-color-text-muted);
 }

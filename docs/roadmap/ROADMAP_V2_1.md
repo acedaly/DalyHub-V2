@@ -270,7 +270,7 @@ They are small and well-understood; none of them blocks the V2 release.*
 
 ## V2.1 — Whole-application restyle
 
-### ☐ DS-14 — Whole-application visual overhaul
+### ☑ DS-14 — Whole-application visual overhaul
 
 - **Not in ROADMAP_V2.** A new item, taking the next free number in the `DS-` series
   (`DS-01`…`DS-13` are all in [`ROADMAP_V2.md`](ROADMAP_V2.md)). It is a *design
@@ -288,67 +288,86 @@ They are small and well-understood; none of them blocks the V2 release.*
   baseline, and — at least as importantly — **§9, what no DS-14 PR may change or add**.
   The decisions taken against it, with their reasoning and their measurements, are
   [ADR-068](../decisions/ARCHITECTURE_DECISIONS.md#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback).
-- **How it is delivered — one foundation PR, one gate, six module groups.**
-  1. **The foundation PR.** The new semantic tokens in all seven themes, the
-     recomposed light-theme neutral ramp the elevation contract requires, the radius
-     scale, the two density presets, the self-hosted type, the neutral absence pill,
-     the one progress component, the derived area accent, the restyled application
-     frame, and the theme invariant test. It is **one squashed commit and the only
-     commit in DS-14 permitted to touch `tokens.css`, the DS-14 stylesheet, the font
-     assets or the invariant test** — which is what makes the rollback below a
-     single-commit revert rather than an unwind. See ADR-068 §7.
+- **How it is delivered — ONE PR, by the owner's direction.** The item was planned
+  as a foundation PR, a desktop soak gate and six module-group PRs. The owner
+  directed a single complete delivery instead: *"There is no five-day test, desktop
+  soak gate or staged owner-approval process. Apply the visual system to every
+  module, complete the verification and present the finished PR for review."* That
+  supersedes the staged plan below, which is kept because the reasoning behind the
+  original sequencing is still the reasoning for the commit boundaries.
 
-     **☑ Landed.** The token set in all seven themes (`surface-page` replacing a
-     retired `bg`, the neutral absence pill, the six Area accents with their tint
-     pairs, `divider-subtle`), the recomposed light neutral ramps — five of the
-     seven themes could not satisfy the elevation contract and three had
-     `surface-card` and `surface-raised` byte-identical at `#ffffff` — the
-     semantic radius scale, both density presets as `data-density` on a region
-     wrapper, the self-hosted Inter + Source Serif 4 subsets inside the fixed PWA
-     budgets, three weights with `bold` removed, the neutral pill and Area
-     identity primitives, and the theme invariant test wired into `pnpm verify`.
+  **What that changes, stated rather than left to be discovered.**
+  - **The soak gate is gone. Its reviewable half was done anyway; its other half
+    was not, and that is stated rather than blurred.** A recorded verdict against
+    desktop captures in every theme is in
+    [`THEME_ACCEPTANCE_MATRIX.md §9.7`](../design/THEME_ACCEPTANCE_MATRIX.md),
+    including one weakness it found and did not fix. What no screenshot review can
+    substitute for — living with the restyle on a real workspace for days — is
+    unanswered, and §9.8 says so.
+  - **The wide-desktop question is answered IN this PR rather than after it.** [DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)
+    recorded that card-on-tint's behaviour at 1440px and above was unproven; the
+    answer turned out to be a real one — an uncapped collection at 1440px is a
+    1200px row with a title at one end and a status pill at the other — and the
+    fix (a content measure on collections, not only on prose) is in the PR.
+  - **ADR-068's F1–F4 rollback structure still holds, and holds MORE simply.** The
+    PR squash-merges as one commit, so "revert exactly one commit" is satisfied by
+    construction rather than by a path guard and a per-group revert rehearsal.
+    What is lost is the intermediate position — there is no longer a state in which
+    the foundation is reverted and the module work is kept, because there are no
+    separately-landed module commits to keep. That is the real cost of the
+    direction and it is accepted here, not hidden: the choice is a whole-product
+    restyle taken or not taken, rather than a direction that can be withdrawn from
+    underneath work that has already shipped.
+  - **The commit boundaries survive as review structure.** The branch is nine
+    deliberate commits along roughly the original group lines, so the diff is
+    reviewable in passes even though it merges as one.
 
-     **Two deviations from the list above, stated rather than left to be
-     discovered.** The foundation restyles **two reference surfaces** — Today
-     (Collection) and a Note record (Reading + Collection on separate regions) —
-     and no others, so the direction is proved end to end on one commit's worth
-     of surface area rather than across the frame as well. The application frame
-     therefore *inherits* the recomposed ramp (it is painted from
-     `surface-page`/`surface-nav`/`surface-header`) but is not itself restyled;
-     it belongs to Group 1, which owns the floating elevations anyway. And the
-     derived Area accent ships as its token ramp plus the pure
-     `areaAccentForRank` primitive; wiring an Area's rank through the loaders
-     that would consume it is data plumbing for the surfaces that render Areas,
-     which is Group 3.
-  2. **The desktop soak gate.** A hold between the foundation PR and the first module
-     group. Card-on-tint is a phone-native pattern and its behaviour at 1440px and
-     above is unproven ([DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)).
-     The gate exists so that answer arrives after **one** revertible commit rather
-     than after seven.
-  3. **Six module-group PRs.** One roadmap item per PR is
-     [AGENTS.md §12](../../AGENTS.md#12-development-workflow)'s rule, so each group is
-     a PR against this one item, each strictly subtractive at the CSS level (it
-     deletes bespoke module CSS and adopts the shared primitives; it adds no visual
-     direction of its own). They are the six sub-items below, in order.
-- **The six module groups.** None is started; the item is done when all six are.
-- **☐ Group 1 — global interaction surfaces.** Drawer, Inspector, Search, Command
-  Palette, overflow menu, feedback/toasts, keyboard reference. First, because they
-  overlay every other surface and they own the *floating* elevations the contract
-  caps at two.
-- **☐ Group 2 — Today and Tasks.** Today, the Eisenhower Matrix, Time Sectors, the
-  Inbox, saved views. The densest collection surfaces in the product and the
-  hardest test of the Collection preset.
-- **☐ Group 3 — Areas, Goals and Projects.** The spine. Both presets on separate
-  regions, the area accent dot, and the main consumer of the one progress
-  component.
-- **☐ Group 4 — Notes and Diary.** The serif reading column's real home, and the
-  surfaces where a capped measure is most visible.
-- **☐ Group 5 — Meetings and People.** Reading summary plus collection attendees,
-  follow-ups and directory; the Stay-in-touch and Health pills against the new
-  pill vocabulary.
-- **☐ Group 6 — Assets, Reviews, Settings, Help and About.** The review stepper's
-  discretised progress, the asset history and obligation surfaces, and the
-  remaining system pages.
+- **☑ The foundation.** The token set in all seven themes (`surface-page` replacing
+  a retired `bg`, the neutral absence pill, the six Area accents with their tint
+  pairs, `divider-subtle`), the recomposed light neutral ramps — five of the seven
+  themes could not satisfy the elevation contract and three had `surface-card` and
+  `surface-raised` byte-identical at `#ffffff` — the semantic radius scale, both
+  density presets as `data-density` on a region wrapper, the self-hosted Inter +
+  Source Serif 4 subsets inside the fixed PWA budgets, three weights with `bold`
+  removed, the neutral pill and Area identity primitives, and the theme invariant
+  test wired into `pnpm verify`.
+- **☑ Group 1 — global interaction surfaces and the shell.** The rail and the pane
+  header stop painting their own surfaces and their own edges; both sit on the tint
+  and the selected nav row becomes the only thing on the rail with a surface. The
+  floating layers (drawer, sheet, command palette, overflow menu, feedback) keep
+  `surface-raised` and their shadows, which is what the contract reserves shadow
+  for. Sentence case across 30 stylesheets: 46 shouted labels and their companion
+  letter-spacing removed.
+- **☑ Group 2 — Today and Tasks.** Carried almost entirely by the shared Card: in a
+  Collection region the card becomes a ROW and the collection becomes the card, so
+  Tasks, Today and every other list adopt the density from one place. Today's
+  Morning Brief stops being a card inside a card. Two phone defects found by
+  measuring: a title wrapping one character per line at 390px, and the body
+  dropping below the selection checkbox.
+- **☑ Group 3 — Areas, Goals and Projects.** The Area identity dot, keyed to the
+  Area's rank over every `area` row in the workspace regardless of lifecycle state,
+  so archiving is colour-neutral (ADR-068 decision 5). No column and no migration;
+  a window function on the existing index rather than a new one. The first
+  implementation used the active list's index and was caught in review — see
+  ADR-069 decision 9. The
+  record layout — summary card, tab panel, sentence-case metadata — which covers
+  every record view in the product, not only the spine. Goal progress absence
+  renders as the neutral pill rather than as a sentence that happens to say "no".
+- **☑ Group 4 — Notes and Diary.** Carried by `MarkdownContent`, which IS the
+  Reading region: 16px at 1.75 over a 46ch measure in the serif, with headings,
+  code and tables staying sans because they are chrome.
+- **☑ Group 5 — Meetings and People.** Reading summaries through the same Markdown
+  boundary; attendees, follow-ups and the directory through the same collection row.
+- **☑ Group 6 — Assets, Reviews, Settings, Help and About.** Settings groups become
+  cards (the clearest "uncontained sections merging into the page" in the product),
+  Help topics become Reading regions, `/ai` is contained without a word of its
+  wording changing, and empty states are contained everywhere.
+- **☑ Foundation gaps found while applying it, fixed in the foundation rather than
+  worked around in a module** (ADR-068 F3): the shared control baseline (modules
+  that dropped a native `<select>` into a filter row shipped a user-agent control
+  beside a designed one), the contained empty state, the `identity` slot on the
+  shared Card, and the recovery surfaces' inlined card-on-tint.
+
 - **Why it is sequenced here, and this is deliberate.** DS-14 sits **after
   [SET-02](#-set-02--backup--restore-v21) and [REVIEW-02](#-review-02--weekly-review)**
   in Build order on purpose, not by accident of drafting. **Recoverability and the
@@ -364,8 +383,12 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Not partial credit for anything, and nothing is partial credit for it.**
   [THEME-02](#-theme-02--the-modern-visual-system) shipped a matched light/dark pair
   and is ☑; it restyled no module and DS-14 is not "more THEME-02". Equally, DS-14
-  must never be marked ☑ because the foundation landed — the item is done when all
-  six groups are, verified per the brief's §10 matrix.
+  was never to be marked ☑ because the foundation landed — the item is done when
+  every group is, verified per the brief's §10 matrix. **It is marked ☑ here on
+  that basis and no other:** every module and every application edge uses the
+  system, the invariant test passes in all seven themes, and the responsive,
+  accessibility, offline and budget gates are green. What is NOT claimed is that
+  the direction has been lived with — see the note on the removed soak gate above.
 - **Dependencies.** DS-01 (tokens), DS-11 (the accessibility and responsive
   baseline), THEME-01/THEME-02 (the seven-theme registry the invariant test
   enumerates) — all ☑ and satisfied. Sequenced behind SET-02 and REVIEW-02 for the

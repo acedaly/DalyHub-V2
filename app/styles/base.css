@@ -55,6 +55,90 @@ body {
   border-radius: var(--dh-radius-xs);
 }
 
+/* -------------------------------------------------------------------------- */
+/* DS-14 — the CONTROL BASELINE                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Every native form control in the product, whether or not a module remembered
+ * to reach for `.dh-input`.
+ *
+ * The shared field components were always styled; the controls modules dropped
+ * straight into a filter row were not, so Reviews, Notes and Diary each shipped
+ * a bare user-agent `<select>` sitting beside a designed one — different height,
+ * different radius, different border, different font. That is the "different
+ * form-control heights without reason" the direction rules out, and it cannot be
+ * fixed surface by surface without the next filter row reintroducing it.
+ *
+ * Stated at the ELEMENT so it is the floor rather than an opt-in. `:where()`
+ * keeps specificity at zero, so `.dh-input` and every module's own control
+ * styling still win without needing `!important` or a more specific selector.
+ * Only appearance is set — no layout, no width — so nothing reflows.
+ */
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ):not([type="color"]),
+  select,
+  textarea
+) {
+  min-block-size: var(--dh-control-height-md);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  font: inherit;
+  font-size: var(--dh-font-size-base);
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
+  border-radius: var(--dh-radius-field);
+}
+
+:where(select) {
+  /* A select keeps its native disclosure arrow (drawing our own would break the
+   * platform picker on touch); the inline-end inset just stops the value text
+   * colliding with it. */
+  padding-inline-end: var(--dh-space-2);
+  cursor: pointer;
+}
+
+:where(textarea) {
+  padding-block: var(--dh-space-2);
+  line-height: var(--dh-line-height-normal);
+  resize: vertical;
+}
+
+:where(input, select, textarea)::placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+:where(input, select, textarea):disabled {
+  color: var(--dh-color-disabled-text);
+  background: var(--dh-color-disabled-surface);
+  border-color: var(--dh-color-disabled-border);
+  cursor: not-allowed;
+}
+
+/* Selection and toggle controls take the accent so they are unmistakably the
+ * product's, and a 44px target on touch is provided by their labels/cells. */
+:where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--dh-color-accent);
+  inline-size: var(--dh-space-5);
+  block-size: var(--dh-space-5);
+  cursor: pointer;
+}
+
+/*
+ * A link is the product's accent, not the user agent's blue.
+ *
+ * `.page` and `.dh-pane-body` already set this for the document surfaces, which
+ * left every link OUTSIDE those two wrappers — the offline shell's "Try DalyHub
+ * online", the recovery links, anything a module rendered directly — rendering
+ * in default browser blue and visited purple, on a themed page, in seven
+ * themes. Zero specificity, so every existing link treatment still wins.
+ */
+:where(a) {
+  color: var(--dh-color-accent-text);
+}
+
 /* Honour the user's reduced-motion preference: motion never carries meaning that
  * is lost when it is disabled (AGENTS.md §15, DESIGN_SYSTEM.md → Motion). */
 @media (prefers-reduced-motion: reduce) {
@@ -157,22 +241,33 @@ body {
 /* PX-03 — the "Coming Soon" module-placeholder section.                      */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * DS-14 — the honest placeholder, CONTAINED.
+ *
+ * `/ai` says the AI layer is not built, and that wording is unchanged and stays
+ * unchanged: no teaser, no waitlist, no preview, no disabled controls implying
+ * a feature exists. What changes is that the statement stops floating on an
+ * empty canvas and sits in the same card every other surface uses, so "not
+ * built yet" reads as a deliberate answer rather than as a page that failed to
+ * finish loading. Restyling a placeholder is allowed to make it look designed;
+ * it is not allowed to make it look implemented.
+ */
 .dh-coming-soon {
   margin-top: var(--dh-space-6);
-  padding-top: var(--dh-space-6);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding: var(--dh-space-6);
   max-width: var(--dh-width-narrow);
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-card);
 }
 
 .dh-coming-soon__title {
   display: inline-flex;
   align-items: center;
   gap: var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-md);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
   margin: 0 0 var(--dh-space-3);
 }
 
@@ -197,16 +292,122 @@ pre {
 
 /* The shared Markdown sink (FND-08) inherits the token typography; DS-01 gives
  * it a readable measure and restrained rhythm without changing its behaviour. */
+/*
+ * DS-14 §4 — the READING COLUMN.
+ *
+ * `MarkdownContent` carries `data-density="reading"`, so the preset's values are
+ * resolved on this element itself; this is where they are spent. It is the one
+ * place in the product that takes the serif, and it takes it only for the BODY:
+ * headings, code and the chrome around the column stay sans, so the boundary
+ * between "something you read" and "something you operate" is visible.
+ *
+ * The measure supersedes `--dh-width-prose` (68ch) with `--dh-width-reading`
+ * (46ch): a shorter measure wants a taller line and a serif at 16px wants both,
+ * which is why the three values are one decision rather than three (ADR-068
+ * decision 3).
+ */
 .markdown-content {
-  max-width: var(--dh-width-prose);
-  line-height: var(--dh-line-height-relaxed);
+  max-inline-size: var(--dh-density-measure, var(--dh-width-prose));
+  font-family: var(--dh-density-body-family, inherit);
+  font-size: var(--dh-density-body-size, inherit);
+  line-height: var(--dh-density-line-height, var(--dh-line-height-relaxed));
+}
+
+/*
+ * A heading inside the column is CHROME — it labels the prose rather than being
+ * it — so it stays sans and steps down in weight, and it gets its space from the
+ * rhythm rather than from a browser default.
+ */
+.markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--dh-font-sans);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: var(--dh-line-height-snug);
+  margin-block: var(--dh-space-6) var(--dh-space-2);
+}
+
+.markdown-content :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-block-start: 0;
+}
+
+.markdown-content h1 {
+  font-size: var(--dh-font-size-xl);
+}
+.markdown-content h2 {
+  font-size: var(--dh-font-size-lg);
+}
+.markdown-content :is(h3, h4, h5, h6) {
+  font-size: var(--dh-font-size-md);
+}
+
+.markdown-content p {
+  margin-block: 0 var(--dh-space-4);
+}
+
+.markdown-content > :last-child {
+  margin-block-end: 0;
+}
+
+/* A quotation is set off by a SQUARE single-sided rule — a rounded corner needs
+ * a border all the way around it (brief §2), and one rounded edge on a
+ * three-sided shape is the malformed corner the rule exists to prevent. */
+.markdown-content blockquote {
+  margin-inline: 0;
+  margin-block: var(--dh-space-4);
+  padding-inline-start: var(--dh-space-4);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-divider-subtle);
+  color: var(--dh-color-text-secondary);
+}
+
+.markdown-content :is(ul, ol) {
+  margin-block: 0 var(--dh-space-4);
+  padding-inline-start: var(--dh-space-5);
+}
+
+.markdown-content li + li {
+  margin-block-start: var(--dh-space-1);
+}
+
+.markdown-content hr {
+  margin-block: var(--dh-space-6);
+  border: none;
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
 }
 
 .markdown-content a {
   color: var(--dh-color-accent-text);
 }
 
-.markdown-content code {
+/* Code is sans-adjacent chrome inside prose: monospace, and never the serif. */
+.markdown-content :is(code, pre) {
   font-family: var(--dh-font-mono);
   font-size: 0.9em;
+}
+
+/* A table inside prose is a COLLECTION — it is scanned, not read — so it drops
+ * the serif and the reading measure and takes the collection's hairlines and
+ * tabular figures. It scrolls inside its own box rather than widening the page. */
+.markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-inline-size: 100%;
+  margin-block: var(--dh-space-4);
+  border-collapse: collapse;
+  font-family: var(--dh-font-sans);
+  font-size: var(--dh-font-size-compact);
+  line-height: var(--dh-line-height-dense);
+  font-variant-numeric: tabular-nums;
+}
+
+.markdown-content :is(th, td) {
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border-block-end: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
+  text-align: start;
+}
+
+.markdown-content th {
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
 }

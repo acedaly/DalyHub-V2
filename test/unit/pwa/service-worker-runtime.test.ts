@@ -413,6 +413,47 @@ describe("the offline-boot loop breaker", () => {
     expect(body).toContain("Nothing has been lost");
   });
 
+  /*
+   * DS-14 §16 — the recovery surfaces must look like DalyHub while depending on
+   * NOTHING DalyHub provides.
+   *
+   * These are asserted rather than reviewed because every one of them is a
+   * dependency that would only fail on the day it matters: a font request on a
+   * page whose premise is that the network is gone, a script on a page whose
+   * entire job is to be unable to reload itself, a `var(--dh-*)` resolving to
+   * nothing because the token stylesheet was never fetched.
+   */
+  it("keeps safe mode script-free, self-contained and readable in both schemes", async () => {
+    await primeShell(worker);
+    goOffline(worker);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await worker.navigate(OFFLINE_DOCUMENT);
+    }
+    const safeMode = await worker.navigate(OFFLINE_DOCUMENT);
+    expect(safeMode?.headers.get("X-DalyHub-Offline")).toBe("safe-mode");
+    const body = await safeMode!.text();
+
+    // No script of any kind. A page with no JavaScript cannot reload itself,
+    // which is the whole mechanism by which the loop terminates.
+    expect(body).not.toContain("<script");
+    expect(body).not.toMatch(/\son[a-z]+\s*=/i);
+
+    // No font request, and no external subresource of any kind: no @font-face,
+    // no stylesheet link, no absolute URL to fetch anything from.
+    expect(body).not.toContain("@font-face");
+    expect(body).not.toMatch(/<link\b/i);
+    expect(body).not.toMatch(/https?:\/\//);
+    expect(body).toContain("system-ui");
+
+    // No dependency on the token layer: a `var(--dh-*)` here would resolve to
+    // nothing, because tokens.css is never loaded on this document.
+    expect(body).not.toContain("--dh-");
+
+    // Both colour schemes are answered in plain CSS rather than by a persisted
+    // theme, which safe mode has no way to read.
+    expect(body).toContain("prefers-color-scheme:dark");
+  });
+
   it("recovers on the owner's explicit request, never on a timer", async () => {
     await primeShell(worker);
     goOffline(worker);

@@ -60,7 +60,6 @@
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-semibold);
   color: var(--dh-color-text-muted);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
@@ -151,7 +150,6 @@
   padding: var(--dh-space-2) var(--dh-space-3);
   font-size: var(--dh-font-size-2xs);
   font-weight: var(--dh-font-weight-semibold);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--dh-color-text-muted);
 }
@@ -271,7 +269,6 @@
   padding-left: var(--dh-space-2);
   color: var(--dh-color-text-muted);
   font-size: var(--dh-font-size-2xs);
-  text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 

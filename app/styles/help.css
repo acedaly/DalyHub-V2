@@ -78,8 +78,9 @@
   padding: var(--dh-space-4);
   min-inline-size: 0;
   background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  border-radius: var(--dh-radius-md);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-card);
+  background: var(--dh-color-surface-card);
 }
 
 .dh-help__contents-group {
@@ -94,8 +95,6 @@
   color: var(--dh-color-text-muted);
   font-size: var(--dh-font-size-2xs);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wider);
-  text-transform: uppercase;
 }
 
 .dh-help__contents-list {
@@ -148,24 +147,36 @@
 
 .dh-help__section-heading {
   margin: 0;
-  padding-bottom: var(--dh-space-2);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
   color: var(--dh-color-text);
   font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: var(--dh-font-weight-medium);
 }
 
+/*
+ * DS-14 — a Help topic is a Reading surface, and the brief classifies it as one
+ * (§7). It takes the Reading preset's card padding and the reading measure, so
+ * a page of explanation reads as a column of prose rather than as a wide slab
+ * of body text — which is the difference between documentation someone reads
+ * and documentation someone gives up on.
+ */
 .dh-help__topic {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-2);
   min-inline-size: 0;
-  padding: var(--dh-space-4);
+  padding: var(--dh-density-card-padding-block, var(--dh-space-6))
+    var(--dh-density-card-padding-inline, 28px);
   background: var(--dh-color-surface-card);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-card);
   /* An in-page anchor must not land under a sticky header. */
   scroll-margin-top: var(--dh-space-6);
+}
+
+/* The prose inside a topic takes the reading measure. The heading above it
+   stays sans and full width, so the column starts where the answer starts. */
+.dh-help__topic :is(p, ul, ol) {
+  max-inline-size: var(--dh-width-reading);
 }
 
 .dh-help__topic[data-focused="true"] {
@@ -177,7 +188,7 @@
   margin: 0;
   color: var(--dh-color-text);
   font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: var(--dh-font-weight-medium);
   line-height: var(--dh-line-height-snug);
 }
 

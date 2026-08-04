@@ -5,27 +5,61 @@
  * to two actions. Never full-screen theatre (PRODUCT_EXPERIENCE Part V).
  */
 
+/*
+ * DS-14 — an empty state is CONTAINED, and that is the whole difference between
+ * "nothing here yet" and "something failed to load".
+ *
+ * Centred in an unbounded region, an empty state reads as a hole in the page:
+ * the eye has no edge to tell it where the content WOULD have been, so absence
+ * looks like breakage. Given the same card every populated collection gets, the
+ * surface says "this is the list, and it is empty" — which is the truthful
+ * reading, and the one the direction asks for ("empty states should feel
+ * designed and intentional, not unfinished").
+ *
+ * The card is drawn HERE rather than by each surface, so a module gets it by
+ * rendering the shared component and cannot get a different one.
+ */
 .dh-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: var(--dh-space-3);
+  padding: var(--dh-space-10) var(--dh-gutter);
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-card);
+}
+
+/* The measure applies to the TEXT, not to the card: a 42rem-wide card centred in
+ * a 1200px region is the same hole with a border around it. */
+.dh-empty-state > * {
   max-width: var(--dh-width-narrow);
-  margin-inline: auto;
-  padding: var(--dh-space-12) var(--dh-gutter);
 }
 
 .dh-empty-state__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 3rem;
-  block-size: 3rem;
-  font-size: 1.5rem;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  font-size: var(--dh-font-size-lg);
   color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-surface-sunken);
   border-radius: var(--dh-radius-full);
+}
+
+/*
+ * Inside a card that already exists — a Today widget, a record tab panel, a
+ * linked-items panel — the empty state does NOT draw a second one, for the same
+ * reason a nested collection does not.
+ */
+:where(.dh-region-card, .record-tabs__panel, .record-layout__content, .dh-card)
+  .dh-empty-state {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding-inline: 0;
 }
 
 /* PX-06 — the compact size: the same anatomy at a widget's scale, so a quiet

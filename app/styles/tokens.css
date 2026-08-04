@@ -230,15 +230,28 @@
   --dh-radius-control: 10px;
   --dh-radius-field: 10px;
 
-  /* The geometric scale DS-14 supersedes. Kept while the module groups migrate to
-   * the semantic names above (ADR-068 decision 7 — the foundation defines the
-   * vocabulary, the module groups adopt it), and expressed IN TERMS of the
-   * semantic scale wherever the two coincide so the two can never drift apart.
-   * Do not reach for these in new work. */
-  --dh-radius-xs: 3px;
-  --dh-radius-sm: 5px;
-  --dh-radius-md: 8px;
-  --dh-radius-lg: 12px;
+  /*
+   * The geometric scale DS-14 supersedes, now RETARGETED onto the semantic one.
+   *
+   * `md` and `lg` are the two the product actually reaches for — a control and
+   * a panel — and they resolve to `radius-control` and `radius-card`, so the
+   * ~90 existing call sites adopt the shape scale by definition rather than by
+   * ninety edits. That is the point of an alias: a sweeping shape change is one
+   * decision in one place, and "a different radius system between modules"
+   * becomes impossible rather than merely discouraged.
+   *
+   * `xs` and `sm` stay small and literal. They are component-INTERNAL radii — a
+   * keyboard-hint chip, a swatch, an inline code span — where the semantic scale
+   * would be wrong rather than merely different: 10px on a 16px-tall element is
+   * a lozenge, not a rounded rectangle. They are softened one step so the small
+   * details agree with the larger shapes.
+   *
+   * Do not reach for these in new work; use the semantic names above.
+   */
+  --dh-radius-xs: 4px;
+  --dh-radius-sm: 8px;
+  --dh-radius-md: var(--dh-radius-control);
+  --dh-radius-lg: var(--dh-radius-card);
   --dh-radius-xl: var(--dh-radius-card);
   --dh-radius-full: var(--dh-radius-pill);
 

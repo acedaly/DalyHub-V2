@@ -45,6 +45,11 @@ export interface RegionProps {
   /** Applied to the same element, for regions that are also landmarks. */
   readonly "aria-label"?: string;
   readonly "aria-labelledby"?: string;
+  /**
+   * For a region whose content is being replaced by a load. Carried here so a
+   * surface does not need a second wrapper element purely to hold the state.
+   */
+  readonly "aria-busy"?: boolean;
   readonly id?: string;
   readonly children: ReactNode;
 }

@@ -352,7 +352,7 @@ Each theme's **hue** is its own; only the lightness relationships are prescribed
 recomposition ran back through the full existing contrast harness (§1) in every theme, so the
 darker canvases did not buy elevation at the cost of a text or UI floor.
 
-### 9.3 One superseded assertion, recorded rather than quietly dropped
+### 9.3 Two superseded assertions, recorded rather than quietly dropped
 
 §8.2's "no light surface leaks into Modern Dark" held `progress-track` below a luminance
 ceiling along with every other surface. DS-14 §6.5 requires that track to clear 3:1 against
@@ -363,10 +363,29 @@ over THEME-02, per [AGENTS.md](../../AGENTS.md)). `progress-track` was removed f
 and is now asserted **harder**, in both directions, by 6.5. It is not unpoliced; it is policed
 by the rule that applies to it.
 
+The second is TODAY-06's **"swipe-wrapped task cards keep their elevation on desktop"**
+([`e2e/today.spec.ts`](../../e2e/today.spec.ts)). It asserted that the swipe WRAPPER carries a
+`box-shadow`, because the wrapper clips its surface with `overflow: hidden` and an element
+never clips its own shadow — so elevation had to live on the wrapper or every Today card would
+silently lose it.
+
+DS-14 constraint 8 reserves shadow for genuinely floating layers, and a task row is not one:
+the collection is the card and the row is a hairline-separated row inside it. Asserting "the
+wrapper has a shadow" is therefore asserting the pre-DS-14 design, and keeping it would hold
+the restyle hostage to a treatment the direction removed deliberately.
+
+**It was restated, not deleted, and the replacement is the stronger test.** What the original
+was really protecting is the class of silent visual defect the swipe wrapper makes possible —
+and that defect is still possible, and it *occurred* during DS-14: the tray is a real element
+parked behind the card surface, so a row that stops painting an opaque background reveals the
+tray at rest, on every row, at every width. The test now asserts the row's surface is opaque
+and untranslated at rest, which is the invariant that was actually load-bearing.
+
 ### 9.4 The two reference surfaces (automated, driven)
 
-DS-14's foundation restyles exactly two surfaces, as reference implementations, and nothing
-else. Both are driven in a browser by the existing gates — `e2e/accessibility.spec.ts`
+The two surfaces the foundation restyled first, kept here because they remain the worked
+examples for the two presets. **Every other module now uses the system too — see §9.7.** Both
+are driven in a browser by the existing gates — `e2e/accessibility.spec.ts`
 (axe-core), `e2e/responsive.spec.ts` (no horizontal overflow), `e2e/keyboard.spec.ts`,
 `e2e/touch-targets.spec.ts`, `e2e/today.spec.ts` and `e2e/notes.spec.ts` — at every width in
 brief §10: **320, 375, 390, 430, 768, 1280, 1440**.
@@ -386,7 +405,8 @@ product's own preferences action, and writes to
     CAPTURE_SCREENSHOTS=1 pnpm exec playwright test e2e/ds-14-screenshots.spec.ts
 
 Both reference surfaces, in **all seven themes**, under **both operating-system colour
-schemes** — 28 images. A curated theme does not follow the OS (ADR-061), and the cheapest way
+schemes** — 28 images. This is the pass that proves the TOKEN LAYER; §9.7 is the pass that
+proves the system was applied. A curated theme does not follow the OS (ADR-061), and the cheapest way
 for that to break is a surface consulting `prefers-color-scheme` instead of a token, so the
 pair per theme is the evidence it did not.
 
@@ -416,19 +436,78 @@ through the same local-D1 path the other journeys use.
 | **Coastal** | [`today-coastal-os-light.png`](assets/ds-14-2026-08/today-coastal-os-light.png) · [`today-coastal-os-dark.png`](assets/ds-14-2026-08/today-coastal-os-dark.png) | [`note-record-coastal-os-light.png`](assets/ds-14-2026-08/note-record-coastal-os-light.png) · [`note-record-coastal-os-dark.png`](assets/ds-14-2026-08/note-record-coastal-os-dark.png) |
 | **Ember** | [`today-ember-os-light.png`](assets/ds-14-2026-08/today-ember-os-light.png) · [`today-ember-os-dark.png`](assets/ds-14-2026-08/today-ember-os-dark.png) | [`note-record-ember-os-light.png`](assets/ds-14-2026-08/note-record-ember-os-light.png) · [`note-record-ember-os-dark.png`](assets/ds-14-2026-08/note-record-ember-os-dark.png) |
 
-### 9.6 What section 9 does not claim
+### 9.6 Module coverage — every module, every application edge, and a sparse record of each type
 
-- It does not claim the rest of the product has been restyled. It has not, deliberately —
-  DS-14's foundation restyles two surfaces and the module groups follow. Every other surface
-  renders the pre-DS-14 shared primitives under the **new** ramp, which is a visible change in
-  the light themes and is expected.
+The second pass in the same spec. Where §9.5 answers "does the token layer hold in every
+theme", this answers "was the system actually applied", which is the question a whole-product
+restyle fails on. It runs in **one light and one dark theme** at **four widths** —
+`desktop-1440`, `desktop-1280`, `mobile-390`, `mobile-320` — over every module and every
+application edge.
+
+Two themes rather than seven, deliberately: what varies between modules is composition, not
+palette, and the palette is already asserted for all seven both numerically (§9.1) and visually
+(§9.5). Seven themes here would be five times the images and none of the extra information.
+
+**Surfaces covered.** Today; Tasks (list, matrix, sectors, inbox); Areas; Goals; Projects;
+Notes; Diary; Meetings; People; Assets; Reviews; Settings; Search; the Command Palette; Forms;
+Feedback; Help; About; the `/ai` placeholder; and the offline shell.
+
+Search and the Command Palette are photographed through their `/design/*` fixtures, which
+render the exact shared components inside the real application shell — `/search` is the JSON
+provider endpoint, not a page, and driving a keystroke per theme per width to open an overlay
+would buy nothing the fixture does not already show.
+
+**Sparse records, which are the point rather than an afterthought.** One record of every entity
+type carrying the minimum its schema permits — no description, no dates, no links, no progress,
+no metadata beyond a title — seeded and removed by the pass: Area, Goal, Project, Note, Diary
+entry, Meeting, Person, Asset.
+
+A visual system built on progress bars, status pills and metadata rows has a defined appearance
+for every value it was designed around and an **undefined** one for every value that is absent,
+and a populated fixture never exercises the second case. That is [brief §8](DS_14_OVERHAUL_BRIEF.md)'s
+"the most common way a design built on progress bars and status badges regresses", and it is why
+these records are photographed rather than reasoned about.
+
+### 9.7 The wide-desktop review, done against the images rather than deferred
+
+The desktop soak gate was removed by the owner's direction. What the gate would have produced
+— a recorded verdict against real captures at desktop widths, in every theme — is produced here
+instead, from the §9.5 and §9.6 image sets at **1280 and 1440**. This is the substitutable half
+of the gate; §9.8 states plainly which half is not.
+
+**The three risks [DEBT-72](../product/PRODUCT_DEBT.md) named, assessed against the images:**
+
+| Risk | Verdict |
+|---|---|
+| The canvas becomes a large expanse of flat colour rather than a surround | **Did not occur.** The group-is-the-card decision means a wide viewport shows ONE card holding many rows, not many cards on a field. The tint is a margin around a single object; there is no expanse. |
+| A grid of cards reads as a scattered board instead of one contained workspace | **Did not occur, same cause.** Only grid/board presentations keep per-item cards, and those are deliberately tiles. |
+| ΔL\* ≥ 3 is comfortable on a phone but invisible or banded on a wide bright display | **Holds, and is deliberately quiet.** In Eucalypt and Ember — the two narrowest separations at 3.55 and 3.69 — the card reads as lighter than the page but the hairline is doing real work at that width; the pair is what makes the edge legible, not the value alone. No banding at any width. |
+
+**One weakness the review did find, and it is not fixed.** On Today at 1440 a widget card is
+~1135px wide while a task row's content (title, project, priority, date) ends around 40% of it,
+leaving a long empty run to the right of every row. It is not the "stretched application"
+failure — the content measure cap stops the row itself widening, and the eye travel problem
+[ADR-069 decision 7](../decisions/ARCHITECTURE_DECISIONS.md) fixed was the severe form — but it
+is the mild version of "cards must not become enormous empty containers". It is honest to say
+the Collection preset is tuned for scanning density rather than for filling a 1440px card, and
+that a future pass could earn that space back (a second column on Today, or trailing metadata
+right-aligned into it). It is recorded rather than quietly accepted.
+
+### 9.8 What section 9 does not claim
+
 - It does not claim a human has approved the taste of seven recomposed light ramps on a
   calibrated display. It claims the relationships between their surfaces are measured, in
   every theme, and that the images exist so that judgement can happen against evidence.
-- It does not claim card-on-tint has been proven above 1440px, which is
-  [DEBT-72](../product/PRODUCT_DEBT.md), not an assumption.
-- It does not extend brief §8's empty-record screenshot requirement, which belongs to the
-  module groups that render those records.
+- **It does not claim the direction has been LIVED WITH.** §9.7 reviews still images; the soak
+  gate was also meant to collect the judgement that only comes from using a restyle on a real
+  workspace for days — whether the density stays comfortable, whether the quiet separations
+  stay legible in daylight, whether anything becomes irritating on the twentieth visit. Nothing
+  in this PR substitutes for that, and no amount of screenshot review does.
+- It does not claim every module is photographed in all seven themes. §9.6 covers two by
+  design, for the reason stated there.
+- It does not claim the screenshots are diffed automatically. They are evidence for review, not
+  a regression gate; the regression gates are the invariant test (§9.1), axe (§4), the overflow
+  sweep (§5) and the keyboard suite.
 
 ---
 

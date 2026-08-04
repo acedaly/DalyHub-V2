@@ -30,8 +30,6 @@
 .dh-form-section__title {
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-semibold);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  text-transform: uppercase;
   color: var(--dh-color-text-secondary);
   padding: 0 var(--dh-space-2);
 }
@@ -209,7 +207,7 @@
   color: var(--dh-color-text);
   background: var(--dh-color-surface-raised);
   border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--dh-radius-field);
   transition: border-color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 

@@ -59,8 +59,6 @@
   font-weight: var(--dh-font-weight-semibold);
   color: var(--dh-color-text-muted);
   font-size: var(--dh-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wider);
 }
 
 .cf-demo__group label {
@@ -106,8 +104,6 @@
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-semibold);
   color: var(--dh-color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: var(--dh-letter-spacing-wide);
 }
 
 .cf-demo__drawer-prose {

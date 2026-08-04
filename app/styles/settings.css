@@ -24,8 +24,8 @@
 
 .dh-settings__title {
   margin: 0;
-  font-size: var(--dh-font-size-xl);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--dh-font-size-lg);
+  font-weight: var(--dh-font-weight-medium);
   line-height: var(--dh-line-height-snug);
   color: var(--dh-color-text);
 }
@@ -40,23 +40,40 @@
 .dh-settings__groups {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-8);
+  gap: var(--dh-space-4);
 }
 
 /* ---------------------------------------------------------------- group */
 
+/*
+ * DS-14 — a settings group is a CARD, not a run of rows under a rule.
+ *
+ * Settings was the clearest case in the product of "uncontained sections that
+ * visually merge into the page": six groups of rows separated only by a
+ * horizontal rule and 32px of air, so the page had no structure the eye could
+ * hold and every row floated at the same depth as the page title. Each group
+ * becomes one in-flow card — the same card the collections and records use —
+ * with its heading inside it, so a settings page reads as a stack of grouped
+ * things rather than a long document.
+ *
+ * The rows inside keep their own hairlines, which now separate rows WITHIN a
+ * card rather than doing the containing on their own.
+ */
 .dh-settings-group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-5);
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-card);
 }
 
 .dh-settings-group__header {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-1);
-  padding-bottom: var(--dh-space-3);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding-bottom: var(--dh-space-2);
 }
 
 .dh-settings-group__title {
@@ -87,9 +104,10 @@
   flex-direction: column;
 }
 
-/* Rows within a group are separated by hairlines, calm and consistent. */
+/* Rows within a group are separated by hairlines, calm and consistent. The
+   within-card separator token, now that the group is a card. */
 .dh-settings-group__rows > .dh-settings-row + .dh-settings-row {
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider-subtle);
 }
 
 /* The dangerous region: visually separated by a bordered, tinted card — the
@@ -99,7 +117,7 @@
   gap: 0;
   padding: var(--dh-space-4) var(--dh-space-5) var(--dh-space-2);
   border: var(--dh-border-width-thin) solid var(--dh-color-danger);
-  border-radius: var(--dh-radius-lg);
+  border-radius: var(--dh-radius-card);
   background: var(--dh-color-danger-surface);
 }
 
@@ -554,8 +572,8 @@
 
 .dh-settings-page {
   display: grid;
-  grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
-  gap: var(--dh-space-8);
+  grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr);
+  gap: var(--dh-space-6);
   width: 100%;
   max-width: var(--dh-width-wide);
   padding: var(--dh-space-6);
@@ -618,8 +636,8 @@
 
 .dh-settings-page__title {
   margin: 0;
-  font-size: var(--dh-font-size-2xl);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--dh-font-size-xl);
+  font-weight: var(--dh-font-weight-medium);
   line-height: var(--dh-line-height-tight);
   color: var(--dh-color-text);
 }

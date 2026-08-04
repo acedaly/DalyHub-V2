@@ -27,6 +27,7 @@ import { useId } from "react";
 import type { ReactNode } from "react";
 
 import type { EntityType } from "~/shared/entity";
+import { Region } from "~/shared/region";
 import { PaneHeader } from "~/shared/shell/PaneHeader";
 import { CollectionSkeleton } from "~/shared/skeleton";
 
@@ -161,9 +162,22 @@ export function CollectionLayout({
         ) : null}
       </div>
 
-      <div className="dh-collection__content" aria-busy={isLoading}>
+      {/*
+       * DS-14 §4 — a collection surface IS the Collection region.
+       *
+       * Declared once, here, rather than by each of the twelve modules that
+       * render through this scaffold: the classification is a property of the
+       * surface ("everything the owner scans"), and this component is the
+       * definition of that surface. A record that embeds a reading column
+       * nests its own Reading region inside, and the nearest wrapper wins.
+       */}
+      <Region
+        density="collection"
+        className="dh-collection__content"
+        aria-busy={isLoading}
+      >
         {content}
-      </div>
+      </Region>
 
       {selection ? (
         <div className="dh-collection__selection">{selection}</div>
