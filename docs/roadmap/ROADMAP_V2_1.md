@@ -14,6 +14,114 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 ---
 
+## Immediate blockers — 5 August 2026 end-to-end audit
+
+> Added by the independent
+> [End-to-End Audit — 5 August 2026](../product/END_TO_END_AUDIT_2026_08_05.md),
+> which re-checked `main` (`ca3577d`) against the code rather than the checkboxes.
+> These are **the first work to do**, ahead of everything below including SET-02.
+> Two are confirmed, reproduced, release-blocking data-integrity defects on core
+> daily-use paths; the audit reproduced both against the committed migration schema
+> and deliberately did **not** fix them. The audit's verdict is **"Not ready for
+> normal daily use pending these two blockers."**
+>
+> These are **product defects**, so they live here in the roadmap; their testing,
+> security and observability dimensions are recorded in
+> [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-79…DEBT-88).
+
+### ☐ AUDIT-FIX-01 — Recurring task cannot be completed again after reopen (P1)
+
+- **Finding.** [AUDIT-01](../product/END_TO_END_AUDIT_2026_08_05.md#audit-01--recurring-task-cannot-be-completed-again-after-reopen--p1).
+  Completing a recurring task, reopening it, then completing it again violates
+  `UNIQUE (workspace_id, series_id, sequence)` on `task_recurrence_rules`; the batch
+  rolls back and the occurrence can **never** be completed again in-product.
+- **Root cause.** The reopen withdraw (`d1-task-repository.ts` `#withdrawSuccessorStatement`,
+  ~`:3993`) soft-deletes only the successor's `entities` row, leaving its recurrence
+  row; `#planSuccessor` (~`:3468`) re-plans the same `sequence`; the insert's
+  `ON CONFLICT (workspace_id, entity_id)` does not cover the series/sequence UNIQUE.
+- **Fix.** Delete the withdrawn successor's `task_recurrence_rules` row inside the
+  withdraw batch, **or** guard the successor insert with `NOT EXISTS (series_id,
+  sequence)` — the correct pattern already exists at
+  `d1-asset-history-repository.ts:1568`.
+- **Required regression test.** complete → reopen → complete a recurring occurrence
+  asserts success and a single series row (the missing case in
+  `test/kernel/task-recurrence-storage.test.ts`).
+- **This reopens the recurrence half of [TASKS-04](ROADMAP_V2.md#-tasks-04--daily-driver-tasks-inbox-inline-editing-and-basic-recurrence).**
+  TASKS-04 is otherwise delivered; only recurring re-completion is broken.
+- **Size.** Small. **Priority.** P1 — first item of V2.1.
+
+### ☐ AUDIT-FIX-02 — Meeting item remove-then-add throws HTTP 500 (P1)
+
+- **Finding.** [AUDIT-02](../product/END_TO_END_AUDIT_2026_08_05.md#audit-02--meeting-item-remove-then-add-of-same-kind-throws-http-500--p1).
+  Removing a non-last meeting item and adding another of the same kind violates
+  `UNIQUE (workspace_id, meeting_id, kind, position)`; `addItem` throws a raw
+  `Error` (HTTP 500) and that item kind stays un-addable until the trailing item is
+  removed.
+- **Root cause.** `d1-meeting-repository.ts` `addItem` (~`:439`) sets `position =
+  count-of-kind` while `removeItem` (~`:457`) never renumbers.
+- **Fix.** Derive `position` as `MAX(position)+1` per kind (or renumber on remove);
+  wrap the raw error in a typed, user-legible failure.
+- **Required regression test.** add-remove-add of one kind (the missing case in
+  `test/kernel/meeting-follow-up.test.ts`).
+- **This reopens the item-editing half of [MEET-01](ROADMAP_V2.md#-meet-01--meeting-record).**
+- **Size.** Small. **Priority.** P1 — second item of V2.1.
+
+### ☐ AUDIT-FIX-03 — Permanent-delete integrity: asset + review purge (P2)
+
+- **Findings.** [AUDIT-03](../product/END_TO_END_AUDIT_2026_08_05.md#audit-03--asset-permanent-delete-writes-no-audit-event-and-destroys-history--p2)
+  (asset purge writes no tombstone event and destroys history untombstoned) and
+  [AUDIT-04](../product/END_TO_END_AUDIT_2026_08_05.md#audit-04--review-permanent-delete-nondeterministicempty-tombstone-non-idempotent--p2)
+  (review purge breaks the activity-recorder ordering contract → nondeterministic/
+  empty tombstone, non-idempotent second purge, silent active-link destruction).
+- **Fix.** Bring both onto the **Area purge pattern** (`d1-spine-repository.ts` —
+  guarded child-first delete, retained `activities`, subject-less `{id, title}`
+  tombstone, idempotent second purge). Regression tests: tombstone presence +
+  double-purge idempotency + active-link handling.
+- **Debt.** DEBT-79 (asset), DEBT-80 (review). **Size.** Medium. **Priority.** P2.
+
+### ☐ AUDIT-FIX-04 — CSRF defence-in-depth + react-router bump (P2/P3)
+
+- **Findings.** [AUDIT-05](../product/END_TO_END_AUDIT_2026_08_05.md#audit-05--no-application-level-csrf-defence--p2)
+  (no app-level CSRF check; mutations rely solely on the Cloudflare Access cookie's
+  SameSite) and [AUDIT-12](../product/END_TO_END_AUDIT_2026_08_05.md#audit-12--react-router-800-dependency-advisory--p3)
+  (`react-router@8.0.0`, GHSA-qwww-vcr4-c8h2, patched `8.3.0`).
+- **Fix.** Add an `Origin`/`Sec-Fetch-Site` allowlist at the mutation boundary; bump
+  `react-router` to ≥ 8.3.0 and run the full suite. Regression test: an
+  authenticated cross-origin mutation is rejected.
+- **Debt.** DEBT-81 (CSRF), DEBT-86 (dependency). **Size.** Medium. **Priority.** P2.
+
+### ☐ AUDIT-FIX-05 — Documentation truth pass (P2/P3)
+
+- **Findings.** [AUDIT-06](../product/END_TO_END_AUDIT_2026_08_05.md#audit-06--production-state-documentation-drift-production-unverifiable-here--p2)
+  (README/DEPLOYMENT disagree about what production runs; migrations 0026–0028 not
+  recorded as applied; AUDIT-IDENTITY-01 marked resolved in debt but "outstanding"
+  in the roadmap closure log) and
+  [AUDIT-09](../product/END_TO_END_AUDIT_2026_08_05.md#audit-09--help-contradicts-the-shipped-theme-count--p3)
+  (Help says "choose from the five themes" while seven ship).
+- **Fix.** One authoritative production-state statement; correct the Help sentence,
+  the README "Status" section, the DEPLOYMENT migration-count prose, and the
+  AUDIT-IDENTITY-01 roadmap wording. Pair with the §19 production verification
+  checklist in the audit report. **Debt.** DEBT-84. **Size.** Small (docs).
+  **Priority.** P3 (P2 for the production-state confusion).
+
+### The rest — near-term remediation and cleanup
+
+Sequenced but not blocking: multi-device concurrency (AUDIT-07 preferences,
+AUDIT-08 note content), the security/ops hardening (AUDIT-10 CSP, AUDIT-11 backup
+artifact), and the cleanups (AUDIT-13 non-atomic flows, AUDIT-14 one owner
+timezone, AUDIT-15 parentless-task restore, AUDIT-16 dead code). Each is recorded
+in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) (DEBT-82, DEBT-83, DEBT-85,
+DEBT-87, DEBT-88) with its finding id. The full sequence is
+[Recommended remediation sequence](../product/END_TO_END_AUDIT_2026_08_05.md#20-recommended-remediation-sequence).
+
+**Verification gaps (owner action, not a code item).** The audit could not reach
+production; its
+[Required Local and Production Verification](../product/END_TO_END_AUDIT_2026_08_05.md#19-required-local-and-production-verification)
+checklist must be worked through before any "production verified" claim, alongside
+the still-unrun PWA-01 device checklist below.
+
+---
+
 ## What V2.0.1 did, and did not, take from this file
 
 **Nothing in this roadmap moved into V2.0.1.** The
@@ -635,6 +743,13 @@ because a reader would otherwise wonder whether it was forgotten:
 
 ## Build order
 
+0. **[Immediate blockers](#immediate-blockers--5-august-2026-end-to-end-audit)** —
+   the 5 August 2026 audit's remediation, **ahead of SET-02**. AUDIT-FIX-01 and
+   AUDIT-FIX-02 are confirmed, reproduced, release-blocking P1 data-integrity
+   defects on core daily-use paths (recurring-task completion; meeting-item
+   editing); AUDIT-FIX-03/04/05 are the P2 permanent-delete, CSRF and
+   documentation follow-ups. Restore is worth more than a restyle, but a product
+   that bricks a recurring task on a checkbox toggle is worth fixing before either.
 1. **[SET-02](#-set-02--backup--restore-v21)** — restore. The one gap V2 knowingly
    leaves, and the reason a bad day is still unrecoverable.
 2. **[REVIEW-02](#-review-02--weekly-review)** + REVIEW-04's stepper — the flagship

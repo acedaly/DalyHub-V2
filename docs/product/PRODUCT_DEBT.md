@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-79**. (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-89** (DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
@@ -813,6 +813,99 @@ authority now.)
 - **How it would be done, so the path is not re-derived.** Do NOT add a snapshot table first — the Activity stream is already the historical record ([ADR-005](../decisions/ARCHITECTURE_DECISIONS.md#adr-005-shared-activity-model)), and a goal's contributing projects completing is a `project.completed` activity on a project linked to the goal. A bounded activity query over the goal's contributing project ids within the window gives the delta without any new write path or migration. The derivation belongs in [`~/shared/alignment`](../../app/shared/alignment) beside the existing evaluator, so Today and the Goal record cannot disagree.
 - **Closing condition.** A goal's direction is stated in the same words on Today and on its record, derived once, with no new table and no per-goal query on the Today route.
 - **Related roadmap item.** [POLISH-02](../roadmap/ROADMAP_V2_1.md#-polish-02--the-today-command-centre).
+
+---
+
+## Debt raised by the 5 August 2026 end-to-end audit
+
+> Added by the independent
+> [End-to-End Audit — 5 August 2026](END_TO_END_AUDIT_2026_08_05.md). Each entry
+> carries its finding id (`AUDIT-NN`). The two P1 findings (AUDIT-01/02) are
+> **product defects**, not debt, and live in
+> [`ROADMAP_V2_1.md` → Immediate blockers](../roadmap/ROADMAP_V2_1.md#immediate-blockers--5-august-2026-end-to-end-audit)
+> as AUDIT-FIX-01/02; the entries below are the debt those defects and the other
+> findings created (testing, integrity, security, observability, documentation).
+> The next free ID after this batch is **DEBT-89**.
+
+### ☐ DEBT-79 — Asset permanent delete writes no audit event and destroys history — P2
+
+- **Current issue.** [AUDIT-03] `d1-asset-repository.ts:842` `permanentlyDelete` runs a six-DELETE batch (`:930`) with **no `activities` insert**, hard-deleting `asset_events`/`asset_obligations` and removing `activity_subjects` pointers, so the workspace feed keeps no tombstone that the asset or its service/financial history ever existed. The Area purge (`d1-spine-repository.ts:1481`) does the opposite — a retained `area.deleted` event carrying `{areaId, title}`.
+- **Impact.** Irreversible history loss with no audit trail that a destruction happened — weakens the "Activity is the audit trail" guarantee (AGENTS.md §17).
+- **Desired future state.** The asset purge writes a guarded, subject-less `asset.deleted` tombstone with `{assetId, title}`, on the Area purge pattern.
+- **Closing condition.** A kernel test counts exactly one `asset.deleted` event after a purge and asserts the workspace feed retains it.
+- **Related finding.** [AUDIT-03](END_TO_END_AUDIT_2026_08_05.md#audit-03--asset-permanent-delete-writes-no-audit-event-and-destroys-history--p2). **Related roadmap item.** [AUDIT-FIX-03](../roadmap/ROADMAP_V2_1.md#-audit-fix-03--permanent-delete-integrity-asset--review-purge-p2).
+
+### ☐ DEBT-80 — Review permanent delete: broken event ordering, non-idempotent — P2
+
+- **Current issue.** [AUDIT-04] `d1-review-repository.ts:538` orders the append-activity statements before the deletes and lets the batch's own `deleteSubjects` remove the event's subject row; payload is `{}` (`:544`), so a surviving tombstone cannot name the review. This violates the recorder contract (`d1-activity-recorder.ts:44`, guard `WHERE changes() > 0`). A raced second purge fails on the subject-insert FK → `ReviewStorageError` instead of an idempotent `{deleted:false}`, and active links are silently destroyed.
+- **Impact.** Unreliable/absent audit trail on review deletion; a concurrent double-delete errors instead of no-op'ing.
+- **Desired future state.** Adopt the Area purge ordering + `{reviewId, title}` payload + idempotent second-purge + explicit active-link handling.
+- **Closing condition.** Kernel tests assert tombstone presence, double-purge idempotency, and active-link behaviour.
+- **Related finding.** [AUDIT-04](END_TO_END_AUDIT_2026_08_05.md#audit-04--review-permanent-delete-nondeterministicempty-tombstone-non-idempotent--p2). **Related roadmap item.** [AUDIT-FIX-03](../roadmap/ROADMAP_V2_1.md#-audit-fix-03--permanent-delete-integrity-asset--review-purge-p2).
+
+### ☐ DEBT-81 — No application-level CSRF defence — P2
+
+- **Current issue.** [AUDIT-05] No `Origin`/`Sec-Fetch-Site`/`Referer` check exists on any mutation (`app/platform/request/request-boundary.ts:61` authenticates but does not check origin); no CSRF token is minted; there is no app session cookie — auth rides the Cloudflare Access `CF_Authorization` cookie whose SameSite is set by Cloudflare and asserted nowhere. ADR-016 reasons only about token *forgery*, not session-riding CSRF.
+- **Impact.** A compromised/XSS'd sibling subdomain of `daly.id.au` is same-site and can drive authenticated mutations; a future `SameSite=None` Access config opens plain cross-site CSRF.
+- **Desired future state.** An `Origin`/`Sec-Fetch-Site` allowlist at the mutation boundary, complementing (not replacing) Access.
+- **Closing condition.** A test proves an authenticated cross-origin mutation is rejected.
+- **Related finding.** [AUDIT-05](END_TO_END_AUDIT_2026_08_05.md#audit-05--no-application-level-csrf-defence--p2). **Related roadmap item.** [AUDIT-FIX-04](../roadmap/ROADMAP_V2_1.md#-audit-fix-04--csrf-defence-in-depth--react-router-bump-p2p3).
+
+### ☐ DEBT-82 — Multi-device preference lost-update; `version` never enforced — P3
+
+- **Current issue.** [AUDIT-07] `d1-app-preferences-repository.ts:89` `update` reads, merges, and upserts **every** column from the merged snapshot; `version = version + 1` (`:131`) is bookkeeping only — nothing compares it. Two devices saving different fields from stale reads → one silently clobbers the other. `updateTask` already avoids this by upserting only changed columns.
+- **Impact.** With the PWA making two-device use normal, a preference change on one device can be silently reset by a stale save on another.
+- **Desired future state.** An optimistic `version`/`updated_at` precondition, or per-column upsert.
+- **Closing condition.** A kernel test asserts a stale second write does not clobber an intervening change.
+- **Related finding.** [AUDIT-07](END_TO_END_AUDIT_2026_08_05.md#audit-07--multi-device-preference-lost-update--p3). **Related roadmap item.** near-term remediation in [ROADMAP_V2_1](../roadmap/ROADMAP_V2_1.md#the-rest--near-term-remediation-and-cleanup).
+
+### ☐ DEBT-83 — Concurrent note-content saves are blind last-write-wins — P3
+
+- **Current issue.** [AUDIT-08] `d1-note-details-repository.ts:128` overwrites the whole content guarded only against *identical* content; there is no base-version/`updated_at` precondition, so two tabs/devices editing one note silently lose one side's content. Extends [DEBT-47](#-debt-47--an-open-autosave-editor-does-not-adopt-a-server-side-change-to-its-field--p2) from "does not adopt a change" to "destroys one". Offline note *editing* is not shipped (PWA-02 deferred), so today's trigger is concurrent online editing.
+- **Impact.** Silent loss of user-authored content across concurrent edits.
+- **Desired future state.** A base-version/`updated_at` precondition on note-content save with the DEBT-47 reconciliation contract.
+- **Closing condition.** A kernel test asserts a stale content save is rejected/reconciled, not silently applied.
+- **Related finding.** [AUDIT-08](END_TO_END_AUDIT_2026_08_05.md#audit-08--concurrent-note-content-saves-are-blind-last-write-wins--p3). **Related roadmap item.** [DEBT-47](#-debt-47--an-open-autosave-editor-does-not-adopt-a-server-side-change-to-its-field--p2) / near-term remediation.
+
+### ☐ DEBT-84 — Documentation drift: production state, theme count, identity status — P3
+
+- **Current issue.** [AUDIT-06 / AUDIT-09] `README.md` says "Current release … `2.0.1` … used daily" while `docs/development/DEPLOYMENT.md` in places reads "Next: the V2.0.1 hotfix" and fixes production at the `0001`–`0025` schema; migration-count prose drifts across `0025`/`0027`/`0028`; migrations `0026`–`0028` are not recorded as applied to production; AUDIT-IDENTITY-01 is "RESOLVED 2026-08-04" in this register but "carried forward as outstanding" in `ROADMAP_V2.md`'s closure log; and `help-content.ts:662` says "choose from the five [themes]" while seven ship (`:588`).
+- **Impact.** An operator cannot tell what production runs; a user reads a self-contradictory theme count.
+- **Desired future state.** One authoritative production-state statement (schema + version + commit, verified per the audit's §19 checklist); corrected Help/README/DEPLOYMENT/roadmap wording.
+- **Closing condition.** No two canonical docs disagree about production state or the theme count; production state is stated with evidence.
+- **Related finding.** [AUDIT-06](END_TO_END_AUDIT_2026_08_05.md#audit-06--production-state-documentation-drift-production-unverifiable-here--p2), [AUDIT-09](END_TO_END_AUDIT_2026_08_05.md#audit-09--help-contradicts-the-shipped-theme-count--p3). **Related roadmap item.** [AUDIT-FIX-05](../roadmap/ROADMAP_V2_1.md#-audit-fix-05--documentation-truth-pass-p2p3).
+
+### ☐ DEBT-85 — CSP has no `script-src`; full production D1 dump retained as a CI artifact — P3
+
+- **Current issue.** [AUDIT-10 / AUDIT-11] `app/platform/request/security-headers.ts` sets only `base-uri`/`frame-ancestors`/`object-src` — no `script-src`/`default-src`, so the Markdown sanitiser is the sole script-injection defence with no second layer. Separately, `.github/workflows/production-backup.yml` exports the entire production DB daily to a workflow artifact with 30-day retention; credentials are handled correctly, but the dump is all personal data and its exposure scales with who can read the repo's Actions.
+- **Impact.** No defence-in-depth if an XSS sink is ever introduced; a broad data-at-rest surface if Actions read access widens.
+- **Desired future state.** A hash/nonce `script-src` CSP; the backup artifact encrypted or its retention/environment-protection tightened.
+- **Closing condition.** CSP includes a `script-src`; the backup artifact is not readable as plaintext personal data by ordinary repo-read access.
+- **Related finding.** [AUDIT-10](END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3), [AUDIT-11](END_TO_END_AUDIT_2026_08_05.md#audit-11--production-d1-dump-stored-as-a-github-artifact--p2p3). **Related roadmap item.** security/ops hardening in [ROADMAP_V2_1](../roadmap/ROADMAP_V2_1.md#the-rest--near-term-remediation-and-cleanup).
+
+### ☐ DEBT-86 — `react-router@8.0.0` carries a published advisory — P3
+
+- **Current issue.** [AUDIT-12] `pnpm audit --prod` flags `react-router` `8.0.0` (GHSA-qwww-vcr4-c8h2, "RSC Mode CSRF Bypass", `>=7.12.0 <8.3.0`, patched `8.3.0`). DalyHub runs framework mode (not RSC), so the specific exploit likely does not apply, but it is on a **direct production dependency** and pairs with the CSRF gap (DEBT-81). Full `pnpm audit` adds dev-only `sharp` and `brace-expansion` advisories (transitive, non-production).
+- **Impact.** A published advisory on a direct prod dependency; a red `pnpm audit --prod`.
+- **Desired future state.** `react-router` ≥ 8.3.0 with the full suite green.
+- **Closing condition.** `pnpm audit --prod` is clean (or every remaining advisory is a documented, justified exception).
+- **Related finding.** [AUDIT-12](END_TO_END_AUDIT_2026_08_05.md#audit-12--react-router-800-dependency-advisory--p3). **Related roadmap item.** [AUDIT-FIX-04](../roadmap/ROADMAP_V2_1.md#-audit-fix-04--csrf-defence-in-depth--react-router-bump-p2p3).
+
+### ☐ DEBT-87 — Non-atomic cross-repository flows can leave inconsistent state — P3
+
+- **Current issue.** [AUDIT-13] Meeting item→task conversion (`app/modules/meetings/follow-up-operations.ts:32`) and obligation→task completion (`d1-asset-history-repository.ts:1468`, task completed in a separate transaction *before* the obligation batch) span two writes; a mid-way failure leaves an orphan Task, or a completed Task against a still-open obligation. Documented in the code, untested.
+- **Impact.** Rare but real inconsistency on interrupted multi-step writes; a retry can double-create.
+- **Desired future state.** A single batch where feasible, otherwise a documented idempotent compensation with a test that injects the mid-way failure.
+- **Closing condition.** A kernel test proves the interrupted flow leaves a defined, non-duplicated state.
+- **Related finding.** [AUDIT-13](END_TO_END_AUDIT_2026_08_05.md#audit-13--non-atomic-cross-repository-flows--p3). **Related roadmap item.** near-term remediation in [ROADMAP_V2_1](../roadmap/ROADMAP_V2_1.md#the-rest--near-term-remediation-and-cleanup).
+
+### ☐ DEBT-88 — Two "owner today" definitions; latent parentless-task restore; dead/duplicate code — P3
+
+- **Current issue.** [AUDIT-14/15/16] (1) Task paths resolve the stored timezone (`tasks/routes/task-detail.tsx:375`) while asset history/obligations and the obligation→task gateway hard-code `Australia/Sydney` (`app/shared/datetime/index.ts:18`), so a non-Sydney owner gets day-shifted recurrence anchors/due-state between modules (adjacent to [DEBT-52](#-debt-52--three-copies-of-calendar-day-arithmetic-in-the-kernel-and-a-fourth-capture-surface--p3)). (2) `spine.restore` (`d1-spine-repository.ts:1279`) requires an active structural parent, so a soft-deleted parentless Inbox task would throw `SpineParentUnavailableError` on restore — latent, as no task delete/restore UI exposes it. (3) Dead/duplicate code: `ModulePlaceholder.tsx` (superseded by `ModuleComingSoon.tsx`), `app/modules/notes/use-online-status.ts` (dup of the shared one), and two different `NewTaskForm.tsx` sharing a name (Projects vs Tasks).
+- **Impact.** Cross-module day-shift for non-Sydney owners; a future restore bug already latent in the spine; maintainability drag from duplicates.
+- **Desired future state.** One owner-timezone source; parentless-task restore to Inbox; the superseded/duplicate modules removed.
+- **Closing condition.** A single timezone authority with a test; a restore test for a parentless task; the dead files deleted.
+- **Related finding.** [AUDIT-14](END_TO_END_AUDIT_2026_08_05.md#audit-14--two-owner-today-definitions--p3), [AUDIT-15](END_TO_END_AUDIT_2026_08_05.md#audit-15--soft-deleted-inbox-task-cannot-be-restored-latent--p3), [AUDIT-16](END_TO_END_AUDIT_2026_08_05.md#audit-16--deadduplicate-code--p3). **Related roadmap item.** cleanup in [ROADMAP_V2_1](../roadmap/ROADMAP_V2_1.md#the-rest--near-term-remediation-and-cleanup); [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p2) family for the duplicates.
 
 ---
 
