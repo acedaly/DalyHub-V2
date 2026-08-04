@@ -22,6 +22,10 @@ import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
+import type {
+  ActorDirectory,
+  WorkspaceMemberRepository,
+} from "~/kernel/identity";
 import type { GoalDetailsRepository, GoalRepository } from "~/kernel/goals";
 import type {
   NoteDetailsRepository,
@@ -112,6 +116,10 @@ import {
   type D1TaskRepositoryOptions,
 } from "./d1-task-repository";
 import {
+  D1WorkspaceMemberRepository,
+  type D1WorkspaceMemberRepositoryOptions,
+} from "./d1-workspace-member-repository";
+import {
   D1WorkspaceRepository,
   type D1WorkspaceRepositoryOptions,
 } from "./d1-workspace-repository";
@@ -168,6 +176,11 @@ export { D1RelationshipRepository };
 export { D1ReviewRepository, type D1ReviewRepositoryOptions };
 export { type D1ReviewCreateFault } from "./d1-review-repository";
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
+export {
+  D1WorkspaceMemberRepository,
+  type D1WorkspaceMemberRepositoryOptions,
+  MAX_DIRECTORY_ACTORS,
+} from "./d1-workspace-member-repository";
 export { D1ActivityRecorder } from "./d1-activity-recorder";
 export {
   recordAtomicMutation,
@@ -463,6 +476,34 @@ export function createAppPreferencesRepository(
   options?: D1AppPreferencesRepositoryOptions,
 ): AppPreferencesRepository {
   return new D1AppPreferencesRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed workspace-membership repository —
+ * the IDENT-01 identity link between an authenticated subject and this workspace
+ * (and, optionally, a Person record). The SAME instance also implements the
+ * read-only `ActorDirectory`, because both read one joined table; construct it
+ * once per scope with {@link createActorDirectory} when only reads are needed.
+ * It never records Activity.
+ */
+export function createWorkspaceMemberRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1WorkspaceMemberRepositoryOptions,
+): WorkspaceMemberRepository & ActorDirectory {
+  return new D1WorkspaceMemberRepository(db, context, options);
+}
+
+/**
+ * Factory for the READ-ONLY actor directory: resolves a batch of Activity actor
+ * references to display identities in one bounded, workspace-scoped query.
+ */
+export function createActorDirectory(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1WorkspaceMemberRepositoryOptions,
+): ActorDirectory {
+  return new D1WorkspaceMemberRepository(db, context, options);
 }
 
 /**

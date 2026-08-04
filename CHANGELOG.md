@@ -21,6 +21,22 @@ no version number to group them under.
 
 ### Added
 
+- **Activity now says who did it.** Every activity, timeline, diary and history
+  entry shows the real person who performed the action instead of the anonymous
+  "Someone" — with their initials beside the name. The name comes from your own
+  DalyHub profile: link the People record for yourself and every past event
+  follows it, including if you rename it later. Genuinely automated activity says
+  **System**, and the rare old record whose author truly cannot be recovered says
+  **Unknown user** rather than guessing. It never assumes an old event was yours
+  just because you are the only person here.
+
+- **No more "Unrecognised event".** Events that were fully understood by the app —
+  a meeting item converted into a task, a person or asset changing, an area
+  archived — used to appear in the workspace feed flagged as unrecognised. Every
+  kind of event now has a proper sentence, and the ones that connect two records
+  name both: _"Aidan Daly converted a meeting item from Team Catch up into Chase
+  the OpO"_. Technical event codes no longer appear on screen.
+
 - **DalyHub has its own mark.** The app icon and the mark in the sidebar are now
   the approved DalyHub identity: a rounded blue-to-green tile carrying a white
   **D** with a small connected network of dots inside it. It replaces the plain

@@ -26,7 +26,7 @@ import {
   MEETING_UPDATED,
 } from "~/kernel/meetings";
 import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
   type ActivityDescriptorContext,
   type ActivityDescriptorMap,
   type ActivityItem,
@@ -99,7 +99,7 @@ function conversionEvent(
 
 /** The Meetings-owned descriptors, merged over the kernel defaults. */
 export const MEETING_ACTIVITY_DESCRIPTORS: ActivityDescriptorMap =
-  createActivityDescriptorMap({
+  buildWorkspaceActivityDescriptors([], {
     [MEETING_CREATED]: meetingEvent(
       "Meeting created",
       "created this meeting",

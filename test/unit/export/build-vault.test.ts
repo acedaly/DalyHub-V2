@@ -515,3 +515,44 @@ describe("describeRecurrence", () => {
     );
   });
 });
+
+describe("IDENT-01 — activity lines name a person, never an Access subject", () => {
+  const activityFiles = (
+    files: readonly { path: string; contents: string }[],
+  ) => files.filter((file) => file.path.startsWith("Activity/"));
+
+  it("never writes the raw actor id, with or without a resolver", () => {
+    const built = buildObsidianVault(makeSnapshot());
+    for (const file of built.files) {
+      expect(file.contents, file.path).not.toContain("owner-subject");
+    }
+    // Unresolvable actors are named honestly; system activity says System.
+    const activity = activityFiles(built.files)
+      .map((f) => f.contents)
+      .join("\n");
+    expect(activity).toContain("Unknown user");
+    expect(activity).toContain("System");
+    expect(activity).not.toContain("Someone");
+  });
+
+  it("uses the resolved display name when the route supplies the directory", () => {
+    const built = buildObsidianVault(makeSnapshot(), {
+      resolveActorName: (actorType, actorId) =>
+        actorType === "user" && actorId === "owner-subject"
+          ? "Aidan Daly"
+          : "System",
+    });
+    const activity = activityFiles(built.files)
+      .map((f) => f.contents)
+      .join("\n");
+    expect(activity).toContain("(Aidan Daly)");
+    expect(activity).not.toContain("owner-subject");
+
+    // A record's inline "Recent activity" excerpt uses the same names.
+    const record = built.files.find((file) =>
+      file.contents.includes("## Recent activity"),
+    );
+    expect(record).toBeDefined();
+    expect(record!.contents).not.toContain("owner-subject");
+  });
+});

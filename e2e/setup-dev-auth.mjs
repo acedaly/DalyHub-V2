@@ -19,6 +19,9 @@ const contents = [
   "AUTH_MODE=development",
   "DEV_AUTH_SUBJECT=local-development-user",
   "DEV_AUTH_EMAIL=owner@example.invalid",
+  // IDENT-01: the display name the local identity provider "supplies", so the
+  // browser journey exercises the SAME actor-name resolution production uses.
+  "DEV_AUTH_NAME=Local Developer",
   "DEFAULT_WORKSPACE_ID=local-dev-workspace",
   "",
 ].join("\n");

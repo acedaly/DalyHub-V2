@@ -32,7 +32,7 @@ const OTHER_WS = "other-workspace";
 
 function authedContext(subject = "owner-subject"): RouterContextProvider {
   const session: AuthenticatedSession = {
-    user: { subject, email: "owner@example.com" },
+    user: { subject, email: "owner@example.com", displayName: null },
     issuedAt: new Date(0),
     expiresAt: new Date(Date.parse("2999-01-01")),
   };

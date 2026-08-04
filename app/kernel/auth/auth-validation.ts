@@ -82,16 +82,44 @@ export function normaliseSubjectClaim(value: unknown): string {
 }
 
 /**
- * Build a validated `AuthenticatedUser` from raw identity claims. Both claims are
- * validated and normalised; any failure raises a typed `IdentityClaimError`.
+ * Maximum accepted provider display-name length. Aligned with the identity
+ * kernel's stored bound, so a name that authenticates is always storable.
+ */
+export const DISPLAY_NAME_MAX_LENGTH = 120;
+
+/**
+ * Normalise an OPTIONAL provider display-name claim. Unlike `sub` and `email`,
+ * this claim is not required and is not an identifier: a missing, blank,
+ * non-string or over-long value simply yields `null` and resolution moves down
+ * the canonical order. It never fails authentication — a cosmetic claim must not
+ * be able to lock the owner out.
+ */
+export function normaliseDisplayNameClaim(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const collapsed = value.trim().replace(/\s+/g, " ");
+  if (collapsed.length === 0 || collapsed.length > DISPLAY_NAME_MAX_LENGTH) {
+    return null;
+  }
+  return collapsed;
+}
+
+/**
+ * Build a validated `AuthenticatedUser` from raw identity claims. `subject` and
+ * `email` are required, validated and normalised; any failure raises a typed
+ * `IdentityClaimError`. `displayName` is optional and best-effort (see
+ * `normaliseDisplayNameClaim`).
  */
 export function createAuthenticatedUser(claims: {
   readonly subject: unknown;
   readonly email: unknown;
+  readonly displayName?: unknown;
 }): AuthenticatedUser {
   return {
     subject: normaliseSubjectClaim(claims.subject),
     email: normaliseEmailClaim(claims.email),
+    displayName: normaliseDisplayNameClaim(claims.displayName),
   };
 }
 

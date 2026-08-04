@@ -127,10 +127,29 @@ describe("Cloudflare Access JWT verification", () => {
     expect(session.user).toEqual({
       subject: "owner-subject-123",
       email: OWNER,
+      // No `name` claim on this token: the identity stays minimal and naming
+      // falls to the workspace-membership record (IDENT-01), never to a guess.
+      displayName: null,
     });
     expect(session.expiresAt.getTime()).toBeGreaterThan(
       session.issuedAt.getTime(),
     );
+  });
+
+  it("carries the identity provider's name claim when the token has one", async () => {
+    const token = await signToken({ extra: { name: "Aidan Daly" } });
+    const session = await authenticator().authenticate(requestWith(token));
+    expect(session.user.displayName).toBe("Aidan Daly");
+    // It is display-only: the stable subject remains the actor identifier.
+    expect(session.user.subject).toBe("owner-subject-123");
+  });
+
+  it("ignores an unusable name claim rather than failing authentication", async () => {
+    for (const name of [42, "", "   ", { first: "A" }]) {
+      const token = await signToken({ extra: { name } });
+      const session = await authenticator().authenticate(requestWith(token));
+      expect(session.user.displayName).toBeNull();
+    }
   });
 
   it("accepts an audience array containing the configured AUD", async () => {

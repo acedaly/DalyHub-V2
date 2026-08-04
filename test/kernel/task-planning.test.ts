@@ -474,7 +474,7 @@ describe("planTasks / clearPlans (bulk, atomic)", () => {
 
 function authedContext(): RouterContextProvider {
   const session: AuthenticatedSession = {
-    user: { subject: "owner", email: "owner@example.com" },
+    user: { subject: "owner", email: "owner@example.com", displayName: null },
     issuedAt: new Date(0),
     expiresAt: new Date(Date.parse("2999-01-01")),
   };

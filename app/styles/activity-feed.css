@@ -119,6 +119,40 @@
   color: var(--dh-color-text);
 }
 
+/* IDENT-01 — the one shared actor presentation: an initials chip plus the
+   resolved display name. The chip is decorative (aria-hidden) and appears only
+   for a real person, so `System` and `Unknown user` never read as someone. */
+.dh-activity-actor {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--dh-space-1);
+}
+
+.dh-activity-actor__avatar {
+  /* `inline-flex` on a baseline-aligned parent needs its own centring box. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-accent-surface);
+  color: var(--dh-color-accent-text);
+  font-size: var(--dh-font-size-2xs);
+  font-weight: var(--dh-font-weight-medium);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* An identity we could not recover is stated plainly, not dressed up. Meaning is
+   never carried by colour alone — the label itself says "Unknown user". */
+.dh-activity-actor[data-actor-kind="unknown"] .dh-activity-item__actor {
+  color: var(--dh-color-text-muted);
+  font-style: italic;
+}
+
 .dh-activity-item__emphasis {
   font-weight: var(--dh-font-weight-medium);
   color: var(--dh-color-text);

@@ -20,7 +20,7 @@ import {
   ASSET_UPDATED,
 } from "~/kernel/assets";
 import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
   type ActivityDescriptionSegment,
   type ActivityDescriptorContext,
   type ActivityDescriptorMap,
@@ -70,7 +70,7 @@ function assetEvent(
 
 /** The Asset-owned descriptors, merged over the kernel defaults. */
 export const ASSETS_ACTIVITY_DESCRIPTORS: ActivityDescriptorMap =
-  createActivityDescriptorMap({
+  buildWorkspaceActivityDescriptors([], {
     [ASSET_CREATED]: assetEvent("Asset added", "added", "success"),
     [ASSET_UPDATED]: assetEvent(
       "Details updated",

@@ -50,6 +50,7 @@ committed with real values.
 | `OWNER_EMAIL` | The single owner's email; enforced independently of the Access policy. |
 | `DEFAULT_WORKSPACE_ID` | The configured workspace scope (FND-03). |
 | `DEV_AUTH_SUBJECT`, `DEV_AUTH_EMAIL` | Fixed development identity (development mode only). |
+| `DEV_AUTH_NAME` | Optional display name for the fixed development identity, so local runs exercise the same actor-name resolution production uses (development mode only). |
 
 The only committed auth value is `AUTH_MODE="cloudflare-access"` (a non-secret
 default pinning the secure mode), and it **fails closed**: with no team domain /
@@ -106,7 +107,11 @@ mismatch, `503` misconfiguration/infrastructure) with no token or claim detail.
 ## Session & identity types
 
 ```ts
-type AuthenticatedUser = { readonly subject: string; readonly email: string };
+type AuthenticatedUser = {
+  readonly subject: string;      // stable Access `sub` — the Activity actor id
+  readonly email: string;        // verified, canonicalised
+  readonly displayName: string | null; // the provider `name` claim, when present
+};
 type AuthenticatedSession = {
   readonly user: AuthenticatedUser;
   readonly issuedAt: Date;
@@ -122,11 +127,23 @@ live in `app/platform/auth`.
 
 ## Why there is no users / sessions table
 
-Identity is derived from the Access token per request and held only in memory.
-SET-01 adds owner/workspace application preferences (`owner_app_preferences`) keyed
-by authenticated subject — which THEME-01 extended to carry the theme — but it still
-persists **no** JWT or session. A persisted user/profile model is
-introduced only when the product needs editable profile state or multiple users.
+Identity is derived from the Access token per request and held only in memory: no
+JWT and no session is ever persisted, and that is unchanged.
+
+What IS persisted, since IDENT-01, is **workspace membership** — the durable link
+between the authenticated `subject` and a workspace, plus the facts needed to NAME
+that person (`workspace_members`, migration 0028). It exists because the Activity
+stream stores the subject as its actor id and nothing could turn that into a
+display name, so every event the owner performed rendered anonymously. It is an
+identity DIRECTORY, not a session store and not an auth record: it holds no
+credential, and deleting it costs a name, never access. The request boundary
+provisions it with one idempotent upsert per authenticated request, best-effort.
+
+`owner_app_preferences` (SET-01, extended by THEME-01) remains a separate
+preferences row keyed by the same subject; the two are deliberately not conflated.
+
+See [`IDENTITY_AND_ACTORS.md`](IDENTITY_AND_ACTORS.md) for the resolution rule, the
+rename semantics and the production repair.
 
 ## Authenticated workspace resolution & Activity actor
 
@@ -138,6 +155,11 @@ EntityLinks, spine, read-only Activity) to the same `WorkspaceContext` and the
 same Activity actor `{ type: "user", id: session.user.subject }`. Module method
 calls cannot supply or override the actor. The `system` actor remains available
 for genuinely system-initiated background work.
+
+The scope also carries the IDENT-01 identity seams: `members` (the membership
+writer) and `actors` (the read-only directory every activity surface resolves
+names through). Turning an actor id into a display name is a single bounded query
+per page — see [`IDENTITY_AND_ACTORS.md`](IDENTITY_AND_ACTORS.md).
 
 ## Development auth mode and its safeguards
 

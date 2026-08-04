@@ -26,11 +26,11 @@ import {
   TASK_WAITING_CLEARED,
   TASK_WAITING_STARTED,
 } from "~/kernel/tasks";
+import { createActivityActorResolver } from "~/platform/activity";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
-  createActivityDescriptorMap,
-  DEFAULT_ACTIVITY_DESCRIPTORS,
+  buildWorkspaceActivityDescriptors,
   toActivityItems,
   type ActivityTypeDescriptor,
   type ResolvedEntity,
@@ -86,10 +86,10 @@ const TASK_DESCRIPTORS: Record<string, ActivityTypeDescriptor> = {
   },
 };
 
-const DESCRIPTORS = createActivityDescriptorMap(
-  DEFAULT_ACTIVITY_DESCRIPTORS,
-  TASK_DESCRIPTORS,
-);
+// Kernel lifecycle defaults → the shared cross-module set (so a Meeting-owned or
+// Asset-owned event recorded against this Task still reads as a sentence) → the
+// Task's own, warmer record-scoped wording.
+const DESCRIPTORS = buildWorkspaceActivityDescriptors([], TASK_DESCRIPTORS);
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -142,7 +142,16 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     }
   }
 
+  // Name every actor on the page through the ONE shared identity rule, in a
+  // single bounded directory lookup (no N+1). Historic events keep the
+  // identity of whoever performed them — never the current viewer's.
+  const resolveActor = await createActivityActorResolver(
+    scope.actors,
+    page.items,
+  );
+
   const items = toActivityItems(page.items, {
+    resolveActor,
     descriptors: DESCRIPTORS,
     resolveEntity: (id) => resolved.get(id) ?? null,
     anchorEntityId: taskId,

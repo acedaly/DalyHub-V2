@@ -59,7 +59,32 @@ describe("auth identity validation", () => {
       subject: "sub-123",
       email: "OWNER@Example.com",
     });
-    expect(user).toEqual({ subject: "sub-123", email: "owner@example.com" });
+    expect(user).toEqual({
+      subject: "sub-123",
+      email: "owner@example.com",
+      displayName: null,
+    });
+  });
+
+  it("carries an optional provider display name, and never fails on a bad one", () => {
+    expect(
+      createAuthenticatedUser({
+        subject: "sub-123",
+        email: "owner@example.com",
+        displayName: "  Aidan   Daly ",
+      }).displayName,
+    ).toBe("Aidan Daly");
+    // A cosmetic claim must never be able to lock the owner out: anything
+    // unusable simply resolves to null and identity moves down the order.
+    for (const bad of [undefined, null, "", "   ", 42, {}, "x".repeat(200)]) {
+      expect(
+        createAuthenticatedUser({
+          subject: "sub-123",
+          email: "owner@example.com",
+          displayName: bad,
+        }).displayName,
+      ).toBeNull();
+    }
   });
 
   it("fails to build a user from an invalid claim", () => {

@@ -18,7 +18,7 @@
 
 import { PROJECT_COMPLETED, PROJECT_REOPENED } from "~/kernel/spine";
 import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
   type ActivityItem,
   type ActivityTypeDescriptor,
 } from "~/shared/activity-feed/model";
@@ -56,9 +56,8 @@ export const PROJECT_ACTIVITY_DESCRIPTORS: Record<
  * lifecycle defaults with the two project events merged on top. Reused by both the
  * loader (server-side mapping) and the descriptor unit test.
  */
-export const PROJECT_ACTIVITY_DESCRIPTOR_MAP = createActivityDescriptorMap(
-  PROJECT_ACTIVITY_DESCRIPTORS,
-);
+export const PROJECT_ACTIVITY_DESCRIPTOR_MAP =
+  buildWorkspaceActivityDescriptors([], PROJECT_ACTIVITY_DESCRIPTORS);
 
 /** The JSON-safe shape of an `ActivityItem` (its only `Date` → ISO string). */
 export type SerializedProjectActivityItem = Omit<ActivityItem, "occurredAt"> & {

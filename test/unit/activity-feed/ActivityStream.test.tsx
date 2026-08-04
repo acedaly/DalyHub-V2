@@ -213,7 +213,10 @@ describe("accessible structure", () => {
       ]),
     });
     const article = await screen.findByRole("article");
-    expect(within(article).getByText("Someone")).toBeInTheDocument();
+    // With no directory facts, an identified actor is honestly UNKNOWN — never
+    // the anonymous "Someone" placeholder this product no longer uses anywhere.
+    expect(within(article).getByText("Unknown user")).toBeInTheDocument();
+    expect(within(article).queryByText("Someone")).toBeNull();
     expect(within(article).getByText("Entity p9")).toBeInTheDocument();
   });
 });

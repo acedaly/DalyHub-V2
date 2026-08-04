@@ -438,11 +438,37 @@ each migration individually; this one proves the deployment.
    [`ROADMAP_V2_1.md → SET-02`](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21).
 2. **Preflight**: `pnpm run deploy:production:preflight` — credential-free
    validation, no upload.
-3. **Migrate**: `pnpm run db:production:apply` (applies `0006`–`0025` in order).
+3. **Migrate**: `pnpm run db:production:apply` (applies every pending migration in
+   order — `0028_create_workspace_members.sql` is the latest; it is additive and
+   forward-only, creating one new table and one index and touching no existing
+   row).
 4. **Verify**: `pnpm run db:production:list` reports **no pending migrations**.
 5. **Deploy**: `pnpm run deploy:production` — only after step 4 passes.
 6. **Smoke test**: `/health` returns `ok` with version `2.0.0`; the authenticated
    shell loads through Access; `/about` shows the same version.
+7. **Identity check (IDENT-01, after any deploy that includes migration 0028)**:
+   sign in once so the request boundary provisions membership, then run the
+   read-only report and repair as documented in
+   [`IDENTITY_AND_ACTORS.md`](IDENTITY_AND_ACTORS.md):
+
+   ```bash
+   # Dry run — writes nothing, reports counts by method and anything unresolved.
+   CLOUDFLARE_D1_DATABASE_ID=<uuid> node scripts/repair-activity-identity.mjs \
+     --workspace <DEFAULT_WORKSPACE_ID>
+
+   # Apply the additive identity repair for historical events.
+   CLOUDFLARE_D1_DATABASE_ID=<uuid> node scripts/repair-activity-identity.mjs \
+     --workspace <DEFAULT_WORKSPACE_ID> --owner-email <OWNER_EMAIL> --apply
+
+   # Name the owner (or link their Person record so the name follows the profile).
+   CLOUDFLARE_D1_DATABASE_ID=<uuid> node scripts/repair-activity-identity.mjs \
+     --workspace <DEFAULT_WORKSPACE_ID> --subject <access-sub> \
+     --display-name "Aidan Daly" --apply
+   ```
+
+   The repair writes only `workspace_members`, is idempotent (re-running it is a
+   no-op), and creates, deletes or rewrites no Activity row. Confirm with a final
+   dry run that it reports zero planned statements and `Unresolved: none`.
 
 **Use `pnpm run db:production:*`, not `wrangler d1 ... --env production`.** The raw
 Wrangler command resolves the database NAME through the committed config, whose

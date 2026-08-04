@@ -66,6 +66,7 @@ describe("auth configuration", () => {
     const config = resolveAuthConfig(DEV_ENV);
     expect(config).toEqual({
       mode: "development",
+      displayName: null,
       subject: "local-user",
       email: "dev@example.invalid",
     });

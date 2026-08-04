@@ -13,7 +13,7 @@
 
 import { NOTE_CONTENT_UPDATED } from "~/kernel/notes";
 import {
-  createActivityDescriptorMap,
+  buildWorkspaceActivityDescriptors,
   type ActivityItem,
   type ActivityTypeDescriptor,
 } from "~/shared/activity-feed/model";
@@ -31,7 +31,8 @@ export const NOTE_ACTIVITY_DESCRIPTORS: Record<string, ActivityTypeDescriptor> =
     },
   };
 
-export const NOTE_ACTIVITY_DESCRIPTOR_MAP = createActivityDescriptorMap(
+export const NOTE_ACTIVITY_DESCRIPTOR_MAP = buildWorkspaceActivityDescriptors(
+  [],
   NOTE_ACTIVITY_DESCRIPTORS,
 );
 

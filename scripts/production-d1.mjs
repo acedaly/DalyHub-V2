@@ -60,6 +60,10 @@ export const PRODUCTION_DATABASE_NAME = "dalyhub-v2";
  * Validate the supplied production database id. PURE. Returns the trimmed id, or
  * an array of human-readable problems — the same fail-before-you-touch-anything
  * shape the deploy preflight uses.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{ ok: true, problems: string[], id: string }
+ *          | { ok: false, problems: string[], id?: undefined }}
  */
 export function checkProductionDatabaseId(env = process.env) {
   const id = (env.CLOUDFLARE_D1_DATABASE_ID ?? "").trim();
@@ -117,6 +121,8 @@ export const MIGRATIONS_DIR = join(ROOT, "migrations");
  * a relative path the CLI reports the `/tmp` path and exits 1; with the absolute
  * path it lists the real migrations and exits 0. `test/unit/deploy/production-d1.test.ts`
  * holds the rule by resolving the emitted value the way Wrangler does.
+ *
+ * @param {string} databaseId
  */
 export function productionD1Config(databaseId) {
   return {
@@ -133,6 +139,7 @@ export function productionD1Config(databaseId) {
   };
 }
 
+/** @param {string[]} problems @returns {never} */
 function fail(problems) {
   console.error("\ndb:production — cannot run against production:");
   for (const problem of problems) console.error(`  • ${problem}`);

@@ -374,7 +374,12 @@ These are real and recorded rather than hidden.
   valid JSON exports as `payload: null` and is named in `limitations`.
 - **The vault's Activity files are label-only.** They carry the event type,
   instant, actor and linked subjects — not a rendered narrative, which would be
-  presentation the export has no business inventing.
+  presentation the export has no business inventing. The actor is the resolved
+  display NAME (IDENT-01), never the stored actor id: that id is a Cloudflare
+  Access subject and must not leave the server (AGENTS.md §17). An actor with no
+  workspace-membership record exports as `Unknown user`. The structured
+  `dalyhub-snapshot.json` still carries `actorType`/`actorId` verbatim — it is a
+  faithful record of the database, and the owner's own copy of their own ids.
 - **No attachments.** DalyHub stores none yet.
 
 ---
