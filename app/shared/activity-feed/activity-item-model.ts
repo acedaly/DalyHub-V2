@@ -44,7 +44,7 @@ import type {
  * degrades to the honest `Unknown user` / `System`, never to an anonymous
  * placeholder and never to the viewer's own name.
  */
-function resolveActor(
+function resolveActorFor(
   actor: ActivityRecord["actor"],
   options: ActivityMapOptions,
 ): ActorIdentity {
@@ -107,7 +107,7 @@ export function toActivityItem(
   record: ActivityRecord,
   options: ActivityMapOptions = {},
 ): ActivityItem {
-  const identity = resolveActor(record.actor, options);
+  const identity = resolveActorFor(record.actor, options);
   const actor: ActivityItemActor = {
     type: record.actor.type,
     label: identity.displayName,
