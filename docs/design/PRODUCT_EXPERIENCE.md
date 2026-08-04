@@ -71,7 +71,7 @@ Legend — **Difficulty:** S (hours) / M (days) / L (its own roadmap item). **Wh
 | 15 | Skeleton coverage for collection pages | S | With #5 |
 | 16 | App-level density preference (comfortable/compact) | S–M | Post-launch (SET-01), contract defined now |
 | 17 | Surface-elevation usage rules codified (bg/surface/raised/sunken) | S (doc, in this file) | Done here — enforce in review |
-| 18 | Brand mark + favicon + wordmark treatment | S | Pre-launch polish |
+| 18 | Brand mark + favicon + wordmark treatment | S | **Built (BRAND-01)** |
 | 19 | `prefers-contrast` / forced-colors audit | M | Post-launch (DS-11) |
 | 20 | Motion audit pass (shared enter/exit choreography, view transitions) | M | Post-launch (DS-11 or dedicated polish item) |
 
@@ -182,6 +182,33 @@ Legend — **Difficulty:** S (hours) / M (days) / L (its own roadmap item). **Wh
 
 - **Why.** The product's identity is currently the string "DalyHub". A mark (even a simple glyph in the accent colour) anchors the sidebar, the favicon, and the empty states.
 - **S; pre-launch polish.**
+
+> **Implementation (2026-08-04 — BRAND-01). Built.** The approved DalyHub
+> identity — a rounded-square blue-to-teal/green gradient tile carrying a white
+> "D" with a connected three-node network in its lower-left — replaces the PWA-01
+> hub-and-spokes app mark and the PX-02 outline `BrandMark` together.
+>
+> - **One canonical source.** `scripts/icons/geometry.mjs` is the only drawing.
+>   Every `.png`, the `.svg`, the `favicon.ico` **and** the in-application glyph
+>   are generated from it by `pnpm run icons:generate`; `pnpm run icons:check`
+>   fails if any committed byte is not what that geometry produces, or if a
+>   superseded asset is still in `public/icons`. The supplied branding pack was a
+>   visual reference and is not traced, embedded or shipped.
+> - **Sidebar (`SidebarBrand`).** Product identity is now stated deliberately:
+>   the mark, then **DalyHub**, with a differently-named workspace shown beneath
+>   it as secondary context. It used to render the workspace name alone, which
+>   meant renaming the workspace renamed the product in the frame. No tagline in
+>   the rail.
+> - **The full lockup (`~/shared/brand`).** Mark + wordmark + *"Your life.
+>   Connected."*, on About and the icon review surface. The wordmark and tagline
+>   are **live text** styled by the application — they scale with the owner's OS
+>   text size, follow the resolved theme and are readable by a screen reader.
+>   Nothing branded is a rasterised word.
+> - **Themes.** The gradient is a fixed brand value on every theme; both of its
+>   ends clear 3:1 against the lightest and darkest page canvases DalyHub ships.
+>   Everything around it consumes semantic tokens, so there is no light/dark fork
+>   and no `prefers-color-scheme` anywhere in the branding.
+> - **Where the icon system lives:** [`PWA_AND_OFFLINE.md` §3](../development/PWA_AND_OFFLINE.md).
 
 #### 19. `prefers-contrast` & forced-colors
 

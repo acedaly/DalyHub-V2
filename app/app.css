@@ -44,6 +44,9 @@
 @import "./styles/density.css";
 @import "./styles/pill.css";
 @import "./styles/icons.css";
+/* BRAND-01 — the product-identity surfaces (sidebar brand, full lockup). Before
+ * the shell, because the shell's rail composes the compact identity. */
+@import "./styles/brand.css";
 @import "./styles/shell.css";
 @import "./styles/collection-layout.css";
 @import "./styles/empty-state.css";

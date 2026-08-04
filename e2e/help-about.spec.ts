@@ -166,6 +166,26 @@ test.describe("RELEASE-01 About", () => {
     expect(body).not.toContain("No deployment version");
   });
 
+  test("carries the full brand lockup as live text", async ({ page }) => {
+    // BRAND-01 — About is the surface that shows the complete identity. The
+    // wordmark and tagline must be TEXT: findable, selectable, theme-aware and
+    // scaled by the owner's OS text size. If either were baked into artwork,
+    // neither of these would resolve.
+    await gotoFixture(page, "/about");
+    const lockup = page.locator(".dh-brand-lockup").first();
+    await expect(lockup).toBeVisible();
+    await expect(lockup.getByText("DalyHub", { exact: true })).toBeVisible();
+    await expect(lockup.getByText("Your life. Connected.")).toBeVisible();
+    // Exactly one `h1` on the page: the lockup's name is a span, so the
+    // document outline is unchanged.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    // The mark is decorative — the name is beside it as real text.
+    await expect(lockup.locator(".dh-brand-mark")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+  });
+
   test("reports the environment it is running in", async ({ page }) => {
     await gotoFixture(page, "/about");
 

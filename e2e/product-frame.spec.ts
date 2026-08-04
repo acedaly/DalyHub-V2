@@ -37,6 +37,23 @@ test.describe("PX-02 frame — desktop", () => {
     ).toBeVisible();
   });
 
+  test("the banner states the product, with the brand mark decorative", async ({
+    page,
+  }) => {
+    // BRAND-01 — the rail used to render only the workspace name, so renaming
+    // the workspace renamed DalyHub in the frame. The product name is now
+    // stated deliberately, and the mark beside it is decorative because that
+    // name is real text.
+    await page.goto("/");
+    const banner = page.getByRole("banner");
+    await expect(banner.getByText("DalyHub")).toBeVisible();
+    const mark = banner.locator(".dh-brand-mark");
+    await expect(mark).toHaveCount(1);
+    await expect(mark).toHaveAttribute("aria-hidden", "true");
+    // The tagline belongs on About, not in a navigation rail.
+    await expect(banner.getByText("Your life. Connected.")).toHaveCount(0);
+  });
+
   test("user menu holds identity + theme + sign out, and Escape restores focus", async ({
     page,
   }) => {

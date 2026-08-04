@@ -64,7 +64,7 @@ export {
   type OfflineLocalState,
 } from "./local-state";
 
-export { MASK_SHAPES, PNG_SIZES } from "./icon-preview";
+export { MASKABLE_PREVIEW_SRC, MASK_SHAPES, PNG_SIZES } from "./icon-preview";
 
 export { afterPageIdle } from "./page-idle";
 

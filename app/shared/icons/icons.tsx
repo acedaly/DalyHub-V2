@@ -7,6 +7,9 @@
  *   - UI icons — the frame's affordances (search, command, settings, menu, close,
  *     chevrons, theme, view switcher, new, sign-out, inbox for empty states).
  *
+ * Plus ONE exception: `BrandMark`, the product identity. It is not an outline
+ * glyph and does not take `currentColor` — see its own note below.
+ *
  * Each is a tiny tree-shakeable component sharing one accessibility/sizing contract
  * (see Icon.tsx). Add an icon here; never inline a one-off SVG at a call site.
  */
@@ -459,20 +462,23 @@ export const InboxIcon = createIcon(
   </>,
 );
 
-/** Brand mark — DalyHub's glyph (a hub with connected nodes). */
-export const BrandMark = createIcon(
-  "BrandMark",
-  <>
-    <circle cx="12" cy="12" r="2.5" />
-    <circle cx="12" cy="4.5" r="1.75" />
-    <circle cx="12" cy="19.5" r="1.75" />
-    <circle cx="5" cy="8" r="1.75" />
-    <circle cx="19" cy="8" r="1.75" />
-    <circle cx="5" cy="16" r="1.75" />
-    <circle cx="19" cy="16" r="1.75" />
-    <path d="M12 6.25v3.25M12 14.5v3.25M6.5 8.9 10 11M17.5 8.9 14 11M6.5 15.1 10 13M17.5 15.1 14 13" />
-  </>,
-);
+/**
+ * BRAND-01 — the DalyHub brand mark: the white "D" with its connected
+ * three-node network, in the approved blue-to-teal gradient.
+ *
+ * Re-exported here, not defined here, and the reason is payload rather than
+ * taste. Every icon in this module is created by a top-level `createIcon(...)`
+ * CALL, which a bundler cannot prove is side-effect free — so importing any one
+ * icon pulls all ninety into the chunk. The offline shell needs the brand mark
+ * and nothing else from this set, and precaching the whole outline set to draw
+ * one glyph cost 13.5 kB on a device that by definition has no connection to
+ * spare. `./BrandMark` is a standalone module, so that import costs what the
+ * mark costs.
+ *
+ * The export stays here so that every existing `~/shared/icons` import keeps
+ * working and this file still answers "where is the brand mark".
+ */
+export { BrandMark } from "./BrandMark";
 
 /* -------------------------------------------------------------------------- */
 /* Asset subtype icons (ASSET-01 — one per Asset type, consumed via the        */

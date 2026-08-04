@@ -296,6 +296,31 @@ test.describe("PWA build artefacts", () => {
       );
     }
   });
+
+  test("no longer serves the superseded PWA-01 icon assets", async ({
+    request,
+  }) => {
+    // BRAND-01 — the previous generation's URLs must actually be GONE from the
+    // deployed static assets, not merely unreferenced. An installed PWA or a
+    // bookmark that cached one of these would otherwise keep resolving it and
+    // keep showing the old hub-and-spokes mark indefinitely.
+    for (const stale of [
+      "/icons/dalyhub-mark.svg",
+      "/icons/icon-16.png",
+      "/icons/icon-32.png",
+      "/icons/icon-48.png",
+      "/icons/icon-192.png",
+      "/icons/icon-512.png",
+      "/icons/apple-touch-icon.png",
+      "/icons/icon-maskable-192.png",
+      "/icons/icon-maskable-512.png",
+    ]) {
+      const response = await request.get(`${PROD_BASE}${stale}`);
+      expect(response.status(), `${stale} must no longer be served`).not.toBe(
+        200,
+      );
+    }
+  });
 });
 
 /* -------------------------------------------------------------------------- */

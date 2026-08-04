@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DalyHub">
+  <title>DalyHub</title>
+  <defs>
+    <linearGradient id="dh-tile-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="512" y2="512">
+      <stop offset="0" stop-color="#1c5ce0"/>
+      <stop offset="1" stop-color="#0e9268"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="112.64" ry="112.64" fill="url(#dh-tile-gradient)"/>
+  <path d="M 255.158 111.498 A 128.301 128.301 0 0 1 281.834 365.296" fill="none" stroke="#ffffff" stroke-width="79.635" stroke-linecap="round"/>
+  <line x1="162.251" y1="111.498" x2="255.158" y2="111.498" stroke="#ffffff" stroke-width="79.635" stroke-linecap="round"/>
+  <line x1="162.251" y1="111.498" x2="162.251" y2="177.86" stroke="#ffffff" stroke-width="79.635" stroke-linecap="round"/>
+  <line x1="208.705" y1="321.646" x2="126.328" y2="274.086" stroke="#ffffff" stroke-width="30.969" stroke-linecap="round"/>
+  <line x1="208.705" y1="321.646" x2="262.737" y2="257.253" stroke="#ffffff" stroke-width="30.969" stroke-linecap="round"/>
+  <line x1="208.705" y1="321.646" x2="179.198" y2="402.715" stroke="#ffffff" stroke-width="30.969" stroke-linecap="round"/>
+  <circle cx="208.705" cy="321.646" r="26.545" fill="#ffffff"/>
+  <circle cx="126.328" cy="274.086" r="37.605" fill="#ffffff"/>
+  <circle cx="262.737" cy="257.253" r="37.605" fill="#ffffff"/>
+  <circle cx="179.198" cy="402.715" r="37.605" fill="#ffffff"/>
+</svg>

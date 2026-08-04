@@ -130,6 +130,15 @@
   color: var(--dh-color-text);
 }
 
+/* BRAND-01 — the mark above the offline title. Inline SVG, so a disconnected
+ * launch renders the identity without a request it could not make. */
+.dh-offline-page__mark {
+  display: inline-flex;
+  font-size: 2.5rem;
+  line-height: 0;
+  margin-bottom: var(--dh-space-3);
+}
+
 .dh-offline-page__title {
   font-size: var(--dh-font-size-2xl);
   font-weight: var(--dh-font-weight-semibold);
@@ -530,6 +539,21 @@
 
 .dh-icon-review__chrome--dark {
   background: #101215;
+}
+
+/* BRAND-01 — the in-application mark at the sizes the product renders it at.
+ * `font-size` is the control because `BrandMark` sizes itself in `em`, exactly
+ * like every other icon in the set. */
+.dh-icon-review__glyph {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.dh-icon-review__lockups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+  margin-top: var(--dh-space-4);
 }
 
 /* PWA-11 — the offline surface's diagnostic state.

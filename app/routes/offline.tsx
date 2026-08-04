@@ -34,6 +34,7 @@
 
 import { APP_VERSION } from "~/lib/version";
 import { requireAuthenticatedSession } from "~/platform/request";
+import { BrandMark } from "~/shared/brand";
 import {
   OfflineCaptureForm,
   OfflineDiagnosticsPanel,
@@ -106,6 +107,16 @@ export default function OfflineRoute({ loaderData }: Route.ComponentProps) {
       />
       <main className="dh-offline-page" id="main">
         <header className="dh-offline-page__header">
+          {/* BRAND-01 — the offline shell is the one document that can be
+           * launched with no connection, so it is the one that most needs to
+           * look like DalyHub rather than like a browser error page. The mark is
+           * inline SVG from the generated geometry, not an `<img>`: an image
+           * would be a second request on a device that by definition has no
+           * network, and the precached icon files exist for the OS, not for
+           * this page. Decorative — the title names the product. */}
+          <span className="dh-offline-page__mark" aria-hidden="true">
+            <BrandMark />
+          </span>
           <h1 className="dh-offline-page__title">DalyHub offline</h1>
           <p className="dh-offline-page__lead">
             This is DalyHub's offline surface. It shows the snapshot stored on
