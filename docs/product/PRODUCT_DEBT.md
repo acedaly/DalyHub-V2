@@ -792,6 +792,29 @@ authority now.)
 
 ---
 
+### ☐ DEBT-77 — Card-on-tint has not passed an ordinary-work desktop soak — P2
+
+- **Current issue.** Card-on-tint is a phone-native visual pattern. DS-14 captured
+  and measured desktop layouts, but its recorded owner override removed the planned
+  five-working-day ordinary-use soak. Its behaviour at 1440px and above is therefore
+  not yet proven through sustained use, even though screenshot geometry is covered.
+- **Impact.** A wide tinted canvas or very broad card can feel washed out or cease
+  to read as a distinct surface after prolonged desktop use; screenshot approval
+  cannot answer that experiential question.
+- **Desired future state.** After the DS-15 foundation is deployed, the owner uses
+  Today at their normal desktop width and theme during ordinary work for five
+  working days and records the required written verdict before any module rollout.
+- **Mitigation and gate.** The mandatory desktop soak after the foundation is the
+  mitigation. Group A must not begin, and no rollout PR may land, until the owner
+  explicitly confirms the gate has passed. A negative verdict triggers ADR-070's
+  rollback; a wide-card failure is corrected in the foundation, never patched in a
+  later module.
+- **Closing condition.** The written five-working-day desktop verdict is recorded
+  and either accepts the direction or completes the documented rollback.
+- **Related roadmap item.** [DS-15](../roadmap/ROADMAP_V2_1.md#-ds-15--controlled-card-on-tint-visual-system-rollout).
+
+---
+
 ## Entry template
 
 ```markdown

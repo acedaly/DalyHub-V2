@@ -270,6 +270,47 @@ They are small and well-understood; none of them blocks the V2 release.*
 
 ## V2.1 — Whole-application restyle
 
+### ☐ DS-15 — Controlled card-on-tint visual-system rollout
+
+- **Why it exists.** DS-14 established a card-on-tint implementation, but its
+  owner-directed single-PR delivery explicitly removed the planned five-working-day
+  desktop soak and the independently reviewable rollout gates. DS-15 exists to put
+  those controls back around the direction: prove the tinted canvas and serif
+  reading column in ordinary use, then apply the visual system in bounded groups
+  whose behaviour can be reviewed independently. A whole-application visual change
+  owes DalyHub coherence, legibility, WCAG 2.2 AA, offline-safe typography, honest
+  absence states and a clean rollback; it does not earn permission to change what
+  the product does.
+- **What it deliberately does not change.** No information architecture, spine
+  semantics, route or deep link, entity field, query, validation, permission,
+  Activity row, link, export format or serialiser, authentication, module-registry
+  contract, product copy, theme id/CHECK constraint/count, Restore, weekly review,
+  mobile reminders or other V2.1 work. It adds no theme or appearance/density/shape/
+  typography/measure switch, Today widget, Goal metric, stored Area colour or
+  animation system. This is visual and design-system work only.
+- **Delivery — eight separate PRs, never combined.** One documentation + ADR PR;
+  one token/primitive foundation PR limited to Today and one Note record; then,
+  only after the mandatory human desktop soak passes, six module-group PRs in the
+  order below. The parent and every sub-item stay unchecked until their own
+  acceptance gate has passed.
+  - [ ] Documentation and ADR
+  - [ ] Foundation
+  - [ ] Group A — Tasks
+  - [ ] Group B — Areas, Goals and Projects
+  - [ ] Group C — Notes and Diary
+  - [ ] Group D — Meetings and People
+  - [ ] Group E — Assets and Reviews
+  - [ ] Group F — Settings, Search, Command Palette and application edges
+- **Sequencing is intentional.** DS-15 remains after [SET-02](#-set-02--backup--restore-v21)
+  and [REVIEW-02](#-review-02--weekly-review): recoverability and the weekly flow
+  are more valuable than a restyle. Taking a whole-application restyle out of order
+  is how a roadmap stops moving; it touches every surface and otherwise competes
+  with the higher-value work it should wait behind.
+- **Dependencies.** DS-01, DS-11, THEME-01/THEME-02 and the existing seven-theme
+  registry; ADR-068/ADR-069 and DS-14 are repository evidence, not permission to
+  skip any DS-15 gate. Sequenced behind SET-02 and REVIEW-02.
+- **Priority.** P2.
+
 ### ☑ DS-14 — Whole-application visual overhaul
 
 - **Not in ROADMAP_V2.** A new item, taking the next free number in the `DS-` series
@@ -544,6 +585,12 @@ because a reader would otherwise wonder whether it was forgotten:
    leaves, and the reason a bad day is still unrecoverable.
 2. **[REVIEW-02](#-review-02--weekly-review)** + REVIEW-04's stepper — the flagship
    weekly flow, and the mobile ergonomic that belongs with it.
+   - **Then [DS-15](#-ds-15--controlled-card-on-tint-visual-system-rollout)** — the
+     controlled documentation, foundation, soak and six-group sequence. It is
+     intentionally after both items above; recoverability and the weekly flow are
+     more valuable than a restyle, and taking a whole-application restyle out of
+     order is how a roadmap stops moving. This insertion does not renumber or
+     rewrite the historical build-order entries below.
 3. **[DS-14](#-ds-14--whole-application-visual-overhaul)** — the whole-application
    restyle. **Third deliberately**, and the entry says why: recoverability and the
    weekly flow are worth more than a restyle, and a whole-app restyle taken out of

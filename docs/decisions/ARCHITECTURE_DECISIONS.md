@@ -1883,3 +1883,139 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 - **Alternatives considered.** *Restyling each module's own CSS rather than the shared components* — rejected on Finding 1: twelve modules render through two components, so twelve edits would be eleven opportunities to diverge and one to get it right. *Keeping a card per row and tightening its padding* — rejected: it addresses the density symptom and not the elevation one, and fifty simultaneous card boundaries is the thing that reads as an administration console. *A `<Region density="reading">` in each module's prose surface* — rejected: brief §4 forbids threading the preset through call sites, and a rule that must be remembered once per surface is a rule that decays. *Editing ~90 `radius-md`/`-lg` call sites individually* — rejected as churn that buys nothing an alias does not, and that leaves the next call site free to pick either scale. *Fixing the unstyled `<select>` on Reviews, Notes and Diary* — rejected: three fixes and no floor, so the fourth filter row reintroduces it. *Deferring the wide-desktop measure to a follow-up* — rejected: the owner's direction removed the gate that would have hosted it, and the defect is real at the most common laptop width.
 
 - **Deliberately not decided here.** Whether seven themes is the right number ([DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3)); stored, owner-chosen Area colour ([DEBT-73](../product/PRODUCT_DEBT.md)); propagating Area identity to cross-module rows ([DEBT-74](../product/PRODUCT_DEBT.md)); a progress metric on Goals; any owner-facing density, shape, type or measure switch; an animation system; and everything else in brief §9's out-of-scope list, which stands unamended.
+
+---
+
+## ADR-070: DS-15 — staged card-on-tint validation, enforceable surface contracts and rollback before rollout
+
+- **Status.** Accepted for planning; implementation is deliberately not started by
+  this documentation-only decision. DS-15 supersedes ADR-069 only on **delivery
+  sequencing**: the new work is one foundation PR, a mandatory human desktop soak,
+  then six separately reviewed module groups. ADR-068/069 remain evidence about the
+  repository and do not waive a DS-15 gate.
+
+- **Context.** DalyHub already contains a DS-14 card-on-tint implementation. Its
+  roadmap record also says the planned five-day soak and staged approvals were
+  removed by owner direction. The current direction therefore has extensive
+  screenshot and automated evidence but no sustained 1440px ordinary-work verdict.
+  DS-15 treats that missing evidence as a release risk, not as permission for another
+  unbounded restyle. It is a visual-system program only.
+
+- **Decision 1 — visual direction is a set of constraints.** The hierarchy is a
+  tinted page canvas, complete-border in-flow cards, and raised floating layers.
+  Components consume semantic tokens; modules do not introduce local colour,
+  radius, elevation, density or typography variants. Vertical rhythm is based on
+  4px units expressed in rem; component-internal gaps may use pixels. Rounded
+  corners require a complete hairline border; a single-sided accent stays square.
+  The radius contract is `pill: 999px`, `card: 16px`, `control: 10px`, `field:
+  10px`. Headings, controls and labels use sentence case. The implementation target
+  is weights 400 and 500; the foundation must remove any remaining 600 use only if
+  contrast/state tests prove no cue is weakened, otherwise it must stop and record
+  repository evidence rather than silently substitute a value.
+
+  The foundation authors these semantics once in every theme, with no fallback or
+  theme-local addition: `surface-page`, `pill-neutral-surface`,
+  `pill-neutral-text`, `progress-track`, `progress-fill`, `area-accent-1` through
+  `area-accent-6`, the surface/text tint pair for each Area accent, and
+  `divider-subtle`. It reuses `nav-selected-surface`, `nav-selected-text`, the
+  danger/success/warning/accent role tokens and the existing elevation ordinals.
+
+- **Decision 2 — elevation has one ordinal system.** Reuse the existing `sunken`,
+  page/background, `card` and `raised` ordinals; do not create a parallel stack.
+  `surface-card` is perceptibly lighter than `surface-page`, and `raised` lighter
+  than `surface-card`, in both light and dark palettes. CIELAB ΔL\* is at least 3
+  for page→card and card→raised. A theme that becomes muddy is fixed by adjusting
+  its whole neutral ramp, never exempted. Surface value plus a hairline carries
+  in-flow separation. Shadows are reserved for a drawer, popover or other genuinely
+  floating layer. At most two floating elevations appear simultaneously; in-flow
+  cards do not count.
+
+- **Decision 3 — exactly two density presets live on region wrappers.** They are
+  classified by what a surface contains, not by its route or module, and a route may
+  contain both as separate regions.
+
+  | Contract | Reading | Collection |
+  |---|---|---|
+  | body | 16px, 1.75 | 14px, 1.4 |
+  | measure | 46ch | none |
+  | family | serif for prose body only | sans |
+  | row padding | n/a | 9px block, 44px minimum target |
+  | section gap | 24px | 12px |
+  | card padding | 24px block / 28px inline | 4px block / 18px inline |
+  | numerals | default | tabular |
+  | separator | one hairline before linked items | hairline between every row |
+
+  Titles, headings, labels, metadata, controls, tabs and pills remain sans even
+  inside Reading regions. The preset is not a module setting, independently threaded
+  component prop, user preference, third mode or per-module override.
+
+- **Decision 4 — typography is self-hosted Inter plus Source Serif 4, subject to
+  fixed budgets.** The existing repository supplies Latin-subset variable WOFF2
+  files: Inter 4.1 for chrome/collections (**31,200 B transferred**) and Source Serif
+  4.005 for prose (**32,292 B transferred**), **63,492 B combined**. Both use
+  `font-display: swap`, are explicitly preloaded and listed in the fixed PWA
+  precache; no offline render needs an uncached font request and text never becomes
+  invisible while loading. The foundation remeasures these files and the complete
+  precache rather than trusting this snapshot. Budgets in `PWA_AND_OFFLINE.md` stay
+  fixed. If both families cease to fit, keep Inter and replace the custom serif with
+  the system serif stack, recording that substitution in the foundation PR; never
+  raise a budget to retain a font.
+
+- **Decision 5 — Area identity is derived from the Area id, with stored colour recorded as
+  debt.** Inspection confirms the Area model has no stored colour field. DS-15
+  therefore requires no migration: apply one documented, stable hash to the Area's
+  immutable id and map it modulo six to `area-accent-1`…`area-accent-6`. The current
+  lifecycle-stable workspace-rank implementation is evidence to migrate in the
+  foundation, not a second permitted algorithm. Stored owner-selected colour remains
+  DEBT-73. Area colour appears only as a dot, pill or progress fill; never a card/row
+  fill, semantic danger/success/warning colour, or meaning without adjacent text and
+  an accessible name.
+
+- **Decision 6 — theme invariants are executable.** A foundation test enumerates
+  the theme registry programmatically so every present and future registered theme
+  is covered automatically. Every registered theme is evaluated under both light
+  and dark media resolution (a fixed curated palette must remain invariant under
+  the non-owning resolution rather than being skipped); `system` must resolve to its
+  light and dark palette respectively. For every theme/mode it asserts:
+  - every new semantic token resolves non-empty;
+  - page→card and card→raised ΔL\* ≥ 3;
+  - primary, secondary, and meaning-bearing muted text on card ≥ 4.5:1;
+  - every pill surface/text pair ≥ 4.5:1, including all six Area tint pills, neutral
+    absence and every role pill;
+  - progress fill/track ≥ 3:1 and track/card ≥ 3:1;
+  - every Area dot/card pair ≥ 3:1;
+  - focus ring/card and focus ring/page ≥ 3:1; and
+  - selected-navigation text/surface ≥ 4.5:1.
+
+  Every failure names theme id, token or pair, measured value and required value.
+  There is no exemption, registration escape hatch or manual-review substitute.
+
+- **Decision 7 — unchanged means unchanged.** DS-15 does not change information
+  architecture; Area→Goal→Project→Task semantics; entity fields; routes; deep-link
+  URLs; export snapshot format or serialisers; authentication; module registry;
+  owner-facing implementation disclosures; theme database CHECK or theme count;
+  Restore; weekly review; mobile reminders; another V2.1 item; module behaviour;
+  data queries; validation; permissions; Activity rows; links; existing workflows;
+  or existing product copy. It adds no theme, density/shape/typography/measure
+  switch, Today widget, Goal progress field/metric, stored Area colour or animation
+  system. Sparse states render honest owner-supplied absence wording; they do not
+  manufacture zero-valued data.
+
+- **Decision 8 — rollback is rehearsable and bounded.** The Stage 1 foundation is
+  one isolated, squashable visual commit containing token/ramp values, radius and
+  density contracts, font/precache wiring, invariant tests, shared primitives, and
+  only the Today plus one-Note reference adoption. No migration or stored preference
+  is allowed. If the owner rejects the direction after those two surfaces, revert
+  exactly that foundation commit; the Stage 0 documentation remains as the decision
+  record. If the 1440px verdict rejects only wide-card legibility, correct maximum
+  width in a separate foundation correction before rollout. Group A cannot begin
+  until the owner records all four five-working-day soak answers and explicitly
+  passes the gate. If a clean one-commit revert is not demonstrable before Stage 1,
+  restructure Stage 1 rather than implementing it.
+
+- **Consequences.** The direction is measurable, future themes inherit its tests,
+  and rejection does not require unwinding module work. Delivery takes longer by
+  design: eight PRs plus a human gate. That cost protects recoverability/weekly-flow
+  sequencing and prevents a visual program from silently changing product behaviour.
+  DEBT-77 records the unresolved desktop risk until the owner supplies sustained-use
+  evidence.
