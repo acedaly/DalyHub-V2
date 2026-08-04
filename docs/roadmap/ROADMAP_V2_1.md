@@ -270,6 +270,82 @@ They are small and well-understood; none of them blocks the V2 release.*
 
 ## V2.1 — Whole-application restyle
 
+### ☑ POLISH-02 — The Today command centre
+
+- **Why it exists.** DS-15 gave Today the card-on-tint surface contract and put
+  `My day` in a primary column. It did not give the surface a designed
+  *arrangement*: the grid had three hand-placed cells and left every widget after
+  the third to `grid-auto-flow`, so the page below the fold was assembled by the
+  packing algorithm rather than by anyone. Owner direction was to redesign the
+  whole screen — hierarchy, grid, density, hero, colour, empty states, desktop and
+  mobile — while preserving every existing behaviour.
+- **What changed.**
+  - **Three declared regions** instead of an auto-flowed grid. Each widget names
+    its region (`hero` / `primary` / `secondary`) in the catalogue; the surface
+    renders a full-width hero band and two independently-flowing columns at ~66/34.
+    Independent flow is the point — a column can no longer leave a hole waiting for
+    the other column's row to end. Personalisation (move/pin) is now scoped to a
+    widget's own region, so a move never teleports a card across the page.
+  - **A real hero.** The owner is greeted by name (derived from the same shared
+    display-identity helper the User menu uses, resolved server-side), with the
+    date, the day's shape, today's progress against what is committed, and ONE
+    at-a-glance rail carrying six counts — including the cross-module ones that
+    previously required scrolling (meetings still to come, work waiting on other
+    people, projects that need a look). It is labelled **Brief**, not "Morning
+    brief": the greeting inside it has always adapted to the owner-local hour, so
+    the fixed label was telling the owner it was morning at 9pm. The widget **id**
+    is unchanged (`morning-brief`) because it is the persistence key for every
+    saved arrangement, and an unknown id is dropped on read.
+  - **Every number is stated once.** The planning summary strip inside `My day`
+    repeated the brief's counts a few hundred pixels away; it is gone, and `My day`
+    now opens on the owner's tasks. The Insights panel subtracts whatever the hero
+    rail already states while the hero is on screen, and restores it when the owner
+    hides the hero.
+  - **Today is no longer a backlog.** The planning query bounds the unscheduled
+    band at 100 rows, which is right for a query and wrong for a landing page: a
+    real workspace opened with sixty-odd `Anytime` rows between the day's work and
+    everything else, pushing Recent activity four screens down. The discretionary
+    bands (`Upcoming`, `Anytime`) now preview eight rows with the TRUE total in the
+    heading and a "View all *N*" link into the canonical `/tasks` system view.
+    Overdue and Today are never truncated.
+  - **Layout thresholds are container queries.** A viewport breakpoint inside the
+    app shell is wrong by the width of the navigation rail; the two-column split
+    used to engage at 1024px and produce a ~390px primary column in which task rows
+    wrapped. See [Responsive](../design/DESIGN_SYSTEM.md#responsive).
+  - **Density and consistency.** One card chrome for every widget (one header
+    treatment, one radius, one inset, one hover response); one destination link per
+    list widget, in its header, replacing links scattered at the foot of some
+    bodies and absent from others; meetings render as a real timeline with a
+    tabular time gutter; project cards always carry their health signal and what is
+    left open; goals state completion beside whether recent action matches them;
+    the two remaining dead-end empty states gained an action. Today also opts into
+    a wider dashboard measure so a widescreen monitor no longer ends in a band of
+    empty canvas.
+- **What it deliberately does not change.** No route, loader contract, query,
+  mutation, entity field, permission, Activity row, link or export format. No new
+  fetch: every number in the hero comes from the payload the loader already
+  returned (the goal roll-up reuses the contribution read the alignment evaluation
+  already performs). The keyboard model, the swipe layer, the Drawer, planning,
+  bulk selection and per-device personalisation all behave as before.
+- **Two brief requests deliberately not implemented, and why.** A **weather**
+  panel: there is still no data source, so it would be fake data or an empty box —
+  the decision recorded as [DEBT-53](../product/PRODUCT_DEBT.md) stands. **Card
+  shadows**: DS-14 constraint 8 reserves shadow for genuinely floating layers, and
+  the theme system guarantees a ΔL* ≥ 3 surface ramp that separates cards legibly
+  in all seven themes where one shadow value cannot. The hero uses the raised step
+  of that ramp and hover moves the border instead. Project **"next action"** was
+  not added: it needs a per-project task query on the most-visited route in the
+  product — recorded as [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3), with
+  the query shape that would satisfy it. Goal **trend** is [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3):
+  nothing stores a goal's completion over time, so completion and recent progress
+  ship and the direction does not.
+- **Acceptance evidence.** Unit, kernel, lint, typecheck and build green; the
+  Today, Today-mobile, Today-keyboard, planning, keyboard, mobile-shell and full
+  axe accessibility e2e suites pass (184 tests); the running application was
+  screenshotted at 320, 390, 820, 1024, 1280, 1440 and 1920 with no horizontal
+  overflow at any width.
+- **Priority.** P2.
+
 ### ☑ DS-15 — Today reference layout and app-wide surface contract correction
 
 - **Why it exists.** PR #108's branch name and owner direction required a visible
@@ -278,6 +354,12 @@ They are small and well-understood; none of them blocks the V2 release.*
   layout for the card-on-tint system, and the remaining in-flow cards, filters,
   forms, empty states and application edges are brought back to the shared surface
   contract.
+- **Superseded in part by [POLISH-02](#-polish-02--the-today-command-centre).**
+  The hierarchy below still holds — current work leads, secondary context sits
+  beside it — but its ARRANGEMENT changed: `Morning brief` became a full-width hero
+  band above both columns rather than a card in the secondary one, and every widget
+  now declares its region instead of being auto-placed. Everything else in this
+  item (the surface contract, the shadow rule, the module retargeting) is unchanged.
 - **What changed.** Today now puts current work first at desktop width, with
   `My day` as the primary column and `Morning brief` plus quick capture in the
   secondary column; phone widths keep the existing fast single-column stack.

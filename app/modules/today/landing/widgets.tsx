@@ -99,6 +99,13 @@ export function NotesWidget({
 /* Diary                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * POLISH-02 — "Open diary" moved OUT of this body and into the widget header,
+ * where every list widget now carries its one destination. It used to sit at the
+ * foot of the diary body while Notes, Areas and Goals had no equivalent at all,
+ * which is the kind of inconsistency that makes a dashboard read as assembled
+ * rather than designed.
+ */
 export function DiaryWidget({ data }: { readonly data: DiaryWidgetData }) {
   const hasAny = data.today.length > 0 || data.recent.length > 0;
   if (!hasAny) {
@@ -135,9 +142,6 @@ export function DiaryWidget({ data }: { readonly data: DiaryWidgetData }) {
           <DiaryList label="Recent diary moments" items={data.recent} />
         </div>
       ) : null}
-      <Link className="dh-today-list__all" to="/diary">
-        Open diary
-      </Link>
     </div>
   );
 }
@@ -201,9 +205,21 @@ export function AreasWidget({
           >
             <span className="dh-today-list__title">{area.title}</span>
             <span className="dh-today-list__meta">
-              {area.goalTotal} {area.goalTotal === 1 ? "goal" : "goals"} ·{" "}
-              {area.activeProjectCount} active
-              {area.needsReview ? " · quiet — worth a review" : ""}
+              {/* The review cue is a WORD in its own emphasised run, not a phrase
+                  buried at the end of a sentence — so it is scannable down a
+                  column and survives greyscale and a screen reader alike. */}
+              {area.needsReview ? (
+                <>
+                  <span className="dh-today-signal dh-today-signal--quiet">
+                    Worth a review
+                  </span>
+                  <span aria-hidden="true"> · </span>
+                </>
+              ) : null}
+              <span>
+                {area.goalTotal} {area.goalTotal === 1 ? "goal" : "goals"} ·{" "}
+                {area.activeProjectCount} active
+              </span>
             </span>
           </Link>
         </li>
@@ -241,8 +257,35 @@ export function GoalsWidget({ data }: { readonly data: GoalsWidgetData }) {
           >
             <span className="dh-today-list__title">{goal.title}</span>
             <span className="dh-today-list__meta">
-              {goal.areaLabel ? `${goal.areaLabel} · ` : ""}
-              {goal.alignmentLabel}
+              {/* Whether recent action matches the goal is the thing worth
+                  scanning for, so it leads the line; the roll-up and the Area
+                  follow it as supporting fact. */}
+              <span
+                className={
+                  goal.atRisk
+                    ? "dh-today-signal dh-today-signal--quiet"
+                    : undefined
+                }
+              >
+                {goal.alignmentLabel}
+              </span>
+              {goal.projectTotal > 0 ? (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  <span>
+                    {Math.round(
+                      (goal.projectCompleted / goal.projectTotal) * 100,
+                    )}
+                    % complete
+                  </span>
+                </>
+              ) : null}
+              {goal.areaLabel ? (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  <span>{goal.areaLabel}</span>
+                </>
+              ) : null}
             </span>
           </Link>
         </li>
@@ -287,38 +330,41 @@ export function MeetingsWidget({
     );
   }
   return (
-    <ul className="dh-today-list" aria-label="Today’s meetings">
+    <ol className="dh-schedule" aria-label="Today’s meetings">
       {data.meetings.map((meeting) => (
-        <li key={meeting.id} className="dh-today-list__item">
+        <li
+          key={meeting.id}
+          className="dh-schedule__item"
+          data-started={meeting.started ? "true" : undefined}
+        >
           <Link
-            className="dh-today-list__link"
+            className="dh-schedule__link"
             to={`/meeting/${encodeURIComponent(meeting.id)}`}
           >
-            <span className="dh-today-list__icon" aria-hidden="true">
-              <EntityIcon type="meeting" />
-            </span>
-            <span className="dh-today-list__body">
-              <span className="dh-today-list__title">{meeting.title}</span>
-              <span className="dh-today-list__meta">
-                <span>{meeting.timeLabel}</span>
-                {meeting.started ? (
-                  <>
+            {/* The time is a fixed, tabular gutter with a rail beside it, so a
+                day reads down the column as a sequence rather than as a list of
+                sentences that happen to begin with a number. */}
+            <span className="dh-schedule__time">{meeting.timeLabel}</span>
+            <span className="dh-schedule__body">
+              <span className="dh-schedule__title">{meeting.title}</span>
+              {meeting.started || meeting.context ? (
+                <span className="dh-schedule__meta">
+                  {meeting.started ? (
+                    <span className="dh-today-signal dh-today-signal--quiet">
+                      Started
+                    </span>
+                  ) : null}
+                  {meeting.started && meeting.context ? (
                     <span aria-hidden="true"> · </span>
-                    <span>Started</span>
-                  </>
-                ) : null}
-                {meeting.context ? (
-                  <>
-                    <span aria-hidden="true"> · </span>
-                    <span>{meeting.context}</span>
-                  </>
-                ) : null}
-              </span>
+                  ) : null}
+                  {meeting.context ? <span>{meeting.context}</span> : null}
+                </span>
+              ) : null}
             </span>
           </Link>
         </li>
       ))}
-    </ul>
+    </ol>
   );
 }
 
@@ -414,7 +460,10 @@ export function AssetsWidget({ data }: { readonly data: AssetsTodayData }) {
       <ul className="dh-today-list" aria-label="Assets needing attention">
         {data.items.map((item) => (
           <li key={item.obligationId} className="dh-today-list__item">
-            <Link className="dh-today-list__link" to={item.href}>
+            <Link
+              className="dh-today-list__link dh-today-list__link--with-icon"
+              to={item.href}
+            >
               <span className="dh-today-list__icon" aria-hidden="true">
                 <EntityIcon type="asset" />
               </span>

@@ -1,9 +1,19 @@
 /**
- * TODAY-08 — the Morning Brief widget body.
+ * TODAY-08 / POLISH-02 — the Today hero.
  *
- * The calm orientation the owner reads first: a greeting, the date, the shape of
- * the day, and a single "Capture" affordance that focuses the Quick Capture field
- * (no second capture store).
+ * The first thing the owner reads, and now the only place the day is summarised.
+ * It answers, in one band and without scrolling: who is being greeted, what day it
+ * is, what shape the day has, how far through it they are, and what is competing
+ * for their attention right now.
+ *
+ * ── What POLISH-02 changed ────────────────────────────────────────────────────
+ * The brief used to be a narrow card in the right-hand column carrying three
+ * numbers (planned / overdue / inbox) that My day's own summary strip stated again
+ * a few hundred pixels away. Two statements of the same fact is one too many, and
+ * the one in the corner was the one nobody read. The strip moved UP into the hero,
+ * gained the cross-module counts that were previously only reachable by scrolling
+ * (today's meetings, what is waiting on other people, projects that need a look),
+ * and My day now leads with its tasks rather than with a restatement of the header.
  *
  * ── The weather and calendar placeholders were REMOVED (THEME-01) ─────────────
  * This widget used to reserve two panels labelled "Weather" and "Upcoming
@@ -21,56 +31,131 @@
  * weather returns as an OPTIONAL widget that is off until configured — not as a
  * reserved space. Recorded in ROADMAP_V2 and PRODUCT_DEBT (DEBT-53).
  *
- * Today's own signals — planned, overdue, inbox — stay, because they are real
- * numbers derived from the owner's actual records.
+ * Today's own signals stay, because they are real numbers derived from the owner's
+ * actual records.
+ *
+ * ── Colour ───────────────────────────────────────────────────────────────────
+ * A stat is neutral unless it is genuinely asking for something. `attention` is
+ * reserved for work that has slipped, `positive` for what has been finished today;
+ * everything else — meetings, waiting, inbox — is a plain fact in the plain colour.
+ * The tone is always a reinforcement: the LABEL names the signal, so nothing here
+ * depends on seeing a colour (AGENTS.md §15).
  */
 
+import { Link } from "react-router";
+
+import { ProgressMeter } from "~/shared/progress";
+
 import type { MorningBriefData } from "./types";
+
+/** One number in the hero's "at a glance" rail. */
+export interface BriefStat {
+  readonly id: string;
+  readonly value: number;
+  /** The word under the number. Always present — never a colour on its own. */
+  readonly label: string;
+  /** Where the number is answered, when it has an in-app destination. */
+  readonly href?: string;
+  readonly tone?: "neutral" | "attention" | "positive";
+}
+
+/** How far through the day's committed work the owner is. */
+export interface BriefProgress {
+  readonly done: number;
+  readonly total: number;
+}
 
 export interface MorningBriefProps {
   readonly data: MorningBriefData;
   readonly onCapture: () => void;
+  /**
+   * The at-a-glance rail. Defaults to the brief's own three counts so a caller
+   * without cross-module facts still renders a complete hero.
+   */
+  readonly stats?: readonly BriefStat[];
+  /** Today's completion, when there is anything committed to measure. */
+  readonly progress?: BriefProgress;
 }
 
-export function MorningBrief({ data, onCapture }: MorningBriefProps) {
-  return (
-    <div className="dh-morning-brief">
-      <p className="dh-morning-brief__greeting">{data.greeting}.</p>
-      <p className="dh-morning-brief__date">{data.dateLong}</p>
-      <p className="dh-morning-brief__focus">{data.focusLine}</p>
+export function MorningBrief({
+  data,
+  onCapture,
+  stats,
+  progress,
+}: MorningBriefProps) {
+  const rail: readonly BriefStat[] = stats ?? [
+    { id: "planned", value: data.plannedTodayCount, label: "planned" },
+    {
+      id: "overdue",
+      value: data.overdueCount,
+      label: "overdue",
+      tone: data.overdueCount > 0 ? "attention" : "neutral",
+    },
+    { id: "inbox", value: data.inboxCount, label: "in inbox" },
+  ];
 
-      <div
-        className="dh-morning-brief__signals"
-        role="group"
-        aria-label="At a glance"
-      >
-        <BriefSignal value={data.plannedTodayCount} label="planned" />
-        <BriefSignal value={data.overdueCount} label="overdue" />
-        <BriefSignal value={data.inboxCount} label="in inbox" />
+  return (
+    <div className="dh-hero">
+      <div className="dh-hero__intro">
+        <p className="dh-hero__greeting">
+          {data.greeting}
+          {data.ownerName ? `, ${data.ownerName}` : ""}.
+        </p>
+        <p className="dh-hero__date">{data.dateLong}</p>
+        <p className="dh-hero__focus">{data.focusLine}</p>
+
+        {progress && progress.total > 0 ? (
+          <div className="dh-hero__progress">
+            <ProgressMeter
+              label="Today’s progress"
+              percent={(progress.done / progress.total) * 100}
+              summary={`${progress.done} of ${progress.total} done`}
+            />
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          className="dh-today__secondary dh-hero__capture"
+          onClick={onCapture}
+        >
+          Capture a thought
+        </button>
       </div>
 
-      <button
-        type="button"
-        className="dh-today__secondary dh-morning-brief__capture"
-        onClick={onCapture}
+      <div
+        className="dh-hero__stats"
+        role="group"
+        aria-label="Today at a glance"
       >
-        Capture a thought
-      </button>
+        {rail.map((stat) => (
+          <BriefStatTile key={stat.id} stat={stat} />
+        ))}
+      </div>
     </div>
   );
 }
 
-function BriefSignal({
-  value,
-  label,
-}: {
-  readonly value: number;
-  readonly label: string;
-}) {
-  return (
-    <p className="dh-morning-brief__signal">
-      <span className="dh-morning-brief__signal-value">{value}</span>
-      <span className="dh-morning-brief__signal-label">{label}</span>
+function BriefStatTile({ stat }: { readonly stat: BriefStat }) {
+  const body = (
+    <>
+      <span className="dh-hero__stat-value">{stat.value}</span>
+      <span className="dh-hero__stat-label">{stat.label}</span>
+    </>
+  );
+  // A stat with somewhere to go is a link; one without is plain text. A tile that
+  // looks clickable and is not is worse than a tile that does not look clickable.
+  return stat.href ? (
+    <Link
+      className="dh-hero__stat"
+      data-tone={stat.tone ?? "neutral"}
+      to={stat.href}
+    >
+      {body}
+    </Link>
+  ) : (
+    <p className="dh-hero__stat" data-tone={stat.tone ?? "neutral"}>
+      {body}
     </p>
   );
 }

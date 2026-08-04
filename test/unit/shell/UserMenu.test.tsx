@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   UserMenu,
   displayNameFromEmail,
+  greetingNameFor,
   initialsFromName,
 } from "~/shared/shell/UserMenu";
 
@@ -134,5 +135,30 @@ describe("PX-02 UserMenu — identity helpers", () => {
     expect(displayNameFromEmail("owner@example.com")).toBe("Owner");
     expect(initialsFromName("Aidan Daly")).toBe("AD");
     expect(initialsFromName("Owner")).toBe("OW");
+  });
+
+  /*
+   * POLISH-02 — Today's hero greets the owner by name, and it derives that name
+   * from the SAME helpers rather than inventing a second rule. The greeting form
+   * is the FIRST name only: a greeting is the one place the product speaks to the
+   * owner rather than about them.
+   */
+  it("greets with the first name, preferring the provider's display name", () => {
+    expect(greetingNameFor("Aidan Daly", "someone.else@example.com")).toBe(
+      "Aidan",
+    );
+    expect(greetingNameFor(null, "aidan.daly@example.com")).toBe("Aidan");
+    expect(greetingNameFor("  ", "owner@example.com")).toBe("Owner");
+  });
+
+  it("returns no greeting name rather than greeting an identifier", () => {
+    // Nothing usable → the hero falls back to the plain greeting.
+    expect(greetingNameFor(null, null)).toBeNull();
+    expect(greetingNameFor(null, "")).toBeNull();
+    expect(greetingNameFor("   ", "")).toBeNull();
+    // A provider name that is really an address is never used as a greeting.
+    expect(
+      greetingNameFor("owner@example.com", "owner@example.com"),
+    ).toBeNull();
   });
 });

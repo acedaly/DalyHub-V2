@@ -68,6 +68,8 @@ export interface TodayLandingFacts {
   readonly timezone: string;
   readonly todayIso: string;
   readonly dateLong: string;
+  /** The owner's first name for the hero greeting, or null when unknown. */
+  readonly ownerName: string | null;
   readonly plannedTodayCount: number;
   readonly overdueCount: number;
   readonly inboxCount: number;
@@ -235,6 +237,7 @@ async function loadGoals(
             activity: activityFacts.get(item.id),
           });
           const alignment = evaluateGoalAlignment(facts, evaluation);
+          const contribution = contributions.get(item.id);
           return {
             id: item.id,
             title: item.title,
@@ -242,6 +245,10 @@ async function loadGoals(
             alignmentState: alignment.state,
             alignmentLabel: alignment.label,
             atRisk: alignment.state === "neglected",
+            // The SAME contribution read the alignment evaluation above already
+            // performed — Today states the goal's roll-up, it never recomputes it.
+            projectTotal: contribution?.total ?? 0,
+            projectCompleted: contribution?.completed ?? 0,
           };
         })
         // The widget is "Goals in progress": drop completed goals so they never fill
@@ -255,12 +262,16 @@ async function loadGoals(
             areaLabel,
             alignmentLabel,
             atRisk,
+            projectTotal,
+            projectCompleted,
           }): GoalProgressItem => ({
             id,
             title,
             areaLabel,
             alignmentLabel,
             atRisk,
+            projectTotal,
+            projectCompleted,
           }),
         )
         .slice(0, GOALS_SHOWN)
@@ -415,6 +426,7 @@ export async function loadTodayLanding(
       greeting: greetingFor(
         dayPartForHour(ownerLocalHour(facts.now, facts.timezone)),
       ),
+      ownerName: facts.ownerName,
       dateLong: facts.dateLong,
       focusLine: briefFocusLine(insightsInput),
       plannedTodayCount: facts.plannedTodayCount,

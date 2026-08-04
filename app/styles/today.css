@@ -1,5 +1,5 @@
 /*
- * TODAY-01 — the Today dashboard layout (design tokens only).
+ * TODAY-01 / POLISH-02 — the Today dashboard (design tokens only).
  *
  * DS-14 REFERENCE IMPLEMENTATION (Collection). Today is the surface the direction
  * is proved on for everything the owner SCANS. The route is one Collection region
@@ -8,56 +8,520 @@
  * body size, the tabular figures and the row padding all arrive from
  * `data-density="collection"`.
  *
- * What DS-14 changed here, and nothing else changed:
+ * DS-14's standing constraints, unchanged by POLISH-02:
  *   - each widget is a CARD on the tinted canvas — `surface-card`, a full
  *     hairline border and `radius-card` — rather than an unbounded band of the
- *     page. That is constraint 1, and it is what makes the page tint do work;
- *   - separation is carried by surface value and a hairline, never a shadow
- *     (constraint 8). Nothing on Today floats;
+ *     page. That is what makes the page tint do work;
+ *   - separation is carried by SURFACE VALUE and a hairline, never a shadow
+ *     (constraint 8). Nothing on Today floats. The polish brief asked for card
+ *     shadows; they are deliberately NOT added, because the theme system holds a
+ *     ΔL* ≥ 3 ramp between `surface-page → surface-card → surface-raised` in every
+ *     theme, and separation drawn from that ramp is legible in Daly Dark and in
+ *     Ember alike, where a single shadow value is not. The hero uses the raised
+ *     step for exactly this reason, and hover moves the border rather than
+ *     lifting the card;
  *   - the pinned cue thickens and recolours ONE edge of the card's existing full
- *     border rather than adding a separate accent rule outside it, so the corners
- *     stay rounded and brief §2's "a single-sided accent border stays square" is
- *     not contradicted — there is no single-sided border here, there is a full
- *     border with one loud edge.
+ *     border rather than adding a separate accent rule outside it.
+ *
+ * ── POLISH-02: what changed, and why ─────────────────────────────────────────
+ * The old layout was a two-column grid with THREE hand-placed cells (`my-day`
+ * spanning five rows in column 1; `morning-brief` and `quick-capture` pinned to
+ * rows 1–2 of column 2) and every other widget left to grid auto-placement. That
+ * is why the surface read as "a collection of random cards": nothing after the
+ * third widget had a designed position, short cards left holes beside the tall
+ * task list, and the same section could be narrow one day and full-width the next
+ * depending on what was above it.
+ *
+ * It is now THREE REAL CONTAINERS — a hero band and two independently-flowing
+ * columns — with each widget DECLARING which one it belongs to (see
+ * `landing/layout.ts`). Independent flow is the whole point: a column cannot leave
+ * a gap waiting for the other column's row to end, so there are no floating cards
+ * and no ragged whitespace at any width.
+ *
+ * Spacing is one scale, applied at three levels and nowhere else:
+ *   region → region     `--dh-space-6` (24)
+ *   card → card         `--dh-space-5` (20)
+ *   inside a card       `--dh-space-3` (12), with `--dh-space-2` (8) for pairs
  *
  * Layout and rhythm ONLY — every visual value is a DS-01 `var(--dh-*)` token, and
- * all real chrome (cards, empty state, pane header, drawer) comes from the shared
- * components. No new colour, shadow or type treatment; no bespoke visual language
- * (AGENTS.md §9.8, PRODUCT_EXPERIENCE Part IV §10). This file only spaces the six
- * sections, the calm section labels, the day timeline and the quick-capture field,
- * plus the two shared button treatments the surface needs (accent primary + a
- * restrained secondary) until a shared Button/DS-06 form arrives.
+ * all real chrome (cards, empty state, pane header, drawer, progress meter) comes
+ * from the shared components. No new colour, shadow or type treatment; no bespoke
+ * visual language (AGENTS.md §9.8, PRODUCT_EXPERIENCE Part IV §10).
  */
 
+/* -------------------------------------------------------------------------- */
+/* The three regions                                                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Today is a CONTAINER, and its layout thresholds are container queries rather
+ * than media queries — the same technique the Record Layout, the Activity Feed
+ * and Settings already use.
+ *
+ * This matters here more than anywhere else in the product: the dashboard sits
+ * beside a 15rem navigation rail, so the window is never the width the layout
+ * actually has. A viewport breakpoint at 1024px splits Today into two columns
+ * when the pane is really ~750px wide, and the primary column lands at ~390px —
+ * narrow enough that a task row wraps its project onto a second line and stacks
+ * its chips. Asking the CONTAINER means the columns appear exactly when there is
+ * room for them, and they keep behaving correctly if the rail is ever collapsed,
+ * widened, or the surface is embedded somewhere narrower.
+ */
 .dh-today {
+  container-type: inline-size;
+  container-name: today;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-6);
+  min-inline-size: 0;
+}
+
+/*
+ * The two columns. Single-column first, so a phone gets the desktop reading order
+ * unwrapped rather than a second arrangement to keep in step.
+ *
+ * The split is ~66/34 (`1.95fr / 1fr`), which is the ratio the primary column
+ * needs to hold a task row with a title, a project, a priority, an urgency chip
+ * and three quick actions on one line, while the secondary column stays wide
+ * enough for a two-line list row. `minmax(19rem, …)` is the floor below which the
+ * secondary column would start truncating its own rows.
+ *
+ * 60rem is where both of those hold at once (≈38rem primary + ≈20rem secondary +
+ * the gap). Below it the single column is genuinely the better layout, not a
+ * fallback.
+ */
+.dh-today__columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.85fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
+  gap: var(--dh-space-6);
+  min-inline-size: 0;
+}
+
+@container today (min-width: 60rem) {
+  .dh-today__columns {
+    grid-template-columns: minmax(0, 1.95fr) minmax(19rem, 1fr);
+  }
+}
+
+.dh-today__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+  min-inline-size: 0;
+}
+
+/* The secondary column's cards are short — a five-row list, a four-button capture
+   grid — and at the primary column's gap a stack of them reads as loose rather
+   than as a group. One step down the same scale, never a value of its own. */
+.dh-today__column--secondary {
   gap: var(--dh-space-4);
-  max-width: min(100%, 76rem);
 }
 
+/* The Customise toolbar row above the widgets. */
 .dh-today__toolbar {
-  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
 }
 
-.dh-today-widget[data-widget="my-day"] {
-  grid-column: 1;
-  grid-row: 1 / span 5;
+.dh-today__hidden {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
 }
 
-.dh-today-widget[data-widget="morning-brief"] {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.dh-today-widget[data-widget="quick-capture"] {
-  grid-column: 2;
-  grid-row: 2;
+.dh-today__hidden-label {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
-/* Sections + quiet labels                                                    */
+/* One widget = one card. Identical chrome; only the content differs.          */
+/* -------------------------------------------------------------------------- */
+
+/* The surface, border, radius and the preset's inset come from the shared
+   `.dh-region-card` primitive (`density.css`); this rule adds the widget's own
+   internal layout and its one hover response. */
+.dh-today-widget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+  transition:
+    border-color var(--dh-duration-fast) var(--dh-ease-standard),
+    background-color var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+/*
+ * Hover is a BORDER change, not a lift.
+ *
+ * The card does not move, so nothing below it shifts and no layout is recalculated
+ * on pointer travel across a page of twelve cards; and because the cue is drawn
+ * from the same border tokens every theme defines, it is equally visible in all
+ * seven of them. (See the file header for why shadows are not used here.)
+ */
+@media (hover: hover) {
+  .dh-today-widget:hover {
+    border-color: var(--dh-color-border-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-today-widget {
+    transition-duration: var(--dh-duration-instant);
+  }
+}
+
+/* One header treatment: the disclosure heading, then the section's one
+   destination, then the Customise toolbar when it is revealed. The card's own
+   block inset is 4px (the Collection preset), which is right for rows and too
+   tight for a header, so the header takes the difference itself rather than
+   widening the preset for every collection in the product. */
+.dh-today-widget__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  padding-block-start: var(--dh-space-3);
+}
+
+/* Collapsed, the body is `hidden`, so the header would sit on the card's bare
+   4px inset. It keeps its own breathing room instead. */
+.dh-today-widget[data-collapsed="true"] .dh-today-widget__header {
+  padding-block-end: var(--dh-space-3);
+}
+
+.dh-today-widget__heading {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * The collapse toggle IS the heading — a section heading, not a caption.
+ *
+ * It was once 12px, letter-spaced and muted, which reads as a label attached to
+ * the card rather than as the name of what is in it, so a page of widgets had a
+ * dozen equally quiet labels and no hierarchy between a card and its contents. At
+ * the collection body size in the primary text colour it leads its rows, and the
+ * count beside it stays secondary.
+ */
+.dh-today-widget__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-control-height-sm);
+  min-inline-size: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--dh-font-size-base);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dh-today-widget__title {
+  overflow-wrap: anywhere;
+}
+
+.dh-today-widget__chevron {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transform: rotate(90deg);
+  transition: transform var(--dh-duration-fast) var(--dh-ease-standard);
+}
+
+.dh-today-widget__chevron[data-collapsed="true"] {
+  transform: rotate(0deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-today-widget__chevron {
+    transition-duration: var(--dh-duration-instant);
+  }
+}
+
+.dh-today-widget__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-font-weight-regular);
+}
+
+.dh-today-widget__pin-flag {
+  color: var(--dh-color-accent-text);
+  font-weight: var(--dh-font-weight-regular);
+}
+
+/* The section's one destination, pushed to the trailing edge of the header. */
+.dh-today-widget__action {
+  margin-inline-start: auto;
+}
+
+.dh-today-widget__link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-control-height-sm);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-accent-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dh-today-widget__link:hover {
+  text-decoration: underline;
+}
+
+@media (hover: none) {
+  .dh-today-widget__link {
+    min-block-size: var(--dh-touch-target-min);
+  }
+}
+
+.dh-today-widget__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+}
+
+.dh-today-widget__control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--dh-control-height-sm);
+  min-height: var(--dh-control-height-sm);
+  padding: 0 var(--dh-space-2);
+  font: inherit;
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
+  cursor: pointer;
+}
+
+.dh-today-widget__control:hover:not(:disabled) {
+  background: var(--dh-color-hover-surface);
+}
+
+.dh-today-widget__control:disabled {
+  color: var(--dh-color-disabled-text);
+  cursor: not-allowed;
+}
+
+.dh-today-widget__control[aria-pressed="true"] {
+  background: var(--dh-color-accent);
+  color: var(--dh-color-on-accent);
+  border-color: var(--dh-color-accent);
+}
+
+@media (hover: none) {
+  .dh-today-widget__control {
+    min-width: var(--dh-touch-target-min);
+    min-height: var(--dh-touch-target-min);
+  }
+}
+
+.dh-today-widget__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding-block-end: var(--dh-space-3);
+  min-inline-size: 0;
+}
+
+/* A pinned widget carries a quiet accent edge — an identity cue, not colour-only
+   state (the "Pinned" text in the heading names it too). It thickens ONE edge of
+   the card's own full border; it is not a separate single-sided accent rule. */
+.dh-today-widget[data-pinned="true"] {
+  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-accent);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The hero band                                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The hero is the same card with more presence, and its presence comes from the
+ * SURFACE RAMP rather than from an effect: `surface-raised` is the step above
+ * `surface-card`, which every theme is required to keep at ΔL* ≥ 3 (a token test
+ * enforces it), so the band separates itself from the columns beneath it in all
+ * seven themes without a shadow, a gradient or a border colour of its own.
+ */
+.dh-today-widget[data-variant="hero"] {
+  background: var(--dh-color-surface-raised);
+}
+
+/* In the hero the widget's own title steps back to an eyebrow so the greeting
+   inside it can lead the page. It is still the heading and still the collapse
+   control — only the emphasis changes. */
+/*
+ * Deliberately NOT `text-transform: uppercase`. Two reasons, both practical:
+ * `innerText` reflects the transform, so any tool (or test) that reads the
+ * heading to build "Hide <title>" would read a different string than the control
+ * is labelled with; and a shouted label is the wrong register for a product whose
+ * first principle is calm. Size, tracking and colour do the work instead.
+ */
+.dh-today-widget[data-variant="hero"] .dh-today-widget__toggle {
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  letter-spacing: var(--dh-letter-spacing-wider);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--dh-space-5);
+  min-inline-size: 0;
+  padding-block-start: var(--dh-space-1);
+}
+
+/* Side by side once there is genuinely room for the rail beside the greeting —
+   ~26rem of intro plus a three-tile rail — and stacked below that, where a
+   squeezed greeting wraps and the rail turns ragged. */
+@container today (min-width: 58rem) {
+  .dh-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--dh-space-8);
+  }
+}
+
+.dh-hero__intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+.dh-hero__greeting {
+  margin: 0;
+  font-size: var(--dh-font-size-2xl);
+  font-weight: var(--dh-font-weight-semibold);
+  line-height: var(--dh-line-height-tight);
+  letter-spacing: var(--dh-letter-spacing-tight);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-hero__date {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-hero__focus {
+  margin: 0;
+  font-size: var(--dh-font-size-md);
+  line-height: var(--dh-line-height-snug);
+  color: var(--dh-color-text-secondary);
+}
+
+/* The day's completion, bounded so it reads as a meter beside the text rather
+   than as a rule across the whole band. */
+.dh-hero__progress {
+  margin-block-start: var(--dh-space-2);
+  max-inline-size: 22rem;
+}
+
+.dh-hero__capture {
+  align-self: flex-start;
+  margin-block-start: var(--dh-space-2);
+}
+
+/*
+ * The at-a-glance rail: a THREE-column grid, so the tiles always form complete
+ * rows.
+ *
+ * `auto-fit` was the obvious choice and the wrong one — it packs as many tiles
+ * per row as happen to fit, which at a middling pane width put five on one line
+ * and stranded the sixth on its own. A fixed track count keeps the rail 3×2
+ * whether it sits beside the greeting or stacks above the columns, and it steps
+ * down only when the pane is genuinely narrow.
+ */
+.dh-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+@container today (min-width: 58rem) {
+  .dh-hero__stats {
+    grid-template-columns: repeat(3, minmax(7rem, 9rem));
+  }
+}
+
+/* On a genuinely wide pane the rail opens out into a single row of six. It is
+   the same tiles at the same size — but the hero stops being a greeting at one
+   end of the band and a small block at the other with a lake between them. */
+@container today (min-width: 86rem) {
+  .dh-hero__stats {
+    grid-template-columns: repeat(6, minmax(6.5rem, 8rem));
+  }
+}
+
+.dh-hero__stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  margin: 0;
+  padding: var(--dh-space-2) var(--dh-space-3);
+  min-block-size: var(--dh-touch-target-min);
+  min-inline-size: 0;
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-card);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.dh-hero__stat:hover {
+  background: var(--dh-color-hover-surface);
+  border-color: var(--dh-color-border-strong);
+}
+
+.dh-hero__stat-value {
+  font-size: var(--dh-font-size-xl);
+  font-weight: var(--dh-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--dh-line-height-tight);
+}
+
+.dh-hero__stat-label {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Tone is spent on two things only: work that has slipped, and work that is
+   done. It is drawn the SAME way Insights draws it — one loud edge on an
+   otherwise neutral tile — so the two rails cannot drift apart. The label always
+   names the signal, so nothing depends on the colour. */
+.dh-hero__stat[data-tone="attention"] {
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-warning);
+}
+
+.dh-hero__stat[data-tone="positive"] {
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-success);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sections + quiet labels (inside My day)                                    */
 /* -------------------------------------------------------------------------- */
 
 .dh-today__section {
@@ -66,8 +530,8 @@
   gap: var(--dh-space-2);
 }
 
-/* A quiet section label — xs, muted, medium weight (PRODUCT_EXPERIENCE Part V,
- * "Today"). It is a heading for outline/AT, not a loud UI header. */
+/* A quiet section label — xs, muted, medium weight. It is a heading for the
+   outline and for assistive tech, not a loud UI header. */
 .dh-today__section-label {
   margin: 0;
   font-size: var(--dh-font-size-xs);
@@ -82,9 +546,40 @@
   color: var(--dh-color-text-muted);
 }
 
-/* PX-06: Today's private empty-state rules are gone — every quiet section and
- * widget now renders the SHARED `EmptyState` (compact), so there is nothing
- * Today-specific left to style here. */
+/* The section heading row: the quiet label, and the section's one trailing
+   affordance — the same three-slot shape a widget header has, so a section and a
+   widget read alike. */
+.dh-today__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-2) var(--dh-space-3);
+  min-inline-size: 0;
+}
+
+/* A previewed section's honest overflow link. It states the TRUE total and goes
+   to the same tasks in the canonical `/tasks` system view, so the bound on the
+   landing page is a preview rather than a silent truncation. */
+.dh-today__section-all {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-control-height-sm);
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-accent-text);
+  text-decoration: none;
+}
+
+.dh-today__section-all:hover {
+  text-decoration: underline;
+}
+
+@media (hover: none) {
+  .dh-today__section-all {
+    min-block-size: var(--dh-touch-target-min);
+  }
+}
 
 /* A completed focus task reads as done without relying on colour alone. */
 .dh-today__task--done .dh-card__title-text {
@@ -92,67 +587,126 @@
   color: var(--dh-color-text-muted);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Daily timeline — a simple chronological list (DS-05 will render the shared  */
-/* Activity Timeline later; this is the day's fixture schedule).               */
-/* -------------------------------------------------------------------------- */
-
-.dh-today__timeline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* The roving task collection wraps several planning sections into ONE keyboard
+   tab stop (arrow-navigable). It re-establishes the section rhythm the parent gap
+   gave the individual sections, so wrapping them changes spacing for no one. */
+.dh-today__tasklist {
   display: flex;
   flex-direction: column;
+  gap: var(--dh-space-5);
 }
 
-.dh-today__timeline-row {
-  display: grid;
-  grid-template-columns: 4.5rem 1fr;
-  align-items: baseline;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-2) 0;
-  border-left: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  padding-left: var(--dh-space-4);
-  position: relative;
+/* A visible, non-colour-only focus indication when a "Go to <section>" command
+   moves focus to a section heading (programmatic focus is not always
+   `:focus-visible`). */
+.dh-today__section-label:focus {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--dh-radius-xs);
 }
 
-/* A small marker on the timeline rail — decorative, meaning is in the text. */
-.dh-today__timeline-row::before {
-  content: "";
-  position: absolute;
-  left: calc(var(--dh-border-width-thin) * -1 - 3px);
-  top: calc(var(--dh-space-2) + 0.4em);
-  width: 7px;
-  height: 7px;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-border-strong);
+/* Emphasise the whole roving-focused row, in addition to the focused control's
+   own ring, so the keyboard position is unmistakable. Not colour-only — it is a
+   ring. */
+.dh-today__tasklist .dh-card:focus-within {
+  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
+  border-radius: var(--dh-radius-card);
 }
 
-.dh-today__timeline-time {
+/* TODAY-06: task cards are wrapped in the swipe container (which clips with
+   overflow:hidden), so put the roving focus-within ring on the WRAPPER —
+   otherwise the inner card's ring would be clipped and the keyboard position
+   lost. */
+.dh-today__tasklist .dh-card-swipe:focus-within {
+  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
+}
+
+/* Completed today — a calm, collapsed disclosure. */
+.dh-today__completed > summary {
+  cursor: pointer;
+  list-style: revert;
+  min-block-size: var(--dh-control-height-sm);
+}
+
+.dh-today__completed > summary::-webkit-details-marker {
+  display: revert;
+}
+
+.dh-today__completed[open] > summary {
+  margin-block-end: var(--dh-space-2);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Waiting summary (TODAY-03)                                                 */
+/* -------------------------------------------------------------------------- */
+
+/* DS-14 — the Collection preset's separator rule: a hairline between every row,
+   and never before the first or after the last. The rows themselves are
+   `.dh-region-row`, so their padding and minimum target come from the preset. */
+.dh-today__waiting {
+  list-style: none;
+  margin: 0 0 var(--dh-space-2);
+  padding: 0;
+}
+
+.dh-today__waiting-link {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  min-inline-size: 0;
+  padding-inline: var(--dh-space-2);
+  margin-inline: calc(var(--dh-space-2) * -1);
+  border-radius: var(--dh-radius-control);
+  color: inherit;
+  text-decoration: none;
+  /* The row supplies the rhythm; the LINK is the thing a finger hits, so it
+     carries the target floor itself rather than inheriting a content box the
+     row's own padding has already eaten into (WCAG 2.2 §2.5.8). */
+  min-block-size: var(--dh-density-row-min-height);
+}
+
+.dh-today__waiting-link:hover {
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-today__waiting-title {
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.dh-today__waiting-meta {
   font-size: var(--dh-font-size-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-secondary);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
 }
 
-.dh-today__timeline-label {
+.dh-today__waiting-all {
+  align-self: flex-start;
   font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text);
+  font-weight: var(--dh-font-weight-medium);
+}
+
+/* TODAY-03 — the "Waiting for" subject cell in a Waiting card. */
+.dh-waiting-card__subject {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  overflow-wrap: anywhere;
 }
 
 /* -------------------------------------------------------------------------- */
 /* Quick capture                                                              */
 /* -------------------------------------------------------------------------- */
 
-/* MOBILE-01 / TODAY-07 — the shared Quick Capture entries.
- *
- * The old fixture textarea (which saved nothing) is gone. Each entry opens the
- * ONE shared capture sheet on that type, so Today has no capture path of its own
- * to keep in step with the modules. */
+/* MOBILE-01 / TODAY-07 — the shared Quick Capture entries. Each entry opens the
+   ONE shared capture sheet on that type, so Today has no capture path of its own
+   to keep in step with the modules. */
 .dh-today__capture {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
-  padding-block: var(--dh-space-1);
 }
 
 .dh-today__capture-hint {
@@ -163,36 +717,48 @@
 
 /* Entries WRAP rather than scroll, so no capture type is hidden off the edge. */
 .dh-today__capture-types {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: var(--dh-space-2);
 }
 
 .dh-today__capture-type {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--dh-space-2);
   min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-full);
+  min-inline-size: 0;
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface-card);
   color: var(--dh-color-text);
   font: inherit;
   font-size: var(--dh-font-size-sm);
   font-weight: var(--dh-font-weight-medium);
   cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition:
+    background-color var(--dh-duration-fast) var(--dh-ease-standard),
+    border-color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 
 .dh-today__capture-type:hover {
   background: var(--dh-color-hover-surface);
+  border-color: var(--dh-color-border-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-today__capture-type {
+    transition-duration: var(--dh-duration-instant);
+  }
 }
 
 .dh-today__capture-type-icon {
   display: inline-flex;
+  flex: none;
   line-height: 0;
-  font-size: var(--dh-font-size-lg);
+  color: var(--dh-color-text-muted);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -203,6 +769,7 @@
 .dh-today__secondary {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--dh-space-2);
   min-height: var(--dh-control-height-md);
   padding: 0 var(--dh-space-4);
@@ -220,6 +787,13 @@
   .dh-today__primary,
   .dh-today__secondary {
     min-height: var(--dh-touch-target-min);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-today__primary,
+  .dh-today__secondary {
+    transition-duration: var(--dh-duration-instant);
   }
 }
 
@@ -253,103 +827,38 @@
   cursor: not-allowed;
 }
 
-/* TODAY-03 — the Waiting summary section on Today. */
-/* DS-14 — the Collection preset's separator rule: a hairline between every row,
-   and never before the first or after the last. The rows themselves are
-   `.dh-region-row`, so their padding and minimum target come from the preset. */
-.dh-today__waiting {
-  list-style: none;
-  margin: 0 0 var(--dh-space-2);
-  padding: 0;
+.dh-today__ghost {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dh-control-height-sm);
+  padding: 0 var(--dh-space-3);
+  font: inherit;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  background: transparent;
+  border: var(--dh-border-width-thin) solid transparent;
+  border-radius: var(--dh-radius-sm);
+  cursor: pointer;
 }
 
-.dh-today__waiting-link {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  flex: 1;
-  border-radius: var(--dh-radius-control);
-  color: inherit;
-  text-decoration: none;
-  /* The row supplies the rhythm; the LINK is the thing a finger hits, so it
-     carries the target floor itself rather than inheriting a content box the
-     row's own padding has already eaten into (WCAG 2.2 §2.5.8). */
-  min-block-size: var(--dh-density-row-min-height);
-}
-
-.dh-today__waiting-link:hover {
+.dh-today__ghost:hover {
+  color: var(--dh-color-text);
   background: var(--dh-color-surface-sunken);
 }
 
-.dh-today__waiting-title {
-  font-weight: var(--dh-font-weight-medium);
-  overflow-wrap: anywhere;
+@media (hover: none) {
+  .dh-today__ghost {
+    min-height: var(--dh-touch-target-min);
+  }
 }
 
-.dh-today__waiting-meta {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
-  overflow-wrap: anywhere;
-}
+/* -------------------------------------------------------------------------- */
+/* The multi-select bulk planning bar (CollectionLayout selection slot)        */
+/* -------------------------------------------------------------------------- */
 
-.dh-today__waiting-all {
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-}
-
-/* TODAY-03 — the "Waiting for" subject cell in a Waiting card. */
-.dh-waiting-card__subject {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dh-space-1);
-  overflow-wrap: anywhere;
-}
-
-/* ------------------------------------------------------------------------- */
-/* TODAY-04 — planning summary, sections and the multi-select bulk bar.       */
-/* Every value is a DS-01 token; no bespoke colour or spacing.               */
-/* ------------------------------------------------------------------------- */
-
-/* The calm planning summary strip — operational awareness, not analytics. */
-.dh-today__summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-4);
-  margin: 0;
-  padding: var(--dh-space-3) 0;
-}
-
-.dh-today__summary-stat {
-  display: flex;
-  align-items: baseline;
-  gap: var(--dh-space-2);
-  margin: 0;
-}
-
-.dh-today__summary-value {
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
-.dh-today__summary-label {
-  order: 2;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
-}
-
-/* Completed today — a calm, collapsed disclosure. */
-.dh-today__completed > summary {
-  cursor: pointer;
-  list-style: revert;
-}
-
-.dh-today__completed > summary::-webkit-details-marker {
-  display: revert;
-}
-
-/* The multi-select bulk planning bar (CollectionLayout selection slot). */
+/* The bulk bar is one of the few things on Today that genuinely FLOATS — it is
+   pinned over the scrolling collection — so it is one of the few things entitled
+   to a shadow (DS-14 constraint 8). */
 .dh-today__bulk {
   display: flex;
   flex-wrap: wrap;
@@ -405,308 +914,9 @@
   background: var(--dh-color-surface-sunken);
 }
 
-/* -- TODAY-05: keyboard workflow -------------------------------------------- */
-
-/* The roving task collection wraps several planning sections into ONE keyboard tab
-   stop (arrow-navigable). It re-establishes the section rhythm the parent gap gave
-   the individual sections, so wrapping them changes spacing for no one. */
-.dh-today__tasklist {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-5);
-}
-
-/* A visible, non-colour-only focus indication when a "Go to <section>" command moves
-   focus to a section heading (programmatic focus is not always `:focus-visible`). */
-.dh-today__section-label:focus {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--dh-radius-xs);
-}
-
-/* Emphasise the whole roving-focused row, in addition to the focused control's own
-   ring, so the keyboard position is unmistakable. Not colour-only — it is a ring. */
-.dh-today__tasklist .dh-card:focus-within {
-  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
-  border-radius: var(--dh-radius-card);
-}
-
-/* TODAY-06: task cards are wrapped in the swipe container (which clips with
-   overflow:hidden), so put the roving focus-within ring on the WRAPPER — otherwise
-   the inner card's ring would be clipped and the keyboard position lost. The
-   wrapper also owns the card elevation, so the focused card keeps its shadow AND
-   gains the ring (the focus treatment is added, never removed). */
-.dh-today__tasklist .dh-card-swipe:focus-within {
-  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
-}
-
-/* ------------------------------------------------------------------------- */
-/* TODAY-08 — the command-centre widgets + personalisation (tokens only).     */
-/* Layout and rhythm ONLY; every visual value is a DS-01 token. No new colour, */
-/* shadow or type treatment — the chrome reuses the shared Card/list idiom.    */
-/* ------------------------------------------------------------------------- */
-
-/* The Customise toolbar row above the widgets. */
-.dh-today__toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-2);
-}
-
-.dh-today__ghost {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--dh-control-height-sm);
-  padding: 0 var(--dh-space-3);
-  font: inherit;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
-  background: transparent;
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-sm);
-  cursor: pointer;
-}
-
-.dh-today__ghost:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-sunken);
-}
-
-@media (hover: none) {
-  .dh-today__ghost {
-    min-height: var(--dh-touch-target-min);
-  }
-}
-
-.dh-today__hidden {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--dh-space-2);
-}
-
-.dh-today__hidden-label {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
-}
-
-/* One widget = a labelled region with a collapsible body. */
-/* DS-14 — a widget is a card on the tinted canvas. The surface, border, radius
-   and the preset's inset all come from the shared `.dh-region-card` primitive
-   (`density.css`); this rule only adds the widget's own internal layout. */
-.dh-today-widget {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-2);
-}
-
-/* The widget header needs breathing room the 4px block inset deliberately does
-   not give the rows, so it takes it itself rather than widening the preset. */
-.dh-today-widget__header {
-  padding-block-start: var(--dh-space-3);
-}
-
-.dh-today-widget__body {
-  padding-block-end: var(--dh-space-3);
-}
-
-.dh-today-widget[data-pinned="true"] {
-  /* A pinned widget carries a quiet accent edge — an identity cue, not colour-only
-     state (the "Pinned" text in the heading names it too). It thickens ONE edge of
-     the card's own full border; it is not a separate single-sided accent rule. */
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-accent);
-}
-
-.dh-today-widget__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--dh-space-2);
-}
-
-.dh-today-widget__heading {
-  margin: 0;
-}
-
-/* The collapse toggle IS the heading — a quiet, calm label in the Today rhythm. */
-/*
- * DS-14 — a widget heading is a SECTION HEADING, not a caption.
- *
- * It was 12px, letter-spaced and muted, which reads as a label attached to the
- * card rather than as the name of what is in it — so a page of six widgets had
- * six equally quiet labels and no hierarchy between the card and its contents.
- * At the collection body size in the primary text colour it leads its rows,
- * and the count beside it stays secondary.
- */
-.dh-today-widget__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-control-height-sm);
-  padding: 0;
-  font: inherit;
-  font-size: var(--dh-font-size-base);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-}
-
-.dh-today-widget__toggle:hover {
-  color: var(--dh-color-text);
-}
-
-.dh-today-widget__chevron {
-  width: 0;
-  height: 0;
-  border-left: 4px solid currentColor;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transform: rotate(90deg);
-  transition: transform var(--dh-duration-fast) var(--dh-ease-standard);
-}
-
-.dh-today-widget__chevron[data-collapsed="true"] {
-  transform: rotate(0deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dh-today-widget__chevron {
-    transition-duration: var(--dh-duration-instant);
-  }
-}
-
-.dh-today-widget__count {
-  font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-muted);
-  font-weight: var(--dh-font-weight-regular);
-}
-
-.dh-today-widget__pin-flag {
-  color: var(--dh-color-accent-text);
-}
-
-.dh-today-widget__controls {
-  display: flex;
-  align-items: center;
-  gap: var(--dh-space-1);
-}
-
-.dh-today-widget__control {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--dh-control-height-sm);
-  min-height: var(--dh-control-height-sm);
-  padding: 0 var(--dh-space-2);
-  font: inherit;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  cursor: pointer;
-}
-
-.dh-today-widget__control:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
-}
-
-.dh-today-widget__control:disabled {
-  color: var(--dh-color-disabled-text);
-  cursor: not-allowed;
-}
-
-.dh-today-widget__control[aria-pressed="true"] {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
-  border-color: var(--dh-color-accent);
-}
-
-@media (hover: none) {
-  .dh-today-widget__control {
-    min-width: var(--dh-touch-target-min);
-    min-height: var(--dh-touch-target-min);
-  }
-}
-
-.dh-today-widget__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-}
-
-/* -- Morning Brief ---------------------------------------------------------- */
-
-/*
- * DS-14 — the brief is the widget's CONTENT, not a card inside a card.
- *
- * It painted its own `surface-card` and its own 16px radius while sitting
- * inside a widget already doing both, which is the "cards inside cards without
- * meaningful hierarchy" the direction rules out: two identical surfaces, one
- * inset in the other, communicating nothing by being two. The widget is the
- * card; the brief lives on it.
- */
-.dh-morning-brief {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dh-space-3);
-  padding-block: var(--dh-space-2) var(--dh-space-1);
-}
-
-.dh-morning-brief__greeting {
-  margin: 0;
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
-}
-
-.dh-morning-brief__date {
-  margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
-}
-
-.dh-morning-brief__focus {
-  margin: 0;
-  font-size: var(--dh-font-size-md);
-  color: var(--dh-color-text);
-}
-
-.dh-morning-brief__signals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-5);
-  margin-top: var(--dh-space-1);
-}
-
-.dh-morning-brief__signal {
-  display: flex;
-  align-items: baseline;
-  gap: var(--dh-space-2);
-  margin: 0;
-}
-
-.dh-morning-brief__signal-value {
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
-.dh-morning-brief__signal-label {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
-}
-
-.dh-morning-brief__capture {
-  align-self: flex-start;
-}
-
-/* -- Shared calm list (notes / diary / areas / goals) ----------------------- */
+/* -------------------------------------------------------------------------- */
+/* The shared calm list (notes / diary / areas / goals)                        */
+/* -------------------------------------------------------------------------- */
 
 .dh-today-list {
   list-style: none;
@@ -714,23 +924,35 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .dh-today-list__item {
   margin: 0;
 }
 
+/* A hairline BETWEEN rows and never before the first or after the last — the
+   Collection preset's separator rule, applied to the list widgets so every
+   scannable list in the product is separated the same way. */
+.dh-today-list__item + .dh-today-list__item {
+  border-block-start: var(--dh-border-width-thin) solid
+    var(--dh-color-divider-subtle);
+}
+
 .dh-today-list__link {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
+  min-inline-size: 0;
+  /* The row's inset is pulled back out with a negative margin so the hover
+     surface spans the card's full content width rather than being indented from
+     it — a hover state that stops short of the text beside it reads as a bug. */
   padding: var(--dh-space-2);
+  margin-inline: calc(var(--dh-space-2) * -1);
   border-radius: var(--dh-radius-sm);
   color: inherit;
   text-decoration: none;
   min-height: var(--dh-touch-target-min);
-  justify-content: center;
 }
 
 .dh-today-list__link:hover {
@@ -748,13 +970,165 @@
   overflow-wrap: anywhere;
 }
 
-.dh-today-list__all {
-  align-self: flex-start;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+.dh-today-list__icon {
+  display: inline-flex;
+  flex: none;
+  line-height: 0;
+  color: var(--dh-color-text-muted);
 }
 
-/* -- Diary widget groups ---------------------------------------------------- */
+.dh-today-list__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+/* A list row that leads with an icon lays out as icon + body rather than as a
+   column, so the glyph sits beside the text instead of above it. Declared by the
+   row (`--with-icon`) rather than inferred from its children, so the layout is
+   readable from the markup and needs no structural selector. */
+.dh-today-list__link--with-icon {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--dh-space-3);
+}
+
+.dh-today-list__note {
+  margin: var(--dh-space-2) 0 0;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The day's schedule — a real timeline, not a list of sentences               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * POLISH-02. The meetings were rows of "09:30 · Started · Online" running
+ * underneath the title, which is a list that happens to contain times rather than
+ * a schedule. A fixed tabular time gutter with a rail beside it lets the eye read
+ * the day down the column: the times line up, the rail shows the sequence, and a
+ * meeting that has already started is dimmed AND says "Started" in words.
+ */
+.dh-schedule {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dh-schedule__item {
+  position: relative;
+  margin: 0;
+  /* The row's own inline padding is cancelled by its negative margin, so the time
+     column starts at the item's leading edge and the rail is simply the column
+     width plus half the gap. */
+  --today-schedule-rail: calc(3.25rem + var(--dh-space-3) / 2);
+  /* Where the marker's centre sits, measured from the top of the row: the row's
+     own padding plus half a line of the title beside it. */
+  --today-schedule-marker: calc(var(--dh-space-2) + 0.7em);
+}
+
+.dh-schedule__link {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--dh-space-3);
+  position: relative;
+  min-block-size: var(--dh-touch-target-min);
+  padding: var(--dh-space-2);
+  margin-inline: calc(var(--dh-space-2) * -1);
+  border-radius: var(--dh-radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-schedule__link:hover {
+  background: var(--dh-color-surface-sunken);
+}
+
+/*
+ * The rail and its markers. Both hang off the item, positioned against ONE
+ * shared offset so the hairline always runs through the centre of every dot:
+ * `--today-schedule-rail` is the distance from the row's leading edge to the middle
+ * of the gutter between the time column and the body.
+ *
+ * The rail is decorative — every meaning on the row is carried by its text.
+ */
+.dh-schedule__item::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--today-schedule-rail);
+  inline-size: var(--dh-border-width-thin);
+  background: var(--dh-color-divider-subtle);
+}
+
+/* The rail starts at the first marker and stops at the last, so it reads as the
+   span of the day rather than as a rule that runs off both ends of the card. */
+.dh-schedule__item:first-child::before {
+  inset-block-start: var(--today-schedule-marker);
+}
+
+.dh-schedule__item:last-child::before {
+  inset-block-end: auto;
+  block-size: var(--today-schedule-marker);
+}
+
+.dh-schedule__item:only-child::before {
+  display: none;
+}
+
+.dh-schedule__item::after {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(var(--today-schedule-marker) - 3px);
+  inset-inline-start: calc(var(--today-schedule-rail) - 3px);
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: var(--dh-radius-full);
+  background: var(--dh-color-accent);
+}
+
+/* A meeting whose start time has passed is a quieter marker. The row also says
+   "Started" in words, so nothing is carried by the colour alone. */
+.dh-schedule__item[data-started="true"]::after {
+  background: var(--dh-color-border-strong);
+}
+
+.dh-schedule__time {
+  font-size: var(--dh-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text-secondary);
+  text-align: end;
+}
+
+.dh-schedule__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  /* Clear the rail marker sitting in the gutter between the two columns. */
+  padding-inline-start: var(--dh-space-3);
+}
+
+.dh-schedule__title {
+  font-weight: var(--dh-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.dh-schedule__meta {
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Diary groups                                                               */
+/* -------------------------------------------------------------------------- */
 
 .dh-diary-widget {
   display: flex;
@@ -782,15 +1156,20 @@
   color: var(--dh-color-text-muted);
 }
 
-/* -- Insights --------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* Insights                                                                   */
+/* -------------------------------------------------------------------------- */
 
+/* In the secondary column the signals stack as full-width rows rather than
+   wrapping as chips — a two-across chip grid in a 20rem column produced a ragged
+   last line on almost every count. */
 .dh-insights {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  flex-direction: column;
+  gap: var(--dh-space-2);
 }
 
 .dh-insights__item {
@@ -804,7 +1183,7 @@
   gap: var(--dh-space-2);
   padding: var(--dh-space-2) var(--dh-space-3);
   border-radius: var(--dh-radius-md);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
   background: var(--dh-color-surface-card);
   color: inherit;
   text-decoration: none;
@@ -812,19 +1191,22 @@
 }
 
 .dh-insights__link:hover {
-  background: var(--dh-color-surface-sunken);
+  background: var(--dh-color-hover-surface);
+  border-color: var(--dh-color-border-strong);
 }
 
 /* Attention signals carry a quiet accent edge (never a red badge); the label text
    always names the signal, so this is never colour-only state. */
 .dh-insights__item[data-tone="attention"] .dh-insights__link,
 .dh-insights__item[data-tone="attention"] .dh-insights__static {
-  border-left: var(--dh-border-width-thick) solid var(--dh-color-warning);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-warning);
 }
 
 .dh-insights__item[data-tone="positive"] .dh-insights__link,
 .dh-insights__item[data-tone="positive"] .dh-insights__static {
-  border-left: var(--dh-border-width-thick) solid var(--dh-color-success);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-success);
 }
 
 .dh-insights__count {
@@ -838,13 +1220,45 @@
   color: var(--dh-color-text-muted);
 }
 
-/* -- Recent Activity widget ------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* Recent Activity widget                                                     */
+/* -------------------------------------------------------------------------- */
 
 .dh-today-activity {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
   min-width: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* State words                                                                */
+/* -------------------------------------------------------------------------- */
+
+/* ASSET-02 — a state word. Colour is a reinforcement; the label text ("Overdue",
+   "Due soon", "Started", "Worth a review") carries the meaning, so nothing is
+   lost in greyscale or to a colour-blind reader (§24). */
+.dh-today-signal {
+  font-weight: var(--dh-font-weight-medium);
+}
+
+.dh-today-signal--overdue {
+  color: var(--dh-color-state-overdue-text);
+}
+
+.dh-today-signal--due {
+  color: var(--dh-color-state-due-soon-text);
+}
+
+.dh-today-signal--unknown {
+  color: var(--dh-color-info-text);
+}
+
+/* A NON-alarming emphasis: "Started", "Worth a review", "No recent action" are
+   facts worth noticing, not warnings. They earn weight and the primary text
+   colour, never a warning tone (the anti-guilt mandate). */
+.dh-today-signal--quiet {
+  color: var(--dh-color-text-secondary);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1414,25 +1828,36 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* MOBILE-01 — the phone Today dashboard                                       */
+/* MOBILE-01 / POLISH-02 — the phone Today dashboard                           */
+/*                                                                             */
+/* Placed last so these overrides win over the desktop rules above without      */
+/* raising specificity. The surface keeps every control it has at wider widths; */
+/* what changes is the rhythm and where the low-frequency chrome sits. The      */
+/* single-column stack is NOT an override — the columns are mobile-first, so a  */
+/* phone renders the same order the desktop reads in, unwrapped.                */
 /* -------------------------------------------------------------------------- */
 
 @media (max-width: 48rem) {
   /* Tighter vertical rhythm: the first viewport must answer "what must I do,
    * what is due, what am I waiting on" without scrolling past decoration. */
   .dh-today {
-    display: flex;
-    flex-direction: column;
-    gap: var(--dh-space-5);
+    gap: var(--dh-space-4);
   }
 
-  .dh-today-widget[data-widget] {
-    grid-column: auto;
-    grid-row: auto;
+  .dh-today__columns {
+    gap: var(--dh-space-4);
+  }
+
+  .dh-today__column {
+    gap: var(--dh-space-4);
   }
 
   .dh-today__section {
     gap: var(--dh-space-2);
+  }
+
+  .dh-today__tasklist {
+    gap: var(--dh-space-4);
   }
 
   /* Section labels carry more weight on a phone — on a long scroll they are the
@@ -1441,6 +1866,20 @@
     font-size: var(--dh-font-size-sm);
     font-weight: var(--dh-font-weight-semibold);
     color: var(--dh-color-text);
+  }
+
+  /* The hero stacks, and the greeting steps down one size so the date, the focus
+   * line and the first stats still fit in the opening viewport. */
+  .dh-hero {
+    gap: var(--dh-space-4);
+  }
+
+  .dh-hero__greeting {
+    font-size: var(--dh-font-size-xl);
+  }
+
+  .dh-hero__progress {
+    max-inline-size: none;
   }
 
   /*
@@ -1457,24 +1896,45 @@
     display: none;
   }
 
-  /* Capture entries fill the row so each is a comfortable thumb target. */
-  .dh-today__capture-types {
-    gap: var(--dh-space-2);
-  }
-
-  .dh-today__capture-type {
-    flex: 1 1 8rem;
-    justify-content: center;
-  }
-
   /* The customise toolbar is a low-frequency control: it stays reachable but
-   * stops competing with the day's work for the top of the screen. */
+   * stops competing with the day's work for the top of the screen. `order`
+   * moves it to the end of the flex column without moving it in the DOM, so the
+   * tab order and the screen-reader order are unchanged. */
   .dh-today__toolbar {
     order: 99;
   }
 }
 
-@media (max-width: 14rem) {
+/*
+ * A narrow pane — a small phone, or any width where a 7rem tile and an 8rem
+ * capture entry stop fitting two-across comfortably. Container-scoped, because
+ * these are questions about the space the dashboard has, not about the window.
+ */
+@container today (max-width: 26rem) {
+  .dh-hero__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dh-today__capture-types {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dh-schedule__link {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+  }
+
+  .dh-schedule__item {
+    --today-schedule-rail: calc(2.75rem + var(--dh-space-3) / 2);
+  }
+}
+
+/*
+ * The narrowest width the product supports. Nothing may overflow horizontally
+ * here, so every fixed track, minimum width and nowrap on the surface is
+ * released — including the schedule's time gutter, which cannot share a line
+ * with a title at this size.
+ */
+@container today (max-width: 15rem) {
   .dh-today {
     gap: var(--dh-space-3);
   }
@@ -1484,12 +1944,11 @@
   }
 
   .dh-today-widget__header,
-  .dh-morning-brief__signals {
+  .dh-hero {
     gap: var(--dh-space-2);
   }
 
   .dh-today-widget__toggle,
-  .dh-morning-brief__signal,
   .dh-today__secondary,
   .dh-today__capture-type {
     min-inline-size: 0;
@@ -1521,20 +1980,35 @@
     flex-wrap: wrap;
   }
 
-  .dh-today__summary {
-    gap: var(--dh-space-2);
+  /* The at-a-glance rail and the capture entries collapse to one per row rather
+     than forcing a track wider than the viewport. */
+  .dh-hero__stats,
+  .dh-today__capture-types {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .dh-today__summary-stat {
-    flex: 1 1 4.5rem;
-    min-inline-size: 0;
-    flex-wrap: wrap;
-    column-gap: var(--dh-space-1);
+  /* The schedule drops its fixed time gutter (and with it the rail) — at this
+     width a 44px column and a title cannot share a line. */
+  .dh-schedule__link {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
   }
 
-  .dh-today__summary-label {
-    min-inline-size: 0;
-    overflow-wrap: anywhere;
+  .dh-schedule__time {
+    text-align: start;
+  }
+
+  .dh-schedule__body {
+    padding-inline-start: 0;
+  }
+
+  .dh-schedule__item::before,
+  .dh-schedule__item::after {
+    display: none;
+  }
+
+  .dh-today-widget__link {
+    white-space: normal;
   }
 
   .dh-today-widget__toggle,
@@ -1548,34 +2022,9 @@
     white-space: normal;
   }
 
-  .dh-morning-brief__capture,
+  .dh-hero__capture,
   .dh-today__secondary {
     align-self: stretch;
     justify-content: center;
   }
-}
-
-/* ASSET-02 — the Assets widget's state word. Colour is a reinforcement; the
-   label text ("Overdue", "Due soon", "Reading needed") carries the meaning, so
-   nothing is lost in greyscale or to a colour-blind reader (§24). */
-.dh-today-signal {
-  font-weight: var(--dh-font-weight-medium);
-}
-
-.dh-today-signal--overdue {
-  color: var(--dh-color-state-overdue-text);
-}
-
-.dh-today-signal--due {
-  color: var(--dh-color-state-due-soon-text);
-}
-
-.dh-today-signal--unknown {
-  color: var(--dh-color-info-text);
-}
-
-.dh-today-list__note {
-  margin: var(--dh-space-2) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
 }
