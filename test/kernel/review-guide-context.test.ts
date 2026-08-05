@@ -65,7 +65,12 @@ function countingDatabase(counter: Counter): D1Database {
               ),
             );
         }
-        if (property === "first" || property === "all" || property === "run" || property === "raw") {
+        if (
+          property === "first" ||
+          property === "all" ||
+          property === "run" ||
+          property === "raw"
+        ) {
           return (...args: unknown[]) => {
             counter.count += 1;
             return (value as (...a: unknown[]) => unknown).apply(target, args);

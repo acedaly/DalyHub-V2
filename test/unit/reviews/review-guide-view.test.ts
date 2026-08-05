@@ -113,12 +113,12 @@ describe("prompt sequence", () => {
       "diary.commentary",
       "people_meetings.commentary",
     ]);
-    expect(prompts.find((p) => p.sectionId === "summary.lessons")?.answered).toBe(
-      true,
-    );
-    expect(prompts.find((p) => p.sectionId === "summary.overall")?.answered).toBe(
-      false,
-    );
+    expect(
+      prompts.find((p) => p.sectionId === "summary.lessons")?.answered,
+    ).toBe(true);
+    expect(
+      prompts.find((p) => p.sectionId === "summary.overall")?.answered,
+    ).toBe(false);
   });
 
   it("carries the weekly template's question for the prompts that have one", () => {
@@ -162,9 +162,9 @@ describe("progress labels", () => {
   });
 
   it("counts done steps as a position, never a percentage", () => {
-    expect(
-      completedStepsLabel(deriveWeeklyReviewProgress(facts())),
-    ).toBe("1 of 7 steps done");
+    expect(completedStepsLabel(deriveWeeklyReviewProgress(facts()))).toBe(
+      "1 of 7 steps done",
+    );
   });
 });
 
@@ -174,7 +174,10 @@ describe("the completion summary", () => {
 
   it("reports a cleared Inbox, answered prompts and a recorded focus", () => {
     const serialized = serializeReview(
-      review({ "summary.overall": "Good week", "summary.next_focus": "Ship it" }),
+      review({
+        "summary.overall": "Good week",
+        "summary.next_focus": "Ship it",
+      }),
       "d_mmm_yyyy",
     );
     const summary = reviewCompletionSummary({

@@ -55,9 +55,9 @@ async function weekly(repo = reviews()) {
 }
 
 async function countWorkflowRows(table: string): Promise<number> {
-  const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM ${table}`,
-  ).first<{ n: number }>();
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{
+    n: number;
+  }>();
   return row?.n ?? 0;
 }
 
@@ -243,7 +243,11 @@ describe("explicit step acknowledgements", () => {
     expect(again.changed).toBe(false);
     expect(again.state.acknowledgedSteps).toEqual(["projects"]);
 
-    const removed = await repo.setStepAcknowledged(review.id, "projects", false);
+    const removed = await repo.setStepAcknowledged(
+      review.id,
+      "projects",
+      false,
+    );
     expect(removed.changed).toBe(true);
     expect(removed.state.acknowledgedSteps).toEqual([]);
   });
@@ -274,8 +278,7 @@ describe("explicit step acknowledgements", () => {
     const review = await weekly(repo);
     await repo.setStepAcknowledged(review.id, "projects", true);
     expect(
-      (await reviews(OTHER, "o").getWorkflowState(review.id))
-        .acknowledgedSteps,
+      (await reviews(OTHER, "o").getWorkflowState(review.id)).acknowledgedSteps,
     ).toEqual([]);
   });
 });
@@ -425,7 +428,8 @@ describe("lifecycle interaction", () => {
     expect(reopened?.completedAt).toBeNull();
     // The responses written during the guided flow survive untouched.
     expect(
-      reopened?.sections.find((s) => s.sectionId === "summary.next_focus")?.body,
+      reopened?.sections.find((s) => s.sectionId === "summary.next_focus")
+        ?.body,
     ).toBe("Next up");
   });
 

@@ -148,7 +148,9 @@ describe("answeredReviewSectionIds", () => {
 describe("derived progress", () => {
   it("marks the Inbox step done only when the Inbox is genuinely clear", () => {
     const clear = deriveWeeklyReviewProgress(facts({ inboxRemaining: 0 }));
-    expect(clear.steps.find((s) => s.id === "inbox")?.derivedComplete).toBe(true);
+    expect(clear.steps.find((s) => s.id === "inbox")?.derivedComplete).toBe(
+      true,
+    );
 
     const notClear = deriveWeeklyReviewProgress(facts({ inboxRemaining: 4 }));
     expect(notClear.steps.find((s) => s.id === "inbox")?.derivedComplete).toBe(

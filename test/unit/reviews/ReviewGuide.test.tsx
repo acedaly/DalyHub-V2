@@ -195,7 +195,9 @@ describe("the guided weekly Review shell", () => {
       stepData: { kind: "sections" },
       progressFacts: { acknowledgedSteps: ["projects"] },
     });
-    expect(screen.getByRole("button", { name: "Undo ‘reviewed’" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Undo ‘reviewed’" }),
+    ).toBeTruthy();
   });
 
   it("always offers a way out that keeps the Review", () => {
@@ -266,7 +268,9 @@ describe("the completion step", () => {
       progressFacts: { status: "completed" },
     });
     expect(screen.getByRole("button", { name: "Reopen Review" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Complete Review" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Complete Review" }),
+    ).toBeNull();
   });
 });
 
@@ -277,9 +281,7 @@ describe("the reflection step", () => {
     expect(
       screen.getByText("What went well? What was difficult?"),
     ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Next prompt" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next prompt" })).toBeTruthy();
   });
 
   it("makes a completed Review's reflection read-only rather than editable", () => {
