@@ -295,6 +295,74 @@ describe("openai response reading", () => {
     expect(body.text.format.strict).toBe(true);
   });
 
+  /**
+   * AI-02 privacy hardening. The Responses API's `store` defaults to TRUE, which
+   * would leave the owner's evidence retrievable from OpenAI's own dashboard and
+   * API for 30 days. DalyHub switches it off EXPLICITLY, on every request, in
+   * every routing mode and for every feature — a default that quietly changes
+   * would otherwise change what DalyHub sends without anyone noticing.
+   *
+   * This asserts what DalyHub SENDS. It is not a claim about what the provider
+   * then does: abuse monitoring and legal retention remain the provider's, and
+   * DalyHub can neither inspect nor override them (AI_PLATFORM.md).
+   */
+  it("sends store:false on every OpenAI request", async () => {
+    const gateway = { accountId: "a".repeat(32), gatewayId: "dalyhub-gw" };
+    const cases = [
+      { mode: "direct" as const, gateway: null, gatewayToken: null },
+      { mode: "gateway" as const, gateway, gatewayToken: "t" },
+    ];
+
+    for (const routing of cases) {
+      for (const featureId of [
+        "meeting-action-extraction",
+        "note-action-extraction",
+        "weekly-review-assistant",
+        "workspace-question-answer",
+      ]) {
+        const fetchImpl = vi.fn(async () => jsonResponse(openaiOk));
+        await createOpenAiAdapter({
+          apiKey: "k",
+          ...routing,
+          featureId,
+          fetchImpl: fetchImpl as never,
+        }).complete(request(openaiModel));
+
+        const raw = String(
+          (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body,
+        );
+        const body = JSON.parse(raw) as Record<string, unknown>;
+        expect(body.store).toBe(false);
+        // Present as an explicit false, not merely absent or falsy.
+        expect(Object.hasOwn(body, "store")).toBe(true);
+        expect(raw).toContain('"store":false');
+      }
+    }
+  });
+
+  /**
+   * Anthropic is deliberately UNCHANGED by this release. `store` is an OpenAI
+   * Responses API field and means nothing to the Messages API; sending it would
+   * be cargo-culting a setting into a request that has no such concept.
+   */
+  it("does not add store to the Anthropic request", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(anthropicOk));
+    await createAnthropicAdapter({
+      apiKey: "k",
+      mode: "direct",
+      gateway: null,
+      gatewayToken: null,
+      featureId: "meeting-action-extraction",
+      fetchImpl: fetchImpl as never,
+    }).complete(request(anthropicModel));
+    const body = JSON.parse(
+      String(
+        (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].body,
+      ),
+    ) as Record<string, unknown>;
+    expect(Object.hasOwn(body, "store")).toBe(false);
+  });
+
   it("treats an incomplete response as invalid", async () => {
     const adapter = createOpenAiAdapter({
       apiKey: "k",

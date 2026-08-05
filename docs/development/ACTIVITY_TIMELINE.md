@@ -507,4 +507,19 @@ mutation runs. That mutation goes through the module's own repository and carrie
 its existing event unchanged, with the **owner** as the actor — because the owner
 reviewed and approved the change. AI is never described as the actor.
 
+### Accepting a proposal produces the ORDINARY events (AI-02, 2026-08-05)
+
+There is deliberately **no** "AI created this" event, and none was added when the
+acceptance path grew. An accepted Meeting Task emits MEET-02's own
+`meeting.item_converted_to_task` (plus the `meeting.updated` from appending the
+action item and the Task's own `entity.created`); an accepted Note emits
+`entity.created` and, where content was written, `note.content_updated`; an
+accepted relationship emits `entity_link.created`. Every one of them is exactly
+the event the same action taken by hand produces, and every one carries the
+**owner** as the actor.
+
+That is asserted, not assumed: a kernel test walks the whole workspace feed after
+an acceptance and requires every event's actor to be the authenticated user, no
+event type to mention AI, and a **rejected** proposal to append nothing at all.
+
 See [`AI_PLATFORM.md`](AI_PLATFORM.md) §8.

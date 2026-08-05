@@ -1068,21 +1068,49 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **The consent boundary sits at the CATEGORY, not at every record** — `general` is
   always allowed, so an ordinary Task never triggers a prompt.
 
-#### ◐ AI-02 — Meeting → tasks/notes proposals
+#### ☑ AI-02 — Meeting → tasks/notes proposals — **DELIVERED 2026-08-05**
 
-- **Partly delivered, and deliberately not marked ☑.** Meeting extraction ships:
-  the owner runs it explicitly, reviews proposed Tasks and EntityLinks, edits them,
-  accepts individually, and the accepted items are created through the canonical
-  Task and EntityLink repositories.
-- **What AI-02 still owes.** Its entry says proposals must be applied through
-  **MEET-02's own** `meeting_items` → Task conversion authority, so an accepted
-  proposal is recorded as a meeting-item follow-up rather than as a plain Task.
-  This release creates ordinary Tasks and does **not** write the
-  `meeting_item_tasks` mapping, so the Follow-up tab does not show an
-  AI-originated Task as converted. It also proposes no **Notes**. Both remain open,
-  and the first is recorded as
-  [DEBT-90](../product/PRODUCT_DEBT.md#-debt-90--ai-accepted-tasks-are-not-recorded-as-meeting-item-follow-ups--p3).
-- **Priority.** P3.
+Marked ☑ because both of its conditions are now true, with source and test
+evidence:
+
+1. **Accepted Meeting Tasks use MEET-02's canonical conversion authority and
+   appear correctly in Follow-up.** The acceptance path creates or reuses the
+   Meeting's `action` item and converts it through `convertMeetingItemToTask`, so
+   the `meeting_item_tasks` mapping and its structural
+   `meeting.item_converted_to_task` Activity are written and the Follow-up tab
+   reports the Task as converted. Idempotency comes from that mapping and
+   MEET-02's own rules — no uniqueness error is caught and ignored. This closes
+   [DEBT-90](../product/PRODUCT_DEBT.md).
+2. **Meeting extraction proposes owner-reviewed Notes that become ordinary linked
+   DalyHub Notes only after acceptance.** A bounded, strictly validated
+   proposed-Note shape (title, body, a closed-vocabulary purpose, citations,
+   confidence — and nothing else) with DalyHub-owned length ceilings, a maximum of
+   four per request, mandatory evidence and refusal of raw HTML. Proposed Notes
+   begin unselected, are individually editable and removable, and are never saved
+   as a side-effect of accepting a Task or a link. An accepted one is created
+   through the canonical Notes repositories and linked to the Meeting by the
+   ordinary `link.related` relationship.
+
+Also in this release: a Task accepted from a **Note** is linked back to that Note
+through the canonical `task.relates_to` capture relationship (visible from the
+Note's Linked surface), the acceptance path resolves the proposal's source
+**server-side** from an id rather than trusting a browser-supplied type, and the
+OpenAI adapter now sends `store: false` on every request — a correction to what
+DalyHub was leaving on by omission, not a zero-retention claim
+([`AI_PLATFORM.md`](../development/AI_PLATFORM.md) §16).
+
+**No migration.** Meeting items, Tasks, Notes, EntityLinks and Activity all use
+their existing storage; a proposed Note exists only in the response and the
+owner's review state until it is accepted.
+
+**Not included, and still open:** AI-03's daily planning
+([DEBT-91](../product/PRODUCT_DEBT.md)), embeddings
+([DEBT-93](../product/PRODUCT_DEBT.md)), persistent generated-result storage
+([DEBT-92](../product/PRODUCT_DEBT.md)) and the export question
+([DEBT-94](../product/PRODUCT_DEBT.md)). No live provider call has been made from
+this repository ([`AI_PLATFORM.md`](../development/AI_PLATFORM.md) §21).
+
+- **Priority.** P3. Delivered.
 
 #### ◐ AI-03 — Planning & review assistance
 
@@ -1099,7 +1127,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3).
 - **Priority.** P3.
 
-- **Priority.** AI-01 P2 ☑, AI-04 P2 ☑, AI-02/AI-03 P3 ◐.
+- **Priority.** AI-01 P2 ☑, AI-04 P2 ☑, AI-02 P3 ☑ (2026-08-05), AI-03 P3 ◐.
 
 ### ☐ Not planned, recorded so they are not mistaken for oversights
 
@@ -1246,9 +1274,9 @@ because a reader would otherwise wonder whether it was forgotten:
 6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
 7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore
    exists.
-8. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design. **AI-01
-   and AI-04 are now delivered**; AI-02 and AI-03 remain partly open, with the
-   named remainders recorded in their entries.
+8. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design. **AI-01,
+   AI-02 and AI-04 are now delivered**; AI-03 remains partly open, with the named
+   remainders recorded in its entry.
 
 Ahead of all of them, and not a numbered item because it is verification rather
 than construction: **work through the PWA-01 manual device checklist** in

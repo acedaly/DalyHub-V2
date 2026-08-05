@@ -371,6 +371,29 @@ specifiers under `app/modules` and fails on any import into a sibling module's
 directory (via `~/modules/<other>/…` or a relative path that climbs into a
 sibling).
 
+### When a second module genuinely needs the first module's logic
+
+Sometimes the need is real rather than a shortcut: a module owns an **authority**
+— the one sanctioned way to produce some record — and another module must use
+exactly that authority rather than a copy of it. Duplicating it would create the
+second path the single-authority rule exists to prevent; importing it would evade
+this test rather than satisfy it.
+
+The sanctioned answer is to **re-home the shared thing outside `app/modules`**,
+and DalyHub has two shapes of precedent for it:
+
+- a shared UI surface composed from another module's record page moves to
+  `app/shared/` — ADR-033's task record surface, and AREA-02's `NewGoalForm`;
+- server-side cross-repository **orchestration** moves to `app/platform/` —
+  `app/platform/capture/capture-context.server.ts`, and (from AI-02)
+  `app/platform/meetings/follow-up-operations.ts`, which the AI module's
+  acceptance path and the Meetings module's own follow-up route both import.
+
+Move it unchanged, say why in the new home's header, and update the ADR that
+recorded the original decision. What is NOT acceptable is a copy of the logic, or
+a `~/modules/<other>/…` import with a comment explaining why this case is
+special.
+
 ---
 
 ## Adding a new module (checklist)

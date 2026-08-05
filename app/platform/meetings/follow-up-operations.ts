@@ -1,6 +1,10 @@
 /**
  * MEET-02 — the meeting follow-up / Task-conversion orchestration.
  *
+ * Homed in `app/platform` rather than the Meetings module since AI-02, so the AI
+ * acceptance path can route through this ONE conversion authority without
+ * breaching the module-boundary rule. See `./index.ts` for that reasoning.
+ *
  * Turning a meeting item (or a direct meeting follow-up) into a canonical DalyHub
  * Task spans four writes across three repositories: the Task (the spine + task
  * detail authority), the durable source-item mapping (Meetings), the navigable
@@ -56,14 +60,30 @@ import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
 /** The Task planning fields a conversion/follow-up form may supply. */
 export interface FollowUpTaskFields {
   readonly title: string;
-  readonly parentId: string;
-  readonly parentKind: "area" | "project";
+  /**
+   * The structural parent, or `null` for an intentionally unassigned (Inbox)
+   * Task. TASKS-04 permits a parentless Task, and AI-02's acceptance path needs
+   * it: the owner may accept a proposed follow-up without choosing a Project.
+   * The MEET-02 follow-up FORM still requires a parent — it always supplies one
+   * — so this widens the orchestration contract without loosening that surface.
+   */
+  readonly parent: {
+    readonly kind: "area" | "project";
+    readonly id: string;
+  } | null;
   readonly priority?: TaskPriority | null;
   readonly dueDate?: string | null;
   readonly scheduledDate?: string | null;
   readonly timeSector?: TimeSector | null;
   readonly commitmentState?: CommitmentState;
   readonly status?: TaskStatus;
+  /**
+   * The Task's Markdown description. Applied through the canonical Task
+   * authority INSIDE the compensated region (like `status`), so a description
+   * that fails validation rolls the whole conversion back rather than leaving a
+   * Task the owner did not approve.
+   */
+  readonly description?: string | null;
 }
 
 export interface ConvertResult {
@@ -116,7 +136,7 @@ async function createBaseTask(
 ): Promise<TaskView> {
   return scope.tasks.createTask({
     title: fields.title,
-    parent: { kind: fields.parentKind, id: fields.parentId },
+    parent: fields.parent,
     priority: fields.priority ?? null,
     dueDate: fields.dueDate ?? null,
     scheduledDate: fields.scheduledDate ?? null,
@@ -165,6 +185,55 @@ export async function convertMeetingItemToTask(
   return convert(scope, meetingId, itemId, item.kind, fields);
 }
 
+/**
+ * AI-02 / DEBT-90 — convert an owner-approved PROPOSED follow-up into a Task
+ * through this same authority.
+ *
+ * An AI proposal has no `meeting_items` row behind it: DalyHub read the meeting's
+ * agenda, notes and items as evidence, and the model wrote a title. So before the
+ * conversion can happen there must be an action item to convert, and this is the
+ * one place that decides which:
+ *
+ *   - **Reuse** an existing `action` item whose body is exactly the approved
+ *     text. That is the case where the owner had already written the action down
+ *     and the model proposed the same thing — converting the item they already
+ *     have is right, and creating a second identical one would be wrong.
+ *   - **Create** one otherwise, through the ordinary `addItem` contract, so the
+ *     Meeting durably records the action exactly as a hand-typed one would.
+ *
+ * Reuse is also what makes ACCEPTANCE idempotent, and it is idempotent through
+ * the integrity constraints rather than around them: a replay finds the item the
+ * first acceptance created, `convertMeetingItemToTask` finds its live mapping,
+ * and the SAME Task comes back with `created: false`. No uniqueness error is
+ * caught and ignored anywhere on this path.
+ *
+ * Comparison is on the exact trimmed body. Two proposals whose text differs are
+ * two different actions, and DalyHub does not fuzzy-match the owner's words.
+ */
+export async function convertMeetingProposalToTask(
+  scope: WorkspaceScope,
+  meetingId: string,
+  input: {
+    /** The action item's body — the owner's approved Task title. */
+    readonly itemBody: string;
+    readonly fields: FollowUpTaskFields;
+  },
+): Promise<ConvertResult> {
+  // Read (and lifecycle-check) the meeting BEFORE writing an item to it. A
+  // meeting archived or deleted since the proposal was generated refuses here,
+  // so no item is added to a record that cannot accept one.
+  const meeting = await loadWritableMeeting(scope, meetingId);
+  const body = input.itemBody.trim();
+
+  const existing = meeting.items.find(
+    (item) => item.kind === "action" && item.bodyMarkdown.trim() === body,
+  );
+  const item =
+    existing ?? (await scope.meetings.addItem(meetingId, "action", body));
+
+  return convertMeetingItemToTask(scope, meetingId, item.id, input.fields);
+}
+
 /** Create a Task that is a direct meeting follow-up (not tied to a specific item). */
 export async function createMeetingFollowUpTask(
   scope: WorkspaceScope,
@@ -189,6 +258,17 @@ async function convert(
     // update (like any pre-commit failure) rolls the Task back — never an orphan.
     if (fields.status && fields.status !== "todo") {
       await scope.tasks.updateTask(task.id, { status: fields.status });
+    }
+    // Same reasoning for the description: `createTask` does not take one, so it
+    // goes through `updateTask` here rather than after the commit point, where a
+    // failure would leave a converted Task missing the text the owner approved.
+    if (
+      typeof fields.description === "string" &&
+      fields.description.length > 0
+    ) {
+      await scope.tasks.updateTask(task.id, {
+        description: fields.description,
+      });
     }
     // COMMIT POINT: the mapping row + its structural Activity, in one batch.
     await scope.meetings.linkFollowUpTask({

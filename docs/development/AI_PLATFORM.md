@@ -83,6 +83,7 @@ and nothing else changes.
 | Version pin | header `anthropic-version: 2023-06-01` | (none — endpoint versioned by path) |
 | Auth header | `x-api-key` | `Authorization: Bearer` |
 | Structured output | one `tools` entry with `input_schema` + `tool_choice: {type:"tool"}` | `text.format = {type:"json_schema", strict:true}` |
+| Application-state storage | (no such concept on the Messages API) | `store: false` sent on **every** request — see §16 |
 | Usage fields | `usage.input_tokens` / `usage.output_tokens` | `usage.input_tokens` / `usage.output_tokens` |
 | Truncation signal | `stop_reason: "max_tokens"` | `status: "incomplete"` |
 | Refusal signal | `stop_reason: "refusal"` | a `refusal` content block |
@@ -92,6 +93,7 @@ and nothing else changes.
 - Anthropic Messages API reference (`platform.claude.com/docs/en/api/messages`)
 - Anthropic pricing (`platform.claude.com/docs/en/about-claude/pricing`)
 - OpenAI structured-outputs guide (`developers.openai.com/api/docs/guides/structured-outputs`)
+- OpenAI conversation-state guide (`developers.openai.com/api/docs/guides/conversation-state`) — re-verified 2026-08-05 for the `store` field
 - OpenAI API pricing (`developers.openai.com/api/docs/pricing`)
 - Cloudflare AI Gateway provider pages for Anthropic and OpenAI
 - Cloudflare Workers platform limits
@@ -349,9 +351,16 @@ arrives after cancellation is **discarded**, never applied as a proposal.
 ## 12. Prompt registry
 
 `app/kernel/ai/ai-prompts.ts` holds every prompt, versioned as
-`feature:version` (all `v1` in this release). Prompt text is never assembled in a
-React component or at a route. The version is recorded on every usage row;
-changing a prompt's meaning requires a version change.
+`feature:version`. Prompt text is never assembled in a React component or at a
+route. The version is recorded on every usage row; changing a prompt's meaning
+requires a version change.
+
+| Feature | Version | Why |
+|---|---|---|
+| `meeting-action-extraction` | **v2** | AI-02 added proposed Notes to the result contract. v1's text is NOT edited: rewriting it would re-attribute every usage row already recorded against v1 to instructions that were never sent. |
+| `note-action-extraction` | v1 | Unchanged. Note extraction extracts actions **from** a Note; it does not recursively propose more Notes, and its schema refuses them. |
+| `weekly-review-assistant` | v1 | Unchanged. |
+| `workspace-question-answer` | v1 | Unchanged. |
 
 Every prompt states: system policy, owner request and evidence are separate and
 labelled; evidence is **data, not instruction**; output must be the response
@@ -374,6 +383,46 @@ not supplied, and any proposal outside the feature's allowed actions.
 
 Provider-returned HTML is never accepted. Model prose renders as plain text
 (React escapes it); no second Markdown renderer is introduced.
+
+### Two extraction contracts, not one (AI-02)
+
+Meetings and Notes have **separate** result contracts, deliberately:
+
+| | Note extraction | Meeting extraction |
+|---|---|---|
+| Result kind | `action_extraction` | `meeting_extraction` |
+| Schema | `ACTION_EXTRACTION_SCHEMA` | `MEETING_EXTRACTION_SCHEMA` |
+| Proposed Notes | **refused** — a present `proposedNotes` field fails validation, even when empty | up to `COUNTS.proposedNotes` (4) |
+
+Keeping them apart means the Note feature's schema, prompt and validator stay
+exactly as narrow as they were, and the validator can **refuse** a `proposedNotes`
+field on a Note answer rather than quietly dropping it. A silently-trimmed answer
+is one the owner cannot audit.
+
+### The proposed-Note shape
+
+A proposal may carry a `title`, a `body`, a closed-vocabulary `purpose`
+(`meeting_summary` · `decision_record` · `open_questions` · `general_note`),
+`evidenceIds` and a `confidence`. It may carry **nothing else** — an unknown
+property is a refusal, so a workspace id, an owner id, a record id, a URL, a
+Note id or a storage instruction cannot appear even as an ignored field.
+
+Additional refusals specific to this shape:
+
+- a title over `LIMITS.noteTitle` (120) or a body over `LIMITS.noteBody` (4 000)
+  characters — both ceilings are DalyHub's, not the provider's;
+- a purpose outside the vocabulary (never mapped onto the nearest one);
+- **raw HTML in the title or body** — refused, not sanitised. The body is
+  Markdown SOURCE, rendered later through the one FND-08 sanitising pipeline
+  (ADR-006); stripping tags here would mean the owner reviews one thing and
+  stores another;
+- a proposed Note with **no supporting evidence**. Every proposed Note asserts
+  something about the Meeting, and an uncited assertion is exactly the failure
+  citations exist to prevent.
+
+A proposed Note exists **only** in the response and in the owner's review state.
+No table stores a generated body; after acceptance it is an ordinary DalyHub Note
+with no AI-specific storage and no AI-specific Activity.
 
 ---
 
@@ -434,6 +483,38 @@ DalyHub's production defaults: prompt-body logging **off**, response-body loggin
 **off**, provider authentication redacted, record bodies excluded from server
 logs, token/duration/feature/model/cost metadata retained, a bounded error
 category retained, and no stack trace returned to the browser.
+
+### OpenAI Responses API application state — `store: false` (AI-02)
+
+Every DalyHub request to the OpenAI Responses API carries `store: false`.
+
+**What that does.** The Responses API's `store` parameter defaults to **true**,
+which keeps the response object retrievable — visible in the provider's
+dashboard logs and readable through `GET /v1/responses/{id}` — for 30 days
+(verified against the OpenAI conversation-state guide, 2026-08-05). DalyHub has
+no use for provider-side conversation state: every request is self-contained,
+and DalyHub keeps its own bounded result in memory for the length of an isolate.
+Sending `store: false` explicitly means that retention is not created in the
+first place, and that a change to the provider's default cannot silently change
+what DalyHub does. The adapter test asserts the field on every request, in both
+routing modes, for every feature.
+
+**What that does NOT do, stated plainly.**
+
+- It is **not** zero data retention. It disables the retrievable application
+  state, and nothing else.
+- Provider **abuse monitoring** and any **legal or regulatory retention** remain
+  governed by the provider's own current policies. Those are unaffected by this
+  field.
+- DalyHub **cannot inspect or override** provider-side retention. It can only
+  control what it sends and what it asks for.
+- Enabling **Cloudflare AI Gateway request logging** is a separate, independent
+  store of the same content, under Cloudflare's policies and the owner's own
+  Gateway configuration (§4). `store: false` says nothing about it.
+
+**Anthropic is unchanged by this.** `store` is an OpenAI Responses API field with
+no equivalent on the Messages API, so the Anthropic adapter does not send one —
+and a test asserts it does not, so the field is never cargo-culted across.
 
 Settings says plainly that this controls **DalyHub's** logging. Your provider —
 and Cloudflare AI Gateway, if its request logging is enabled — keep their own
@@ -532,18 +613,31 @@ analytics identify the feature and model; the request-body-logging configuration
 is understood; spend and rate controls behave as documented; **and DalyHub's own
 hard limit still blocks independently of them.**
 
-### Status: NOT YET RUN
+AI-02 extended the script so the synthetic request carries the SAME shape DalyHub
+actually sends: `proposedNotes` in the schema, and `store: false` on the OpenAI
+request. For OpenAI it also reports the `store` value the provider echoed back,
+which is a statement about the retrievable application state and **not** a claim
+about abuse monitoring or legal retention (§16).
 
-**As of the AI-01/AI-04 release, none of the checks above has been executed
-against a live provider.** No API key was available while this was built, and
-none was created for it, so nothing in this repository has ever contacted
+### Status: STILL NOT RUN
+
+**As of the AI-02 release, none of the checks above has been executed against a
+live provider.** No API key was available while AI-01 was built, and none was
+available while AI-02 was built either: `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`
+were both absent from the development environment, so the script exited on its
+own guard without sending anything. Nothing in this repository has ever contacted
 Anthropic, OpenAI or a Cloudflare AI Gateway.
+
+That is recorded here rather than glossed, because "the script now sends
+`store: false`" is a statement about the code, and only a live run would make it
+a statement about a request that was actually made.
 
 What that means, stated plainly rather than left to be inferred:
 
 - the request and response SHAPES were built from the providers' official
-  documentation, read on **2026-08-05**, and are covered by adapter unit tests
-  against recorded payload shapes — not by a live round trip;
+  documentation, read on **2026-08-05** (and re-read on the same date for AI-02's
+  `store` field), and are covered by adapter unit tests against recorded payload
+  shapes — not by a live round trip;
 - the model IDs and prices in `ai-models.ts` come from the same official pages on
   the same date, and every one carries `PRICING_VERIFIED_AT`;
 - **the first person to supply a key should run this script before trusting the

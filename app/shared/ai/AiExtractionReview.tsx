@@ -2,11 +2,15 @@
  * AI-01 shared — the extraction proposal review surface.
  *
  * This is where the product rule becomes an interface: nothing here has happened
- * to DalyHub yet. Every proposed Task starts UNSELECTED, every field is editable
- * before acceptance, individual items can be rejected, and the whole proposal can
- * be rejected. There is an "Accept selected" control and there is no route that
- * accepts everything without the owner having chosen each item — "Accept all" is
- * never the only way through.
+ * to DalyHub yet. Every proposed Task and every proposed Note starts UNSELECTED,
+ * every field is editable before acceptance, individual items can be rejected,
+ * and the whole proposal can be rejected. There is an "Accept selected" control
+ * and there is no route that accepts everything without the owner having chosen
+ * each item — "Accept all" is never the only way through.
+ *
+ * AI-02 adds the Proposed Notes section, and one rule about it is worth stating
+ * because it is easy to get wrong: a proposed Note is NEVER saved as a
+ * side-effect of accepting a Task or a link beside it. It is its own tick.
  *
  * On a phone the list reviews one item at a time by construction: each proposal
  * is a full-width block with its own controls, so nothing needs a horizontal
@@ -15,14 +19,17 @@
 
 import { useCallback, useState } from "react";
 
-import type { ActionExtractionResult } from "~/kernel/ai";
+import { LIMITS, type ExtractionResult } from "~/kernel/ai";
 
 import { AiCitationList } from "./AiPanel";
 import {
   acceptancePayload,
   dateBasisLabel,
   draftsFromExtraction,
+  noteDraftsFromExtraction,
+  notePurposeLabel,
   type AiCitation,
+  type NoteDraft,
   type TaskDraft,
 } from "./ai-view";
 
@@ -36,7 +43,7 @@ interface LinkDraft {
 }
 
 export interface AiExtractionReviewProps {
-  readonly result: ActionExtractionResult;
+  readonly result: ExtractionResult;
   readonly citations: readonly AiCitation[];
   /** The record the proposal was generated from — the link source. */
   readonly sourceEntityId: string;
@@ -69,6 +76,9 @@ export function AiExtractionReview({
   const [drafts, setDrafts] = useState<readonly TaskDraft[]>(() =>
     draftsFromExtraction(result),
   );
+  const [notes, setNotes] = useState<readonly NoteDraft[]>(() =>
+    noteDraftsFromExtraction(result),
+  );
   const [links, setLinks] = useState<readonly LinkDraft[]>(() =>
     result.suggestedLinks
       // A target that is not in the allowlist is not offered at all. The schema
@@ -99,8 +109,21 @@ export function AiExtractionReview({
     setDrafts((current) => current.filter((draft) => draft.index !== index));
   }, []);
 
+  const patchNote = useCallback((index: number, change: Partial<NoteDraft>) => {
+    setNotes((current) =>
+      current.map((note) =>
+        note.index === index ? { ...note, ...change } : note,
+      ),
+    );
+  }, []);
+
+  const removeNote = useCallback((index: number) => {
+    setNotes((current) => current.filter((note) => note.index !== index));
+  }, []);
+
   const selectedCount =
     drafts.filter((draft) => draft.selected).length +
+    notes.filter((note) => note.selected).length +
     links.filter((link) => link.selected).length;
 
   return (
@@ -249,6 +272,77 @@ export function AiExtractionReview({
         )}
       </section>
 
+      {notes.length > 0 ? (
+        <section className="dh-ai-review__block" aria-labelledby="ai-notes">
+          <h3 id="ai-notes" className="dh-ai-review__heading">
+            Proposed Notes
+          </h3>
+          <p className="dh-ai-review__hint">
+            A note is only created if you tick it here. Accepting a Task or a
+            link never creates one.
+          </p>
+          <ul className="dh-ai-review__list">
+            {notes.map((note) => (
+              <li key={note.index} className="dh-ai-review__proposal">
+                <label className="dh-ai-review__select">
+                  <input
+                    type="checkbox"
+                    checked={note.selected}
+                    onChange={(event) =>
+                      patchNote(note.index, { selected: event.target.checked })
+                    }
+                  />
+                  <span>Add this Note</span>
+                </label>
+
+                <label className="dh-ai-review__field">
+                  <span className="dh-ai-review__label">Title</span>
+                  <input
+                    type="text"
+                    className="dh-input"
+                    value={note.title}
+                    maxLength={LIMITS.noteTitle}
+                    onChange={(event) =>
+                      patchNote(note.index, { title: event.target.value })
+                    }
+                  />
+                </label>
+
+                <label className="dh-ai-review__field">
+                  <span className="dh-ai-review__label">Note</span>
+                  <textarea
+                    className="dh-input dh-ai-review__body"
+                    value={note.body}
+                    rows={8}
+                    maxLength={LIMITS.noteBody}
+                    onChange={(event) =>
+                      patchNote(note.index, { body: event.target.value })
+                    }
+                  />
+                </label>
+                <p className="dh-ai-review__hint">
+                  {notePurposeLabel(note.purpose)}. Written as Markdown — edit
+                  it freely before you keep it.
+                </p>
+
+                <p className="dh-ai-review__confidence">
+                  Confidence: {note.confidence}
+                </p>
+                <AiCitationList citations={citations} ids={note.evidenceIds} />
+
+                <button
+                  type="button"
+                  className="dh-btn dh-btn--ghost"
+                  onClick={() => removeNote(note.index)}
+                >
+                  Remove this suggestion
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {links.length > 0 ? (
         <section className="dh-ai-review__block" aria-labelledby="ai-links">
           <h3 id="ai-links" className="dh-ai-review__heading">
@@ -306,7 +400,7 @@ export function AiExtractionReview({
           className="dh-btn dh-btn--primary"
           disabled={busy || selectedCount === 0}
           onClick={() =>
-            onAccept(acceptancePayload(drafts, links, sourceEntityId))
+            onAccept(acceptancePayload(drafts, notes, links, sourceEntityId))
           }
         >
           {selectedCount === 0

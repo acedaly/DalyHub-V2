@@ -8,7 +8,7 @@ import {
   createMeetingFollowUpTask,
   MeetingArchivedError,
   MeetingNotFoundError,
-} from "~/modules/meetings/follow-up-operations";
+} from "~/platform/meetings";
 import type { WorkspaceScope } from "~/platform/workspaces";
 
 import {
@@ -111,8 +111,7 @@ describe("MEET-02 — direct meeting follow-up", () => {
 
     const result = await createMeetingFollowUpTask(h.scope, meeting.id, {
       title: "Book the venue",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
 
     expect(result.created).toBe(true);
@@ -145,8 +144,7 @@ describe("MEET-02 — item conversion", () => {
         item.id,
         {
           title: "Do the thing",
-          parentId: area.id,
-          parentKind: "area",
+          parent: { kind: "area", id: area.id },
         },
       );
 
@@ -175,8 +173,7 @@ describe("MEET-02 — item conversion", () => {
       item.id,
       {
         title: "Ship v2",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
         priority: "p1",
         dueDate: "2026-08-01",
         scheduledDate: "2026-07-30",
@@ -204,8 +201,7 @@ describe("MEET-02 — item conversion", () => {
 
     await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
       title: "Follow up",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
 
     const row = await env.DB.prepare(
@@ -230,8 +226,7 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
 
     const first = await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
       title: "Publish notes",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
     const second = await convertMeetingItemToTask(
       h.scope,
@@ -239,8 +234,7 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
       item.id,
       {
         title: "Publish notes again",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
       },
     );
 
@@ -257,8 +251,7 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
     const item = await h.meetings.addItem(meeting.id, "decision", "Decide");
     const first = await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
       title: "Decide",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
 
     // Simulate a race: the idempotency read misses the mapping on the FIRST call, so
@@ -283,8 +276,7 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
 
     const second = await convertMeetingItemToTask(racing, meeting.id, item.id, {
       title: "Decide (dup)",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
 
     expect(second.created).toBe(false);
@@ -316,8 +308,7 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
     await expect(
       createMeetingFollowUpTask(failing, meeting.id, {
         title: "Orphan?",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
       }),
     ).rejects.toThrow("commit fault");
 
@@ -334,8 +325,7 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
     await expect(
       convertMeetingItemToTask(h.scope, meeting.id, item.id, {
         title: "Bad status",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
         // An invalid status is validated by the Task authority INSIDE the
         // compensated region, so the just-created Task must be rolled back.
         status: "not_a_real_status" as TaskStatus,
@@ -353,16 +343,14 @@ describe("MEET-02 — idempotency & duplicate prevention", () => {
     const item = await h.meetings.addItem(meeting.id, "agenda", "Prep");
     const first = await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
       title: "Prep",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
     // Delete the converted Task (canonical Task lifecycle — via the spine).
     await h.spine.softDelete(first.taskId);
 
     const again = await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
       title: "Prep again",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
     expect(again.created).toBe(true);
     expect(again.taskId).not.toBe(first.taskId);
@@ -382,8 +370,7 @@ describe("MEET-02 — lifecycle", () => {
     await expect(
       convertMeetingItemToTask(h.scope, meeting.id, item.id, {
         title: "Later",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
       }),
     ).rejects.toBeInstanceOf(MeetingArchivedError);
     expect(await countMeetingItemTaskRows()).toBe(0);
@@ -401,8 +388,7 @@ describe("MEET-02 — lifecycle", () => {
       item.id,
       {
         title: "Send recap",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
       },
     );
 
@@ -426,8 +412,7 @@ describe("MEET-02 — lifecycle", () => {
       item.id,
       {
         title: "Keep me",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
       },
     );
 
@@ -450,8 +435,7 @@ describe("MEET-02 — lifecycle", () => {
       second.id,
       {
         title: "Second",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
       },
     );
 
@@ -477,8 +461,7 @@ describe("MEET-02 — isolation", () => {
     const item = await h.meetings.addItem(meeting.id, "decision", "Ours");
     await convertMeetingItemToTask(h.scope, meeting.id, item.id, {
       title: "Ours",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
 
     // The other workspace cannot see the mapping and cannot convert the meeting.
@@ -487,8 +470,7 @@ describe("MEET-02 — isolation", () => {
     await expect(
       convertMeetingItemToTask(other.scope, meeting.id, item.id, {
         title: "Steal",
-        parentId: area.id,
-        parentKind: "area",
+        parent: { kind: "area", id: area.id },
       }),
     ).rejects.toBeInstanceOf(MeetingNotFoundError);
   });
@@ -502,13 +484,11 @@ describe("MEET-02 — isolation", () => {
     const i2 = await h.meetings.addItem(m2.id, "decision", "Two");
     const r1 = await convertMeetingItemToTask(h.scope, m1.id, i1.id, {
       title: "One",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
     const r2 = await convertMeetingItemToTask(h.scope, m2.id, i2.id, {
       title: "Two",
-      parentId: area.id,
-      parentKind: "area",
+      parent: { kind: "area", id: area.id },
     });
 
     const followUps1 = await h.meetings.listFollowUps(m1.id);

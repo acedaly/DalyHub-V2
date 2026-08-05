@@ -6,12 +6,16 @@
  * rather than each inventing its own.
  */
 
-import type {
-  AiResult,
-  ActionExtractionResult,
-  PrivacyCategory,
-  WeeklyReviewAssistantResult,
-  WorkspaceAnswerResult,
+import {
+  isExtractionResult,
+  proposedNotesOf,
+  type AiResult,
+  type ActionExtractionResult,
+  type ExtractionResult,
+  type PrivacyCategory,
+  type ProposedNotePurpose,
+  type WeeklyReviewAssistantResult,
+  type WorkspaceAnswerResult,
 } from "~/kernel/ai";
 
 /** A citation card resolved from evidence DalyHub supplied. */
@@ -107,8 +111,22 @@ export function isBusy(state: AiSurfaceState): boolean {
   return state.kind === "running" || state.kind === "cancelling";
 }
 
-/** The typed narrowings each surface needs. */
-export function asExtraction(result: AiResult): ActionExtractionResult | null {
+/**
+ * The typed narrowings each surface needs.
+ *
+ * `asExtraction` accepts EITHER extraction contract: Note extraction's
+ * `action_extraction` and AI-02's Meeting `meeting_extraction`. The review
+ * surface renders the fields they share and the proposed Notes only the Meeting
+ * contract carries, so one component still serves both records.
+ */
+export function asExtraction(result: AiResult): ExtractionResult | null {
+  return isExtractionResult(result) ? result : null;
+}
+
+/** Narrow to the Note-extraction contract specifically. */
+export function asActionExtraction(
+  result: AiResult,
+): ActionExtractionResult | null {
   return result.kind === "action_extraction" ? result : null;
 }
 
@@ -142,9 +160,42 @@ export interface TaskDraft {
   readonly suggestedOwnerPersonId: string | null;
 }
 
+/**
+ * AI-02 — the owner's working copy of one proposed Note while they review it.
+ *
+ * Same rule as a Task draft, for the same reason: the model's values are the
+ * starting point, every field is editable, and what is submitted on acceptance is
+ * THIS. A proposed Note that is never selected is discarded when the review
+ * surface closes — it was never anywhere else.
+ */
+export interface NoteDraft {
+  readonly index: number;
+  readonly selected: boolean;
+  readonly title: string;
+  readonly body: string;
+  /** Retained for the disclosure; the owner's edit is what is stored. */
+  readonly purpose: ProposedNotePurpose;
+  readonly confidence: string;
+  readonly evidenceIds: readonly string[];
+}
+
+/** The owner-facing name of a proposed Note's purpose. */
+export function notePurposeLabel(purpose: ProposedNotePurpose): string {
+  switch (purpose) {
+    case "meeting_summary":
+      return "Meeting summary";
+    case "decision_record":
+      return "Decision record";
+    case "open_questions":
+      return "Open questions";
+    case "general_note":
+      return "Note";
+  }
+}
+
 /** Build the initial drafts from a validated extraction. */
 export function draftsFromExtraction(
-  result: ActionExtractionResult,
+  result: ExtractionResult,
 ): readonly TaskDraft[] {
   return result.proposedTasks.map((task, index) => ({
     index,
@@ -166,9 +217,33 @@ export function draftsFromExtraction(
   }));
 }
 
-/** The payload the apply route receives. Only selected, owner-approved items. */
+/** Build the initial Note drafts. Empty for a Note extraction, which has none. */
+export function noteDraftsFromExtraction(
+  result: ExtractionResult,
+): readonly NoteDraft[] {
+  return proposedNotesOf(result).map((note, index) => ({
+    index,
+    // Nothing is pre-selected — a proposed Note is never saved because a Task or
+    // a link beside it was accepted.
+    selected: false,
+    title: note.title,
+    body: note.body,
+    purpose: note.purpose,
+    confidence: note.confidence,
+    evidenceIds: note.evidenceIds,
+  }));
+}
+
+/**
+ * The payload the apply route receives. Only selected, owner-approved items.
+ *
+ * Note what is NOT here: no record type, no workspace id, no owner id, no link
+ * type and no instruction about where anything is stored. The source record is
+ * submitted separately as an ID, and the server reads what it is.
+ */
 export function acceptancePayload(
   drafts: readonly TaskDraft[],
+  notes: readonly NoteDraft[],
   links: readonly { selected: boolean; targetEntityId: string }[],
   sourceEntityId: string,
 ): readonly Record<string, unknown>[] {
@@ -183,6 +258,10 @@ export function acceptancePayload(
         draft.scheduledDate.length > 0 ? draft.scheduledDate : null,
       projectId: draft.projectId.length > 0 ? draft.projectId : null,
     });
+  }
+  for (const note of notes) {
+    if (!note.selected) continue;
+    items.push({ kind: "note", title: note.title, body: note.body });
   }
   for (const link of links) {
     if (!link.selected) continue;
