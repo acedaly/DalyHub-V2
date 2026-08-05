@@ -87,6 +87,18 @@ export interface AssetRepository {
    * (returns `{ deleted: false, blockedReason: "has_links" }`) when the Asset
    * still has active relationships, so linked Notes/Tasks/People are never
    * silently orphaned; the caller unlinks first. Never touches any linked record.
+   *
+   * On success the Asset's whole footprint — links, subject pointers, ASSET-02
+   * history and obligations, the detail row and the entity row — is removed
+   * child-first in ONE atomic batch, and exactly one SUBJECT-LESS `asset.deleted`
+   * tombstone is appended carrying `{ assetId, title }`. Existing `activities`
+   * rows about the Asset are RETAINED (append-only, ADR-012); only their
+   * `activity_subjects` pointers to the vanishing entity go.
+   *
+   * Idempotent and race-safe: an already-gone Asset returns `{ deleted: false }`
+   * having written nothing, and a purge that loses a race (or is blocked at
+   * commit by a link created after the precheck) removes nothing and appends no
+   * tombstone — exactly one tombstone can ever exist per destroyed Asset.
    */
   permanentlyDelete(id: string): Promise<AssetDeleteResult>;
 }

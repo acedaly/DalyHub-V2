@@ -108,6 +108,19 @@ export interface ReviewLifecycleResult {
     | "already_active";
 }
 
+/**
+ * Result of a permanent (hard) delete attempt.
+ *
+ * Mirrors `AssetDeleteResult` so both guarded purge paths report the same shape
+ * (AUDIT-04 / DEBT-80). `deleted: false` covers three honest outcomes, told apart
+ * by `blockedReason`: the Review was already gone (idempotent no-op, no reason),
+ * a concurrent purge won the race (also no reason), or an ACTIVE relationship
+ * still references it (`"has_links"` plus the count the caller shows the user).
+ */
 export interface ReviewDeleteResult {
   readonly deleted: boolean;
+  /** When `deleted` is false, the reason the delete was refused. */
+  readonly blockedReason?: "has_links";
+  /** How many active relationships block a guarded delete. */
+  readonly linkCount?: number;
 }

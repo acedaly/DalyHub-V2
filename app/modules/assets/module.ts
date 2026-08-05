@@ -13,6 +13,7 @@
 import {
   ASSET_ARCHIVED,
   ASSET_CREATED,
+  ASSET_DELETED,
   ASSET_DISPOSED,
   ASSET_LINKED_AREA,
   ASSET_LINKED_ASSET,
@@ -70,6 +71,11 @@ export default defineModule({
       type: ASSET_DISPOSED,
       label: "Asset disposed",
       description: "An asset was marked as disposed.",
+    },
+    {
+      type: ASSET_DELETED,
+      label: "Asset permanently deleted",
+      description: "An asset was permanently deleted.",
     },
   ],
   entityLinkTypes: [

@@ -3,6 +3,7 @@ import {
   buildActivityWriteModel,
   createSystemActorContext,
   secureIdGenerator as activitySecureIdGenerator,
+  serializeActivityPayload,
   type ActivityActorContext,
   type ActivityPayload,
   type NewActivityEvent,
@@ -74,6 +75,15 @@ import { likeContains } from "./like-pattern";
 
 export type D1ReviewCreateFault = "after-entity" | "after-details";
 
+/**
+ * TEST-ONLY deterministic purge-batch failure injection. Never set in production.
+ *
+ * `after-entity` fails BETWEEN the `entities` DELETE and the tombstone insert;
+ * `after-tombstone` fails AFTER both. Either proves the destruction and its audit
+ * event commit or roll back as one unit.
+ */
+export type D1ReviewDeleteFault = "after-entity" | "after-tombstone";
+
 export interface D1ReviewRepositoryOptions {
   readonly clock?: Clock;
   readonly idGenerator?: IdGenerator;
@@ -81,6 +91,8 @@ export interface D1ReviewRepositoryOptions {
   readonly activityIdGenerator?: IdGenerator;
   readonly createFault?: D1ReviewCreateFault;
   readonly mutationFault?: AtomicMutationFault;
+  /** TEST-ONLY purge-batch fault (proves the purge + tombstone roll back). */
+  readonly deleteFault?: D1ReviewDeleteFault;
 }
 
 interface ReviewRow {
@@ -157,6 +169,7 @@ export class D1ReviewRepository implements ReviewRepository {
   readonly #recorder: D1ActivityRecorder;
   readonly #createFault?: D1ReviewCreateFault;
   readonly #mutationFault?: AtomicMutationFault;
+  readonly #deleteFault?: D1ReviewDeleteFault;
 
   constructor(
     db: D1Database,
@@ -173,6 +186,7 @@ export class D1ReviewRepository implements ReviewRepository {
     this.#recorder = new D1ActivityRecorder(db);
     this.#createFault = options.createFault;
     this.#mutationFault = options.mutationFault;
+    this.#deleteFault = options.deleteFault;
   }
 
   #forcedFailure(): D1PreparedStatement {
@@ -535,58 +549,164 @@ export class D1ReviewRepository implements ReviewRepository {
     return this.#setArchived(id, false);
   }
 
+  /**
+   * Permanently (hard) delete a Review — the guarded destructive path
+   * (AUDIT-04 / DEBT-80), brought onto the Area/Asset purge standard.
+   *
+   * The previous implementation put the Activity append FIRST in the batch. That
+   * broke the recorder's contract — its `WHERE changes() > 0` guard reads the
+   * statement IMMEDIATELY BEFORE it, so a leading append saw a stale, unrelated
+   * change count and fired regardless of whether anything was deleted; a raced
+   * pair of purges therefore wrote TWO tombstones for one destroyed Review. The
+   * batch then deleted every `activity_subjects` row for the Review, including
+   * the subject it had just inserted for its own event, and it deleted ACTIVE
+   * links outright instead of refusing.
+   *
+   * The order below is deliberate and child-first, so no `ON DELETE RESTRICT`
+   * foreign key is violated:
+   *
+   *   1. `entity_links`      — remaining soft-deleted/historical link rows only;
+   *      an ACTIVE one cannot reach here, or the guard already blocked.
+   *   2. `activity_subjects` — the Review's OLD subject pointers. The `activities`
+   *      rows themselves are RETAINED (append-only, ADR-012).
+   *   3. `review_sections`   — the Review's section bodies.
+   *   4. `review_details`    — the module-owned detail row.
+   *   5. `entities`          — the entity row, with `RETURNING`; the AUTHORITATIVE
+   *      statement whose `changes()` decides whether a purge happened.
+   *   6. one subject-less `review.deleted` tombstone, `WHERE changes() > 0`,
+   *      carrying `{ reviewId, title }`.
+   *
+   * Every destructive statement repeats the same "no active link" guard, so the
+   * batch is strictly all-or-nothing evaluated AT COMMIT: a link created between
+   * the precheck and the commit makes every statement match zero rows, nothing is
+   * removed and no tombstone is written. Idempotency comes from that SQL, never
+   * from catching and suppressing database errors.
+   */
   async permanentlyDelete(id: string): Promise<ReviewDeleteResult> {
     const reviewId = validateReviewId(id);
     const existing = await this.get(reviewId, { includeDeleted: true });
+    // Already gone: idempotent no-op that writes NOTHING — in particular no
+    // second tombstone and no recreated subject pointer.
     if (!existing) return { deleted: false };
+    // Captured BEFORE the purge: once the batch commits, the tombstone payload is
+    // the only surviving record of WHICH Review was destroyed.
+    const title = existing.title;
 
-    const now = this.#clock();
-    const event = this.#activity(REVIEW_DELETED, reviewId, {}, now);
-    const append = this.#recorder.buildAppendStatements(
-      this.#workspaceId,
-      event,
-    );
+    // Guard: refuse while any ACTIVE relationship references the Review, so a
+    // linked Area/Project/Note is never silently orphaned. The caller unlinks
+    // first. Soft-deleted (historical) links do NOT block — they are the Review's
+    // own dead rows and the purge removes them.
+    let linkCount: number;
+    try {
+      const row = await this.#db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM entity_links
+           WHERE workspace_id = ? AND deleted_at IS NULL
+             AND (source_entity_id = ? OR target_entity_id = ?)`,
+        )
+        .bind(this.#workspaceId, reviewId, reviewId)
+        .first<{ n: number }>();
+      linkCount = row?.n ?? 0;
+    } catch (cause) {
+      throw new ReviewStorageError({ cause });
+    }
+    if (linkCount > 0) {
+      return { deleted: false, blockedReason: "has_links", linkCount };
+    }
+
+    // Binds (workspaceId, reviewId, reviewId) per use.
+    const emptyGuard = `NOT EXISTS (
+        SELECT 1 FROM entity_links gl
+        WHERE gl.workspace_id = ? AND gl.deleted_at IS NULL
+          AND (gl.source_entity_id = ? OR gl.target_entity_id = ?)
+      )`;
+    const g = [this.#workspaceId, reviewId, reviewId];
+
     const deleteLinks = this.#db
       .prepare(
         `DELETE FROM entity_links
-         WHERE workspace_id = ? AND (source_entity_id = ? OR target_entity_id = ?)`,
+         WHERE workspace_id = ? AND (source_entity_id = ? OR target_entity_id = ?)
+           AND ${emptyGuard}`,
       )
-      .bind(this.#workspaceId, reviewId, reviewId);
+      .bind(this.#workspaceId, reviewId, reviewId, ...g);
     const deleteSubjects = this.#db
       .prepare(
         `DELETE FROM activity_subjects
-         WHERE workspace_id = ? AND entity_id = ?`,
+         WHERE workspace_id = ? AND entity_id = ? AND ${emptyGuard}`,
       )
-      .bind(this.#workspaceId, reviewId);
+      .bind(this.#workspaceId, reviewId, ...g);
     const deleteSections = this.#db
       .prepare(
-        `DELETE FROM review_sections WHERE workspace_id = ? AND review_id = ?`,
+        `DELETE FROM review_sections
+         WHERE workspace_id = ? AND review_id = ? AND ${emptyGuard}`,
       )
-      .bind(this.#workspaceId, reviewId);
+      .bind(this.#workspaceId, reviewId, ...g);
     const deleteDetails = this.#db
       .prepare(
-        `DELETE FROM review_details WHERE workspace_id = ? AND entity_id = ?`,
+        `DELETE FROM review_details
+         WHERE workspace_id = ? AND entity_id = ? AND ${emptyGuard}`,
       )
-      .bind(this.#workspaceId, reviewId);
+      .bind(this.#workspaceId, reviewId, ...g);
     const deleteEntity = this.#db
       .prepare(
         `DELETE FROM entities
          WHERE workspace_id = ? AND id = ? AND type = '${REVIEW_ENTITY_TYPE}'
-         RETURNING id`,
+           AND ${emptyGuard}
+         RETURNING id, title`,
       )
-      .bind(this.#workspaceId, reviewId);
+      .bind(this.#workspaceId, reviewId, ...g);
+
+    const nowTs = toStorageTimestamp(this.#clock());
+    let payloadJson: string;
     try {
-      const results = await this.#db.batch([
-        ...append,
-        deleteLinks,
-        deleteSubjects,
-        deleteSections,
-        deleteDetails,
-        deleteEntity,
-      ]);
-      const removed = (results.at(-1)?.meta?.changes ?? 0) > 0;
-      return { deleted: removed };
+      payloadJson = serializeActivityPayload({ reviewId, title });
     } catch (cause) {
+      if (cause instanceof ActivityError) throw cause;
+      throw new ReviewStorageError({ cause });
+    }
+    const tombstone = this.#db
+      .prepare(
+        `INSERT INTO activities
+           (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE changes() > 0`,
+      )
+      .bind(
+        this.#newActivityId(),
+        this.#workspaceId,
+        REVIEW_DELETED,
+        this.#actor.actor.type,
+        this.#actor.actor.id,
+        nowTs,
+        payloadJson,
+      );
+
+    const batch: D1PreparedStatement[] = [
+      deleteLinks,
+      deleteSubjects,
+      deleteSections,
+      deleteDetails,
+      deleteEntity,
+    ];
+    if (this.#deleteFault === "after-entity") batch.push(this.#forcedFailure());
+    batch.push(tombstone);
+    if (this.#deleteFault === "after-tombstone")
+      batch.push(this.#forcedFailure());
+
+    try {
+      const results = await this.#db.batch(batch);
+      // The `entities` DELETE is index 4 (the fifth statement).
+      const removed = (results[4]?.meta?.changes ?? 0) > 0;
+      if (removed) return { deleted: true };
+      // Nothing was removed. Either a concurrent purge already destroyed the
+      // Review (idempotent no-op) or the commit-time guard blocked because a link
+      // appeared after the precheck. Distinguish honestly rather than guessing.
+      const still = await this.get(reviewId, { includeDeleted: true });
+      if (!still) return { deleted: false };
+      return { deleted: false, blockedReason: "has_links", linkCount: 1 };
+    } catch (cause) {
+      if (cause instanceof ReviewError || cause instanceof ActivityError)
+        throw cause;
       throw new ReviewStorageError({ cause });
     }
   }

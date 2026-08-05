@@ -27,8 +27,10 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 >
 > **Status since.** **Both P1 audit blockers are now resolved** — AUDIT-FIX-01
 > (recurring re-completion) and AUDIT-FIX-02 (meeting-item remove-then-add); see
-> their entries below. Each was reproduced against real Workers/D1 before it was
-> changed and each carries new regression coverage. **Production verification
+> their entries below. **AUDIT-FIX-03** (permanent-delete integrity for Assets and
+> Reviews) is resolved too, closing the first two P2 data-integrity findings.
+> Each was reproduced against real Workers/D1 before it was changed and each
+> carries new regression coverage. **Production verification
 > remains separate and is still outstanding** — the audit could not reach the
 > authenticated production environment (§4, §19), so "the blockers are fixed in
 > `main`" is not the same claim as "production is verified", and AUDIT-FIX-05's
@@ -220,7 +222,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   success for every kind, that an edge-case refusal is a handled 409 rather than a
   5xx, and that no SQLite/D1 vocabulary appears in any response body.
 
-### ☐ AUDIT-FIX-03 — Permanent-delete integrity: asset + review purge (P2)
+### ☑ AUDIT-FIX-03 — Permanent-delete integrity: asset + review purge (P2)
 
 - **Findings.** [AUDIT-03](../product/END_TO_END_AUDIT_2026_08_05.md#audit-03--asset-permanent-delete-writes-no-audit-event-and-destroys-history--p2)
   (asset purge writes no tombstone event and destroys history untombstoned) and
@@ -232,6 +234,115 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   tombstone, idempotent second purge). Regression tests: tombstone presence +
   double-purge idempotency + active-link handling.
 - **Debt.** DEBT-79 (asset), DEBT-80 (review). **Size.** Medium. **Priority.** P2.
+
+- **Resolved (2026-08-05).** Both defects were reproduced first against real
+  Workers/D1 through the actual repositories, before any code changed.
+
+  **Asset — reproduced.** An Asset with one history event, one obligation and
+  three Activity rows was permanently deleted. The purge removed the `entities`,
+  `asset_details`, `asset_events` and `asset_obligations` rows and all three
+  `activity_subjects` pointers; the three `activities` rows correctly SURVIVED;
+  and the count of `asset.deleted` events was **0**. There was no such event type
+  in the kernel at all. The result was `{deleted: true}`, and a second purge
+  already returned `{deleted: false}` — so the defect was precisely and only the
+  missing audit record, exactly as the audit described. The active-link refusal
+  and commit-time guards were verified working and are preserved unchanged.
+
+  **Review — reproduced, all five parts.** A Review with sections and history was
+  purged: the tombstone was written with payload **`{}`**; the subject row the
+  recorder inserted for that very event was then deleted by the same batch's
+  `activity_subjects` DELETE, leaving the event both anonymous and subject-less by
+  accident rather than by design; an ACTIVE link to an Area was **silently
+  destroyed** (`linksAfter: 0`) to let the purge succeed; and two concurrent
+  purges produced one `{deleted: true}` alongside a rejected promise carrying
+  `ReviewStorageError` ← `D1_ERROR: FOREIGN KEY constraint failed:
+  SQLITE_CONSTRAINT` — while committing **two** tombstones for one destroyed
+  Review, because a leading append reads a stale, unrelated `changes()`.
+
+  **The ordering rule, and why it is the whole fix.** `D1ActivityRecorder` guards
+  its event insert with `WHERE changes() > 0`, which reads the statement
+  IMMEDIATELY BEFORE it in the batch. Reviews placed the append FIRST, so the
+  guard was reading whatever ran last — hence a tombstone that fired regardless of
+  whether anything was deleted. Both repositories now put the authoritative
+  `entities` DELETE (with `RETURNING`) second-to-last and the tombstone insert
+  directly after it. The guard cannot be hung on an earlier child DELETE: those
+  legitimately match zero rows for a Review with no links or an Asset with no
+  history, while the record itself is still destroyed.
+
+  **Final statement ordering.** Asset (`permanentlyDelete`): `entity_links` →
+  `activity_subjects` → `asset_events` → `asset_obligations` → `asset_details` →
+  `entities` (`RETURNING`) → subject-less `asset.deleted`. Review: `entity_links`
+  → `activity_subjects` → `review_sections` → `review_details` → `entities`
+  (`RETURNING`) → subject-less `review.deleted`. Child-first throughout, so no
+  `ON DELETE RESTRICT` foreign key is ever violated, and every destructive
+  statement repeats the SAME "no active link" guard so the batch is strictly
+  all-or-nothing **evaluated at commit** — closing the read→submit race in which a
+  link is created after the precheck.
+
+  **Subject-less by design, not by accident.** A tombstone's subject would point
+  at the `entities` row the same batch removed. So neither event inserts an
+  `activity_subjects` row, and each carries the destroyed record's identity in an
+  immutable payload instead: `{assetId, title}` and `{reviewId, title}` — the same
+  shape `area.deleted` has carried since ADR-012. Existing `activities` rows about
+  the record are RETAINED; only their now-obsolete subject pointers go, and
+  removing a pointer never removes the event it points at.
+
+  **Active links now refuse on both paths.** Reviews previously deleted them.
+  Both repositories now count only ACTIVE links (`deleted_at IS NULL`), scoped to
+  the workspace, in either direction, and return
+  `{deleted: false, blockedReason: "has_links", linkCount}` — `ReviewDeleteResult`
+  gained the two fields so it matches `AssetDeleteResult`. Soft-deleted links do
+  not block; they are the record's own dead rows and the purge removes them with
+  it. No active relationship is ever severed to make a deletion succeed.
+
+  **Idempotency and concurrency come from SQL, not from swallowing errors.** No
+  `catch` suppresses a database failure. An already-gone record short-circuits
+  before the batch and writes nothing; the loser of a race has its `entities`
+  DELETE match zero rows, so `changes()` is 0, the tombstone never fires, and the
+  repository then distinguishes "already gone" from "blocked at commit" with one
+  read rather than a guess. Exactly one tombstone can exist per destroyed record.
+
+  **Presentation.** `review.deleted` used to render through a subject-resolving
+  descriptor and, with no subject to find, degraded to an anonymous "permanently
+  deleted this review". Both events now use one shared
+  `purgeTombstoneDescriptor` that names the record from its own payload as
+  emphasis — never a link, which could only lead to a 404 — with a calm fallback
+  when a payload cannot supply one, keeping `describe` pure and total. Scoped
+  deliberately to these two event types; no other Activity path was touched and no
+  Activity-recorder refactor was done.
+
+  **No migration.** The foreign keys and uniqueness constraints are the integrity
+  boundary and are untouched. This was a statement-ordering, guard and audit
+  defect, not a schema one. No deployment and no production data change.
+
+  **Source.** [`app/platform/storage/d1/d1-asset-repository.ts`](../../app/platform/storage/d1/d1-asset-repository.ts)
+  (`permanentlyDelete`, plus a TEST-ONLY `deleteFault` injection point);
+  [`app/platform/storage/d1/d1-review-repository.ts`](../../app/platform/storage/d1/d1-review-repository.ts)
+  (`permanentlyDelete`, `deleteFault`);
+  [`app/kernel/assets/asset-identifiers.ts`](../../app/kernel/assets/asset-identifiers.ts)
+  (`ASSET_DELETED`);
+  [`app/kernel/reviews/review.ts`](../../app/kernel/reviews/review.ts)
+  (`ReviewDeleteResult.blockedReason` / `.linkCount`);
+  [`app/shared/activity-feed/purge-tombstone.ts`](../../app/shared/activity-feed/purge-tombstone.ts);
+  [`app/shared/record-lifecycle/lifecycle-copy.ts`](../../app/shared/record-lifecycle/lifecycle-copy.ts)
+  (`lifecycleBlockedByLinks`);
+  the Asset and Review activity descriptors, module manifests, `routes/mutate.tsx`
+  and record components.
+
+  **Regression tests.** Five new real Workers/D1 Asset cases in
+  [`test/kernel/asset.test.ts`](../../test/kernel/asset.test.ts) and six new
+  Review cases in [`test/kernel/review.test.ts`](../../test/kernel/review.test.ts)
+  — successful-purge tombstone (payload, subject-lessness, retained history,
+  removed pointers, feed rendering), second-purge idempotency, active-link
+  blocking then release, soft-deleted links not blocking, a commit-time link race,
+  a genuine two-way concurrent purge, and fault-injected rollback at BOTH
+  `after-entity` and `after-tombstone`. A new cross-module suite,
+  [`test/kernel/permanent-delete-contract.test.ts`](../../test/kernel/permanent-delete-contract.test.ts),
+  asserts the eight shared invariants across Area, Asset and Review in parallel
+  rather than forcing them into one abstraction. Two unit suites cover the new
+  shared presentation and copy. The pre-existing Review test that asserted an
+  active link was silently deleted was REPLACED, because that behaviour was the
+  defect.
 
 ### ☐ AUDIT-FIX-04 — CSRF defence-in-depth + react-router bump (P2/P3)
 

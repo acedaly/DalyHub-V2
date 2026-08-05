@@ -195,6 +195,32 @@ no version number to group them under.
   The same treatment applies to the section list in Settings, and to every theme,
   not just the new ones.
 
+### Fixed — permanently deleting an asset or a review
+
+- **Deleting an asset for good now leaves a record that you did.** Permanently
+  deleting an asset removed it, its details and its entire service, warranty and
+  renewal history — and wrote nothing to say it had ever existed. There was no
+  way to answer "what happened to that asset, and when did it go?" The workspace
+  activity feed now keeps a single permanent entry naming the asset that was
+  deleted and who deleted it. Everything the asset was already mentioned in stays
+  in your history too; deleting it never erases past activity.
+- **The same for reviews.** A deleted review now leaves an entry that names it.
+  Previously it left one that named nothing at all — the entry was written, but
+  with nothing in it, so the feed could only say "permanently deleted this
+  review" about a review it could no longer identify.
+- **A review that is still linked to something is no longer deleted quietly.**
+  Deleting a review used to break its links to whatever it was connected to,
+  without asking. It now stops and tells you how many records still hold it, so
+  you can unlink them first — the same way assets have always behaved. Nothing on
+  the other end of a link is ever deleted.
+- **Deleting the same thing twice no longer fails.** Pressing delete again, or
+  from two places at once, used to be able to produce a technical error. It is
+  now simply a no-op — and it cannot leave a half-deleted record or a second
+  duplicate entry in your feed.
+- **The confirmation for deleting a review is honest about what it costs.** It
+  now says plainly that every reflection written in it goes, that it cannot be
+  undone, and that an export cannot bring it back.
+
 ### Fixed — the installed iPhone app crashing when opened offline
 
 - **The installed DalyHub app no longer restarts itself until iPhone gives up.**

@@ -82,6 +82,11 @@ export {
 } from "./workspace-activity-descriptors";
 
 export {
+  purgeTombstoneDescriptor,
+  type PurgeTombstoneOptions,
+} from "./purge-tombstone";
+
+export {
   ACTIVITY_FILTER_FIELD_IDS,
   activityTypeOptions,
   createActivityFilterFields,

@@ -144,6 +144,7 @@ export {
   D1AssetRepository,
   type D1AssetRepositoryOptions,
   type D1AssetCreateFault,
+  type D1AssetDeleteFault,
 } from "./d1-asset-repository";
 export {
   D1AssetHistoryRepository,
@@ -174,7 +175,10 @@ export { D1ProjectRepository };
 export { D1ProjectHealthRepository };
 export { D1RelationshipRepository };
 export { D1ReviewRepository, type D1ReviewRepositoryOptions };
-export { type D1ReviewCreateFault } from "./d1-review-repository";
+export {
+  type D1ReviewCreateFault,
+  type D1ReviewDeleteFault,
+} from "./d1-review-repository";
 export { D1WorkspaceRepository, type D1WorkspaceRepositoryOptions };
 export {
   D1WorkspaceMemberRepository,
