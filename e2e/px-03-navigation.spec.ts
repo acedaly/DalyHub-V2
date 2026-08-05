@@ -3,11 +3,10 @@
  * against the development-auth server.
  *
  * Covers what PX-02/DS-11's existing suites don't: the `/` → `/today` redirect,
- * every new Coming Soon placeholder route resolving with real content (not lorem
- * ipsum, not a dead end), sidebar active-state on the new rows, keyboard
- * reachability of a new row, and the mobile overlay reaching a new module —
- * reusing the SAME shell/navigation/overlay machinery PX-02 already proved, never
- * a bespoke check.
+ * every sidebar route resolving with real content (not lorem ipsum, not a dead
+ * end), sidebar active-state on the new rows, keyboard reachability of a new
+ * row, and the mobile overlay reaching a new module — reusing the SAME
+ * shell/navigation/overlay machinery PX-02 already proved, never a bespoke check.
  *
  * NOTES-01B replaced the `/notes` "Coming Soon" placeholder with a real
  * collection (`app/modules/notes/routes/index.tsx`), DIARY-01 replaced the
@@ -15,20 +14,21 @@
  * the real People collection, MEET-01 replaced `/meetings` with the real Meetings
  * collection, ASSET-01 replaced `/assets` with the real Assets collection,
  * REVIEWS-01 replaced `/reviews` with the real Reviews collection, SET-01
- * replaced `/settings` with the real Settings route, and HELP-01 replaced `/help`
- * with real in-app guidance — so those routes are EXCLUDED from `SHELL_MODULES`
- * below. Their full journeys live in their own
- * specs; sidebar reachability stays here, checked against real headings rather
- * than a placeholder.
+ * replaced `/settings` with the real Settings route, HELP-01 replaced `/help`
+ * with real in-app guidance, and AI-01 replaced `/ai` with Ask DalyHub. Their
+ * full journeys live in their own specs; sidebar reachability stays here,
+ * checked against real headings rather than a placeholder.
+ *
+ * **There is no Coming Soon placeholder left.** AI-01 removed the last one, so
+ * the loop that proved placeholders were real content is gone with it — a loop
+ * over an empty list proves nothing and would pass silently forever. What
+ * remains is the assertion that actually matters now: every sidebar row reaches
+ * a real heading, and "Coming Soon" never comes back.
  */
 
 import { expect, test } from "@playwright/test";
 
 import { mobileNavigationOpener } from "./helpers";
-
-// AI is the last module still legitimately a placeholder: the AI phase is
-// unstarted, and saying so is honest. Everything else on the sidebar is real.
-const SHELL_MODULES = [{ label: "AI", path: "/ai" }] as const;
 
 test.describe("PX-03 — `/` redirects to `/today`", () => {
   test("a direct visit to / lands on /today, not a standalone Home page", async ({
@@ -53,35 +53,20 @@ test.describe("PX-03 — `/` redirects to `/today`", () => {
 });
 
 test.describe("PX-03 — every module shell route resolves with real content", () => {
-  for (const { label, path } of SHELL_MODULES) {
-    test(`${path} renders the ${label} Coming Soon placeholder`, async ({
-      page,
-    }) => {
-      await page.goto(path);
-      await expect(
-        page.getByRole("heading", { level: 1, name: label }),
-      ).toBeVisible();
-      // A real "Coming Soon" section — never a blank or dead-end page.
-      await expect(
-        page.getByRole("heading", { level: 2, name: "Coming Soon" }),
-      ).toBeVisible();
-      // At least one planned-capability bullet is real prose (not lorem ipsum).
-      const list = page.getByRole("list").last();
-      await expect(list.getByRole("listitem").first()).toBeVisible();
-      await expect(page.locator("body")).not.toContainText(/lorem ipsum/i);
-    });
-  }
-
-  test("the sidebar reaches every module shell route", async ({ page }) => {
+  // AI-01: `/ai` was the last Coming Soon placeholder. It is Ask DalyHub now —
+  // a real bounded question surface — so it is checked the same way as every
+  // other module that outgrew its placeholder.
+  test("the sidebar reaches the real Ask DalyHub surface", async ({ page }) => {
     await page.goto("/today");
     const nav = page.getByRole("navigation", { name: "Primary" });
-    for (const { label, path } of SHELL_MODULES) {
-      await nav.getByRole("link", { name: label }).click();
-      await expect(page).toHaveURL(new RegExp(`${path}$`));
-      await expect(
-        page.getByRole("heading", { level: 1, name: label }),
-      ).toBeVisible();
-    }
+    await nav.getByRole("link", { name: "AI", exact: true }).click();
+    await expect(page).toHaveURL(/\/ai$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Ask DalyHub" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Coming Soon" }),
+    ).not.toBeVisible();
   });
 
   // HELP-01: Help is real guidance now, not a placeholder. The sidebar link
