@@ -8,6 +8,7 @@ import {
 } from "~/kernel/reviews";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { lifecycleBlockedByLinks } from "~/shared/record-lifecycle";
 
 import type { Route } from "./+types/mutate";
 
@@ -27,7 +28,15 @@ export type ReviewMutationResult =
       readonly formError: string;
     }
   | { readonly kind: "delete"; readonly ok: true }
-  | { readonly kind: "delete"; readonly ok: false; readonly formError: string }
+  | {
+      readonly kind: "delete";
+      readonly ok: false;
+      readonly formError: string;
+      /** Set when active relationships refused the purge (AUDIT-04 / DEBT-80). */
+      readonly blockedReason?: "has_links";
+      /** How many active relationships block it, so the UI can say how many. */
+      readonly linkCount?: number;
+    }
   | {
       readonly kind: "unknown";
       readonly ok: false;
@@ -100,7 +109,23 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({ kind: "lifecycle", ok: true });
     }
     if (intent === "delete") {
-      await scope.reviews.permanentlyDelete(reviewId);
+      const result = await scope.reviews.permanentlyDelete(reviewId);
+      if (result.deleted) {
+        return json({ kind: "delete", ok: true });
+      }
+      if (result.blockedReason === "has_links") {
+        // A live relationship still points at this Review. Refusing is the
+        // correct outcome, not an error — say what to do first (AUDIT-04).
+        return json({
+          kind: "delete",
+          ok: false,
+          blockedReason: "has_links",
+          linkCount: result.linkCount,
+          formError: lifecycleBlockedByLinks("review", result.linkCount),
+        });
+      }
+      // Already gone (or a concurrent purge won): the caller's intent is
+      // satisfied, so a repeat request is a calm success, never a 500.
       return json({ kind: "delete", ok: true });
     }
   } catch (cause) {

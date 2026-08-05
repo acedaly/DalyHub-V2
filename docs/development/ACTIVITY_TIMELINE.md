@@ -175,6 +175,45 @@ exactly what primary-subject selection already gave.
 
 A descriptor with its own `describe` chooses its own segments and is unaffected.
 
+### Subject-less permanent-deletion tombstones
+
+One event class has **no subject at all, and never can**: the tombstone a guarded
+permanent delete appends. Its subject would point at the `entities` row the very
+same batch removed, and `activity_subjects.entity_id` is `ON DELETE RESTRICT`
+precisely to keep a deleted entity's Timeline readable — so the pointer must not
+exist. `area.deleted`, `asset.deleted` and `review.deleted` are all written this
+way (ADR-046; AUDIT-FIX-03 brought Assets and Reviews onto the pattern).
+
+That makes both of the rules above useless for them: there is no subject to
+select, and a subject-resolving `describe` degrades to an anonymous line —
+`review.deleted` really did render "…permanently deleted this review" before this
+was fixed. Such an event names its record from its **own immutable payload**
+instead, through the shared `purgeTombstoneDescriptor`:
+
+```ts
+[ASSET_DELETED]: purgeTombstoneDescriptor({
+  label: "Asset permanently deleted",
+  verb: "permanently deleted",
+  titleKey: "title",      // payload key holding the destroyed record's name
+  fallbackText: "an asset",
+  entityType: "asset",
+}),
+```
+
+Two rules it enforces, and that any hand-written equivalent must keep:
+
+- **The title is an `emphasis` segment, never an `entity` one.** An entity segment
+  renders a Drawer link, and the record it would open no longer exists.
+- **A missing, blank or non-string title degrades to the fallback phrase.**
+  `describe` is contractually pure and total — it must never throw on an
+  unfamiliar payload — and a purge's payload is the only thing left to read.
+
+Repositories writing such a tombstone must insert it **directly after** the
+authoritative entity DELETE, guarded `WHERE changes() > 0` on that statement, so
+it exists if and only if that call actually destroyed the record. The `activities`
+rows *about* the record are retained through the purge (append-only, ADR-012);
+only their obsolete `activity_subjects` pointers are removed.
+
 ---
 
 ## Wiring a route

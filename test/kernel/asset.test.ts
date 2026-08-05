@@ -15,14 +15,22 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   ASSET_ARCHIVED,
   ASSET_CREATED,
+  ASSET_DELETED,
   ASSET_DISPOSED,
   ASSET_STATUS_CHANGED,
   ASSET_UPDATED,
   AssetNotFoundError,
+  AssetStorageError,
   AssetValidationError,
   InvalidAssetCursorError,
 } from "~/kernel/assets";
 import { ReservedEntityTypeError } from "~/kernel/entities";
+import { ASSETS_ACTIVITY_DESCRIPTORS } from "~/modules/assets/asset-activity";
+import {
+  buildWorkspaceActivityDescriptors,
+  toActivityItem,
+  type ActivityItem,
+} from "~/shared/activity-feed/model";
 
 import { env } from "cloudflare:test";
 
@@ -32,6 +40,7 @@ import {
   countRows,
   FakeClock,
   latestActivityPayload,
+  makeActivityRepository,
   makeAssetHistoryRepository,
   makeAssetRepository,
   makeContext,
@@ -40,6 +49,18 @@ import {
   resetTables,
   sequentialIds,
 } from "./support";
+
+/** Flatten a rendered activity item's segments to the text a reader sees. */
+function segmentText(item: ActivityItem): string {
+  return item.presentation.segments
+    .map((segment) => {
+      if (segment.kind === "text" || segment.kind === "emphasis")
+        return segment.text;
+      if (segment.kind === "actor") return item.actor.label;
+      return segment.entityId;
+    })
+    .join("");
+}
 
 const WS = "test-default-workspace";
 const OTHER = "ws_asset_other";
@@ -485,5 +506,304 @@ describe("permanent deletion (guarded)", () => {
     expect(result.deleted).toBe(false);
     expect(await rowsReferencing("entities", "id", asset.id)).toBe(1);
     expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(1);
+    // Fail-closed means fail-SILENT: a foreign no-op must not forge a tombstone
+    // claiming this workspace's Asset was destroyed.
+    expect(await countActivitiesOfType(ASSET_DELETED)).toBe(0);
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* AUDIT-03 / DEBT-79 — the retained deletion tombstone                    */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * The V2.0.1 defect: a permanent Asset delete destroyed the entity, its
+   * details, its whole ASSET-02 history and every obligation, and recorded
+   * NOTHING. The workspace was left unable to answer "what happened to that
+   * Asset, who removed it, and when" — the single question an audit trail
+   * exists to answer. These five tests pin the corrected contract.
+   */
+
+  /** Subject rows pointing at `id`, and the parsed tombstone payloads. */
+  async function tombstonePayloads(): Promise<
+    { assetId?: string; title?: string }[]
+  > {
+    const rows = await env.DB.prepare(
+      "SELECT payload_json FROM activities WHERE type = ? ORDER BY id",
+    )
+      .bind(ASSET_DELETED)
+      .all<{ payload_json: string }>();
+    return rows.results.map(
+      (r) => JSON.parse(r.payload_json) as { assetId?: string; title?: string },
+    );
+  }
+
+  it("Asset test 1 — a successful purge writes exactly one subject-less asset.deleted tombstone", async () => {
+    const repo = assets();
+    const history = makeAssetHistoryRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
+    const asset = await repo.create({
+      title: "Workshop compressor",
+      assetType: "equipment",
+    });
+    await history.recordEvent(asset.id, {
+      category: "service",
+      title: "Annual service",
+      eventDate: "2026-07-01",
+    });
+    await history.createObligation(asset.id, {
+      category: "insurance",
+      title: "Renew cover",
+      dueDate: "2026-11-30",
+    });
+    // Historical Activity about the Asset, which must SURVIVE the purge.
+    await repo.update(asset.id, { location: "Shed" });
+    await repo.archive(asset.id);
+    const historicalBefore =
+      (await countActivitiesOfType(ASSET_CREATED)) +
+      (await countActivitiesOfType(ASSET_UPDATED)) +
+      (await countActivitiesOfType(ASSET_ARCHIVED));
+    expect(historicalBefore).toBe(3);
+    expect(
+      await rowsReferencing("activity_subjects", "entity_id", asset.id),
+    ).toBeGreaterThan(0);
+
+    const result = await repo.permanentlyDelete(asset.id);
+    expect(result.deleted).toBe(true);
+
+    // Every Asset-owned domain row is gone.
+    expect(await repo.get(asset.id, { includeDeleted: true })).toBeNull();
+    expect(await rowsReferencing("entities", "id", asset.id)).toBe(0);
+    expect(await rowsReferencing("asset_details", "entity_id", asset.id)).toBe(
+      0,
+    );
+    expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(0);
+    expect(
+      await rowsReferencing("asset_obligations", "asset_id", asset.id),
+    ).toBe(0);
+
+    // The append-only Activity rows SURVIVE — removing a subject pointer must
+    // never remove the event it points at (ADR-012).
+    expect(
+      (await countActivitiesOfType(ASSET_CREATED)) +
+        (await countActivitiesOfType(ASSET_UPDATED)) +
+        (await countActivitiesOfType(ASSET_ARCHIVED)),
+    ).toBe(historicalBefore);
+    // …but their now-obsolete subject pointers are gone, so nothing dangles.
+    expect(
+      await rowsReferencing("activity_subjects", "entity_id", asset.id),
+    ).toBe(0);
+
+    // Exactly ONE tombstone, carrying the id and title, with NO subject row.
+    expect(await countActivitiesOfType(ASSET_DELETED)).toBe(1);
+    const payloads = await tombstonePayloads();
+    expect(payloads[0]).toEqual({
+      assetId: asset.id,
+      title: "Workshop compressor",
+    });
+    const tombstoneSubjects = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM activity_subjects s
+       JOIN activities a ON a.workspace_id = s.workspace_id AND a.id = s.activity_id
+       WHERE a.type = ?`,
+    )
+      .bind(ASSET_DELETED)
+      .first<{ n: number }>();
+    expect(tombstoneSubjects?.n ?? 0).toBe(0);
+
+    // The workspace feed still renders it, and renders it TRUTHFULLY: the
+    // destroyed Asset is named from the payload, not from a vanished subject.
+    const page = await makeActivityRepository(makeContext(WS)).listForWorkspace(
+      {
+        type: ASSET_DELETED,
+      },
+    );
+    expect(page.items).toHaveLength(1);
+    // Asserted against BOTH descriptor maps that can carry this event. The
+    // module map is the Assets surface; the CROSS-MODULE map is what the Today /
+    // workspace feed builds from — and that is the surface that matters here,
+    // because the Asset's own record page no longer exists to read it on.
+    for (const descriptors of [
+      ASSETS_ACTIVITY_DESCRIPTORS,
+      buildWorkspaceActivityDescriptors(),
+    ]) {
+      const item = toActivityItem(page.items[0], { descriptors });
+      expect(item.isKnownType).toBe(true);
+      expect(item.subjects).toEqual([]);
+      expect(segmentText(item)).toContain("permanently deleted");
+      expect(segmentText(item)).toContain("Workshop compressor");
+    }
+  });
+
+  it("Asset test 2 — a second purge is an idempotent no-op that writes no second tombstone", async () => {
+    const repo = assets();
+    const asset = await repo.create({
+      title: "Ladder",
+      assetType: "equipment",
+    });
+
+    const first = await repo.permanentlyDelete(asset.id);
+    const second = await repo.permanentlyDelete(asset.id);
+
+    expect(first.deleted).toBe(true);
+    expect(second.deleted).toBe(false);
+    expect(second.blockedReason).toBeUndefined();
+    // One destruction, one tombstone — a repeat request never inflates the audit
+    // trail, and never throws.
+    expect(await countActivitiesOfType(ASSET_DELETED)).toBe(1);
+    expect(await tombstonePayloads()).toEqual([
+      { assetId: asset.id, title: "Ladder" },
+    ]);
+  });
+
+  it("Asset test 3 — an active link blocks the purge and writes no tombstone; unlinking releases it", async () => {
+    const repo = assets();
+    const links = makeLinkRepository(makeContext(WS), {
+      idGenerator: sequentialIds("lnk"),
+    });
+    const history = makeAssetHistoryRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
+    const asset = await repo.create({ title: "Trailer", assetType: "vehicle" });
+    await history.recordEvent(asset.id, {
+      category: "service",
+      title: "Bearings",
+      eventDate: "2026-04-02",
+    });
+    const note = await makeRepository(makeContext(WS), {
+      idGenerator: sequentialIds("note"),
+    }).create({ type: "note", title: "Trailer paperwork" });
+    const created = await links.create({
+      sourceEntityId: asset.id,
+      targetEntityId: note.id,
+      type: "link.related",
+    });
+
+    const blocked = await repo.permanentlyDelete(asset.id);
+    expect(blocked.deleted).toBe(false);
+    expect(blocked.blockedReason).toBe("has_links");
+    expect(blocked.linkCount).toBe(1);
+    // All-or-nothing: every row survives, and NO tombstone claims otherwise.
+    expect(await rowsReferencing("entities", "id", asset.id)).toBe(1);
+    expect(await rowsReferencing("asset_details", "entity_id", asset.id)).toBe(
+      1,
+    );
+    expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(1);
+    expect(
+      await rowsReferencing("activity_subjects", "entity_id", asset.id),
+    ).toBeGreaterThan(0);
+    expect(await countActivitiesOfType(ASSET_DELETED)).toBe(0);
+    // The linked Note is never touched to make the delete succeed.
+    expect(
+      await makeRepository(makeContext(WS)).getById(note.id),
+    ).not.toBeNull();
+
+    // Soft-deleting the link releases the guard; the stale row is purged with it.
+    await links.unlink(created.link.id);
+    const ok = await repo.permanentlyDelete(asset.id);
+    expect(ok.deleted).toBe(true);
+    expect(await countActivitiesOfType(ASSET_DELETED)).toBe(1);
+    expect(
+      await rowsReferencing("entity_links", "source_entity_id", asset.id),
+    ).toBe(0);
+  });
+
+  it("Asset test 4 — a link created after the precheck blocks at COMMIT, partially deleting nothing", async () => {
+    // The read→submit race: the precheck sees no active link, then one appears
+    // before the batch commits. Every destructive statement repeats the guard, so
+    // the whole batch matches zero rows rather than half-destroying the Asset.
+    const repo = assets();
+    const history = makeAssetHistoryRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
+    const asset = await repo.create({ title: "Kayak", assetType: "equipment" });
+    await history.recordEvent(asset.id, {
+      category: "purchase",
+      title: "Bought",
+      eventDate: "2026-02-01",
+    });
+    const note = await makeRepository(makeContext(WS), {
+      idGenerator: sequentialIds("note"),
+    }).create({ type: "note", title: "Kayak notes" });
+
+    // Simulate the racing writer: the link lands between the repository's
+    // precheck and the guarded batch. Inserting it directly is exactly what a
+    // concurrent request would have committed.
+    await env.DB.prepare(
+      `INSERT INTO entity_links
+         (id, workspace_id, source_entity_id, target_entity_id, type,
+          created_at, updated_at, deleted_at)
+       VALUES (?, ?, ?, ?, 'link.related', ?, ?, NULL)`,
+    )
+      .bind(
+        "race-link-1",
+        WS,
+        asset.id,
+        note.id,
+        "2026-07-17T00:00:00.000Z",
+        "2026-07-17T00:00:00.000Z",
+      )
+      .run();
+
+    const raced = await repo.permanentlyDelete(asset.id);
+    // Truthful blocked outcome, not a silent success and not a raw error.
+    expect(raced.deleted).toBe(false);
+    expect(raced.blockedReason).toBe("has_links");
+    // Nothing partially deleted.
+    expect(await rowsReferencing("entities", "id", asset.id)).toBe(1);
+    expect(await rowsReferencing("asset_details", "entity_id", asset.id)).toBe(
+      1,
+    );
+    expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(1);
+    expect(
+      await rowsReferencing("entity_links", "source_entity_id", asset.id),
+    ).toBe(1);
+    expect(await countActivitiesOfType(ASSET_DELETED)).toBe(0);
+  });
+
+  it("Asset test 5 — an injected failure rolls the entity deletion AND its tombstone back together", async () => {
+    for (const fault of ["after-entity", "after-tombstone"] as const) {
+      await resetTables([WS, OTHER]);
+      const repo = assets(WS, `f_${fault}`, { deleteFault: fault });
+      const history = makeAssetHistoryRepository(makeContext(WS), {
+        idGenerator: sequentialIds(`h_${fault}`),
+      });
+      const asset = await repo.create({
+        title: "Generator",
+        assetType: "equipment",
+      });
+      await history.recordEvent(asset.id, {
+        category: "service",
+        title: "Oil change",
+        eventDate: "2026-03-03",
+      });
+      await history.createObligation(asset.id, {
+        category: "registration",
+        title: "Rego",
+        dueDate: "2026-10-01",
+      });
+
+      await expect(repo.permanentlyDelete(asset.id)).rejects.toBeInstanceOf(
+        AssetStorageError,
+      );
+
+      // The whole batch rolled back: entity, details, history, obligations and
+      // subject pointers all survive, and no tombstone was committed.
+      expect(await rowsReferencing("entities", "id", asset.id)).toBe(1);
+      expect(
+        await rowsReferencing("asset_details", "entity_id", asset.id),
+      ).toBe(1);
+      expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(
+        1,
+      );
+      expect(
+        await rowsReferencing("asset_obligations", "asset_id", asset.id),
+      ).toBe(1);
+      expect(
+        await rowsReferencing("activity_subjects", "entity_id", asset.id),
+      ).toBeGreaterThan(0);
+      expect(await countActivitiesOfType(ASSET_DELETED)).toBe(0);
+      // And the Asset is still fully readable through the repository.
+      expect(await repo.get(asset.id)).not.toBeNull();
+    }
   });
 });

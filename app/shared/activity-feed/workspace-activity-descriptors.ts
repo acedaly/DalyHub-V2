@@ -29,6 +29,23 @@
  * total: it never throws on an unfamiliar payload, never renders a raw payload,
  * and degrades gracefully when a referenced record is deleted or unresolvable
  * (the shared item renders "an unavailable item").
+ *
+ * ONE narrow, deliberate exception to "a curated `describe` never reads the
+ * payload" (AUDIT-FIX-03): the three permanent-deletion tombstones —
+ * `area.deleted`, `asset.deleted`, `review.deleted`. These are SUBJECT-LESS by
+ * construction (the entity row is removed by the batch that appends them), so
+ * there is nothing for `selectReferenceSubject` to resolve and a subject-based
+ * line degrades to "permanently deleted an area" — an audit event that cannot say
+ * what it is about, on the very surface that has to carry it once the record's
+ * own page is gone. They read exactly ONE payload key, `title`, through the
+ * shared `purgeTombstoneDescriptor`.
+ *
+ * That does not widen the privacy boundary this file protects. A title is the
+ * record's own name, and it is already what every other line here shows: `record()`
+ * emits an entity segment that the UI resolves to the entity's title. The
+ * tombstone shows the same information, sourced from the payload only because the
+ * entity no longer exists to resolve. No other payload field is read by any
+ * descriptor here, and a tombstone emits no payload metadata.
  */
 
 import {
@@ -39,6 +56,7 @@ import {
 import {
   ASSET_ARCHIVED,
   ASSET_CREATED,
+  ASSET_DELETED,
   ASSET_DISPOSED,
   ASSET_EVENT_ARCHIVED,
   ASSET_EVENT_CREATED,
@@ -114,10 +132,8 @@ import {
   TASK_WAITING_STARTED,
 } from "~/kernel/tasks";
 
-import {
-  createActivityDescriptorMap,
-  selectReferenceSubject,
-} from "./activity-type-registry";
+import { createActivityDescriptorMap } from "./activity-type-registry";
+import { purgeTombstoneDescriptor } from "./purge-tombstone";
 import type {
   ActivityDescriptionSegment,
   ActivityDescriptorMap,
@@ -255,25 +271,13 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
   /* Areas ------------------------------------------------------------------ */
   [AREA_ARCHIVED]: event("Archived area", "area", "warning"),
   [AREA_RESTORED]: event("Restored area", "area", "info"),
-  // A permanently deleted Area has no record left to link to; the descriptor
-  // still names the actor and the act, so the audit trail never goes silent.
-  [AREA_DELETED]: {
+  [AREA_DELETED]: purgeTombstoneDescriptor({
     label: "Deleted area permanently",
+    verb: "permanently deleted",
+    titleKey: "title",
+    fallbackText: "an area",
     entityType: "area",
-    tone: "danger",
-    describe: (_base, context) => {
-      const reference = selectReferenceSubject(context);
-      return {
-        segments: [
-          { kind: "actor" },
-          { kind: "text", text: " permanently deleted " },
-          record(reference, "an area"),
-        ],
-        entityType: "area",
-        tone: "danger",
-      };
-    },
-  },
+  }),
 
   /* Notes ------------------------------------------------------------------ */
   [NOTE_CONTENT_UPDATED]: event("Updated note", "note"),
@@ -346,6 +350,13 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
     "warning",
   ),
   [ASSET_OBLIGATION_REOPENED]: event("Reopened asset obligation", "asset"),
+  [ASSET_DELETED]: purgeTombstoneDescriptor({
+    label: "Deleted asset permanently",
+    verb: "permanently deleted",
+    titleKey: "title",
+    fallbackText: "an asset",
+    entityType: "asset",
+  }),
   [ASSET_TASK_LINKED]: joins(
     "Linked asset obligation to task",
     "linked",
@@ -364,7 +375,13 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
   [REVIEW_REOPENED]: event("Reopened review", "review"),
   [REVIEW_ARCHIVED]: event("Archived review", "review", "warning"),
   [REVIEW_RESTORED]: event("Restored review", "review", "info"),
-  [REVIEW_DELETED]: event("Deleted review", "review", "danger"),
+  [REVIEW_DELETED]: purgeTombstoneDescriptor({
+    label: "Deleted review permanently",
+    verb: "permanently deleted",
+    titleKey: "title",
+    fallbackText: "a review",
+    entityType: "review",
+  }),
 
   /* Settings --------------------------------------------------------------- */
   [APP_PREFERENCES_CHANGED]: {

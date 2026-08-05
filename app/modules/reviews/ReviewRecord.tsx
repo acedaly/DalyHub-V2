@@ -17,6 +17,7 @@ import {
   type RecordMetaItem,
 } from "~/shared/record-layout";
 import {
+  lifecycleBlockedByLinks,
   lifecycleSuccessMessage,
   useRecordLifecycle,
 } from "~/shared/record-lifecycle";
@@ -268,6 +269,11 @@ export function ReviewRecord({
     if (result.kind === "delete" && result.ok) {
       navigate("/reviews?view=archived");
       return;
+    }
+    // A blocked purge is a refusal, not a failure: say which records still hold
+    // the Review and what to do first, never a storage detail (AUDIT-04).
+    if (result.kind === "delete" && result.blockedReason === "has_links") {
+      throw new Error(lifecycleBlockedByLinks("review", result.linkCount));
     }
     throw new Error(
       result.kind === "delete"
@@ -682,10 +688,10 @@ function ReviewSettings({
       <SettingsGroup title="Danger zone" headingLevel={2} tone="danger">
         <DangerousAction
           label="Delete this Review"
-          description="Permanently remove this Review’s detail and section rows, plus its links. Linked source records are never deleted."
+          description="Permanently remove this Review and everything written in it. Unlink any related records first — linked records are never deleted."
           actionLabel="Delete Review…"
           confirmTitle={`Delete ${review.title}?`}
-          confirmBody="This permanently removes the Review record and authored reflection. It cannot be undone."
+          confirmBody="This permanently removes the Review and every reflection written in it. It cannot be undone, and an export cannot bring it back — only a record that it was deleted is kept."
           confirmLabel="Delete Review"
           busyLabel="Deleting…"
           successMessage="Review deleted"

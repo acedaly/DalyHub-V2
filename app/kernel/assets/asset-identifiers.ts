@@ -54,6 +54,17 @@ export const ASSET_ARCHIVED = "asset.archived";
 export const ASSET_RESTORED = "asset.restored";
 /** Activity event appended when an Asset is marked disposed (status → disposed). */
 export const ASSET_DISPOSED = "asset.disposed";
+/**
+ * Activity event appended when an Asset is PERMANENTLY deleted — the retained
+ * audit tombstone for an irreversible destruction (AUDIT-03 / DEBT-79).
+ *
+ * It is deliberately SUBJECT-LESS: the entity it describes no longer exists, so
+ * an `activity_subjects` row would dangle against a missing `entities` row. Its
+ * payload therefore carries the Asset's id and title — the only surviving record
+ * of WHICH Asset was destroyed — alongside the actor and timestamp every event
+ * has. This mirrors `area.deleted` (ADR-012), the established purge precedent.
+ */
+export const ASSET_DELETED = "asset.deleted";
 
 /* -- ASSET-02: history and obligation Activity ----------------------------- */
 /*
@@ -100,6 +111,7 @@ export const ASSET_ACTIVITY_TYPES = [
   ASSET_ARCHIVED,
   ASSET_RESTORED,
   ASSET_DISPOSED,
+  ASSET_DELETED,
   ASSET_EVENT_CREATED,
   ASSET_EVENT_UPDATED,
   ASSET_EVENT_ARCHIVED,

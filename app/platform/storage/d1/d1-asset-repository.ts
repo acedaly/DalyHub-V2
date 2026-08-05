@@ -14,6 +14,10 @@
  * row and one `asset.created` event in ONE `D1Database.batch()`. `update`,
  * `archive`, `restore` fold their precondition and change-detection into the
  * mutating SQL, atomic with their Activity append via `recordAtomicMutation`.
+ * `permanentlyDelete` purges the Asset's whole footprint child-first in one
+ * guarded batch and appends exactly one subject-less `asset.deleted` tombstone
+ * immediately after the `entities` DELETE, guarded on that DELETE's `changes()`
+ * (AUDIT-03 / DEBT-79) — the same shape as the Area purge precedent.
  *
  * Activity payloads carry ONLY structural metadata — which field NAMES changed and
  * the new status vocabulary term — NEVER an Asset's serial/policy numbers, prices
@@ -25,12 +29,14 @@ import {
   buildActivityWriteModel,
   createSystemActorContext,
   secureIdGenerator as activitySecureIdGenerator,
+  serializeActivityPayload,
   type ActivityActorContext,
   type NewActivityEvent,
 } from "~/kernel/activity";
 import {
   ASSET_ARCHIVED,
   ASSET_CREATED,
+  ASSET_DELETED,
   ASSET_DISPOSED,
   ASSET_ENTITY_TYPE,
   ASSET_RESTORED,
@@ -87,6 +93,16 @@ import { likeContains } from "./like-pattern";
 /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
 export type D1AssetCreateFault = "after-entity" | "after-details";
 
+/**
+ * TEST-ONLY deterministic purge-batch failure injection. Never set in production.
+ *
+ * `after-entity` fails BETWEEN the `entities` DELETE and the tombstone insert;
+ * `after-tombstone` fails AFTER both. Either proves the destruction and its audit
+ * event are one indivisible unit — no purged Asset without a tombstone, and no
+ * tombstone for an Asset that still exists.
+ */
+export type D1AssetDeleteFault = "after-entity" | "after-tombstone";
+
 export interface D1AssetRepositoryOptions {
   readonly clock?: Clock;
   readonly idGenerator?: IdGenerator;
@@ -96,6 +112,8 @@ export interface D1AssetRepositoryOptions {
   readonly createFault?: D1AssetCreateFault;
   /** TEST-ONLY mutation-batch fault (proves the detail write + event roll back). */
   readonly mutationFault?: AtomicMutationFault;
+  /** TEST-ONLY purge-batch fault (proves the purge + tombstone roll back). */
+  readonly deleteFault?: D1AssetDeleteFault;
 }
 
 const SUBJECT_ROLE = "subject";
@@ -326,6 +344,7 @@ export class D1AssetRepository implements AssetRepository {
   readonly #recorder: D1ActivityRecorder;
   readonly #createFault?: D1AssetCreateFault;
   readonly #mutationFault?: AtomicMutationFault;
+  readonly #deleteFault?: D1AssetDeleteFault;
 
   constructor(
     db: D1Database,
@@ -342,6 +361,7 @@ export class D1AssetRepository implements AssetRepository {
     this.#recorder = new D1ActivityRecorder(db);
     this.#createFault = options.createFault;
     this.#mutationFault = options.mutationFault;
+    this.#deleteFault = options.deleteFault;
   }
 
   /** A statement guaranteed to fail at execution, aborting/rolling back the batch. */
@@ -846,9 +866,13 @@ export class D1AssetRepository implements AssetRepository {
     const assetId = validateAssetId(id);
     const existing = await this.get(assetId, { includeDeleted: true });
     if (!existing) {
-      // Already gone: idempotent success (nothing to remove).
+      // Already gone: idempotent no-op. NOTHING is written — in particular no
+      // second tombstone, so a repeated purge can never inflate the audit trail.
       return { deleted: false, blockedReason: undefined, linkCount: 0 };
     }
+    // Captured BEFORE the purge: after the batch commits, the only surviving
+    // record of which Asset was destroyed is the tombstone payload built here.
+    const title = existing.title;
 
     // Guard: refuse while any ACTIVE relationship references the Asset, so linked
     // Notes/Tasks/People are never silently orphaned (the caller unlinks first).
@@ -875,6 +899,26 @@ export class D1AssetRepository implements AssetRepository {
     // all-or-nothing at commit (closes the read→submit race). Retained: the
     // `activities` rows themselves (append-only, ADR-012) — only their subject
     // pointers to the vanishing entity are removed.
+    //
+    // The deliberate statement order, child-first so no `ON DELETE RESTRICT`
+    // foreign key is ever violated (migration 0025):
+    //
+    //   1. `entity_links`      — the Asset's remaining soft-deleted/historical
+    //      link rows; an ACTIVE one cannot be here, or the guard blocked already.
+    //   2. `activity_subjects` — the Asset's subject pointers. The `activities`
+    //      rows themselves are RETAINED (append-only, ADR-012); removing a
+    //      pointer never removes the event it points at.
+    //   3. `asset_events`      — ASSET-02 history (RESTRICT FK to `entities`).
+    //   4. `asset_obligations` — ASSET-02 obligations (RESTRICT FK to `entities`).
+    //   5. `asset_details`     — the module-owned detail row.
+    //   6. `entities`          — the entity row itself, with `RETURNING`; this is
+    //      the AUTHORITATIVE statement whose `changes()` drives the tombstone.
+    //   7. one subject-less `asset.deleted` tombstone, `WHERE changes() > 0`.
+    //
+    // Step 7 must follow step 6 IMMEDIATELY: the recorder's contract is that the
+    // event insert reads the `changes()` of the statement directly before it. A
+    // guard on any earlier child DELETE would be a lie — those match zero rows for
+    // an Asset with no history, yet the Asset itself was still destroyed.
     const emptyGuard = `NOT EXISTS (
         SELECT 1 FROM entity_links gl
         WHERE gl.workspace_id = ? AND gl.deleted_at IS NULL
@@ -923,25 +967,65 @@ export class D1AssetRepository implements AssetRepository {
         `DELETE FROM entities
          WHERE workspace_id = ? AND id = ? AND type = '${ASSET_ENTITY_TYPE}'
            AND ${emptyGuard}
-         RETURNING id`,
+         RETURNING id, title`,
       )
       .bind(this.#workspaceId, assetId, ...g);
 
+    // The retained audit tombstone (AUDIT-03 / DEBT-79). Written DIRECTLY after
+    // the `entities` DELETE and guarded on its `changes()`, so it exists iff this
+    // call is the one that actually destroyed the Asset: a blocked purge, an
+    // already-gone purge and a raced loser all leave `changes()` at 0 and append
+    // nothing. Subject-less by construction — an `activity_subjects` row would
+    // point at the `entities` row this very batch removed.
+    const nowTs = toStorageTimestamp(this.#clock());
+    let payloadJson: string;
     try {
-      const results = await this.#db.batch([
-        deleteLinks,
-        deleteSubjects,
-        deleteEvents,
-        deleteObligations,
-        deleteDetails,
-        deleteEntity,
-      ]);
+      payloadJson = serializeActivityPayload({ assetId, title });
+    } catch (cause) {
+      if (cause instanceof ActivityError) throw cause;
+      throw new AssetStorageError({ cause });
+    }
+    const tombstone = this.#db
+      .prepare(
+        `INSERT INTO activities
+           (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE changes() > 0`,
+      )
+      .bind(
+        this.#newActivityId(),
+        this.#workspaceId,
+        ASSET_DELETED,
+        this.#actor.actor.type,
+        this.#actor.actor.id,
+        nowTs,
+        payloadJson,
+      );
+
+    const batch: D1PreparedStatement[] = [
+      deleteLinks,
+      deleteSubjects,
+      deleteEvents,
+      deleteObligations,
+      deleteDetails,
+      deleteEntity,
+    ];
+    if (this.#deleteFault === "after-entity") batch.push(this.#forcedFailure());
+    batch.push(tombstone);
+    if (this.#deleteFault === "after-tombstone")
+      batch.push(this.#forcedFailure());
+
+    try {
+      const results = await this.#db.batch(batch);
+      // The `entities` DELETE is index 5 (the sixth statement).
       const entityResult = results[5];
       const removed = (entityResult?.meta?.changes ?? 0) > 0;
       if (removed) return { deleted: true };
       // The guard blocked at commit (a concurrent link appeared): report it.
       return { deleted: false, blockedReason: "has_links", linkCount: 1 };
     } catch (cause) {
+      if (cause instanceof AssetError || cause instanceof ActivityError)
+        throw cause;
       throw new AssetStorageError({ cause });
     }
   }

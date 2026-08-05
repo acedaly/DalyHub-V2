@@ -18,6 +18,7 @@ import { AssetValidationError, type UpdateAssetInput } from "~/kernel/assets";
 import { EntityValidationError } from "~/kernel/entities";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import { lifecycleBlockedByLinks } from "~/shared/record-lifecycle";
 
 import { ASSET_FORM_STRING_KEYS, parseTagsField } from "../asset-form-fields";
 import type { Route } from "./+types/mutate";
@@ -110,8 +111,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
           ok: false,
           blockedReason: "has_links",
           linkCount: result.linkCount,
-          formError:
-            "Unlink this asset’s related records before deleting it permanently.",
+          formError: lifecycleBlockedByLinks("asset", result.linkCount),
         });
       }
       // Already gone: treat as success (idempotent).

@@ -10,6 +10,7 @@ import {
 } from "~/kernel/reviews";
 import {
   buildWorkspaceActivityDescriptors,
+  purgeTombstoneDescriptor,
   type ActivityDescriptionSegment,
   type ActivityDescriptorContext,
   type ActivityDescriptorMap,
@@ -64,7 +65,18 @@ export const REVIEWS_ACTIVITY_DESCRIPTORS: ActivityDescriptorMap =
     [REVIEW_REOPENED]: reviewEvent("Reopened", "reopened", "info"),
     [REVIEW_ARCHIVED]: reviewEvent("Archived", "archived", "warning"),
     [REVIEW_RESTORED]: reviewEvent("Restored", "restored", "info"),
-    [REVIEW_DELETED]: reviewEvent("Deleted", "permanently deleted", "danger"),
+    // The permanent-deletion tombstone is SUBJECT-LESS (the Review's entity row
+    // is gone), so it names the destroyed Review from its own immutable payload.
+    // The previous `reviewEvent` descriptor resolved `primarySubject` and, with
+    // no subject to find, degraded to an anonymous "permanently deleted this
+    // review" — true but useless once the record it referred to no longer exists.
+    [REVIEW_DELETED]: purgeTombstoneDescriptor({
+      label: "Review permanently deleted",
+      verb: "permanently deleted",
+      titleKey: "title",
+      fallbackText: "a review",
+      entityType: "review",
+    }),
   });
 
 export interface ReviewActivityPage {

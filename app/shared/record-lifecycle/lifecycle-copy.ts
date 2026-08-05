@@ -124,3 +124,26 @@ export function lifecycleConsequence(
       return `This permanently deletes the ${noun}. It cannot be undone.`;
   }
 }
+
+/**
+ * The calm refusal shown when a permanent delete is BLOCKED by active links
+ * (AUDIT-FIX-03). Permanent deletion never silently severs a live relationship —
+ * it stops and tells the owner what to do first, in the product's own nouns.
+ *
+ * It states the count when one is known, because "still linked to 3 records" tells
+ * the owner how much work unlinking is; an unknown count degrades to the plain
+ * sentence rather than a guess. It never mentions a table, a foreign key or any
+ * other storage detail (§17) — the reader is told the situation and the remedy.
+ */
+export function lifecycleBlockedByLinks(
+  type: EntityType,
+  linkCount?: number,
+): string {
+  const noun = entityLabel(type).toLowerCase();
+  if (linkCount === undefined || linkCount <= 0) {
+    return `Unlink this ${noun}’s related records before deleting it permanently.`;
+  }
+  const records = linkCount === 1 ? "1 record" : `${linkCount} records`;
+  const them = linkCount === 1 ? "it" : "them";
+  return `This ${noun} is still linked to ${records}. Unlink ${them} before deleting it permanently.`;
+}

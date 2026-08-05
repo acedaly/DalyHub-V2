@@ -27,6 +27,7 @@ import {
   type RecordMetaItem,
 } from "~/shared/record-layout";
 import {
+  lifecycleBlockedByLinks,
   lifecycleSuccessMessage,
   useRecordLifecycle,
 } from "~/shared/record-lifecycle";
@@ -163,9 +164,7 @@ export function AssetRecord({
       return;
     }
     if (result.kind === "delete" && result.blockedReason === "has_links") {
-      throw new Error(
-        "Unlink this asset’s related records before deleting it permanently.",
-      );
+      throw new Error(lifecycleBlockedByLinks("asset", result.linkCount));
     }
     throw new Error("Couldn’t delete this asset.");
   }, [post, navigate]);

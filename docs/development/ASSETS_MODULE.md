@@ -390,6 +390,35 @@ accepts a `workspaceId`; the trusted Activity actor is bound at construction.
     `test/kernel/asset.test.ts` (a create → event → obligation → delete journey
     asserting zero remaining rows across all six tables, plus the
     blocked-purge-removes-nothing and cross-workspace cases).
+  - **The purge writes ONE subject-less `asset.deleted` tombstone
+    (AUDIT-FIX-03).** Until this fix the batch appended nothing at all, so an
+    irreversible destruction — the Asset, its details, its whole service and
+    financial history and every obligation — left no record that it had happened
+    [AUDIT-03 / DEBT-79]. The final statement order is now `entity_links` →
+    `activity_subjects` → `asset_events` → `asset_obligations` → `asset_details`
+    → `entities` (`RETURNING`) → the tombstone, which is inserted **directly
+    after** the entity DELETE and guarded `WHERE changes() > 0` on it. That
+    adjacency is the contract, not a style choice: `D1ActivityRecorder`'s guard
+    reads the statement immediately before it, so hanging the tombstone on any
+    earlier child DELETE would fire it wrongly — those legitimately match zero
+    rows for an Asset with no history, while the Asset itself is still destroyed.
+  - **The tombstone is subject-less by design and carries `{assetId, title}`.**
+    Its subject would point at the `entities` row the same batch removed, so
+    there is none; the payload is therefore the only surviving statement of which
+    Asset was destroyed, and the workspace feed renders the name from it. The
+    Asset's existing `activities` rows are **retained** (append-only, ADR-012) —
+    only their now-obsolete `activity_subjects` pointers go, and removing a
+    pointer never removes the event it points at.
+  - **Blocked, already-gone and race-losing purges write no tombstone at all.**
+    A second purge returns `{ deleted: false }` having touched nothing, and a
+    link created after the precheck but before the commit makes every guarded
+    statement match zero rows — so the Asset is never partially destroyed and the
+    caller gets a truthful `blockedReason: "has_links"` with the count, never a
+    raw D1 error. Proven in `test/kernel/asset.test.ts` (five cases covering the
+    tombstone, idempotency, active-link blocking, the commit-time race and
+    fault-injected rollback at both `after-entity` and `after-tombstone`) and in
+    `test/kernel/permanent-delete-contract.test.ts`, which asserts the same
+    invariants across Areas, Assets and Reviews.
 
 ### `AssetHistoryRepository` (ASSET-02)
 

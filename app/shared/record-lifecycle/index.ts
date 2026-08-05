@@ -26,6 +26,7 @@ export {
   entityLabel,
   entityPluralLabel,
   lifecycleActionLabel,
+  lifecycleBlockedByLinks,
   lifecycleBusyLabel,
   lifecycleConfirmLabel,
   lifecycleConfirmTitle,
