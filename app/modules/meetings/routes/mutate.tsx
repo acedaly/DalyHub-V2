@@ -2,7 +2,9 @@ import { env } from "cloudflare:workers";
 import {
   MEETING_ATTENDEE_LINK,
   MeetingArchivedError,
+  MeetingItemConflictError,
   MeetingNotFoundError,
+  MeetingStorageError,
   type MeetingItemKind,
 } from "~/kernel/meetings";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -159,6 +161,24 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         {
           status: 404,
         },
+      );
+    }
+    // AUDIT-FIX-02. A structured-item append that lost a bounded contention race
+    // is the one item failure a user can act on, so it is named and carries its
+    // own recovery. The message is the kernel's authored copy — never storage
+    // text: the typed error deliberately holds no constraint, table or SQL detail.
+    if (cause instanceof MeetingItemConflictError) {
+      return Response.json(
+        { ok: false, error: cause.message },
+        { status: 409 },
+      );
+    }
+    if (cause instanceof MeetingStorageError) {
+      // Unexpected storage faults must not vanish. Only the wrapper's NAME and
+      // MESSAGE are logged — both are authored constants — so the trace names the
+      // failure without emitting meeting content, ids or D1 text (AGENTS.md §17).
+      console.error(
+        `[meetings] mutation failed: ${cause.name}: ${cause.message}`,
       );
     }
     return Response.json(

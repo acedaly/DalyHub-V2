@@ -273,6 +273,50 @@ test("browser Back/Forward and refresh preserve the tab and Drawer", async ({
   void url;
 });
 
+/**
+ * AUDIT-FIX-02 — the browser half of the meeting-item positioning regression.
+ *
+ * The kernel suite (`test/kernel/meeting-item-positioning.test.ts`) owns the
+ * allocation invariants; this covers only what a browser can: that the ordinary
+ * edit sequence a user performs — add several items, remove one that is not last,
+ * add another of the same kind — completes on the real screen, persists, and
+ * leaves the surviving items in the right order.
+ */
+test("an item of the same kind can still be added after removing a non-last one", async ({
+  page,
+}) => {
+  const title = uniqueMeetingTitle("item-positions");
+  await createMeeting(page, title);
+  await addItem(page, "Add agenda item", "Agenda: confirm the budget");
+  await addItem(page, "Add agenda item", "Agenda: approve the hires");
+  await addItem(page, "Add agenda item", "Agenda: review the roadmap");
+
+  // Remove the FIRST of three — the sequence that used to leave the agenda kind
+  // permanently un-addable.
+  await page.getByRole("tab", { name: "Meeting" }).click();
+  const removed = page.locator(".dh-meeting-item", {
+    hasText: "Agenda: confirm the budget",
+  });
+  await removed.getByRole("button", { name: "Remove agenda item" }).click();
+  await expect(removed).toHaveCount(0);
+
+  // `addItem` fails the test if the item does not appear, so this IS the assertion
+  // that the previously-failing save now succeeds.
+  await addItem(page, "Add agenda item", "Agenda: name the risks");
+
+  // The survivors are untouched and the new item sorts last — after a reload, so
+  // this is the persisted order and not an optimistic client render.
+  await page.reload();
+  await page.getByRole("tab", { name: "Meeting" }).click();
+  await expect(
+    page.locator(".dh-meeting-item", { hasText: "Agenda: " }),
+  ).toHaveText([
+    /Agenda: approve the hires/,
+    /Agenda: review the roadmap/,
+    /Agenda: name the risks/,
+  ]);
+});
+
 for (const scheme of ["light", "dark"] as const) {
   test(`follow-up surface passes axe (${scheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });
