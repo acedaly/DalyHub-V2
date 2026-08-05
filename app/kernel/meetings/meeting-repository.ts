@@ -173,6 +173,11 @@ export interface MeetingRepository {
    * repeat removal of an already-removed item is a truthful no-op that returns
    * `false` and writes NO event.
    *
+   * `false` means "there was nothing to remove", and ONLY that. If the removal was
+   * instead refused because the meeting was archived or deleted concurrently, that
+   * is reported as {@link MeetingArchivedError} / {@link MeetingNotFoundError} —
+   * never as a `false` a caller could read as a completed removal.
+   *
    * Deliberately does NOT renumber the surviving items: their positions are stable
    * identifiers of display order, and `addItem` appends after the gap rather than
    * into it. Only the named item, in the bound workspace, on the named meeting, is

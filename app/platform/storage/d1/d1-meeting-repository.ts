@@ -665,16 +665,23 @@ export class D1MeetingRepository implements MeetingRepository {
    * it can never reach another workspace's row, another meeting's row, or a
    * sibling of the same kind; and the `EXISTS` guard re-asserts in SQL that the
    * meeting is still live and unarchived. The event is guarded on the delete's
-   * `changes()`, so removing an item that is already gone writes NO event and
-   * returns `false` rather than claiming a change that did not happen.
+   * `changes()`, so a delete that changes nothing writes NO event.
+   *
+   * A zero-row delete has TWO causes, and they are not the same answer, so the
+   * refusal is diagnosed rather than collapsed into one return value (mirroring
+   * `addItem`): the item is already gone — a truthful, idempotent `false` — or the
+   * meeting was archived/removed between the read above and this write, in which
+   * case the guard refused a removal that the caller must NOT be told succeeded.
+   * The extra read runs only on the no-op path.
    */
   async removeItem(id: string, itemId: string): Promise<boolean> {
     const meeting = await this.get(id);
     if (!meeting) throw new MeetingNotFoundError();
     if (meeting.archivedAt) throw new MeetingArchivedError();
     const now = this.#clock();
+    let result: AtomicMutationResult<{ id: string }>;
     try {
-      const result = await recordAtomicMutation<{ id: string }>({
+      result = await recordAtomicMutation<{ id: string }>({
         db: this.#db,
         workspaceId: this.#workspaceId,
         domainStatement: this.#db
@@ -684,12 +691,22 @@ export class D1MeetingRepository implements MeetingRepository {
         model: this.#eventModel(MEETING_UPDATED, id, now),
         ...(this.#itemFault ? { fault: this.#itemFault } : {}),
       });
-      return result.changed;
     } catch (cause) {
       throw new MeetingStorageError("The meeting item could not be removed.", {
         cause,
       });
     }
+
+    if (!result.changed) {
+      // Diagnose the refusal before reporting a no-op: if the meeting itself went
+      // away or was archived under us, the guard blocked a removal the caller
+      // asked for, and answering `false` would read as "already removed" while the
+      // item is still there. Only a still-live meeting makes `false` truthful.
+      const current = await this.get(id);
+      if (!current) throw new MeetingNotFoundError();
+      if (current.archivedAt) throw new MeetingArchivedError();
+    }
+    return result.changed;
   }
   async archive(id: string) {
     return this.#lifecycle(id, true);

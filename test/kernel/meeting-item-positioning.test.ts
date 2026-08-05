@@ -120,6 +120,48 @@ async function itemRowCount(): Promise<number> {
   return row?.n ?? 0;
 }
 
+/**
+ * A `D1Database` that runs `interfere` ONCE, immediately before the first
+ * `batch()` — i.e. after a repository method has read the meeting but before its
+ * guarded write executes. That is exactly the window a second tab (or another
+ * device) can archive or delete the meeting in, and it is the only way to reach
+ * the guard's refusal path deterministically. Only `batch` is proxied.
+ */
+function raceDb(interfere: () => Promise<void>): D1Database {
+  let armed = true;
+  return new Proxy(env.DB, {
+    get(target, prop, receiver) {
+      if (prop === "batch") {
+        return async (statements: D1PreparedStatement[]) => {
+          if (armed) {
+            armed = false;
+            await interfere();
+          }
+          return target.batch(statements);
+        };
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as D1Database;
+}
+
+/** Archive a meeting through raw SQL, adding no lifecycle Activity of its own. */
+async function archiveDirectly(meetingId: string): Promise<void> {
+  await env.DB.prepare(
+    "UPDATE meeting_details SET archived_at = ? WHERE entity_id = ?",
+  )
+    .bind("2026-07-27T10:00:00.000Z", meetingId)
+    .run();
+}
+
+/** Soft-delete a meeting's entity row through raw SQL, for the same reason. */
+async function softDeleteDirectly(meetingId: string): Promise<void> {
+  await env.DB.prepare("UPDATE entities SET deleted_at = ? WHERE id = ?")
+    .bind("2026-07-27T10:00:00.000Z", meetingId)
+    .run();
+}
+
 function authedContext(): RouterContextProvider {
   const session: AuthenticatedSession = {
     user: {
@@ -522,6 +564,95 @@ describe("AUDIT-FIX-02 — atomicity of an item mutation", () => {
     await expect(faulty.removeItem(meeting.id, item.id)).rejects.toBeTruthy();
 
     expect(await itemRowCount()).toBe(1);
+    expect(await countActivitiesOfType(MEETING_UPDATED)).toBe(baselineEvents);
+  });
+});
+
+// --- A guard that refuses mid-flight must not read as "already done" ------------------
+
+describe("AUDIT-FIX-02 — the meeting changing under an item mutation", () => {
+  it("reports the archive rather than a silent no-op removal", async () => {
+    const context = makeContext(WS);
+    const repo = repository(WS);
+    const meeting = await seedMeeting(repo);
+    const item = await repo.addItem(meeting.id, "agenda", "Still here");
+    const baselineEvents = await countActivitiesOfType(MEETING_UPDATED);
+
+    // Archive the meeting AFTER `removeItem` has read it but BEFORE its guarded
+    // DELETE runs — the two-tab race. Raw SQL, so this seeds the state without
+    // adding lifecycle Activity of its own.
+    const racing = createMeetingRepository(
+      raceDb(() => archiveDirectly(meeting.id)),
+      context,
+      {
+        clock: new FakeClock().now,
+        idGenerator: nextEntityId,
+        activityIdGenerator: nextActivityId,
+      },
+    );
+
+    // The guard matched no row. That must NOT be reported as `false` — a caller
+    // would read that as "already removed" while the item is still there.
+    await expect(racing.removeItem(meeting.id, item.id)).rejects.toBeInstanceOf(
+      MeetingArchivedError,
+    );
+    expect(await itemRowCount()).toBe(1);
+    expect(await countActivitiesOfType(MEETING_UPDATED)).toBe(baselineEvents);
+  });
+
+  it("reports a meeting deleted mid-flight rather than a silent no-op removal", async () => {
+    const context = makeContext(WS);
+    const repo = repository(WS);
+    const meeting = await seedMeeting(repo);
+    const item = await repo.addItem(meeting.id, "decision", "Still here");
+
+    const racing = createMeetingRepository(
+      raceDb(() => softDeleteDirectly(meeting.id)),
+      context,
+      {
+        clock: new FakeClock().now,
+        idGenerator: nextEntityId,
+        activityIdGenerator: nextActivityId,
+      },
+    );
+
+    await expect(racing.removeItem(meeting.id, item.id)).rejects.toBeInstanceOf(
+      MeetingNotFoundError,
+    );
+    expect(await itemRowCount()).toBe(1);
+  });
+
+  it("still returns a plain false when the item is simply already gone", async () => {
+    const repo = repository(WS);
+    const meeting = await seedMeeting(repo);
+    const item = await repo.addItem(meeting.id, "outcome", "Once");
+    expect(await repo.removeItem(meeting.id, item.id)).toBe(true);
+
+    // The meeting is alive and unarchived, so `false` is the truthful answer and
+    // no error is raised.
+    expect(await repo.removeItem(meeting.id, item.id)).toBe(false);
+  });
+
+  it("refuses an append whose meeting is archived mid-flight", async () => {
+    const context = makeContext(WS);
+    const repo = repository(WS);
+    const meeting = await seedMeeting(repo);
+    const baselineEvents = await countActivitiesOfType(MEETING_UPDATED);
+
+    const racing = createMeetingRepository(
+      raceDb(() => archiveDirectly(meeting.id)),
+      context,
+      {
+        clock: new FakeClock().now,
+        idGenerator: nextEntityId,
+        activityIdGenerator: nextActivityId,
+      },
+    );
+
+    await expect(
+      racing.addItem(meeting.id, "agenda", "Too late"),
+    ).rejects.toBeInstanceOf(MeetingArchivedError);
+    expect(await itemRowCount()).toBe(0);
     expect(await countActivitiesOfType(MEETING_UPDATED)).toBe(baselineEvents);
   });
 });
