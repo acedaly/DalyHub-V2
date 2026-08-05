@@ -901,3 +901,20 @@ and edits each Task before it exists. Dates are re-validated at acceptance, and 
 suggested Project is re-read through `getTaskParentCandidate`, so a Project
 archived or deleted between the proposal and the acceptance is refused rather than
 written to. See [`AI_PLATFORM.md`](AI_PLATFORM.md).
+
+### Which authority creates it depends on the SOURCE (AI-02, 2026-08-05)
+
+"Ordinary Task" stayed true; "created through `tasks.createTask` directly" did
+not survive contact with Meetings. The acceptance path now resolves the
+proposal's source record **server-side** (from its id — the browser never names a
+type) and routes accordingly:
+
+| Source | Authority | Result |
+|---|---|---|
+| **Meeting** | MEET-02's conversion authority (`~/platform/meetings`) | The Meeting's action item is created or reused, converted, and the `meeting_item_tasks` mapping written — so the Task shows in the **Follow-up tab as converted** ([`MEETINGS_MODULE.md`](MEETINGS_MODULE.md)). This closed DEBT-90. |
+| **Note** | `tasks.createTask`, plus a `task.relates_to` link back to the Note | The source relationship is visible from the Note's Linked surface ([`NOTES_MODULE.md`](NOTES_MODULE.md)). Never routed through the Meeting authority — a Note has no `meeting_items`. |
+| **None resolvable** | `tasks.createTask` | Ordinary Task creation, exactly as before. Reached when the proposal named no source, or named one since deleted. |
+
+In every branch the Task itself is canonical, the actor is the owner, and the
+owner's reviewed title, description, due date, scheduled date and Project — or
+**Inbox**, which is preserved everywhere — are what is written.

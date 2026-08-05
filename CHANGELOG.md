@@ -19,6 +19,50 @@ no version number to group them under.
 
 ## Unreleased
 
+### Added — a Meeting can now propose Notes, and its Tasks land where they belong
+
+- **A Task you accept from a Meeting is now a real meeting follow-up.** Accepting
+  a proposed Task records the action on the Meeting and converts it the same way
+  the _Create task_ button on a meeting item always has — so it appears in the
+  Meeting's **Follow-up** tab as converted, instead of sitting beside the Meeting
+  as an ordinary Task that looked the same but was not. Accepting the same
+  proposal twice returns the Task you already have; it never makes a second one.
+  You can still send one to your Inbox without choosing a Project.
+- **Meetings can propose Notes worth keeping.** Alongside proposed Tasks, a
+  Meeting's AI tab may suggest up to four Notes — a summary of what the meeting
+  covered, a record of what was decided, or the questions left open. Each one
+  starts **unticked**, its title and body are yours to edit before you keep it,
+  each shows what it was drawn from, and any of them can be thrown away. Ticking a
+  Task never keeps a Note along with it.
+- **A Note you keep is an ordinary Note.** Once you accept it, it is a normal
+  DalyHub Note — editable, searchable, exportable, deletable — linked back to the
+  Meeting it came from, with a link on the AI tab to open it straight away. Retry
+  a save that seemed to fail and you get the same Note back, not a duplicate.
+- **A Task you accept from a Note keeps its source.** It links back to the Note it
+  came from, so the Note's **Linked** section shows the work it produced.
+
+### Changed — a privacy correction, stated plainly
+
+- **DalyHub now asks OpenAI not to keep a copy of its requests.** Every request to
+  OpenAI carries `store: false`, which switches off the retrievable copy the API
+  keeps by default for 30 days. To be clear about what this is and is not: it is
+  not a promise that nothing is retained. Your provider's own abuse monitoring and
+  any legal retention still apply under their policies, and DalyHub can neither
+  see nor change them — it can only control what it sends and what it asks for.
+  Anthropic is unaffected; its API has no such setting.
+
+### Unchanged, deliberately
+
+- Nothing is ever added to DalyHub without you ticking it. There is still no
+  "accept all" and nothing is pre-selected.
+- Your Activity still says **you** made every change, because you reviewed and
+  approved it. AI is never named as the actor, and there is no separate "AI did
+  this" entry.
+- A Meeting or Note that was archived or deleted since a proposal was generated is
+  refused, in plain words, rather than written to.
+- No new database table, and no live AI request has ever been made from this
+  repository.
+
 ### Added — controlled, evidence-backed AI assistance
 
 - **A provider-independent AI platform.** One kernel of pure contracts

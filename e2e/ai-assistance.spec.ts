@@ -472,6 +472,316 @@ test.describe("AI-01 — the server refuses, the button is not merely hidden", (
   });
 });
 
+/**
+ * AI-02 — the ACCEPTANCE journeys.
+ *
+ * WHAT THESE DELIBERATELY DO NOT DO, and why: they do not run extraction. There
+ * is no deterministic test-provider seam in this repository — AI-01 shipped none
+ * on purpose, and the local dev server has no provider secret, which is what the
+ * "no provider is configured" assertions above depend on being true. Adding a
+ * globally-enabled fake provider to this one server would make those assertions
+ * measure a fixture instead of the product.
+ *
+ * So the model half is covered where it belongs — `test/unit/ai/schemas.test.ts`
+ * for the contract, `test/unit/ai/review-surface.test.tsx` for the review UI's
+ * behaviour (nothing preselected, edits are what get submitted, a Note is never
+ * saved as a side-effect) — and these journeys drive the REAL `/ai/apply`
+ * boundary with reviewed fields and then verify the outcome through the actual
+ * UI the owner would look at: the Meeting's Follow-up tab, the created Note, and
+ * the relationships between them.
+ */
+test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records", () => {
+  /** The meeting id from the current record URL. */
+  function recordId(page: Page): string {
+    const match = /\/(?:meeting|notes)\/([^/?#]+)/.exec(
+      new URL(page.url()).pathname,
+    );
+    if (match === null) throw new Error(`no record id in ${page.url()}`);
+    return match[1];
+  }
+
+  /**
+   * A usage id unique to this run.
+   *
+   * An acceptance is claimed under an idempotency key derived from the usage
+   * row, so a FIXED id here would collide with a receipt left by an earlier run
+   * against the same local D1 and be answered as an already-created record —
+   * testing the replay guard by accident instead of the journey. A real usage id
+   * is a fresh row per AI request, which is what this imitates.
+   */
+  function usageId(label: string): string {
+    return `e2e-${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  }
+
+  interface ApplyResult {
+    ok: boolean;
+    applied?: {
+      ok: boolean;
+      kind?: string;
+      id?: string;
+      created?: boolean;
+      message?: string;
+    }[];
+  }
+
+  /** Post one acceptance the way the review surface does. */
+  async function apply(
+    request: Parameters<typeof postSameOrigin>[0],
+    fields: Record<string, string>,
+  ): Promise<ApplyResult> {
+    const response = await postSameOrigin(request, "/ai/apply", {
+      form: fields,
+    });
+    return (await response.json()) as ApplyResult;
+  }
+
+  test("an accepted Meeting Task appears in Follow-up as converted", async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueMeetingTitle("accept-task");
+    await createMeeting(page, title);
+    const meetingId = recordId(page);
+
+    // Before: the Meeting has no follow-up work at all.
+    await page.getByRole("tab", { name: "Follow-up" }).click();
+    await expect(
+      page.getByRole("heading", { name: "No follow-up tasks yet" }),
+    ).toBeVisible();
+
+    const result = await apply(request, {
+      intent: "accept",
+      usageId: usageId("accept-task"),
+      sourceRecordId: meetingId,
+      items: JSON.stringify([
+        { kind: "task", title: "Send the draft to Vaughn" },
+      ]),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.applied?.[0]?.ok).toBe(true);
+    expect(result.applied?.[0]?.created).toBe(true);
+
+    // After: it is CONVERTED follow-up work, not a Task floating beside the
+    // Meeting. This is the DEBT-90 fix, seen from the owner's side.
+    await page.reload();
+    await page.getByRole("tab", { name: "Follow-up" }).click();
+    await expect(
+      page.getByRole("heading", { name: /Open \(1\)/ }),
+    ).toBeVisible();
+
+    // The Meeting itself records the action item, and offers to OPEN the task
+    // rather than create a second one.
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    const item = page.locator(".dh-meeting-item", {
+      hasText: "Send the draft to Vaughn",
+    });
+    await expect(item).toBeVisible();
+    await expect(item.getByRole("button", { name: "Open task" })).toBeVisible();
+    await expect(item.getByRole("button", { name: "Create task" })).toHaveCount(
+      0,
+    );
+  });
+
+  test("replaying the same acceptance does not create a second Task", async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueMeetingTitle("accept-replay");
+    await createMeeting(page, title);
+    const meetingId = recordId(page);
+
+    const fields = {
+      intent: "accept",
+      usageId: usageId("accept-replay"),
+      sourceRecordId: meetingId,
+      items: JSON.stringify([{ kind: "task", title: "Book the venue" }]),
+    };
+    const first = await apply(request, fields);
+    const second = await apply(request, fields);
+
+    expect(second.applied?.[0]?.ok).toBe(true);
+    expect(second.applied?.[0]?.id).toBe(first.applied?.[0]?.id);
+    expect(second.applied?.[0]?.created).toBe(false);
+
+    await page.reload();
+    await page.getByRole("tab", { name: "Follow-up" }).click();
+    await expect(
+      page.getByRole("heading", { name: /Open \(1\)/ }),
+    ).toBeVisible();
+  });
+
+  test("an accepted Meeting Note becomes a Note linked back to the Meeting", async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueMeetingTitle("accept-note");
+    await createMeeting(page, title);
+    const meetingId = recordId(page);
+
+    const noteTitle = uniqueNoteTitle("from-meeting");
+    ownedNotes.add(noteTitle);
+    const result = await apply(request, {
+      intent: "accept",
+      usageId: usageId("accept-note"),
+      sourceRecordId: meetingId,
+      items: JSON.stringify([
+        {
+          kind: "note",
+          title: noteTitle,
+          body: "## Decisions\n\nWe agreed to ship on **Friday**.",
+        },
+      ]),
+    });
+
+    expect(result.ok).toBe(true);
+    const noteId = result.applied?.[0]?.id;
+    expect(noteId).toBeTruthy();
+
+    // It is an ORDINARY Note: it opens at the canonical route, in the canonical
+    // Markdown editor, holding the EXACT source the owner reviewed — never
+    // trimmed, reflowed or rewritten.
+    await gotoFixture(page, `/notes/${noteId}`);
+    await expect(page.getByRole("heading", { name: noteTitle })).toBeVisible();
+    const editor = page.getByRole("textbox", { name: "Note" });
+    await expect(editor).toBeVisible();
+    // The editor decorates Markdown syntax rather than showing it verbatim, so
+    // assert the prose. The exact stored source is asserted byte-for-byte in
+    // `test/kernel/ai-apply-proposal.test.ts`.
+    await expect(editor).toContainText("Decisions");
+    await expect(editor).toContainText("We agreed to ship on Friday.");
+
+    // And it points back at the Meeting it came from.
+    await gotoFixture(page, `/notes/${noteId}?tab=linked`);
+    await expect(
+      page.getByRole("link", { name: new RegExp(title) }).first(),
+    ).toBeVisible();
+  });
+
+  test("a rejected proposal creates nothing at all", async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueMeetingTitle("reject");
+    await createMeeting(page, title);
+    const meetingId = recordId(page);
+
+    const response = await postSameOrigin(request, "/ai/apply", {
+      form: {
+        intent: "reject",
+        usageId: usageId("reject"),
+        sourceRecordId: meetingId,
+      },
+    });
+    const payload = (await response.json()) as ApplyResult;
+    expect(payload.ok).toBe(true);
+    expect(payload.applied).toEqual([]);
+
+    await page.reload();
+    await page.getByRole("tab", { name: "Follow-up" }).click();
+    await expect(
+      page.getByRole("heading", { name: "No follow-up tasks yet" }),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    await expect(page.locator(".dh-meeting-item")).toHaveCount(0);
+  });
+
+  test("a Task accepted from a Note is linked back to that Note", async ({
+    page,
+    request,
+  }) => {
+    const noteTitle = uniqueNoteTitle("task-source");
+    await createNote(page, noteTitle);
+    const noteId = recordId(page);
+
+    const result = await apply(request, {
+      intent: "accept",
+      usageId: usageId("note-task"),
+      sourceRecordId: noteId,
+      items: JSON.stringify([
+        { kind: "task", title: "Draft the migration plan" },
+      ]),
+    });
+    expect(result.applied?.[0]?.ok).toBe(true);
+    // A source that resolved is what makes the link possible at all — assert it
+    // explicitly, so an unsourced fallback can never masquerade as a pass.
+    expect(result.applied?.[0]?.created).toBe(true);
+
+    // The source relationship is visible from the Note's own relationship
+    // surface. A `task.relates_to` link is INCOMING to the Note (Task is the
+    // source), so it shows under "Referenced by" — the same place any other
+    // record that points at this Note appears.
+    await gotoFixture(page, `/notes/${noteId}?tab=backlinks`);
+    await expect(
+      page.getByRole("heading", { name: /Referenced by/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Draft the migration plan/ }).first(),
+    ).toBeVisible();
+  });
+
+  test("an archived Meeting refuses acceptance, truthfully and safely", async ({
+    page,
+    request,
+  }) => {
+    const title = uniqueMeetingTitle("archived-refusal");
+    await createMeeting(page, title);
+    const meetingId = recordId(page);
+
+    await page.getByRole("tab", { name: "Settings" }).click();
+    await page.getByRole("button", { name: /Archive Meeting/i }).click();
+    await expect(
+      page.getByRole("button", { name: /Restore Meeting/i }),
+    ).toBeVisible();
+
+    const result = await apply(request, {
+      intent: "accept",
+      usageId: usageId("archived"),
+      sourceRecordId: meetingId,
+      items: JSON.stringify([
+        { kind: "task", title: "Must never be created" },
+        { kind: "note", title: "Must never exist", body: "Nope." },
+      ]),
+    });
+
+    expect(result.ok).toBe(false);
+    for (const entry of result.applied ?? []) {
+      expect(entry.ok).toBe(false);
+      // A calm sentence — never a constraint, a table name, SQL or a stack.
+      const message = entry.message ?? "";
+      expect(message.length).toBeGreaterThan(0);
+      for (const forbidden of [
+        "D1_",
+        "SQLITE",
+        "SELECT",
+        "INSERT",
+        "constraint",
+        "meeting_item_tasks",
+        "at Object.",
+      ]) {
+        expect(message).not.toContain(forbidden);
+      }
+    }
+
+    // Nothing was written to the archived Meeting.
+    await page.reload();
+    await page.getByRole("tab", { name: "Meeting" }).click();
+    await expect(page.locator(".dh-meeting-item")).toHaveCount(0);
+  });
+
+  test("refuses a source record the browser invented", async ({ request }) => {
+    const result = await apply(request, {
+      intent: "accept",
+      usageId: usageId("invented-source"),
+      sourceRecordId: "not-a-real-record",
+      items: JSON.stringify([
+        { kind: "note", title: "Never created", body: "Nope." },
+      ]),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.applied?.[0]?.ok).toBe(false);
+  });
+});
+
 test.describe("AI-01 — the Weekly Review assistant is opt-in and additive", () => {
   test("the Focus step keeps working, with the assistant off to one side", async ({
     page,
@@ -539,5 +849,61 @@ test.describe("AI-01 — responsive and accessible across the phone matrix", () 
     await page.emulateMedia({ colorScheme: "dark" });
     await gotoFixture(page, "/ai");
     await expectNoAxeViolations(page);
+  });
+
+  // AI-02 — the record-level AI surfaces, on the same phone matrix. A Meeting's
+  // AI tab is where a proposal is reviewed, so it is the one that must survive
+  // 320px without a horizontal scroll.
+  for (const viewport of phones) {
+    test(`a Meeting's AI tab has no horizontal overflow at ${viewport.label}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await createMeeting(page, uniqueMeetingTitle(`ai-${viewport.label}`));
+      await page.getByRole("tab", { name: "AI" }).click();
+      await expectNoHorizontalOverflow(page);
+    });
+  }
+
+  test("a Meeting's AI tab is accessible in light and dark mode", async ({
+    page,
+  }) => {
+    await createMeeting(page, uniqueMeetingTitle("ai-axe"));
+    await page.getByRole("tab", { name: "AI" }).click();
+    await expectNoAxeViolations(page);
+
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expectNoAxeViolations(page);
+  });
+
+  test("a Meeting's AI tab is reachable and operable by keyboard", async ({
+    page,
+  }) => {
+    await createMeeting(page, uniqueMeetingTitle("ai-keyboard"));
+
+    // Reach the tablist by keyboard, then move along it with the arrow keys the
+    // Record Layout's roving tabindex provides — no mouse anywhere.
+    await page.getByRole("tab", { name: "Overview" }).focus();
+    for (let step = 0; step < 8; step += 1) {
+      const selected = page.getByRole("tab", { selected: true });
+      if ((await selected.getAttribute("aria-label")) === "AI") break;
+      const focused = await page.evaluate(
+        () => document.activeElement?.textContent ?? "",
+      );
+      if (focused.trim() === "AI") break;
+      await page.keyboard.press("ArrowRight");
+    }
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("tab", { name: "AI" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // The state is announced, not merely styled.
+    await expect(
+      page.getByText("AI assistance is turned off", { exact: false }),
+    ).toBeVisible();
   });
 });

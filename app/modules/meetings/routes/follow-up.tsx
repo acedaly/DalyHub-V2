@@ -6,7 +6,7 @@
  * (or a direct follow-up) into a canonical Task. It authenticates, resolves the
  * workspace scope from trusted server config (the client never supplies a workspace
  * or actor), and delegates the multi-write conversion to the documented
- * orchestration in `../follow-up-operations`. Every Task field flows through the
+ * orchestration in `~/platform/meetings`. Every Task field flows through the
  * canonical Task authority; this route writes no Task rows itself.
  */
 
@@ -35,7 +35,7 @@ import {
   MeetingItemNotFoundError,
   MeetingNotFoundError,
   type FollowUpTaskFields,
-} from "../follow-up-operations";
+} from "~/platform/meetings";
 import type { Route } from "./+types/follow-up";
 
 export type MeetingFollowUpResult =
@@ -66,8 +66,14 @@ function readFields(form: FormData): FollowUpTaskFields {
   const parentKind = String(form.get("parentKind") ?? "");
   return {
     title: String(form.get("title") ?? ""),
-    parentId: String(form.get("parentId") ?? ""),
-    parentKind: parentKind === "area" ? "area" : "project",
+    // This surface REQUIRES a parent and always submits one. The id is passed
+    // through exactly as it arrived — including empty — so an absent parent
+    // still fails the spine's own validation here rather than silently becoming
+    // an Inbox Task, which is the behaviour this route has always had.
+    parent: {
+      kind: parentKind === "area" ? "area" : "project",
+      id: String(form.get("parentId") ?? ""),
+    },
     priority: optional(form.get("priority")) as TaskPriority | undefined,
     dueDate: optional(form.get("dueDate")) ?? null,
     scheduledDate: optional(form.get("scheduledDate")) ?? null,

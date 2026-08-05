@@ -9,6 +9,13 @@
  * the answer arrives in `output[]` as an `output_text` item, or as a `refusal`;
  * and usage is reported as `input_tokens` / `output_tokens`.
  *
+ * Re-verified against the OpenAI conversation-state guide on 2026-08-05 for the
+ * AI-02 privacy correction: the request body accepts a boolean `store`, which
+ * defaults to TRUE and keeps the response object retrievable (dashboard logs and
+ * `GET /v1/responses/{id}`) for 30 days. DalyHub sends `store: false` on every
+ * request — see the comment at the field itself for what that does and does not
+ * mean.
+ *
  * Like the Anthropic adapter this uses a direct `fetch` rather than the provider
  * SDK — same reasoning, and it keeps both adapters on the same transport, the
  * same deadline semantics and the same redaction rules.
@@ -52,6 +59,20 @@ export function createOpenAiAdapter(
         instructions: request.system,
         input: request.userMessage,
         max_output_tokens: request.maxOutputTokens,
+        // AI-02 privacy hardening. The Responses API stores the response as
+        // retrievable application state by default (`store` defaults to true),
+        // which would leave the owner's evidence readable through OpenAI's own
+        // API and dashboard for as long as that state is kept. DalyHub has no
+        // use for server-side conversation state — every request is
+        // self-contained and DalyHub keeps its own bounded result in memory — so
+        // it is switched OFF explicitly on every request rather than left to a
+        // provider default that could change.
+        //
+        // What this does NOT claim: it is not zero data retention. Abuse
+        // monitoring and any legal retention remain governed by the provider's
+        // own current policies, and DalyHub can neither inspect nor override
+        // them. AI_PLATFORM.md states the boundary in the same terms.
+        store: false,
         text: {
           format: {
             type: "json_schema",

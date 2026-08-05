@@ -335,7 +335,7 @@
   letter-spacing: var(--dh-letter-spacing-wide);
 }
 
-.dh-ai-review__field :is(input, select) {
+.dh-ai-review__field :is(input, select, textarea) {
   width: 100%;
   min-width: 0;
   min-height: var(--dh-touch-target-min);
@@ -345,6 +345,23 @@
   background: var(--dh-color-surface);
   border: var(--dh-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-sm);
+}
+
+/* AI-02 — a proposed Note's body. Editable in place, and tall enough to read a
+   paragraph of it without scrolling on a phone. Vertical resize only, so it can
+   never widen past its column and introduce a horizontal scroll. */
+.dh-ai-review__body {
+  min-height: calc(var(--dh-space-8) * 2);
+  line-height: var(--dh-line-height-normal);
+  resize: vertical;
+}
+
+/* The link to a Note the owner just kept. */
+.dh-ai-review__created {
+  color: var(--dh-color-link);
+  min-height: var(--dh-touch-target-min);
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Two date fields sit side by side only when there is genuinely room for them. */

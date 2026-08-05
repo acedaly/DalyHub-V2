@@ -64,7 +64,7 @@ The mapping **supplements** the Universal Relationship System; it never replaces
 
 ### The conversion orchestration (transaction & idempotency)
 
-`app/modules/meetings/follow-up-operations.ts` is the explicit orchestration boundary. The FND-07 `createTask` encapsulates its own atomic `D1Database.batch()`, so the four writes (Task, mapping, link, Activity) cannot be fused into one cross-repository transaction through the public contracts. The orchestration therefore provides:
+`app/platform/meetings/follow-up-operations.ts` is the explicit orchestration boundary. **It moved out of `app/modules/meetings/` in AI-02** and is now a platform service, for the reason the architecture already has a precedent for (ADR-033; AREA-02's shared `NewGoalForm`): a second module needs it. The AI acceptance path must route a Meeting-derived Task through THIS authority and no other, and the module-boundary rule correctly forbids `app/modules/ai` from importing `app/modules/meetings`. Duplicating the orchestration would have created the second conversion path the single-authority rule exists to prevent. Nothing about the orchestration changed in the move; the Meetings module's own follow-up route imports it from `~/platform/meetings` unchanged. The FND-07 `createTask` encapsulates its own atomic `D1Database.batch()`, so the four writes (Task, mapping, link, Activity) cannot be fused into one cross-repository transaction through the public contracts. The orchestration therefore provides:
 
 - **A clear commit point** — `meetings.linkFollowUpTask` writes the mapping row **and** its structural Activity (`meeting.item_converted_to_task` for an item, `meeting.follow_up_created` for a direct follow-up) in ONE batch. The conversion is "official" only once this commits.
 - **Idempotency** — an item's mapping is the key: a repeat conversion of an already-converted item returns the SAME Task (never a second), and re-asserts the (idempotent) `task.relates_to` link.
@@ -143,7 +143,7 @@ The state change and its Activity event are **one atomic, self-guarding write** 
 - **Concurrency-safe** — of N simultaneous submissions exactly one changes a row; the losers append nothing and report the truth.
 - **Lifecycle-safe** — `archived_at IS NULL` is re-asserted in SQL, so a meeting archived between the read and the write cannot acquire a held state.
 
-Errors fail closed and disclose nothing: `MeetingNotFoundError` (missing, soft-deleted, wrong type or another workspace — all indistinguishable) → `404`; `MeetingArchivedError` → `409` with the recovery named. Both now live in the kernel beside the contract that throws them, and `follow-up-operations.ts` re-exports them so MEET-02's importers are unaffected.
+Errors fail closed and disclose nothing: `MeetingNotFoundError` (missing, soft-deleted, wrong type or another workspace — all indistinguishable) → `404`; `MeetingArchivedError` → `409` with the recovery named. Both now live in the kernel beside the contract that throws them, and `~/platform/meetings` re-exports them so MEET-02's importers are unaffected.
 
 ### Privacy rules
 
@@ -229,9 +229,9 @@ attendee semantics remain distinct from generic related-record links.
 
 **Corrected 2026-07-27 — the follow-up journey's E2E failure was never a Meetings defect.** `e2e/meetings-follow-up.spec.ts` failed consistently in CI, timing out looking for the record's Agenda or Settings tab, and [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02) flagged it as the likeliest genuine product or fixture defect. The page snapshot from a local reproduction showed the browser sitting on **`/new/meeting`** — it had navigated back off the record entirely. The cause is in the shared DS-03 Drawer: closing a provider-opened level is `navigate(-1)`, a history pop that does not land synchronously, and the spec's `closeDrawer` helper pressed Escape again after a fixed 120ms if a dialog was still present. A second Escape inside that window read the same stale stack and popped a *second* time, past the meeting record. Fixed in the shared provider (close is now idempotent per history entry, so a repeated Escape can never over-pop) plus the helper, which now waits on one-fewer-dialog rather than a fixed delay. The Agenda and Settings tabs were correct throughout; no Meetings code changed.
 
-**Deferred work.** Per-attendee decision/outcome semantics (blocked on the item model, not on effort); mobile completion (especially capture **during** a meeting on a phone); calendar sync and invitations; AI-proposed tasks and notes from meeting content ([AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals), which layers a review step over the existing MEET-02 conversion authority rather than replacing it).
+**Deferred work.** Per-attendee decision/outcome semantics (blocked on the item model, not on effort); mobile completion (especially capture **during** a meeting on a phone); calendar sync and invitations; calendar sync. AI-proposed tasks and notes from meeting content are now **delivered** ([AI-02](../roadmap/ROADMAP_V2_1.md), which layers a review step over the existing MEET-02 conversion authority rather than replacing it — see [Accepting a proposal](#accepting-a-proposal-ai-02-2026-08-05)).
 
-**Relevant roadmap items.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) ☑ · [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ · [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) ☐ (now unblocked — there is real attendee history to capture against) · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ (now unblocked — see [the read seam](#the-people-03-read-seam)) · [AI-02](../roadmap/ROADMAP_V2.md#-ai-02--meeting--tasksnotes-proposals) ☐.
+**Relevant roadmap items.** [MEET-01](../roadmap/ROADMAP_V2.md#-meet-01--meeting-record) ☑ · [MEET-02](../roadmap/ROADMAP_V2.md#-meet-02--follow-ups--tasks) ☑ · [MEET-03](../roadmap/ROADMAP_V2.md#-meet-03--people--history-integration) ☑ · [MEET-04](../roadmap/ROADMAP_V2.md#-meet-04--mobile) ☐ (now unblocked — there is real attendee history to capture against) · [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline) ☑ · [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals) ☐ (now unblocked — see [the read seam](#the-people-03-read-seam)) · [AI-02](../roadmap/ROADMAP_V2_1.md) ☑ (2026-08-05).
 
 **Relevant product-debt items.** [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p2) · [DEBT-07](../product/PRODUCT_DEBT.md#-debt-07--fragmented-activityhistory--p2).
 
@@ -389,13 +389,79 @@ supplied; an invented id is rejected by the validator, not quietly dropped. A da
 the model *worked out* rather than read is not pre-filled — DalyHub owns date
 validation, and an inferred date must be confirmed before it is stored.
 
-Accepted Tasks are created through the canonical `tasks.createTask`, so lifecycle
-guards, workspace scoping and the ordinary `entity.created` Activity all apply —
-with the **owner** as the actor, because they reviewed and approved it.
-
-**Not yet AI-02.** An accepted Task is an ordinary Task; it is not recorded through
-MEET-02's `meeting_items` → Task conversion authority and does not appear as a
-converted follow-up. See the AI-02 entry in
-[`ROADMAP_V2_1.md`](../roadmap/ROADMAP_V2_1.md).
-
 Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md).
+
+## Accepting a proposal (AI-02, 2026-08-05)
+
+AI-01 created an accepted Task through `tasks.createTask` directly. The Task was
+correct in every other respect, but no `meeting_item_tasks` mapping was written,
+so the Follow-up tab under-reported AI-originated follow-up work. That was
+[DEBT-90](../product/PRODUCT_DEBT.md), and it is fixed here.
+
+### An accepted Task is a canonical conversion
+
+When the owner accepts a proposed Task from a Meeting, the acceptance path
+re-reads the Meeting (refusing one archived or deleted since the proposal was
+generated) and then goes through MEET-02's authority via
+`convertMeetingProposalToTask`:
+
+1. **Create or reuse the action item.** An AI proposal has no `meeting_items` row
+   behind it — DalyHub read the Meeting as *evidence* and the model wrote a
+   title. So the authority either **reuses** an existing `action` item whose body
+   is exactly the approved text (the owner had already written the action down;
+   converting the item they have is right, and a second identical one would be
+   wrong), or **creates** one through the ordinary `addItem` contract, so the
+   Meeting durably records the action exactly as a hand-typed one would.
+2. **Convert it** through `convertMeetingItemToTask` — unchanged. The mapping row
+   and its structural `meeting.item_converted_to_task` Activity are written in
+   the one batch that is MEET-02's commit point, and the navigable
+   `task.relates_to` link is asserted.
+
+The Task therefore appears in the **Follow-up tab as converted**, and the item
+offers *Open task* rather than *Create task*.
+
+The owner's reviewed values are what is converted: title, description, due date,
+scheduled date and the chosen Project — or **Inbox**, which AI-02 widened
+`FollowUpTaskFields` to permit (TASKS-04 allows a parentless Task; the MEET-02
+follow-up FORM still requires a parent and always submits one).
+
+### Idempotency, through the constraints rather than around them
+
+Reuse is what makes acceptance idempotent: a replayed acceptance finds the item
+the first one created, `convertMeetingItemToTask` finds its live mapping, and the
+SAME Task comes back with `created: false`. **No uniqueness error is caught and
+ignored anywhere on this path** — the `meeting_item_tasks` partial unique index
+and MEET-02's own conversion rules remain the authority. Two proposals whose
+approved text differs are two different actions; DalyHub does not fuzzy-match the
+owner's words.
+
+**And an existing conversion is checked before it is called a success.** Keying
+reuse on the approved text is what keeps a Meeting from accumulating duplicate
+action items, but it means two accepted proposals sharing a title — or a title
+matching an item converted weeks ago — resolve to the same already-converted
+Task, which MEET-02 correctly returns *unchanged*. So the acceptance compares the
+existing Task's title, dates, parent and description against the reviewed values.
+Identical → a truthful idempotent success. Different → the item is reported as
+**not applied**, naming the existing Task, because:
+
+- calling it a success would tell the owner their reviewed dates or Project are
+  in DalyHub when they were discarded — the exact class of lie this release
+  exists to remove;
+- silently overwriting the existing Task would be worse. It is a canonical Task
+  the owner may have edited since, and an acceptance is not a licence to rewrite
+  one.
+
+### Proposed Notes
+
+Meeting extraction may also propose **Notes** — a durable summary, a decision
+record, an open-questions note. They begin unselected and are never saved as a
+side-effect of accepting a Task or a link. An accepted one becomes an ordinary
+Note created through the canonical entity + note-details repositories and linked
+to the Meeting by the ordinary `link.related` relationship the capture path
+already uses for "a Note created from this Meeting"
+([`NOTES_MODULE.md`](NOTES_MODULE.md)).
+
+The **owner** is the actor on every event, and an accepted proposal produces
+exactly the events the same action taken by hand would produce. There is no
+"AI created this" event and AI is never an Activity actor
+([`ACTIVITY_TIMELINE.md`](ACTIVITY_TIMELINE.md)).

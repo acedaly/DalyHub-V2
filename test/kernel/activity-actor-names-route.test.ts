@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
-import { convertMeetingItemToTask } from "~/modules/meetings/follow-up-operations";
+import { convertMeetingItemToTask } from "~/platform/meetings";
 import { loader as todayActivityLoader } from "~/modules/today/routes/activity";
 import { loader as taskActivityLoader } from "~/modules/tasks/routes/task-activity";
 import {
@@ -127,8 +127,7 @@ async function seedTheReportedActivity() {
   const item = await s.meetings.addItem(meeting.id, "agenda", "Chase the OpO");
   await convertMeetingItemToTask(s, meeting.id, item.id, {
     title: "Chase the OpO",
-    parentId: area.id,
-    parentKind: "area",
+    parent: { kind: "area", id: area.id },
   });
 
   return { area, project, task, person, meeting };

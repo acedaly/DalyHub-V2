@@ -612,6 +612,14 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           },
           {
             kind: "text",
+            text: "A meeting can suggest tasks and notes. Tasks become ordinary follow-up work on that meeting — the same as pressing “Create task” on an item yourself, so they show in the meeting’s Follow-up tab. Notes become ordinary notes, linked back to the meeting they came from. Both start unticked, both are yours to edit before you keep them, and ticking a task never keeps a note along with it. A note suggestion you never tick is simply thrown away when you leave the tab; it is not saved anywhere.",
+          },
+          {
+            kind: "text",
+            text: "A task you accept from a note keeps a link back to that note, so you can always see what a piece of work came from. And if you accept the same suggestion twice — after a dropped connection, say — you get back the record you already have, never a duplicate.",
+          },
+          {
+            kind: "text",
             text: "Some questions never reach an AI at all. Ask DalyHub how many tasks are overdue, or when your last meeting was, and DalyHub reads the answer straight out of your records — it says so when it does, and that costs nothing.",
           },
           {
@@ -632,7 +640,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
               "What is sent: only the records DalyHub selects for that one request, and it tells you how many and of what kinds before it runs.",
               "What is not sent by default: anything in a sensitive category — health, family, relationships, financial, and your own diary and reflections. You can allow a category in Settings if you want to.",
               "What DalyHub records: how long a request took, what it cost and which feature it was. Not what was in it.",
-              "What your provider records: their own business, under their own policy. DalyHub cannot see or change that, and does not claim they never store anything. Read your provider’s developer-platform data policy, and only send information you are permitted to share with them.",
+              "What your provider records: their own business, under their own policy. DalyHub asks OpenAI not to keep the retrievable copy of a request that its API keeps by default, but that is a request about one kind of storage — it is not a promise that nothing is retained. A provider’s own abuse monitoring and any legal retention still apply, DalyHub cannot see or change them, and it does not claim they never store anything. Read your provider’s developer-platform data policy, and only send information you are permitted to share with them.",
             ],
           },
           {

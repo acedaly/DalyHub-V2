@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useState } from "react";
-import { useRevalidator } from "react-router";
+import { Link, useRevalidator } from "react-router";
 
 import { AiExtractionReview } from "./AiExtractionReview";
 import {
@@ -52,6 +52,7 @@ export function AiExtractionSurface({
   const revalidator = useRevalidator();
   const [run, setRun] = useState(0);
   const [applied, setApplied] = useState<string | null>(null);
+  const [createdNotes, setCreatedNotes] = useState<readonly string[]>([]);
 
   const unavailable: AiSurfaceState | null = !availability.enabled
     ? { kind: "disabled" }
@@ -86,9 +87,29 @@ export function AiExtractionSurface({
       const response = (await controller.apply({
         intent: "accept",
         usageId: state.usageId,
+        // The SOURCE RECORD, as an id. The server reads what kind of record it
+        // is; the browser never says. That is what decides whether an accepted
+        // Task goes through the Meeting conversion authority or is linked back
+        // to its source Note.
+        sourceRecordId: recordId,
         items: JSON.stringify(items),
-      })) as { ok?: boolean; applied?: { ok: boolean; message?: string }[] };
-      const failures = (response.applied ?? []).filter((entry) => !entry.ok);
+      })) as {
+        ok?: boolean;
+        applied?: {
+          ok: boolean;
+          kind?: string;
+          id?: string;
+          message?: string;
+        }[];
+      };
+      const results = response.applied ?? [];
+      const failures = results.filter((entry) => !entry.ok);
+      // The created Notes, so the owner can go straight to one they just kept.
+      setCreatedNotes(
+        results
+          .filter((entry) => entry.ok && entry.kind === "note" && entry.id)
+          .map((entry) => entry.id as string),
+      );
       setApplied(
         failures.length === 0
           ? "Added to DalyHub. They’re ordinary records now — edit or delete them as usual."
@@ -99,7 +120,7 @@ export function AiExtractionSurface({
       // The record's own loader is the source of truth for what now exists.
       void revalidator.revalidate();
     },
-    [controller, revalidator, state],
+    [controller, recordId, revalidator, state],
   );
 
   const reject = useCallback(async () => {
@@ -108,6 +129,7 @@ export function AiExtractionSurface({
     }
     controller.reset();
     setApplied(null);
+    setCreatedNotes([]);
   }, [controller, state]);
 
   if (unavailable !== null) {
@@ -169,6 +191,22 @@ export function AiExtractionSurface({
             <p className="dh-ai-review__lead" role="status">
               {applied}
             </p>
+          ) : null}
+          {createdNotes.length > 0 ? (
+            <ul className="dh-ai-review__list">
+              {createdNotes.map((noteId, position) => (
+                <li key={noteId} className="dh-ai-review__item">
+                  <Link
+                    className="dh-ai-review__created"
+                    to={`/notes/${noteId}`}
+                  >
+                    {createdNotes.length === 1
+                      ? "Open the note you kept"
+                      : `Open kept note ${position + 1}`}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           ) : null}
           <AiExtractionReview
             result={extraction}

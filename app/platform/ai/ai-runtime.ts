@@ -618,6 +618,7 @@ export function validationContext(
 export function schemaNameFor(feature: AiFeatureId): string {
   switch (feature) {
     case "meeting-action-extraction":
+      return "dalyhub_meeting_extraction";
     case "note-action-extraction":
       return "dalyhub_action_extraction";
     case "weekly-review-assistant":

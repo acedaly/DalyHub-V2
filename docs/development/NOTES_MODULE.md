@@ -1125,8 +1125,14 @@ the words.
 
 A Note record has an **AI** tab carrying one explicit action: *Extract actions and
 decisions*. It sends the Note's content plus the titles of explicitly linked
-records, and returns the same reviewable proposal shape Meetings use — one shared
-surface, so the behaviour is identical on both records.
+records, and returns a reviewable proposal rendered by the same shared surface
+Meetings use — one component, so the behaviour is identical on both records.
+
+**Note extraction does not propose Notes.** It extracts actions, decisions, open
+questions and links FROM the current Note; a Note recursively proposing more
+Notes is a behaviour nobody asked for, so the Note contract does not carry
+`proposedNotes` and its validator **refuses** the field rather than dropping it
+(AI-02). Only Meeting extraction proposes Notes.
 
 Suggested EntityLinks may only target records DalyHub itself offered as
 candidates: an invented target never reaches the review surface, and accepting one
@@ -1134,3 +1140,47 @@ goes through `entityLinks.create`, which validates both endpoints in the bound
 workspace and is idempotent by relationship identity.
 
 Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md).
+
+## Notes that come from AI acceptance (AI-02, 2026-08-05)
+
+Two things arrive here from the AI acceptance path, and neither introduces a
+Note-specific AI concept.
+
+**A Task accepted from a Note keeps its source.** It is created through the
+canonical Task repository and linked back to the Note with a `task.relates_to`
+EntityLink — Task as source, Note as target — which is exactly what "new Task,
+captured from this Note" already creates (`captureRelationshipPlan`). The link is
+INCOMING to the Note, so it appears on the Note's **Backlinks** tab under
+*Referenced by* — the same place any other record that points at this Note
+appears, with no new UI. (The universal *Linked items* section is `link.related`
+only, by design; a structural relationship shows in the references surfaces
+instead.)
+
+Inbox creation is preserved: a Note-derived Task needs no Project. The link
+create is idempotent by relationship identity, so a retry re-asserts rather than
+duplicating; a source Note deleted since the proposal was generated refuses the
+acceptance, and the just-created Task is compensated rather than kept without the
+relationship the owner accepted. Note-derived Tasks are **never** routed through
+the Meeting conversion authority — a Note has no `meeting_items`.
+
+**A Note accepted from a Meeting is an ordinary Note.** It is created through the
+generic `entities.create` + `noteDetails.update` — the same path `/notes/new` and
+the content form use — and linked to the Meeting with the universal
+`link.related` relationship, so it shows in the Note's *Linked items* section and
+in the Meeting's. The body is stored as the EXACT validated Markdown source the
+owner reviewed (never trimmed, reflowed or rewritten) and is rendered later
+through the one FND-08 sanitising pipeline; raw HTML is refused at the AI
+boundary rather than stripped, so what the owner reviewed is what is stored.
+
+There is **no table for generated Note bodies**: a proposed Note exists only in
+the response and the review state, and after acceptance it is an ordinary Note
+with ordinary Activity and the **owner** as the actor.
+
+Retrying the same accepted proposal cannot silently create a repeated identical
+Note: the creation is claimed under the PWA-05 receipts table with a key derived
+server-side from the usage row, the item's position and **every field the
+acceptance would write** — title and body for a Note; title, description, both
+dates and the parent for a Task — hashed, so record content never reaches the
+receipts table. An acceptance the owner EDITED first therefore hashes to a
+different key and creates the different record they asked for, rather than being
+handed the earlier one and told it succeeded.

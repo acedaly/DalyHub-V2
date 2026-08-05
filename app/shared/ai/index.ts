@@ -34,6 +34,7 @@ export {
 export {
   NO_CANDIDATES,
   acceptancePayload,
+  asActionExtraction,
   asAnswer,
   asExtraction,
   asWeeklyReview,
@@ -41,11 +42,14 @@ export {
   draftsFromExtraction,
   idempotencyKey,
   isBusy,
+  noteDraftsFromExtraction,
+  notePurposeLabel,
   type AiCandidates,
   type AiCitation,
   type AiDetail,
   type AiDisclosure,
   type AiSurfaceState,
+  type NoteDraft,
   type TaskDraft,
 } from "./ai-view";
 

@@ -101,6 +101,51 @@ const EXTRACTION_BODY = `Your task: read one record and extract what was DECIDED
 
 Prefer fewer, well-supported items over a long, speculative list.`;
 
+/**
+ * AI-02 — the MEETING extraction body.
+ *
+ * A separate constant, and a separate prompt VERSION, because the result
+ * contract changed: this prompt asks for proposed Notes and `EXTRACTION_BODY`
+ * does not. Editing `EXTRACTION_BODY` in place would have rewritten the meaning
+ * of `meeting-action-extraction:v1` retroactively, and every usage row already
+ * recorded against that version would then be attributed to instructions that
+ * were never sent. So v1 is left exactly as it was, and this is v2.
+ */
+const MEETING_EXTRACTION_BODY = `Your task: read one meeting and extract what was DECIDED, what must be DONE,
+and what is worth KEEPING.
+
+- summary: a short, neutral description of what the meeting covered. No advice,
+  no encouragement, no judgement.
+- decisions: choices that were actually made. A discussion is not a decision.
+- proposedTasks: concrete actions someone must take. Write each title as a short
+  imperative ("Send the draft to Vaughn"). Do not invent work the meeting does
+  not ask for.
+- Dates: use an ISO calendar date (YYYY-MM-DD) only. Set dateBasis to "explicit"
+  when a date is actually written in the evidence, "inferred" when you worked it
+  out from relative language such as "next Friday", and "none" when there is no
+  date. Never turn a vague phrase like "soon" into a date; leave it null with
+  dateBasis "none".
+- suggestedProjectId and suggestedOwnerPersonId: use only ids from the supplied
+  candidates. If a name is ambiguous, or the person is not in the candidates,
+  leave it null. Do not guess who owns an action.
+- proposedNotes: durable notes worth keeping, and ONLY where one genuinely is.
+  Use "meeting_summary" for a standing record of what the meeting covered,
+  "decision_record" for decisions that will need to be looked up later,
+  "open_questions" for what was left unsettled, and "general_note" for anything
+  else durable. Write the body as plain Markdown prose — no HTML, no scripts, no
+  links, no URLs, no record identifiers, no instructions about where to store
+  it. Every proposed note must cite the evidence it is drawn from. An empty list
+  is the right answer whenever nothing durable came out of the meeting; do not
+  manufacture a note to fill the field.
+- unresolvedQuestions: things the meeting raises but does not settle.
+- suggestedLinks: only where a supplied candidate is clearly the subject of the
+  meeting. Give a short, factual reason.
+
+Everything you produce is a proposal. The owner reviews each item, edits it and
+chooses what to keep; nothing you write becomes DalyHub data on its own.
+
+Prefer fewer, well-supported items over a long, speculative list.`;
+
 const WEEKLY_REVIEW_BODY = `Your task: help the owner see their week.
 
 DalyHub has already calculated the facts in <derived_facts>. Those numbers are
@@ -135,12 +180,16 @@ Never fabricate a record, a date, a name or a decision in order to be helpful. A
 honest "not enough evidence" is the correct answer more often than not.`;
 
 const REGISTRY: Readonly<Record<AiFeatureId, PromptDefinition>> = {
+  // v2 (AI-02): the result contract gained proposed Notes. v1's meaning is not
+  // rewritten — see MEETING_EXTRACTION_BODY.
   "meeting-action-extraction": definition(
     "meeting-action-extraction",
-    "v1",
-    "Extract decisions, actions and open questions from one Meeting.",
-    EXTRACTION_BODY,
+    "v2",
+    "Extract decisions, actions, open questions and proposed Notes from one Meeting.",
+    MEETING_EXTRACTION_BODY,
   ),
+  // Unchanged at v1, deliberately. Note extraction extracts actions FROM a Note;
+  // it does not propose more Notes, and its schema refuses them.
   "note-action-extraction": definition(
     "note-action-extraction",
     "v1",
