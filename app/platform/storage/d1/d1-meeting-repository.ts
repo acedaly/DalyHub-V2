@@ -635,10 +635,15 @@ export class D1MeetingRepository implements MeetingRepository {
 
       if (!result.changed || !result.row) {
         // The conditional insert refused: the meeting was archived or removed
-        // between the read and the write. Re-read and report which, truthfully.
+        // between the read and the write. Nothing was written, so re-read and name
+        // the reason — but only while the meeting still SHOWS that reason. If the
+        // refusing condition has since been reverted (archived, then restored),
+        // report the append as not having happened rather than asserting an
+        // archived state that is no longer true. Never a silent success either way.
         const current = await this.get(id);
         if (!current) throw new MeetingNotFoundError();
-        throw new MeetingArchivedError();
+        if (current.archivedAt) throw new MeetingArchivedError();
+        throw new MeetingItemConflictError(kind);
       }
 
       return {
@@ -665,16 +670,23 @@ export class D1MeetingRepository implements MeetingRepository {
    * it can never reach another workspace's row, another meeting's row, or a
    * sibling of the same kind; and the `EXISTS` guard re-asserts in SQL that the
    * meeting is still live and unarchived. The event is guarded on the delete's
-   * `changes()`, so removing an item that is already gone writes NO event and
-   * returns `false` rather than claiming a change that did not happen.
+   * `changes()`, so a delete that changes nothing writes NO event.
+   *
+   * A zero-row delete has TWO causes, and they are not the same answer, so the
+   * refusal is diagnosed rather than collapsed into one return value (mirroring
+   * `addItem`): the item is already gone — a truthful, idempotent `false` — or the
+   * meeting was archived/removed between the read above and this write, in which
+   * case the guard refused a removal that the caller must NOT be told succeeded.
+   * The extra read runs only on the no-op path.
    */
   async removeItem(id: string, itemId: string): Promise<boolean> {
     const meeting = await this.get(id);
     if (!meeting) throw new MeetingNotFoundError();
     if (meeting.archivedAt) throw new MeetingArchivedError();
     const now = this.#clock();
+    let result: AtomicMutationResult<{ id: string }>;
     try {
-      const result = await recordAtomicMutation<{ id: string }>({
+      result = await recordAtomicMutation<{ id: string }>({
         db: this.#db,
         workspaceId: this.#workspaceId,
         domainStatement: this.#db
@@ -684,12 +696,51 @@ export class D1MeetingRepository implements MeetingRepository {
         model: this.#eventModel(MEETING_UPDATED, id, now),
         ...(this.#itemFault ? { fault: this.#itemFault } : {}),
       });
-      return result.changed;
     } catch (cause) {
       throw new MeetingStorageError("The meeting item could not be removed.", {
         cause,
       });
     }
+
+    if (!result.changed) {
+      // Diagnose from the ITEM, not from the meeting's state at a later read. "Is
+      // the row still there?" is the question `false` actually answers, and it is
+      // the only one immune to the meeting being archived before the DELETE and
+      // restored again before the diagnosis — which would otherwise look like a
+      // live meeting and be reported as a completed removal.
+      const survivor = await this.#findItem(id, itemId);
+      if (!survivor) return false;
+      // The row survived, so the guard refused this removal and it did NOT happen.
+      // Name the reason when the meeting still shows it…
+      const current = await this.get(id);
+      if (!current) throw new MeetingNotFoundError();
+      if (current.archivedAt) throw new MeetingArchivedError();
+      // …and when the refusing condition has since been reverted, say plainly that
+      // the removal did not take effect rather than inventing a reason or claiming
+      // success. Recoverable: the caller refreshes and tries again.
+      throw new MeetingItemConflictError(
+        survivor.kind as MeetingItemKind,
+        "That item couldn’t be removed. Refresh the meeting and try again.",
+      );
+    }
+    return true;
+  }
+  /**
+   * The stored row for one item of this meeting, in the bound workspace, or `null`.
+   * Read deliberately WITHOUT any meeting lifecycle predicate: its whole job is to
+   * answer "does this row still exist" for a mutation that was already refused, so
+   * a condition on the meeting would reintroduce the ambiguity it exists to remove.
+   */
+  async #findItem(
+    meetingId: string,
+    itemId: string,
+  ): Promise<{ kind: string } | null> {
+    return this.#db
+      .prepare(
+        "SELECT kind FROM meeting_items WHERE workspace_id=? AND meeting_id=? AND id=? LIMIT 1",
+      )
+      .bind(this.#workspaceId, meetingId, itemId)
+      .first<{ kind: string }>();
   }
   async archive(id: string) {
     return this.#lifecycle(id, true);
