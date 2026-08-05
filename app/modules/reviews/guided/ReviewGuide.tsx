@@ -208,6 +208,7 @@ export function ReviewGuide({
             <div
               className="dh-review-guide__stepper-track"
               role="progressbar"
+              aria-label="Review progress"
               aria-valuemin={1}
               aria-valuemax={progress.totalCount}
               aria-valuenow={step.order}

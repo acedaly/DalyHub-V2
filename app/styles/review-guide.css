@@ -201,6 +201,30 @@
   max-inline-size: 46rem;
 }
 
+/*
+ * A grid item's automatic minimum size is its MIN-CONTENT width, and CodeMirror
+ * reports a large one. Without this the whole prompt column is sized by the
+ * editor rather than by the viewport, and a 320px phone scrolls sideways. The
+ * Review record's own section editors carry the identical rule (reviews.css).
+ */
+.dh-review-guide__stack > *,
+.dh-review-guide__prompt > *,
+.dh-review-guide__prompt .dh-md-editor {
+  min-width: 0;
+}
+
+/*
+ * The guided reflection surface lets the editor GROW instead of scrolling inside
+ * itself. The shared editor caps at 70vh, which is right on a record where the
+ * editor is one of several panels — but here it is the whole step, and an inner
+ * scroll region inside a scrolling page is exactly the nested-scrolling trap
+ * REVIEW-04 sets out to avoid (and a scrollable region a keyboard user has to
+ * escape from). The page scrolls; the writing surface does not.
+ */
+.dh-review-guide__prompt .dh-md-editor__cm .cm-editor {
+  max-block-size: none;
+}
+
 .dh-review-guide__prompt-label {
   margin: 0;
 }

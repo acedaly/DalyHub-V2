@@ -169,6 +169,14 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         typeof revisionRaw === "string" && /^\d+$/.test(revisionRaw)
           ? Number(revisionRaw)
           : undefined;
+      // A DRAFT Review that the owner deliberately moves through is, truthfully,
+      // in progress. This is the EXISTING lifecycle transition through the
+      // existing contract — one `review.status_changed` event, once, on the first
+      // deliberate move — not a workflow-only flag. Every later navigation is a
+      // no-op here, so navigation itself still writes no Activity.
+      if (review.status === "draft") {
+        await scope.reviews.setStatus(reviewId, "in_progress");
+      }
       const result = await scope.reviews.setWorkflowStep(
         reviewId,
         requestedStep,
