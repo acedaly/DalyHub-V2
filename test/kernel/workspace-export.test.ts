@@ -264,6 +264,10 @@ async function seedWorkspace(): Promise<Seeded> {
     "summary.overall",
     "A steady week.",
   );
+  // REVIEW-02 — the guided flow's own state: a resume bookmark and one step the
+  // owner deliberately marked reviewed. Both must survive the export.
+  await reviews.setWorkflowStep(review.review.id, "reflection");
+  await reviews.setStepAcknowledged(review.review.id, "inbox", true);
   await reviews.complete(review.review.id);
 
   /* Relationships --------------------------------------------------------- */
@@ -501,6 +505,24 @@ describe("workspace export (D1)", () => {
           section.bodyMarkdown === "A steady week.",
       ),
     ).toBe(true);
+    // REVIEW-02 — the guided flow's resume bookmark and the owner's explicit
+    // step decision travel with the workspace. The acknowledgement especially:
+    // it records intent no calculation can reproduce, and it gates completion.
+    expect(snapshot.records.reviewWorkflowState).toEqual([
+      {
+        reviewId: seeded.reviewId,
+        currentStep: "reflection",
+        revision: 1,
+        updatedAt: expect.any(String),
+      },
+    ]);
+    expect(snapshot.records.reviewStepAcknowledgements).toEqual([
+      {
+        reviewId: seeded.reviewId,
+        stepId: "inbox",
+        acknowledgedAt: expect.any(String),
+      },
+    ]);
   });
 
   it("represents archived and soft-deleted records rather than dropping them", () => {

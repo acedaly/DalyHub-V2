@@ -193,6 +193,83 @@ describe("workspace snapshot validation", () => {
   });
 });
 
+/**
+ * REVIEW-02 — the guided flow's own rows travel with the workspace, and an
+ * archive written before they existed still reads.
+ */
+describe("guided-review workflow state in a snapshot", () => {
+  it("accepts a snapshot carrying the resume bookmark and acknowledgements", () => {
+    const snapshot = makeSnapshot();
+    expect(snapshot.records.reviewWorkflowState).toHaveLength(1);
+    expect(snapshot.records.reviewStepAcknowledgements).toHaveLength(1);
+    expect(validateWorkspaceSnapshot(snapshot)).toEqual([]);
+  });
+
+  it("rejects a bookmark that references a Review not in the snapshot", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.reviewWorkflowState[0].reviewId = "not-a-review";
+    expect(validateWorkspaceSnapshot(snapshot)).toContainEqual({
+      path: "records.reviewWorkflowState[0].reviewId",
+      message: "references a review not in this snapshot",
+    });
+  });
+
+  it("rejects an acknowledgement that references a Review not in the snapshot", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.reviewStepAcknowledgements[0].reviewId = "not-a-review";
+    expect(validateWorkspaceSnapshot(snapshot)).toContainEqual({
+      path: "records.reviewStepAcknowledgements[0].reviewId",
+      message: "references a review not in this snapshot",
+    });
+  });
+
+  it("rejects a non-positive revision", () => {
+    const snapshot = mutable(makeSnapshot());
+    snapshot.records.reviewWorkflowState[0].revision = 0;
+    expect(validateWorkspaceSnapshot(snapshot)).toContainEqual({
+      path: "records.reviewWorkflowState[0].revision",
+      message: "must be a positive integer",
+    });
+  });
+
+  /*
+   * The back-compatibility contract. An archive exported before REVIEW-02 has no
+   * key for either collection; that is an older valid file, not a corrupt one,
+   * and it must still validate and still read as empty.
+   */
+  it("still accepts an archive written before these collections existed", () => {
+    const snapshot = mutable(makeSnapshot());
+    delete (snapshot.records as Record<string, unknown>).reviewWorkflowState;
+    delete (snapshot.records as Record<string, unknown>)
+      .reviewStepAcknowledgements;
+
+    expect(validateWorkspaceSnapshot(snapshot)).toEqual([]);
+    // And it is normalised, so every consumer downstream can assume it exists.
+    expect(snapshot.records.reviewWorkflowState).toEqual([]);
+    expect(snapshot.records.reviewStepAcknowledgements).toEqual([]);
+  });
+
+  it("does NOT tolerate a missing collection that is not opted in", () => {
+    const snapshot = mutable(makeSnapshot());
+    delete (snapshot.records as Record<string, unknown>).reviewSections;
+    expect(validateWorkspaceSnapshot(snapshot)).toContainEqual({
+      path: "records.reviewSections",
+      message: "must be an array",
+    });
+  });
+
+  it("still rejects an optional collection present but malformed", () => {
+    const snapshot = mutable(makeSnapshot());
+    (
+      snapshot.records as unknown as Record<string, unknown>
+    ).reviewWorkflowState = "not an array";
+    expect(validateWorkspaceSnapshot(snapshot)).toContainEqual({
+      path: "records.reviewWorkflowState",
+      message: "must be an array",
+    });
+  });
+});
+
 describe("secret and infrastructure exclusion", () => {
   const serialised = JSON.stringify(makeSnapshot());
 

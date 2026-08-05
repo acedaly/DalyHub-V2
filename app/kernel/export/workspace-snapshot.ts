@@ -525,6 +525,37 @@ export interface SnapshotReviewSection {
   readonly updatedAt: IsoInstant;
 }
 
+/**
+ * REVIEW-02 — a Review's guided-flow resume bookmark: the step the owner
+ * deliberately stopped on, plus the revision that makes a stale write refusable.
+ *
+ * Exported because "own the data" (AGENTS.md §7) covers owner-scoped product
+ * state, exactly as it already covers `taskSavedViews` and owner preferences.
+ * A restored workspace should reopen a half-finished Review where its owner left
+ * it, not at step one.
+ */
+export interface SnapshotReviewWorkflowState {
+  readonly reviewId: string;
+  readonly currentStep: string;
+  readonly revision: number;
+  readonly updatedAt: IsoInstant;
+}
+
+/**
+ * REVIEW-02 — one step the owner explicitly marked reviewed.
+ *
+ * The reason this is exported rather than treated as scratch state: it records a
+ * DECISION no calculation can reproduce ("I am leaving these Inbox Tasks on
+ * purpose"), and it gates whether the guided flow will complete the Review
+ * (ADR-072 decision 3). Dropping it from an export would lose owner intent, not
+ * merely convenience.
+ */
+export interface SnapshotReviewStepAcknowledgement {
+  readonly reviewId: string;
+  readonly stepId: string;
+  readonly acknowledgedAt: IsoInstant;
+}
+
 /* -------------------------------------------------------------------------- */
 /* The collection map                                                         */
 /* -------------------------------------------------------------------------- */
@@ -556,6 +587,8 @@ export interface SnapshotCollectionRowMap {
   readonly assetObligations: SnapshotAssetObligation;
   readonly reviewDetails: SnapshotReviewDetail;
   readonly reviewSections: SnapshotReviewSection;
+  readonly reviewWorkflowState: SnapshotReviewWorkflowState;
+  readonly reviewStepAcknowledgements: SnapshotReviewStepAcknowledgement;
   readonly entityLinks: SnapshotEntityLink;
   readonly activities: SnapshotActivity;
   readonly activitySubjects: SnapshotActivitySubject;
@@ -572,6 +605,24 @@ export type SnapshotCollection = keyof SnapshotCollectionRowMap;
  * entities first, then the spine, then per-module details, then children, then
  * relationships, then history.
  */
+/**
+ * Collections a snapshot READ tolerates being absent, defaulting to `[]`.
+ *
+ * Every export DalyHub writes contains every collection. This list exists only
+ * so an archive written BEFORE the collection existed still validates and still
+ * restores — the alternative is that adding a collection retroactively
+ * invalidates every file an owner has already saved, which would make "export
+ * always possible" (AGENTS.md §7) a promise with an expiry date.
+ *
+ * Add to this list in the SAME change that adds a collection, and never remove
+ * from it: an entry here is a permanent statement about archives already on
+ * disk. It is deliberately not a general "everything is optional" rule —
+ * validation still requires every other collection, so a genuinely truncated
+ * or corrupt snapshot is still caught.
+ */
+export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[] =
+  ["reviewWorkflowState", "reviewStepAcknowledgements"];
+
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "entities",
   "spineRecords",
@@ -591,6 +642,8 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "assetObligations",
   "reviewDetails",
   "reviewSections",
+  "reviewWorkflowState",
+  "reviewStepAcknowledgements",
   "entityLinks",
   "activities",
   "activitySubjects",

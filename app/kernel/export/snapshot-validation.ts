@@ -26,6 +26,7 @@
 
 import {
   SNAPSHOT_COLLECTION_ORDER,
+  SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS,
   SNAPSHOT_SCHEMA_NAME,
   SNAPSHOT_SCHEMA_VERSION,
   type SnapshotCollection,
@@ -158,6 +159,9 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   reviewDetails: (row: { entityId: string }) => row.entityId,
   reviewSections: (row: { reviewId: string; sectionId: string }) =>
     `${row.reviewId}\u0000${row.sectionId}`,
+  reviewWorkflowState: (row: { reviewId: string }) => row.reviewId,
+  reviewStepAcknowledgements: (row: { reviewId: string; stepId: string }) =>
+    `${row.reviewId}\u0000${row.stepId}`,
   entityLinks: (row: { id: string }) => row.id,
   activities: (row: { occurredAt: string; id: string }) =>
     `${row.occurredAt}\u0000${row.id}`,
@@ -344,9 +348,23 @@ export function validateWorkspaceSnapshot(
 
   for (const collection of SNAPSHOT_COLLECTION_ORDER) {
     const rows = (records as Record<string, unknown>)[collection];
-    if (!Array.isArray(rows)) {
-      c.add(`records.${collection}`, "must be an array");
+    if (Array.isArray(rows)) continue;
+    /*
+     * A collection added AFTER an archive was written is absent from that
+     * archive, and that is not corruption — it is an older, still-valid file
+     * (see SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS). It is normalised to an empty
+     * array in place so every check below, and every consumer downstream, can go
+     * on assuming the collection exists. Every OTHER collection is still
+     * required, so a genuinely truncated snapshot is still rejected.
+     */
+    if (
+      rows === undefined &&
+      SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS.includes(collection)
+    ) {
+      (records as Record<string, unknown>)[collection] = [];
+      continue;
     }
+    c.add(`records.${collection}`, "must be an array");
   }
   if (c.issues.length > 0) return c.issues;
 
@@ -448,6 +466,29 @@ export function validateWorkspaceSnapshot(
         `records.reviewSections[${index}].reviewId`,
         "references a review not in this snapshot",
       );
+    }
+  });
+  // REVIEW-02 — the guided flow's own rows hang off a Review exactly as its
+  // sections do, and are held to the same referential rule.
+  records.reviewWorkflowState.forEach((row, index) => {
+    const path = `records.reviewWorkflowState[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.currentStep`, row.currentStep);
+    requireInstant(c, `${path}.updatedAt`, row.updatedAt);
+    if (!Number.isInteger(row.revision) || row.revision < 1) {
+      c.add(`${path}.revision`, "must be a positive integer");
+    }
+    if (!entityIds.has(row.reviewId)) {
+      c.add(`${path}.reviewId`, "references a review not in this snapshot");
+    }
+  });
+  records.reviewStepAcknowledgements.forEach((row, index) => {
+    const path = `records.reviewStepAcknowledgements[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.stepId`, row.stepId);
+    requireInstant(c, `${path}.acknowledgedAt`, row.acknowledgedAt);
+    if (!entityIds.has(row.reviewId)) {
+      c.add(`${path}.reviewId`, "references a review not in this snapshot");
     }
   });
 

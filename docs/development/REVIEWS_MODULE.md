@@ -232,6 +232,15 @@ position from the moment the migration lands.
 Never stored: insight scores, Project health snapshots, Goal alignment classifications,
 Task counts, or any duplicate of a Review response body.
 
+**Both tables are exported with the workspace.** They are owner-scoped product state on
+the same footing as `taskSavedViews`, and the acknowledgements in particular record intent
+no calculation can reproduce, so a restored workspace reopens a half-finished Review where
+its owner left it with their decisions intact. Because the snapshot previously required
+every collection, they are the first entries in `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS`:
+DalyHub always writes them, and an archive exported before they existed still validates
+(normalised to `[]`) rather than being invalidated retroactively. See
+[`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md#adding-a-collection-without-invalidating-existing-archives-review-02).
+
 ### Resume semantics
 
 1. A **completed** Review always opens on its final step.
