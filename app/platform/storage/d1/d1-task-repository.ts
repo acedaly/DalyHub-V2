@@ -464,6 +464,13 @@ export interface D1TaskRepositoryOptions {
    */
   readonly bulkCompleteFault?: boolean;
   /**
+   * TEST-ONLY: force `reopenTask`'s single atomic batch to fail (a forced-error
+   * statement appended at the end), to prove the reopen, the successor withdrawal and
+   * the release of that successor's recurrence reservation commit together or not at
+   * all. Never set in production.
+   */
+  readonly reopenFault?: boolean;
+  /**
    * TEST-ONLY: invoked once inside a planning mutation AFTER the initial read (and
    * the open-state check) but BEFORE the guarded write, to simulate a concurrent
    * mutation — e.g. the task being completed — racing the plan. Lets a test prove
@@ -504,6 +511,7 @@ export class D1TaskRepository implements TaskRepository {
   readonly #recorder: D1ActivityRecorder;
   readonly #completeFault?: CompleteTaskFault;
   readonly #bulkCompleteFault?: boolean;
+  readonly #reopenFault?: boolean;
   readonly #createTaskFault?: boolean;
   readonly #planRaceHook?: () => Promise<void>;
 
@@ -522,6 +530,7 @@ export class D1TaskRepository implements TaskRepository {
     this.#recorder = new D1ActivityRecorder(db);
     this.#completeFault = options.completeFault;
     this.#bulkCompleteFault = options.bulkCompleteFault;
+    this.#reopenFault = options.reopenFault;
     this.#createTaskFault = options.createTaskFault;
     this.#planRaceHook = options.planRaceHook;
   }
@@ -3401,7 +3410,15 @@ export class D1TaskRepository implements TaskRepository {
         waiting: null,
       },
       changed: true,
-      successor: successorPlan ? await this.getTask(successorPlan.id) : null,
+      // The planned successor, or — when the guarded group declined because a LIVE
+      // occurrence already holds this series slot (a successor RETAINED through a
+      // reopen, or one a concurrent completion created) — that occurrence. Read back
+      // by series identity, so it is always this workspace's occupant of exactly this
+      // slot, never a guess and never a silent null (AUDIT-FIX-01).
+      successor: successorPlan
+        ? ((await this.getTask(successorPlan.id)) ??
+          (await this.#readExistingSuccessor(current)))
+        : null,
     };
   }
 
@@ -3502,6 +3519,27 @@ export class D1TaskRepository implements TaskRepository {
    * series, sequence) index is the second, database-level boundary that makes a
    * duplicate occurrence impossible even under a retry.
    *
+   * The series slot `(series_id, sequence)` holds AT MOST ONE occurrence, so the
+   * group also decides — in SQL, inside the batch — which of the two things the slot
+   * can mean (AUDIT-FIX-01):
+   *
+   *   - a LIVE task already occupies it (a successor RETAINED through a reopen
+   *     because it was edited/linked/completed, or one a concurrent completion just
+   *     created): the whole group declines. `completeTask` then reports THAT
+   *     occurrence rather than minting a second one — the group is a cascade off the
+   *     entity insert, so declining it writes no entity, no spine record, no detail
+   *     row, no recurrence row and no Activity, never a detached half-task.
+   *   - a STALE row occupies it — its task is soft-deleted, because the reopen
+   *     withdrew it or the owner trashed it — in which case the slot is not held by
+   *     any live occurrence and the row is released first, so the fresh successor can
+   *     take it. Releasing is gated on this batch's completion exactly like every
+   *     other successor statement.
+   *
+   * The two predicates are exact complements of one another, so the pair is total:
+   * the insert can never meet a row the release did not clear, and the UNIQUE index
+   * stays the backstop rather than the mechanism (ADR-062 §1) — no constraint
+   * exception is caught or suppressed.
+   *
    * Field-copy contract (documented in TASKS_MODULE.md): title, description, parent,
    * priority, Time Sector, commitment state, the recurrence rule and the series
    * identity carry over. Completion, waiting, delegation and workflow status do NOT —
@@ -3517,8 +3555,46 @@ export class D1TaskRepository implements TaskRepository {
              WHERE workspace_id = ? AND entity_id = ? AND completed_at = ?
            )`;
     const committedBinds = [this.#workspaceId, plan.predecessorId, nowTs];
+    // "A LIVE task occupies this series slot" — the one condition under which a
+    // successor must NOT be created, whichever occurrence put it there.
+    const slotHeldByLiveTask = `EXISTS (
+             SELECT 1 FROM task_recurrence_rules rr
+             JOIN entities re
+               ON re.workspace_id = rr.workspace_id AND re.id = rr.entity_id
+             WHERE rr.workspace_id = ? AND rr.series_id = ? AND rr.sequence = ?
+               AND re.deleted_at IS NULL
+           )`;
+    const slotBinds = [
+      this.#workspaceId,
+      plan.series.seriesId,
+      plan.series.sequence,
+    ];
 
     const statements: D1PreparedStatement[] = [];
+
+    // Release a recurrence row left behind by a task that no longer exists. A
+    // soft-deleted task is not a member of the series, so its reservation must not
+    // outlive it and wedge the slot — which is precisely the state AUDIT-01
+    // reproduced. Gated on THIS batch's completion, and by construction it can only
+    // ever match the row `slotHeldByLiveTask` rejects. (A later restore from the
+    // trash brings the task back as an ordinary non-recurring Task rather than
+    // silently displacing whatever now holds the slot — PX-04's reversible delete
+    // restores the record, not a claim on a series position another task owns.)
+    statements.push(
+      this.#db
+        .prepare(
+          `DELETE FROM task_recurrence_rules
+           WHERE workspace_id = ? AND series_id = ? AND sequence = ?
+             AND NOT EXISTS (
+                   SELECT 1 FROM entities re
+                   WHERE re.workspace_id = task_recurrence_rules.workspace_id
+                     AND re.id = task_recurrence_rules.entity_id
+                     AND re.deleted_at IS NULL
+                 )
+             AND ${committed}`,
+        )
+        .bind(...slotBinds, ...committedBinds),
+    );
 
     statements.push(
       this.#db
@@ -3526,7 +3602,8 @@ export class D1TaskRepository implements TaskRepository {
           `INSERT INTO entities
              (id, workspace_id, type, title, created_at, updated_at, deleted_at)
            SELECT ?, ?, '${TASK}', ?, ?, ?, NULL
-           WHERE ${committed}`,
+           WHERE ${committed}
+             AND NOT ${slotHeldByLiveTask}`,
         )
         .bind(
           plan.id,
@@ -3535,6 +3612,7 @@ export class D1TaskRepository implements TaskRepository {
           nowTs,
           nowTs,
           ...committedBinds,
+          ...slotBinds,
         ),
     );
     // The SHARED spine child-record builder: the spine stays the identity authority
@@ -3917,7 +3995,21 @@ export class D1TaskRepository implements TaskRepository {
             now,
           ),
         ),
+        // A withdrawn occurrence must not keep its seat in the series: its
+        // `(series_id, sequence)` reservation is released in the SAME batch, so
+        // re-completing the reopened predecessor can plan that sequence again
+        // (AUDIT-FIX-01). Gated on the successor bearing THIS batch's soft delete —
+        // the same shape as the successor group's completion gate — so a successor
+        // the guarded withdrawal declined to touch keeps both its row and its place.
+        this.#releaseWithdrawnRecurrenceStatement(successor.entity_id, nowTs),
       );
+    }
+
+    // TEST-ONLY: prove the reopen, the withdrawal and the recurrence release commit
+    // as ONE transaction — a fault here must leave the occurrence completed and its
+    // successor and series row exactly as they were.
+    if (this.#reopenFault) {
+      statements.push(this.#forcedFailure());
     }
 
     let results: D1Result<{ readonly entity_id: string }>[];
@@ -4018,6 +4110,45 @@ export class D1TaskRepository implements TaskRepository {
         successorId,
         this.#workspaceId,
         predecessorId,
+      );
+  }
+
+  /**
+   * Release the withdrawn successor's `(series_id, sequence)` reservation, in the
+   * SAME batch as the withdrawal it belongs to (AUDIT-FIX-01).
+   *
+   * A recurrence row is per-occurrence configuration, not history (ADR-062 §6): a
+   * COMPLETED occurrence keeps its row, because that is what preserves the series for
+   * undo, but an occurrence that has been withdrawn out of existence has nothing left
+   * to configure. Leaving its row behind reserved a sequence no task occupies, and
+   * re-completing the reopened predecessor then collided with the UNIQUE
+   * `(workspace_id, series_id, sequence)` index and rolled the whole completion back
+   * — the defect AUDIT-01 reproduced.
+   *
+   * The gate is the withdrawal itself: the row goes only if the successor now carries
+   * THIS batch's `deleted_at`. A successor edited between the safety read and the
+   * write survives `#withdrawSuccessorStatement`, and therefore survives here too,
+   * keeping both its task and its position in the series. Deleting the CHILD row
+   * never touches the `ON DELETE RESTRICT` parent direction of the foreign key.
+   */
+  #releaseWithdrawnRecurrenceStatement(
+    successorId: string,
+    nowTs: string,
+  ): D1PreparedStatement {
+    return this.#db
+      .prepare(
+        `DELETE FROM task_recurrence_rules
+         WHERE workspace_id = ? AND entity_id = ?
+           AND EXISTS (SELECT 1 FROM entities
+                       WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                         AND deleted_at = ?)`,
+      )
+      .bind(
+        this.#workspaceId,
+        successorId,
+        this.#workspaceId,
+        successorId,
+        nowTs,
       );
   }
 

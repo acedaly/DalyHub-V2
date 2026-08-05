@@ -733,6 +733,33 @@ never a guess:
 The withdrawal statement re-checks the same conditions inside the batch, so a
 successor edited between the safety read and the write still survives.
 
+**A withdrawn occurrence also gives up its place in the series** (AUDIT-FIX-01). A
+recurrence row RESERVES a `(series_id, sequence)` slot under a UNIQUE index, so the
+same batch deletes the withdrawn successor's row, gated on that successor carrying
+*this batch's* `deleted_at`. A retained successor keeps both its task and its row.
+Without the release, the emptied sequence stayed reserved and re-completing the
+reopened occurrence collided with the index and rolled the completion back — the
+occurrence became permanently un-completable in-product.
+
+### Undoing and then re-completing
+
+Completion is repeatable: undo it and tick it again and the series continues. Which
+of the two things the next slot means is decided in SQL, inside the completion batch:
+
+- a **live** task already holds it — a successor retained through an undo, or one a
+  concurrent completion created — and the successor group declines ENTIRELY. The
+  group cascades off the entity insert, so declining writes no entity, spine record,
+  detail row, recurrence row or Activity; completion then REPORTS that occurrence,
+  read back by series identity, rather than minting a second one;
+- a **stale** row holds it — its task is soft-deleted, because an undo withdrew it or
+  the owner trashed it — and the row is released first so the fresh successor can take
+  the slot.
+
+The two conditions are exact complements, so the UNIQUE index stays the backstop it
+was designed to be (ADR-062 §1) rather than an error to be caught. A trashed
+occurrence later restored returns as an ordinary non-recurring Task: PX-04 restores
+the record, not a claim on a series position another task now owns.
+
 ### Review Inbox
 
 `/tasks/review` walks the built-in Inbox query one Task at a time. It uses the SAME
