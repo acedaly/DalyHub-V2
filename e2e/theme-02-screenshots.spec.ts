@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { gotoFixture } from "./helpers";
+import { gotoFixture, postSameOrigin } from "./helpers";
 
 /**
  * THEME-02 — the Modern Light / Modern Dark visual QA pass.
@@ -54,7 +54,7 @@ test.beforeAll(() => {
 
 /** Store the owner's theme through the real, validated preferences action. */
 async function useTheme(page: Page, themeId: string): Promise<void> {
-  const response = await page.request.post("/preferences/theme", {
+  const response = await postSameOrigin(page.request, "/preferences/theme", {
     form: { theme: themeId },
     maxRedirects: 0,
   });
@@ -138,7 +138,7 @@ test.describe("overlays", () => {
 test.afterAll(async ({ request }) => {
   // Leave the stored preference as the shipped default, so a capture run cannot
   // change the appearance the rest of the suite runs under.
-  await request.post("/preferences/theme", {
+  await postSameOrigin(request, "/preferences/theme", {
     form: { theme: "system" },
     maxRedirects: 0,
   });

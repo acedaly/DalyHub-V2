@@ -2,6 +2,8 @@ import { existsSync } from "node:fs";
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { DEV_ORIGIN, DEV_PORT, PROD_PORT } from "./e2e/dev-server";
+
 // Use the environment's pre-installed Chromium when present (this managed
 // sandbox ships one at /opt/pw-browsers/chromium); in CI and elsewhere fall back
 // to the browser Playwright installs itself. Conditional so the config works in
@@ -26,9 +28,9 @@ const chromiumExecutablePath = existsSync(LOCAL_CHROMIUM)
  *     unauthenticated request fails closed — proving the production behaviour
  *     without automating a live Cloudflare login.
  */
-const DEV_PORT = 4173;
-const PROD_PORT = 4174;
-const baseURL = `http://localhost:${DEV_PORT}`;
+// Shared with `e2e/helpers.ts`, which needs the same origin to build the
+// same-origin mutation headers the request boundary now requires.
+const baseURL = DEV_ORIGIN;
 
 export default defineConfig({
   testDir: "./e2e",

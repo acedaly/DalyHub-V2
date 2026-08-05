@@ -195,6 +195,32 @@ no version number to group them under.
   The same treatment applies to the section list in Settings, and to every theme,
   not just the new ones.
 
+### Security — only DalyHub can change your DalyHub
+
+- **Another website can no longer make changes to your DalyHub.** Signing in
+  through Cloudflare means your browser carries a DalyHub sign-in with it. That
+  sign-in was attached to a request because of where the request was going — not
+  because of who asked for it. So in principle a page on some other site, open in
+  another tab, could quietly ask DalyHub to complete a task, delete a note, change
+  a setting or run a command on your behalf, and DalyHub would have seen a
+  perfectly valid, signed-in request. It now also checks that the request actually
+  came from DalyHub itself, and refuses it outright if it did not — before
+  anything is read, changed or written down.
+- **"Nearly DalyHub" does not count.** A site at another address on the same
+  family of domains is treated as just as foreign as an unrelated one. Only
+  DalyHub's own address is accepted, and the address has to match exactly.
+- **A refused attempt changes nothing and leaves nothing behind.** It never
+  reaches your records, so nothing is altered and no entry appears in your
+  activity feed — an attempt someone else made is not part of your history. The
+  refusal itself says nothing useful to whoever sent it.
+- **Nothing you do normally is affected.** Ordinary browsing, opening records,
+  searching, the command palette, creating and editing, changing settings, back
+  and forward, deep links and shared links all behave exactly as before, and
+  captures you made offline still sync normally when you come back online.
+- **The framework DalyHub is built on was updated** to the release that carries a
+  published security fix, so DalyHub no longer ships a component with a known
+  advisory against it.
+
 ### Fixed — permanently deleting an asset or a review
 
 - **Deleting an asset for good now leaves a record that you did.** Permanently

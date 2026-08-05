@@ -577,6 +577,29 @@ record.
 Nothing is ever silently discarded. A record that exhausts its five automatic
 attempts becomes `failed` with its reason and waits for a manual retry.
 
+**Replay provenance (AUDIT-FIX-04).** Since the request boundary began requiring
+mutation provenance, a replay must look to the server exactly like what it is: an
+ordinary same-origin submission from the DalyHub page. It does, and needed no
+change to achieve it. Replay is a plain `fetch` from the page to a relative path
+on the module's own create route with `credentials: "same-origin"`, so the
+**browser** attaches `Origin` and `Sec-Fetch-Site` — the same headers the online
+capture sheet produces. Three properties are deliberate:
+
+- **No CSRF bypass exists for replay.** There is no exempt path, no special
+  header, no token and no sync endpoint the guard skips.
+- **The service worker manufactures nothing.** It only intercepts `GET`, and it
+  never adds a header page JavaScript could not add. A header a page can set is a
+  header a hostile page can set, so a "trusted" client header would have handed
+  every attacker origin the bypass. It follows that a rejected hostile request can
+  never enter the queue as a trusted DalyHub mutation: the queue is written by
+  DalyHub's own code on DalyHub's own origin, and a cross-origin request is
+  refused at the boundary before any route runs.
+- **A CSRF rejection is not mistaken for being offline.** `403` classifies as
+  `blocked`, which stops the pass — not `retryable`, which would spin on it
+  indefinitely. Covered in `test/unit/pwa/offline-sync.test.ts`.
+
+See [APP_SHELL_AUTH.md → Mutation provenance](./APP_SHELL_AUTH.md#mutation-provenance--application-level-csrf-defence-audit-fix-04).
+
 ### 6.5 The owner's controls
 
 Settings → Offline & app → Queued captures, and the `/offline` page, both show
@@ -713,7 +736,7 @@ reinterpreting it.
 | Schema ladder shape, first install, idempotent re-apply | `test/unit/pwa/offline-schema.test.ts` |
 | Queue state machine, backoff, blocked-vs-failed, namespace refusal | `test/unit/pwa/offline-queue.test.ts` |
 | Probe classification, sync state, staleness | `test/unit/pwa/offline-connection.test.ts` |
-| Data minimisation, Today derivation, replay-outcome classification | `test/unit/pwa/offline-sync.test.ts` |
+| Data minimisation, Today derivation, replay-outcome classification, replay provenance (§6.4) | `test/unit/pwa/offline-sync.test.ts` |
 | Idempotency against **real D1**, including concurrency and boundaries | `test/kernel/offline-capture-receipts.test.ts` |
 | The snapshot against **real repositories**, with field allow-lists | `test/kernel/offline-snapshot.test.ts` |
 | The service worker's **runtime behaviour** (navigation redirect, clean failure for every non-document request, the loop breaker) | `test/unit/pwa/service-worker-runtime.test.ts` — the real emitted worker, evaluated against fake `caches`/`fetch` |

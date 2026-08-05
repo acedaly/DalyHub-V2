@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-import { gotoFixture, mobileNavigationOpener } from "./helpers";
+import { gotoFixture, mobileNavigationOpener, postSameOrigin } from "./helpers";
 
 /**
  * DS-09 Command Palette — driven end to end against the development-auth server.
@@ -163,7 +163,7 @@ test.describe("DS-09 Command Palette — desktop", () => {
   const COMPLETE_TITLE = "Wrap up the sprint";
 
   async function ensureOpen(page: import("@playwright/test").Page) {
-    await page.request.post("/tasks/t-complete", {
+    await postSameOrigin(page.request, "/tasks/t-complete", {
       form: { intent: "reopen" },
     });
     /*

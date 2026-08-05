@@ -10,6 +10,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  postSameOrigin,
 } from "./helpers";
 import {
   cleanupAllNoteFixtures,
@@ -704,7 +705,7 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     request: APIRequestContext,
     themeId: string,
   ): Promise<void> {
-    const response = await request.post("/preferences/theme", {
+    const response = await postSameOrigin(request, "/preferences/theme", {
       form: { theme: themeId },
       maxRedirects: 0,
     });

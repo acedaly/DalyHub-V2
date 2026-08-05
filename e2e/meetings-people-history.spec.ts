@@ -8,6 +8,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  postSameOrigin,
 } from "./helpers";
 import {
   cleanupAllMeetingFixtures,
@@ -278,9 +279,13 @@ test.describe("MEET-03 — meetings on the People timeline", () => {
     await page.keyboard.press("Escape");
 
     const meetingId = new URL(page.url()).pathname.split("/")[2]!;
-    const repeat = await page.request.post(`/meeting/${meetingId}/mutate`, {
-      form: { intent: "mark_held" },
-    });
+    const repeat = await postSameOrigin(
+      page.request,
+      `/meeting/${meetingId}/mutate`,
+      {
+        form: { intent: "mark_held" },
+      },
+    );
     expect(repeat.ok()).toBe(true);
     expect((await repeat.json()).outcome).toBe("already_held");
 

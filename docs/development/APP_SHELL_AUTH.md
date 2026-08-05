@@ -15,6 +15,7 @@ Cloudflare Access policy (protects the custom hostname)
 DalyHub Worker request boundary (workers/app.ts → handleAuthenticatedRequest)
     ↓  cryptographically validates the JWT (jose)
 authenticated owner session  { user: { subject, email }, issuedAt, expiresAt }
+    ↓  mutation provenance: an unsafe method must be same-origin (AUDIT-FIX-04)
     ↓  placed in React Router's typed request context (never a client header)
 trusted WorkspaceContext  (configured DEFAULT_WORKSPACE_ID, request-free resolver)
     ↓
@@ -195,12 +196,103 @@ Logout is an ordinary link to Cloudflare's managed endpoint,
 `/cdn-cgi/access/logout`, which clears the Access session. DalyHub never
 simulates logout by deleting a local cookie and never puts the JWT in the URL.
 
+## Mutation provenance — application-level CSRF defence (AUDIT-FIX-04)
+
+Authentication answers *who*. It does not answer *did DalyHub ask for this*.
+DalyHub has no session cookie of its own — authentication rides the Cloudflare
+Access `CF_Authorization` cookie — and a browser attaches a cookie because of
+where a request is **going**, never because of who asked for it. So a valid,
+correctly-signed, owner-matching request is not by itself evidence that the owner
+initiated it.
+
+The check runs **once**, at the same boundary, in
+[`app/platform/request/mutation-provenance.ts`](../../app/platform/request/mutation-provenance.ts).
+It is deliberately not repeated per route: a per-route check is a check a future
+route can forget.
+
+**Safe vs unsafe.** `GET`, `HEAD` and `OPTIONS` are safe and need no provenance,
+so ordinary navigation and asset loading are untouched. Everything else — `POST`,
+`PUT`, `PATCH`, `DELETE` and any method not on that list — must prove its
+provenance. The safe list is an **allowlist**, so an unknown or future method is
+protected rather than accidentally permitted.
+
+**Exact same-origin, and why `same-site` is not enough.** The `Origin` header must
+equal the request URL's own origin on all three of scheme, hostname and effective
+port. `https://hub.daly.id.au`, `http://hub.daly.id.au`,
+`https://other.daly.id.au` and `https://hub.daly.id.au:8443` are four different
+origins and only the first is accepted. This matters because a compromised or
+XSS'd **sibling** host on `daly.id.au` is same-*site*: `SameSite=Lax`/`Strict`
+still sends the Access cookie and `Sec-Fetch-Site` still reads `same-site`. There
+is no `endsWith(".daly.id.au")`, no registrable-domain comparison, no
+hostname-only comparison and no wildcard subdomain anywhere in the policy.
+
+**The accepted and rejected combinations, in full:**
+
+| `Origin`                      | `Sec-Fetch-Site` | Result                  |
+| ----------------------------- | ---------------- | ----------------------- |
+| (safe method — not read)      | (any)            | allow `safe_method`     |
+| exact match                   | `same-origin`    | allow `same_origin`     |
+| exact match                   | absent           | allow `same_origin`     |
+| exact match                   | anything else    | `inconsistent_signals`  |
+| different origin              | `same-origin`    | `inconsistent_signals`  |
+| different origin              | anything else    | `cross_origin`          |
+| `null` / malformed / repeated | (any)            | `invalid_origin`        |
+| absent                        | `same-origin`    | `missing_provenance`    |
+| absent                        | absent           | `missing_provenance`    |
+| absent                        | anything else    | `disallowed_fetch_site` |
+
+`Origin` and `Sec-Fetch-Site` are both **forbidden header names**: page
+JavaScript cannot set or forge either, which is what makes them worth reading.
+They are read together, and disagreement is itself a rejection.
+
+**Missing `Origin` fails closed.** The "absent `Origin` but `Sec-Fetch-Site:
+same-origin`" compatibility case was examined and deliberately not taken: browsers
+attach `Origin` to every non-`GET`/`HEAD` request, and DalyHub has no non-browser
+mutation client. (The browser regression test supports this from the other side —
+over plain-HTTP localhost Chromium sends **no** `Sec-Fetch-*` header at all while
+still sending `Origin`, so `Origin` is the signal that is reliably present.)
+
+**The trusted origin is the request's own URL**, `new URL(request.url).origin` —
+no configuration value, no secret, no origin binding. That is authoritative
+because production commits `workers_dev: false` and `preview_urls: false`, so the
+only hostname Cloudflare routes to this Worker is the Access-protected custom
+domain, and a browser derives `Host` from the URL it is fetching — to which the
+Access cookie is scoped. No client-supplied forwarding header
+(`X-Forwarded-Host`, `X-Forwarded-Proto`) is consulted. Local development and the
+Playwright suite work unchanged: there the trusted origin is simply
+`http://localhost:<port>`.
+
+**Order, and what a rejection guarantees.** Authenticate → establish the session →
+validate provenance → reject. Authentication keeps precedence, so an
+unauthenticated request still gets its existing `401`/`403`/`503` and a CSRF check
+can never mask an authentication result. A rejected mutation provisions no
+workspace membership, invokes no React Router handler, runs no loader or action,
+touches no repository, records no Activity and changes no data.
+
+**The rejection** is a generic `403` with the body `Request rejected.`, the
+baseline security headers and `Cache-Control: private, no-store`. It echoes no
+`Origin`, names no route, exposes no reason code, token, SQL or framework detail,
+and is never a redirect. **No CORS header is added anywhere** — this is CSRF
+protection, not cross-origin API access.
+
+**Offline replay is unaffected.** The PWA capture queue replays through the
+modules' own create routes with an ordinary same-origin `fetch`, so the browser
+supplies the provenance; the service worker manufactures no header ordinary page
+code could not, and only intercepts `GET`. A `403` is classified `blocked`, not
+`retryable`, so a rejection stops the pass rather than spinning on it. See
+[PWA_AND_OFFLINE.md](./PWA_AND_OFFLINE.md).
+
 ## Public `/health` boundary
 
 `/health` is the only unauthenticated application route, matched **exactly** (so
 `/health-anything` is not exempt). It returns the small JSON liveness payload
 with its own cache policy and exposes no private data. Every other path requires
 authentication, including React Router data/manifest requests.
+
+The public bypass covers **safe methods only** (`GET`/`HEAD`/`OPTIONS` — all
+`/health` supports). An unsafe method on `/health` takes the protected path
+instead, so an exact public-path match can never become a hole through which a
+mutation skips both authentication and provenance.
 
 ## Module route registration & navigation
 

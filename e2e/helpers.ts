@@ -20,7 +20,15 @@
  */
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  type APIRequestContext,
+  type APIResponse,
+  type Locator,
+  type Page,
+} from "@playwright/test";
+
+import { DEV_ORIGIN } from "./dev-server";
 
 /**
  * The canonical responsive matrix (DESIGN_SYSTEM.md → Responsive behaviour). The
@@ -272,4 +280,51 @@ export async function expectNoAxeViolations(
     })),
   }));
   expect(summary, "axe WCAG 2.2 AA violations").toEqual([]);
+}
+
+/**
+ * AUDIT-FIX-04 — the headers a real browser attaches to a same-origin mutation.
+ *
+ * Playwright's `APIRequestContext` is a raw HTTP client, not a browser: it sends
+ * no `Origin` and no `Sec-Fetch-Site`. That was harmless until the request
+ * boundary began requiring mutation provenance — at which point a spec setting
+ * up state through `request.post` was sending a shape no browser produces, and
+ * being refused for it.
+ *
+ * The production guard is deliberately NOT relaxed to accommodate that. Instead
+ * the API-driven setup requests declare, honestly, what they are standing in
+ * for: an ordinary same-origin submission from the DalyHub page. Journeys that
+ * click through the real UI need none of this — the browser already does it.
+ */
+export const SAME_ORIGIN_MUTATION_HEADERS: Readonly<Record<string, string>> = {
+  Origin: DEV_ORIGIN,
+  "Sec-Fetch-Site": "same-origin",
+};
+
+/** Options `postSameOrigin` forwards to Playwright, minus the headers it owns. */
+export interface SameOriginPostOptions {
+  readonly form?: Record<string, string | number | boolean>;
+  readonly data?: unknown;
+  readonly maxRedirects?: number;
+  readonly headers?: Record<string, string>;
+}
+
+/**
+ * POST to a DalyHub route the way the application itself would.
+ *
+ * Use this for state SETUP in specs. A test that means to prove the CSRF guard
+ * should build its request explicitly rather than reach for this helper — and
+ * `csrf.spec.ts` drives a real second origin instead, so the browser generates
+ * the hostile headers itself.
+ */
+export function postSameOrigin(
+  request: APIRequestContext,
+  path: string,
+  options: SameOriginPostOptions = {},
+): Promise<APIResponse> {
+  const { headers, ...rest } = options;
+  return request.post(path, {
+    ...rest,
+    headers: { ...SAME_ORIGIN_MUTATION_HEADERS, ...headers },
+  } as Parameters<APIRequestContext["post"]>[1]);
 }

@@ -8,7 +8,7 @@
  * clearly reject is RETRYABLE.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { OFFLINE_EXCERPT_LIMIT, toExcerpt } from "~/kernel/offline";
 import { summariseToday } from "~/platform/offline";
@@ -17,6 +17,7 @@ import { offlineWindow } from "~/kernel/offline";
 import {
   captureFormData,
   classifyCreateResponse,
+  replayCapture,
   replayQueue,
 } from "~/shared/offline/sync";
 import {
@@ -233,6 +234,26 @@ describe("classifyCreateResponse", () => {
     });
   });
 
+  it("BLOCKS on the request boundary's CSRF rejection — it never retries it forever", async () => {
+    // AUDIT-FIX-04. The boundary answers a mutation that fails the provenance
+    // check with exactly this: a plain-text 403 carrying no JSON. If replay
+    // mistook it for a network fault the queue would spin on it indefinitely,
+    // so this asserts the SHAPE the boundary really returns, not a stand-in.
+    const outcome = await classifyCreateResponse(
+      new Response("Request rejected.", {
+        status: 403,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "private, no-store",
+        },
+      }),
+    );
+    expect(outcome.kind).toBe("blocked");
+    // `blocked` stops the pass — it is neither an indefinite retry nor a silent
+    // discard of the owner's capture.
+    expect(outcome.kind).not.toBe("retryable");
+  });
+
   it("RETRIES an answer it does not understand instead of discarding work", async () => {
     // A proxy's HTML error page, a captive portal, a truncated body. Treating
     // any of these as a rejection would throw away an owner's capture.
@@ -243,6 +264,70 @@ describe("classifyCreateResponse", () => {
       }),
     );
     expect(outcome.kind).toBe("retryable");
+  });
+});
+
+describe("offline replay under the mutation-provenance guard", () => {
+  const record = createQueueRecord({
+    namespace: "dh1-1-abc",
+    payload: { kind: "task", title: "Buy milk", dueDate: null },
+    now: new Date("2026-08-02T00:00:00.000Z"),
+  });
+
+  it("replays as an ordinary same-origin browser request — no special CSRF bypass", async () => {
+    // AUDIT-FIX-04. Replay goes to the module's own create route with a plain
+    // `fetch`, so the BROWSER attaches `Origin` and `Sec-Fetch-Site` exactly as
+    // it does for the online capture sheet, and the guard sees a genuine
+    // same-origin mutation. Nothing here manufactures a trusted header — a
+    // header page JavaScript can set is a header an attacker's page can set
+    // too, which would hand every hostile origin the bypass.
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: true, taskId: "t1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    const outcome = await replayCapture(
+      record,
+      fetchImpl as unknown as typeof fetch,
+    );
+
+    expect(outcome).toEqual({ kind: "created", recordId: "t1" });
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    // A same-origin, relative URL to the real create route — never an absolute
+    // cross-origin one, and never a bespoke sync endpoint.
+    expect(url).toBe("/tasks/new");
+    expect(url.startsWith("/")).toBe(true);
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("same-origin");
+    // The forbidden provenance headers are NOT forged by the client.
+    const headers = new Headers(init.headers);
+    expect(headers.get("Origin")).toBeNull();
+    expect(headers.get("Sec-Fetch-Site")).toBeNull();
+    expect(headers.get("X-CSRF-Token")).toBeNull();
+  });
+
+  it("stops the queue on a boundary rejection instead of spinning on it", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response("Request rejected.", {
+          status: 403,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        }),
+    );
+
+    const outcome = await replayCapture(
+      record,
+      fetchImpl as unknown as typeof fetch,
+    );
+
+    expect(outcome.kind).toBe("blocked");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
 

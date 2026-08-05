@@ -57,7 +57,7 @@ licensed (allowed by default per the Open Source Policy).
 | -------------- | ------- | ------- |
 | `react`        | 19.2.7  | MIT     |
 | `react-dom`    | 19.2.7  | MIT     |
-| `react-router` | 8.0.0   | MIT     |
+| `react-router` | 8.3.0   | MIT     |
 | `isbot`        | 5.2.1   | MIT     |
 | `jose`         | 6.2.3   | MIT     |
 
@@ -122,7 +122,7 @@ licences are recorded for completeness.
 
 | Package                     | Version         | Licence            |
 | --------------------------- | --------------- | ------------------ |
-| `@react-router/dev`         | 8.0.0           | MIT                |
+| `@react-router/dev`         | 8.3.0           | MIT                |
 | `@cloudflare/vite-plugin`   | 1.45.1          | MIT                |
 | `@cloudflare/vitest-pool-workers` | 0.18.6    | MIT                |
 | `wrangler`                  | 4.112.0         | MIT OR Apache-2.0  |
