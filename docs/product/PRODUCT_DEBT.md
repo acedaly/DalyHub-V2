@@ -915,6 +915,15 @@ authority now.)
 - **Closing condition.** A single timezone authority with a test; a restore test for a parentless task; the dead files deleted.
 - **Related finding.** [AUDIT-14](END_TO_END_AUDIT_2026_08_05.md#audit-14--two-owner-today-definitions--p3), [AUDIT-15](END_TO_END_AUDIT_2026_08_05.md#audit-15--soft-deleted-inbox-task-cannot-be-restored-latent--p3), [AUDIT-16](END_TO_END_AUDIT_2026_08_05.md#audit-16--deadduplicate-code--p3). **Related roadmap item.** cleanup in [ROADMAP_V2_1](../roadmap/ROADMAP_V2_1.md#the-rest--near-term-remediation-and-cleanup); [DEBT-01](#-debt-01--duplicate-card-implementations-per-module--p2) family for the duplicates.
 
+### ☐ DEBT-89 — Review Inbox announces "Task completed" for a REFUSED completion — P2
+
+- **Current issue.** [`TasksReviewWorkspace.tsx:92-98`](../../app/modules/tasks/TasksReviewWorkspace.tsx) announces `"Task completed."` and revalidates as soon as the completion fetcher settles with **any** data, without reading the result. `/tasks/:taskId` genuinely refuses a completion — an archived Project (`TaskProjectArchivedError` / `SpineParentUnavailableError`) or any storage failure returns `{ kind: "completion", ok: false, message }`, and a Task deleted in another tab returns a 404 body. In those cases TASKS-04's Review Inbox tells the owner, and a screen reader through its `role="status"` region, that the Task completed when it did not.
+- **Impact.** A false success announcement on the one surface whose whole purpose is deciding what has been dealt with — and it is announced to assistive tech, where there is no visible card state to contradict it. Directly against [AGENTS.md §15](../../AGENTS.md#15-accessibility-requirements) ("Announce change" must announce the real change) and the product's "report the server's answer, never the optimistic guess" rule that `TaskQuickEditPanel` already follows in the same file's own panel.
+- **How it was found.** An automated review of [#117](https://github.com/acedaly/DalyHub-V2/pull/117) caught the identical defect in the guided weekly Review's Inbox step, which had copied this pattern. **REVIEW-02 fixed its own copy** — the decision is now the pure, unit-tested `inboxCompletionOutcome` in [`review-guide-view.ts`](../../app/modules/reviews/guided/review-guide-view.ts), a refusal is shown as well as announced, and the Task stays in the queue for a retry. The TASKS-04 original was deliberately **not** changed there: it is a different module and a feature PR is the wrong place for a drive-by fix ([AGENTS.md §13](../../AGENTS.md#13-pull-request-standards)).
+- **Desired future state.** Review Inbox reads the route's answer and announces it, reusing the same pure helper rather than a second copy of the rule.
+- **Closing condition.** A test proves a refused completion is announced as the route's refusal message (not as a success) and does not revalidate the queue.
+- **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md); the worked precedent is [REVIEW-02](../roadmap/ROADMAP_V2_1.md#-review-02--weekly-review--delivered-2026-08-05).
+
 ---
 
 ## Entry template

@@ -11,8 +11,10 @@ import {
   type WeeklyReviewProgressFacts,
 } from "~/kernel/reviews";
 import {
+  INBOX_COMPLETION_FALLBACK_ERROR,
   REVIEW_GUIDE_STEP_PARAM,
   completedStepsLabel,
+  inboxCompletionOutcome,
   mobileProgressLabel,
   reviewCompletionSummary,
   reviewGuidePath,
@@ -243,5 +245,63 @@ describe("the completion summary", () => {
     const inbox = summary.find((line) => line.id === "inbox");
     expect(inbox?.value).toBe("Couldn’t be read just now");
     expect(inbox?.outstanding).toBe(false);
+  });
+});
+
+/**
+ * Regression for the review finding on #117: the Inbox step announced "Task
+ * completed" for every settled response, including the ones where the canonical
+ * route had REFUSED the completion. Telling the owner — and a screen reader —
+ * that work finished when it did not is the one thing a Review must never do.
+ */
+describe("the Inbox completion outcome", () => {
+  it("reports success only when the route did not refuse", () => {
+    expect(inboxCompletionOutcome({ kind: "completion", ok: true })).toEqual({
+      ok: true,
+      message: "Task completed.",
+    });
+  });
+
+  it("reports the route's own refusal message, never a success", () => {
+    expect(
+      inboxCompletionOutcome({
+        kind: "completion",
+        ok: false,
+        message:
+          "This project is archived and read-only — restore it to make changes.",
+      }),
+    ).toEqual({
+      ok: false,
+      message:
+        "This project is archived and read-only — restore it to make changes.",
+    });
+  });
+
+  it("falls back to a calm sentence when a refusal carries no message", () => {
+    expect(inboxCompletionOutcome({ ok: false })).toEqual({
+      ok: false,
+      message: INBOX_COMPLETION_FALLBACK_ERROR,
+    });
+    expect(inboxCompletionOutcome({ ok: false, message: "" })).toEqual({
+      ok: false,
+      message: INBOX_COMPLETION_FALLBACK_ERROR,
+    });
+  });
+
+  it("accepts a form-style rejection body too", () => {
+    expect(
+      inboxCompletionOutcome({
+        ok: false,
+        formError: "That couldn’t be saved.",
+      }),
+    ).toEqual({ ok: false, message: "That couldn’t be saved." });
+  });
+
+  it("never reads a missing or malformed body as a refusal", () => {
+    // Only an explicit `ok: false` is a refusal. A 404 body or an unfamiliar
+    // shape must not silently suppress the success path the route did take.
+    for (const data of [null, undefined, {}, { error: "not_found" }, "nope"]) {
+      expect(inboxCompletionOutcome(data).ok).toBe(true);
+    }
   });
 });

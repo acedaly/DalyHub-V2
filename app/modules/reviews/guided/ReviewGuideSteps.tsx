@@ -33,6 +33,7 @@ import type {
   SerializedPriorFocus,
 } from "./review-guide-context";
 import {
+  inboxCompletionOutcome,
   reviewCompletionSummary,
   reviewGuidePrompts,
   reviewRecordPath,
@@ -163,6 +164,8 @@ export function InboxStep({
   const completion = useFetcher();
   const [index, setIndex] = useState(0);
   const [announcement, setAnnouncement] = useState("");
+  /** A refusal the owner must SEE, not only hear. */
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const headingRef = useRef<HTMLParagraphElement | null>(null);
   const settled = useRef<unknown>(null);
 
@@ -184,11 +187,30 @@ export function InboxStep({
     headingRef.current?.focus();
   }, [current?.id]);
 
+  /**
+   * Announce the SERVER's answer, never the attempt.
+   *
+   * `/tasks/:taskId` genuinely refuses a completion — an archived Project, a Task
+   * deleted in another tab, any storage failure — and says so with
+   * `{ kind: "completion", ok: false, message }`. Reporting "Task completed" for
+   * every settled response would tell the owner, and a screen reader, that work
+   * finished when it did not, which is exactly the failure a Review must never
+   * introduce. A refusal announces the route's own message and does not
+   * revalidate, so the Task stays in the queue where the owner can retry it.
+   */
   useEffect(() => {
     if (completion.state !== "idle" || !completion.data) return;
     if (settled.current === completion.data) return;
     settled.current = completion.data;
-    setAnnouncement("Task completed.");
+    const outcome = inboxCompletionOutcome(completion.data);
+    setAnnouncement(outcome.message);
+    if (!outcome.ok) {
+      // The Task stays in the queue, where the owner can see the refusal and
+      // retry it. Revalidating would only re-fetch the same unchanged Task.
+      setCompletionError(outcome.message);
+      return;
+    }
+    setCompletionError(null);
     revalidator.revalidate();
   }, [completion.state, completion.data, revalidator]);
 
@@ -231,6 +253,10 @@ export function InboxStep({
         {acknowledged ? " · step marked reviewed" : ""}
       </p>
 
+      {completionError !== null ? (
+        <p className="dh-review-guide__unavailable">{completionError}</p>
+      ) : null}
+
       <TaskQuickEditPanel
         key={current.id}
         task={current}
@@ -245,7 +271,10 @@ export function InboxStep({
               type="button"
               variant="primary"
               disabled={completion.state !== "idle"}
-              onClick={complete}
+              onClick={() => {
+                setCompletionError(null);
+                complete();
+              }}
             >
               Complete
             </FormButton>
