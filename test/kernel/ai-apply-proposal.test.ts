@@ -376,6 +376,69 @@ describe("DEBT-90 — an accepted Meeting Task is a canonical conversion", () =>
     expect(followUps[0]?.itemId).toBe(itemId);
   });
 
+  /**
+   * Codex review, PR #119 — reuse is keyed on the approved TEXT, which keeps the
+   * Meeting from accumulating duplicate action items. The consequence is that a
+   * second proposal with the same title but different dates, Project or
+   * description resolves to the already-converted Task, which MEET-02 correctly
+   * returns unchanged. Reporting that as a success would tell the owner their
+   * reviewed values are in DalyHub when they were discarded.
+   */
+  it("REFUSES a same-title proposal whose reviewed fields differ", async () => {
+    const h = harness(WS);
+    const area = await h.scope.spine.createArea({ title: "Operations" });
+    const meeting = await seedMeeting(h);
+    const source = await resolveProposalSource(h.scope, meeting.id);
+
+    const [first] = await accept(h, source, [
+      { kind: "task", title: "Send the draft", dueDate: "2026-08-10" },
+    ]);
+    expect(first.ok).toBe(true);
+
+    // Same title, different date AND a Project the first did not have.
+    const [second] = await accept(
+      h,
+      source,
+      [
+        {
+          kind: "task",
+          title: "Send the draft",
+          dueDate: "2026-08-20",
+          projectId: area.id,
+        },
+      ],
+      "usage-2",
+    );
+
+    expect(second.ok).toBe(false);
+    expect(second.id).toBe(first.id);
+    expect(second.message).toContain("already a Task on this meeting");
+
+    // The existing Task was NOT rewritten — it is the owner's, and an
+    // acceptance is not a licence to edit one.
+    const task = await h.tasks.getTask(first.id!);
+    expect(task?.dueDate).toBe("2026-08-10");
+    expect(task?.area).toBeNull();
+    expect(await activeTaskCount()).toBe(1);
+  });
+
+  it("reports a genuine replay of IDENTICAL fields as a success", async () => {
+    const h = harness(WS);
+    const meeting = await seedMeeting(h);
+    const source = await resolveProposalSource(h.scope, meeting.id);
+    const items = [
+      { kind: "task", title: "Send the draft", dueDate: "2026-08-10" },
+    ];
+
+    const [first] = await accept(h, source, items);
+    const [second] = await accept(h, source, items, "usage-2");
+
+    // Nothing differs, so the existing Task IS what the owner accepted.
+    expect(second.ok).toBe(true);
+    expect(second.created).toBe(false);
+    expect(second.id).toBe(first.id);
+  });
+
   it("treats a DIFFERENT reviewed title as a different action", async () => {
     const h = harness(WS);
     const meeting = await seedMeeting(h);
@@ -556,6 +619,30 @@ describe("AI-02 — an accepted Meeting Note becomes an ordinary linked Note", (
     expect(await activeNoteCount()).toBe(0);
   });
 
+  /**
+   * Codex review, PR #119 — the replay key must cover EVERY accepted field. An
+   * owner who rewrote the body and resubmitted would otherwise hit the same key,
+   * be handed the first Note back, and be told it succeeded with their edit
+   * discarded.
+   */
+  it("creates the edited Note when the owner changed the body first", async () => {
+    const h = harness(WS);
+    const meeting = await seedMeeting(h);
+    const source = await resolveProposalSource(h.scope, meeting.id);
+
+    const [first] = await accept(h, source, [note]);
+    const [second] = await accept(h, source, [
+      { ...note, body: "We agreed to ship on Friday. Vaughn owns the notes." },
+    ]);
+
+    expect(second.ok).toBe(true);
+    expect(second.created).toBe(true);
+    expect(second.id).not.toBe(first.id);
+    const details = await h.noteDetails.get(second.id!);
+    expect(details?.content).toContain("Vaughn owns the notes.");
+    expect(await activeNoteCount()).toBe(2);
+  });
+
   it("cannot silently create repeated identical Notes on a retry", async () => {
     const h = harness(WS);
     const meeting = await seedMeeting(h);
@@ -669,6 +756,26 @@ describe("AI-02 — an accepted Note-derived Task keeps its source", () => {
     expect(await countActivitiesOfType("meeting.item_converted_to_task")).toBe(
       0,
     );
+  });
+
+  it("creates the edited Task when the owner changed a date first", async () => {
+    const h = harness(WS);
+    const sourceNote = await seedNote(h);
+    const source = await resolveProposalSource(h.scope, sourceNote.id);
+
+    const [first] = await accept(h, source, [
+      { kind: "task", title: "Draft the plan", dueDate: "2026-08-10" },
+    ]);
+    const [second] = await accept(h, source, [
+      { kind: "task", title: "Draft the plan", dueDate: "2026-08-20" },
+    ]);
+
+    // A changed field is a different acceptance, so the owner gets the Task
+    // they actually asked for rather than the earlier one reported as saved.
+    expect(second.ok).toBe(true);
+    expect(second.id).not.toBe(first.id);
+    expect((await h.tasks.getTask(second.id!))?.dueDate).toBe("2026-08-20");
+    expect(await activeTaskCount()).toBe(2);
   });
 
   it("does not duplicate the source link on a retry", async () => {

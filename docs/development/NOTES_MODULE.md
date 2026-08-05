@@ -1178,7 +1178,9 @@ with ordinary Activity and the **owner** as the actor.
 
 Retrying the same accepted proposal cannot silently create a repeated identical
 Note: the creation is claimed under the PWA-05 receipts table with a key derived
-server-side from the usage row, the item's position and the owner's own submitted
-text, so a retry returns the Note the first attempt created. An acceptance the
-owner EDITED first is a different key, and creates the different Note they asked
-for.
+server-side from the usage row, the item's position and **every field the
+acceptance would write** — title and body for a Note; title, description, both
+dates and the parent for a Task — hashed, so record content never reaches the
+receipts table. An acceptance the owner EDITED first therefore hashes to a
+different key and creates the different record they asked for, rather than being
+handed the earlier one and told it succeeded.

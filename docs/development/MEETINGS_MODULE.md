@@ -435,6 +435,22 @@ and MEET-02's own conversion rules remain the authority. Two proposals whose
 approved text differs are two different actions; DalyHub does not fuzzy-match the
 owner's words.
 
+**And an existing conversion is checked before it is called a success.** Keying
+reuse on the approved text is what keeps a Meeting from accumulating duplicate
+action items, but it means two accepted proposals sharing a title — or a title
+matching an item converted weeks ago — resolve to the same already-converted
+Task, which MEET-02 correctly returns *unchanged*. So the acceptance compares the
+existing Task's title, dates, parent and description against the reviewed values.
+Identical → a truthful idempotent success. Different → the item is reported as
+**not applied**, naming the existing Task, because:
+
+- calling it a success would tell the owner their reviewed dates or Project are
+  in DalyHub when they were discarded — the exact class of lie this release
+  exists to remove;
+- silently overwriting the existing Task would be worse. It is a canonical Task
+  the owner may have edited since, and an acceptance is not a licence to rewrite
+  one.
+
 ### Proposed Notes
 
 Meeting extraction may also propose **Notes** — a durable summary, a decision

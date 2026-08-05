@@ -205,6 +205,32 @@ async function applyOne(
 /* Field re-validation                                                        */
 /* ────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * The canonical identity of an accepted item: EVERY field the acceptance would
+ * write, in a fixed order.
+ *
+ * This is what the replay key is derived from, and using the title alone was a
+ * defect: an owner who fixed a date, chose a Project or rewrote a Note body and
+ * resubmitted would have hit the same key, been handed the record the first
+ * attempt created, and been told it succeeded — with their edits silently
+ * discarded. A retry of the SAME acceptance still matches; a retry of a
+ * DIFFERENT one is a different key and creates the record actually asked for.
+ */
+function identityOfTask(reviewed: ReviewedTask): string {
+  return JSON.stringify([
+    reviewed.title,
+    reviewed.description,
+    reviewed.dueDate,
+    reviewed.scheduledDate,
+    reviewed.parent?.kind ?? null,
+    reviewed.parent?.id ?? null,
+  ]);
+}
+
+function identityOfNote(reviewed: ReviewedNote): string {
+  return JSON.stringify([reviewed.title, reviewed.body]);
+}
+
 /** One re-validated Task, as the owner left the review surface. */
 interface ReviewedTask {
   readonly title: string;
@@ -316,6 +342,20 @@ function reviewedNote(item: Record<string, unknown>): ReviewedNote {
  *
  * The owner's reviewed values — title, description, due date, scheduled date and
  * the chosen Project (or Inbox) — are what is converted, not the model's.
+ *
+ * **When an existing conversion comes back, the report is checked against the
+ * reviewed fields before it is called a success.** Action-item reuse is keyed on
+ * the approved TEXT, which is what keeps the Meeting from accumulating duplicate
+ * action items — but it means two accepted proposals sharing a title, or a title
+ * matching an item converted weeks ago, resolve to the SAME already-converted
+ * Task. MEET-02 then correctly returns that Task without applying this
+ * proposal's dates, Project or description.
+ *
+ * Reporting that as `ok` would be a lie of exactly the kind this release exists
+ * to remove: the owner would be told their reviewed values are in DalyHub when
+ * they were discarded. Overwriting the existing Task would be worse — it is a
+ * canonical Task the owner may have edited since, and an acceptance is not a
+ * licence to rewrite one. So the difference is REPORTED, and the owner decides.
  */
 async function applyMeetingTask(
   input: ApplyProposalInput,
@@ -334,6 +374,20 @@ async function applyMeetingTask(
       description: reviewed.description,
     },
   });
+  if (!result.created) {
+    const existing = await input.scope.tasks.getTask(result.taskId);
+    if (existing !== null && !matchesReviewedTask(existing, reviewed)) {
+      return {
+        index,
+        kind: "task",
+        ok: false,
+        id: result.taskId,
+        message:
+          "That action is already a Task on this meeting, and it doesn’t match what you reviewed. Nothing was changed — open the existing Task to edit it, or change the title to add a separate one.",
+      };
+    }
+  }
+
   return {
     index,
     kind: "task",
@@ -341,6 +395,39 @@ async function applyMeetingTask(
     id: result.taskId,
     created: result.created,
   };
+}
+
+/**
+ * True when an existing Task already holds exactly the reviewed values.
+ *
+ * Compared field by field rather than by a digest, because a Task carries more
+ * than an acceptance sets (priority, sector, status, delegation) and those are
+ * the owner's, set through the ordinary Task surfaces. Only the fields this path
+ * would have written are compared.
+ */
+function matchesReviewedTask(
+  existing: {
+    readonly title: string;
+    readonly dueDate: string | null;
+    readonly scheduledDate: string | null;
+    readonly description: unknown;
+    readonly project: { readonly id: string } | null;
+    readonly area: { readonly id: string } | null;
+  },
+  reviewed: ReviewedTask,
+): boolean {
+  const parentId = existing.project?.id ?? existing.area?.id ?? null;
+  const description =
+    typeof existing.description === "string" && existing.description.length > 0
+      ? existing.description
+      : null;
+  return (
+    existing.title === reviewed.title &&
+    existing.dueDate === reviewed.dueDate &&
+    existing.scheduledDate === reviewed.scheduledDate &&
+    parentId === (reviewed.parent?.id ?? null) &&
+    description === reviewed.description
+  );
 }
 
 /**
@@ -361,7 +448,7 @@ async function applyNoteTask(
 ): Promise<AppliedItem> {
   const reviewed = await reviewedTask(input.scope, item);
 
-  return guarded(input, index, "task", reviewed.title, async () => {
+  return guarded(input, index, "task", identityOfTask(reviewed), async () => {
     const task = await input.scope.tasks.createTask({
       title: reviewed.title,
       parent: reviewed.parent,
@@ -509,7 +596,7 @@ async function applyMeetingNote(
     };
   }
 
-  return guarded(input, index, "note", reviewed.title, async () => {
+  return guarded(input, index, "note", identityOfNote(reviewed), async () => {
     const note = await input.scope.entities.create({
       type: "note",
       title: reviewed.title,
