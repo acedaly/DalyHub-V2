@@ -557,3 +557,110 @@ describe("budget periods reset", () => {
     expect(july.monthUsd).toBeCloseTo(5, 6);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* The ledger state machine's REFUSALS — the guarantees the runtime leans on    */
+/* -------------------------------------------------------------------------- */
+
+describe("AI usage ledger — a settled row is closed to further work", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER_WS]);
+  });
+
+  /**
+   * The runtime refuses a duplicate idempotency key whose row has already
+   * settled. These two tests are WHY it has to: both writes it would otherwise
+   * rely on are silent no-ops against a terminal row, so falling through would
+   * make a real, billed provider call that DalyHub could neither budget nor
+   * record. The refusal is only correct because of what is proven here.
+   */
+  it("markRunning does NOT reopen a settled row", async () => {
+    const usage = makeAiUsageRepository(makeContext(WS), OWNER);
+    const { record } = await usage.reserve(reserveInput());
+    await usage.markRunning(record.id);
+    await usage.complete(record.id, {
+      state: "succeeded",
+      inputTokens: 100,
+      outputTokens: 50,
+      estimatedUsd: 0.004,
+    });
+
+    const reopened = await usage.markRunning(record.id);
+    expect(reopened?.state).toBe("succeeded");
+  });
+
+  it("complete does NOT settle an already-settled row a second time", async () => {
+    const usage = makeAiUsageRepository(makeContext(WS), OWNER);
+    const { record } = await usage.reserve(reserveInput({ reservedUsd: 0.05 }));
+    await usage.markRunning(record.id);
+    await usage.complete(record.id, {
+      state: "succeeded",
+      inputTokens: 100,
+      outputTokens: 50,
+      estimatedUsd: 0.004,
+    });
+
+    // A second settlement — what an unguarded fall-through would attempt after
+    // its provider call — changes nothing. The spend would simply vanish.
+    const again = await usage.complete(record.id, {
+      state: "succeeded",
+      inputTokens: 9_999,
+      outputTokens: 9_999,
+      estimatedUsd: 0.9,
+    });
+    expect(again?.state).toBe("succeeded");
+    expect(again?.inputTokens).toBe(100);
+    expect(again?.estimatedUsd).toBeCloseTo(0.004, 6);
+  });
+
+  it("records a FAILED request that the provider still performed at its real cost", async () => {
+    // The post-response validation case: the provider answered and will bill
+    // for it, and DalyHub then rejected the content. Releasing the whole
+    // reservation here would make invalid answers free in the budget.
+    const usage = makeAiUsageRepository(makeContext(WS), OWNER);
+    const { record } = await usage.reserve(reserveInput({ reservedUsd: 0.05 }));
+    await usage.markRunning(record.id);
+
+    const failed = await usage.complete(record.id, {
+      state: "failed",
+      inputTokens: 1_200,
+      outputTokens: 400,
+      estimatedUsd: 0.0032,
+      failureCode: "provider_response_invalid",
+    });
+
+    expect(failed?.state).toBe("failed");
+    expect(failed?.failureCode).toBe("provider_response_invalid");
+    expect(failed?.inputTokens).toBe(1_200);
+    expect(failed?.outputTokens).toBe(400);
+    // NOT zero: the tokens are owed whether or not DalyHub could use the answer.
+    expect(failed?.estimatedUsd).toBeCloseTo(0.0032, 6);
+
+    const keys = budgetPeriodKeys(new Date());
+    const totals = await usage.totals({
+      day: keys.day,
+      month: keys.month,
+      featureId: "meeting-action-extraction",
+    });
+    expect(totals.dayUsd).toBeCloseTo(0.0032, 6);
+  });
+
+  it("releases in full when nothing reached the provider", async () => {
+    const usage = makeAiUsageRepository(makeContext(WS), OWNER);
+    const { record } = await usage.reserve(reserveInput({ reservedUsd: 0.05 }));
+    await usage.markRunning(record.id);
+    await usage.complete(record.id, {
+      state: "failed",
+      estimatedUsd: 0,
+      failureCode: "provider_timeout",
+    });
+
+    const keys = budgetPeriodKeys(new Date());
+    const totals = await usage.totals({
+      day: keys.day,
+      month: keys.month,
+      featureId: "meeting-action-extraction",
+    });
+    expect(totals.dayUsd).toBeCloseTo(0, 6);
+  });
+});

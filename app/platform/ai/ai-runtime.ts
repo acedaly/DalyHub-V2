@@ -40,6 +40,7 @@ import {
   releaseUnused,
   renderEvidenceBlock,
   resolveModel,
+  resolveRequestedTier,
   schemaForFeature,
   toAiError,
   totalUsage,
@@ -209,10 +210,20 @@ export async function runAiRequest(
     throw new AiError("evidence_too_large");
   }
 
+  // The FEATURE's declared tier is the ceiling, and `resolveRequestedTier` owns
+  // that rule. Asking for deep is not enough on its own: a request is promoted
+  // only when the feature itself permits deep, so a crafted `deep=1` on a
+  // form submission cannot escalate an economy capability into the premium
+  // budget. The owner's `premiumAllowed` is a second, independent gate — it can
+  // withhold deep, never grant it to a feature that does not allow it.
+  const requestedTier = resolveRequestedTier(
+    policy,
+    input.requestDeep === true,
+  );
   const tier =
-    input.requestDeep === true && input.preferences.premiumAllowed
-      ? "deep"
-      : policy.tier;
+    requestedTier === "deep" && !input.preferences.premiumAllowed
+      ? policy.tier
+      : requestedTier;
 
   const provider = pickProvider(input.preferences, input.configuration);
   const model = selectModel(input.preferences, provider, tier);
@@ -373,6 +384,21 @@ export async function runAiRequest(
     if (record.state === "budget_reserved" || record.state === "running") {
       throw new AiError("concurrency_limited");
     }
+    // TERMINAL state (succeeded / failed / cancelled / reused) and the result is
+    // no longer held. This MUST refuse rather than fall through.
+    //
+    // Falling through would run a real, billed provider call against a
+    // reservation that is already closed: `markRunning` only advances a
+    // `budget_reserved` row and `complete` only settles `budget_reserved` or
+    // `running`, so both would be silent no-ops and the spend would be neither
+    // budgeted nor recorded. That is precisely the guarantee this platform
+    // exists to make, and it is reachable in ordinary use — the surfaces build
+    // repeatable keys, so a reload after an isolate recycled (or after the
+    // bounded in-memory result store evicted the entry) replays the same key.
+    //
+    // The honest answer is that this exact owner action already ran and DalyHub
+    // no longer has its result: ask again as a NEW action.
+    throw new AiError("duplicate_request");
   }
 
   await input.usage.markRunning(record.id);
@@ -394,6 +420,26 @@ export async function runAiRequest(
     ),
   });
 
+  /**
+   * Provider-reported usage for a call that ACTUALLY reached the provider, held
+   * outside the `try` so the failure path can see it.
+   *
+   * Without this, a response that arrives and then fails DalyHub's own schema
+   * validation — an invented citation, a missing field — releases the entire
+   * reservation and records zero tokens for work the provider will still bill.
+   * Repeated invalid responses would then be free in DalyHub's budget and
+   * expensive in the owner's account, which is the one thing this budget must
+   * never get wrong.
+   *
+   * A failure BEFORE any response (timeout, transport, refusal) still releases
+   * in full, because nothing was performed.
+   */
+  let charged: {
+    readonly modelId: string;
+    readonly inputTokens: number | null;
+    readonly outputTokens: number | null;
+  } | null = null;
+
   try {
     const execution = await executeWithPolicy(
       {
@@ -408,6 +454,14 @@ export async function runAiRequest(
       },
       plan,
     );
+
+    // The provider answered. From this line on, a failure is DalyHub rejecting
+    // the CONTENT — not the provider failing to perform work — so the tokens are
+    // owed either way and must be reconciled rather than released.
+    charged = {
+      modelId: execution.response.modelId,
+      ...totalUsage(execution.attempts),
+    };
 
     // 9 ─ Validate against DalyHub's own schema. Model output is data until this
     // succeeds, and a citation of evidence we did not supply fails here.
@@ -477,9 +531,18 @@ export async function runAiRequest(
     // reservation; a request the provider partially performed keeps what the
     // provider says it used.
     const error = toAiError(cause);
+    const actual =
+      charged === null ? null : actualCost(charged.modelId, charged);
     await input.usage.complete(record.id, {
       state: error.code === "cancelled" ? "cancelled" : "failed",
-      estimatedUsd: releaseUnused(0),
+      inputTokens: charged?.inputTokens ?? null,
+      outputTokens: charged?.outputTokens ?? null,
+      // Nothing performed → release the whole reservation. Performed but
+      // rejected → keep what the provider says it used, falling back to the
+      // reservation when the model's price is unknown, because guessing zero
+      // would be the one wrong answer.
+      estimatedUsd:
+        charged === null ? releaseUnused(0) : (actual ?? decision.reserveUsd),
       failureCode: error.code,
     });
     throw error;

@@ -22,6 +22,7 @@ import {
   aiErrorStatus,
   aiFeaturePolicy,
   allAiFeaturePolicies,
+  resolveRequestedTier,
   budgetPeriodKeys,
   budgetRemaining,
   budgetSnapshot,
@@ -36,6 +37,7 @@ import {
   isPolicyError,
   isSameOrCheaperTier,
   isTerminalRequestState,
+  isAiErrorCode,
   isTransientError,
   normaliseAiPreferences,
   parseBudgetUsd,
@@ -403,5 +405,57 @@ describe("typed errors", () => {
   it("keeps an AiError unchanged", () => {
     const original = new AiError("rate_limited");
     expect(toAiError(original)).toBe(original);
+  });
+});
+
+describe("the deep tier is gated by the FEATURE, not by the request", () => {
+  it("never promotes a feature that does not declare deep, however hard it is asked", () => {
+    // The owner-facing flag is `deep=1` on a form submission — trivially
+    // forgeable. It must not be sufficient on its own, or a crafted POST could
+    // spend the premium allowance through an economy capability.
+    for (const policy of allAiFeaturePolicies()) {
+      expect(resolveRequestedTier(policy, true)).toBe(
+        policy.tier === "deep" ? "deep" : policy.tier,
+      );
+    }
+  });
+
+  it("no shipped feature declares the deep tier, so none can reach it today", () => {
+    // Stated as an assertion rather than left implicit: if a future feature
+    // opts into deep, this test fails and the decision gets made deliberately.
+    for (const policy of allAiFeaturePolicies()) {
+      expect(policy.tier).not.toBe("deep");
+      expect(resolveRequestedTier(policy, true)).not.toBe("deep");
+    }
+  });
+
+  it("leaves the feature's own tier untouched when deep is not requested", () => {
+    for (const policy of allAiFeaturePolicies()) {
+      expect(resolveRequestedTier(policy, false)).toBe(policy.tier);
+    }
+  });
+});
+
+describe("a duplicate request DalyHub can no longer answer", () => {
+  it("has its own code, distinct from a stale result", () => {
+    // These are different facts and must not share a sentence: `result_stale`
+    // means the records moved; `duplicate_request` means nothing moved and the
+    // answer is simply no longer held.
+    expect(isAiErrorCode("duplicate_request")).toBe(true);
+    expect(aiErrorMessage("duplicate_request")).not.toBe(
+      aiErrorMessage("result_stale"),
+    );
+    expect(aiErrorMessage("duplicate_request")).not.toMatch(/changed/i);
+  });
+
+  it("is a conflict, and is never retried automatically", () => {
+    expect(aiErrorStatus("duplicate_request")).toBe(409);
+    expect(isTransientError("duplicate_request")).toBe(false);
+  });
+
+  it("leaks nothing about the earlier request", () => {
+    const message = aiErrorMessage("duplicate_request");
+    expect(message).not.toMatch(/https?:\/\//);
+    expect(message).not.toMatch(/token|key|sk-/i);
   });
 });

@@ -35,6 +35,7 @@ export const AI_ERROR_CODES = [
   "provider_response_invalid",
   "provider_unavailable",
   "result_stale",
+  "duplicate_request",
   "cancelled",
   "internal",
 ] as const;
@@ -187,6 +188,11 @@ export function aiErrorMessage(code: AiErrorCode): string {
       return "The AI provider couldn’t be reached. Nothing was changed.";
     case "result_stale":
       return "One of the records changed since this was generated. Run it again.";
+    case "duplicate_request":
+      // Deliberately NOT phrased as "the records changed" — nothing changed.
+      // DalyHub simply no longer holds the answer to this exact action, and
+      // re-running it under the same key would spend money it could not record.
+      return "That request already ran and its answer is no longer held. Ask again.";
     case "cancelled":
       return "That request was cancelled. Nothing was changed.";
     case "internal":
@@ -217,6 +223,7 @@ export function aiErrorStatus(code: AiErrorCode): number {
     case "premium_budget_reached":
     case "concurrency_limited":
     case "result_stale":
+    case "duplicate_request":
     case "cancelled":
       return 409;
     case "rate_limited":

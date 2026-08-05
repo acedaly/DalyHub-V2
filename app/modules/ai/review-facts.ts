@@ -26,16 +26,31 @@ export async function computeWeeklyReviewFacts(
   periodEnd: string,
   todayIso: string,
 ): Promise<WeeklyReviewFacts> {
-  const [openTasks, completedTasks, meetings] = await Promise.all([
+  const [openTasks, planning, meetings] = await Promise.all([
     safe(() => scope.tasks.listTasks({ limit: LIMIT })),
-    safe(() => scope.tasks.listTasks({ limit: LIMIT, includeCompleted: true })),
+    // Completions come from the PLANNING query, not from `listTasks({
+    // includeCompleted: true })`. `listTasks` orders open rows first
+    // (`ORDER BY (sr.completed_at IS NOT NULL) ASC, …`), so in a workspace with
+    // LIMIT-or-more open Tasks the page is entirely open work and the period's
+    // completions are invisible — the assistant would report "0 completed" for
+    // precisely the busy weeks where the number matters most. TODAY-04's
+    // planning query fetches its completed band INDEPENDENTLY and most-recent
+    // first, which is the bound this needs.
+    safe(() =>
+      scope.tasks.listPlanningTasks({
+        todayIso,
+        scheduledLimit: 1,
+        backlogLimit: 1,
+        completedLimit: LIMIT,
+      }),
+    ),
     safe(() => scope.meetings.list({ view: "recent", limit: 50 })),
   ]);
 
   const open = (openTasks?.items ?? []).filter(
     (task) => task.completedAt === null,
   );
-  const completedInPeriod = (completedTasks?.items ?? []).filter((task) => {
+  const completedInPeriod = (planning?.items ?? []).filter((task) => {
     if (task.completedAt === null) return false;
     const day = task.completedAt.toISOString().slice(0, 10);
     return day >= periodStart && day <= periodEnd;

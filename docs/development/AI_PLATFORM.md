@@ -219,6 +219,14 @@ provider's own reported token counts.
 A live reservation counts as spend, so two concurrent requests cannot both fit
 into the last dollar.
 
+**A rejected answer is still a charged answer.** If the provider responds and
+DalyHub's own validator then refuses the content — an invented citation, a
+missing field — the reservation is reconciled to the provider's reported usage,
+not released. The tokens are owed whether or not the answer was usable, and
+recording zero would make invalid responses free in the budget and expensive in
+the owner's account. A failure BEFORE any response (timeout, transport, refusal)
+still releases in full, because nothing was performed.
+
 | Control | Default | Ceiling |
 |---|---|---|
 | Monthly workspace budget | **USD $10** | $500 |
@@ -288,6 +296,24 @@ unused reservation.
 refresh, a double-click or a retried POST returns the existing row rather than
 buying a second paid request; the `UNIQUE (workspace_id, owner_id,
 idempotency_key)` index is the final backstop.
+
+A duplicate key resolves in exactly one of three ways, and there is no fourth:
+
+| The existing row is… | Answer |
+|---|---|
+| settled, and the result is still held | the earlier result, labelled reused — no provider call |
+| still `budget_reserved` or `running` | `concurrency_limited` — the first run is still in flight |
+| settled, and the result is no longer held | **`duplicate_request` — refused** |
+
+The third case is refused rather than re-run, and the reason is worth stating.
+`markRunning` only advances a `budget_reserved` row and `complete` only settles
+`budget_reserved` or `running`, so a settled row cannot be reopened. Running the
+provider call anyway would spend real money against a closed reservation that
+neither records nor reconciles it — the exact failure this budget exists to
+prevent. It is reachable in ordinary use, because the surfaces build repeatable
+keys and the result store is per-isolate and bounded. The honest answer is that
+this action already ran and its answer is no longer held: ask again as a new
+action. Two kernel tests pin the no-op writes this refusal depends on.
 
 ---
 
