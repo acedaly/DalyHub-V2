@@ -10,6 +10,30 @@ The module uses the authenticated workspace composition boundary; callers cannot
 
 `meeting_details` stores UTC start/end instants, the owner's IANA display timezone, optional location/mode/HTTPS meeting URL, status, canonical agenda and notes Markdown source, archive state, MEET-03's `held_at` occurrence instant (migration `0020`), and update time. Rendered HTML is never persisted. `meeting_items` stores stable, ordered `agenda`, `decision` and `outcome` children — MEET-02 widened the MEET-01 `decision`/`outcome` vocabulary with `agenda` (migration `0015`) so an agenda item gains the same stable identity a decision/outcome already has and can be converted to a Task **without** parsing the free-form `agenda_markdown` prose. The free-form agenda Markdown field is unchanged; the Agenda tab keeps it (agenda narrative) and adds a structured, convertible "Agenda items" list beside it.
 
+### Item ordering (`position`) — AUDIT-FIX-02
+
+`meeting_items.position` is an **append-only ordinal owned by the database**, not a
+sequence number the application maintains. `addItem` allocates it as
+`MAX(position) + 1` scoped to `(workspace_id, meeting_id, kind)` — exactly the scope
+of the `UNIQUE (workspace_id, meeting_id, kind, position)` constraint — computed
+*inside* the insert statement, so there is no window in which a read maximum can go
+stale and no caller can supply a position. Each kind allocates independently.
+
+`removeItem` deliberately **does not renumber** the survivors. Two consequences
+follow, and both are intended: removing an interior item leaves its ordinal
+permanently vacant (positions are *ordered*, not *contiguous*), while removing the
+tail lowers the maximum so that ordinal is reused — safe by construction, since no
+live row holds it. Nothing depends on contiguity: items are read
+`ORDER BY kind, position, id`, and the source-item mapping is keyed on the stable
+`meeting_items.id`, never on position.
+
+Both item mutations are atomic with their `meeting.updated` Activity
+(`recordAtomicMutation`), guarded on the domain statement's `changes()`: a refused
+or no-op mutation writes no event, and a rolled-back insert leaves no item. The
+constraint remains the final integrity boundary — a contended append is retried a
+bounded three times and then surfaces the typed `MeetingItemConflictError`, never a
+raw uniqueness exception.
+
 Attendees are real Person entities connected with the `meeting.attendee` EntityLink type; MEET-02 adds the write path (add/remove an attendee from the Summary tab) that MEET-01 only read. Because the kernel records a link's `entity_link.created` with **both** endpoints as subjects, attending a meeting already surfaces on the attendee's People Timeline (see People seam below).
 
 ## Follow-through & Task conversion (MEET-02)

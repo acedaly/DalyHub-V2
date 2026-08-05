@@ -25,11 +25,16 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 > and deliberately did **not** fix them. The audit's verdict, as written against
 > `ca3577d`, is **"Not ready for normal daily use pending these two blockers."**
 >
-> **Status since.** AUDIT-FIX-01 (recurring re-completion) is **resolved** —
-> see its entry below. **AUDIT-FIX-02 (meeting-item remove-then-add) remains the
-> outstanding release blocker**, so the audit's verdict still stands until it is
-> fixed. The audit report itself is left as the historical assessment of `ca3577d`
-> and is not rewritten.
+> **Status since.** **Both P1 audit blockers are now resolved** — AUDIT-FIX-01
+> (recurring re-completion) and AUDIT-FIX-02 (meeting-item remove-then-add); see
+> their entries below. Each was reproduced against real Workers/D1 before it was
+> changed and each carries new regression coverage. **Production verification
+> remains separate and is still outstanding** — the audit could not reach the
+> authenticated production environment (§4, §19), so "the blockers are fixed in
+> `main`" is not the same claim as "production is verified", and AUDIT-FIX-05's
+> documentation-truth work still stands. The audit report itself is left as the
+> historical assessment of `ca3577d` and is not rewritten: both defects were real
+> at that commit, and the verdict written there was correct when it was written.
 >
 > These are **product defects**, so they live here in the roadmap; their testing,
 > security and observability dimensions are recorded in
@@ -109,7 +114,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   successor; and two atomic-rollback cases proving neither the slot release nor the
   successor can commit without their reopen/completion.
 
-### ☐ AUDIT-FIX-02 — Meeting item remove-then-add throws HTTP 500 (P1)
+### ☑ AUDIT-FIX-02 — Meeting item remove-then-add throws HTTP 500 (P1)
 
 - **Finding.** [AUDIT-02](../product/END_TO_END_AUDIT_2026_08_05.md#audit-02--meeting-item-remove-then-add-of-same-kind-throws-http-500--p1).
   Removing a non-last meeting item and adding another of the same kind violates
@@ -124,6 +129,96 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   `test/kernel/meeting-follow-up.test.ts`).
 - **This reopens the item-editing half of [MEET-01](ROADMAP_V2.md#-meet-01--meeting-record).**
 - **Size.** Small. **Priority.** P1 — second item of V2.1.
+
+- **Resolved (2026-08-05).** Reproduced first against real Workers/D1 through the
+  meeting repository, before any code changed. Three agenda items were created at
+  positions `0, 1, 2`; removing the FIRST left the survivors at `1, 2` (removal
+  correctly renumbers nothing); the next `addItem` computed `position = count = 2`,
+  which item `2` still held, and the insert raised
+  `D1_ERROR: UNIQUE constraint failed: meeting_items.workspace_id,
+  meeting_items.meeting_id, meeting_items.kind, meeting_items.position`
+  as an untyped `Error`, rolling the whole batch back. Every item kind was
+  affected, and the kind stayed un-addable until the trailing items were removed
+  too.
+
+  **One correction to the audit's wording, recorded rather than quietly fixed.**
+  The finding is titled "throws HTTP 500", and the raw error at the repository was
+  exactly as described — but at the route boundary
+  ([`meetings/routes/mutate.tsx`](../../app/modules/meetings/routes/mutate.tsx)) the
+  existing catch-all already converted it to **HTTP 400** with the generic
+  "That change couldn’t be saved.", and the capture bar kept the user's typed text.
+  So the *user-visible* symptom was a silently un-addable item kind, not a 500 page
+  or leaked SQL. That makes the defect no less blocking — the workflow was broken
+  and the failure was opaque — and the audit's diagnosis, evidence and severity all
+  stand. Verified on the fixed `main`, not assumed from the report.
+
+  **The allocation strategy: `MAX(position) + 1`, computed INSIDE the insert.**
+  `position` is now an ordinal allocated by the database, scoped to
+  `(workspace_id, meeting_id, kind)` — exactly the scope of the UNIQUE index — in
+  the same statement (and therefore the same SQLite transaction) that writes the
+  row. There is no read-then-write window, no in-memory value that can go stale, no
+  row count, no unscoped maximum and no client-supplied position. The result is
+  always strictly greater than every LIVE ordinal of that kind, so an interior gap
+  is skipped and existing items are never disturbed; a freed TAIL ordinal is reused,
+  which is safe precisely because no live row holds it. Renumbering on removal was
+  rejected: positions are display order only (a follow-up mapping is keyed on the
+  stable `meeting_items.id` — MEETINGS_MODULE.md), reads already order by
+  `(kind, position, id)` and are unaffected by gaps, and renumbering would write
+  every sibling row on each removal for no product gain.
+
+  **No migration, and the constraint is untouched.** The schema was investigated and
+  found correct: `UNIQUE (workspace_id, meeting_id, kind, position)`
+  (`0021_ux01_tasks_meetings_usability.sql`) is retained as the final integrity
+  boundary. This was an allocation and error-handling defect, not a schema one.
+
+  **Concurrency.** The insert's `FROM meeting_details JOIN entities` re-authorizes
+  the meeting on the write itself (live, `meeting`-typed, unarchived, in the bound
+  workspace), so a meeting archived or deleted between the read and the write
+  changes no row — and because the Activity appends are guarded on the domain
+  statement's `changes()`, nothing is logged either. If two same-kind appends ever
+  do allocate the same ordinal, the losing batch rolls back ENTIRELY and is retried
+  a bounded, deterministic **3** attempts (never an unbounded loop) against the
+  freshly-committed maximum; each attempt builds a NEW Activity event, so a
+  successful retry leaves exactly one item and exactly one event. Exhausting the
+  budget surfaces a typed `MeetingItemConflictError`, never a raw uniqueness
+  exception.
+
+  **Typed errors.** `addItem`/`removeItem` now raise the module's existing error
+  family — `MeetingNotFoundError` (missing, soft-deleted, wrong type or another
+  workspace, all indistinguishable), `MeetingArchivedError`, and
+  `MeetingValidationError` for an unknown kind or empty body — plus two new kernel
+  errors beside them: `MeetingStorageError` (wraps any raw D1 failure, preserving
+  `cause`, so no constraint text can reach a response) and
+  `MeetingItemConflictError` (the bounded-contention case, carrying its own
+  recovery copy). The route names the conflict as a 409, logs an unexpected
+  `MeetingStorageError` by name and message only, and still answers everything else
+  with the existing calm generic copy.
+
+  **Activity integrity.** An append and its `meeting.updated` event are now ONE
+  atomic mutation via `recordAtomicMutation`; a failed insert writes neither. A
+  removal is now atomic with its event too — previously it wrote **no** Activity at
+  all — and, being guarded on the delete's `changes()`, removing an already-removed
+  item is a truthful no-op that returns `false` and logs nothing.
+
+  **Source.** [`app/platform/storage/d1/d1-meeting-repository.ts`](../../app/platform/storage/d1/d1-meeting-repository.ts)
+  (`addItem`, `removeItem`, `APPEND_ITEM_SQL`, `REMOVE_ITEM_SQL`, `#eventModel`,
+  plus a TEST-ONLY `itemFault` injection point);
+  [`app/kernel/meetings/meeting-repository.ts`](../../app/kernel/meetings/meeting-repository.ts)
+  (the ordering contract, `MeetingStorageError`, `MeetingItemConflictError`);
+  [`app/modules/meetings/routes/mutate.tsx`](../../app/modules/meetings/routes/mutate.tsx).
+
+  **Regression tests.** 27 new real Workers/D1 cases in
+  [`test/kernel/meeting-item-positioning.test.ts`](../../test/kernel/meeting-item-positioning.test.ts):
+  the reported agenda regression (and the same sequence for **every** item kind —
+  agenda, decision, outcome, action); a middle-item removal; per-kind independence
+  with interleaved writes; last-item removal and a fully-emptied kind; five
+  add/remove/add cycles across all kinds asserting uniqueness, deterministic order,
+  no un-addable kind and no orphan rows or events; workspace isolation in both
+  directions; atomic rollback of a faulted add and of a faulted remove; concurrent
+  same-kind additions and a 16-way burst; the typed validation/archived/not-found
+  refusals; and route-level coverage proving remove-then-add returns a normal
+  success for every kind, that an edge-case refusal is a handled 409 rather than a
+  5xx, and that no SQLite/D1 vocabulary appears in any response body.
 
 ### ☐ AUDIT-FIX-03 — Permanent-delete integrity: asset + review purge (P2)
 
@@ -806,8 +901,10 @@ because a reader would otherwise wonder whether it was forgotten:
    the 5 August 2026 audit's remediation, **ahead of SET-02**. AUDIT-FIX-01 and
    AUDIT-FIX-02 were confirmed, reproduced, release-blocking P1 data-integrity
    defects on core daily-use paths (recurring-task completion; meeting-item
-   editing); **AUDIT-FIX-01 is now resolved and AUDIT-FIX-02 is the remaining
-   blocker.** AUDIT-FIX-03/04/05 are the P2 permanent-delete, CSRF and
+   editing); **both are now resolved, each reproduced against real Workers/D1
+   before it was changed and each covered by new regression tests — though
+   production verification remains a separate, still-outstanding gap.**
+   AUDIT-FIX-03/04/05 are the P2 permanent-delete, CSRF and
    documentation follow-ups. Restore is worth more than a restyle, but a product
    that bricks a recurring task on a checkbox toggle is worth fixing before either.
 1. **[SET-02](#-set-02--backup--restore-v21)** — restore. The one gap V2 knowingly

@@ -24,6 +24,8 @@ import {
   MEETING_UPDATED,
   MeetingArchivedError,
   MeetingFollowUpConflictError,
+  MeetingItemConflictError,
+  MeetingStorageError,
   MeetingValidationError,
   meetingItemKinds,
   MeetingNotFoundError,
@@ -50,6 +52,7 @@ import { D1ActivityRecorder } from "./d1-activity-recorder";
 import {
   recordAtomicMutation,
   type AtomicMutationFault,
+  type AtomicMutationResult,
 } from "./d1-atomic-mutation";
 import { likeContains } from "./like-pattern";
 
@@ -82,7 +85,96 @@ interface ItemRow {
   updated_at: string;
 }
 
+/** The ordinal the database allocated for a freshly appended item, plus its stamps. */
+interface ItemInsertRow {
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 const COLUMNS = `e.id,e.workspace_id,e.title,e.created_at,e.updated_at,e.deleted_at,d.starts_at,d.ends_at,d.timezone,d.location,d.mode,d.meeting_url,d.status,d.agenda_markdown,d.notes_markdown,d.archived_at,d.held_at,d.updated_at detail_updated_at`;
+
+/**
+ * AUDIT-FIX-02 — the append-one-item statement, with its ordinal allocated in SQL.
+ *
+ * Three properties are load-bearing, and all three come from this being ONE
+ * statement rather than a read followed by a write:
+ *
+ *   1. **`MAX(position) + 1`, scoped exactly like the constraint.** The subquery
+ *      filters on `workspace_id`, `meeting_id` AND `kind` — the same triple the
+ *      `UNIQUE (workspace_id, meeting_id, kind, position)` index is built on — so
+ *      each kind allocates independently, and the ordinal is always strictly
+ *      greater than every LIVE ordinal of that kind. An INTERIOR gap is skipped
+ *      rather than filled; a freed TAIL ordinal is reused, which is safe exactly
+ *      because no live row holds it. `COALESCE(..., 0)` starts a kind's first item
+ *      at 0, preserving the existing zero-based ordering the UI and export read.
+ *   2. **No stale window.** The maximum is read in the same SQLite transaction
+ *      that performs the insert, so nothing can commit between the two.
+ *   3. **The meeting is re-authorized on the write.** The `FROM meeting_details
+ *      JOIN entities` drives the insert: no live, unarchived, `meeting`-typed row
+ *      in the BOUND workspace means no inserted row — and, because the Activity
+ *      appends are guarded on `changes()`, no event either.
+ *
+ * `RETURNING` hands back the ordinal and stamps actually written, so the returned
+ * `MeetingItem` reports storage truth rather than an in-memory guess.
+ *
+ * Bind order: itemId, kind, body, kind (subquery), createdAt, updatedAt,
+ * workspaceId, meetingId, entityType.
+ */
+const APPEND_ITEM_SQL = `INSERT INTO meeting_items
+       (workspace_id, id, meeting_id, kind, body_markdown, position, created_at, updated_at)
+SELECT d.workspace_id, ?, d.entity_id, ?, ?,
+       COALESCE((SELECT MAX(i.position) + 1
+                   FROM meeting_items i
+                  WHERE i.workspace_id = d.workspace_id
+                    AND i.meeting_id = d.entity_id
+                    AND i.kind = ?), 0),
+       ?, ?
+  FROM meeting_details d
+  JOIN entities e
+    ON e.workspace_id = d.workspace_id AND e.id = d.entity_id
+ WHERE d.workspace_id = ? AND d.entity_id = ?
+   AND d.archived_at IS NULL
+   AND e.type = ? AND e.deleted_at IS NULL
+RETURNING position, created_at, updated_at`;
+
+/**
+ * AUDIT-FIX-02 — remove exactly one item. Scoped to the bound workspace, this
+ * meeting and this item id, so no sibling, no other kind and no other workspace's
+ * row can be reached; the `EXISTS` guard re-asserts that the meeting is still live
+ * and unarchived at write time. `RETURNING` drives the `changes()` guard on the
+ * Activity append, so an already-removed item writes no event.
+ *
+ * Bind order: workspaceId, meetingId, itemId, entityType.
+ */
+const REMOVE_ITEM_SQL = `DELETE FROM meeting_items
+ WHERE workspace_id = ? AND meeting_id = ? AND id = ?
+   AND EXISTS (SELECT 1
+                 FROM meeting_details d
+                 JOIN entities e
+                   ON e.workspace_id = d.workspace_id AND e.id = d.entity_id
+                WHERE d.workspace_id = meeting_items.workspace_id
+                  AND d.entity_id = meeting_items.meeting_id
+                  AND d.archived_at IS NULL
+                  AND e.type = ? AND e.deleted_at IS NULL)
+RETURNING id`;
+
+/**
+ * Bounded retry budget for a contended same-kind append (AUDIT-FIX-02).
+ *
+ * Deliberately small and deterministic — never an unbounded loop. The allocation
+ * is already atomic within its statement, so this budget exists only for the case
+ * D1 cannot serialise away; after it, the caller receives a typed, recoverable
+ * `MeetingItemConflictError` rather than a raw uniqueness exception. Mirrors the
+ * spine/entity repositories' bounded optimistic-retry convention.
+ */
+const MAX_ITEM_APPEND_ATTEMPTS = 3;
+
+/** True when a raw D1 failure is a UNIQUE-constraint violation (spine convention). */
+function isUniqueConstraintViolation(cause: unknown): boolean {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  return /UNIQUE constraint failed/i.test(message);
+}
 
 export class D1MeetingRepository implements MeetingRepository {
   readonly #db: D1Database;
@@ -98,6 +190,14 @@ export class D1MeetingRepository implements MeetingRepository {
    * in production (mirrors `D1EntityRepositoryOptions.activityFault`).
    */
   readonly #activityFault?: AtomicMutationFault;
+  /**
+   * TEST-ONLY deterministic failure injection for the STRUCTURED-ITEM mutations
+   * (`addItem` / `removeItem`), used to prove that a failed append leaves neither
+   * a `meeting_items` row nor a `meeting.updated` event behind (AUDIT-FIX-02).
+   * Kept separate from `activityFault` so a test can fault an item mutation
+   * without also faulting `markHeld`. Never set in production.
+   */
+  readonly #itemFault?: AtomicMutationFault;
   constructor(
     db: D1Database,
     context: WorkspaceContext,
@@ -107,6 +207,7 @@ export class D1MeetingRepository implements MeetingRepository {
       actorContext?: ActivityActorContext;
       activityIdGenerator?: IdGenerator;
       activityFault?: AtomicMutationFault;
+      itemFault?: AtomicMutationFault;
     } = {},
   ) {
     this.#db = db;
@@ -117,15 +218,29 @@ export class D1MeetingRepository implements MeetingRepository {
     this.#activityId = options.activityIdGenerator ?? activityId;
     this.#recorder = new D1ActivityRecorder(db);
     this.#activityFault = options.activityFault;
+    this.#itemFault = options.itemFault;
   }
-  #event(type: string, id: string, now: Date) {
-    const model = buildActivityWriteModel(
+  /**
+   * The write model for a meeting-scoped lifecycle event. Split out from
+   * `#event` so an ATOMIC mutation can hand the model to `recordAtomicMutation`
+   * (which builds and orders the append statements itself) while the plain
+   * batch callers keep taking prepared statements. A fresh Activity id is drawn
+   * per call, so a retried attempt appends a NEW event rather than reusing the
+   * id of one that rolled back.
+   */
+  #eventModel(type: string, id: string, now: Date) {
+    return buildActivityWriteModel(
       { type, subjects: [{ entityId: id, role: "subject" }], payload: {} },
       this.#actor.actor,
       this.#activityId(),
       now,
     );
-    return this.#recorder.buildAppendStatements(this.#workspaceId, model);
+  }
+  #event(type: string, id: string, now: Date) {
+    return this.#recorder.buildAppendStatements(
+      this.#workspaceId,
+      this.#eventModel(type, id, now),
+    );
   }
   #eventWith(
     type: string,
@@ -425,45 +540,156 @@ export class D1MeetingRepository implements MeetingRepository {
     ]);
     return { meeting: (await this.get(id))!, changed: true };
   }
-  async addItem(id: string, kind: MeetingItemKind, bodyMarkdown: string) {
-    const meeting = await this.get(id);
-    if (!meeting || meeting.archivedAt) throw new Error("Meeting not found");
+  /**
+   * AUDIT-FIX-02 — append one structured item, allocating its ordinal in SQL.
+   *
+   * The defect this replaces derived `position` from the COUNT of surviving items
+   * of that kind. Because `removeItem` (correctly) never renumbers, removing a
+   * non-last item leaves a gap while later items keep their original ordinals — so
+   * the count could name a position that was still occupied, the insert violated
+   * `UNIQUE (workspace_id, meeting_id, kind, position)`, and that kind became
+   * un-addable until the trailing items were removed too.
+   *
+   * The allocation is now `MAX(position) + 1` (`COALESCE(..., 0)` for the first
+   * item of a kind), and — decisively — it is computed **inside the insert's own
+   * statement**, in the same SQLite transaction as the write. There is no window
+   * between reading the maximum and using it, so no in-memory ordinal can go
+   * stale, and the scope of the subquery (`workspace_id`, `meeting_id`, `kind`) is
+   * exactly the scope of the UNIQUE constraint — one kind's gaps can never affect
+   * another kind's next ordinal, and another workspace's rows are invisible to it.
+   *
+   * The `FROM meeting_details JOIN entities` is the write's own authorization: the
+   * row is inserted only while the meeting is live, of type `meeting`, unarchived
+   * and in the bound workspace — re-asserted in SQL so a meeting archived or
+   * deleted between the read above and this write cannot gain an item. Because the
+   * statement is conditional, a refused append changes no row, and the Activity
+   * appends (guarded on `changes()`) write nothing: never an item without its
+   * event, never an event without its item.
+   *
+   * The UNIQUE constraint is retained as the final integrity boundary. If two
+   * same-kind appends ever do allocate the same ordinal, the losing batch fails
+   * and rolls back ENTIRELY — no item row, no Activity — and is retried a bounded
+   * {@link MAX_ITEM_APPEND_ATTEMPTS} times against the freshly-committed maximum.
+   * Each attempt builds a NEW event with its own id, so a successful retry leaves
+   * exactly one item and exactly one `meeting.updated`.
+   */
+  async addItem(
+    id: string,
+    kind: MeetingItemKind,
+    bodyMarkdown: string,
+  ): Promise<MeetingItem> {
     if (!meetingItemKinds.has(kind)) {
       throw new MeetingValidationError("kind", "Choose a valid item type.");
     }
     const body = bodyMarkdown.trim();
-    if (!body) throw new Error("Item cannot be empty");
-    const id2 = this.#id(),
-      now = this.#clock(),
-      ts = toStorageTimestamp(now),
-      position = meeting.items.filter((i) => i.kind === kind).length;
-    await this.#db.batch([
-      this.#db
-        .prepare(
-          "INSERT INTO meeting_items (workspace_id,id,meeting_id,kind,body_markdown,position,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
-        )
-        .bind(this.#workspaceId, id2, id, kind, body, position, ts, ts),
-      ...this.#event(MEETING_UPDATED, id, now),
-    ]);
-    return {
-      id: id2,
-      kind,
-      bodyMarkdown: body,
-      position,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-  async removeItem(id: string, itemId: string) {
+    if (!body) {
+      throw new MeetingValidationError(
+        "bodyMarkdown",
+        "Enter some text for this item.",
+      );
+    }
     const meeting = await this.get(id);
-    if (!meeting || meeting.archivedAt) throw new Error("Meeting not found");
-    const result = await this.#db
-      .prepare(
-        "DELETE FROM meeting_items WHERE workspace_id=? AND meeting_id=? AND id=?",
-      )
-      .bind(this.#workspaceId, id, itemId)
-      .run();
-    return result.meta.changes > 0;
+    if (!meeting) throw new MeetingNotFoundError();
+    if (meeting.archivedAt) throw new MeetingArchivedError();
+
+    // One item identity across attempts: a rolled-back attempt persisted nothing,
+    // so a retry is the SAME item finding a free ordinal, not a second one.
+    const itemId = this.#id();
+    for (let attempt = 0; attempt < MAX_ITEM_APPEND_ATTEMPTS; attempt++) {
+      const now = this.#clock(),
+        ts = toStorageTimestamp(now);
+      let result: AtomicMutationResult<ItemInsertRow>;
+      try {
+        result = await recordAtomicMutation<ItemInsertRow>({
+          db: this.#db,
+          workspaceId: this.#workspaceId,
+          domainStatement: this.#db.prepare(APPEND_ITEM_SQL).bind(
+            itemId,
+            kind,
+            body,
+            kind, // the MAX(position) subquery's own kind scope
+            ts,
+            ts,
+            this.#workspaceId,
+            id,
+            MEETING_ENTITY_TYPE,
+          ),
+          recorder: this.#recorder,
+          model: this.#eventModel(MEETING_UPDATED, id, now),
+          ...(this.#itemFault ? { fault: this.#itemFault } : {}),
+        });
+      } catch (cause) {
+        // The ONLY retryable failure: another same-kind append committed this
+        // ordinal first. Everything else is an unexpected storage fault.
+        if (!isUniqueConstraintViolation(cause)) {
+          throw new MeetingStorageError(
+            "The meeting item could not be saved.",
+            { cause },
+          );
+        }
+        if (attempt === MAX_ITEM_APPEND_ATTEMPTS - 1) {
+          throw new MeetingItemConflictError(kind);
+        }
+        continue;
+      }
+
+      if (!result.changed || !result.row) {
+        // The conditional insert refused: the meeting was archived or removed
+        // between the read and the write. Re-read and report which, truthfully.
+        const current = await this.get(id);
+        if (!current) throw new MeetingNotFoundError();
+        throw new MeetingArchivedError();
+      }
+
+      return {
+        id: itemId,
+        kind,
+        bodyMarkdown: body,
+        // The ordinal the DATABASE allocated, never a value guessed in memory.
+        position: result.row.position,
+        createdAt: fromStorageTimestamp(result.row.created_at),
+        updatedAt: fromStorageTimestamp(result.row.updated_at),
+      };
+    }
+    throw new MeetingItemConflictError(kind);
+  }
+  /**
+   * AUDIT-FIX-02 — remove ONE item, atomically with its `meeting.updated` event.
+   *
+   * Deliberately does not renumber the survivors: `addItem` allocates past the gap
+   * (`MAX(position) + 1`), so renumbering would buy nothing and cost a write over
+   * every sibling row — with the concurrency and Activity complications that
+   * implies. Reads order by `(kind, position, id)`, which is unaffected by gaps.
+   *
+   * The delete is triply scoped — bound workspace, this meeting, this item id — so
+   * it can never reach another workspace's row, another meeting's row, or a
+   * sibling of the same kind; and the `EXISTS` guard re-asserts in SQL that the
+   * meeting is still live and unarchived. The event is guarded on the delete's
+   * `changes()`, so removing an item that is already gone writes NO event and
+   * returns `false` rather than claiming a change that did not happen.
+   */
+  async removeItem(id: string, itemId: string): Promise<boolean> {
+    const meeting = await this.get(id);
+    if (!meeting) throw new MeetingNotFoundError();
+    if (meeting.archivedAt) throw new MeetingArchivedError();
+    const now = this.#clock();
+    try {
+      const result = await recordAtomicMutation<{ id: string }>({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        domainStatement: this.#db
+          .prepare(REMOVE_ITEM_SQL)
+          .bind(this.#workspaceId, id, itemId, MEETING_ENTITY_TYPE),
+        recorder: this.#recorder,
+        model: this.#eventModel(MEETING_UPDATED, id, now),
+        ...(this.#itemFault ? { fault: this.#itemFault } : {}),
+      });
+      return result.changed;
+    } catch (cause) {
+      throw new MeetingStorageError("The meeting item could not be removed.", {
+        cause,
+      });
+    }
   }
   async archive(id: string) {
     return this.#lifecycle(id, true);

@@ -58,6 +58,48 @@ export class MeetingFollowUpConflictError extends Error {
   }
 }
 
+/**
+ * AUDIT-FIX-02 — an unexpected storage failure behind a Meeting operation.
+ *
+ * The adapter catches the raw D1/SQLite failure and re-raises it as this typed,
+ * generic error so no constraint text, table name or SQL fragment can reach a
+ * response or a log line the owner sees (AGENTS.md §17). The original failure is
+ * preserved as `cause`, so the fault stays fully observable to the runtime and is
+ * never silently swallowed. Mirrors `TaskStorageError` / `AssetStorageError`.
+ */
+export class MeetingStorageError extends Error {
+  constructor(
+    message = "A meeting storage error occurred.",
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = "MeetingStorageError";
+  }
+}
+
+/**
+ * AUDIT-FIX-02 — a bounded, recoverable contention failure while appending a
+ * structured meeting item.
+ *
+ * `addItem` allocates its `position` INSIDE the insert (`MAX(position) + 1` scoped
+ * to workspace + meeting + kind), so the ordinary remove-then-add sequence can no
+ * longer collide. The `UNIQUE (workspace_id, meeting_id, kind, position)`
+ * constraint remains the final integrity boundary; if two same-kind appends still
+ * manage to allocate the same slot, the losing batch rolls back ENTIRELY (no item
+ * row, no Activity) and is retried a bounded number of times. Only when that
+ * budget is exhausted does this surface — a calm, user-legible conflict naming the
+ * recovery, never a raw uniqueness exception.
+ */
+export class MeetingItemConflictError extends Error {
+  constructor(
+    readonly kind: MeetingItemKind,
+    message = "That item couldn’t be added. Refresh the meeting and try again.",
+  ) {
+    super(message);
+    this.name = "MeetingItemConflictError";
+  }
+}
+
 export interface MeetingRepository {
   create(input: CreateMeetingInput): Promise<Meeting>;
   get(id: string): Promise<Meeting | null>;
@@ -90,11 +132,53 @@ export interface MeetingRepository {
     id: string,
     input: UpdateMeetingInput,
   ): Promise<{ meeting: Meeting; changed: boolean }>;
+  /**
+   * Append one structured item of `kind` to this meeting, and its `meeting.updated`
+   * Activity, in ONE atomic batch.
+   *
+   * **Ordering contract (AUDIT-FIX-02).** `position` is an APPEND-ONLY ordinal,
+   * allocated server-side as `MAX(position) + 1` scoped to workspace + meeting +
+   * kind, computed inside the insert itself. It is never derived from a row count,
+   * never supplied by a caller, and never recomputed from a value read earlier in
+   * the request. The allocation is always **strictly greater than every LIVE
+   * ordinal of that kind**, which is precisely the condition the UNIQUE index
+   * needs — so an existing item is never displaced and a new one always sorts
+   * last.
+   *
+   * Two consequences follow, and both are intended:
+   *   - removing an INTERIOR item leaves its ordinal permanently vacant — the
+   *     survivors keep the positions they were given and the next append goes past
+   *     the tail, so positions are **not contiguous**;
+   *   - removing the TAIL lowers the maximum, so the next append reuses that
+   *     freed ordinal. That is safe by construction: no live row holds it.
+   *
+   * Nothing depends on contiguity — items are read `ORDER BY kind, position, id`,
+   * and a follow-up mapping is keyed on the stable `meeting_items.id`, never on
+   * position (MEETINGS_MODULE.md).
+   *
+   * Throws {@link MeetingNotFoundError} (missing, soft-deleted, wrong type or
+   * another workspace — all indistinguishable), {@link MeetingArchivedError} for a
+   * read-only archived meeting, {@link MeetingValidationError} for an unknown kind
+   * or empty body, {@link MeetingItemConflictError} when bounded contention
+   * retries are exhausted, and {@link MeetingStorageError} for anything else.
+   */
   addItem(
     id: string,
     kind: MeetingItemKind,
     bodyMarkdown: string,
   ): Promise<MeetingItem>;
+  /**
+   * Remove ONE structured item from this meeting, and append its `meeting.updated`
+   * Activity in the SAME atomic batch — guarded on the delete's `changes()`, so a
+   * repeat removal of an already-removed item is a truthful no-op that returns
+   * `false` and writes NO event.
+   *
+   * Deliberately does NOT renumber the surviving items: their positions are stable
+   * identifiers of display order, and `addItem` appends after the gap rather than
+   * into it. Only the named item, in the bound workspace, on the named meeting, is
+   * deleted; no other item and no other kind is touched. Throws the same
+   * not-found / archived / storage errors as {@link MeetingRepository.addItem}.
+   */
   removeItem(id: string, itemId: string): Promise<boolean>;
   archive(id: string): Promise<boolean>;
   restore(id: string): Promise<boolean>;
