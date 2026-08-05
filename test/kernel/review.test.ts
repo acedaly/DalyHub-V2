@@ -16,6 +16,7 @@ import { ReservedEntityTypeError } from "~/kernel/entities";
 import { REVIEWS_ACTIVITY_DESCRIPTORS } from "~/modules/reviews/review-activity";
 import { UNIVERSAL_RELATED_LINK } from "~/platform/entity-links/universal-links";
 import {
+  buildWorkspaceActivityDescriptors,
   toActivityItem,
   type ActivityItem,
 } from "~/shared/activity-feed/model";
@@ -369,13 +370,20 @@ describe("Review permanent deletion (guarded)", () => {
       },
     );
     expect(page.items).toHaveLength(1);
-    const item = toActivityItem(page.items[0], {
-      descriptors: REVIEWS_ACTIVITY_DESCRIPTORS,
-    });
-    expect(item.isKnownType).toBe(true);
-    expect(item.subjects).toEqual([]);
-    expect(segmentText(item)).toContain("permanently deleted");
-    expect(segmentText(item)).toContain("Weekly Review — 27 July 2026");
+    // Asserted against BOTH descriptor maps that can carry this event. The
+    // module map is the Reviews surface; the CROSS-MODULE map is what the Today /
+    // workspace feed builds from — and that is the surface that matters here,
+    // because the Review's own record page no longer exists to read it on.
+    for (const descriptors of [
+      REVIEWS_ACTIVITY_DESCRIPTORS,
+      buildWorkspaceActivityDescriptors(),
+    ]) {
+      const item = toActivityItem(page.items[0], { descriptors });
+      expect(item.isKnownType).toBe(true);
+      expect(item.subjects).toEqual([]);
+      expect(segmentText(item)).toContain("permanently deleted");
+      expect(segmentText(item)).toContain("Weekly Review — 27 July 2026");
+    }
   });
 
   it("Review test 2 — a second purge is an idempotent no-op with no ReviewStorageError", async () => {

@@ -27,6 +27,7 @@ import {
 import { ReservedEntityTypeError } from "~/kernel/entities";
 import { ASSETS_ACTIVITY_DESCRIPTORS } from "~/modules/assets/asset-activity";
 import {
+  buildWorkspaceActivityDescriptors,
   toActivityItem,
   type ActivityItem,
 } from "~/shared/activity-feed/model";
@@ -617,13 +618,20 @@ describe("permanent deletion (guarded)", () => {
       },
     );
     expect(page.items).toHaveLength(1);
-    const item = toActivityItem(page.items[0], {
-      descriptors: ASSETS_ACTIVITY_DESCRIPTORS,
-    });
-    expect(item.isKnownType).toBe(true);
-    expect(item.subjects).toEqual([]);
-    expect(segmentText(item)).toContain("permanently deleted");
-    expect(segmentText(item)).toContain("Workshop compressor");
+    // Asserted against BOTH descriptor maps that can carry this event. The
+    // module map is the Assets surface; the CROSS-MODULE map is what the Today /
+    // workspace feed builds from — and that is the surface that matters here,
+    // because the Asset's own record page no longer exists to read it on.
+    for (const descriptors of [
+      ASSETS_ACTIVITY_DESCRIPTORS,
+      buildWorkspaceActivityDescriptors(),
+    ]) {
+      const item = toActivityItem(page.items[0], { descriptors });
+      expect(item.isKnownType).toBe(true);
+      expect(item.subjects).toEqual([]);
+      expect(segmentText(item)).toContain("permanently deleted");
+      expect(segmentText(item)).toContain("Workshop compressor");
+    }
   });
 
   it("Asset test 2 — a second purge is an idempotent no-op that writes no second tombstone", async () => {
