@@ -31,6 +31,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  postSameOrigin,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -676,7 +677,7 @@ async function storeTheme(
   request: APIRequestContext,
   themeId: string,
 ): Promise<void> {
-  const response = await request.post("/preferences/theme", {
+  const response = await postSameOrigin(request, "/preferences/theme", {
     form: { theme: themeId },
     maxRedirects: 0,
   });

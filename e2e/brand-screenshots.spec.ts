@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { gotoFixture } from "./helpers";
+import { gotoFixture, postSameOrigin } from "./helpers";
 
 const OUT = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -55,7 +55,7 @@ test.beforeAll(() => {
 
 /** Store the owner's theme through the real, validated preferences action. */
 async function storeTheme(page: Page, themeId: string): Promise<void> {
-  const response = await page.request.post("/preferences/theme", {
+  const response = await postSameOrigin(page.request, "/preferences/theme", {
     form: { theme: themeId },
     maxRedirects: 0,
   });

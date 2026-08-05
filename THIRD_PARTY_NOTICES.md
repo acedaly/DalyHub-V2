@@ -9,6 +9,14 @@ is maintained per [`AGENTS.md §11`](AGENTS.md#11-licensing--provenance-requirem
 All licences recorded here were verified against the installed versions on
 **2026-07-17**. Exact resolved versions are pinned in `pnpm-lock.yaml`.
 
+**Re-verified 2026-08-05 (AUDIT-FIX-04).** `react-router` and `@react-router/dev`
+moved `8.0.0` → `8.3.0` to clear advisory `GHSA-qwww-vcr4-c8h2`. Both were
+re-checked at the new exact versions against their installed `package.json`
+`license` fields and remain **MIT**, under the same copyright holders reproduced
+below; no licence text changed between the two releases. No other dependency
+moved, so every other entry's 2026-07-17 verification still describes the
+version actually installed.
+
 ---
 
 ## Project scaffold
@@ -57,7 +65,7 @@ licensed (allowed by default per the Open Source Policy).
 | -------------- | ------- | ------- |
 | `react`        | 19.2.7  | MIT     |
 | `react-dom`    | 19.2.7  | MIT     |
-| `react-router` | 8.0.0   | MIT     |
+| `react-router` | 8.3.0   | MIT     |
 | `isbot`        | 5.2.1   | MIT     |
 | `jose`         | 6.2.3   | MIT     |
 
@@ -122,7 +130,7 @@ licences are recorded for completeness.
 
 | Package                     | Version         | Licence            |
 | --------------------------- | --------------- | ------------------ |
-| `@react-router/dev`         | 8.0.0           | MIT                |
+| `@react-router/dev`         | 8.3.0           | MIT                |
 | `@cloudflare/vite-plugin`   | 1.45.1          | MIT                |
 | `@cloudflare/vitest-pool-workers` | 0.18.6    | MIT                |
 | `wrangler`                  | 4.112.0         | MIT OR Apache-2.0  |

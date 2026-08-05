@@ -84,6 +84,25 @@ export function withSecurityHeaders(
   });
 }
 
+/**
+ * Build the generic response for a mutation that failed the provenance check
+ * (AUDIT-FIX-04). Deliberately indistinguishable from one rejection reason to
+ * the next: it echoes NO `Origin`, names no route, carries no token or claim, no
+ * SQL, no framework detail and no `Access-Control-Allow-*` header of any kind —
+ * this is CSRF protection, not an invitation to cross-origin API access. It is a
+ * plain `403` with the baseline security headers and the private, non-cacheable
+ * policy; it is never a redirect, because redirecting a rejected mutation would
+ * hand the caller a second attempt.
+ */
+export function buildCrossOriginRejectionResponse(): Response {
+  const headers = new Headers({
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": AUTHENTICATED_CACHE_CONTROL,
+  });
+  applyBaseSecurityHeaders(headers);
+  return new Response("Request rejected.", { status: 403, headers });
+}
+
 /** Map an authentication failure to a generic HTTP status. */
 function statusForAuthError(error: AuthError): number {
   if (error.configuration) {

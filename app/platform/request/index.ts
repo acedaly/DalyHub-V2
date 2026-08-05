@@ -18,7 +18,16 @@ export {
   applyAuthenticatedCachePolicy,
   withSecurityHeaders,
   buildUnauthenticatedResponse,
+  buildCrossOriginRejectionResponse,
 } from "./security-headers";
+
+export {
+  evaluateMutationProvenance,
+  isSafeMethod,
+  trustedOriginFor,
+  type MutationProvenanceResult,
+  type MutationProvenanceRejection,
+} from "./mutation-provenance";
 
 export {
   handleAuthenticatedRequest,

@@ -28,7 +28,9 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 > **Status since.** **Both P1 audit blockers are now resolved** — AUDIT-FIX-01
 > (recurring re-completion) and AUDIT-FIX-02 (meeting-item remove-then-add); see
 > their entries below. **AUDIT-FIX-03** (permanent-delete integrity for Assets and
-> Reviews) is resolved too, closing the first two P2 data-integrity findings.
+> Reviews) is resolved too, closing the first two P2 data-integrity findings, and
+> **AUDIT-FIX-04** (application-level CSRF defence-in-depth + the `react-router`
+> `8.3.0` bump) closes the security pair.
 > Each was reproduced against real Workers/D1 before it was changed and each
 > carries new regression coverage. **Production verification
 > remains separate and is still outstanding** — the audit could not reach the
@@ -344,7 +346,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   active link was silently deleted was REPLACED, because that behaviour was the
   defect.
 
-### ☐ AUDIT-FIX-04 — CSRF defence-in-depth + react-router bump (P2/P3)
+### ☑ AUDIT-FIX-04 — CSRF defence-in-depth + react-router bump (P2/P3)
 
 - **Findings.** [AUDIT-05](../product/END_TO_END_AUDIT_2026_08_05.md#audit-05--no-application-level-csrf-defence--p2)
   (no app-level CSRF check; mutations rely solely on the Cloudflare Access cookie's
@@ -354,6 +356,122 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
   `react-router` to ≥ 8.3.0 and run the full suite. Regression test: an
   authenticated cross-origin mutation is rejected.
 - **Debt.** DEBT-81 (CSRF), DEBT-86 (dependency). **Size.** Medium. **Priority.** P2.
+
+- **Resolved (2026-08-05).** The gap was confirmed before anything changed: no
+  file in the request platform read `Origin`, `Sec-Fetch-Site` or `Referer`, no
+  CSRF token was minted or verified anywhere, and DalyHub has no session cookie of
+  its own — authentication rides the Cloudflare Access `CF_Authorization` cookie,
+  whose SameSite is set by Cloudflare and asserted nowhere in this repository.
+
+  **The threat, precisely.** A browser attaches that cookie because of where a
+  request is GOING, not because of who asked for it. So "authenticated" was never
+  evidence of "the owner asked for this". The case Access alone does not close is
+  the SIBLING: `other.daly.id.au` is **same-site** with `hub.daly.id.au`, so
+  `SameSite=Lax`/`Strict` still sends the cookie and `Sec-Fetch-Site` still reads
+  `same-site`. Same-site is therefore **not** an acceptable relationship, and
+  neither is any suffix match on `.daly.id.au`.
+
+  **One policy, at one place.** [`app/platform/request/mutation-provenance.ts`](../../app/platform/request/mutation-provenance.ts)
+  is a pure module returning a typed verdict (`safe_method` / `same_origin`, or
+  `missing_provenance` / `invalid_origin` / `cross_origin` /
+  `disallowed_fetch_site` / `inconsistent_signals`), carrying no cookie, token or
+  raw header value. It runs ONCE, at the shared request boundary — the one place
+  guaranteed to execute before every protected loader and action — so every
+  current and future mutation route is covered without a single per-route check.
+
+  **Method policy.** `GET`, `HEAD` and `OPTIONS` are safe. Everything else is
+  treated as mutating, and the safe list is an **allowlist**, so an unknown or
+  future method (`PROPFIND`, `PURGE`, a typo) must prove provenance rather than
+  slipping past an incomplete denylist. Read-only navigation and asset loading are
+  untouched.
+
+  **Origin policy.** Exact URL-origin comparison — scheme, hostname and effective
+  port. `https://hub.daly.id.au`, `http://hub.daly.id.au`,
+  `https://other.daly.id.au` and `https://hub.daly.id.au:8443` are four different
+  origins and only the first is accepted. `Origin: null`, a malformed value, a
+  non-canonical value (one carrying a path or query) and a comma-joined / repeated
+  header are all rejected rather than resolved.
+
+  **`Sec-Fetch-Site` policy.** Corroboration only. `same-origin` or absent is
+  accepted alongside an exact `Origin`; `same-site`, `cross-site`, `none` and any
+  unrecognised token are rejected; and CONTRADICTION is its own rejection — an
+  exact `Origin` with a disallowed fetch-site, or a hostile `Origin` claiming
+  `Sec-Fetch-Site: same-origin`, are both refused as inconsistent.
+
+  **Missing headers fail closed.** `Origin` is required for every mutation, and the
+  "absent `Origin` but `Sec-Fetch-Site: same-origin`" compatibility case was
+  deliberately **not** taken: every browser attaches `Origin` to a non-`GET`/`HEAD`
+  request, and the mutation clients were enumerated (React Router forms and
+  fetcher submissions, Quick Capture, Task completion and inline editing, the
+  Command Palette, Settings, the offline replay queue) without finding one that
+  needs it. The browser regression test then produced independent support for that
+  choice: over plain-HTTP localhost, Chromium attaches **no `Sec-Fetch-*` header at
+  all** while still sending `Origin` — so `Origin` is the signal that is reliably
+  there, and fetch-site could not have carried the policy on its own.
+
+  **Trusted origin, without new configuration.** `new URL(request.url).origin`. It
+  is authoritative here because production commits `workers_dev: false` and
+  `preview_urls: false` (`wrangler.jsonc`, enforced by the deploy preflight), so
+  the only hostname Cloudflare routes to this Worker is the Access-protected custom
+  domain — and a browser derives `Host` from the URL it is fetching, to which the
+  Access cookie is scoped. No environment variable, no secret, no deploy change,
+  and no `X-Forwarded-Host`/`X-Forwarded-Proto` is consulted.
+
+  **Ordering at the boundary.** Authenticate → establish the session → validate
+  provenance → reject. So an unauthenticated request keeps its existing `401`/
+  `403`/`503`, and a rejected mutation provisions no membership, invokes no React
+  Router handler, runs no loader or action, touches no repository, records no
+  Activity and changes no data. The kernel suite proves that last claim against
+  real D1 rather than from a spy: after a rejected `POST /tasks/new` the Task
+  count, Activity count and `workspace_members` count are all still zero.
+
+  **Rejection response.** A generic `403` with the body `Request rejected.`, the
+  baseline security headers and `Cache-Control: private, no-store`. It echoes no
+  `Origin`, names no route, exposes no reason code, no token, no SQL and no
+  framework detail; it is never a redirect. No CORS header is added anywhere — this
+  is CSRF protection, not cross-origin API access. No server-side logging was
+  added, deliberately: a rejection log is not needed to make the guard work, and
+  security observability is a separate concern this item does not own.
+
+  **`/health`.** The exact-path public bypass now covers **safe methods only**, so
+  a public-path match cannot become a hole through which an unsafe method skips
+  both authentication and provenance. Legitimate `GET`/`HEAD`/`OPTIONS` health
+  checks are unchanged; public paths were not broadened.
+
+  **Offline replay.** Unaffected, and verified rather than assumed. Replay posts to
+  the modules' own create routes with an ordinary same-origin `fetch`
+  (`credentials: "same-origin"`), so the BROWSER supplies the provenance — the
+  service worker manufactures no header ordinary page code could not, and only
+  intercepts `GET`. A `403` is already classified `blocked`, not `retryable`, so a
+  rejection stops the pass instead of spinning on it. The full offline Playwright
+  lifecycle — queued Task, Note and Diary capture and replay — passes unchanged.
+
+  **React Router.** `react-router` and `@react-router/dev` bumped together
+  `8.0.0` → `8.3.0`, exact-pinned. `pnpm audit --prod` is clean and
+  GHSA-qwww-vcr4-c8h2 is gone. The advisory is **RSC-mode-specific** ("Framework
+  mode is not affected") and a codebase search found no unstable RSC entry point or
+  API in DalyHub — this item claims no exploitation and no non-RSC applicability.
+  The `8.3.0` path-parameter encoding change (`$ & + , ; = : @` now literal) cannot
+  reach DalyHub: neither `href()` nor `generatePath()` is used, and every route
+  parameter is a `crypto.randomUUID()` id. No speculative test was added; the
+  existing navigation and deep-link coverage was run and is green. Full
+  `pnpm audit` still reports 11 dev-only transitive advisories (`brace-expansion`,
+  `sharp`, `undici`, `postcss`) — recorded, not fixed here, and not claimed clean.
+
+  **Tests.** 47 policy cases
+  ([`test/unit/request/mutation-provenance.test.ts`](../../test/unit/request/mutation-provenance.test.ts));
+  the eight boundary proofs added to
+  [`test/unit/request/request-boundary.test.ts`](../../test/unit/request/request-boundary.test.ts);
+  a real-runtime, real-D1 integration suite
+  ([`test/kernel/request-boundary-csrf.test.ts`](../../test/kernel/request-boundary-csrf.test.ts));
+  a browser regression driving a genuine second local origin
+  ([`e2e/csrf.spec.ts`](../../e2e/csrf.spec.ts)); and replay-provenance cases in
+  [`test/unit/pwa/offline-sync.test.ts`](../../test/unit/pwa/offline-sync.test.ts).
+  Existing route tests needed no weakening — the kernel suites call route
+  loaders/actions directly and never traverse the boundary. The Playwright specs
+  that set state through `request.post` now go through one shared
+  `postSameOrigin` helper, which derives its `Origin` honestly and cannot bless a
+  cross-origin request. **No migration; nothing deployed; production data untouched.**
 
 ### ☐ AUDIT-FIX-05 — Documentation truth pass (P2/P3)
 
