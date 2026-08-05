@@ -9,6 +9,14 @@ is maintained per [`AGENTS.md §11`](AGENTS.md#11-licensing--provenance-requirem
 All licences recorded here were verified against the installed versions on
 **2026-07-17**. Exact resolved versions are pinned in `pnpm-lock.yaml`.
 
+**Re-verified 2026-08-05 (AUDIT-FIX-04).** `react-router` and `@react-router/dev`
+moved `8.0.0` → `8.3.0` to clear advisory `GHSA-qwww-vcr4-c8h2`. Both were
+re-checked at the new exact versions against their installed `package.json`
+`license` fields and remain **MIT**, under the same copyright holders reproduced
+below; no licence text changed between the two releases. No other dependency
+moved, so every other entry's 2026-07-17 verification still describes the
+version actually installed.
+
 ---
 
 ## Project scaffold
