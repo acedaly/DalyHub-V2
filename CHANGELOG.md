@@ -21,6 +21,41 @@ no version number to group them under.
 
 ### Added
 
+- **Your weekly Review is now a guided process, not a wall of empty boxes.**
+  Opening a weekly Review offers a step-by-step pass through the week — settle in
+  with what actually happened, clear your Task Inbox without leaving the Review,
+  check each Project, look at your Goals and Areas, reflect one prompt at a time,
+  record next week's focus, and finish. It is the _same_ Review underneath: the
+  same record, the same reflection, the same history, and the full record page is
+  still there whenever you prefer it.
+
+  - **It remembers where you stopped.** Leave halfway through on your laptop and
+    pick it up on your phone at the step you were on, with everything you wrote
+    still there. Tasks changing in another tab never move you backwards.
+  - **Nothing is demanded of you.** An Inbox that is not empty never blocks
+    finishing a Review, and no prompt is compulsory. Where a step does need an
+    answer, you can always choose "continue without recording one" — leaving
+    something on purpose is a decision, and the Review says so in those words
+    rather than treating it as a failure.
+  - **The Project check is new.** Each Project shows its Area and Goal, how it is
+    going, what is open, overdue or waiting, what you finished this week, when it
+    last moved, and the next thing to do — or, honestly, that no next action is
+    visible, rather than inventing one.
+  - **Goals and Areas, calmly.** Which Goals had supporting work, which have no
+    active Project behind them, and where your active work is actually pointed.
+    No scores, no streaks, no red dashboards, and nothing that scolds you about a
+    quiet part of your life.
+  - **Next week gets a handoff.** The focus you record is offered to next week's
+    Review when you complete this one — read from the Review that wrote it, never
+    copied, so completing a newer Review simply supersedes it. Nothing is
+    scheduled and no Project is changed just because you mentioned it.
+  - **On a phone** it is one step at a time, with Back and Continue in thumb
+    reach, a step menu for jumping around, and a writing surface that grows with
+    what you write. Checked at 320, 375, 390 and 430 pixels.
+  - **Your writing is safer.** If a reflection changed on another device, saving
+    now refuses rather than overwriting it, and tells you — your words stay in the
+    editor. Reviews you already had keep their own prompts and are never rewritten.
+
 - **Activity now says who did it.** Every activity, timeline, diary and history
   entry shows the real person who performed the action instead of the anonymous
   "Someone" — with their initials beside the name. The name comes from your own

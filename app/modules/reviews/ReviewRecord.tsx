@@ -296,6 +296,29 @@ export function ReviewRecord({
     });
   }
 
+  // REVIEW-02 — the entry point into the guided flow. It is an ordinary link to
+  // the SAME Review at its guide sub-path: no second record is created, and the
+  // record below stays exactly what it was for anyone who prefers it.
+  const guidedEntry =
+    review.type === "weekly" && !review.archived ? (
+      <p className="dh-review-guide-entry">
+        <Link
+          className="dh-btn dh-btn--secondary"
+          to={`/reviews/${encodeURIComponent(review.id)}/guide`}
+        >
+          {review.status === "draft"
+            ? "Start the guided review"
+            : review.status === "in_progress"
+              ? "Continue the guided review"
+              : "Open the guided review"}
+        </Link>
+        <span className="dh-review-muted">
+          A step-by-step pass through your Inbox, Projects, Goals and reflection
+          — the same Review, guided.
+        </span>
+      </p>
+    ) : null;
+
   const completeAction: RecordAction =
     review.status === "completed"
       ? {
@@ -369,6 +392,7 @@ export function ReviewRecord({
             label: "Summary",
             content: (
               <div className="dh-record-stack">
+                {guidedEntry}
                 {[
                   "summary.overall",
                   "summary.highlights",

@@ -61,21 +61,51 @@ exported.
   meta:        { schema, schemaVersion, application, exportedAt, consistency },
   workspace:   { id, createdAt, updatedAt },
   owner:       { preferences, taskSavedViews },
-  records:     { …21 collections, in a fixed order… },
+  records:     { …23 collections, in a fixed order… },
   limitations: [ { code, subject, detail } ]
 }
 ```
 
-The 21 collections, in serialisation order, are: `entities`, `spineRecords`,
+The 23 collections, in serialisation order, are: `entities`, `spineRecords`,
 `areaDetails`, `goalDetails`, `projectDetails`, `taskDetails`,
 `taskRecurrenceRules`, `noteDetails`, `diaryEntryDetails`, `personDetails`,
 `meetingDetails`, `meetingItems`, `meetingItemTasks`, `assetDetails`,
 `assetEvents`, `assetObligations`, `reviewDetails`, `reviewSections`,
-`entityLinks`, `activities`, `activitySubjects`.
+`reviewWorkflowState`, `reviewStepAcknowledgements`, `entityLinks`,
+`activities`, `activitySubjects`.
 
 The order is meaningful: entities first, then spine membership, then per-module
 detail rows, then module child records, then relationships, then history — so a
 restore can insert parents before children without deriving a dependency graph.
+
+### Adding a collection without invalidating existing archives (REVIEW-02)
+
+An archive is a file an owner already has. Adding a collection must not make
+yesterday's export unreadable, so the contract is **write always, tolerate
+absence on read**:
+
+- every export DalyHub writes contains **every** collection;
+- a collection listed in `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS` may be
+  **missing** from an archive written before it existed. Validation normalises it
+  to `[]` in place and accepts the snapshot, so every consumer downstream can
+  still assume the key exists;
+- everything else stays **required** — a genuinely truncated or corrupt snapshot
+  is still rejected, and a collection that is *present but malformed* is rejected
+  whether or not it is on the list.
+
+Add to that list in the same change that adds the collection, and never remove
+from it: an entry is a permanent statement about files already on disk. This is
+deliberately not a schema-version bump — the shape only ever grows, and the
+`dalyhub.workspace/1` archives owners already hold keep validating.
+
+`reviewWorkflowState` and `reviewStepAcknowledgements` are the first two entries.
+They carry a guided weekly Review's **resume bookmark** and the owner's
+**explicit "I have reviewed this step" decisions**. The acknowledgements are the
+reason this matters rather than a nicety: they record intent that no calculation
+can reproduce, and they gate whether the guided flow will complete a Review
+([ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-weekly-review--one-review-two-presentations-a-canonical-step-model-and-the-smallest-possible-persisted-workflow-state)).
+Everything else the guided flow shows is derived and is deliberately **not**
+exported, because it is recomputed from the records that are.
 
 ### Conventions
 

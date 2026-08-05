@@ -636,6 +636,31 @@ const COLLECTIONS: CollectionDescriptors = {
       updatedAt: requiredText(row.updated_at),
     }),
   },
+  // REVIEW-02 — the guided flow's resume bookmark and the owner's explicit
+  // step decisions. Owner-scoped product state, exported on the same footing as
+  // `taskSavedViews`; the acknowledgements in particular record intent that no
+  // calculation can reproduce (ADR-072).
+  reviewWorkflowState: {
+    table: "review_workflow_state",
+    columns: "review_id, current_step, revision, updated_at",
+    order: ["review_id"],
+    map: (row) => ({
+      reviewId: requiredText(row.review_id),
+      currentStep: requiredText(row.current_step),
+      revision: requiredInteger(row.revision, 1),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
+  reviewStepAcknowledgements: {
+    table: "review_step_acknowledgements",
+    columns: "review_id, step_id, acknowledged_at",
+    order: ["review_id", "step_id"],
+    map: (row) => ({
+      reviewId: requiredText(row.review_id),
+      stepId: requiredText(row.step_id),
+      acknowledgedAt: requiredText(row.acknowledged_at),
+    }),
+  },
   entityLinks: {
     table: "entity_links",
     columns:

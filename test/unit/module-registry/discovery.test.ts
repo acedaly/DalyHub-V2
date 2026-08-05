@@ -481,6 +481,13 @@ describe("module discovery", () => {
           moduleId: "reviews",
           file: "routes/detail.tsx",
         },
+        // REVIEW-02: the guided weekly flow — a second presentation of the SAME
+        // Review record at a stable sub-path, not a second record.
+        {
+          id: "reviews.guide",
+          moduleId: "reviews",
+          file: "routes/guide.tsx",
+        },
         {
           id: "reviews.mutate",
           moduleId: "reviews",

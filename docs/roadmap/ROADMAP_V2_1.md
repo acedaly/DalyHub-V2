@@ -686,14 +686,20 @@ They are small and well-understood; none of them blocks the V2 release.*
   finally be designed against the history surface it was waiting for.
 - **Priority.** P3.
 
-### ◐ REVIEW-04 — Mobile Reviews
+### ☑ REVIEW-04 — Mobile Reviews — **DELIVERED 2026-08-05**
 
 - **Original entry.** [`ROADMAP_V2.md → REVIEW-04`](ROADMAP_V2.md#-review-04--mobile).
 - **Delivered in V2.** The writing surface, full-width choices, a real share of the
   viewport for reflection editors, and the shared phone record chrome.
-- **Outstanding.** The one-prompt-at-a-time stepper. It is a Review-flow feature,
-  not a layout adjustment, so it belongs with REVIEW-02 and is sequenced with it.
-- **Priority.** P3.
+- **Delivered now, with [REVIEW-02](#-review-02--weekly-review):** the one-step- and
+  one-prompt-at-a-time phone stepper. Below `md` the desktop rail is REMOVED rather than
+  shrunk; a compact progress header and an `aria-label`led progress bar say "Step 3 of
+  7"; a step sheet (the shared MOBILE-01 `Sheet`) offers direct navigation; and
+  Back/Continue sit in a sticky footer that clears the keyboard, the phone navigation bar
+  and the home indicator using tokens. Verified at 320/375/390/430px: no horizontal
+  overflow, 44px targets, no nested scrolling trap (the reflection editor grows instead
+  of scrolling inside itself), and axe clean in light and dark.
+- **Priority.** P3 — closed.
 
 ### ◑ X-02 — Saved views & cross-module filters
 
@@ -713,23 +719,37 @@ They are small and well-understood; none of them blocks the V2 release.*
 
 ## V2.1 — Module completion
 
-### ☐ REVIEW-02 — Weekly review
+### ☑ REVIEW-02 — Weekly review — **DELIVERED 2026-08-05**
 
 - **Original entry.** [`ROADMAP_V2.md → REVIEW-02`](ROADMAP_V2.md#-review-02--weekly-review).
-- **Already in place from REVIEWS-01, do not rebuild:** the weekly type, wall-calendar
+- **Already in place from REVIEWS-01, not rebuilt:** the weekly type, wall-calendar
   weekly periods honouring the first-day-of-week preference, the versioned
   `review.weekly.v1` template and its prompts, duplicate protection, and the
-  draft → in progress → completed lifecycle with reopen.
-- **What it owes.** The guided *flow*: an ordered, resumable step sequence; inbox to
-  zero over the `/tasks` inbox sector without leaving the Review; a project check
-  (the period-context loader reads Tasks, Diary and Meetings but not Projects); goal
-  alignment reading the AREA-03 evaluator; and a close-out that hands the next period
-  its focus. Ship REVIEW-04's stepper with it.
-- **Priority.** P2.
+  draft → in progress → completed lifecycle with reopen. The guided flow orchestrates
+  all of it rather than replacing any of it.
+- **Delivered.** A seven-step guided flow over the SAME Review record — Settle in ·
+  Clear the Inbox · Review Projects · Goals and Areas · Reflect · Next week's focus ·
+  Complete Review — from ONE canonical typed step registry in the kernel. Inbox triage
+  without leaving the Review over the canonical `inbox` view and the shared
+  `TaskQuickEditPanel`; a bounded Project review projection reusing PROJ-02 health with
+  a documented deterministic next-action rule; Goal/Area alignment reading the AREA-03
+  evaluator unchanged; the Review's own stored template's prompts one at a time; and a
+  close-out whose recorded focus the next weekly Review reads (derived, never copied).
+  Resume is a small persisted bookmark plus explicit step acknowledgements (migration
+  `0029`) — everything else stays derived. Optimistic concurrency added to the authored
+  section write path. REVIEW-04's stepper shipped with it.
+- **Docs.** [`REVIEWS_MODULE.md → The guided weekly Review`](../development/REVIEWS_MODULE.md#the-guided-weekly-review-review-02--review-04-2026-08-05) ·
+  [ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-weekly-review--one-review-two-presentations-a-canonical-step-model-and-the-smallest-possible-persisted-workflow-state).
+- **Explicitly NOT in scope, and still open:** derived insights and historical alignment
+  trend ([REVIEW-03](#-review-03--insights--alignment)).
+- **Priority.** P2 — closed.
 
 ### ☐ REVIEW-03 — Insights & alignment
 
 - **Original entry.** [`ROADMAP_V2.md → REVIEW-03`](ROADMAP_V2.md#-review-03--insights--alignment).
+- **Still open after REVIEW-02.** The guided flow READS the existing AREA-03 and PROJ-02
+  evaluators for the current period; it derives no trend, stores no classification and
+  keeps no history. Everything below remains unbuilt.
 - Nothing of this exists today. Keep it derived and non-persisted, mirroring
   PROJ-02/AREA-03 — no stored score, no cached classification, no streaks. It is the
   accepted home for

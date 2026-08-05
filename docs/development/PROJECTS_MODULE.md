@@ -801,3 +801,44 @@ primitives in `record-layout.css`, so no module borrows another's namespace.
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+
+---
+
+## The Project review projection (REVIEW-02, 2026-08-05)
+
+The guided weekly Review adds a **bounded, derived Project check** — the gap REVIEW-02
+inherited, since the Reviews period-context loader read Tasks, Diary and Meetings but not
+Projects. It creates no new Project model and no persisted score.
+
+**Sources, all existing.** `ProjectRepository.listProjects` for identity, Area/Goal context
+and workflow status; `ProjectHealthRepository.listProjectHealthFacts` +
+`evaluateProjectHealth` (PROJ-02) for derived health and its counts; one bounded Task read
+for period completions and for the next action. Facts for the whole page are gathered in a
+fixed number of grouped queries — never one per Project — and the count is asserted against
+real D1 (`REVIEW_GUIDE_QUERY_BUDGET`).
+
+**Which Projects appear.** Every **open** Project, most-recently-updated first, plus
+Projects **completed during the Review's period**. Never permanently deleted Projects, and
+never archived Projects with no period relevance — `state` excludes them at the database.
+The list is bounded and the surface says so, linking to `/projects` for the rest.
+
+**Documented order** (existing PROJ-02 vocabulary only — no new alarming labels):
+
+1. blocked or at risk · 2. has overdue work · 3. active with no visible next action ·
+4. recently active · 5. completed during the period.
+
+Within a band: least-recently-touched first, then title, then id — fully deterministic.
+
+**Next action, derived and never invented.** DalyHub has no `next_action` field. The rule
+is: the highest-ranked Task belonging to the Project in the workspace's `active` planning
+scope under the canonical `smart` sort, taken from ONE bounded scan of the most actionable
+Tasks, bucketed by Project. Where a Project has open work but none appears within that
+bound, the Review says **"No next action visible here"** and links to the Project's own Task
+list. It never claims a Project has no next action. (Today's project cards still name none —
+[DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3),
+which wants the exhaustive ranked statement rather than this bounded scan.)
+
+**Actions offered.** Open the canonical Project, open its Task list, change status through
+the Project's own Settings tab. The Project form is not embedded, and every action preserves
+the normal Project, Task and Activity contracts.

@@ -34,7 +34,55 @@ export type {
   ReviewChangeResult,
   ReviewLifecycleResult,
   ReviewDeleteResult,
+  UpdateReviewSectionOptions,
 } from "./review";
+export {
+  WEEKLY_REVIEW_STEP_IDS,
+  WEEKLY_REVIEW_STEPS,
+  WEEKLY_REVIEW_STEP_COUNT,
+  WEEKLY_REVIEW_STEP_CONTEXTS,
+  WEEKLY_REVIEW_STEP_COMPLETION_RULES,
+  WEEKLY_REVIEW_STEP_STATES,
+  WEEKLY_REVIEW_STEP_STATE_LABELS,
+  FIRST_WEEKLY_REVIEW_STEP,
+  LAST_WEEKLY_REVIEW_STEP,
+  isWeeklyReviewStepId,
+  parseWeeklyReviewStepId,
+  weeklyReviewStep,
+  nextWeeklyReviewStep,
+  previousWeeklyReviewStep,
+  weeklyReviewProgressLabel,
+  weeklyReviewStepAccessibleLabel,
+} from "./weekly-review-steps";
+export type {
+  WeeklyReviewStepId,
+  WeeklyReviewStepDefinition,
+  WeeklyReviewStepContext,
+  WeeklyReviewStepCompletionRule,
+  WeeklyReviewStepState,
+} from "./weekly-review-steps";
+export {
+  deriveWeeklyReviewProgress,
+  resolveWeeklyReviewStep,
+  answeredReviewSectionIds,
+} from "./weekly-review-progress";
+export type {
+  WeeklyReviewProgress,
+  WeeklyReviewProgressFacts,
+  WeeklyReviewStepProgress,
+  WeeklyReviewCompletionBlocker,
+} from "./weekly-review-progress";
+export { emptyReviewWorkflowState } from "./review-workflow";
+export type {
+  ReviewWorkflowState,
+  ReviewWorkflowStateResult,
+  SetReviewWorkflowStepOptions,
+} from "./review-workflow";
+export { selectPriorPeriodFocus } from "./weekly-review-focus";
+export type {
+  PriorFocusCandidate,
+  PriorPeriodFocus,
+} from "./weekly-review-focus";
 export {
   ReviewError,
   ReviewValidationError,
@@ -74,6 +122,8 @@ export {
 export type { ReviewPeriod } from "./review-periods";
 export {
   resolveReviewTemplate,
+  resolveReviewTemplateForId,
+  isKnownReviewTemplateId,
   reviewTemplateId,
   reviewSectionLabel,
 } from "./review-templates";

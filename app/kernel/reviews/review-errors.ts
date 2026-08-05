@@ -24,7 +24,9 @@ export type ReviewValidationField =
   | "cursor"
   | "limit"
   | "query"
-  | "templateId";
+  | "templateId"
+  /** REVIEW-02 — a guided-flow step id (URL parameter, form field or stored row). */
+  | "stepId";
 
 export class ReviewValidationError extends ReviewError {
   readonly code = "validation" as const;

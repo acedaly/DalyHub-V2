@@ -167,3 +167,324 @@ that closes [DEBT-45](../product/PRODUCT_DEBT.md) applies here too.
 The path a later page is requested from carries the CURRENT view and filters
 (minus any cursor), so "Load more" resumes the same result set the cursor was
 issued for rather than the unfiltered default.
+
+---
+
+## The guided weekly Review (REVIEW-02 + REVIEW-04, 2026-08-05)
+
+REVIEW-02 turns the weekly Review from ten editors on eight tabs into an ordered,
+resumable pass through the week. REVIEW-04 ships its phone stepper with it.
+Decision record: [ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-weekly-review--one-review-two-presentations-a-canonical-step-model-and-the-smallest-possible-persisted-workflow-state).
+
+### One Review, two presentations
+
+`/reviews/:reviewId/guide` renders **the same Review record** as `/reviews/:reviewId`:
+one id, one lifecycle, one period, one stored template version, one set of
+`review_sections`, one Activity history, one completion state. There is no guided-review
+record, no wizard-only copy of a response and no parallel completion flag. The
+general-purpose record is unchanged and remains fully usable; the weekly record simply
+gains a link into the guided flow.
+
+Only **weekly** Reviews have a guided flow. Any other type redirects to its record, as
+does an archived Review (which is read-only until restored).
+
+### The step model
+
+The canonical registry is [`app/kernel/reviews/weekly-review-steps.ts`](../../app/kernel/reviews/weekly-review-steps.ts).
+Nothing else declares step order.
+
+| # | Id | Label | Phone label | Reads | Sections | Required | Completion rule |
+|---|---|---|---|---|---|---|---|
+| 1 | `overview` | Settle in | Settle in | period facts | — | no | acknowledgement only |
+| 2 | `inbox` | Clear the Inbox | Inbox | Tasks Inbox | `tasks.commentary` | no | Inbox is empty, **or** acknowledged |
+| 3 | `projects` | Review Projects | Projects | Project review projection | `progress.commentary` | no | acknowledgement only |
+| 4 | `alignment` | Goals and Areas | Alignment | AREA-03 alignment | — | no | acknowledgement only |
+| 5 | `reflection` | Reflect | Reflect | the Review's own sections | the six weekly reflection prompts + Diary and People/Meetings commentary | **yes** | any prompt answered, **or** acknowledged |
+| 6 | `focus` | Next week's focus | Focus | the Review's own sections | `summary.next_focus` | **yes** | focus recorded, **or** acknowledged |
+| 7 | `complete` | Complete Review | Complete | the summary | — | **yes** | the Review's lifecycle says completed |
+
+Every step definition also carries its description, its accessible label
+(`Step 3 of 7: Review Projects, current step`) and, where it has one, the wording of
+its acknowledgement control.
+
+**Required means "make a decision", not "write something".** A required step is
+satisfied by an answer **or** by an explicit acknowledgement. Inbox zero is never
+required, and no optional prompt ever blocks completion.
+
+### Persisted versus derived workflow state
+
+Derived, live, never stored: whether a prompt is answered (`review_sections`), whether
+the Inbox is clear (the canonical Tasks Inbox query), whether the Review is finished
+(its own lifecycle), Project health (PROJ-02), Goal alignment (AREA-03), every count.
+
+Persisted, because nothing can derive it (migration `0029`):
+
+- **`review_workflow_state`** — the resume bookmark (`current_step`) plus a monotonic
+  `revision`.
+- **`review_step_acknowledgements`** — one row per step the owner has explicitly marked
+  reviewed, over a CHECK-constrained step vocabulary that deliberately excludes
+  `complete` (whose only truth is the lifecycle).
+
+Both cascade from `review_details`. **An absent row IS the documented default**, so no
+existing Review needed a backfill and every pre-REVIEW-02 Review has a sensible derived
+position from the moment the migration lands.
+
+Never stored: insight scores, Project health snapshots, Goal alignment classifications,
+Task counts, or any duplicate of a Review response body.
+
+**Both tables are exported with the workspace.** They are owner-scoped product state on
+the same footing as `taskSavedViews`, and the acknowledgements in particular record intent
+no calculation can reproduce, so a restored workspace reopens a half-finished Review where
+its owner left it with their decisions intact. Because the snapshot previously required
+every collection, they are the first entries in `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS`:
+DalyHub always writes them, and an archive exported before they existed still validates
+(normalised to `[]`) rather than being invalidated retroactively. See
+[`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md#adding-a-collection-without-invalidating-existing-archives-review-02).
+
+### Resume semantics
+
+1. A **completed** Review always opens on its final step.
+2. Otherwise the **bookmark wins unconditionally** — which is exactly what stops a Task
+   completed in another tab, or an Inbox that refilled overnight, from moving the owner
+   backwards.
+3. With **no bookmark**, the position falls back to the first step that is not complete.
+
+Opening a step never marks it complete. Deep-linking a step never moves the bookmark:
+the bookmark records where the owner *chose* to be, so only Back, Continue and the step
+menu write it.
+
+### URL contract
+
+```
+GET  /reviews/:id/guide              → resolves the current step, REDIRECTS to it
+GET  /reviews/:id/guide?step=<id>    → that step (deep-linkable, refreshable)
+POST /reviews/:id/guide              → navigate / acknowledge / complete / reopen,
+                                        then redirect to a canonical step URL
+```
+
+The canonical URL always names a real step. An unknown, missing or malformed `step`
+recovers by redirect to the current step rather than 404-ing the owner out of their own
+Review. Navigation is POST → redirect → GET, so browser Back and Forward are correct and
+a refresh never re-submits. Reaching any step is allowed — jumping ahead is how you look
+at something — but the final step still refuses to complete a Review whose required
+steps are outstanding, so navigation can never bypass a prerequisite.
+
+Reflection saves do **not** go through this route: they post to the existing
+`/reviews/:id/mutate` `update_section` action, so there is one section-write authority.
+
+### Inbox integration
+
+The Inbox step reads the canonical `inbox` system view (active Tasks with no structural
+parent — [ADR-062](../decisions/ARCHITECTURE_DECISIONS.md#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence)) and reuses the shared
+`TaskQuickEditPanel`, the same panel `/tasks` and Review Inbox open. There is no second
+Task editor and no second mutation path: every change posts to the canonical Task
+routes, so a Task filed here is indistinguishable from one filed anywhere else.
+
+- The remaining count is the **authoritative** workspace total from the grouped
+  aggregate, not "how many were loaded"; the queue itself is one bounded page.
+- After every mutation the loader revalidates, so the queue is the server's answer.
+- Focus lands on the queue position when the reviewed Task changes.
+- Reaching zero shows a calm empty state.
+- **A Task never has to have a Project.** Leaving Inbox items deliberately is a
+  decision: the step distinguishes "Inbox cleared" (derived) from "Inbox step reviewed"
+  (acknowledged), and the completion summary reports "6 left, deliberately" rather than
+  treating it as a failure.
+
+### Project review projection
+
+`ProjectRepository` and `ProjectHealthRepository` supply the facts; nothing new is
+stored. Per Project the step shows title, Area and Goal context, workflow status,
+derived PROJ-02 health with its reason, open / overdue / waiting counts, Tasks completed
+during the period, last meaningful activity and days since, and a next action.
+
+**Which Projects appear.** Every **open** Project (most recently updated first, so
+Projects with period activity lead), plus Projects **completed during the Review's
+period**. Never permanently deleted Projects, and never archived Projects with no period
+relevance — `state` excludes them at the database. The list is bounded and says so.
+
+**Order** (documented, using existing PROJ-02 vocabulary, never a new alarming label):
+
+1. blocked or at risk
+2. has overdue work
+3. active with no visible next action
+4. recently active
+5. completed during the period
+
+Within a band: least-recently-touched first, then title, then id.
+
+**Next action** is derived, never invented. DalyHub has no `next_action` field, so the
+rule is: the highest-ranked Task belonging to the Project in the workspace's `active`
+planning scope under the canonical `smart` sort, taken from ONE bounded scan of the most
+actionable Tasks. When a Project has open work but none appears within that bound, the
+step says "No next action visible here" and links to the Project's own Task list. It
+never claims a Project has no next action.
+
+Actions offered: open the canonical Project, open its Task list, change status through
+the Project's own Settings tab, and mark Projects reviewed. The Project form is not
+embedded.
+
+### Goal and Area alignment
+
+Reuses AREA-03's evaluator exactly — `listGoalsByAlignment` for the workspace-wide
+ranking, `listGoalProjectContributions` and `listGoalAlignmentFacts` for the facts,
+`evaluateGoalAlignment` for the rules, and the shared `AlignmentIndicator` for the
+presentation. Nothing is scored, cached or persisted, and no second Goal-health model
+exists.
+
+The step shows Goals with their alignment state and contributing-Project counts, Areas
+with whether an active Project currently points at them, and how many active Projects
+have no Goal linked. Wording stays calm and factual — "No supporting activity recorded
+this period", "No active Project currently contributes to this Goal" — with no scores,
+streaks, gamification, red dashboards or moral language about a neglected life Area.
+Every Goal, Area, Project and Task is one link away.
+
+Richer per-period Area attention history and alignment trend remain
+[REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) and
+[DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3).
+
+### Reflection
+
+The prompts are the **Review's own stored template version's**, resolved through
+`resolveReviewTemplateForId(review.templateId, review.type)` — the seam through which a
+future `v2` arrives without rewriting a single historical Review. There is no second set
+of reflection prompts.
+
+One prompt shows at a time with previous/next controls; desktop adds a prompt
+sub-navigation listing every prompt with its answered state, and a wider writing surface
+kept to a reading measure. Both use the same order and the same responses.
+
+Saving is on blur and on an explicit Save, matching the record's existing convention.
+The save state is shown in words ("Unsaved changes", "Saving…", "Saved") and announced
+politely; focus is never moved by a save. **Moving between prompts never marks one
+answered** — only writing does.
+
+### Next-period focus handoff
+
+A completed weekly Review makes its focus available to the next one as a **derived
+read**, never a copy. The rule, fully:
+
+- the source must be a **weekly** Review (a month's focus is a different horizon);
+- it must be **completed** — reopening one removes it from consideration immediately;
+- it must not be **archived**;
+- its period must end **strictly before** the consuming Review's period start, so a
+  Review never hands itself its own focus;
+- an **empty** focus is skipped in favour of the most recent Review that has one;
+- of the qualifying Reviews, the one whose period ends **latest** wins; ties break on
+  completion instant, then id, so the answer is deterministic.
+
+When nothing qualifies the step says so calmly. Periods are compared as wall-calendar
+`YYYY-MM-DD` strings, so DST transitions, month boundaries and year boundaries change
+nothing, and the first-day-of-week preference continues to define the period itself.
+
+The close-out offers Today planning, Task capture and Projects as ordinary links.
+**Nothing is scheduled and no Project is modified because it was mentioned in a Review.**
+
+### Completion
+
+Before completing, the step summarises: Inbox status, whether Projects and Goals/Areas
+were marked reviewed, how many reflection prompts are answered out of how many, whether
+a focus was recorded, and any steps the owner deliberately marked reviewed. Outstanding
+items are stated plainly, never scolded.
+
+Completion is blocked **only** while a required step is neither answered nor
+acknowledged. The reason is listed, and takes focus when a completion attempt is
+refused. Completion itself runs through the existing `ReviewRepository.complete` and the
+existing `review.completed` Activity event; the record's own Complete action is
+untouched, and there is no second completion flag.
+
+### Desktop and phone
+
+**Desktop** uses the space it has: a persistent step rail beside the step's content, the
+Review's status and period always visible, previous/continue at the foot, and the
+reflection workspace kept to a reading measure. It is not three equally dense columns.
+
+**Phone** (below `md`) removes the rail rather than shrinking it, shows one step at a
+time with a compact progress header and an accessible progress bar, offers a step sheet
+(the shared MOBILE-01 `Sheet`) for direct navigation, and pins Back/Continue in a sticky
+footer that clears the keyboard (`--dh-keyboard-inset`), the phone navigation bar
+(`--dh-bottomnav-height`) and the home indicator (`env(safe-area-inset-bottom)`). No
+destructive action sits beside Continue. Task, Project, Goal and Area rows stack rather
+than squeeze, so nothing overflows at 320px. The reflection editor **grows** here rather
+than scrolling inside its own 70vh cap — a scroll region inside a scrolling page is the
+nested-scrolling trap this item exists to avoid.
+
+### Accessibility
+
+- One non-skipping outline: the Review title is the `h1`, the step is the `h2`.
+- The current step is exposed with `aria-current="step"` and an accessible name that
+  states the position and the label.
+- Completed / current / upcoming are carried by the words **Done**, **Current step** and
+  **Not started**, never by colour alone.
+- Progress is announced as a position — "Step 3 of 7" — on an `aria-label`led
+  progressbar, never as a percentage or a score.
+- Every step control is a real button in a real form, keyboard-operable.
+- Focus moves to the new step heading after a **deliberate** move, and never on first
+  paint, so nothing is stolen from someone who has just arrived.
+- Save messages use a polite live region and never move focus while autosaving.
+- The completion-blocked reason takes focus when completion is refused.
+- Touch targets meet 44px; the step sheet reuses the shared modal hooks (one focus
+  trap); reduced motion is respected.
+
+### Concurrency
+
+- **Authored reflection.** `updateSection` accepts an optional `expectedUpdatedAt`. The
+  guided editor always quotes the version it loaded, so a save can never overwrite text
+  written on another device: the write is refused with `ReviewConflictError`, the route
+  answers `409` with the newer text, and the owner's own words stay in the editor. The
+  record's existing editors omit it and behave exactly as before.
+- **The bookmark.** Carries a `revision`. A stale write is refused, the newer position is
+  followed, and the owner is told once — calmly. Nothing is silently overwritten.
+- **Tasks and Projects** changing mid-Review are handled by revalidating against the
+  server after every mutation; the queue is never a client-side guess.
+- **Template version** is read from the Review and never rewritten.
+
+Broader authored-content concurrency across the product remains
+[DEBT-83](../product/PRODUCT_DEBT.md).
+
+### Query bounds
+
+`review-guide-context.ts` is the only place the guided flow reads a repository. Every
+read is bounded by `REVIEW_GUIDE_LIMITS`, and each step's exact executed-statement count
+is declared in `REVIEW_GUIDE_QUERY_BUDGET` and **asserted** against real D1 —
+`overview: 9`, `inbox: 2`, `projects: 8`, `alignment: 6`, `reflection: 1`, `focus: 2`,
+`complete: 1`. Two further tests prove the counts are flat with respect to workspace
+size (fifteen Projects cost what three do; ten Goals cost what three do). Where a list is
+bounded the surface states it ("4+") and links to the canonical destination; the Inbox
+total is always the authoritative aggregate.
+
+### Activity
+
+Navigation, acknowledgement and viewing write **no** Activity — progress is product
+state, not history, and a kernel test asserts the event count does not move. Genuine
+domain mutations keep their existing events unchanged. The one lifecycle transition the
+flow makes is truthful and happens once: the first deliberate move through a **draft**
+Review sets it to in progress through the existing `setStatus` contract.
+
+### Existing Reviews
+
+- Draft, in-progress, completed, reopened and archived Reviews all continue to work.
+- A Review with no workflow row gets the documented default and a sensible derived
+  position — there is no backfill.
+- A Review's stored template version is honoured and never rewritten; historical
+  responses are never migrated to the current template.
+- Duplicate-period protection, first-day-of-week handling and wall-calendar periods are
+  untouched.
+
+### Test coverage
+
+- **Unit** — the step registry and its metadata, ordering, completion rules, required
+  versus optional, current-step derivation, resume, unknown-step recovery, progress
+  counting, mobile progress labels, the URL contract, prompt sequencing against the
+  stored template, next-period focus selection and supersession, the completion summary,
+  bounded empty-state language, and the guided shell's accessibility semantics.
+- **Kernel / D1** — migration 0029 over populated data, workspace isolation on every
+  read and write, existing-Review compatibility, template-version preservation, the
+  bookmark and its revision guard, acknowledgement idempotency, no spurious Activity,
+  authored-response conflict refusal, the asserted per-step query budget and its
+  flatness, the Project projection and its ordering, the alignment projection, prior-focus
+  derivation including reopen and cross-workspace isolation, completion and reopen, and
+  the purge taking the new child rows with it.
+- **Browser** — [`e2e/reviews-guided.spec.ts`](../../e2e/reviews-guided.spec.ts): complete
+  a Review; stop and resume; the phone stepper at 320/375/390/430; Inbox processing;
+  an existing Review's own template; and axe in light and dark at desktop and phone,
+  including the completion-blocked state and a long Markdown editor.

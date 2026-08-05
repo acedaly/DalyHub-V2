@@ -19,13 +19,16 @@ import {
   REVIEW_SECTION_IDS,
   REVIEW_STATUS_CHANGED,
   REVIEW_UPDATED,
+  WEEKLY_REVIEW_STEP_IDS,
   ReviewArchivedError,
   ReviewConflictError,
   ReviewError,
   ReviewNotFoundError,
   ReviewStorageError,
+  ReviewValidationError,
   defaultReviewTitle,
   decodeReviewCursorForScope,
+  emptyReviewWorkflowState,
   encodeReviewCursor,
   normaliseReviewQuery,
   parseReviewSort,
@@ -33,6 +36,7 @@ import {
   parseReviewSectionId,
   parseReviewStatus,
   parseReviewView,
+  parseWeeklyReviewStepId,
   resolveReviewTemplate,
   reviewTemplateId,
   validateReviewId,
@@ -41,6 +45,7 @@ import {
   validateReviewTitle,
   validateSectionContent,
   validateTemplateId,
+  weeklyReviewStep,
   type CreateReviewInput,
   type CreateReviewResult,
   type ListReviewsInput,
@@ -55,6 +60,11 @@ import {
   type ReviewSectionId,
   type ReviewStatus,
   type ReviewType,
+  type ReviewWorkflowState,
+  type ReviewWorkflowStateResult,
+  type SetReviewWorkflowStepOptions,
+  type UpdateReviewSectionOptions,
+  type WeeklyReviewStepId,
 } from "~/kernel/reviews";
 import {
   secureIdGenerator,
@@ -466,12 +476,32 @@ export class D1ReviewRepository implements ReviewRepository {
     id: string,
     sectionId: ReviewSectionId,
     body: string,
+    options: UpdateReviewSectionOptions = {},
   ): Promise<ReviewChangeResult> {
     const reviewId = validateReviewId(id);
     const safeSection = parseReviewSectionId(sectionId);
     const content = validateSectionContent(body);
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
+
+    /**
+     * REVIEW-02 — optimistic concurrency on authored reflection, and ONLY here.
+     *
+     * When the caller quotes the `updatedAt` it loaded, the write becomes a
+     * compare-and-set: the extra `AND updated_at = ?` clause makes a stale write
+     * match zero rows, and the post-check below turns that into a
+     * `ReviewConflictError` rather than a silent success. Without it the phone
+     * and the desktop would both write blindly and the later save would erase
+     * writing the owner cannot recover. Callers with no base version (the Review
+     * record's own section editors) omit it and keep the original behaviour.
+     */
+    const expected =
+      options.expectedUpdatedAt !== undefined
+        ? toStorageTimestamp(options.expectedUpdatedAt)
+        : null;
+    const versionGuard = expected === null ? "" : " AND updated_at = ?";
+    const versionBinds = expected === null ? [] : [expected];
+
     const domainStatement = this.#db
       .prepare(
         `UPDATE review_sections
@@ -483,7 +513,7 @@ export class D1ReviewRepository implements ReviewRepository {
              WHERE d.workspace_id = ? AND d.entity_id = ?
                AND e.deleted_at IS NULL AND d.archived_at IS NULL
            )
-           AND body_markdown IS NOT ?
+           AND body_markdown IS NOT ?${versionGuard}
          RETURNING review_id`,
       )
       .bind(
@@ -495,6 +525,7 @@ export class D1ReviewRepository implements ReviewRepository {
         this.#workspaceId,
         reviewId,
         content,
+        ...versionBinds,
       );
     const event = this.#activity(
       REVIEW_UPDATED,
@@ -521,7 +552,173 @@ export class D1ReviewRepository implements ReviewRepository {
     const refreshed = await this.get(reviewId);
     if (!refreshed) throw new ReviewNotFoundError();
     if (refreshed.archivedAt) throw new ReviewArchivedError();
+    if (expected !== null && !result.changed) {
+      // Nothing was written. Either the body is already exactly this text (a
+      // genuine, harmless no-op) or the row moved on under us — which is the one
+      // case that must never be reported as a save.
+      const stored = refreshed.sections.find(
+        (section) => section.sectionId === safeSection,
+      );
+      const storedTs = stored ? toStorageTimestamp(stored.updatedAt) : null;
+      if (storedTs !== expected && stored?.body !== content) {
+        throw new ReviewConflictError();
+      }
+    }
     return { review: refreshed, changed: result.changed };
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* REVIEW-02 — the guided flow's small workflow state                      */
+  /*                                                                        */
+  /* Two child tables, no Activity, nothing derivable stored. Every read and */
+  /* write is workspace-scoped and refuses to touch a Review that is not a   */
+  /* live Review in THIS workspace, so the guided flow can never reach       */
+  /* across an isolation boundary the rest of the module respects.          */
+  /* ---------------------------------------------------------------------- */
+
+  async getWorkflowState(reviewId: string): Promise<ReviewWorkflowState> {
+    const id = validateReviewId(reviewId);
+    try {
+      const [stateRow, ackRows] = await Promise.all([
+        this.#db
+          .prepare(
+            `SELECT current_step, revision, updated_at
+             FROM review_workflow_state
+             WHERE workspace_id = ? AND review_id = ?`,
+          )
+          .bind(this.#workspaceId, id)
+          .first<{
+            current_step: string;
+            revision: number;
+            updated_at: string;
+          }>(),
+        this.#db
+          .prepare(
+            `SELECT step_id FROM review_step_acknowledgements
+             WHERE workspace_id = ? AND review_id = ?`,
+          )
+          .bind(this.#workspaceId, id)
+          .all<{ step_id: string }>(),
+      ]);
+      const acknowledgedSteps = WEEKLY_REVIEW_STEP_IDS.filter((stepId) =>
+        (ackRows.results ?? []).some((row) => row.step_id === stepId),
+      );
+      if (!stateRow) {
+        return { ...emptyReviewWorkflowState(id), acknowledgedSteps };
+      }
+      return {
+        reviewId: id,
+        // A row whose step is no longer in the vocabulary reads as "no bookmark"
+        // rather than as an error: the derived position takes over.
+        currentStep: parseWeeklyReviewStepId(stateRow.current_step),
+        acknowledgedSteps,
+        revision: stateRow.revision,
+        updatedAt: fromStorageTimestamp(stateRow.updated_at),
+      };
+    } catch (cause) {
+      if (cause instanceof ReviewError) throw cause;
+      throw new ReviewStorageError({ cause });
+    }
+  }
+
+  async setWorkflowStep(
+    reviewId: string,
+    stepId: WeeklyReviewStepId,
+    options: SetReviewWorkflowStepOptions = {},
+  ): Promise<ReviewWorkflowStateResult> {
+    const id = validateReviewId(reviewId);
+    const step = this.#requireStepId(stepId);
+    const review = await this.get(id);
+    if (!review) throw new ReviewNotFoundError();
+    if (review.archivedAt) throw new ReviewArchivedError();
+
+    const nowTs = toStorageTimestamp(this.#clock());
+    const expected = options.expectedRevision;
+    try {
+      // Insert-or-update in ONE statement, guarded on the caller's expected
+      // revision when one was supplied. `excluded` carries the incoming values,
+      // so the revision advances monotonically and a stale writer matches nothing.
+      const guard =
+        expected === undefined ? "" : " AND review_workflow_state.revision = ?";
+      const guardBinds = expected === undefined ? [] : [expected];
+      const updated = await this.#db
+        .prepare(
+          `INSERT INTO review_workflow_state
+             (workspace_id, review_id, current_step, revision, updated_at)
+           VALUES (?, ?, ?, 1, ?)
+           ON CONFLICT (workspace_id, review_id) DO UPDATE
+             SET current_step = excluded.current_step,
+                 revision = review_workflow_state.revision + 1,
+                 updated_at = excluded.updated_at
+             WHERE review_workflow_state.current_step IS NOT excluded.current_step${guard}
+           RETURNING revision`,
+        )
+        .bind(this.#workspaceId, id, step, nowTs, ...guardBinds)
+        .first<{ revision: number }>();
+      const state = await this.getWorkflowState(id);
+      if (updated) return { state, changed: true, conflict: false };
+      // Nothing was written. Moving to the step already stored is an idempotent
+      // no-op; anything else means a newer writer holds the bookmark, and the
+      // caller follows `state` rather than overwriting it.
+      const conflict = state.currentStep !== step;
+      return { state, changed: false, conflict };
+    } catch (cause) {
+      if (cause instanceof ReviewError) throw cause;
+      throw new ReviewStorageError({ cause });
+    }
+  }
+
+  async setStepAcknowledged(
+    reviewId: string,
+    stepId: WeeklyReviewStepId,
+    acknowledged: boolean,
+  ): Promise<ReviewWorkflowStateResult> {
+    const id = validateReviewId(reviewId);
+    const step = this.#requireStepId(stepId);
+    if (!weeklyReviewStep(step).acknowledgeable) {
+      throw new ReviewValidationError(
+        "stepId",
+        "that step cannot be marked reviewed",
+      );
+    }
+    const review = await this.get(id);
+    if (!review) throw new ReviewNotFoundError();
+    if (review.archivedAt) throw new ReviewArchivedError();
+
+    const nowTs = toStorageTimestamp(this.#clock());
+    try {
+      const statement = acknowledged
+        ? this.#db
+            .prepare(
+              `INSERT INTO review_step_acknowledgements
+                 (workspace_id, review_id, step_id, acknowledged_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT (workspace_id, review_id, step_id) DO NOTHING
+               RETURNING step_id`,
+            )
+            .bind(this.#workspaceId, id, step, nowTs)
+        : this.#db
+            .prepare(
+              `DELETE FROM review_step_acknowledgements
+               WHERE workspace_id = ? AND review_id = ? AND step_id = ?
+               RETURNING step_id`,
+            )
+            .bind(this.#workspaceId, id, step);
+      const changedRow = await statement.first<{ step_id: string }>();
+      const state = await this.getWorkflowState(id);
+      return { state, changed: changedRow !== null, conflict: false };
+    } catch (cause) {
+      if (cause instanceof ReviewError) throw cause;
+      throw new ReviewStorageError({ cause });
+    }
+  }
+
+  #requireStepId(value: unknown): WeeklyReviewStepId {
+    const step = parseWeeklyReviewStepId(value);
+    if (step === null) {
+      throw new ReviewValidationError("stepId", "choose a supported step");
+    }
+    return step;
   }
 
   async setStatus(
@@ -641,6 +838,20 @@ export class D1ReviewRepository implements ReviewRepository {
          WHERE workspace_id = ? AND review_id = ? AND ${emptyGuard}`,
       )
       .bind(this.#workspaceId, reviewId, ...g);
+    // REVIEW-02 — the guided flow's own child rows go with the Review, under the
+    // same all-or-nothing guard as every other statement in the batch.
+    const deleteWorkflowState = this.#db
+      .prepare(
+        `DELETE FROM review_workflow_state
+         WHERE workspace_id = ? AND review_id = ? AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, reviewId, ...g);
+    const deleteAcknowledgements = this.#db
+      .prepare(
+        `DELETE FROM review_step_acknowledgements
+         WHERE workspace_id = ? AND review_id = ? AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, reviewId, ...g);
     const deleteDetails = this.#db
       .prepare(
         `DELETE FROM review_details
@@ -685,9 +896,12 @@ export class D1ReviewRepository implements ReviewRepository {
       deleteLinks,
       deleteSubjects,
       deleteSections,
+      deleteWorkflowState,
+      deleteAcknowledgements,
       deleteDetails,
       deleteEntity,
     ];
+    const entityDeleteIndex = batch.length - 1;
     if (this.#deleteFault === "after-entity") batch.push(this.#forcedFailure());
     batch.push(tombstone);
     if (this.#deleteFault === "after-tombstone")
@@ -695,8 +909,11 @@ export class D1ReviewRepository implements ReviewRepository {
 
     try {
       const results = await this.#db.batch(batch);
-      // The `entities` DELETE is index 4 (the fifth statement).
-      const removed = (results[4]?.meta?.changes ?? 0) > 0;
+      // The `entities` DELETE — the statement the tombstone's `changes()` guard
+      // reads — is the LAST domain statement; its index is captured above rather
+      // than hard-coded, so adding a child delete can never silently detach the
+      // guard from the statement it is supposed to be guarding.
+      const removed = (results[entityDeleteIndex]?.meta?.changes ?? 0) > 0;
       if (removed) return { deleted: true };
       // Nothing was removed. Either a concurrent purge already destroyed the
       // Review (idempotent no-op) or the commit-time guard blocked because a link

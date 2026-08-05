@@ -616,3 +616,21 @@ served by the **generic** entity list (a spine record IS an entity, so it needed
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+
+---
+
+## Goals in the guided weekly Review (REVIEW-02, 2026-08-05)
+
+The Review's alignment step is a **reader** of AREA-03, not a second model. It calls
+`listGoalsByAlignment` for the workspace-wide ranking, `listGoalProjectContributions` and
+`listGoalAlignmentFacts` for the facts, `evaluateGoalAlignment` for the rules, and renders
+the shared `AlignmentIndicator`. Nothing is scored, cached or persisted, and the bounded
+page costs a fixed number of grouped queries regardless of how many Goals exist.
+
+It shows Goals with their alignment state and how many of their contributing Projects are
+active, plus how many active Projects have no Goal linked. Wording stays calm and factual —
+"No active Project currently contributes to this Goal" — with no scores, streaks,
+gamification or moral language. Trend and history remain
+[REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) /
+[DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3).

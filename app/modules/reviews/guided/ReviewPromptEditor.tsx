@@ -1,0 +1,177 @@
+/**
+ * REVIEW-02 — one reflection prompt, on the guided flow's writing surface.
+ *
+ * It writes through the EXISTING Review mutation route (`/reviews/:id/mutate`,
+ * `intent=update_section`) into the EXISTING `review_sections` row — the same
+ * authority, the same storage and the same Markdown pipeline the Review record's
+ * own editors use. The guided flow adds exactly two things:
+ *
+ *   - it quotes the version it loaded (`expectedUpdatedAt`), so a save can never
+ *     silently overwrite text written on another device;
+ *   - it shows the save state in words, and announces it politely, so an owner
+ *     writing on a phone always knows whether their words are safe.
+ *
+ * Saving is on blur and on an explicit Save, matching the Review record's existing
+ * convention. Focus is never moved by a save.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { LiveMarkdownEditor } from "~/shared/markdown-editor";
+import { FormButton } from "~/shared/forms";
+
+import type { ReviewGuidePrompt } from "./review-guide-view";
+import type { ReviewMutationResult } from "../routes/mutate";
+
+type SaveState = "idle" | "saving" | "saved" | "error" | "conflict";
+
+const SAVE_LABELS: Readonly<Record<SaveState, string>> = {
+  idle: "Not saved yet",
+  saving: "Saving…",
+  saved: "Saved",
+  error: "Not saved",
+  conflict: "Changed elsewhere",
+};
+
+export interface ReviewPromptEditorProps {
+  readonly reviewId: string;
+  readonly prompt: ReviewGuidePrompt;
+  readonly readOnly: boolean;
+  /** Larger writing surface on the desktop reflection workspace. */
+  readonly rows?: number;
+  /** Called after the server accepts a save, so the host can revalidate. */
+  readonly onSaved?: () => void;
+}
+
+export function ReviewPromptEditor({
+  reviewId,
+  prompt,
+  readOnly,
+  rows = 12,
+  onSaved,
+}: ReviewPromptEditorProps) {
+  const [value, setValue] = useState(prompt.body);
+  const [state, setState] = useState<SaveState>(
+    prompt.answered ? "saved" : "idle",
+  );
+  const [error, setError] = useState<string | null>(null);
+  // The version this editor is holding. Advanced by each accepted save so a long
+  // writing session keeps quoting a current base rather than a stale one.
+  const baseVersion = useRef(prompt.updatedAt);
+  const savedBody = useRef(prompt.body);
+
+  // A different prompt means a different section: reset rather than carry text
+  // across, which would be the one way this surface could lose someone's writing.
+  useEffect(() => {
+    setValue(prompt.body);
+    setState(prompt.answered ? "saved" : "idle");
+    setError(null);
+    baseVersion.current = prompt.updatedAt;
+    savedBody.current = prompt.body;
+  }, [prompt.sectionId, prompt.body, prompt.answered, prompt.updatedAt]);
+
+  const save = useCallback(async () => {
+    if (readOnly) return;
+    if (value === savedBody.current) return;
+    setState("saving");
+    setError(null);
+    const body = new FormData();
+    body.set("intent", "update_section");
+    body.set("sectionId", prompt.sectionId);
+    body.set("body", value);
+    body.set("expectedUpdatedAt", baseVersion.current);
+    try {
+      const response = await fetch(
+        `/reviews/${encodeURIComponent(reviewId)}/mutate`,
+        { method: "POST", body },
+      );
+      const result = (await response.json()) as ReviewMutationResult;
+      if (result.kind === "update_section" && result.ok) {
+        baseVersion.current = result.updatedAt;
+        savedBody.current = value;
+        setState("saved");
+        onSaved?.();
+        return;
+      }
+      if (result.kind === "update_section" && result.conflict === true) {
+        // The owner's text stays exactly where it is, in the editor. Nothing is
+        // discarded and nothing is overwritten.
+        setState("conflict");
+        setError(result.formError);
+        return;
+      }
+      setState("error");
+      setError(
+        result.kind === "update_section"
+          ? result.formError
+          : "That reflection couldn’t be saved.",
+      );
+    } catch {
+      setState("error");
+      setError("That reflection couldn’t be saved.");
+    }
+  }, [onSaved, prompt.sectionId, readOnly, reviewId, value]);
+
+  const dirty = value !== savedBody.current;
+
+  if (readOnly) {
+    return (
+      <div className="dh-review-guide__prompt">
+        <h3 className="dh-review-guide__prompt-label">{prompt.label}</h3>
+        {prompt.prompt ? (
+          <p className="dh-review-guide__prompt-question">{prompt.prompt}</p>
+        ) : null}
+        {prompt.body.trim().length > 0 ? (
+          <div className="dh-review-section-readonly">
+            <pre>{prompt.body}</pre>
+          </div>
+        ) : (
+          <p className="dh-review-muted">Nothing written for this prompt.</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="dh-review-guide__prompt">
+      <h3 className="dh-review-guide__prompt-label">{prompt.label}</h3>
+      {prompt.prompt ? (
+        <p className="dh-review-guide__prompt-question">{prompt.prompt}</p>
+      ) : null}
+      <LiveMarkdownEditor
+        value={value}
+        onChange={(next) => {
+          setValue(next);
+          if (state !== "idle") setState("idle");
+        }}
+        onBlur={() => void save()}
+        label={prompt.label}
+        placeholder="Write your reflection…"
+        error={error}
+        rows={rows}
+        statusSlot={
+          <span
+            className="dh-review-guide__save-state"
+            data-state={dirty ? "idle" : state}
+          >
+            {dirty ? "Unsaved changes" : SAVE_LABELS[state]}
+          </span>
+        }
+      />
+      <div className="dh-review-guide__prompt-actions">
+        <FormButton
+          type="button"
+          variant="secondary"
+          disabled={!dirty || state === "saving"}
+          onClick={() => void save()}
+        >
+          {state === "saving" ? "Saving…" : "Save"}
+        </FormButton>
+      </div>
+      {/* Polite, and never a focus move: an autosave must not steal the caret. */}
+      <p className="dh-visually-hidden" role="status">
+        {dirty ? "" : state === "saved" ? `${prompt.label} saved.` : ""}
+      </p>
+    </div>
+  );
+}

@@ -515,6 +515,24 @@ export function makeSnapshot(
         updatedAt: T(14),
       },
     ],
+    // REVIEW-02 — the guided flow's own rows: a resume bookmark and one step the
+    // owner deliberately marked reviewed even though its derived rule was not
+    // satisfied. Both must survive an export/restore round trip.
+    reviewWorkflowState: [
+      {
+        reviewId: IDS.review,
+        currentStep: "reflection",
+        revision: 3,
+        updatedAt: T(14),
+      },
+    ],
+    reviewStepAcknowledgements: [
+      {
+        reviewId: IDS.review,
+        stepId: "inbox",
+        acknowledgedAt: T(14),
+      },
+    ],
     entityLinks: [
       {
         id: "l-01",
