@@ -706,3 +706,44 @@ assertion, with a fresh backup first. The exact sequence is in
 
 FND-01 is `☑ Done` (see [ROADMAP_V2](../roadmap/ROADMAP_V2.md#-fnd-01--repository--toolchain-scaffold)).
 Real production identifiers and secrets remain uncommitted.
+
+
+## AI secrets and the AI preflight (AI-01, 2026-08-05)
+
+DalyHub deploys perfectly well with **no AI configuration at all** — AI disabled
+or unconfigured is a fully supported production state, and the preflight treats it
+as one. What the preflight refuses is an INCONSISTENT set.
+
+| Secret | Purpose | Required? |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | enables Anthropic | optional |
+| `OPENAI_API_KEY` | enables OpenAI | optional |
+| `AI_GATEWAY_ACCOUNT_ID` | Cloudflare account id | optional, with `AI_GATEWAY_ID` |
+| `AI_GATEWAY_ID` | Cloudflare AI Gateway id | optional, with the account id |
+| `AI_GATEWAY_TOKEN` | authenticated Gateway | optional |
+
+All are supplied with `wrangler secret put` and are deliberately **not** declared
+in `wrangler.jsonc`: a committed `var` of the same name — even an empty one —
+would override the deploy-time secret and clobber it, which is the same rule
+already recorded for the Cloudflare Access values. They are declared for
+TypeScript in `app/platform/ai/ai-bindings.d.ts`.
+
+**They survive an ordinary deploy.** `pnpm run deploy:production` uploads only the
+three Access secrets, via `wrangler deploy --secrets-file`. Wrangler documents
+that flag as "Existing secrets not included in the file are preserved from the
+previous version", and states that "Secrets are never deleted by a deployment"
+(Wrangler commands reference, read 2026-08-05). So an AI key set once with
+`wrangler secret put` stays set, and does not need re-supplying on every release.
+
+`scripts/deploy-production.mjs` refuses to upload when:
+
+- any AI binding appears as a committed `env.production.vars` entry;
+- `AI_GATEWAY_ACCOUNT_ID` is set without `AI_GATEWAY_ID`, or the reverse;
+- `AI_GATEWAY_TOKEN` is set without a gateway;
+- a Gateway is configured with no provider key (DalyHub uses bring-your-own-keys).
+
+No secret VALUE is ever read, echoed or printed by the preflight. OAuth-authenticated
+Wrangler deployment is unchanged, and `pnpm run deploy:dry-run` still needs no
+credentials.
+
+Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md) §5.

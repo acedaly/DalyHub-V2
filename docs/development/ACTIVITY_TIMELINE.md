@@ -492,3 +492,19 @@ ADR-036).
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md#shared-timeline--activity-feed-ds-05) — the pattern contract.
 - [`DATA_KERNEL.md`](DATA_KERNEL.md) & [ADR-012](../decisions/ARCHITECTURE_DECISIONS.md#adr-012-activity-persistence-and-atomic-mutation-recording) — the FND-05 Activity model this renders.
 - [`docs/README.md`](../README.md) — documentation index.
+
+
+## AI writes no Activity (AI-01, 2026-08-05)
+
+Running an AI request, viewing an answer, rejecting a proposal and reaching a
+budget limit record **no Activity event**. They are things that happened to the
+system, not history of the owner's records, and they live in the AI usage ledger
+(`ai_usage_requests`) as operational metadata instead — ADR-012's distinction,
+applied.
+
+Activity appears only when the owner **accepts** a proposal and an ordinary domain
+mutation runs. That mutation goes through the module's own repository and carries
+its existing event unchanged, with the **owner** as the actor — because the owner
+reviewed and approved the change. AI is never described as the actor.
+
+See [`AI_PLATFORM.md`](AI_PLATFORM.md) §8.

@@ -1136,3 +1136,15 @@ The milestone is additive. To roll back:
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — production deploy and migrations.
 - [`ARCHITECTURE_DECISIONS.md`](../decisions/ARCHITECTURE_DECISIONS.md) — ADR-066.
 - [`ROADMAP_V2_1.md`](../roadmap/ROADMAP_V2_1.md) — what offline work remains.
+
+
+## AI is online-only (AI-01, 2026-08-05)
+
+No AI capability is available offline, and none is cached. The offline snapshot
+carries no AI data, the service worker caches no AI route, and the append-only
+capture queue never queues an AI request — a bounded request against a paid
+provider is not something to replay silently later, and a proposal generated from
+stale evidence would be worse than no proposal.
+
+Offline, the AI surfaces show their ordinary unavailable state, and every other
+part of DalyHub behaves exactly as documented above.

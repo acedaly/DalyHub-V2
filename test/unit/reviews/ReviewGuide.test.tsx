@@ -119,6 +119,7 @@ function renderGuide(options: {
           workflowRevision={3}
           todayIso="2026-08-02"
           notice={options.notice ?? null}
+          aiAvailability={null}
           onNoticeDismissed={() => undefined}
         />
       </DrawerProvider>

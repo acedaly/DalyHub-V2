@@ -28,6 +28,7 @@ import {
   loadNoteReferences,
 } from "~/platform/entity-links/note-references";
 import { renderMarkdownSource } from "~/platform/markdown";
+import { readAiAvailability } from "~/platform/ai";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -38,6 +39,7 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { AiExtractionSurface } from "~/shared/ai";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import type { ReferencePage } from "~/shared/references";
 
@@ -103,6 +105,13 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   }
 
   return {
+    // AI-01 — availability only: whether the action can run, never a credential.
+    aiAvailability: await readAiAvailability(
+      scope,
+      session.user.subject,
+      "note-action-extraction",
+      env,
+    ),
     overview: serializeNoteOverview(entity),
     details: serializeNoteDetails(details),
     backlinks,
@@ -201,10 +210,19 @@ function TagsDrawerHost({
   );
 }
 
+/**
+ * The tab is CONTROLLED from the URL, so this allowlist is what a tab can be.
+ * A tab missing from it is unreachable — clicking it writes `?tab=…` and this
+ * immediately maps the value back to "note" — which is why "ai" belongs here
+ * alongside the rest rather than only in the tab list.
+ */
 function parseTab(
   value: string | null,
-): "note" | "backlinks" | "linked" | "activity" {
-  return value === "activity" || value === "linked" || value === "backlinks"
+): "note" | "backlinks" | "linked" | "ai" | "activity" {
+  return value === "activity" ||
+    value === "linked" ||
+    value === "backlinks" ||
+    value === "ai"
     ? value
     : "note";
 }
@@ -261,6 +279,15 @@ function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
               }}
             />
           }
+        />
+      }
+      aiTab={
+        <AiExtractionSurface
+          feature="note-action-extraction"
+          recordId={props.overview.id}
+          recordLabel="Note"
+          availability={props.aiAvailability}
+          readOnly={props.details.archivedAt !== null}
         />
       }
       activityTab={

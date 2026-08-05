@@ -499,6 +499,10 @@ describe("module discovery", () => {
           file: "routes/activity.tsx",
         },
         { id: "ai.index", moduleId: "ai", file: "routes/index.tsx" },
+        // AI-01 — two resource routes with no navigation entry: the one place an
+        // AI request is made, and the one place a reviewed proposal is applied.
+        { id: "ai.assist", moduleId: "ai", file: "routes/assist.tsx" },
+        { id: "ai.apply", moduleId: "ai", file: "routes/apply.tsx" },
         {
           id: "settings.index",
           moduleId: "settings",

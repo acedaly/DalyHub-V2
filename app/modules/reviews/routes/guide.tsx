@@ -41,6 +41,7 @@ import {
   type WeeklyReviewStepId,
 } from "~/kernel/reviews";
 import { formatPreferenceDate } from "~/kernel/preferences";
+import { readAiAvailability } from "~/platform/ai";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -129,6 +130,14 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   );
 
   return {
+    // AI-01 — whether the Weekly Review assistant can run. Availability only:
+    // the guide never sees a provider credential or a model name.
+    aiAvailability: await readAiAvailability(
+      scope,
+      session.user.subject,
+      "weekly-review-assistant",
+      env,
+    ),
     review: serializeReview(review, preferences.dateFormat),
     stepId,
     progress,
@@ -308,6 +317,7 @@ function GuideBody(data: Awaited<ReturnType<typeof loader>>) {
       workflowRevision={data.workflowRevision}
       todayIso={data.todayIso}
       notice={data.notice}
+      aiAvailability={data.aiAvailability}
       onNoticeDismissed={dismissNotice}
     />
   );

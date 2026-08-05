@@ -54,6 +54,8 @@ interface NoteOverviewProps {
   readonly backlinksTab: ReactNode;
   readonly linksTab: ReactNode;
   readonly activityTab: ReactNode;
+  /** AI-01 — the "Extract actions and decisions" surface for this Note. */
+  readonly aiTab: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
   /**
@@ -78,6 +80,7 @@ export function NoteOverview({
   backlinksTab,
   linksTab,
   activityTab,
+  aiTab,
   activeTabId,
   onTabChange,
   printHtml = null,
@@ -272,6 +275,13 @@ export function NoteOverview({
             id: "linked",
             label: "Links",
             content: <Region density="collection">{linksTab}</Region>,
+          },
+          {
+            // AI-01 — the extraction surface, mounted as an ordinary tab so it
+            // costs the record no chrome and no attention until it is opened.
+            id: "ai",
+            label: "AI",
+            content: aiTab,
           },
           {
             id: "activity",

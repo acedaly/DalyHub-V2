@@ -20,6 +20,7 @@ import {
   type ActivityActorContext,
   type ActivityRepository,
 } from "~/kernel/activity";
+import type { AiPreferencesRepository, AiUsageRepository } from "~/kernel/ai";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
 import {
@@ -59,6 +60,8 @@ import type {
 } from "~/kernel/workspaces";
 import {
   createActivityRepository,
+  createAiPreferencesRepository,
+  createAiUsageRepository,
   createAlignmentRepository,
   createAppPreferencesRepository,
   createAreaRepository,
@@ -256,6 +259,19 @@ export interface WorkspaceScope {
   readonly alignment: AlignmentRepository;
   readonly appPreferences: AppPreferencesRepository;
   /**
+   * AI-01 — the owner's NON-SECRET AI policy (enabled, provider, budgets, allowed
+   * features, privacy allowances). No provider credential is stored here or
+   * anywhere the application can read: keys are Worker secrets only.
+   */
+  readonly aiPreferences: AiPreferencesRepository;
+  /**
+   * AI-01 — the AI usage ledger: operational metadata about AI requests, bound to
+   * this workspace AND the authenticated owner. It records NO Activity (ADR-012),
+   * no prompt, no response and no record content — only bounded source ids and a
+   * digest. It is the ONLY writer of budget reservations.
+   */
+  readonly aiUsage: AiUsageRepository;
+  /**
    * The TASKS-03 saved Tasks views: workspace- AND owner-scoped named
    * configurations. It stores a validated declarative config only — never records,
    * never a query and never SQL — so a saved view re-runs the ordinary bounded
@@ -387,6 +403,14 @@ export function bindWorkspaceRepositories(
   const members = createWorkspaceMemberRepository(env.DB, context);
   const alignment = createAlignmentRepository(env.DB, context);
   const appPreferences = createAppPreferencesRepository(env.DB, context);
+  // The AI ledger is owner-scoped as well as workspace-scoped. The owner comes
+  // from the trusted actor context established here, never from a request.
+  const aiPreferences = createAiPreferencesRepository(env.DB, context);
+  const aiUsage = createAiUsageRepository(
+    env.DB,
+    context,
+    actorContext.actor.id ?? "system",
+  );
   const taskViews = createTaskViewRepository(env.DB, context);
   // Read-only: no actor, because it never mutates or records Activity.
   const snapshot = createWorkspaceSnapshotRepository(env.DB, context);
@@ -417,6 +441,8 @@ export function bindWorkspaceRepositories(
     actors: members,
     alignment,
     appPreferences,
+    aiPreferences,
+    aiUsage,
     taskViews,
     snapshot,
   };

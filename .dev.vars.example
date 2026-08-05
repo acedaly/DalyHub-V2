@@ -42,3 +42,24 @@ DEV_AUTH_EMAIL="owner@example.invalid"
 #   ACCESS_TEAM_DOMAIN="https://<your-team>.cloudflareaccess.com"
 #   ACCESS_AUD="<your-access-application-audience-tag>"
 #   OWNER_EMAIL="<the-owner-email>"
+
+# AI-01 AI PROVIDER CREDENTIALS (optional) — Worker secrets, never repository
+# values. DalyHub uses bring-your-own-keys: a key belongs to YOUR Anthropic or
+# OpenAI developer account and is billed to it. AI is entirely optional; with
+# none of these set, AI reports itself unconfigured and every other part of
+# DalyHub behaves exactly as it does now.
+#
+# These are shown ONLY to document the shape. Do NOT fill in a real value here,
+# and do NOT commit one: `.dev.vars` is git-ignored, and production supplies
+# these with `wrangler secret put`. DalyHub never returns a key to the browser,
+# never writes one to D1, never logs one and never puts one in an export.
+#   ANTHROPIC_API_KEY="<your-anthropic-developer-key>"
+#   OPENAI_API_KEY="<your-openai-developer-key>"
+#
+# CLOUDFLARE AI GATEWAY (optional). Set BOTH identifiers or neither — a
+# half-configured Gateway silently degrades to a direct provider call, which is a
+# different data path, so the deploy guard refuses it. The token is only needed
+# when the Gateway itself is authenticated.
+#   AI_GATEWAY_ACCOUNT_ID="<your-cloudflare-account-id>"
+#   AI_GATEWAY_ID="<your-gateway-name>"
+#   AI_GATEWAY_TOKEN="<your-gateway-token-if-authenticated>"

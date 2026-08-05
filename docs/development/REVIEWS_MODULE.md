@@ -488,3 +488,24 @@ Review sets it to in progress through the existing `setStatus` contract.
   a Review; stop and resume; the phone stepper at 320/375/390/430; Inbox processing;
   an existing Review's own template; and axe in light and dark at desktop and phone,
   including the completion-blocked state and a long Markdown editor.
+
+
+## The Weekly Review assistant (AI-01, 2026-08-05)
+
+The guided weekly Review's **Next week's focus** step offers one deliberate
+action: *Generate assistant summary*. It does **not** run when the Review opens,
+does not complete the Review, and creates no Tasks.
+
+The facts are DalyHub's. Counts, overdue work and Inbox state are calculated from
+repositories and sent as an authoritative block the prompt tells the model to
+restate rather than recompute; a small, bounded set of open Tasks goes with them
+as citable supporting records. The output distinguishes recorded fact, derived
+calculation and AI inference — each pattern carries an explicit
+`observation | inference` label the surface renders in words, not colour.
+
+Accepted text is **appended** to whatever the owner has already written in the
+focus section and still requires their own save, through the existing Review
+repository and its REVIEW-02 optimistic-concurrency contract. Authored text is
+never overwritten, and the Review is never completed automatically.
+
+Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md).

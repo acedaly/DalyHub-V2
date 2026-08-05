@@ -1018,17 +1018,88 @@ They are small and well-understood; none of them blocks the V2 release.*
   recoverable decision.
 - **Priority.** P3. After SET-02.
 
-### ☐ AI-01 … AI-04 — The AI phase
+### ◑ AI-01 … AI-04 — The AI phase
 
 - **Original entries.** [`ROADMAP_V2.md → Phase 11`](ROADMAP_V2.md#phase-11--ai-ai).
 - **The architectural principle is non-negotiable and unchanged:** AI may propose
   structured changes; the user must review, edit, accept or reject them; AI must not
-  silently mutate DalyHub data. Ship
-  [AI-04](ROADMAP_V2.md#-ai-04--privacy-controls)'s consent boundary **together
-  with** AI-01, not after it.
-- `/ai` remains an honest placeholder that says so. No proposal store, no model
-  client, no provider credential and no prompt exists — which is the correct state.
-- **Priority.** AI-01 P2, AI-04 P2, AI-02/AI-03 P3. Last, by design.
+  silently mutate DalyHub data. AI-04's consent boundary shipped **together with**
+  AI-01, as this entry required.
+
+#### ☑ AI-01 — Proposal architecture & review UI — **DELIVERED 2026-08-05**
+
+- **Delivered.** A provider-independent AI kernel (contracts, versioned prompt
+  registry, DalyHub-owned response schemas, model/pricing registry, budgets, the
+  request state machine and a typed error family — all pure); Anthropic and OpenAI
+  adapters behind one contract; optional Cloudflare AI Gateway routing with
+  bring-your-own-keys; a bounded evidence-retrieval service over the EXISTING
+  search projections and EntityLinks; application-enforced budgets with
+  reserve → run → reconcile; a usage ledger (migration `0030`) that is operational
+  metadata, not Activity; an owner-facing AI Settings section; and the
+  propose → review → apply loop, whose only write path re-validates the owner's
+  reviewed fields and goes through the modules' own repositories with the **owner**
+  as the Activity actor.
+- **Three capabilities shipped:** Meeting/Note action extraction, the Weekly Review
+  assistant, and Ask DalyHub (which answers counts and "when was the last…"
+  deterministically, with no provider call at all).
+- **Deliberately not built:** an unrestricted chat surface, internet research,
+  autonomous agents, agent loops, background monitoring, arbitrary tool execution,
+  direct database access for the model, persistent conversation history, or any
+  AI-generated record without approval.
+- **Docs.** [`AI_PLATFORM.md`](../development/AI_PLATFORM.md) ·
+  [ADR-073](../decisions/ARCHITECTURE_DECISIONS.md#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract).
+- **Known limits, recorded rather than left implicit.** Generated results are not
+  persisted, so reuse is bounded to one isolate
+  ([DEBT-92](../product/PRODUCT_DEBT.md#-debt-92--generated-ai-results-are-not-persisted-so-reuse-is-bounded-to-one-isolate--p3));
+  retrieval is keyword and relationship only, with no embeddings
+  ([DEBT-93](../product/PRODUCT_DEBT.md#-debt-93--ai-evidence-retrieval-is-keyword-and-relationship-only--p3));
+  and **no check has been run against a live provider** — no API key was available
+  while this was built (see [`AI_PLATFORM.md`](../development/AI_PLATFORM.md) §21).
+
+#### ☑ AI-04 — Privacy controls — **DELIVERED 2026-08-05**
+
+- **Delivered.** A structural privacy classification (seven categories, derived
+  from module/record kind/Area — never inferred with AI); People defaulting to
+  `relationships` and Diary/Reviews to `reflection`, so both are excluded from AI
+  evidence unless the owner explicitly allows the category; a per-category owner
+  allowance in Settings; a pre-run disclosure naming exactly how many records of
+  which kinds will be sent, what was excluded and why; and honest copy about what
+  DalyHub logs versus what a provider or an AI Gateway may retain.
+- **The consent boundary sits at the CATEGORY, not at every record** — `general` is
+  always allowed, so an ordinary Task never triggers a prompt.
+
+#### ◐ AI-02 — Meeting → tasks/notes proposals
+
+- **Partly delivered, and deliberately not marked ☑.** Meeting extraction ships:
+  the owner runs it explicitly, reviews proposed Tasks and EntityLinks, edits them,
+  accepts individually, and the accepted items are created through the canonical
+  Task and EntityLink repositories.
+- **What AI-02 still owes.** Its entry says proposals must be applied through
+  **MEET-02's own** `meeting_items` → Task conversion authority, so an accepted
+  proposal is recorded as a meeting-item follow-up rather than as a plain Task.
+  This release creates ordinary Tasks and does **not** write the
+  `meeting_item_tasks` mapping, so the Follow-up tab does not show an
+  AI-originated Task as converted. It also proposes no **Notes**. Both remain open,
+  and the first is recorded as
+  [DEBT-90](../product/PRODUCT_DEBT.md#-debt-90--ai-accepted-tasks-are-not-recorded-as-meeting-item-follow-ups--p3).
+- **Priority.** P3.
+
+#### ◐ AI-03 — Planning & review assistance
+
+- **Partly delivered, and deliberately not marked ☑.** The Weekly Review assistant
+  ships: a deliberate action inside the guided flow, built from facts DalyHub
+  calculates itself, with cited supporting records, observation/inference labelling
+  and text the owner accepts into their own focus section.
+- **What AI-03 still owes.** Daily planning proposals for Today are not built, and
+  the assistant's fact block is bounded to what a small number of repository reads
+  can honestly support — stalled Projects, projects without a visible next action,
+  Goal alignment and Diary counts are reported as `0` placeholders rather than
+  re-deriving PROJ-02/AREA-03. Wiring the guided Review's own evaluators into the
+  assistant, and daily planning, remain open; the fact block is recorded as
+  [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3).
+- **Priority.** P3.
+
+- **Priority.** AI-01 P2 ☑, AI-04 P2 ☑, AI-02/AI-03 P3 ◐.
 
 ### ☐ Not planned, recorded so they are not mistaken for oversights
 
@@ -1175,7 +1246,9 @@ because a reader would otherwise wonder whether it was forgotten:
 6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
 7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore
    exists.
-8. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design.
+8. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design. **AI-01
+   and AI-04 are now delivered**; AI-02 and AI-03 remain partly open, with the
+   named remainders recorded in their entries.
 
 Ahead of all of them, and not a numbered item because it is verification rather
 than construction: **work through the PWA-01 manual device checklist** in

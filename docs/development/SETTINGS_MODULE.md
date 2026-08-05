@@ -253,3 +253,27 @@ Coverage added for SET-01:
 **Relevant roadmap items.** [SET-01](../roadmap/ROADMAP_V2.md#-set-01--app--workspace-settings--core-preferences) ☑ · [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ (unblocks SET-02) · [SET-02](../roadmap/ROADMAP_V2.md#-set-02--backup--restore) ☐ · [SET-03](../roadmap/ROADMAP_V2.md#-set-03--account--security) ☐ · [X-02](../roadmap/ROADMAP_V2.md#-x-02--saved-views--cross-module-filters) ☐ · [X-03](../roadmap/ROADMAP_V2.md#-x-03--import--sync-todoist-notion-calendar) ☐.
 
 **Relevant product-debt items.** [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3) · [DEBT-32](../product/PRODUCT_DEBT.md#-debt-32--today-personalisation-is-per-device-not-synced--p3).
+
+
+## The AI section (AI-01 / AI-04, 2026-08-05)
+
+`/settings?section=ai` is the owner's AI policy surface. It shows whether AI is
+enabled, which providers are configured, the routing mode (direct or Cloudflare
+AI Gateway), the approved model per tier with the date their prices were
+verified, the monthly / daily / deep-analysis budgets and what has been spent
+this period, a per-feature usage breakdown, per-feature and per-privacy-category
+switches, the logging and reuse choices, and a plain disable control.
+
+**There is deliberately no field for an API key.** Provider credentials are
+Worker secrets; DalyHub cannot read one back, so a text input that appeared to
+store one would be a lie about where the secret lives. Where changing a
+credential requires Cloudflare configuration, the section says exactly that.
+
+What D1 stores is non-secret policy only: enabled, default provider, allowed
+features, approved model aliases, budgets, premium permission, retention choice,
+body-logging preference and sensitive-category consent. Every value is validated
+through the kernel's own parsers on write **and** on read, so a hand-crafted POST
+cannot widen a budget past its ceiling or enable an unknown feature, and a row
+written by an older version degrades to safe rather than widening a limit.
+
+Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md).
