@@ -26,6 +26,13 @@ const routes: readonly RouteContribution[] = [
     file: "routes/detail.tsx",
   },
   {
+    // REVIEW-02 — the guided weekly flow: a second PRESENTATION of the same
+    // Review record at a stable sub-path, with the step in `?step=`.
+    id: "reviews.guide",
+    path: "reviews/:reviewId/guide",
+    file: "routes/guide.tsx",
+  },
+  {
     id: "reviews.mutate",
     path: "reviews/:reviewId/mutate",
     file: "routes/mutate.tsx",

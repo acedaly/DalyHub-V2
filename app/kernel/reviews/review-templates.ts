@@ -89,3 +89,35 @@ export function resolveReviewTemplate(type: ReviewType): ReviewTemplate {
 export function reviewSectionLabel(id: ReviewSectionId): string {
   return SECTION_LABELS[id];
 }
+
+/**
+ * Resolve the template a STORED Review was created against, by its persisted
+ * `template_id`.
+ *
+ * REVIEW-02's guided flow presents the Review's own prompts, so it must resolve
+ * them from what the Review stores, never from "whatever the current template
+ * happens to be". Today `review.<type>.v1` is the only published version for each
+ * type, so this returns the same object `resolveReviewTemplate` does — but it is
+ * the SEAM through which a future `v2` arrives without rewriting a single
+ * historical Review, and the guided flow already reads through it.
+ *
+ * An unrecognised id (a Review created by a future version, then opened by an
+ * older deployment) falls back to the type's current template rather than
+ * failing: the owner still sees their Review, and their stored responses are
+ * never rewritten to match.
+ */
+export function resolveReviewTemplateForId(
+  templateId: string,
+  type: ReviewType,
+): ReviewTemplate {
+  const current = resolveReviewTemplate(type);
+  return current.id === templateId ? current : current;
+}
+
+/** True when `templateId` is a version this build knows how to present. */
+export function isKnownReviewTemplateId(
+  templateId: string,
+  type: ReviewType,
+): boolean {
+  return reviewTemplateId(type) === templateId;
+}

@@ -619,6 +619,10 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM asset_events").run();
   await env.DB.prepare("DELETE FROM asset_obligations").run();
   await env.DB.prepare("DELETE FROM asset_details").run();
+  // REVIEW-02 guided-flow children cascade from review_details; clear them
+  // explicitly so a reset never leaves an orphan behind a partial delete.
+  await env.DB.prepare("DELETE FROM review_step_acknowledgements").run();
+  await env.DB.prepare("DELETE FROM review_workflow_state").run();
   await env.DB.prepare("DELETE FROM review_sections").run();
   await env.DB.prepare("DELETE FROM review_details").run();
   await env.DB.prepare("DELETE FROM owner_app_preferences").run();

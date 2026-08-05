@@ -9,7 +9,14 @@ import type {
   ReviewPage,
   ReviewSectionId,
   ReviewStatus,
+  UpdateReviewSectionOptions,
 } from "./review";
+import type {
+  ReviewWorkflowState,
+  ReviewWorkflowStateResult,
+  SetReviewWorkflowStepOptions,
+} from "./review-workflow";
+import type { WeeklyReviewStepId } from "./weekly-review-steps";
 
 export interface ReviewRepository {
   create(input: CreateReviewInput): Promise<CreateReviewResult>;
@@ -19,11 +26,56 @@ export interface ReviewRepository {
   ): Promise<Review | null>;
   list(input?: ListReviewsInput): Promise<ReviewPage>;
   updateTitle(id: string, title: string): Promise<ReviewChangeResult>;
+  /**
+   * Write one authored Markdown section.
+   *
+   * REVIEW-02 added OPTIMISTIC CONCURRENCY to this path, and only to this path.
+   * Authored reflection is the one thing in a Review that a second tab, a phone
+   * and a desktop can all be holding an older copy of, and a blind write loses
+   * writing the owner cannot get back. Supply `options.expectedUpdatedAt` — the
+   * `updatedAt` the caller loaded for that section — and the write is refused
+   * with `ReviewConflictError` when the stored row has moved on since. Omitting
+   * it preserves the original last-write-wins behaviour for callers that have no
+   * base version to quote (the Review record's own editors, unchanged).
+   */
   updateSection(
     id: string,
     sectionId: ReviewSectionId,
     body: string,
+    options?: UpdateReviewSectionOptions,
   ): Promise<ReviewChangeResult>;
+
+  /**
+   * REVIEW-02 — read the guided flow's small persisted workflow state (the
+   * resume bookmark and the owner's explicit step acknowledgements). A Review
+   * that has never been opened in the guided flow has no row; this returns the
+   * documented default rather than null, so every pre-existing Review has a
+   * sensible derived position. Never records Activity.
+   */
+  getWorkflowState(reviewId: string): Promise<ReviewWorkflowState>;
+
+  /**
+   * REVIEW-02 — move the resume bookmark. When `options.expectedRevision` is
+   * supplied and the stored revision has already moved on, NOTHING is written
+   * and the result reports `conflict: true` with the newer state, so a second
+   * tab's position is never silently overwritten. Never records Activity.
+   */
+  setWorkflowStep(
+    reviewId: string,
+    stepId: WeeklyReviewStepId,
+    options?: SetReviewWorkflowStepOptions,
+  ): Promise<ReviewWorkflowStateResult>;
+
+  /**
+   * REVIEW-02 — record or withdraw the owner's explicit "I have reviewed this
+   * step" decision. Additive and idempotent, so two tabs can never conflict over
+   * it. Never records Activity.
+   */
+  setStepAcknowledged(
+    reviewId: string,
+    stepId: WeeklyReviewStepId,
+    acknowledged: boolean,
+  ): Promise<ReviewWorkflowStateResult>;
   setStatus(id: string, status: ReviewStatus): Promise<ReviewLifecycleResult>;
   complete(id: string): Promise<ReviewLifecycleResult>;
   reopen(id: string): Promise<ReviewLifecycleResult>;

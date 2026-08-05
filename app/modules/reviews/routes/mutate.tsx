@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 
 import {
   ReviewArchivedError,
+  ReviewConflictError,
   ReviewValidationError,
   type ReviewStatus,
   type ReviewSectionId,
@@ -15,11 +16,22 @@ import type { Route } from "./+types/mutate";
 export type ReviewMutationResult =
   | { readonly kind: "rename"; readonly ok: true }
   | { readonly kind: "rename"; readonly ok: false; readonly formError: string }
-  | { readonly kind: "update_section"; readonly ok: true }
+  | {
+      readonly kind: "update_section";
+      readonly ok: true;
+      /** The section's new stored `updatedAt`, so the editor can keep quoting a
+       * current base version without a full reload (REVIEW-02). */
+      readonly updatedAt: string;
+    }
   | {
       readonly kind: "update_section";
       readonly ok: false;
       readonly formError: string;
+      /** Set when a NEWER version of this section already exists (REVIEW-02). */
+      readonly conflict?: true;
+      /** The newer stored text, so the owner can see what they would have lost. */
+      readonly currentBody?: string;
+      readonly currentUpdatedAt?: string;
     }
   | { readonly kind: "lifecycle"; readonly ok: true }
   | {
@@ -78,12 +90,37 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({ kind: "rename", ok: true });
     }
     if (intent === "update_section") {
-      await scope.reviews.updateSection(
+      const sectionId = String(form.get("sectionId") ?? "") as ReviewSectionId;
+      /*
+       * REVIEW-02 — optimistic concurrency for authored reflection.
+       *
+       * A caller that knows which version it loaded quotes it back as
+       * `expectedUpdatedAt`; the repository then refuses to overwrite a newer
+       * one. Callers that do not (the Review record's own section editors)
+       * simply omit it and behave exactly as before, so nothing existing
+       * changes behaviour.
+       */
+      const expectedRaw = form.get("expectedUpdatedAt");
+      const expected =
+        typeof expectedRaw === "string" && expectedRaw.length > 0
+          ? new Date(expectedRaw)
+          : null;
+      const result = await scope.reviews.updateSection(
         reviewId,
-        String(form.get("sectionId") ?? "") as ReviewSectionId,
+        sectionId,
         String(form.get("body") ?? ""),
+        expected !== null && !Number.isNaN(expected.getTime())
+          ? { expectedUpdatedAt: expected }
+          : {},
       );
-      return json({ kind: "update_section", ok: true });
+      const stored = result.review.sections.find(
+        (section) => section.sectionId === sectionId,
+      );
+      return json({
+        kind: "update_section",
+        ok: true,
+        updatedAt: (stored?.updatedAt ?? new Date(0)).toISOString(),
+      });
     }
     if (intent === "set_status") {
       await scope.reviews.setStatus(
@@ -129,6 +166,29 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json({ kind: "delete", ok: true });
     }
   } catch (cause) {
+    if (cause instanceof ReviewConflictError) {
+      // Someone else — another tab, the phone — wrote this section after the
+      // version this request quoted. Refusing is the correct outcome: report the
+      // newer text so nothing the owner wrote is lost, and never present it as a
+      // storage failure.
+      const current = await scope.reviews.get(reviewId);
+      const sectionId = String(form.get("sectionId") ?? "") as ReviewSectionId;
+      const stored = current?.sections.find(
+        (section) => section.sectionId === sectionId,
+      );
+      return json(
+        {
+          kind: "update_section",
+          ok: false,
+          conflict: true,
+          currentBody: stored?.body ?? "",
+          currentUpdatedAt: (stored?.updatedAt ?? new Date(0)).toISOString(),
+          formError:
+            "This reflection was changed somewhere else. Your text was not saved over it — copy what you want to keep, then reload.",
+        },
+        409,
+      );
+    }
     if (cause instanceof ReviewValidationError) {
       return json(
         {

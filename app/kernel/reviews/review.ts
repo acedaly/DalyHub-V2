@@ -94,6 +94,19 @@ export interface ReviewChangeResult {
   readonly changed: boolean;
 }
 
+/**
+ * REVIEW-02 — options for an authored-section write.
+ *
+ * `expectedUpdatedAt` is the section `updatedAt` the caller loaded. Supplying it
+ * turns the write into a compare-and-set: if the stored row changed in between —
+ * a second tab, a phone, another window — the write is refused with
+ * `ReviewConflictError` and the newer text survives. Omitting it keeps the
+ * original behaviour for callers with no base version to quote.
+ */
+export interface UpdateReviewSectionOptions {
+  readonly expectedUpdatedAt?: Date;
+}
+
 export interface ReviewLifecycleResult {
   readonly review: Review;
   readonly changed: boolean;
