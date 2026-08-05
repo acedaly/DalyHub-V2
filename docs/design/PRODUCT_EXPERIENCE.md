@@ -607,3 +607,56 @@ ordinary screen to show a list touched a few times a day, so the switcher is a
 compact menu that names the active view. And it does not embed itself in Today:
 Today runs the day, `/tasks` manages the work, and the shared authority between
 them is the Task model — not a shared screen.
+
+
+---
+
+## The guided weekly Review (REVIEW-02 / REVIEW-04, 2026-08-05)
+
+**The experience problem.** A weekly Review is one of the few things in DalyHub that is a
+*process*, not a record you edit. Before this, opening one presented ten Markdown editors
+across eight tabs: no order, no sense of where to start, no idea what was left, and nothing
+that survived being interrupted on a Tuesday and resumed on a Thursday phone. The owner had
+to supply the ritual themselves, every week.
+
+**The shape it takes now.** Seven steps, in the order a person actually reviews a week:
+
+> Settle in · Clear the Inbox · Review Projects · Goals and Areas · Reflect ·
+> Next week's focus · Complete Review
+
+It is the **same Review record**, presented differently — one id, one lifecycle, one set of
+responses, one Activity history. Anyone who prefers the record keeps it.
+
+**What makes it calm rather than a productivity gauntlet.**
+
+- **It never manufactures obligation.** Inbox zero is not required. No optional prompt is
+  required. Nothing has a streak, a score, a percentage or a red badge. Progress is stated
+  as a *position* — "Step 3 of 7" — because that answers "how much is left" without
+  implying a verdict.
+- **Leaving something undone is a decision, not a failure.** Every step can be marked
+  reviewed deliberately, and the flow says so in those words: "6 left, deliberately"
+  rather than "6 outstanding". Two steps are required, and each is satisfied by *making a
+  decision* — writing an answer **or** explicitly choosing not to. The product never
+  demands writing, and never lets a Review be completed by someone who has not looked.
+- **Continuing is not completing.** Walking past a step never marks it done. What the owner
+  wrote is what counts.
+- **It remembers, and it never moves you backwards.** The Review reopens where the owner
+  deliberately stopped. A Task completed in another tab, or an Inbox that refilled
+  overnight, changes what the step *shows* — never where the owner *is*.
+- **Nothing happens on the owner's behalf.** Writing "move the redesign forward" creates no
+  Task and changes no Project. The close-out offers Today planning, capture and Projects as
+  ordinary links; the owner decides.
+- **The language stays factual about a life.** "No supporting activity recorded this
+  period." "No active Project currently contributes to this Goal." "No next action visible
+  here." Never a judgement about a neglected Area, and never a claim the data does not
+  support.
+- **An error is not the owner's fault.** A step whose context cannot be read says so and
+  keeps the rest of the Review working: "Nothing in your Review has changed."
+
+**On a phone** it is one step at a time with Back and Continue in thumb reach, a step menu
+for jumping about, and a writing surface that grows with what you write rather than
+trapping it in a small scrolling box. Reflection on a phone is the hardest thing this
+product asks anyone to do, so it gets the viewport.
+
+Contract and rules: [`DESIGN_SYSTEM.md → Guided step flow`](DESIGN_SYSTEM.md#guided-step-flow-review-02--review-04) ·
+[`REVIEWS_MODULE.md → The guided weekly Review`](../development/REVIEWS_MODULE.md#the-guided-weekly-review-review-02--review-04-2026-08-05).

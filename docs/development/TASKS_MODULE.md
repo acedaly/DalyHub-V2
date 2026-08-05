@@ -856,3 +856,33 @@ What this means for anyone working on Tasks:
 - **Today shows it once.** An obligation with an open linked Task is represented by
   its Task in My day and suppressed from the Assets section — see
   [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md#assets-on-today-asset-02).
+
+
+---
+
+## Inbox in the guided weekly Review (REVIEW-02, 2026-08-05)
+
+The guided weekly Review processes the Inbox **inside the Review**, and does so over the
+existing Tasks contracts rather than a second one:
+
+- **One Inbox definition.** It reads the canonical `inbox` system view — active Tasks with
+  no structural parent ([ADR-062](../decisions/ARCHITECTURE_DECISIONS.md#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence)) — exactly as `/tasks?system=inbox`
+  and `/tasks/review` do. There is no Review-only Inbox query.
+- **One Task editor.** The step renders the shared
+  [`TaskQuickEditPanel`](../../app/shared/task-record/TaskQuickEditPanel.tsx), the same panel
+  a `/tasks` row and Review Inbox open. Every mutation posts to the canonical Task routes
+  (`/tasks/:taskId`, `/tasks/bulk`), so a Task filed inside a Review is indistinguishable
+  from one filed anywhere else, and its Activity is the ordinary Task Activity.
+- **The count is authoritative.** The remaining Inbox total comes from
+  `listWorkspaceTaskGroups` (which returns each bucket's count over the whole active scope),
+  not from the length of the loaded page. The triage queue itself is ONE bounded page and
+  offers the rest through `/tasks/review`.
+- **The server decides membership.** After every mutation the Review's loader revalidates;
+  a Task leaves the queue because the server says it is no longer unassigned-and-active,
+  never because the client guessed.
+- **A Task never has to have a Project.** Leaving Inbox items deliberately is supported and
+  recorded as a decision: the Review distinguishes "Inbox cleared" (derived) from "Inbox
+  step reviewed" (an explicit acknowledgement), and Inbox zero never blocks completing a
+  Review. No fake categorisation is offered or required.
+
+Full behaviour: [`REVIEWS_MODULE.md → Inbox integration`](REVIEWS_MODULE.md#inbox-integration).

@@ -446,3 +446,20 @@ capability is never hidden, and the trusted repository re-check remains the real
 See [`DESIGN_SYSTEM.md → Shared overflow menu`](../design/DESIGN_SYSTEM.md#shared-overflow-menu-ds-12),
 [`→ Shared record lifecycle`](../design/DESIGN_SYSTEM.md#shared-record-lifecycle-px-04) and
 [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+
+---
+
+## Areas in the guided weekly Review (REVIEW-02, 2026-08-05)
+
+The Review's alignment step lists the workspace's Areas (bounded, from
+`AreaRepository.listAreas`) and says, for each, whether an **active Project currently points
+at it**. That is a deliberately modest, explainable rule over facts the same step already
+reads — it describes where active work is aimed, and nothing more.
+
+The wording is calm and factual — "No supporting activity recorded this period" — and never
+moralises about a neglected life Area. Every Area is one link away from the Review.
+
+Richer per-period Area attention, momentum history and trend are **not** derived here: they
+remain [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) and
+[DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3).

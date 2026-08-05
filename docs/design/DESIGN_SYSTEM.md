@@ -547,6 +547,10 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Behaviour.** Only *discretionary* bands are previewed. Anything the owner has committed to — today's tasks, overdue work — is never truncated: a commitment you can only see by following a link is one the product has hidden. Any keyboard/roving model over the section is built from the **rendered** slice, so an arrow key can never travel to a row that is not on the page.
 **Rules.** The heading count is the total, not the slice. The link goes in the heading row, not after the rows — inside a roving collection a control placed after the last card sits between the owner and the exit from a long list. Never truncate silently.
 
+### Guided step flow (REVIEW-02)
+
+An ordered, resumable pass over ONE record: a canonical step registry, the step in the URL, a desktop rail, a phone stepper, and progress stated as a position. See [Guided step flow](#guided-step-flow-review-02--review-04).
+
 ---
 
 ## Shared Record Layout (DS-02)
@@ -1466,6 +1470,55 @@ The phone Card preset prioritises the leading state/completion control, the titl
 ### Meeting capture bar
 
 While the Meeting workspace is open, a sticky bar captures **Note · Action · Decision · Outcome** without switching tabs or opening a drawer: choose a type, type, submit, stay put with the input cleared and focused. Actions, decisions and outcomes save through the canonical `add_item`; a note is appended to the meeting's canonical `notesMarkdown` through the same authority the Notes editor autosaves through.
+
+---
+
+## Guided step flow (REVIEW-02 / REVIEW-04)
+
+A **guided step flow** is an ordered, resumable pass over ONE existing record — not a
+wizard that creates a second record, and not a form split across pages. Reviews is the
+first consumer; any future multi-step pass over a record (an onboarding review, a
+quarterly planning pass) composes the same shape rather than inventing one.
+
+The pattern's rules, all load-bearing:
+
+- **One canonical step registry, outside React.** Ids, order, owner-facing labels, compact
+  phone labels, descriptions, required-ness, the record fields each step presents, its
+  completion rule and its accessible label are declared once in a typed module. The
+  desktop rail, the phone stepper, the progress indicator, the route validation, the
+  resume logic and the tests all read it. No component restates step order.
+- **The step lives in the URL.** The bare path resolves the current step and redirects to
+  it, so the canonical URL always names a real step and Back/Forward, refresh, deep
+  linking and automated testing all work. An unknown step recovers to the current one by
+  redirect — never a 404. Navigation is POST → redirect → GET, so a refresh never
+  re-submits.
+- **Derive state; persist only a bookmark and explicit decisions.** Anything a live fact
+  can answer stays derived. What is stored is where the owner deliberately stopped, plus
+  the decisions ("I have reviewed this", "continue without recording one") that no
+  calculation can reproduce. Live counts must never move the owner backwards.
+- **Continuing is not completing.** Moving to the next step never marks the one behind it
+  done; acknowledgement is always a separate, explicit control with its own wording.
+- **Three states, always in words.** Done · Current step · Not started, rendered beside the
+  visual treatment and in each control's accessible name. `aria-current="step"` marks the
+  one being shown. Progress is a **position** — "Step 3 of 7" — never a percentage or a
+  score, on an `aria-label`led progressbar.
+- **Focus moves to the new step heading after a deliberate move**, and never on first
+  paint; a blocked commitment moves focus to the reason.
+- **Desktop is not a large phone wizard.** A persistent step rail beside the step's
+  content, the record's status always visible, and a writing surface kept to a reading
+  measure. Not three equally dense columns.
+- **Phone is not a squeezed rail.** Below `md` the rail is **removed**, one step shows at a
+  time under a compact progress header, a step sheet (the shared MOBILE-01 `Sheet`) offers
+  direct navigation, and Back/Continue sit in a sticky footer using
+  `--dh-keyboard-inset`, `--dh-bottomnav-height` and `env(safe-area-inset-bottom)`. No
+  destructive action sits beside Continue.
+- **No nested scrolling trap.** A step's primary editor grows with its content rather than
+  scrolling inside its own capped box; the page is the scroll container.
+
+Reference implementation: [`app/kernel/reviews/weekly-review-steps.ts`](../../app/kernel/reviews/weekly-review-steps.ts)
+(the registry), [`app/modules/reviews/guided/`](../../app/modules/reviews/guided/) (the
+surface), [`app/styles/review-guide.css`](../../app/styles/review-guide.css) (tokens only).
+Decision: [ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-weekly-review--one-review-two-presentations-a-canonical-step-model-and-the-smallest-possible-persisted-workflow-state).
 
 ---
 
