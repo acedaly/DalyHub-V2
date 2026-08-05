@@ -375,3 +375,17 @@ DS-09 Command Palette can launch or incorporate.
 - [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md) — the Today module and its Drawer keys.
 - [`DESIGN_SYSTEM.md → Search`](../design/DESIGN_SYSTEM.md#search) — the pattern.
 - [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) — the open-source assessment.
+
+
+## AI evidence retrieval builds on this (AI-01, 2026-08-05)
+
+The AI platform's bounded evidence-retrieval service composes the search
+projections documented above — Notes `search`, Tasks `searchTasks`, Meetings
+`searchMeetings` — plus EntityLinks and the spine. **No second search index was
+built for AI, and embeddings were deliberately not introduced**: keyword and
+relationship retrieval satisfy the first release, and a vector store is a separate
+decision with its own cost, storage and staleness questions.
+
+A model never queries. DalyHub retrieves first, bounds what it found, applies the
+privacy filter, and only then assembles a prompt. Nothing is recursive and nothing
+expands on the model's say-so. See [`AI_PLATFORM.md`](AI_PLATFORM.md) §14.

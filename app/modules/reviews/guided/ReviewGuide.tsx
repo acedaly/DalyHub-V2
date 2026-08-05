@@ -42,6 +42,7 @@ import {
   AlignmentStep,
   CompleteStep,
   FocusStep,
+  type AiSurfaceAvailability,
   InboxStep,
   OverviewStep,
   ProjectsStep,
@@ -65,6 +66,8 @@ export interface ReviewGuideProps {
   readonly todayIso: string;
   readonly notice: string | null;
   readonly onNoticeDismissed: () => void;
+  /** AI-01 — whether the Weekly Review assistant can run. Never a credential. */
+  readonly aiAvailability: AiSurfaceAvailability | null;
 }
 
 export function ReviewGuide({
@@ -77,6 +80,7 @@ export function ReviewGuide({
   workflowRevision,
   todayIso,
   notice,
+  aiAvailability,
   onNoticeDismissed,
 }: ReviewGuideProps) {
   const compact = useCompactViewport();
@@ -249,6 +253,7 @@ export function ReviewGuide({
             blocked={blocked}
             revision={workflowRevision}
             acknowledged={currentProgress?.acknowledged === true}
+            aiAvailability={aiAvailability}
           />
 
           {/*
@@ -386,6 +391,7 @@ function StepBody({
   todayIso,
   readOnly,
   blocked,
+  aiAvailability,
   revision,
   acknowledged,
 }: {
@@ -397,6 +403,7 @@ function StepBody({
   readonly todayIso: string;
   readonly readOnly: boolean;
   readonly blocked: boolean;
+  readonly aiAvailability: AiSurfaceAvailability | null;
   readonly revision: number;
   readonly acknowledged: boolean;
 }) {
@@ -438,6 +445,7 @@ function StepBody({
           readOnly={readOnly}
           priorFocus={stepData.priorFocus}
           onSaved={() => undefined}
+          aiAvailability={aiAvailability}
         />
       );
     case "summary":

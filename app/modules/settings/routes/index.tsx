@@ -32,6 +32,28 @@ import { getPrimaryNavigation } from "~/platform/modules/primary-navigation";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { OfflineSettingsPanel } from "~/shared/offline";
+import {
+  AI_MODEL_TIERS,
+  budgetPeriodKeys,
+  budgetSnapshot,
+  costUnavailable,
+  parseAiBoolean,
+  parseAiLoggingMode,
+  parseAiProvider,
+  parseAiResultRetention,
+  parseBudgetUsd,
+  isAiFeatureId,
+  isPrivacyCategory,
+  resolveModel,
+  MAX_DAILY_BUDGET_USD,
+  MAX_MONTHLY_BUDGET_USD,
+  MAX_PREMIUM_BUDGET_USD,
+  AI_PROVIDERS,
+  type AiFeatureId,
+  type PrivacyCategory,
+} from "~/kernel/ai";
+import { resolveAiConfiguration } from "~/platform/ai";
+import { AiSettingsSection } from "../AiSettingsSection";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { SelectField } from "~/shared/forms";
 import { ThemePicker } from "~/shared/shell/ThemePicker";
@@ -43,6 +65,7 @@ import type { Route } from "./+types/index";
 
 type SectionId =
   | "general"
+  | "ai"
   | "date-time"
   | "appearance"
   | "navigation"
@@ -59,6 +82,7 @@ const SECTIONS: readonly { readonly id: SectionId; readonly label: string }[] =
     { id: "date-time", label: "Date & time" },
     { id: "appearance", label: "Appearance" },
     { id: "navigation", label: "Navigation" },
+    { id: "ai", label: "AI" },
     { id: "privacy-data", label: "Privacy & data" },
     { id: "offline", label: "Offline & app" },
     { id: "about", label: "About" },
@@ -176,6 +200,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // registry by the kernel, so a removed or unknown theme shows as the default
     // rather than leaving the picker with nothing selected.
     theme: preferences.theme,
+    // AI-01 — the owner's non-secret AI policy plus this period's usage. No key,
+    // no gateway id and no provider URL crosses this boundary.
+    ai: await readAiSettings(scope, session.user.subject),
     // RELEASE-01 — the allow-listed build facts, from the one version authority.
     build: buildInfo(env),
   };
@@ -248,6 +275,21 @@ export async function action({ request, context }: Route.ActionArgs) {
       });
       return json({ ok: true });
     }
+    if (intent === "ai-update") {
+      const field = String(form.get("field") ?? "");
+      const value = String(form.get("value") ?? "");
+      const current = await scope.aiPreferences.get(session.user.subject);
+      await scope.aiPreferences.update(
+        session.user.subject,
+        aiPatchForField(
+          field,
+          value,
+          current.allowedFeatures,
+          current.allowedCategories,
+        ),
+      );
+      return json({ ok: true });
+    }
     if (intent === "reset-navigation") {
       await scope.appPreferences.update(session.user.subject, {
         navigation: DEFAULT_APP_PREFERENCES.navigation,
@@ -267,6 +309,140 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
   return json({ ok: false, message: "Unknown settings action." }, 400);
+}
+
+/**
+ * AI-01 — assemble the AI settings payload.
+ *
+ * Note what it reads and what it returns: the owner's stored policy, this
+ * period's usage totals, and BOOLEANS about configuration. No key, no gateway
+ * identifier, no provider URL and no model provider-string leaves the server.
+ */
+async function readAiSettings(
+  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+  ownerId: string,
+) {
+  const preferences = await scope.aiPreferences.get(ownerId);
+  const configuration = resolveAiConfiguration(env).summary;
+  const keys = budgetPeriodKeys(new Date());
+  const totals = await scope.aiUsage.totals({
+    day: keys.day,
+    month: keys.month,
+    featureId: "workspace-question-answer",
+  });
+  const snapshot = budgetSnapshot(preferences, totals, keys);
+  const featureUsage = await scope.aiUsage.featureTotals(keys.month);
+
+  const models = AI_PROVIDERS.flatMap((provider) =>
+    AI_MODEL_TIERS.map((tier) => {
+      const entry = resolveModel(provider, tier);
+      return entry === null
+        ? null
+        : {
+            tier,
+            provider,
+            label: entry.label,
+            costUnavailable: costUnavailable(entry),
+          };
+    }).filter((entry): entry is NonNullable<typeof entry> => entry !== null),
+  );
+
+  return {
+    enabled: preferences.enabled,
+    defaultProvider: preferences.defaultProvider,
+    configuredProviders: configuration.configuredProviders,
+    gatewayConfigured: configuration.gatewayConfigured,
+    routingMode: configuration.mode,
+    inconsistency: configuration.inconsistency,
+    allowedFeatures: preferences.allowedFeatures,
+    monthlyBudgetUsd: preferences.monthlyBudgetUsd,
+    dailyBudgetUsd: preferences.dailyBudgetUsd,
+    premiumBudgetUsd: preferences.premiumBudgetUsd,
+    premiumAllowed: preferences.premiumAllowed,
+    monthSpentUsd: snapshot.monthSpentUsd,
+    daySpentUsd: snapshot.daySpentUsd,
+    premiumSpentUsd: snapshot.premiumSpentUsd,
+    allowedCategories: preferences.allowedCategories,
+    loggingMode: preferences.loggingMode,
+    resultRetention: preferences.resultRetention,
+    providerFallbackAllowed: preferences.providerFallbackAllowed,
+    featureUsage,
+    models,
+  };
+}
+
+/**
+ * Translate one AI settings control into a validated patch. Every value goes
+ * through the kernel's own parsers, so a hand-crafted POST cannot widen a budget
+ * past its ceiling, enable an unknown feature or allow an unknown category.
+ */
+function aiPatchForField(
+  field: string,
+  value: string,
+  features: readonly AiFeatureId[],
+  categories: readonly PrivacyCategory[],
+) {
+  switch (field) {
+    case "enabled":
+      return { enabled: parseAiBoolean(value, "enabled") };
+    case "defaultProvider":
+      return { defaultProvider: parseAiProvider(value) };
+    case "premiumAllowed":
+      return { premiumAllowed: parseAiBoolean(value, "premiumAllowed") };
+    case "providerFallbackAllowed":
+      return {
+        providerFallbackAllowed: parseAiBoolean(
+          value,
+          "providerFallbackAllowed",
+        ),
+      };
+    case "monthlyBudgetUsd":
+      return {
+        monthlyBudgetUsd: parseBudgetUsd(
+          value,
+          "monthlyBudgetUsd",
+          MAX_MONTHLY_BUDGET_USD,
+        ),
+      };
+    case "dailyBudgetUsd":
+      return {
+        dailyBudgetUsd: parseBudgetUsd(
+          value,
+          "dailyBudgetUsd",
+          MAX_DAILY_BUDGET_USD,
+        ),
+      };
+    case "premiumBudgetUsd":
+      return {
+        premiumBudgetUsd: parseBudgetUsd(
+          value,
+          "premiumBudgetUsd",
+          MAX_PREMIUM_BUDGET_USD,
+        ),
+      };
+    case "loggingMode":
+      return { loggingMode: parseAiLoggingMode(value) };
+    case "resultRetention":
+      return { resultRetention: parseAiResultRetention(value) };
+    case "feature": {
+      const [id, on] = value.split(":");
+      if (!isAiFeatureId(id)) return {};
+      const next = new Set(features);
+      if (on === "1") next.add(id);
+      else next.delete(id);
+      return { allowedFeatures: [...next] };
+    }
+    case "category": {
+      const [id, on] = value.split(":");
+      if (!isPrivacyCategory(id)) return {};
+      const next = new Set(categories);
+      if (on === "1") next.add(id);
+      else next.delete(id);
+      return { allowedCategories: [...next] };
+    }
+    default:
+      return {};
+  }
 }
 
 function patchForField(field: string, value: string): AppPreferencePatch {
@@ -340,6 +516,7 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
         {active === "navigation" ? (
           <NavigationSection data={loaderData} />
         ) : null}
+        {active === "ai" ? <AiSettingsSection data={loaderData.ai} /> : null}
         {active === "privacy-data" ? <PrivacyDataSection /> : null}
         {active === "offline" ? <OfflineSection /> : null}
         {active === "about" ? <AboutSection data={loaderData} /> : null}

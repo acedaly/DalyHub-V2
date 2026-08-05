@@ -1,0 +1,373 @@
+/*
+ * AI-01 — the AI proposal, citation and Ask DalyHub surfaces.
+ *
+ * Tokens only: no raw hex, px or duration where a DS-01 token exists (AGENTS.md
+ * §9.8). Every layout here is single-column and fluid, so 320px is the design
+ * width rather than a squeeze — a proposal is reviewed one item at a time on a
+ * phone by construction, not by a breakpoint. Nothing scrolls inside anything
+ * else, so there is no nested-scroll trap.
+ */
+
+.dh-ask {
+  max-width: var(--dh-width-content);
+  margin: 0 auto;
+  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-16);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+}
+
+.dh-ask__title {
+  margin: 0 0 var(--dh-space-2);
+  font-size: var(--dh-font-size-2xl);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+.dh-ask__lead,
+.dh-ask__note,
+.dh-ask__budget {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.dh-ask__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-ask__label {
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+}
+
+.dh-ask__input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--dh-space-3);
+  font: inherit;
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  resize: vertical;
+}
+
+.dh-ask__input:focus-visible,
+.dh-ai-review__proposal :is(input, select):focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: var(--dh-space-1);
+}
+
+.dh-ask__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-3);
+}
+
+.dh-ask__answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+}
+
+/* A label, never a colour: the classification is readable without colour. */
+.dh-ask__badge,
+.dh-ask__classification {
+  margin: 0;
+  font-size: var(--dh-font-size-xs);
+  font-weight: var(--dh-font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+  color: var(--dh-color-text-secondary);
+}
+
+.dh-ask__summary,
+.dh-ask__statement-text {
+  margin: 0;
+  color: var(--dh-color-text);
+  line-height: var(--dh-line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.dh-ask__statements,
+.dh-ask__uncertainties ul,
+.dh-ai-review__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-ask__uncertainties ul {
+  gap: var(--dh-space-1);
+  list-style: disc;
+  padding-inline-start: var(--dh-space-5);
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-ask__subheading,
+.dh-ai-review__heading {
+  margin: 0;
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-semibold);
+  color: var(--dh-color-text);
+}
+
+/* ── Shared AI chrome ──────────────────────────────────────────────────────── */
+
+.dh-ai__progress,
+.dh-ai__failure,
+.dh-ai__unavailable,
+.dh-ai__disclosure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-3);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-sunken);
+}
+
+.dh-ai__disclosure {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--dh-space-1);
+}
+
+.dh-ai__progress-text,
+.dh-ai__failure-text,
+.dh-ai__unavailable-text,
+.dh-ai__disclosure-text,
+.dh-ai__disclosure-note,
+.dh-ai__notice {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.dh-ai__failure-text {
+  color: var(--dh-color-text);
+}
+
+.dh-ai__citations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-ai__citation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border-inline-start: var(--dh-border-width-thick) solid
+    var(--dh-color-divider);
+  background: var(--dh-color-surface-sunken);
+  border-radius: var(--dh-radius-sm);
+  min-width: 0;
+}
+
+.dh-ai__citation-kind,
+.dh-ai__citation-date {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+}
+
+.dh-ai__citation-link {
+  font-size: var(--dh-font-size-sm);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-ai__citation-excerpt {
+  flex-basis: 100%;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  line-height: var(--dh-line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.dh-ai__details {
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding-top: var(--dh-space-3);
+}
+
+.dh-ai__details-summary {
+  cursor: pointer;
+  font-size: var(--dh-font-size-sm);
+  color: var(--dh-color-text-secondary);
+  /* A 44px target without a fixed height: padding keeps it comfortable at every
+     text size, including OS text scaling. */
+  padding: var(--dh-space-2) 0;
+  min-height: var(--dh-touch-target-min);
+  display: flex;
+  align-items: center;
+}
+
+.dh-ai__details-summary:focus-visible {
+  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline-offset: var(--dh-space-1);
+}
+
+.dh-ai__details-list {
+  margin: 0;
+  display: grid;
+  gap: var(--dh-space-2);
+  font-size: var(--dh-font-size-sm);
+}
+
+.dh-ai__details-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-ai__details-list dt {
+  color: var(--dh-color-text-secondary);
+  min-width: 0;
+}
+
+.dh-ai__details-list dd {
+  margin: 0;
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* ── Proposal review ───────────────────────────────────────────────────────── */
+
+.dh-ai-review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-5);
+  min-width: 0;
+}
+
+.dh-ai-review__lead,
+.dh-ai-review__empty,
+.dh-ai-review__hint,
+.dh-ai-review__confidence {
+  margin: 0;
+  color: var(--dh-color-text-secondary);
+  font-size: var(--dh-font-size-sm);
+  line-height: var(--dh-line-height-relaxed);
+}
+
+.dh-ai-review__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-ai-review__summary,
+.dh-ai-review__item-text {
+  margin: 0;
+  color: var(--dh-color-text);
+  line-height: var(--dh-line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.dh-ai-review__item,
+.dh-ai-review__proposal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-4);
+  background: var(--dh-color-surface-card);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  min-width: 0;
+}
+
+.dh-ai-review__select {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-height: var(--dh-touch-target-min);
+  font-weight: var(--dh-font-weight-medium);
+  color: var(--dh-color-text);
+  cursor: pointer;
+}
+
+.dh-ai-review__select input {
+  inline-size: var(--dh-space-5);
+  block-size: var(--dh-space-5);
+}
+
+.dh-ai-review__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+}
+
+.dh-ai-review__label {
+  font-size: var(--dh-font-size-xs);
+  color: var(--dh-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--dh-letter-spacing-wide);
+}
+
+.dh-ai-review__field :is(input, select) {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--dh-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  font: inherit;
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm);
+}
+
+/* Two date fields sit side by side only when there is genuinely room for them. */
+.dh-ai-review__dates {
+  display: grid;
+  gap: var(--dh-space-3);
+  grid-template-columns: 1fr;
+}
+
+@container (min-width: 30rem) {
+  .dh-ai-review__dates {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dh-ai-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  padding-top: var(--dh-space-3);
+  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-ai-review__actions .dh-btn {
+  min-height: var(--dh-touch-target-min);
+}

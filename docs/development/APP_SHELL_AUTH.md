@@ -508,3 +508,17 @@ That rule now lives once, pure and React-free, in
 `aria-current="page"` and the active class from that rule;
 `mobile-navigation.ts` re-exports it so the bar cannot drift. A new module needs
 no change: it inherits the rule by appearing in the model.
+
+
+## AI routes at the request boundary (AI-01, 2026-08-05)
+
+The AI routes add no authentication surface of their own — that is the point.
+`/ai`, `/ai/assist` and `/ai/apply` are ordinary protected routes: the shared
+request boundary authenticates them, resolves the workspace from trusted server
+configuration, and applies AUDIT-FIX-04's same-origin mutation check **before**
+either POST action runs. A cross-origin AI request is therefore refused before any
+provider is contacted and before any budget is reserved.
+
+AI responses are `private, no-store` and add no CORS header. No provider error,
+payload, endpoint, account id or credential crosses the route boundary — only a
+bounded error code and its calm sentence.

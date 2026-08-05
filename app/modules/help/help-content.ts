@@ -598,6 +598,54 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         ],
       },
       {
+        id: "ai",
+        title: "AI assistance",
+        lead: "DalyHub can help you read your own records. It never changes them on its own.",
+        blocks: [
+          {
+            kind: "text",
+            text: "AI in DalyHub does three things, and only three: it pulls the actions and decisions out of a meeting or a note, it writes a summary of your week for the guided weekly review, and it answers questions about your own records. It is not a chatbot, it has no access to the internet, it keeps no conversation history, and it cannot browse or change anything by itself.",
+          },
+          {
+            kind: "text",
+            text: "The rule behind all of it: DalyHub picks what to send, the AI comes back with a suggestion, and you decide what becomes part of DalyHub. Nothing is added, edited or deleted until you tick it and press the button. Anything you don’t accept is simply discarded.",
+          },
+          {
+            kind: "text",
+            text: "Some questions never reach an AI at all. Ask DalyHub how many tasks are overdue, or when your last meeting was, and DalyHub reads the answer straight out of your records — it says so when it does, and that costs nothing.",
+          },
+          {
+            kind: "text",
+            text: "It needs your own developer account. AI assistance is off until you add an API key from Anthropic or OpenAI as a server secret. That is a developer account, billed by usage — it is NOT the same thing as a ChatGPT Plus or Claude subscription, and a subscription does not give you one. DalyHub does not include an account, credits or any usage of its own; you pay your provider directly for what you use.",
+          },
+          {
+            kind: "text",
+            text: "Because it is your money, DalyHub enforces its own budget before it contacts anyone. It starts at ten US dollars a month, with a smaller daily ceiling, and deep analysis turned off. When a limit is reached the AI actions switch off with a plain explanation and nothing is sent — the rest of DalyHub is untouched. You can raise a budget in Settings, deliberately; it never rises on its own.",
+          },
+          {
+            kind: "text",
+            text: "Every answer shows its working. A statement about your records is shown with the records it came from — you can open each one — and anything the AI worked out rather than read is labelled as an inference. If it can’t find enough to answer, it says so instead of making something up.",
+          },
+          {
+            kind: "list",
+            items: [
+              "What is sent: only the records DalyHub selects for that one request, and it tells you how many and of what kinds before it runs.",
+              "What is not sent by default: anything in a sensitive category — health, family, relationships, financial, and your own diary and reflections. You can allow a category in Settings if you want to.",
+              "What DalyHub records: how long a request took, what it cost and which feature it was. Not what was in it.",
+              "What your provider records: their own business, under their own policy. DalyHub cannot see or change that, and does not claim they never store anything. Read your provider’s developer-platform data policy, and only send information you are permitted to share with them.",
+            ],
+          },
+          {
+            kind: "text",
+            text: "What it cannot do: change your data, create anything without you accepting it, act on a schedule, watch your workspace in the background, run itself, search the internet, or remember one question when you ask the next. It also cannot be trusted to follow instructions hidden inside your own notes — DalyHub treats everything in a record as information to read, never as a command.",
+          },
+          {
+            kind: "text",
+            text: "To turn it off, go to Settings → AI and turn AI assistance off. Everything else in DalyHub works exactly the same way with AI off as with it on — it has always been optional, and nothing depends on it.",
+          },
+        ],
+      },
+      {
         id: "privacy",
         title: "Your data and privacy",
         lead: "This is your system. Nothing in it is anyone else's product.",

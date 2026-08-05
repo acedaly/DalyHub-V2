@@ -3,6 +3,8 @@ import { env } from "cloudflare:test";
 import {
   createActivityRepository,
   createAlignmentRepository,
+  createAiPreferencesRepository,
+  createAiUsageRepository,
   createAppPreferencesRepository,
   createTaskViewRepository,
   createAreaRepository,
@@ -404,6 +406,24 @@ export function makeTaskViewRepository(
   return createTaskViewRepository(env.DB, context, options);
 }
 
+/**
+ * AI-01 — the workspace-scoped AI preferences adapter. Stores no secret.
+ */
+export function makeAiPreferencesRepository(context: WorkspaceContext) {
+  return createAiPreferencesRepository(env.DB, context);
+}
+
+/**
+ * AI-01 — the workspace- AND owner-scoped usage ledger. The owner is bound at
+ * construction, exactly as the composition boundary binds it from the session.
+ */
+export function makeAiUsageRepository(
+  context: WorkspaceContext,
+  ownerId: string,
+) {
+  return createAiUsageRepository(env.DB, context, ownerId);
+}
+
 export function makeAppPreferencesRepository(
   context: WorkspaceContext,
   options?: D1AppPreferencesRepositoryOptions,
@@ -626,6 +646,9 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM review_sections").run();
   await env.DB.prepare("DELETE FROM review_details").run();
   await env.DB.prepare("DELETE FROM owner_app_preferences").run();
+  // AI-01: both AI tables are workspace-scoped and hold no child rows.
+  await env.DB.prepare("DELETE FROM ai_usage_requests").run();
+  await env.DB.prepare("DELETE FROM workspace_ai_preferences").run();
   await env.DB.prepare("DELETE FROM task_saved_views").run();
   // TASKS-04: the recurrence rows reference entities ON DELETE RESTRICT, so they
   // must clear before entities.

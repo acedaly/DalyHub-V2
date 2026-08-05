@@ -17,10 +17,22 @@ import type {
 } from "~/kernel/reviews";
 import { EmptyState } from "~/shared/empty-state";
 import { FormButton } from "~/shared/forms";
+import { AiWeeklyReviewSurface } from "~/shared/ai";
 import { AlignmentIndicator } from "~/shared/alignment";
 import { HealthIndicator } from "~/shared/project-health";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { useCompactViewport } from "~/shared/viewport";
+
+/**
+ * AI-01 — availability, resolved by the guide route's loader. The step never
+ * reads configuration and never sees a credential.
+ */
+export interface AiSurfaceAvailability {
+  readonly enabled: boolean;
+  readonly providerConfigured: boolean;
+  readonly featureAllowed: boolean;
+  readonly budgetExhausted: boolean;
+}
 
 import type { SerializedReview } from "../review-view";
 import { ReviewPromptEditor } from "./ReviewPromptEditor";
@@ -649,15 +661,23 @@ export function FocusStep({
   readOnly,
   priorFocus,
   onSaved,
+  aiAvailability,
 }: {
   readonly review: SerializedReview;
   readonly step: WeeklyReviewStepDefinition;
   readonly readOnly: boolean;
   readonly priorFocus: SerializedPriorFocus | null;
   readonly onSaved: () => void;
+  readonly aiAvailability: AiSurfaceAvailability | null;
 }) {
   const prompts = reviewGuidePrompts(review, step.sectionIds);
   const current = prompts[0];
+  // AI-01 — accepted assistant text is appended to what the owner has written,
+  // and still requires their own save. Nothing here writes to the Review.
+  const [appendRequest, setAppendRequest] = useState<{
+    text: string;
+    nonce: number;
+  } | null>(null);
 
   return (
     <div className="dh-review-guide__stack">
@@ -687,6 +707,19 @@ export function FocusStep({
         </p>
       )}
 
+      {aiAvailability !== null && !readOnly ? (
+        <AiWeeklyReviewSurface
+          reviewId={review.id}
+          availability={aiAvailability}
+          onAccept={(text) =>
+            setAppendRequest((previous) => ({
+              text,
+              nonce: (previous?.nonce ?? 0) + 1,
+            }))
+          }
+        />
+      ) : null}
+
       {current ? (
         <ReviewPromptEditor
           reviewId={review.id}
@@ -694,6 +727,7 @@ export function FocusStep({
           readOnly={readOnly}
           rows={10}
           onSaved={onSaved}
+          appendRequest={appendRequest}
         />
       ) : (
         <p className="dh-review-muted">

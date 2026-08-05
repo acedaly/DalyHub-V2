@@ -104,7 +104,70 @@ const UNCOMMITTED_VAR_KEYS = [
   "ACCESS_TEAM_DOMAIN",
   "ACCESS_AUD",
   "OWNER_EMAIL",
+  // AI-01: provider credentials and Gateway identifiers are supplied at deploy
+  // time as secrets. A committed `var` of the same name -- even an empty one --
+  // would OVERRIDE the deploy-time secret and clobber it.
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "AI_GATEWAY_ACCOUNT_ID",
+  "AI_GATEWAY_ID",
+  "AI_GATEWAY_TOKEN",
 ];
+
+/**
+ * AI-01: the OPTIONAL AI secrets. An ordinary DalyHub deployment needs none of
+ * them -- AI disabled or unconfigured is a fully supported production state, so
+ * their absence is never a problem. What IS a problem is an INCONSISTENT set,
+ * which would send requests somewhere the owner did not intend.
+ */
+export const AI_SECRET_KEYS = [
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "AI_GATEWAY_ACCOUNT_ID",
+  "AI_GATEWAY_ID",
+  "AI_GATEWAY_TOKEN",
+];
+
+/**
+ * Check the AI configuration supplied at deploy time. PURE, and it never reads,
+ * prints, echoes or returns a secret VALUE -- only whether each one is present.
+ *
+ * The rules, and the reason for each:
+ *   - nothing set: fine. AI is off; DalyHub deploys and runs normally.
+ *   - a Gateway account id without a gateway id (or the reverse): REFUSED. A
+ *     half-configured Gateway silently degrades to direct provider calls, which
+ *     is a different data path than the owner asked for.
+ *   - a Gateway token with no gateway: REFUSED, same reasoning.
+ *   - a Gateway configured with NO provider key: REFUSED. Bring-your-own-keys is
+ *     the intended mode, so a gateway with nothing to authenticate through it is
+ *     a configuration the owner did not mean to make.
+ */
+export function checkAiConfiguration(env = process.env) {
+  const present = (key) => isNonEmptyString((env[key] ?? "").trim());
+  const problems = [];
+
+  const anyProvider = present("ANTHROPIC_API_KEY") || present("OPENAI_API_KEY");
+  const account = present("AI_GATEWAY_ACCOUNT_ID");
+  const gateway = present("AI_GATEWAY_ID");
+  const token = present("AI_GATEWAY_TOKEN");
+
+  if (account !== gateway) {
+    problems.push(
+      "AI Gateway is half-configured: set BOTH AI_GATEWAY_ACCOUNT_ID and AI_GATEWAY_ID, or neither.",
+    );
+  }
+  if (token && !(account && gateway)) {
+    problems.push(
+      "AI_GATEWAY_TOKEN is set without AI_GATEWAY_ACCOUNT_ID and AI_GATEWAY_ID.",
+    );
+  }
+  if (account && gateway && !anyProvider) {
+    problems.push(
+      "AI Gateway is configured but no provider key is supplied; DalyHub uses bring-your-own-keys.",
+    );
+  }
+  return { ok: problems.length === 0, problems };
+}
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -319,6 +382,10 @@ export function checkProductionDeployReadiness({
   // is honest (About says "Not recorded") rather than broken. But if one IS
   // supplied and is malformed, fail here rather than let it be silently dropped
   // at render time — a typo'd commit at deploy time should be loud.
+  // AI-01: AI is OPTIONAL, so an absent configuration is never a problem here --
+  // only an inconsistent one. No secret value is read or printed.
+  problems.push(...checkAiConfiguration(env).problems);
+
   const suppliedBuildCommit = (env.BUILD_COMMIT ?? "").trim();
   const buildCommit = normaliseBuildCommit(suppliedBuildCommit);
   if (suppliedBuildCommit !== "" && buildCommit === null) {

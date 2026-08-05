@@ -1602,3 +1602,23 @@ Every interactive control is keyboard-reachable with a visible focus ring — no
 - [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) — products whose interaction patterns inform these.
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — where today's UI diverges from this system.
 - [`AGENTS.md`](../../AGENTS.md) — the governing constitution.
+
+
+## AI proposal and citation patterns (AI-01, 2026-08-05)
+
+Two genuinely reusable patterns entered the system with AI-01. Both live in
+`app/shared/ai/` and are used by Meetings, Notes, the guided Review and Ask
+DalyHub, so all four behave identically.
+
+**The citation card.** Module/type, title, date, a short excerpt and a link to the
+canonical record. It renders only ids DalyHub itself supplied, so a fabricated
+citation cannot appear. Classification (`From your records` / `AI inference`) is
+carried in **words**, never colour alone.
+
+**The proposal review surface.** Nothing is pre-selected; every field is editable
+before acceptance; individual items can be removed; the whole proposal can be
+rejected; and there is no route that accepts everything without per-item choice.
+Progress uses `role="status"` (a running request is not an alert); `role="alert"`
+is reserved for a blocking failure. Provider, model and cost sit in a secondary
+`<details>` disclosure. Every layout is single-column and fluid, so 320px is the
+design width rather than a squeeze, and no proposal region scrolls inside another.

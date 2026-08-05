@@ -13,7 +13,7 @@
 - **Found new debt?** Add it with the [template](#entry-template) rather than leaving it undocumented. Undocumented divergence is the worst kind.
 - **Priority:** `P1` (actively harms coherence/trust), `P2` (notable friction), `P3` (cleanup).
 - **Status:** ☐ open · ◐ in progress · ☑ resolved.
-- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-89** (DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
+- **IDs are unique and stable.** Never reuse a retired number; never issue a number twice. The next free ID is **DEBT-95** (DEBT-90…DEBT-94 were raised by AI-01/AI-04; DEBT-79…DEBT-88 were raised by the [5 August 2026 end-to-end audit](END_TO_END_AUDIT_2026_08_05.md)). (One entry, **AUDIT-IDENTITY-01**, keeps its original audit identifier rather than being renumbered, so it stays traceable to the audit that raised it.)
   - **Known ID collision, recorded rather than silently renumbered (UX-01, 2026-08-01).** The number **DEBT-45** was issued twice: once for *"A captured record is not linked to the context it was captured from"* and once for *"Keyset paginators can consume a revalidated fetcher page after a scope reset"*. Renumbering either would break every existing cross-reference, so both keep the number and each is identified by its title. The pagination one is now ☑; the capture-context one remains ◐. Do not issue DEBT-45 again.
 - **Close only on evidence.** An entry moves to ☑ when the source code *and* its tests prove it, cited in the entry. "It should be fixed by now" is not evidence.
 
@@ -923,6 +923,46 @@ authority now.)
 - **Desired future state.** Review Inbox reads the route's answer and announces it, reusing the same pure helper rather than a second copy of the rule.
 - **Closing condition.** A test proves a refused completion is announced as the route's refusal message (not as a success) and does not revalidate the queue.
 - **Related roadmap item.** [TASKS-04](../roadmap/ROADMAP_V2.md); the worked precedent is [REVIEW-02](../roadmap/ROADMAP_V2_1.md#-review-02--weekly-review--delivered-2026-08-05).
+
+### ☐ DEBT-90 — AI-accepted Tasks are not recorded as meeting-item follow-ups — P3
+
+- **Current issue.** [`app/modules/ai/routes/apply.tsx`](../../app/modules/ai/routes/apply.tsx) creates an accepted Task through the canonical `scope.tasks.createTask`, not through **MEET-02's** `meeting_items` → Task conversion authority. The Task is correct in every other respect — owner as actor, ordinary Activity, ordinary lifecycle — but no `meeting_item_tasks` row is written, so the Meeting's Follow-up tab does not show it as a converted item.
+- **Impact.** A Meeting can end up with two kinds of follow-up Task that look the same to the owner and are not the same underneath, which is exactly the divergence the single-conversion-authority rule exists to prevent. The Follow-up tab quietly under-reports.
+- **Desired future state.** The apply path routes a Task whose evidence is a meeting item through the conversion authority MEET-02 already owns, so there is exactly one Task-from-a-Meeting path.
+- **Closing condition.** A test proves an accepted AI proposal for a meeting item appears in the Follow-up tab as converted, with the `meeting_item_tasks` mapping written; and duplicate conversion is still refused.
+- **Related roadmap item.** This is the substance of [AI-02](../roadmap/ROADMAP_V2_1.md#-ai-02--meeting--tasksnotes-proposals), which is recorded ◐ rather than ☑ for this reason. **Related:** [MEET-02](../roadmap/ROADMAP_V2.md).
+
+### ☐ DEBT-91 — The Weekly Review assistant's fact block is narrower than the guided Review's own evaluators — P3
+
+- **Current issue.** The assistant is fed facts DalyHub calculates rather than asking a model to count — which is the right design — but the bounded computation in [`app/modules/ai/review-facts.ts`](../../app/modules/ai/review-facts.ts) reports `0` for stalled Projects, Projects without a visible next action, Goal alignment and Diary counts instead of re-deriving PROJ-02 / AREA-03. The guided Review already computes several of these for the step the owner is on.
+- **Impact.** Two computations of the same week can disagree, and the assistant's summary is the one that will be wrong — it will describe a quiet week because its inputs were zeroed, not because the week was quiet.
+- **Desired future state.** The assistant reads the guided flow's existing bounded context projection instead of its own reduced one, so the two cannot disagree about the same period.
+- **Closing condition.** A test proves the assistant's fact block matches the guided Review's own evaluators for the same Review period, including at least one non-zero stalled-Project case.
+- **Related roadmap item.** Part of what [AI-03](../roadmap/ROADMAP_V2_1.md#-ai-03--planning--review-assistance) still owes; the evaluators are [REVIEW-02](../roadmap/ROADMAP_V2_1.md#-review-02--weekly-review--delivered-2026-08-05)'s.
+
+### ☐ DEBT-92 — Generated AI results are not persisted, so reuse is bounded to one isolate — P3
+
+- **Current issue.** Validated results live in a small bounded in-memory store in [`app/platform/ai/ai-runtime.ts`](../../app/platform/ai/ai-runtime.ts). This is deliberate — `ai_usage_requests` has no column for a response body — but it means the request fingerprint's "you already ran this" reuse only holds within one isolate's lifetime.
+- **Impact.** The same question asked again from another device, or after the isolate recycles, is paid for twice even though the fingerprint matches and the source records have not changed. The owner is charged for DalyHub's forgetfulness.
+- **Desired future state.** A deliberate decision either way, with the cost written down: a saved-result table would become the largest store of AI-authored content in the product, and "no" is the conservative answer while there is no evidence that repeated identical requests are a real cost.
+- **Closing condition.** Either usage data showing duplicate identical requests are material and a bounded saved-result store with its own retention, or a recorded decision not to build one.
+- **Related roadmap item.** [AI-01](../roadmap/ROADMAP_V2_1.md#-ai-01--proposal-architecture--review-ui--delivered-2026-08-05).
+
+### ☐ DEBT-93 — AI evidence retrieval is keyword and relationship only — P3
+
+- **Current issue.** [`app/platform/ai/evidence-retrieval.ts`](../../app/platform/ai/evidence-retrieval.ts) selects evidence by term match over the existing search projections plus what is linked. There are no embeddings and no semantic search, so a question phrased entirely differently from the records it is about retrieves nothing.
+- **Impact.** Ask DalyHub answers "the evidence doesn't support an answer" in cases where the workspace does in fact hold the answer under different words. That refusal is honest, and it is still a miss.
+- **Desired future state.** Embeddings evaluated separately on their own merits — cost, storage, staleness, and whether Workers AI is justified — rather than adopted because a feature happens to involve AI.
+- **Closing condition.** A recorded evaluation with a decision, or a bounded semantic-retrieval path measured against the checked-in evaluation corpus.
+- **Related roadmap item.** [AI-01](../roadmap/ROADMAP_V2_1.md#-ai-01--proposal-architecture--review-ui--delivered-2026-08-05); [SHARED_SEARCH.md](../development/SHARED_SEARCH.md) is the retrieval this composes.
+
+### ☐ DEBT-94 — AI preferences are the one kind of owner configuration the export snapshot omits — P3
+
+- **Current issue.** The X-04 snapshot carries the owner's configuration under `owner` — [`build-snapshot.ts:117`](../../app/platform/export/build-snapshot.ts) reads `owner_app_preferences` and the TASKS-03 saved views — but not `workspace_ai_preferences`, which is owner configuration of exactly the same kind (budgets, allowed features, privacy consent, logging choice). The usage ledger's exclusion is principled; this one is a judgement call that reads as an omission unless someone goes looking.
+- **Impact.** An owner who exports, restores and finds their AI budgets, feature switches and privacy consent all back at defaults has lost settings the archive claimed to carry. The counter-argument is real — silently re-enabling spending and consent by restoring into a different environment is its own failure — which is precisely why it needs deciding rather than defaulting.
+- **Desired future state.** A decision recorded either way: AI preferences included in the snapshot (with restore made explicit about spending and consent), or excluded with the reason stated in the export's own `limitations` block so the archive is honest about what it does not carry.
+- **Closing condition.** Either the snapshot schema carries AI preferences with a restore test, or the export's `limitations` names the omission and a test asserts it is named.
+- **Related roadmap item.** [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability) ☑ · [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) ☐, which is where it has to be answered.
 
 ---
 

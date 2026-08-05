@@ -886,3 +886,18 @@ existing Tasks contracts rather than a second one:
   Review. No fake categorisation is offered or required.
 
 Full behaviour: [`REVIEWS_MODULE.md → Inbox integration`](REVIEWS_MODULE.md#inbox-integration).
+
+
+## Tasks created from an AI proposal (AI-01, 2026-08-05)
+
+A Task accepted from an AI proposal is an **ordinary Task**. It is created through
+`tasks.createTask`, with the same validation, lifecycle guards, workspace scoping
+and `entity.created` Activity as any other Task — and the Activity actor is the
+**owner**, because they reviewed and approved it. Nothing marks it as
+AI-originated, and nothing about it behaves differently afterwards.
+
+The proposal path is the only difference, and it is upstream: the owner selects
+and edits each Task before it exists. Dates are re-validated at acceptance, and a
+suggested Project is re-read through `getTaskParentCandidate`, so a Project
+archived or deleted between the proposal and the acceptance is refused rather than
+written to. See [`AI_PLATFORM.md`](AI_PLATFORM.md).

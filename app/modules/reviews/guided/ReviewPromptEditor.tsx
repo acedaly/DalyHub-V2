@@ -41,6 +41,17 @@ export interface ReviewPromptEditorProps {
   readonly rows?: number;
   /** Called after the server accepts a save, so the host can revalidate. */
   readonly onSaved?: () => void;
+  /**
+   * AI-01 — text the owner accepted from the Weekly Review assistant. It is
+   * APPENDED to whatever they have already written, never substituted for it:
+   * an assistant can add to a reflection, it can never overwrite one. A new
+   * `nonce` is what marks a new acceptance, so the same text can be accepted
+   * twice deliberately without being applied twice by a re-render.
+   */
+  readonly appendRequest?: {
+    readonly text: string;
+    readonly nonce: number;
+  } | null;
 }
 
 export function ReviewPromptEditor({
@@ -49,6 +60,7 @@ export function ReviewPromptEditor({
   readOnly,
   rows = 12,
   onSaved,
+  appendRequest = null,
 }: ReviewPromptEditorProps) {
   const [value, setValue] = useState(prompt.body);
   const [state, setState] = useState<SaveState>(
@@ -69,6 +81,22 @@ export function ReviewPromptEditor({
     baseVersion.current = prompt.updatedAt;
     savedBody.current = prompt.body;
   }, [prompt.sectionId, prompt.body, prompt.answered, prompt.updatedAt]);
+
+  // Append accepted assistant text. Deliberately additive and deliberately not
+  // auto-saved: the owner still presses save, so nothing reaches the Review
+  // repository without a second, human action.
+  const appliedNonce = useRef(0);
+  useEffect(() => {
+    if (appendRequest === null) return;
+    if (appendRequest.nonce === appliedNonce.current) return;
+    appliedNonce.current = appendRequest.nonce;
+    setValue((current) =>
+      current.trim().length === 0
+        ? appendRequest.text
+        : `${current.replace(/\s+$/, "")}\n\n${appendRequest.text}`,
+    );
+    setState("idle");
+  }, [appendRequest]);
 
   const save = useCallback(async () => {
     if (readOnly) return;

@@ -5,6 +5,7 @@ import {
   useRevalidator,
   useSearchParams,
 } from "react-router";
+import { readAiAvailability } from "~/platform/ai";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -42,6 +43,7 @@ import {
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
+import { AiExtractionSurface } from "~/shared/ai";
 import { RecordLayout } from "~/shared/record-layout";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import { serializeTaskView } from "~/shared/task-record/task-view";
@@ -118,6 +120,13 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   }
 
   return {
+    // AI-01 — availability only: whether the action can run, never a credential.
+    aiAvailability: await readAiAvailability(
+      scope,
+      s.user.subject,
+      "meeting-action-extraction",
+      env,
+    ),
     meeting: serializeMeeting(meeting),
     attendees: links.items
       .filter((x) => x.link.type === "meeting.attendee")
@@ -130,7 +139,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   };
 }
 
-const tabs = ["overview", "meeting", "follow-up", "activity", "settings"];
+const tabs = ["overview", "meeting", "follow-up", "ai", "activity", "settings"];
 const legacyMeetingTabs = new Set(["agenda", "notes", "decisions", "outcomes"]);
 
 export default function Detail({ loaderData }: Route.ComponentProps) {
@@ -191,7 +200,7 @@ function MeetingRecord({
 }: {
   loaderData: Route.ComponentProps["loaderData"];
 }) {
-  const { meeting: m, followUps } = loaderData,
+  const { meeting: m, followUps, aiAvailability } = loaderData,
     r = useRevalidator(),
     { openDrawer } = useDrawer(),
     capture = useCapture(),
@@ -651,6 +660,19 @@ function MeetingRecord({
                 onConvert={onConvert}
                 onOpenTask={onOpenTask}
                 onAddFollowUp={onAddFollowUp}
+              />
+            ),
+          },
+          {
+            id: "ai",
+            label: "AI",
+            content: (
+              <AiExtractionSurface
+                feature="meeting-action-extraction"
+                recordId={m.id}
+                recordLabel="Meeting"
+                availability={aiAvailability}
+                readOnly={readOnly}
               />
             ),
           },

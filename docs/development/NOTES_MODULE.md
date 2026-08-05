@@ -1119,3 +1119,18 @@ OWN `update_content` mutation — the same authority the editor autosaves throug
 then hands off to `/notes/:id`. There is no second simplified note store, and if
 the opening line fails to save the panel says so honestly rather than discarding
 the words.
+
+
+## Extract actions and decisions (AI-01, 2026-08-05)
+
+A Note record has an **AI** tab carrying one explicit action: *Extract actions and
+decisions*. It sends the Note's content plus the titles of explicitly linked
+records, and returns the same reviewable proposal shape Meetings use — one shared
+surface, so the behaviour is identical on both records.
+
+Suggested EntityLinks may only target records DalyHub itself offered as
+candidates: an invented target never reaches the review surface, and accepting one
+goes through `entityLinks.create`, which validates both endpoints in the bound
+workspace and is idempotent by relationship identity.
+
+Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md).

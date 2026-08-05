@@ -98,5 +98,7 @@
 /* PWA — the offline, connection-state and installation surfaces. Late in the
  * cascade because the connection status sits inside the pane the shell owns. */
 @import "./styles/offline.css";
+/* AI-01 — the AI proposal, citation and Ask DalyHub surfaces. */
+@import "./styles/ai.css";
 /* Last: the print stylesheet hides all on-screen chrome, so it must win. */
 @import "./styles/print.css";

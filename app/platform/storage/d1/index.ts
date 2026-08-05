@@ -483,6 +483,20 @@ export function createAppPreferencesRepository(
 }
 
 /**
+ * AI-01 — the AI preferences and usage-ledger adapters. Neither stores a secret
+ * and neither records Activity; the usage ledger is operational metadata, not
+ * history of the owner's records (ADR-012).
+ */
+export {
+  D1AiPreferencesRepository,
+  D1AiUsageRepository,
+  createAiPreferencesRepository,
+  createAiUsageRepository,
+  fromMicroUsd,
+  toMicroUsd,
+} from "./d1-ai-repository";
+
+/**
  * Factory for the workspace-scoped D1-backed workspace-membership repository —
  * the IDENT-01 identity link between an authenticated subject and this workspace
  * (and, optionally, a Person record). The SAME instance also implements the

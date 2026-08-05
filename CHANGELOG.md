@@ -19,6 +19,54 @@ no version number to group them under.
 
 ## Unreleased
 
+### Added — controlled, evidence-backed AI assistance
+
+- **A provider-independent AI platform.** One kernel of pure contracts
+  (`app/kernel/ai/`) — versioned prompt registry, DalyHub-owned response schemas,
+  a server-owned model and pricing registry, budgets, the request state machine
+  and a typed error family — with Anthropic and OpenAI adapters behind a single
+  contract. No module calls a provider; no provider SDK is added; no AI code
+  reaches the browser bundle.
+- **Three bounded capabilities.** Extract actions and decisions from a Meeting or
+  a Note; generate an evidence-backed Weekly Review assistant summary; and Ask
+  DalyHub questions about your own records, with citations.
+- **Ask DalyHub answers what it can without AI.** Counts, the Inbox state and
+  "when was the last Meeting" are read from repositories and cited — no provider
+  is contacted, and nothing is sent anywhere.
+- **Application-enforced budgets.** Reserve → run → reconcile, with a conservative
+  USD $10 monthly default, a daily ceiling, a separate deep-analysis allowance
+  that is off by default, per-feature daily limits, a concurrency cap and
+  duplicate-submit protection. When a limit is reached, ordinary DalyHub is fully
+  available and no provider call occurs.
+- **An AI usage ledger** (migration `0030`) recording operational metadata only —
+  no prompt, no response, no record content, no credential — and writing **no**
+  Activity.
+- **Privacy controls (AI-04), shipped with AI-01.** A structural seven-category
+  classification; People and Diary excluded by default; per-category owner
+  consent; and a pre-run disclosure naming exactly what will be sent and what was
+  left out.
+- **An AI section in Settings** showing status, providers, routing mode, models,
+  budgets and usage — and deliberately containing no field for an API key.
+- **Optional Cloudflare AI Gateway routing** with bring-your-own-keys, selected
+  purely by configuration and never required.
+
+### Changed — the surfaces AI appears on
+
+- Meetings and Notes gained an **AI** tab; the guided weekly Review's focus step
+  gained a deliberate _Generate assistant summary_ action that appends to — never
+  overwrites — what the owner has written.
+- The production deploy preflight refuses an inconsistent AI configuration and
+  refuses to commit an AI binding as a `var`. A deployment with no AI
+  configuration passes unchanged.
+
+### Unchanged, deliberately — what AI does not touch
+
+- DalyHub works exactly as before with AI disabled or unconfigured.
+- AI never writes to DalyHub data. Accepted proposals are created through the
+  modules' own repositories, with the **owner** as the Activity actor.
+- The X-04 export contract: no AI table is exported, so no export can carry a
+  credential.
+
 ### Added
 
 - **Your weekly Review is now a guided process, not a wall of empty boxes.**

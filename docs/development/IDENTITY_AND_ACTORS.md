@@ -262,3 +262,12 @@ which is not evidence about any particular past event.
 | repair planning rules | `test/unit/identity/identity-repair-plan.test.ts` |
 | repair against a real D1, including idempotency | `test/kernel/identity-repair.test.ts` |
 | the browser journey, desktop and mobile | `e2e/activity-actor.spec.ts` |
+
+
+## AI and the actor (AI-01, 2026-08-05)
+
+AI is never an actor. The AI usage ledger stores the authenticated subject — the
+same stable value the Activity stream uses as an actor id (IDENT-01), never an
+email — so AI usage is attributable without introducing a second identity model.
+When an owner accepts an AI proposal, the resulting Activity names **them**,
+because they reviewed and approved it.

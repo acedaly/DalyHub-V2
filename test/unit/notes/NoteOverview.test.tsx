@@ -95,6 +95,7 @@ describe("NoteOverview", () => {
         backlinksTab={<div>Backlinks content</div>}
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
+        aiTab={<div>AI content</div>}
       />,
     );
 
@@ -130,6 +131,7 @@ describe("NoteOverview", () => {
         backlinksTab={<div>Backlinks content</div>}
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
+        aiTab={<div>AI content</div>}
       />,
     );
 
@@ -140,6 +142,9 @@ describe("NoteOverview", () => {
       "Note",
       "Backlinks",
       "Links",
+      // AI-01 — the extraction surface, between the relationship tabs and the
+      // record's own history. The writing surface stays first and default.
+      "AI",
       "Activity",
     ]);
   });
@@ -155,6 +160,7 @@ describe("NoteOverview", () => {
         backlinksTab={<div>Backlinks content</div>}
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
+        aiTab={<div>AI content</div>}
       />,
     );
     expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
@@ -176,6 +182,7 @@ describe("NoteOverview", () => {
         backlinksTab={<div>Backlinks content</div>}
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
+        aiTab={<div>AI content</div>}
       />,
     );
 
@@ -194,6 +201,7 @@ describe("NoteOverview", () => {
         backlinksTab={<div>Backlinks content</div>}
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
+        aiTab={<div>AI content</div>}
       />,
     );
 
@@ -223,6 +231,7 @@ describe("NoteOverview", () => {
           backlinksTab={<div>Backlinks content</div>}
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
+          aiTab={<div>AI content</div>}
         />,
       );
 
@@ -292,6 +301,7 @@ describe("NoteOverview", () => {
           backlinksTab={<div>Backlinks content</div>}
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
+          aiTab={<div>AI content</div>}
         />,
       );
 
@@ -342,6 +352,7 @@ describe("NoteOverview", () => {
           backlinksTab={<div>Backlinks content</div>}
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
+          aiTab={<div>AI content</div>}
         />,
       );
 
@@ -394,6 +405,7 @@ describe("NoteOverview", () => {
           backlinksTab={<div>Backlinks content</div>}
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
+          aiTab={<div>AI content</div>}
         />,
       );
 

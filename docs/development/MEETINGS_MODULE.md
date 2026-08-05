@@ -372,3 +372,30 @@ that closes [DEBT-45](../product/PRODUCT_DEBT.md) applies here too.
 The path a later page is requested from carries the CURRENT view and filters
 (minus any cursor), so "Load more" resumes the same result set the cursor was
 issued for rather than the unfiltered default.
+
+
+## Extract actions and decisions (AI-01, 2026-08-05)
+
+A Meeting record has an **AI** tab carrying one explicit action: *Extract actions
+and decisions*. It sends the Meeting's agenda, notes and structured items plus the
+titles of records explicitly linked to it — never unrelated Person notes, all
+Diary content or historical Meetings — and returns a reviewable proposal:
+a summary, decisions, proposed Tasks, unresolved questions and suggested links.
+
+Nothing is created by running it. Every proposed Task starts **unselected**, every
+field is editable, individual items can be removed, and the whole proposal can be
+rejected. A suggested Project or Person must come from an allowlist DalyHub
+supplied; an invented id is rejected by the validator, not quietly dropped. A date
+the model *worked out* rather than read is not pre-filled — DalyHub owns date
+validation, and an inferred date must be confirmed before it is stored.
+
+Accepted Tasks are created through the canonical `tasks.createTask`, so lifecycle
+guards, workspace scoping and the ordinary `entity.created` Activity all apply —
+with the **owner** as the actor, because they reviewed and approved it.
+
+**Not yet AI-02.** An accepted Task is an ordinary Task; it is not recorded through
+MEET-02's `meeting_items` → Task conversion authority and does not appear as a
+converted follow-up. See the AI-02 entry in
+[`ROADMAP_V2_1.md`](../roadmap/ROADMAP_V2_1.md).
+
+Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md).

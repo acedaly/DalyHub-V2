@@ -431,3 +431,41 @@ These are real and recorded rather than hidden.
 - [`SETTINGS_MODULE.md`](SETTINGS_MODULE.md) — the Settings surface.
 - [`DATA_KERNEL.md`](DATA_KERNEL.md) — entities, EntityLinks and Activity.
 - [`docs/README.md`](../README.md) — documentation index.
+
+
+## AI data and the export contract (AI-01, 2026-08-05)
+
+**A deliberate decision, recorded rather than assumed:** the X-04 workspace
+snapshot is **unchanged** by the AI platform. Neither `workspace_ai_preferences`
+nor `ai_usage_requests` is exported.
+
+The two exclusions have different standing, and it is worth being exact about
+which is a principle and which is a judgement call.
+
+- **The usage ledger is excluded on principle.** `ai_usage_requests` is
+  operational metadata: tokens, cost estimates, model ids, durations and failure
+  categories. It describes how the *system* was operated, not anything the owner
+  authored. Exporting it would put the system's own logs in the owner's data
+  archive without adding anything they could use elsewhere. This matches how the
+  snapshot already treats Activity infrastructure.
+- **The preferences exclusion is a judgement call, and it diverges.** The
+  snapshot **does** carry `owner_app_preferences` and the TASKS-03 saved views
+  under `owner`, so "configuration is not exported" is *not* the existing rule.
+  `workspace_ai_preferences` is owner configuration of exactly that kind, and it
+  is left out anyway, for one reason worth stating plainly: budgets and consent
+  are spending and privacy decisions, and silently re-enabling them by restoring
+  an archive into a different environment is a worse failure than making the
+  owner set them again. That is a defensible answer, not an obvious one — it is
+  recorded as
+  [DEBT-94](../product/PRODUCT_DEBT.md#-debt-94--ai-preferences-are-the-one-kind-of-owner-configuration-the-export-snapshot-omits--p3)
+  so SET-02 confronts it rather than inheriting it.
+- **The security consequence is unaffected either way:** no AI table is in the
+  snapshot, so no export can carry a provider credential — and there is no
+  credential in D1 to carry in the first place.
+- **Restore (SET-02) therefore has nothing AI-shaped to restore.** A restored
+  workspace starts with AI off and the conservative default budgets. When SET-02
+  lands it should state this explicitly rather than let it pass unremarked.
+
+Accepted proposals are ordinary records — Tasks and EntityLinks — and export
+exactly as they always have. Nothing marks them as AI-originated, because after
+the owner has reviewed and accepted them they are simply the owner's records.
