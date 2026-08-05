@@ -6,6 +6,7 @@ import type { AuthenticatedSession } from "~/kernel/auth";
 import {
   MEETING_UPDATED,
   MeetingArchivedError,
+  MeetingItemConflictError,
   MeetingNotFoundError,
   MeetingStorageError,
   MeetingValidationError,
@@ -127,17 +128,29 @@ async function itemRowCount(): Promise<number> {
  * device) can archive or delete the meeting in, and it is the only way to reach
  * the guard's refusal path deterministically. Only `batch` is proxied.
  */
-function raceDb(interfere: () => Promise<void>): D1Database {
+function raceDb(
+  interfere: () => Promise<void>,
+  /**
+   * Optional second interference, run once immediately AFTER the guarded write —
+   * i.e. in the window before the repository diagnoses its own refusal. Used to
+   * reproduce archive-then-restore, where the refusal is real but the meeting no
+   * longer looks refusing by the time it is inspected.
+   */
+  afterWrite?: () => Promise<void>,
+): D1Database {
   let armed = true;
   return new Proxy(env.DB, {
     get(target, prop, receiver) {
       if (prop === "batch") {
         return async (statements: D1PreparedStatement[]) => {
-          if (armed) {
+          const first = armed;
+          if (first) {
             armed = false;
             await interfere();
           }
-          return target.batch(statements);
+          const results = await target.batch(statements);
+          if (first && afterWrite) await afterWrite();
+          return results;
         };
       }
       const value = Reflect.get(target, prop, receiver);
@@ -152,6 +165,15 @@ async function archiveDirectly(meetingId: string): Promise<void> {
     "UPDATE meeting_details SET archived_at = ? WHERE entity_id = ?",
   )
     .bind("2026-07-27T10:00:00.000Z", meetingId)
+    .run();
+}
+
+/** Un-archive a meeting through raw SQL, for the same reason. */
+async function restoreDirectly(meetingId: string): Promise<void> {
+  await env.DB.prepare(
+    "UPDATE meeting_details SET archived_at = NULL WHERE entity_id = ?",
+  )
+    .bind(meetingId)
     .run();
 }
 
@@ -620,6 +642,68 @@ describe("AUDIT-FIX-02 — the meeting changing under an item mutation", () => {
       MeetingNotFoundError,
     );
     expect(await itemRowCount()).toBe(1);
+  });
+
+  it("never reports a removal as done when the archive was reverted before the diagnosis", async () => {
+    // The sharpest form of the question: the guard refuses the DELETE because the
+    // meeting is archived, and the meeting is RESTORED again before the refusal is
+    // diagnosed. A diagnosis that inspected the meeting's later state would see a
+    // healthy meeting and answer `false` — "already removed" — while the item is
+    // still on it. Reading the ITEM row back is what makes that impossible.
+    const context = makeContext(WS);
+    const repo = repository(WS);
+    const meeting = await seedMeeting(repo);
+    const item = await repo.addItem(meeting.id, "agenda", "Still here");
+    const baselineEvents = await countActivitiesOfType(MEETING_UPDATED);
+
+    const racing = createMeetingRepository(
+      raceDb(
+        () => archiveDirectly(meeting.id),
+        () => restoreDirectly(meeting.id),
+      ),
+      context,
+      {
+        clock: new FakeClock().now,
+        idGenerator: nextEntityId,
+        activityIdGenerator: nextActivityId,
+      },
+    );
+
+    await expect(racing.removeItem(meeting.id, item.id)).rejects.toBeInstanceOf(
+      MeetingItemConflictError,
+    );
+    // The item really is still there — which is exactly why `false` would lie.
+    expect(await itemRowCount()).toBe(1);
+    expect((await repo.get(meeting.id))!.items.map((i) => i.id)).toEqual([
+      item.id,
+    ]);
+    expect(await countActivitiesOfType(MEETING_UPDATED)).toBe(baselineEvents);
+  });
+
+  it("never reports an append as done when the archive was reverted before the diagnosis", async () => {
+    const context = makeContext(WS);
+    const repo = repository(WS);
+    const meeting = await seedMeeting(repo);
+    const baselineEvents = await countActivitiesOfType(MEETING_UPDATED);
+
+    const racing = createMeetingRepository(
+      raceDb(
+        () => archiveDirectly(meeting.id),
+        () => restoreDirectly(meeting.id),
+      ),
+      context,
+      {
+        clock: new FakeClock().now,
+        idGenerator: nextEntityId,
+        activityIdGenerator: nextActivityId,
+      },
+    );
+
+    await expect(
+      racing.addItem(meeting.id, "decision", "Never committed"),
+    ).rejects.toBeInstanceOf(MeetingItemConflictError);
+    expect(await itemRowCount()).toBe(0);
+    expect(await countActivitiesOfType(MEETING_UPDATED)).toBe(baselineEvents);
   });
 
   it("still returns a plain false when the item is simply already gone", async () => {

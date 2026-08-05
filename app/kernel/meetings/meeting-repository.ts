@@ -78,17 +78,28 @@ export class MeetingStorageError extends Error {
 }
 
 /**
- * AUDIT-FIX-02 — a bounded, recoverable contention failure while appending a
- * structured meeting item.
+ * AUDIT-FIX-02 — a bounded, recoverable contention failure on a structured
+ * meeting-item mutation. It always means the same thing: **the mutation did not
+ * take effect, and retrying is the recovery.**
  *
- * `addItem` allocates its `position` INSIDE the insert (`MAX(position) + 1` scoped
- * to workspace + meeting + kind), so the ordinary remove-then-add sequence can no
- * longer collide. The `UNIQUE (workspace_id, meeting_id, kind, position)`
- * constraint remains the final integrity boundary; if two same-kind appends still
- * manage to allocate the same slot, the losing batch rolls back ENTIRELY (no item
- * row, no Activity) and is retried a bounded number of times. Only when that
- * budget is exhausted does this surface — a calm, user-legible conflict naming the
- * recovery, never a raw uniqueness exception.
+ * Two situations reach it.
+ *
+ * **Position contention on an append.** `addItem` allocates its `position` INSIDE
+ * the insert (`MAX(position) + 1` scoped to workspace + meeting + kind), so the
+ * ordinary remove-then-add sequence can no longer collide. The
+ * `UNIQUE (workspace_id, meeting_id, kind, position)` constraint remains the final
+ * integrity boundary; if two same-kind appends still manage to allocate the same
+ * slot, the losing batch rolls back ENTIRELY (no item row, no Activity) and is
+ * retried a bounded number of times. Only when that budget is exhausted does this
+ * surface — never a raw uniqueness exception.
+ *
+ * **A lifecycle guard that refused and was then reverted.** Both item mutations
+ * re-assert in SQL that the meeting is live and unarchived at write time. When
+ * that guard blocks the write but the meeting is no longer in the refusing state
+ * by the time the refusal is diagnosed — archived, then restored — there is no
+ * true `MeetingArchivedError` to raise and no change to report. Rather than invent
+ * a reason or, worse, report a removal that did not happen as done, the caller is
+ * told plainly that it did not take effect.
  */
 export class MeetingItemConflictError extends Error {
   constructor(
@@ -173,9 +184,11 @@ export interface MeetingRepository {
    * repeat removal of an already-removed item is a truthful no-op that returns
    * `false` and writes NO event.
    *
-   * `false` means "there was nothing to remove", and ONLY that. If the removal was
-   * instead refused because the meeting was archived or deleted concurrently, that
-   * is reported as {@link MeetingArchivedError} / {@link MeetingNotFoundError} —
+   * `false` means "there was nothing to remove", and ONLY that — it is decided by
+   * reading the ITEM row back, not by inspecting the meeting afterwards. A removal
+   * refused by the write-time lifecycle guard is reported as
+   * {@link MeetingArchivedError} / {@link MeetingNotFoundError}, or, when the
+   * refusing condition has since been reverted, {@link MeetingItemConflictError} —
    * never as a `false` a caller could read as a completed removal.
    *
    * Deliberately does NOT renumber the surviving items: their positions are stable
