@@ -159,9 +159,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--app-space-2);
-  padding: var(--app-space-3) var(--app-gutter);
-  padding-inline-start: max(var(--app-gutter), env(safe-area-inset-left));
-  padding-inline-end: max(var(--app-gutter), env(safe-area-inset-right));
+  padding: var(--app-space-3) var(--app-page-padding);
+  padding-inline-start: max(var(--app-page-padding), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-page-padding), env(safe-area-inset-right));
   padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
   background: var(--md-app-color-surface-card);
   border-top: var(--app-border-width-thin) solid

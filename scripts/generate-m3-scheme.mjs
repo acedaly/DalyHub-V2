@@ -216,29 +216,83 @@ const CUSTOM_COLOR_GROUPS = [
 ];
 
 /* -------------------------------------------------------------------------- */
-/* App surface extensions                                                     */
+/* App surface extensions — the generated APP-NEUTRAL palette                 */
 /* -------------------------------------------------------------------------- */
 
 /**
- * The four surfaces the APPLICATION paints with, as aliases onto the system
- * ramp. They exist because one requirement — a card is lighter than the page it
- * sits on, in BOTH schemes — cannot be expressed by a single system alias: light
- * lifts the card toward white while dark lifts it away from black, so the two
- * schemes pick different rungs of the same ramp. Naming the four rungs the app
- * actually uses means every card in the product agrees by definition.
+ * The surfaces the APPLICATION paints with come from their OWN generated
+ * palette, not from the system container ramp.
+ *
+ * Why they cannot be aliases. `SchemeVibrant` is the right variant for this
+ * product's PRIMARY — it keeps `#2563EB`'s confidence where `SchemeTonalSpot`
+ * collapses it to a muted navy — but the same variant builds its neutral palette
+ * at **chroma 10**. Every rung of that ramp therefore carries a visible tint, and
+ * because the application paints its page, its navigation, its filter bars and
+ * its sunken panels from those rungs, the tint covers the entire product:
+ *
+ *     surface-container-low  #f2f3ff   chroma 9.01   ← the page canvas
+ *     surface-container      #ecedfb   chroma 10.12  ← every sunken panel
+ *     surface-container-high #e6e7f5   chroma 10.16  ← every raised surface
+ *
+ * At the near-white tones an application actually uses, chroma 9–10 at the seed's
+ * hue is a lavender wash rather than a neutral canvas. Dropping the chroma is
+ * necessary but not sufficient: the seed's HCT hue is 272°, which sits on the
+ * MAGENTA side of blue, so a low-chroma ramp at that hue reads as a faint lilac
+ * (`#f8f5f9`) rather than as the cool grey the design direction calls for.
+ *
+ * So the app-neutral palette is derived from the seed by two documented numbers
+ * and nothing else — no hex is authored here or anywhere else:
+ *
+ *   - {@link APP_NEUTRAL_HUE_ROTATION} rotates the seed's hue toward the cool end;
+ *   - {@link APP_NEUTRAL_CHROMA} drops the chroma to near-neutral.
+ *
+ * Recorded in the ADR alongside the four deviations ADR-074 already carries.
  */
-const APP_SURFACES = {
+const APP_NEUTRAL_HUE_ROTATION = -35;
+
+/** Near-neutral, but not zero: at 0 the ramp is a dead grey with no relation to the seed. */
+const APP_NEUTRAL_CHROMA = 4;
+
+/**
+ * The tone each application surface takes, per scheme.
+ *
+ * The ORDER is the contract and is asserted by `test/unit/tokens`: a card is
+ * lighter than its page in both schemes; navigation and the app bar are
+ * distinguishable from the page without needing a rule; sunken is visibly
+ * recessed. Light lifts toward white and dark lifts away from black, which is why
+ * the two ladders are not mirror images of one another.
+ *
+ * `surface-raised` is tone 100 in light — the same tone as a card — deliberately.
+ * In the light scheme a raised surface is separated by ELEVATION (a menu, a
+ * drawer, a dialog casts a shadow); tinting it darker than the card is what made
+ * PR #120's Today hero read as sunken on the product's most-visited screen. In
+ * dark, where shadow barely reads, raised steps up the ramp instead.
+ *
+ * `outline-hairline` is not a surface but belongs to the same palette: it is the
+ * quiet 1px edge a card draws so it separates from a page only 2.5 tones away.
+ * It is DECORATIVE — where a boundary is the only signal of a control, the system
+ * `outline`/`outline-variant` roles still apply and still carry their 3:1.
+ */
+const APP_SURFACE_TONES = {
   light: {
-    "surface-page": "surface-container-low",
-    "surface-card": "surface-container-lowest",
-    "surface-raised": "surface-container-high",
-    "surface-sunken": "surface-container",
+    "surface-page": 97.5,
+    "surface-navigation": 99,
+    "surface-app-bar": 100,
+    "surface-card": 100,
+    "surface-card-subtle": 96,
+    "surface-raised": 100,
+    "surface-sunken": 94,
+    "outline-hairline": 92,
   },
   dark: {
-    "surface-page": "surface",
-    "surface-card": "surface-container",
-    "surface-raised": "surface-container-high",
-    "surface-sunken": "surface-container-low",
+    "surface-page": 7,
+    "surface-navigation": 9,
+    "surface-app-bar": 10,
+    "surface-card": 13,
+    "surface-card-subtle": 11,
+    "surface-raised": 19,
+    "surface-sunken": 5,
+    "outline-hairline": 24,
   },
 };
 
@@ -327,12 +381,17 @@ function buildScheme() {
     customGroups.push({ label: group.label, tokens });
   }
 
-  // The app surfaces resolve to the same hex as the system rung they alias, so
-  // the TS mirror can assert contrast on the tokens the CSS actually paints.
-  const appSurfaceNames = Object.keys(APP_SURFACES.light);
+  // The application surfaces come out of their own generated palette (see
+  // APP_SURFACE_TONES) rather than aliasing a system rung, so the CSS emits real
+  // values and the TS mirror asserts contrast on exactly what the browser paints.
+  const appNeutral = TonalPalette.fromHueAndChroma(
+    source.hue + APP_NEUTRAL_HUE_ROTATION,
+    APP_NEUTRAL_CHROMA,
+  );
+  const appSurfaceNames = Object.keys(APP_SURFACE_TONES.light);
   for (const mode of ["light", "dark"]) {
-    for (const [name, rung] of Object.entries(APP_SURFACES[mode])) {
-      out[mode][`app-${name}`] = out[mode][rung];
+    for (const [name, tone] of Object.entries(APP_SURFACE_TONES[mode])) {
+      out[mode][`app-${name}`] = hexFromArgb(appNeutral.tone(tone));
     }
   }
 
@@ -354,9 +413,11 @@ function schemeDeclarations({ scheme, systemRoleNames, customGroups }, mode) {
     }
   }
   lines.push("");
-  lines.push("/* Application surface extensions — see APP_SURFACES. */");
-  for (const [name, rung] of Object.entries(APP_SURFACES[mode])) {
-    lines.push(`--md-app-color-${name}: var(--md-sys-color-${rung});`);
+  lines.push(
+    "/* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */",
+  );
+  for (const name of Object.keys(APP_SURFACE_TONES[mode])) {
+    lines.push(`--md-app-color-${name}: ${scheme[mode][`app-${name}`]};`);
   }
   return lines.join("\n");
 }

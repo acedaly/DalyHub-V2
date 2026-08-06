@@ -6,7 +6,7 @@
 .af-demo {
   max-width: var(--app-width-content);
   margin: 0 auto;
-  padding: var(--app-space-6) var(--app-gutter) var(--app-space-16);
+  padding: var(--app-space-6) var(--app-page-padding) var(--app-space-16);
   min-width: 0;
 }
 

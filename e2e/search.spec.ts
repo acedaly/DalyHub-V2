@@ -6,7 +6,7 @@ import type { Locator, Page } from "@playwright/test";
 /**
  * DS-08 Shared Search — driven end to end against the development-auth server.
  *
- * Exercises the real Product Frame Search affordance (the sidebar `/` entry) wired
+ * Exercises the real Product Frame Search affordance (the top app bar `/` entry) wired
  * to the live `/search` endpoint and the registry-discovered Today provider, plus
  * the failure states via the `/design/search` fixture. Role-based and non-brittle.
  */
@@ -19,7 +19,15 @@ async function hasNoHorizontalOverflow(page: Page) {
 }
 
 function searchTrigger(page: Page) {
-  return page.getByRole("button", { name: "Search", exact: true }).first();
+  // The primary Search affordance lives in the DESKTOP TOP APP BAR. It used to
+  // be a pill in the navigation drawer; the surface it opens, the callback it
+  // opens it with and the focus restoration are all unchanged — only its home
+  // moved. Scoped to `.dh-topbar` so this never accidentally resolves the phone
+  // sheet's own entry, which is a different control on a different viewport.
+  return page
+    .locator(".dh-topbar")
+    .getByRole("button", { name: /^Search DalyHub/ })
+    .first();
 }
 
 async function openSearch(page: Page) {

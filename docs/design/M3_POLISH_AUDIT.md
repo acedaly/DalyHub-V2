@@ -1,7 +1,7 @@
 # Whole-product visual audit after PR #120
 
 **Branch:** `claude/m3-visual-polish-6oq9z2` · **Base:** `main` @ `210e7d2` (PR #120, "Migrate to Material Design 3 and remove theme switching")
-**Captured:** 6 August 2026 · **Status:** Gate A — presented for approval, nothing committed.
+**Captured:** 6 August 2026 · **Status:** Gate A findings, with the resolved answers folded back in as the work lands.
 
 PR #120 delivered the *technical* M3 foundation: one generated scheme from `#2563EB`, the
 `--md-sys-*` / `--md-app-*` / `--app-*` vocabulary, Roboto Flex, Material Symbols geometry,
@@ -45,12 +45,18 @@ successor's scheduled date. Today *is* 2026-08-06, so the weekly recurrence roll
 forward to the following week and the fixed expectation no longer holds. It fails on this date on
 `main` with no changes applied.
 
-It matters because §25 requires `verify` green at branch head, and `verify` cannot be green while
+It matters because the follow-up work has to leave `verify` green at branch head, and `verify` cannot be green while
 a wall-clock-dependent assertion is in the suite. **Proposed:** pin the test's clock to a fixed
 instant (the pattern the rest of the suite already uses for date maths) rather than relaxing or
 skipping the assertion. This is a genuine fix, not a weakening — it makes the test deterministic
-and keeps the guarantee it was written for. Flagged here for approval because it is outside the
-brief's stated scope.
+and keeps the guarantee it was written for.
+
+**Resolved.** Fixed on its own commit, separate from the visual work because it is unrelated to it.
+Only the repository the test builds directly had a `FakeClock`; the ROUTE composes its own
+repository from the environment and read the real system clock. The clock is now pinned to the same
+instant, scoped to the single test — the sibling "RETAINS an edited successor" case tells an edited
+successor from an untouched one by its timestamps, and a frozen clock makes those
+indistinguishable.
 
 ### PR #120 regressions guarded against
 
@@ -113,22 +119,31 @@ only genuinely neutral surface in the product is the card — and only because i
    `--md-sys-color-surface-container-*` rungs instead — which is why the drawer, the mobile bar and
    the bottom nav each pick a different rung by hand.
 
-**Proposed shared fix.** Extend `scripts/generate-m3-scheme.mjs` to emit the seven application
-surfaces from a **generated low-chroma neutral palette at the seed's own hue**
-(`TonalPalette.fromHueAndChroma(sourceHct.hue, APP_NEUTRAL_CHROMA)`), at the tones §6.2 specifies.
-Nothing is hand-authored: the hue still comes from `#2563EB`, and the chroma constant is a single
-documented number. Probed candidates:
+**Shared fix, as implemented.** `scripts/generate-m3-scheme.mjs` emits the seven application
+surfaces plus a card hairline from their own generated **app-neutral palette**, at the tones in
+Appendix A.1.
+
+Lowering the chroma turned out to be necessary but not sufficient. The seed's HCT hue is 272°, which
+sits on the MAGENTA side of blue, so a low-chroma ramp at that hue reads as a faint lilac rather
+than as a cool grey:
 
 ```
-chroma 3:  tone 97 #f8f5f9  tone 98 #fbf8fb  tone 99 #fefbfe   tone 8 #17171a  tone 12 #1f1f22
-chroma 4:  tone 97 #f8f5fa  tone 98 #fbf8fd  tone 99 #fefbff   tone 8 #17171b  tone 12 #1f1f23
+seed hue 272°, chroma 3:  tone 97 #f8f5f9   tone 98 #fbf8fb    (R > B — warm)
+seed hue 272°, chroma 4:  tone 97 #f8f5fa   tone 98 #fbf8fd    (R > B — warm)
+reference canvas          #f7f8fa           hue 229°, chroma 3.9, tone 97.6  (B > R — cool)
 ```
 
-Open question to settle with pixels at Gate B: at chroma 3–4 the seed hue (272°) reads faintly
-*warm* violet rather than the reference's *cool* grey. If the captures confirm that, the honest
-options are (a) derive the app-neutral hue from the scheme's `neutralVariantPalette` instead of the
-primary hue, or (b) apply a small, documented, generated hue offset toward the cool end. Either
-stays generated; I will bring the comparison rather than pick blind.
+The palette therefore carries TWO documented constants rather than one — a hue rotation toward the
+cool end and a chroma reduction — and nothing else:
+
+```js
+TonalPalette.fromHueAndChroma(sourceHct.hue + APP_NEUTRAL_HUE_ROTATION, APP_NEUTRAL_CHROMA)
+//                             272.2°       + (−35°)                  , 4
+```
+
+That puts tone 97.5 on `#f7f8fa` — the reference canvas exactly. No hex is authored; `scheme:check`
+still fails the build on a hand-edit. Shipped values are chroma 2.9–4.3 across all seven surfaces in
+both appearances, against 9.0–10.2 before.
 
 ## 2. Root cause B — there is no desktop top app bar
 
@@ -137,7 +152,8 @@ shell is a two-column grid — rail + pane — and nothing else. Consequences vi
 
 - **Search lives in the sidebar** as a 56 px fully-rounded pill, with a second, equally prominent
   56 px "Command palette" pill directly beneath it. Together they consume 112 px at the top of the
-  navigation drawer before a single destination appears (§8.3 forbids exactly this).
+  navigation drawer before a single destination appears — see Appendix A.2, which places the primary
+  search in the top app bar and allows no second control of equal prominence in the drawer.
 - Every page's own header has to double as the application bar, which is why `.dh-pane-header`
   carries the primary action, and why records — which use `RecordLayout`'s own header instead —
   end up with a **second, incompatible header system** (measured: `.dh-pane-header` is absent on
@@ -170,7 +186,7 @@ Legend for **Shared cause**: **A** = lavender/chroma + missing app surfaces · *
 
 | Surface | Current structure | Current visual problem | Shared cause | Module-specific cause | Proposed shared fix | Proposed module fix |
 |---|---|---|---|---|---|---|
-| **Today** | Pane header + "Customise" row + collapsible widget regions (hero / primary / secondary) | Lavender canvas; 250 px hero with a 6-tile outlined grid and large dead space; 290 px task-summary card for a ring + 3 legend rows; `▾ Brief`, `▾ Task summary`, `▾ My day`, `▾ Insights` disclosure triangles above every card read as a debug view; greeting says **"Good afternoon, Local."**; FAB overlaps the Insights card | A, B, C, D | `today.css` (2 236 lines, 10 bespoke card blocks); region-based placement model; metric tiles are individually **outlined** boxes | Neutral surfaces; top app bar; `DashboardCard` + `MetricTile` (divider, not outline, no per-tile elevation) | Replace regions with a responsive 12-column dashboard; move personalisation into card overflow + Customise; resolve the real display name; four rows per §16.3–16.6 |
+| **Today** | Pane header + "Customise" row + collapsible widget regions (hero / primary / secondary) | Lavender canvas; 250 px hero with a 6-tile outlined grid and large dead space; 290 px task-summary card for a ring + 3 legend rows; `▾ Brief`, `▾ Task summary`, `▾ My day`, `▾ Insights` disclosure triangles above every card read as a debug view; greeting says **"Good afternoon, Local."**; FAB overlaps the Insights card | A, B, C, D | `today.css` (2 236 lines, 10 bespoke card blocks); region-based placement model; metric tiles are individually **outlined** boxes | Neutral surfaces; top app bar; `DashboardCard` + `MetricTile` (divider, not outline, no per-tile elevation) | Replace regions with a responsive 12-column dashboard; move personalisation into card overflow + Customise; resolve the real display name; four rows per Appendix A.4 |
 | **Tasks** | Pane header (96 px) + view switcher + "View All active" row + "Filter & sort" row + quick-add + card list | ~300 px of chrome before the first task; rows 77 px for one line of content; every row shows a green check glyph *and* a checkbox; heavy pink overdue pill on every row; status chip competes with it; rows stretch 1400 px; no grouping headers | A, C, E | `task-signals.css`; four separate control rows the module composes itself | `RecordRow` (56 px one-line / 64–72 px two-line); collection `rows` presentation; compact subordinate filter bar | Collapse four control rows into one toolbar; group by planned/overdue/inbox; drop the duplicate check glyph; constrain row measure |
 | **Projects collection** | Pane header + segmented filter + full-width row cards | Identical to Tasks and Areas — "the same generic card list"; no project icon; progress bar unlabelled (`1 of 2 tasks`, no %); run-on metadata line; **"Updated: Updated 19 Jul 2026"** duplicated label; two competing status systems (state chip right, health chip inline) | A, C, E, G | `projects.css` is only 105 lines — too thin to compose anything intentional | `EntityCard`; collection `cards` presentation; `RecordIcon` | 3/2/1-column responsive grid; selected icon; progress + percentage; single status treatment; fix the duplicated "Updated:" label |
 | **Project record** | `RecordLayout` header + summary card + tabs + nested task panel | No identity icon; ~230 px summary card with an empty right half; **health stated 3×** (header chip, bar chip, "No progress in 18 days"); **progress stated 3×**; Area stated 2×; nested shadowed card inside a card; ~250 px of empty canvas below | A, C, D | `record-layout.css` summary grid always renders all columns even when empty | Record identity header (icon + eyebrow + title + parent + status + metadata); inset panels instead of nested cards | De-duplicate health/progress/Area; drop empty summary cells; contextual side column |
@@ -194,12 +210,12 @@ Legend for **Shared cause**: **A** = lavender/chroma + missing app surfaces · *
 | **Sheets (mobile)** | Bottom sheet | Reachable, but same field anatomy problem | A, F | `sheet.css` (324 lines) | Shared field anatomy | Keyboard-inset handling verified |
 | **Mobile shell** | Top bar + bottom nav + FAB | **Route title duplicated** — "Today" in the top bar and again in the pane header directly beneath; **FAB overlaps card content** (sits on the Task summary card's "All tasks" link) | B, D | — | Publish the title once; reserve the FAB band | — |
 | **Mobile Today** | Stacked widgets | Hero + 6 outlined tiles fill the entire first viewport; no task content above the fold | A, C, D | `today.css` | `MetricTile`; compact eligibility in layout metadata | Reorder so real work is above the fold |
-| **Empty / filtered-empty** | `EmptyState` centred in the collection | Occupies a full viewport band for one line of text | A, C, E | `empty-state.css` (107 lines) | Proportionate empty state inside the content card | Concise Area/Project states per §15.3 |
+| **Empty / filtered-empty** | `EmptyState` centred in the collection | Occupies a full viewport band for one line of text | A, C, E | `empty-state.css` (107 lines) | Proportionate empty state inside the content card | Concise Area/Project states — one "No active work" line, not three absence messages |
 | **Offline** | Own shell | `offline.css` (656 lines) independent of the app surfaces | A | — | App surfaces | — |
 
 ---
 
-## 5. The findings §4 asks to be named explicitly
+## 5. The findings, named explicitly
 
 **Surfaces that are merely token-swapped versions of the old design.** Tasks, Projects, Areas,
 Goals, Notes, Assets, People — all seven render the same `Card` in the same `CollectionLayout` in
@@ -229,7 +245,7 @@ at one weight.
 outlined card; Settings cards carry a border *and* sit on the tinted page; `base.css` gives every
 native control a full `--md-sys-color-outline` border.
 
-**Excessive purple tint.** Quantified in §1 — chroma 9–10 on every app surface except the white card.
+**Excessive purple tint.** Quantified in section 1 — chroma 9–10 on every app surface except the white card.
 
 **Poor light/dark tonal separation.** Dark navigation and dark page are the identical hex.
 
@@ -240,7 +256,7 @@ is an 8 px dot; Projects and Goals get a 16 px monochrome outline glyph; People 
 generic glyph for everyone.
 
 **Missing entity identity.** No Area or Project can carry a chosen icon at all — the feature does
-not exist yet (§14).
+not exist yet; selectable Area and Project icons are Appendix A.3.
 
 **Generic record pages needing a stronger header.** Project, Area, Goal, Person and Asset records
 all open with an eyebrow, a title and a chip, with no icon and no identity container.
@@ -275,7 +291,7 @@ All captures are current-state, on unmodified `main` @ `210e7d2`.
   which is why the greeting renders "Good afternoon, Local."
 - **Server:** `react-router dev` on `http://localhost:4173` (the same Workers runtime as production).
 - **Appearance:** emulated via `prefers-color-scheme`, which is the only selector that exists (ADR-074).
-- **Tests run before capture:** the full baseline in §0.
+- **Tests run before capture:** the full baseline in section 0.
 - **Root:** `docs/design/assets/m3-polish-2026-08/audit/`
 
 | Set | Viewport | Appearance | Contents |
@@ -317,7 +333,7 @@ sidebar/nav/search metrics, card counts and median card heights quoted throughou
 
 ## 7. What I propose to do about it, in order
 
-This maps onto the commit sequence in §23. Nothing below is committed yet.
+This is the commit sequence (restated in full in Appendix A.5). Nothing below is committed yet.
 
 1. **`design: generate neutral application surfaces`** — seven generated app surfaces at low
    chroma; structural tokens; contrast, chroma and surface-ordering tests.
@@ -329,24 +345,164 @@ This maps onto the commit sequence in §23. Nothing below is committed yet.
    persistence coverage.
 5. **Modules**, in the brief's grouping.
 6. **`today: rebuild the reference-led dashboard on real data`** — including the exact-count
-   aggregate methods §16.7 requires.
+   exact-count aggregate methods described in Appendix A.4.
 7. **Responsive, accessibility, documentation.**
 
 ---
 
 ## 8. Open questions for approval
 
-1. **The reference mock-up is not attached to this session.** I have no image to compare against —
-   the repository contains only PR #120's own acceptance captures
-   (`docs/design/assets/m3-2026-08/`) and the earlier DS-14/BRAND-01 sets. Everything above is
-   derived from the brief's written description of the reference (§2, §6–§19), which is detailed
-   enough to work from, but §20's Gate G ("compare directly with the attached reference") and
-   §25's standard ("the mock-up is immediately recognisable as the design direction") cannot be
-   honestly assessed without it. **Please re-attach the mock-up.** I can continue through Gate B on
-   the written spec regardless.
-2. **The date-dependent kernel test** (§0) — approval to fix it properly with a pinned clock, so
+1. **The reference mock-up** was supplied after this audit was first drafted, and its measured
+   values are folded into Appendix A.1. It is a dashboard mock-up of Today showing the intended
+   shell, surface and card language; it is not checked into the repository, so Appendix A records
+   everything derived from it that the implementation depends on.
+2. **The date-dependent kernel test** (section 0) — approval to fix it properly with a pinned clock, so
    `verify` can be green at branch head.
 3. **A richer local demo seed** for the three collections that render empty (Diary, Meetings,
    Reviews), local-only and uncommitted unless you would rather it became a committed dev fixture.
-4. **App-neutral hue** (§1) — I will bring a light/dark comparison at Gate B rather than choosing
+4. **App-neutral hue** (section 1) — I will bring a light/dark comparison at Gate B rather than choosing
    between the seed hue and a cooler generated hue without pixels.
+
+
+---
+
+## Appendix A — the design direction this audit is measured against
+
+This appendix exists because the audit above was written against a brief supplied in a chat
+session, and AGENTS.md §0 is explicit that **the repository, not a session, is the long-term
+memory of the product**. Everything the follow-up work depends on is restated here, so a future
+implementer needs nothing but this file.
+
+Where a value came from the reference mock-up it is marked *(measured)*; where it came from the
+written direction it is marked *(specified)*.
+
+### A.1 Application surfaces
+
+Generated, never authored, from the same `#2563EB` seed as everything else. The palette is
+`TonalPalette.fromHueAndChroma(seedHue + rotation, chroma)`; only those two numbers are constants.
+
+| Role | Light tone | Dark tone |
+|---|---|---|
+| `surface-page` | 97–98 | 6–8 |
+| `surface-navigation` | 99 | 8–10 |
+| `surface-app-bar` | 99–100 | 9–11 |
+| `surface-card` | 100 | 12–14 |
+| `surface-card-subtle` | 96 | 10–12 |
+| `surface-raised` | 100 *(separated by elevation, not tone)* | 17–20 |
+| `surface-sunken` | 93–95 | 5–7 |
+
+Exact tones may move where contrast requires, but the ORDER is the contract. Required properties,
+all asserted in `test/unit/tokens`: cards visibly lighter than the page in both appearances;
+navigation and the app bar distinguishable from the page; sunken visibly recessed; raised never
+darker than a card; every app surface low-chroma; all text, UI, focus-ring and chart-track contrast
+still passing.
+
+Reference values *(measured)*: page canvas `#f7f8fa` (HCT hue 229°, chroma 3.9, tone 97.6); cards,
+navigation and app bar all `#ffffff`; card hairline ≈ `#e9ebef` (tone 93); selected navigation pill
+≈ `#eef2ff`. Note that the seed's own hue is 272°, which is on the magenta side of blue — a
+low-chroma ramp at that hue reads lilac, not cool grey, which is why the palette carries a hue
+rotation as well as a chroma reduction.
+
+**Colour usage** *(specified)*: primary blue for the main action, active progress, links, focus,
+selected navigation, today indicators and blue chart series. Custom colours only for meaningful
+identity or state (overdue, warning, completed, waiting, project/Area identity, charts). Large
+ordinary cards are never painted blue, and tinted surfaces stay a minority of the page.
+
+### A.2 Shell anatomy *(specified, corroborated by the reference)*
+
+- Permanent navigation drawer at the left, 232–248px; desktop top app bar across the content
+  region, 64–72px; page content beneath, with no dead band between bar and page.
+- Separation by tone, not by heavy borders.
+- Navigation rows: 48–52px visual, 44px minimum target, 24px icon, 12px icon-to-label gap,
+  full-rounded selected indicator, `secondary-container` / `on-secondary-container` when selected,
+  `on-surface-variant` when not. No coloured icon rainbow unless each colour carries established
+  semantic meaning.
+- Primary search lives in the TOP APP BAR: 480–560px, 52–56px tall, full-rounded, tonal background,
+  leading icon, placeholder, trailing shortcut hint, no resting outline, clear focus ring, shrinking
+  before any utility control disappears. No second control of equal prominence in the drawer.
+- Top-bar utilities use only real existing functions — no notification bell unless a notification
+  system exists, no plan or billing entry, and an appearance indicator only where it reports the
+  operating-system appearance rather than offering an editable theme.
+- Mobile: 64px top bar, safe areas, bottom navigation with an active-indicator pill and persistent
+  labels, capture FAB above the bar, no overlap with content, and **no duplicated page title**.
+
+Structural targets: desktop page gutter 28–32px, tablet 20–24px, mobile 16px; dashboard gaps 20–24px
+on desktop; card padding 20–24px standard and 16px compact; card radius `corner-large` with nested
+panels at `corner-medium`; list rows 56px one-line and 64–72px two-line; desktop buttons 40px visual
+in a 44px target; entity icon container 36–40px with a 20–24px glyph; progress bars 4px.
+
+### A.3 Selectable Area and Project icons *(specified)*
+
+Nullable `icon_key` on Areas and Projects, storing a controlled semantic key only — never SVG, HTML,
+an icon-font codepoint, a component name, a URL, arbitrary text or an emoji. Existing records stay
+valid with no backfill; Areas fall back to the Area icon and Projects to the Project/folder icon. One
+shared key type and catalogue (key, label, category, icon component, search terms), every key
+resolving to an icon already exported through the existing `createIcon` API, keys stable even if the
+path changes. One shared picker used by both Create/Edit Area and Create/Edit Project: current
+preview, search, category groups, grid, visible names, selected state, reset to default, 44px
+targets, keyboard selection, Escape closes, focus returns to the trigger, selection conveyed by
+check/shape and ARIA rather than colour alone. An unknown stored key renders the fallback and must
+never break SSR. Icon keys must survive repositories, validation, loaders, actions, import, export,
+workspace snapshots and cloning — never silently discarded.
+
+### A.4 Today *(specified, corroborated by the reference)*
+
+A responsive 12-column dashboard replacing the hero/primary/secondary region model, with layout
+metadata per widget (default span, order, desktop row priority, tablet span, mobile order, compact
+eligibility). Stable widget IDs and personalisation data are preserved; persisted local layout is
+versioned and normalised rather than silently reset. Personalisation controls move into the card
+overflow menu and the Customise interface — the resting dashboard must not look like a debug view of
+draggable widgets.
+
+- **Row 1** — Daily summary (cols 1–8): four equal metrics (today's tasks, upcoming meetings, active
+  projects, weekly completion), each a small tonal icon container, a strong value, a label and one
+  actionable supporting line, separated by internal dividers with no per-tile shadow or outline.
+  Today's progress (cols 9–12): progress ring, clear denominator, completed and remaining, one
+  concise interpretation, a real destination.
+- **Row 2** — Today's tasks (1–5, ~5 rows, checkbox/title/context/priority/time, Add task, View all);
+  Upcoming agenda (6–8, merged scheduled tasks and meetings, time, timeline, duration and kind);
+  Projects in motion (9–12, 3–4 active projects with icon, progress and percentage).
+- **Row 3** — Focus Areas (1–5, compact selected-icon items); Recent activity (6–8, real activity with
+  correctly resolved actor names); mini calendar or Quick Notes (9–12) on real data.
+- **Row 4** — three equal analytics cards: meeting hours (real durations, weekly area chart), tasks
+  completed (real daily completions, seven-day bars, prior-period comparison), productivity score
+  (documented formula, ring, explanation, footnote).
+
+**Metric honesty is the hard rule.** Exact-looking totals are never derived from bounded preview
+arrays. Where a kernel exposes only bounded lists, add a read-only aggregate/count through the
+existing repository and kernel architecture (no new schema is needed for dashboard counts) and
+return either an exact count or an explicitly-marked lower bound. Never imply completeness. Day
+bucketing uses the owner's timezone and first-day-of-week preference. The greeting uses the real
+owner display name — never "Local", "Someone" or a generic label.
+
+**Charts** are hand-built SVG primitives (progress ring, spark area, week bars) with no runtime chart
+dependency: typed data, responsive viewBox, zero baseline where relevant, chart tokens only, legible
+dark track, no misleading scale, reduced-motion safe, `role="img"` with a generated text
+alternative, an empty state, and no clipping at zero or full.
+
+### A.5 Commit sequence and approval gates *(specified)*
+
+Visual work is shown before it is committed. For each unit: make the change, run its tests, run the
+app on realistic local data, capture the screenshots, present them with full paths, viewport,
+appearance, route, data source, tests run, known mismatches and open accessibility concerns — then
+stop and wait for approval. No temporary commits made in order to take screenshots, and no
+commit-then-ask. Non-visual data and migration changes may be committed once their tests pass.
+
+Gates: **A** audit · **B** foundation and shell · **C** shared components · **D** entity collections ·
+**E** records and forms · **F** remaining modules · **G** Today · **H** final sweep.
+
+Commit sequence: audit · neutral application surfaces · shell · shared headers/cards/rows/layouts ·
+Area and Project icons · Tasks · Projects · Areas and Goals · Notes/Diary/Meetings ·
+People/Assets/Reviews · AI/Settings/Help · Today · responsive and accessibility · documentation.
+
+`pnpm run verify` runs after the foundation, the shared components, icon persistence, each main
+module group, Today and at branch head; full Playwright and axe run at branch head, with no shard
+skipped and no test weakened to make the work pass.
+
+### A.6 What is deliberately NOT taken from the reference
+
+The mock-up shows a "Pro Plan / Manage plan" card, a notification bell with an unread dot, an account
+photo, and a "View calendar" link. DalyHub has no plan concept, no notification system, no uploaded
+avatars (initials are used instead) and no calendar route, so none of the four are reproduced —
+inventing controls without working actions is explicitly out of scope. Row 4 of the dashboard is
+below the fold in the supplied image; it is built from the written direction in A.4.

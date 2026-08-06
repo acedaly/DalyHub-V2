@@ -192,7 +192,8 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
 
     await page.waitForLoadState("networkidle");
     await page
-      .getByRole("button", { name: "Search", exact: true })
+      .locator(".dh-topbar")
+      .getByRole("button", { name: /^Search DalyHub/ })
       .first()
       .click();
     const input = page.getByRole("combobox", { name: "Search everything" });

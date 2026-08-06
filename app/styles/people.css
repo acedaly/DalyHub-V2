@@ -133,7 +133,7 @@
 .dh-person-new {
   max-inline-size: var(--app-width-prose, 44rem);
   margin-inline: auto;
-  padding: var(--app-space-5) var(--app-gutter) var(--app-space-8);
+  padding: var(--app-space-5) var(--app-page-padding) var(--app-space-8);
 }
 
 .dh-person-new__header {
@@ -311,7 +311,7 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-person-not-found {
-  padding: var(--app-space-8) var(--app-gutter);
+  padding: var(--app-space-8) var(--app-page-padding);
 }
 
 @media (max-width: 48rem) {

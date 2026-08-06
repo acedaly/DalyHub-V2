@@ -2,11 +2,18 @@
  * PX-02 shell — the persistent sidebar (and the mobile overlay's content).
  *
  * The sidebar is the one element that never changes between surfaces
- * (PRODUCT_EXPERIENCE Part II): workspace identity at the top, the Search and
- * Command Palette entries, primary navigation, a spacer, and the user menu pinned
- * at the bottom. The SAME component renders as the desktop rail and as the mobile
- * overlay sheet — only the `variant` (and the presence of a close button) differ, so
- * navigation, identity and the user menu are identical in both.
+ * (PRODUCT_EXPERIENCE Part II): workspace identity at the top, primary
+ * navigation, a spacer, and — in the mobile sheet — the Search entries and the
+ * user menu. The SAME component renders as the desktop rail and as the mobile
+ * overlay sheet; the `variant` decides which of the two carries the chrome that
+ * the desktop top app bar now owns.
+ *
+ * The RAIL no longer carries a Search entry or a user menu. Both moved into the
+ * desktop top app bar (`DesktopTopBar`): a drawer that opened with a 56px Search
+ * pill and a 56px Command palette pill spent 112px before its first destination,
+ * and duplicated the primary search affordance. The OVERLAY keeps both, because
+ * the phone has no top app bar of that kind and the sheet is where a thumb
+ * reaches them.
  *
  * It composes shared parts only and holds no business logic. The `navId` is
  * parameterised so the persistent and overlay instances never collide on a DOM id.
@@ -78,17 +85,21 @@ export function Sidebar({
       ) : null}
 
       <SidebarBrand workspaceName={workspaceName} />
-      <SidebarSearch
-        onOpenSearch={onOpenSearch}
-        onOpenCommand={onOpenCommand}
-      />
+      {variant === "overlay" ? (
+        <SidebarSearch
+          onOpenSearch={onOpenSearch}
+          onOpenCommand={onOpenCommand}
+        />
+      ) : null}
       <PrimaryNavigation
         id={navId}
         items={navigation}
         onNavigate={onNavigate}
       />
       <div className="dh-sidebar__spacer" />
-      <UserMenu email={email} settingsHref={settingsHref} />
+      {variant === "overlay" ? (
+        <UserMenu email={email} settingsHref={settingsHref} />
+      ) : null}
     </div>
   );
 }

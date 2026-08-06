@@ -139,22 +139,45 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     );
   });
 
-  it("offers Search and Command Palette entries in the sidebar", () => {
+  it("offers Search and Command Palette entries in the desktop top app bar", () => {
     const { container } = renderShell();
-    // MOBILE-01 adds a SECOND Search affordance (the compact phone top bar), so
-    // this assertion is scoped to the sidebar rather than relying on there being
-    // exactly one Search control in the document. Both remain real, labelled
-    // controls; only one is visible per viewport.
-    const sidebar = container.querySelector(".dh-sidebar--rail");
-    expect(sidebar).not.toBeNull();
+    // Both affordances moved OUT of the navigation drawer and into the top app
+    // bar. The drawer used to open with a 56px Search pill and a 56px Command
+    // palette pill — 112px before its first destination, and a second control
+    // as prominent as the primary one. They are still real, labelled controls
+    // opening the same surfaces; they are just no longer in the rail.
+    const topBar = container.querySelector(".dh-topbar");
+    expect(topBar).not.toBeNull();
     expect(
-      within(sidebar as HTMLElement).getByRole("button", { name: /search/i }),
+      within(topBar as HTMLElement).getByRole("button", {
+        name: /search dalyhub/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      within(sidebar as HTMLElement).getByRole("button", {
+      within(topBar as HTMLElement).getByRole("button", {
         name: /command palette/i,
       }),
     ).toBeInTheDocument();
+
+    // And the rail no longer carries a duplicate of either.
+    const rail = container.querySelector(".dh-sidebar--rail");
+    expect(rail).not.toBeNull();
+    expect(
+      within(rail as HTMLElement).queryByRole("button", { name: /search/i }),
+    ).toBeNull();
+    expect(
+      within(rail as HTMLElement).queryByRole("button", {
+        name: /command palette/i,
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps exactly one search landmark in the desktop shell", () => {
+    // Two `role="search"` regions (the rail's and the bar's) would be a
+    // duplicate-landmark violation, and would make "where do I search?" a
+    // question. The bar's is now the only one.
+    const { container } = renderShell();
+    expect(container.querySelectorAll('[role="search"]')).toHaveLength(1);
   });
 
   it("exposes the phone navigation sheet toggle with accessible name and expanded state", () => {
@@ -214,15 +237,16 @@ describe("PX-02 AppShell — user menu relocation", () => {
       screen.queryByRole("link", { name: /sign out/i }),
     ).not.toBeInTheDocument();
 
-    const trigger = screen.getByRole("button", {
-      name: /account|owner|dalyhub/i,
-    });
+    // Scoped to the account control itself. A loose `/dalyhub/i` now also
+    // matches the top bar's "Search DalyHub…" button, which is a different
+    // control with a different job.
+    const trigger = screen.getByRole("button", { name: /^account —/i });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
   it("opens the user menu to reveal email, settings and sign out", () => {
     renderShell();
-    const trigger = screen.getByRole("button", { name: /owner|account/i });
+    const trigger = screen.getByRole("button", { name: /^account —/i });
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -246,7 +270,7 @@ describe("PX-02 AppShell — user menu relocation", () => {
 
   it("closes the user menu on Escape", () => {
     renderShell();
-    const trigger = screen.getByRole("button", { name: /owner|account/i });
+    const trigger = screen.getByRole("button", { name: /^account —/i });
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     fireEvent.keyDown(document, { key: "Escape" });

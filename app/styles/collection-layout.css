@@ -21,7 +21,7 @@
 }
 
 .dh-collection__filters {
-  padding: var(--app-space-2) var(--app-gutter) var(--app-space-3);
+  padding: var(--app-space-2) var(--app-page-padding) var(--app-space-3);
 }
 
 /*
@@ -85,13 +85,13 @@
  *
  * Aligned to the START rather than centred: the rail is on the left, so a
  * centred column would drift away from it as the viewport grows and leave the
- * navigation pointing at nothing. `--app-gutter` on the inline end keeps the
+ * navigation pointing at nothing. `--app-page-padding` on the inline end keeps the
  * ultra-wide case from running the card to the window edge.
  */
 .dh-collection__content {
   flex: 1;
-  padding: var(--app-space-4) var(--app-gutter) var(--app-space-8);
-  max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-gutter));
+  padding: var(--app-space-4) var(--app-page-padding) var(--app-space-8);
+  max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-page-padding));
 }
 
 /* The header shares the content measure, so a title and its list start on the
@@ -99,7 +99,7 @@
 .dh-collection__sticky > .dh-pane-header,
 .dh-collection__filters,
 .dh-collection__mobile-controls {
-  max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-gutter));
+  max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-page-padding));
 }
 
 /*
@@ -118,7 +118,9 @@
 .dh-collection--dashboard .dh-collection__sticky > .dh-pane-header,
 .dh-collection--dashboard .dh-collection__filters,
 .dh-collection--dashboard .dh-collection__mobile-controls {
-  max-inline-size: calc(var(--app-width-dashboard) + 2 * var(--app-gutter));
+  max-inline-size: calc(
+    var(--app-width-dashboard) + 2 * var(--app-page-padding)
+  );
 }
 
 /*
@@ -153,7 +155,7 @@
   position: sticky;
   bottom: 0;
   z-index: var(--app-z-sticky);
-  padding: var(--app-space-3) var(--app-gutter);
+  padding: var(--app-space-3) var(--app-page-padding);
   padding-block-end: max(var(--app-space-3), env(safe-area-inset-bottom));
   background: var(--md-app-color-surface-card);
   border-top: var(--app-border-width-thin) solid
@@ -174,7 +176,7 @@
  * rather than forking into a desktop control bar and a phone sheet. */
 .dh-collection--persistent-controls .dh-collection__mobile-controls {
   display: block;
-  padding: var(--app-space-3) var(--app-gutter);
+  padding: var(--app-space-3) var(--app-page-padding);
   border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
@@ -341,7 +343,7 @@
 
   .dh-collection__mobile-controls {
     display: block;
-    padding: var(--app-space-2) var(--app-gutter) var(--app-space-3);
+    padding: var(--app-space-2) var(--app-page-padding) var(--app-space-3);
     border-bottom: var(--app-border-width-thin) solid
       var(--md-sys-color-outline-variant);
   }
@@ -350,7 +352,7 @@
    * action beside them — one row, not three. */
   .dh-collection .dh-pane-header {
     gap: var(--app-space-2);
-    padding: var(--app-space-3) var(--app-gutter);
+    padding: var(--app-space-3) var(--app-page-padding);
     align-items: center;
   }
 

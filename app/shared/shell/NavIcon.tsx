@@ -64,7 +64,9 @@ export interface NavIconProps {
 
 export function NavIcon({ entityType, navIcon }: NavIconProps) {
   if (isEntityType(entityType)) {
-    return <EntityIcon type={entityType} />;
+    // `inherit`: a navigation glyph takes the row's colour, so selection
+    // reads as one object and the accent stays meaningful where it is spent.
+    return <EntityIcon type={entityType} tone="inherit" />;
   }
   if (navIcon !== undefined && navIcon in NAV_ICONS) {
     const Glyph = NAV_ICONS[navIcon];

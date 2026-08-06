@@ -24,7 +24,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -44,7 +43,8 @@
       63
     ],
     "cardMedian": 63,
-    "h1": "Today"
+    "h1": "Today",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -71,7 +71,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -91,7 +90,8 @@
       64
     ],
     "cardMedian": 64,
-    "h1": "Tasks"
+    "h1": "Tasks",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -118,7 +118,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -138,7 +137,8 @@
       59
     ],
     "cardMedian": 59,
-    "h1": "Projects"
+    "h1": "Projects",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -162,7 +162,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -171,7 +170,8 @@
       56
     ],
     "cardMedian": 56,
-    "h1": "Website relaunch"
+    "h1": "Website relaunch",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -198,7 +198,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -215,7 +214,8 @@
       60
     ],
     "cardMedian": 60,
-    "h1": "Areas"
+    "h1": "Areas",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -239,7 +239,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -249,7 +248,8 @@
       59
     ],
     "cardMedian": 60,
-    "h1": "DalyHub V2"
+    "h1": "DalyHub V2",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -276,7 +276,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -289,7 +288,8 @@
       63
     ],
     "cardMedian": 63,
-    "h1": "Goals"
+    "h1": "Goals",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -313,7 +313,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -322,7 +321,8 @@
       59
     ],
     "cardMedian": 59,
-    "h1": "Launch the site"
+    "h1": "Launch the site",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -349,7 +349,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -358,7 +357,8 @@
       78
     ],
     "cardMedian": 78,
-    "h1": "Notes"
+    "h1": "Notes",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -385,14 +385,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Diary"
+    "h1": "Diary",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -419,14 +419,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Meetings"
+    "h1": "Meetings",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -453,7 +453,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -463,7 +462,8 @@
       80
     ],
     "cardMedian": 100,
-    "h1": "People"
+    "h1": "People",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -487,14 +487,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Sarah Chen"
+    "h1": "Sarah Chen",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -521,7 +521,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -530,7 +529,8 @@
       80
     ],
     "cardMedian": 80,
-    "h1": "Assets"
+    "h1": "Assets",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -557,14 +557,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Reviews"
+    "h1": "Reviews",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -588,14 +588,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Ask DalyHub"
+    "h1": "Ask DalyHub",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -619,14 +619,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Settings"
+    "h1": "Settings",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -650,14 +650,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Help"
+    "h1": "Help",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -681,14 +681,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "About DalyHub"
+    "h1": "About DalyHub",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -703,14 +703,14 @@
     "paneHeaderPadTop": null,
     "firstNavRow": null,
     "searchEntry": null,
-    "topBarPresent": false,
     "bodyBg": "rgba(0, 0, 0, 0)",
     "sidebarBg": null,
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": null
+    "h1": null,
+    "mobileTopBarInDom": false
   },
   {
     "tag": "desktop-1440",
@@ -725,14 +725,14 @@
     "paneHeaderPadTop": null,
     "firstNavRow": null,
     "searchEntry": null,
-    "topBarPresent": false,
     "bodyBg": "rgba(0, 0, 0, 0)",
     "sidebarBg": null,
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": null
+    "h1": null,
+    "mobileTopBarInDom": false
   },
   {
     "tag": "desktop-1440",
@@ -747,14 +747,14 @@
     "paneHeaderPadTop": null,
     "firstNavRow": null,
     "searchEntry": null,
-    "topBarPresent": false,
     "bodyBg": "rgba(0, 0, 0, 0)",
     "sidebarBg": null,
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": null
+    "h1": null,
+    "mobileTopBarInDom": false
   },
   {
     "tag": "desktop-1440",
@@ -769,14 +769,14 @@
     "paneHeaderPadTop": null,
     "firstNavRow": null,
     "searchEntry": null,
-    "topBarPresent": false,
     "bodyBg": "rgba(0, 0, 0, 0)",
     "sidebarBg": null,
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": null
+    "h1": null,
+    "mobileTopBarInDom": false
   },
   {
     "tag": "desktop-1440",
@@ -803,7 +803,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -823,7 +822,8 @@
       63
     ],
     "cardMedian": 63,
-    "h1": "Today"
+    "h1": "Today",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -850,7 +850,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -870,7 +869,8 @@
       64
     ],
     "cardMedian": 64,
-    "h1": "Tasks"
+    "h1": "Tasks",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -897,7 +897,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -917,7 +916,8 @@
       59
     ],
     "cardMedian": 59,
-    "h1": "Projects"
+    "h1": "Projects",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -941,14 +941,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Settings"
+    "h1": "Settings",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -975,7 +975,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -992,7 +991,8 @@
       60
     ],
     "cardMedian": 60,
-    "h1": "Areas"
+    "h1": "Areas",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -1016,7 +1016,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -1025,7 +1024,8 @@
       56
     ],
     "cardMedian": 56,
-    "h1": "Website relaunch"
+    "h1": "Website relaunch",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -1052,14 +1052,14 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": "Meetings"
+    "h1": "Meetings",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "desktop-1440",
@@ -1086,7 +1086,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -1095,7 +1094,8 @@
       78
     ],
     "cardMedian": 78,
-    "h1": "Notes"
+    "h1": "Notes",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "laptop-1280",
@@ -1122,7 +1122,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1142,7 +1141,8 @@
       83
     ],
     "cardMedian": 79,
-    "h1": "Today"
+    "h1": "Today",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "laptop-1280",
@@ -1169,7 +1169,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1189,7 +1188,8 @@
       59
     ],
     "cardMedian": 59,
-    "h1": "Projects"
+    "h1": "Projects",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "laptop-1280",
@@ -1216,7 +1216,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1236,7 +1235,8 @@
       64
     ],
     "cardMedian": 64,
-    "h1": "Tasks"
+    "h1": "Tasks",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "tablet-1024",
@@ -1263,7 +1263,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1283,7 +1282,8 @@
       63
     ],
     "cardMedian": 63,
-    "h1": "Today"
+    "h1": "Today",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "tablet-1024",
@@ -1310,7 +1310,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1330,7 +1329,8 @@
       59
     ],
     "cardMedian": 59,
-    "h1": "Projects"
+    "h1": "Projects",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "tablet-1024",
@@ -1357,7 +1357,6 @@
       "w": 216,
       "h": 56
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1377,7 +1376,8 @@
       64
     ],
     "cardMedian": 64,
-    "h1": "Tasks"
+    "h1": "Tasks",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "mobile-390",
@@ -1404,7 +1404,6 @@
       "w": 0,
       "h": 0
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1424,7 +1423,8 @@
       155
     ],
     "cardMedian": 131,
-    "h1": "Today"
+    "h1": "Today",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "mobile-390",
@@ -1451,7 +1451,6 @@
       "w": 0,
       "h": 0
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1471,7 +1470,8 @@
       151
     ],
     "cardMedian": 151,
-    "h1": "Tasks"
+    "h1": "Tasks",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "mobile-390",
@@ -1498,7 +1498,6 @@
       "w": 0,
       "h": 0
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1518,7 +1517,8 @@
       80
     ],
     "cardMedian": 80,
-    "h1": "Projects"
+    "h1": "Projects",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "mobile-390",
@@ -1545,7 +1545,6 @@
       "w": 0,
       "h": 0
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1562,7 +1561,8 @@
       100
     ],
     "cardMedian": 100,
-    "h1": "Areas"
+    "h1": "Areas",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "mobile-390",
@@ -1586,7 +1586,6 @@
       "w": 0,
       "h": 0
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(242, 243, 255)",
     "sidebarBg": "rgb(250, 248, 255)",
     "cardBg": "rgb(255, 255, 255)",
@@ -1595,7 +1594,8 @@
       62
     ],
     "cardMedian": 62,
-    "h1": "Website relaunch"
+    "h1": "Website relaunch",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "mobile-390",
@@ -1610,14 +1610,14 @@
     "paneHeaderPadTop": null,
     "firstNavRow": null,
     "searchEntry": null,
-    "topBarPresent": false,
     "bodyBg": "rgba(0, 0, 0, 0)",
     "sidebarBg": null,
     "cardBg": null,
     "cardCount": 0,
     "cardHeights": [],
     "cardMedian": null,
-    "h1": null
+    "h1": null,
+    "mobileTopBarInDom": false
   },
   {
     "tag": "mobile-390",
@@ -1644,7 +1644,6 @@
       "w": 0,
       "h": 0
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -1664,7 +1663,8 @@
       155
     ],
     "cardMedian": 131,
-    "h1": "Today"
+    "h1": "Today",
+    "mobileTopBarInDom": true
   },
   {
     "tag": "mobile-390",
@@ -1691,7 +1691,6 @@
       "w": 0,
       "h": 0
     },
-    "topBarPresent": true,
     "bodyBg": "rgb(16, 19, 28)",
     "sidebarBg": "rgb(16, 19, 28)",
     "cardBg": "rgb(29, 31, 41)",
@@ -1711,6 +1710,7 @@
       151
     ],
     "cardMedian": 151,
-    "h1": "Tasks"
+    "h1": "Tasks",
+    "mobileTopBarInDom": true
   }
 ]
