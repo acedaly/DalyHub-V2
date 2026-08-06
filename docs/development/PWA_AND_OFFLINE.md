@@ -1007,7 +1007,7 @@ been raised**, by DS-14 or by BRAND-01.
 | Snapshot build (end to end) | 166–179 ms | 5 s |
 | Origin storage after priming | 78,252 B | 20 MB |
 | Origin storage after 3 syncs | 78,252 B → 78,252 B → 78,252 B (flat) | no growth |
-| Self-hosted fonts (transferred) | 63,492 B across 2 files | ≤ 70,000 B per family, ≤ 120,000 B combined (derived) |
+| Self-hosted fonts (transferred) | 23,160 B across 1 file (M3-01: Roboto Flex replaces the Inter + Source Serif pair's 63,492 B) | ≤ 70,000 B per family, ≤ 120,000 B combined (derived) |
 | Added runtime dependencies | **none** | — |
 | Effect on the online bundle | The offline provider and status surface are in the shell chunk; the offline page and its view are a separate route chunk. | — |
 

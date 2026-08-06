@@ -252,16 +252,22 @@ example, with provenance recorded in the source file
 
 ---
 
-## Web fonts (DS-14)
+## Web fonts (M3-01)
 
-Two self-hosted variable typefaces, shipped as subset `woff2` binaries in
-`public/fonts/` and served same-origin. Licences verified against the exact
-files on **2026-08-03**.
+One self-hosted variable typeface, shipped as a subset `woff2` binary in
+`public/fonts/` and served same-origin. Licence verified against the exact file
+on **2026-08-06**.
 
-| Font | Version | Upstream | Licence |
-| ---- | ------- | -------- | ------- |
-| Inter | 4.1 | <https://github.com/rsms/inter> | SIL Open Font License 1.1 |
-| Source Serif 4 | 4.005 | <https://github.com/adobe-fonts/source-serif> | SIL Open Font License 1.1 |
+| Font | Version | Upstream | Repackaged via | Licence |
+| ---- | ------- | -------- | -------------- | ------- |
+| Roboto Flex | 3.200 (Google Fonts `v30`) | <https://github.com/googlefonts/roboto-flex> | `@fontsource-variable/roboto-flex@5.3.0` | SIL Open Font License 1.1 |
+
+M3-01 replaced the DS-14 pair (Inter 4.1 and Source Serif 4.005, both OFL-1.1,
+63,492 B combined) with this single family at 23,160 B. Material Design 3's
+reference typeface is Roboto, and DalyHub no longer has a prose family distinct
+from its chrome family (ADR-074 decision 6). The recorded decision below is
+unchanged in substance from the one DS-14 made — the same licence, the same
+isolation argument — and is restated here against the file actually shipped.
 
 **The explicit decision AGENTS.md §11 requires.** OFL-1.1 is not on the
 default-allowed list (MIT, ISC, BSD-2/3-Clause, Apache-2.0). It is a permissive,
@@ -270,24 +276,24 @@ is not sold on its own, that this notice travels with it, and that a *Modified
 Version* carrying a Reserved Font Name must be renamed. It is adopted here
 because:
 
-- **Neither font declares a Reserved Font Name.** Inter's copyright line is
-  "The Inter Project Authors" and Source Serif 4's is "The Source Serif 4 Project
-  Authors" — neither carries the "with Reserved Font Name" clause — so the
-  subsets may keep their original family names.
-- **The obligation is isolated to the binaries.** The fonts are data, not code.
-  Nothing links them into the application, no OFL term reaches DalyHub's own
-  source, and removing them is deleting two files and one stylesheet.
-- **The files are shipped verbatim as subsets**, not derived into a new
+- **Roboto Flex declares no Reserved Font Name.** Its copyright line is
+  "Copyright 2017 The Roboto Flex Project Authors
+  (https://github.com/googlefonts/roboto-flex)" — no "with Reserved Font Name"
+  clause — so the subset may keep the original family name.
+- **The obligation is isolated to the binary.** The font is data, not code.
+  Nothing links it into the application, no OFL term reaches DalyHub's own
+  source, and removing it is deleting one file and one stylesheet.
+- **The file is shipped verbatim as a subset**, not derived into a new
   typeface. `public/fonts/README.md` records the exact `fonttools` commands that
-  reproduce them from the upstream releases, so the provenance chain is
+  reproduce it from the packaged upstream, so the provenance chain is
   re-runnable rather than asserted.
 
-Both files were produced with `fonttools varLib.instancer` (pinning the optical-size
-axis and clipping the weight axis to 400–600) followed by `pyftsubset` (Latin
-range, `woff2` flavour). No glyph outline was altered.
+The file was produced with `fonttools varLib.instancer` (pinning twelve of the
+thirteen variable axes to their defaults and clipping `wght` to 400–700)
+followed by `pyftsubset` (Latin range, `woff2` flavour). No glyph outline was
+altered.
 
-The full licence text, which is identical for both and which this notice
-preserves as OFL-1.1 requires:
+The full licence text, which this notice preserves as OFL-1.1 requires:
 
 ```
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007

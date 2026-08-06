@@ -120,7 +120,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
          * dependency. */}
         <link
           rel="preload"
-          href="/fonts/inter-4.1-latin-wght400-600.woff2"
+          href="/fonts/roboto-flex-3.200-latin-wght400-700.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"

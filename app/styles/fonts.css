@@ -1,59 +1,52 @@
 /*
- * DS-14 — the two self-hosted variable families.
+ * M3-01 — the one self-hosted variable family.
  *
- * Brief §5 asks for one variable sans for chrome and collections and one variable
- * serif for prose bodies: self-hosted, subset to the Latin range actually used,
- * the primary weight range preloaded, and precached so a first offline launch has
- * them. Every one of those is a constraint the build enforces rather than a hope:
+ * Material Design 3's reference typeface is Roboto, and Roboto Flex is its
+ * variable form. It paints EVERY piece of text in DalyHub: labels, controls,
+ * collection rows, metadata and prose alike. There is no second family — the
+ * DS-14 serif reading column is retired, and prose now renders this face at
+ * `body-large` (ADR-074 decision 6). Mono keeps the system stack and ships no
+ * file at all.
  *
- *   - SELF-HOSTED. Both files live in `public/fonts/`, so they are same-origin and
- *     no third party ever sees a request. `public/fonts/README.md` records their
- *     provenance and the exact commands that regenerate them.
- *   - PRECACHED. `PUBLIC_PRECACHE_URLS` in `vite-plugins/service-worker.ts` lists
- *     them explicitly. A font emitted as a Rollup asset from a CSS `url()` is
- *     neither a chunk nor imported CSS, so the plugin's chunk walk would not see
- *     it (ADR-068 Finding 3) — hence the explicit entry, and hence the `/fonts/`
- *     prefix in the worker's cache-first list.
- *   - NEVER INVISIBLE. `font-display: swap` — the system stack paints immediately
- *     and is replaced when the file arrives. Nothing ever blanks, online or off.
- *   - NEVER REQUESTED OFFLINE. The precache above means the file is already in the
- *     `dalyhub-static-*` cache before the first offline launch; if it somehow is
- *     not, `swap` leaves the system stack rendering rather than blocking.
+ * Every constraint below is enforced by the build rather than hoped for:
  *
- * Both faces are ROMAN ONLY. An italic Source Serif subset measures 33,400 B —
- * more than the roman it would accompany — to serve `*emphasis*` inside prose
- * bodies alone. The browser synthesises an oblique instead, which is what the
- * system serif stack would have done anyway, and the saving keeps the combined
- * payload at 53% of ADR-068's derived ceiling. Recorded here rather than
- * discovered later.
+ *   - SELF-HOSTED. The file lives in `public/fonts/`, so it is same-origin and
+ *     no third party ever sees a request. `public/fonts/README.md` records its
+ *     provenance and the exact commands that regenerate it.
+ *   - PRECACHED. `PUBLIC_PRECACHE_URLS` in `vite-plugins/service-worker.ts`
+ *     lists it explicitly. A font emitted as a Rollup asset from a CSS `url()`
+ *     is neither a chunk nor imported CSS, so the plugin's chunk walk would not
+ *     see it (ADR-068 Finding 3) — hence the explicit entry, and hence the
+ *     `/fonts/` prefix in the worker's cache-first list.
+ *   - NEVER INVISIBLE. `font-display: swap` — the system stack paints
+ *     immediately and is replaced when the file arrives. Nothing ever blanks,
+ *     online or off.
+ *   - NEVER REQUESTED OFFLINE. The precache above means the file is already in
+ *     the `dalyhub-static-*` cache before the first offline launch; if it
+ *     somehow is not, `swap` leaves the system stack rendering rather than
+ *     blocking.
  *
- * `font-weight: 400 600` is the VARIABLE RANGE, matching the instanced `wght`
- * axis exactly (ADR-068 decision 8 — three weights, 400/500/600, and `bold` is
- * gone). Declaring a range the file does not carry would let the browser
- * synthesise a heavier face and quietly undo that decision.
+ * ROMAN ONLY, as before. An italic axis would roughly double the payload to
+ * serve `*emphasis*` inside prose; the browser synthesises an oblique instead,
+ * which is what the system stack would have done anyway.
+ *
+ * `font-weight: 400 700` is the VARIABLE RANGE, matching the instanced `wght`
+ * axis exactly. M3 needs 400 and 500 for the typescale; 500–700 came free
+ * inside the byte budget (the whole file is 23,160 B — 33% of ADR-068 decision
+ * 4's per-family ceiling), so emphasis inside prose has a real face to use
+ * rather than a synthesised one. Declaring a range the file does not carry would
+ * let the browser synthesise a heavier face and quietly undo that.
  */
 
 @font-face {
-  font-family: "Inter Variable";
+  font-family: "Roboto Flex";
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 400 700;
   font-display: swap;
-  src: url("/fonts/inter-4.1-latin-wght400-600.woff2") format("woff2");
-  /* The subset range, restated so the browser can skip the download entirely for
-   * a page whose text falls outside it. Matches the `--unicodes` argument in
+  src: url("/fonts/roboto-flex-3.200-latin-wght400-700.woff2") format("woff2");
+  /* The subset range, restated so the browser can skip the download entirely
+   * for a page whose text falls outside it. Matches the `--unicodes` argument in
    * `public/fonts/README.md`. */
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2190-2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: "Source Serif 4 Variable";
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url("/fonts/source-serif-4.005-latin-wght400-600.woff2") format("woff2");
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
     U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2190-2193,

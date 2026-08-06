@@ -1,13 +1,13 @@
 /**
- * PX-02 — the shared icon primitive.
+ * M3-01 — the shared icon primitive.
  *
- * DalyHub uses ONE outline icon set (DESIGN_SYSTEM.md → Foundations, Iconography).
- * PRODUCT_EXPERIENCE #3 calls for a single tree-shakeable outline set (e.g. Lucide);
- * to preserve the project's zero-runtime-dependency posture (no new package, no
- * proxy/Workers-compat risk) we ship an in-house outline set drawn in the same
- * idiom — a 24×24 viewBox, `currentColor` strokes, 1.75px weight, round caps/joins —
- * exposed through this one primitive. The *set* is swappable; the entity-identity
- * MAPPING (one icon per entity type) is the durable contract.
+ * DalyHub uses ONE icon set (DESIGN_SYSTEM.md → Foundations, Iconography):
+ * **Material Symbols Outlined**, weight 400, the icon library of the design
+ * language the product now speaks (ADR-074 decision 7). PX-02 shipped an
+ * in-house outline set and recorded that the *set* was swappable while the
+ * entity-identity MAPPING was the durable contract; this is that swap, and the
+ * public surface of this module — component names, props, sizing and
+ * accessibility behaviour — is unchanged by it.
  *
  * Icons are decorative by default (`aria-hidden`), because DalyHub never conveys
  * meaning by icon alone — a text label always accompanies them (AGENTS.md §15). When
@@ -27,15 +27,35 @@ export type IconProps = Omit<SVGProps<SVGSVGElement>, "children"> & {
   readonly title?: string;
 };
 
-/** Shared attributes every DalyHub icon renders with. */
+/**
+ * Shared attributes every DalyHub icon renders with.
+ *
+ * Material Symbols are FILLED paths — the outlined *style* is drawn as a closed
+ * shape with a hole, not as a stroked skeleton — so there is no `stroke`,
+ * `stroke-width` or line cap here. Painting them with a stroke would double
+ * every edge.
+ */
 const BASE_PROPS = {
   viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.75,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
+  fill: "currentColor",
 } as const;
+
+/**
+ * The one place the upstream design space is mapped into ours.
+ *
+ * Material Symbols are authored at 960 units with a flipped origin
+ * (`viewBox="0 -960 960 960"`, so the baseline is y=0 and the glyph extends
+ * upward). DalyHub's icons have always been 24×24, and dozens of stylesheets
+ * size and position against that. Rather than rewrite every path's coordinates
+ * — which would break byte-exact provenance and make a re-copy a merge — the
+ * conversion is expressed once, here, as the affine map it actually is:
+ *
+ *     (x, y)  ->  (x * 24/960, y * 24/960 + 24)
+ *
+ * `scale` is uniform, so nothing is distorted, and the glyphs are fills, so
+ * there is no stroke width for the scale to shrink.
+ */
+const SYMBOLS_TO_24 = "translate(0 24) scale(0.025)";
 
 /**
  * Build a named icon component from its inner SVG geometry. Keeps every icon a tiny,
@@ -57,7 +77,7 @@ export function createIcon(displayName: string, children: React.ReactNode) {
         {...rest}
       >
         {title !== undefined ? <title>{title}</title> : null}
-        {children}
+        <g transform={SYMBOLS_TO_24}>{children}</g>
       </svg>
     );
   }

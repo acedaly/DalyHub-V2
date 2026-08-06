@@ -49,22 +49,21 @@ export const PUBLIC_PRECACHE_URLS: readonly string[] = [
   "/icons/icon-192-v2.png",
   "/icons/apple-touch-icon-v2.png",
   /*
-   * DS-14 — the two self-hosted variable families.
+   * M3-01 — the one self-hosted variable family.
    *
    * Listed EXPLICITLY, and this is load-bearing rather than tidy. The precache
    * list is otherwise built by walking the bundle's chunks and their
    * `viteMetadata.importedCss`; a font emitted as a Rollup ASSET from a CSS
    * `url()` is neither a chunk nor imported CSS, so the walk cannot see it
-   * (ADR-068 Finding 3). Without these two lines the fonts would be fetched at
-   * runtime and the first offline launch would have none — which brief §5's "no
+   * (ADR-068 Finding 3). Without this line the font would be fetched at runtime
+   * and the first offline launch would have none — which the offline rule "no
    * font request may be made while offline" forbids.
    *
-   * They are served from `public/`, so the filename carries the family version
-   * instead of a build hash. Regenerating a subset therefore means changing the
-   * name here too; `public/fonts/README.md` records the exact commands.
+   * It is served from `public/`, so the filename carries the family version
+   * instead of a build hash. Regenerating the subset therefore means changing
+   * the name here too; `public/fonts/README.md` records the exact commands.
    */
-  "/fonts/inter-4.1-latin-wght400-600.woff2",
-  "/fonts/source-serif-4.005-latin-wght400-600.woff2",
+  "/fonts/roboto-flex-3.200-latin-wght400-700.woff2",
 ];
 
 /**
