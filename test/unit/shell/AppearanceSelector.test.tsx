@@ -181,6 +181,43 @@ describe("APPEARANCE-01 AppearanceSelector — persistence", () => {
     expect(option(fieldset, "System")).not.toBeChecked();
   });
 
+  it("repaints the DOCUMENT optimistically, not just the control", async () => {
+    // The control moving while the page stays the old colour is an interaction
+    // that reports itself as done and is not. `<html data-appearance>` is what
+    // the stylesheet keys off, so it has to move on the click — not several
+    // network round trips later when revalidation lands.
+    document.documentElement.dataset.appearance = "system";
+    renderSelectors(<AppearanceSelector value="system" variant="menu" />);
+    fireEvent.click(option(group(), "Dark"));
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
+  });
+
+  it("rolls the DOCUMENT back when the write is rejected", async () => {
+    // Optimistic and REVERSIBLE. A failed save must not leave the document
+    // painted in an appearance the server never stored.
+    document.documentElement.dataset.appearance = "system";
+    renderSelectors(<AppearanceSelector value="system" variant="menu" />, {
+      ok: false,
+    });
+    fireEvent.click(option(group(), "Dark"));
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("system"),
+    );
+  });
+
+  it("does not touch the document on mount, so hydration is a no-op", () => {
+    // The server already wrote the attribute. Writing it again on mount would be
+    // the client second-guessing the server for no reason.
+    document.documentElement.dataset.appearance = "dark";
+    renderSelectors(<AppearanceSelector value="dark" variant="settings" />);
+    expect(document.documentElement.dataset.appearance).toBe("dark");
+  });
+
   it("reverts to the stored value once a rejected write settles", async () => {
     // The optimistic value only survives while the submission is in flight; when
     // it settles the `value` prop takes back over, so a failed save cannot leave

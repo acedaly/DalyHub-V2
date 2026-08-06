@@ -54,35 +54,50 @@ export async function action({ request, context }: Route.ActionArgs) {
   // the surface the owner is looking at.
   const appearance = parseAppearancePreference(formData.get("appearance"));
 
-  const secure = SECURE_ENVIRONMENTS.has(
-    (env.ENVIRONMENT ?? "").trim().toLowerCase(),
-  );
-  const headers = {
+  const json = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
-    "Set-Cookie": serializeAppearanceCookie(appearance, { secure }),
-  };
+  } as const;
 
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     await scope.appPreferences.update(session.user.subject, { appearance });
   } catch (cause) {
     // A validation error here would mean the registry and the validator disagree
-    // — a real bug, worth surfacing. A STORAGE failure is different: the cookie
-    // mirror still applies the choice in this browser and the next successful
-    // write reconciles the record, so the response still carries the cookie and
-    // reports the failure rather than throwing the owner onto an error page.
+    // — a real bug, worth surfacing.
     if (cause instanceof AppPreferencesValidationError) {
       throw cause;
     }
+    /*
+     * A STORAGE failure sets NO cookie, deliberately.
+     *
+     * Mirroring the choice anyway looks like graceful degradation and is the
+     * opposite: the record is the authority, and `Layout` prefers the app-shell
+     * loader's value over the cookie — so an authenticated page would keep
+     * painting the OLD stored appearance while `/offline` and any root error
+     * render used the NEW cookie. That is one browser showing two appearances,
+     * for as long as the cookie lives, off the back of a save the owner was
+     * already told had failed.
+     *
+     * Leaving the cookie alone keeps the mirror agreeing with the record it
+     * mirrors. The owner sees the error toast, the control reverts to the stored
+     * value, and nothing diverges.
+     */
     return new Response(JSON.stringify({ ok: false, appearance }), {
       status: 500,
-      headers,
+      headers: json,
     });
   }
 
+  // Only now — the record is written, so the mirror is safe to refresh.
+  const secure = SECURE_ENVIRONMENTS.has(
+    (env.ENVIRONMENT ?? "").trim().toLowerCase(),
+  );
   return new Response(JSON.stringify({ ok: true, appearance }), {
     status: 200,
-    headers,
+    headers: {
+      ...json,
+      "Set-Cookie": serializeAppearanceCookie(appearance, { secure }),
+    },
   });
 }

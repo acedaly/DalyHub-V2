@@ -87,6 +87,41 @@ export function AppearanceSelector({
   const shown =
     typeof pending === "string" ? (pending as AppearancePreference) : value;
 
+  /*
+   * Repaint the DOCUMENT optimistically, not just the control.
+   *
+   * `<html data-appearance>` is rendered by the root `Layout` from loader data,
+   * which does not change until the POST completes AND revalidation lands. On a
+   * slow connection that is several round trips during which the radio has moved
+   * and the screen has not — an interaction that reports itself as done and is
+   * not, which the performance budget rules out for anything over 100ms
+   * (AGENTS.md §16) and the interaction philosophy rules out outright
+   * ("optimistic and reversible", §7).
+   *
+   * Writing the attribute here is the whole optimistic step, because the
+   * stylesheet does the rest: one attribute, and the page is repainted.
+   *
+   * ROLLBACK is the same line. `shown` falls back to the stored `value` the
+   * moment the fetcher settles, so a rejected write drives this effect straight
+   * back to the stored appearance — there is no second code path to keep in step,
+   * and no way to leave the document showing an appearance that was never saved.
+   *
+   * It does not fight React. React only patches an attribute when the value it
+   * RENDERED changes, so an imperative write survives an unrelated re-render;
+   * when revalidation finally delivers the new value, React writes the same
+   * string this effect already wrote and nothing flickers. On the first mount
+   * `shown === value === ` whatever the server rendered, so hydration is a no-op.
+   */
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const root = document.documentElement;
+    if (root.dataset.appearance !== shown) {
+      root.dataset.appearance = shown;
+    }
+  }, [shown]);
+
   // One error toast per failed save, deduped, never repeated on re-render.
   const reported = useRef<unknown>(null);
   useEffect(() => {

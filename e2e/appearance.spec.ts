@@ -212,6 +212,88 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     await expect.poll(colorScheme).toBe("dark");
   });
 
+  /**
+   * Hold (and optionally fail) ONLY the appearance action's POST.
+   *
+   * The matcher is deliberately narrow. The dev server also serves the module
+   * `/app/kernel/preferences/appearance.ts`, and a glob like
+   * `**\/preferences/appearance*` swallows that request too — which breaks the
+   * page's module graph and produces a green-looking test that proved nothing.
+   * React Router's single fetch posts to `<path>.data`, so both forms are named.
+   */
+  async function holdAppearanceWrite(
+    page: Page,
+    options: { readonly delayMs: number; readonly fail?: boolean },
+  ) {
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const isActionPost =
+        request.method() === "POST" &&
+        /^\/preferences\/appearance(\.data)?$/.test(pathname);
+      if (!isActionPost) {
+        return route.fallback();
+      }
+      await new Promise((resolve) => setTimeout(resolve, options.delayMs));
+      return options.fail
+        ? route.fulfill({ status: 500, contentType: "text/x-script", body: "" })
+        : route.continue();
+    });
+  }
+
+  test("repaints the document OPTIMISTICALLY, without waiting for the write", async ({
+    page,
+  }) => {
+    // The control moving while the page keeps its old colour is an interaction
+    // that reports itself as done and is not. With the write held for three
+    // seconds, the repaint has to come from the optimistic path or not at all.
+    await gotoFixture(page, "/settings");
+    await holdAppearanceWrite(page, { delayMs: 3000 });
+
+    await appearanceOption(page, "Dark").click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-appearance",
+      "dark",
+      { timeout: 1500 },
+    );
+    await expect.poll(() => paintsDark(page)).toBe(true);
+
+    // ...and it is still dark once the slow write lands and revalidation runs.
+    await expect
+      .poll(() => storedAppearance(page), { timeout: 10_000 })
+      .toBe("dark");
+  });
+
+  test("rolls the document back, and writes no cookie, when the save FAILS", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/settings");
+    await holdAppearanceWrite(page, { delayMs: 1500, fail: true });
+
+    await appearanceOption(page, "Dark").click();
+    // Optimistic first...
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-appearance",
+      "dark",
+      { timeout: 1500 },
+    );
+    // ...then REVERSIBLE: a rejected write must not leave the document painted
+    // in an appearance the server never stored.
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-appearance",
+      "system",
+      { timeout: 10_000 },
+    );
+
+    // And the first-paint cookie is not written on a failed save — otherwise the
+    // shell (which prefers the record) and `/offline` (which reads the cookie)
+    // would show the same browser two different appearances for up to a year.
+    const cookies = await page.context().cookies();
+    expect(cookies.filter((cookie) => cookie.name === "dh_appearance")).toEqual(
+      [],
+    );
+  });
+
   test("is reachable and operable by keyboard alone, with visible focus", async ({
     page,
   }) => {

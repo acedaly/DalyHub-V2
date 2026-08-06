@@ -32,9 +32,11 @@ no version number to group them under.
 - **It follows you between devices.** The choice is saved to your account, not to
   one browser, so signing in on your phone gets the appearance you chose on your
   laptop.
-- **No flash on load.** The page arrives already in the right appearance rather
-  than starting light and snapping to dark, and scrollbars, dropdowns and other
-  parts your browser draws match it too.
+- **No flash on load, and no waiting.** The page arrives already in the right
+  appearance rather than starting light and snapping to dark, and scrollbars,
+  dropdowns and other parts your browser draws match it too. Choosing an
+  appearance changes the screen immediately — it does not wait for the save — and
+  if the save fails it changes back and tells you.
 
 ### Changed — one place to create, and page headers that stop repeating it
 
