@@ -74,6 +74,7 @@ function renderShell(initialPath = "/") {
         <AppShell
           workspaceName="DalyHub"
           email="owner@example.com"
+          appearance="system"
           navigation={NAVIGATION}
         >
           <Outlet />

@@ -26,6 +26,7 @@ function renderMobileNav(onClose = vi.fn()) {
           <MobileNav
             workspaceName="DalyHub"
             email="owner@example.com"
+            appearance="system"
             navigation={NAVIGATION}
             opener={null}
             onClose={onClose}

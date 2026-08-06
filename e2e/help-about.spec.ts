@@ -89,14 +89,26 @@ test.describe("HELP-01 Help", () => {
     expect(text).toContain("an export is not a restore");
   });
 
-  test("tells the owner appearance follows their device, and names no theme", async ({
+  test("tells the owner about the three appearance choices, and names no theme", async ({
     page,
   }) => {
     await gotoFixture(page, "/help?topic=themes");
 
     const themes = page.locator("#themes");
     const text = await themes.innerText();
-    expect(text).toContain("follows your device");
+    // APPEARANCE-01 — Help names all three choices and says where the setting
+    // lives, because "where do I change this?" is the question the topic exists
+    // to answer. It still names no PALETTE: M3-01 retired those.
+    for (const required of [
+      "System",
+      "Light",
+      "Dark",
+      "follows your phone or computer",
+      "account menu",
+      "Settings",
+    ]) {
+      expect(text, `Help no longer mentions "${required}"`).toContain(required);
+    }
     for (const retired of ["Daly Light", "Eucalypt", "Match system"]) {
       expect(text, `Help still names the retired "${retired}"`).not.toContain(
         retired,

@@ -3,6 +3,7 @@ export class AppPreferencesValidationError extends Error {
   constructor(
     readonly field:
       | "ownerId"
+      | "appearance"
       | "timezone"
       | "dateFormat"
       | "firstDayOfWeek"

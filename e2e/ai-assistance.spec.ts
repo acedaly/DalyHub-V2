@@ -126,8 +126,10 @@ async function createMeeting(page: Page, title: string): Promise<void> {
 
 async function createNote(page: Page, title: string): Promise<void> {
   ownedNotes.add(title);
-  await gotoFixture(page, "/notes");
-  await page.getByRole("link", { name: "New Note" }).first().click();
+  // Fixture setup, not a UI assertion: the Notes header's duplicate "New Note"
+  // button was removed by the shell cleanup, so this opens the SAME (untouched,
+  // URL-backed) create drawer by its canonical URL.
+  await gotoFixture(page, "/notes?drawer=new-note");
   const dialog = page.getByRole("dialog", { name: "New Note" });
   await expect(dialog).toBeVisible();
   await page.waitForLoadState("networkidle");

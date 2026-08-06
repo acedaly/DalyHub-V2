@@ -84,13 +84,44 @@ export function lightSchemeTokens(): Map<string, string> {
   return parseDeclarations(blockBody(generatedSection(), /:root\s*\{/));
 }
 
-/** The DARK scheme block — the `:root` inside the generated media query. */
+/**
+ * The DARK scheme block — the rule inside the generated `prefers-color-scheme`
+ * media query.
+ *
+ * APPEARANCE-01 narrowed that rule's selector from `:root` to
+ * `:root:not([data-appearance="light"])`, so a device set to dark no longer
+ * overrides an owner who explicitly chose Light. The declarations are unchanged,
+ * and `explicitDarkSchemeTokens()` asserts that the explicit-dark block outside
+ * the media query carries exactly the same ones.
+ */
 export function darkSchemeTokens(): Map<string, string> {
   const media = blockBody(
     generatedSection(),
     /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{/,
   );
-  return parseDeclarations(blockBody(media, /:root\s*\{/));
+  return parseDeclarations(
+    blockBody(media, /:root:not\(\[data-appearance="light"\]\)\s*\{/),
+  );
+}
+
+/**
+ * The EXPLICIT dark block — `:root[data-appearance="dark"]`, which paints dark on
+ * a device set to light. It must carry the same declarations as the media-query
+ * block, or an explicit Dark would be a different (partial) dark appearance.
+ */
+export function explicitDarkSchemeTokens(): Map<string, string> {
+  return parseDeclarations(
+    blockBody(generatedSection(), /:root\[data-appearance="dark"\]\s*\{/),
+  );
+}
+
+/**
+ * The EXPLICIT light block — `:root[data-appearance="light"]`. It carries no
+ * colour declarations (the base `:root` already paints light); its whole job is to
+ * pin `color-scheme` so native controls do not follow a dark device.
+ */
+export function explicitLightBlock(): string {
+  return blockBody(generatedSection(), /:root\[data-appearance="light"\]\s*\{/);
 }
 
 /** Every custom property defined anywhere in the stylesheet, name → value.

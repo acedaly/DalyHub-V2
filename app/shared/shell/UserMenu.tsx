@@ -12,24 +12,33 @@
  * behaviour, the panel contents and the focus handling are identical in both,
  * so there is one implementation and two skins.
  *
- * M3-01 removed the theme quick-switch that used to sit here, along with the
- * Settings → Appearance section it mirrored: DalyHub ships one generated
- * light/dark pair and follows the operating system, so there is no choice left to
- * offer (ADR-074 decision 5). The `theme` prop below is inert and goes with the
- * rest of the plumbing in step 6.
+ * APPEARANCE-01 puts the appearance choice here — the second of its two homes,
+ * alongside Settings → General. It is one shared control (`AppearanceSelector`)
+ * reading one stored preference, so the two surfaces show the same current value
+ * and neither can drift. It sits in the account menu rather than in a page header
+ * because appearance is set rarely: it belongs beside Settings and Sign out, not
+ * in chrome that every page pays for.
+ *
+ * This is NOT the seven-palette theme quick-switch M3-01 removed. There is still
+ * one generated light/dark pair and no palettes (ADR-074); the only thing on offer
+ * is which half of that pair to paint.
  *
  * Interaction is an accessible disclosure (NOT a menu): a trigger with
  * `aria-expanded` + `aria-controls` reveals a `role="group"` panel whose controls
- * (the theme form and ordinary links) are all keyboard-reachable; Escape closes and
- * restores focus to the trigger; an outside click or choosing Settings / Sign out
- * closes it. It is not a modal, so it needs no focus trap. It deliberately does not
- * declare `aria-haspopup="menu"`, whose menu keyboard model the panel does not use.
+ * (the appearance radio group and ordinary links) are all keyboard-reachable;
+ * Escape closes and restores focus to the trigger; an outside click or choosing
+ * Settings / Sign out closes it. It is not a modal, so it needs no focus trap. It
+ * deliberately does not declare `aria-haspopup="menu"`, whose menu keyboard model
+ * the panel does not use — which is also why the appearance control can be a real
+ * radio group in here rather than a `menuitemradio` reimplementation.
  */
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 
+import { AppearanceSelector } from "./AppearanceSelector";
 import { displayNameFromEmail, initialsFromName } from "./identity-display";
 
 /** The Cloudflare Access application logout endpoint (ADR-016 §5.7). */
@@ -52,6 +61,13 @@ export type UserMenuProps = {
   /** Optional display name; derived from the email when absent. */
   readonly name?: string;
   /**
+   * APPEARANCE-01 — the owner's stored System/Light/Dark preference. Defaults to
+   * `system`, which is both the shipped behaviour and the safe reading of a
+   * missing value, so a caller that has not been threaded yet renders a correct
+   * (if not personalised) control rather than an empty one.
+   */
+  readonly appearance?: AppearancePreference;
+  /**
    * The Settings route href. Omitted until Settings ships (SET-01): the menu never
    * renders a Settings action that would dead-end on the 404 page (AGENTS.md §6 —
    * no dead ends). SET-01 threads a real href through here to light it up.
@@ -70,6 +86,7 @@ export type UserMenuProps = {
 export function UserMenu({
   email,
   name,
+  appearance = "system",
   settingsHref,
   placement = "above",
   compact = false,
@@ -128,6 +145,15 @@ export function UserMenu({
         <span className="dh-user-menu__email" title={email}>
           {email}
         </span>
+      </div>
+      {/* The appearance choice, as a labelled section of the panel rather than a
+       * nested submenu: three options fit, and a submenu would put the owner's
+       * current appearance one interaction further away than the thing it tells
+       * them. Choosing an option does NOT close the panel — the point of setting
+       * appearance here is to see the result and, if it is wrong, to change it
+       * again without reopening the menu. */}
+      <div className="dh-user-menu__section dh-user-menu__appearance">
+        <AppearanceSelector value={appearance} variant="menu" />
       </div>
       <div className="dh-user-menu__section dh-user-menu__links">
         {settingsHref ? (

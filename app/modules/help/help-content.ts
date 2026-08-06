@@ -589,7 +589,11 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
         blocks: [
           {
             kind: "text",
-            text: "DalyHub has one light appearance and one dark one, and it follows your device: if your phone or computer is set to dark, DalyHub is dark, and it changes with your device the moment you do. There is nothing to choose and nothing to set, which is why you will not find an Appearance section in Settings any more.",
+            text: "DalyHub has one light appearance and one dark one, and you choose which to use: System, Light or Dark. System is the default and follows your phone or computer, changing with it the moment you do. Light and Dark stay put whatever your device is set to.",
+          },
+          {
+            kind: "text",
+            text: "The choice lives in two places, and they are the same setting: your account menu (the avatar at the top right, or at the bottom of the navigation sheet on a phone) and Settings → General → Appearance. It is saved to your account, so it follows you to your other devices.",
           },
           {
             kind: "text",

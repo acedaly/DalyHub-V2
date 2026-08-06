@@ -148,12 +148,20 @@ describe("Notes collection", () => {
     const link = screen.getByRole("link", { name: "Open Reading list" });
     expect(link).toHaveAttribute("href", "/notes/n1");
     expect(screen.getByText("1 note")).toBeInTheDocument();
-    expect(screen.getAllByText("New Note").length).toBeGreaterThan(0);
+    // Shell cleanup: a POPULATED Notes collection carries no create action of its
+    // own. "New Note" duplicated the global capture control, which is on every
+    // page at every width and posts to the same `POST /notes/new` route, so the
+    // header stopped spending its most valuable space on a second door.
+    expect(screen.queryByText("New Note")).not.toBeInTheDocument();
   });
 
   it("shows a genuinely-empty state when there are no notes at all", () => {
     renderCollection({ notes: [], nextCursor: null, failed: false });
     expect(screen.getByText("No Notes yet")).toBeInTheDocument();
+    // The empty state KEEPS its create action. It is the one place a page-level
+    // create still earns its keep: there is nothing else on the screen to act on,
+    // and an empty state must teach the next action (AGENTS.md §6).
+    expect(screen.getByText("New Note")).toBeInTheDocument();
   });
 
   it("shows a calm, retryable error state distinct from empty", () => {

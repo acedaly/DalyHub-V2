@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
+import { FeedbackProvider } from "~/shared/feedback";
 import {
   UserMenu,
   displayNameFromEmail,
@@ -9,11 +10,22 @@ import {
   initialsFromName,
 } from "~/shared/shell/UserMenu";
 
+/**
+ * The panel now contains the APPEARANCE-01 selector, which reports a failed save
+ * through the shared DS-10 Feedback platform — so the harness mounts the provider
+ * the real shell mounts. `useFeedback` throws without one BY DESIGN (a missing
+ * platform mount should be a loud developer error, not a silent no-op), so this is
+ * the harness catching up with the component, not a workaround.
+ */
 function renderMenu(props: Partial<Parameters<typeof UserMenu>[0]> = {}) {
   const Stub = createRoutesStub([
     {
       path: "/",
-      Component: () => <UserMenu email="owner@example.com" {...props} />,
+      Component: () => (
+        <FeedbackProvider>
+          <UserMenu email="owner@example.com" {...props} />
+        </FeedbackProvider>
+      ),
     },
     { path: "/settings", Component: () => <div>Settings page</div> },
   ]);

@@ -4,8 +4,14 @@
 // Changes: the document shell renders DalyHub's own head — manifest, icons,
 // preloaded UI font and the `theme-color` pair — and restores scroll by path
 // rather than by history entry (ADR-018). Styling stays plain CSS; the design
-// system is Material Design 3 (ADR-074), and the light/dark choice belongs to
-// `prefers-color-scheme` rather than to a stored preference.
+// system is Material Design 3 (ADR-074).
+//
+// APPEARANCE-01 resolves the owner's appearance preference here and writes it to
+// `<html data-appearance>` during SSR, so the first byte already carries the right
+// appearance. There is no bootstrapping script — nothing to exempt from the CSP,
+// nothing to run before paint, and nothing for React to disagree with at
+// hydration, because the server and the client render the attribute from the same
+// loader data.
 import {
   isRouteErrorResponse,
   Links,
@@ -13,12 +19,33 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
 import type { Location } from "react-router";
 
 import type { Route } from "./+types/root";
+import {
+  DEFAULT_APPEARANCE,
+  readAppearancePreference,
+  type AppearancePreference,
+} from "./kernel/preferences/appearance";
 import { DARK_SCHEME, LIGHT_SCHEME } from "./shared/tokens";
 import "./app.css";
+
+/**
+ * APPEARANCE-01 — the FALLBACK appearance, read from the first-paint cookie
+ * mirror.
+ *
+ * The root loader deliberately does no database work: it runs for every document,
+ * including renders where the authenticated shell never resolves (`/offline`, a
+ * root error boundary). The cookie is not secret and is safe to read here; the
+ * app shell supplies the authoritative value when it resolves.
+ */
+export function loader({ request }: Route.LoaderArgs) {
+  return {
+    appearance: readAppearancePreference(request.headers.get("Cookie")),
+  };
+}
 
 /**
  * PWA-01 — the browser/OS chrome colour.
@@ -28,24 +55,43 @@ import "./app.css";
  * is read by the browser BEFORE any stylesheet is parsed and cannot reference a
  * CSS custom property.
  *
- * M3-01: there is one light/dark pair and the choice belongs to the OS, so the
- * document always emits the `prefers-color-scheme` pair. Nothing here depends on
- * a stored preference any more (ADR-074).
+ * `system` is the one preference that genuinely defers to the device, so it is the
+ * one that emits a `prefers-color-scheme` PAIR — which is also what keeps the
+ * chrome following the device when the system appearance changes mid-session. An
+ * explicit Light or Dark is already decided server-side, and emitting a media
+ * query for it would let the operating system contradict the owner's choice in the
+ * one place the stylesheet cannot correct.
  */
-function ThemeColor() {
+function ThemeColor({
+  appearance,
+}: {
+  readonly appearance: AppearancePreference;
+}) {
+  if (appearance === "system") {
+    return (
+      <>
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: light)"
+          content={LIGHT_SCHEME["app-surface-page"]}
+        />
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: dark)"
+          content={DARK_SCHEME["app-surface-page"]}
+        />
+      </>
+    );
+  }
   return (
-    <>
-      <meta
-        name="theme-color"
-        media="(prefers-color-scheme: light)"
-        content={LIGHT_SCHEME["app-surface-page"]}
-      />
-      <meta
-        name="theme-color"
-        media="(prefers-color-scheme: dark)"
-        content={DARK_SCHEME["app-surface-page"]}
-      />
-    </>
+    <meta
+      name="theme-color"
+      content={
+        appearance === "dark"
+          ? DARK_SCHEME["app-surface-page"]
+          : LIGHT_SCHEME["app-surface-page"]
+      }
+    />
   );
 }
 
@@ -61,8 +107,30 @@ function scrollRestorationKey(location: Location): string {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  // APPEARANCE-01 — the appearance is resolved from the most authoritative source
+  // that is actually available for THIS render, so the very first byte is already
+  // correct:
+  //
+  //   1. the app shell's loader data, which read the owner's stored preference;
+  //   2. the root loader's cookie mirror, for documents that never reach the shell
+  //      (`/offline`, or a shell loader failure rendering the root error boundary);
+  //   3. `system`, if even the root loader has not resolved.
+  //
+  // `data-appearance` is written server-side, so there is no light-to-dark flash,
+  // no inline bootstrapping script and no hydration mismatch. On a client-side
+  // change React patches this ONE attribute, which is why switching is instant and
+  // reloads nothing. `system` is passed straight through rather than resolved: the
+  // server has no device signal, and the stylesheet's `prefers-color-scheme` block
+  // resolves it — which is also what makes it keep up with the device while
+  // DalyHub is open, with no listener and no re-render.
+  const rootData = useRouteLoaderData<typeof loader>("root");
+  const shellData = useRouteLoaderData<{
+    appearance?: AppearancePreference;
+  }>("app-shell");
+  const appearance: AppearancePreference =
+    shellData?.appearance ?? rootData?.appearance ?? DEFAULT_APPEARANCE;
   return (
-    <html lang="en">
+    <html lang="en" data-appearance={appearance}>
       <head>
         <meta charSet="utf-8" />
         {/* `viewport-fit=cover` opts the document into the display's full width
@@ -132,7 +200,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
          * background so an installed window's chrome continues the page rather
          * than framing it. Both halves are emitted with a media attribute, so
          * the OS picks the one that matches what the stylesheet is painting. */}
-        <ThemeColor />
+        <ThemeColor appearance={appearance} />
         {/* Standalone launch. `mobile-web-app-capable` is the standard name;
          * `apple-mobile-web-app-capable` is kept ALONGSIDE it because current
          * iOS Safari still reads only the Apple-prefixed name when deciding

@@ -30,6 +30,7 @@
 
 import { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
 
+import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 // Import the specific modules (not the `~/shared/commands` barrel) so the shell
 // does NOT eagerly pull the palette controller / DS-08 Search UI into the initial
@@ -107,6 +108,13 @@ export type AppShellProps = {
   readonly workspaceName?: string;
   /** The authenticated owner's verified email (safe display identity). */
   readonly email: string;
+  /**
+   * APPEARANCE-01 — the owner's stored System/Light/Dark preference, threaded to
+   * the account menu's appearance control. The same value `root.tsx` writes to
+   * `<html data-appearance>`, from the same loader, so the control and the
+   * document can never show different things.
+   */
+  readonly appearance: AppearancePreference;
   /** The derived, registry-driven navigation model. */
   readonly navigation: readonly NavigationItem[];
   /** The routed page content (the route `Outlet`). */
@@ -116,6 +124,7 @@ export type AppShellProps = {
 export function AppShell({
   workspaceName = "DalyHub",
   email,
+  appearance,
   navigation,
   children,
 }: AppShellProps) {
@@ -275,6 +284,7 @@ export function AppShell({
                 the SAME palette the rail used to, through the same callbacks. */}
                   <DesktopTopBar
                     email={email}
+                    appearance={appearance}
                     settingsHref="/settings"
                     onOpenSearch={openSearch}
                     onOpenCommand={openCommand}
@@ -315,6 +325,7 @@ export function AppShell({
                   <MobileNav
                     workspaceName={workspaceName}
                     email={email}
+                    appearance={appearance}
                     navigation={navigation}
                     settingsHref="/settings"
                     opener={navOpener}

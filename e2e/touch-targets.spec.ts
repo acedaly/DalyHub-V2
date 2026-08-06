@@ -165,8 +165,10 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     // touching the global timeout.
     test.setTimeout(120_000);
     const noteTitle = uniqueNoteTitle("touch-targets");
-    await gotoFixture(page, "/notes");
-    await page.getByRole("link", { name: "New Note" }).first().click();
+    // Fixture setup, not a UI assertion: the Notes header's duplicate "New Note"
+    // button was removed by the shell cleanup, so this opens the SAME (untouched,
+    // URL-backed) create drawer by its canonical URL.
+    await gotoFixture(page, "/notes?drawer=new-note");
     const dialog = page.getByRole("dialog", { name: "New Note" });
     await expect(dialog).toBeVisible();
     // Let the drawer-open loader revalidation settle before submitting, so the

@@ -8,9 +8,10 @@
  * display identity and the registry-driven navigation model.
  * The raw JWT never enters loader data.
  *
- * M3-01 removed the theme this loader used to publish: DalyHub ships one
- * generated light/dark pair selected by `prefers-color-scheme`, so there is
- * nothing appearance-related left for the server to resolve (ADR-074).
+ * DalyHub ships ONE generated light/dark pair (ADR-074) and no palettes.
+ * APPEARANCE-01 publishes the one appearance value that pair still needs — the
+ * owner's System/Light/Dark preference — because the record here is its authority
+ * and `root.tsx` prefers this over the first-paint cookie when it resolves.
  */
 
 import { Outlet } from "react-router";
@@ -42,6 +43,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   );
   return {
     email,
+    appearance: preferences.appearance,
     navigation: navigation.filter(
       (item) => !hiddenModuleIds.has(item.moduleId),
     ),
@@ -50,7 +52,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 export default function AppShellLayout({ loaderData }: Route.ComponentProps) {
   return (
-    <AppShell email={loaderData.email} navigation={loaderData.navigation}>
+    <AppShell
+      email={loaderData.email}
+      appearance={loaderData.appearance}
+      navigation={loaderData.navigation}
+    >
       <Outlet />
     </AppShell>
   );

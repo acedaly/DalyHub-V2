@@ -16,11 +16,12 @@
  *
  * What it deliberately does NOT carry: a notification bell (DalyHub has no
  * notification system, and a bell that never rings is a decorative control), a
- * plan or billing entry (there is no plan concept), a theme switch, or an
- * appearance indicator. The last one was built and then removed: DalyHub follows
- * `prefers-color-scheme` and has no appearance action at all, so a sun/moon glyph
- * in a row of controls reads as a theme toggle that does nothing. An icon that
- * looks operable and is not is worse than no icon (ADR-074 decision 5).
+ * plan or billing entry (there is no plan concept), or a standing appearance
+ * toggle. APPEARANCE-01 gives the owner a real System/Light/Dark choice, and puts
+ * it INSIDE the account menu rather than beside these utilities: appearance is set
+ * once and then forgotten, so a permanent sun/moon glyph in the bar would spend
+ * top-level chrome — on every page, at every width — on a control that is used
+ * about as often as Sign out.
  *
  * Behaviour is UNCHANGED. The search control opens the same DS-08 Search surface
  * the sidebar entry opened, through the same `onOpenSearch` callback, passing the
@@ -44,6 +45,7 @@
  * only `role="search"` in the desktop shell now that the rail carries none.
  */
 
+import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { CommandIcon, HelpIcon, SearchIcon } from "~/shared/icons";
 
 import { UserMenu } from "./UserMenu";
@@ -51,6 +53,8 @@ import { UserMenu } from "./UserMenu";
 export type DesktopTopBarProps = {
   /** The authenticated owner's verified email (safe display identity). */
   readonly email: string;
+  /** The owner's stored appearance preference, for the account menu's control. */
+  readonly appearance: AppearancePreference;
   /** Optional display name; derived from the email when absent. */
   readonly name?: string;
   /** The first-class Settings route, surfaced inside the account menu. */
@@ -63,6 +67,7 @@ export type DesktopTopBarProps = {
 
 export function DesktopTopBar({
   email,
+  appearance,
   name,
   settingsHref,
   onOpenSearch,
@@ -123,6 +128,7 @@ export function DesktopTopBar({
 
         <UserMenu
           email={email}
+          appearance={appearance}
           name={name}
           settingsHref={settingsHref}
           placement="below"

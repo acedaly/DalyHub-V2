@@ -1,7 +1,8 @@
 # App Shell & Authentication (FND-09)
 
 How DalyHub authenticates requests, composes the authenticated workspace,
-derives routing and navigation from the module registry, and applies the theme.
+derives routing and navigation from the module registry, and applies the owner's
+appearance preference.
 This document is the working reference for FND-09; the decision record is
 [ADR-016](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing).
 
@@ -44,7 +45,7 @@ committed with real values.
 | Variable | Purpose |
 | --- | --- |
 | `AUTH_MODE` | `cloudflare-access` (production/default) or `development`. Missing → `cloudflare-access`; unknown → fails closed. |
-| `ENVIRONMENT` | `development` / `test` / `preview` / `staging` / `production`. Gates development auth and the `Secure` theme cookie, and is the environment label About and `/health` report. |
+| `ENVIRONMENT` | `development` / `test` / `preview` / `staging` / `production`. Gates development auth and the `Secure` appearance cookie, and is the environment label About and `/health` report. |
 | `BUILD_COMMIT` | **Optional.** A git commit hash the About screen displays. Absent everywhere by default; a value that is not a commit hash is ignored rather than shown. |
 | `ACCESS_TEAM_DOMAIN` | `https://<team>.cloudflareaccess.com`. The token issuer and JWKS base. HTTPS only, no path/credentials. |
 | `ACCESS_AUD` | The Access application Audience (AUD) tag the token must carry. |
@@ -70,7 +71,7 @@ environment; a named `env.production` environment (selected with
 production invariants:
 
 - `ENVIRONMENT` is **always** `production` — so the development authenticator can
-  never activate (it requires a `development`/`test` `ENVIRONMENT`) and the theme
+  never activate (it requires a `development`/`test` `ENVIRONMENT`) and the appearance
   cookie is **always** `Secure`;
 - `AUTH_MODE` is **always** `cloudflare-access` — production can never enable
   development auth;
@@ -381,34 +382,28 @@ It remains fully lazy (React Router code-splits each route module) and fully
 registry-driven. See [ADR-016 §5.10](../decisions/ARCHITECTURE_DECISIONS.md#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing)
 and [MODULES.md](./MODULES.md).
 
-## Theme preference behaviour
+## Appearance preference behaviour
 
-Seven curated themes (`daly-light`, `daly-dark`, `modern-light`, `modern-dark`,
-`eucalypt`, `coastal`, `ember`) plus the `system` appearance mode, default `system`
-(THEME-01,
-[ADR-061](../decisions/ARCHITECTURE_DECISIONS.md#adr-061-the-curated-theme-system--five-complete-palettes-over-one-semantic-token-set-persisted-per-owner);
-the Modern pair added by THEME-02).
+Three values — `system`, `light`, `dark` — default `system`
+([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation),
+migration `0033`). There is one generated light/dark pair and no palettes
+([ADR-074](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism));
+the preference chooses which half of that pair paints. The seven-theme registry this
+section used to describe was retired by M3-01 along with the `theme` column
+(migration `0031`) — `data-theme` no longer exists anywhere in the product.
 
-`modern-light` and `modern-dark` are a designed PAIR, but they are still two ordinary
-chosen themes as far as the shell is concerned: neither follows `prefers-color-scheme`,
-and the resolution order below is unchanged. Only `system` reacts to the device.
+**The owner preferences record is the authority.** `owner_app_preferences.appearance`
+is an additive column with a CHECK naming the three legal values, so it follows the
+owner between browsers and devices. `APPEARANCE_PREFERENCES` in
+`app/kernel/preferences/appearance.ts` is the one list both the validator and that
+constraint derive from, and a unit test pins them together — **changing the value set
+needs a migration as well as a code change**.
 
-**The owner preferences record is the authority.** The theme is a column on
-`owner_app_preferences` (migration `0023`, its legal set widened by `0026`), so it
-follows the owner between browsers — a change from FND-09/SET-01, which kept
-appearance device-local. With three appearance modes that was a cosmetic device
-setting; with a registry of curated themes it is a personal choice, and a personal
-choice that does not follow the owner to their phone is a broken one.
-
-The column carries a CHECK naming the legal themes, so **adding a theme needs a
-migration as well as a registry entry**. `0026` is the worked example: SQLite cannot
-alter a CHECK in place, so widening the set is a table rebuild — additive in effect,
-copied by explicit column list, no stored value rewritten.
-
-**The cookie is now only a first-paint mirror.** It is still same-site, HttpOnly and
-bounded (`Secure` in non-development environments), but it is a cache, not the
+**The cookie is only a first-paint mirror.** `dh_appearance` is same-site, HttpOnly
+and bounded (`Secure` in non-development environments), but it is a cache, not the
 source of truth. It exists so a document that never reaches the authenticated shell
-loader — a root error boundary — still renders with the right `data-theme`.
+loader — `/offline`, or a root error boundary — still renders with the right
+`data-appearance`.
 
 **Resolution order in the root layout**, most authoritative first:
 
@@ -416,19 +411,29 @@ loader — a root error boundary — still renders with the right `data-theme`.
 2. the root loader's cookie mirror;
 3. `system`.
 
-Because the shell loader supplies it during SSR, `<html data-theme>` carries the
-authoritative theme in the first byte of every authenticated document — no
-light-to-dark flash, no client theme script, no inline bootstrapping, no
-`localStorage`, no state library.
+Because the shell loader supplies it during SSR, `<html data-appearance>` carries the
+authoritative value in the first byte of every authenticated document — no
+light-to-dark flash, no client appearance script, no inline bootstrapping (so nothing
+to exempt from the CSP), no `localStorage`, and no hydration mismatch, because the
+server and the client render the attribute from the same loader data.
 
-Changing the theme is a POST to `/preferences/theme` (same-origin, validated) which
-writes the preference record, refreshes the cookie mirror and redirects back. With
-JavaScript that redirect is a client navigation, so the new theme paints immediately
-and nothing reloads. Theme changes record no Activity. Invalid or removed values
-fall back to `system`; a legacy `light`/`dark` value maps to Daly Light / Daly Dark
-rather than resetting the owner's choice. The `/settings?section=appearance` route
-reuses this exact authority — the full picker and the user-menu quick switch post to
-the same action.
+**`system` is resolved by the stylesheet, not by the client.** The server has no
+device signal and deliberately passes `system` straight through to the attribute;
+`tokens.css` resolves it with `@media (prefers-color-scheme: dark)
+:root:not([data-appearance="light"])`. That media query re-evaluates itself, so
+"follow the device while DalyHub is open" costs no `matchMedia` listener, no
+re-render and no client state. `color-scheme` is pinned alongside each rule so native
+controls, scrollbars and the default canvas follow the same decision.
+
+Changing the appearance is a POST to `/preferences/appearance` (same-origin,
+validated at the request boundary) which writes the preference record and refreshes
+the cookie mirror, returning JSON. It is submitted through a `useFetcher`, so React
+Router revalidates afterwards, the root loader re-reads the cookie and React patches
+that one attribute — no navigation, no history entry, no scroll reset, and the account
+menu the owner is standing in stays open. Appearance changes record no Activity.
+Invalid or removed values fall back to `system` and are never written back verbatim.
+The account menu and `/settings` reuse this exact authority: both render the same
+`AppearanceSelector` and post to the same action.
 
 ## Security headers
 

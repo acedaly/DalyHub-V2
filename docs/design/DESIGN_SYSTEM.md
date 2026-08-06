@@ -44,7 +44,14 @@ The script writes **both** the colour blocks in `tokens.css` and the typed mirro
 
 ### One light/dark pair, and no theme feature
 
-There is one light scheme and one dark one, selected by `prefers-color-scheme` alone. There is no `data-theme`, no picker, no persisted preference and no theme column — the seven curated themes and their machinery are retired ([ADR-074 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism), migration `0031`). A component styled once is correct in both appearances, and nothing in the cascade branches on a theme.
+There is one light scheme and one dark one. There is no `data-theme`, no picker, no palettes and no theme column — the seven curated themes and their machinery are retired ([ADR-074 decision 5](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism), migration `0031`). A component styled once is correct in both appearances, and nothing in the cascade branches on a theme.
+
+**Appearance is the one thing the owner chooses about that pair** ([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#adr-075-the-appearance-preference-and-one-authority-for-routine-creation)). Three values, and only three: **System** (the default — follow `prefers-color-scheme`, and keep following it while DalyHub is open), **Light** and **Dark**. Never *Auto*, *Default* or *Night mode*.
+
+- It is stored on the owner's preference record (`owner_app_preferences.appearance`, migration `0033`) so it follows the owner between devices, and mirrored into a `dh_appearance` cookie so a document that never reaches the shell loader still paints correctly on its first byte.
+- The server writes it to `<html data-appearance>` during SSR. There is **no bootstrapping script**: nothing to exempt from the CSP, no flash, and no hydration mismatch, because the server and the client render the attribute from the same loader data.
+- The cascade lives entirely in the generated block of `tokens.css`: `:root` is light, `@media (prefers-color-scheme: dark) :root:not([data-appearance="light"])` is the device's dark, and `:root[data-appearance="dark"]` is an explicit dark. `color-scheme` is pinned alongside each, so native controls, scrollbars and the default canvas follow the same decision.
+- One shared control renders it in exactly two places — the account menu and Settings → General — as a native radio group. There is no theme button in a page header.
 
 ### The four application surfaces
 

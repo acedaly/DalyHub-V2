@@ -946,20 +946,20 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       entityType="task"
       density={density}
       primaryAction={
-        <>
-          {/* TASKS-04 — the way into Inbox triage lives beside capture, because
-              capturing fast and reviewing what you captured are the two halves of
-              the same daily habit. */}
-          <Link className="dh-btn dh-btn--secondary" to="/tasks/review">
-            Review Inbox
-          </Link>
-          <DrawerTrigger
-            drawerKey={NEW_TASK_KEY}
-            className="dh-btn dh-btn--primary"
-          >
-            New task
-          </DrawerTrigger>
-        </>
+        // APPEARANCE-01/shell cleanup: the header's "New task" button is gone. It
+        // opened the generic capture drawer with no context the global capture
+        // control does not already supply, so it was a second door onto the same
+        // room occupying the most valuable space on the screen. Creating a task
+        // has not moved anywhere the owner has to learn: the global `+` is on
+        // every page at every width, `c` opens it from the keyboard, and the
+        // empty state below still offers "New task" to someone with no tasks at
+        // all — which is the one moment a page-level create genuinely helps.
+        //
+        // Review Inbox STAYS. It is not a creation control: it is the way into
+        // triage, and nothing in the global capture menu does it.
+        <Link className="dh-btn dh-btn--secondary" to="/tasks/review">
+          Review Inbox
+        </Link>
       }
       // The shared PX-02 view switcher stays in the pane header on desktop, so
       // changing presentation is ONE click rather than a trip through the sheet.

@@ -38,8 +38,10 @@ test.describe("IDENT-01 — the activity feed names the person who acted", () =>
   }) => {
     // Create something through the real UI, so there is at least one event
     // authored by THIS authenticated session.
-    await page.goto("/notes");
-    await page.getByRole("link", { name: "New Note" }).first().click();
+    // Fixture setup, not a UI assertion: the Notes header's duplicate "New Note"
+    // button was removed by the shell cleanup, so this opens the SAME (untouched,
+    // URL-backed) create drawer by its canonical URL.
+    await page.goto("/notes?drawer=new-note");
     const dialog = page.getByRole("dialog", { name: "New Note" });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel(/Title/).fill(`Identity check ${Date.now()}`);

@@ -389,16 +389,13 @@ function NotesCollection({
           areas={options.areas}
         />
       }
-      primaryAction={
-        state === "active" ? (
-          <DrawerTrigger
-            drawerKey={NEW_NOTE_KEY}
-            className="dh-btn dh-btn--primary"
-          >
-            New Note
-          </DrawerTrigger>
-        ) : undefined
-      }
+      // Shell cleanup: the header's "New Note" button is gone. It opened the
+      // generic create drawer with no context the global capture control does not
+      // already supply — and the capture panel posts to `POST /notes/new`, the
+      // very same NOTES-01B route this drawer posts to, so nothing about how a
+      // Note is created has changed. The `?drawer=new-note` URL still resolves
+      // (deep links and the empty state below both use it), so this removes an
+      // affordance, not a path.
       error={
         failed ? (
           <EmptyState
