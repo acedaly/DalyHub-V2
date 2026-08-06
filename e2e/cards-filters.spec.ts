@@ -74,8 +74,12 @@ test.describe("DS-04/DS-07 — desktop", () => {
 
     // Density.
     await page.getByRole("radio", { name: "compact" }).check();
+    // `data-card-density`, which is the attribute `Card` actually emits. The
+    // assertion named `data-density` and had done since ADR-074 last touched
+    // that component, so it was failing on `main` before this branch existed.
+    // The guarantee is unchanged: switching density must change the card.
     await expect(page.getByRole("article").first()).toHaveAttribute(
-      "data-density",
+      "data-card-density",
       "compact",
     );
 

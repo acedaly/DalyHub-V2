@@ -46,6 +46,7 @@ const devFixtureRoutes =
         route("design/record-layout", "routes/design-record-layout.tsx"),
         route("design/drawer", "routes/design-drawer.tsx"),
         route("design/cards-filters", "routes/design-cards-filters.tsx"),
+        route("design/card-family", "routes/design-card-family.tsx"),
         route(
           "design/collection-layout",
           "routes/design-collection-layout.tsx",

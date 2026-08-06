@@ -58,6 +58,11 @@ import {
   type ProjectWorkflowStatus,
 } from "~/kernel/project-settings";
 
+import {
+  normaliseEntityIconKey,
+  type EntityIconKey,
+} from "~/kernel/entities/entity-icon-keys";
+
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import {
   recordAtomicMutation,
@@ -72,6 +77,7 @@ const MAX_STATUS_ATTEMPTS = 5;
 interface ProjectDetailsRow {
   readonly status: string;
   readonly archived_at: string | null;
+  readonly icon_key: string | null;
 }
 
 export type D1ProjectSettingsRepositoryOptions = {
@@ -109,7 +115,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
   async get(id: string): Promise<ProjectSettingsRecord | null> {
     const row = await this.#row(id);
     if (!row) return null;
-    return this.#record(id, row.status, row.archived_at);
+    return this.#record(id, row.status, row.archived_at, row.icon_key);
   }
 
   /**
@@ -152,7 +158,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
            ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
              status = excluded.status, updated_at = excluded.updated_at
            WHERE project_details.status = ? AND project_details.archived_at IS NULL
-           RETURNING status, archived_at`,
+           RETURNING status, archived_at, icon_key`,
         )
         .bind(
           this.#workspaceId,
@@ -180,7 +186,12 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
 
       if (result.changed && result.row) {
         return {
-          settings: this.#record(id, result.row.status, result.row.archived_at),
+          settings: this.#record(
+            id,
+            result.row.status,
+            result.row.archived_at,
+            result.row.icon_key,
+          ),
           changed: true,
         };
       }
@@ -233,7 +244,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
          ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
            archived_at = excluded.archived_at, updated_at = excluded.updated_at
          WHERE project_details.archived_at IS NULL
-         RETURNING status, archived_at`,
+         RETURNING status, archived_at, icon_key`,
       )
       .bind(
         this.#workspaceId,
@@ -262,7 +273,12 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.status, result.row.archived_at),
+        settings: this.#record(
+          id,
+          result.row.status,
+          result.row.archived_at,
+          result.row.icon_key,
+        ),
         changed: true,
       };
     }
@@ -295,7 +311,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
         `UPDATE project_details SET archived_at = NULL, updated_at = ?
          WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
            AND EXISTS (${this.#activeProjectExistsSql})
-         RETURNING status, archived_at`,
+         RETURNING status, archived_at, icon_key`,
       )
       .bind(nowTs, this.#workspaceId, id, this.#workspaceId, id);
 
@@ -312,7 +328,12 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.status, result.row.archived_at),
+        settings: this.#record(
+          id,
+          result.row.status,
+          result.row.archived_at,
+          result.row.icon_key,
+        ),
         changed: true,
       };
     }
@@ -366,7 +387,8 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
     try {
       const row = await this.#db
         .prepare(
-          `SELECT COALESCE(d.status, 'planned') AS status, d.archived_at AS archived_at
+          `SELECT COALESCE(d.status, 'planned') AS status, d.archived_at AS archived_at,
+                  d.icon_key AS icon_key
            FROM entities e
            LEFT JOIN project_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -391,6 +413,7 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
     id: string,
     status: string,
     archived: string | null,
+    iconKey: string | null,
   ): ProjectSettingsRecord {
     let parsed: ProjectWorkflowStatus;
     try {
@@ -403,7 +426,74 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
       workspaceId: parseWorkspaceId(this.#workspaceId),
       status: parsed,
       archivedAt: archived ? fromStorageTimestamp(archived) : null,
+      // Normalised on the way OUT as well as in. `icon_key` is deliberately
+      // unconstrained (migration 0032) and a key can outlive the catalogue entry
+      // that produced it, so an unrecognised value becomes `null` here rather
+      // than being handed to the UI typed as if this build understood it. The
+      // record then renders its entity default, which is the documented
+      // fallback. A corrupt `status`, by contrast, throws — the column carries a
+      // CHECK, so an unparseable one means genuinely broken storage, and there
+      // is no safe default to fall back to.
+      iconKey: normaliseEntityIconKey(iconKey),
     };
+  }
+
+  /**
+   * Choose (or clear) the Project's icon.
+   *
+   * An upsert with the same `EXISTS` guard every other write here carries — the
+   * Project must exist, be a Project and not be soft-deleted, resolved at commit
+   * rather than against a stale read.
+   *
+   * The upsert is load-bearing, not defensive. `project_details` is SPARSE for a
+   * new Project: migration 0008 backfilled the Projects that existed when it
+   * ran, but `createProject` writes no detail row, so the first settings write
+   * is what creates it. A plain `UPDATE` here would silently affect no rows and
+   * still report success — which is why `entity-icon-settings.test.ts` asserts
+   * the row's creation directly rather than only asserting the read-back.
+   *
+   * `null` clears the choice and is a legitimate value, not a failure: it is
+   * what "reset to default" stores. Validation of a NON-null key belongs at the
+   * route boundary, which refuses an unrecognised one rather than quietly
+   * storing nothing; by the time a key reaches here it is already a member of
+   * the vocabulary.
+   *
+   * No Activity event, and no archived-Project guard. The lifecycle events in
+   * this slice mark transitions that change what a Project IS to the rest of the
+   * product — status, archived, restored. Choosing a glyph changes how it is
+   * drawn; an activity feed that records every appearance tweak buries the
+   * events that matter, and blocking it on an archived Project would prevent
+   * tidying a record the owner can still read.
+   */
+  async setIcon(
+    id: string,
+    iconKey: EntityIconKey | null,
+  ): Promise<ProjectSettingsRecord> {
+    const current = await this.#require(id);
+    const nowTs = toStorageTimestamp(this.#clock());
+    try {
+      await this.#db
+        .prepare(
+          `INSERT INTO project_details (workspace_id, entity_id, status, icon_key, updated_at)
+           SELECT ?, ?, ?, ?, ?
+           WHERE EXISTS (${this.#activeProjectExistsSql})
+           ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+             icon_key = excluded.icon_key, updated_at = excluded.updated_at`,
+        )
+        .bind(
+          this.#workspaceId,
+          id,
+          current.status,
+          iconKey,
+          nowTs,
+          this.#workspaceId,
+          id,
+        )
+        .run();
+    } catch (cause) {
+      throw new ProjectSettingsStorageError({ cause });
+    }
+    return { ...current, iconKey };
   }
 
   /**

@@ -26,6 +26,7 @@ import {
   DEFAULT_KNOWLEDGE_PAGE,
   loadProjectKnowledge,
 } from "~/platform/entity-links/project-knowledge";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
@@ -148,7 +149,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   // existing `/projects/parent-options?q=` search, so this loader (and every
   // ordinary revalidation of it — a task edit, a completion, a settings
   // change) stays independent of how many Areas/Goals the workspace has.
-  const [taskPage, links, knowledge] = await Promise.all([
+  const [taskPage, links, knowledge, settings] = await Promise.all([
     scope.tasks.listProjectTasks(projectId, { state: taskState }),
     listActiveLinks(
       { entities: scope.entities, entityLinks: scope.entityLinks },
@@ -164,10 +165,14 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     loadProjectKnowledge(scope, projectId, {
       limit: DEFAULT_KNOWLEDGE_PAGE,
     }).catch(() => ({ notes: [], nextCursor: null })),
+    scope.projectSettings.get(projectId),
   ]);
 
   return {
-    overview: serializeProjectOverview(overview),
+    // The KEY only. The settings repository has already normalised it, so a key
+    // this build no longer recognises arrives as `null` and the Project renders
+    // its entity default rather than an empty box.
+    overview: serializeProjectOverview(overview, settings?.iconKey ?? null),
     progress,
     health,
     tasks: taskPage.items.map(serializeProjectTask),
@@ -454,6 +459,26 @@ function ProjectDetail({
     [postMutation, revalidator],
   );
 
+  const onSetIcon = useCallback(
+    async (iconKey: EntityIconKey | null) => {
+      const body = new FormData();
+      body.set("intent", "set_icon");
+      // Empty means reset-to-default, which the server honours as a real
+      // choice rather than reading as an omitted field.
+      body.set("iconKey", iconKey ?? "");
+      const result = await postMutation(body);
+      if (result.kind !== "setIcon" || !result.ok) {
+        throw new Error(
+          result.kind === "setIcon" && !result.ok
+            ? result.formError
+            : SETTINGS_GENERIC_ERROR,
+        );
+      }
+      revalidator.revalidate();
+    },
+    [postMutation, revalidator],
+  );
+
   const onArchive = useCallback(async () => {
     const body = new FormData();
     body.set("intent", "archive");
@@ -653,6 +678,7 @@ function ProjectDetail({
           onMove={onMove}
           onArchive={onArchive}
           onRestore={onRestore}
+          onSetIcon={onSetIcon}
         />
       }
     />

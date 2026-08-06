@@ -93,8 +93,18 @@ const CUSTOM_GROUPS = [
   "entity-review",
 ] as const satisfies readonly SchemeRole[];
 
-/** Every surface text is rendered on — the system ramp plus the four the
- * application actually paints with. */
+/** The seven surfaces the APPLICATION paints with, from the app-neutral palette. */
+const APP_SURFACES = [
+  "app-surface-page",
+  "app-surface-navigation",
+  "app-surface-app-bar",
+  "app-surface-card",
+  "app-surface-card-subtle",
+  "app-surface-raised",
+  "app-surface-sunken",
+] as const satisfies readonly SchemeRole[];
+
+/** Every surface text is rendered on — the system ramp plus every application surface. */
 const TEXT_SURFACES = [
   "surface",
   "surface-dim",
@@ -104,10 +114,7 @@ const TEXT_SURFACES = [
   "surface-container",
   "surface-container-high",
   "surface-container-highest",
-  "app-surface-page",
-  "app-surface-card",
-  "app-surface-raised",
-  "app-surface-sunken",
+  ...APP_SURFACES,
 ] as const satisfies readonly SchemeRole[];
 
 const SCHEMES = [
@@ -167,17 +174,45 @@ describe.each(SCHEMES)("M3-01 contrast — %s scheme", (label, scheme) => {
     }
   });
 
-  it("meets 3:1 for the focus ring on the surfaces it is drawn over", () => {
-    // The focus indicator is `outline: 2px solid var(--md-sys-color-primary)`.
-    for (const surface of [
-      "app-surface-card",
-      "app-surface-page",
-      "app-surface-raised",
-      "app-surface-sunken",
-      "surface",
-    ] as const) {
+  it("meets 3:1 for the focus ring on every surface it is drawn over", () => {
+    // The focus indicator is `outline: 2px solid var(--md-sys-color-primary)`,
+    // and it is drawn over EVERY application surface — a navigation row, a
+    // control in the top app bar, a card, a field in a sunken filter bar.
+    for (const surface of [...APP_SURFACES, "surface"] as const) {
       expectRatio(scheme, label, "primary", surface, 3);
     }
+  });
+
+  it("meets AA for the selected navigation pairing", () => {
+    /*
+     * A DOCUMENTED DEVIATION, asserted by name so it cannot regress quietly.
+     *
+     * M3 pairs a navigation drawer's active indicator with `secondary-container`.
+     * DalyHub uses `primary-container` / `on-primary-container`, because
+     * `SchemeVibrant` derives secondary at low chroma and lands
+     * `secondary-container` on a lavender — the one visibly tinted surface left
+     * in a shell that was deliberately neutralised. `primary-container` is the
+     * blue the reference design uses for the selected destination.
+     *
+     * The label and the 24px glyph both take `on-primary-container`, so one
+     * assertion covers both. Selection is never colour alone regardless: it is
+     * the filled pill (a shape), a heavier label, and `aria-current`.
+     */
+    expectRatio(
+      scheme,
+      label,
+      "on-primary-container",
+      "primary-container",
+      4.5,
+    );
+    // And the pill has to be visible as a shape against the drawer it sits in.
+    expectRatio(
+      scheme,
+      label,
+      "primary-container",
+      "app-surface-navigation",
+      1.1,
+    );
   });
 
   it("meets 3:1 for progress fill against its track", () => {
@@ -197,6 +232,9 @@ describe.each(SCHEMES)("M3-01 contrast — %s scheme", (label, scheme) => {
     for (const mark of marks) {
       expectRatio(scheme, label, mark, "app-surface-card", 3);
       expectRatio(scheme, label, mark, "app-surface-page", 3);
+      // A chart or a progress bar is just as likely to sit inside a nested
+      // panel as directly on a card, so the subtle rung is held to the same bar.
+      expectRatio(scheme, label, mark, "app-surface-card-subtle", 3);
     }
   });
 

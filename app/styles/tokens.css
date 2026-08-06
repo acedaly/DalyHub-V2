@@ -11,7 +11,9 @@
  * The vocabulary is M3's, not a private one:
  *
  *   --md-sys-color-*        the colour roles, DERIVED from one seed
- *   --md-app-color-*        four application surface aliases onto that ramp
+ *   --md-app-color-*        the application surfaces, from their own APP-NEUTRAL
+ *                           palette (page, navigation, app bar, card,
+ *                           card-subtle, raised, sunken, plus the card hairline)
  *   --md-ref-typeface-*     the two reference typefaces
  *   --md-sys-typescale-*    the fifteen type styles
  *   --md-sys-shape-*        the corner scale
@@ -34,8 +36,8 @@
  *
  * ── Extension rules ──────────────────────────────────────────────────────────
  * Add a token here first, then consume it. A new COLOUR belongs in the generator
- * (as a system role or a blended custom colour), never as a literal in this
- * file. A new non-colour token belongs in the `:root` blocks after the generated
+ * (as a system role, a blended custom colour, or a rung of the app-neutral
+ * palette), never as a literal in this file. A new non-colour token belongs in the `:root` blocks after the generated
  * section. Coverage, generator sync and WCAG contrast (4.5:1 text, 3:1 UI) are
  * enforced by `test/unit/tokens`; the values are mirrored as typed data in
  * `app/shared/tokens/scheme.ts`, which the same generator writes.
@@ -239,11 +241,15 @@
   --md-sys-color-entity-review-container: #ddeb88;
   --md-sys-color-on-entity-review-container: #191e00;
 
-  /* Application surface extensions — see APP_SURFACES. */
-  --md-app-color-surface-page: var(--md-sys-color-surface-container-low);
-  --md-app-color-surface-card: var(--md-sys-color-surface-container-lowest);
-  --md-app-color-surface-raised: var(--md-sys-color-surface-container-high);
-  --md-app-color-surface-sunken: var(--md-sys-color-surface-container);
+  /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
+  --md-app-color-surface-page: #f7f8fa;
+  --md-app-color-surface-navigation: #fcfcff;
+  --md-app-color-surface-app-bar: #ffffff;
+  --md-app-color-surface-card: #ffffff;
+  --md-app-color-surface-card-subtle: #f3f3f6;
+  --md-app-color-surface-raised: #ffffff;
+  --md-app-color-surface-sunken: #edeef0;
+  --md-app-color-outline-hairline: #e7e8eb;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -431,11 +437,15 @@
     --md-sys-color-entity-review-container: #424b00;
     --md-sys-color-on-entity-review-container: #ddeb88;
 
-    /* Application surface extensions — see APP_SURFACES. */
-    --md-app-color-surface-page: var(--md-sys-color-surface);
-    --md-app-color-surface-card: var(--md-sys-color-surface-container);
-    --md-app-color-surface-raised: var(--md-sys-color-surface-container-high);
-    --md-app-color-surface-sunken: var(--md-sys-color-surface-container-low);
+    /* Application surfaces — the generated app-neutral palette, see APP_SURFACE_TONES. */
+    --md-app-color-surface-page: #131618;
+    --md-app-color-surface-navigation: #171a1c;
+    --md-app-color-surface-app-bar: #191c1e;
+    --md-app-color-surface-card: #1f2224;
+    --md-app-color-surface-card-subtle: #1b1e20;
+    --md-app-color-surface-raised: #2c2e31;
+    --md-app-color-surface-sunken: #0f1113;
+    --md-app-color-outline-hairline: #37393c;
   }
 }
 
@@ -657,12 +667,7 @@
   --app-width-wide: 90rem; /* multi-pane shells */
   --app-width-dashboard: 108rem; /* the Today dashboard's wider cap */
 
-  --app-shell-header-height: 4rem; /* the M3 small top app bar */
-  --app-shell-nav-width: 15rem;
   --app-inspector-width: 25rem;
-
-  /* Responsive gutter: grows with the viewport, bounded at both ends. */
-  --app-gutter: clamp(1rem, 4vw, 2rem);
 
   /* MOBILE-01 — the phone shell's two structural insets.
    *
@@ -696,6 +701,94 @@
 
   --app-border-width-thin: 1px;
   --app-border-width-thick: 2px;
+
+  /* ---------------------------------------------------------------------- */
+  /* Shell anatomy                                                          */
+  /* ---------------------------------------------------------------------- */
+  /* The measurements the application FRAME is built from. They live here, not
+   * in shell.css, because the pane, the page header, the FAB band and the
+   * notification region all have to agree with them, and a number agreed in
+   * four files is a number that drifts in one of them. */
+
+  /* The permanent navigation drawer. 240px sits in the middle of M3's
+   * 232–248 band: wide enough for a two-word destination at `label-large`
+   * without truncation, narrow enough that the content region still owns the
+   * screen at 1280. */
+  --app-shell-navigation-width: 15rem; /* 240 */
+
+  /* The desktop top app bar. 68px carries the 52px search bar with 8px of air
+   * above and below it. */
+  --app-shell-topbar-height: 4.25rem; /* 68 */
+
+  /* The phone's own small top app bar, which is a different component from the
+   * desktop bar: it carries a route title and Back rather than search, and M3
+   * gives it 64px. */
+  --app-shell-mobilebar-height: 4rem; /* 64 */
+
+  /* A navigation destination: 48px of visual row inside a 44px-minimum target.
+   * The drawer's own 12px inline padding is what leaves room for the pill. */
+  --app-nav-row-height: 3rem; /* 48 */
+
+  /* The desktop search bar in the top app bar. It shrinks before any utility
+   * control disappears, so both ends are stated. */
+  --app-search-width: 34rem; /* 544 */
+  --app-search-width-min: 16rem; /* 256 */
+  --app-search-height: 3.25rem; /* 52 */
+
+  /* ---------------------------------------------------------------------- */
+  /* Page rhythm                                                            */
+  /* ---------------------------------------------------------------------- */
+  /* The gutter is a step function rather than a `clamp()` so a 1280 laptop and
+   * a 1440 laptop get the SAME gutter; the previous `clamp(1rem, 4vw, 2rem)`
+   * made every width its own layout and nothing lined up between them. The
+   * responsive assignment happens in `base.css`. */
+  --app-page-padding-desktop: 2rem; /* 32 */
+  --app-page-padding-tablet: 1.5rem; /* 24 */
+  --app-page-padding-mobile: 1rem; /* 16 */
+  /* `--app-page-padding` is whichever of the three is currently in force, and it
+   * is the ONLY one consumers read. It is declared here — mobile-first, so this
+   * file stays the authoritative definition of every token — and stepped up by
+   * the two media queries in `base.css`, because a custom property cannot select
+   * itself on viewport width. */
+  --app-page-padding: var(--app-page-padding-mobile);
+
+  /* The measure ordinary page content is held to, and the wider one the
+   * dashboard is allowed. Content wider than this stops being scannable. */
+  --app-content-max-width: 82.5rem; /* 1320 */
+  --app-dashboard-max-width: 90rem; /* 1440 */
+
+  /* Dashboard grid gaps, per breakpoint band. */
+  --app-dashboard-gap-desktop: 1.25rem; /* 20 */
+  --app-dashboard-gap-tablet: 1.25rem; /* 20 */
+  --app-dashboard-gap-mobile: 1rem; /* 16 */
+  /* `--app-dashboard-gap` is likewise declared mobile-first and banded in `base.css`. */
+  --app-dashboard-gap: var(--app-dashboard-gap-mobile);
+
+  /* ---------------------------------------------------------------------- */
+  /* Card and row anatomy                                                   */
+  /* ---------------------------------------------------------------------- */
+  --app-card-padding: 1.25rem; /* 20 */
+  --app-card-padding-compact: 1rem; /* 16 */
+  --app-card-header-gap: 0.75rem; /* 12 */
+
+  /* A list row's HEIGHT is a floor, not a fix: a row whose content wraps grows.
+   * One line and two lines are separate tokens because the two-line row has to
+   * hold a title and a supporting line at their own line-heights. */
+  --app-list-row-height-one-line: 3.5rem; /* 56 */
+  --app-list-row-height-two-line: 4rem; /* 64 */
+
+  /* The entity identity container and the glyph inside it (Area/Project icons,
+   * metric tiles, timeline markers). */
+  --app-entity-icon-size: 1.25rem; /* 20 */
+  --app-entity-icon-container-size: 2.5rem; /* 40 */
+
+  /* Chart heights, so a sparkline on Today and a sparkline on a record are the
+   * same object. */
+  --app-chart-height-compact: 3rem; /* 48 */
+  --app-chart-height-standard: 5.5rem; /* 88 */
+
+  /* The one progress-bar thickness in the product. */
+  --app-progress-bar-height: 0.25rem; /* 4 */
 
   /* Breakpoints (reference + container queries) and z-index layers. */
   --app-breakpoint-sm: 30rem; /* 480 */

@@ -109,14 +109,29 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     expect(skip).toHaveAttribute("href", "#main-content");
   });
 
-  it("renders the workspace brand name", () => {
-    renderShell();
-    // The brand appears in a banner landmark (the rail on desktop, the mobile bar
-    // on mobile — both present in the DOM here).
-    const banners = screen.getAllByRole("banner");
+  it("renders the workspace brand name inside the primary navigation landmark", () => {
+    const { container } = renderShell();
+    // The brand block is no longer a landmark of its own — the top app bar is the
+    // banner now. It has to stay INSIDE one, though: axe's `region` rule wants
+    // all page content contained, and an uncontained brand block is exactly the
+    // kind of gap that produced the Help/About scan failures.
+    const rail = container.querySelector(".dh-sidebar--rail");
+    expect(rail).not.toBeNull();
+    expect(rail).toHaveAttribute("aria-label", "Primary");
     expect(
-      banners.some((banner) => within(banner).queryByText("DalyHub") !== null),
-    ).toBe(true);
+      within(rail as HTMLElement).getByText("DalyHub"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps exactly one banner per viewport, and it is the top app bar", () => {
+    const { container } = renderShell();
+    // Both bars are in the DOM; CSS shows one per viewport, and axe only ever
+    // sees the visible one. What must never happen is a THIRD claimant, or the
+    // drawer quietly taking the role back.
+    const banners = [...container.querySelectorAll("header")];
+    expect(banners).toHaveLength(2);
+    expect(banners[0]).toHaveClass("dh-topbar");
+    expect(banners[1]).toHaveClass("dh-mobilebar");
   });
 
   it("renders registry-driven navigation as icon + label rows", () => {
@@ -139,22 +154,45 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     );
   });
 
-  it("offers Search and Command Palette entries in the sidebar", () => {
+  it("offers Search and Command Palette entries in the desktop top app bar", () => {
     const { container } = renderShell();
-    // MOBILE-01 adds a SECOND Search affordance (the compact phone top bar), so
-    // this assertion is scoped to the sidebar rather than relying on there being
-    // exactly one Search control in the document. Both remain real, labelled
-    // controls; only one is visible per viewport.
-    const sidebar = container.querySelector(".dh-sidebar--rail");
-    expect(sidebar).not.toBeNull();
+    // Both affordances moved OUT of the navigation drawer and into the top app
+    // bar. The drawer used to open with a 56px Search pill and a 56px Command
+    // palette pill — 112px before its first destination, and a second control
+    // as prominent as the primary one. They are still real, labelled controls
+    // opening the same surfaces; they are just no longer in the rail.
+    const topBar = container.querySelector(".dh-topbar");
+    expect(topBar).not.toBeNull();
     expect(
-      within(sidebar as HTMLElement).getByRole("button", { name: /search/i }),
+      within(topBar as HTMLElement).getByRole("button", {
+        name: /search dalyhub/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      within(sidebar as HTMLElement).getByRole("button", {
+      within(topBar as HTMLElement).getByRole("button", {
         name: /command palette/i,
       }),
     ).toBeInTheDocument();
+
+    // And the rail no longer carries a duplicate of either.
+    const rail = container.querySelector(".dh-sidebar--rail");
+    expect(rail).not.toBeNull();
+    expect(
+      within(rail as HTMLElement).queryByRole("button", { name: /search/i }),
+    ).toBeNull();
+    expect(
+      within(rail as HTMLElement).queryByRole("button", {
+        name: /command palette/i,
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps exactly one search landmark in the desktop shell", () => {
+    // Two `role="search"` regions (the rail's and the bar's) would be a
+    // duplicate-landmark violation, and would make "where do I search?" a
+    // question. The bar's is now the only one.
+    const { container } = renderShell();
+    expect(container.querySelectorAll('[role="search"]')).toHaveLength(1);
   });
 
   it("exposes the phone navigation sheet toggle with accessible name and expanded state", () => {
@@ -214,15 +252,16 @@ describe("PX-02 AppShell — user menu relocation", () => {
       screen.queryByRole("link", { name: /sign out/i }),
     ).not.toBeInTheDocument();
 
-    const trigger = screen.getByRole("button", {
-      name: /account|owner|dalyhub/i,
-    });
+    // Scoped to the account control itself. A loose `/dalyhub/i` now also
+    // matches the top bar's "Search DalyHub…" button, which is a different
+    // control with a different job.
+    const trigger = screen.getByRole("button", { name: /^account —/i });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
   it("opens the user menu to reveal email, settings and sign out", () => {
     renderShell();
-    const trigger = screen.getByRole("button", { name: /owner|account/i });
+    const trigger = screen.getByRole("button", { name: /^account —/i });
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -246,7 +285,7 @@ describe("PX-02 AppShell — user menu relocation", () => {
 
   it("closes the user menu on Escape", () => {
     renderShell();
-    const trigger = screen.getByRole("button", { name: /owner|account/i });
+    const trigger = screen.getByRole("button", { name: /^account —/i });
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     fireEvent.keyDown(document, { key: "Escape" });

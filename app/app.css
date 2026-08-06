@@ -44,6 +44,8 @@
 @import "./styles/sheet.css";
 @import "./styles/capture.css";
 @import "./styles/card.css";
+@import "./styles/card-family.css";
+@import "./styles/icon-picker.css";
 @import "./styles/overflow-menu.css";
 @import "./styles/filters.css";
 @import "./styles/activity-feed.css";

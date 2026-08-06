@@ -73,6 +73,14 @@ export interface SerializedProjectOverview {
   readonly goal: ProjectRelation | null;
   /** Whether active-work health should be presented — see {@link isHealthVisible}. */
   readonly healthVisible: boolean;
+  /**
+   * The owner's chosen icon, as the semantic KEY and nothing else — never a
+   * component, never markup, never a catalogue object. `RecordIcon` resolves it
+   * in the browser, which is what keeps this payload serialisable and lets the
+   * drawing change without the route's data changing. `null` means "no
+   * choice", and the Project renders its entity default.
+   */
+  readonly iconKey: string | null;
 }
 
 /**
@@ -104,8 +112,13 @@ export function serializeProjectListItem(
 /** Serialise a `ProjectOverview` for a JSON loader response. */
 export function serializeProjectOverview(
   overview: ProjectOverview,
+  iconKey: string | null = null,
 ): SerializedProjectOverview {
   return {
+    // Passed in rather than read from `ProjectOverview`: the icon lives in the
+    // Projects module's own detail row and is the settings repository's to
+    // serve (ADR-037), so the projection the collection reads is unchanged.
+    iconKey,
     id: overview.id,
     title: overview.title,
     createdAt: overview.createdAt.toISOString(),

@@ -10,7 +10,8 @@
 .drawer-demo {
   max-width: var(--app-width-content);
   margin-inline: auto;
-  padding: clamp(var(--app-space-5), 4vw, var(--app-space-10)) var(--app-gutter);
+  padding: clamp(var(--app-space-5), 4vw, var(--app-space-10))
+    var(--app-page-padding);
 }
 
 .drawer-demo__header h1 {

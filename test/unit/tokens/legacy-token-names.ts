@@ -10,9 +10,23 @@
  * Everything else the old system defined — every colour, every radius, every
  * duration, the whole density vocabulary — is gone rather than renamed, and
  * `tokens.test.ts` guards the zero.
+ *
+ * Three of the original 44 were renamed by the visual-polish work, because the
+ * shell they measure changed shape and the old names described the old shape:
+ *
+ *   app-gutter               -> app-page-padding{,-desktop,-tablet,-mobile}
+ *   app-shell-nav-width      -> app-shell-navigation-width
+ *   app-shell-header-height  -> app-shell-topbar-height (the DESKTOP top app
+ *                               bar, which did not exist before; the phone bar
+ *                               it used to name is now
+ *                               app-shell-mobilebar-height)
+ *
+ * They are removed from the list below rather than kept as aliases: this file
+ * records what survived under its ORIGINAL name, and an alias layer is the
+ * thing ADR-074 spent a milestone deleting.
  */
 
-/** The 44 structural survivors, alphabetically. */
+/** The 41 structural survivors, alphabetically. */
 export const LEGACY_STRUCTURAL_TOKEN_NAMES: readonly string[] = [
   "app-border-width-thick",
   "app-border-width-thin",
@@ -26,11 +40,8 @@ export const LEGACY_STRUCTURAL_TOKEN_NAMES: readonly string[] = [
   "app-control-height-lg",
   "app-control-height-md",
   "app-control-height-sm",
-  "app-gutter",
   "app-inspector-width",
   "app-keyboard-inset",
-  "app-shell-header-height",
-  "app-shell-nav-width",
   "app-space-0",
   "app-space-1",
   "app-space-10",

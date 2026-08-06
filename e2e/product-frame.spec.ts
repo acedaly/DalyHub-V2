@@ -21,51 +21,89 @@ async function hasNoHorizontalOverflow(page: Page) {
 }
 
 test.describe("PX-02 frame — desktop", () => {
-  test("renders the sidebar frame with navigation, search and user menu", async ({
+  test("renders the frame: drawer navigation, and search in the top app bar", async ({
     page,
   }) => {
     await page.goto("/");
 
-    // Sidebar: brand banner, Search + Command entries, primary navigation.
+    // The drawer keeps identity and destinations.
     await expect(page.getByRole("banner")).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Search$/ })).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /command palette/i }),
-    ).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "Primary" }),
     ).toBeVisible();
+
+    // Search and the palette live in the top app bar, not in the drawer. The
+    // drawer used to open with two 56px pills before its first destination.
+    const topBar = page.locator(".dh-topbar");
+    await expect(
+      topBar.getByRole("button", { name: /^Search DalyHub/ }),
+    ).toBeVisible();
+    await expect(
+      topBar.getByRole("button", { name: /command palette/i }),
+    ).toBeVisible();
+
+    // And there is exactly ONE search landmark in the desktop shell.
+    await expect(page.locator('[role="search"]')).toHaveCount(1);
   });
 
-  test("the banner states the product, with the brand mark decorative", async ({
+  test("the drawer states the product, with the brand mark decorative", async ({
     page,
   }) => {
     // BRAND-01 — the rail used to render only the workspace name, so renaming
     // the workspace renamed DalyHub in the frame. The product name is now
     // stated deliberately, and the mark beside it is decorative because that
     // name is real text.
+    //
+    // M3-01 moved the `banner` landmark from this brand block to the top app
+    // bar, which is what a top app bar is (and which fixed a real axe `region`
+    // failure on Help and About). The brand itself did NOT move: it stays at
+    // the head of the navigation drawer, as the reference design has it. So
+    // this test now names the drawer.
+    //
+    // It is deliberately scoped to the brand block rather than to the whole
+    // landmark. Scoped to the frame, `getByText("DalyHub")` also matches the
+    // top bar's "Search DalyHub…" label — which is how this assertion kept
+    // passing against a banner that had no brand in it at all.
     await page.goto("/");
-    const banner = page.getByRole("banner");
-    await expect(banner.getByText("DalyHub")).toBeVisible();
-    const mark = banner.locator(".dh-brand-mark");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    const brand = nav.locator(".dh-sidebar__brand");
+    await expect(brand).toHaveCount(1);
+    await expect(brand.getByText("DalyHub", { exact: true })).toBeVisible();
+    const mark = brand.locator(".dh-brand-mark");
     await expect(mark).toHaveCount(1);
     await expect(mark).toHaveAttribute("aria-hidden", "true");
     // The tagline belongs on About, not in a navigation rail.
-    await expect(banner.getByText("Your life. Connected.")).toHaveCount(0);
+    await expect(brand.getByText("Your life. Connected.")).toHaveCount(0);
+
+    // The frame carries exactly one brand mark: the banner must not grow a
+    // second copy now that it is a separate landmark from the brand block.
+    await expect(page.locator(".dh-brand-mark")).toHaveCount(1);
   });
 
-  test("user menu holds identity + theme + sign out, and Escape restores focus", async ({
+  test("user menu holds identity + sign out, and Escape restores focus", async ({
     page,
   }) => {
     await page.goto("/");
-    const trigger = page.getByRole("button", { name: /owner/i });
+    // The account control moved into the top app bar with the rest of the
+    // application's own utilities, and it is compact there — avatar and
+    // chevron, with the name in its accessible label.
+    const trigger = page
+      .locator(".dh-topbar")
+      .getByRole("button", { name: /^Account —/ });
     await trigger.click();
     await expect(page.getByText("owner@example.invalid")).toBeVisible();
-    // THEME-01 — the quick switch offers the curated themes by their display
-    // names; `exact` matters because "Daly Light" contains "Light".
-    await expect(
-      page.getByRole("button", { name: "Daly Light", exact: true }),
-    ).toBeVisible();
+
+    // There is NO theme quick-switch here. This assertion used to require one
+    // ("Daly Light"), which ADR-074 deleted along with the whole theme feature
+    // — so it had been failing on `main` since that merge. It is inverted
+    // rather than removed, so the menu can never quietly grow a theme picker
+    // back: DalyHub ships one generated light/dark pair chosen by the OS.
+    for (const retired of ["Daly Light", "Daly Dark", "Match system"]) {
+      await expect(
+        page.getByRole("button", { name: retired, exact: true }),
+      ).toHaveCount(0);
+    }
+
     await expect(page.getByRole("link", { name: /sign out/i })).toBeVisible();
 
     // Keyboard: Escape closes the menu and restores focus to the trigger.

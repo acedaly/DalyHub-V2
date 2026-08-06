@@ -1,10 +1,16 @@
 /**
- * PX-02 shell — the user menu (sidebar bottom).
+ * PX-02 shell — the user menu.
  *
- * Relocates the identity + settings chrome out of the header and behind an
- * avatar-triggered menu (PRODUCT_EXPERIENCE #4): the owner's name, their verified
- * email, a Settings link and Sign out. The header pixels return to the work;
- * identity lives where premium applications keep it.
+ * Relocates the identity + settings chrome behind an avatar-triggered menu
+ * (PRODUCT_EXPERIENCE #4): the owner's name, their verified email, a Settings
+ * link and Sign out.
+ *
+ * It renders in two places, which is why `placement` and `compact` exist rather
+ * than two components: the DESKTOP top app bar (compact — avatar and chevron
+ * only, opening downward) and the MOBILE navigation sheet (full — avatar, name
+ * and chevron, opening upward from the bottom of the sheet). The disclosure
+ * behaviour, the panel contents and the focus handling are identical in both,
+ * so there is one implementation and two skins.
  *
  * M3-01 removed the theme quick-switch that used to sit here, along with the
  * Settings → Appearance section it mirrored: DalyHub ships one generated
@@ -51,9 +57,23 @@ export type UserMenuProps = {
    * no dead ends). SET-01 threads a real href through here to light it up.
    */
   readonly settingsHref?: string;
+  /**
+   * Which way the panel opens. `below` for the top app bar, `above` for a
+   * control pinned to the bottom of a sheet. Defaults to `above`, the original
+   * sidebar-bottom behaviour.
+   */
+  readonly placement?: "above" | "below";
+  /** Avatar and chevron only, without the name — for the top app bar. */
+  readonly compact?: boolean;
 };
 
-export function UserMenu({ email, name, settingsHref }: UserMenuProps) {
+export function UserMenu({
+  email,
+  name,
+  settingsHref,
+  placement = "above",
+  compact = false,
+}: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -89,64 +109,87 @@ export function UserMenu({ email, name, settingsHref }: UserMenuProps) {
     };
   }, [open]);
 
-  return (
-    <div className="dh-user-menu" ref={containerRef}>
-      {open ? (
-        <div
-          className="dh-user-menu__panel"
-          id={panelId}
-          role="group"
-          aria-label="Account"
-        >
-          <div className="dh-user-menu__identity">
-            <span className="dh-user-menu__name">{displayName}</span>
-            <span className="dh-user-menu__email" title={email}>
-              {email}
+  /*
+   * The panel is rendered BEFORE the trigger when it opens upward and AFTER it
+   * when it opens downward, so the DOM order matches the visual order in both
+   * placements and a keyboard user tabs through the panel in the direction they
+   * see it. (The panel is positioned absolutely either way; this is about
+   * reading order, not layout.)
+   */
+  const panel = open ? (
+    <div
+      className="dh-user-menu__panel"
+      id={panelId}
+      role="group"
+      aria-label="Account"
+    >
+      <div className="dh-user-menu__identity">
+        <span className="dh-user-menu__name">{displayName}</span>
+        <span className="dh-user-menu__email" title={email}>
+          {email}
+        </span>
+      </div>
+      <div className="dh-user-menu__section dh-user-menu__links">
+        {settingsHref ? (
+          <a
+            className="dh-user-menu__link"
+            href={settingsHref}
+            onClick={() => setOpen(false)}
+          >
+            <span className="dh-user-menu__link-icon" aria-hidden="true">
+              <SettingsIcon />
             </span>
-          </div>
-          <div className="dh-user-menu__section dh-user-menu__links">
-            {settingsHref ? (
-              <a
-                className="dh-user-menu__link"
-                href={settingsHref}
-                onClick={() => setOpen(false)}
-              >
-                <span className="dh-user-menu__link-icon" aria-hidden="true">
-                  <SettingsIcon />
-                </span>
-                Settings
-              </a>
-            ) : null}
-            <a
-              className="dh-user-menu__link"
-              href={ACCESS_LOGOUT_PATH}
-              onClick={() => setOpen(false)}
-            >
-              <span className="dh-user-menu__link-icon" aria-hidden="true">
-                <SignOutIcon />
-              </span>
-              Sign out
-            </a>
-          </div>
-        </div>
-      ) : null}
+            Settings
+          </a>
+        ) : null}
+        <a
+          className="dh-user-menu__link"
+          href={ACCESS_LOGOUT_PATH}
+          onClick={() => setOpen(false)}
+        >
+          <span className="dh-user-menu__link-icon" aria-hidden="true">
+            <SignOutIcon />
+          </span>
+          Sign out
+        </a>
+      </div>
+    </div>
+  ) : null;
 
-      <button
-        type="button"
-        className="dh-user-menu__trigger"
-        ref={triggerRef}
-        aria-expanded={open}
-        aria-controls={open ? panelId : undefined}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="dh-user-menu__avatar" aria-hidden="true">
-          {initials}
-        </span>
+  const trigger = (
+    <button
+      type="button"
+      className="dh-user-menu__trigger"
+      ref={triggerRef}
+      aria-expanded={open}
+      aria-controls={open ? panelId : undefined}
+      onClick={() => setOpen((value) => !value)}
+    >
+      <span className="dh-user-menu__avatar" aria-hidden="true">
+        {initials}
+      </span>
+      {compact ? null : (
         <span className="dh-user-menu__trigger-name">{displayName}</span>
-        <span className="dh-user-menu__chevron" aria-hidden="true">
-          <ChevronDownIcon />
-        </span>
-      </button>
+      )}
+      <span className="dh-user-menu__chevron" aria-hidden="true">
+        <ChevronDownIcon />
+      </span>
+      {compact ? (
+        <span className="dh-visually-hidden">Account — {displayName}</span>
+      ) : null}
+    </button>
+  );
+
+  return (
+    <div
+      className={`dh-user-menu dh-user-menu--${placement}${
+        compact ? " dh-user-menu--compact" : ""
+      }`}
+      ref={containerRef}
+    >
+      {placement === "above" ? panel : null}
+      {trigger}
+      {placement === "below" ? panel : null}
     </div>
   );
 }

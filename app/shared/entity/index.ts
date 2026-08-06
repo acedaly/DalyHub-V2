@@ -45,3 +45,24 @@ export {
   SubtypeIcon,
   type SubtypeIconProps,
 } from "./subtype-icons";
+
+/**
+ * Selectable Area and Project icons: the resolver, the catalogue and its types.
+ * The KEY vocabulary itself lives in the kernel, because it is what the write
+ * boundary validates.
+ */
+export { RecordIcon, type RecordIconProps } from "./RecordIcon";
+export {
+  ENTITY_ICON_CATEGORIES,
+  ENTITY_ICON_OPTIONS,
+  entityIconOption,
+  entityIconOptionsByCategory,
+  searchEntityIcons,
+  type EntityIconCategory,
+  type EntityIconOption,
+} from "./entity-icon-catalogue";
+
+export {
+  EntityIconPicker,
+  type EntityIconPickerProps,
+} from "./EntityIconPicker";

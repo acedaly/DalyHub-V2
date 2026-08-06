@@ -17,6 +17,7 @@
 
 import { execFileSync } from "node:child_process";
 
+import { Hct, argbFromHex } from "@material/material-color-utilities";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -39,6 +40,47 @@ import {
   repoRelative,
   tokensCss,
 } from "./token-css";
+
+/** Both schemes, labelled, for assertions that must hold in each. */
+const BOTH_SCHEMES = [
+  ["light", LIGHT_SCHEME],
+  ["dark", DARK_SCHEME],
+] as const;
+
+/** The three sRGB channels of a `#rrggbb` string. */
+function rgb(hex: string): [number, number, number] {
+  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [
+    number,
+    number,
+    number,
+  ];
+}
+
+/** WCAG relative luminance. */
+function luminance(hex: string): number {
+  const channels = rgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+/**
+ * HCT chroma — "how much colour is in this", independent of how light it is.
+ *
+ * Read from `@material/material-color-utilities`, the same library the generator
+ * derives the scheme with, so "low chroma" here means exactly what it means
+ * there rather than approximately. It is a dev dependency and this is a dev
+ * test; nothing in the app or the Worker imports it.
+ */
+function chroma(hex: string): number {
+  return Hct.fromInt(argbFromHex(hex)).chroma;
+}
+
+/** HCT tone — L*, and therefore perceptually uniform at both ends of the ramp. */
+function tone(hex: string): number {
+  return Hct.fromInt(argbFromHex(hex)).tone;
+}
 
 /** The CSS custom-property name for a scheme role. */
 function tokenNameFor(role: string): string {
@@ -101,24 +143,12 @@ describe("M3-01 colour role coverage", () => {
 
   it("mirrors the CSS values in the TS scheme data", () => {
     for (const role of SCHEME_ROLE_NAMES) {
+      // Every role — system, custom and application alike — is a literal hex in
+      // both artefacts. The application surfaces used to be `var()` aliases onto
+      // the system container ramp and needed dereferencing here; they now come
+      // out of their own generated app-neutral palette, so there is nothing left
+      // to special-case.
       const token = tokenNameFor(role);
-      if (role.startsWith("app-")) {
-        // The application surfaces are aliases in CSS and resolved hexes in TS;
-        // the TS value must equal the system rung the CSS alias points at.
-        const reference = /var\(\s*--md-sys-color-([\w-]+)\)/.exec(
-          light.get(token)!,
-        )![1];
-        expect(LIGHT_SCHEME[role]).toBe(
-          LIGHT_SCHEME[reference as (typeof SCHEME_ROLE_NAMES)[number]],
-        );
-        const darkReference = /var\(\s*--md-sys-color-([\w-]+)\)/.exec(
-          dark.get(token)!,
-        )![1];
-        expect(DARK_SCHEME[role]).toBe(
-          DARK_SCHEME[darkReference as (typeof SCHEME_ROLE_NAMES)[number]],
-        );
-        continue;
-      }
       expect(light.get(token), `light --${token}`).toBe(LIGHT_SCHEME[role]);
       expect(dark.get(token), `dark --${token}`).toBe(DARK_SCHEME[role]);
     }
@@ -132,25 +162,128 @@ describe("M3-01 colour role coverage", () => {
   });
 
   it("keeps a card lighter than its page in BOTH schemes", () => {
-    // The whole reason the four `--md-app-color-*` extensions exist: one system
-    // alias cannot express "the card lifts off the page" in light AND dark,
-    // because light lifts toward white and dark lifts away from black.
-    const luminance = (hex: string) => {
-      const channels = [1, 3, 5].map((i) => {
-        const v = parseInt(hex.slice(i, i + 2), 16) / 255;
-        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-    };
-    for (const [name, scheme] of [
-      ["light", LIGHT_SCHEME],
-      ["dark", DARK_SCHEME],
-    ] as const) {
+    // The whole reason the `--md-app-color-*` extensions exist: one system alias
+    // cannot express "the card lifts off the page" in light AND dark, because
+    // light lifts toward white and dark lifts away from black.
+    for (const [name, scheme] of BOTH_SCHEMES) {
       expect(
         luminance(scheme["app-surface-card"]),
         `${name}: the card must be lighter than the page`,
       ).toBeGreaterThan(luminance(scheme["app-surface-page"]));
     }
+  });
+});
+
+/*
+ * The application-surface system.
+ *
+ * PR #120 aliased all four app surfaces onto the system container ramp, which
+ * `SchemeVibrant` builds at chroma 10 — so the page, every filter bar and every
+ * sunken panel carried a visible lavender tint, and in dark the navigation
+ * drawer and the page resolved to the same hex. These assertions pin the
+ * properties that fix relied on, so neither can come back quietly.
+ */
+describe("the generated application surfaces", () => {
+  /** Every app surface, in the order the design system stacks them. */
+  const APP_SURFACES = [
+    "app-surface-sunken",
+    "app-surface-page",
+    "app-surface-card-subtle",
+    "app-surface-navigation",
+    "app-surface-app-bar",
+    "app-surface-card",
+    "app-surface-raised",
+  ] as const;
+
+  it("keeps every application surface low-chroma, so there is no purple wash", () => {
+    // The defect this replaces measured chroma 9.0–10.2 on every surface. 6 is a
+    // ceiling with real headroom under it (the shipped values sit at 2.9–4.3)
+    // and well under the ~8 at which a tint becomes a colour at these tones.
+    for (const [name, scheme] of BOTH_SCHEMES) {
+      for (const role of APP_SURFACES) {
+        expect(
+          chroma(scheme[role]),
+          `${name} --md-app-color-${role.slice("app-".length)} must stay near-neutral`,
+        ).toBeLessThan(6);
+      }
+      expect(
+        chroma(scheme["app-outline-hairline"]),
+        `${name}: the card hairline must stay near-neutral too`,
+      ).toBeLessThan(6);
+    }
+  });
+
+  it("keeps every application surface COOL rather than lilac", () => {
+    // The seed's HCT hue is 272°, on the magenta side of blue, so simply
+    // lowering the chroma of M3's own neutral ramp yields a faint lilac. The
+    // generator rotates the app-neutral hue to the cool end; blue never being
+    // below red is the cheap, unambiguous statement of that.
+    for (const [name, scheme] of BOTH_SCHEMES) {
+      for (const role of APP_SURFACES) {
+        const [r, , b] = rgb(scheme[role]);
+        expect(
+          b,
+          `${name} --md-app-color-${role.slice("app-".length)} (${scheme[role]}) must not be warmer than neutral`,
+        ).toBeGreaterThanOrEqual(r);
+      }
+    }
+  });
+
+  it("separates navigation and the app bar from the page", () => {
+    // Asserted in TONE, not in relative luminance. Luminance is not
+    // perceptually uniform: the same visible step is worth ~0.02 at the light
+    // end and ~0.002 at the dark end, so one luminance threshold cannot describe
+    // both schemes. Tone is L*, which is uniform by construction.
+    //
+    // 1.4 is the floor because the separation here is deliberately quiet — the
+    // reference puts a white drawer on a tone-97.5 canvas — and the shell draws
+    // the app-neutral hairline where the boundary has to be unambiguous. What
+    // this rules out is the PR #120 state, where dark navigation and the dark
+    // page were the SAME hex and the step was zero.
+    for (const [name, scheme] of BOTH_SCHEMES) {
+      const page = tone(scheme["app-surface-page"]);
+      for (const role of [
+        "app-surface-navigation",
+        "app-surface-app-bar",
+      ] as const) {
+        expect(
+          Math.abs(tone(scheme[role]) - page),
+          `${name}: ${role} (${scheme[role]}) must be tonally distinct from the page (${scheme["app-surface-page"]})`,
+        ).toBeGreaterThanOrEqual(1.4);
+      }
+    }
+  });
+
+  it("keeps sunken recessed and card-subtle below the card", () => {
+    // Both schemes recede DOWNWARD — a well is darker than what surrounds it in
+    // light and in dark alike. The page is already near black in dark, which is
+    // exactly why sunken needs its own rung below it rather than an alias.
+    for (const [name, scheme] of BOTH_SCHEMES) {
+      expect(
+        tone(scheme["app-surface-sunken"]),
+        `${name}: sunken must be recessed below the page`,
+      ).toBeLessThan(tone(scheme["app-surface-page"]));
+      expect(
+        tone(scheme["app-surface-card-subtle"]),
+        `${name}: card-subtle must sit below the card`,
+      ).toBeLessThan(tone(scheme["app-surface-card"]));
+    }
+  });
+
+  it("keeps a raised surface at or above the card, and above it in dark", () => {
+    // In LIGHT a raised surface is separated by ELEVATION, not by tone: tinting
+    // it darker than the card is exactly what made PR #120's Today hero read as
+    // sunken on the product's most-visited screen. In DARK shadow barely reads
+    // against a near-black page, so raised steps up the ramp instead.
+    expect(
+      tone(LIGHT_SCHEME["app-surface-raised"]),
+      "light: raised must never be darker than a card",
+    ).toBeGreaterThanOrEqual(tone(LIGHT_SCHEME["app-surface-card"]));
+    expect(
+      tone(DARK_SCHEME["app-surface-raised"]) -
+        tone(DARK_SCHEME["app-surface-card"]),
+      "dark: raised must lift clearly off the card",
+    ).toBeGreaterThanOrEqual(4);
   });
 });
 

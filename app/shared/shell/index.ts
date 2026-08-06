@@ -10,6 +10,7 @@
 
 export { AppShell, type AppShellProps } from "./AppShell";
 export { Sidebar, type SidebarProps } from "./Sidebar";
+export { DesktopTopBar, type DesktopTopBarProps } from "./DesktopTopBar";
 export { PaneHeader, type PaneHeaderProps } from "./PaneHeader";
 /**
  * UX-01 — a full-page surface that does not compose a `PaneHeader` (a create page,

@@ -6,6 +6,10 @@
  * supplies parentage, workspace or actor data.
  */
 
+import { useState } from "react";
+
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { EntityIconPicker } from "~/shared/entity";
 import {
   Form,
   FormActions,
@@ -21,7 +25,10 @@ import type { CreateAreaResult } from "./routes/new";
 
 type Values = { readonly title: string };
 
-const FIELD_LABELS: Record<string, string> = { title: "Title" };
+const FIELD_LABELS: Record<string, string> = {
+  title: "Title",
+  iconKey: "Icon",
+};
 
 interface NewAreaFormProps {
   readonly onCreated: (areaId: string) => void;
@@ -29,6 +36,11 @@ interface NewAreaFormProps {
 }
 
 export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
+  // Held outside `useForm` because the picker's value is a KEY chosen through a
+  // modal, not a typed field: it has no text input to validate on blur and no
+  // per-keystroke state. `useForm` still owns everything it submits alongside.
+  const [iconKey, setIconKey] = useState<EntityIconKey | null>(null);
+
   const form = useForm<Values>({
     initialValues: { title: "" },
     fields: { title: { validate: required("A title is required") } },
@@ -36,6 +48,11 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
       const body = new FormData();
       body.set("title", values.title);
+      // Always sent, empty when unchosen. The server reads "" as
+      // reset-to-default and an absent field as "this form has no icon
+      // control" — sending it unconditionally keeps this form in the first
+      // category, which is what it is.
+      body.set("iconKey", iconKey ?? "");
       let data: CreateAreaResult;
       try {
         const response = await fetch("/areas/new", { method: "POST", body });
@@ -75,6 +92,15 @@ export function NewAreaForm({ onCreated, onCancel }: NewAreaFormProps) {
         onFocusField={form.focusField}
       />
       <TextField label="Title" required maxLength={512} {...titleField} />
+      {/* Beside the identity fields, not after the operational settings: an
+          icon is part of what this Area IS. */}
+      <EntityIconPicker
+        entityType="area"
+        value={iconKey}
+        onChange={setIconKey}
+        help="Optional. Areas without one use the standard Area icon."
+        error={form.fieldErrors.iconKey ?? null}
+      />
       <FormActions>
         <FormButton
           type="button"

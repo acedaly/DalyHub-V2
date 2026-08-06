@@ -17,6 +17,8 @@
  * are aborted so a slow response can't clobber a newer one.
  */
 
+import { useState } from "react";
+
 import {
   Form,
   FormActions,
@@ -30,6 +32,9 @@ import {
 } from "~/shared/forms";
 import type { SelectOption } from "~/shared/forms/types";
 
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { EntityIconPicker } from "~/shared/entity";
+
 import type { CreateProjectResult } from "./routes/new";
 import { useParentOptionsSearch } from "./use-parent-options-search";
 
@@ -38,6 +43,7 @@ type Values = { readonly title: string; readonly parentId: string };
 const FIELD_LABELS: Record<string, string> = {
   title: "Title",
   parentId: "Area or Goal",
+  iconKey: "Icon",
 };
 
 interface NewProjectFormProps {
@@ -124,6 +130,10 @@ export function NewProjectForm({
   onRetryParentOptions,
 }: NewProjectFormProps) {
   const parentSearch = useParentOptionsSearch(parentOptions);
+  // Held outside `useForm` for the same reason as the Area form: the picker's
+  // value is a key chosen through a modal, not a typed field.
+  const [iconKey, setIconKey] = useState<EntityIconKey | null>(null);
+
   const form = useForm<Values>({
     initialValues: { title: "", parentId: "" },
     fields: {
@@ -135,6 +145,8 @@ export function NewProjectForm({
       const body = new FormData();
       body.set("title", values.title);
       body.set("parentId", values.parentId);
+      // Always sent, empty when unchosen — see the Area form.
+      body.set("iconKey", iconKey ?? "");
       let data: CreateProjectResult;
       try {
         const response = await fetch("/projects/new", {
@@ -209,6 +221,14 @@ export function NewProjectForm({
         loading={parentSearch.loading}
         emptyMessage="No matching Areas or Goals"
         {...parentField}
+      />
+      {/* With the identity fields, not after them. */}
+      <EntityIconPicker
+        entityType="project"
+        value={iconKey}
+        onChange={setIconKey}
+        help="Optional. Projects without one use the standard Project icon."
+        error={form.fieldErrors.iconKey ?? null}
       />
       <FormActions>
         <FormButton

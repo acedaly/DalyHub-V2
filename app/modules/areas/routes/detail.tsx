@@ -21,6 +21,7 @@ import {
   type ProjectHealthFacts,
   type ProjectHealthRepository,
 } from "~/kernel/project-health";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -122,6 +123,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
+  const settings = await scope.areaSettings.get(areaId);
+
   const [rollup, goalPage, projectPage, momentumFacts, dependencies] =
     await Promise.all([
       scope.spine.getRollup(areaId),
@@ -207,7 +210,10 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   );
 
   return {
-    overview: serializeAreaOverview(overview),
+    // The KEY only. The settings repository has already normalised it, so a
+    // key this build no longer recognises arrives as `null` and the Area
+    // renders its entity default rather than an empty box.
+    overview: serializeAreaOverview(overview, settings?.iconKey ?? null),
     rollup: serializeAreaRollup(rollup),
     momentum,
     goals: goalPage.items.map(serializeAreaGoalItem),
@@ -362,6 +368,25 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
     revalidator.revalidate();
   }, [areaId, revalidator]);
 
+  const onSetIcon = useCallback(
+    async (iconKey: EntityIconKey | null) => {
+      const result = await postAreaMutation(areaId, {
+        intent: "setIcon",
+        // Empty means reset-to-default, which is a real choice the server
+        // honours — not an omission.
+        iconKey: iconKey ?? "",
+      });
+      if (!result.ok) {
+        throw new Error(
+          ("formError" in result && result.formError) ||
+            "That couldn’t be saved. Please try again.",
+        );
+      }
+      revalidator.revalidate();
+    },
+    [areaId, revalidator],
+  );
+
   const onRestore = useCallback(async () => {
     const result = await postAreaMutation(areaId, { intent: "restore" });
     if (!result.ok) {
@@ -430,6 +455,7 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
           onArchive={onArchive}
           onRestore={onRestore}
           onDelete={onDelete}
+          onSetIcon={onSetIcon}
         />
       }
     />

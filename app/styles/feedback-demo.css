@@ -6,7 +6,7 @@
 .fb-demo {
   max-width: var(--app-width-content);
   margin: 0 auto;
-  padding: var(--app-space-6) var(--app-gutter);
+  padding: var(--app-space-6) var(--app-page-padding);
 }
 
 .fb-demo__header h1 {

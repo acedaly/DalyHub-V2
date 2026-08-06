@@ -28,6 +28,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AreaDependencySummary } from "~/kernel/areas";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { EntityIconPicker } from "~/shared/entity";
 import {
   ConfirmationDialog,
   DangerousAction,
@@ -52,6 +54,54 @@ export interface AreaSettingsTabProps {
   /** Permanently delete the empty Area (`delete`). Reject (typed message) to fail
    * and keep the dialog open with an inline error + retry. */
   readonly onDelete: () => Promise<void>;
+  /** Choose or clear the Area's icon (`setIcon`). Reject to fail. */
+  readonly onSetIcon?: (iconKey: EntityIconKey | null) => Promise<void>;
+}
+
+/**
+ * The icon group.
+ *
+ * Hidden entirely while the Area is archived rather than shown disabled: an
+ * archived Area is read-only, the server refuses the mutation, and a control
+ * that looks operable and is not is worse than one that is absent (the same
+ * reasoning that removed the appearance indicator from the top bar).
+ *
+ * It commits on Apply rather than staging a second time behind a Save button —
+ * the picker has already staged the choice, and a second confirmation for one
+ * value would be ceremony. A failure is reported inline and the previous icon
+ * stays, because the loader value is the truth and it has not changed.
+ */
+function AppearanceGroup({
+  iconKey,
+  onSetIcon,
+}: {
+  readonly iconKey: string | null;
+  readonly onSetIcon: (key: EntityIconKey | null) => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <SettingsGroup
+      title="Appearance"
+      description="The icon this Area wears in collections, records and search."
+    >
+      <EntityIconPicker
+        entityType="area"
+        value={iconKey}
+        error={error}
+        help="Optional. Areas without one use the standard Area icon."
+        onChange={(next) => {
+          setError(null);
+          void onSetIcon(next).catch((cause: unknown) => {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "That couldn’t be saved. Please try again.",
+            );
+          });
+        }}
+      />
+    </SettingsGroup>
+  );
 }
 
 function LifecycleStateRow({ archived }: { readonly archived: boolean }) {
@@ -257,6 +307,7 @@ export function AreaSettingsTab({
   onArchive,
   onRestore,
   onDelete,
+  onSetIcon,
 }: AreaSettingsTabProps) {
   const archived = overview.archivedAt !== null;
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -283,6 +334,9 @@ export function AreaSettingsTab({
     <div className="dh-area-settings" ref={rootRef}>
       <h2 className="dh-visually-hidden">Settings</h2>
       <SettingsLayout aria-label="Area settings">
+        {onSetIcon && !archived ? (
+          <AppearanceGroup iconKey={overview.iconKey} onSetIcon={onSetIcon} />
+        ) : null}
         <SettingsGroup
           title="Lifecycle"
           description="Where this Area sits in its life — active, archived, or ready to remove."

@@ -4,7 +4,7 @@
  * The premium application shell that replaces FND-09's website-like top bar
  * (PRODUCT_EXPERIENCE #1, #2): a persistent left sidebar owning identity and
  * navigation, and a full-height content pane with its own scroll. Layout is
- * `grid-template-columns: var(--app-shell-nav-width) 1fr` — the sidebar width token
+ * `grid-template-columns: var(--app-shell-navigation-width) 1fr` — the sidebar width token
  * DS-01 already defined and nothing consumed until now.
  *
  * - Desktop/laptop/tablet: the sidebar is a persistent rail; the pane scrolls
@@ -49,6 +49,7 @@ import { useKeyboardInset } from "~/shared/viewport";
 
 import { BottomNav } from "./BottomNav";
 import { CaptureFab } from "./CaptureFab";
+import { DesktopTopBar } from "./DesktopTopBar";
 import { MobileNav } from "./MobileNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { MobileTopBarProvider } from "./mobile-top-bar-context";
@@ -265,11 +266,20 @@ export function AppShell({
                   settingsHref="/settings"
                   navId={RAIL_NAV_ID}
                   variant="rail"
-                  onOpenSearch={openSearch}
-                  onOpenCommand={openCommand}
                 />
 
                 <div className="dh-main-col">
+                  {/* The DESKTOP top app bar: the primary search affordance and
+                the application's own utilities. Hidden at phone widths, where
+                the bar below takes over. It opens the SAME Search surface and
+                the SAME palette the rail used to, through the same callbacks. */}
+                  <DesktopTopBar
+                    email={email}
+                    settingsHref="/settings"
+                    onOpenSearch={openSearch}
+                    onOpenCommand={openCommand}
+                  />
+
                   {/* A `header` so the phone bar’s title and actions are contained by a
                 landmark (the `banner`) on mobile, where the rail sidebar banner is
                 hidden — otherwise its content sits outside every landmark (WCAG

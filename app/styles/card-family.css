@@ -1,0 +1,857 @@
+/*
+ * The shared CARD FAMILY — the four presentations the record card cannot be.
+ *
+ * `card.css` styles the one Shared Card: a record, with a title that opens
+ * something, a status, metadata and actions. It is the right object for a
+ * collection of records, and it is the wrong object for four other jobs the
+ * product does constantly. Before this file, each of those jobs was solved again
+ * in every module that needed it — 35 of the 60 stylesheets in this directory
+ * painted `--md-app-color-surface-card` independently, `today.css` declared ten
+ * bespoke card blocks across 2,236 lines, `settings.css` eight more.
+ *
+ *   .dh-dcard      DashboardCard   a titled container for arbitrary content
+ *   .dh-metric     MetricTile      a figure, its label, and one supporting line
+ *   .dh-row        RecordRow       a dense scannable line, 56/64px
+ *   .dh-ecard      EntityCard      a record with an identity, in a grid
+ *   .dh-timeline   TimelineItem    something at a time, on a spine
+ *
+ * Every measurement here comes from a token. Nothing in this file paints a raw
+ * colour, and nothing sets a fixed height that content cannot grow past.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* DashboardCard                                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The standard card treatment for the whole product: the generated card surface,
+ * `corner-large`, one hairline, and elevation 1. Not a heavy border — the
+ * hairline exists because the card sits only 2.5 tones above the page, and tone
+ * alone leaves the edge ambiguous at that distance.
+ *
+ * No `min-height`. A card is as tall as what it holds; the fixed vertical
+ * padding that made Today's hero 250px for six numbers is exactly what this
+ * family exists to stop.
+ */
+.dh-dcard {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.dh-dcard--subtle {
+  background: var(--md-app-color-surface-card-subtle);
+  box-shadow: none;
+}
+
+/*
+ * Density is written out per region rather than routed through a
+ * component-local custom property. A variable in the vocabulary ADR-074 retired
+ * fails the build (`tokens.test.ts` scans this directory for it, comments
+ * included), and inventing a fourth prefix for one component's internal padding
+ * is worse than six explicit declarations.
+ */
+.dh-dcard__header {
+  display: flex;
+  align-items: center;
+  gap: var(--app-card-header-gap);
+}
+
+.dh-dcard--standard .dh-dcard__header {
+  padding: var(--app-card-padding) var(--app-card-padding) 0;
+}
+
+.dh-dcard--compact .dh-dcard__header {
+  padding: var(--app-card-padding-compact) var(--app-card-padding-compact) 0;
+}
+
+/* The supporting label sits beside the title where there is room and drops
+ * beneath it where there is not, rather than squeezing the title into a
+ * two-word column. */
+.dh-dcard__titles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-1) var(--app-space-2);
+  min-inline-size: 0;
+  flex: 1;
+}
+
+/* `title-medium` — a card title, per the typography usage map. Not a page
+ * heading: a dashboard of eight `headline` titles has no hierarchy at all. */
+.dh-dcard__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.dh-dcard__supporting {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-dcard__header-action {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex: none;
+  margin-inline-start: auto;
+}
+
+.dh-dcard__body {
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.dh-dcard--standard .dh-dcard__body {
+  padding: var(--app-space-4) var(--app-card-padding) var(--app-card-padding);
+}
+
+.dh-dcard--compact .dh-dcard__body {
+  padding: var(--app-space-4) var(--app-card-padding-compact)
+    var(--app-card-padding-compact);
+}
+
+/* A body that is only a row list runs edge to edge — the list draws its own
+ * rhythm, and doubling the padding would inset it twice. */
+.dh-dcard__body:has(> .dh-row-list--inset) {
+  padding-inline: 0;
+}
+
+.dh-dcard__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+.dh-dcard--standard .dh-dcard__footer {
+  padding: var(--app-space-3) var(--app-card-padding);
+}
+
+.dh-dcard--compact .dh-dcard__footer {
+  padding: var(--app-space-3) var(--app-card-padding-compact);
+}
+
+.dh-dcard__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-dcard__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Proportionate: an empty panel states its emptiness and gets out of the way.
+   * The previous empty state took a full viewport band for one line of text. */
+  min-block-size: var(--app-chart-height-standard);
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+/* -------------------------------------------------------------------------- */
+/* MetricTile                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The row draws the dividers; the tiles draw nothing.
+ *
+ * `auto-fit` rather than a fixed four columns, so a row of three or five works
+ * and a narrow card wraps instead of crushing. The divider is an inline-start
+ * border on every tile but the first in each visual row — which `:first-child`
+ * cannot express once the row wraps, so the row uses a gap and the tiles carry
+ * the rule, with the leading one suppressed.
+ */
+.dh-metric-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  row-gap: var(--app-space-5);
+  /* Clips the leading divider of EVERY row, including wrapped ones. */
+  overflow: hidden;
+}
+
+/*
+ * Each tile carries the divider on its leading edge and is pulled back by
+ * exactly its width, so the one at the start of any visual row lands outside the
+ * clip and disappears. `:first-child` cannot do this — it only knows about the
+ * first tile in the list, so the moment four tiles wrapped to two-by-two the
+ * second row grew a stray leading rule. This works at any column count.
+ */
+.dh-metric-row__item {
+  min-inline-size: 0;
+  border-inline-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  margin-inline-start: calc(var(--app-border-width-thin) * -1);
+  padding-inline: var(--app-space-5);
+}
+
+/*
+ * A tile has NO border, NO shadow and NO surface. Today's previous summary
+ * rendered six individually outlined boxes inside an already-outlined card,
+ * which is a grid of boxes rather than a row of facts.
+ */
+.dh-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+/* The tonal icon container the reference uses: a rounded square, not a circle,
+ * at the shared entity-icon container size so a metric glyph and a record glyph
+ * are the same object. */
+.dh-metric__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--app-entity-icon-container-size);
+  block-size: var(--app-entity-icon-container-size);
+  margin-block-end: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-medium);
+  font-size: var(--app-entity-icon-size);
+  line-height: 0;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-metric--accent .dh-metric__icon {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+.dh-metric--success .dh-metric__icon {
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
+}
+.dh-metric--warning .dh-metric__icon {
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+}
+.dh-metric--danger .dh-metric__icon {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+/* `headline-small` at 500: the figure is the loudest thing in the tile, and
+ * tabular figures stop a row of numbers from shifting as they change. */
+.dh-metric__value {
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: 500;
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-metric__label {
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-metric__supporting {
+  margin-block-start: var(--app-space-1);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-primary);
+}
+
+.dh-metric__supporting a {
+  color: inherit;
+}
+
+/* -------------------------------------------------------------------------- */
+/* RecordRow                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The LIST owns the surface and the hairlines, so no row draws its own border
+ * and two adjacent rows can never disagree about the line between them.
+ */
+.dh-row-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-radius: var(--md-sys-shape-corner-large);
+  overflow: hidden;
+}
+
+/* Inside a card that already has a surface and a border. */
+.dh-row-list--inset {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.dh-row-list > .dh-row + .dh-row {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+/*
+ * 56px one line, 64px two — a FLOOR, so a row whose title wraps grows rather
+ * than clipping. The audit measured the previous rows at 77px for one line of
+ * content.
+ */
+.dh-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding-inline: var(--app-space-4);
+  min-inline-size: 0;
+}
+
+.dh-row--one-line {
+  min-block-size: var(--app-list-row-height-one-line);
+}
+
+.dh-row--two-line {
+  min-block-size: var(--app-list-row-height-two-line);
+  padding-block: var(--app-space-2);
+}
+
+.dh-row__lead {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.dh-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-px);
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.dh-row__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: 500;
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  color: var(--md-sys-color-on-surface);
+  min-inline-size: 0;
+}
+
+/*
+ * The whole row is the destination. The link's ::after covers the row, so a
+ * click anywhere that is not another control opens the record; `position:
+ * relative` + a higher stacking context on the trailing controls is what keeps
+ * the checkbox and the overflow menu clickable inside a fully-linked row.
+ */
+/*
+ * The title is `on-surface`, not link blue. The anchor exists to make the whole
+ * row a destination, not to announce itself — a list of fifty blue titles has no
+ * hierarchy left. Stated at this specificity because `base.css` gives every `a`
+ * inside a document surface the accent, and a row inside such a surface would
+ * otherwise inherit it.
+ */
+.dh-row .dh-row__open,
+.dh-row .dh-row__open:visited {
+  color: var(--md-sys-color-on-surface);
+  text-decoration: none;
+}
+
+.dh-row--completed .dh-row__open {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-row__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.dh-row__lead,
+.dh-row__actions {
+  position: relative;
+  z-index: var(--app-z-raised);
+}
+
+.dh-row__supporting {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-row__meta,
+.dh-row__status,
+.dh-row__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex: none;
+}
+
+.dh-row__meta {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Completed is a text decoration AND a quieter colour, together. Either alone
+ * would be colour-only or ambiguous; the caller also states it in words.
+ */
+.dh-row--completed .dh-row__title {
+  text-decoration: line-through;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-row--selected {
+  background: var(--md-sys-color-secondary-container);
+}
+
+/* A phone gives the title the width and lets the metadata wrap beneath it —
+ * never the other way round, which is what squeezes a title to three words. */
+@media (max-width: 48rem) {
+  .dh-row {
+    flex-wrap: wrap;
+    padding-block: var(--app-space-3);
+  }
+
+  .dh-row__body {
+    flex: 1 1 100%;
+    order: 1;
+  }
+
+  .dh-row__lead {
+    order: 0;
+  }
+
+  .dh-row__meta,
+  .dh-row__status {
+    order: 2;
+    margin-inline-start: calc(
+      var(--app-entity-icon-container-size) + var(--app-space-3)
+    );
+  }
+
+  .dh-row__actions {
+    order: 3;
+    margin-inline-start: auto;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* EntityCard                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * `auto-fit` with a real minimum, so the column count follows the available
+ * width rather than a breakpoint table: about three across a wide desktop, two
+ * on a tablet, one on a phone, and no width at which a card is absurdly wide.
+ */
+/*
+ * `min(18rem, 100%)`, not a bare `18rem`.
+ *
+ * `minmax(18rem, 1fr)` makes 18rem a HARD floor: in any container narrower than
+ * that — a 320px phone, a narrow dashboard column — the track refuses to shrink
+ * and the page scrolls sideways. Wrapping the minimum in `min(…, 100%)` lets the
+ * track collapse to the container when the container is the smaller of the two,
+ * which is the whole point of a responsive grid. Caught by the 320px
+ * no-horizontal-overflow assertion.
+ */
+.dh-ecard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: var(--app-dashboard-gap);
+}
+
+.dh-ecard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+  padding: var(--app-card-padding);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--md-sys-elevation-1);
+  transition: box-shadow var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+/* Hover elevation ONLY when the card is actually interactive. */
+.dh-ecard--interactive:hover {
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.dh-ecard--muted {
+  opacity: 0.72;
+}
+
+.dh-ecard--selected {
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: -1px;
+}
+
+.dh-ecard__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * The identity container. The card paints the SHAPE and the size; the caller
+ * supplies a node that carries the colour, because only the module knows whether
+ * this is an Area accent or an entity default.
+ */
+/*
+ * The container is painted here with a neutral default, so an entity card always
+ * shows a container even when the caller passes a bare glyph. A caller with real
+ * identity — an Area accent, a Project's inherited accent — overrides the
+ * background on the node it passes in.
+ */
+.dh-ecard__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--app-entity-icon-container-size);
+  block-size: var(--app-entity-icon-container-size);
+  flex: none;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card-subtle);
+  font-size: var(--app-entity-icon-size);
+  line-height: 0;
+}
+
+/* A badge passed in brings its own tint; the wrapper then adds none. */
+.dh-ecard__icon:has(.dh-entity-icon--badge) {
+  background: transparent;
+}
+
+.dh-ecard__icon .dh-entity-icon--badge {
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: inherit;
+}
+
+.dh-ecard__titles {
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.dh-ecard__title {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+.dh-ecard .dh-ecard__open,
+.dh-ecard .dh-ecard__open:visited {
+  color: var(--md-sys-color-on-surface);
+  text-decoration: none;
+}
+
+/* Whole-card destination; the footer and overflow sit above it. */
+.dh-ecard__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.dh-ecard__footer,
+.dh-ecard__overflow,
+.dh-ecard__status {
+  position: relative;
+  z-index: var(--app-z-raised);
+}
+
+.dh-ecard__subtitle {
+  margin: var(--app-space-px) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-ecard__status {
+  flex: none;
+}
+
+.dh-ecard__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-ecard__metric {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-2);
+}
+
+.dh-ecard__metric-value {
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-ecard__metric-label {
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-ecard__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+/* The ONE progress thickness in the product. */
+.dh-ecard__progress-track {
+  display: block;
+  flex: 1;
+  block-size: var(--app-progress-bar-height);
+  border-radius: var(--md-sys-shape-corner-full);
+  /* The TRACK is neutral. `secondary-container` is a lavender in this scheme, so
+   * an empty bar read as a full one in a different colour — which is exactly
+   * what a progress track must never do. */
+  background: var(--md-app-color-surface-sunken);
+  overflow: hidden;
+}
+
+.dh-ecard__progress-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+}
+
+.dh-ecard__progress-text {
+  flex: none;
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One wrapping row separated by space, not a run of middots putting six facts
+ * at one weight. */
+.dh-ecard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1) var(--app-space-4);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-ecard__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding-block-start: var(--app-space-3);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+.dh-ecard__footer-content {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-ecard__overflow {
+  margin-inline-start: auto;
+  flex: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* TimelineItem                                                               */
+/* -------------------------------------------------------------------------- */
+
+.dh-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dh-timeline__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  padding-block: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+/* A fixed time column so every marker lines up vertically. A spine that wanders
+ * because one row says "10:00 am" and the next "9:00 am" is worse than none. */
+.dh-timeline__time {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  inline-size: 4.5rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-timeline__time-start {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-timeline__time-end {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The marker and the connector are one decorative column, drawn by the item so
+ * no wrapper element is needed and the last item's line stops on its own. */
+.dh-timeline__spine {
+  position: relative;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  inline-size: var(--app-space-6);
+  align-self: stretch;
+}
+
+.dh-timeline__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--app-space-3);
+  block-size: var(--app-space-3);
+  margin-block-start: var(--app-space-1);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font-size: var(--app-space-3);
+  line-height: 0;
+  z-index: var(--app-z-raised);
+}
+
+.dh-timeline__item--neutral .dh-timeline__marker {
+  background: var(--md-sys-color-outline);
+}
+.dh-timeline__item--success .dh-timeline__marker {
+  background: var(--md-sys-color-success);
+}
+.dh-timeline__item--warning .dh-timeline__marker {
+  background: var(--md-sys-color-warning);
+}
+.dh-timeline__item--danger .dh-timeline__marker {
+  background: var(--md-sys-color-error);
+}
+.dh-timeline__item--muted .dh-timeline__marker {
+  background: var(--md-sys-color-outline-variant);
+}
+
+.dh-timeline__item:not(:last-child) .dh-timeline__spine::after {
+  content: "";
+  position: absolute;
+  inset-block: var(--app-space-4) calc(var(--app-space-3) * -1);
+  inline-size: var(--app-border-width-thin);
+  background: var(--md-app-color-outline-hairline);
+}
+
+.dh-timeline__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-px);
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.dh-timeline__title {
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+}
+
+.dh-timeline .dh-timeline__open,
+.dh-timeline .dh-timeline__open:visited {
+  color: var(--md-sys-color-on-surface);
+  text-decoration: none;
+}
+
+.dh-timeline__open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.dh-timeline__status {
+  position: relative;
+  z-index: var(--app-z-raised);
+  flex: none;
+}
+
+.dh-timeline__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-1) var(--app-space-3);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Past and cancelled stay distinct through WEIGHT and text as well as tone, so
+ * the distinction survives monochrome and forced colours. */
+.dh-timeline__item--muted .dh-timeline__title {
+  font-weight: 400;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The development-only fixture that demonstrates the family (design route). */
+.dh-fixture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  gap: var(--app-dashboard-gap);
+  margin-block-end: var(--app-space-8);
+}

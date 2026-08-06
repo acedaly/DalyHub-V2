@@ -185,9 +185,13 @@ export const SCHEME_ROLE_NAMES = [
   "entity-review-container",
   "on-entity-review-container",
   "app-surface-page",
+  "app-surface-navigation",
+  "app-surface-app-bar",
   "app-surface-card",
+  "app-surface-card-subtle",
   "app-surface-raised",
   "app-surface-sunken",
+  "app-outline-hairline",
 ] as const;
 
 /** A colour role name. */
@@ -367,10 +371,14 @@ export const LIGHT_SCHEME: SchemeColorMap = {
   "on-entity-review": "#ffffff",
   "entity-review-container": "#ddeb88",
   "on-entity-review-container": "#191e00",
-  "app-surface-page": "#f2f3ff",
+  "app-surface-page": "#f7f8fa",
+  "app-surface-navigation": "#fcfcff",
+  "app-surface-app-bar": "#ffffff",
   "app-surface-card": "#ffffff",
-  "app-surface-raised": "#e6e7f5",
-  "app-surface-sunken": "#ecedfb",
+  "app-surface-card-subtle": "#f3f3f6",
+  "app-surface-raised": "#ffffff",
+  "app-surface-sunken": "#edeef0",
+  "app-outline-hairline": "#e7e8eb",
 };
 
 /** The dark scheme. */
@@ -544,10 +552,14 @@ export const DARK_SCHEME: SchemeColorMap = {
   "on-entity-review": "#2d3400",
   "entity-review-container": "#424b00",
   "on-entity-review-container": "#ddeb88",
-  "app-surface-page": "#10131c",
-  "app-surface-card": "#1d1f29",
-  "app-surface-raised": "#272a34",
-  "app-surface-sunken": "#191b25",
+  "app-surface-page": "#131618",
+  "app-surface-navigation": "#171a1c",
+  "app-surface-app-bar": "#191c1e",
+  "app-surface-card": "#1f2224",
+  "app-surface-card-subtle": "#1b1e20",
+  "app-surface-raised": "#2c2e31",
+  "app-surface-sunken": "#0f1113",
+  "app-outline-hairline": "#37393c",
 };
 
 /** Both schemes, keyed by appearance. */

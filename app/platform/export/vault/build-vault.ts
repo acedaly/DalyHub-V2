@@ -426,9 +426,13 @@ function commonFields(
 
 function writeArea(context: WriterContext): string {
   const { index, entity, path } = context;
+  const detail = index.areaDetail.get(entity.id);
   const children = index.areaChildren.get(entity.id);
   return document([
-    commonFields(context, []),
+    // The chosen icon is a stored KEY, so it belongs in the frontmatter beside
+    // the other machine-readable facts and nowhere in the prose — a vault reader
+    // has no DalyHub glyph to draw, and "folder" is not a sentence.
+    commonFields(context, [["icon", detail?.iconKey ?? null]]),
     `# ${entity.title}`,
     lifecycleBanner(lifecycleOf(index, entity)),
     section(
@@ -497,7 +501,10 @@ function writeProject(context: WriterContext): string {
     (id) => index.spine.get(id)?.completedAt != null,
   ).length;
   return document([
-    commonFields(context, [["status", detail?.status ?? null]]),
+    commonFields(context, [
+      ["status", detail?.status ?? null],
+      ["icon", detail?.iconKey ?? null],
+    ]),
     `# ${entity.title}`,
     lifecycleBanner(lifecycleOf(index, entity)),
     section(

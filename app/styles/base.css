@@ -37,6 +37,34 @@ html {
   );
 }
 
+/*
+ * The page gutter and the dashboard gap are STEPPED, not fluid.
+ *
+ * They used to be `clamp(1rem, 4vw, 2rem)`, which gives every viewport width its
+ * own gutter — so a 1280 laptop and a 1440 laptop laid out differently, nothing
+ * lined up between them, and "is this card the right width?" had no answer.
+ * Three bands, one value each, is what lets a card measured at 1440 still be the
+ * same card at 1280.
+ *
+ * `tokens.css` declares both mobile-first, so it stays the authoritative
+ * definition; these two queries only step them up. Stated on `:root` so `html`
+ * sees them too (custom properties inherit downward only, and `html` is the
+ * document scroll container).
+ */
+@media (min-width: 48rem) {
+  :root {
+    --app-page-padding: var(--app-page-padding-tablet);
+    --app-dashboard-gap: var(--app-dashboard-gap-tablet);
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --app-page-padding: var(--app-page-padding-desktop);
+    --app-dashboard-gap: var(--app-dashboard-gap-desktop);
+  }
+}
+
 body {
   background: var(--md-app-color-surface-page);
   color: var(--md-sys-color-on-surface);
@@ -250,7 +278,8 @@ body {
 .page {
   max-width: var(--app-width-narrow);
   margin-inline: auto;
-  padding: clamp(var(--app-space-6), 5vw, var(--app-space-16)) var(--app-gutter);
+  padding: clamp(var(--app-space-6), 5vw, var(--app-space-16))
+    var(--app-page-padding);
 }
 
 .page h1 {

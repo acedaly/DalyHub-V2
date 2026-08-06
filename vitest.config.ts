@@ -21,5 +21,16 @@ export default defineConfig({
     environment: "happy-dom",
     setupFiles: ["./test/setup.ts"],
     include: ["test/unit/**/*.test.{ts,tsx}"],
+    server: {
+      deps: {
+        // `@material/material-color-utilities` publishes ESM with EXTENSIONLESS
+        // relative imports, which Node's own loader refuses. The scheme
+        // generator works around it with a `register()` resolve hook; the token
+        // tests instead have Vite process the package, which resolves them the
+        // same way a bundler does. Dev-only: it is a dev dependency read by
+        // `test/unit/tokens`, and nothing in `app/` or the Worker imports it.
+        inline: ["@material/material-color-utilities"],
+      },
+    },
   },
 });

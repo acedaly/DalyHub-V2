@@ -30,7 +30,7 @@
  * headers still pin to the viewport. */
 .dh-app {
   display: grid;
-  grid-template-columns: var(--app-shell-nav-width) 1fr;
+  grid-template-columns: var(--app-shell-navigation-width) 1fr;
   min-height: 100dvh;
   background: var(--md-app-color-surface-page);
   color: var(--md-sys-color-on-surface);
@@ -74,24 +74,40 @@
 .dh-sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-2);
+  gap: var(--app-space-1);
   padding: var(--app-space-3) var(--app-space-3) var(--app-space-4);
-  background: var(--md-sys-color-surface);
+  background: var(--md-app-color-surface-navigation);
   min-width: 0;
 }
 
+/*
+ * The rail draws ONE hairline on its trailing edge.
+ *
+ * The tonal step between navigation and page is deliberately quiet — 1.5 tones,
+ * the same relationship the reference uses — so tone alone leaves the boundary
+ * ambiguous at the top of the screen where the drawer meets the app bar. The
+ * hairline is the app-neutral rung generated for exactly this, not
+ * `outline-variant`: this edge is decoration, and `outline-variant` is reserved
+ * for boundaries that are the only signal of a control.
+ */
 .dh-sidebar--rail {
   position: sticky;
   top: 0;
   height: 100dvh;
   overflow-y: auto;
+  border-inline-end: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
 }
 
+/* The brand block is sized to the top app bar so the wordmark and the search
+ * field sit on the same baseline across the fold between drawer and bar. */
 .dh-sidebar__brand {
   display: flex;
   align-items: center;
   gap: var(--app-space-2);
-  padding: var(--app-space-2) var(--app-space-2) var(--app-space-3);
+  min-block-size: var(--app-shell-topbar-height);
+  padding-inline: var(--app-space-2);
+  padding-block: 0 var(--app-space-2);
 }
 
 /* BRAND-01 — the mark paints the brand gradient itself, so it takes no text
@@ -197,19 +213,24 @@
 }
 
 /*
- * The M3 navigation drawer ITEM: a 56px fully-rounded pill carrying a 24px
- * leading glyph, a 12px gap and a `label-large` label. The pill shape is what
- * makes the selected row read as a selected row rather than as a highlighted
- * strip, and it is why the drawer pads 12px inline — the pill needs room to be
- * a pill.
+ * The M3 navigation drawer ITEM: a fully-rounded pill carrying a 24px leading
+ * glyph, a 12px gap and a `label-large` label. The pill shape is what makes the
+ * selected row read as a selected row rather than as a highlighted strip, and it
+ * is why the drawer pads 12px inline — the pill needs room to be a pill.
+ *
+ * 48px of VISUAL row, not M3's 56px. Eleven destinations at 56px is 616px of
+ * drawer before Settings, which does not fit a 900px-tall laptop viewport
+ * alongside the brand and leaves the last modules below the fold. The 44px WCAG
+ * 2.2 target minimum is still cleared with 4px to spare, and the pill keeps its
+ * proportions because the icon and the label did not change size.
  */
 .dh-nav__link {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--app-space-3);
-  min-height: 3.5rem;
-  padding-inline: var(--app-space-4);
+  min-height: var(--app-nav-row-height);
+  padding-inline: var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-full);
   text-decoration: none;
   color: var(--md-sys-color-on-surface-variant);
@@ -223,18 +244,54 @@
 
 /*
  * Active navigation: `aria-current` (semantic) + the M3 active-indicator FILL
- * (shape and tone) + a foreground that steps up to `on-secondary-container`.
- * Never colour alone (AGENTS.md §15) — the filled pill is a shape, so the
- * selected row survives forced colours and monochrome.
+ * (shape and tone) + a foreground that steps up to `on-primary-container` + a
+ * heavier label. Never colour alone (AGENTS.md §15) — the filled pill is a
+ * shape, so the selected row survives forced colours and monochrome.
  *
- * The pair is `secondary-container` / `on-secondary-container`, which the
- * contrast tests hold at 4.5:1 in both schemes, so the label and the glyph are
- * both covered by one assertion rather than by two colours that happen to work.
+ * DELIBERATE DEVIATION from the M3 default. The specification pairs a navigation
+ * drawer's active indicator with `secondary-container`; DalyHub uses
+ * `primary-container` / `on-primary-container`.
+ *
+ * The reason is this scheme specifically. `SchemeVibrant` derives secondary from
+ * the seed at low chroma, which lands `secondary-container` on a lavender
+ * (`#e2dfff`) — the one visibly tinted surface left in a shell that was
+ * deliberately neutralised, and reading as a leftover of the wash rather than as
+ * a decision. `primary-container` (`#dbe1ff`) is the blue the reference design
+ * uses for the selected destination, and it says the same thing the rest of the
+ * product says with primary: this is the current one.
+ *
+ * Both pairs clear 4.5:1 by construction (M3 assigns container/on-container the
+ * same tones for every group), and `test/unit/tokens/contrast.test.ts` asserts
+ * the navigation pairing by name so this deviation cannot silently regress.
+ * Recorded in DESIGN_SYSTEM.md and the ADR follow-up.
  */
 .dh-nav__link--active,
 .dh-nav__link[aria-current="page"] {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font-weight: 600;
+}
+
+/*
+ * Navigation glyphs are MONOCHROME and inherit the row's colour.
+ *
+ * They used to render each module's entity identity colour, which put a
+ * ten-colour rainbow down the side of every screen: teal Areas, magenta
+ * Meetings, orange Notes, green Tasks. Entity colour means "this record is a
+ * Meeting" and is doing real work in a card, a chip or a chart; spent on a
+ * permanent navigation row it means only "this row is Meetings", which the label
+ * already says. Restraint here is what lets the accent mean something elsewhere.
+ *
+ * Selection is still never colour alone: it is the filled pill (a shape), the
+ * heavier label, and `aria-current`.
+ */
+.dh-nav__icon,
+.dh-nav__icon svg {
+  color: currentColor;
+}
+
+.dh-nav__link {
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Forced colours: the indicator fill is dropped by the OS palette, so the
@@ -264,15 +321,22 @@
 }
 
 /* PX-03 — a decorative divider between navGroup transitions (Today/spine ·
- * capture modules · insight modules · system pages). Rhythm only, no label. */
+ * capture modules · insight modules · system pages). Rhythm only, no label.
+ *
+ * It draws the app-neutral HAIRLINE rather than `outline-variant`. The grouping
+ * is a hint about rhythm, and `outline-variant` is a UI boundary that carries
+ * 3:1 because something depends on seeing it — spending it on four decorative
+ * rules put four hard rules down the side of every screen. The group gap does
+ * most of the work; the line only confirms it. */
 .dh-nav__divider {
-  margin: var(--app-space-2) 0;
+  margin-block: var(--app-space-2);
+  padding-inline: var(--app-space-3);
 }
 
 .dh-nav__divider hr {
   border: none;
   border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+    var(--md-app-color-outline-hairline);
   margin: 0;
 }
 
@@ -344,17 +408,37 @@
 
 .dh-user-menu__panel {
   position: absolute;
-  bottom: calc(100% + var(--app-space-2));
-  left: 0;
-  right: 0;
+  min-inline-size: 15rem;
   display: flex;
   flex-direction: column;
   padding-block: var(--app-space-2);
-  background: var(--md-sys-color-surface-container-high);
-  border: none;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-raised);
+  border: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+  border-radius: var(--md-sys-shape-corner-medium);
   box-shadow: var(--md-sys-elevation-2);
   z-index: var(--app-z-dropdown);
+}
+
+/* Pinned to the bottom of the mobile sheet: the panel opens upward, and stretches
+ * to the trigger's width because the trigger is full-width there. */
+.dh-user-menu--above .dh-user-menu__panel {
+  bottom: calc(100% + var(--app-space-2));
+  inset-inline: 0;
+}
+
+/* In the top app bar the trigger is a 44px avatar at the end of the row, so the
+ * panel opens downward and aligns to its trailing edge rather than stretching. */
+.dh-user-menu--below .dh-user-menu__panel {
+  top: calc(100% + var(--app-space-2));
+  inset-inline-end: 0;
+}
+
+/* The compact trigger is the avatar and its chevron only. */
+.dh-user-menu--compact .dh-user-menu__trigger {
+  inline-size: auto;
+  gap: var(--app-space-1);
+  padding-inline: var(--app-space-1);
 }
 
 .dh-user-menu__identity {
@@ -425,6 +509,136 @@
 }
 
 /* -------------------------------------------------------------------------- */
+/* The desktop top app bar                                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The bar the desktop shell never had.
+ *
+ * It is sticky rather than fixed so it participates in the document scroll the
+ * rest of the shell uses (the Drawer's body-scroll lock and ScrollRestoration
+ * both act on the document), and it paints its own generated surface so content
+ * scrolling beneath it never shows through. It separates from the page by TONE
+ * plus one hairline — not by a shadow, which would put a floating bar over a
+ * calm canvas.
+ */
+.dh-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--app-z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-4);
+  min-block-size: var(--app-shell-topbar-height);
+  padding-inline: var(--app-page-padding);
+  background: var(--md-app-color-surface-app-bar);
+  border-block-end: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
+}
+
+/* Search takes the space; the utilities take what they need. `min-width: 0` is
+ * what lets the field actually shrink instead of forcing the bar wider than the
+ * viewport at narrow desktop widths. */
+.dh-topbar__search {
+  flex: 1 1 var(--app-search-width);
+  min-inline-size: 0;
+  max-inline-size: var(--app-search-width);
+}
+
+/*
+ * The M3 search bar: a fully-rounded tonal field with a leading glyph, a
+ * placeholder and a trailing shortcut hint. No resting outline — it is separated
+ * from the app bar by tone, which is why it uses the `card-subtle` rung rather
+ * than a border.
+ *
+ * It is a BUTTON, not an input, because it opens the DS-08 Search surface rather
+ * than filtering in place; the surface owns the real field. That is unchanged
+ * from the sidebar entry it replaces.
+ */
+.dh-topbar__search-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  inline-size: 100%;
+  min-inline-size: var(--app-search-width-min);
+  min-block-size: var(--app-search-height);
+  padding-inline: var(--app-space-4);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card-subtle);
+  color: var(--md-sys-color-on-surface-variant);
+  font: inherit;
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  text-align: start;
+  cursor: pointer;
+}
+
+.dh-topbar__search-icon {
+  display: inline-flex;
+  flex: none;
+  font-size: 1.25rem;
+  line-height: 0;
+}
+
+.dh-topbar__search-label {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-topbar__search-hint {
+  flex: none;
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-sunken);
+  padding: 0 var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+.dh-topbar__utilities {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  margin-inline-start: auto;
+  flex: none;
+}
+
+/* An icon-only utility: 40px of visual control inside a 44px target, so the bar
+ * stays 68px while every control still clears WCAG 2.2 (2.5.8). */
+.dh-topbar__utility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--app-touch-target-min);
+  block-size: var(--app-touch-target-min);
+  flex: none;
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.dh-topbar__utility-icon {
+  display: inline-flex;
+  font-size: 1.25rem;
+  line-height: 0;
+}
+
+/* The phone shell has its own bar; this one is desktop-only. */
+@media (max-width: 48rem) {
+  .dh-topbar {
+    display: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Main column & pane                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -442,9 +656,20 @@
   min-width: 0;
 }
 
+/*
+ * Every page reserves the band the floating action button occupies, so the last
+ * card, the last task row or the last paragraph is never trapped underneath it.
+ * `--app-fab-band` already describes exactly that space — the phone navigation
+ * bar, the button's inset, its height and a gap — and collapses to 96px on
+ * desktop where there is no bottom bar.
+ */
+.dh-pane {
+  padding-block-end: var(--app-fab-band);
+}
+
 /* A padded body for document-shaped pages (home, placeholders, Settings). */
 .dh-pane-body {
-  padding: var(--app-space-6) var(--app-gutter);
+  padding: var(--app-space-6) var(--app-page-padding);
 }
 
 /* The M3 small top app bar, on the phone shell (route title + Back + Search +
@@ -455,7 +680,7 @@
   display: none;
   align-items: center;
   gap: var(--app-space-2);
-  min-height: var(--app-shell-header-height);
+  min-height: var(--app-shell-mobilebar-height);
   /* With `viewport-fit=cover` the document runs under the status-bar / notch, so
    * the top bar pads by the top inset (and the leading inset for a landscape
    * cutout) to keep the controls out from under the cutout (DS-11). */
@@ -463,7 +688,7 @@
     var(--app-space-1);
   padding-inline-start: max(var(--app-space-2), env(safe-area-inset-left));
   padding-inline-end: max(var(--app-space-2), env(safe-area-inset-right));
-  background: var(--md-sys-color-surface);
+  background: var(--md-app-color-surface-app-bar);
   color: var(--md-sys-color-on-surface);
   position: sticky;
   top: 0;
@@ -551,14 +776,93 @@
  * never shows through) and it still separates when pinned — see the shadow on
  * `.dh-collection__sticky` in collection-layout.css.
  */
+/*
+ * Two densities, one anatomy.
+ *
+ * `compact` is what a collection wants: a title, a count and its actions, in a
+ * band tight enough that the filter row and the first record are both above the
+ * fold. `identity` is what a record wants: room for the icon container, the
+ * eyebrow that says what kind of thing this is, and a metadata row.
+ *
+ * The header aligns to the same content measure as the page beneath it, so the
+ * title, the first card and the filter bar all start on one line. Before this
+ * the header padded to the viewport while content capped its own width, which is
+ * why titles never lined up with the content they titled.
+ */
 .dh-pane-header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--app-space-3) var(--app-space-4);
-  padding: var(--app-space-6) var(--app-gutter) var(--app-space-4);
+  inline-size: 100%;
+  max-inline-size: var(--app-content-max-width);
+  margin-inline: auto;
+  padding-inline: var(--app-page-padding);
   background: transparent;
+}
+
+.dh-pane-header--compact {
+  padding-block: var(--app-space-6) var(--app-space-4);
+}
+
+.dh-pane-header--identity {
+  padding-block: var(--app-space-6) var(--app-space-5);
+  align-items: flex-start;
+}
+
+/* The identity band's icon container is the shared entity-icon size, so a
+ * record header, an entity card and a metric tile all present a glyph the same
+ * way. */
+.dh-pane-header--identity .dh-pane-header__lead {
+  align-items: flex-start;
+  gap: var(--app-space-4);
+}
+
+.dh-pane-header__eyebrow {
+  margin: 0 0 var(--app-space-1);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+  text-transform: uppercase;
+}
+
+/* The title and its status chip share a baseline row and wrap together. */
+.dh-pane-header__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2) var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-pane-header__status {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* One wrapping metadata row, separated by space rather than by a run of
+ * middots: the previous run-on line put six facts at one weight and made none of
+ * them findable. */
+.dh-pane-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2) var(--app-space-5);
+  margin-block-start: var(--app-space-3);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-pane-header__secondary {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
 }
 
 .dh-pane-header__lead {
@@ -635,7 +939,7 @@
   inset-inline-start: 0;
   inline-size: min(20rem, 86vw);
   max-inline-size: 100%;
-  background: var(--md-sys-color-surface-container-low);
+  background: var(--md-app-color-surface-navigation);
   /* The M3 modal navigation drawer rounds its TRAILING edge only — the leading
    * edge is flush with the screen it slid in from. */
   border-start-end-radius: var(--md-sys-shape-corner-extra-large);
@@ -720,7 +1024,9 @@
   inset-inline: 0;
   bottom: 0;
   z-index: var(--app-z-sticky);
-  background: var(--md-sys-color-surface-container);
+  background: var(--md-app-color-surface-navigation);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-app-color-outline-hairline);
   padding-bottom: env(safe-area-inset-bottom);
   padding-inline-start: env(safe-area-inset-left);
   padding-inline-end: env(safe-area-inset-right);
@@ -893,11 +1199,54 @@
   transform: translateY(var(--app-keyboard-inset, 0px));
 }
 
+/* ...and it steps aside entirely while a bulk-action bar is on screen.
+ *
+ * The bar sits in normal flow at the end of the collection, so on a short phone
+ * viewport the fixed FAB lands on top of the bar's trailing controls and
+ * swallows their taps — Cancel, in the very corner the FAB occupies, could not
+ * be pressed at all. `display: none` rather than a fade or an offset: while the
+ * owner is acting on records that already exist, a button for creating a new one
+ * is not competing for the corner, it is simply not part of the task. Removing
+ * it also takes it out of the tab order and the accessibility tree, which a
+ * merely transparent control would not do.
+ *
+ * `CollectionLayout` sets the flag whenever its selection slot is occupied, so
+ * this holds for every collection with bulk actions, not just Today. */
+:root[data-selection-active="true"] .dh-fab {
+  display: none;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Responsive: collapse the rail into the phone shell below `md`.              */
 /* -------------------------------------------------------------------------- */
 
 @media (max-width: 48rem) {
+  /* The phone top bar already shows the route title, so the pane header's copy
+   * of it is hidden VISUALLY and kept in the document — the bar's title is a
+   * paragraph, and a screen with no `h1` is worse than a repeated one. The
+   * eyebrow goes with it: it is context for a title that is not visible here. */
+  .dh-pane-header__title[data-published="true"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .dh-pane-header:has(.dh-pane-header__title[data-published="true"])
+    .dh-pane-header__eyebrow {
+    display: none;
+  }
+
+  /* Without a visible title the band collapses to whatever the actions need. */
+  .dh-pane-header--compact {
+    padding-block: var(--app-space-3) var(--app-space-3);
+  }
+
   /* The height the bottom bar occupies, consumed by every scrolling surface so
    * content is never trapped beneath it.
    *

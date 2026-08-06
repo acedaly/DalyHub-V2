@@ -31,6 +31,7 @@ function overview(
     status: "active",
     archivedAt: null,
     healthVisible: true,
+    iconKey: null,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: { kind: "goal", id: "g1", title: "Ship v2" },
     ...over,

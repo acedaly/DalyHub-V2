@@ -165,8 +165,20 @@ export function makeSnapshot(
       { entityId: IDS.taskRecurring, kind: "task", completedAt: null },
     ],
     areaDetails: [
-      { entityId: IDS.area, archivedAt: null, updatedAt: T(2) },
-      { entityId: IDS.areaArchived, archivedAt: T(20), updatedAt: T(20) },
+      // One Area has chosen an icon and one has not, so both halves of the
+      // nullable column are exercised by every consumer of this fixture.
+      {
+        entityId: IDS.area,
+        archivedAt: null,
+        iconKey: "shield",
+        updatedAt: T(2),
+      },
+      {
+        entityId: IDS.areaArchived,
+        archivedAt: T(20),
+        iconKey: null,
+        updatedAt: T(20),
+      },
     ],
     goalDetails: [
       {
@@ -181,12 +193,14 @@ export function makeSnapshot(
         entityId: IDS.project,
         status: "active",
         archivedAt: null,
+        iconKey: "travel",
         updatedAt: T(2),
       },
       {
         entityId: IDS.projectDeleted,
         status: "on_hold",
         archivedAt: null,
+        iconKey: null,
         updatedAt: T(2),
       },
     ],

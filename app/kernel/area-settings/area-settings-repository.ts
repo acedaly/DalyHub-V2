@@ -9,6 +9,8 @@
  * event (ADR-012), mirroring `ProjectSettingsRepository.archive`/`restore`.
  */
 
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+
 import type {
   AreaSettingsChangeResult,
   AreaSettingsRecord,
@@ -35,4 +37,18 @@ export interface AreaSettingsRepository {
    * active. Appends `area.restored` on a real transition.
    */
   restore(id: string): Promise<AreaSettingsChangeResult>;
+
+  /**
+   * Choose (or clear) the Area's icon, returning the settings that now apply.
+   *
+   * `null` clears the choice — a legitimate value, not a failure: it is what
+   * "reset to default" stores, and the Area then renders its entity icon. A
+   * NON-null key is expected to be a member of the vocabulary already; refusing
+   * an unrecognised one is the route boundary's job, so that an owner is told
+   * their choice was rejected rather than seeing it silently become "no icon".
+   */
+  setIcon(
+    id: string,
+    iconKey: EntityIconKey | null,
+  ): Promise<AreaSettingsRecord>;
 }

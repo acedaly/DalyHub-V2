@@ -1,3 +1,4 @@
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import type { WorkspaceId } from "~/kernel/workspaces";
 export const PROJECT_STATUS_CHANGED = "project.status_changed";
 export const PROJECT_ARCHIVED = "project.archived";
@@ -12,10 +13,17 @@ export type ProjectWorkflowStatus = (typeof PROJECT_WORKFLOW_STATUSES)[number];
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
   status: "planned",
   archivedAt: null,
+  iconKey: null,
 };
 export type ProjectSettings = {
   readonly status: ProjectWorkflowStatus;
   readonly archivedAt: Date | null;
+  /**
+   * The icon its owner chose, or `null` for "no choice — use the Project
+   * default". A KEY, never a glyph: the UI resolves it, which keeps the wire
+   * format serialisable and lets the drawing change without the data changing.
+   */
+  readonly iconKey: EntityIconKey | null;
 };
 export type ProjectSettingsRecord = ProjectSettings & {
   readonly id: string;

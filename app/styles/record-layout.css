@@ -22,7 +22,7 @@
    * gives the record deliberate breathing room from the global left navigation and
    * the top of the pane, matching the `.dh-pane-body` rhythm the shell uses for
    * every other page — a shared fix, never per-module padding. */
-  padding: var(--app-space-6) var(--app-gutter);
+  padding: var(--app-space-6) var(--app-page-padding);
 }
 
 /* Inside a Drawer the body already provides its own padding and a contained panel

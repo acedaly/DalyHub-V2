@@ -117,7 +117,14 @@ test.describe("Settings → Privacy & data → export", () => {
     };
     expect(manifest.format).toBe("dalyhub.workspace.export");
     expect(manifest.formatVersion).toBe(1);
-    expect(manifest.snapshotSchemaVersion).toBe(1);
+    // 2, not 1: ADR-074's migration bumped `SNAPSHOT_SCHEMA_VERSION`
+    // (app/kernel/export/workspace-snapshot.ts) and updated the kernel suite,
+    // but this assertion was missed — so it has been failing on `main` since
+    // that merge. The literal is deliberate rather than an import: the point of
+    // this assertion is that the manifest states the version the wire format
+    // actually carries, so an accidental bump has to be noticed here too. When
+    // the constant changes, this changes with it.
+    expect(manifest.snapshotSchemaVersion).toBe(2);
     expect(manifest.application.version).toBeTruthy();
     expect(manifest.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T.*Z$/);
     expect(manifest.contents.includesActivity).toBe(true);

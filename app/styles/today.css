@@ -1606,7 +1606,7 @@ a.dh-hero__stat:hover {
   z-index: 20;
   top: calc(100% + var(--app-space-2));
   inset-inline-start: 0;
-  width: min(22rem, calc(100vw - 2 * var(--app-gutter)));
+  width: min(22rem, calc(100vw - 2 * var(--app-page-padding)));
   max-height: min(28rem, 60vh);
   overflow-y: auto;
   overscroll-behavior: contain;

@@ -12,7 +12,7 @@
 
 import type { ReactNode } from "react";
 
-import { EntityIcon, EntityLink } from "~/shared/entity";
+import { EntityLink, RecordIcon } from "~/shared/entity";
 import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import {
@@ -266,7 +266,9 @@ export function ProjectOverview({
       <RecordLayout
         title={overview.title}
         typeLabel="Project"
-        icon={<EntityIcon type="project" />}
+        // The record's OWN icon — the chosen glyph, falling back to the
+        // project default when there is none or the stored key is unresolvable.
+        icon={<RecordIcon entityType="project" iconKey={overview.iconKey} />}
         breadcrumb={[{ id: "projects", label: "Projects", href: "/projects" }]}
         status={{ label: state.label, tone: state.tone }}
         metadata={headerMetadata}
