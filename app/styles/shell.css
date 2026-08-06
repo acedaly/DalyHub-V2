@@ -1,18 +1,23 @@
 /*
- * PX-02 — the application frame (sidebar + pane), in design tokens only.
+ * M3-01 — the application frame, as Material Design 3 components.
  *
- * Replaces FND-09/DS-01's website-like top-bar shell with a premium application
- * silhouette: a persistent left sidebar (`--dh-shell-nav-width`) owning identity and
- * navigation, and a full-height content pane with its own scroll so Pane Headers and
- * filter bars can pin (PRODUCT_EXPERIENCE #1, #2, #11). On mobile the rail collapses
- * to an animated overlay sheet (MobileNav). Active navigation is conveyed
- * semantically (aria-current) and reinforced with weight, a leading indicator bar
- * and a tint — never colour alone (AGENTS.md §15).
+ * The silhouette is unchanged — a persistent left rail owning identity and
+ * navigation, a full-height content pane, and a phone shell that swaps the rail
+ * for a bottom bar (PRODUCT_EXPERIENCE #1, #2, #11). What changed is that every
+ * piece of it is now a NAMED M3 component with the specification's own metrics,
+ * rather than a DalyHub invention:
  *
- * THEME-02 refined the rail so it reads as part of the application rather than as a
- * navigation panel beside it: a divider instead of a full border on the edge, and a
- * selected row that uses the shared `nav-selected-*` tokens a theme controls
- * directly. Both changes are token-level and apply in every theme.
+ *   .dh-sidebar      navigation drawer (standard)  — `surface`, no border
+ *   .dh-nav__link    navigation drawer item        — 56px, corner-full pill
+ *   .dh-mobilebar    small top app bar             — 64px, `surface`
+ *   .dh-sidebar__search-entry   search bar         — 56px, corner-full
+ *   .dh-bottomnav    navigation bar                — 80px, active-indicator pill
+ *   .dh-fab          floating action button        — 56px, corner-large
+ *
+ * Active navigation is still conveyed SEMANTICALLY (`aria-current`) and
+ * reinforced by shape — M3's active-indicator pill — and by weight, never by
+ * colour alone (AGENTS.md §15). Interactive rows grow the one shared
+ * `.md-state-layer` (base.css) rather than swapping their container colour.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -25,60 +30,53 @@
  * headers still pin to the viewport. */
 .dh-app {
   display: grid;
-  grid-template-columns: var(--dh-shell-nav-width) 1fr;
+  grid-template-columns: var(--app-shell-nav-width) 1fr;
   min-height: 100dvh;
-  background: var(--dh-color-surface-page);
-  color: var(--dh-color-text);
+  background: var(--md-app-color-surface-page);
+  color: var(--md-sys-color-on-surface);
 }
 
 /* Skip link: off-screen until focused, then visible and in normal flow. */
 .skip-link {
   position: absolute;
-  left: var(--dh-space-2);
+  left: var(--app-space-2);
   top: -3rem;
-  z-index: var(--dh-z-modal);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
-  border-radius: var(--dh-radius-sm);
+  z-index: var(--app-z-modal);
+  padding: var(--app-space-2) var(--app-space-3);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-radius: var(--md-sys-shape-corner-full);
   text-decoration: none;
-  transition: top var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: top var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .skip-link:focus {
-  top: var(--dh-space-2);
+  top: var(--app-space-2);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Sidebar                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/* THEME-01 — navigation has its own surface token, so a theme can separate the
- * rail from the page without every panel moving with it.
- *
- * THEME-02 — the rail is separated by a DIVIDER, not by the same border a card or
- * an input uses. A full-strength border on a full-height edge is what makes a
- * sidebar read as a separate enterprise navigation rail bolted to the side of the
- * page; the divider token is the semantic for an internal separation and lets the
- * rail sit inside the application. Every theme still gets a real edge — the token
- * has a value in all of them — it is simply the quieter one. */
 /*
- * DS-14 — the rail sits ON the tint, not beside it.
+ * The M3 navigation drawer, standard variant.
  *
- * THEME-02 quietened the rail's edge from a border to a divider for exactly this
- * reason; card-on-tint finishes the job. With cards carrying the structure, a
- * rail that paints its own surface and draws its own full-height edge is a
- * second panel competing with them — the enterprise silhouette the direction is
- * moving away from. Removing both leaves navigation as part of the canvas, and
- * the selected row (a tinted pill on the page tint) becomes the only thing on
- * the rail with a surface, which is what "you are here" should be.
+ * `surface` rather than a bespoke rail colour, and NO edge border: the drawer is
+ * separated from the page by the tonal step between `surface` and
+ * `--md-app-color-surface-page`, which is how M3 separates every adjacent
+ * region. A full-height rule would put an enterprise navigation panel back
+ * beside the application, which is what DS-14 spent a milestone removing.
+ *
+ * 12px of inline padding is the specification's figure, and it is what lets the
+ * 56px item pills sit inside the drawer rather than run edge to edge.
  */
 .dh-sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-5) var(--dh-space-3) var(--dh-space-4);
-  background: transparent;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-3) var(--app-space-4);
+  background: var(--md-sys-color-surface);
   min-width: 0;
 }
 
@@ -92,8 +90,8 @@
 .dh-sidebar__brand {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-2) var(--app-space-3);
 }
 
 /* BRAND-01 — the mark paints the brand gradient itself, so it takes no text
@@ -112,19 +110,21 @@
 }
 
 .dh-sidebar__brand-name {
-  font-weight: var(--dh-font-weight-semibold);
-  font-size: var(--dh-font-size-lg);
-  letter-spacing: var(--dh-letter-spacing-tight);
-  line-height: var(--dh-line-height-tight);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+  color: var(--md-sys-color-on-surface);
 }
 
 /* BRAND-01 — the workspace, when it has a name of its own. Secondary by every
  * available signal (smaller, quieter token, second line) so it reads as context
  * for the product rather than as the product. */
 .dh-sidebar__brand-workspace {
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-xs);
-  line-height: var(--dh-line-height-tight);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -134,53 +134,57 @@
 .dh-sidebar__search {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
+/*
+ * The M3 search bar: a 56px fully-rounded field on `surface-container-high`,
+ * with a leading glyph and a placeholder in `on-surface-variant`. It has no
+ * border — M3 separates it from the drawer by tone, not by an outline — and it
+ * grows the shared state layer on hover like every other interactive surface.
+ */
 .dh-sidebar__search-entry {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-3);
   width: 100%;
-  min-height: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text-secondary);
+  min-height: 3.5rem;
+  padding-inline: var(--app-space-4);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
-}
-
-.dh-sidebar__search-entry:hover {
-  background: var(--dh-color-hover-surface);
 }
 
 .dh-sidebar__search-icon {
   display: inline-flex;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-md);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 1.5rem;
 }
 
 .dh-sidebar__search-label {
   flex: 1;
 }
 
+/* The shortcut hint is a quiet trailing affordance, not a control. */
 .dh-sidebar__search-hint {
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-muted);
-  background: var(--dh-color-surface-sunken);
-  padding: 0 var(--dh-space-1);
-  border-radius: var(--dh-radius-xs);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-surface-container-highest);
+  padding: 0 var(--app-space-1);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 /* Primary navigation. */
 .dh-nav {
-  margin-top: var(--dh-space-2);
+  margin-top: var(--app-space-2);
 }
 
 .dh-nav__list {
@@ -189,71 +193,51 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
+/*
+ * The M3 navigation drawer ITEM: a 56px fully-rounded pill carrying a 24px
+ * leading glyph, a 12px gap and a `label-large` label. The pill shape is what
+ * makes the selected row read as a selected row rather than as a highlighted
+ * strip, and it is why the drawer pads 12px inline — the pill needs room to be
+ * a pill.
+ */
 .dh-nav__link {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
-  min-height: var(--dh-control-height-md);
-  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-2)
-    var(--dh-space-3);
-  border-radius: var(--dh-radius-md);
+  gap: var(--app-space-3);
+  min-height: 3.5rem;
+  padding-inline: var(--app-space-4);
+  border-radius: var(--md-sys-shape-corner-full);
   text-decoration: none;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  transition:
-    background-color var(--dh-duration-fast) var(--dh-ease-standard),
-    color var(--dh-duration-fast) var(--dh-ease-standard);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  transition: color var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
 }
 
-.dh-nav__link:hover {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
-}
-
-/* Active nav: aria-current (semantic) + weight + a leading indicator BAR (shape)
- * + the selected-navigation tint — never colour alone (AGENTS.md §15).
+/*
+ * Active navigation: `aria-current` (semantic) + the M3 active-indicator FILL
+ * (shape and tone) + a foreground that steps up to `on-secondary-container`.
+ * Never colour alone (AGENTS.md §15) — the filled pill is a shape, so the
+ * selected row survives forced colours and monochrome.
  *
- * THEME-02 gives navigation selection its OWN token pair rather than borrowing the
- * generic accent tint, because the two are different jobs: `accent-surface` marks a
- * tinted informational region anywhere in the product, while this marks "you are
- * here" in the one place a theme most wants to control. The bar mirrors the phone
- * bar's top indicator, so selection is expressed the same way on both. */
+ * The pair is `secondary-container` / `on-secondary-container`, which the
+ * contrast tests hold at 4.5:1 in both schemes, so the label and the glyph are
+ * both covered by one assertion rather than by two colours that happen to work.
+ */
 .dh-nav__link--active,
 .dh-nav__link[aria-current="page"] {
-  background: var(--dh-color-nav-selected-surface);
-  color: var(--dh-color-nav-selected-text);
-  font-weight: var(--dh-font-weight-semibold);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
 }
 
-/* The bar is painted with `nav-selected-text`, NOT `accent`.
- *
- * `accent` is a FILL token, and the contrast it guarantees is against the page
- * surfaces — bg, surface, surface-card. This bar sits on `nav-selected-surface`,
- * which is not in that set: in a dark theme the selected tint is DARKER than the
- * page, so it squeezes the accent rather than framing it, and the bar lands at
- * 2.96:1 (Daly Dark) and 2.73:1 (Modern Dark) — under the 3:1 that a non-text cue
- * carrying meaning has to meet (AGENTS.md §15).
- *
- * `nav-selected-text` is the FOREGROUND token for this exact surface, already held
- * at 4.5:1 against it in every theme by `contrast.test.ts`, so the bar clears the
- * UI threshold with room to spare (5.28:1 at worst). It also makes the bar and the
- * label one signal rather than two colours saying the same thing. */
-.dh-nav__link--active::before,
-.dh-nav__link[aria-current="page"]::before {
-  content: "";
-  position: absolute;
-  inset-block: 22%;
-  inset-inline-start: 0;
-  inline-size: var(--dh-border-width-thick);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-nav-selected-text);
-}
-
-/* Forced colours: the tint and the bar are both dropped by the OS palette, so the
+/* Forced colours: the indicator fill is dropped by the OS palette, so the
  * selected row is restated with the system's own selection colours. */
 @media (forced-colors: active) {
   .dh-nav__link--active,
@@ -263,9 +247,11 @@
   }
 }
 
+/* 24px, the M3 icon size for a drawer item — set here rather than inherited so
+ * the glyph does not shrink with the label's `label-large`. */
 .dh-nav__icon {
   display: inline-flex;
-  font-size: var(--dh-font-size-lg);
+  font-size: 1.5rem;
   line-height: 0;
 }
 
@@ -280,18 +266,19 @@
 /* PX-03 — a decorative divider between navGroup transitions (Today/spine ·
  * capture modules · insight modules · system pages). Rhythm only, no label. */
 .dh-nav__divider {
-  margin: var(--dh-space-2) 0;
+  margin: var(--app-space-2) 0;
 }
 
 .dh-nav__divider hr {
   border: none;
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   margin: 0;
 }
 
 .dh-sidebar__spacer {
   flex: 1;
-  min-height: var(--dh-space-4);
+  min-height: var(--app-space-4);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -305,23 +292,25 @@
 .dh-user-menu__trigger {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   width: 100%;
-  min-height: var(--dh-control-height-lg);
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-sm);
+  min-height: var(--app-control-height-lg);
+  padding: var(--app-space-1) var(--app-space-2);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
   cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
 }
 
-.dh-user-menu__trigger:hover,
 .dh-user-menu__trigger[aria-expanded="true"] {
-  background: var(--dh-color-hover-surface);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
 }
 
 .dh-user-menu__avatar {
@@ -331,11 +320,11 @@
   inline-size: 1.75rem;
   block-size: 1.75rem;
   flex: none;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: var(--md-sys-typescale-label-small-weight);
 }
 
 .dh-user-menu__trigger-name {
@@ -349,116 +338,90 @@
 
 .dh-user-menu__chevron {
   display: inline-flex;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-md);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 1.25rem;
 }
 
 .dh-user-menu__panel {
   position: absolute;
-  bottom: calc(100% + var(--dh-space-2));
+  bottom: calc(100% + var(--app-space-2));
   left: 0;
   right: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--dh-space-2);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  box-shadow: var(--dh-shadow-lg);
-  z-index: var(--dh-z-dropdown);
+  padding-block: var(--app-space-2);
+  background: var(--md-sys-color-surface-container-high);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  box-shadow: var(--md-sys-elevation-2);
+  z-index: var(--app-z-dropdown);
 }
 
 .dh-user-menu__identity {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
-  padding: var(--dh-space-2);
+  gap: var(--app-space-px);
+  padding: var(--app-space-2) var(--app-space-3);
 }
 
 .dh-user-menu__name {
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
 }
 
 .dh-user-menu__email {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dh-user-menu__section {
-  padding: var(--dh-space-2);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding-block-start: var(--app-space-2);
+  margin-block-start: var(--app-space-2);
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-user-menu__links {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
+/* The M3 menu item: 48px tall, 12px inline, `body-large`, no radius of its own
+ * — the menu's own corner is the shape. */
 .dh-user-menu__link {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border-radius: var(--dh-radius-sm);
+  gap: var(--app-space-3);
+  min-height: 3rem;
+  padding-inline: var(--app-space-3);
   text-decoration: none;
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
 }
 
 .dh-user-menu__link:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-user-menu__link-icon {
   display: inline-flex;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-md);
-}
-
-/* The relocated theme control (reused unchanged; only its placement changed). */
-.dh-user-menu__section .theme-control .theme-fieldset {
-  display: flex;
-  align-items: stretch;
-  gap: var(--dh-space-1);
-  border: none;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-}
-
-.dh-user-menu__section .theme-control legend {
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-muted);
-  padding: 0 0 var(--dh-space-1);
-}
-
-.dh-user-menu__section .theme-option {
-  flex: 1;
-  min-height: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
-  font: inherit;
-  font-size: var(--dh-font-size-xs);
-  cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
-}
-
-.dh-user-menu__section .theme-option:hover {
-  background: var(--dh-color-hover-surface);
-}
-
-.dh-user-menu__section .theme-option[aria-pressed="true"] {
-  font-weight: var(--dh-font-weight-semibold);
-  border-color: var(--dh-color-accent);
-  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 1.5rem;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -481,29 +444,30 @@
 
 /* A padded body for document-shaped pages (home, placeholders, Settings). */
 .dh-pane-body {
-  padding: var(--dh-space-6) var(--dh-gutter);
+  padding: var(--app-space-6) var(--app-gutter);
 }
 
-/* MOBILE-01 — the compact phone top bar (route title + Back + Search + actions).
- * Hidden on desktop. It is deliberately ONE row tall so the record or list below
- * it owns the viewport (content before chrome). */
+/* The M3 small top app bar, on the phone shell (route title + Back + Search +
+ * actions). Hidden on desktop. 64px, `surface`, and NO bottom rule: the page
+ * scrolls under it and the tonal step does the separating, exactly as the
+ * navigation drawer does on the desktop rail. */
 .dh-mobilebar {
   display: none;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-shell-header-height);
+  gap: var(--app-space-2);
+  min-height: var(--app-shell-header-height);
   /* With `viewport-fit=cover` the document runs under the status-bar / notch, so
    * the top bar pads by the top inset (and the leading inset for a landscape
    * cutout) to keep the controls out from under the cutout (DS-11). */
-  padding: max(var(--dh-space-1), env(safe-area-inset-top)) var(--dh-space-2)
-    var(--dh-space-1);
-  padding-inline-start: max(var(--dh-space-2), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-2), env(safe-area-inset-right));
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface-header);
+  padding: max(var(--app-space-1), env(safe-area-inset-top)) var(--app-space-2)
+    var(--app-space-1);
+  padding-inline-start: max(var(--app-space-2), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-2), env(safe-area-inset-right));
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
   position: sticky;
   top: 0;
-  z-index: var(--dh-z-sticky);
+  z-index: var(--app-z-sticky);
 }
 
 .dh-mobilebar__back,
@@ -512,19 +476,23 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-sm);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-lg);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 1.5rem;
   cursor: pointer;
 }
 
 .dh-mobilebar__back:hover,
 .dh-mobilebar__action:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 /* The Back chevron is the shared right-chevron, mirrored — no one-off glyph. */
@@ -545,13 +513,15 @@
 
 /* The route title, not the workspace name: repeating "DalyHub" on every phone
  * screen wastes the most valuable row on the display. */
+/* `title-large` is the M3 small top app bar's headline style. */
 .dh-mobilebar__title {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-weight: var(--dh-font-weight-semibold);
-  font-size: var(--dh-font-size-md);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -560,7 +530,7 @@
 .dh-mobilebar__actions {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   flex: none;
 }
 
@@ -586,15 +556,15 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--dh-space-3) var(--dh-space-4);
-  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-4);
+  gap: var(--app-space-3) var(--app-space-4);
+  padding: var(--app-space-6) var(--app-gutter) var(--app-space-4);
   background: transparent;
 }
 
 .dh-pane-header__lead {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 
@@ -609,19 +579,23 @@
  * and space, and reserving weight means the WEIGHT still means something where
  * it is used (a selected nav row, a title against its metadata).
  */
+/* A page heading is `headline-small` (DESIGN_SYSTEM.md → Typography usage map). */
 .dh-pane-header__title {
   margin: 0;
-  font-size: var(--dh-font-size-xl);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-tight);
-  letter-spacing: var(--dh-letter-spacing-tight);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
 
 .dh-pane-header__subtitle {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  color: var(--md-sys-color-on-surface-variant);
   font-variant-numeric: tabular-nums;
 }
 
@@ -629,7 +603,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
 }
 
 .dh-pane-header__views {
@@ -644,14 +618,15 @@
 .dh-mobilenav {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-drawer);
+  z-index: var(--app-z-drawer);
 }
 
 .dh-mobilenav__scrim {
   position: absolute;
   inset: 0;
-  background: var(--dh-color-overlay);
-  animation: dh-mobilenav-scrim var(--dh-duration-base) var(--dh-ease-standard);
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+  animation: dh-mobilenav-scrim var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-mobilenav__panel {
@@ -660,20 +635,22 @@
   inset-inline-start: 0;
   inline-size: min(20rem, 86vw);
   max-inline-size: 100%;
-  background: var(--dh-color-surface);
-  border-right: var(--dh-border-width-thin) solid var(--dh-color-border);
-  box-shadow: var(--dh-shadow-lg);
+  background: var(--md-sys-color-surface-container-low);
+  /* The M3 modal navigation drawer rounds its TRAILING edge only — the leading
+   * edge is flush with the screen it slid in from. */
+  border-start-end-radius: var(--md-sys-shape-corner-extra-large);
+  border-end-end-radius: var(--md-sys-shape-corner-extra-large);
+  box-shadow: var(--md-sys-elevation-1);
   overflow-y: auto;
   padding-block-end: env(safe-area-inset-bottom);
   padding-inline-start: env(safe-area-inset-left);
-  animation: dh-mobilenav-slide var(--dh-duration-base)
-    var(--dh-ease-emphasized);
+  animation: dh-mobilenav-slide var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
 /* The overlay's sidebar fills the sheet and drops the desktop border. */
 .dh-mobilenav__panel .dh-sidebar--overlay {
   height: 100%;
-  border-right: none;
   background: transparent;
 }
 
@@ -682,13 +659,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-lg);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 1.5rem;
   cursor: pointer;
 }
 
@@ -729,11 +706,11 @@
  *
  * Two insets keep it out of the way of everything else:
  *   - `env(safe-area-inset-bottom)` clears the home indicator;
- *   - `--dh-keyboard-inset` (published by the ONE shared Visual Viewport
+ *   - `--app-keyboard-inset` (published by the ONE shared Visual Viewport
  *     observer) hides the bar entirely while the on-screen keyboard is up, so it
  *     can never cover a focused field, a validation message or a sticky Save.
  *
- * `--dh-bottomnav-height` is what every scrolling surface pads by, so content and
+ * `--app-bottomnav-height` is what every scrolling surface pads by, so content and
  * bottom-anchored controls (bulk bars, toasts, Drawer actions) sit ABOVE the bar
  * rather than under it.
  */
@@ -742,9 +719,8 @@
   position: fixed;
   inset-inline: 0;
   bottom: 0;
-  z-index: var(--dh-z-sticky);
-  background: var(--dh-color-surface-nav);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
+  z-index: var(--app-z-sticky);
+  background: var(--md-sys-color-surface-container);
   padding-bottom: env(safe-area-inset-bottom);
   padding-inline-start: env(safe-area-inset-left);
   padding-inline-end: env(safe-area-inset-right);
@@ -756,6 +732,9 @@
   padding: 0;
   display: flex;
   align-items: stretch;
+  /* 80px is the M3 navigation bar's height, and it is what makes room for the
+   * 32px active-indicator pill with its label beneath. */
+  min-block-size: var(--app-bottomnav-bar-height);
 }
 
 .dh-bottomnav__item {
@@ -771,85 +750,147 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-px);
-  min-block-size: var(--dh-touch-target-min);
-  min-inline-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-1);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  padding-block: var(--app-space-3);
+  padding-inline: var(--app-space-1);
   border: none;
   background: transparent;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   font: inherit;
   text-decoration: none;
   cursor: pointer;
 }
 
-.dh-bottomnav__control:hover {
-  background: var(--dh-color-hover-surface);
+/*
+ * The M3 ACTIVE-INDICATOR: a 64×32 pill that sits BEHIND the glyph. It is
+ * present on every destination so the metrics never shift, and it is filled
+ * only on the current one — which makes selection a shape as well as a tone, so
+ * it survives forced colours and monochrome (AGENTS.md §15).
+ */
+.dh-bottomnav__indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 4rem;
+  block-size: 2rem;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: transparent;
+  transition: background-color var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-bottomnav__icon {
   display: inline-flex;
-  font-size: var(--dh-font-size-lg);
+  font-size: 1.5rem;
   line-height: 0;
 }
 
-/* The label is ALWAYS visible — no icon-only targets in primary navigation. It
- * wraps to a smaller size rather than truncating at 320px. */
+/* The label is ALWAYS visible — no icon-only targets in primary navigation. */
 .dh-bottomnav__label {
-  font-size: var(--dh-font-size-2xs);
-  line-height: var(--dh-line-height-tight);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Active state: aria-current (semantic) + a top indicator BAR (shape) + weight +
- * full-strength text — never colour alone (AGENTS.md §15). */
-.dh-bottomnav__indicator {
-  position: absolute;
-  top: 0;
-  inline-size: 2rem;
-  block-size: var(--dh-border-width-thick);
-  border-radius: var(--dh-radius-full);
-  background: transparent;
-}
-
 .dh-bottomnav__control[aria-current="page"] {
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-semibold);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-bottomnav__control[aria-current="page"] .dh-bottomnav__indicator {
-  background: var(--dh-color-accent);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
 }
 
-.dh-bottomnav__control[aria-current="page"] .dh-bottomnav__label {
-  font-weight: var(--dh-font-weight-semibold);
-}
-
-/* Capture is the one emphasised control: the accent ring makes the product's most
- * frequent action findable without a competing floating button. */
-.dh-bottomnav__control--capture .dh-bottomnav__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 1.75rem;
-  block-size: 1.75rem;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
+/* Capture keeps its filled treatment on the bar: at phone widths it is the
+ * thumb-reachable twin of the desktop FAB, and the two are painted with the
+ * same `primary-container` pair so they read as one action in two places. */
+.dh-bottomnav__control--capture .dh-bottomnav__indicator {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
 }
 
 /* Forced colours: the indicator must survive when the accent is replaced. */
 @media (forced-colors: active) {
   .dh-bottomnav {
-    border-top: var(--dh-border-width-thin) solid CanvasText;
+    border-top: var(--app-border-width-thin) solid CanvasText;
   }
   .dh-bottomnav__control[aria-current="page"] .dh-bottomnav__indicator {
     background: Highlight;
+    color: HighlightText;
     forced-color-adjust: none;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The floating action button                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * M3's standard FAB: 56px, `corner-large`, elevation 3, painted with the
+ * `primary-container` pair (the specification's default, and the calmer of the
+ * two choices — a `primary`-filled FAB shouts on a page whose primary action is
+ * usually already visible).
+ *
+ * It is anchored 24px from the bottom-right and clears, in order: the home
+ * indicator (`env(safe-area-inset-bottom)`, folded into
+ * `--app-bottomnav-height`), the phone navigation bar, and the on-screen
+ * keyboard. All three are already-published tokens, so nothing here measures
+ * anything — on desktop `--app-bottomnav-height` is `0px` and the whole
+ * expression collapses to 24px.
+ *
+ * `--app-fab-band` (tokens.css) is this same expression plus the button's own
+ * height and a gap, published for the one other surface anchored to this corner:
+ * the notification region, which stacks ABOVE the FAB rather than over it
+ * (`feedback.css`). Two fixed controls in one corner is not a stacking-order
+ * question — the notification layer is click-through, so a pointer reaches the
+ * FAB either way, but an automated target-size audit sees a 56px control with
+ * 8px of unobscured height and is right to fail it. They are given separate
+ * space instead.
+ */
+.dh-fab {
+  position: fixed;
+  inset-inline-end: max(var(--app-space-6), env(safe-area-inset-right));
+  inset-block-end: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
+  z-index: var(--app-z-sticky);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+  border: none;
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  box-shadow: var(--md-sys-elevation-3);
+  cursor: pointer;
+  transition:
+    box-shadow var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    transform var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
+}
+
+.dh-fab:hover {
+  box-shadow: var(--md-sys-elevation-4);
+}
+
+.dh-fab__icon {
+  display: inline-flex;
+  font-size: 1.5rem;
+  line-height: 0;
+}
+
+/* The FAB rides the keyboard exactly as the navigation bar does, so it can never
+ * cover a focused field. */
+.dh-fab {
+  transform: translateY(var(--app-keyboard-inset, 0px));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -866,8 +907,8 @@
    * `scrollIntoView` and keyboard focus never park an element beneath the bar.
    * Everything under `:root` — `.dh-app` included — still inherits it unchanged. */
   :root {
-    --dh-bottomnav-height: calc(
-      var(--dh-bottomnav-bar-height) + env(safe-area-inset-bottom)
+    --app-bottomnav-height: calc(
+      var(--app-bottomnav-bar-height) + env(safe-area-inset-bottom)
     );
   }
 
@@ -890,7 +931,7 @@
   /* While the keyboard is up the bar would sit on top of the field being typed
    * into, so it is removed entirely and the pane reclaims its space. */
   .dh-app:has(.dh-bottomnav) .dh-pane {
-    padding-bottom: var(--dh-bottomnav-height);
+    padding-bottom: var(--app-bottomnav-height);
   }
 }
 
@@ -901,7 +942,8 @@
  * time — no state, no listener, no jitter. */
 @media (max-width: 48rem) {
   .dh-bottomnav {
-    transform: translateY(var(--dh-keyboard-inset, 0px));
-    transition: transform var(--dh-duration-fast) var(--dh-ease-standard);
+    transform: translateY(var(--app-keyboard-inset, 0px));
+    transition: transform var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
   }
 }

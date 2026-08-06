@@ -22,14 +22,21 @@
 
 .dh-feedback {
   position: fixed;
-  z-index: var(--dh-z-toast);
-  right: var(--dh-space-4);
-  bottom: var(--dh-space-4);
+  z-index: var(--app-z-toast);
+  right: var(--app-space-4);
+  /* Above the FAB, not over it. Both are anchored to this corner, and a
+   * notification stack that overlaps a 56px control leaves it with a few pixels
+   * of unobscured height — which an automated target-size audit fails, and
+   * rightly. `--app-fab-band` folds in the phone navigation bar and the home
+   * indicator, and collapses to the FAB's own band on desktop. */
+  bottom: calc(var(--app-space-4) + var(--app-fab-band));
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  width: min(24rem, calc(100vw - 2 * var(--dh-space-4)));
-  max-height: calc(100vh - 2 * var(--dh-space-4));
+  gap: var(--app-space-2);
+  width: min(24rem, calc(100vw - 2 * var(--app-space-4)));
+  /* Whatever is left between that offset and the top of the viewport; the stack
+   * scrolls inside it rather than running off the top of the page. */
+  max-height: calc(100vh - 2 * var(--app-space-4) - var(--app-fab-band));
   overflow-y: auto;
   /*
    * DEBT-38 — the notification region is click-transparent, and ONLY its real
@@ -61,16 +68,20 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-xs);
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border-radius: var(--dh-radius-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  padding: var(--app-space-1) var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
 
 .dh-feedback__dismiss-all:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-feedback__list {
@@ -79,13 +90,22 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-feedback__item-wrap {
   margin: 0;
 }
 
+/*
+ * The M3 SNACKBAR: the `inverse-surface` / `inverse-on-surface` pair at
+ * `corner-extra-small` and elevation 3. Inverting is the point — a transient
+ * message has to be distinguishable from the page it is sitting on top of, and
+ * a card-coloured toast on a card-coloured page is not.
+ *
+ * The tone (success/info/warning/error) keeps its leading edge AND its icon, so
+ * a toast's kind is never carried by colour alone (AGENTS.md §15).
+ */
 .dh-toast {
   /*
    * The toast surface itself has no pointer behaviour — it is text plus buttons
@@ -95,31 +115,36 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: start;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-3) var(--dh-space-3)
-    var(--dh-space-4);
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-left: 3px solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-md);
-  box-shadow: var(--dh-shadow-lg);
-  animation: dh-toast-in var(--dh-duration-base) var(--dh-ease-emphasized);
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-3) var(--app-space-3)
+    var(--app-space-4);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  border: none;
+  border-left: 3px solid var(--md-sys-color-inverse-on-surface);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  box-shadow: var(--md-sys-elevation-3);
+  animation: dh-toast-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized);
 }
 
+/* The tone edge is painted with the tone's CONTAINER, not its base colour: the
+ * snackbar surface is inverted, so the base colours (which are chosen to sit on
+ * an ordinary page) lose their contrast against it, while the containers — the
+ * light end of each ramp in the light scheme — read clearly. */
 .dh-toast[data-kind="success"],
 .dh-toast[data-status="success"] {
-  border-left-color: var(--dh-color-success);
+  border-left-color: var(--md-sys-color-success-container);
 }
 .dh-toast[data-kind="info"] {
-  border-left-color: var(--dh-color-info);
+  border-left-color: var(--md-sys-color-info-container);
 }
 .dh-toast[data-kind="warning"] {
-  border-left-color: var(--dh-color-warning);
+  border-left-color: var(--md-sys-color-warning-container);
 }
 .dh-toast[data-kind="error"],
 .dh-toast[data-status="failure"] {
-  border-left-color: var(--dh-color-danger);
+  border-left-color: var(--md-sys-color-error-container);
 }
 
 .dh-toast__icon {
@@ -130,80 +155,91 @@
 }
 .dh-toast__icon[data-kind="success"],
 .dh-toast__icon[data-status="success"] {
-  color: var(--dh-color-success);
+  color: var(--md-sys-color-success-container);
 }
 .dh-toast__icon[data-kind="info"] {
-  color: var(--dh-color-info);
+  color: var(--md-sys-color-info-container);
 }
 .dh-toast__icon[data-kind="warning"] {
-  color: var(--dh-color-warning);
+  color: var(--md-sys-color-warning-container);
 }
 .dh-toast__icon[data-kind="error"],
 .dh-toast__icon[data-status="failure"] {
-  color: var(--dh-color-danger);
+  color: var(--md-sys-color-error-container);
 }
 .dh-toast__icon[data-status="pending"],
 .dh-toast__icon[data-status="running"] {
-  color: var(--dh-color-accent);
+  color: var(--md-sys-color-primary);
 }
 
 .dh-toast__body {
   min-width: 0;
 }
 
+/* A snackbar's supporting text is `body-medium` in M3; the title carries the
+ * weight so a two-line snackbar still has a hierarchy. */
 .dh-toast__title {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-toast__count {
-  margin-left: var(--dh-space-2);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-muted);
+  margin-left: var(--app-space-2);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+  opacity: 0.8;
   font-variant-numeric: tabular-nums;
 }
 
 .dh-toast__message {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
-  line-height: var(--dh-line-height-normal);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  /* Everything inside a snackbar takes `inverse-on-surface`; the secondary text
+   * steps back with opacity rather than with a second colour, because there is
+   * no inverse `on-surface-variant` and inventing one would be a token the
+   * generator does not own. */
+  opacity: 0.85;
   overflow-wrap: anywhere;
 }
 
 .dh-toast__status {
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-weight: 500;
+  opacity: 1;
 }
 
 .dh-toast__actions {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
+/* The snackbar ACTION is a text button in `inverse-primary` — the one role that
+ * exists precisely to be legible on the inverse surface. */
 .dh-toast__action {
   /* A real control inside the click-through region: opt back in. */
   pointer-events: auto;
   appearance: none;
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
+  border: none;
   background: transparent;
-  color: var(--dh-color-accent-text);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border-radius: var(--dh-radius-sm);
+  color: var(--md-sys-color-inverse-primary);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  min-height: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-full);
   cursor: pointer;
   white-space: nowrap;
 }
 .dh-toast__action:hover {
-  background: var(--dh-color-hover-surface);
-  border-color: var(--dh-color-accent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
 .dh-toast__close {
@@ -212,18 +248,22 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-touch-target-min);
-  min-height: var(--dh-touch-target-min);
-  border-radius: var(--dh-radius-sm);
+  min-width: var(--app-touch-target-min);
+  min-height: var(--app-touch-target-min);
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
 .dh-toast__close:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-toast__spinner {
@@ -247,12 +287,15 @@
   }
 }
 
-/* Mobile: bottom full-width, safe-area aware, above content without covering it. */
+/* Mobile: bottom full-width, safe-area aware, above content without covering it.
+ * `--app-fab-band` already folds in `--app-bottomnav-height`, so this clears the
+ * navigation bar, the home indicator AND the floating action button in one
+ * expression. */
 @media (max-width: 48rem) {
   .dh-feedback {
-    right: var(--dh-space-3);
-    left: var(--dh-space-3);
-    bottom: calc(var(--dh-space-3) + env(safe-area-inset-bottom, 0px));
+    right: var(--app-space-3);
+    left: var(--app-space-3);
+    bottom: calc(var(--app-space-3) + var(--app-fab-band));
     width: auto;
   }
 }

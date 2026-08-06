@@ -25,7 +25,6 @@ import { EntityIcon } from "~/shared/entity";
 import { CopyIcon, DownloadIcon, PrinterIcon, TagIcon } from "~/shared/icons";
 import { MarkdownContent } from "~/shared/markdown";
 import { StatusPill } from "~/shared/pill";
-import { Region } from "~/shared/region";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 import {
   RecordLayout,
@@ -248,10 +247,11 @@ export function NoteOverview({
                  * so it is the one region that takes the serif at the capped
                  * measure. Everything around it — the record header, the tabs, the
                  * summary metadata, the editor's own toolbar and save status —
-                 * stays sans, because chrome is chrome on both presets. That
-                 * contrast, serif column inside sans chrome, is the direction this
-                 * record exists to prove. */
-                <Region density="reading" className="dh-note-body">
+                 * takes the chrome typescale. M3-01 retired the density presets
+                 * and the serif column with them: prose is `body-large` in the
+                 * one UI family, and the contrast comes from size and measure
+                 * rather than from a second typeface (ADR-074 decision 6). */
+                <div className="dh-note-body">
                   <NoteContentForm
                     noteId={overview.id}
                     initialContent={details.content}
@@ -259,7 +259,7 @@ export function NoteOverview({
                     suppressGuard={deleted}
                     flushRef={flushContentRef}
                   />
-                </Region>
+                </div>
               ),
           },
           /* The same record's other three tabs are COLLECTION regions: backlinks,
@@ -269,12 +269,12 @@ export function NoteOverview({
           {
             id: "backlinks",
             label: "Backlinks",
-            content: <Region density="collection">{backlinksTab}</Region>,
+            content: backlinksTab,
           },
           {
             id: "linked",
             label: "Links",
-            content: <Region density="collection">{linksTab}</Region>,
+            content: linksTab,
           },
           {
             // AI-01 — the extraction surface, mounted as an ordinary tab so it
@@ -286,7 +286,7 @@ export function NoteOverview({
           {
             id: "activity",
             label: "Activity",
-            content: <Region density="collection">{activityTab}</Region>,
+            content: activityTab,
           },
         ]}
       />

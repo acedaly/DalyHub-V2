@@ -1153,7 +1153,6 @@ function writeSettings(index: VaultIndex): VaultFile {
           ["dalyhub_type", "owner_settings"],
           ["title", "Settings"],
           ["timezone", preferences.timezone],
-          ["theme", preferences.theme],
         ]),
       ),
       "# Settings",
@@ -1168,7 +1167,6 @@ function writeSettings(index: VaultIndex): VaultFile {
           line("Default Tasks view", preferences.defaultTasksView),
           line("Default Task destination", preferences.defaultTaskDestination),
           line("Default Diary mode", preferences.defaultDiaryMode),
-          line("Theme", preferences.theme),
           line(
             "Preferences record version",
             preferences.version === 0

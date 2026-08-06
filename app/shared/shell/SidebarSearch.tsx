@@ -39,7 +39,7 @@ export function SidebarSearch({
     >
       <button
         type="button"
-        className="dh-sidebar__search-entry"
+        className="dh-sidebar__search-entry md-state-layer"
         onClick={
           onOpenSearch
             ? (event) => onOpenSearch(event.currentTarget)
@@ -56,7 +56,7 @@ export function SidebarSearch({
       </button>
       <button
         type="button"
-        className="dh-sidebar__search-entry"
+        className="dh-sidebar__search-entry md-state-layer"
         onClick={
           onOpenCommand
             ? (event) => onOpenCommand(event.currentTarget)

@@ -20,62 +20,62 @@ a.dh-btn {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  margin-bottom: var(--dh-space-4);
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-space-4);
 }
 
 /* The roll-up progress line in the record Summary. */
 .dh-project-overview__progress {
   margin: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-project-overview__progress-label {
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 /* The calm not-found / error panel for an unknown project. */
 .dh-project-not-found {
-  padding: var(--dh-space-8) var(--dh-space-4);
+  padding: var(--app-space-8) var(--app-space-4);
 }
 
 /* PROJ-05 — the archived-project read-only banner in the record Summary. Never
  * colour-only: the text itself carries the meaning. */
 .dh-project-overview__archived-banner {
-  margin: 0 0 var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-medium);
+  margin: 0 0 var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
 }
 
 /* PROJ-05 — a Settings tab read-only value (Area/Goal, workflow status) shown
  * beside its label while a project is archived. */
 .dh-settings-readonly-value {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* PROJ-05 — the calm read-only notice shown in the Drawer in place of a form
  * (Rename / Add task) that would only fail against an archived project. */
 .dh-project-archived-notice {
   margin: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* PROJ-05 §8 — the "no eligible Area/Goal" guidance in the New Project form. */
 .dh-project-empty-parents {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-project-empty-parents__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 @media (max-width: 30rem) {

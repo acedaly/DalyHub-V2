@@ -5,7 +5,7 @@
  * sheet entering from the right, leaving the underlying page visible behind a
  * restrained scrim; on a narrow viewport it becomes a full-height sheet. Layering
  * uses the DS-01 z-index scale, motion uses the DS-01 duration/easing tokens, and
- * every colour/space/shape value is a `var(--dh-*)` token — no second design
+ * every colour/space/shape value is a `var(--app-*)` token — no second design
  * system. Reduced-motion is honoured globally by base.css (durations collapse to
  * instant), so the Drawer is fully understandable with no animation.
  *
@@ -31,16 +31,17 @@
 .drawer-stack {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-drawer);
+  z-index: var(--app-z-drawer);
   pointer-events: none;
 }
 
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--dh-color-overlay);
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
   pointer-events: auto;
-  animation: drawer-backdrop-in var(--dh-duration-base) var(--dh-ease-standard);
+  animation: drawer-backdrop-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 @keyframes drawer-backdrop-in {
@@ -62,26 +63,32 @@
   inset-inline-end: 0;
   display: flex;
   flex-direction: column;
-  width: min(var(--dh-width-narrow), 100vw);
+  width: min(var(--app-width-narrow), 100vw);
   max-width: 100vw;
   height: 100dvh;
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
-  border-inline-start: var(--dh-border-width-thin) solid var(--dh-color-border);
-  box-shadow: var(--dh-shadow-lg);
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  /* The M3 modal side drawer rounds its LEADING edge only — the edge it slid in
+   * from stays flush with the screen. */
+  border-start-start-radius: var(--md-sys-shape-corner-extra-large);
+  border-end-start-radius: var(--md-sys-shape-corner-extra-large);
+  border: none;
+  box-shadow: var(--md-sys-elevation-1);
   pointer-events: auto;
-  animation: drawer-slide-in var(--dh-duration-base) var(--dh-ease-emphasized);
-  transition: transform var(--dh-duration-base) var(--dh-ease-standard);
+  animation: drawer-slide-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized);
+  transition: transform var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .drawer[data-size="wide"] {
-  width: min(var(--dh-width-content), calc(100vw - var(--dh-space-12)));
+  width: min(var(--app-width-content), calc(100vw - var(--app-space-12)));
 }
 
 /* Prior stack levels sit slightly back so the top drawer is visually distinct;
  * the scrim above them dims the exposed sliver. */
 .drawer[data-top="false"] {
-  transform: translateX(calc(-1 * var(--dh-space-5)));
+  transform: translateX(calc(-1 * var(--app-space-5)));
 }
 
 @keyframes drawer-slide-in {
@@ -101,12 +108,13 @@
   flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-3);
-  padding: max(var(--dh-space-4), env(safe-area-inset-top)) var(--dh-space-5)
-    var(--dh-space-4);
-  padding-inline-end: max(var(--dh-space-5), env(safe-area-inset-right));
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  background: var(--dh-color-surface-raised);
+  gap: var(--app-space-3);
+  padding: max(var(--app-space-4), env(safe-area-inset-top)) var(--app-space-5)
+    var(--app-space-4);
+  padding-inline-end: max(var(--app-space-5), env(safe-area-inset-right));
+  border-bottom: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-raised);
 }
 
 .drawer__heading {
@@ -116,19 +124,19 @@
 
 .drawer__title {
   margin: 0;
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
-  letter-spacing: var(--dh-letter-spacing-tight);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
 
 .drawer__description {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
-  line-height: var(--dh-line-height-normal);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
@@ -137,24 +145,33 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--dh-control-height-lg);
-  height: var(--dh-control-height-lg);
+  width: var(--app-control-height-lg);
+  height: var(--app-control-height-lg);
   padding: 0;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   background: transparent;
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-md);
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: background-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .drawer__close:hover {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 .drawer__close:active {
-  background: var(--dh-color-active-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 10%,
+    transparent
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -166,27 +183,27 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--dh-space-5);
-  padding-inline-end: max(var(--dh-space-5), env(safe-area-inset-right));
-  padding-bottom: max(var(--dh-space-6), env(safe-area-inset-bottom));
+  padding: var(--app-space-5);
+  padding-inline-end: max(var(--app-space-5), env(safe-area-inset-right));
+  padding-bottom: max(var(--app-space-6), env(safe-area-inset-bottom));
 }
 
 /* The graceful not-found fallback for an unknown/stale deep link. */
 .drawer-empty {
-  max-width: var(--dh-width-prose);
+  max-width: var(--app-width-prose);
 }
 
 .drawer-empty__title {
-  margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text);
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 .drawer-empty__body {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  line-height: var(--dh-line-height-normal);
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.5;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -197,14 +214,14 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 /*
  * The record's primary commitment, pinned outside the scrolling body.
  *
  * Keyboard-safe by construction: the panel's height already subtracts
- * `--dh-keyboard-inset` (below), so this region rides above the on-screen
+ * `--app-keyboard-inset` (below), so this region rides above the on-screen
  * keyboard instead of under it, and the safe-area inset keeps it clear of the
  * home indicator. It is intentionally a SINGLE row — secondary and destructive
  * actions stay in the overflow menu (PX-04).
@@ -213,17 +230,18 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3) var(--dh-space-5);
-  padding-inline-start: max(var(--dh-space-5), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-5), env(safe-area-inset-right));
-  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  background: var(--dh-color-surface-raised);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-5);
+  padding-inline-start: max(var(--app-space-5), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-5), env(safe-area-inset-right));
+  padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-raised);
 }
 
 .drawer__sticky-actions > * {
-  min-block-size: var(--dh-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -252,7 +270,7 @@
     border-inline-start: none;
     animation-name: drawer-sheet-in;
     /* Shrink to the space the keyboard leaves rather than being overlaid by it. */
-    height: calc(100dvh - var(--dh-keyboard-inset, 0px));
+    height: calc(100dvh - var(--app-keyboard-inset, 0px));
   }
 
   /* Sheets fill the viewport, so prior levels are not offset (nothing peeks). */
@@ -263,15 +281,15 @@
   /* A compact single-row header: title + actions + close, no description block. */
   .drawer__header {
     align-items: center;
-    gap: var(--dh-space-2);
-    padding-block: max(var(--dh-space-2), env(safe-area-inset-top))
-      var(--dh-space-2);
-    padding-inline: max(var(--dh-space-3), env(safe-area-inset-left))
-      max(var(--dh-space-3), env(safe-area-inset-right));
+    gap: var(--app-space-2);
+    padding-block: max(var(--app-space-2), env(safe-area-inset-top))
+      var(--app-space-2);
+    padding-inline: max(var(--app-space-3), env(safe-area-inset-left))
+      max(var(--app-space-3), env(safe-area-inset-right));
   }
 
   .drawer__title {
-    font-size: var(--dh-font-size-md);
+    font-size: var(--md-sys-typescale-body-large-size);
     /* A long title wraps to at most two lines and then ellipses, so it can never
      * push the Close control off the screen. */
     display: -webkit-box;
@@ -288,19 +306,19 @@
   }
 
   .drawer__body {
-    padding-inline: max(var(--dh-space-4), env(safe-area-inset-left))
-      max(var(--dh-space-4), env(safe-area-inset-right));
+    padding-inline: max(var(--app-space-4), env(safe-area-inset-left))
+      max(var(--app-space-4), env(safe-area-inset-right));
   }
 
   /* With a sticky region present the body no longer needs bottom breathing room
    * for the safe area — the region owns it. */
   .drawer:has(.drawer__sticky-actions) .drawer__body {
-    padding-bottom: var(--dh-space-4);
+    padding-bottom: var(--app-space-4);
   }
 
   .drawer__sticky-actions {
-    padding-inline: max(var(--dh-space-4), env(safe-area-inset-left))
-      max(var(--dh-space-4), env(safe-area-inset-right));
+    padding-inline: max(var(--app-space-4), env(safe-area-inset-left))
+      max(var(--app-space-4), env(safe-area-inset-right));
   }
 
   .drawer__sticky-actions > * {

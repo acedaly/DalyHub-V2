@@ -135,35 +135,19 @@ test.describe("SETTINGS-01A — application settings", () => {
     ).toHaveAttribute("aria-current", "true");
   });
 
-  test("persists the chosen theme, keeps navigation recoverable and sections history-backed", async ({
+  test("offers no appearance section, and keeps navigation recoverable and sections history-backed", async ({
     page,
   }) => {
-    await gotoFixture(page, "/settings?section=appearance");
-
-    // THEME-01 — appearance is no longer device-local: the choice is stored on
-    // the owner record (the full picker is covered by `themes.spec.ts`).
-    await page.getByRole("button", { name: "Daly Light", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-theme",
-      "daly-light",
-    );
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-theme",
-      "daly-light",
-    );
-
-    await page.getByRole("button", { name: "Daly Dark", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-theme",
-      "daly-dark",
-    );
-    await expectNoAxeViolations(page);
-
-    await page
-      .getByRole("button", { name: "Match system", exact: true })
-      .click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
+    // M3-01 — DalyHub ships one generated light/dark pair and follows the
+    // operating system, so Settings has no Appearance section and the document
+    // carries no `data-theme` at all (ADR-074).
+    await gotoFixture(page, "/settings");
+    await expect(page.locator("html")).not.toHaveAttribute("data-theme", /./);
+    await expect(
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: "Appearance" }),
+    ).toHaveCount(0);
 
     const sectionNav = page.getByRole("navigation", {
       name: "Settings sections",
@@ -225,13 +209,6 @@ test.describe("SETTINGS-01A — application settings", () => {
     }
 
     await gotoFixture(page, "/settings");
-    await expectNoAxeViolations(page);
-    await gotoFixture(page, "/settings?section=appearance");
-    await page.getByRole("button", { name: "Daly Dark", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-theme",
-      "daly-dark",
-    );
     await expectNoAxeViolations(page);
 
     await page.setViewportSize({ width: 390, height: 844 });

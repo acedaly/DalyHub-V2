@@ -14,7 +14,7 @@
 /* Docked: reserve space on the right so content reflows and is never covered. */
 @media (min-width: 48.0625rem) {
   .dh-inspector-layout[data-inspector-open="true"][data-compact="false"] {
-    padding-right: var(--dh-inspector-width, 25rem);
+    padding-right: var(--app-inspector-width, 25rem);
   }
 }
 
@@ -23,15 +23,17 @@
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: var(--dh-z-drawer);
+  z-index: var(--app-z-drawer);
   display: flex;
   flex-direction: column;
-  width: var(--dh-inspector-width, 25rem);
+  width: var(--app-inspector-width, 25rem);
   max-width: 100vw;
-  background: var(--dh-color-surface-raised);
-  border-left: var(--dh-border-width-thin) solid var(--dh-color-border);
-  box-shadow: var(--dh-shadow-lg);
-  animation: dh-inspector-in var(--dh-duration-base) var(--dh-ease-emphasized);
+  background: var(--md-app-color-surface-raised);
+  border-left: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-3);
+  animation: dh-inspector-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized);
 }
 
 .dh-inspector__resize {
@@ -46,7 +48,7 @@
 }
 .dh-inspector__resize:hover,
 .dh-inspector__resize:focus-visible {
-  background: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
   outline: none;
 }
 
@@ -54,9 +56,10 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-4);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border-bottom: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-inspector__heading {
@@ -65,58 +68,63 @@
 
 .dh-inspector__title {
   margin: 0;
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .dh-inspector__description {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-inspector__close {
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-touch-target-min);
-  min-height: var(--dh-touch-target-min);
-  border-radius: var(--dh-radius-sm);
+  min-width: var(--app-touch-target-min);
+  min-height: var(--app-touch-target-min);
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
   flex: none;
 }
 .dh-inspector__close:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-inspector__body {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
 }
 
 .dh-inspector__footer {
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  background: var(--dh-color-surface);
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  padding: var(--app-space-3) var(--app-space-4);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-inspector-scrim {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-overlay);
+  z-index: var(--app-z-overlay);
   border: 0;
   padding: 0;
-  background: var(--dh-color-overlay);
-  animation: dh-inspector-scrim-in var(--dh-duration-base)
-    var(--dh-ease-standard);
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+  animation: dh-inspector-scrim-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
   cursor: pointer;
 }
 
@@ -129,13 +137,13 @@
   width: 100%;
   max-width: 100%;
   height: min(85vh, 40rem);
-  z-index: var(--dh-z-modal);
+  z-index: var(--app-z-modal);
   border-left: 0;
-  border-top-left-radius: var(--dh-radius-lg);
-  border-top-right-radius: var(--dh-radius-lg);
+  border-top-left-radius: var(--md-sys-shape-corner-large);
+  border-top-right-radius: var(--md-sys-shape-corner-large);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  animation: dh-inspector-sheet-in var(--dh-duration-base)
-    var(--dh-ease-emphasized);
+  animation: dh-inspector-sheet-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized);
 }
 
 @keyframes dh-inspector-in {

@@ -13,33 +13,33 @@
 .dh-capture-form {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 /* The resolved default capture parent / capture day — a statement, not a field.
  * It is shown, never hidden, so the user always knows where a capture lands. */
 .dh-capture-parent {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-capture-parent strong {
-  color: var(--dh-color-text);
-  font-weight: var(--dh-font-weight-semibold);
+  color: var(--md-sys-color-on-surface);
+  font-weight: 500;
 }
 
 .dh-capture-context {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  gap: var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-capture-context > .dh-entity-icon {
@@ -50,29 +50,29 @@
   min-inline-size: 0;
   flex: 1;
   overflow-wrap: anywhere;
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-capture-context__fixed {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-capture-context__remove {
-  min-block-size: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-2);
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--app-space-2);
   border: 0;
   background: transparent;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
   cursor: pointer;
 }
 
 .dh-capture-context-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -82,13 +82,13 @@
 .dh-capture-chips {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-capture-chips__label {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Chips WRAP rather than scroll: a hidden option the thumb has to discover by
@@ -96,35 +96,40 @@
 .dh-capture-chips__row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-capture-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-raised);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
   cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: background-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-capture-chip:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 /* Selected: aria-pressed (semantic) + accent border + weight — never colour alone. */
 .dh-capture-chip[aria-pressed="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
-  font-weight: var(--dh-font-weight-semibold);
-  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-primary);
 }
 
 .dh-capture-chip__icon {
@@ -139,18 +144,19 @@
 /*
  * Sticky within the sheet's scrolling body, so "Create" is always on screen —
  * including when the keyboard is open, because the sheet's own height already
- * subtracts `--dh-keyboard-inset`.
+ * subtracts `--app-keyboard-inset`.
  */
 .dh-capture-actions {
   position: sticky;
-  bottom: calc(-1 * var(--dh-space-4));
+  bottom: calc(-1 * var(--app-space-4));
   display: flex;
   justify-content: stretch;
-  margin: 0 calc(-1 * var(--dh-space-4)) calc(-1 * var(--dh-space-4));
-  padding: var(--dh-space-3) var(--dh-space-4);
-  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  background: var(--dh-color-surface-raised);
+  margin: 0 calc(-1 * var(--app-space-4)) calc(-1 * var(--app-space-4));
+  padding: var(--app-space-3) var(--app-space-4);
+  padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-raised);
 }
 
 .dh-capture-actions > * {
@@ -164,13 +170,13 @@
 .dh-capture-result {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-capture-result__message {
   margin: 0;
-  font-size: var(--dh-font-size-md);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
 
@@ -180,12 +186,12 @@
 .dh-capture-result__actions {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-capture-result__actions > * {
   inline-size: 100%;
-  min-block-size: var(--dh-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
   display: inline-flex;
   align-items: center;
   justify-content: center;

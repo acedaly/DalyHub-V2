@@ -36,12 +36,12 @@
 }
 
 .dh-note-print__title {
-  margin: 0 0 var(--dh-space-1);
+  margin: 0 0 var(--app-space-1);
   font-size: 1.6rem;
 }
 
 .dh-note-print__meta {
-  margin: 0 0 var(--dh-space-4);
+  margin: 0 0 var(--app-space-4);
   font-size: 0.85rem;
 }
 

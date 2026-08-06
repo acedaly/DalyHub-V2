@@ -20,9 +20,9 @@
  *     accessible name, so assistive tech reads the value, not the pixels;
  *   - the same value is ALWAYS present as visible text, so the meaning never
  *     depends on seeing the bar (AGENTS.md §15);
- *   - the fill uses `--dh-color-progress-fill` against `--dh-color-progress-track`,
+ *   - the fill uses `--app-color-progress-fill` against `--app-color-progress-track`,
  *     a pair the contrast test holds at 3:1 in every theme, and switches to
- *     `--dh-color-progress-complete` at 100% so "done" is not signalled by length
+ *     `--app-color-progress-complete` at 100% so "done" is not signalled by length
  *     alone.
  */
 

@@ -5,13 +5,12 @@
  * routes) in the application shell. Its loader runs on the server AFTER the Worker
  * boundary has authenticated the request, so it reads the validated session from
  * the trusted request context (never a client header) and derives the safe
- * display identity, the registry-driven navigation model and the persisted theme.
+ * display identity and the registry-driven navigation model.
  * The raw JWT never enters loader data.
  *
- * THEME-01 — the theme comes from the owner's preferences record here, not from the
- * cookie. The root layout reads this loader's `theme` in preference to its own
- * cookie fallback, so the authoritative value is on `<html data-theme>` in the first
- * byte of every authenticated document.
+ * M3-01 removed the theme this loader used to publish: DalyHub ships one
+ * generated light/dark pair selected by `prefers-color-scheme`, so there is
+ * nothing appearance-related left for the server to resolve (ADR-074).
  */
 
 import { Outlet } from "react-router";
@@ -43,12 +42,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   );
   return {
     email,
-    // THEME-01 — the STORED preference is the authority, so the theme follows the
-    // owner to any browser. It is already normalised against the theme registry by
-    // the kernel, so a value written by an older release (or naming a theme this
-    // release removed) has degraded to the default before it reaches the document.
-    // The root layout prefers this over the cookie mirror.
-    theme: preferences.theme,
     navigation: navigation.filter(
       (item) => !hiddenModuleIds.has(item.moduleId),
     ),
@@ -57,11 +50,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 export default function AppShellLayout({ loaderData }: Route.ComponentProps) {
   return (
-    <AppShell
-      email={loaderData.email}
-      theme={loaderData.theme}
-      navigation={loaderData.navigation}
-    >
+    <AppShell email={loaderData.email} navigation={loaderData.navigation}>
       <Outlet />
     </AppShell>
   );

@@ -27,7 +27,6 @@ import { useId } from "react";
 import type { ReactNode } from "react";
 
 import type { EntityType } from "~/shared/entity";
-import { Region } from "~/shared/region";
 import { PaneHeader } from "~/shared/shell/PaneHeader";
 import { CollectionSkeleton } from "~/shared/skeleton";
 
@@ -171,13 +170,9 @@ export function CollectionLayout({
        * definition of that surface. A record that embeds a reading column
        * nests its own Reading region inside, and the nearest wrapper wins.
        */}
-      <Region
-        density="collection"
-        className="dh-collection__content"
-        aria-busy={isLoading}
-      >
+      <div className="dh-collection__content" aria-busy={isLoading}>
         {content}
-      </Region>
+      </div>
 
       {selection ? (
         <div className="dh-collection__selection">{selection}</div>

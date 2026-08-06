@@ -12,7 +12,7 @@
  * `entities.type` (`area`, `goal`, …) — to presentation only. It imports no kernel
  * branded types, D1, workspaces or module code, so it stays a pure Design-System
  * concern that any layer can consume. The accent is referenced as a CSS custom
- * property (`--dh-entity-<type>-accent`, defined in tokens.css with light + dark
+ * property (`--app-entity-<type>-accent`, defined in tokens.css with light + dark
  * values); accents are used at IDENTITY sites only (icon, card edge, chip) — never
  * as text colour (PRODUCT_EXPERIENCE Part III §5).
  */
@@ -60,13 +60,17 @@ export interface EntityIdentity {
   readonly pluralLabel: string;
   /** The entity's outline icon component (from the shared icon set). */
   readonly Icon: ComponentType<IconProps>;
-  /** The CSS custom property carrying this type's accent (light + dark mapped). */
+  /** The CSS custom property carrying this type's accent, in both appearances. */
   readonly accentVar: string;
 }
 
-/** Build the `--dh-entity-<type>-accent` custom-property name for a type. */
+/** Build the `--md-sys-color-entity-<type>` custom-property name for a type.
+ *
+ * M3-01: the accent is a generated M3 custom colour, so it lives in the system
+ * colour namespace with the rest of the scheme and comes with a full
+ * `on-colour` / `container` / `on-container` quartet beside it (ADR-074). */
 export function entityAccentVar(type: EntityType): string {
-  return `--dh-entity-${type}-accent`;
+  return `--md-sys-color-entity-${type}`;
 }
 
 /** A CSS `var()` reference to the entity accent, for inline style consumption. */

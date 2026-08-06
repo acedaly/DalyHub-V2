@@ -22,14 +22,15 @@
 .dh-sheet-layer {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-drawer);
+  z-index: var(--app-z-drawer);
 }
 
 .dh-sheet__scrim {
   position: absolute;
   inset: 0;
-  background: var(--dh-color-overlay);
-  animation: dh-sheet-scrim-in var(--dh-duration-base) var(--dh-ease-standard);
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+  animation: dh-sheet-scrim-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-sheet {
@@ -40,15 +41,16 @@
   flex-direction: column;
   /* The keyboard inset is subtracted from the available height, so the panel is
    * bounded by the space actually visible rather than by the layout viewport. */
-  max-block-size: calc(92dvh - var(--dh-keyboard-inset, 0px));
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
-  border-top-left-radius: var(--dh-radius-xl);
-  border-top-right-radius: var(--dh-radius-xl);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-bottom: none;
-  box-shadow: var(--dh-shadow-lg);
-  animation: dh-sheet-in var(--dh-duration-base) var(--dh-ease-emphasized);
+  max-block-size: calc(92dvh - var(--app-keyboard-inset, 0px));
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  /* The M3 bottom sheet rounds its TOP corners only. */
+  border-top-left-radius: var(--md-sys-shape-corner-extra-large);
+  border-top-right-radius: var(--md-sys-shape-corner-extra-large);
+  border: none;
+  box-shadow: var(--md-sys-elevation-1);
+  animation: dh-sheet-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized);
 }
 
 /* The `full` variant is for longer capture flows, where a half sheet would make
@@ -56,9 +58,26 @@
 .dh-sheet[data-variant="full"] {
   top: 0;
   max-block-size: none;
-  block-size: calc(100dvh - var(--dh-keyboard-inset, 0px));
+  block-size: calc(100dvh - var(--app-keyboard-inset, 0px));
   border-radius: 0;
   border: none;
+}
+
+/* M3's drag handle: 32×4, `on-surface-variant` at 40%, centred in a 22px band
+ * above the header. Decorative — the sheet's real dismissals are the close
+ * button, Escape and the scrim. */
+.dh-sheet__handle {
+  flex: none;
+  align-self: center;
+  inline-size: 2rem;
+  block-size: 4px;
+  margin-block: var(--app-space-2) var(--app-space-1);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface-variant) 40%,
+    transparent
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -69,12 +88,13 @@
   flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-2);
-  padding: max(var(--dh-space-3), env(safe-area-inset-top)) var(--dh-space-4)
-    var(--dh-space-3);
-  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  gap: var(--app-space-2);
+  padding: max(var(--app-space-3), env(safe-area-inset-top)) var(--app-space-4)
+    var(--app-space-3);
+  padding-inline-start: max(var(--app-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-4), env(safe-area-inset-right));
+  border-bottom: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-sheet__heading {
@@ -84,16 +104,16 @@
 
 .dh-sheet__title {
   margin: 0;
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .dh-sheet__description {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-sheet__leading {
@@ -105,14 +125,14 @@
 .dh-sheet__leading-control {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-2);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-2);
   border: none;
   background: transparent;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
   cursor: pointer;
 }
 
@@ -127,18 +147,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-md);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-medium);
   background: transparent;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
   cursor: pointer;
 }
 
 .dh-sheet__close:hover {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -152,21 +176,22 @@
   /* Scrolling the sheet must never chain to the page behind the scrim. */
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: var(--dh-space-4);
-  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
+  padding: var(--app-space-4);
+  padding-inline-start: max(var(--app-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-4), env(safe-area-inset-right));
 }
 
 .dh-sheet__footer {
   flex: 0 0 auto;
   display: flex;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
-  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  background: var(--dh-color-surface-raised);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-4);
+  padding-inline-start: max(var(--app-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-4), env(safe-area-inset-right));
+  padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-raised);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -176,43 +201,48 @@
 .dh-sheet-options {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-sheet-option {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   inline-size: 100%;
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-raised);
-  color: var(--dh-color-text);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-raised);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
   text-align: start;
   cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: background-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-sheet-option:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-sheet-option[aria-pressed="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
 }
 
 .dh-sheet-option[aria-pressed="true"] .dh-sheet-option__label {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 
 .dh-sheet-option__icon {
   display: inline-flex;
   flex: none;
-  font-size: var(--dh-font-size-xl);
+  font-size: var(--md-sys-typescale-title-large-size);
   line-height: 0;
 }
 
@@ -221,16 +251,16 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
 .dh-sheet-option__label {
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .dh-sheet-option__description {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Selection is a check MARK (shape) as well as the pressed state — never colour
@@ -240,7 +270,7 @@
   inline-size: 1rem;
   display: inline-flex;
   justify-content: center;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -254,11 +284,12 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    inline-size: min(var(--dh-width-narrow), calc(100vw - var(--dh-space-8)));
+    inline-size: min(var(--app-width-narrow), calc(100vw - var(--app-space-8)));
     block-size: auto;
     max-block-size: min(85dvh, 48rem);
-    border-radius: var(--dh-radius-lg);
-    border: var(--dh-border-width-thin) solid var(--dh-color-border);
+    border-radius: var(--md-sys-shape-corner-large);
+    border: var(--app-border-width-thin) solid
+      var(--md-sys-color-outline-variant);
     animation-name: dh-sheet-dialog-in;
   }
 }

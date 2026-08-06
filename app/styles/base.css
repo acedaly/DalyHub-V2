@@ -1,11 +1,12 @@
 /*
- * DS-01 — base document styles, expressed entirely in design tokens.
+ * M3-01 — base document styles, expressed entirely in design tokens.
  *
  * The minimal, un-opinionated foundation every page sits on: box-sizing, the
- * body type/colour, the focus ring, reduced-motion behaviour, and the small set
- * of generic content classes the shell pages use (`.page`, `.home`,
- * `.module-placeholder`, `.markdown-content`). No raw hex/px/duration appears
- * here — only `var(--dh-*)` tokens from tokens.css.
+ * body type/colour, the focus indicator, the shared M3 STATE LAYER, the
+ * reduced-motion behaviour, and the small set of generic content classes the
+ * shell pages use (`.page`, `.home`, `.module-placeholder`,
+ * `.markdown-content`). No raw hex/px/duration appears here — only tokens from
+ * tokens.css.
  */
 
 *,
@@ -32,27 +33,80 @@ body {
  * guessed. `0px` on desktop, where the bar does not exist. */
 html {
   scroll-padding-block-end: calc(
-    var(--dh-bottomnav-height, 0px) + var(--dh-space-2)
+    var(--app-bottomnav-height, 0px) + var(--app-space-2)
   );
 }
 
 body {
-  background: var(--dh-color-surface-page);
-  color: var(--dh-color-text);
-  font-family: var(--dh-font-sans);
-  font-size: var(--dh-font-size-base);
-  line-height: var(--dh-line-height-normal);
+  background: var(--md-app-color-surface-page);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Always-visible, high-contrast focus ring for keyboard users (WCAG 2.2 AA;
- * AGENTS.md §15). The token pair meets the 3:1 non-text contrast requirement in
- * both themes. */
+/*
+ * The focus indicator: M3's 2px primary outline, offset so it reads as a ring
+ * around the component rather than as part of it (WCAG 2.2 AA, AGENTS.md §15).
+ * `primary` clears 3:1 against every surface the ring is drawn over, in both
+ * schemes — asserted in `test/unit/tokens/contrast.test.ts` rather than assumed.
+ *
+ * `border-radius` is deliberately NOT set here: an outline follows the element's
+ * own corner radius, so a fully-rounded button gets a fully-rounded ring and a
+ * text field gets a 4px one, with nothing to keep in sync.
+ */
 :focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
-  border-radius: var(--dh-radius-xs);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The M3 state layer                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * An interactive M3 component does not swap its container colour on hover; it
+ * grows a translucent layer of its own CONTENT colour on top of whatever it is
+ * already painted with. That is why one implementation covers a filled button, a
+ * tonal button, a navigation row, a list row, a chip and a menu item alike —
+ * `currentColor` is already the right colour on every one of them.
+ *
+ * Stated ONCE, here, and applied by adding `.md-state-layer` to a component.
+ * Requirements on the host: it establishes a containing block (the class sets
+ * `position: relative` unless the component already positions itself) and it
+ * carries its own `border-radius`, which the layer inherits.
+ */
+.md-state-layer {
+  position: relative;
+}
+
+.md-state-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+.md-state-layer:hover::after {
+  opacity: var(--md-sys-state-hover-state-layer-opacity);
+}
+
+.md-state-layer:active::after {
+  opacity: var(--md-sys-state-pressed-state-layer-opacity);
+}
+
+/* A disabled component has no states at all — the M3 disabled treatment (12%
+ * container, 38% content) replaces them. */
+.md-state-layer:disabled::after,
+.md-state-layer[aria-disabled="true"]::after {
+  opacity: 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -82,47 +136,55 @@ body {
   select,
   textarea
 ) {
-  min-block-size: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-3);
+  min-block-size: var(--app-control-height-md);
+  padding: var(--app-space-1) var(--app-space-3);
   font: inherit;
-  font-size: var(--dh-font-size-base);
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-field);
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-raised);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 :where(select) {
   /* A select keeps its native disclosure arrow (drawing our own would break the
    * platform picker on touch); the inline-end inset just stops the value text
    * colliding with it. */
-  padding-inline-end: var(--dh-space-2);
+  padding-inline-end: var(--app-space-2);
   cursor: pointer;
 }
 
 :where(textarea) {
-  padding-block: var(--dh-space-2);
-  line-height: var(--dh-line-height-normal);
+  padding-block: var(--app-space-2);
+  line-height: 1.5;
   resize: vertical;
 }
 
 :where(input, select, textarea)::placeholder {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 :where(input, select, textarea):disabled {
-  color: var(--dh-color-disabled-text);
-  background: var(--dh-color-disabled-surface);
-  border-color: var(--dh-color-disabled-border);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
   cursor: not-allowed;
 }
 
 /* Selection and toggle controls take the accent so they are unmistakably the
  * product's, and a 44px target on touch is provided by their labels/cells. */
 :where(input[type="checkbox"], input[type="radio"]) {
-  accent-color: var(--dh-color-accent);
-  inline-size: var(--dh-space-5);
-  block-size: var(--dh-space-5);
+  accent-color: var(--md-sys-color-primary);
+  inline-size: var(--app-space-5);
+  block-size: var(--app-space-5);
   cursor: pointer;
 }
 
@@ -136,7 +198,7 @@ body {
  * themes. Zero specificity, so every existing link treatment still wins.
  */
 :where(a) {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 /* Honour the user's reduced-motion preference: motion never carries meaning that
@@ -145,9 +207,9 @@ body {
   *,
   *::before,
   *::after {
-    animation-duration: var(--dh-duration-instant) !important;
+    animation-duration: var(--md-sys-motion-duration-none) !important;
     animation-iteration-count: 1 !important;
-    transition-duration: var(--dh-duration-instant) !important;
+    transition-duration: var(--md-sys-motion-duration-none) !important;
     scroll-behavior: auto !important;
   }
 }
@@ -186,55 +248,56 @@ body {
 /* -------------------------------------------------------------------------- */
 
 .page {
-  max-width: var(--dh-width-narrow);
+  max-width: var(--app-width-narrow);
   margin-inline: auto;
-  padding: clamp(var(--dh-space-6), 5vw, var(--dh-space-16)) var(--dh-gutter);
+  padding: clamp(var(--app-space-6), 5vw, var(--app-space-16)) var(--app-gutter);
 }
 
 .page h1 {
-  font-size: var(--dh-font-size-2xl);
-  line-height: var(--dh-line-height-tight);
-  letter-spacing: var(--dh-letter-spacing-tight);
-  margin: 0 0 var(--dh-space-2);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--app-space-2);
 }
 
 .page h2,
 .dh-pane-body h2 {
-  font-size: var(--dh-font-size-lg);
-  line-height: var(--dh-line-height-snug);
-  margin: var(--dh-space-6) 0 var(--dh-space-2);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: 1.35;
+  margin: var(--app-space-6) 0 var(--app-space-2);
 }
 
 .lead {
-  font-size: var(--dh-font-size-md);
-  color: var(--dh-color-text-secondary);
-  margin: 0 0 var(--dh-space-4);
+  font-size: var(--md-sys-typescale-body-large-size);
+  color: var(--md-sys-color-on-surface-variant);
+  margin: 0 0 var(--app-space-4);
 }
 
 .muted {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .page a,
 .dh-pane-body a {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 .page ul,
 .dh-pane-body ul {
-  padding-left: var(--dh-space-5);
-  margin: 0 0 var(--dh-space-4);
+  padding-left: var(--app-space-5);
+  margin: 0 0 var(--app-space-4);
 }
 
 .page li,
 .dh-pane-body li {
-  margin-bottom: var(--dh-space-1);
+  margin-bottom: var(--app-space-1);
 }
 
 .page hr {
   border: none;
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider);
-  margin: var(--dh-space-8) 0;
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  margin: var(--app-space-8) 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -253,76 +316,74 @@ body {
  * it is not allowed to make it look implemented.
  */
 .dh-coming-soon {
-  margin-top: var(--dh-space-6);
-  padding: var(--dh-space-6);
-  max-width: var(--dh-width-narrow);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  margin-top: var(--app-space-6);
+  padding: var(--app-space-6);
+  max-width: var(--app-width-narrow);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
 }
 
 .dh-coming-soon__title {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
-  margin: 0 0 var(--dh-space-3);
+  gap: var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
+  margin: 0 0 var(--app-space-3);
 }
 
 .dh-coming-soon__label {
-  font-weight: var(--dh-font-weight-medium);
-  margin: 0 0 var(--dh-space-2);
+  font-weight: 500;
+  margin: 0 0 var(--app-space-2);
 }
 
 pre {
   overflow-x: auto;
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-sm);
+  padding: var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .home-modules {
-  padding-left: var(--dh-space-5);
+  padding-left: var(--app-space-5);
 }
 
-/* The shared Markdown sink (FND-08) inherits the token typography; DS-01 gives
- * it a readable measure and restrained rhythm without changing its behaviour. */
 /*
- * DS-14 §4 — the READING COLUMN.
+ * M3-01 — the shared Markdown sink (FND-08), and the product's ONE prose
+ * treatment.
  *
- * `MarkdownContent` carries `data-density="reading"`, so the preset's values are
- * resolved on this element itself; this is where they are spent. It is the one
- * place in the product that takes the serif, and it takes it only for the BODY:
- * headings, code and the chrome around the column stay sans, so the boundary
- * between "something you read" and "something you operate" is visible.
+ * DS-14 gave prose its own serif inside a `Reading` region; ADR-074 decision 6
+ * retired both. Prose is now the plain typeface at `body-large` on a 65ch
+ * measure — one decision, applied everywhere long-form text renders, with no
+ * region wrapper to declare and no second family to load.
  *
- * The measure supersedes `--dh-width-prose` (68ch) with `--dh-width-reading`
- * (46ch): a shorter measure wants a taller line and a serif at 16px wants both,
- * which is why the three values are one decision rather than three (ADR-068
- * decision 3).
+ * The boundary between "something you read" and "something you operate" is now
+ * carried by SIZE and MEASURE rather than by a typeface: prose is `body-large`
+ * on a capped column, and the chrome around it is `label-large` and
+ * `body-medium` at full width.
  */
 .markdown-content {
-  max-inline-size: var(--dh-density-measure, var(--dh-width-prose));
-  font-family: var(--dh-density-body-family, inherit);
-  font-size: var(--dh-density-body-size, inherit);
-  line-height: var(--dh-density-line-height, var(--dh-line-height-relaxed));
+  max-inline-size: var(--app-width-prose);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
 }
 
 /*
- * A heading inside the column is CHROME — it labels the prose rather than being
- * it — so it stays sans and steps down in weight, and it gets its space from the
- * rhythm rather than from a browser default.
+ * A heading inside the column labels the prose rather than being it, so it steps
+ * onto the title styles and gets its space from the rhythm rather than from a
+ * browser default.
  */
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--dh-font-sans);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
-  margin-block: var(--dh-space-6) var(--dh-space-2);
+  font-family: var(--md-ref-typeface-plain);
+  font-weight: 500;
+  line-height: 1.35;
+  margin-block: var(--app-space-6) var(--app-space-2);
 }
 
 .markdown-content :is(h1, h2, h3, h4, h5, h6):first-child {
@@ -330,17 +391,17 @@ pre {
 }
 
 .markdown-content h1 {
-  font-size: var(--dh-font-size-xl);
+  font-size: var(--md-sys-typescale-title-large-size);
 }
 .markdown-content h2 {
-  font-size: var(--dh-font-size-lg);
+  font-size: var(--md-sys-typescale-title-medium-size);
 }
 .markdown-content :is(h3, h4, h5, h6) {
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .markdown-content p {
-  margin-block: 0 var(--dh-space-4);
+  margin-block: 0 var(--app-space-4);
 }
 
 .markdown-content > :last-child {
@@ -352,36 +413,36 @@ pre {
  * three-sided shape is the malformed corner the rule exists to prevent. */
 .markdown-content blockquote {
   margin-inline: 0;
-  margin-block: var(--dh-space-4);
-  padding-inline-start: var(--dh-space-4);
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-divider-subtle);
-  color: var(--dh-color-text-secondary);
+  margin-block: var(--app-space-4);
+  padding-inline-start: var(--app-space-4);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .markdown-content :is(ul, ol) {
-  margin-block: 0 var(--dh-space-4);
-  padding-inline-start: var(--dh-space-5);
+  margin-block: 0 var(--app-space-4);
+  padding-inline-start: var(--app-space-5);
 }
 
 .markdown-content li + li {
-  margin-block-start: var(--dh-space-1);
+  margin-block-start: var(--app-space-1);
 }
 
 .markdown-content hr {
-  margin-block: var(--dh-space-6);
+  margin-block: var(--app-space-6);
   border: none;
-  border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .markdown-content a {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 /* Code is sans-adjacent chrome inside prose: monospace, and never the serif. */
 .markdown-content :is(code, pre) {
-  font-family: var(--dh-font-mono);
+  font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
 }
 
@@ -392,22 +453,22 @@ pre {
   display: block;
   overflow-x: auto;
   max-inline-size: 100%;
-  margin-block: var(--dh-space-4);
+  margin-block: var(--app-space-4);
   border-collapse: collapse;
-  font-family: var(--dh-font-sans);
-  font-size: var(--dh-font-size-compact);
-  line-height: var(--dh-line-height-dense);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
 
 .markdown-content :is(th, td) {
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border-block-end: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+  padding: var(--app-space-2) var(--app-space-3);
+  border-block-end: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   text-align: start;
 }
 
 .markdown-content th {
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }

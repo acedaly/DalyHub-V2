@@ -27,9 +27,9 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { gotoFixture, postSameOrigin } from "./helpers";
+import { gotoFixture } from "./helpers";
 
 const OUT = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -53,25 +53,16 @@ test.beforeAll(() => {
   mkdirSync(OUT, { recursive: true });
 });
 
-/** Store the owner's theme through the real, validated preferences action. */
-async function storeTheme(page: Page, themeId: string): Promise<void> {
-  const response = await postSameOrigin(page.request, "/preferences/theme", {
-    form: { theme: themeId },
-    maxRedirects: 0,
-  });
-  expect(response.status()).toBeGreaterThanOrEqual(300);
-  expect(response.status()).toBeLessThan(400);
-}
-
 test.describe("BRAND-01 — the in-application identity", () => {
-  test("captures the desktop sidebar in both Daly themes", async ({ page }) => {
+  test("captures the desktop sidebar in both appearances", async ({ page }) => {
     test.slow();
     await page.setViewportSize(DESKTOP);
 
-    for (const themeId of ["daly-light", "daly-dark"] as const) {
-      await storeTheme(page, themeId);
+    // M3-01 — appearance belongs to the operating system, so the capture
+    // emulates the scheme rather than storing a preference (ADR-074).
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
       await gotoFixture(page, "/today");
-      await expect(page.locator("html")).toHaveAttribute("data-theme", themeId);
 
       const banner = page.getByRole("banner");
       await expect(banner.getByText("DalyHub")).toBeVisible();
@@ -79,20 +70,20 @@ test.describe("BRAND-01 — the in-application identity", () => {
       // The rail alone, cropped: the identity is the subject, not the page.
       await page
         .locator(".dh-sidebar--rail")
-        .screenshot({ path: join(OUT, `sidebar-${themeId}.png`) });
+        .screenshot({ path: join(OUT, `sidebar-${scheme}.png`) });
       await page.screenshot({
-        path: join(OUT, `shell-${themeId}.png`),
+        path: join(OUT, `shell-${scheme}.png`),
         fullPage: false,
       });
     }
 
-    await storeTheme(page, "daly-light");
+    await page.emulateMedia({ colorScheme: "light" });
   });
 
   test("captures the phone top bar and navigation sheet", async ({ page }) => {
     test.slow();
     await page.setViewportSize(IPHONE);
-    await storeTheme(page, "daly-light");
+    await page.emulateMedia({ colorScheme: "light" });
     await gotoFixture(page, "/today");
 
     await page.screenshot({ path: join(OUT, "mobile-top-bar.png") });
@@ -114,7 +105,7 @@ test.describe("BRAND-01 — the in-application identity", () => {
     // most needs to look like DalyHub rather than a browser error page.
     test.slow();
     await page.setViewportSize(DESKTOP);
-    await storeTheme(page, "daly-light");
+    await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/offline");
     await expect(
       page.getByRole("heading", { level: 1, name: "DalyHub offline" }),
@@ -124,25 +115,25 @@ test.describe("BRAND-01 — the in-application identity", () => {
       .screenshot({ path: join(OUT, "offline-header.png") });
   });
 
-  test("captures the full lockup on About, light and dark", async ({
+  test("captures the full lockup on About, in both appearances", async ({
     page,
   }) => {
     test.slow();
     await page.setViewportSize(DESKTOP);
 
-    for (const themeId of ["daly-light", "daly-dark"] as const) {
-      await storeTheme(page, themeId);
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
       await gotoFixture(page, "/about");
       // The wordmark and tagline are live text, so they are findable as text.
       await expect(page.getByText("Your life. Connected.")).toBeVisible();
       await page
         .locator(".dh-brand-lockup")
         .first()
-        .screenshot({ path: join(OUT, `lockup-${themeId}.png`) });
-      await page.screenshot({ path: join(OUT, `about-${themeId}.png`) });
+        .screenshot({ path: join(OUT, `lockup-${scheme}.png`) });
+      await page.screenshot({ path: join(OUT, `about-${scheme}.png`) });
     }
 
-    await storeTheme(page, "daly-light");
+    await page.emulateMedia({ colorScheme: "light" });
   });
 });
 
@@ -150,7 +141,7 @@ test.describe("BRAND-01 — the generated icon assets", () => {
   test("captures the icon review surface", async ({ page }) => {
     test.slow();
     await page.setViewportSize(DESKTOP);
-    await storeTheme(page, "daly-light");
+    await page.emulateMedia({ colorScheme: "light" });
     await gotoFixture(page, "/design/app-icon");
     await expect(
       page.getByRole("heading", { level: 1, name: "DalyHub app icon" }),

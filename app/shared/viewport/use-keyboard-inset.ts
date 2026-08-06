@@ -2,7 +2,7 @@
  * MOBILE-01 — the ONE Visual Viewport listener in DalyHub.
  *
  * Mounted exactly once, by the AppShell. It observes `window.visualViewport` and
- * publishes the resolved keyboard height as the `--dh-keyboard-inset` custom
+ * publishes the resolved keyboard height as the `--app-keyboard-inset` custom
  * property on `<html>`, so every keyboard-aware surface (the shared Sheet's
  * footer, the phone Drawer's sticky action region, the Meeting capture bar, the
  * bottom navigation) is styled purely in CSS against one token.

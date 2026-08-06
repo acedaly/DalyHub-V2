@@ -206,7 +206,7 @@ export function InspectorProvider({
         style={
           isOpen && !compact
             ? ({
-                ["--dh-inspector-width" as string]: `${resize.width}px`,
+                ["--app-inspector-width" as string]: `${resize.width}px`,
               } as React.CSSProperties)
             : undefined
         }

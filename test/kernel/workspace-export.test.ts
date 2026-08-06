@@ -306,7 +306,6 @@ async function seedWorkspace(): Promise<Seeded> {
   /* Owner preferences ------------------------------------------------------ */
   await preferences.update(OWNER, {
     timezone: "Australia/Sydney",
-    theme: "ember",
   });
 
   /* A SECOND workspace, whose records must never appear ------------------- */
@@ -367,7 +366,7 @@ describe("workspace export (D1)", () => {
   it("produces a snapshot that passes its own validation", () => {
     expect(validateWorkspaceSnapshot(snapshot)).toEqual([]);
     expect(() => assertValidWorkspaceSnapshot(snapshot)).not.toThrow();
-    expect(snapshot.meta.schemaVersion).toBe(1);
+    expect(snapshot.meta.schemaVersion).toBe(2);
     expect(snapshot.workspace.id).toBe(WS);
   });
 
@@ -572,7 +571,6 @@ describe("workspace export (D1)", () => {
 
   it("exports owner preferences but never the owner's subject identifier", () => {
     expect(snapshot.owner.preferences.timezone).toBe("Australia/Sydney");
-    expect(snapshot.owner.preferences.theme).toBe("ember");
     expect(JSON.stringify(snapshot.owner)).not.toContain(OWNER);
   });
 

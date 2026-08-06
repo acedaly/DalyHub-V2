@@ -17,12 +17,4 @@ export const settingsCommands: readonly CommandContribution[] = [
     kind: "navigate",
     target: { kind: "route", to: "/settings?section=date-time" },
   },
-  {
-    id: "settings.appearance",
-    title: "Change appearance",
-    subtitle: "System, Light and Dark",
-    keywords: ["theme", "appearance", "light", "dark", "system"],
-    kind: "navigate",
-    target: { kind: "route", to: "/settings?section=appearance" },
-  },
 ];

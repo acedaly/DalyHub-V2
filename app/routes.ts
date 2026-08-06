@@ -3,7 +3,7 @@
  *
  * Routes are composed from two sources, neither of which requires editing a
  * central per-module list (ADR-016 §5.9, §5.10):
- *   - shell-owned routes declared here (`/health`, the theme action, the app-shell
+ *   - shell-owned routes declared here (`/health` and the app-shell
  *     layout and the authenticated home index);
  *   - module-owned routes discovered automatically by globbing each module's
  *     declarative `routes.manifest.ts` and mapping the descriptors to framework
@@ -12,7 +12,7 @@
  * This file is evaluated by React Router's bare config loader, which cannot
  * resolve the `~` path alias, so it uses relative imports only; the route adapter
  * it calls uses type-only kernel imports (erased at build time) and the globbed
- * manifests are pure data. `/health` and the theme action stay OUTSIDE the shell
+ * manifests are pure data. `/health` stays OUTSIDE the shell
  * layout; everything under the pathless `app-shell` layout renders inside the
  * authenticated application shell. Adding a module route requires only a manifest
  * entry plus its module-owned route file — never a change to this file.
@@ -63,7 +63,6 @@ const devFixtureRoutes =
 
 export default [
   route("health", "routes/health.ts"),
-  route("preferences/theme", "routes/theme-action.ts"),
   // DS-08 global Search endpoint — a JSON resource route behind the Worker auth
   // boundary. It renders no shell, so it stays OUTSIDE the app-shell layout.
   route("search", "routes/search.ts"),

@@ -711,7 +711,6 @@ export function makeSnapshot(
         defaultTaskCaptureParentKind: null,
         defaultDiaryMode: "day",
         navigationConfig: { version: 1, hiddenModuleIds: [] },
-        theme: "daly-light",
         version: 3,
         createdAt: T(0),
         updatedAt: T(2),

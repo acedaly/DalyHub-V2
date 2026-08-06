@@ -34,10 +34,12 @@ function findById(
 describe("the real app/routes.ts composition", () => {
   const config = routeConfig as unknown as RouteConfigEntry[];
 
-  it("keeps /health and the theme action outside the shell layout", () => {
+  it("keeps /health outside the shell layout", () => {
+    // M3-01 deleted the theme action that used to sit beside it: there is no
+    // appearance preference left to write (ADR-074).
     const paths = config.map((entry) => entry.path);
     expect(paths).toContain("health");
-    expect(paths).toContain("preferences/theme");
+    expect(paths).not.toContain("preferences/theme");
   });
 
   it("nests the four spine module routes inside the app-shell layout", () => {

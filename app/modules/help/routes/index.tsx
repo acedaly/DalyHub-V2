@@ -19,8 +19,6 @@
  * follows (describe the product as it is, owner language, name what is missing).
  */
 
-import { Region } from "~/shared/region";
-
 import { resolveHelpTopicId, HELP_SECTIONS } from "../help-content";
 import type { HelpBlock, HelpTopic } from "../help-content";
 
@@ -119,9 +117,7 @@ function HelpTopicPanel({
      * the topic rather than on the page because the contents rail beside it is
      * a collection: one route, both presets, nearest wrapper wins.
      */
-    <Region
-      as="article"
-      density="reading"
+    <article
       className="dh-help__topic"
       id={topic.id}
       // A deep-linked topic is marked so it can be tinted AND named to a screen
@@ -140,7 +136,7 @@ function HelpTopicPanel({
       {topic.blocks.map((block, index) => (
         <HelpBlockBody key={index} block={block} />
       ))}
-    </Region>
+    </article>
   );
 }
 

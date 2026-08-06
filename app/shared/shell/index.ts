@@ -24,32 +24,16 @@ export {
 export { PrimaryNavigation } from "./PrimaryNavigation";
 export { SidebarBrand } from "./SidebarBrand";
 export { SidebarSearch } from "./SidebarSearch";
+export { CaptureFab } from "./CaptureFab";
 export { UserMenu, ACCESS_LOGOUT_PATH } from "./UserMenu";
 export {
   displayNameFromEmail,
   greetingNameFor,
   initialsFromName,
 } from "./identity-display";
-export {
-  ThemePicker,
-  ThemeQuickSwitch,
-  THEME_ACTION_PATH,
-} from "./ThemePicker";
-export { ThemePreview } from "./ThemePreview";
 export { MobileNav, MOBILE_NAV_ID } from "./MobileNav";
 export { ModulePlaceholder } from "./ModulePlaceholder";
 export {
   ModuleComingSoon,
   type ModuleComingSoonProps,
 } from "./ModuleComingSoon";
-export {
-  THEME_PREFERENCES,
-  DEFAULT_THEME,
-  THEME_COOKIE_NAME,
-  THEME_COOKIE_MAX_AGE,
-  isThemePreference,
-  parseThemePreference,
-  readThemePreference,
-  serializeThemeCookie,
-  type ThemePreference,
-} from "./theme";

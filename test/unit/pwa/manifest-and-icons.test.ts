@@ -41,6 +41,7 @@ import {
   markReach,
   maskableMarkScale,
 } from "../../../scripts/icons/geometry.mjs";
+import { DARK_SCHEME, LIGHT_SCHEME } from "~/shared/tokens";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
 
@@ -213,52 +214,26 @@ describe("the document metadata", () => {
     expect(rootTsx).toMatch(/name="application-name"/);
   });
 
-  it("declares a theme colour, deferring to the OS ONLY for `system`", () => {
-    // `system` is the one preference that genuinely defers the choice, so it is
-    // the one that emits a media pair. Every other theme is resolved server-side
-    // and gets a single value, because a media query there would let the OS
-    // contradict the owner's explicit choice — and would reintroduce the
-    // `prefers-color-scheme` that THEME-01's first-paint test forbids.
+  it("declares a theme colour for each scheme, and defers the choice to the OS", () => {
+    // M3-01: there is one generated light/dark pair and no stored preference, so
+    // the document always emits BOTH halves with a media attribute and lets the
+    // OS pick. Nothing here is resolved server-side any more (ADR-074).
     expect(rootTsx).toMatch(/name="theme-color"/);
     expect(rootTsx).toMatch(/media="\(prefers-color-scheme: light\)"/);
     expect(rootTsx).toMatch(/media="\(prefers-color-scheme: dark\)"/);
-    expect(rootTsx).toMatch(/theme === "system"/);
   });
 
-  it("keeps every theme's chrome colour equal to that theme's background", () => {
+  it("takes each scheme's chrome colour from the generated scheme data", () => {
     // `theme-color` is read before any stylesheet is parsed, so it cannot
-    // reference a custom property and the value has to be duplicated in
-    // `root.tsx`. This is the guard that stops the duplicate drifting from
-    // `tokens.css`, which is the source of truth.
-    const tokens = read("app/styles/tokens.css").toString("utf8");
-    const rootBackground = /^:root \{(?:[\s\S]*?)\n\}/m
-      .exec(tokens)?.[0]
-      .match(/--dh-color-surface-page:\s*([^;]+);/)?.[1]
-      .trim();
-    expect(rootBackground).toBeTruthy();
-
-    for (const theme of [
-      "daly-dark",
-      "modern-light",
-      "modern-dark",
-      "eucalypt",
-      "coastal",
-      "ember",
-    ]) {
-      const block = new RegExp(
-        `:root\\[data-theme="${theme}"\\]\\s*\\{([\\s\\S]*?)\\n\\}`,
-      ).exec(tokens)?.[1];
-      expect(block, `${theme} must exist in tokens.css`).toBeTruthy();
-      const background = block
-        ?.match(/--dh-color-surface-page:\s*([^;]+);/)?.[1]
-        ?.trim();
-      // A theme with no background of its own inherits `:root`'s.
-      const expected = background ?? rootBackground;
-      expect(
-        rootTsx,
-        `root.tsx must carry ${theme}'s chrome colour ${expected}`,
-      ).toContain(expected as string);
-    }
+    // reference a custom property. Rather than duplicating a hex in `root.tsx`
+    // and guarding the copy, the document imports the SAME generated module the
+    // stylesheet is written alongside — so there is nothing left to drift.
+    expect(rootTsx).toContain('from "./shared/tokens"');
+    expect(rootTsx).toContain('LIGHT_SCHEME["app-surface-page"]');
+    expect(rootTsx).toContain('DARK_SCHEME["app-surface-page"]');
+    expect(LIGHT_SCHEME["app-surface-page"]).not.toBe(
+      DARK_SCHEME["app-surface-page"],
+    );
   });
 
   it("keeps `viewport-fit=cover`, so safe-area insets resolve in standalone mode", () => {
@@ -569,7 +544,7 @@ describe("the icon assets", () => {
   it("keeps the gradient mark legible on both the lightest and darkest chrome", () => {
     // The in-app mark is drawn straight onto the page canvas with no tile, so
     // the gradient itself has to hold against the palettes DalyHub ships. These
-    // two are the extremes of `--dh-color-surface-page` across every theme.
+    // two are the extremes of `--md-app-color-surface-page` across both schemes.
     for (const canvas of ["#ecebe8", "#101215"]) {
       for (const colour of gradientRamp()) {
         expect(

@@ -30,6 +30,7 @@
 /** Every personalisable widget on the Today landing surface. Stable ids. */
 export const TODAY_WIDGET_IDS = [
   "morning-brief",
+  "task-summary",
   "my-day",
   "recent-activity",
   "diary",
@@ -40,6 +41,7 @@ export const TODAY_WIDGET_IDS = [
   "meetings",
   "assets",
   "insights",
+  "productivity",
   "quick-capture",
 ] as const;
 
@@ -121,6 +123,20 @@ export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
     description: "Greeting, date, focus and what needs attention right now.",
   },
   {
+    /*
+     * M3-01 — the day's tasks as one figure.
+     *
+     * It sits in the hero beside the brief because it answers the same question
+     * the brief asks in words ("how is today shaped?") with the one number a
+     * dashboard is for. Everything on it is derived from counts the loader had
+     * already read, so it costs no query.
+     */
+    id: "task-summary",
+    title: "Task summary",
+    column: "hero",
+    description: "Today's tasks as one figure: to do, waiting and done.",
+  },
+  {
     id: "my-day",
     title: "My day",
     column: "primary",
@@ -153,6 +169,20 @@ export const TODAY_WIDGETS: readonly TodayWidgetDefinition[] = [
     title: "Insights",
     column: "secondary",
     description: "Overdue, waiting, stalled and at-risk signals at a glance.",
+  },
+  {
+    /*
+     * M3-01 — one honest score for the day, from two facts.
+     *
+     * In the secondary column with the other summaries rather than in the hero:
+     * it is a reflection on the day, not an instruction for it, and the hero is
+     * where the day's instructions live.
+     */
+    id: "productivity",
+    title: "Productivity score",
+    column: "secondary",
+    description:
+      "A 0-100 score for the day, from completions and overdue work.",
   },
   {
     id: "quick-capture",

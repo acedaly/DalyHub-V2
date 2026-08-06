@@ -16,7 +16,7 @@
  *   - **Meaning is never colour.** `tone` only tints the value; the label always
  *     states what the number is.
  *   - **Touch-first.** Every card clears the shared 44px minimum target
- *     (`--dh-control-height-lg`) at every width, and the grid reflows from one
+ *     (`--app-control-height-lg`) at every width, and the grid reflows from one
  *     column upward with no horizontal scrolling (DS-11).
  *   - **No data fetching, no derivation.** Callers pass already-derived, already
  *     formatted values; this component only lays them out.

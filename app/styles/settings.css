@@ -15,32 +15,32 @@
   container-type: inline-size;
   display: block;
   width: 100%;
-  max-width: var(--dh-width-content);
+  max-width: var(--app-width-content);
 }
 
 .dh-settings__header {
-  margin-bottom: var(--dh-space-6);
+  margin-bottom: var(--app-space-6);
 }
 
 .dh-settings__title {
   margin: 0;
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-settings__description {
-  margin: var(--dh-space-2) 0 0;
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-normal);
-  color: var(--dh-color-text-secondary);
+  margin: var(--app-space-2) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-settings__groups {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 /* ---------------------------------------------------------------- group */
@@ -62,41 +62,41 @@
 .dh-settings-group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-5);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
+  gap: var(--app-space-3);
+  padding: var(--app-space-5);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
 }
 
 .dh-settings-group__header {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
-  padding-bottom: var(--dh-space-2);
+  gap: var(--app-space-1);
+  padding-bottom: var(--app-space-2);
 }
 
 .dh-settings-group__title {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-settings-group__title-icon {
   flex: none;
-  color: var(--dh-color-danger);
+  color: var(--md-sys-color-error);
 }
 
 .dh-settings-group__description {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-normal);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-settings-group__rows {
@@ -107,7 +107,8 @@
 /* Rows within a group are separated by hairlines, calm and consistent. The
    within-card separator token, now that the group is a card. */
 .dh-settings-group__rows > .dh-settings-row + .dh-settings-row {
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-divider-subtle);
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /* The dangerous region: visually separated by a bordered, tinted card — the
@@ -115,30 +116,30 @@
    colour alone. */
 .dh-settings-group--danger {
   gap: 0;
-  padding: var(--dh-space-4) var(--dh-space-5) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-danger);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-danger-surface);
+  padding: var(--app-space-4) var(--app-space-5) var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-error-container);
 }
 
 .dh-settings-group--danger .dh-settings-group__header {
-  border-bottom-color: var(--dh-color-danger);
-  margin-bottom: var(--dh-space-2);
+  border-bottom-color: var(--md-sys-color-error);
+  margin-bottom: var(--app-space-2);
 }
 
 .dh-settings-group--danger .dh-settings-group__title {
-  color: var(--dh-color-danger-text);
+  color: var(--md-sys-color-on-error-container);
 }
 
 .dh-settings-group--danger .dh-settings-group__description {
-  color: var(--dh-color-danger-text);
+  color: var(--md-sys-color-on-error-container);
 }
 
 .dh-settings-group--danger
   .dh-settings-group__rows
   > .dh-settings-row
   + .dh-settings-row {
-  border-top-color: var(--dh-color-danger);
+  border-top-color: var(--md-sys-color-error);
 }
 
 /* ---------------------------------------------------------------- row */
@@ -148,8 +149,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3) var(--dh-space-5);
-  padding: var(--dh-space-4) 0;
+  gap: var(--app-space-3) var(--app-space-5);
+  padding: var(--app-space-4) 0;
 }
 
 .dh-settings-row--align-start {
@@ -159,32 +160,32 @@
 .dh-settings-row__text {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
   /* Grow but allow wrapping; a floor keeps the control from being crushed. */
   flex: 1 1 16rem;
 }
 
 .dh-settings-row__label {
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface);
   /* Long labels wrap; never clip. */
   overflow-wrap: anywhere;
 }
 
 .dh-settings-row__description {
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-normal);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-settings-row__control {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
   /* The control area may shrink but keeps a usable minimum before stacking. */
   flex: 0 1 auto;
@@ -197,22 +198,22 @@
 }
 
 .dh-settings-row__status {
-  font-size: var(--dh-font-size-xs);
-  line-height: var(--dh-line-height-normal);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .dh-settings-row__status--neutral {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 .dh-settings-row__status--success {
-  color: var(--dh-color-success-text);
+  color: var(--md-sys-color-on-success-container);
 }
 .dh-settings-row__status--warning {
-  color: var(--dh-color-warning-text);
+  color: var(--md-sys-color-on-warning-container);
 }
 .dh-settings-row__status--danger {
-  color: var(--dh-color-danger-text);
+  color: var(--md-sys-color-on-error-container);
 }
 
 /* Narrow containers (e.g. a Drawer or a 320px phone) stack the row cleanly so the
@@ -221,7 +222,7 @@
   .dh-settings-row {
     flex-direction: column;
     align-items: stretch;
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
   .dh-settings-row__control {
     width: 100%;
@@ -239,10 +240,10 @@
   position: relative;
   width: 2.75rem;
   min-width: 2.75rem;
-  height: var(--dh-touch-target-min);
+  height: var(--app-touch-target-min);
   margin: 0;
   padding: 0;
-  border-radius: var(--dh-radius-full);
+  border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
   cursor: pointer;
 }
@@ -254,9 +255,10 @@
   inset: 50% 0 auto 0;
   transform: translateY(-50%);
   height: 1.5rem;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-border-strong);
-  transition: background var(--dh-duration-fast) var(--dh-ease-standard);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+  transition: background var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-settings-switch::after {
@@ -267,14 +269,15 @@
   transform: translateY(-50%);
   width: 1.2rem;
   height: 1.2rem;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-on-accent);
-  box-shadow: var(--dh-shadow-sm);
-  transition: left var(--dh-duration-fast) var(--dh-ease-standard);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-on-primary);
+  box-shadow: var(--md-sys-elevation-1);
+  transition: left var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-settings-switch:checked::before {
-  background: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
 }
 
 .dh-settings-switch:checked::after {
@@ -283,7 +286,9 @@
 
 .dh-settings-switch:focus-visible {
   outline: none;
-  box-shadow: var(--dh-shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-settings-switch:disabled {
@@ -293,67 +298,84 @@
 
 /* A native select skin, for an immediate select in a row. */
 .dh-settings-select {
-  min-height: var(--dh-control-height-md);
+  min-height: var(--app-control-height-md);
   max-width: 100%;
-  padding: 0 var(--dh-space-3);
+  padding: 0 var(--app-space-3);
   font-family: inherit;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-card);
   /* A form control's boundary is what identifies it, so it uses the 3:1
    * `control-border` token rather than the decorative border (WCAG 1.4.11). */
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-md);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
 }
 
 .dh-settings-select:focus-visible {
   outline: none;
-  border-color: var(--dh-color-accent);
-  box-shadow: var(--dh-shadow-focus);
+  border-color: var(--md-sys-color-primary);
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-settings-select:disabled {
   cursor: not-allowed;
-  color: var(--dh-color-disabled-text);
-  background: var(--dh-color-disabled-surface);
-  border-color: var(--dh-color-disabled-border);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
 }
 
 /* The destructive button on a dangerous-action row. */
 .dh-settings-danger-button {
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-4);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-4);
   font-family: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-danger-text);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-danger);
-  border-radius: var(--dh-radius-md);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-error-container);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
+  border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
-  transition: background var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: background var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-settings-danger-button:hover:not(:disabled) {
-  background: var(--dh-color-danger-surface);
+  background: var(--md-sys-color-error-container);
 }
 
 .dh-settings-danger-button:focus-visible {
   outline: none;
-  box-shadow: var(--dh-shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-settings-danger-button:disabled {
   cursor: not-allowed;
-  color: var(--dh-color-disabled-text);
-  border-color: var(--dh-color-disabled-border);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
 }
 
 @media (hover: none), (pointer: coarse) {
   .dh-settings-select,
   .dh-settings-danger-button {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -362,15 +384,15 @@
 .dh-confirm-root {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-modal);
+  z-index: var(--app-z-modal);
   display: grid;
   place-items: center;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   /* Respect the mobile safe area so the dialog is never under a system bar. */
-  padding: max(var(--dh-space-4), env(safe-area-inset-top))
-    max(var(--dh-space-4), env(safe-area-inset-right))
-    max(var(--dh-space-4), env(safe-area-inset-bottom))
-    max(var(--dh-space-4), env(safe-area-inset-left));
+  padding: max(var(--app-space-4), env(safe-area-inset-top))
+    max(var(--app-space-4), env(safe-area-inset-right))
+    max(var(--app-space-4), env(safe-area-inset-bottom))
+    max(var(--app-space-4), env(safe-area-inset-left));
 }
 
 .dh-confirm-scrim {
@@ -378,146 +400,164 @@
   inset: 0;
   border: none;
   padding: 0;
-  background: var(--dh-color-overlay);
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
   cursor: default;
-  animation: dh-confirm-scrim-in var(--dh-duration-fast) var(--dh-ease-standard);
+  animation: dh-confirm-scrim-in var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-confirm {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   width: min(28rem, 100%);
   max-height: 100%;
   overflow-y: auto;
-  padding: var(--dh-space-5);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-xl);
-  box-shadow: var(--dh-shadow-lg);
-  animation: dh-confirm-in var(--dh-duration-base) var(--dh-ease-emphasized);
+  padding: var(--app-space-5);
+  background: var(--md-app-color-surface-raised);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-extra-large);
+  box-shadow: var(--md-sys-elevation-3);
+  animation: dh-confirm-in var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-emphasized);
 }
 
 .dh-confirm--danger {
-  border-top: var(--dh-border-width-thick) solid var(--dh-color-danger);
+  border-top: var(--app-border-width-thick) solid var(--md-sys-color-error);
 }
 
 .dh-confirm__title {
   margin: 0;
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-confirm__body {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-relaxed);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.65;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-confirm__typed {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-confirm__typed-label {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-confirm__phrase {
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-xs);
-  padding: 0 var(--dh-space-1);
-  border-radius: var(--dh-radius-xs);
-  background: var(--dh-color-surface-sunken);
-  color: var(--dh-color-text);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  padding: 0 var(--app-space-1);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-confirm__input {
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
   font-family: inherit;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .dh-confirm__input:focus-visible {
   outline: none;
-  border-color: var(--dh-color-accent);
-  box-shadow: var(--dh-shadow-focus);
+  border-color: var(--md-sys-color-primary);
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-confirm__error {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-normal);
-  color: var(--dh-color-danger-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-error-container);
 }
 
 .dh-confirm__actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--dh-space-2);
-  margin-top: var(--dh-space-2);
+  gap: var(--app-space-2);
+  margin-top: var(--app-space-2);
 }
 
 .dh-confirm__button {
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-4);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-4);
   font-family: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  border-radius: var(--dh-radius-md);
-  border: var(--dh-border-width-thin) solid transparent;
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid transparent;
   cursor: pointer;
 }
 
 .dh-confirm__button:focus-visible {
   outline: none;
-  box-shadow: var(--dh-shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
 }
 
 .dh-confirm__button--cancel {
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface);
-  border-color: var(--dh-color-border);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-card);
+  border-color: var(--md-sys-color-outline-variant);
 }
 
 .dh-confirm__button--cancel:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-confirm__button--confirm {
-  color: var(--dh-color-on-accent);
-  background: var(--dh-color-accent);
+  color: var(--md-sys-color-on-primary);
+  background: var(--md-sys-color-primary);
 }
 
 .dh-confirm__button--danger {
-  color: var(--dh-color-on-accent);
-  background: var(--dh-color-danger);
+  color: var(--md-sys-color-on-primary);
+  background: var(--md-sys-color-error);
 }
 
 .dh-confirm__button:disabled {
   cursor: not-allowed;
-  color: var(--dh-color-disabled-text);
-  background: var(--dh-color-disabled-surface);
-  border-color: var(--dh-color-disabled-border);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
 }
 
 @media (max-width: 30rem) {
   .dh-confirm {
     width: 100%;
-    padding: var(--dh-space-4);
-    border-radius: var(--dh-radius-lg);
+    padding: var(--app-space-4);
+    border-radius: var(--md-sys-shape-corner-large);
   }
 
   .dh-confirm__actions {
@@ -526,14 +566,14 @@
 
   .dh-confirm__button {
     flex: 1 1 100%;
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
 @media (hover: none), (pointer: coarse) {
   .dh-confirm__input,
   .dh-confirm__button {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -573,42 +613,48 @@
 .dh-settings-page {
   display: grid;
   grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr);
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   width: 100%;
-  max-width: var(--dh-width-wide);
-  padding: var(--dh-space-6);
+  max-width: var(--app-width-wide);
+  padding: var(--app-space-6);
   margin: 0 auto;
 }
 
 .dh-settings-page__nav {
   position: sticky;
-  top: var(--dh-space-6);
+  top: var(--app-space-6);
   align-self: start;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-settings-page__nav-link {
   display: flex;
   align-items: center;
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
-  border-radius: var(--dh-radius-md);
-  color: var(--dh-color-text-secondary);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-medium);
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
 }
 
 .dh-settings-page__nav-link:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-hover-surface);
+  color: var(--md-sys-color-on-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-settings-page__nav-link:focus-visible {
   outline: none;
-  box-shadow: var(--dh-shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--md-app-color-surface-card),
+    0 0 0 4px var(--md-sys-color-primary);
 }
 
 /* THEME-02 — the settings section list is navigation, so it uses the shared
@@ -616,38 +662,38 @@
  * still carried by more than colour: the link is a real `aria-current` target and
  * keeps its stronger weight. */
 .dh-settings-page__nav-link--active {
-  color: var(--dh-color-nav-selected-text);
-  background: var(--dh-color-nav-selected-surface);
-  font-weight: var(--dh-font-weight-semibold);
+  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-secondary-container);
+  font-weight: 500;
 }
 
 .dh-settings-page__content {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   min-width: 0;
 }
 
 .dh-settings-page__header {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-settings-page__title {
   margin: 0;
-  font-size: var(--dh-font-size-xl);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-tight);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-title-large-size);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-settings-page__description {
   max-width: 44rem;
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-normal);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-settings-page__inline-form {
@@ -660,32 +706,32 @@
 }
 
 .dh-settings-page__text-value {
-  min-height: var(--dh-control-height-md);
+  min-height: var(--app-control-height-md);
   display: inline-flex;
   align-items: center;
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
 }
 
 @media (max-width: 48rem) {
   .dh-settings-page {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--dh-space-5);
-    padding: var(--dh-space-4);
+    gap: var(--app-space-5);
+    padding: var(--app-space-4);
   }
 
   .dh-settings-page__nav {
     position: static;
     flex-direction: row;
     overflow-x: auto;
-    padding-bottom: var(--dh-space-1);
+    padding-bottom: var(--app-space-1);
     scrollbar-width: thin;
   }
 
   .dh-settings-page__nav-link {
     flex: 0 0 auto;
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -705,7 +751,7 @@
   .dh-settings-row {
     flex-direction: column;
     align-items: stretch;
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-settings-row__control {
@@ -719,7 +765,7 @@
   .dh-settings-row__control .dh-combobox,
   .dh-settings-row__control .dh-btn {
     inline-size: 100%;
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 
   /* A switch stays its natural size and aligns to the start of the stacked row
@@ -732,11 +778,11 @@
   /* The destructive region keeps its clear separation on a phone: the border and
    * the heading do the work, so it is never just "the last row". */
   .dh-settings-group--danger {
-    padding-inline: var(--dh-space-4);
+    padding-inline: var(--app-space-4);
   }
 
   /* Clear the phone bottom navigation. */
   .dh-settings-page {
-    padding-bottom: calc(var(--dh-space-6) + var(--dh-bottomnav-height, 0px));
+    padding-bottom: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
   }
 }

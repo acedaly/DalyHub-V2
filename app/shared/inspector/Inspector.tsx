@@ -110,7 +110,7 @@ export function Inspector({
         ref={containerRef}
         className="dh-inspector"
         data-compact={compact ? "true" : "false"}
-        style={{ ["--dh-inspector-width" as string]: `${resize.width}px` }}
+        style={{ ["--app-inspector-width" as string]: `${resize.width}px` }}
         role={compact ? "dialog" : undefined}
         aria-modal={compact ? true : undefined}
         aria-labelledby={titleId}

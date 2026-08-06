@@ -85,7 +85,7 @@ export interface DrawerRenderResult {
    * Use it for the record's PRIMARY commitment (Save, Complete, Add) so it stays
    * reachable without scrolling a long record to its end. The region is
    * keyboard-aware: it sits above the on-screen keyboard via the shared
-   * `--dh-keyboard-inset` token and above the home indicator via the safe-area
+   * `--app-keyboard-inset` token and above the home indicator via the safe-area
    * inset, so it can never cover the field being typed into.
    *
    * It is NOT a place for secondary or destructive actions — those stay in the

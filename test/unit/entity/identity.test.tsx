@@ -19,7 +19,7 @@ describe("PX-02 entity identity map", () => {
       expect(identity.label.length).toBeGreaterThan(0);
       expect(identity.pluralLabel.length).toBeGreaterThan(0);
       expect(typeof identity.Icon).toBe("function");
-      expect(identity.accentVar).toBe(`--dh-entity-${type}-accent`);
+      expect(identity.accentVar).toBe(`--md-sys-color-entity-${type}`);
     }
   });
 
@@ -52,8 +52,8 @@ describe("PX-02 entity identity map", () => {
     expect(isEntityType("nonsense")).toBe(false);
     expect(getEntityIdentity("task")?.label).toBe("Task");
     expect(getEntityIdentity("nonsense")).toBeNull();
-    expect(entityAccentVar("goal")).toBe("--dh-entity-goal-accent");
-    expect(entityAccent("goal")).toBe("var(--dh-entity-goal-accent)");
+    expect(entityAccentVar("goal")).toBe("--md-sys-color-entity-goal");
+    expect(entityAccent("goal")).toBe("var(--md-sys-color-entity-goal)");
   });
 });
 
@@ -65,7 +65,7 @@ describe("PX-02 EntityIcon", () => {
     expect(wrapper).toHaveAttribute("data-entity", "project");
     // Accent applied via inline colour so the SVG stroke follows it.
     expect((wrapper as HTMLElement).style.color).toContain(
-      "--dh-entity-project-accent",
+      "--md-sys-color-entity-project",
     );
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();

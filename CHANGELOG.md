@@ -19,6 +19,42 @@ no version number to group them under.
 
 ## Unreleased
 
+### Changed — DalyHub has a new look, and it follows your device
+
+- **A new visual design, end to end.** Every surface in DalyHub has been rebuilt
+  on **Material Design 3**: rounded cards that lift off the page, fully-rounded
+  buttons, chips instead of pills, outlined text fields, a navigation drawer with
+  a filled pill on the row you are on, and a floating **+** button for capture on
+  every screen. Nothing moved and nothing was removed — the same pages, the same
+  actions, in a clearer language.
+- **One light look and one dark one, chosen by your device.** DalyHub used to
+  offer seven themes. It now has a single, confident blue design with a light
+  appearance and a dark one, and it follows your phone or computer: set your
+  device to dark and DalyHub is dark, immediately and everywhere. There is
+  nothing to pick, which is why **Settings → Appearance** is gone.
+  - If you had chosen a theme, that choice no longer applies. This is the one
+    thing this release takes away, and it is deliberate: one design that is
+    proven correct in both appearances is worth more than seven that each needed
+    proving separately.
+- **A new typeface.** All text is now Roboto Flex — one family for everything,
+  including long-form notes and diary entries, which previously used a separate
+  serif. It is a third of the size of the two fonts it replaces, so pages paint
+  sooner, especially on a slow connection.
+- **New icons.** The whole icon set is now Material Symbols. Every icon means
+  what it meant before; they are simply drawn in the same language as the rest of
+  the interface.
+- **Two new cards on Today.** A **Task summary** ring beside your morning brief
+  shows the day at a glance — to do, waiting and done — with links to the tasks
+  behind each figure. A **Productivity score** card gives the day a single 0–100
+  number, and tells you exactly what it is made of: tasks you finished today,
+  reduced by how far the plan has slipped. It caps that penalty deliberately —
+  five overdue tasks and fifty score the same — because past a point a number
+  stops being information and starts being a telling-off.
+- **Everything stays as reachable as it was.** Contrast, keyboard operation,
+  focus rings, 44px touch targets and reduced-motion support are unchanged and
+  still checked automatically — now in both appearances rather than across seven
+  themes.
+
 ### Added — a Meeting can now propose Notes, and its Tasks land where they belong
 
 - **A Task you accept from a Meeting is now a real meeting follow-up.** Accepting

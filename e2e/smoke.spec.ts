@@ -40,27 +40,15 @@ test.describe("PX-02 authenticated app frame (development auth)", () => {
       ).toBeVisible();
     }
 
-    // Identity, theme and sign-out now live behind the user menu, not the header.
+    // Identity and sign-out live behind the user menu, not in the header.
+    // M3-01: there is no theme choice to make here any more — DalyHub ships one
+    // generated light/dark pair and follows the operating system (ADR-074).
     await expect(page.getByText("owner@example.invalid")).toBeHidden();
     const userMenu = page.getByRole("button", { name: /owner/i });
     await userMenu.click();
     await expect(page.getByText("owner@example.invalid")).toBeVisible();
 
-    // THEME-01 — the quick switch offers the curated themes by name, and the
-    // choice is persisted on the owner record, so it survives a full reload.
-    await page.getByRole("button", { name: "Daly Dark", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-theme",
-      "daly-dark",
-    );
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-theme",
-      "daly-dark",
-    );
-
     // Sign out is an ordinary link to the Cloudflare-managed endpoint.
-    await page.getByRole("button", { name: /owner/i }).click();
     await expect(page.getByRole("link", { name: /sign out/i })).toHaveAttribute(
       "href",
       "/cdn-cgi/access/logout",

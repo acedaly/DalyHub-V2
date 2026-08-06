@@ -13,9 +13,7 @@ function renderMenu(props: Partial<Parameters<typeof UserMenu>[0]> = {}) {
   const Stub = createRoutesStub([
     {
       path: "/",
-      Component: () => (
-        <UserMenu email="owner@example.com" theme="system" {...props} />
-      ),
+      Component: () => <UserMenu email="owner@example.com" {...props} />,
     },
     { path: "/settings", Component: () => <div>Settings page</div> },
   ]);
@@ -78,12 +76,10 @@ describe("PX-02 UserMenu — disclosure semantics (FIX 2)", () => {
     fireEvent.click(screen.getByRole("button", { name: /owner/i }));
     const panel = screen.getByRole("group", { name: "Account" });
 
-    const controls = [
-      ...within(panel).getAllByRole("button"),
-      ...within(panel).getAllByRole("link"),
-    ];
-    // Theme (System/Light/Dark) + Settings + Sign out are all reachable.
-    expect(controls.length).toBeGreaterThanOrEqual(5);
+    const controls = within(panel).getAllByRole("link");
+    // M3-01 removed the theme quick-switch (ADR-074 decision 5); Settings and
+    // Sign out remain, and both are reachable.
+    expect(controls.length).toBeGreaterThanOrEqual(2);
     for (const control of controls) {
       expect(control).not.toHaveAttribute("tabindex", "-1");
       control.focus();

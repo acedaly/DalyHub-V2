@@ -16,30 +16,30 @@
 .dh-asset-badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  background: var(--dh-color-surface-sunken);
-  color: var(--dh-color-text-muted);
+  gap: var(--app-space-1);
+  padding: var(--app-space-1) var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  background: var(--md-app-color-surface-sunken);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-badge--accent {
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-primary);
 }
 .dh-asset-badge--success {
-  background: var(--dh-color-success-surface);
-  color: var(--dh-color-success-text);
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
 }
 .dh-asset-badge--warning {
-  background: var(--dh-color-warning-surface);
-  color: var(--dh-color-warning-text);
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
 }
 .dh-asset-badge--danger {
-  background: var(--dh-color-danger-surface);
-  color: var(--dh-color-danger-text);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -49,28 +49,32 @@
 .dh-assets-views {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   flex-basis: 100%;
 }
 
 .dh-assets-views__link {
   display: inline-flex;
   align-items: center;
-  min-height: var(--dh-control-height-lg);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border-radius: var(--dh-radius-control);
-  color: var(--dh-color-text-muted);
+  min-height: var(--app-control-height-lg);
+  padding: var(--app-space-1) var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
 }
 
 .dh-assets-views__link:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-assets-views__link[aria-current="page"] {
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
-  font-weight: var(--dh-font-weight-semibold);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-primary);
+  font-weight: 500;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -80,7 +84,7 @@
 .dh-assets-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: end;
   inline-size: 100%;
 }
@@ -88,29 +92,29 @@
 .dh-assets-filters__field {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-inline-size: 0;
   flex: 1 1 10rem;
 }
 
 .dh-assets-filters__label {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-assets-filters select {
-  min-height: var(--dh-control-height-lg);
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-field);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  min-height: var(--app-control-height-lg);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
   max-inline-size: 100%;
 }
 
 .dh-assets-filters select:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -120,7 +124,7 @@
 
 .dh-asset-summary__head {
   display: flex;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: center;
 }
 
@@ -130,23 +134,23 @@
   justify-content: center;
   inline-size: 3.5rem;
   block-size: 3.5rem;
-  border-radius: var(--dh-radius-control);
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-primary);
   flex: none;
 }
 
 .dh-asset-summary__type {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
 }
 
 .dh-asset-summary__model {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-asset-summary__status {
-  margin-block-start: var(--dh-space-1);
+  margin-block-start: var(--app-space-1);
 }
 
 /*
@@ -157,28 +161,28 @@
  * IS carrying state and is always accompanied by the words.
  */
 .dh-asset-summary__next {
-  margin-block-start: var(--dh-space-3);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border-radius: var(--dh-radius-control);
-  border: var(--dh-border-width-thin) solid var(--dh-color-divider-subtle);
+  margin-block-start: var(--app-space-3);
+  padding: var(--app-space-2) var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: transparent;
 }
 
 .dh-asset-summary__next--overdue {
-  background: var(--dh-color-danger-surface);
-  color: var(--dh-color-danger-text);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
 }
 .dh-asset-summary__next--due_soon,
 .dh-asset-summary__next--today {
-  background: var(--dh-color-warning-surface);
-  color: var(--dh-color-warning-text);
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
 }
 
 .dh-asset-summary__facts {
   display: grid;
   grid-template-columns: minmax(6rem, auto) 1fr;
-  gap: var(--dh-space-1) var(--dh-space-3);
-  margin-block-start: var(--dh-space-4);
+  gap: var(--app-space-1) var(--app-space-3);
+  margin-block-start: var(--app-space-4);
 }
 
 .dh-asset-summary__fact {
@@ -186,7 +190,7 @@
 }
 
 .dh-asset-summary__fact dt {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-summary__fact dd {
@@ -197,22 +201,22 @@
 .dh-asset-summary__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   list-style: none;
-  margin: var(--dh-space-4) 0 0;
+  margin: var(--app-space-4) 0 0;
   padding: 0;
 }
 
 .dh-asset-summary__tag {
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
-  font-size: var(--dh-font-size-sm);
+  padding: var(--app-space-1) var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-primary);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-asset-summary__edit {
-  margin-block-start: var(--dh-space-4);
+  margin-block-start: var(--app-space-4);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -220,7 +224,7 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-asset-dates__empty {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-dates__list {
@@ -229,7 +233,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 /* A single-sided accent rule stays SQUARE — a rounded corner needs a border all
@@ -237,42 +241,43 @@
 .dh-asset-dates__row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
   align-items: baseline;
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-border);
+  padding: var(--app-space-2) var(--app-space-3);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-outline-variant);
   border-radius: 0;
   background: transparent;
 }
 
 .dh-asset-dates__row + .dh-asset-dates__row {
-  border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-asset-dates__row--overdue {
-  border-inline-start-color: var(--dh-color-danger);
+  border-inline-start-color: var(--md-sys-color-error);
 }
 .dh-asset-dates__row--due_soon,
 .dh-asset-dates__row--today {
-  border-inline-start-color: var(--dh-color-warning);
+  border-inline-start-color: var(--md-sys-color-warning);
 }
 .dh-asset-dates__row--future {
-  border-inline-start-color: var(--dh-color-accent);
+  border-inline-start-color: var(--md-sys-color-primary);
 }
 
 .dh-asset-dates__label {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   flex: 1 1 8rem;
 }
 
 .dh-asset-dates__value {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-dates__status {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -282,14 +287,14 @@
 .dh-asset-new {
   max-inline-size: 40rem;
   margin-inline: auto;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
 }
 
 .dh-asset-new__header {
   display: flex;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: center;
-  margin-block-end: var(--dh-space-4);
+  margin-block-end: var(--app-space-4);
 }
 
 .dh-asset-new__icon {
@@ -298,18 +303,18 @@
   justify-content: center;
   inline-size: 3rem;
   block-size: 3rem;
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-primary);
   flex: none;
 }
 
 .dh-asset-new__lede {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-not-found {
-  padding: var(--dh-space-6);
+  padding: var(--app-space-6);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -327,17 +332,17 @@
   .dh-asset-summary__facts {
     display: flex;
     flex-direction: column;
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-asset-summary__fact {
     display: flex;
     flex-direction: column;
-    gap: var(--dh-space-px);
+    gap: var(--app-space-px);
   }
 
   .dh-asset-summary__fact dt {
-    font-size: var(--dh-font-size-xs);
+    font-size: var(--md-sys-typescale-label-medium-size);
   }
 
   /* Long identifiers and links break rather than forcing the page wide. */
@@ -350,7 +355,7 @@
    * open an Asset on a phone at all. */
   .dh-asset-summary__next {
     display: block;
-    font-size: var(--dh-font-size-md);
+    font-size: var(--md-sys-typescale-body-large-size);
   }
 }
 
@@ -358,54 +363,54 @@
    ASSET-02 — history, obligations, meters, costs and value history.
 
    Every state colour resolves through the SHARED semantic state tokens
-   (`--dh-color-state-overdue-*`, `--dh-color-state-due-soon-*`, …), which each of
+   (`--app-color-state-overdue-*`, `--app-color-state-due-soon-*`, …), which each of
    the five themes already defines — so nothing here needs a per-theme override,
    and nothing here is the sole carrier of meaning: every state also renders its
    word ("Overdue", "Due soon", "Reading needed") in the markup.
    ========================================================================== */
 
 .dh-asset-badge--info {
-  background: var(--dh-color-info-surface);
-  color: var(--dh-color-info-text);
+  background: var(--md-sys-color-info-container);
+  color: var(--md-sys-color-on-info-container);
 }
 
 /* -- Progressive disclosure ------------------------------------------------ */
 
 .dh-asset-disclosure {
-  margin-block-start: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-card);
+  margin-block-start: var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-asset-disclosure > summary {
-  padding: var(--dh-space-3);
+  padding: var(--app-space-3);
   /* A comfortable, coarse-pointer-sized target for the disclosure toggle. */
-  min-height: var(--dh-control-height-lg);
+  min-height: var(--app-control-height-lg);
   display: flex;
   align-items: center;
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
   cursor: pointer;
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .dh-asset-disclosure > summary:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
 .dh-asset-disclosure__body {
-  padding: 0 var(--dh-space-3) var(--dh-space-3);
+  padding: 0 var(--app-space-3) var(--app-space-3);
 }
 
 /* -- The overview's "next obligation" line -------------------------------- */
 
 .dh-asset-next {
-  margin-block-start: var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border-radius: var(--dh-radius-control);
-  border: var(--dh-border-width-thin) solid var(--dh-color-divider-subtle);
+  margin-block-start: var(--app-space-3);
+  padding: var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: transparent;
 }
 
@@ -414,33 +419,33 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-asset-next__title {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
   /* Long registration and serial values must wrap, never widen the page. */
   overflow-wrap: anywhere;
 }
 
 .dh-asset-next__text,
 .dh-asset-next__meta {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-asset-next__meta {
-  margin: var(--dh-space-2) 0 0;
+  margin: var(--app-space-2) 0 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-asset-summary__tasks {
-  margin-block-start: var(--dh-space-2);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  margin-block-start: var(--app-space-2);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* -- Obligations ----------------------------------------------------------- */
@@ -450,51 +455,51 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  margin-block-end: var(--dh-space-4);
+  gap: var(--app-space-3);
+  margin-block-end: var(--app-space-4);
 }
 
 .dh-asset-obligations__filter,
 .dh-asset-history__filter {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  gap: var(--app-space-1);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-obligations__filter select,
 .dh-asset-history__filter select {
-  min-height: var(--dh-control-height-lg);
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-field);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  min-height: var(--app-control-height-lg);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   /* Never wider than its column at 320px. */
   max-width: 100%;
 }
 
 .dh-asset-obligations__filter select:focus-visible,
 .dh-asset-history__filter select:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
 .dh-asset-obligations__group {
-  margin-block-end: var(--dh-space-5);
+  margin-block-end: var(--app-space-5);
 }
 
 .dh-asset-obligations__heading {
-  margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-semibold);
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-obligations__count {
-  font-weight: var(--dh-font-weight-regular);
+  font-weight: 400;
 }
 
 .dh-asset-obligations__list {
@@ -503,18 +508,18 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-asset-obligation {
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
   /* Stacks on a phone; side-by-side once there is room for both. */
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 @media (min-width: 40rem) {
@@ -535,33 +540,33 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-asset-obligation__name {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-asset-obligation__meta,
 .dh-asset-obligation__description,
 .dh-asset-obligation__task {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-asset-obligation__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   /* Thumb-sized targets on a phone, where these are the primary controls. */
   align-items: center;
 }
 
 .dh-asset-obligations__clear {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -- History --------------------------------------------------------------- */
@@ -569,12 +574,12 @@
 .dh-asset-history__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  margin-block-end: var(--dh-space-3);
+  gap: var(--app-space-2);
+  margin-block-end: var(--app-space-3);
 }
 
 .dh-asset-history__bar {
-  margin-block-end: var(--dh-space-4);
+  margin-block-end: var(--app-space-4);
 }
 
 .dh-asset-history__list {
@@ -583,14 +588,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-asset-history__item {
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-asset-history__head {
@@ -598,40 +603,40 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  gap: var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-history__category {
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-asset-history__title {
-  margin: var(--dh-space-1) 0 0;
-  font-weight: var(--dh-font-weight-semibold);
+  margin: var(--app-space-1) 0 0;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-asset-history__facts,
 .dh-asset-history__description,
 .dh-asset-history__links {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-asset-history__item-actions {
-  margin: var(--dh-space-2) 0 0;
+  margin: var(--app-space-2) 0 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-asset-history__more {
-  margin-block-start: var(--dh-space-3);
+  margin-block-start: var(--app-space-3);
   text-align: center;
 }
 
@@ -644,8 +649,8 @@
 .dh-asset-costs__row {
   display: flex;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  padding-block: var(--dh-space-1);
+  gap: var(--app-space-3);
+  padding-block: var(--app-space-1);
 }
 
 .dh-asset-costs__row dt,
@@ -660,41 +665,41 @@
 }
 
 .dh-asset-costs__row--total {
-  border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-border-subtle);
-  margin-block-start: var(--dh-space-1);
-  padding-block-start: var(--dh-space-2);
-  font-weight: var(--dh-font-weight-semibold);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  margin-block-start: var(--app-space-1);
+  padding-block-start: var(--app-space-2);
+  font-weight: 500;
 }
 
 .dh-asset-costs__caveat,
 .dh-asset-costs__mixed {
-  margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -- Value history --------------------------------------------------------- */
 
 .dh-asset-values__current {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
 }
 
 .dh-asset-values__current-label {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-values__current-amount {
-  font-weight: var(--dh-font-weight-semibold);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 .dh-asset-values__summary,
 .dh-asset-values__empty {
-  margin: 0 0 var(--dh-space-3);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: 0 0 var(--app-space-3);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-values__list {
@@ -703,20 +708,20 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-asset-values__point {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: baseline;
-  gap: var(--dh-space-1) var(--dh-space-3);
+  gap: var(--app-space-1) var(--app-space-3);
 }
 
 .dh-asset-values__date,
 .dh-asset-values__source {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-asset-values__amount {
@@ -732,18 +737,18 @@
   grid-column: 1 / -1;
   display: block;
   height: 0.375rem;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-sunken);
   overflow: hidden;
 }
 
 .dh-asset-values__bar-fill {
   display: block;
   height: 100%;
-  background: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
 }
 
 .dh-asset-complete__intro {
-  margin: 0 0 var(--dh-space-4);
-  color: var(--dh-color-text-muted);
+  margin: 0 0 var(--app-space-4);
+  color: var(--md-sys-color-on-surface-variant);
 }

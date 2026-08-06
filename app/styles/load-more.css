@@ -9,12 +9,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--dh-space-2);
-  margin-top: var(--dh-space-4);
+  gap: var(--app-space-2);
+  margin-top: var(--app-space-4);
 }
 
 .dh-load-more__error {
   margin: 0;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }

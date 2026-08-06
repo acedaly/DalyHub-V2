@@ -24,8 +24,8 @@
  *     and the same Activity.
  *
  * Keyboard and safe-area behaviour come from tokens: the bar sits above the phone
- * keyboard (`--dh-keyboard-inset`) and above the bottom navigation
- * (`--dh-bottomnav-height`), so it can never cover the field being typed into.
+ * keyboard (`--app-keyboard-inset`) and above the bottom navigation
+ * (`--app-bottomnav-height`), so it can never cover the field being typed into.
  * Enter submits — a one-line capture form's Enter should commit, not add a
  * newline.
  */

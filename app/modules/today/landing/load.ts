@@ -28,8 +28,11 @@ import { ownerCalendarIso } from "~/shared/datetime";
 import {
   briefFocusLine,
   deriveInsights,
+  deriveProductivityScore,
+  deriveTaskSummary,
   greetingFor,
   dayPartForHour,
+  productivityEncouragement,
 } from "./insights";
 import type {
   AreaHealthItem,
@@ -74,6 +77,15 @@ export interface TodayLandingFacts {
   readonly overdueCount: number;
   readonly inboxCount: number;
   readonly waitingCount: number;
+  /**
+   * Whether the counts above are TOTALS rather than floors.
+   *
+   * The planning read is bounded (see the route's `PLANNING_*_LIMIT`). Counting a
+   * bounded band is fine; computing a PROPORTION from two bounded bands is not,
+   * because the error is invisible. The two cards that show a fraction refuse to
+   * show one when this is false.
+   */
+  readonly countsComplete: boolean;
   readonly completedTodayCount: number;
   readonly activeProjectCount: number;
   readonly projectsNeedingAttentionCount: number;
@@ -439,6 +451,24 @@ export async function loadTodayLanding(
     goals: { goals },
     meetings,
     insights: { signals: deriveInsights(insightsInput) },
+    taskSummary: {
+      ...deriveTaskSummary(insightsInput),
+      dueTodayCount: facts.plannedTodayCount,
+      overdueCount: facts.overdueCount,
+      countsComplete: facts.countsComplete,
+    },
+    productivity: {
+      // A score is a proportion, so a bounded read cannot produce one honestly.
+      score: facts.countsComplete
+        ? deriveProductivityScore(insightsInput)
+        : null,
+      completedTodayCount: facts.completedTodayCount,
+      overdueCount: facts.overdueCount,
+      encouragement: productivityEncouragement(
+        deriveProductivityScore(insightsInput),
+        facts.completedTodayCount,
+      ),
+    },
     assets,
   };
 }

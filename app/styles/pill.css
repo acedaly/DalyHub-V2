@@ -1,67 +1,77 @@
 /*
- * DS-14 — the one pill vocabulary, and the Area identity mark.
+ * M3-01 — the one chip vocabulary, and the Area identity mark.
  *
- * Fully rounded at `--dh-radius-pill`, with a full border, because DS-14 only
- * rounds a corner that has a border all the way around it (brief §2). Sans on
- * both density presets — a pill is chrome, and chrome never takes the serif.
+ * A status pill is an M3 ASSIST CHIP: 32px tall, `corner-small` (chips are the
+ * one component M3 does not fully round — that is what distinguishes a chip from
+ * a button at a glance), `label-large`, on its role's container pair.
  *
- * Every tone is a surface/text token pair the theme invariant test holds at
- * 4.5:1 in all seven themes, so a pill cannot be added to a theme in a state
- * where its own label is unreadable on it.
+ * Every tone is a `container` / `on-container` pair from the generated scheme,
+ * which the contrast tests hold at 4.5:1 in BOTH appearances — so a chip cannot
+ * exist in a state where its own label is unreadable on it.
  */
 
 .dh-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-pill);
-  padding-block: 2px;
-  padding-inline: var(--dh-space-2);
-  font-family: var(--dh-font-sans);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-tight);
+  gap: var(--app-space-2);
+  min-block-size: 2rem;
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-small);
+  padding-inline: var(--app-space-2);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
   white-space: nowrap;
+  /* A chip that is also a link is still a CHIP: its container is the affordance,
+   * so the browser's link underline would be a second one saying the same thing
+   * — and an underline through a 32px tint reads as a defect rather than as an
+   * emphasis. Stated here because `base.css` gives every bare `<a>` an underline
+   * by default, which is right everywhere except inside a container like this. */
+  text-decoration: none;
 }
 
+/* The leading glyph is M3's 18px chip icon — the one place in the system where
+ * an icon is smaller than 20px, because a chip is only 32px tall. */
 .dh-pill__icon {
   display: inline-flex;
-  inline-size: 12px;
-  block-size: 12px;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
 }
 
 /* The ABSENCE state. Stated in the owner's words, on a neutral tint that reads as
- * "nothing here yet" rather than as a status. */
+ * "nothing here yet" rather than as a status — the one chip that keeps an
+ * outline, because a neutral fill alone would not read as a chip. */
 .dh-pill[data-tone="neutral"] {
-  background: var(--dh-color-pill-neutral-surface);
-  border-color: var(--dh-color-divider-subtle);
-  color: var(--dh-color-pill-neutral-text);
+  background: var(--md-sys-color-surface-container-high);
+  border-color: var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-pill[data-tone="accent"] {
-  background: var(--dh-color-accent-surface);
-  color: var(--dh-color-accent-text);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
 }
 
 .dh-pill[data-tone="success"] {
-  background: var(--dh-color-success-surface);
-  color: var(--dh-color-success-text);
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
 }
 
 .dh-pill[data-tone="warning"] {
-  background: var(--dh-color-warning-surface);
-  color: var(--dh-color-warning-text);
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
 }
 
 .dh-pill[data-tone="danger"] {
-  background: var(--dh-color-danger-surface);
-  color: var(--dh-color-danger-text);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
 }
 
 .dh-pill[data-tone="info"] {
-  background: var(--dh-color-info-surface);
-  color: var(--dh-color-info-text);
+  background: var(--md-sys-color-info-container);
+  color: var(--md-sys-color-on-info-container);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -78,66 +88,68 @@
   flex: none;
   inline-size: 8px;
   block-size: 8px;
-  border-radius: var(--dh-radius-pill);
+  border-radius: var(--md-sys-shape-corner-full);
 }
 
 .dh-area-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-pill);
-  padding-block: 2px;
-  padding-inline: var(--dh-space-2);
-  font-family: var(--dh-font-sans);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-tight);
+  gap: var(--app-space-2);
+  min-block-size: 2rem;
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-small);
+  padding-inline: var(--app-space-2);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .dh-area-dot[data-accent="1"] {
-  background: var(--dh-color-area-accent-1);
+  background: var(--md-sys-color-area-accent-1);
 }
 .dh-area-dot[data-accent="2"] {
-  background: var(--dh-color-area-accent-2);
+  background: var(--md-sys-color-area-accent-2);
 }
 .dh-area-dot[data-accent="3"] {
-  background: var(--dh-color-area-accent-3);
+  background: var(--md-sys-color-area-accent-3);
 }
 .dh-area-dot[data-accent="4"] {
-  background: var(--dh-color-area-accent-4);
+  background: var(--md-sys-color-area-accent-4);
 }
 .dh-area-dot[data-accent="5"] {
-  background: var(--dh-color-area-accent-5);
+  background: var(--md-sys-color-area-accent-5);
 }
 .dh-area-dot[data-accent="6"] {
-  background: var(--dh-color-area-accent-6);
+  background: var(--md-sys-color-area-accent-6);
 }
 
 .dh-area-pill[data-accent="1"] {
-  background: var(--dh-color-area-accent-1-surface);
-  color: var(--dh-color-area-accent-1-text);
+  background: var(--md-sys-color-area-accent-1-container);
+  color: var(--md-sys-color-on-area-accent-1-container);
 }
 .dh-area-pill[data-accent="2"] {
-  background: var(--dh-color-area-accent-2-surface);
-  color: var(--dh-color-area-accent-2-text);
+  background: var(--md-sys-color-area-accent-2-container);
+  color: var(--md-sys-color-on-area-accent-2-container);
 }
 .dh-area-pill[data-accent="3"] {
-  background: var(--dh-color-area-accent-3-surface);
-  color: var(--dh-color-area-accent-3-text);
+  background: var(--md-sys-color-area-accent-3-container);
+  color: var(--md-sys-color-on-area-accent-3-container);
 }
 .dh-area-pill[data-accent="4"] {
-  background: var(--dh-color-area-accent-4-surface);
-  color: var(--dh-color-area-accent-4-text);
+  background: var(--md-sys-color-area-accent-4-container);
+  color: var(--md-sys-color-on-area-accent-4-container);
 }
 .dh-area-pill[data-accent="5"] {
-  background: var(--dh-color-area-accent-5-surface);
-  color: var(--dh-color-area-accent-5-text);
+  background: var(--md-sys-color-area-accent-5-container);
+  color: var(--md-sys-color-on-area-accent-5-container);
 }
 .dh-area-pill[data-accent="6"] {
-  background: var(--dh-color-area-accent-6-surface);
-  color: var(--dh-color-area-accent-6-text);
+  background: var(--md-sys-color-area-accent-6-container);
+  color: var(--md-sys-color-on-area-accent-6-container);
 }
 
 /* Forced colours drop authored backgrounds entirely, which would erase both the
@@ -149,7 +161,7 @@
     border-color: CanvasText;
   }
   .dh-area-dot {
-    border: var(--dh-border-width-thin) solid CanvasText;
+    border: var(--app-border-width-thin) solid CanvasText;
     background: CanvasText;
   }
 }

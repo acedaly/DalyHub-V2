@@ -52,7 +52,6 @@ import { CAPTURE_TYPE_DESCRIPTORS, useCapture } from "~/shared/capture";
 import { useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { Region } from "~/shared/region";
 import {
   HealthIndicator,
   healthNeedsAttention,
@@ -101,6 +100,8 @@ import {
   InsightsWidget,
   MeetingsWidget,
   NotesWidget,
+  ProductivityWidget,
+  TaskSummaryWidget,
 } from "./landing/widgets";
 import { TodayWidget } from "./landing/TodayWidget";
 import { useTodayLayout } from "./landing/useTodayLayout";
@@ -1482,6 +1483,14 @@ export function TodayDashboard({
         );
       case "insights":
         return <InsightsWidget signals={insightSignals} />;
+      case "task-summary":
+        return landing ? (
+          <TaskSummaryWidget data={landing.taskSummary} />
+        ) : null;
+      case "productivity":
+        return landing ? (
+          <ProductivityWidget data={landing.productivity} />
+        ) : null;
       case "quick-capture":
         return captureBody;
       default:
@@ -1545,6 +1554,12 @@ export function TodayDashboard({
         return link("/meetings", "All meetings", count > 0);
       case "assets":
         return link("/assets", "All assets", count > 0);
+      case "task-summary":
+        return link(
+          "/tasks",
+          "All tasks",
+          (landing?.taskSummary.total ?? 0) > 0,
+        );
       case "diary":
         return link(
           "/diary",
@@ -1621,11 +1636,7 @@ export function TodayDashboard({
           counts, statuses and links. The preset supplies the 14px/1.4 body, the
           tabular figures, the 12px section gap, the 9px row padding and the
           hairline between every row; nothing here restates any of those. */}
-      <Region
-        density="collection"
-        className="dh-today"
-        data-hydrated={hydrated ? "true" : "false"}
-      >
+      <div className="dh-today" data-hydrated={hydrated ? "true" : "false"}>
         {/* Personalisation (TODAY-08): a calm "Customise" toggle reveals each
             widget’s move/pin/hide controls; the arrangement is remembered per device.
             Rendered only after hydration so the server markup stays stable. */}
@@ -1692,7 +1703,7 @@ export function TodayDashboard({
             ) : null}
           </div>
         ) : null}
-      </Region>
+      </div>
     </CollectionLayout>
   );
 }

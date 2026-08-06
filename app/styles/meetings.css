@@ -11,18 +11,18 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-meeting-item {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--dh-space-2) var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
-  background: var(--dh-color-surface-card);
+  gap: var(--app-space-2) var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-card);
 }
 
 .dh-meeting-item__body {
@@ -30,7 +30,7 @@
   min-inline-size: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 /* Wrap long item text without widening the page. */
@@ -41,26 +41,26 @@
 .dh-meeting-item__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   align-items: center;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-meeting-item__tag {
   display: inline-flex;
   align-items: center;
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
   min-block-size: 1.5rem;
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
 }
 
 .dh-meeting-item__actions {
   display: flex;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex: 0 0 auto;
 }
 
@@ -68,23 +68,23 @@
 .dh-follow-up-group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-follow-up-group__heading {
   display: flex;
   align-items: baseline;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-follow-up-group__count {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-regular);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 400;
 }
 
 .dh-follow-up-empty {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   margin: 0;
 }
 
@@ -94,17 +94,17 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-follow-up-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2) var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
+  gap: var(--app-space-2) var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
 }
 
 .dh-follow-up-row__title {
@@ -114,24 +114,24 @@
 }
 
 .dh-follow-up-row__state {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   white-space: nowrap;
 }
 
 .dh-meeting-attendees {
   list-style: none;
-  margin: 0 0 var(--dh-space-3);
+  margin: 0 0 var(--app-space-3);
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-meeting-attendee {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   flex-wrap: wrap;
 }
 
@@ -143,35 +143,39 @@
 /* a drawer or scrolling to a section's own add field.                          */
 /*                                                                             */
 /* Both insets are tokens, so nothing here measures anything:                   */
-/*   - `--dh-keyboard-inset` (the ONE shared Visual Viewport observer) keeps the */
+/*   - `--app-keyboard-inset` (the ONE shared Visual Viewport observer) keeps the */
 /*     bar above the phone keyboard rather than under it;                       */
-/*   - `--dh-bottomnav-height` keeps it above the phone navigation bar.         */
+/*   - `--app-bottomnav-height` keeps it above the phone navigation bar.         */
 /* Both are `0px` on desktop, where the bar simply pins to the viewport bottom. */
 /* -------------------------------------------------------------------------- */
 
 .dh-meeting-capturebar {
   position: fixed;
   inset-inline: 0;
-  bottom: calc(var(--dh-keyboard-inset, 0px) + var(--dh-bottomnav-height, 0px));
-  z-index: var(--dh-z-sticky);
+  bottom: calc(
+    var(--app-keyboard-inset, 0px) + var(--app-bottomnav-height, 0px)
+  );
+  z-index: var(--app-z-sticky);
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3) var(--dh-gutter);
-  padding-inline-start: max(var(--dh-gutter), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-gutter), env(safe-area-inset-right));
-  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  background: var(--dh-color-surface);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
-  box-shadow: var(--dh-shadow-md);
-  transition: bottom var(--dh-duration-fast) var(--dh-ease-standard);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-gutter);
+  padding-inline-start: max(var(--app-gutter), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-gutter), env(safe-area-inset-right));
+  padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
+  background: var(--md-app-color-surface-card);
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-2);
+  transition: bottom var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 /* When the keyboard is up the safe-area padding is meaningless (the home
  * indicator is covered by the keyboard), so it collapses and the bar sits flush
  * on top of the keyboard. */
 .dh-meeting-capturebar:focus-within {
-  padding-bottom: var(--dh-space-3);
+  padding-bottom: var(--app-space-3);
 }
 
 /* The four types WRAP rather than scroll: a capture type the user has to swipe
@@ -179,7 +183,7 @@
 .dh-meeting-capturebar__types {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-meeting-capturebar__type {
@@ -189,35 +193,39 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .dh-meeting-capturebar__type:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 /* Selected: aria-pressed (semantic) + accent border + weight — never colour
  * alone. */
 .dh-meeting-capturebar__type[aria-pressed="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
-  font-weight: var(--dh-font-weight-semibold);
-  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-primary);
 }
 
 .dh-meeting-capturebar__form {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-meeting-capturebar__input {
@@ -227,15 +235,15 @@
 
 .dh-meeting-capturebar__save {
   flex: none;
-  min-block-size: var(--dh-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
 }
 
 /* The live region reserves no space when empty, so an announcement never shifts
  * the input the user is typing into. */
 .dh-meeting-capturebar__status {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-meeting-capturebar__status:empty {
@@ -253,7 +261,7 @@
 .dh-record-section:has(~ .dh-meeting-capturebar),
 .record-layout:has(~ .dh-meeting-capturebar) {
   padding-bottom: calc(
-    9rem + var(--dh-bottomnav-height, 0px) + env(safe-area-inset-bottom)
+    9rem + var(--app-bottomnav-height, 0px) + env(safe-area-inset-bottom)
   );
 }
 
@@ -266,7 +274,7 @@
    * agenda, notes, then actions, decisions and outcomes. The workspace stack
    * already renders in that order; on a phone it tightens so more of it fits. */
   .dh-meeting-workspace {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   /* A meeting's detail list must never become a fixed-width two-column table on
@@ -277,7 +285,7 @@
 
   .dh-record-section dd {
     margin-inline-start: 0;
-    margin-block-end: var(--dh-space-2);
+    margin-block-end: var(--app-space-2);
     overflow-wrap: anywhere;
   }
 }

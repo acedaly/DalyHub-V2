@@ -324,7 +324,6 @@ export function validateWorkspaceSnapshot(
         "owner.preferences.timezone",
         preferences.timezone,
       );
-      requireNonEmptyString(c, "owner.preferences.theme", preferences.theme);
       if (typeof preferences.version !== "number") {
         c.add("owner.preferences.version", "must be a number");
       }

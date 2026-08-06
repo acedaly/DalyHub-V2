@@ -122,6 +122,47 @@ export interface MeetingsWidgetData {
   readonly remainingCount: number;
 }
 
+/**
+ * M3-01 — the Task summary widget payload.
+ *
+ * The three buckets a ring is drawn from, plus the priority breakdown the chip
+ * row states in words. Every figure is derived by `insights.ts` from facts the
+ * loader already read; nothing here costs a second query.
+ */
+export interface TaskSummaryWidgetData {
+  readonly toDo: number;
+  readonly inProgress: number;
+  readonly done: number;
+  readonly total: number;
+  /** `done / total`, already clamped to 0–1 by the derivation. */
+  readonly completedFraction: number;
+  /** Tasks committed to today, for the "Due today" chip. */
+  readonly dueTodayCount: number;
+  /** Tasks whose plan has slipped, for the "Overdue" chip. */
+  readonly overdueCount: number;
+  /**
+   * Whether the counts are totals rather than floors. The planning read is
+   * bounded; when a band came back at its bound the card states the counts it
+   * has and drops the ring, because a fraction of two bounded bands is a real
+   * division of the wrong numbers.
+   */
+  readonly countsComplete: boolean;
+}
+
+/**
+ * M3-01 — the Productivity score widget payload.
+ *
+ * The score, the inputs it was computed from, and the one honest line beneath
+ * it. The formula lives in `insights.ts` and is stated in full there.
+ */
+export interface ProductivityWidgetData {
+  /** `null` when the bounded planning read cannot support a proportion. */
+  readonly score: number | null;
+  readonly completedTodayCount: number;
+  readonly overdueCount: number;
+  readonly encouragement: string;
+}
+
 /** The Insights widget payload — calm operational signals. */
 export interface InsightsWidgetData {
   readonly signals: readonly InsightSignal[];
@@ -142,6 +183,8 @@ export interface TodayLandingData {
   readonly goals: GoalsWidgetData;
   readonly meetings: MeetingsWidgetData;
   readonly insights: InsightsWidgetData;
+  readonly taskSummary: TaskSummaryWidgetData;
+  readonly productivity: ProductivityWidgetData;
   readonly assets: import("~/kernel/assets").AssetsTodayData;
 }
 

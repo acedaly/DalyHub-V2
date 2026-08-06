@@ -6,7 +6,7 @@
  * (`TodayDashboard.tsx`), so every value below that sets rhythm, size or padding
  * reads it from the preset rather than choosing a number: the section gap, the
  * body size, the tabular figures and the row padding all arrive from
- * `data-density="collection"`.
+ * the collection typescale.
  *
  * DS-14's standing constraints, unchanged by POLISH-02:
  *   - each widget is a CARD on the tinted canvas — `surface-card`, a full
@@ -39,11 +39,11 @@
  * and no ragged whitespace at any width.
  *
  * Spacing is one scale, applied at three levels and nowhere else:
- *   region → region     `--dh-space-6` (24)
- *   card → card         `--dh-space-5` (20)
- *   inside a card       `--dh-space-3` (12), with `--dh-space-2` (8) for pairs
+ *   region → region     `--app-space-6` (24)
+ *   card → card         `--app-space-5` (20)
+ *   inside a card       `--app-space-3` (12), with `--app-space-2` (8) for pairs
  *
- * Layout and rhythm ONLY — every visual value is a DS-01 `var(--dh-*)` token, and
+ * Layout and rhythm ONLY — every visual value is a DS-01 `var(--app-*)` token, and
  * all real chrome (cards, empty state, pane header, drawer, progress meter) comes
  * from the shared components. No new colour, shadow or type treatment; no bespoke
  * visual language (AGENTS.md §9.8, PRODUCT_EXPERIENCE Part IV §10).
@@ -72,7 +72,7 @@
   container-name: today;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   min-inline-size: 0;
 }
 
@@ -94,7 +94,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   min-inline-size: 0;
 }
 
@@ -107,7 +107,7 @@
 .dh-today__column {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
   min-inline-size: 0;
 }
 
@@ -115,7 +115,7 @@
    grid — and at the primary column's gap a stack of them reads as loose rather
    than as a group. One step down the same scale, never a value of its own. */
 .dh-today__column--secondary {
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 /* The Customise toolbar row above the widgets. */
@@ -123,19 +123,19 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__hidden {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__hidden-label {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -143,16 +143,18 @@
 /* -------------------------------------------------------------------------- */
 
 /* The surface, border, radius and the preset's inset come from the shared
-   `.dh-region-card` primitive (`density.css`); this rule adds the widget's own
+   `.dh-region-card` primitive (`card.css`); this rule adds the widget’s own
    internal layout and its one hover response. */
 .dh-today-widget {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
   transition:
-    border-color var(--dh-duration-fast) var(--dh-ease-standard),
-    background-color var(--dh-duration-fast) var(--dh-ease-standard);
+    border-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
 }
 
 /*
@@ -165,13 +167,13 @@
  */
 @media (hover: hover) {
   .dh-today-widget:hover {
-    border-color: var(--dh-color-border-strong);
+    border-color: var(--md-sys-color-outline);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dh-today-widget {
-    transition-duration: var(--dh-duration-instant);
+    transition-duration: var(--md-sys-motion-duration-none);
   }
 }
 
@@ -184,14 +186,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2) var(--dh-space-3);
-  padding-block-start: var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
+  padding-block-start: var(--app-space-3);
 }
 
 /* Collapsed, the body is `hidden`, so the header would sit on the card's bare
    4px inset. It keeps its own breathing room instead. */
 .dh-today-widget[data-collapsed="true"] .dh-today-widget__header {
-  padding-block-end: var(--dh-space-3);
+  padding-block-end: var(--app-space-3);
 }
 
 .dh-today-widget__heading {
@@ -211,14 +213,14 @@
 .dh-today-widget__toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-control-height-sm);
+  gap: var(--app-space-2);
+  min-height: var(--app-control-height-sm);
   min-inline-size: 0;
   padding: 0;
   font: inherit;
-  font-size: var(--dh-font-size-base);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -237,7 +239,8 @@
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
   transform: rotate(90deg);
-  transition: transform var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: transform var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-today-widget__chevron[data-collapsed="true"] {
@@ -246,19 +249,19 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dh-today-widget__chevron {
-    transition-duration: var(--dh-duration-instant);
+    transition-duration: var(--md-sys-motion-duration-none);
   }
 }
 
 .dh-today-widget__count {
   font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-muted);
-  font-weight: var(--dh-font-weight-regular);
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 400;
 }
 
 .dh-today-widget__pin-flag {
-  color: var(--dh-color-accent-text);
-  font-weight: var(--dh-font-weight-regular);
+  color: var(--md-sys-color-primary);
+  font-weight: 400;
 }
 
 /* The section's one destination, pushed to the trailing edge of the header. */
@@ -269,10 +272,10 @@
 .dh-today-widget__link {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--dh-control-height-sm);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-accent-text);
+  min-block-size: var(--app-control-height-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-primary);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -283,59 +286,63 @@
 
 @media (hover: none) {
   .dh-today-widget__link {
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 }
 
 .dh-today-widget__controls {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-today-widget__control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-control-height-sm);
-  min-height: var(--dh-control-height-sm);
-  padding: 0 var(--dh-space-2);
+  min-width: var(--app-control-height-sm);
+  min-height: var(--app-control-height-sm);
+  padding: 0 var(--app-space-2);
   font: inherit;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
   cursor: pointer;
 }
 
 .dh-today-widget__control:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-today-widget__control:disabled {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
 .dh-today-widget__control[aria-pressed="true"] {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
-  border-color: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-color: var(--md-sys-color-primary);
 }
 
 @media (hover: none) {
   .dh-today-widget__control {
-    min-width: var(--dh-touch-target-min);
-    min-height: var(--dh-touch-target-min);
+    min-width: var(--app-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
 .dh-today-widget__body {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
-  padding-block-end: var(--dh-space-3);
+  gap: var(--app-space-3);
+  padding-block-end: var(--app-space-3);
   min-inline-size: 0;
 }
 
@@ -343,7 +350,8 @@
    state (the "Pinned" text in the heading names it too). It thickens ONE edge of
    the card's own full border; it is not a separate single-sided accent rule. */
 .dh-today-widget[data-pinned="true"] {
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-accent);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-primary);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -351,14 +359,19 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * The hero is the same card with more presence, and its presence comes from the
- * SURFACE RAMP rather than from an effect: `surface-raised` is the step above
- * `surface-card`, which every theme is required to keep at ΔL* ≥ 3 (a token test
- * enforces it), so the band separates itself from the columns beneath it in all
- * seven themes without a shadow, a gradient or a border colour of its own.
+ * The hero is the same card with more presence, and in M3 presence comes from
+ * ELEVATION rather than from climbing the surface ramp.
+ *
+ * DS-14 painted it `surface-raised`, which was the step ABOVE `surface-card` in
+ * that ramp. Under the M3 container ramp `surface-raised` is a higher-tone
+ * container, and in the light appearance a higher tone is DARKER — so the hero
+ * came out grey while the cards below it were white, which is the "a card is
+ * lighter than the page" rule broken on the product's most-visited screen. The
+ * card keeps its surface and takes elevation 2 instead: one step up from every
+ * other widget, in both appearances, with nothing to invert.
  */
 .dh-today-widget[data-variant="hero"] {
-  background: var(--dh-color-surface-raised);
+  box-shadow: var(--md-sys-elevation-2);
 }
 
 /* In the hero the widget's own title steps back to an eyebrow so the greeting
@@ -372,19 +385,19 @@
  * first principle is calm. Size, tracking and colour do the work instead.
  */
 .dh-today-widget[data-variant="hero"] .dh-today-widget__toggle {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wider);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
   min-inline-size: 0;
-  padding-block-start: var(--dh-space-1);
+  padding-block-start: var(--app-space-1);
 }
 
 /* Side by side once there is genuinely room for the rail beside the greeting —
@@ -393,51 +406,51 @@
 @container today (min-width: 58rem) {
   .dh-hero {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--dh-space-8);
+    gap: var(--app-space-8);
   }
 }
 
 .dh-hero__intro {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
 }
 
 .dh-hero__greeting {
   margin: 0;
-  font-size: var(--dh-font-size-2xl);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-tight);
-  letter-spacing: var(--dh-letter-spacing-tight);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
 }
 
 .dh-hero__date {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-hero__focus {
   margin: 0;
-  font-size: var(--dh-font-size-md);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The day's completion, bounded so it reads as a meter beside the text rather
    than as a rule across the whole band. */
 .dh-hero__progress {
-  margin-block-start: var(--dh-space-2);
+  margin-block-start: var(--app-space-2);
   max-inline-size: 22rem;
 }
 
 .dh-hero__capture {
   align-self: flex-start;
-  margin-block-start: var(--dh-space-2);
+  margin-block-start: var(--app-space-2);
 }
 
 /*
@@ -453,7 +466,7 @@
 .dh-hero__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
 }
 
@@ -478,31 +491,35 @@
   justify-content: center;
   gap: 2px;
   margin: 0;
-  padding: var(--dh-space-2) var(--dh-space-3);
-  min-block-size: var(--dh-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  min-block-size: var(--app-touch-target-min);
   min-inline-size: 0;
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
   color: inherit;
   text-decoration: none;
 }
 
 a.dh-hero__stat:hover {
-  background: var(--dh-color-hover-surface);
-  border-color: var(--dh-color-border-strong);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  border-color: var(--md-sys-color-outline);
 }
 
 .dh-hero__stat-value {
-  font-size: var(--dh-font-size-xl);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--md-sys-typescale-title-large-size);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  line-height: var(--dh-line-height-tight);
+  line-height: 1.2;
 }
 
 .dh-hero__stat-label {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
@@ -511,13 +528,13 @@ a.dh-hero__stat:hover {
    otherwise neutral tile — so the two rails cannot drift apart. The label always
    names the signal, so nothing depends on the colour. */
 .dh-hero__stat[data-tone="attention"] {
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-warning);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-warning);
 }
 
 .dh-hero__stat[data-tone="positive"] {
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-success);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-success);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -527,23 +544,23 @@ a.dh-hero__stat:hover {
 .dh-today__section {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 /* A quiet section label — xs, muted, medium weight. It is a heading for the
    outline and for assistive tech, not a loud UI header. */
 .dh-today__section-label {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-today__section-count {
   font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The section heading row: the quiet label, and the section's one trailing
@@ -554,7 +571,7 @@ a.dh-hero__stat:hover {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
   min-inline-size: 0;
 }
 
@@ -564,10 +581,10 @@ a.dh-hero__stat:hover {
 .dh-today__section-all {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--dh-control-height-sm);
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-accent-text);
+  min-block-size: var(--app-control-height-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-primary);
   text-decoration: none;
 }
 
@@ -577,14 +594,14 @@ a.dh-hero__stat:hover {
 
 @media (hover: none) {
   .dh-today__section-all {
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 }
 
 /* A completed focus task reads as done without relying on colour alone. */
 .dh-today__task--done .dh-card__title-text {
   text-decoration: line-through;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The roving task collection wraps several planning sections into ONE keyboard
@@ -593,24 +610,24 @@ a.dh-hero__stat:hover {
 .dh-today__tasklist {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 /* A visible, non-colour-only focus indication when a "Go to <section>" command
    moves focus to a section heading (programmatic focus is not always
    `:focus-visible`). */
 .dh-today__section-label:focus {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
-  border-radius: var(--dh-radius-xs);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 /* Emphasise the whole roving-focused row, in addition to the focused control's
    own ring, so the keyboard position is unmistakable. Not colour-only — it is a
    ring. */
 .dh-today__tasklist .dh-card:focus-within {
-  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
-  border-radius: var(--dh-radius-card);
+  box-shadow: 0 0 0 var(--app-border-width-thin) var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-corner-large);
 }
 
 /* TODAY-06: task cards are wrapped in the swipe container (which clips with
@@ -618,14 +635,14 @@ a.dh-hero__stat:hover {
    otherwise the inner card's ring would be clipped and the keyboard position
    lost. */
 .dh-today__tasklist .dh-card-swipe:focus-within {
-  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--dh-color-focus-ring);
+  box-shadow: 0 0 0 var(--app-border-width-thin) var(--md-sys-color-primary);
 }
 
 /* Completed today — a calm, collapsed disclosure. */
 .dh-today__completed > summary {
   cursor: pointer;
   list-style: revert;
-  min-block-size: var(--dh-control-height-sm);
+  min-block-size: var(--app-control-height-sm);
 }
 
 .dh-today__completed > summary::-webkit-details-marker {
@@ -633,7 +650,7 @@ a.dh-hero__stat:hover {
 }
 
 .dh-today__completed[open] > summary {
-  margin-block-end: var(--dh-space-2);
+  margin-block-end: var(--app-space-2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -642,10 +659,10 @@ a.dh-hero__stat:hover {
 
 /* DS-14 — the Collection preset's separator rule: a hairline between every row,
    and never before the first or after the last. The rows themselves are
-   `.dh-region-row`, so their padding and minimum target come from the preset. */
+   `.dh-region-row`, so their padding and minimum target come from the shared primitive. */
 .dh-today__waiting {
   list-style: none;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   padding: 0;
 }
 
@@ -656,43 +673,43 @@ a.dh-hero__stat:hover {
   gap: 2px;
   flex: 1;
   min-inline-size: 0;
-  padding-inline: var(--dh-space-2);
-  margin-inline: calc(var(--dh-space-2) * -1);
-  border-radius: var(--dh-radius-control);
+  padding-inline: var(--app-space-2);
+  margin-inline: calc(var(--app-space-2) * -1);
+  border-radius: var(--md-sys-shape-corner-full);
   color: inherit;
   text-decoration: none;
   /* The row supplies the rhythm; the LINK is the thing a finger hits, so it
      carries the target floor itself rather than inheriting a content box the
      row's own padding has already eaten into (WCAG 2.2 §2.5.8). */
-  min-block-size: var(--dh-density-row-min-height);
+  min-block-size: 3.5rem;
 }
 
 .dh-today__waiting-link:hover {
-  background: var(--dh-color-surface-sunken);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-today__waiting-title {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-today__waiting-meta {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-today__waiting-all {
   align-self: flex-start;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
 }
 
 /* TODAY-03 — the "Waiting for" subject cell in a Waiting card. */
 .dh-waiting-card__subject {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   overflow-wrap: anywhere;
 }
 
@@ -706,51 +723,57 @@ a.dh-hero__stat:hover {
 .dh-today__capture {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-today__capture-hint {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Entries WRAP rather than scroll, so no capture type is hidden off the edge. */
 .dh-today__capture-types {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__capture-type {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-2);
-  min-block-size: var(--dh-touch-target-min);
+  gap: var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
   min-inline-size: 0;
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   cursor: pointer;
   transition:
-    background-color var(--dh-duration-fast) var(--dh-ease-standard),
-    border-color var(--dh-duration-fast) var(--dh-ease-standard);
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
 }
 
 .dh-today__capture-type:hover {
-  background: var(--dh-color-hover-surface);
-  border-color: var(--dh-color-border-strong);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  border-color: var(--md-sys-color-outline);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dh-today__capture-type {
-    transition-duration: var(--dh-duration-instant);
+    transition-duration: var(--md-sys-motion-duration-none);
   }
 }
 
@@ -758,7 +781,7 @@ a.dh-hero__stat:hover {
   display: inline-flex;
   flex: none;
   line-height: 0;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -770,85 +793,98 @@ a.dh-hero__stat:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-4);
+  gap: var(--app-space-2);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-4);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  border-radius: var(--dh-radius-md);
-  border: var(--dh-border-width-thin) solid transparent;
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid transparent;
   cursor: pointer;
-  transition: background-color var(--dh-duration-fast) var(--dh-ease-standard);
+  transition: background-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 /* Touch: keep the whole target comfortable (DESIGN_SYSTEM.md → touch targets). */
 @media (hover: none) {
   .dh-today__primary,
   .dh-today__secondary {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dh-today__primary,
   .dh-today__secondary {
-    transition-duration: var(--dh-duration-instant);
+    transition-duration: var(--md-sys-motion-duration-none);
   }
 }
 
 .dh-today__primary {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
 }
 
 .dh-today__primary:hover {
-  background: var(--dh-color-accent-hover);
+  background: var(--md-sys-color-primary);
 }
 
 .dh-today__primary:active {
-  background: var(--dh-color-accent-active);
+  background: var(--md-sys-color-primary);
 }
 
 .dh-today__secondary {
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
-  border-color: var(--dh-color-border);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  border-color: var(--md-sys-color-outline-variant);
 }
 
 .dh-today__secondary:hover {
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
 }
 
 .dh-today__secondary:disabled {
-  background: var(--dh-color-disabled-surface);
-  color: var(--dh-color-disabled-text);
-  border-color: var(--dh-color-disabled-border);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
   cursor: not-allowed;
 }
 
 .dh-today__ghost {
   display: inline-flex;
   align-items: center;
-  min-height: var(--dh-control-height-sm);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-sm);
+  padding: 0 var(--app-space-3);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   background: transparent;
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-sm);
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
 
 .dh-today__ghost:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-sunken);
 }
 
 @media (hover: none) {
   .dh-today__ghost {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -863,24 +899,24 @@ a.dh-hero__stat:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-raised);
-  box-shadow: var(--dh-shadow-md);
+  gap: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: var(--md-sys-elevation-2);
 }
 
 .dh-today__bulk-count {
   margin: 0;
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
 }
 
 .dh-today__bulk-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__bulk-custom {
@@ -889,29 +925,29 @@ a.dh-hero__stat:hover {
 }
 
 .dh-today__bulk-date {
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
-  background: var(--dh-color-surface);
-  color: var(--dh-color-text);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
 }
 
 .dh-today__bulk-cancel {
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
   border: none;
-  border-radius: var(--dh-radius-sm);
+  border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
   font: inherit;
   cursor: pointer;
 }
 
 .dh-today__bulk-cancel:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-sunken);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -934,8 +970,8 @@ a.dh-hero__stat:hover {
    Collection preset's separator rule, applied to the list widgets so every
    scannable list in the product is separated the same way. */
 .dh-today-list__item + .dh-today-list__item {
-  border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-today-list__link {
@@ -947,26 +983,26 @@ a.dh-hero__stat:hover {
   /* The row's inset is pulled back out with a negative margin so the hover
      surface spans the card's full content width rather than being indented from
      it — a hover state that stops short of the text beside it reads as a bug. */
-  padding: var(--dh-space-2);
-  margin-inline: calc(var(--dh-space-2) * -1);
-  border-radius: var(--dh-radius-sm);
+  padding: var(--app-space-2);
+  margin-inline: calc(var(--app-space-2) * -1);
+  border-radius: var(--md-sys-shape-corner-small);
   color: inherit;
   text-decoration: none;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-today-list__link:hover {
-  background: var(--dh-color-surface-sunken);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-today-list__title {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-today-list__meta {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
@@ -974,7 +1010,7 @@ a.dh-hero__stat:hover {
   display: inline-flex;
   flex: none;
   line-height: 0;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-today-list__body {
@@ -991,13 +1027,13 @@ a.dh-hero__stat:hover {
 .dh-today-list__link--with-icon {
   flex-direction: row;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-today-list__note {
-  margin: var(--dh-space-2) 0 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: var(--app-space-2) 0 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1025,28 +1061,28 @@ a.dh-hero__stat:hover {
   /* The row's own inline padding is cancelled by its negative margin, so the time
      column starts at the item's leading edge and the rail is simply the column
      width plus half the gap. */
-  --today-schedule-rail: calc(3.25rem + var(--dh-space-3) / 2);
+  --today-schedule-rail: calc(3.25rem + var(--app-space-3) / 2);
   /* Where the marker's centre sits, measured from the top of the row: the row's
      own padding plus half a line of the title beside it. */
-  --today-schedule-marker: calc(var(--dh-space-2) + 0.7em);
+  --today-schedule-marker: calc(var(--app-space-2) + 0.7em);
 }
 
 .dh-schedule__link {
   display: grid;
   grid-template-columns: 3.25rem minmax(0, 1fr);
   align-items: baseline;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   position: relative;
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2);
-  margin-inline: calc(var(--dh-space-2) * -1);
-  border-radius: var(--dh-radius-sm);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2);
+  margin-inline: calc(var(--app-space-2) * -1);
+  border-radius: var(--md-sys-shape-corner-small);
   color: inherit;
   text-decoration: none;
 }
 
 .dh-schedule__link:hover {
-  background: var(--dh-color-surface-sunken);
+  background: var(--md-app-color-surface-sunken);
 }
 
 /*
@@ -1062,8 +1098,8 @@ a.dh-hero__stat:hover {
   position: absolute;
   inset-block: 0;
   inset-inline-start: var(--today-schedule-rail);
-  inline-size: var(--dh-border-width-thin);
-  background: var(--dh-color-divider-subtle);
+  inline-size: var(--app-border-width-thin);
+  background: var(--md-sys-color-outline-variant);
 }
 
 /* The rail starts at the first marker and stops at the last, so it reads as the
@@ -1088,21 +1124,21 @@ a.dh-hero__stat:hover {
   inset-inline-start: calc(var(--today-schedule-rail) - 3px);
   inline-size: 7px;
   block-size: 7px;
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-accent);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
 }
 
 /* A meeting whose start time has passed is a quieter marker. The row also says
    "Started" in words, so nothing is carried by the colour alone. */
 .dh-schedule__item[data-started="true"]::after {
-  background: var(--dh-color-border-strong);
+  background: var(--md-sys-color-outline);
 }
 
 .dh-schedule__time {
-  font-size: var(--dh-font-size-sm);
+  font-size: var(--md-sys-typescale-body-small-size);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
   text-align: end;
 }
 
@@ -1112,17 +1148,17 @@ a.dh-hero__stat:hover {
   gap: 2px;
   min-inline-size: 0;
   /* Clear the rail marker sitting in the gutter between the two columns. */
-  padding-inline-start: var(--dh-space-3);
+  padding-inline-start: var(--app-space-3);
 }
 
 .dh-schedule__title {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-schedule__meta {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
@@ -1133,27 +1169,27 @@ a.dh-hero__stat:hover {
 .dh-diary-widget {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-diary-widget__nudge {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-diary-widget__group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-diary-widget__group-label {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1169,7 +1205,7 @@ a.dh-hero__stat:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-insights__item {
@@ -1180,44 +1216,48 @@ a.dh-hero__stat:hover {
 .dh-insights__static {
   display: flex;
   align-items: baseline;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border-radius: var(--dh-radius-md);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border-subtle);
-  background: var(--dh-color-surface-card);
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-card);
   color: inherit;
   text-decoration: none;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-insights__link:hover {
-  background: var(--dh-color-hover-surface);
-  border-color: var(--dh-color-border-strong);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  border-color: var(--md-sys-color-outline);
 }
 
 /* Attention signals carry a quiet accent edge (never a red badge); the label text
    always names the signal, so this is never colour-only state. */
 .dh-insights__item[data-tone="attention"] .dh-insights__link,
 .dh-insights__item[data-tone="attention"] .dh-insights__static {
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-warning);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-warning);
 }
 
 .dh-insights__item[data-tone="positive"] .dh-insights__link,
 .dh-insights__item[data-tone="positive"] .dh-insights__static {
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-success);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-success);
 }
 
 .dh-insights__count {
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 .dh-insights__label {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1227,7 +1267,7 @@ a.dh-hero__stat:hover {
 .dh-today-activity {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 
@@ -1239,26 +1279,26 @@ a.dh-hero__stat:hover {
    "Due soon", "Started", "Worth a review") carries the meaning, so nothing is
    lost in greyscale or to a colour-blind reader (§24). */
 .dh-today-signal {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
 }
 
 .dh-today-signal--overdue {
-  color: var(--dh-color-state-overdue-text);
+  color: var(--md-sys-color-on-state-overdue-container);
 }
 
 .dh-today-signal--due {
-  color: var(--dh-color-state-due-soon-text);
+  color: var(--md-sys-color-on-state-due-soon-container);
 }
 
 .dh-today-signal--unknown {
-  color: var(--dh-color-info-text);
+  color: var(--md-sys-color-on-info-container);
 }
 
 /* A NON-alarming emphasis: "Started", "Worth a review", "No recent action" are
    facts worth noticing, not warnings. They earn weight and the primary text
    colour, never a warning tone (the anti-guilt mandate). */
 .dh-today-signal--quiet {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1266,7 +1306,7 @@ a.dh-hero__stat:hover {
 /*                                                                            */
 /* Layout and rhythm ONLY: the Matrix 2×2 grid, the Sector columns, the       */
 /* quick-capture preview and the bulk-action bar. Every visual value is a     */
-/* DS-01 `var(--dh-*)` token; all real chrome (cards, empty state, drawer,    */
+/* DS-01 `var(--app-*)` token; all real chrome (cards, empty state, drawer,    */
 /* forms) comes from the shared components. The Matrix is a true 2×2 only at   */
 /* >= 768px and stacks full-width below, so it is never a cramped grid on a    */
 /* narrow phone and never overflows horizontally at 320px.                    */
@@ -1277,45 +1317,45 @@ a.dh-hero__stat:hover {
 .dh-tasks-matrix {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-tasks-section {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 /* A quiet section label — matches the Today section rhythm (heading for the
  * outline/AT, not a loud UI header). */
 .dh-tasks-section__label {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-section__count {
   font-variant-numeric: tabular-nums;
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-section__empty {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* "View all N →" link shown when a Matrix/Sector bucket holds more than the
    loaded slice — the overflow is reached through the equivalent filtered list. */
 .dh-tasks-section__more {
   align-self: flex-start;
-  margin-top: var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
+  margin-top: var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 600;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   text-decoration: underline;
 }
 
@@ -1328,7 +1368,7 @@ a.dh-hero__stat:hover {
 .dh-tasks-sectors__column {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0; /* allow cards to shrink; never force horizontal overflow */
 }
 
@@ -1338,7 +1378,7 @@ a.dh-hero__stat:hover {
   .dh-tasks-matrix {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--dh-space-6);
+    gap: var(--app-space-6);
   }
 
   /* The untriaged bucket spans both columns beneath the 2×2. */
@@ -1349,7 +1389,7 @@ a.dh-hero__stat:hover {
   .dh-tasks-sectors {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--dh-space-6);
+    gap: var(--app-space-6);
   }
 }
 
@@ -1372,14 +1412,14 @@ a.dh-hero__stat:hover {
 .dh-tasks-grouped {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-tasks-grouped__section,
 .dh-tasks-board__column {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 
@@ -1388,13 +1428,13 @@ a.dh-hero__stat:hover {
 .dh-tasks-board {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-tasks-section__subtitle {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The control row: the shared sheet trigger plus a plain-text summary of the
@@ -1403,13 +1443,13 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-tasks-controls__summary {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The in-workspace quick add row: title first, everything else optional. */
@@ -1417,42 +1457,42 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  margin-bottom: var(--dh-space-4);
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
 }
 
 .dh-tasks-quickadd__input {
   flex: 1 1 16rem;
   min-width: 0;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-tasks-quickadd__submit,
 .dh-tasks-quickadd__more {
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-tasks-quickadd__error {
   flex-basis: 100%;
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-danger-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-error-container);
 }
 
 .dh-tasks-inline-title-editor {
   display: grid;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   width: 100%;
 }
 
 .dh-tasks-inline-title-editor__input {
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   font: inherit;
 }
 
 .dh-tasks-inline-title-editor__error {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-danger-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-error-container);
 }
 
 /* TASKS-04 — the shared quick-edit panel (a `/tasks` row's Drawer and the body of
@@ -1460,21 +1500,21 @@ a.dh-hero__stat:hover {
  * on a phone, and the two date fields only pair up when there is genuinely room. */
 .dh-task-quick-edit {
   display: grid;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   min-width: 0;
 }
 
 .dh-task-quick-edit__title {
   margin: 0;
-  font-size: var(--dh-font-size-lg);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-tight);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  font-weight: 500;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
 .dh-task-quick-edit__dates {
   display: grid;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 @media (min-width: 30rem) {
@@ -1488,38 +1528,38 @@ a.dh-hero__stat:hover {
 .dh-task-review__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-task-quick-edit__error {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-danger-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-error-container);
 }
 
 /* Review Inbox. A single bounded column so triage reads as one decision at a time
  * rather than a wall of forms, centred but never wider than comfortable prose. */
 .dh-task-review {
   display: grid;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   max-width: 42rem;
   min-width: 0;
 }
 
 .dh-task-review__progress {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* The heading receives PROGRAMMATIC focus each time the reviewed task changes, and
    programmatic focus is not always `:focus-visible` — so the indicator is on `:focus`.
    A ring, never colour alone. */
 .dh-task-review__progress:focus {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
-  border-radius: var(--dh-radius-xs);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 .dh-task-review__more {
@@ -1533,67 +1573,67 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-tasks-views__trigger {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
-  padding-inline: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-sm);
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-tasks-views__label {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-views__name {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
 }
 
 .dh-tasks-views__modified {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-views__panel {
   position: absolute;
   z-index: 20;
-  top: calc(100% + var(--dh-space-2));
+  top: calc(100% + var(--app-space-2));
   inset-inline-start: 0;
-  width: min(22rem, calc(100vw - 2 * var(--dh-gutter)));
+  width: min(22rem, calc(100vw - 2 * var(--app-gutter)));
   max-height: min(28rem, 60vh);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface-raised);
-  box-shadow: var(--dh-shadow-md);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-app-color-surface-raised);
+  box-shadow: var(--md-sys-elevation-2);
 }
 
 .dh-tasks-views__group + .dh-tasks-views__group {
-  margin-top: var(--dh-space-4);
+  margin-top: var(--app-space-4);
 }
 
 .dh-tasks-views__heading {
-  margin: 0 0 var(--dh-space-1);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
+  margin: 0 0 var(--app-space-1);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-views__note,
 .dh-tasks-views__empty {
-  margin: 0 0 var(--dh-space-2);
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-views__list {
@@ -1606,53 +1646,54 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-2);
-  border-radius: var(--dh-radius-sm);
-  color: var(--dh-color-text);
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-small);
+  color: var(--md-sys-color-on-surface);
   text-decoration: none;
 }
 
 .dh-tasks-views__item:hover {
-  background: var(--dh-color-surface-sunken);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-tasks-views__item[aria-current="true"] {
-  background: var(--dh-color-surface-sunken);
-  font-weight: var(--dh-font-weight-medium);
+  background: var(--md-app-color-surface-sunken);
+  font-weight: 500;
 }
 
 .dh-tasks-views__item-note {
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-views__badge {
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-views__name-form {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  margin-bottom: var(--dh-space-4);
-  padding-bottom: var(--dh-space-3);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
+  padding-bottom: var(--app-space-3);
+  border-bottom: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 .dh-tasks-views__name-label {
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
 }
 
 .dh-tasks-views__name-actions {
   display: flex;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   justify-content: flex-end;
 }
 
@@ -1661,7 +1702,7 @@ a.dh-hero__stat:hover {
   .dh-tasks-board {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: var(--dh-space-5);
+    gap: var(--app-space-5);
     align-items: start;
   }
 }
@@ -1670,47 +1711,47 @@ a.dh-hero__stat:hover {
 .dh-tasks-capture {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-sunken);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-tasks-capture__title {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-tasks-capture__label {
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  letter-spacing: var(--dh-letter-spacing-wide);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-tasks-capture__tokens {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .dh-tasks-capture__token {
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text);
+  padding: var(--app-space-1) var(--app-space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-tasks-capture__actions {
   display: flex;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 /* System-view chips — a horizontally scrollable, keyboard-reachable row. */
@@ -1721,7 +1762,7 @@ a.dh-hero__stat:hover {
 .dh-tasks-systems__list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1730,44 +1771,44 @@ a.dh-hero__stat:hover {
 .dh-tasks-systems__link {
   display: inline-flex;
   align-items: center;
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-sm);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-3);
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
   text-decoration: none;
 }
 
 .dh-tasks-systems__link[aria-current="true"] {
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
-  border-color: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-color: var(--md-sys-color-primary);
 }
 
 /* Bulk-action bar — bottom-anchored in the CollectionLayout selection slot. */
 .dh-tasks-bulk {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-raised);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-app-color-surface-raised);
 }
 
 .dh-tasks-bulk__count {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-tasks-bulk__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   align-items: center;
 }
 
@@ -1777,8 +1818,8 @@ a.dh-hero__stat:hover {
 
 .dh-tasks-bulk__status {
   margin: 0;
-  font-size: var(--dh-font-size-sm);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1802,15 +1843,15 @@ a.dh-hero__stat:hover {
    * Sectors views were already mobile-first stacked — TASKS-01 — so a phone has
    * never seen a compressed 2×2 grid.) */
   .dh-tasks-section__label {
-    font-size: var(--dh-font-size-sm);
-    font-weight: var(--dh-font-weight-semibold);
-    color: var(--dh-color-text);
+    font-size: var(--md-sys-typescale-body-small-size);
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
   }
 
   .dh-tasks-focus,
   .dh-tasks-sectors,
   .dh-tasks-matrix {
-    gap: var(--dh-space-5);
+    gap: var(--app-space-5);
   }
 
   /* The bulk-action bar wraps into a scrollable row rather than a tall stack of
@@ -1819,7 +1860,7 @@ a.dh-hero__stat:hover {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: thin;
-    padding-bottom: var(--dh-space-1);
+    padding-bottom: var(--app-space-1);
   }
 
   .dh-tasks-bulk__actions > * {
@@ -1841,41 +1882,41 @@ a.dh-hero__stat:hover {
   /* Tighter vertical rhythm: the first viewport must answer "what must I do,
    * what is due, what am I waiting on" without scrolling past decoration. */
   .dh-today {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-today__columns {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-today__column {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-today__section {
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-today__tasklist {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   /* Section labels carry more weight on a phone — on a long scroll they are the
    * only orientation the user has. */
   .dh-today__section-label {
-    font-size: var(--dh-font-size-sm);
-    font-weight: var(--dh-font-weight-semibold);
-    color: var(--dh-color-text);
+    font-size: var(--md-sys-typescale-body-small-size);
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
   }
 
   /* The hero stacks, and the greeting steps down one size so the date, the focus
    * line and the first stats still fit in the opening viewport. */
   .dh-hero {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-hero__greeting {
-    font-size: var(--dh-font-size-xl);
+    font-size: var(--md-sys-typescale-title-large-size);
   }
 
   .dh-hero__progress {
@@ -1924,7 +1965,7 @@ a.dh-hero__stat:hover {
   }
 
   .dh-schedule__item {
-    --today-schedule-rail: calc(2.75rem + var(--dh-space-3) / 2);
+    --today-schedule-rail: calc(2.75rem + var(--app-space-3) / 2);
   }
 }
 
@@ -1936,16 +1977,16 @@ a.dh-hero__stat:hover {
  */
 @container today (max-width: 15rem) {
   .dh-today {
-    gap: var(--dh-space-3);
+    gap: var(--app-space-3);
   }
 
   .dh-today .dh-region-card {
-    padding-inline: var(--dh-space-3);
+    padding-inline: var(--app-space-3);
   }
 
   .dh-today-widget__header,
   .dh-hero {
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-today-widget__toggle,
@@ -1959,7 +2000,7 @@ a.dh-hero__stat:hover {
   }
 
   .dh-today .dh-card__support {
-    column-gap: var(--dh-space-2);
+    column-gap: var(--app-space-2);
   }
 
   .dh-today .dh-card__meta-value,
@@ -2027,4 +2068,169 @@ a.dh-hero__stat:hover {
     align-self: stretch;
     justify-content: center;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* M3-01 — the dashboard summary cards                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Two figure cards: the day's tasks as a ring with a legend and a chip row, and
+ * a single 0-100 score for the day.
+ *
+ * Both are built from the SHARED `ProgressRing` primitive, which paints with the
+ * same `secondary-container` track and `primary` arc as the linear progress bar
+ * in `progress.css` — so a ring and a bar on the same screen are the same
+ * indicator in two shapes rather than two indicators that resemble each other.
+ *
+ * Every figure on both cards is stated in TEXT beside it, and each ring carries
+ * its own generated `role="img"` sentence, so nothing here depends on colour or
+ * on seeing the shape (AGENTS.md §15).
+ */
+
+.dh-today-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-5);
+}
+
+.dh-today-summary__ring {
+  flex: none;
+}
+
+/* The centred figure. `headline-medium` for the number and `body-small` for the
+ * denominator, so the pair reads as one statement rather than as two labels. */
+.dh-today-summary__figure {
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today-summary__of {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-today-summary__legend {
+  flex: 1 1 8rem;
+  min-inline-size: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-today-summary__legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+}
+
+/* The swatch is REINFORCEMENT: every row states its bucket and its count in
+ * words beside it, so the dot adds recognition rather than meaning. */
+.dh-today-summary__swatch {
+  flex: none;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: var(--md-sys-shape-corner-full);
+}
+
+.dh-today-summary__swatch[data-tone="todo"] {
+  background: var(--md-sys-color-outline);
+}
+
+.dh-today-summary__swatch[data-tone="waiting"] {
+  background: var(--md-sys-color-state-waiting);
+}
+
+.dh-today-summary__swatch[data-tone="done"] {
+  background: var(--md-sys-color-primary);
+}
+
+.dh-today-summary__legend-label {
+  flex: 1;
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.dh-today-summary__legend-count {
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today-summary__chips {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+/* A chip's count sits inside the chip, in tabular figures so a row of them does
+ * not jitter as the numbers change. */
+.dh-today-summary__chip-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.dh-today-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-5);
+}
+
+.dh-today-score__figure {
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  color: var(--md-sys-color-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-today-score__body {
+  flex: 1 1 10rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.dh-today-score__line {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  color: var(--md-sys-color-on-surface);
+}
+
+/* The footnote that says what the number is made of. It is not decoration: a
+ * score nobody can explain is a score nobody should trust. */
+.dh-today-score__note {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The bound note. It appears only when the planning read came back at its limit,
+ * and it is the card telling the owner what its numbers actually are rather than
+ * quietly presenting a floor as a total. */
+.dh-today-summary__bound {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
 }

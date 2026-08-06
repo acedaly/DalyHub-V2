@@ -4,7 +4,7 @@
  * The premium application shell that replaces FND-09's website-like top bar
  * (PRODUCT_EXPERIENCE #1, #2): a persistent left sidebar owning identity and
  * navigation, and a full-height content pane with its own scroll. Layout is
- * `grid-template-columns: var(--dh-shell-nav-width) 1fr` — the sidebar width token
+ * `grid-template-columns: var(--app-shell-nav-width) 1fr` — the sidebar width token
  * DS-01 already defined and nothing consumed until now.
  *
  * - Desktop/laptop/tablet: the sidebar is a persistent rail; the pane scrolls
@@ -48,11 +48,11 @@ import { OfflineProvider } from "~/shared/offline/OfflineProvider";
 import { useKeyboardInset } from "~/shared/viewport";
 
 import { BottomNav } from "./BottomNav";
+import { CaptureFab } from "./CaptureFab";
 import { MobileNav } from "./MobileNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { MobileTopBarProvider } from "./mobile-top-bar-context";
 import { Sidebar } from "./Sidebar";
-import type { ThemePreference } from "./theme";
 
 /** The DOM id of the persistent rail's primary navigation. */
 const RAIL_NAV_ID = "primary-navigation";
@@ -108,8 +108,6 @@ export type AppShellProps = {
   readonly email: string;
   /** The derived, registry-driven navigation model. */
   readonly navigation: readonly NavigationItem[];
-  /** The active theme preference (for the control's active state). */
-  readonly theme: ThemePreference;
   /** The routed page content (the route `Outlet`). */
   readonly children: React.ReactNode;
 };
@@ -118,7 +116,6 @@ export function AppShell({
   workspaceName = "DalyHub",
   email,
   navigation,
-  theme,
   children,
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
@@ -130,7 +127,7 @@ export function AppShell({
   const [navOpener, setNavOpener] = useState<HTMLElement | null>(null);
 
   // The ONE Visual Viewport listener in DalyHub. It publishes
-  // `--dh-keyboard-inset`, which every keyboard-aware surface styles against —
+  // `--app-keyboard-inset`, which every keyboard-aware surface styles against —
   // there is never a per-form resize listener (MOBILE-01 §B3).
   useKeyboardInset();
   // The element focus returns to when each surface closes — whatever opened it.
@@ -264,7 +261,6 @@ export function AppShell({
                 <Sidebar
                   workspaceName={workspaceName}
                   email={email}
-                  theme={theme}
                   navigation={navigation}
                   settingsHref="/settings"
                   navId={RAIL_NAV_ID}
@@ -292,6 +288,11 @@ export function AppShell({
                   </main>
                 </div>
 
+                {/* M3-01: the one floating action button, wired to the SAME
+              shared capture surface every other entry point opens. It clears
+              the phone navigation bar and the home indicator. */}
+                <CaptureFab />
+
                 {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
               desktop rail experience is byte-for-byte unchanged. */}
                 <ShellBottomNav
@@ -304,7 +305,6 @@ export function AppShell({
                   <MobileNav
                     workspaceName={workspaceName}
                     email={email}
-                    theme={theme}
                     navigation={navigation}
                     settingsHref="/settings"
                     opener={navOpener}

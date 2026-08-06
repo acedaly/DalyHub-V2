@@ -14,12 +14,7 @@
  * assert the servicing happened.
  */
 
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   cleanupAllAssetFixtures,
@@ -31,7 +26,6 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
-  postSameOrigin,
 } from "./helpers";
 
 const owned = new Set<string>();
@@ -662,32 +656,10 @@ for (const scheme of ["light", "dark"] as const) {
 /* -------------------------------------------------------------------------- */
 
 /** Every curated theme, by the id the document carries. */
-const THEMES = [
-  "daly-light",
-  "daly-dark",
-  "modern-light",
-  "modern-dark",
-  "eucalypt",
-  "coastal",
-  "ember",
-] as const;
+const APPEARANCES = ["light", "dark"] as const;
 
-/** Store the owner's theme through the real preferences action. */
-async function storeTheme(
-  request: APIRequestContext,
-  themeId: string,
-): Promise<void> {
-  const response = await postSameOrigin(request, "/preferences/theme", {
-    form: { theme: themeId },
-    maxRedirects: 0,
-  });
-  expect(response.status()).toBeGreaterThanOrEqual(300);
-  expect(response.status()).toBeLessThan(400);
-}
-
-test("the obligation and history states read correctly in every theme", async ({
+test("the obligation and history states read correctly in both appearances", async ({
   page,
-  request,
 }) => {
   // MEASURED at 31.9s on an idle machine at five themes, against the 30s default:
   // a whole-registry sweep is genuinely long work, not a hang. THEME-02 took the
@@ -753,13 +725,12 @@ test("the obligation and history states read correctly in every theme", async ({
   await expect(drawer(page)).toHaveCount(0);
 
   try {
-    for (const theme of THEMES) {
-      await storeTheme(request, theme);
+    for (const scheme of APPEARANCES) {
+      await page.emulateMedia({ colorScheme: scheme });
 
       await page.goto(`${url}?tab=obligations`);
-      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
 
-      // Every state is carried by a WORD, in every theme — the assertion that
+      // Every state is carried by a WORD, in both appearances — the assertion that
       // proves nothing here depends on colour alone.
       await expect(
         page
@@ -791,7 +762,7 @@ test("the obligation and history states read correctly in every theme", async ({
       await expectNoAxeViolations(page);
     }
   } finally {
-    // Never leave the suite running under a theme this test chose.
-    await storeTheme(request, "system");
+    // Never leave the suite running under an appearance this test chose.
+    await page.emulateMedia({ colorScheme: "light" });
   }
 });

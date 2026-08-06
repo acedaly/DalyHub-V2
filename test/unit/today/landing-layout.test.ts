@@ -145,7 +145,12 @@ describe("TODAY-08 landing layout model", () => {
 
   it("groups the visible widgets into the three rendered regions", () => {
     const regions = groupVisibleWidgets(defaultTodayLayout());
-    expect(regions.hero.map((w) => w.definition.id)).toEqual(["morning-brief"]);
+    // M3-01 put the day's task summary beside the brief: the hero answers "how
+    // is today shaped?" in words and in one figure (ADR-074).
+    expect(regions.hero.map((w) => w.definition.id)).toEqual([
+      "morning-brief",
+      "task-summary",
+    ]);
     // The primary column leads with the day's work; the secondary carries
     // reference material. Every widget lands in exactly one region.
     expect(regions.primary[0]!.definition.id).toBe("my-day");

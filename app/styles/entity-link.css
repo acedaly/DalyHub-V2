@@ -22,15 +22,15 @@
 }
 
 .dh-entity-link {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   text-decoration: none;
-  border-radius: var(--dh-radius-xs);
+  border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 /* The leading entity glyph: decorative, subordinate to the label, and sized to
  * the surrounding text so it scales with OS text scaling. */
 .dh-entity-link__icon {
-  margin-inline-end: var(--dh-space-1);
+  margin-inline-end: var(--app-space-1);
   vertical-align: -0.15em;
 }
 
@@ -39,7 +39,7 @@
 }
 
 .dh-entity-link:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
   text-decoration: underline;
 }
@@ -56,23 +56,23 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-entity-relationship {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
   flex-wrap: wrap;
 }
 
 .dh-entity-relationship__kind {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-entity-relationship__title {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }

@@ -6,7 +6,6 @@ import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 import { AppShell } from "~/shared/shell/AppShell";
 import { ACCESS_LOGOUT_PATH } from "~/shared/shell/UserMenu";
 import { ModulePlaceholder } from "~/shared/shell/ModulePlaceholder";
-import { THEMES } from "~/shared/shell/theme";
 
 const NAVIGATION: readonly NavigationItem[] = [
   {
@@ -75,7 +74,6 @@ function renderShell(initialPath = "/") {
         <AppShell
           workspaceName="DalyHub"
           email="owner@example.com"
-          theme="system"
           navigation={NAVIGATION}
         >
           <Outlet />
@@ -208,9 +206,9 @@ describe("PX-02 AppShell — frame & landmarks", () => {
 });
 
 describe("PX-02 AppShell — user menu relocation", () => {
-  it("keeps identity, theme and sign-out behind the user menu (not in the header)", () => {
+  it("keeps identity and sign-out behind the user menu (not in the header)", () => {
     renderShell();
-    // The email/theme/logout are NOT in permanent chrome — hidden until opened.
+    // The email and logout are NOT in permanent chrome — hidden until opened.
     expect(screen.queryByText("owner@example.com")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /sign out/i }),
@@ -222,7 +220,7 @@ describe("PX-02 AppShell — user menu relocation", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("opens the user menu to reveal email, theme and sign out", () => {
+  it("opens the user menu to reveal email, settings and sign out", () => {
     renderShell();
     const trigger = screen.getByRole("button", { name: /owner|account/i });
     fireEvent.click(trigger);
@@ -230,17 +228,13 @@ describe("PX-02 AppShell — user menu relocation", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("owner@example.com")).toBeInTheDocument();
 
-    // THEME-01 — the quick switch offers every curated theme plus `system`, each
-    // as a real text-labelled button, never a colour-only swatch.
-    for (const option of [
-      "Match system",
-      ...THEMES.map((theme) => theme.name),
-    ]) {
-      expect(screen.getByRole("button", { name: option })).toBeInTheDocument();
+    // M3-01 — there is no theme quick-switch here any more: DalyHub ships one
+    // generated light/dark pair and follows the operating system (ADR-074).
+    for (const option of ["Match system", "Daly Dark", "Eucalypt"]) {
+      expect(
+        screen.queryByRole("button", { name: option }),
+      ).not.toBeInTheDocument();
     }
-    expect(
-      screen.getByRole("button", { name: "Match system" }),
-    ).toHaveAttribute("aria-pressed", "true");
 
     const signOut = screen.getByRole("link", { name: /sign out/i });
     expect(signOut).toHaveAttribute("href", ACCESS_LOGOUT_PATH);

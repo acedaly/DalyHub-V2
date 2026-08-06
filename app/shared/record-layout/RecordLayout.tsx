@@ -14,7 +14,6 @@
 
 import { useId } from "react";
 
-import { Region } from "~/shared/region";
 import { useSetMobileTopBar } from "~/shared/shell/mobile-top-bar-context";
 
 import { RecordHeader } from "./RecordHeader";
@@ -76,12 +75,7 @@ export function RecordLayout({
      * the mixed record the brief describes composes without either surface
      * having to know about the other.
      */
-    <Region
-      as="article"
-      density="collection"
-      className="record-layout"
-      aria-labelledby={resolvedTitleId}
-    >
+    <article className="record-layout" aria-labelledby={resolvedTitleId}>
       <RecordHeader
         title={title}
         titleId={resolvedTitleId}
@@ -118,6 +112,6 @@ export function RecordLayout({
           <div className="record-layout__content">{children}</div>
         )
       )}
-    </Region>
+    </article>
   );
 }

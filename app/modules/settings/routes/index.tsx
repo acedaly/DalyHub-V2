@@ -56,7 +56,6 @@ import { resolveAiConfiguration } from "~/platform/ai";
 import { AiSettingsSection } from "../AiSettingsSection";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
 import { SelectField } from "~/shared/forms";
-import { ThemePicker } from "~/shared/shell/ThemePicker";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import { ExportDownloads } from "../ExportDownloads";
@@ -67,7 +66,6 @@ type SectionId =
   | "general"
   | "ai"
   | "date-time"
-  | "appearance"
   | "navigation"
   | "privacy-data"
   | "offline"
@@ -80,7 +78,6 @@ const SECTIONS: readonly { readonly id: SectionId; readonly label: string }[] =
   [
     { id: "general", label: "General" },
     { id: "date-time", label: "Date & time" },
-    { id: "appearance", label: "Appearance" },
     { id: "navigation", label: "Navigation" },
     { id: "ai", label: "AI" },
     { id: "privacy-data", label: "Privacy & data" },
@@ -196,10 +193,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     landingOptions: LANDING_DESTINATIONS.filter((destination) =>
       availablePaths.has(`/${destination}`),
     ),
-    // THEME-01 — the stored owner preference, already normalised against the theme
-    // registry by the kernel, so a removed or unknown theme shows as the default
-    // rather than leaving the picker with nothing selected.
-    theme: preferences.theme,
     // AI-01 — the owner's non-secret AI policy plus this period's usage. No key,
     // no gateway id and no provider URL crosses this boundary.
     ai: await readAiSettings(scope, session.user.subject),
@@ -510,9 +503,6 @@ export default function SettingsRoute({ loaderData }: Route.ComponentProps) {
         </header>
         {active === "general" ? <GeneralSection data={loaderData} /> : null}
         {active === "date-time" ? <DateTimeSection data={loaderData} /> : null}
-        {active === "appearance" ? (
-          <AppearanceSection data={loaderData} />
-        ) : null}
         {active === "navigation" ? (
           <NavigationSection data={loaderData} />
         ) : null}
@@ -620,28 +610,6 @@ function DateTimeSection({
             value,
             label: FIRST_DAY_LABELS[value],
           }))}
-        />
-      </SettingsGroup>
-    </SettingsLayout>
-  );
-}
-
-function AppearanceSection({
-  data,
-}: {
-  readonly data: Route.ComponentProps["loaderData"];
-}) {
-  return (
-    <SettingsLayout
-      title="Appearance"
-      description="Choose how DalyHub looks. Your theme is saved to your account, so it follows you to any browser you sign in from."
-    >
-      <SettingsGroup title="Theme">
-        <SettingsRow
-          label="Theme"
-          description="Applies straight away. Match system follows your device between Daly Light and Daly Dark."
-          control={<ThemePicker current={data.theme} />}
-          align="start"
         />
       </SettingsGroup>
     </SettingsLayout>

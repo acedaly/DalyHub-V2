@@ -41,6 +41,7 @@ import {
   dayPartForHour,
   deriveInsights,
   greetingFor,
+  productivityEncouragement,
 } from "../landing/insights";
 
 import { useCompletionFailureFeedback } from "../completion-feedback";
@@ -78,6 +79,24 @@ export function meta() {
 
 /** Bounded fetch backing the Today Waiting summary (count + a small preview). */
 const WAITING_SUMMARY_LIMIT = 50;
+
+/*
+ * M3-01 — the planning read's bounds, restated here so the dashboard can tell
+ * whether the counts it received are TOTALS or FLOORS.
+ *
+ * Today has always previewed bounded bands, and the Brief has always shown their
+ * lengths as counts. That was tolerable while every figure was a count. It stops
+ * being tolerable the moment a figure is a FRACTION: a capped numerator over a
+ * capped denominator is a percentage nobody can see is wrong. So the route
+ * derives `countsComplete`, and the two cards that compute a proportion refuse
+ * to compute one when it is false rather than showing a confident wrong number.
+ *
+ * These mirror the repository's own defaults (`d1-task-repository.ts`); they are
+ * passed explicitly at the call site so the pair cannot drift apart silently.
+ */
+const PLANNING_SCHEDULED_LIMIT = 200;
+const PLANNING_BACKLOG_LIMIT = 100;
+const PLANNING_COMPLETED_LIMIT = 100;
 
 /** How many waiting items the Today summary previews (the rest live in Waiting). */
 const WAITING_PREVIEW_COUNT = 3;
@@ -135,6 +154,22 @@ function emptyLanding(
       overdueCount: 0,
       inboxCount: 0,
     },
+    taskSummary: {
+      toDo: 0,
+      inProgress: 0,
+      done: 0,
+      total: 0,
+      completedFraction: 0,
+      dueTodayCount: 0,
+      overdueCount: 0,
+      countsComplete: true,
+    },
+    productivity: {
+      score: 0,
+      completedTodayCount: 0,
+      overdueCount: 0,
+      encouragement: productivityEncouragement(0, 0),
+    },
     notes: [],
     diary: { today: [], recent: [], capturedToday: false },
     areas: [],
@@ -179,7 +214,17 @@ export async function loader({ context }: Route.LoaderArgs) {
     // the owner's planned/overdue/today tasks or today's completions. Waiting tasks
     // are excluded — blocked work surfaces in the Waiting view, not the planning
     // sections (ADR-029), so a waiting task never silently becomes today's work.
-    const page = await scope.tasks.listPlanningTasks({ todayIso });
+    // M3-01 — the limits are passed EXPLICITLY rather than left to the
+    // repository's defaults, because the dashboard needs to know the bound it
+    // read against. A band that came back full is a band that may have been
+    // truncated, and a ring or a score computed from a truncated band would be a
+    // real division of the wrong numbers.
+    const page = await scope.tasks.listPlanningTasks({
+      todayIso,
+      scheduledLimit: PLANNING_SCHEDULED_LIMIT,
+      backlogLimit: PLANNING_BACKLOG_LIMIT,
+      completedLimit: PLANNING_COMPLETED_LIMIT,
+    });
     const items: PlanningTaskItem[] = page.items.map((item) => ({
       id: item.id,
       title: item.title,
@@ -197,6 +242,16 @@ export async function loader({ context }: Route.LoaderArgs) {
           : null,
     }));
     buckets = bucketPlanning(items, todayIso);
+    // A band that came back exactly at its bound may have more behind it.
+    /* Whether every band came back UNDER its bound. Declared here because the
+     * only reader is the landing payload assembled a few lines below; the
+     * degraded path never reads it, because a failed read has no counts to
+     * qualify. See PLANNING_SCHEDULED_LIMIT. */
+    const countsComplete =
+      page.items.filter((item) => item.scheduledDate !== null).length <
+        PLANNING_SCHEDULED_LIMIT &&
+      buckets.anytime.length < PLANNING_BACKLOG_LIMIT &&
+      buckets.completedToday.length < PLANNING_COMPLETED_LIMIT;
 
     const waitingPage = await scope.tasks.listWaitingTasks({
       limit: WAITING_SUMMARY_LIMIT,
@@ -268,6 +323,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       overdueCount: buckets.overdue.length,
       inboxCount: buckets.anytime.length,
       waitingCount: waiting.count,
+      countsComplete: countsComplete && waiting.count < WAITING_SUMMARY_LIMIT,
       completedTodayCount: buckets.completedToday.length,
       activeProjectCount: recentProjects.length,
       projectsNeedingAttentionCount: recentProjects.filter(

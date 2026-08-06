@@ -16,12 +16,12 @@
 .dh-collection__sticky {
   position: sticky;
   top: 0;
-  z-index: var(--dh-z-sticky);
-  background: var(--dh-color-surface-page);
+  z-index: var(--app-z-sticky);
+  background: var(--md-app-color-surface-page);
 }
 
 .dh-collection__filters {
-  padding: var(--dh-space-2) var(--dh-gutter) var(--dh-space-3);
+  padding: var(--app-space-2) var(--app-gutter) var(--app-space-3);
 }
 
 /*
@@ -52,8 +52,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: var(--dh-space-3);
-  margin-block-end: var(--dh-space-4);
+  gap: var(--app-space-3);
+  margin-block-end: var(--app-space-4);
 }
 
 /* A shared field inside a filter bar sizes to its control rather than to the
@@ -69,8 +69,8 @@
 /* A filter label names its control; it is not a section heading. */
 .dh-collection__filters :where(label),
 .dh-collection-toolbar :where(.dh-field__label-text) {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /*
@@ -79,19 +79,19 @@
  * At 1440px an uncapped list is a 1200px row with a title at one end and a
  * status pill at the other and a quarter-second of eye travel between them;
  * that is the "stretched mobile application" the brief names. The cap is
- * generous enough that a dense list still uses the desktop — `--dh-width-wide`
+ * generous enough that a dense list still uses the desktop — `--app-width-wide`
  * (90rem) is wider than the reading measure by an order of magnitude — and it
  * keeps the card a card rather than a full-bleed slab.
  *
  * Aligned to the START rather than centred: the rail is on the left, so a
  * centred column would drift away from it as the viewport grows and leave the
- * navigation pointing at nothing. `--dh-gutter` on the inline end keeps the
+ * navigation pointing at nothing. `--app-gutter` on the inline end keeps the
  * ultra-wide case from running the card to the window edge.
  */
 .dh-collection__content {
   flex: 1;
-  padding: var(--dh-space-4) var(--dh-gutter) var(--dh-space-8);
-  max-inline-size: calc(var(--dh-width-wide) + 2 * var(--dh-gutter));
+  padding: var(--app-space-4) var(--app-gutter) var(--app-space-8);
+  max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-gutter));
 }
 
 /* The header shares the content measure, so a title and its list start on the
@@ -99,7 +99,7 @@
 .dh-collection__sticky > .dh-pane-header,
 .dh-collection__filters,
 .dh-collection__mobile-controls {
-  max-inline-size: calc(var(--dh-width-wide) + 2 * var(--dh-gutter));
+  max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-gutter));
 }
 
 /*
@@ -118,7 +118,7 @@
 .dh-collection--dashboard .dh-collection__sticky > .dh-pane-header,
 .dh-collection--dashboard .dh-collection__filters,
 .dh-collection--dashboard .dh-collection__mobile-controls {
-  max-inline-size: calc(var(--dh-width-dashboard) + 2 * var(--dh-gutter));
+  max-inline-size: calc(var(--app-width-dashboard) + 2 * var(--app-gutter));
 }
 
 /*
@@ -144,19 +144,20 @@
  * always-on rule does not become a band of chrome.
  */
 .dh-collection__sticky {
-  border-block-end: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+  border-block-end: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /* The bottom-anchored selection / bulk-action bar sticks to the pane bottom. */
 .dh-collection__selection {
   position: sticky;
   bottom: 0;
-  z-index: var(--dh-z-sticky);
-  padding: var(--dh-space-3) var(--dh-gutter);
-  padding-block-end: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  background: var(--dh-color-surface);
-  border-top: var(--dh-border-width-thin) solid var(--dh-color-border);
+  z-index: var(--app-z-sticky);
+  padding: var(--app-space-3) var(--app-gutter);
+  padding-block-end: max(var(--app-space-3), env(safe-area-inset-bottom));
+  background: var(--md-app-color-surface-card);
+  border-top: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -173,8 +174,9 @@
  * rather than forking into a desktop control bar and a phone sheet. */
 .dh-collection--persistent-controls .dh-collection__mobile-controls {
   display: block;
-  padding: var(--dh-space-3) var(--dh-gutter);
-  border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+  padding: var(--app-space-3) var(--app-gutter);
+  border-bottom: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /* The shared active-filter chips: every applied filter as a labelled, removable
@@ -184,14 +186,14 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  margin-top: var(--dh-space-2);
+  gap: var(--app-space-2);
+  margin-top: var(--app-space-2);
 }
 
 .dh-filter-chips__list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -204,55 +206,55 @@
 .dh-filter-chips__chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: var(--dh-space-1) var(--dh-space-1) var(--dh-space-1)
-    var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-tight);
+  gap: var(--app-space-1);
+  padding: var(--app-space-1) var(--app-space-1) var(--app-space-1)
+    var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.2;
 }
 
 .dh-filter-chips__label {
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-filter-chips__value {
-  font-weight: var(--dh-font-weight-medium);
+  font-weight: 500;
 }
 
 .dh-filter-chips__remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-touch-target-min);
-  min-height: var(--dh-touch-target-min);
-  margin-inline-start: var(--dh-space-1);
-  border-radius: var(--dh-radius-full);
-  color: var(--dh-color-text-secondary);
+  min-width: var(--app-touch-target-min);
+  min-height: var(--app-touch-target-min);
+  margin-inline-start: var(--app-space-1);
+  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
 }
 
 .dh-filter-chips__remove:hover {
-  color: var(--dh-color-text);
-  background: var(--dh-color-surface-sunken);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-app-color-surface-sunken);
 }
 
 .dh-filter-chips__reset {
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   display: inline-flex;
   align-items: center;
-  padding-inline: var(--dh-space-2);
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
+  padding-inline: var(--app-space-2);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-collection-controls {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -260,17 +262,17 @@
 .dh-collection-controls__trigger {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex: none;
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--dh-color-control-border);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-surface-card);
-  color: var(--dh-color-text);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-app-color-surface-card);
+  color: var(--md-sys-color-on-surface);
   font: inherit;
-  font-size: var(--dh-font-size-sm);
-  font-weight: var(--dh-font-weight-medium);
+  font-size: var(--md-sys-typescale-body-small-size);
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -281,12 +283,12 @@
   align-items: center;
   justify-content: center;
   min-inline-size: 1.25rem;
-  padding: 0 var(--dh-space-1);
-  border-radius: var(--dh-radius-full);
-  background: var(--dh-color-accent);
-  color: var(--dh-color-on-accent);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
+  padding: 0 var(--app-space-1);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -296,8 +298,8 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -306,28 +308,28 @@
 .dh-collection-sheet {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 .dh-collection-sheet__group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-collection-sheet__label {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-semibold);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 @media (max-width: 48rem) {
   .dh-collection__content {
-    padding-block: var(--dh-space-4) var(--dh-space-6);
+    padding-block: var(--app-space-4) var(--app-space-6);
     /* Clear the phone bottom navigation so the last card is never trapped
      * underneath it. */
-    padding-bottom: calc(var(--dh-space-6) + var(--dh-bottomnav-height, 0px));
+    padding-bottom: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
   }
 
   /* On a phone the ONE control row replaces the desktop filter bar and view
@@ -339,26 +341,27 @@
 
   .dh-collection__mobile-controls {
     display: block;
-    padding: var(--dh-space-2) var(--dh-gutter) var(--dh-space-3);
-    border-bottom: var(--dh-border-width-thin) solid var(--dh-color-divider);
+    padding: var(--app-space-2) var(--app-gutter) var(--app-space-3);
+    border-bottom: var(--app-border-width-thin) solid
+      var(--md-sys-color-outline-variant);
   }
 
   /* A compact pane header: the title and its count on one line, the primary
    * action beside them — one row, not three. */
   .dh-collection .dh-pane-header {
-    gap: var(--dh-space-2);
-    padding: var(--dh-space-3) var(--dh-gutter);
+    gap: var(--app-space-2);
+    padding: var(--app-space-3) var(--app-gutter);
     align-items: center;
   }
 
   .dh-collection .dh-pane-header__title {
-    font-size: var(--dh-font-size-xl);
+    font-size: var(--md-sys-typescale-title-large-size);
   }
 
   /* Bulk actions sit ABOVE the bottom navigation, never under it. */
   .dh-collection__selection {
-    bottom: var(--dh-bottomnav-height, 0px);
-    padding-block-end: var(--dh-space-3);
+    bottom: var(--app-bottomnav-height, 0px);
+    padding-block-end: var(--app-space-3);
   }
 
   /* TODAY-06: when the mobile bar has scrolled away and the pane header pins to

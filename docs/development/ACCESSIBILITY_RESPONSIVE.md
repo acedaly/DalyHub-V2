@@ -198,7 +198,7 @@ until a check enforces the distinction.
 **Meaning is never carried by a theme.** Priority, overdue, due-soon, completed,
 waiting and on-hold all have their own token triples in every theme AND always carry
 a text label, so none of them depends on the owner being able to distinguish
-Eucalypt's sage from Ember's terracotta. `e2e/themes.spec.ts` asserts the priority
+one another. `test/unit/tokens/contrast.test.ts` asserts the priority
 label is still present and readable in Daly Dark specifically.
 
 ---

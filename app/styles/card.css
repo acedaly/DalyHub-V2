@@ -1,5 +1,11 @@
 /*
- * DS-04 — the Shared Card, expressed entirely in DS-01 tokens.
+ * M3-01 — the Shared Card, as an M3 ELEVATED CARD.
+ *
+ * `--md-app-color-surface-card` at `corner-large` with elevation 1, and no
+ * border: M3 separates a card from its page with tone and shadow, and a card
+ * that also draws an outline reads as a bordered box sitting on a page rather
+ * than as a surface lifted off it. An INTERACTIVE card additionally grows the
+ * shared state layer and lifts to elevation 2 on hover.
  *
  * One card, three presentations (list/board/grid) and two densities
  * (comfortable/compact). Structure/behaviour live in the components; this file
@@ -28,18 +34,18 @@
 .dh-card-collection--board {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-card-collection--list.dh-card-collection--comfortable,
 .dh-card-collection--board.dh-card-collection--comfortable {
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-card-collection--grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-card-collection__item[data-grabbed="true"] {
@@ -51,54 +57,62 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-3);
   min-width: 0;
-  padding: var(--dh-space-3) var(--dh-space-4);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
-  box-shadow: none;
+  padding: var(--app-space-4) var(--app-space-6);
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--md-sys-elevation-1);
   transition:
-    border-color var(--dh-duration-fast) var(--dh-ease-standard),
-    background-color var(--dh-duration-fast) var(--dh-ease-standard);
+    box-shadow var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard),
+    background-color var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
 }
 
 .dh-card--compact {
-  padding: var(--dh-space-2) var(--dh-space-3);
-  gap: var(--dh-space-1);
+  padding: var(--app-space-3) var(--app-space-4);
+  gap: var(--app-space-2);
 }
 
-.dh-card:hover {
-  border-color: var(--dh-color-border-strong);
-  background: var(--dh-color-surface-card);
+/* An interactive card lifts a level; a static one does not move, because
+ * elevation that responds to a pointer is a claim that the surface does
+ * something. */
+.dh-card:hover:has(a, button) {
+  box-shadow: var(--md-sys-elevation-2);
 }
 
-/* Selected state: a clear border/background cue AND the native checked checkbox —
+/* Selected state: the primary container fill AND the native checked checkbox —
  * never colour alone. */
 .dh-card[data-selected="true"] {
-  border-color: var(--dh-color-accent);
-  background: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
 }
 
 /* Optional entity accent: a restrained left rule keyed to the tone. */
 .dh-card[data-accent="accent"] {
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-accent);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-primary);
 }
 .dh-card[data-accent="success"] {
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-success);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-success);
 }
 .dh-card[data-accent="warning"] {
-  border-inline-start: var(--dh-border-width-thick) solid
-    var(--dh-color-warning);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-warning);
 }
 .dh-card[data-accent="danger"] {
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-danger);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-error);
 }
 .dh-card[data-accent="info"] {
-  border-inline-start: var(--dh-border-width-thick) solid var(--dh-color-info);
+  border-inline-start: var(--app-border-width-thick) solid
+    var(--md-sys-color-info);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -110,45 +124,49 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  min-height: var(--dh-space-6);
+  min-height: var(--app-space-6);
 }
 
 .dh-card__reorder-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-space-6);
-  min-height: var(--dh-space-6);
-  padding: var(--dh-space-1);
-  color: var(--dh-color-text-muted);
+  min-width: var(--app-space-6);
+  min-height: var(--app-space-6);
+  padding: var(--app-space-1);
+  color: var(--md-sys-color-on-surface-variant);
   background: transparent;
-  border: var(--dh-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-sm);
+  border: var(--app-border-width-thin) solid transparent;
+  border-radius: var(--md-sys-shape-corner-small);
   cursor: grab;
   touch-action: none;
 }
 
 .dh-card__reorder-handle:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
 }
 
 .dh-card__reorder-handle[data-grabbed="true"] {
-  background: var(--dh-color-accent-surface);
-  border-color: var(--dh-color-accent);
-  color: var(--dh-color-accent-text);
+  background: var(--md-sys-color-primary-container);
+  border-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-primary);
   cursor: grabbing;
 }
 
 .dh-card__reorder-handle:disabled {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
 .dh-card__select-input {
-  width: var(--dh-space-5);
-  height: var(--dh-space-5);
-  accent-color: var(--dh-color-accent);
+  width: var(--app-space-5);
+  height: var(--app-space-5);
+  accent-color: var(--md-sys-color-primary);
   cursor: pointer;
 }
 
@@ -161,103 +179,103 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-card__heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex-wrap: wrap;
 }
 
 .dh-card__type {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-medium);
+  gap: var(--app-space-1);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
 }
 
 .dh-card__icon {
   display: inline-flex;
-  color: var(--dh-color-text-secondary);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-card__status {
   display: inline-flex;
   align-items: center;
-  padding: 0 var(--dh-space-2);
-  min-height: var(--dh-space-5);
-  font-size: var(--dh-font-size-2xs);
-  font-weight: var(--dh-font-weight-semibold);
-  border-radius: var(--dh-radius-full);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-pill-neutral-surface);
-  color: var(--dh-color-pill-neutral-text);
+  padding: 0 var(--app-space-2);
+  min-height: var(--app-space-5);
+  font-size: var(--md-sys-typescale-label-small-size);
+  font-weight: 500;
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
   white-space: nowrap;
 }
 
 .dh-card__status[data-tone="accent"] {
-  color: var(--dh-color-accent-text);
-  background: var(--dh-color-accent-surface);
+  color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="success"] {
-  color: var(--dh-color-success-text);
-  background: var(--dh-color-success-surface);
+  color: var(--md-sys-color-on-success-container);
+  background: var(--md-sys-color-success-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="warning"] {
-  color: var(--dh-color-warning-text);
-  background: var(--dh-color-warning-surface);
+  color: var(--md-sys-color-on-warning-container);
+  background: var(--md-sys-color-warning-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="danger"] {
-  color: var(--dh-color-danger-text);
-  background: var(--dh-color-danger-surface);
+  color: var(--md-sys-color-on-error-container);
+  background: var(--md-sys-color-error-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="info"] {
-  color: var(--dh-color-info-text);
-  background: var(--dh-color-info-surface);
+  color: var(--md-sys-color-on-info-container);
+  background: var(--md-sys-color-info-container);
   border-color: transparent;
 }
 
 /* THEME-01 lifecycle tones — their own tokens, not borrowed feedback colours. */
 .dh-card__status[data-tone="completed"] {
-  color: var(--dh-color-state-completed-text);
-  background: var(--dh-color-state-completed-surface);
+  color: var(--md-sys-color-on-state-completed-container);
+  background: var(--md-sys-color-state-completed-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="waiting"] {
-  color: var(--dh-color-state-waiting-text);
-  background: var(--dh-color-state-waiting-surface);
+  color: var(--md-sys-color-on-state-waiting-container);
+  background: var(--md-sys-color-state-waiting-container);
   border-color: transparent;
 }
 .dh-card__status[data-tone="on-hold"] {
-  color: var(--dh-color-state-on-hold-text);
-  background: var(--dh-color-state-on-hold-surface);
+  color: var(--md-sys-color-on-state-on-hold-container);
+  background: var(--md-sys-color-state-on-hold-container);
   border-color: transparent;
 }
 
 .dh-card__title {
   margin: 0;
-  font-size: var(--dh-font-size-md);
-  font-weight: var(--dh-font-weight-semibold);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .dh-card--compact .dh-card__title {
-  font-size: var(--dh-font-size-base);
+  font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .dh-card__open {
-  color: var(--dh-color-text);
+  color: var(--md-sys-color-on-surface);
   text-decoration: none;
   background: none;
   border: none;
@@ -278,92 +296,93 @@
 
 .dh-card__subtitle {
   margin: 0;
-  color: var(--dh-color-text-secondary);
-  font-size: var(--dh-font-size-sm);
-  line-height: var(--dh-line-height-snug);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .dh-card__context {
   margin: 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-muted);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
 .dh-card__context-link {
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
 }
 
 .dh-card--compact .dh-card__subtitle,
 .dh-card--compact .dh-card__context {
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 /* Progress */
 .dh-card__progress {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  margin-top: var(--dh-space-1);
+  gap: var(--app-space-2);
+  margin-top: var(--app-space-1);
 }
 
 .dh-card__progress-track {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
-  height: var(--dh-space-2);
-  background: var(--dh-color-surface-sunken);
-  border-radius: var(--dh-radius-full);
+  height: var(--app-space-2);
+  background: var(--md-app-color-surface-sunken);
+  border-radius: var(--md-sys-shape-corner-full);
   overflow: hidden;
 }
 
 .dh-card__progress-fill {
   height: 100%;
-  background: var(--dh-color-accent);
+  background: var(--md-sys-color-primary);
   border-radius: inherit;
-  transition: inline-size var(--dh-duration-base) var(--dh-ease-standard);
+  transition: inline-size var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-card__progress-text {
   flex: 0 0 auto;
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
   font-variant-numeric: tabular-nums;
 }
 
 /* Metadata */
 .dh-card__metadata {
   list-style: none;
-  margin: var(--dh-space-1) 0 0;
+  margin: var(--app-space-1) 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-1) var(--dh-space-3);
+  gap: var(--app-space-1) var(--app-space-3);
   min-width: 0;
 }
 
 .dh-card__meta {
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .dh-card__meta-label {
-  color: var(--dh-color-text-muted);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-card__date {
-  margin: var(--dh-space-1) 0 0;
-  font-size: var(--dh-font-size-xs);
-  color: var(--dh-color-text-secondary);
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 .dh-card__date[data-tone="warning"] {
-  color: var(--dh-color-warning-text);
+  color: var(--md-sys-color-on-warning-container);
 }
 .dh-card__date[data-tone="danger"] {
-  color: var(--dh-color-danger-text);
+  color: var(--md-sys-color-on-error-container);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -374,7 +393,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   /* On pointer/hover devices the actions reveal on hover/focus; they are always
    * in the DOM and keyboard/AT reachable. On touch they are always visible. */
   opacity: 1;
@@ -383,7 +402,8 @@
 @media (hover: hover) and (pointer: fine) {
   .dh-card__actions {
     opacity: 0;
-    transition: opacity var(--dh-duration-fast) var(--dh-ease-standard);
+    transition: opacity var(--md-sys-motion-duration-short4)
+      var(--md-sys-motion-easing-standard);
   }
   .dh-card:hover .dh-card__actions,
   .dh-card:focus-within .dh-card__actions {
@@ -394,31 +414,43 @@
 .dh-card__action {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: var(--dh-space-1) var(--dh-space-2);
-  min-height: var(--dh-control-height-sm);
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  color: var(--dh-color-text-secondary);
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm);
+  gap: var(--app-space-1);
+  padding: var(--app-space-1) var(--app-space-2);
+  min-height: var(--app-control-height-sm);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-app-color-surface-card);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .dh-card__action:hover:not(:disabled) {
-  background: var(--dh-color-hover-surface);
-  color: var(--dh-color-text);
-  border-color: var(--dh-color-border-strong);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
+  color: var(--md-sys-color-on-surface);
+  border-color: var(--md-sys-color-outline);
 }
 
 .dh-card__action:disabled,
 .dh-card__action[aria-busy="true"] {
-  color: var(--dh-color-disabled-text);
-  background: var(--dh-color-disabled-surface);
-  border-color: var(--dh-color-disabled-border);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
   cursor: not-allowed;
 }
 
@@ -426,7 +458,7 @@
  * to sit in the card's action row. Its appearance is otherwise inherited from
  * overflow-menu.css, so a card menu and a record menu look identical. */
 .dh-card__action--overflow {
-  font-size: var(--dh-font-size-xs);
+  font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 .dh-card__action-icon {
@@ -434,9 +466,9 @@
 }
 
 .dh-card__action-shortcut {
-  font-family: var(--dh-font-mono);
-  font-size: var(--dh-font-size-2xs);
-  color: var(--dh-color-text-muted);
+  font-family: var(--md-ref-typeface-mono);
+  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -446,20 +478,20 @@
 @media (hover: none) {
   .dh-card__reorder-handle,
   .dh-card__action {
-    min-height: var(--dh-touch-target-min);
-    min-width: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
+    min-width: var(--app-touch-target-min);
   }
   /* The selection cell (the label) is the 44px touch target; the checkbox glyph
    * inside stays visually compact (TODAY-06 selection targets). */
   .dh-card__select {
-    min-inline-size: var(--dh-touch-target-min);
-    min-block-size: var(--dh-touch-target-min);
+    min-inline-size: var(--app-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
     justify-content: center;
     cursor: pointer;
   }
   .dh-card__select-input {
-    width: var(--dh-space-6);
-    height: var(--dh-space-6);
+    width: var(--app-space-6);
+    height: var(--app-space-6);
   }
 }
 
@@ -474,7 +506,7 @@
 .dh-card--grid .dh-card__actions {
   flex-basis: 100%;
   justify-content: flex-start;
-  margin-top: var(--dh-space-1);
+  margin-top: var(--app-space-1);
 }
 
 /* Narrow viewports (e.g. 320px): every card wraps its action row beneath the
@@ -486,7 +518,7 @@
   .dh-card__actions {
     flex-basis: 100%;
     justify-content: flex-start;
-    margin-top: var(--dh-space-1);
+    margin-top: var(--app-space-1);
   }
 }
 
@@ -512,12 +544,12 @@
  */
 @media (max-width: 48rem) {
   .dh-card {
-    padding: var(--dh-space-3);
-    gap: var(--dh-space-2);
+    padding: var(--app-space-3);
+    gap: var(--app-space-2);
   }
 
   .dh-card--compact {
-    padding: var(--dh-space-2) var(--dh-space-3);
+    padding: var(--app-space-2) var(--app-space-3);
   }
 
   /* The card body's row gap is deliberately NOT tightened here.
@@ -527,7 +559,7 @@
    * undersized target by SPACING, so the vertical gap between those two links is
    * load-bearing: closing it to a hairline left the breadcrumb with 23.2px of safe
    * clickable space against a 24px minimum, and axe failed `/goals` at phone width.
-   * The shared `--dh-space-1` gap keeps it at 29.2px. Three pixels of vertical
+   * The shared `--app-space-1` gap keeps it at 29.2px. Three pixels of vertical
    * density is not worth a target a thumb misses. */
 
   /* One line of context, not a paragraph. */
@@ -546,13 +578,13 @@
   /* Signals first, supporting detail second, in one wrapped run rather than a
    * stack of chip rows. */
   .dh-card__metadata {
-    gap: var(--dh-space-1) var(--dh-space-2);
-    margin-top: var(--dh-space-1);
+    gap: var(--app-space-1) var(--app-space-2);
+    margin-top: var(--app-space-1);
   }
 
   .dh-card__meta[data-priority="low"] {
-    font-size: var(--dh-font-size-2xs);
-    color: var(--dh-color-text-muted);
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: var(--md-sys-color-on-surface-variant);
   }
 
   /* High-priority signals sort ahead of supporting detail without the module
@@ -587,13 +619,14 @@
  * `Card.tsx`), not edited.
  */
 
-/* The group: one in-flow card, hairline border, no shadow. */
-[data-density="collection"] .dh-card-collection--list {
-  background: var(--dh-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-card);
-  padding-block: var(--dh-density-card-padding-block);
-  padding-inline: var(--dh-density-card-padding-inline);
+/* The group: one M3 elevated card, no border. */
+.dh-card-collection--list {
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--md-sys-elevation-1);
+  padding-block: var(--app-space-2);
+  padding-inline: var(--app-space-4);
   gap: 0;
 }
 
@@ -607,8 +640,7 @@
  * wherever a shared list is embedded rather than routed to. The rows keep their
  * hairlines; only the container steps aside.
  */
-[data-density="collection"]
-  :where(
+:where(
     .dh-region-card,
     .dh-card,
     .record-tabs__panel,
@@ -620,17 +652,17 @@
   background: transparent;
   border: 0;
   border-radius: 0;
+  box-shadow: none;
   padding: 0;
 }
 
 /* The hairline sits BETWEEN rows — never before the first or after the last, so
  * the group's own border is the only edge at its ends. */
-[data-density="collection"]
-  .dh-card-collection--list
+.dh-card-collection--list
   > .dh-card-collection__item
   + .dh-card-collection__item {
-  border-block-start: var(--dh-border-width-thin) solid
-    var(--dh-color-divider-subtle);
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
 
 /*
@@ -641,13 +673,15 @@
  * every width. The row paints the group's own `surface-card`, so it is
  * invisible against it and the tray stays hidden until a finger moves it.
  */
-[data-density="collection"] .dh-card-collection--list .dh-card {
+/* The M3 LIST ITEM's metrics: 56px on one line, 72px once a supporting line is
+ * present, and 16px of inline padding. */
+.dh-card-collection--list .dh-card {
   align-items: center;
-  gap: var(--dh-space-3);
-  padding-block: var(--dh-density-row-padding-block);
-  padding-inline: 0;
-  min-block-size: var(--dh-density-row-min-height);
-  background: var(--dh-color-surface-card);
+  gap: var(--app-space-4);
+  padding-block: var(--app-space-2);
+  padding-inline: var(--app-space-4);
+  min-block-size: 3.5rem;
+  background: var(--md-app-color-surface-card);
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -656,31 +690,33 @@
 /* A row highlights by SURFACE, not by growing an outline that would reflow the
  * hairline grid. The paired shadows bleed the highlight into the group's inline
  * padding so it reads as a full-width row rather than a floating strip. */
-[data-density="collection"] .dh-card-collection--list .dh-card:hover {
+.dh-card-collection--list .dh-card:hover {
   border-color: transparent;
-  background: var(--dh-color-hover-surface);
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 8%,
+    transparent
+  );
   box-shadow:
-    calc(-1 * var(--dh-density-card-padding-inline)) 0 0
-      var(--dh-color-hover-surface),
-    var(--dh-density-card-padding-inline) 0 0 var(--dh-color-hover-surface);
+    calc(-1 * var(--app-space-4)) 0 0
+      color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent),
+    var(--app-space-4) 0 0
+      color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
 }
 
 /* Selection stays a surface + the native checked control, never colour alone. */
-[data-density="collection"]
-  .dh-card-collection--list
-  .dh-card[data-selected="true"] {
+.dh-card-collection--list .dh-card[data-selected="true"] {
   border-color: transparent;
-  background: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
   box-shadow:
-    calc(-1 * var(--dh-density-card-padding-inline)) 0 0
-      var(--dh-color-accent-surface),
-    var(--dh-density-card-padding-inline) 0 0 var(--dh-color-accent-surface);
+    calc(-1 * var(--app-space-6)) 0 0 var(--md-sys-color-primary-container),
+    var(--app-space-6) 0 0 var(--md-sys-color-primary-container);
 }
 
 /* The swipe wrapper owns elevation and shape on a standalone card; inside a row
  * collection the GROUP owns both, so the wrapper carries neither. */
-[data-density="collection"] .dh-card-collection--list .dh-card-swipe,
-[data-density="collection"] .dh-card-collection--list .dh-card-swipe:hover {
+.dh-card-collection--list .dh-card-swipe,
+.dh-card-collection--list .dh-card-swipe:hover {
   border-radius: 0;
   box-shadow: none;
 }
@@ -691,7 +727,7 @@
  * where an accent rule belongs, and it is drawn as an inset shadow rather than
  * a border so it never shifts the row's text off the group's inline rhythm.
  */
-[data-density="collection"] .dh-card-collection--list .dh-card[data-accent] {
+.dh-card-collection--list .dh-card[data-accent] {
   border-inline-start: 0;
 }
 
@@ -706,7 +742,7 @@
   display: flex;
   align-items: center;
   align-self: stretch;
-  min-block-size: var(--dh-space-6);
+  min-block-size: var(--app-space-6);
 }
 
 /* The primary line: what the owner scans. Title left, state right. */
@@ -725,17 +761,17 @@
  * instead of taking the title's width. The title is the one thing the owner is
  * scanning for, so it never truncates and never collapses.
  */
-[data-density="collection"] .dh-card__line {
+.dh-card__line {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--dh-space-1) var(--dh-space-2);
+  gap: var(--app-space-1) var(--app-space-2);
   min-width: 0;
 }
 
 /*
  * The row gap between the primary line and the supporting run is
- * `--dh-space-1`, NOT a hairline, and this is a WCAG requirement rather than a
+ * `--app-space-1`, NOT a hairline, and this is a WCAG requirement rather than a
  * taste one.
  *
  * The card title and the context breadcrumb are both LINKS and both short text
@@ -748,11 +784,11 @@
  *
  * Two pixels of vertical density is not worth a target a thumb misses.
  */
-[data-density="collection"] .dh-card__body {
-  gap: var(--dh-space-1);
+.dh-card__body {
+  gap: var(--app-space-1);
 }
 
-[data-density="collection"] .dh-card__heading {
+.dh-card__heading {
   display: contents;
 }
 
@@ -760,12 +796,12 @@
  * heading already says what these are, and "TASK" repeated fifty times down a
  * left edge is noise, not information. The label stays in the accessibility
  * tree, so a mixed collection (Search, linked items) still announces the type. */
-[data-density="collection"] .dh-card__type {
+.dh-card__type {
   flex: 0 0 auto;
   order: -1;
 }
 
-[data-density="collection"] .dh-card__type-label {
+.dh-card__type-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -777,16 +813,16 @@
   border: 0;
 }
 
-[data-density="collection"] .dh-card__title {
+.dh-card__title {
   flex: 1 1 auto;
   min-width: 0;
   min-inline-size: 12ch;
-  font-size: var(--dh-font-size-base);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-body-large-size);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
-[data-density="collection"] .dh-card__status {
+.dh-card__status {
   flex: 0 0 auto;
   order: 9;
   margin-inline-start: auto;
@@ -797,58 +833,58 @@
   display: contents;
 }
 
-[data-density="collection"] .dh-card__support {
+.dh-card__support {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   /* Same rule as the body gap above: the supporting run wraps, and a wrapped
      line puts two short links directly above one another. */
-  gap: var(--dh-space-1) var(--dh-space-3);
+  gap: var(--app-space-1) var(--app-space-3);
   min-width: 0;
 }
 
-[data-density="collection"] .dh-card__support:empty {
+.dh-card__support:empty {
   display: none;
 }
 
-[data-density="collection"] .dh-card__subtitle,
-[data-density="collection"] .dh-card__context,
-[data-density="collection"] .dh-card__date,
-[data-density="collection"] .dh-card__meta {
-  font-size: var(--dh-font-size-xs);
-  line-height: var(--dh-line-height-snug);
-  color: var(--dh-color-text-secondary);
+.dh-card__subtitle,
+.dh-card__context,
+.dh-card__date,
+.dh-card__meta {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
-[data-density="collection"] .dh-card__metadata {
+.dh-card__metadata {
   margin: 0;
-  gap: var(--dh-space-1) var(--dh-space-3);
+  gap: var(--app-space-1) var(--app-space-3);
 }
 
-[data-density="collection"] .dh-card__date {
+.dh-card__date {
   margin: 0;
 }
 
 /* Progress in a row is compact and always keeps its text value beside it. */
-[data-density="collection"] .dh-card__progress {
+.dh-card__progress {
   margin: 0;
   flex: 0 1 12rem;
   min-width: 6rem;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
-[data-density="collection"] .dh-card__progress-track {
+.dh-card__progress-track {
   block-size: 6px;
-  background: var(--dh-color-progress-track);
+  background: var(--md-sys-color-secondary-container);
 }
 
-[data-density="collection"] .dh-card__progress-fill {
-  background: var(--dh-color-progress-fill);
+.dh-card__progress-fill {
+  background: var(--md-sys-color-primary);
 }
 
 /* Actions stay visible on touch and reveal on hover/focus on a pointer device —
  * unchanged behaviour, sized down so a row does not grow to fit them. */
-[data-density="collection"] .dh-card-collection--list .dh-card__actions {
+.dh-card-collection--list .dh-card__actions {
   align-self: center;
 }
 
@@ -858,17 +894,17 @@
  * surface and hairline treatment so they match the rest of the system, and they
  * still take no shadow.
  */
-[data-density="collection"] .dh-card-collection--grid .dh-card,
-[data-density="collection"] .dh-card-collection--board .dh-card {
-  background: var(--dh-color-surface-card);
-  border-radius: var(--dh-radius-card);
+.dh-card-collection--grid .dh-card,
+.dh-card-collection--board .dh-card {
+  background: var(--md-app-color-surface-card);
+  border-radius: var(--md-sys-shape-corner-large);
   box-shadow: none;
 }
 
-[data-density="collection"] .dh-card-collection--grid .dh-card:hover,
-[data-density="collection"] .dh-card-collection--board .dh-card:hover {
+.dh-card-collection--grid .dh-card:hover,
+.dh-card-collection--board .dh-card:hover {
   box-shadow: none;
-  border-color: var(--dh-color-border-strong);
+  border-color: var(--md-sys-color-outline);
 }
 
 /*
@@ -880,11 +916,11 @@
  * content gets the width; the actions get the row under it.
  */
 @media (max-width: 30rem) {
-  [data-density="collection"] .dh-card-collection--list {
-    padding-inline: var(--dh-space-3);
+  .dh-card-collection--list {
+    padding-inline: var(--app-space-3);
   }
 
-  [data-density="collection"] .dh-card-collection--list .dh-card {
+  .dh-card-collection--list .dh-card {
     align-items: flex-start;
     flex-wrap: wrap;
   }
@@ -899,16 +935,16 @@
    * beside it. A zero basis makes the body ask for nothing and then grow into
    * what is left, which is the intent.
    */
-  [data-density="collection"] .dh-card-collection--list .dh-card__body {
+  .dh-card-collection--list .dh-card__body {
     flex: 1 1 0;
   }
 
   /* The actions row aligns with the body rather than with the selection column,
    * so the row still reads as one record and not as two. */
-  [data-density="collection"] .dh-card-collection--list .dh-card__actions {
+  .dh-card-collection--list .dh-card__actions {
     flex-basis: 100%;
     justify-content: flex-start;
-    margin-block-start: var(--dh-space-1);
+    margin-block-start: var(--app-space-1);
   }
 }
 
@@ -933,7 +969,7 @@
 .dh-card-swipe {
   position: relative;
   min-width: 0;
-  border-radius: var(--dh-radius-card);
+  border-radius: var(--md-sys-shape-corner-large);
   overflow: hidden;
   isolation: isolate;
   box-shadow: none;
@@ -953,7 +989,7 @@
 
 /* A card creates its own STACKING CONTEXT (the swipe surface is positioned with a
  * z-index so the tray can sit behind it), which caps the open overflow panel
- * inside it: the panel's `--dh-z-dropdown` is resolved against its card, not
+ * inside it: the panel's `--app-z-dropdown` is resolved against its card, not
  * against the page. In a long collection the next card — and the sticky header —
  * therefore paint OVER an open menu, and its items become unclickable.
  *
@@ -964,7 +1000,7 @@
 .dh-card-swipe:has(.dh-overflow-menu[data-open="true"]),
 .dh-card:has(.dh-overflow-menu[data-open="true"]) {
   position: relative;
-  z-index: var(--dh-z-dropdown);
+  z-index: var(--app-z-dropdown);
 }
 
 /* The article inside the clip must NOT paint its own (clipped, invisible)
@@ -983,9 +1019,10 @@
   z-index: 1;
   touch-action: pan-y;
   /* `--swipe-reveal` is a runtime state variable (set by the swipe hook), not a
-   * DS-01 design token — deliberately outside the `--dh-*` token namespace. */
+   * DS-01 design token — deliberately outside the `--app-*` token namespace. */
   transform: translateX(calc(-1 * var(--swipe-reveal, 0px)));
-  transition: transform var(--dh-duration-base) var(--dh-ease-standard);
+  transition: transform var(--md-sys-motion-duration-medium2)
+    var(--md-sys-motion-easing-standard);
 }
 
 .dh-card-swipe > .dh-card[data-swipe-dragging="true"] {
@@ -1002,7 +1039,7 @@
   z-index: 0;
   display: flex;
   align-items: stretch;
-  background: var(--dh-color-accent-surface);
+  background: var(--md-sys-color-primary-container);
 }
 
 .dh-card__swipe-action {
@@ -1010,18 +1047,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-1);
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
+  gap: var(--app-space-1);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
   border: none;
-  border-inline-start: var(--dh-border-width-thin) solid var(--dh-color-border);
+  border-inline-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
   background: transparent;
-  color: var(--dh-color-accent-text);
+  color: var(--md-sys-color-primary);
   font: inherit;
-  font-size: var(--dh-font-size-xs);
-  font-weight: var(--dh-font-weight-medium);
-  line-height: var(--dh-line-height-snug);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  font-weight: 500;
+  line-height: 1.35;
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
@@ -1033,12 +1071,51 @@
 }
 
 .dh-card__swipe-action:disabled {
-  color: var(--dh-color-disabled-text);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: not-allowed;
 }
 
 .dh-card__swipe-action-icon {
   display: inline-flex;
-  font-size: var(--dh-font-size-md);
+  font-size: var(--md-sys-typescale-body-large-size);
   line-height: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The card and row primitives                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * M3-01 — the two surface primitives DS-14's density presets used to supply.
+ *
+ * They moved here when `density.css` was deleted with the presets (ADR-074
+ * decision 6): a card is a card regardless of what kind of surface hosts it, so
+ * these are stated once against the M3 card and list specifications rather than
+ * derived from a region's declared type.
+ *
+ * `.dh-region-card` is the M3 elevated card: the card plane at `corner-large`,
+ * elevation 1, no border. `.dh-region-row` is the M3 list item: 56px, a 16px
+ * gap, and a hairline BETWEEN rows only — never before the first or after the
+ * last, so the card's own edge is the only boundary at its ends.
+ */
+.dh-region-card {
+  background: var(--md-app-color-surface-card);
+  border: none;
+  border-radius: var(--md-sys-shape-corner-large);
+  box-shadow: var(--md-sys-elevation-1);
+  padding-block: var(--app-space-5);
+  padding-inline: var(--app-space-6);
+}
+
+.dh-region-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-4);
+  min-block-size: 3.5rem;
+  padding-block: var(--app-space-2);
+}
+
+.dh-region-row + .dh-region-row {
+  border-block-start: var(--app-border-width-thin) solid
+    var(--md-sys-color-outline-variant);
 }
