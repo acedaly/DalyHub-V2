@@ -85,7 +85,11 @@ export function CardSkeleton({ density = "comfortable" }: CardSkeletonProps) {
       <Skeleton width="70%" height="1rem" />
       <Skeleton width="45%" height="0.75rem" />
       {density === "comfortable" ? (
-        <Skeleton width="100%" height="0.5rem" radius="var(--dh-radius-full)" />
+        <Skeleton
+          width="100%"
+          height="0.5rem"
+          radius="var(--md-sys-shape-corner-full)"
+        />
       ) : null}
     </div>
   );

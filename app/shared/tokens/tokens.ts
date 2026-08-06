@@ -18,7 +18,7 @@ import { SCHEME_ROLE_NAMES, type SchemeRole } from "./scheme";
 export type { SchemeRole } from "./scheme";
 export { SCHEME_ROLE_NAMES } from "./scheme";
 
-/** Breakpoint values in pixels. Mirrors the `--dh-breakpoint-*` tokens in CSS
+/** Breakpoint values in pixels. Mirrors the `--app-breakpoint-*` tokens in CSS
  * (media queries cannot read custom properties); a test keeps them in sync. */
 export const BREAKPOINTS = {
   sm: 480,
@@ -114,51 +114,51 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "md-sys-motion-easing-emphasized-accelerate",
   ],
   spacing: [
-    "dh-space-0",
-    "dh-space-px",
-    "dh-space-1",
-    "dh-space-2",
-    "dh-space-3",
-    "dh-space-4",
-    "dh-space-5",
-    "dh-space-6",
-    "dh-space-8",
-    "dh-space-10",
-    "dh-space-12",
-    "dh-space-16",
+    "app-space-0",
+    "app-space-px",
+    "app-space-1",
+    "app-space-2",
+    "app-space-3",
+    "app-space-4",
+    "app-space-5",
+    "app-space-6",
+    "app-space-8",
+    "app-space-10",
+    "app-space-12",
+    "app-space-16",
   ],
   sizing: [
-    "dh-control-height-sm",
-    "dh-control-height-md",
-    "dh-control-height-lg",
-    "dh-touch-target-min",
-    "dh-width-prose",
-    "dh-width-narrow",
-    "dh-width-content",
-    "dh-width-wide",
-    "dh-width-dashboard",
-    "dh-shell-header-height",
-    "dh-shell-nav-width",
-    "dh-inspector-width",
-    "dh-gutter",
-    "dh-border-width-thin",
-    "dh-border-width-thick",
+    "app-control-height-sm",
+    "app-control-height-md",
+    "app-control-height-lg",
+    "app-touch-target-min",
+    "app-width-prose",
+    "app-width-narrow",
+    "app-width-content",
+    "app-width-wide",
+    "app-width-dashboard",
+    "app-shell-header-height",
+    "app-shell-nav-width",
+    "app-inspector-width",
+    "app-gutter",
+    "app-border-width-thin",
+    "app-border-width-thick",
   ],
   layout: [
-    "dh-breakpoint-sm",
-    "dh-breakpoint-md",
-    "dh-breakpoint-lg",
-    "dh-breakpoint-xl",
-    "dh-breakpoint-2xl",
-    "dh-z-base",
-    "dh-z-raised",
-    "dh-z-sticky",
-    "dh-z-dropdown",
-    "dh-z-overlay",
-    "dh-z-drawer",
-    "dh-z-modal",
-    "dh-z-toast",
-    "dh-z-tooltip",
+    "app-breakpoint-sm",
+    "app-breakpoint-md",
+    "app-breakpoint-lg",
+    "app-breakpoint-xl",
+    "app-breakpoint-2xl",
+    "app-z-base",
+    "app-z-raised",
+    "app-z-sticky",
+    "app-z-dropdown",
+    "app-z-overlay",
+    "app-z-drawer",
+    "app-z-modal",
+    "app-z-toast",
+    "app-z-tooltip",
   ],
 } as const satisfies Record<string, readonly string[]>;
 
@@ -183,7 +183,7 @@ export function colorVar(role: SchemeRole): string {
 }
 
 /** Build a `var(--<name>)` reference for any token custom property (the name is
- * given without the leading `--`, e.g. `cssVar("dh-space-4")`). */
+ * given without the leading `--`, e.g. `cssVar("app-space-4")`). */
 export function cssVar(name: string): string {
   return `var(--${name})`;
 }

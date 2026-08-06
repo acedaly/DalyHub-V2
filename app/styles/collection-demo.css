@@ -9,9 +9,9 @@
 
 .dh-view-switcher {
   display: inline-flex;
-  gap: var(--dh-space-px);
-  padding: var(--dh-space-px);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-px);
+  padding: var(--app-space-px);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
 }
@@ -20,8 +20,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--dh-control-height-md);
-  min-block-size: var(--dh-control-height-md);
+  min-inline-size: var(--app-control-height-md);
+  min-block-size: var(--app-control-height-md);
   border: none;
   border-radius: var(--md-sys-shape-corner-extra-small);
   background: transparent;
@@ -40,9 +40,9 @@
 .dh-demo-secondary {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
+  gap: var(--app-space-1);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-small);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
@@ -60,7 +60,7 @@
 }
 
 .dh-demo-secondary {
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   background: var(--md-app-color-surface-raised);
   color: var(--md-sys-color-on-surface);
 }
@@ -69,16 +69,16 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-demo-states {
   display: flex;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: center;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
-  padding: var(--dh-space-1) var(--dh-space-3);
+  padding: var(--app-space-1) var(--app-space-3);
   margin: 0;
 }
 
@@ -90,7 +90,7 @@
 .dh-demo-states label {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
@@ -98,5 +98,5 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }

@@ -9,9 +9,9 @@
 .dh-task-drawer__completion {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) 0;
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-1) 0;
   cursor: pointer;
   font-weight: 500;
 }
@@ -39,7 +39,7 @@
 .dh-task-drawer__meta {
   display: grid;
   grid-template-columns: minmax(6rem, auto) 1fr;
-  gap: var(--dh-space-1) var(--dh-space-4);
+  gap: var(--app-space-1) var(--app-space-4);
   margin: 0;
 }
 
@@ -58,14 +58,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-task-drawer__relationship {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
   flex-wrap: wrap;
 }
 
@@ -83,18 +83,18 @@
 .dh-task-drawer__summary-controls {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-task-waiting {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-task-waiting--active {
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-warning);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-warning);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-sys-color-warning-container);
 }
@@ -102,7 +102,7 @@
 .dh-task-waiting__label {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex-wrap: wrap;
   margin: 0;
 }
@@ -116,7 +116,7 @@
 .dh-task-waiting__subject {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -130,7 +130,7 @@
 .dh-task-waiting__modes {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   border: 0;
   margin: 0;
   padding: 0;
@@ -140,20 +140,20 @@
   font-size: var(--md-sys-typescale-label-medium-size);
   color: var(--md-sys-color-on-surface-variant);
   padding: 0;
-  margin-bottom: var(--dh-space-1);
+  margin-bottom: var(--app-space-1);
 }
 
 .dh-task-waiting__mode {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-height: var(--dh-touch-target-min);
+  gap: var(--app-space-1);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-task-waiting__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-task-waiting__error {
@@ -168,13 +168,13 @@
 .dh-task-planning {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-task-planning__dates {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   margin: 0;
 }
 
@@ -197,7 +197,7 @@
 .dh-task-planning__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-task-planning__custom {

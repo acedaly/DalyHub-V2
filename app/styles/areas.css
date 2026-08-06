@@ -8,7 +8,7 @@
 .dh-area-overview__summary,
 .dh-area-momentum {
   display: grid;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   min-inline-size: 0;
 }
 
@@ -26,7 +26,7 @@
 .dh-area-momentum {
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   background: var(--md-app-color-surface-card);
 }
 
@@ -34,7 +34,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-inline-size: 0;
 }
 
@@ -47,9 +47,9 @@
 
 .dh-area-momentum__reasons {
   display: grid;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
-  padding-inline-start: var(--dh-space-5);
+  padding-inline-start: var(--app-space-5);
   color: var(--md-sys-color-on-surface-variant);
 }
 
@@ -58,7 +58,7 @@
 }
 
 .dh-area-bounded-note {
-  margin: var(--dh-space-4) 0 0;
+  margin: var(--app-space-4) 0 0;
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
@@ -74,8 +74,8 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--dh-space-3);
-  margin-bottom: var(--dh-space-4);
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-space-4);
 }
 
 @media (max-width: 30rem) {
@@ -93,8 +93,8 @@
    section. The archived state is carried by text + the status pill, never colour
    alone. */
 .dh-area-archived-notice {
-  margin: 0 0 var(--dh-space-4);
-  padding: var(--dh-space-3) var(--dh-space-4);
+  margin: 0 0 var(--app-space-4);
+  padding: var(--app-space-3) var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-sunken);
@@ -110,7 +110,7 @@
 .dh-area-delete-blocked {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;
@@ -119,9 +119,9 @@
 .dh-area-delete-blocked__list {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
-  padding-inline-start: var(--dh-space-5);
+  padding-inline-start: var(--app-space-5);
 }
 
 .dh-area-delete-blocked__list li {

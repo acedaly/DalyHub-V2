@@ -16,7 +16,7 @@
 .dh-md-editor {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 /* Top bar: formatting toolbar on the left, save status + Read/Write toggle on
@@ -26,13 +26,13 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-md-editor__bar-end {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   flex: 0 0 auto;
 }
 
@@ -48,10 +48,10 @@
 .dh-md-editor__mode-toggle {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--dh-touch-target-min);
-  min-inline-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface-variant);
@@ -89,11 +89,11 @@
 .dh-md-toolbar {
   display: flex;
   flex-wrap: nowrap;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   align-items: center;
   min-inline-size: 0;
-  padding: var(--dh-space-1);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: var(--app-space-1);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-sunken);
   overflow-x: auto;
@@ -107,10 +107,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-block-size: var(--dh-touch-target-min);
-  min-inline-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid transparent;
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-3);
+  border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
   color: var(--md-sys-color-on-surface-variant);
@@ -171,8 +171,8 @@
   display: block;
   inline-size: 100%;
   min-block-size: max(40dvh, 16rem);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-page);
   color: var(--md-sys-color-on-surface);
@@ -185,15 +185,15 @@
 /* CodeMirror host. The library injects its own structural CSS; we override only
  * the design surface here, all through tokens. */
 .dh-md-editor__cm {
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-page);
   overflow: hidden;
 }
 
 .dh-md-editor__cm:focus-within {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
-  outline-offset: var(--dh-border-width-thin);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline-offset: var(--app-border-width-thin);
   border-color: var(--md-sys-color-outline);
 }
 
@@ -215,9 +215,9 @@
 }
 
 .dh-md-editor__cm .cm-content {
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   caret-color: var(--md-sys-color-primary);
-  max-inline-size: var(--dh-width-prose);
+  max-inline-size: var(--app-width-prose);
 }
 
 .dh-md-editor__cm .cm-cursor,
@@ -272,7 +272,7 @@
 .dh-md-editor__cm .cm-dh-inline-code {
   font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
-  padding: 0 var(--dh-space-1);
+  padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-extra-small);
   background: var(--md-app-color-surface-sunken);
 }
@@ -282,16 +282,16 @@
 }
 
 .dh-md-editor__cm .cm-dh-quote {
-  padding-inline-start: var(--dh-space-3);
-  border-inline-start: var(--dh-border-width-thick) solid
+  padding-inline-start: var(--app-space-3);
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-outline);
   color: var(--md-sys-color-on-surface-variant);
   font-style: italic;
 }
 
 .dh-md-editor__cm .cm-dh-callout {
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border-inline-start: var(--dh-border-width-thick) solid
+  padding: var(--app-space-1) var(--app-space-3);
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-on-info-container);
   background: var(--md-sys-color-info-container);
   color: var(--md-sys-color-on-info-container);
@@ -322,12 +322,12 @@
 }
 
 .dh-md-editor__cm .cm-dh-hr {
-  padding-block: var(--dh-space-2);
+  padding-block: var(--app-space-2);
 }
 .dh-md-editor__cm .cm-dh-hr hr {
   margin: 0;
   border: none;
-  border-top: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border-top: var(--app-border-width-thin) solid var(--md-sys-color-outline);
 }
 
 /* Interactive task checkbox replacing the `[ ]` marker. */
@@ -348,9 +348,9 @@
 .dh-md-editor__cm .cm-dh-image {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) dashed var(--md-sys-color-outline);
+  gap: var(--app-space-1);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) dashed var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-sunken);
   color: var(--md-sys-color-on-surface-variant);
@@ -360,7 +360,7 @@
 /* Rendered GFM table widget. */
 .dh-md-editor__cm .cm-dh-table {
   overflow-x: auto;
-  margin-block: var(--dh-space-2);
+  margin-block: var(--app-space-2);
 }
 .dh-md-editor__cm .cm-dh-table table {
   border-collapse: collapse;
@@ -370,8 +370,8 @@
 }
 .dh-md-editor__cm .cm-dh-table th,
 .dh-md-editor__cm .cm-dh-table td {
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: var(--app-space-1) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   text-align: start;
 }
 .dh-md-editor__cm .cm-dh-table th {
@@ -384,9 +384,9 @@
  * prose measure.
  * ------------------------------------------------------------------------- */
 .dh-md-editor__reading {
-  max-inline-size: var(--dh-width-prose);
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  max-inline-size: var(--app-width-prose);
+  padding: var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-page);
   overflow-wrap: anywhere;
@@ -403,7 +403,7 @@
 .dh-md-editor__messages {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 .dh-md-editor__help {
   margin: 0;
@@ -413,7 +413,7 @@
 .dh-md-editor__error {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   margin: 0;
   color: var(--md-sys-color-on-error-container);
   font-size: var(--md-sys-typescale-body-small-size);
@@ -466,9 +466,9 @@
 .dh-record-link-picker {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3);
-  border-block-end: var(--dh-border-width-thin) solid
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border-block-end: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-sunken);
 }
@@ -480,9 +480,9 @@
 }
 
 .dh-record-link-picker__input {
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
@@ -506,9 +506,9 @@
 .dh-record-link-picker__option {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-2);
+  gap: var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
@@ -517,7 +517,7 @@
  * never colour alone (AGENTS.md §15). */
 .dh-record-link-picker__option[data-active="true"] {
   background: var(--md-app-color-surface-raised);
-  box-shadow: inset var(--dh-space-1) 0 0 0 var(--md-sys-color-primary);
+  box-shadow: inset var(--app-space-1) 0 0 0 var(--md-sys-color-primary);
 }
 
 .dh-record-link-picker__icon {
@@ -557,7 +557,7 @@
 
 @media (forced-colors: active) {
   .dh-record-link-picker__option[data-active="true"] {
-    outline: var(--dh-border-width-thin) solid Highlight;
+    outline: var(--app-border-width-thin) solid Highlight;
     box-shadow: none;
   }
 }
@@ -585,7 +585,7 @@
 .dh-note-body .dh-md-editor__cm .cm-content {
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
-  max-inline-size: var(--dh-width-prose);
+  max-inline-size: var(--app-width-prose);
   margin-inline: auto;
 }
 
@@ -599,7 +599,7 @@
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
-  max-inline-size: var(--dh-width-prose);
+  max-inline-size: var(--app-width-prose);
   margin-inline: auto;
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-app-color-surface-card);

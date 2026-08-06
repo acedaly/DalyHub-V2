@@ -4,7 +4,7 @@
  * The premium application shell that replaces FND-09's website-like top bar
  * (PRODUCT_EXPERIENCE #1, #2): a persistent left sidebar owning identity and
  * navigation, and a full-height content pane with its own scroll. Layout is
- * `grid-template-columns: var(--dh-shell-nav-width) 1fr` — the sidebar width token
+ * `grid-template-columns: var(--app-shell-nav-width) 1fr` — the sidebar width token
  * DS-01 already defined and nothing consumed until now.
  *
  * - Desktop/laptop/tablet: the sidebar is a persistent rail; the pane scrolls
@@ -127,7 +127,7 @@ export function AppShell({
   const [navOpener, setNavOpener] = useState<HTMLElement | null>(null);
 
   // The ONE Visual Viewport listener in DalyHub. It publishes
-  // `--dh-keyboard-inset`, which every keyboard-aware surface styles against —
+  // `--app-keyboard-inset`, which every keyboard-aware surface styles against —
   // there is never a per-form resize listener (MOBILE-01 §B3).
   useKeyboardInset();
   // The element focus returns to when each surface closes — whatever opened it.

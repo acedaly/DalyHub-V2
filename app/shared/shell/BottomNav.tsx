@@ -23,7 +23,7 @@
  *   - every control is a real button/link with a permanently visible text label
  *     beneath its icon (no icon-only targets) and meets the 44px minimum;
  *   - the bar sits above the home indicator via `env(safe-area-inset-bottom)` and
- *     hides itself while the on-screen keyboard is up (`--dh-keyboard-inset`), so
+ *     hides itself while the on-screen keyboard is up (`--app-keyboard-inset`), so
  *     it can never cover a focused field or an error message;
  *   - it is `display: none` at `md` and above, so desktop is untouched.
  *

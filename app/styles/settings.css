@@ -15,11 +15,11 @@
   container-type: inline-size;
   display: block;
   width: 100%;
-  max-width: var(--dh-width-content);
+  max-width: var(--app-width-content);
 }
 
 .dh-settings__header {
-  margin-bottom: var(--dh-space-6);
+  margin-bottom: var(--app-space-6);
 }
 
 .dh-settings__title {
@@ -31,7 +31,7 @@
 }
 
 .dh-settings__description {
-  margin: var(--dh-space-2) 0 0;
+  margin: var(--app-space-2) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: 1.5;
   color: var(--md-sys-color-on-surface-variant);
@@ -40,7 +40,7 @@
 .dh-settings__groups {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 /* ---------------------------------------------------------------- group */
@@ -62,24 +62,24 @@
 .dh-settings-group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-5);
+  gap: var(--app-space-3);
+  padding: var(--app-space-5);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }
 
 .dh-settings-group__header {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
-  padding-bottom: var(--dh-space-2);
+  gap: var(--app-space-1);
+  padding-bottom: var(--app-space-2);
 }
 
 .dh-settings-group__title {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
   font-size: var(--md-sys-typescale-body-large-size);
   font-weight: 500;
@@ -107,7 +107,7 @@
 /* Rows within a group are separated by hairlines, calm and consistent. The
    within-card separator token, now that the group is a card. */
 .dh-settings-group__rows > .dh-settings-row + .dh-settings-row {
-  border-top: var(--dh-border-width-thin) solid
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -116,15 +116,15 @@
    colour alone. */
 .dh-settings-group--danger {
   gap: 0;
-  padding: var(--dh-space-4) var(--dh-space-5) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-error);
+  padding: var(--app-space-4) var(--app-space-5) var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-sys-color-error-container);
 }
 
 .dh-settings-group--danger .dh-settings-group__header {
   border-bottom-color: var(--md-sys-color-error);
-  margin-bottom: var(--dh-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
 .dh-settings-group--danger .dh-settings-group__title {
@@ -149,8 +149,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3) var(--dh-space-5);
-  padding: var(--dh-space-4) 0;
+  gap: var(--app-space-3) var(--app-space-5);
+  padding: var(--app-space-4) 0;
 }
 
 .dh-settings-row--align-start {
@@ -160,7 +160,7 @@
 .dh-settings-row__text {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
   /* Grow but allow wrapping; a floor keeps the control from being crushed. */
   flex: 1 1 16rem;
@@ -185,7 +185,7 @@
 .dh-settings-row__control {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
   /* The control area may shrink but keeps a usable minimum before stacking. */
   flex: 0 1 auto;
@@ -222,7 +222,7 @@
   .dh-settings-row {
     flex-direction: column;
     align-items: stretch;
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
   .dh-settings-row__control {
     width: 100%;
@@ -240,7 +240,7 @@
   position: relative;
   width: 2.75rem;
   min-width: 2.75rem;
-  height: var(--dh-touch-target-min);
+  height: var(--app-touch-target-min);
   margin: 0;
   padding: 0;
   border-radius: var(--md-sys-shape-corner-full);
@@ -298,16 +298,16 @@
 
 /* A native select skin, for an immediate select in a row. */
 .dh-settings-select {
-  min-height: var(--dh-control-height-md);
+  min-height: var(--app-control-height-md);
   max-width: 100%;
-  padding: 0 var(--dh-space-3);
+  padding: 0 var(--app-space-3);
   font-family: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-card);
   /* A form control's boundary is what identifies it, so it uses the 3:1
    * `control-border` token rather than the decorative border (WCAG 1.4.11). */
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
 }
@@ -337,14 +337,14 @@
 
 /* The destructive button on a dangerous-action row. */
 .dh-settings-danger-button {
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-4);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-4);
   font-family: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-error-container);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-error);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
   border-radius: var(--md-sys-shape-corner-medium);
   cursor: pointer;
   transition: background var(--md-sys-motion-duration-short4)
@@ -375,7 +375,7 @@
 @media (hover: none), (pointer: coarse) {
   .dh-settings-select,
   .dh-settings-danger-button {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -384,15 +384,15 @@
 .dh-confirm-root {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-modal);
+  z-index: var(--app-z-modal);
   display: grid;
   place-items: center;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   /* Respect the mobile safe area so the dialog is never under a system bar. */
-  padding: max(var(--dh-space-4), env(safe-area-inset-top))
-    max(var(--dh-space-4), env(safe-area-inset-right))
-    max(var(--dh-space-4), env(safe-area-inset-bottom))
-    max(var(--dh-space-4), env(safe-area-inset-left));
+  padding: max(var(--app-space-4), env(safe-area-inset-top))
+    max(var(--app-space-4), env(safe-area-inset-right))
+    max(var(--app-space-4), env(safe-area-inset-bottom))
+    max(var(--app-space-4), env(safe-area-inset-left));
 }
 
 .dh-confirm-scrim {
@@ -410,13 +410,13 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   width: min(28rem, 100%);
   max-height: 100%;
   overflow-y: auto;
-  padding: var(--dh-space-5);
+  padding: var(--app-space-5);
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-extra-large);
   box-shadow: var(--md-sys-elevation-3);
   animation: dh-confirm-in var(--md-sys-motion-duration-medium2)
@@ -424,7 +424,7 @@
 }
 
 .dh-confirm--danger {
-  border-top: var(--dh-border-width-thick) solid var(--md-sys-color-error);
+  border-top: var(--app-border-width-thick) solid var(--md-sys-color-error);
 }
 
 .dh-confirm__title {
@@ -445,7 +445,7 @@
 .dh-confirm__typed {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-confirm__typed-label {
@@ -456,20 +456,20 @@
 .dh-confirm__phrase {
   font-family: var(--md-ref-typeface-mono);
   font-size: var(--md-sys-typescale-label-medium-size);
-  padding: 0 var(--dh-space-1);
+  padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-extra-small);
   background: var(--md-app-color-surface-sunken);
   color: var(--md-sys-color-on-surface);
 }
 
 .dh-confirm__input {
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
   font-family: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
 }
 
@@ -492,18 +492,18 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--dh-space-2);
-  margin-top: var(--dh-space-2);
+  gap: var(--app-space-2);
+  margin-top: var(--app-space-2);
 }
 
 .dh-confirm__button {
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-4);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-4);
   font-family: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   border-radius: var(--md-sys-shape-corner-medium);
-  border: var(--dh-border-width-thin) solid transparent;
+  border: var(--app-border-width-thin) solid transparent;
   cursor: pointer;
 }
 
@@ -556,7 +556,7 @@
 @media (max-width: 30rem) {
   .dh-confirm {
     width: 100%;
-    padding: var(--dh-space-4);
+    padding: var(--app-space-4);
     border-radius: var(--md-sys-shape-corner-large);
   }
 
@@ -566,14 +566,14 @@
 
   .dh-confirm__button {
     flex: 1 1 100%;
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
 @media (hover: none), (pointer: coarse) {
   .dh-confirm__input,
   .dh-confirm__button {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -613,27 +613,27 @@
 .dh-settings-page {
   display: grid;
   grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr);
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   width: 100%;
-  max-width: var(--dh-width-wide);
-  padding: var(--dh-space-6);
+  max-width: var(--app-width-wide);
+  padding: var(--app-space-6);
   margin: 0 auto;
 }
 
 .dh-settings-page__nav {
   position: sticky;
-  top: var(--dh-space-6);
+  top: var(--app-space-6);
   align-self: start;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-settings-page__nav-link {
   display: flex;
   align-items: center;
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-medium);
   color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
@@ -670,14 +670,14 @@
 .dh-settings-page__content {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   min-width: 0;
 }
 
 .dh-settings-page__header {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-settings-page__title {
@@ -706,7 +706,7 @@
 }
 
 .dh-settings-page__text-value {
-  min-height: var(--dh-control-height-md);
+  min-height: var(--app-control-height-md);
   display: inline-flex;
   align-items: center;
   color: var(--md-sys-color-on-surface);
@@ -717,21 +717,21 @@
 @media (max-width: 48rem) {
   .dh-settings-page {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--dh-space-5);
-    padding: var(--dh-space-4);
+    gap: var(--app-space-5);
+    padding: var(--app-space-4);
   }
 
   .dh-settings-page__nav {
     position: static;
     flex-direction: row;
     overflow-x: auto;
-    padding-bottom: var(--dh-space-1);
+    padding-bottom: var(--app-space-1);
     scrollbar-width: thin;
   }
 
   .dh-settings-page__nav-link {
     flex: 0 0 auto;
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -751,7 +751,7 @@
   .dh-settings-row {
     flex-direction: column;
     align-items: stretch;
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-settings-row__control {
@@ -765,7 +765,7 @@
   .dh-settings-row__control .dh-combobox,
   .dh-settings-row__control .dh-btn {
     inline-size: 100%;
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 
   /* A switch stays its natural size and aligns to the start of the stacked row
@@ -778,11 +778,11 @@
   /* The destructive region keeps its clear separation on a phone: the border and
    * the heading do the work, so it is never just "the last row". */
   .dh-settings-group--danger {
-    padding-inline: var(--dh-space-4);
+    padding-inline: var(--app-space-4);
   }
 
   /* Clear the phone bottom navigation. */
   .dh-settings-page {
-    padding-bottom: calc(var(--dh-space-6) + var(--dh-bottomnav-height, 0px));
+    padding-bottom: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
   }
 }

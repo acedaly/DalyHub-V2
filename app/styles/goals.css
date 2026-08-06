@@ -7,12 +7,12 @@
 
 .dh-goal-overview__summary {
   display: grid;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   min-inline-size: 0;
 }
 
 .dh-goal-overview__definition-heading {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
@@ -44,14 +44,14 @@
 }
 
 .dh-goal-overview__alignment-heading {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-goal-bounded-note {
-  margin: var(--dh-space-4) 0 0;
+  margin: var(--app-space-4) 0 0;
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
   overflow-wrap: anywhere;

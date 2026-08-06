@@ -17,9 +17,9 @@
 .dh-connection-status {
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  margin-bottom: var(--dh-space-4);
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
+  margin-bottom: var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
@@ -43,7 +43,7 @@
 .dh-connection-status__body {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
 }
 
@@ -59,10 +59,10 @@
   flex: none;
   align-self: center;
   margin-inline-start: auto;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   display: inline-flex;
   align-items: center;
-  padding-inline: var(--dh-space-3);
+  padding-inline: var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-small);
   color: var(--md-sys-color-primary);
   font-weight: 500;
@@ -77,9 +77,9 @@
   align-items: center;
   justify-content: center;
   /* WCAG 2.2 target size, and the project's established mobile minimum. */
-  min-height: var(--dh-touch-target-min);
-  min-width: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-4);
+  min-height: var(--app-touch-target-min);
+  min-width: var(--app-touch-target-min);
+  padding: 0 var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-raised);
@@ -118,17 +118,17 @@
 .dh-offline-page {
   max-width: 56rem;
   margin: 0 auto;
-  padding: var(--dh-space-6) var(--dh-space-4);
+  padding: var(--app-space-6) var(--app-space-4);
   /* The offline shell renders OUTSIDE the app shell, so it owns its own safe
    * areas: an installed iPhone launch lands here with a notch and a home
    * indicator and no shell chrome to absorb them. */
-  padding-top: max(var(--dh-space-6), env(safe-area-inset-top));
-  padding-bottom: max(var(--dh-space-8), env(safe-area-inset-bottom));
-  padding-left: max(var(--dh-space-4), env(safe-area-inset-left));
-  padding-right: max(var(--dh-space-4), env(safe-area-inset-right));
+  padding-top: max(var(--app-space-6), env(safe-area-inset-top));
+  padding-bottom: max(var(--app-space-8), env(safe-area-inset-bottom));
+  padding-left: max(var(--app-space-4), env(safe-area-inset-left));
+  padding-right: max(var(--app-space-4), env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   color: var(--md-sys-color-on-surface);
 }
 
@@ -138,18 +138,18 @@
   display: inline-flex;
   font-size: 2.5rem;
   line-height: 0;
-  margin-bottom: var(--dh-space-3);
+  margin-bottom: var(--app-space-3);
 }
 
 .dh-offline-page__title {
   font-size: var(--md-sys-typescale-headline-small-size);
   font-weight: 500;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
 }
 
 .dh-offline-page__lead,
 .dh-offline-page__links {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -172,24 +172,24 @@
 .dh-offline-snapshot {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 .dh-offline-snapshot__banner {
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-sunken);
 }
 
 .dh-offline-snapshot__banner-title {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-weight: 500;
 }
 
 .dh-offline-snapshot__banner-body,
 .dh-offline-snapshot__banner-warning {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
@@ -203,12 +203,12 @@
 .dh-offline-snapshot__search {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-offline-snapshot__search input {
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-raised);
@@ -231,7 +231,7 @@
 .dh-offline-section__title {
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 500;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
 }
 
 .dh-offline-section__count {
@@ -252,14 +252,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-offline-row {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
-  padding: var(--dh-space-3);
+  gap: var(--app-space-1);
+  padding: var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
@@ -301,8 +301,8 @@
 .dh-offline-sync {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-4);
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
@@ -318,13 +318,13 @@
 .dh-offline-capture__form {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-offline-capture__kinds {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   border: 0;
   margin: 0;
   padding: 0;
@@ -334,16 +334,16 @@
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
   padding: 0;
-  margin-bottom: var(--dh-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
 .dh-offline-capture__kind {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 0 var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
+  gap: 0 var(--app-space-2);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
@@ -364,12 +364,12 @@
 .dh-offline-capture__field {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-offline-capture__field input {
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
@@ -405,7 +405,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-offline-sync__head .dh-offline-sync__summary {
@@ -415,9 +415,9 @@
 .dh-offline-sync__item {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: flex-start;
-  padding: var(--dh-space-3);
+  padding: var(--app-space-3);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
@@ -427,7 +427,7 @@
   flex: 1 1 14rem;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
 }
 
@@ -449,7 +449,7 @@
 
 .dh-offline-sync__item-actions {
   display: flex;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex-wrap: wrap;
 }
 
@@ -460,7 +460,7 @@
 .dh-offline-facts {
   display: grid;
   grid-template-columns: minmax(10rem, auto) 1fr;
-  gap: var(--dh-space-2) var(--dh-space-4);
+  gap: var(--app-space-2) var(--app-space-4);
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -475,23 +475,23 @@
 }
 
 .dh-offline-install__steps {
-  margin: var(--dh-space-2) 0 0;
-  padding-inline-start: var(--dh-space-5);
+  margin: var(--app-space-2) 0 0;
+  padding-inline-start: var(--app-space-5);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 @media (max-width: 30rem) {
   .dh-offline-facts {
     grid-template-columns: 1fr;
-    gap: var(--dh-space-1) 0;
+    gap: var(--app-space-1) 0;
   }
 
   .dh-offline-facts dd {
-    margin-bottom: var(--dh-space-2);
+    margin-bottom: var(--app-space-2);
   }
 }
 
@@ -500,28 +500,28 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-icon-review {
-  padding: var(--dh-space-6);
+  padding: var(--app-space-6);
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   color: var(--md-sys-color-on-surface);
 }
 
 .dh-icon-review__row {
   list-style: none;
-  margin: var(--dh-space-4) 0 0;
+  margin: var(--app-space-4) 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-icon-review__item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -536,8 +536,8 @@
 .dh-icon-review__chrome {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-4);
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
   border-radius: var(--md-sys-shape-corner-small);
 }
 
@@ -560,8 +560,8 @@
 .dh-icon-review__lockups {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
-  margin-top: var(--dh-space-4);
+  gap: var(--app-space-5);
+  margin-top: var(--app-space-4);
 }
 
 /* PWA-11 — the offline surface's diagnostic state.
@@ -571,9 +571,9 @@
  * secondary text colour as every other supporting line on the page, so an open
  * panel reads as part of the page rather than as an alarm. */
 .dh-offline-diagnostics {
-  margin-top: var(--dh-space-6);
+  margin-top: var(--app-space-6);
   border-top: 1px solid var(--md-sys-color-outline-variant);
-  padding-top: var(--dh-space-4);
+  padding-top: var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -586,14 +586,14 @@
 
 .dh-offline-diagnostics__lead,
 .dh-offline-diagnostics__empty {
-  margin: var(--dh-space-3) 0 0;
+  margin: var(--app-space-3) 0 0;
 }
 
 .dh-offline-diagnostics__list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: var(--dh-space-2) var(--dh-space-4);
-  margin: var(--dh-space-3) 0 0;
+  gap: var(--app-space-2) var(--app-space-4);
+  margin: var(--app-space-3) 0 0;
 }
 
 .dh-offline-diagnostics__list dt {
@@ -607,17 +607,17 @@
 
 .dh-offline-diagnostics__failures {
   list-style: none;
-  margin: var(--dh-space-3) 0 0;
+  margin: var(--app-space-3) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-offline-diagnostics__failures li {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-offline-diagnostics__code {
@@ -643,7 +643,7 @@
  * visible rather than blinking back out at the end of the animation. */
 .dh-offline-stalled {
   visibility: hidden;
-  margin: var(--dh-space-4) 0 0;
+  margin: var(--app-space-4) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
   animation: dh-offline-stalled-reveal 1ms linear 8s forwards;

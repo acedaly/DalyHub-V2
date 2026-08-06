@@ -4,18 +4,18 @@
  */
 
 .af-demo {
-  max-width: var(--dh-width-content);
+  max-width: var(--app-width-content);
   margin: 0 auto;
-  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-16);
+  padding: var(--app-space-6) var(--app-gutter) var(--app-space-16);
   min-width: 0;
 }
 
 .af-demo__header {
-  margin-bottom: var(--dh-space-5);
+  margin-bottom: var(--app-space-5);
 }
 
 .af-demo__header h1 {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-headline-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface);
@@ -34,16 +34,16 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-4);
-  margin: 0 0 var(--dh-space-6);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-4);
+  margin: 0 0 var(--app-space-6);
+  padding: var(--app-space-3) var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
 }
 
 .af-demo__controls legend {
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
@@ -52,32 +52,32 @@
 .af-demo__controls label {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
 }
 
 .af-demo__section {
-  margin-top: var(--dh-space-8);
+  margin-top: var(--app-space-8);
 }
 
 .af-demo__section h2 {
-  margin: 0 0 var(--dh-space-1);
+  margin: 0 0 var(--app-space-1);
   font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface);
 }
 
 .af-demo__note {
-  margin-bottom: var(--dh-space-3);
+  margin-bottom: var(--app-space-3);
 }
 
 .af-demo__stream {
-  margin-top: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  margin-top: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-app-color-surface-page);
-  padding: 0 var(--dh-space-3);
+  padding: 0 var(--app-space-3);
 }
 
 .af-demo__drawer-prose {

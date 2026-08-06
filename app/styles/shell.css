@@ -30,7 +30,7 @@
  * headers still pin to the viewport. */
 .dh-app {
   display: grid;
-  grid-template-columns: var(--dh-shell-nav-width) 1fr;
+  grid-template-columns: var(--app-shell-nav-width) 1fr;
   min-height: 100dvh;
   background: var(--md-app-color-surface-page);
   color: var(--md-sys-color-on-surface);
@@ -39,10 +39,10 @@
 /* Skip link: off-screen until focused, then visible and in normal flow. */
 .skip-link {
   position: absolute;
-  left: var(--dh-space-2);
+  left: var(--app-space-2);
   top: -3rem;
-  z-index: var(--dh-z-modal);
-  padding: var(--dh-space-2) var(--dh-space-3);
+  z-index: var(--app-z-modal);
+  padding: var(--app-space-2) var(--app-space-3);
   background: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
   border-radius: var(--md-sys-shape-corner-full);
@@ -52,7 +52,7 @@
 }
 
 .skip-link:focus {
-  top: var(--dh-space-2);
+  top: var(--app-space-2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -74,8 +74,8 @@
 .dh-sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3) var(--dh-space-3) var(--dh-space-4);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-3) var(--app-space-4);
   background: var(--md-sys-color-surface);
   min-width: 0;
 }
@@ -90,8 +90,8 @@
 .dh-sidebar__brand {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-2) var(--app-space-3);
 }
 
 /* BRAND-01 — the mark paints the brand gradient itself, so it takes no text
@@ -134,7 +134,7 @@
 .dh-sidebar__search {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 /*
@@ -146,10 +146,10 @@
 .dh-sidebar__search-entry {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   width: 100%;
   min-height: 3.5rem;
-  padding-inline: var(--dh-space-4);
+  padding-inline: var(--app-space-4);
   border: none;
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-surface-container-high);
@@ -178,13 +178,13 @@
   font-size: var(--md-sys-typescale-label-small-size);
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-sys-color-surface-container-highest);
-  padding: 0 var(--dh-space-1);
+  padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 /* Primary navigation. */
 .dh-nav {
-  margin-top: var(--dh-space-2);
+  margin-top: var(--app-space-2);
 }
 
 .dh-nav__list {
@@ -193,7 +193,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
 /*
@@ -207,9 +207,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-height: 3.5rem;
-  padding-inline: var(--dh-space-4);
+  padding-inline: var(--app-space-4);
   border-radius: var(--md-sys-shape-corner-full);
   text-decoration: none;
   color: var(--md-sys-color-on-surface-variant);
@@ -266,19 +266,19 @@
 /* PX-03 — a decorative divider between navGroup transitions (Today/spine ·
  * capture modules · insight modules · system pages). Rhythm only, no label. */
 .dh-nav__divider {
-  margin: var(--dh-space-2) 0;
+  margin: var(--app-space-2) 0;
 }
 
 .dh-nav__divider hr {
   border: none;
-  border-top: var(--dh-border-width-thin) solid
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   margin: 0;
 }
 
 .dh-sidebar__spacer {
   flex: 1;
-  min-height: var(--dh-space-4);
+  min-height: var(--app-space-4);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -292,10 +292,10 @@
 .dh-user-menu__trigger {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   width: 100%;
-  min-height: var(--dh-control-height-lg);
-  padding: var(--dh-space-1) var(--dh-space-2);
+  min-height: var(--app-control-height-lg);
+  padding: var(--app-space-1) var(--app-space-2);
   border: none;
   border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
@@ -344,24 +344,24 @@
 
 .dh-user-menu__panel {
   position: absolute;
-  bottom: calc(100% + var(--dh-space-2));
+  bottom: calc(100% + var(--app-space-2));
   left: 0;
   right: 0;
   display: flex;
   flex-direction: column;
-  padding-block: var(--dh-space-2);
+  padding-block: var(--app-space-2);
   background: var(--md-sys-color-surface-container-high);
   border: none;
   border-radius: var(--md-sys-shape-corner-extra-small);
   box-shadow: var(--md-sys-elevation-2);
-  z-index: var(--dh-z-dropdown);
+  z-index: var(--app-z-dropdown);
 }
 
 .dh-user-menu__identity {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
-  padding: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-px);
+  padding: var(--app-space-2) var(--app-space-3);
 }
 
 .dh-user-menu__name {
@@ -382,16 +382,16 @@
 }
 
 .dh-user-menu__section {
-  padding-block-start: var(--dh-space-2);
-  margin-block-start: var(--dh-space-2);
-  border-top: var(--dh-border-width-thin) solid
+  padding-block-start: var(--app-space-2);
+  margin-block-start: var(--app-space-2);
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
 .dh-user-menu__links {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
 /* The M3 menu item: 48px tall, 12px inline, `body-large`, no radius of its own
@@ -400,9 +400,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-height: 3rem;
-  padding-inline: var(--dh-space-3);
+  padding-inline: var(--app-space-3);
   text-decoration: none;
   color: var(--md-sys-color-on-surface);
   font-size: var(--md-sys-typescale-body-large-size);
@@ -444,7 +444,7 @@
 
 /* A padded body for document-shaped pages (home, placeholders, Settings). */
 .dh-pane-body {
-  padding: var(--dh-space-6) var(--dh-gutter);
+  padding: var(--app-space-6) var(--app-gutter);
 }
 
 /* The M3 small top app bar, on the phone shell (route title + Back + Search +
@@ -454,20 +454,20 @@
 .dh-mobilebar {
   display: none;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-shell-header-height);
+  gap: var(--app-space-2);
+  min-height: var(--app-shell-header-height);
   /* With `viewport-fit=cover` the document runs under the status-bar / notch, so
    * the top bar pads by the top inset (and the leading inset for a landscape
    * cutout) to keep the controls out from under the cutout (DS-11). */
-  padding: max(var(--dh-space-1), env(safe-area-inset-top)) var(--dh-space-2)
-    var(--dh-space-1);
-  padding-inline-start: max(var(--dh-space-2), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-2), env(safe-area-inset-right));
+  padding: max(var(--app-space-1), env(safe-area-inset-top)) var(--app-space-2)
+    var(--app-space-1);
+  padding-inline-start: max(var(--app-space-2), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-2), env(safe-area-inset-right));
   background: var(--md-sys-color-surface);
   color: var(--md-sys-color-on-surface);
   position: sticky;
   top: 0;
-  z-index: var(--dh-z-sticky);
+  z-index: var(--app-z-sticky);
 }
 
 .dh-mobilebar__back,
@@ -476,8 +476,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
   border: none;
   border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
@@ -530,7 +530,7 @@
 .dh-mobilebar__actions {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   flex: none;
 }
 
@@ -556,15 +556,15 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--dh-space-3) var(--dh-space-4);
-  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-4);
+  gap: var(--app-space-3) var(--app-space-4);
+  padding: var(--app-space-6) var(--app-gutter) var(--app-space-4);
   background: transparent;
 }
 
 .dh-pane-header__lead {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 
@@ -591,7 +591,7 @@
 }
 
 .dh-pane-header__subtitle {
-  margin: var(--dh-space-1) 0 0;
+  margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
@@ -603,7 +603,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
 }
 
 .dh-pane-header__views {
@@ -618,7 +618,7 @@
 .dh-mobilenav {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-drawer);
+  z-index: var(--app-z-drawer);
 }
 
 .dh-mobilenav__scrim {
@@ -659,8 +659,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
   border: none;
   border-radius: var(--md-sys-shape-corner-full);
   background: transparent;
@@ -706,11 +706,11 @@
  *
  * Two insets keep it out of the way of everything else:
  *   - `env(safe-area-inset-bottom)` clears the home indicator;
- *   - `--dh-keyboard-inset` (published by the ONE shared Visual Viewport
+ *   - `--app-keyboard-inset` (published by the ONE shared Visual Viewport
  *     observer) hides the bar entirely while the on-screen keyboard is up, so it
  *     can never cover a focused field, a validation message or a sticky Save.
  *
- * `--dh-bottomnav-height` is what every scrolling surface pads by, so content and
+ * `--app-bottomnav-height` is what every scrolling surface pads by, so content and
  * bottom-anchored controls (bulk bars, toasts, Drawer actions) sit ABOVE the bar
  * rather than under it.
  */
@@ -719,7 +719,7 @@
   position: fixed;
   inset-inline: 0;
   bottom: 0;
-  z-index: var(--dh-z-sticky);
+  z-index: var(--app-z-sticky);
   background: var(--md-sys-color-surface-container);
   padding-bottom: env(safe-area-inset-bottom);
   padding-inline-start: env(safe-area-inset-left);
@@ -734,7 +734,7 @@
   align-items: stretch;
   /* 80px is the M3 navigation bar's height, and it is what makes room for the
    * 32px active-indicator pill with its label beneath. */
-  min-block-size: var(--dh-bottomnav-bar-height);
+  min-block-size: var(--app-bottomnav-bar-height);
 }
 
 .dh-bottomnav__item {
@@ -750,11 +750,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-touch-target-min);
-  min-inline-size: var(--dh-touch-target-min);
-  padding-block: var(--dh-space-3);
-  padding-inline: var(--dh-space-1);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  padding-block: var(--app-space-3);
+  padding-inline: var(--app-space-1);
   border: none;
   background: transparent;
   color: var(--md-sys-color-on-surface-variant);
@@ -819,7 +819,7 @@
 /* Forced colours: the indicator must survive when the accent is replaced. */
 @media (forced-colors: active) {
   .dh-bottomnav {
-    border-top: var(--dh-border-width-thin) solid CanvasText;
+    border-top: var(--app-border-width-thin) solid CanvasText;
   }
   .dh-bottomnav__control[aria-current="page"] .dh-bottomnav__indicator {
     background: Highlight;
@@ -840,16 +840,16 @@
  *
  * It is anchored 24px from the bottom-right and clears, in order: the home
  * indicator (`env(safe-area-inset-bottom)`, folded into
- * `--dh-bottomnav-height`), the phone navigation bar, and the on-screen
+ * `--app-bottomnav-height`), the phone navigation bar, and the on-screen
  * keyboard. All three are already-published tokens, so nothing here measures
- * anything — on desktop `--dh-bottomnav-height` is `0px` and the whole
+ * anything — on desktop `--app-bottomnav-height` is `0px` and the whole
  * expression collapses to 24px.
  */
 .dh-fab {
   position: fixed;
-  inset-inline-end: max(var(--dh-space-6), env(safe-area-inset-right));
-  inset-block-end: calc(var(--dh-space-6) + var(--dh-bottomnav-height, 0px));
-  z-index: var(--dh-z-sticky);
+  inset-inline-end: max(var(--app-space-6), env(safe-area-inset-right));
+  inset-block-end: calc(var(--app-space-6) + var(--app-bottomnav-height, 0px));
+  z-index: var(--app-z-sticky);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -881,7 +881,7 @@
 /* The FAB rides the keyboard exactly as the navigation bar does, so it can never
  * cover a focused field. */
 .dh-fab {
-  transform: translateY(var(--dh-keyboard-inset, 0px));
+  transform: translateY(var(--app-keyboard-inset, 0px));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -898,8 +898,8 @@
    * `scrollIntoView` and keyboard focus never park an element beneath the bar.
    * Everything under `:root` — `.dh-app` included — still inherits it unchanged. */
   :root {
-    --dh-bottomnav-height: calc(
-      var(--dh-bottomnav-bar-height) + env(safe-area-inset-bottom)
+    --app-bottomnav-height: calc(
+      var(--app-bottomnav-bar-height) + env(safe-area-inset-bottom)
     );
   }
 
@@ -922,7 +922,7 @@
   /* While the keyboard is up the bar would sit on top of the field being typed
    * into, so it is removed entirely and the pane reclaims its space. */
   .dh-app:has(.dh-bottomnav) .dh-pane {
-    padding-bottom: var(--dh-bottomnav-height);
+    padding-bottom: var(--app-bottomnav-height);
   }
 }
 
@@ -933,7 +933,7 @@
  * time — no state, no listener, no jitter. */
 @media (max-width: 48rem) {
   .dh-bottomnav {
-    transform: translateY(var(--dh-keyboard-inset, 0px));
+    transform: translateY(var(--app-keyboard-inset, 0px));
     transition: transform var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard);
   }

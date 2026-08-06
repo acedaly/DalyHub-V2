@@ -9,7 +9,7 @@
  * visual value is a DS-01 token (no raw colours/sizes).
  *
  * THEME-01 — priority and urgency now read DEDICATED semantic tokens
- * (`--dh-color-priority-p1…p4`, `--dh-color-state-overdue|due-soon|…`) rather than
+ * (`--app-color-priority-p1…p4`, `--app-color-state-overdue|due-soon|…`) rather than
  * borrowing the danger/warning/info feedback triples. They looked the same in the
  * two original themes, but they are different CONCEPTS: a P1 task is not an error,
  * and a warm theme needs to colour "important" differently from "destructive"
@@ -22,11 +22,11 @@
 .dh-priority {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: 0 var(--dh-space-2);
-  min-height: var(--dh-space-5);
+  gap: var(--app-space-1);
+  padding: 0 var(--app-space-2);
+  min-height: var(--app-space-5);
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);
@@ -36,8 +36,8 @@
 }
 
 .dh-priority__dot {
-  inline-size: var(--dh-space-2);
-  block-size: var(--dh-space-2);
+  inline-size: var(--app-space-2);
+  block-size: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
   background: currentColor;
   flex: none;
@@ -83,11 +83,11 @@
 .dh-urgency {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: 0 var(--dh-space-2);
-  min-height: var(--dh-space-5);
+  gap: var(--app-space-1);
+  padding: 0 var(--app-space-2);
+  min-height: var(--app-space-5);
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);

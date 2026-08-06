@@ -40,7 +40,7 @@
  * enforced by `test/unit/tokens`; the values are mirrored as typed data in
  * `app/shared/tokens/scheme.ts`, which the same generator writes.
  *
- * The breakpoint values below are also exposed as `--dh-breakpoint-*` for
+ * The breakpoint values below are also exposed as `--app-breakpoint-*` for
  * reference and container queries; media queries cannot read custom properties,
  * so the same numeric values are mirrored in `app/shared/tokens/tokens.ts` and
  * used literally in `@media`/`@container` rules (kept in sync by a test).
@@ -629,354 +629,76 @@
  */
 :root {
   /* Spacing scale (4px base). */
-  --dh-space-0: 0;
-  --dh-space-px: 1px;
-  --dh-space-1: 0.25rem; /* 4 */
-  --dh-space-2: 0.5rem; /* 8 */
-  --dh-space-3: 0.75rem; /* 12 */
-  --dh-space-4: 1rem; /* 16 */
-  --dh-space-5: 1.25rem; /* 20 */
-  --dh-space-6: 1.5rem; /* 24 */
-  --dh-space-8: 2rem; /* 32 */
-  --dh-space-10: 2.5rem; /* 40 */
-  --dh-space-12: 3rem; /* 48 */
-  --dh-space-16: 4rem; /* 64 */
+  --app-space-0: 0;
+  --app-space-px: 1px;
+  --app-space-1: 0.25rem; /* 4 */
+  --app-space-2: 0.5rem; /* 8 */
+  --app-space-3: 0.75rem; /* 12 */
+  --app-space-4: 1rem; /* 16 */
+  --app-space-5: 1.25rem; /* 20 */
+  --app-space-6: 1.5rem; /* 24 */
+  --app-space-8: 2rem; /* 32 */
+  --app-space-10: 2.5rem; /* 40 */
+  --app-space-12: 3rem; /* 48 */
+  --app-space-16: 4rem; /* 64 */
 
   /* Control heights. `lg` and the touch-target floor keep their 45px rounding
    * guard so every target clears WCAG 2.2's 44px minimum. */
-  --dh-control-height-sm: 1.75rem; /* 28 */
-  --dh-control-height-md: 2.25rem; /* 36 */
-  --dh-control-height-lg: max(2.75rem, 45px);
-  --dh-touch-target-min: max(2.75rem, 45px);
+  --app-control-height-sm: 1.75rem; /* 28 */
+  --app-control-height-md: 2.25rem; /* 36 */
+  --app-control-height-lg: max(2.75rem, 45px);
+  --app-touch-target-min: max(2.75rem, 45px);
 
   /* Measures. There is now ONE prose measure: the Reading region and its serif
    * column are retired, so the 46ch serif cap has nothing left to cap. */
-  --dh-width-prose: 65ch;
-  --dh-width-reading: var(--dh-width-prose);
-  --dh-width-narrow: 42rem; /* single-column pages */
-  --dh-width-content: 72rem; /* dense record content */
-  --dh-width-wide: 90rem; /* multi-pane shells */
-  --dh-width-dashboard: 108rem; /* the Today dashboard's wider cap */
+  --app-width-prose: 65ch;
+  --app-width-narrow: 42rem; /* single-column pages */
+  --app-width-content: 72rem; /* dense record content */
+  --app-width-wide: 90rem; /* multi-pane shells */
+  --app-width-dashboard: 108rem; /* the Today dashboard's wider cap */
 
-  --dh-shell-header-height: 4rem; /* the M3 small top app bar */
-  --dh-shell-nav-width: 15rem;
-  --dh-inspector-width: 25rem;
+  --app-shell-header-height: 4rem; /* the M3 small top app bar */
+  --app-shell-nav-width: 15rem;
+  --app-inspector-width: 25rem;
 
   /* Responsive gutter: grows with the viewport, bounded at both ends. */
-  --dh-gutter: clamp(1rem, 4vw, 2rem);
+  --app-gutter: clamp(1rem, 4vw, 2rem);
 
   /* MOBILE-01 — the phone shell's two structural insets.
    *
-   * `--dh-keyboard-inset` is the height of the on-screen keyboard, published by
+   * `--app-keyboard-inset` is the height of the on-screen keyboard, published by
    * the ONE shared Visual Viewport observer (`app/shared/viewport`). It is `0px`
    * on desktop, on browsers without the API, and whenever no keyboard is up, so
    * every rule that consumes it is a no-op the rest of the time.
    *
-   * `--dh-bottomnav-height` is the space the phone navigation bar occupies (set
+   * `--app-bottomnav-height` is the space the phone navigation bar occupies (set
    * on `.dh-app` inside the phone media query, `0px` elsewhere) so scrolling
    * surfaces and bottom-anchored controls can reserve it and never sit
    * underneath the bar. */
-  --dh-keyboard-inset: 0px;
-  --dh-bottomnav-height: 0px;
+  --app-keyboard-inset: 0px;
+  --app-bottomnav-height: 0px;
   /* The M3 navigation bar's own height, before safe-area padding. */
-  --dh-bottomnav-bar-height: 5rem;
+  --app-bottomnav-bar-height: 5rem;
 
-  --dh-border-width-thin: 1px;
-  --dh-border-width-thick: 2px;
+  --app-border-width-thin: 1px;
+  --app-border-width-thick: 2px;
 
   /* Breakpoints (reference + container queries) and z-index layers. */
-  --dh-breakpoint-sm: 30rem; /* 480 */
-  --dh-breakpoint-md: 48rem; /* 768 */
-  --dh-breakpoint-lg: 64rem; /* 1024 */
-  --dh-breakpoint-xl: 80rem; /* 1280 */
-  --dh-breakpoint-2xl: 96rem; /* 1536 */
+  --app-breakpoint-sm: 30rem; /* 480 */
+  --app-breakpoint-md: 48rem; /* 768 */
+  --app-breakpoint-lg: 64rem; /* 1024 */
+  --app-breakpoint-xl: 80rem; /* 1280 */
+  --app-breakpoint-2xl: 96rem; /* 1536 */
 
-  --dh-z-base: 0;
-  --dh-z-raised: 10;
-  --dh-z-sticky: 100;
-  --dh-z-dropdown: 1000;
-  --dh-z-overlay: 1100;
-  --dh-z-drawer: 1200;
-  --dh-z-modal: 1300;
-  --dh-z-toast: 1400;
-  --dh-z-tooltip: 1500;
-}
-
-/* -------------------------------------------------------------------------- */
-/* ALIAS LAYER — deleted in step 7                                            */
-/* -------------------------------------------------------------------------- */
-
-/*
- * Every `--dh-*` design-language token the product used before this overhaul,
- * retargeted onto its M3 equivalent. It exists so the switch to M3 is ONE commit
- * that recolours the whole application, rather than sixty commits during which
- * the product is half of each system — and so the per-file migration that
- * follows is a mechanical rename with a working app at every step.
- *
- * Its exit criterion is explicit: when no file under `app/` references a `--dh-`
- * name, this block is deleted and a test guards the zero. Nothing may be ADDED
- * here; a new consumer uses the M3 name.
- *
- * Hover and active variants collapse onto their base role because M3 expresses
- * those states with a state LAYER over an unchanged container rather than with a
- * second colour (`.md-state-layer` in `base.css`).
- */
-:root {
-  /* ── Colour: brand and accent ─────────────────────────────────────────── */
-  --dh-color-accent: var(--md-sys-color-primary);
-  --dh-color-accent-hover: var(--md-sys-color-primary);
-  --dh-color-accent-active: var(--md-sys-color-primary);
-  --dh-color-accent-text: var(--md-sys-color-primary);
-  --dh-color-on-accent: var(--md-sys-color-on-primary);
-  --dh-color-accent-surface: var(--md-sys-color-primary-container);
-  --dh-color-link: var(--md-sys-color-primary);
-  --dh-color-link-hover: var(--md-sys-color-primary);
-  --dh-color-secondary: var(--md-sys-color-secondary-container);
-  --dh-color-secondary-hover: var(--md-sys-color-secondary-container);
-
-  /* ── Colour: surfaces ─────────────────────────────────────────────────── */
-  --dh-color-surface-page: var(--md-app-color-surface-page);
-  --dh-color-surface: var(--md-app-color-surface-card);
-  --dh-color-surface-card: var(--md-app-color-surface-card);
-  --dh-color-surface-raised: var(--md-app-color-surface-raised);
-  --dh-color-surface-sunken: var(--md-app-color-surface-sunken);
-  --dh-color-surface-nav: var(--md-sys-color-surface);
-  --dh-color-surface-header: var(--md-sys-color-surface);
-
-  /* ── Colour: text, borders, dividers ──────────────────────────────────── */
-  --dh-color-text: var(--md-sys-color-on-surface);
-  --dh-color-text-secondary: var(--md-sys-color-on-surface-variant);
-  --dh-color-text-muted: var(--md-sys-color-on-surface-variant);
-  --dh-color-border-strong: var(--md-sys-color-outline);
-  --dh-color-control-border: var(--md-sys-color-outline);
-  --dh-color-border: var(--md-sys-color-outline-variant);
-  --dh-color-border-subtle: var(--md-sys-color-outline-variant);
-  --dh-color-divider: var(--md-sys-color-outline-variant);
-  --dh-color-divider-subtle: var(--md-sys-color-outline-variant);
-
-  /* ── Colour: interactive states ───────────────────────────────────────── */
-  --dh-color-hover-surface: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 8%,
-    transparent
-  );
-  --dh-color-active-surface: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 10%,
-    transparent
-  );
-  --dh-color-nav-selected-surface: var(--md-sys-color-secondary-container);
-  --dh-color-nav-selected-text: var(--md-sys-color-on-secondary-container);
-  --dh-color-disabled-surface: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  --dh-color-disabled-border: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 12%,
-    transparent
-  );
-  --dh-color-disabled-text: color-mix(
-    in srgb,
-    var(--md-sys-color-on-surface) 38%,
-    transparent
-  );
-
-  /* ── Colour: focus, selection, overlay ────────────────────────────────── */
-  --dh-color-focus-ring: var(--md-sys-color-primary);
-  --dh-color-selection-bg: var(--md-sys-color-primary-container);
-  --dh-color-selection-text: var(--md-sys-color-on-primary-container);
-  --dh-color-overlay: color-mix(
-    in srgb,
-    var(--md-sys-color-scrim) 32%,
-    transparent
-  );
-
-  /* ── Colour: feedback ─────────────────────────────────────────────────── */
-  --dh-color-danger: var(--md-sys-color-error);
-  --dh-color-danger-surface: var(--md-sys-color-error-container);
-  --dh-color-danger-text: var(--md-sys-color-on-error-container);
-  --dh-color-success: var(--md-sys-color-success);
-  --dh-color-success-surface: var(--md-sys-color-success-container);
-  --dh-color-success-text: var(--md-sys-color-on-success-container);
-  --dh-color-warning: var(--md-sys-color-warning);
-  --dh-color-warning-surface: var(--md-sys-color-warning-container);
-  --dh-color-warning-text: var(--md-sys-color-on-warning-container);
-  --dh-color-info: var(--md-sys-color-info);
-  --dh-color-info-surface: var(--md-sys-color-info-container);
-  --dh-color-info-text: var(--md-sys-color-on-info-container);
-
-  /* ── Colour: task priority ────────────────────────────────────────────── */
-  --dh-color-priority-p1: var(--md-sys-color-priority-p1);
-  --dh-color-priority-p1-surface: var(--md-sys-color-priority-p1-container);
-  --dh-color-priority-p1-text: var(--md-sys-color-on-priority-p1-container);
-  --dh-color-priority-p2: var(--md-sys-color-priority-p2);
-  --dh-color-priority-p2-surface: var(--md-sys-color-priority-p2-container);
-  --dh-color-priority-p2-text: var(--md-sys-color-on-priority-p2-container);
-  --dh-color-priority-p3: var(--md-sys-color-priority-p3);
-  --dh-color-priority-p3-surface: var(--md-sys-color-priority-p3-container);
-  --dh-color-priority-p3-text: var(--md-sys-color-on-priority-p3-container);
-  --dh-color-priority-p4: var(--md-sys-color-priority-p4);
-  --dh-color-priority-p4-surface: var(--md-sys-color-priority-p4-container);
-  --dh-color-priority-p4-text: var(--md-sys-color-on-priority-p4-container);
-
-  /* ── Colour: record and task state ────────────────────────────────────── */
-  --dh-color-state-overdue: var(--md-sys-color-state-overdue);
-  --dh-color-state-overdue-surface: var(--md-sys-color-state-overdue-container);
-  --dh-color-state-overdue-text: var(--md-sys-color-on-state-overdue-container);
-  --dh-color-state-due-soon: var(--md-sys-color-state-due-soon);
-  --dh-color-state-due-soon-surface: var(
-    --md-sys-color-state-due-soon-container
-  );
-  --dh-color-state-due-soon-text: var(
-    --md-sys-color-on-state-due-soon-container
-  );
-  --dh-color-state-completed: var(--md-sys-color-state-completed);
-  --dh-color-state-completed-surface: var(
-    --md-sys-color-state-completed-container
-  );
-  --dh-color-state-completed-text: var(
-    --md-sys-color-on-state-completed-container
-  );
-  --dh-color-state-waiting: var(--md-sys-color-state-waiting);
-  --dh-color-state-waiting-surface: var(--md-sys-color-state-waiting-container);
-  --dh-color-state-waiting-text: var(--md-sys-color-on-state-waiting-container);
-  --dh-color-state-on-hold: var(--md-sys-color-state-on-hold);
-  --dh-color-state-on-hold-surface: var(--md-sys-color-state-on-hold-container);
-  --dh-color-state-on-hold-text: var(--md-sys-color-on-state-on-hold-container);
-
-  /* ── Colour: charts, progress, skeleton, pills ────────────────────────── */
-  --dh-color-chart-1: var(--md-sys-color-chart-1);
-  --dh-color-chart-2: var(--md-sys-color-chart-2);
-  --dh-color-chart-3: var(--md-sys-color-chart-3);
-  --dh-color-chart-4: var(--md-sys-color-chart-4);
-  --dh-color-chart-5: var(--md-sys-color-chart-5);
-  --dh-color-chart-6: var(--md-sys-color-chart-6);
-  --dh-color-progress-track: var(--md-sys-color-secondary-container);
-  --dh-color-progress-fill: var(--md-sys-color-primary);
-  --dh-color-progress-complete: var(--md-sys-color-success);
-  --dh-color-pill-neutral-surface: var(--md-sys-color-surface-container-high);
-  --dh-color-pill-neutral-text: var(--md-sys-color-on-surface-variant);
-  --dh-color-skeleton-base: var(--md-sys-color-surface-container-high);
-  --dh-color-skeleton-highlight: var(--md-sys-color-surface-container-highest);
-
-  /* ── Colour: Area identity accents ────────────────────────────────────── */
-  --dh-color-area-accent-1: var(--md-sys-color-area-accent-1);
-  --dh-color-area-accent-1-surface: var(--md-sys-color-area-accent-1-container);
-  --dh-color-area-accent-1-text: var(--md-sys-color-on-area-accent-1-container);
-  --dh-color-area-accent-2: var(--md-sys-color-area-accent-2);
-  --dh-color-area-accent-2-surface: var(--md-sys-color-area-accent-2-container);
-  --dh-color-area-accent-2-text: var(--md-sys-color-on-area-accent-2-container);
-  --dh-color-area-accent-3: var(--md-sys-color-area-accent-3);
-  --dh-color-area-accent-3-surface: var(--md-sys-color-area-accent-3-container);
-  --dh-color-area-accent-3-text: var(--md-sys-color-on-area-accent-3-container);
-  --dh-color-area-accent-4: var(--md-sys-color-area-accent-4);
-  --dh-color-area-accent-4-surface: var(--md-sys-color-area-accent-4-container);
-  --dh-color-area-accent-4-text: var(--md-sys-color-on-area-accent-4-container);
-  --dh-color-area-accent-5: var(--md-sys-color-area-accent-5);
-  --dh-color-area-accent-5-surface: var(--md-sys-color-area-accent-5-container);
-  --dh-color-area-accent-5-text: var(--md-sys-color-on-area-accent-5-container);
-  --dh-color-area-accent-6: var(--md-sys-color-area-accent-6);
-  --dh-color-area-accent-6-surface: var(--md-sys-color-area-accent-6-container);
-  --dh-color-area-accent-6-text: var(--md-sys-color-on-area-accent-6-container);
-
-  /* ── Colour: entity identity accents ──────────────────────────────────── */
-  --dh-entity-task-accent: var(--md-sys-color-entity-task);
-  --dh-entity-project-accent: var(--md-sys-color-entity-project);
-  --dh-entity-area-accent: var(--md-sys-color-entity-area);
-  --dh-entity-goal-accent: var(--md-sys-color-entity-goal);
-  --dh-entity-note-accent: var(--md-sys-color-entity-note);
-  --dh-entity-meeting-accent: var(--md-sys-color-entity-meeting);
-  --dh-entity-person-accent: var(--md-sys-color-entity-person);
-  --dh-entity-asset-accent: var(--md-sys-color-entity-asset);
-  --dh-entity-diary-accent: var(--md-sys-color-entity-diary);
-  --dh-entity-review-accent: var(--md-sys-color-entity-review);
-
-  /* ── Typography ───────────────────────────────────────────────────────── */
-  /* The serif is retired: prose renders the plain typeface at `body-large`. */
-  --dh-font-sans: var(--md-ref-typeface-plain);
-  --dh-font-serif: var(--md-ref-typeface-plain);
-  --dh-font-mono: var(--md-ref-typeface-mono);
-
-  /* Each old size snaps to the nearest step of the M3 ramp. Three of them move
-   * by about a pixel (15→16, 13→12, 18→16 with a heavier weight); that shift IS
-   * the move to the M3 scale rather than an accident of rounding (ADR-074). */
-  --dh-font-size-2xs: var(--md-sys-typescale-label-small-size); /* 11 */
-  --dh-font-size-xs: var(--md-sys-typescale-label-medium-size); /* 12 */
-  --dh-font-size-sm: var(--md-sys-typescale-body-small-size); /* 13 → 12 */
-  --dh-font-size-compact: var(--md-sys-typescale-body-medium-size); /* 14 */
-  --dh-font-size-base: var(--md-sys-typescale-body-large-size); /* 15 → 16 */
-  --dh-font-size-md: var(--md-sys-typescale-body-large-size); /* 16 */
-  --dh-font-size-lg: var(--md-sys-typescale-title-medium-size); /* 18 → 16 */
-  --dh-font-size-xl: var(--md-sys-typescale-title-large-size); /* 22 */
-  --dh-font-size-2xl: var(--md-sys-typescale-headline-small-size); /* 28 → 24 */
-  --dh-font-size-3xl: var(--md-sys-typescale-headline-large-size); /* 36 → 32 */
-
-  /* M3 has two weights. `semibold` collapses onto 500 with the others; the
-   * emphasis it used to carry is expressed by the typescale STYLE instead. */
-  --dh-font-weight-regular: 400;
-  --dh-font-weight-medium: 500;
-  --dh-font-weight-semibold: 500;
-
-  /* Line-height and letter-spacing keep their literal values: they are read as
-   * bare multipliers by rules that die with their consumers in steps 4–5. */
-  --dh-line-height-tight: 1.2;
-  --dh-line-height-dense: 1.4;
-  --dh-line-height-snug: 1.35;
-  --dh-line-height-normal: 1.5;
-  --dh-line-height-relaxed: 1.65;
-  --dh-line-height-loose: 1.75;
-  --dh-letter-spacing-tight: -0.01em;
-  --dh-letter-spacing-normal: 0em;
-  --dh-letter-spacing-wide: 0.02em;
-  --dh-letter-spacing-wider: 0.06em;
-
-  /* ── Shape ────────────────────────────────────────────────────────────── */
-  --dh-radius-xs: var(--md-sys-shape-corner-extra-small);
-  --dh-radius-sm: var(--md-sys-shape-corner-small);
-  --dh-radius-md: var(--md-sys-shape-corner-medium);
-  --dh-radius-lg: var(--md-sys-shape-corner-large);
-  --dh-radius-xl: var(--md-sys-shape-corner-extra-large);
-  --dh-radius-full: var(--md-sys-shape-corner-full);
-  --dh-radius-pill: var(--md-sys-shape-corner-full);
-  --dh-radius-card: var(--md-sys-shape-corner-large);
-  --dh-radius-control: var(--md-sys-shape-corner-full);
-  --dh-radius-field: var(--md-sys-shape-corner-extra-small);
-
-  /* ── Elevation ────────────────────────────────────────────────────────── */
-  --dh-shadow-sm: var(--md-sys-elevation-1);
-  --dh-shadow-md: var(--md-sys-elevation-2);
-  --dh-shadow-lg: var(--md-sys-elevation-3);
-  /* A two-ring focus indicator, pending the outline-based ring each M3 surface
-   * adopts as it migrates. */
-  --dh-shadow-focus:
-    0 0 0 2px var(--md-app-color-surface-card),
-    0 0 0 4px var(--md-sys-color-primary);
-
-  /* ── Motion ───────────────────────────────────────────────────────────── */
-  --dh-duration-instant: var(--md-sys-motion-duration-none);
-  --dh-duration-fast: var(--md-sys-motion-duration-short4);
-  --dh-duration-base: var(--md-sys-motion-duration-medium2);
-  --dh-duration-slow: var(--md-sys-motion-duration-long2);
-  --dh-ease-standard: var(--md-sys-motion-easing-standard);
-  --dh-ease-emphasized: var(--md-sys-motion-easing-emphasized);
-  --dh-ease-exit: var(--md-sys-motion-easing-emphasized-accelerate);
-
-  /* ── DS-14 density presets, flattened ─────────────────────────────────── */
-  /* The two presets are gone: density is a typescale choice per surface now.
-   * These resolve to ONE set of values so `density.css` keeps rendering until it
-   * is deleted with them in step 5. */
-  --dh-density-body-size: var(--md-sys-typescale-body-medium-size);
-  --dh-density-line-height: 1.5;
-  --dh-density-measure: none;
-  --dh-density-body-family: var(--md-ref-typeface-plain);
-  --dh-density-numerals: normal;
-  --dh-density-section-gap: var(--dh-space-4);
-  --dh-density-card-padding-block: var(--dh-space-5);
-  --dh-density-card-padding-inline: var(--dh-space-6);
-  --dh-density-row-padding-block: var(--dh-space-2);
-  --dh-density-row-min-height: 56px;
+  --app-z-base: 0;
+  --app-z-raised: 10;
+  --app-z-sticky: 100;
+  --app-z-dropdown: 1000;
+  --app-z-overlay: 1100;
+  --app-z-drawer: 1200;
+  --app-z-modal: 1300;
+  --app-z-toast: 1400;
+  --app-z-tooltip: 1500;
 }
 
 /* Text selection paints with the primary container pair. */

@@ -24,17 +24,17 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-10) var(--dh-gutter);
+  gap: var(--app-space-3);
+  padding: var(--app-space-10) var(--app-gutter);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }
 
 /* The measure applies to the TEXT, not to the card: a 42rem-wide card centred in
  * a 1200px region is the same hole with a border around it. */
 .dh-empty-state > * {
-  max-width: var(--dh-width-narrow);
+  max-width: var(--app-width-narrow);
 }
 
 .dh-empty-state__icon {
@@ -66,8 +66,8 @@
  * Today section still teaches the next action instead of being a bare sentence
  * (or a full-height empty block). */
 .dh-empty-state[data-size="compact"] {
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-5) var(--dh-space-3);
+  gap: var(--app-space-2);
+  padding: var(--app-space-5) var(--app-space-3);
 }
 
 .dh-empty-state[data-size="compact"] .dh-empty-state__icon {
@@ -101,7 +101,7 @@
 .dh-empty-state__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   justify-content: center;
-  margin-top: var(--dh-space-2);
+  margin-top: var(--app-space-2);
 }

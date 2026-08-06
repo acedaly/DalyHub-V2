@@ -8,42 +8,42 @@
  */
 
 .drawer-demo {
-  max-width: var(--dh-width-content);
+  max-width: var(--app-width-content);
   margin-inline: auto;
-  padding: clamp(var(--dh-space-5), 4vw, var(--dh-space-10)) var(--dh-gutter);
+  padding: clamp(var(--app-space-5), 4vw, var(--app-space-10)) var(--app-gutter);
 }
 
 .drawer-demo__header h1 {
   font-size: var(--md-sys-typescale-headline-small-size);
   line-height: 1.2;
   letter-spacing: -0.01em;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
 }
 
 .drawer-demo__lead {
   font-size: var(--md-sys-typescale-body-large-size);
   color: var(--md-sys-color-on-surface-variant);
-  margin: 0 0 var(--dh-space-6);
-  max-width: var(--dh-width-prose);
+  margin: 0 0 var(--app-space-6);
+  max-width: var(--app-width-prose);
 }
 
 /* A small stateful strip whose values must survive opening/closing a drawer. */
 .drawer-demo__state {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   align-items: end;
-  padding: var(--dh-space-4);
-  margin-bottom: var(--dh-space-6);
+  padding: var(--app-space-4);
+  margin-bottom: var(--app-space-6);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .drawer-demo__field {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .drawer-demo__field label {
@@ -53,23 +53,23 @@
 }
 
 .drawer-demo__field input {
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
   font: inherit;
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
 }
 
 .drawer-demo__button {
-  min-height: var(--dh-control-height-lg);
-  padding: 0 var(--dh-space-4);
+  min-height: var(--app-control-height-lg);
+  padding: 0 var(--app-space-4);
   font: inherit;
   font-weight: 500;
   color: var(--md-sys-color-on-surface);
   background: var(--md-sys-color-secondary-container);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
@@ -84,16 +84,16 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .drawer-demo__card {
   display: block;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   color: var(--md-sys-color-on-surface);
   text-decoration: none;
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   transition: border-color var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
@@ -117,7 +117,7 @@
 
 .drawer-demo__card-title {
   display: block;
-  margin-top: var(--dh-space-1);
+  margin-top: var(--app-space-1);
   font-size: var(--md-sys-typescale-body-large-size);
   font-weight: 500;
 }
@@ -125,9 +125,9 @@
 /* A long, scrollable filler used to prove the background scroll position is kept
  * and that the drawer body scrolls independently of the page. */
 .drawer-demo__filler {
-  margin-top: var(--dh-space-8);
+  margin-top: var(--app-space-8);
   display: grid;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .drawer-demo__filler p {
@@ -138,7 +138,7 @@
 /* Inline demo bodies inside the drawers reuse the record layout; these classes
  * only style the small demo affordances (link rows, prose). */
 .drawer-demo-prose {
-  margin: 0 0 var(--dh-space-3);
+  margin: 0 0 var(--app-space-3);
   line-height: 1.65;
   color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
@@ -147,15 +147,15 @@
 .drawer-demo-links {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  margin-bottom: var(--dh-space-4);
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
 }
 
 .drawer-demo-link {
   display: inline-flex;
   align-items: center;
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-primary);
@@ -171,8 +171,8 @@
 .drawer-demo-guard {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  margin-bottom: var(--dh-space-4);
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -182,13 +182,13 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .drawer-demo-longlist li {
-  padding: var(--dh-space-3);
+  padding: var(--app-space-3);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   color: var(--md-sys-color-on-surface-variant);
 }

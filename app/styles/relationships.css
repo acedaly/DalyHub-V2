@@ -16,28 +16,28 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-width: 0;
 }
 
 .dh-stay-in-touch__pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: 0 var(--dh-space-2);
-  min-height: var(--dh-space-5);
+  gap: var(--app-space-1);
+  padding: 0 var(--app-space-2);
+  min-height: var(--app-space-5);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-app-color-surface-card);
   white-space: nowrap;
 }
 
 .dh-stay-in-touch__dot {
-  width: var(--dh-space-2);
-  height: var(--dh-space-2);
+  width: var(--app-space-2);
+  height: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
   background: currentColor;
   flex: none;
@@ -66,13 +66,13 @@
 .dh-stay-in-touch-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-stay-in-touch-panel__header {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-stay-in-touch-panel__reasons {
@@ -81,12 +81,12 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-stay-in-touch-panel__reason {
   position: relative;
-  padding-inline-start: var(--dh-space-4);
+  padding-inline-start: var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface);
   overflow-wrap: anywhere;
@@ -95,10 +95,10 @@
 .dh-stay-in-touch-panel__reason::before {
   content: "";
   position: absolute;
-  inset-inline-start: var(--dh-space-1);
+  inset-inline-start: var(--app-space-1);
   inset-block-start: 0.55em;
-  width: var(--dh-space-2);
-  height: var(--dh-space-2);
+  width: var(--app-space-2);
+  height: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-outline);
 }
@@ -113,13 +113,13 @@
   margin: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--dh-space-2) var(--dh-space-4);
+  gap: var(--app-space-2) var(--app-space-4);
 }
 
 .dh-stay-in-touch-panel__fact {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
 }
 

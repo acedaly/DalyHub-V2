@@ -13,9 +13,9 @@
 .dh-about {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
-  max-inline-size: var(--dh-width-content);
-  padding: var(--dh-space-6) var(--dh-gutter) var(--dh-space-12);
+  gap: var(--app-space-6);
+  max-inline-size: var(--app-width-content);
+  padding: var(--app-space-6) var(--app-gutter) var(--app-space-12);
   min-inline-size: 0;
 }
 
@@ -23,7 +23,7 @@
 .dh-about__header {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
 }
 
@@ -40,7 +40,7 @@
 .dh-help__lead,
 .dh-about__lead {
   margin: 0;
-  max-inline-size: var(--dh-width-prose);
+  max-inline-size: var(--app-width-prose);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;
@@ -50,7 +50,7 @@
 
 .dh-help__body {
   display: grid;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   min-inline-size: 0;
 }
 
@@ -58,15 +58,15 @@
   .dh-help__body {
     grid-template-columns: 15rem minmax(0, 1fr);
     align-items: start;
-    gap: var(--dh-space-8);
+    gap: var(--app-space-8);
   }
 
   /* The contents rail follows on a tall screen, but only where there is room —
    * a sticky rail on a short viewport would eat the content. */
   .dh-help__contents {
     position: sticky;
-    top: var(--dh-space-4);
-    max-block-size: calc(100vh - var(--dh-space-8));
+    top: var(--app-space-4);
+    max-block-size: calc(100vh - var(--app-space-8));
     overflow-y: auto;
   }
 }
@@ -74,11 +74,11 @@
 .dh-help__contents {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
-  padding: var(--dh-space-4);
+  gap: var(--app-space-4);
+  padding: var(--app-space-4);
   min-inline-size: 0;
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-app-color-surface-card);
 }
@@ -86,7 +86,7 @@
 .dh-help__contents-group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-inline-size: 0;
 }
 
@@ -100,7 +100,7 @@
 .dh-help__contents-list {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -108,7 +108,7 @@
 
 .dh-help__contents-link {
   display: block;
-  padding: var(--dh-space-1) var(--dh-space-2);
+  padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
@@ -138,14 +138,14 @@
 .dh-help__topics {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-8);
+  gap: var(--app-space-8);
   min-inline-size: 0;
 }
 
 .dh-help__section {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   min-inline-size: 0;
 }
 
@@ -166,20 +166,20 @@
 .dh-help__topic {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
-  padding: var(--dh-space-6) var(--dh-space-6);
+  padding: var(--app-space-6) var(--app-space-6);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   /* An in-page anchor must not land under a sticky header. */
-  scroll-margin-top: var(--dh-space-6);
+  scroll-margin-top: var(--app-space-6);
 }
 
 /* The prose inside a topic takes the reading measure. The heading above it
    stays sans and full width, so the column starts where the answer starts. */
 .dh-help__topic :is(p, ul, ol) {
-  max-inline-size: var(--dh-width-reading);
+  max-inline-size: var(--app-width-prose);
 }
 
 .dh-help__topic[data-focused="true"] {
@@ -199,7 +199,7 @@
  * read. */
 .dh-help__topic-lead {
   margin: 0;
-  max-inline-size: var(--dh-width-prose);
+  max-inline-size: var(--app-width-prose);
   color: var(--md-sys-color-on-surface);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.5;
@@ -207,7 +207,7 @@
 
 .dh-help__text {
   margin: 0;
-  max-inline-size: var(--dh-width-prose);
+  max-inline-size: var(--app-width-prose);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;
@@ -216,10 +216,10 @@
 .dh-help__list {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
-  padding-inline-start: var(--dh-space-5);
-  max-inline-size: var(--dh-width-prose);
+  padding-inline-start: var(--app-space-5);
+  max-inline-size: var(--app-width-prose);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: 1.65;

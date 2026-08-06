@@ -18,9 +18,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--dh-control-height-sm);
-  min-width: var(--dh-control-height-sm);
-  padding: var(--dh-space-1);
+  min-height: var(--app-control-height-sm);
+  min-width: var(--app-control-height-sm);
+  padding: var(--app-space-1);
   color: var(--md-sys-color-on-surface-variant);
   background: transparent;
   border: none;
@@ -50,13 +50,13 @@
 
 .dh-overflow-menu__panel {
   position: absolute;
-  top: calc(100% + var(--dh-space-1));
-  z-index: var(--dh-z-dropdown);
+  top: calc(100% + var(--app-space-1));
+  z-index: var(--app-z-dropdown);
   display: flex;
   flex-direction: column;
   min-inline-size: 13rem;
-  max-inline-size: min(20rem, calc(100vw - var(--dh-space-6)));
-  padding-block: var(--dh-space-2);
+  max-inline-size: min(20rem, calc(100vw - var(--app-space-6)));
+  padding-block: var(--app-space-2);
   background: var(--md-sys-color-surface-container-high);
   border: none;
   border-radius: var(--md-sys-shape-corner-extra-small);
@@ -76,10 +76,10 @@
 .dh-overflow-menu__item {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   width: 100%;
   min-block-size: 3rem;
-  padding-inline: var(--dh-space-3);
+  padding-inline: var(--app-space-3);
   font-family: inherit;
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
@@ -121,12 +121,12 @@
 
 /* A decorative group break — the label wording always carries the grouping too. */
 .dh-overflow-menu__item[data-separator="true"] {
-  margin-block-start: var(--dh-space-1);
-  border-top: var(--dh-border-width-thin) solid
+  margin-block-start: var(--app-space-1);
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   border-radius: 0 0 var(--md-sys-shape-corner-small)
     var(--md-sys-shape-corner-small);
-  padding-block-start: calc(var(--dh-space-2) + var(--dh-space-1));
+  padding-block-start: calc(var(--app-space-2) + var(--app-space-1));
 }
 
 .dh-overflow-menu__icon {
@@ -140,7 +140,7 @@
 .dh-overflow-menu__labels {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
   min-width: 0;
 }
 
@@ -159,11 +159,11 @@
 @media (hover: none) {
   .dh-overflow-menu__trigger,
   .dh-overflow-menu__item {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 
   .dh-overflow-menu__trigger {
-    min-width: var(--dh-touch-target-min);
+    min-width: var(--app-touch-target-min);
   }
 
   .dh-overflow-menu__item {

@@ -25,15 +25,15 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-reference {
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
   /* A long unbroken title (a URL, an id) wraps instead of widening the row. */
@@ -49,7 +49,7 @@
 .dh-reference__body {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -58,7 +58,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -66,16 +66,16 @@
 .dh-reference__state {
   font-size: var(--md-sys-typescale-label-medium-size);
   color: var(--md-sys-color-on-surface-variant);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
 }
 
 .dh-reference__meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -94,11 +94,11 @@
 .dh-reference-groups {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 .dh-reference-group__heading {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
@@ -115,20 +115,20 @@
 .dh-note-references {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-note-references__heading {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-large-size);
   font-weight: 500;
 }
 
 .dh-note-references__help {
-  margin: 0 0 var(--dh-space-3);
+  margin: 0 0 var(--app-space-3);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
-  max-width: var(--dh-width-prose);
+  max-width: var(--app-width-prose);
 }
 
 /* NOTES-05 §6 — the backlink count, stated in the heading. Muted and lighter
@@ -144,16 +144,16 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
-  margin-block-end: var(--dh-space-3);
+  gap: var(--app-space-2);
+  margin-block-end: var(--app-space-3);
   font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .dh-note-references__filter select {
-  min-block-size: var(--dh-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
   max-inline-size: 100%;
-  padding: var(--dh-space-1) var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  padding: var(--app-space-1) var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
@@ -168,7 +168,7 @@
 .dh-notes-filters {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   width: 100%;
 }
 
@@ -176,14 +176,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   margin: 0;
 }
 
 .dh-notes-filters__field {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   margin: 0;
   min-width: 0;
   /* Each field claims a sensible column on a wide viewport and the full row on
@@ -202,10 +202,10 @@
 }
 
 .dh-notes-filters__control {
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   width: 100%;
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
@@ -215,7 +215,7 @@
 .dh-notes-filters__actions {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   margin: 0;
   flex: 0 0 auto;
 }
@@ -223,7 +223,7 @@
 .dh-notes-filters__clear {
   display: inline-flex;
   align-items: center;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -235,7 +235,7 @@
 .dh-project-knowledge {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 .dh-project-knowledge__heading {
@@ -248,13 +248,13 @@
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
-  max-width: var(--dh-width-prose);
+  max-width: var(--app-width-prose);
 }
 
 .dh-project-knowledge__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 .dh-project-knowledge__actions > * {

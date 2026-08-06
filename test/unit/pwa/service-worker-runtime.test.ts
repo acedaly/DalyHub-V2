@@ -420,7 +420,7 @@ describe("the offline-boot loop breaker", () => {
    * These are asserted rather than reviewed because every one of them is a
    * dependency that would only fail on the day it matters: a font request on a
    * page whose premise is that the network is gone, a script on a page whose
-   * entire job is to be unable to reload itself, a `var(--dh-*)` resolving to
+   * entire job is to be unable to reload itself, a `var(--md-*)` resolving to
    * nothing because the token stylesheet was never fetched.
    */
   it("keeps safe mode script-free, self-contained and readable in both schemes", async () => {
@@ -445,9 +445,10 @@ describe("the offline-boot loop breaker", () => {
     expect(body).not.toMatch(/https?:\/\//);
     expect(body).toContain("system-ui");
 
-    // No dependency on the token layer: a `var(--dh-*)` here would resolve to
+    // No dependency on the token layer: a `var(--md-*)` here would resolve to
     // nothing, because tokens.css is never loaded on this document.
-    expect(body).not.toContain("--dh-");
+    expect(body).not.toContain("--md-");
+    expect(body).not.toContain("--app-");
 
     // Both colour schemes are answered in plain CSS rather than by a persisted
     // theme, which safe mode has no way to read.

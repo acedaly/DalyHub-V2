@@ -16,7 +16,7 @@
  *   - `Escape` closes ONLY this sheet (it stops propagation, so a sheet opened over
  *     a Drawer never closes both), and the scrim click closes it too;
  *   - safe-area aware and keyboard-aware: the panel's height is capped by the
- *     shared `--dh-keyboard-inset` custom property, so an open phone keyboard
+ *     shared `--app-keyboard-inset` custom property, so an open phone keyboard
  *     shrinks the sheet instead of pushing its actions off-screen;
  *   - a sticky footer slot for the primary action, so Save/Create stays above the
  *     keyboard and above the bottom navigation.

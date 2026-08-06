@@ -5,7 +5,7 @@
  * CONTAINER (the main region today; a Drawer in DS-03 later) rather than the
  * viewport. Combined with `min-width: 0`, wrapping metadata and a scrollable tab
  * strip, this guarantees no horizontal page overflow from 320px up. No raw
- * colour/size/duration values appear here — only `var(--dh-*)` tokens.
+ * colour/size/duration values appear here — only `var(--app-*)` tokens.
  */
 
 .record-layout {
@@ -13,16 +13,16 @@
   container-name: record;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
   min-width: 0;
-  max-width: var(--dh-width-content);
+  max-width: var(--app-width-content);
   color: var(--md-sys-color-on-surface);
   /* Full-page records mount directly into the unpadded pane, so without this the
    * record sits flush against the sidebar border and the top of the canvas. This
    * gives the record deliberate breathing room from the global left navigation and
    * the top of the pane, matching the `.dh-pane-body` rhythm the shell uses for
    * every other page — a shared fix, never per-module padding. */
-  padding: var(--dh-space-6) var(--dh-gutter);
+  padding: var(--app-space-6) var(--app-gutter);
 }
 
 /* Inside a Drawer the body already provides its own padding and a contained panel
@@ -39,7 +39,7 @@
 .record-header {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 
@@ -48,7 +48,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--dh-space-1) var(--dh-space-2);
+  gap: var(--app-space-1) var(--app-space-2);
   margin: 0;
   padding: 0;
   font-size: var(--md-sys-typescale-body-small-size);
@@ -70,7 +70,7 @@
 /* Separator between crumbs, drawn with a decorative pseudo-element. */
 .record-breadcrumb li + li::before {
   content: "/";
-  margin-inline-end: var(--dh-space-2);
+  margin-inline-end: var(--app-space-2);
   color: var(--md-sys-color-outline);
 }
 
@@ -94,14 +94,14 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--dh-space-3) var(--dh-space-4);
+  gap: var(--app-space-3) var(--app-space-4);
   min-width: 0;
 }
 
 .record-header__identity {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
   flex: 1 1 20rem;
 }
@@ -109,7 +109,7 @@
 .record-type {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
@@ -125,7 +125,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
   min-width: 0;
 }
 
@@ -150,10 +150,10 @@
 .record-status {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: var(--dh-space-px) var(--dh-space-2);
+  gap: var(--app-space-1);
+  padding: var(--app-space-px) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-medium-size);
@@ -247,7 +247,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex: 0 1 auto;
 }
 
@@ -255,11 +255,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
+  gap: var(--app-space-2);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-small);
-  border: var(--dh-border-width-thin) solid transparent;
+  border: var(--app-border-width-thin) solid transparent;
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -284,7 +284,7 @@
 
 @media (hover: none), (pointer: coarse) {
   .record-action {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 .record-action--primary:active {
@@ -321,7 +321,7 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2) var(--dh-space-4);
+  gap: var(--app-space-2) var(--app-space-4);
   margin: 0;
   padding: 0;
   min-width: 0;
@@ -330,7 +330,7 @@
 .record-meta-chip {
   display: inline-flex;
   align-items: baseline;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   font-size: var(--md-sys-typescale-body-small-size);
   min-width: 0;
 }
@@ -360,10 +360,10 @@
 .record-summary {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
-  padding: var(--dh-space-5);
+  gap: var(--app-space-4);
+  padding: var(--app-space-5);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   min-width: 0;
 }
@@ -371,21 +371,21 @@
 .record-summary__description {
   color: var(--md-sys-color-on-surface-variant);
   line-height: 1.65;
-  max-width: var(--dh-width-prose);
+  max-width: var(--app-width-prose);
   overflow-wrap: anywhere;
 }
 
 .record-summary__meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: var(--dh-space-4) var(--dh-space-5);
+  gap: var(--app-space-4) var(--app-space-5);
   margin: 0;
 }
 
 .record-summary__meta-item {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
   min-width: 0;
 }
 
@@ -419,7 +419,7 @@
 .record-tabs {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   min-width: 0;
 }
 
@@ -428,15 +428,15 @@
 .record-tabs__strip {
   display: flex;
   align-items: stretch;
-  gap: var(--dh-space-1);
-  border-bottom: var(--dh-border-width-thin) solid
+  gap: var(--app-space-1);
+  border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   min-width: 0;
 }
 
 .record-tabs__list {
   display: flex;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   /* Overflow horizontally on narrow screens instead of widening the page. The
    * bottom border now lives on the strip, so the tablist and the More trigger
    * share one rule. */
@@ -449,21 +449,21 @@
 /* The overflow trigger: a 44px target pinned at the end of the strip. */
 .record-tabs__more {
   flex: none;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-control-height-lg);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-control-height-lg);
   align-self: center;
 }
 
 .record-tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex: none;
-  min-height: var(--dh-control-height-lg);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-lg);
+  padding: 0 var(--app-space-3);
   border: none;
-  border-bottom: var(--dh-border-width-thick) solid transparent;
-  margin-bottom: calc(-1 * var(--dh-border-width-thin));
+  border-bottom: var(--app-border-width-thick) solid transparent;
+  margin-bottom: calc(-1 * var(--app-border-width-thin));
   background: none;
   color: var(--md-sys-color-on-surface-variant);
   font: inherit;
@@ -496,7 +496,7 @@
   align-items: center;
   justify-content: center;
   min-width: 1.25rem;
-  padding: 0 var(--dh-space-1);
+  padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-app-color-surface-sunken);
   color: var(--md-sys-color-on-surface-variant);
@@ -510,8 +510,8 @@
  * summary, tabs and content read as one deliberate record workspace instead of the
  * content dissolving into the page canvas (the reported production defect). This is
  * one shared fix for every canonical record (Area, Goal, Project, Note, Task), not a
- * per-module border. Cards inside sit on `--dh-color-surface-raised`, one shade
- * above this `--dh-color-surface` panel, so nested cards stay distinct without
+ * per-module border. Cards inside sit on `--app-color-surface-raised`, one shade
+ * above this `--app-color-surface` panel, so nested cards stay distinct without
  * doubling the boundary. */
 /* The active panel is the record's working surface — one card, card radius,
  * hairline, no shadow, and the Collection preset's inset so a row list inside it
@@ -519,14 +519,14 @@
 .record-tabs__panel,
 .record-layout__content {
   min-width: 0;
-  padding: var(--dh-space-5);
+  padding: var(--app-space-5);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }
 
 .record-tabs__panel:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -547,13 +547,13 @@
 .record-tabs__panel > .record-content > .record-content__empty,
 .record-layout__content > .record-content > .record-content__empty {
   border: none;
-  padding-block: var(--dh-space-4);
+  padding-block: var(--app-space-4);
 }
 
 .record-content__error {
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-error-container);
-  border-left: var(--dh-border-width-thick) solid var(--md-sys-color-error);
+  padding: var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-error-container);
+  border-left: var(--app-border-width-thick) solid var(--md-sys-color-error);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-sys-color-error-container);
   color: var(--md-sys-color-on-error-container);
@@ -564,14 +564,15 @@
 }
 
 .record-content__empty {
-  padding: var(--dh-space-8) var(--dh-space-4);
+  padding: var(--app-space-8) var(--app-space-4);
   text-align: center;
-  border: var(--dh-border-width-thin) dashed var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) dashed
+    var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .record-content__loading {
-  padding: var(--dh-space-1) 0;
+  padding: var(--app-space-1) 0;
 }
 
 /* Skeleton: opacity/shape only; the shimmer animation is disabled under
@@ -579,7 +580,7 @@
 .record-skeleton {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .record-skeleton__line {
@@ -655,12 +656,12 @@
  */
 @container record (max-width: 30rem) {
   .record-layout {
-    gap: var(--dh-space-4);
-    padding: var(--dh-space-4) var(--dh-space-4);
+    gap: var(--app-space-4);
+    padding: var(--app-space-4) var(--app-space-4);
   }
 
   .record-header {
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   /* Long titles WRAP (never truncate — a record's name is essential) but do not
@@ -673,7 +674,7 @@
   /* Metadata becomes one wrapped, comma-free summary row of chips rather than a
    * fixed-width key/value table. */
   .record-header__meta {
-    gap: var(--dh-space-1) var(--dh-space-3);
+    gap: var(--app-space-1) var(--app-space-3);
     font-size: var(--md-sys-typescale-label-medium-size);
   }
 
@@ -684,14 +685,14 @@
   }
 
   .record-tabs {
-    gap: var(--dh-space-3);
+    gap: var(--app-space-3);
   }
 
   /* Tabs stay ONE row: the strip scrolls (an intentional, contained overflow) and
    * the surplus lives in the More menu — a wrapped multi-row tab bar would eat
    * the record. */
   .record-tab {
-    padding: 0 var(--dh-space-2);
+    padding: 0 var(--app-space-2);
     font-size: var(--md-sys-typescale-body-small-size);
   }
 }
@@ -711,7 +712,7 @@
 .dh-record-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
   min-width: 0;
 }
 
@@ -719,7 +720,7 @@
 .dh-record-section {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 

@@ -22,14 +22,14 @@
 
 .dh-feedback {
   position: fixed;
-  z-index: var(--dh-z-toast);
-  right: var(--dh-space-4);
-  bottom: var(--dh-space-4);
+  z-index: var(--app-z-toast);
+  right: var(--app-space-4);
+  bottom: var(--app-space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  width: min(24rem, calc(100vw - 2 * var(--dh-space-4)));
-  max-height: calc(100vh - 2 * var(--dh-space-4));
+  gap: var(--app-space-2);
+  width: min(24rem, calc(100vw - 2 * var(--app-space-4)));
+  max-height: calc(100vh - 2 * var(--app-space-4));
   overflow-y: auto;
   /*
    * DEBT-38 — the notification region is click-transparent, and ONLY its real
@@ -63,7 +63,7 @@
   background: transparent;
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-medium-size);
-  padding: var(--dh-space-1) var(--dh-space-2);
+  padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
@@ -83,7 +83,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-feedback__item-wrap {
@@ -108,9 +108,9 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: start;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-3) var(--dh-space-3)
-    var(--dh-space-4);
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-3) var(--app-space-3)
+    var(--app-space-4);
   background: var(--md-sys-color-inverse-surface);
   color: var(--md-sys-color-inverse-on-surface);
   border: none;
@@ -181,7 +181,7 @@
 }
 
 .dh-toast__count {
-  margin-left: var(--dh-space-2);
+  margin-left: var(--app-space-2);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   opacity: 0.8;
@@ -189,7 +189,7 @@
 }
 
 .dh-toast__message {
-  margin: var(--dh-space-1) 0 0;
+  margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-medium-size);
   line-height: var(--md-sys-typescale-body-medium-line-height);
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
@@ -209,7 +209,7 @@
 .dh-toast__actions {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 /* The snackbar ACTION is a text button in `inverse-primary` — the one role that
@@ -225,8 +225,8 @@
   line-height: var(--md-sys-typescale-label-large-line-height);
   font-weight: var(--md-sys-typescale-label-large-weight);
   letter-spacing: var(--md-sys-typescale-label-large-tracking);
-  min-height: var(--dh-touch-target-min);
-  padding-inline: var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-full);
   cursor: pointer;
   white-space: nowrap;
@@ -245,8 +245,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-touch-target-min);
-  min-height: var(--dh-touch-target-min);
+  min-width: var(--app-touch-target-min);
+  min-height: var(--app-touch-target-min);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
@@ -283,9 +283,9 @@
 /* Mobile: bottom full-width, safe-area aware, above content without covering it. */
 @media (max-width: 48rem) {
   .dh-feedback {
-    right: var(--dh-space-3);
-    left: var(--dh-space-3);
-    bottom: calc(var(--dh-space-3) + env(safe-area-inset-bottom, 0px));
+    right: var(--app-space-3);
+    left: var(--app-space-3);
+    bottom: calc(var(--app-space-3) + env(safe-area-inset-bottom, 0px));
     width: auto;
   }
 }

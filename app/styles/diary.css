@@ -22,7 +22,7 @@
 .dh-diary-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: center;
   justify-content: space-between;
   min-inline-size: 0;
@@ -32,16 +32,16 @@
 /* Mode tabs (Day / Timeline), in the pane header's view-switcher slot. */
 .dh-diary-modes {
   display: inline-flex;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   align-items: center;
 }
 
 .dh-diary-modes__tab {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-3);
-  border-block-end: var(--dh-border-width-thick) solid transparent;
+  min-block-size: var(--app-control-height-md);
+  padding: 0 var(--app-space-3);
+  border-block-end: var(--app-border-width-thick) solid transparent;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
@@ -66,7 +66,7 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-inline-size: 0;
   max-inline-size: 100%;
 }
@@ -75,9 +75,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-app-color-surface-card);
@@ -108,9 +108,9 @@
   align-items: center;
   min-inline-size: 0;
   flex: 1 1 auto;
-  min-block-size: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-extra-small);
   background: var(--md-app-color-surface-card);
 }
@@ -141,16 +141,16 @@
 }
 
 .dh-diary-datenav__current:focus-within {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
 .dh-diary-datenav__today {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -189,20 +189,20 @@
 /* Scroll horizontally at narrow widths rather than wrapping into a pill block. */
 .dh-diary-filter__scroll {
   display: flex;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   align-items: center;
   overflow-x: auto;
   scrollbar-width: thin;
-  padding-block-end: var(--dh-space-1);
+  padding-block-end: var(--app-space-1);
 }
 
 .dh-diary-filter__option {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
@@ -237,7 +237,7 @@
 
 .dh-diary-filter__count {
   min-inline-size: 1.25rem;
-  padding: 0 var(--dh-space-1);
+  padding: 0 var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-label-small-size);
   font-variant-numeric: tabular-nums;
@@ -258,17 +258,17 @@
 .dh-diary-timeline {
   --diary-tl-time: 3.25rem;
   --diary-tl-node: 1.75rem;
-  --diary-tl-gap: var(--dh-space-3);
+  --diary-tl-gap: var(--app-space-3);
   --diary-tl-rule-x: calc(
     var(--diary-tl-time) + var(--diary-tl-gap) + (var(--diary-tl-node) / 2)
   );
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   margin: 0;
   padding: 0;
   list-style: none;
-  max-inline-size: var(--dh-width-content);
+  max-inline-size: var(--app-width-content);
 }
 
 /*
@@ -283,24 +283,24 @@
 .dh-diary-day {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-2) var(--dh-space-4);
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-4);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }
 
 /* Entries are rows inside it, separated by the within-card hairline. */
 .dh-diary-day__entries > .dh-diary-entry-item + .dh-diary-entry-item,
 .dh-diary-day__entries > li + li {
-  border-block-start: var(--dh-border-width-thin) solid
+  border-block-start: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
 .dh-diary-day__heading {
-  margin: 0 0 var(--dh-space-1);
-  padding-block-end: var(--dh-space-2);
-  border-block-end: var(--dh-border-width-thin) solid
+  margin: 0 0 var(--app-space-1);
+  padding-block-end: var(--app-space-2);
+  border-block-end: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
@@ -320,11 +320,11 @@
 .dh-diary-day__entries::before {
   content: "";
   position: absolute;
-  inset-block: var(--dh-space-3);
+  inset-block: var(--app-space-3);
   inset-inline-start: calc(
-    var(--diary-tl-rule-x) - (var(--dh-border-width-thick) / 2)
+    var(--diary-tl-rule-x) - (var(--app-border-width-thick) / 2)
   );
-  inline-size: var(--dh-border-width-thick);
+  inline-size: var(--app-border-width-thick);
   background: var(--md-sys-color-outline-variant);
 }
 
@@ -334,7 +334,7 @@
   grid-template-columns: var(--diary-tl-time) var(--diary-tl-node) 1fr auto;
   column-gap: var(--diary-tl-gap);
   align-items: start;
-  padding: var(--dh-space-2) var(--dh-space-2) var(--dh-space-2) 0;
+  padding: var(--app-space-2) var(--app-space-2) var(--app-space-2) 0;
   border-radius: var(--md-sys-shape-corner-full);
 }
 
@@ -351,7 +351,7 @@
 }
 
 .dh-diary-entry__time {
-  padding-block-start: var(--dh-space-1);
+  padding-block-start: var(--app-space-1);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
@@ -366,7 +366,7 @@
   justify-content: center;
   inline-size: var(--diary-tl-node);
   block-size: var(--diary-tl-node);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   color: var(--md-sys-color-entity-diary);
   background: var(--md-app-color-surface-card);
@@ -385,8 +385,8 @@
   min-inline-size: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
-  padding-block-start: var(--dh-space-px);
+  gap: var(--app-space-1);
+  padding-block-start: var(--app-space-px);
 }
 
 .dh-diary-entry__title {
@@ -433,12 +433,12 @@
 .dh-diary-entry__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   align-items: center;
 }
 
 .dh-diary-entry__type {
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
@@ -447,8 +447,8 @@
 }
 
 .dh-diary-entry__backdated {
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-label-small-size);
   color: var(--md-sys-color-on-surface-variant);
@@ -456,12 +456,12 @@
 
 .dh-diary-entry__edit {
   position: relative;
-  z-index: var(--dh-z-raised);
+  z-index: var(--app-z-raised);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
   border: 0;
   border-radius: var(--md-sys-shape-corner-full);
   color: var(--md-sys-color-on-surface-variant);
@@ -499,7 +499,7 @@
 .dh-diary-detail {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-diary-detail__title {
@@ -515,20 +515,20 @@
 .dh-diary-detail__stamps {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   margin: 0;
 }
 
 .dh-diary-detail__stamps {
-  padding-block-start: var(--dh-space-3);
-  border-block-start: var(--dh-border-width-thin) solid
+  padding-block-start: var(--app-space-3);
+  border-block-start: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
 .dh-diary-detail__fact {
   display: grid;
   grid-template-columns: 6rem 1fr;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   align-items: baseline;
 }
 
@@ -542,14 +542,14 @@
   margin: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   align-items: baseline;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface);
 }
 
 .dh-diary-detail__type {
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
@@ -558,8 +558,8 @@
 }
 
 .dh-diary-detail__badge {
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-label-small-size);
   color: var(--md-sys-color-on-surface-variant);
@@ -582,7 +582,7 @@
 
 .dh-diary-detail__actions {
   display: flex;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-diary-detail__loading,
@@ -593,7 +593,7 @@
 .dh-diary-detail__error {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: flex-start;
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -609,7 +609,7 @@
 .dh-diary-capture {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-diary-capture__types {
@@ -620,7 +620,7 @@
 
 .dh-diary-capture__legend {
   padding: 0;
-  margin-block-end: var(--dh-space-2);
+  margin-block-end: var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
@@ -629,16 +629,16 @@
 .dh-diary-capture__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-diary-capture__chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
@@ -681,14 +681,14 @@
 }
 
 .dh-diary-capture__chip:focus-within {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
 .dh-diary-capture__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: center;
   justify-content: space-between;
 }
@@ -696,9 +696,9 @@
 .dh-diary-capture__details {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
-  padding-block-start: var(--dh-space-3);
-  border-block-start: var(--dh-border-width-thin) solid
+  gap: var(--app-space-3);
+  padding-block-start: var(--app-space-3);
+  border-block-start: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -715,13 +715,13 @@
 .dh-diary-editor {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-diary-editor__footer {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: center;
   justify-content: space-between;
 }
@@ -733,9 +733,9 @@
 
 .dh-diary-when__input {
   inline-size: 100%;
-  min-block-size: var(--dh-control-height-md);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  min-block-size: var(--app-control-height-md);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   font: inherit;
   color: var(--md-sys-color-on-surface);
@@ -775,7 +775,7 @@
   .dh-diary-toolbar {
     flex-direction: column;
     align-items: stretch;
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-diary-datenav {

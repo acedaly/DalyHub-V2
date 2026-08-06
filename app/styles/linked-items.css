@@ -11,7 +11,7 @@
 .dh-linked-items {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 .dh-linked-items__status,
@@ -27,17 +27,17 @@
 
 .dh-linked-items__retry {
   appearance: none;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-primary);
   border-radius: var(--md-sys-shape-corner-small);
-  padding: var(--dh-space-1) var(--dh-space-2);
+  padding: var(--app-space-1) var(--app-space-2);
   cursor: pointer;
-  min-height: var(--dh-control-height-sm);
+  min-height: var(--app-control-height-sm);
 }
 
 .dh-linked-items__retry:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -51,17 +51,17 @@
 .dh-linked-items__groups {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-linked-items__group-heading {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
-  margin: 0 0 var(--dh-space-2) 0;
+  margin: 0 0 var(--app-space-2) 0;
 }
 
 .dh-linked-items__group-icon {
@@ -77,15 +77,15 @@
 .dh-linked-items__list {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-linked-items__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-2);
+  gap: var(--app-space-2);
+  padding: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
 }
 
@@ -103,14 +103,14 @@
 
 .dh-linked-items__remove {
   appearance: none;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface-variant);
   border-radius: var(--md-sys-shape-corner-small);
-  padding: var(--dh-space-1) var(--dh-space-2);
+  padding: var(--app-space-1) var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   cursor: pointer;
-  min-height: var(--dh-control-height-sm);
+  min-height: var(--app-control-height-sm);
   flex: none;
 }
 
@@ -120,23 +120,23 @@
 }
 
 .dh-linked-items__remove:focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
 .dh-linked-items__add {
-  border-top: var(--dh-border-width-thin) solid
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  padding-top: var(--dh-space-4);
+  padding-top: var(--app-space-4);
 }
 
 .dh-linked-items__offline {
   color: var(--md-sys-color-on-warning-container);
   background: var(--md-sys-color-warning-container);
   border-radius: var(--md-sys-shape-corner-small);
-  padding: var(--dh-space-2);
+  padding: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
-  margin: 0 0 var(--dh-space-3) 0;
+  margin: 0 0 var(--app-space-3) 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -154,17 +154,17 @@
 
 .dh-hover-card__panel {
   position: absolute;
-  top: calc(100% + var(--dh-space-1));
+  top: calc(100% + var(--app-space-1));
   left: 0;
   z-index: 20;
   min-width: 12rem;
   max-width: 20rem;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
-  padding: var(--dh-space-3);
+  gap: var(--app-space-1);
+  padding: var(--app-space-3);
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   box-shadow: var(--md-sys-elevation-2);
   font-size: var(--md-sys-typescale-body-small-size);
@@ -198,7 +198,7 @@
 .dh-linked-items__summary {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-linked-items__summary-type {

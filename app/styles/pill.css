@@ -13,11 +13,11 @@
 .dh-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-block-size: 2rem;
-  border: var(--dh-border-width-thin) solid transparent;
+  border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
-  padding-inline: var(--dh-space-2);
+  padding-inline: var(--app-space-2);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
@@ -88,11 +88,11 @@
 .dh-area-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-block-size: 2rem;
-  border: var(--dh-border-width-thin) solid transparent;
+  border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
-  padding-inline: var(--dh-space-2);
+  padding-inline: var(--app-space-2);
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
@@ -154,7 +154,7 @@
     border-color: CanvasText;
   }
   .dh-area-dot {
-    border: var(--dh-border-width-thin) solid CanvasText;
+    border: var(--app-border-width-thin) solid CanvasText;
     background: CanvasText;
   }
 }

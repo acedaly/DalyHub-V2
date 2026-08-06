@@ -4,20 +4,20 @@
  * A spotlight-style modal anchored near the top of the viewport, sharing the DS-08
  * Search geometry so the two mutually-exclusive surfaces feel like one system.
  * Tokens only (AGENTS.md §9.8): colour, spacing, shape, elevation, motion and
- * z-index come from DS-01. It sits at `--dh-z-modal` (1300), ABOVE `--dh-z-drawer`
+ * z-index come from DS-01. It sits at `--app-z-modal` (1300), ABOVE `--app-z-drawer`
  * (1200), so it renders over an open Drawer (inert behind it). Motion respects
- * `prefers-reduced-motion`. Every interactive target meets `--dh-touch-target-min`
+ * `prefers-reduced-motion`. Every interactive target meets `--app-touch-target-min`
  * (44px). Painted entirely with M3 tokens; no literal colours.
  */
 
 .dh-command {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-modal);
+  z-index: var(--app-z-modal);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--dh-space-8) var(--dh-space-4);
+  padding: var(--app-space-8) var(--app-space-4);
 }
 
 .dh-command__scrim {
@@ -38,9 +38,9 @@
   flex-direction: column;
   width: 100%;
   max-width: 40rem;
-  max-height: min(34rem, calc(100vh - var(--dh-space-16)));
+  max-height: min(34rem, calc(100vh - var(--app-space-16)));
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   box-shadow: var(--md-sys-elevation-3);
   overflow: hidden;
@@ -52,8 +52,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-4) 0;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4) 0;
 }
 
 .dh-command__title {
@@ -68,14 +68,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-touch-target-min);
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-2);
+  min-width: var(--app-touch-target-min);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-app-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
@@ -91,9 +91,9 @@
 .dh-command__inputrow {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  border-bottom: var(--dh-border-width-thin) solid
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
+  border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -105,7 +105,7 @@
 .dh-command__input {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   border: 0;
   background: transparent;
   color: var(--md-sys-color-on-surface);
@@ -124,11 +124,11 @@
 .dh-command__feedback {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   margin: 0;
-  padding: var(--dh-space-2) var(--dh-space-4);
+  padding: var(--app-space-2) var(--app-space-4);
   font-size: var(--md-sys-typescale-label-medium-size);
-  border-bottom: var(--dh-border-width-thin) solid
+  border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -154,13 +154,13 @@
 .dh-command__results {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: var(--dh-space-2);
+  padding: var(--app-space-2);
 }
 
 .dh-command__idle,
 .dh-command__partial {
   margin: 0;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -169,19 +169,19 @@
   color: var(--md-sys-color-on-warning-container);
   background: var(--md-sys-color-warning-container);
   border-radius: var(--md-sys-shape-corner-small);
-  margin-bottom: var(--dh-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
 .dh-command__group {
-  margin-bottom: var(--dh-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
 .dh-command__grouptitle {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
-  padding: var(--dh-space-2) var(--dh-space-3);
+  padding: var(--app-space-2) var(--app-space-3);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -203,10 +203,10 @@
 .dh-command__optionstatic {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   width: 100%;
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
   color: inherit;
   text-align: left;
   text-decoration: none;
@@ -224,8 +224,8 @@
 
 .dh-command__option[data-active="true"] {
   background: var(--md-sys-color-primary-container);
-  outline: var(--dh-border-width-thin) solid var(--md-sys-color-primary);
-  outline-offset: calc(-1 * var(--dh-border-width-thin));
+  outline: var(--app-border-width-thin) solid var(--md-sys-color-primary);
+  outline-offset: calc(-1 * var(--app-border-width-thin));
 }
 
 .dh-command__option[data-pending="true"] {
@@ -239,8 +239,8 @@
 /* A visible text badge — the disabled meaning never relies on colour/opacity. */
 .dh-command__optionunavailable {
   flex: 0 0 auto;
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);
@@ -259,7 +259,7 @@
   flex-direction: column;
   min-width: 0;
   flex: 1 1 auto;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
 .dh-command__optiontitle {
@@ -281,7 +281,7 @@
 
 .dh-command__optiontype {
   flex: 0 0 auto;
-  padding-left: var(--dh-space-2);
+  padding-left: var(--app-space-2);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);
   letter-spacing: 0.03em;
@@ -289,10 +289,10 @@
 
 .dh-command__optionshortcut {
   flex: 0 0 auto;
-  padding: 0 var(--dh-space-1);
+  padding: 0 var(--app-space-1);
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-app-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-extra-small);
   font-family: var(--md-ref-typeface-mono);
   font-size: var(--md-sys-typescale-label-small-size);
@@ -311,9 +311,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-2) var(--dh-space-4);
-  border-top: var(--dh-border-width-thin) solid
+  gap: var(--app-space-3);
+  padding: var(--app-space-2) var(--app-space-4);
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);
@@ -327,9 +327,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--dh-touch-target-min);
-  min-width: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  min-width: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
   color: var(--md-sys-color-on-primary);
   background: var(--md-sys-color-primary);
   border: 0;
@@ -355,7 +355,7 @@
 @keyframes dh-command-rise {
   from {
     opacity: 0;
-    transform: translateY(calc(-1 * var(--dh-space-3)));
+    transform: translateY(calc(-1 * var(--app-space-3)));
   }
   to {
     opacity: 1;
@@ -365,11 +365,11 @@
 
 @media (max-width: 30rem) {
   .dh-command {
-    padding: var(--dh-space-4) var(--dh-space-3);
+    padding: var(--app-space-4) var(--app-space-3);
   }
 
   .dh-command__panel {
-    max-height: calc(100vh - var(--dh-space-8));
+    max-height: calc(100vh - var(--app-space-8));
   }
 
   .dh-command__hint {
@@ -396,7 +396,7 @@
 .dh-keyboard-help {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 .dh-keyboard-help__intro {
@@ -408,7 +408,7 @@
 .dh-keyboard-help__group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-keyboard-help__group-title {
@@ -420,14 +420,14 @@
 .dh-keyboard-help__list {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
 }
 
 .dh-keyboard-help__row {
   display: flex;
   align-items: baseline;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-keyboard-help__keys {
@@ -435,7 +435,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   margin: 0;
 }
 
@@ -443,8 +443,8 @@
   display: inline-flex;
   align-items: center;
   min-height: 1.5rem;
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-sunken);
   font-family: var(--md-ref-typeface-mono);

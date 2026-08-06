@@ -13,7 +13,7 @@
 .dh-capture-form {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 /* The resolved default capture parent / capture day — a statement, not a field.
@@ -32,10 +32,10 @@
 .dh-capture-context {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface-variant);
@@ -59,8 +59,8 @@
 }
 
 .dh-capture-context__remove {
-  min-block-size: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-2);
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--app-space-2);
   border: 0;
   background: transparent;
   color: var(--md-sys-color-primary);
@@ -72,7 +72,7 @@
 .dh-capture-context-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -82,7 +82,7 @@
 .dh-capture-chips {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-capture-chips__label {
@@ -96,16 +96,16 @@
 .dh-capture-chips__row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-capture-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-app-color-surface-raised);
   color: var(--md-sys-color-on-surface);
@@ -144,17 +144,17 @@
 /*
  * Sticky within the sheet's scrolling body, so "Create" is always on screen —
  * including when the keyboard is open, because the sheet's own height already
- * subtracts `--dh-keyboard-inset`.
+ * subtracts `--app-keyboard-inset`.
  */
 .dh-capture-actions {
   position: sticky;
-  bottom: calc(-1 * var(--dh-space-4));
+  bottom: calc(-1 * var(--app-space-4));
   display: flex;
   justify-content: stretch;
-  margin: 0 calc(-1 * var(--dh-space-4)) calc(-1 * var(--dh-space-4));
-  padding: var(--dh-space-3) var(--dh-space-4);
-  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  border-top: var(--dh-border-width-thin) solid
+  margin: 0 calc(-1 * var(--app-space-4)) calc(-1 * var(--app-space-4));
+  padding: var(--app-space-3) var(--app-space-4);
+  padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-raised);
 }
@@ -170,7 +170,7 @@
 .dh-capture-result {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-capture-result__message {
@@ -186,12 +186,12 @@
 .dh-capture-result__actions {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-capture-result__actions > * {
   inline-size: 100%;
-  min-block-size: var(--dh-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
   display: inline-flex;
   align-items: center;
   justify-content: center;

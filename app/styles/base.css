@@ -33,7 +33,7 @@ body {
  * guessed. `0px` on desktop, where the bar does not exist. */
 html {
   scroll-padding-block-end: calc(
-    var(--dh-bottomnav-height, 0px) + var(--dh-space-2)
+    var(--app-bottomnav-height, 0px) + var(--app-space-2)
   );
 }
 
@@ -58,7 +58,7 @@ body {
  * text field gets a 4px one, with nothing to keep in sync.
  */
 :focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -136,13 +136,13 @@ body {
   select,
   textarea
 ) {
-  min-block-size: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-3);
+  min-block-size: var(--app-control-height-md);
+  padding: var(--app-space-1) var(--app-space-3);
   font: inherit;
   font-size: var(--md-sys-typescale-body-large-size);
   color: var(--md-sys-color-on-surface);
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
@@ -150,12 +150,12 @@ body {
   /* A select keeps its native disclosure arrow (drawing our own would break the
    * platform picker on touch); the inline-end inset just stops the value text
    * colliding with it. */
-  padding-inline-end: var(--dh-space-2);
+  padding-inline-end: var(--app-space-2);
   cursor: pointer;
 }
 
 :where(textarea) {
-  padding-block: var(--dh-space-2);
+  padding-block: var(--app-space-2);
   line-height: 1.5;
   resize: vertical;
 }
@@ -183,8 +183,8 @@ body {
  * product's, and a 44px target on touch is provided by their labels/cells. */
 :where(input[type="checkbox"], input[type="radio"]) {
   accent-color: var(--md-sys-color-primary);
-  inline-size: var(--dh-space-5);
-  block-size: var(--dh-space-5);
+  inline-size: var(--app-space-5);
+  block-size: var(--app-space-5);
   cursor: pointer;
 }
 
@@ -248,29 +248,29 @@ body {
 /* -------------------------------------------------------------------------- */
 
 .page {
-  max-width: var(--dh-width-narrow);
+  max-width: var(--app-width-narrow);
   margin-inline: auto;
-  padding: clamp(var(--dh-space-6), 5vw, var(--dh-space-16)) var(--dh-gutter);
+  padding: clamp(var(--app-space-6), 5vw, var(--app-space-16)) var(--app-gutter);
 }
 
 .page h1 {
   font-size: var(--md-sys-typescale-headline-small-size);
   line-height: 1.2;
   letter-spacing: -0.01em;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
 }
 
 .page h2,
 .dh-pane-body h2 {
   font-size: var(--md-sys-typescale-title-medium-size);
   line-height: 1.35;
-  margin: var(--dh-space-6) 0 var(--dh-space-2);
+  margin: var(--app-space-6) 0 var(--app-space-2);
 }
 
 .lead {
   font-size: var(--md-sys-typescale-body-large-size);
   color: var(--md-sys-color-on-surface-variant);
-  margin: 0 0 var(--dh-space-4);
+  margin: 0 0 var(--app-space-4);
 }
 
 .muted {
@@ -284,20 +284,20 @@ body {
 
 .page ul,
 .dh-pane-body ul {
-  padding-left: var(--dh-space-5);
-  margin: 0 0 var(--dh-space-4);
+  padding-left: var(--app-space-5);
+  margin: 0 0 var(--app-space-4);
 }
 
 .page li,
 .dh-pane-body li {
-  margin-bottom: var(--dh-space-1);
+  margin-bottom: var(--app-space-1);
 }
 
 .page hr {
   border: none;
-  border-top: var(--dh-border-width-thin) solid
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
-  margin: var(--dh-space-8) 0;
+  margin: var(--app-space-8) 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -316,33 +316,33 @@ body {
  * it is not allowed to make it look implemented.
  */
 .dh-coming-soon {
-  margin-top: var(--dh-space-6);
-  padding: var(--dh-space-6);
-  max-width: var(--dh-width-narrow);
+  margin-top: var(--app-space-6);
+  padding: var(--app-space-6);
+  max-width: var(--app-width-narrow);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
 }
 
 .dh-coming-soon__title {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-large-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface);
-  margin: 0 0 var(--dh-space-3);
+  margin: 0 0 var(--app-space-3);
 }
 
 .dh-coming-soon__label {
   font-weight: 500;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
 }
 
 pre {
   overflow-x: auto;
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
   font-family: var(--md-ref-typeface-mono);
@@ -350,7 +350,7 @@ pre {
 }
 
 .home-modules {
-  padding-left: var(--dh-space-5);
+  padding-left: var(--app-space-5);
 }
 
 /*
@@ -368,7 +368,7 @@ pre {
  * `body-medium` at full width.
  */
 .markdown-content {
-  max-inline-size: var(--dh-width-prose);
+  max-inline-size: var(--app-width-prose);
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
   letter-spacing: var(--md-sys-typescale-body-large-tracking);
@@ -383,7 +383,7 @@ pre {
   font-family: var(--md-ref-typeface-plain);
   font-weight: 500;
   line-height: 1.35;
-  margin-block: var(--dh-space-6) var(--dh-space-2);
+  margin-block: var(--app-space-6) var(--app-space-2);
 }
 
 .markdown-content :is(h1, h2, h3, h4, h5, h6):first-child {
@@ -401,7 +401,7 @@ pre {
 }
 
 .markdown-content p {
-  margin-block: 0 var(--dh-space-4);
+  margin-block: 0 var(--app-space-4);
 }
 
 .markdown-content > :last-child {
@@ -413,26 +413,26 @@ pre {
  * three-sided shape is the malformed corner the rule exists to prevent. */
 .markdown-content blockquote {
   margin-inline: 0;
-  margin-block: var(--dh-space-4);
-  padding-inline-start: var(--dh-space-4);
-  border-inline-start: var(--dh-border-width-thick) solid
+  margin-block: var(--app-space-4);
+  padding-inline-start: var(--app-space-4);
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-outline-variant);
   color: var(--md-sys-color-on-surface-variant);
 }
 
 .markdown-content :is(ul, ol) {
-  margin-block: 0 var(--dh-space-4);
-  padding-inline-start: var(--dh-space-5);
+  margin-block: 0 var(--app-space-4);
+  padding-inline-start: var(--app-space-5);
 }
 
 .markdown-content li + li {
-  margin-block-start: var(--dh-space-1);
+  margin-block-start: var(--app-space-1);
 }
 
 .markdown-content hr {
-  margin-block: var(--dh-space-6);
+  margin-block: var(--app-space-6);
   border: none;
-  border-block-start: var(--dh-border-width-thin) solid
+  border-block-start: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -453,7 +453,7 @@ pre {
   display: block;
   overflow-x: auto;
   max-inline-size: 100%;
-  margin-block: var(--dh-space-4);
+  margin-block: var(--app-space-4);
   border-collapse: collapse;
   font-family: var(--md-ref-typeface-plain);
   font-size: var(--md-sys-typescale-body-medium-size);
@@ -462,8 +462,8 @@ pre {
 }
 
 .markdown-content :is(th, td) {
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border-block-end: var(--dh-border-width-thin) solid
+  padding: var(--app-space-2) var(--app-space-3);
+  border-block-end: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   text-align: start;
 }

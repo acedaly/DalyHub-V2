@@ -3,7 +3,7 @@
  *
  * `useKeyboardInset` is mounted ONCE by the AppShell and is the only Visual
  * Viewport listener in the product; surfaces consume its published
- * `--dh-keyboard-inset` custom property from CSS.
+ * `--app-keyboard-inset` custom property from CSS.
  */
 
 export {

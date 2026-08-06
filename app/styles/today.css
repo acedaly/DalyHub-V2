@@ -39,11 +39,11 @@
  * and no ragged whitespace at any width.
  *
  * Spacing is one scale, applied at three levels and nowhere else:
- *   region → region     `--dh-space-6` (24)
- *   card → card         `--dh-space-5` (20)
- *   inside a card       `--dh-space-3` (12), with `--dh-space-2` (8) for pairs
+ *   region → region     `--app-space-6` (24)
+ *   card → card         `--app-space-5` (20)
+ *   inside a card       `--app-space-3` (12), with `--app-space-2` (8) for pairs
  *
- * Layout and rhythm ONLY — every visual value is a DS-01 `var(--dh-*)` token, and
+ * Layout and rhythm ONLY — every visual value is a DS-01 `var(--app-*)` token, and
  * all real chrome (cards, empty state, pane header, drawer, progress meter) comes
  * from the shared components. No new colour, shadow or type treatment; no bespoke
  * visual language (AGENTS.md §9.8, PRODUCT_EXPERIENCE Part IV §10).
@@ -72,7 +72,7 @@
   container-name: today;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   min-inline-size: 0;
 }
 
@@ -94,7 +94,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
   min-inline-size: 0;
 }
 
@@ -107,7 +107,7 @@
 .dh-today__column {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
   min-inline-size: 0;
 }
 
@@ -115,7 +115,7 @@
    grid — and at the primary column's gap a stack of them reads as loose rather
    than as a group. One step down the same scale, never a value of its own. */
 .dh-today__column--secondary {
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 /* The Customise toolbar row above the widgets. */
@@ -123,14 +123,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__hidden {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__hidden-label {
@@ -148,7 +148,7 @@
 .dh-today-widget {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
   transition:
     border-color var(--md-sys-motion-duration-short4)
@@ -186,14 +186,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2) var(--dh-space-3);
-  padding-block-start: var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
+  padding-block-start: var(--app-space-3);
 }
 
 /* Collapsed, the body is `hidden`, so the header would sit on the card's bare
    4px inset. It keeps its own breathing room instead. */
 .dh-today-widget[data-collapsed="true"] .dh-today-widget__header {
-  padding-block-end: var(--dh-space-3);
+  padding-block-end: var(--app-space-3);
 }
 
 .dh-today-widget__heading {
@@ -213,8 +213,8 @@
 .dh-today-widget__toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-control-height-sm);
+  gap: var(--app-space-2);
+  min-height: var(--app-control-height-sm);
   min-inline-size: 0;
   padding: 0;
   font: inherit;
@@ -272,7 +272,7 @@
 .dh-today-widget__link {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--dh-control-height-sm);
+  min-block-size: var(--app-control-height-sm);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-primary);
@@ -286,28 +286,28 @@
 
 @media (hover: none) {
   .dh-today-widget__link {
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 }
 
 .dh-today-widget__controls {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-today-widget__control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-control-height-sm);
-  min-height: var(--dh-control-height-sm);
-  padding: 0 var(--dh-space-2);
+  min-width: var(--app-control-height-sm);
+  min-height: var(--app-control-height-sm);
+  padding: 0 var(--app-space-2);
   font: inherit;
   font-size: var(--md-sys-typescale-label-medium-size);
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   cursor: pointer;
 }
@@ -333,16 +333,16 @@
 
 @media (hover: none) {
   .dh-today-widget__control {
-    min-width: var(--dh-touch-target-min);
-    min-height: var(--dh-touch-target-min);
+    min-width: var(--app-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
 .dh-today-widget__body {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
-  padding-block-end: var(--dh-space-3);
+  gap: var(--app-space-3);
+  padding-block-end: var(--app-space-3);
   min-inline-size: 0;
 }
 
@@ -350,7 +350,7 @@
    state (the "Pinned" text in the heading names it too). It thickens ONE edge of
    the card's own full border; it is not a separate single-sided accent rule. */
 .dh-today-widget[data-pinned="true"] {
-  border-inline-start: var(--dh-border-width-thick) solid
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-primary);
 }
 
@@ -390,9 +390,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
   min-inline-size: 0;
-  padding-block-start: var(--dh-space-1);
+  padding-block-start: var(--app-space-1);
 }
 
 /* Side by side once there is genuinely room for the rail beside the greeting —
@@ -401,14 +401,14 @@
 @container today (min-width: 58rem) {
   .dh-hero {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--dh-space-8);
+    gap: var(--app-space-8);
   }
 }
 
 .dh-hero__intro {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
 }
 
@@ -439,13 +439,13 @@
 /* The day's completion, bounded so it reads as a meter beside the text rather
    than as a rule across the whole band. */
 .dh-hero__progress {
-  margin-block-start: var(--dh-space-2);
+  margin-block-start: var(--app-space-2);
   max-inline-size: 22rem;
 }
 
 .dh-hero__capture {
   align-self: flex-start;
-  margin-block-start: var(--dh-space-2);
+  margin-block-start: var(--app-space-2);
 }
 
 /*
@@ -461,7 +461,7 @@
 .dh-hero__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
 }
 
@@ -486,10 +486,10 @@
   justify-content: center;
   gap: 2px;
   margin: 0;
-  padding: var(--dh-space-2) var(--dh-space-3);
-  min-block-size: var(--dh-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  min-block-size: var(--app-touch-target-min);
   min-inline-size: 0;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
   color: inherit;
@@ -523,12 +523,12 @@ a.dh-hero__stat:hover {
    otherwise neutral tile — so the two rails cannot drift apart. The label always
    names the signal, so nothing depends on the colour. */
 .dh-hero__stat[data-tone="attention"] {
-  border-inline-start: var(--dh-border-width-thick) solid
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-warning);
 }
 
 .dh-hero__stat[data-tone="positive"] {
-  border-inline-start: var(--dh-border-width-thick) solid
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-success);
 }
 
@@ -539,7 +539,7 @@ a.dh-hero__stat:hover {
 .dh-today__section {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 /* A quiet section label — xs, muted, medium weight. It is a heading for the
@@ -566,7 +566,7 @@ a.dh-hero__stat:hover {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2) var(--app-space-3);
   min-inline-size: 0;
 }
 
@@ -576,7 +576,7 @@ a.dh-hero__stat:hover {
 .dh-today__section-all {
   display: inline-flex;
   align-items: center;
-  min-block-size: var(--dh-control-height-sm);
+  min-block-size: var(--app-control-height-sm);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-primary);
@@ -589,7 +589,7 @@ a.dh-hero__stat:hover {
 
 @media (hover: none) {
   .dh-today__section-all {
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 }
 
@@ -605,14 +605,14 @@ a.dh-hero__stat:hover {
 .dh-today__tasklist {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
 }
 
 /* A visible, non-colour-only focus indication when a "Go to <section>" command
    moves focus to a section heading (programmatic focus is not always
    `:focus-visible`). */
 .dh-today__section-label:focus {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
   border-radius: var(--md-sys-shape-corner-extra-small);
 }
@@ -621,7 +621,7 @@ a.dh-hero__stat:hover {
    own ring, so the keyboard position is unmistakable. Not colour-only — it is a
    ring. */
 .dh-today__tasklist .dh-card:focus-within {
-  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--md-sys-color-primary);
+  box-shadow: 0 0 0 var(--app-border-width-thin) var(--md-sys-color-primary);
   border-radius: var(--md-sys-shape-corner-large);
 }
 
@@ -630,14 +630,14 @@ a.dh-hero__stat:hover {
    otherwise the inner card's ring would be clipped and the keyboard position
    lost. */
 .dh-today__tasklist .dh-card-swipe:focus-within {
-  box-shadow: 0 0 0 var(--dh-border-width-thin) var(--md-sys-color-primary);
+  box-shadow: 0 0 0 var(--app-border-width-thin) var(--md-sys-color-primary);
 }
 
 /* Completed today — a calm, collapsed disclosure. */
 .dh-today__completed > summary {
   cursor: pointer;
   list-style: revert;
-  min-block-size: var(--dh-control-height-sm);
+  min-block-size: var(--app-control-height-sm);
 }
 
 .dh-today__completed > summary::-webkit-details-marker {
@@ -645,7 +645,7 @@ a.dh-hero__stat:hover {
 }
 
 .dh-today__completed[open] > summary {
-  margin-block-end: var(--dh-space-2);
+  margin-block-end: var(--app-space-2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -657,7 +657,7 @@ a.dh-hero__stat:hover {
    `.dh-region-row`, so their padding and minimum target come from the shared primitive. */
 .dh-today__waiting {
   list-style: none;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   padding: 0;
 }
 
@@ -668,8 +668,8 @@ a.dh-hero__stat:hover {
   gap: 2px;
   flex: 1;
   min-inline-size: 0;
-  padding-inline: var(--dh-space-2);
-  margin-inline: calc(var(--dh-space-2) * -1);
+  padding-inline: var(--app-space-2);
+  margin-inline: calc(var(--app-space-2) * -1);
   border-radius: var(--md-sys-shape-corner-full);
   color: inherit;
   text-decoration: none;
@@ -704,7 +704,7 @@ a.dh-hero__stat:hover {
 .dh-waiting-card__subject {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   overflow-wrap: anywhere;
 }
 
@@ -718,7 +718,7 @@ a.dh-hero__stat:hover {
 .dh-today__capture {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-today__capture-hint {
@@ -731,18 +731,18 @@ a.dh-hero__stat:hover {
 .dh-today__capture-types {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__capture-type {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-2);
-  min-block-size: var(--dh-touch-target-min);
+  gap: var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
   min-inline-size: 0;
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
@@ -788,14 +788,14 @@ a.dh-hero__stat:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-control-height-md);
-  padding: 0 var(--dh-space-4);
+  gap: var(--app-space-2);
+  min-height: var(--app-control-height-md);
+  padding: 0 var(--app-space-4);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   border-radius: var(--md-sys-shape-corner-medium);
-  border: var(--dh-border-width-thin) solid transparent;
+  border: var(--app-border-width-thin) solid transparent;
   cursor: pointer;
   transition: background-color var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
@@ -805,7 +805,7 @@ a.dh-hero__stat:hover {
 @media (hover: none) {
   .dh-today__primary,
   .dh-today__secondary {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -861,13 +861,13 @@ a.dh-hero__stat:hover {
 .dh-today__ghost {
   display: inline-flex;
   align-items: center;
-  min-height: var(--dh-control-height-sm);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-control-height-sm);
+  padding: 0 var(--app-space-3);
   font: inherit;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
   background: transparent;
-  border: var(--dh-border-width-thin) solid transparent;
+  border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
@@ -879,7 +879,7 @@ a.dh-hero__stat:hover {
 
 @media (hover: none) {
   .dh-today__ghost {
-    min-height: var(--dh-touch-target-min);
+    min-height: var(--app-touch-target-min);
   }
 }
 
@@ -894,9 +894,9 @@ a.dh-hero__stat:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
   box-shadow: var(--md-sys-elevation-2);
@@ -911,7 +911,7 @@ a.dh-hero__stat:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-today__bulk-custom {
@@ -920,9 +920,9 @@ a.dh-hero__stat:hover {
 }
 
 .dh-today__bulk-date {
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
@@ -930,8 +930,8 @@ a.dh-hero__stat:hover {
 }
 
 .dh-today__bulk-cancel {
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-3);
   border: none;
   border-radius: var(--md-sys-shape-corner-small);
   background: transparent;
@@ -965,7 +965,7 @@ a.dh-hero__stat:hover {
    Collection preset's separator rule, applied to the list widgets so every
    scannable list in the product is separated the same way. */
 .dh-today-list__item + .dh-today-list__item {
-  border-block-start: var(--dh-border-width-thin) solid
+  border-block-start: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -978,12 +978,12 @@ a.dh-hero__stat:hover {
   /* The row's inset is pulled back out with a negative margin so the hover
      surface spans the card's full content width rather than being indented from
      it — a hover state that stops short of the text beside it reads as a bug. */
-  padding: var(--dh-space-2);
-  margin-inline: calc(var(--dh-space-2) * -1);
+  padding: var(--app-space-2);
+  margin-inline: calc(var(--app-space-2) * -1);
   border-radius: var(--md-sys-shape-corner-small);
   color: inherit;
   text-decoration: none;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-today-list__link:hover {
@@ -1022,11 +1022,11 @@ a.dh-hero__stat:hover {
 .dh-today-list__link--with-icon {
   flex-direction: row;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-today-list__note {
-  margin: var(--dh-space-2) 0 0;
+  margin: var(--app-space-2) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -1056,21 +1056,21 @@ a.dh-hero__stat:hover {
   /* The row's own inline padding is cancelled by its negative margin, so the time
      column starts at the item's leading edge and the rail is simply the column
      width plus half the gap. */
-  --today-schedule-rail: calc(3.25rem + var(--dh-space-3) / 2);
+  --today-schedule-rail: calc(3.25rem + var(--app-space-3) / 2);
   /* Where the marker's centre sits, measured from the top of the row: the row's
      own padding plus half a line of the title beside it. */
-  --today-schedule-marker: calc(var(--dh-space-2) + 0.7em);
+  --today-schedule-marker: calc(var(--app-space-2) + 0.7em);
 }
 
 .dh-schedule__link {
   display: grid;
   grid-template-columns: 3.25rem minmax(0, 1fr);
   align-items: baseline;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   position: relative;
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2);
-  margin-inline: calc(var(--dh-space-2) * -1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2);
+  margin-inline: calc(var(--app-space-2) * -1);
   border-radius: var(--md-sys-shape-corner-small);
   color: inherit;
   text-decoration: none;
@@ -1093,7 +1093,7 @@ a.dh-hero__stat:hover {
   position: absolute;
   inset-block: 0;
   inset-inline-start: var(--today-schedule-rail);
-  inline-size: var(--dh-border-width-thin);
+  inline-size: var(--app-border-width-thin);
   background: var(--md-sys-color-outline-variant);
 }
 
@@ -1143,7 +1143,7 @@ a.dh-hero__stat:hover {
   gap: 2px;
   min-inline-size: 0;
   /* Clear the rail marker sitting in the gutter between the two columns. */
-  padding-inline-start: var(--dh-space-3);
+  padding-inline-start: var(--app-space-3);
 }
 
 .dh-schedule__title {
@@ -1164,7 +1164,7 @@ a.dh-hero__stat:hover {
 .dh-diary-widget {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-diary-widget__nudge {
@@ -1176,7 +1176,7 @@ a.dh-hero__stat:hover {
 .dh-diary-widget__group {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-diary-widget__group-label {
@@ -1200,7 +1200,7 @@ a.dh-hero__stat:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-insights__item {
@@ -1211,14 +1211,14 @@ a.dh-hero__stat:hover {
 .dh-insights__static {
   display: flex;
   align-items: baseline;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-medium);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-card);
   color: inherit;
   text-decoration: none;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-insights__link:hover {
@@ -1234,13 +1234,13 @@ a.dh-hero__stat:hover {
    always names the signal, so this is never colour-only state. */
 .dh-insights__item[data-tone="attention"] .dh-insights__link,
 .dh-insights__item[data-tone="attention"] .dh-insights__static {
-  border-inline-start: var(--dh-border-width-thick) solid
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-warning);
 }
 
 .dh-insights__item[data-tone="positive"] .dh-insights__link,
 .dh-insights__item[data-tone="positive"] .dh-insights__static {
-  border-inline-start: var(--dh-border-width-thick) solid
+  border-inline-start: var(--app-border-width-thick) solid
     var(--md-sys-color-success);
 }
 
@@ -1262,7 +1262,7 @@ a.dh-hero__stat:hover {
 .dh-today-activity {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 
@@ -1301,7 +1301,7 @@ a.dh-hero__stat:hover {
 /*                                                                            */
 /* Layout and rhythm ONLY: the Matrix 2×2 grid, the Sector columns, the       */
 /* quick-capture preview and the bulk-action bar. Every visual value is a     */
-/* DS-01 `var(--dh-*)` token; all real chrome (cards, empty state, drawer,    */
+/* DS-01 `var(--app-*)` token; all real chrome (cards, empty state, drawer,    */
 /* forms) comes from the shared components. The Matrix is a true 2×2 only at   */
 /* >= 768px and stacks full-width below, so it is never a cramped grid on a    */
 /* narrow phone and never overflows horizontally at 320px.                    */
@@ -1312,13 +1312,13 @@ a.dh-hero__stat:hover {
 .dh-tasks-matrix {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-tasks-section {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 /* A quiet section label — matches the Today section rhythm (heading for the
@@ -1347,7 +1347,7 @@ a.dh-hero__stat:hover {
    loaded slice — the overflow is reached through the equivalent filtered list. */
 .dh-tasks-section__more {
   align-self: flex-start;
-  margin-top: var(--dh-space-2);
+  margin-top: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 600;
   color: var(--md-sys-color-primary);
@@ -1363,7 +1363,7 @@ a.dh-hero__stat:hover {
 .dh-tasks-sectors__column {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0; /* allow cards to shrink; never force horizontal overflow */
 }
 
@@ -1373,7 +1373,7 @@ a.dh-hero__stat:hover {
   .dh-tasks-matrix {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--dh-space-6);
+    gap: var(--app-space-6);
   }
 
   /* The untriaged bucket spans both columns beneath the 2×2. */
@@ -1384,7 +1384,7 @@ a.dh-hero__stat:hover {
   .dh-tasks-sectors {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--dh-space-6);
+    gap: var(--app-space-6);
   }
 }
 
@@ -1407,14 +1407,14 @@ a.dh-hero__stat:hover {
 .dh-tasks-grouped {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-tasks-grouped__section,
 .dh-tasks-board__column {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   min-width: 0;
 }
 
@@ -1423,7 +1423,7 @@ a.dh-hero__stat:hover {
 .dh-tasks-board {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--app-space-6);
 }
 
 .dh-tasks-section__subtitle {
@@ -1438,7 +1438,7 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 .dh-tasks-controls__summary {
@@ -1452,19 +1452,19 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  margin-bottom: var(--dh-space-4);
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
 }
 
 .dh-tasks-quickadd__input {
   flex: 1 1 16rem;
   min-width: 0;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-tasks-quickadd__submit,
 .dh-tasks-quickadd__more {
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
 }
 
 .dh-tasks-quickadd__error {
@@ -1476,12 +1476,12 @@ a.dh-hero__stat:hover {
 
 .dh-tasks-inline-title-editor {
   display: grid;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   width: 100%;
 }
 
 .dh-tasks-inline-title-editor__input {
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   font: inherit;
 }
 
@@ -1495,7 +1495,7 @@ a.dh-hero__stat:hover {
  * on a phone, and the two date fields only pair up when there is genuinely room. */
 .dh-task-quick-edit {
   display: grid;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   min-width: 0;
 }
 
@@ -1509,7 +1509,7 @@ a.dh-hero__stat:hover {
 
 .dh-task-quick-edit__dates {
   display: grid;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
 }
 
 @media (min-width: 30rem) {
@@ -1523,7 +1523,7 @@ a.dh-hero__stat:hover {
 .dh-task-review__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-task-quick-edit__error {
@@ -1536,7 +1536,7 @@ a.dh-hero__stat:hover {
  * rather than a wall of forms, centred but never wider than comfortable prose. */
 .dh-task-review {
   display: grid;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
   max-width: 42rem;
   min-width: 0;
 }
@@ -1552,7 +1552,7 @@ a.dh-hero__stat:hover {
    programmatic focus is not always `:focus-visible` — so the indicator is on `:focus`.
    A ring, never colour alone. */
 .dh-task-review__progress:focus {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
   border-radius: var(--md-sys-shape-corner-extra-small);
 }
@@ -1568,16 +1568,16 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-tasks-views__trigger {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
-  padding-inline: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
@@ -1599,25 +1599,25 @@ a.dh-hero__stat:hover {
 .dh-tasks-views__panel {
   position: absolute;
   z-index: 20;
-  top: calc(100% + var(--dh-space-2));
+  top: calc(100% + var(--app-space-2));
   inset-inline-start: 0;
-  width: min(22rem, calc(100vw - 2 * var(--dh-gutter)));
+  width: min(22rem, calc(100vw - 2 * var(--app-gutter)));
   max-height: min(28rem, 60vh);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-app-color-surface-raised);
   box-shadow: var(--md-sys-elevation-2);
 }
 
 .dh-tasks-views__group + .dh-tasks-views__group {
-  margin-top: var(--dh-space-4);
+  margin-top: var(--app-space-4);
 }
 
 .dh-tasks-views__heading {
-  margin: 0 0 var(--dh-space-1);
+  margin: 0 0 var(--app-space-1);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -1626,7 +1626,7 @@ a.dh-hero__stat:hover {
 
 .dh-tasks-views__note,
 .dh-tasks-views__empty {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -1641,9 +1641,9 @@ a.dh-hero__stat:hover {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-2);
+  gap: var(--app-space-2);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-small);
   color: var(--md-sys-color-on-surface);
   text-decoration: none;
@@ -1664,8 +1664,8 @@ a.dh-hero__stat:hover {
 }
 
 .dh-tasks-views__badge {
-  padding: 0 var(--dh-space-2);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  padding: 0 var(--app-space-2);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-full);
   font-size: var(--md-sys-typescale-label-medium-size);
   color: var(--md-sys-color-on-surface-variant);
@@ -1674,10 +1674,10 @@ a.dh-hero__stat:hover {
 .dh-tasks-views__name-form {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  margin-bottom: var(--dh-space-4);
-  padding-bottom: var(--dh-space-3);
-  border-bottom: var(--dh-border-width-thin) solid
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
+  padding-bottom: var(--app-space-3);
+  border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -1688,7 +1688,7 @@ a.dh-hero__stat:hover {
 
 .dh-tasks-views__name-actions {
   display: flex;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   justify-content: flex-end;
 }
 
@@ -1697,7 +1697,7 @@ a.dh-hero__stat:hover {
   .dh-tasks-board {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: var(--dh-space-5);
+    gap: var(--app-space-5);
     align-items: start;
   }
 }
@@ -1706,9 +1706,9 @@ a.dh-hero__stat:hover {
 .dh-tasks-capture {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-sunken);
 }
@@ -1729,24 +1729,24 @@ a.dh-hero__stat:hover {
 .dh-tasks-capture__tokens {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .dh-tasks-capture__token {
-  padding: var(--dh-space-1) var(--dh-space-2);
+  padding: var(--app-space-1) var(--app-space-2);
   border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-app-color-surface-card);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   font-size: var(--md-sys-typescale-label-medium-size);
   color: var(--md-sys-color-on-surface);
 }
 
 .dh-tasks-capture__actions {
   display: flex;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 /* System-view chips — a horizontally scrollable, keyboard-reachable row. */
@@ -1757,7 +1757,7 @@ a.dh-hero__stat:hover {
 .dh-tasks-systems__list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1766,10 +1766,10 @@ a.dh-hero__stat:hover {
 .dh-tasks-systems__link {
   display: inline-flex;
   align-items: center;
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-3);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-3);
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-card);
   color: var(--md-sys-color-on-surface);
   font-size: var(--md-sys-typescale-body-small-size);
@@ -1786,9 +1786,9 @@ a.dh-hero__stat:hover {
 .dh-tasks-bulk {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
 }
@@ -1803,7 +1803,7 @@ a.dh-hero__stat:hover {
 .dh-tasks-bulk__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   align-items: center;
 }
 
@@ -1846,7 +1846,7 @@ a.dh-hero__stat:hover {
   .dh-tasks-focus,
   .dh-tasks-sectors,
   .dh-tasks-matrix {
-    gap: var(--dh-space-5);
+    gap: var(--app-space-5);
   }
 
   /* The bulk-action bar wraps into a scrollable row rather than a tall stack of
@@ -1855,7 +1855,7 @@ a.dh-hero__stat:hover {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: thin;
-    padding-bottom: var(--dh-space-1);
+    padding-bottom: var(--app-space-1);
   }
 
   .dh-tasks-bulk__actions > * {
@@ -1877,23 +1877,23 @@ a.dh-hero__stat:hover {
   /* Tighter vertical rhythm: the first viewport must answer "what must I do,
    * what is due, what am I waiting on" without scrolling past decoration. */
   .dh-today {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-today__columns {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-today__column {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-today__section {
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-today__tasklist {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   /* Section labels carry more weight on a phone — on a long scroll they are the
@@ -1907,7 +1907,7 @@ a.dh-hero__stat:hover {
   /* The hero stacks, and the greeting steps down one size so the date, the focus
    * line and the first stats still fit in the opening viewport. */
   .dh-hero {
-    gap: var(--dh-space-4);
+    gap: var(--app-space-4);
   }
 
   .dh-hero__greeting {
@@ -1960,7 +1960,7 @@ a.dh-hero__stat:hover {
   }
 
   .dh-schedule__item {
-    --today-schedule-rail: calc(2.75rem + var(--dh-space-3) / 2);
+    --today-schedule-rail: calc(2.75rem + var(--app-space-3) / 2);
   }
 }
 
@@ -1972,16 +1972,16 @@ a.dh-hero__stat:hover {
  */
 @container today (max-width: 15rem) {
   .dh-today {
-    gap: var(--dh-space-3);
+    gap: var(--app-space-3);
   }
 
   .dh-today .dh-region-card {
-    padding-inline: var(--dh-space-3);
+    padding-inline: var(--app-space-3);
   }
 
   .dh-today-widget__header,
   .dh-hero {
-    gap: var(--dh-space-2);
+    gap: var(--app-space-2);
   }
 
   .dh-today-widget__toggle,
@@ -1995,7 +1995,7 @@ a.dh-hero__stat:hover {
   }
 
   .dh-today .dh-card__support {
-    column-gap: var(--dh-space-2);
+    column-gap: var(--app-space-2);
   }
 
   .dh-today .dh-card__meta-value,

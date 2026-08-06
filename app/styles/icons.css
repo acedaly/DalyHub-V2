@@ -27,7 +27,7 @@
   block-size: 1.75rem;
   border-radius: var(--md-sys-shape-corner-small);
   background: color-mix(in srgb, currentColor 12%, transparent);
-  border: var(--dh-border-width-thin) solid
+  border: var(--app-border-width-thin) solid
     color-mix(in srgb, currentColor 26%, transparent);
 }
 

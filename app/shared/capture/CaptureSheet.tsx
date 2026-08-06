@@ -18,7 +18,7 @@
  *
  * Layout is the shared {@link Sheet}: DS-03 focus/inert/scroll-lock machinery, a
  * scrolling body and a sticky footer that sits above the phone keyboard via the
- * shared `--dh-keyboard-inset` token. The whole module (and each panel beneath it)
+ * shared `--app-keyboard-inset` token. The whole module (and each panel beneath it)
  * is lazy-loaded by `CaptureProvider`.
  */
 

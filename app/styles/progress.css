@@ -12,7 +12,7 @@
 .dh-progress {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   min-inline-size: 0;
 }
 
@@ -20,7 +20,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--dh-space-1) var(--dh-space-2);
+  gap: var(--app-space-1) var(--app-space-2);
   margin: 0;
   min-inline-size: 0;
 }
@@ -78,7 +78,7 @@
  * border keeps the track visible when backgrounds are dropped. */
 @media (forced-colors: active) {
   .dh-progress__track {
-    border: var(--dh-border-width-thin) solid CanvasText;
+    border: var(--app-border-width-thin) solid CanvasText;
   }
   .dh-progress__fill {
     background: Highlight;
@@ -125,7 +125,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-0);
+  gap: var(--app-space-0);
   text-align: center;
   pointer-events: none;
 }

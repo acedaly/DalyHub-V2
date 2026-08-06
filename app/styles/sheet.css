@@ -22,7 +22,7 @@
 .dh-sheet-layer {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-drawer);
+  z-index: var(--app-z-drawer);
 }
 
 .dh-sheet__scrim {
@@ -41,7 +41,7 @@
   flex-direction: column;
   /* The keyboard inset is subtracted from the available height, so the panel is
    * bounded by the space actually visible rather than by the layout viewport. */
-  max-block-size: calc(92dvh - var(--dh-keyboard-inset, 0px));
+  max-block-size: calc(92dvh - var(--app-keyboard-inset, 0px));
   background: var(--md-sys-color-surface-container-low);
   color: var(--md-sys-color-on-surface);
   /* The M3 bottom sheet rounds its TOP corners only. */
@@ -58,7 +58,7 @@
 .dh-sheet[data-variant="full"] {
   top: 0;
   max-block-size: none;
-  block-size: calc(100dvh - var(--dh-keyboard-inset, 0px));
+  block-size: calc(100dvh - var(--app-keyboard-inset, 0px));
   border-radius: 0;
   border: none;
 }
@@ -71,7 +71,7 @@
   align-self: center;
   inline-size: 2rem;
   block-size: 4px;
-  margin-block: var(--dh-space-2) var(--dh-space-1);
+  margin-block: var(--app-space-2) var(--app-space-1);
   border-radius: var(--md-sys-shape-corner-full);
   background: color-mix(
     in srgb,
@@ -88,12 +88,12 @@
   flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-2);
-  padding: max(var(--dh-space-3), env(safe-area-inset-top)) var(--dh-space-4)
-    var(--dh-space-3);
-  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
-  border-bottom: var(--dh-border-width-thin) solid
+  gap: var(--app-space-2);
+  padding: max(var(--app-space-3), env(safe-area-inset-top)) var(--app-space-4)
+    var(--app-space-3);
+  padding-inline-start: max(var(--app-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-4), env(safe-area-inset-right));
+  border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -111,7 +111,7 @@
 }
 
 .dh-sheet__description {
-  margin: var(--dh-space-1) 0 0;
+  margin: var(--app-space-1) 0 0;
   font-size: var(--md-sys-typescale-body-small-size);
   color: var(--md-sys-color-on-surface-variant);
 }
@@ -125,9 +125,9 @@
 .dh-sheet__leading-control {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-1) var(--dh-space-2);
+  gap: var(--app-space-1);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-1) var(--app-space-2);
   border: none;
   background: transparent;
   color: var(--md-sys-color-primary);
@@ -147,9 +147,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: var(--dh-touch-target-min);
-  min-block-size: var(--dh-touch-target-min);
-  border: var(--dh-border-width-thin) solid transparent;
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+  border: var(--app-border-width-thin) solid transparent;
   border-radius: var(--md-sys-shape-corner-medium);
   background: transparent;
   color: var(--md-sys-color-on-surface-variant);
@@ -176,20 +176,20 @@
   /* Scrolling the sheet must never chain to the page behind the scrim. */
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: var(--dh-space-4);
-  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
+  padding: var(--app-space-4);
+  padding-inline-start: max(var(--app-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-4), env(safe-area-inset-right));
 }
 
 .dh-sheet__footer {
   flex: 0 0 auto;
   display: flex;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  padding-inline-start: max(var(--dh-space-4), env(safe-area-inset-left));
-  padding-inline-end: max(var(--dh-space-4), env(safe-area-inset-right));
-  padding-bottom: max(var(--dh-space-3), env(safe-area-inset-bottom));
-  border-top: var(--dh-border-width-thin) solid
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-4);
+  padding-inline-start: max(var(--app-space-4), env(safe-area-inset-left));
+  padding-inline-end: max(var(--app-space-4), env(safe-area-inset-right));
+  padding-bottom: max(var(--app-space-3), env(safe-area-inset-bottom));
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-raised);
 }
@@ -201,17 +201,17 @@
 .dh-sheet-options {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-sheet-option {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   inline-size: 100%;
-  min-block-size: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-app-color-surface-raised);
   color: var(--md-sys-color-on-surface);
@@ -251,7 +251,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
 .dh-sheet-option__label {
@@ -284,11 +284,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    inline-size: min(var(--dh-width-narrow), calc(100vw - var(--dh-space-8)));
+    inline-size: min(var(--app-width-narrow), calc(100vw - var(--app-space-8)));
     block-size: auto;
     max-block-size: min(85dvh, 48rem);
     border-radius: var(--md-sys-shape-corner-large);
-    border: var(--dh-border-width-thin) solid
+    border: var(--app-border-width-thin) solid
       var(--md-sys-color-outline-variant);
     animation-name: dh-sheet-dialog-in;
   }

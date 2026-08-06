@@ -9,7 +9,7 @@
  * source of that number.
  *
  * DalyHub reads it in exactly ONE place ({@link useKeyboardInset}) and publishes
- * the result as a single CSS custom property (`--dh-keyboard-inset`) on the
+ * the result as a single CSS custom property (`--app-keyboard-inset`) on the
  * document element. Every keyboard-aware surface then styles against that token —
  * no per-form listener, no per-component measurement, no layout thrashing from a
  * dozen competing `resize` handlers. This module holds the arithmetic so the
@@ -17,7 +17,7 @@
  */
 
 /** The published custom property every keyboard-aware surface reads. */
-export const KEYBOARD_INSET_PROPERTY = "--dh-keyboard-inset";
+export const KEYBOARD_INSET_PROPERTY = "--app-keyboard-inset";
 
 /**
  * Below this many pixels a visual/layout viewport difference is browser chrome

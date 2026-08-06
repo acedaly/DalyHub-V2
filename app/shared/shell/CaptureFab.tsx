@@ -10,7 +10,7 @@
  *
  * Placement follows the specification and the two insets the phone shell already
  * publishes: 24px from the bottom-right, above the navigation bar's height
- * (`--dh-bottomnav-height`, `0px` on desktop) and above the home indicator
+ * (`--app-bottomnav-height`, `0px` on desktop) and above the home indicator
  * (`env(safe-area-inset-bottom)`). It moves out of the way with the navigation
  * bar while the on-screen keyboard is up, for the same reason the bar does.
  *

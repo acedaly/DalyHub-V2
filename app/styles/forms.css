@@ -14,15 +14,15 @@
 .dh-form {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-5);
+  gap: var(--app-space-5);
   width: 100%;
   max-width: 100%;
 }
 
 .dh-form-section {
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-medium);
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   margin: 0;
   min-inline-size: 0; /* fieldset must be allowed to shrink below content width */
 }
@@ -31,11 +31,11 @@
   font-size: var(--md-sys-typescale-body-small-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
 }
 
 .dh-form-section__description {
-  margin: 0 0 var(--dh-space-3);
+  margin: 0 0 var(--app-space-3);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -44,13 +44,13 @@
 .dh-form__fields {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-field-group {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-4);
+  gap: var(--app-space-4);
 }
 
 .dh-field-group > .dh-field {
@@ -61,7 +61,7 @@
 .dh-form-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   align-items: center;
 }
 
@@ -73,26 +73,26 @@
  * scrolling to the end — and, crucially, never ends up underneath the on-screen
  * keyboard or the phone bottom navigation.
  *
- * Both are handled by tokens rather than measurement: `--dh-keyboard-inset` is
+ * Both are handled by tokens rather than measurement: `--app-keyboard-inset` is
  * published by the ONE shared Visual Viewport observer, and
- * `--dh-bottomnav-height` is the space the phone bar occupies (both `0px` when
+ * `--app-bottomnav-height` is the space the phone bar occupies (both `0px` when
  * they do not apply, so this rule is inert on desktop).
  */
 .dh-form-actions--sticky {
   position: sticky;
   bottom: 0;
-  z-index: var(--dh-z-raised);
+  z-index: var(--app-z-raised);
   justify-content: flex-end;
-  margin-inline: calc(-1 * var(--dh-space-4));
-  padding: var(--dh-space-3) var(--dh-space-4);
+  margin-inline: calc(-1 * var(--app-space-4));
+  padding: var(--app-space-3) var(--app-space-4);
   padding-bottom: max(
-    var(--dh-space-3),
+    var(--app-space-3),
     calc(
-      env(safe-area-inset-bottom) + var(--dh-keyboard-inset, 0px) +
-        var(--dh-bottomnav-height, 0px)
+      env(safe-area-inset-bottom) + var(--app-keyboard-inset, 0px) +
+        var(--app-bottomnav-height, 0px)
     )
   );
-  border-top: var(--dh-border-width-thin) solid
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   background: var(--md-app-color-surface-page);
 }
@@ -102,7 +102,7 @@
 @media (max-width: 48rem) {
   .dh-form-actions--sticky > * {
     flex: 1 1 auto;
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 }
 
@@ -111,7 +111,7 @@
 .dh-field {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   width: 100%;
   min-inline-size: 0;
 }
@@ -123,7 +123,7 @@
 .dh-field__label-row {
   display: flex;
   align-items: baseline;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   flex-wrap: wrap;
 }
 
@@ -154,14 +154,14 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-inline-size: 0;
 }
 
 .dh-field__messages {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 /* M3's SUPPORTING TEXT slot: `body-small` on `on-surface-variant`, 16px inline
@@ -169,7 +169,7 @@
 .dh-field__help,
 .dh-field__hint {
   margin: 0;
-  padding-inline: var(--dh-space-4);
+  padding-inline: var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
@@ -189,8 +189,8 @@
   margin: 0;
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-1);
-  padding-inline: var(--dh-space-4);
+  gap: var(--app-space-1);
+  padding-inline: var(--app-space-4);
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);
   letter-spacing: var(--md-sys-typescale-body-small-tracking);
@@ -229,15 +229,15 @@
   max-inline-size: 100%;
   box-sizing: border-box;
   min-block-size: 3.5rem;
-  padding-block: var(--dh-space-2);
-  padding-inline: var(--dh-space-4);
+  padding-block: var(--app-space-2);
+  padding-inline: var(--app-space-4);
   font: inherit;
   font-size: var(--md-sys-typescale-body-large-size);
   line-height: var(--md-sys-typescale-body-large-line-height);
   letter-spacing: var(--md-sys-typescale-body-large-tracking);
   color: var(--md-sys-color-on-surface);
   background: transparent;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-extra-small);
   transition: border-color var(--md-sys-motion-duration-short4)
     var(--md-sys-motion-easing-standard);
@@ -253,10 +253,10 @@
 
 .dh-input:focus-visible,
 .dh-input:focus {
-  border-width: var(--dh-border-width-thick);
+  border-width: var(--app-border-width-thick);
   border-color: var(--md-sys-color-primary);
-  padding-block: calc(var(--dh-space-2) - 1px);
-  padding-inline: calc(var(--dh-space-4) - 1px);
+  padding-block: calc(var(--app-space-2) - 1px);
+  padding-inline: calc(var(--app-space-4) - 1px);
   /* The border IS the focus indicator for a text field (M3), so the shared
    * outline ring would be a second one saying the same thing. It is suppressed
    * here and only here. */
@@ -280,10 +280,10 @@
 .dh-field[data-invalid="true"] .dh-input,
 .dh-field[data-invalid="true"] .dh-combobox__input,
 .dh-field[data-invalid="true"] .dh-tags {
-  border-width: var(--dh-border-width-thick);
+  border-width: var(--app-border-width-thick);
   border-color: var(--md-sys-color-error);
-  padding-block: calc(var(--dh-space-2) - 1px);
-  padding-inline: calc(var(--dh-space-4) - 1px);
+  padding-block: calc(var(--app-space-2) - 1px);
+  padding-inline: calc(var(--app-space-4) - 1px);
 }
 
 /* Disabled vs read-only are visually AND semantically distinct: disabled is
@@ -326,8 +326,8 @@
 .dh-boolean__label {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-3);
-  min-block-size: var(--dh-touch-target-min);
+  gap: var(--app-space-3);
+  min-block-size: var(--app-touch-target-min);
   cursor: pointer;
   font-size: var(--md-sys-typescale-body-large-size);
   color: var(--md-sys-color-on-surface);
@@ -338,7 +338,7 @@
   display: inline-block;
   position: relative;
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thick) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thick) solid var(--md-sys-color-outline);
   transition:
     background var(--md-sys-motion-duration-short4)
       var(--md-sys-motion-easing-standard),
@@ -413,7 +413,7 @@
 }
 
 .dh-boolean__input:focus-visible + .dh-boolean__label .dh-boolean__control {
-  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
 
@@ -440,9 +440,9 @@
 .dh-tags {
   inline-size: 100%;
   box-sizing: border-box;
-  padding: var(--dh-space-1);
+  padding: var(--app-space-1);
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
 }
 
@@ -456,16 +456,16 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   align-items: center;
 }
 
 .dh-tags__chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding: var(--dh-space-1) var(--dh-space-1) var(--dh-space-1)
-    var(--dh-space-2);
+  gap: var(--app-space-1);
+  padding: var(--app-space-1) var(--app-space-1) var(--app-space-1)
+    var(--app-space-2);
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-primary);
   border-radius: var(--md-sys-shape-corner-small);
@@ -516,7 +516,7 @@
   color: var(--md-sys-color-on-surface);
   font: inherit;
   font-size: var(--md-sys-typescale-body-large-size);
-  padding: var(--dh-space-1);
+  padding: var(--app-space-1);
 }
 
 .dh-tags__input:focus {
@@ -536,12 +536,12 @@
 }
 
 .dh-combobox__input {
-  padding-inline-end: var(--dh-space-8);
+  padding-inline-end: var(--app-space-8);
 }
 
 .dh-combobox__clear {
   position: absolute;
-  inset-inline-end: var(--dh-space-1);
+  inset-inline-end: var(--app-space-1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -566,22 +566,22 @@
 
 .dh-listbox {
   list-style: none;
-  margin: var(--dh-space-1) 0 0;
-  padding: var(--dh-space-1);
+  margin: var(--app-space-1) 0 0;
+  padding: var(--app-space-1);
   position: absolute;
   inset-inline: 0;
   inset-block-start: 100%;
-  z-index: var(--dh-z-dropdown, 50);
+  z-index: var(--app-z-dropdown, 50);
   max-block-size: 16rem;
   overflow-y: auto;
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   box-shadow: var(--md-sys-elevation-2);
 }
 
 .dh-listbox__status {
-  padding: var(--dh-space-2) var(--dh-space-3);
+  padding: var(--app-space-2) var(--app-space-3);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -589,9 +589,9 @@
 .dh-listbox__option {
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-2);
-  padding: var(--dh-space-2) var(--dh-space-2);
-  min-block-size: var(--dh-touch-target-min);
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
   border-radius: var(--md-sys-shape-corner-extra-small);
   cursor: pointer;
   color: var(--md-sys-color-on-surface);
@@ -639,20 +639,20 @@
 .dh-select__chips,
 .dh-link-picker__links {
   list-style: none;
-  margin: 0 0 var(--dh-space-1);
+  margin: 0 0 var(--app-space-1);
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-select__chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
-  padding-inline-start: var(--dh-space-2);
+  gap: var(--app-space-1);
+  padding-inline-start: var(--app-space-2);
   background: var(--md-app-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   font-size: var(--md-sys-typescale-body-small-size);
   max-inline-size: 100%;
@@ -673,11 +673,11 @@
 .dh-link-picker__link {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   inline-size: 100%;
-  padding: var(--dh-space-2) var(--dh-space-3);
+  padding: var(--app-space-2) var(--app-space-3);
   background: var(--md-app-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
 }
 
@@ -701,10 +701,10 @@
 .dh-link-picker__unlink,
 .dh-markdown-field__preview-toggle {
   flex: 0 0 auto;
-  min-block-size: var(--dh-control-height-md);
-  padding: var(--dh-space-1) var(--dh-space-3);
+  min-block-size: var(--app-control-height-md);
+  padding: var(--app-space-1) var(--app-space-3);
   background: transparent;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-small);
   color: var(--md-sys-color-on-surface);
   font: inherit;
@@ -729,18 +729,18 @@
 .dh-link-picker__search {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
 }
 
 .dh-link-picker__type-select {
-  min-block-size: var(--dh-control-height-md);
+  min-block-size: var(--app-control-height-md);
 }
 
 @media (hover: none) {
   .dh-input,
   .dh-combobox__input,
   .dh-link-picker__type-select {
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 
   /*
@@ -763,13 +763,13 @@
   .dh-tags__chip-remove,
   .dh-select__chip-remove,
   .dh-combobox__clear {
-    inline-size: var(--dh-touch-target-min);
-    block-size: var(--dh-touch-target-min);
+    inline-size: var(--app-touch-target-min);
+    block-size: var(--app-touch-target-min);
   }
 
   .dh-link-picker__unlink,
   .dh-markdown-field__preview-toggle {
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 }
 
@@ -785,14 +785,14 @@
 .dh-markdown-field__toolbar {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   flex-wrap: wrap;
 }
 
 .dh-markdown-field__preview {
-  padding: var(--dh-space-3);
+  padding: var(--app-space-3);
   background: var(--md-app-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
 }
 
@@ -814,15 +814,15 @@
 .dh-save-status {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   font-size: var(--md-sys-typescale-body-small-size);
-  min-block-size: var(--dh-control-height-sm);
+  min-block-size: var(--app-control-height-sm);
 }
 
 .dh-save-status__text {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   color: var(--md-sys-color-on-surface-variant);
 }
 
@@ -841,7 +841,7 @@
 .dh-save-status__error-detail {
   display: inline-flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-save-status__error-text {
@@ -850,10 +850,10 @@
 }
 
 .dh-save-status__retry {
-  min-block-size: var(--dh-control-height-sm);
-  padding: var(--dh-space-px) var(--dh-space-2);
+  min-block-size: var(--app-control-height-sm);
+  padding: var(--app-space-px) var(--app-space-2);
   background: transparent;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-error);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
   border-radius: var(--md-sys-shape-corner-extra-small);
   color: var(--md-sys-color-on-error-container);
   cursor: pointer;
@@ -863,16 +863,16 @@
 
 @media (hover: none) {
   .dh-save-status__retry {
-    min-block-size: var(--dh-touch-target-min);
+    min-block-size: var(--app-touch-target-min);
   }
 }
 
 /* ------------------------------------------------------------------ Error summary */
 
 .dh-form-error-summary {
-  padding: var(--dh-space-3) var(--dh-space-4);
+  padding: var(--app-space-3) var(--app-space-4);
   background: var(--md-sys-color-error-container);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-error);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-error);
   border-radius: var(--md-sys-shape-corner-medium);
   color: var(--md-sys-color-on-error-container);
 }
@@ -880,8 +880,8 @@
 .dh-form-error-summary__heading {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
-  margin: 0 0 var(--dh-space-2);
+  gap: var(--app-space-2);
+  margin: 0 0 var(--app-space-2);
   font-weight: 500;
   font-size: var(--md-sys-typescale-body-large-size);
 }
@@ -899,18 +899,18 @@
 }
 
 .dh-form-error-summary__form-error {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
 }
 
 .dh-form-error-summary__list {
   margin: 0;
-  padding-inline-start: var(--dh-space-4);
+  padding-inline-start: var(--app-space-4);
 }
 
 .dh-form-error-summary__link {
   background: none;
   border: 0;
-  padding: var(--dh-space-px) 0;
+  padding: var(--app-space-px) 0;
   color: var(--md-sys-color-on-error-container);
   text-align: start;
   text-decoration: underline;
@@ -941,7 +941,7 @@
  * An outlined variant is available as `--outlined` for the case a tonal button
  * would compete with a filled one beside it.
  *
- * `min-block-size` stays at `--dh-control-height-lg` rather than M3's own 40px,
+ * `min-block-size` stays at `--app-control-height-lg` rather than M3's own 40px,
  * because 40px is below WCAG 2.2's 44px target floor and this product's floor
  * wins (AGENTS.md §15). The visual height is M3's; the touch target is ours.
  */
@@ -950,11 +950,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--dh-space-2);
-  min-block-size: var(--dh-control-height-lg);
-  padding-inline: var(--dh-space-6);
+  gap: var(--app-space-2);
+  min-block-size: var(--app-control-height-lg);
+  padding-inline: var(--app-space-6);
   border-radius: var(--md-sys-shape-corner-full);
-  border: var(--dh-border-width-thin) solid transparent;
+  border: var(--app-border-width-thin) solid transparent;
   font: inherit;
   font-size: var(--md-sys-typescale-label-large-size);
   line-height: var(--md-sys-typescale-label-large-line-height);
@@ -990,7 +990,7 @@
  * the label read as one object rather than as an icon floating in a pill. */
 .dh-btn:has(> .dh-icon:first-child),
 .dh-btn:has(> svg:first-child) {
-  padding-inline-start: var(--dh-space-4);
+  padding-inline-start: var(--app-space-4);
 }
 
 /* FILLED — the one primary action. */
@@ -1025,7 +1025,7 @@
 .dh-btn--ghost {
   background: transparent;
   color: var(--md-sys-color-primary);
-  padding-inline: var(--dh-space-3);
+  padding-inline: var(--app-space-3);
 }
 
 /**
@@ -1033,12 +1033,12 @@
  * Complete / Edit / Hold / Dismiss group, a history entry's Edit / Remove).
  *
  * It reduces the horizontal padding and the type size ONLY. `min-block-size` is
- * deliberately left at `--dh-control-height-lg` so a "small" button is still a
+ * deliberately left at `--app-control-height-lg` so a "small" button is still a
  * 44px touch target — compact must never mean unreachable on a phone
  * (AGENTS.md §15, WCAG 2.2 AA target size).
  */
 .dh-btn--sm {
-  padding-inline: var(--dh-space-4);
+  padding-inline: var(--app-space-4);
   font-size: var(--md-sys-typescale-label-medium-size);
   letter-spacing: var(--md-sys-typescale-label-medium-tracking);
 }
@@ -1072,7 +1072,7 @@
 .dh-btn__spinner {
   inline-size: 0.9rem;
   block-size: 0.9rem;
-  border: var(--dh-border-width-thick) solid currentColor;
+  border: var(--app-border-width-thick) solid currentColor;
   border-inline-end-color: transparent;
   border-radius: var(--md-sys-shape-corner-full);
   animation: dh-btn-spin var(--md-sys-motion-duration-long2) linear infinite;
@@ -1089,11 +1089,11 @@
 .dh-unsaved-guard {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-modal, 100);
+  z-index: var(--app-z-modal, 100);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
 }
 
 .dh-unsaved-guard__scrim {
@@ -1106,27 +1106,27 @@
   position: relative;
   max-inline-size: 26rem;
   inline-size: 100%;
-  padding: var(--dh-space-5);
+  padding: var(--app-space-5);
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-large);
   box-shadow: var(--md-sys-elevation-3);
 }
 
 .dh-unsaved-guard__title {
-  margin: 0 0 var(--dh-space-2);
+  margin: 0 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-title-medium-size);
 }
 
 .dh-unsaved-guard__body {
-  margin: 0 0 var(--dh-space-4);
+  margin: 0 0 var(--app-space-4);
   color: var(--md-sys-color-on-surface-variant);
 }
 
 .dh-unsaved-guard__actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--dh-space-3);
+  gap: var(--app-space-3);
   flex-wrap: wrap;
 }
 
@@ -1156,10 +1156,10 @@
 .dh-remote-change {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-2);
-  margin-block-end: var(--dh-space-3);
-  padding: var(--dh-space-3);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-info);
+  gap: var(--app-space-2);
+  margin-block-end: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-info);
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-sys-color-info-container);
   color: var(--md-sys-color-on-info-container);
@@ -1168,7 +1168,7 @@
 .dh-remote-change__message {
   display: flex;
   align-items: flex-start;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -1181,7 +1181,7 @@
 .dh-remote-change__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
 }
 
 .dh-remote-change__note {

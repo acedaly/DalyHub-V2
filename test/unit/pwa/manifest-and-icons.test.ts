@@ -544,7 +544,7 @@ describe("the icon assets", () => {
   it("keeps the gradient mark legible on both the lightest and darkest chrome", () => {
     // The in-app mark is drawn straight onto the page canvas with no tile, so
     // the gradient itself has to hold against the palettes DalyHub ships. These
-    // two are the extremes of `--dh-color-surface-page` across every theme.
+    // two are the extremes of `--md-app-color-surface-page` across both schemes.
     for (const canvas of ["#ecebe8", "#101215"]) {
       for (const colour of gradientRamp()) {
         expect(

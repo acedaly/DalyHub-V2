@@ -9,8 +9,8 @@
  *   - every system role, custom colour and application surface is defined in
  *     BOTH schemes;
  *   - every structural (non-colour) token the registry names exists;
- *   - every LEGACY `--dh-*` name still resolves through the alias layer, so the
- *     mid-migration application is never silently unstyled;
+ *   - no `--dh-*` name survives anywhere: the alias layer is retired and the
+ *     structural survivors are renamed `--app-*`;
  *   - no consumer references a token the stylesheet does not define;
  *   - the retired theme mechanism is genuinely gone.
  */
@@ -27,7 +27,7 @@ import {
   LIGHT_SCHEME,
 } from "~/shared/tokens";
 
-import { LEGACY_TOKEN_NAMES } from "./legacy-token-names";
+import { LEGACY_STRUCTURAL_TOKEN_NAMES } from "./legacy-token-names";
 import {
   allDefinedTokenNames,
   allTokens,
@@ -37,7 +37,6 @@ import {
   lightSchemeTokens,
   readAppFile,
   repoRelative,
-  resolveTokenChain,
   tokensCss,
 } from "./token-css";
 
@@ -167,49 +166,49 @@ describe("M3-01 required tokens", () => {
   it("keeps breakpoint tokens in sync with the TS scale", () => {
     const tokens = allTokens();
     const remToPx = (rem: string) => Math.round(parseFloat(rem) * 16);
-    expect(remToPx(tokens.get("dh-breakpoint-sm")!)).toBe(BREAKPOINTS.sm);
-    expect(remToPx(tokens.get("dh-breakpoint-md")!)).toBe(BREAKPOINTS.md);
-    expect(remToPx(tokens.get("dh-breakpoint-lg")!)).toBe(BREAKPOINTS.lg);
-    expect(remToPx(tokens.get("dh-breakpoint-xl")!)).toBe(BREAKPOINTS.xl);
-    expect(remToPx(tokens.get("dh-breakpoint-2xl")!)).toBe(BREAKPOINTS["2xl"]);
+    expect(remToPx(tokens.get("app-breakpoint-sm")!)).toBe(BREAKPOINTS.sm);
+    expect(remToPx(tokens.get("app-breakpoint-md")!)).toBe(BREAKPOINTS.md);
+    expect(remToPx(tokens.get("app-breakpoint-lg")!)).toBe(BREAKPOINTS.lg);
+    expect(remToPx(tokens.get("app-breakpoint-xl")!)).toBe(BREAKPOINTS.xl);
+    expect(remToPx(tokens.get("app-breakpoint-2xl")!)).toBe(BREAKPOINTS["2xl"]);
   });
 });
 
-describe("M3-01 the alias layer covers every legacy token", () => {
+describe("M3-01 the alias layer is gone", () => {
   const tokens = allTokens();
 
-  it("still resolves every name the old system defined", () => {
-    const missing = LEGACY_TOKEN_NAMES.filter((name) => !tokens.has(name));
+  it("defines no `--dh-` token at all", () => {
+    // The alias layer existed so the switch to M3 could be one commit rather
+    // than sixty. Its exit criterion was always explicit: when nothing under
+    // `app/` reads a `--dh-` name, the block goes. This is that zero, guarded.
+    const survivors = [...tokens.keys()].filter((name) =>
+      name.startsWith("dh-"),
+    );
     expect(
-      missing,
-      `these legacy tokens have no definition, so every rule that reads one is silently dropped: ${missing.join(", ")}`,
+      survivors,
+      `the alias layer is retired; these definitions should have gone with it: ${survivors.join(", ")}`,
     ).toEqual([]);
   });
 
-  it("resolves every legacy token to a real value, never to nothing", () => {
-    const broken: string[] = [];
-    for (const name of LEGACY_TOKEN_NAMES) {
-      if (!tokens.has(name)) continue;
-      try {
-        resolveTokenChain(name, tokens);
-      } catch (error) {
-        broken.push(`--${name}: ${(error as Error).message}`);
-      }
+  it("leaves no `--dh-` reference anywhere under app/", () => {
+    const offenders: string[] = [];
+    for (const file of appSourceFiles()) {
+      const text = readAppFile(appRelative(file));
+      if (text.includes("--dh-")) offenders.push(repoRelative(file));
     }
-    expect(broken).toEqual([]);
+    expect(
+      offenders,
+      `these files still speak the retired vocabulary: ${offenders.join(", ")}`,
+    ).toEqual([]);
   });
 
-  it("never grows: the alias layer is a one-way door", () => {
-    // A new `--dh-*` name would mean a component was written against the retired
-    // vocabulary. The count only ever falls.
-    const dhTokens = [...tokens.keys()].filter((name) =>
-      name.startsWith("dh-"),
-    );
-    expect(dhTokens.length).toBeLessThanOrEqual(LEGACY_TOKEN_NAMES.length);
-    const added = dhTokens.filter((name) => !LEGACY_TOKEN_NAMES.includes(name));
-    expect(added, `new legacy-prefixed tokens: ${added.join(", ")}`).toEqual(
-      [],
-    );
+  it("renamed every structural survivor to `--app-`", () => {
+    // Spacing, z-index, breakpoints and the shell's measurements are not design
+    // language — M3 neither supplies nor constrains them — so they survived the
+    // overhaul under a prefix that says what they are.
+    for (const name of LEGACY_STRUCTURAL_TOKEN_NAMES) {
+      expect(tokens.has(name), `missing --${name}`).toBe(true);
+    }
   });
 });
 
@@ -218,7 +217,7 @@ describe("M3-01 no consumer references an undefined token", () => {
 
   it("every var(--md-*) and var(--dh-*) used in app/ is defined", () => {
     const referenced = new Map<string, string>(); // token -> first file
-    const re = /var\(\s*--((?:md|dh|app)-[\w-]+)/g;
+    const re = /var\(\s*--((?:md|app)-[\w-]+)/g;
     for (const file of appSourceFiles()) {
       // The token registry itself CONSTRUCTS `var(--md-sys-color-<role>)`
       // dynamically; it is the source of truth, not a consumer.
@@ -234,10 +233,6 @@ describe("M3-01 no consumer references an undefined token", () => {
 
     expect(referenced.size).toBeGreaterThan(0);
     for (const [token, file] of referenced) {
-      // The theme PREVIEW is the one documented place that sets its own custom
-      // properties inline (it must paint a scheme it is not in), so
-      // `--dh-preview-*` is defined by `ThemePreview`, not by tokens.css.
-      if (token.startsWith("dh-preview-")) continue;
       expect(
         defined.has(token),
         `undefined token --${token} used in ${file}`,

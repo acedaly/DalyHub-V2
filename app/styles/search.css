@@ -3,22 +3,22 @@
  *
  * A spotlight-style modal anchored near the top of the viewport. Tokens only
  * (AGENTS.md §9.8): colour, spacing, shape, elevation, motion and z-index all come
- * from DS-01. The overlay sits at `--dh-z-modal` (1300), ABOVE `--dh-z-drawer`
+ * from DS-01. The overlay sits at `--app-z-modal` (1300), ABOVE `--app-z-drawer`
  * (1200): opening Search over an already-open Drawer renders Search on top (with
  * the Drawer inert behind it), and selecting a result CLOSES Search before its
  * Drawer opens, so the two surfaces never fight for the foreground. Motion respects
- * `prefers-reduced-motion`. Every interactive target meets `--dh-touch-target-min`
+ * `prefers-reduced-motion`. Every interactive target meets `--app-touch-target-min`
  * (44px). Painted entirely with M3 tokens, so it is correct in both appearances.
  */
 
 .dh-search {
   position: fixed;
   inset: 0;
-  z-index: var(--dh-z-modal);
+  z-index: var(--app-z-modal);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--dh-space-8) var(--dh-space-4);
+  padding: var(--app-space-8) var(--app-space-4);
 }
 
 .dh-search__scrim {
@@ -39,9 +39,9 @@
   flex-direction: column;
   width: 100%;
   max-width: 40rem;
-  max-height: min(32rem, calc(100vh - var(--dh-space-16)));
+  max-height: min(32rem, calc(100vh - var(--app-space-16)));
   background: var(--md-app-color-surface-raised);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-large);
   box-shadow: var(--md-sys-elevation-3);
   overflow: hidden;
@@ -53,8 +53,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-4) 0;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4) 0;
 }
 
 .dh-search__title {
@@ -69,16 +69,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--dh-touch-target-min);
+  min-width: var(--app-touch-target-min);
   /* Meet the 44px touch-target minimum in BOTH dimensions (DS-11), matching the
    * Command Palette close control — the width token alone left this 44×32. */
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-2);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-2);
   font-size: var(--md-sys-typescale-label-medium-size);
   font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-app-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   cursor: pointer;
 }
@@ -94,9 +94,9 @@
 .dh-search__inputrow {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-3) var(--dh-space-4);
-  border-bottom: var(--dh-border-width-thin) solid
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
+  border-bottom: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
 }
 
@@ -108,7 +108,7 @@
 .dh-search__input {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: var(--dh-touch-target-min);
+  min-height: var(--app-touch-target-min);
   border: 0;
   background: transparent;
   color: var(--md-sys-color-on-surface);
@@ -127,13 +127,13 @@
 .dh-search__results {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: var(--dh-space-2);
+  padding: var(--app-space-2);
 }
 
 .dh-search__idle,
 .dh-search__partial {
   margin: 0;
-  padding: var(--dh-space-4);
+  padding: var(--app-space-4);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-body-small-size);
 }
@@ -142,19 +142,19 @@
   color: var(--md-sys-color-on-warning-container);
   background: var(--md-sys-color-warning-container);
   border-radius: var(--md-sys-shape-corner-small);
-  margin-bottom: var(--dh-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
 .dh-search__group {
-  margin-bottom: var(--dh-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
 .dh-search__grouptitle {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-2);
+  gap: var(--app-space-2);
   margin: 0;
-  padding: var(--dh-space-2) var(--dh-space-3);
+  padding: var(--app-space-2) var(--app-space-3);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -175,10 +175,10 @@
 .dh-search__clear {
   margin-left: auto;
   min-height: 1.75rem;
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
   color: var(--md-sys-color-on-surface-variant);
   background: transparent;
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   font: inherit;
   text-transform: none;
@@ -200,9 +200,9 @@
 .dh-search__optionlink {
   display: flex;
   align-items: center;
-  gap: var(--dh-space-3);
-  min-height: var(--dh-touch-target-min);
-  padding: var(--dh-space-2) var(--dh-space-3);
+  gap: var(--app-space-3);
+  min-height: var(--app-touch-target-min);
+  padding: var(--app-space-2) var(--app-space-3);
   color: inherit;
   text-decoration: none;
   border-radius: var(--md-sys-shape-corner-medium);
@@ -210,8 +210,8 @@
 
 .dh-search__option[data-active="true"] {
   background: var(--md-sys-color-primary-container);
-  outline: var(--dh-border-width-thin) solid var(--md-sys-color-primary);
-  outline-offset: calc(-1 * var(--dh-border-width-thin));
+  outline: var(--app-border-width-thin) solid var(--md-sys-color-primary);
+  outline-offset: calc(-1 * var(--app-border-width-thin));
 }
 
 .dh-search__optionicon {
@@ -223,7 +223,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: var(--dh-space-px);
+  gap: var(--app-space-px);
 }
 
 .dh-search__optiontitle {
@@ -246,9 +246,9 @@
 .dh-search__signals {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--dh-space-1);
+  gap: var(--app-space-1);
   min-width: 0;
-  margin-top: var(--dh-space-1);
+  margin-top: var(--app-space-1);
 }
 
 .dh-search__signal {
@@ -259,10 +259,10 @@
   display: inline-flex;
   align-items: center;
   min-height: 1.375rem;
-  padding: 0 var(--dh-space-2);
+  padding: 0 var(--app-space-2);
   color: var(--md-sys-color-on-surface-variant);
   background: var(--md-app-color-surface-sunken);
-  border: var(--dh-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   font-size: var(--md-sys-typescale-label-small-size);
   font-weight: 500;
@@ -277,7 +277,7 @@
 .dh-search__optiontype {
   margin-left: auto;
   flex: 0 0 auto;
-  padding-left: var(--dh-space-2);
+  padding-left: var(--app-space-2);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);
   letter-spacing: 0.03em;
@@ -295,9 +295,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--dh-space-3);
-  padding: var(--dh-space-2) var(--dh-space-4);
-  border-top: var(--dh-border-width-thin) solid
+  gap: var(--app-space-3);
+  padding: var(--app-space-2) var(--app-space-4);
+  border-top: var(--app-border-width-thin) solid
     var(--md-sys-color-outline-variant);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);
@@ -308,8 +308,8 @@
 }
 
 .dh-search__retry {
-  min-height: var(--dh-touch-target-min);
-  padding: 0 var(--dh-space-4);
+  min-height: var(--app-touch-target-min);
+  padding: 0 var(--app-space-4);
   color: var(--md-sys-color-on-primary);
   background: var(--md-sys-color-primary);
   border: 0;
@@ -334,7 +334,7 @@
 @keyframes dh-search-rise {
   from {
     opacity: 0;
-    transform: translateY(calc(-1 * var(--dh-space-3)));
+    transform: translateY(calc(-1 * var(--app-space-3)));
   }
   to {
     opacity: 1;
@@ -344,11 +344,11 @@
 
 @media (max-width: 30rem) {
   .dh-search {
-    padding: var(--dh-space-4) var(--dh-space-3);
+    padding: var(--app-space-4) var(--app-space-3);
   }
 
   .dh-search__panel {
-    max-height: calc(100vh - var(--dh-space-8));
+    max-height: calc(100vh - var(--app-space-8));
   }
 
   .dh-search__hint {
