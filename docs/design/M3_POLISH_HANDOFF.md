@@ -448,6 +448,11 @@ threshold is crossed mid-review.
   generic element has no role for the name to attach to.
 - `CardProgress` splits `label` (drawn beside the bar) from `valueText` (announced). Both derive
   from the same value, so they cannot disagree about how far along the work is.
+- Forced colours strip the generated accent tints, so `icons.css` restores the
+  identity container as a BORDER. That is asserted in the browser
+  (`areas.spec.ts`, `forcedColors: "active"`) rather than trusted to the media
+  query — it is the one place in this change where meaning could have been left
+  resting on colour alone.
 - The touch-target helper measures a card's ANCHOR at ~19px, because the destination is a stretched
   link whose `::after` covers the card. Measure the CARD, and prove the stretched area by clicking
   a far corner — bottom-LEFT, since the capture FAB is fixed bottom-right.

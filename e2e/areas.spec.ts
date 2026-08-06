@@ -173,6 +173,37 @@ test.describe("AREA-01 — Areas", () => {
     await expect(page.getByRole("progressbar")).toHaveCount(0);
   });
 
+  test("collection: the identity container survives forced colours as a shape", async ({
+    browser,
+  }) => {
+    /*
+     * Windows High Contrast strips the generated accent tints, which would
+     * otherwise leave a grid of identical invisible boxes where the identity
+     * containers were. `icons.css` restores the container as a BORDER for
+     * exactly that case, and this asserts it rather than trusting the media
+     * query — the one place in this change where meaning could have been left
+     * resting on colour alone.
+     */
+    const context = await browser.newContext({ forcedColors: "active" });
+    const page = await context.newPage();
+    try {
+      await gotoFixture(page, "/areas");
+      const icon = page.locator(".dh-accent-icon").first();
+      await expect(icon).toBeVisible();
+      const borderWidth = await icon.evaluate(
+        (node) => getComputedStyle(node).borderTopWidth,
+      );
+      expect(parseFloat(borderWidth)).toBeGreaterThan(0);
+      // The Area's name is text, so it is unaffected — identity never depended
+      // on the tint alone in the first place.
+      await expect(
+        page.getByRole("article", { name: "DalyHub V2" }),
+      ).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+
   test("collection: axe is clean in the dark appearance too", async ({
     page,
   }) => {
