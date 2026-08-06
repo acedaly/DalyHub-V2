@@ -34,10 +34,21 @@ test.describe("PROJ-02 — Project health", () => {
       .filter({ hasText: "Office move" });
     await expect(blocked.getByText("Blocked")).toBeVisible();
 
+    /*
+     * Gate D: the collection card carries ONE status treatment, and health
+     * REPLACES the lifecycle word only when health has something to say.
+     * "On track" is the absence of a signal, so a healthy, actively-worked
+     * Project shows its workflow status — "Active" — rather than swapping a
+     * useful word for a vaguer one. The full health vocabulary still appears
+     * on the record, which the panel assertions below cover.
+     */
     const onTrack = page
       .getByRole("listitem")
       .filter({ hasText: "Team offsite" });
-    await expect(onTrack.getByText("On track")).toBeVisible();
+    await expect(onTrack.getByText("Active")).toBeVisible();
+    await expect(onTrack.getByText("On track")).toHaveCount(0);
+    // …and it is still exactly one chip, not a lifecycle chip plus a health one.
+    await expect(onTrack.locator(".dh-pill")).toHaveCount(1);
 
     const stale = page
       .getByRole("listitem")
@@ -133,8 +144,11 @@ test.describe("PROJ-02 — Project health", () => {
       await loadMore.click();
       await expect(loadMore).toHaveCount(0);
     }
-    // Every card still shows a health pill after paging.
-    await expect(page.getByText("On track").first()).toBeVisible();
+    // Every card still carries exactly one status treatment after paging —
+    // health rides along on each appended item, and never adds a second chip.
+    for (const card of await page.getByRole("article").all()) {
+      expect(await card.locator(".dh-pill").count()).toBe(1);
+    }
   });
 
   test("is axe-clean and free of horizontal overflow across the responsive matrix", async ({

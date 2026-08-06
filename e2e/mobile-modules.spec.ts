@@ -170,7 +170,13 @@ test.describe("MOBILE-01 secondary module journeys", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects");
-    await page.locator(".dh-card__open").first().click();
+    // Gate D moved the Projects collection onto the entity card. Opening by the
+    // card's accessible name rather than a styling class keeps this assertion
+    // about the journey instead of about the component's class names.
+    await page
+      .getByRole("link", { name: /^Open / })
+      .first()
+      .click();
     await page.waitForLoadState("networkidle");
 
     // A five-tab record collapses its surplus into a labelled menu on a phone.

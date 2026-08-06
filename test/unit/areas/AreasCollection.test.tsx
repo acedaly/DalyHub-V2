@@ -106,8 +106,29 @@ describe("Areas collection", () => {
     expect(within(card).queryByText(/No Projects yet/)).not.toBeInTheDocument();
     expect(within(card).queryByText(/No tasks yet/)).not.toBeInTheDocument();
     expect(
-      within(card).getByText(/Add a Project or a Goal/),
+      within(card).getByText("Ready for its first Project"),
     ).toBeInTheDocument();
+  });
+
+  it("does not repeat the task count as both summary and metric", () => {
+    // An Area holding loose tasks and NO Projects or Goals. The first Gate D
+    // capture caught this rendering "1 open task" twice, one line above the
+    // other.
+    renderCollection([
+      area({
+        activeProjectCount: 0,
+        rollup: {
+          kind: "area",
+          goals: { total: 0, completed: 0, ratio: null },
+          projects: { total: 0, completed: 0, ratio: null },
+          tasks: { total: 1, completed: 0, ratio: 0 },
+        },
+      }),
+    ]);
+    const card = screen.getByRole("article", { name: "Career" });
+    expect(within(card).getAllByText(/open task/)).toHaveLength(1);
+    // …and it is NOT described as idle, because it is not.
+    expect(within(card).queryByText("No active work")).not.toBeInTheDocument();
   });
 
   it("renders a chosen icon, and the Area default when there is none", () => {
