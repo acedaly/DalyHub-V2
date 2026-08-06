@@ -183,7 +183,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
   row-gap: var(--app-space-5);
   /* Clips the leading divider of EVERY row, including wrapped ones. */
   overflow: hidden;
@@ -473,9 +473,19 @@
  * width rather than a breakpoint table: about three across a wide desktop, two
  * on a tablet, one on a phone, and no width at which a card is absurdly wide.
  */
+/*
+ * `min(18rem, 100%)`, not a bare `18rem`.
+ *
+ * `minmax(18rem, 1fr)` makes 18rem a HARD floor: in any container narrower than
+ * that — a 320px phone, a narrow dashboard column — the track refuses to shrink
+ * and the page scrolls sideways. Wrapping the minimum in `min(…, 100%)` lets the
+ * track collapse to the container when the container is the smaller of the two,
+ * which is the whole point of a responsive grid. Caught by the 320px
+ * no-horizontal-overflow assertion.
+ */
 .dh-ecard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
   gap: var(--app-dashboard-gap);
 }
 
@@ -841,7 +851,7 @@
 /* The development-only fixture that demonstrates the family (design route). */
 .dh-fixture-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
   gap: var(--app-dashboard-gap);
   margin-block-end: var(--app-space-8);
 }
