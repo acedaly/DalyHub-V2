@@ -109,14 +109,29 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     expect(skip).toHaveAttribute("href", "#main-content");
   });
 
-  it("renders the workspace brand name", () => {
-    renderShell();
-    // The brand appears in a banner landmark (the rail on desktop, the mobile bar
-    // on mobile — both present in the DOM here).
-    const banners = screen.getAllByRole("banner");
+  it("renders the workspace brand name inside the primary navigation landmark", () => {
+    const { container } = renderShell();
+    // The brand block is no longer a landmark of its own — the top app bar is the
+    // banner now. It has to stay INSIDE one, though: axe's `region` rule wants
+    // all page content contained, and an uncontained brand block is exactly the
+    // kind of gap that produced the Help/About scan failures.
+    const rail = container.querySelector(".dh-sidebar--rail");
+    expect(rail).not.toBeNull();
+    expect(rail).toHaveAttribute("aria-label", "Primary");
     expect(
-      banners.some((banner) => within(banner).queryByText("DalyHub") !== null),
-    ).toBe(true);
+      within(rail as HTMLElement).getByText("DalyHub"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps exactly one banner per viewport, and it is the top app bar", () => {
+    const { container } = renderShell();
+    // Both bars are in the DOM; CSS shows one per viewport, and axe only ever
+    // sees the visible one. What must never happen is a THIRD claimant, or the
+    // drawer quietly taking the role back.
+    const banners = [...container.querySelectorAll("header")];
+    expect(banners).toHaveLength(2);
+    expect(banners[0]).toHaveClass("dh-topbar");
+    expect(banners[1]).toHaveClass("dh-mobilebar");
   });
 
   it("renders registry-driven navigation as icon + label rows", () => {

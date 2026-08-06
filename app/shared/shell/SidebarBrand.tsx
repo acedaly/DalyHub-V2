@@ -2,9 +2,12 @@
  * PX-02 shell — the sidebar brand/workspace header, rebuilt by BRAND-01.
  *
  * The top of the persistent sidebar. It anchors the frame's identity
- * (PRODUCT_EXPERIENCE #1, #18) and is the application's `banner` landmark — one
- * per document, and correctly NOT nested in `<main>` (the Pane Header lives
- * inside main and is a generic header).
+ * (PRODUCT_EXPERIENCE #1, #18).
+ *
+ * It used to BE the application's `banner`. The banner is now the top app bar,
+ * which is what a top app bar is, and this block is contained by the drawer's
+ * own `navigation` landmark instead — so it is still inside a landmark (axe's
+ * `region` rule) without claiming to be one.
  *
  * ── What changed, and why ────────────────────────────────────────────────────
  * This used to render the WORKSPACE NAME as the only text. That happened to look
@@ -39,7 +42,7 @@ export type SidebarBrandProps = {
 export function SidebarBrand({ workspaceName }: SidebarBrandProps) {
   const workspaceIsDistinct = workspaceName.trim() !== PRODUCT_NAME;
   return (
-    <header className="dh-sidebar__brand">
+    <div className="dh-sidebar__brand">
       <span className="dh-sidebar__brand-mark" aria-hidden="true">
         <BrandMark />
       </span>
@@ -49,6 +52,6 @@ export function SidebarBrand({ workspaceName }: SidebarBrandProps) {
           <span className="dh-sidebar__brand-workspace">{workspaceName}</span>
         ) : null}
       </span>
-    </header>
+    </div>
   );
 }

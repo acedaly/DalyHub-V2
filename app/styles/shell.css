@@ -244,18 +244,31 @@
 
 /*
  * Active navigation: `aria-current` (semantic) + the M3 active-indicator FILL
- * (shape and tone) + a foreground that steps up to `on-secondary-container`.
- * Never colour alone (AGENTS.md §15) — the filled pill is a shape, so the
- * selected row survives forced colours and monochrome.
+ * (shape and tone) + a foreground that steps up to `on-primary-container` + a
+ * heavier label. Never colour alone (AGENTS.md §15) — the filled pill is a
+ * shape, so the selected row survives forced colours and monochrome.
  *
- * The pair is `secondary-container` / `on-secondary-container`, which the
- * contrast tests hold at 4.5:1 in both schemes, so the label and the glyph are
- * both covered by one assertion rather than by two colours that happen to work.
+ * DELIBERATE DEVIATION from the M3 default. The specification pairs a navigation
+ * drawer's active indicator with `secondary-container`; DalyHub uses
+ * `primary-container` / `on-primary-container`.
+ *
+ * The reason is this scheme specifically. `SchemeVibrant` derives secondary from
+ * the seed at low chroma, which lands `secondary-container` on a lavender
+ * (`#e2dfff`) — the one visibly tinted surface left in a shell that was
+ * deliberately neutralised, and reading as a leftover of the wash rather than as
+ * a decision. `primary-container` (`#dbe1ff`) is the blue the reference design
+ * uses for the selected destination, and it says the same thing the rest of the
+ * product says with primary: this is the current one.
+ *
+ * Both pairs clear 4.5:1 by construction (M3 assigns container/on-container the
+ * same tones for every group), and `test/unit/tokens/contrast.test.ts` asserts
+ * the navigation pairing by name so this deviation cannot silently regress.
+ * Recorded in DESIGN_SYSTEM.md and the ADR follow-up.
  */
 .dh-nav__link--active,
 .dh-nav__link[aria-current="page"] {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
   font-weight: 600;
 }
 
@@ -616,32 +629,6 @@
   display: inline-flex;
   font-size: 1.25rem;
   line-height: 0;
-}
-
-/* The appearance INDICATOR is not a control: no pointer, no focus, no state
- * layer. One of its two states is displayed, which also removes the other from
- * the accessibility tree, so exactly one label is announced. */
-.dh-topbar__appearance {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: var(--app-touch-target-min);
-  block-size: var(--app-touch-target-min);
-  flex: none;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.dh-topbar__appearance-state--dark {
-  display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  .dh-topbar__appearance-state--light {
-    display: none;
-  }
-  .dh-topbar__appearance-state--dark {
-    display: inline-flex;
-  }
 }
 
 /* The phone shell has its own bar; this one is desktop-only. */

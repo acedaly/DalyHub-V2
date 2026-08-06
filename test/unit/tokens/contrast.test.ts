@@ -183,6 +183,38 @@ describe.each(SCHEMES)("M3-01 contrast — %s scheme", (label, scheme) => {
     }
   });
 
+  it("meets AA for the selected navigation pairing", () => {
+    /*
+     * A DOCUMENTED DEVIATION, asserted by name so it cannot regress quietly.
+     *
+     * M3 pairs a navigation drawer's active indicator with `secondary-container`.
+     * DalyHub uses `primary-container` / `on-primary-container`, because
+     * `SchemeVibrant` derives secondary at low chroma and lands
+     * `secondary-container` on a lavender — the one visibly tinted surface left
+     * in a shell that was deliberately neutralised. `primary-container` is the
+     * blue the reference design uses for the selected destination.
+     *
+     * The label and the 24px glyph both take `on-primary-container`, so one
+     * assertion covers both. Selection is never colour alone regardless: it is
+     * the filled pill (a shape), a heavier label, and `aria-current`.
+     */
+    expectRatio(
+      scheme,
+      label,
+      "on-primary-container",
+      "primary-container",
+      4.5,
+    );
+    // And the pill has to be visible as a shape against the drawer it sits in.
+    expectRatio(
+      scheme,
+      label,
+      "primary-container",
+      "app-surface-navigation",
+      1.1,
+    );
+  });
+
   it("meets 3:1 for progress fill against its track", () => {
     expectRatio(scheme, label, "primary", "secondary-container", 3);
     expectRatio(scheme, label, "success", "secondary-container", 3);

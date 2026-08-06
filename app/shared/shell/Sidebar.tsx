@@ -69,7 +69,17 @@ export function Sidebar({
   onOpenCommand,
 }: SidebarProps) {
   return (
-    <div className={`dh-sidebar dh-sidebar--${variant}`}>
+    /*
+     * The DRAWER is the `navigation` landmark, not just the list inside it.
+     *
+     * The brand block, and (in the overlay) the search entries and the account
+     * menu, are page content too, and axe's `region` rule wants all of it inside
+     * a landmark. Labelling the drawer rather than the inner list is what puts
+     * them there — and it is honest, because the drawer as a whole IS the primary
+     * navigation region. The inner `.dh-nav` keeps its id so the phone sheet's
+     * "More" control still has a real `aria-controls` target.
+     */
+    <nav className={`dh-sidebar dh-sidebar--${variant}`} aria-label="Primary">
       {onClose ? (
         <button
           type="button"
@@ -100,6 +110,6 @@ export function Sidebar({
       {variant === "overlay" ? (
         <UserMenu email={email} settingsHref={settingsHref} />
       ) : null}
-    </div>
+    </nav>
   );
 }

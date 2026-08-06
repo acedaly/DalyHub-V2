@@ -11,13 +11,16 @@
  *
  *   - the primary SEARCH affordance, at the start of the content region so it
  *     lines up with the page beneath it;
- *   - the utilities that belong to the application rather than to a page — help,
- *     the appearance indicator, and the account menu.
+ *   - the utilities that belong to the application rather than to a page — the
+ *     command palette, help, and the account menu.
  *
  * What it deliberately does NOT carry: a notification bell (DalyHub has no
  * notification system, and a bell that never rings is a decorative control), a
- * plan or billing entry (there is no plan concept), or a theme switch (there is
- * one generated light/dark pair selected by the operating system — ADR-074).
+ * plan or billing entry (there is no plan concept), a theme switch, or an
+ * appearance indicator. The last one was built and then removed: DalyHub follows
+ * `prefers-color-scheme` and has no appearance action at all, so a sun/moon glyph
+ * in a row of controls reads as a theme toggle that does nothing. An icon that
+ * looks operable and is not is worse than no icon (ADR-074 decision 5).
  *
  * Behaviour is UNCHANGED. The search control opens the same DS-08 Search surface
  * the sidebar entry opened, through the same `onOpenSearch` callback, passing the
@@ -25,19 +28,23 @@
  * and `⌘K` still toggles the palette, both through the one shared dispatcher in
  * `CommandShortcutLayer`. This is a relocation, not a reimplementation.
  *
- * It renders no landmark of its own — the shell already has a `banner` (the
- * sidebar brand) and a `main`, and a second banner would be a duplicate-landmark
- * violation. The search region is the one landmark here, and it is the only
- * `role="search"` in the desktop shell now that the rail no longer carries one.
+ * LANDMARKS. This bar is the desktop `banner`, which is what a top app bar is.
+ * It has to be a landmark rather than a bare `div`: axe's `region` rule requires
+ * all page content to be contained by one, and the utilities here are page
+ * content — the first version of this component shipped them in a plain `div`
+ * and failed the Help and About accessibility scans for exactly that reason.
+ *
+ * The banner moved here FROM the sidebar brand block, so there is still exactly
+ * one per viewport: this bar on desktop (where the phone bar is `display: none`)
+ * and `MobileTopBar` on the phone (where this one is). The drawer is now a
+ * `navigation` landmark in its own right and contains its brand block, so
+ * nothing lost containment in the move.
+ *
+ * The search region nests inside the banner, which is ordinary, and it is the
+ * only `role="search"` in the desktop shell now that the rail carries none.
  */
 
-import {
-  CommandIcon,
-  HelpIcon,
-  MoonIcon,
-  SearchIcon,
-  SunIcon,
-} from "~/shared/icons";
+import { CommandIcon, HelpIcon, SearchIcon } from "~/shared/icons";
 
 import { UserMenu } from "./UserMenu";
 
@@ -62,7 +69,7 @@ export function DesktopTopBar({
   onOpenCommand,
 }: DesktopTopBarProps) {
   return (
-    <div className="dh-topbar">
+    <header className="dh-topbar">
       <div
         className="dh-topbar__search"
         role="search"
@@ -114,8 +121,6 @@ export function DesktopTopBar({
           <span className="dh-visually-hidden">Help</span>
         </a>
 
-        <AppearanceIndicator />
-
         <UserMenu
           email={email}
           name={name}
@@ -124,47 +129,6 @@ export function DesktopTopBar({
           compact
         />
       </div>
-    </div>
-  );
-}
-
-/**
- * A read-only statement of which appearance is in force, and why.
- *
- * NOT a control: DalyHub has one generated light/dark pair and follows
- * `prefers-color-scheme` alone, so there is nothing here to change (ADR-074
- * decision 5). It is a `span`, not a button — it takes no focus and responds to
- * no click, because a control that looks operable and is not is worse than no
- * control.
- *
- * Both states are rendered and one is hidden by a media query rather than by
- * JavaScript, because the server cannot know the visitor's OS appearance and a
- * client-only guess would flash the wrong glyph on first paint. `display: none`
- * removes the hidden branch from the accessibility tree as well as from the
- * page, so exactly one of the two labels is ever announced.
- */
-function AppearanceIndicator() {
-  return (
-    <span
-      className="dh-topbar__appearance"
-      title="DalyHub follows your device's light or dark appearance"
-    >
-      <span className="dh-topbar__appearance-state dh-topbar__appearance-state--light">
-        <span className="dh-topbar__utility-icon" aria-hidden="true">
-          <SunIcon />
-        </span>
-        <span className="dh-visually-hidden">
-          Light appearance, following your device
-        </span>
-      </span>
-      <span className="dh-topbar__appearance-state dh-topbar__appearance-state--dark">
-        <span className="dh-topbar__utility-icon" aria-hidden="true">
-          <MoonIcon />
-        </span>
-        <span className="dh-visually-hidden">
-          Dark appearance, following your device
-        </span>
-      </span>
-    </span>
+    </header>
   );
 }

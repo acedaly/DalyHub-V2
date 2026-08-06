@@ -68,7 +68,7 @@ export function PrimaryNavigation({
   );
 
   return (
-    <nav id={id} className="dh-nav" aria-label="Primary">
+    <div id={id} className="dh-nav">
       <ul className="dh-nav__list">
         {items.map((item, index) => {
           const previous = items[index - 1];
@@ -105,6 +105,6 @@ export function PrimaryNavigation({
           );
         })}
       </ul>
-    </nav>
+    </div>
   );
 }
