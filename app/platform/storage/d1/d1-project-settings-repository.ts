@@ -443,9 +443,14 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
    *
    * An upsert with the same `EXISTS` guard every other write here carries — the
    * Project must exist, be a Project and not be soft-deleted, resolved at commit
-   * rather than against a stale read. `project_details` is dense in practice
-   * (migration 0008 backfilled a row for every existing Project, and creation
-   * writes one), but the upsert costs nothing and removes the assumption.
+   * rather than against a stale read.
+   *
+   * The upsert is load-bearing, not defensive. `project_details` is SPARSE for a
+   * new Project: migration 0008 backfilled the Projects that existed when it
+   * ran, but `createProject` writes no detail row, so the first settings write
+   * is what creates it. A plain `UPDATE` here would silently affect no rows and
+   * still report success — which is why `entity-icon-settings.test.ts` asserts
+   * the row's creation directly rather than only asserting the read-back.
    *
    * `null` clears the choice and is a legitimate value, not a failure: it is
    * what "reset to default" stores. Validation of a NON-null key belongs at the
