@@ -23,12 +23,55 @@
  * — a surface can never render a blank region (PRODUCT_EXPERIENCE Part IV §5).
  */
 
-import { useId } from "react";
+import { useEffect, useId } from "react";
 import type { ReactNode } from "react";
 
 import type { EntityType } from "~/shared/entity";
 import { PaneHeader } from "~/shared/shell/PaneHeader";
 import { CollectionSkeleton } from "~/shared/skeleton";
+
+/**
+ * How many collections currently have their selection slot occupied.
+ *
+ * A counter rather than a boolean because the flag is on the document, and two
+ * mounted collections (a record's tab beneath an open drawer, say) would
+ * otherwise let the first one to tear down clear a state the second still
+ * needs. Incremented on the way in, decremented on the way out; the attribute
+ * exists exactly while the count is positive.
+ */
+let activeSelectionCount = 0;
+
+/**
+ * Publish "a bulk-action bar is on screen" to the shell.
+ *
+ * The bulk bar is in normal flow at the end of the collection, and on a phone
+ * the capture FAB is `position: fixed` in the bottom-right corner — so on a
+ * short viewport the FAB sits ON TOP of the bar's trailing controls and eats
+ * their clicks. That is a real defect, not a test artefact: with a task
+ * selected, Cancel was unreachable by tap in the corner it occupies.
+ *
+ * The shell hides the FAB while this flag is set (see `shell.css`). Hiding is
+ * right rather than merely restyling: during selection the owner is acting on
+ * things that already exist, so an affordance for creating a NEW one is not
+ * competing for the same corner — it has no business being there at all.
+ *
+ * It lives here rather than in Today because the selection slot is the shared
+ * layout's, so every collection that grows bulk actions inherits the fix.
+ */
+function useSelectionActive(active: boolean): void {
+  useEffect(() => {
+    if (!active) return;
+    activeSelectionCount += 1;
+    document.documentElement.dataset.selectionActive = "true";
+    return () => {
+      activeSelectionCount -= 1;
+      if (activeSelectionCount <= 0) {
+        activeSelectionCount = 0;
+        delete document.documentElement.dataset.selectionActive;
+      }
+    };
+  }, [active]);
+}
 
 export type CollectionLayoutProps = {
   /* -- Pane header -- */
@@ -116,6 +159,7 @@ export function CollectionLayout({
   className,
 }: CollectionLayoutProps) {
   const titleId = useId();
+  useSelectionActive(Boolean(selection));
   const classes = [
     "dh-collection",
     // Drives the phone/desktop control swap in CSS (see collection-layout.css).

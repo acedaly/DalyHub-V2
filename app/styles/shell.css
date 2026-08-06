@@ -1199,6 +1199,23 @@
   transform: translateY(var(--app-keyboard-inset, 0px));
 }
 
+/* ...and it steps aside entirely while a bulk-action bar is on screen.
+ *
+ * The bar sits in normal flow at the end of the collection, so on a short phone
+ * viewport the fixed FAB lands on top of the bar's trailing controls and
+ * swallows their taps — Cancel, in the very corner the FAB occupies, could not
+ * be pressed at all. `display: none` rather than a fade or an offset: while the
+ * owner is acting on records that already exist, a button for creating a new one
+ * is not competing for the corner, it is simply not part of the task. Removing
+ * it also takes it out of the tab order and the accessibility tree, which a
+ * merely transparent control would not do.
+ *
+ * `CollectionLayout` sets the flag whenever its selection slot is occupied, so
+ * this holds for every collection with bulk actions, not just Today. */
+:root[data-selection-active="true"] .dh-fab {
+  display: none;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Responsive: collapse the rail into the phone shell below `md`.              */
 /* -------------------------------------------------------------------------- */

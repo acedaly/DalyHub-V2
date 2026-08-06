@@ -285,11 +285,27 @@ test.describe("TODAY-06 — mobile Today", () => {
     await expect(bulkBar.getByText("1 selected")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    // Exit selection without mutating (Cancel clears it).
+    // REGRESSION: the capture FAB is `position: fixed` in the bottom-right
+    // corner, and the bulk bar is in normal flow at the end of the collection.
+    // On a short phone viewport the two occupied the same corner and the FAB
+    // ate the bar's trailing controls — Cancel could not be tapped at all. The
+    // FAB now steps aside for the whole time a selection is live.
+    // Located by class, not by accessible name: "Capture" is also the phone
+    // bar's capture slot and the hero's "Capture a thought", and this assertion
+    // is about the FLOATING button specifically — the only one that overlaps.
+    const fab = page.locator("button.dh-fab");
+    await expect(fab).toBeHidden();
+
+    // Exit selection without mutating (Cancel clears it). This click is the
+    // assertion: it is the one the FAB used to intercept.
     await bulkBar.getByRole("button", { name: "Cancel" }).click();
     await expect(
       page.getByRole("group", { name: /Plan .* selected/ }),
     ).toHaveCount(0);
+
+    // ...and the FAB comes back once the selection ends, so stepping aside is
+    // not a one-way trip.
+    await expect(fab).toBeVisible();
   });
 
   test("reaches the Waiting view and navigates Back to Today", async ({
