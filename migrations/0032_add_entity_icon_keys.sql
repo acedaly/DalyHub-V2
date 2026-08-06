@@ -6,7 +6,7 @@
 -- other additive Area/Project detail is stored (the `project_details` /
 -- `area_details` precedent, ADR-037 / ADR-039): a nullable column on the
 -- module-owned detail table keyed by `(workspace_id, entity_id)`, written only
--- through the trusted settings repository. This is not a second identity model —
+-- through the trusted settings repository. This is not a second identity model -
 -- it holds one nullable key and nothing the spine already owns.
 --
 -- WHAT IS STORED. A controlled semantic KEY and nothing else: `folder`, `travel`,
@@ -19,7 +19,7 @@
 -- list lives in `app/kernel/entities/entity-icon-keys.ts` and is enforced at the
 -- validation boundary, which every write already passes through. A CHECK naming
 -- thirty values is a schema that needs a migration every time the catalogue
--- gains an icon — exactly the mistake `owner_app_preferences.theme` made, which
+-- gains an icon - exactly the mistake `owner_app_preferences.theme` made, which
 -- migration 0031 had to rebuild a whole table to undo. Leaving the column
 -- unconstrained also keeps a future `DROP COLUMN` cheap, since SQLite cannot
 -- drop a column that participates in a CHECK.
@@ -29,7 +29,7 @@
 -- catalogue entry degrades invisibly instead of breaking the page.
 --
 -- NO BACKFILL. Every existing Area and Project stays valid with `icon_key` NULL,
--- which means "use the entity's default icon" — the same thing a missing detail
+-- which means "use the entity's default icon" - the same thing a missing detail
 -- row already means everywhere else. Nothing is rewritten and nothing is lost.
 --
 -- Purely ADDITIVE: two `ALTER TABLE ... ADD COLUMN` statements. No table is
