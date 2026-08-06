@@ -259,10 +259,24 @@ export interface SnapshotActivitySubject {
 /* Module-specific detail records                                             */
 /* -------------------------------------------------------------------------- */
 
-/** Area-owned state (AREA-05): the reversible archive. */
+/**
+ * Area-owned state (AREA-05): the reversible archive, and the owner's chosen
+ * icon.
+ *
+ * `iconKey` is the stored KEY verbatim — `"travel"`, never a glyph, markup or a
+ * component name — and `null` means "no choice, use the entity default". It is
+ * exported UNNORMALISED, exactly as the column holds it: an export is a record
+ * of what the database contains, so a key this build no longer recognises must
+ * survive the round trip rather than being quietly dropped by the exporter. The
+ * READ path normalises instead (`D1AreaSettingsRepository`), which is where a
+ * stale key should become the default.
+ *
+ * Additive and optional-by-`null`, so it does not bump the schema version.
+ */
 export interface SnapshotAreaDetail {
   readonly entityId: string;
   readonly archivedAt: IsoInstant | null;
+  readonly iconKey: string | null;
   readonly updatedAt: IsoInstant;
 }
 
@@ -274,11 +288,17 @@ export interface SnapshotGoalDetail {
   readonly updatedAt: IsoInstant;
 }
 
-/** Project-owned state (PROJ-05): workflow status and the reversible archive. */
+/**
+ * Project-owned state (PROJ-05): workflow status, the reversible archive, and
+ * the owner's chosen icon. `iconKey` carries the same contract as
+ * {@link SnapshotAreaDetail.iconKey} — the stored key verbatim, `null` for no
+ * choice, additive and optional-by-`null`.
+ */
 export interface SnapshotProjectDetail {
   readonly entityId: string;
   readonly status: string;
   readonly archivedAt: IsoInstant | null;
+  readonly iconKey: string | null;
   readonly updatedAt: IsoInstant;
 }
 

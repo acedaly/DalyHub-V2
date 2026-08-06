@@ -153,11 +153,15 @@ const COLLECTIONS: CollectionDescriptors = {
   },
   areaDetails: {
     table: "area_details",
-    columns: "entity_id, archived_at, updated_at",
+    columns: "entity_id, archived_at, icon_key, updated_at",
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
       archivedAt: text(row.archived_at),
+      // Verbatim, not normalised: an export records what the database holds, so
+      // a key whose catalogue entry has since been removed still survives the
+      // round trip. Normalising belongs on the read path, not here.
+      iconKey: text(row.icon_key),
       updatedAt: requiredText(row.updated_at),
     }),
   },
@@ -174,12 +178,13 @@ const COLLECTIONS: CollectionDescriptors = {
   },
   projectDetails: {
     table: "project_details",
-    columns: "entity_id, status, archived_at, updated_at",
+    columns: "entity_id, status, archived_at, icon_key, updated_at",
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
       status: requiredText(row.status),
       archivedAt: text(row.archived_at),
+      iconKey: text(row.icon_key),
       updatedAt: requiredText(row.updated_at),
     }),
   },

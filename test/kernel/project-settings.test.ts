@@ -67,6 +67,11 @@ describe("get", () => {
       workspaceId: expect.anything(),
       status: "planned",
       archivedAt: null,
+      // No `project_details` row means no chosen icon either, so the Project
+      // renders its entity default. `toEqual` is exhaustive, which is the
+      // point: a new field on the record has to be acknowledged here rather
+      // than slipping into the contract unasserted.
+      iconKey: null,
     });
   });
 
@@ -105,6 +110,10 @@ describe("setStatus", () => {
         workspaceId: expect.anything(),
         status: "active",
         archivedAt: null,
+        // A status transition must not disturb the chosen icon. The statement
+        // now returns `icon_key` alongside the columns it writes, so this is
+        // the persisted value rather than one carried over from the pre-read.
+        iconKey: null,
       },
       changed: true,
     });

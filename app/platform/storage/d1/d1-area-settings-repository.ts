@@ -56,10 +56,15 @@ import {
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
+import {
+  normaliseEntityIconKey,
+  type EntityIconKey,
+} from "~/kernel/entities/entity-icon-keys";
 
 /** The `area_details` row shape this adapter reads/writes, exactly as stored. */
 interface AreaDetailsRow {
   readonly archived_at: string | null;
+  readonly icon_key: string | null;
 }
 
 export type D1AreaSettingsRepositoryOptions = {
@@ -97,7 +102,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
   async get(id: string): Promise<AreaSettingsRecord | null> {
     const row = await this.#row(id);
     if (!row) return null;
-    return this.#record(id, row.archived_at);
+    return this.#record(id, row.archived_at, row.icon_key);
   }
 
   /**
@@ -129,7 +134,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
          ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
            archived_at = excluded.archived_at, updated_at = excluded.updated_at
          WHERE area_details.archived_at IS NULL
-         RETURNING archived_at`,
+         RETURNING archived_at, icon_key`,
       )
       .bind(
         // SELECT: workspace_id, entity_id, archived_at, updated_at
@@ -158,7 +163,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.archived_at),
+        settings: this.#record(id, result.row.archived_at, result.row.icon_key),
         changed: true,
       };
     }
@@ -189,7 +194,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
         `UPDATE area_details SET archived_at = NULL, updated_at = ?
          WHERE workspace_id = ? AND entity_id = ? AND archived_at IS NOT NULL
            AND EXISTS (${this.#activeAreaExistsSql})
-         RETURNING archived_at`,
+         RETURNING archived_at, icon_key`,
       )
       .bind(nowTs, this.#workspaceId, id, this.#workspaceId, id);
 
@@ -206,7 +211,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
 
     if (result.changed && result.row) {
       return {
-        settings: this.#record(id, result.row.archived_at),
+        settings: this.#record(id, result.row.archived_at, result.row.icon_key),
         changed: true,
       };
     }
@@ -242,7 +247,7 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
     try {
       const row = await this.#db
         .prepare(
-          `SELECT d.archived_at AS archived_at
+          `SELECT d.archived_at AS archived_at, d.icon_key AS icon_key
            FROM entities e
            LEFT JOIN area_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -257,12 +262,70 @@ export class D1AreaSettingsRepository implements AreaSettingsRepository {
     }
   }
 
-  #record(id: string, archived: string | null): AreaSettingsRecord {
+  /*
+   * `normaliseEntityIconKey` on the way OUT, not just on the way in.
+   *
+   * The column is deliberately unconstrained (migration 0032), and a key can
+   * outlive the catalogue entry that produced it — an icon removed in a later
+   * release, a row restored from an older export, a hand-edited row. Normalising
+   * here means an unrecognised value becomes `null` at the kernel boundary
+   * rather than being handed to the UI typed as if this build understood it. The
+   * record then renders its entity default, which is the documented fallback.
+   */
+  #record(
+    id: string,
+    archived: string | null,
+    iconKey: string | null,
+  ): AreaSettingsRecord {
     return {
       id,
       workspaceId: parseWorkspaceId(this.#workspaceId),
       archivedAt: archived ? fromStorageTimestamp(archived) : null,
+      iconKey: normaliseEntityIconKey(iconKey),
     };
+  }
+
+  /**
+   * Choose (or clear) the Area's icon.
+   *
+   * An upsert, because `area_details` is sparse: an Area that has never been
+   * archived has no row at all, and choosing an icon must create one rather than
+   * silently doing nothing. The `EXISTS` guard keeps the same contract every
+   * other write here has — the Area must exist, be an Area, and not be
+   * soft-deleted — resolved at commit rather than against a stale read.
+   *
+   * `null` clears the choice and is a legitimate value, not a failure: it is what
+   * "reset to default" stores. Validation of a NON-null key belongs at the route
+   * boundary, which refuses an unrecognised one rather than quietly storing
+   * nothing; by the time a key reaches here it is already a member of the
+   * vocabulary.
+   *
+   * No Activity event. The lifecycle events in this slice mark transitions that
+   * change what an Area IS to the rest of the product — archived, restored,
+   * deleted. Choosing a glyph changes how it is drawn, and an activity feed that
+   * records every appearance tweak buries the events that matter.
+   */
+  async setIcon(
+    id: string,
+    iconKey: EntityIconKey | null,
+  ): Promise<AreaSettingsRecord> {
+    const current = await this.#require(id);
+    const nowTs = toStorageTimestamp(this.#clock());
+    try {
+      await this.#db
+        .prepare(
+          `INSERT INTO area_details (workspace_id, entity_id, entity_type, icon_key, updated_at)
+           SELECT ?, ?, '${AREA}', ?, ?
+           WHERE EXISTS (${this.#activeAreaExistsSql})
+           ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
+             icon_key = excluded.icon_key, updated_at = excluded.updated_at`,
+        )
+        .bind(this.#workspaceId, id, iconKey, nowTs, this.#workspaceId, id)
+        .run();
+    } catch (cause) {
+      throw new AreaSettingsStorageError({ cause });
+    }
+    return { ...current, iconKey };
   }
 
   async #runAtomic<TRow>(

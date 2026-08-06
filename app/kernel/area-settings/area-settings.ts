@@ -15,6 +15,7 @@
  * archival on and off.
  */
 
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import type { WorkspaceId } from "~/kernel/workspaces";
 
 /** A meaningful Area lifecycle event was appended to the shared Activity stream. */
@@ -28,9 +29,20 @@ export const AREA_RESTORED = "area.restored";
  */
 export const AREA_DELETED = "area.deleted";
 
-/** The archival state of an Area. `archivedAt === null` ⇒ active. */
+/**
+ * The Area's own module-owned state: whether it is archived, and which icon its
+ * owner chose. `archivedAt === null` ⇒ active; `iconKey === null` ⇒ no choice,
+ * so the Area renders its entity default.
+ *
+ * `iconKey` is a KEY, not a glyph — the UI resolves it (`RecordIcon`), which is
+ * what keeps the wire format serialisable and lets the drawing change without
+ * the data changing. It is typed as the narrow union so a value that reached the
+ * database before a catalogue entry was removed cannot be handed on as if this
+ * build understood it; the repository normalises on read.
+ */
 export type AreaSettings = {
   readonly archivedAt: Date | null;
+  readonly iconKey: EntityIconKey | null;
 };
 
 export type AreaSettingsRecord = AreaSettings & {
@@ -47,6 +59,7 @@ export type AreaSettingsChangeResult = {
 /** The default (never-persisted) settings for an Area with no `area_details` row. */
 export const DEFAULT_AREA_SETTINGS: AreaSettings = {
   archivedAt: null,
+  iconKey: null,
 };
 
 export function isAreaArchived(settings: AreaSettings): boolean {
