@@ -17,30 +17,31 @@
  * cookie, and `<html data-appearance>` changes — no history entry, no scroll
  * reset, and the account menu the owner is standing in stays open.
  *
- * Input is coerced through the kernel appearance contract, so a tampered or stale
- * form value can never reach `data-appearance`, the cookie or the database.
- * Authentication is guaranteed by the Worker boundary before this action runs
- * (ADR-016 §5.11); it renders no shell, so it stays outside the app-shell layout.
+ * Input is validated STRICTLY — a tampered, stale or missing value is a 400 that
+ * writes nothing, rather than a silent reset to `system`. Authentication is
+ * guaranteed by the Worker boundary before this action runs (ADR-016 §5.11); it
+ * renders no shell, so it stays outside the app-shell layout.
+ *
+ * This action is not the only writer of the cookie: the app-shell loader
+ * reconciles it from the record when the two disagree, which is what covers a
+ * device that has never made a change here.
  */
 
 import { env } from "cloudflare:workers";
 
-import { AppPreferencesValidationError } from "~/kernel/preferences";
 import {
-  parseAppearancePreference,
+  AppPreferencesValidationError,
+  parseAppearance,
+} from "~/kernel/preferences";
+import {
+  isSecureAppearanceEnvironment,
   serializeAppearanceCookie,
+  type AppearancePreference,
 } from "~/kernel/preferences/appearance";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import type { Route } from "./+types/appearance-action";
-
-/** Environments where the appearance cookie must be marked `Secure`. */
-const SECURE_ENVIRONMENTS: ReadonlySet<string> = new Set([
-  "production",
-  "staging",
-  "preview",
-]);
 
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method.toUpperCase() !== "POST") {
@@ -49,15 +50,36 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const session = requireAuthenticatedSession(context);
   const formData = await request.formData();
-  // Coerces rather than throws: an unrecognised value lands the owner on `System`
-  // instead of on an error page. Changing appearance must never be able to break
-  // the surface the owner is looking at.
-  const appearance = parseAppearancePreference(formData.get("appearance"));
 
   const json = {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
   } as const;
+
+  /*
+   * The STRICT parser, not the coercing one.
+   *
+   * `parseAppearancePreference` coerces anything unrecognised to `system`, and
+   * that is right where it is used — reading a cookie, or normalising a stored
+   * row — because a bad value there must never break the page. A WRITE is the
+   * opposite case: coercing a missing or malformed field would turn a stale form
+   * post, a truncated request or a bug into a perfectly valid database write that
+   * silently replaces the owner's explicit Light or Dark with `system`. Losing a
+   * setting quietly is worse than refusing to change it, so an unrecognised value
+   * is a 400 that mutates nothing.
+   */
+  let appearance: AppearancePreference;
+  try {
+    appearance = parseAppearance(formData.get("appearance"));
+  } catch (cause) {
+    if (cause instanceof AppPreferencesValidationError) {
+      return new Response(JSON.stringify({ ok: false, error: cause.message }), {
+        status: 400,
+        headers: json,
+      });
+    }
+    throw cause;
+  }
 
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
@@ -90,14 +112,13 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   // Only now — the record is written, so the mirror is safe to refresh.
-  const secure = SECURE_ENVIRONMENTS.has(
-    (env.ENVIRONMENT ?? "").trim().toLowerCase(),
-  );
   return new Response(JSON.stringify({ ok: true, appearance }), {
     status: 200,
     headers: {
       ...json,
-      "Set-Cookie": serializeAppearanceCookie(appearance, { secure }),
+      "Set-Cookie": serializeAppearanceCookie(appearance, {
+        secure: isSecureAppearanceEnvironment(env.ENVIRONMENT),
+      }),
     },
   });
 }

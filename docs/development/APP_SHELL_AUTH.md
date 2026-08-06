@@ -399,11 +399,20 @@ owner between browsers and devices. `APPEARANCE_PREFERENCES` in
 constraint derive from, and a unit test pins them together — **changing the value set
 needs a migration as well as a code change**.
 
-**The cookie is only a first-paint mirror.** `dh_appearance` is same-site, HttpOnly
-and bounded (`Secure` in non-development environments), but it is a cache, not the
-source of truth. It exists so a document that never reaches the authenticated shell
-loader — `/offline`, or a root error boundary — still renders with the right
-`data-appearance`.
+**The cookie is only a first-paint mirror, and it is kept one.** `dh_appearance`
+is same-site, HttpOnly and bounded (`Secure` in the deployed environments), but it
+is a cache, not the source of truth. It exists so a document that never reaches the
+authenticated shell loader — `/offline`, or a root error boundary — still renders
+with the right `data-appearance`.
+
+TWO places write it, and they must both exist. The appearance action writes it on
+the device that made the change. The **app-shell loader reconciles it** whenever it
+disagrees with the record, which is what covers a device that never made one: sign
+in on a second browser and the record says `dark` while that browser has no cookie
+at all, so without reconciliation `/offline` would paint `system` there forever. The
+comparison is deliberate, so the `Set-Cookie` is emitted only on the renders that
+actually need it. Both writers go through `isSecureAppearanceEnvironment`, because a
+cookie written from two places with different attributes is two cookies.
 
 **Resolution order in the root layout**, most authoritative first:
 
@@ -427,7 +436,10 @@ controls, scrollbars and the default canvas follow the same decision.
 
 Changing the appearance is a POST to `/preferences/appearance` (same-origin,
 validated at the request boundary) which writes the preference record and refreshes
-the cookie mirror, returning JSON. It is submitted through a `useFetcher`, so React
+the cookie mirror, returning JSON. The form value is validated with the STRICT
+`parseAppearance`, not the coercing reader: a missing or unrecognised value returns
+400 and writes nothing, because coercing it would let a stale post silently replace
+an explicit Light or Dark with `system`. It is submitted through a `useFetcher`, so React
 Router revalidates afterwards, the root loader re-reads the cookie and React patches
 that one attribute — no navigation, no history entry, no scroll reset, and the account
 menu the owner is standing in stays open. Appearance changes record no Activity.

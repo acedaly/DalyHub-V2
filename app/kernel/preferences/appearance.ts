@@ -118,6 +118,27 @@ export function readAppearancePreference(
   return DEFAULT_APPEARANCE;
 }
 
+/** Environments where the appearance cookie must be marked `Secure`. */
+const SECURE_ENVIRONMENTS: ReadonlySet<string> = new Set([
+  "production",
+  "staging",
+  "preview",
+]);
+
+/**
+ * Whether the cookie should carry `Secure`, given the raw `ENVIRONMENT` value.
+ *
+ * Both writers — the appearance action and the app-shell loader's cookie
+ * reconciliation — go through this, so the two cannot disagree about the
+ * security attributes of the same cookie. Kept here rather than in either caller
+ * because a cookie written from two places with different flags is two cookies.
+ */
+export function isSecureAppearanceEnvironment(
+  environment: string | undefined,
+): boolean {
+  return SECURE_ENVIRONMENTS.has((environment ?? "").trim().toLowerCase());
+}
+
 /**
  * Serialise the appearance cookie. Same-site Lax, root path, bounded lifetime and
  * HttpOnly (the value is only ever read server-side, never by client JS). `Secure`

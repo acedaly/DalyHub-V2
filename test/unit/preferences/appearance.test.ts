@@ -19,6 +19,7 @@ import {
   APPEARANCE_PREFERENCES,
   DEFAULT_APPEARANCE,
   isAppearancePreference,
+  isSecureAppearanceEnvironment,
   parseAppearancePreference,
   readAppearancePreference,
   resolveAppearance,
@@ -218,6 +219,21 @@ describe("APPEARANCE-01 — the first-paint cookie", () => {
     );
     expect(cookie).toContain(`${APPEARANCE_COOKIE_NAME}=system`);
     expect(cookie).not.toContain("evil.example");
+  });
+
+  it("marks the cookie Secure in the deployed environments only", () => {
+    // One helper, used by BOTH writers — the action and the app-shell loader's
+    // reconciliation. A cookie written from two places with different flags is
+    // two cookies, and the browser would keep the wrong one.
+    for (const environment of ["production", "staging", "preview"]) {
+      expect(isSecureAppearanceEnvironment(environment)).toBe(true);
+      expect(
+        isSecureAppearanceEnvironment(` ${environment.toUpperCase()} `),
+      ).toBe(true);
+    }
+    for (const environment of ["development", "test", "", undefined, "prod"]) {
+      expect(isSecureAppearanceEnvironment(environment)).toBe(false);
+    }
   });
 
   it("round-trips every legal value", () => {

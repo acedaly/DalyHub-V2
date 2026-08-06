@@ -53,8 +53,19 @@ function d1Execute(command: string): void {
 
 /** Put the owner back on the shipped default, so specs cannot leak into each other. */
 function resetAppearance(): void {
+  setStoredAppearance("system");
+}
+
+/**
+ * Write the appearance STRAIGHT TO THE RECORD, bypassing the product.
+ *
+ * That is the point: it simulates the choice having been made on a DIFFERENT
+ * device, which is the only way to reach the state where the record and this
+ * browser's cookie disagree.
+ */
+function setStoredAppearance(value: "system" | "light" | "dark"): void {
   d1Execute(
-    `UPDATE owner_app_preferences SET appearance = 'system' WHERE workspace_id = '${WORKSPACE_ID}' AND owner_id = '${OWNER_ID}';`,
+    `UPDATE owner_app_preferences SET appearance = '${value}' WHERE workspace_id = '${WORKSPACE_ID}' AND owner_id = '${OWNER_ID}';`,
   );
 }
 
@@ -292,6 +303,99 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     expect(cookies.filter((cookie) => cookie.name === "dh_appearance")).toEqual(
       [],
     );
+  });
+
+  test("carries a stored appearance to a NEW device, and mirrors it into the cookie", async ({
+    page,
+  }) => {
+    // The owner chose Dark somewhere else; this browser has never seen it.
+    setStoredAppearance("dark");
+    await page.emulateMedia({ colorScheme: "light" });
+    expect(await page.context().cookies()).toEqual([]);
+
+    await gotoFixture(page, "/today");
+
+    // The shell renders it, because the record is the authority...
+    expect(await storedAppearance(page)).toBe("dark");
+    await expect.poll(() => paintsDark(page)).toBe(true);
+
+    // ...and the first-paint cookie has been RECONCILED from that record, which
+    // is what makes calling it a mirror true. Without this the cookie would stay
+    // absent on this device forever, because only the action ever wrote it.
+    const cookies = await page.context().cookies();
+    expect(
+      cookies.find((cookie) => cookie.name === "dh_appearance")?.value,
+    ).toBe("dark");
+  });
+
+  test("gives a document OUTSIDE the shell the right appearance once reconciled", async ({
+    page,
+  }) => {
+    // `/offline` never reaches the app-shell loader, so the cookie is the only
+    // thing it can read. This is the case the reconciliation exists for: before
+    // it, a second device painted `/offline` as `system` indefinitely.
+    setStoredAppearance("dark");
+    await page.emulateMedia({ colorScheme: "light" });
+
+    // Visiting the shell once is what mirrors the record into the cookie.
+    await gotoFixture(page, "/today");
+
+    await page.goto("/offline");
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-appearance",
+      "dark",
+    );
+  });
+
+  test("REFUSES a malformed write instead of resetting the stored preference", async ({
+    page,
+  }) => {
+    // A stale or tampered submission must not be able to quietly replace an
+    // explicit Dark with `system`. Losing a setting silently is worse than
+    // refusing to change it.
+    setStoredAppearance("dark");
+    await gotoFixture(page, "/settings");
+
+    await page.route("**/*", async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const isActionPost =
+        request.method() === "POST" &&
+        /^\/preferences\/appearance(\.data)?$/.test(pathname);
+      return isActionPost
+        ? route.continue({ postData: "appearance=eucalypt" })
+        : route.fallback();
+    });
+
+    const refused = page.waitForResponse(
+      (response) =>
+        /^\/preferences\/appearance(\.data)?$/.test(
+          new URL(response.url()).pathname,
+        ) && response.request().method() === "POST",
+    );
+    await appearanceOption(page, "Light").click();
+    expect((await refused).status()).toBe(400);
+
+    // The document reverts to the stored appearance...
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-appearance",
+      "dark",
+      { timeout: 10_000 },
+    );
+    // ...the owner is told...
+    await expect(
+      page.getByText(/Couldn’t save your appearance/).first(),
+    ).toBeVisible();
+    // ...and the page is still usable — a refused preference write is not an
+    // error-boundary event. Asserted on the control itself rather than on the
+    // "Appearance" group, which on Settings legitimately matches three nested
+    // elements (the section, the settings group and the fieldset).
+    await expect(appearanceOption(page, "Dark")).toBeChecked();
+
+    // Most importantly: the stored choice is untouched. A reload proves it came
+    // back from the record rather than from client state.
+    await page.reload();
+    expect(await storedAppearance(page)).toBe("dark");
   });
 
   test("is reachable and operable by keyboard alone, with visible focus", async ({
