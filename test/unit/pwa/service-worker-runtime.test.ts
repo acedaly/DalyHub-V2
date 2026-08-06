@@ -346,7 +346,7 @@ describe("nothing but a document may receive the offline document", () => {
     "/commands",
     "/links",
     "/capture/context",
-    "/preferences/theme",
+    "/preferences/navigation",
     "/health",
     "/today.data",
     "/today?_data=routes%2Ftoday",

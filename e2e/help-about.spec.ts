@@ -89,20 +89,18 @@ test.describe("HELP-01 Help", () => {
     expect(text).toContain("an export is not a restore");
   });
 
-  test("names the five themes it tells the owner about", async ({ page }) => {
+  test("tells the owner appearance follows their device, and names no theme", async ({
+    page,
+  }) => {
     await gotoFixture(page, "/help?topic=themes");
 
     const themes = page.locator("#themes");
     const text = await themes.innerText();
-    for (const name of [
-      "Daly Light",
-      "Daly Dark",
-      "Eucalypt",
-      "Coastal",
-      "Ember",
-      "Match system",
-    ]) {
-      expect(text, `Help does not mention "${name}"`).toContain(name);
+    expect(text).toContain("follows your device");
+    for (const retired of ["Daly Light", "Eucalypt", "Match system"]) {
+      expect(text, `Help still names the retired "${retired}"`).not.toContain(
+        retired,
+      );
     }
   });
 

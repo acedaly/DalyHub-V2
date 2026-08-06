@@ -17,10 +17,6 @@ import {
 } from "~/kernel/preferences";
 import { DEFAULT_TASK_VIEW_CONFIG } from "~/kernel/task-views";
 import { configFromParams } from "~/modules/tasks/tasks-url-state";
-import {
-  readThemePreference,
-  serializeThemeCookie,
-} from "~/shared/shell/theme";
 
 /** Normalise a partial stored row, filling the untouched fields with defaults. */
 function normalise(overrides: Record<string, unknown>) {
@@ -135,41 +131,28 @@ describe("app preferences", () => {
     ).toBe("matrix");
   });
 
-  it("carries the theme as a real owner preference, defaulting to system", () => {
-    // THEME-01 moved appearance out of a device-local cookie and onto the owner
-    // record, so a theme follows the owner between browsers. The cookie survives
-    // only as the first-paint mirror.
-    expect(DEFAULT_APP_PREFERENCES.theme).toBe("system");
-    expect(validateAppPreferencesPatch({ theme: "eucalypt" })).toEqual({
-      theme: "eucalypt",
+  it("validates a patch field by field, rejecting a value the kernel does not know", () => {
+    // The write-path guard. M3-01 removed `theme`, which used to be this
+    // validator's most-exercised field; the same defence still applies to every
+    // remaining one, so the behaviour keeps a test rather than losing one.
+    expect(validateAppPreferencesPatch({ firstDayOfWeek: "sunday" })).toEqual({
+      firstDayOfWeek: "sunday",
     });
-  });
-
-  it("rejects a write naming a theme DalyHub does not have", () => {
     expect(() =>
-      validateAppPreferencesPatch({ theme: "neon" as never }),
+      validateAppPreferencesPatch({ firstDayOfWeek: "caturday" as never }),
     ).toThrow(AppPreferencesValidationError);
   });
 
-  it("accepts a legacy light/dark write and maps it onto a curated theme", () => {
-    expect(validateAppPreferencesPatch({ theme: "dark" as never })).toEqual({
-      theme: "daly-dark",
-    });
-  });
-
-  it("normalises a stored theme, degrading an unknown value to the default", () => {
-    // A row written by a release that had a theme this one removed must still
-    // produce a complete, readable theme rather than failing every page load.
-    expect(normalise({ theme: "coastal" }).theme).toBe("coastal");
-    expect(normalise({ theme: "retired-theme" }).theme).toBe("system");
-    expect(normalise({ theme: undefined }).theme).toBe("system");
-    expect(normalise({ theme: "dark" }).theme).toBe("daly-dark");
-  });
-
-  it("still mirrors the preference into the first-paint cookie", () => {
-    const cookie = serializeThemeCookie("daly-dark", { secure: false });
-    expect(readThemePreference(cookie)).toBe("daly-dark");
-    expect(readThemePreference("dh_theme=bad")).toBe("system");
+  it("normalises a stored row, degrading an unknown value to the default", () => {
+    // The read path is forgiving where the write path is strict: a row written
+    // by an older release must still produce a complete, usable record rather
+    // than failing every page load.
+    expect(normalise({ defaultTasksView: "retired" }).defaultTasksView).toBe(
+      DEFAULT_APP_PREFERENCES.defaultTasksView,
+    );
+    expect(normalise({ timezone: "Europe/London" }).timezone).toBe(
+      "Europe/London",
+    );
   });
 
   it("formats the supported date display options", () => {

@@ -21,7 +21,6 @@ import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 interface AppPreferencesRow {
   readonly workspace_id: string;
   readonly owner_id: string;
-  readonly theme: string;
   readonly timezone: string;
   readonly date_format: string;
   readonly first_day_of_week: string;
@@ -107,7 +106,7 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
         this.#db
           .prepare(
             `INSERT INTO owner_app_preferences (
-               workspace_id, owner_id, theme, timezone, date_format, first_day_of_week,
+               workspace_id, owner_id, timezone, date_format, first_day_of_week,
                default_landing_destination, default_tasks_view,
                default_task_destination, default_task_view_id,
                default_task_capture_parent_id, default_task_capture_parent_kind,
@@ -116,7 +115,6 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
              )
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
              ON CONFLICT (workspace_id, owner_id) DO UPDATE SET
-               theme = excluded.theme,
                timezone = excluded.timezone,
                date_format = excluded.date_format,
                first_day_of_week = excluded.first_day_of_week,
@@ -135,7 +133,6 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
           .bind(
             this.#workspaceId,
             owner,
-            next.theme,
             next.timezone,
             next.dateFormat,
             next.firstDayOfWeek,
@@ -168,7 +165,6 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
   #record(row: AppPreferencesRow): AppPreferenceRecord {
     const navigationRaw = safeJson(row.navigation_config);
     const preferences: AppPreferences = normaliseStoredPreferences({
-      theme: row.theme,
       timezone: row.timezone,
       dateFormat: row.date_format,
       firstDayOfWeek: row.first_day_of_week,
@@ -202,7 +198,6 @@ function safeJson(value: string): unknown {
 
 function preferencesEqual(a: AppPreferences, b: AppPreferences): boolean {
   return (
-    a.theme === b.theme &&
     a.timezone === b.timezone &&
     a.dateFormat === b.dateFormat &&
     a.firstDayOfWeek === b.firstDayOfWeek &&

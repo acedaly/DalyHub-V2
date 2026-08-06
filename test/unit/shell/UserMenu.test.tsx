@@ -13,9 +13,7 @@ function renderMenu(props: Partial<Parameters<typeof UserMenu>[0]> = {}) {
   const Stub = createRoutesStub([
     {
       path: "/",
-      Component: () => (
-        <UserMenu email="owner@example.com" theme="system" {...props} />
-      ),
+      Component: () => <UserMenu email="owner@example.com" {...props} />,
     },
     { path: "/settings", Component: () => <div>Settings page</div> },
   ]);

@@ -26,7 +26,6 @@ import { useInertBackground } from "~/shared/drawer/use-inert-background";
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
 import { Sidebar } from "./Sidebar";
-import type { ThemePreference } from "./theme";
 
 /** The DOM id of the mobile overlay's primary navigation. */
 export const MOBILE_NAV_ID = "primary-navigation-mobile";
@@ -34,7 +33,6 @@ export const MOBILE_NAV_ID = "primary-navigation-mobile";
 export type MobileNavProps = {
   readonly workspaceName: string;
   readonly email: string;
-  readonly theme: ThemePreference;
   readonly navigation: readonly NavigationItem[];
   readonly settingsHref?: string;
   /** The toggle that opened the sheet, to restore focus to on close. */
@@ -50,7 +48,6 @@ export type MobileNavProps = {
 export function MobileNav({
   workspaceName,
   email,
-  theme,
   navigation,
   settingsHref,
   opener,
@@ -100,7 +97,6 @@ export function MobileNav({
         <Sidebar
           workspaceName={workspaceName}
           email={email}
-          theme={theme}
           navigation={navigation}
           settingsHref={settingsHref}
           navId={MOBILE_NAV_ID}

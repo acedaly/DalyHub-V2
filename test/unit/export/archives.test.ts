@@ -86,7 +86,7 @@ describe("buildExportManifest", () => {
     expect(manifest.format).toBe("dalyhub.workspace.export");
     expect(manifest.formatVersion).toBe(1);
     expect(manifest.snapshotSchema).toBe(SNAPSHOT_SCHEMA_NAME);
-    expect(manifest.snapshotSchemaVersion).toBe(1);
+    expect(manifest.snapshotSchemaVersion).toBe(2);
     expect(manifest.application.version).toBe("2.0.0");
     expect(manifest.exportedAt).toBe(snapshot.meta.exportedAt);
   });

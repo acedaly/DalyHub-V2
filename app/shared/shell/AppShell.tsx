@@ -53,7 +53,6 @@ import { MobileNav } from "./MobileNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { MobileTopBarProvider } from "./mobile-top-bar-context";
 import { Sidebar } from "./Sidebar";
-import type { ThemePreference } from "./theme";
 
 /** The DOM id of the persistent rail's primary navigation. */
 const RAIL_NAV_ID = "primary-navigation";
@@ -109,8 +108,6 @@ export type AppShellProps = {
   readonly email: string;
   /** The derived, registry-driven navigation model. */
   readonly navigation: readonly NavigationItem[];
-  /** The active theme preference (for the control's active state). */
-  readonly theme: ThemePreference;
   /** The routed page content (the route `Outlet`). */
   readonly children: React.ReactNode;
 };
@@ -119,7 +116,6 @@ export function AppShell({
   workspaceName = "DalyHub",
   email,
   navigation,
-  theme,
   children,
 }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
@@ -265,7 +261,6 @@ export function AppShell({
                 <Sidebar
                   workspaceName={workspaceName}
                   email={email}
-                  theme={theme}
                   navigation={navigation}
                   settingsHref="/settings"
                   navId={RAIL_NAV_ID}
@@ -310,7 +305,6 @@ export function AppShell({
                   <MobileNav
                     workspaceName={workspaceName}
                     email={email}
-                    theme={theme}
                     navigation={navigation}
                     settingsHref="/settings"
                     opener={navOpener}

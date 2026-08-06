@@ -22,15 +22,12 @@ import { PrimaryNavigation } from "./PrimaryNavigation";
 import { SidebarBrand } from "./SidebarBrand";
 import { SidebarSearch } from "./SidebarSearch";
 import { UserMenu } from "./UserMenu";
-import type { ThemePreference } from "./theme";
 
 export type SidebarProps = {
   /** The current workspace's display name. */
   readonly workspaceName: string;
   /** The authenticated owner's verified email. */
   readonly email: string;
-  /** The active theme preference. */
-  readonly theme: ThemePreference;
   /** The registry-driven navigation model. */
   readonly navigation: readonly NavigationItem[];
   /** The first-class Settings route. */
@@ -54,7 +51,6 @@ export type SidebarProps = {
 export function Sidebar({
   workspaceName,
   email,
-  theme,
   navigation,
   settingsHref,
   navId,
@@ -92,7 +88,7 @@ export function Sidebar({
         onNavigate={onNavigate}
       />
       <div className="dh-sidebar__spacer" />
-      <UserMenu email={email} theme={theme} settingsHref={settingsHref} />
+      <UserMenu email={email} settingsHref={settingsHref} />
     </div>
   );
 }

@@ -51,8 +51,15 @@ export const SNAPSHOT_SCHEMA_NAME = "dalyhub.workspace.snapshot";
  * below (a removed field, a changed meaning, a changed ordering rule). Adding an
  * optional-by-`null` field is backwards compatible and does not bump it — see
  * the compatibility policy in `EXPORT_AND_PORTABILITY.md`.
+ *
+ * **2 (M3-01).** `owner.preferences.theme` is REMOVED. DalyHub no longer has a
+ * theme feature — one generated light/dark pair, selected by
+ * `prefers-color-scheme` (ADR-074) — and migration `0031` drops the column the
+ * field mirrored. A removed field is exactly the breaking change this constant
+ * exists to signal, so a v1 archive is still readable as a historical artefact
+ * and is not mistaken for a current one.
  */
-export const SNAPSHOT_SCHEMA_VERSION = 1;
+export const SNAPSHOT_SCHEMA_VERSION = 2;
 
 /** The archive format name written into `manifest.json`. */
 export const EXPORT_FORMAT_NAME = "dalyhub.workspace.export";
@@ -168,7 +175,6 @@ export interface SnapshotOwnerPreferences {
   readonly defaultTaskCaptureParentKind: string | null;
   readonly defaultDiaryMode: string;
   readonly navigationConfig: JsonValue;
-  readonly theme: string;
   /** The preference record's optimistic version; `0` when no row exists yet. */
   readonly version: number;
   readonly createdAt: IsoInstant | null;

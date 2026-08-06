@@ -25,7 +25,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 
 import { displayNameFromEmail, initialsFromName } from "./identity-display";
-import type { ThemePreference } from "./theme";
 
 /** The Cloudflare Access application logout endpoint (ADR-016 §5.7). */
 export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
@@ -44,8 +43,6 @@ export {
 export type UserMenuProps = {
   /** The authenticated owner's verified email (safe display identity). */
   readonly email: string;
-  /** Inert since M3-01; removed with the rest of the theme plumbing (step 6). */
-  readonly theme: ThemePreference;
   /** Optional display name; derived from the email when absent. */
   readonly name?: string;
   /**

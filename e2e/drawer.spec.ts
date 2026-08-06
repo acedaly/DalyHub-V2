@@ -218,15 +218,11 @@ test.describe("DS-03 Drawer — desktop", () => {
     expect(page.url()).not.toContain("record-layout");
   });
 
-  test("works in dark theme", async ({ page }) => {
+  test("works in the dark appearance", async ({ page }) => {
+    // M3-01 — appearance belongs to the operating system, so the test emulates
+    // the scheme rather than storing a preference (ADR-074).
+    await page.emulateMedia({ colorScheme: "dark" });
     await gotoFixture(page);
-    // The theme control now lives in the sidebar user menu (PX-02 #4).
-    await page.getByRole("button", { name: /owner/i }).click();
-    await page.getByRole("button", { name: "Daly Dark", exact: true }).click();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-theme",
-      "daly-dark",
-    );
 
     await openProject(page);
     const dialog = page.getByRole("dialog", { name: "Website relaunch" });

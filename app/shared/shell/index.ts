@@ -31,26 +31,9 @@ export {
   greetingNameFor,
   initialsFromName,
 } from "./identity-display";
-export {
-  ThemePicker,
-  ThemeQuickSwitch,
-  THEME_ACTION_PATH,
-} from "./ThemePicker";
-export { ThemePreview } from "./ThemePreview";
 export { MobileNav, MOBILE_NAV_ID } from "./MobileNav";
 export { ModulePlaceholder } from "./ModulePlaceholder";
 export {
   ModuleComingSoon,
   type ModuleComingSoonProps,
 } from "./ModuleComingSoon";
-export {
-  THEME_PREFERENCES,
-  DEFAULT_THEME,
-  THEME_COOKIE_NAME,
-  THEME_COOKIE_MAX_AGE,
-  isThemePreference,
-  parseThemePreference,
-  readThemePreference,
-  serializeThemeCookie,
-  type ThemePreference,
-} from "./theme";

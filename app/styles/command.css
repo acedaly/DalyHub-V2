@@ -7,7 +7,7 @@
  * z-index come from DS-01. It sits at `--dh-z-modal` (1300), ABOVE `--dh-z-drawer`
  * (1200), so it renders over an open Drawer (inert behind it). Motion respects
  * `prefers-reduced-motion`. Every interactive target meets `--dh-touch-target-min`
- * (44px). Themed via the shared `data-theme` mechanism; no literal colours.
+ * (44px). Painted entirely with M3 tokens; no literal colours.
  */
 
 .dh-command {

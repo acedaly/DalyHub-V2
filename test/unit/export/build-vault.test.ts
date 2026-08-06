@@ -108,7 +108,7 @@ describe("frontmatter", () => {
     expect(task.contents).toContain('due: "2026-07-06"');
     expect(task.contents).toContain('parent_project: "12-week training block"');
     expect(task.contents).toContain(`parent_project_id: "${IDS.project}"`);
-    expect(task.contents).toContain("dalyhub_export_schema_version: 1");
+    expect(task.contents).toContain("dalyhub_export_schema_version: 2");
   });
 
   it("carries recurrence for a recurring task", () => {
@@ -459,7 +459,6 @@ describe("module presentation", () => {
   it("shows owner preferences in the meta folder, with no credentials", () => {
     const settings = file(`${VAULT_META_FOLDER}/Settings.md`);
     expect(settings.contents).toContain("**Timezone:** Australia/Sydney");
-    expect(settings.contents).toContain("**Theme:** daly-light");
     expect(settings.contents).toContain("This week");
     expect(settings.contents).toContain(
       "No credential, token or session value",

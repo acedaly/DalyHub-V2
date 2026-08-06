@@ -1,38 +1,26 @@
 /*
- * DalyHub global stylesheet — DS-01 design system entry point.
+ * DalyHub global stylesheet — the Material Design 3 entry point (M3-01).
  *
- * This file composes the layered DS-01 stylesheets in cascade order. Application
- * code consumes the design TOKENS (colour, typography, spacing, shape, elevation,
- * motion, z-index, layout) defined in `styles/tokens.css` — never raw hex, pixel
- * or duration values where a token exists (AGENTS.md §9.8).
+ * This file composes the layered stylesheets in cascade order. Application code
+ * consumes the design TOKENS (colour, typography, shape, elevation, state,
+ * motion, spacing, z-index, layout) defined in `styles/tokens.css` — never a raw
+ * hex, pixel or duration where a token exists (AGENTS.md §9.8).
  *
- *   1. tokens.css            — the authoritative token definitions + theme maps.
- *   1b. fonts.css            — DS-14 self-hosted variable sans + serif.
- *   2. base.css              — document reset, typography, focus, reduced-motion.
- *   2b. density.css          — DS-14 the two density presets (region wrappers).
- *   2c. pill.css             — DS-14 the one pill vocabulary + Area identity mark.
- *   3. icons.css             — the PX-02 icon + entity-identity primitives.
- *   4. shell.css             — the PX-02 application frame (sidebar + pane).
- *   5. collection-layout.css — the PX-02 Shared Collection Layout.
- *   6. empty-state.css       — the PX-02 shared Empty State.
- *   7. skeleton.css          — the PX-02 shared Skeleton/loading system.
- *   8. record-layout.css     — the DS-02 Shared Record Layout.
- *   9. drawer.css            — the DS-03 Shared Drawer.
- *  10. card.css              — the DS-04 Shared Card.
- *  10b. overflow-menu.css   — the DS-12 shared overflow (⋯) menu.
- *  11. filters.css           — the DS-07 Shared Filters.
- *  12. activity-feed.css      — the DS-05 Shared Timeline & Activity Feed.
- *  13. forms.css             — the DS-06 Shared Forms & field controls.
- *  14. today.css             — the TODAY-01 Today dashboard layout (tokens only).
- *  15. segmented-filter.css  — the shared restrained segmented state filter.
- *  16. offline.css           — the PWA offline/connection/installation surfaces.
+ *   1. tokens.css            — the generated M3 scheme + every other token.
+ *   1b. fonts.css            — the one self-hosted variable family.
+ *   2. base.css              — reset, body type, focus, the M3 state layer,
+ *                              reduced motion, and the one prose treatment.
+ *   2b. pill.css             — the chip vocabulary + the Area identity mark.
+ *   3. icons.css             — the icon + entity-identity primitives.
+ *   4. shell.css             — the application frame: navigation drawer, top app
+ *                              bar, navigation bar and FAB.
+ *   5. collection-layout.css — the Shared Collection Layout.
+ *   …then the remaining shared components, then the module surfaces, then print.
  *
- * Theme mechanism (ADR-016 §5.11, extended by THEME-01/ADR-061): the root layout
- * sets `data-theme` on <html> during SSR from the owner's persisted preference. Any
- * of the five curated theme ids forces that palette; `system` follows
- * `prefers-color-scheme` and resolves to Daly Light or Daly Dark. Because the server
- * renders the correct value, there is no light-to-dark flash and no client-side theme
- * script. DS-01 supplies the token VALUES the mechanism switches between.
+ * Appearance (ADR-074): there is ONE generated light/dark pair, selected by
+ * `prefers-color-scheme`. There is no `data-theme`, no picker and no persisted
+ * preference — so nothing in the cascade below branches on a theme, and a
+ * component styled once is correct in both appearances.
  */
 
 @import "./styles/tokens.css";

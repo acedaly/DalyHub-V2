@@ -8,7 +8,7 @@
  * the Drawer inert behind it), and selecting a result CLOSES Search before its
  * Drawer opens, so the two surfaces never fight for the foreground. Motion respects
  * `prefers-reduced-motion`. Every interactive target meets `--dh-touch-target-min`
- * (44px). Themed via the shared `data-theme` mechanism.
+ * (44px). Painted entirely with M3 tokens, so it is correct in both appearances.
  */
 
 .dh-search {

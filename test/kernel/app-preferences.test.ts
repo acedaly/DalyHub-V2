@@ -33,72 +33,15 @@ describe("AppPreferencesRepository — D1", () => {
    * real write, isolation between owners, and what happens to a stored value that
    * names a theme this release no longer has. */
 
-  it("defaults an owner with no row to the system appearance", async () => {
-    const repo = makeAppPreferencesRepository(makeContext(WS));
-    expect((await repo.get(OWNER)).theme).toBe("system");
-  });
-
-  it("persists a chosen theme and reads it back", async () => {
-    const repo = makeAppPreferencesRepository(makeContext(WS));
-    const result = await repo.update(OWNER, { theme: "eucalypt" });
-    expect(result.changed).toBe(true);
-    expect(result.preferences.theme).toBe("eucalypt");
-    expect((await repo.get(OWNER)).theme).toBe("eucalypt");
-  });
-
-  it("does not rewrite the record when the theme has not changed", async () => {
-    const repo = makeAppPreferencesRepository(makeContext(WS));
-    await repo.update(OWNER, { theme: "coastal" });
-    const again = await repo.update(OWNER, { theme: "coastal" });
-    expect(again.changed).toBe(false);
-  });
-
-  it("keeps one owner's theme out of another owner's record", async () => {
-    const repo = makeAppPreferencesRepository(makeContext(WS));
-    await repo.update(OWNER, { theme: "ember" });
-    expect((await repo.get(OTHER_OWNER)).theme).toBe("system");
-  });
-
-  it("keeps an existing owner on `system` when the column is first added", async () => {
-    // Migration 0023 is additive with DEFAULT 'system'. An owner who had a row
-    // before this release must keep every other preference AND land on the shipped
-    // default appearance — never be moved to a theme they did not pick.
+  it("keeps every other preference when the theme column is dropped", async () => {
+    // Migration 0031 rebuilds the table to drop `theme`. An owner who had a row
+    // before that release must keep every OTHER preference exactly as it was —
+    // the rebuild copies by an explicit column list precisely so a value cannot
+    // shift into a neighbouring column.
     const repo = makeAppPreferencesRepository(makeContext(WS));
     await repo.update(OWNER, { timezone: "Europe/London" });
-    await env.DB.prepare(
-      "UPDATE owner_app_preferences SET theme = 'system' WHERE workspace_id = ? AND owner_id = ?",
-    )
-      .bind(WS, OWNER)
-      .run();
     const preferences = await repo.get(OWNER);
-    expect(preferences.theme).toBe("system");
     expect(preferences.timezone).toBe("Europe/London");
-  });
-
-  it("rejects an unknown theme at the storage boundary too, not only in the validator", async () => {
-    // Defence in depth: the CHECK constraint from migration 0023 means a write
-    // that somehow bypassed the validator still cannot put an unknown theme in the
-    // database. (The read-side degradation of a value that WAS once valid is
-    // covered by the `normaliseStoredPreferences` unit tests, which do not need a
-    // database to exercise it.)
-    const repo = makeAppPreferencesRepository(makeContext(WS));
-    await repo.update(OWNER, { theme: "ember" });
-    await expect(
-      env.DB.prepare(
-        "UPDATE owner_app_preferences SET theme = 'retired' WHERE workspace_id = ? AND owner_id = ?",
-      )
-        .bind(WS, OWNER)
-        .run(),
-    ).rejects.toThrow(/CHECK constraint failed/);
-    // The stored row is untouched by the rejected write.
-    expect((await repo.get(OWNER)).theme).toBe("ember");
-  });
-
-  it("refuses a theme DalyHub does not have", async () => {
-    const repo = makeAppPreferencesRepository(makeContext(WS));
-    await expect(
-      repo.update(OWNER, { theme: "neon" as never }),
-    ).rejects.toThrow();
   });
 
   it("creates the first row atomically", async () => {

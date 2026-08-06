@@ -6,7 +6,6 @@ import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 import { AppShell } from "~/shared/shell/AppShell";
 import { ACCESS_LOGOUT_PATH } from "~/shared/shell/UserMenu";
 import { ModulePlaceholder } from "~/shared/shell/ModulePlaceholder";
-import { THEMES } from "~/shared/shell/theme";
 
 const NAVIGATION: readonly NavigationItem[] = [
   {
@@ -75,7 +74,6 @@ function renderShell(initialPath = "/") {
         <AppShell
           workspaceName="DalyHub"
           email="owner@example.com"
-          theme="system"
           navigation={NAVIGATION}
         >
           <Outlet />
@@ -232,10 +230,7 @@ describe("PX-02 AppShell — user menu relocation", () => {
 
     // M3-01 — there is no theme quick-switch here any more: DalyHub ships one
     // generated light/dark pair and follows the operating system (ADR-074).
-    for (const option of [
-      "Match system",
-      ...THEMES.map((theme) => theme.name),
-    ]) {
+    for (const option of ["Match system", "Daly Dark", "Eucalypt"]) {
       expect(
         screen.queryByRole("button", { name: option }),
       ).not.toBeInTheDocument();

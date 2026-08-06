@@ -1,16 +1,10 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
-  postSameOrigin,
 } from "./helpers";
 import {
   cleanupAllNoteFixtures,
@@ -691,39 +685,16 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  /** The five curated themes, by the id the document carries (THEME-01). */
-  const THEMES = [
-    "daly-light",
-    "daly-dark",
-    "eucalypt",
-    "coastal",
-    "ember",
-  ] as const;
+  /** The two appearances the one generated scheme ships (M3-01). */
+  const APPEARANCES = ["light", "dark"] as const;
 
-  /** Store the owner's theme through the real preferences action. */
-  async function storeTheme(
-    request: APIRequestContext,
-    themeId: string,
-  ): Promise<void> {
-    const response = await postSameOrigin(request, "/preferences/theme", {
-      form: { theme: themeId },
-      maxRedirects: 0,
-    });
-    expect(response.status()).toBeGreaterThanOrEqual(300);
-    expect(response.status()).toBeLessThan(400);
-  }
-
-  test("the knowledge surfaces read correctly and are axe-clean in all five themes", async ({
+  test("the knowledge surfaces read correctly and are axe-clean in both appearances", async ({
     page,
-    request,
   }) => {
-    // MEASURED at 28.9s on an idle machine against the 30s default: a five-theme sweep
-    // is genuinely long work, not a hang. Sized to it, as the sibling theme and
-    // responsive tests in this suite already are. No assertion changes.
-    test.setTimeout(90_000);
-    // Five themes over two surfaces with an axe scan on each is genuine work,
-    // not a race being papered over — every step below waits on a real
+    // Two appearances over two surfaces with an axe scan on each is genuine
+    // work, not a race being papered over — every step below waits on a real
     // condition and none of them polls.
+    test.setTimeout(90_000);
     test.slow();
 
     const targetTitle = uniqueNoteTitle("themes-target");
@@ -733,16 +704,15 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     await writeBody(page, `Points at [[${targetTitle}]].`);
 
     try {
-      for (const theme of THEMES) {
-        await storeTheme(request, theme);
+      for (const scheme of APPEARANCES) {
+        await page.emulateMedia({ colorScheme: scheme });
 
         // The Backlinks surface: count, family grouping and the module filter.
         await page.goto(`${targetUrl}?tab=backlinks`);
-        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         await expect(
           page.getByRole("heading", { level: 2, name: /Referenced by/ }),
         ).toBeVisible();
-        // The count and the group name are WORDS, in every theme — the
+        // The count and the group name are WORDS, in both appearances — the
         // assertion that proves nothing here depends on colour alone.
         await expect(
           page.getByRole("heading", { level: 3, name: /Notes \(1\)/ }),
@@ -764,8 +734,8 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
         await expectNoHorizontalOverflow(page);
       }
     } finally {
-      // Never leave the shared dev workspace on a non-default theme.
-      await storeTheme(request, "daly-light");
+      // Never leave the suite running under an appearance this test chose.
+      await page.emulateMedia({ colorScheme: "light" });
     }
   });
 

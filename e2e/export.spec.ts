@@ -405,21 +405,15 @@ test.describe("Settings → Privacy & data → export", () => {
     expect(file.suggestedFilename()).toMatch(/\.zip$/);
   });
 
-  test("passes axe in a light and a dark theme", async ({ page }) => {
-    for (const theme of ["daly-light", "daly-dark"]) {
-      await page.context().addCookies([
-        {
-          name: "dh_theme",
-          value: theme,
-          url: "http://localhost:4173",
-        },
-      ]);
-      await gotoFixture(page, PRIVACY);
-      await expect(
-        page.getByRole("button", { name: "Download full export" }),
-      ).toBeVisible();
+  test("passes axe in both appearances", async ({ page }) => {
+    // M3-01 — appearance is the operating system's, so the scheme is emulated
+    // rather than stored (ADR-074).
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await gotoFixture(page, "/settings?section=privacy-data");
       await expectNoAxeViolations(page);
     }
+    await page.emulateMedia({ colorScheme: "light" });
   });
 
   test("works at every phone width with no horizontal overflow", async ({

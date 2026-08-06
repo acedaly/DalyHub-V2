@@ -17,20 +17,8 @@ import {
 import type { Location } from "react-router";
 
 import type { Route } from "./+types/root";
-import {
-  readThemePreference,
-  type ThemePreference,
-} from "./shared/shell/theme";
 import { DARK_SCHEME, LIGHT_SCHEME } from "./shared/tokens";
 import "./app.css";
-
-export function loader({ request }: Route.LoaderArgs) {
-  // The FALLBACK theme, read from the first-paint cookie mirror. The root loader
-  // deliberately does no database work: it runs for every document, including
-  // renders where the authenticated shell never resolves. The cookie is not secret
-  // and is safe to read here; the app shell supplies the authoritative value.
-  return { theme: readThemePreference(request.headers.get("Cookie")) };
-}
 
 /**
  * PWA-01 — the browser/OS chrome colour.
@@ -73,14 +61,8 @@ function scrollRestorationKey(location: Location): string {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  // M3-01 — the theme feature is inert. `tokens.css` no longer carries a single
-  // `[data-theme]` selector: there is one generated light/dark pair, selected by
-  // `prefers-color-scheme`. The attribute is still written so nothing that reads
-  // it breaks mid-migration, but it is pinned to `system` rather than resolved.
-  // step 6 removes this, together with the loader, the cookie and the column.
-  const theme: ThemePreference = "system";
   return (
-    <html lang="en" data-theme={theme}>
+    <html lang="en">
       <head>
         <meta charSet="utf-8" />
         {/* `viewport-fit=cover` opts the document into the display's full width

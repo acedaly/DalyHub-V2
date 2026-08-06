@@ -193,10 +193,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     landingOptions: LANDING_DESTINATIONS.filter((destination) =>
       availablePaths.has(`/${destination}`),
     ),
-    // THEME-01 — the stored owner preference, already normalised against the theme
-    // registry by the kernel, so a removed or unknown theme shows as the default
-    // rather than leaving the picker with nothing selected.
-    theme: preferences.theme,
     // AI-01 — the owner's non-secret AI policy plus this period's usage. No key,
     // no gateway id and no provider URL crosses this boundary.
     ai: await readAiSettings(scope, session.user.subject),
