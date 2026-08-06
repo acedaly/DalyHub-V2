@@ -547,16 +547,27 @@ export function TaskSummaryWidget({
 
   return (
     <div className="dh-today-summary">
-      <div className="dh-today-summary__ring">
-        <ProgressRing
-          value={data.completedFraction}
-          size={112}
-          label={`${data.done} of ${data.total} tasks finished today`}
-        >
+      {/* The ring is a PROPORTION, and the planning read is bounded. When a band
+          came back at its bound the counts are floors rather than totals, so the
+          card states the counts it actually has and says so, instead of drawing
+          a confident fraction of two numbers that may both be short. */}
+      {data.countsComplete ? (
+        <div className="dh-today-summary__ring">
+          <ProgressRing
+            value={data.completedFraction}
+            size={112}
+            label={`${data.done} of ${data.total} tasks finished today`}
+          >
+            <span className="dh-today-summary__figure">{data.done}</span>
+            <span className="dh-today-summary__of">of {data.total}</span>
+          </ProgressRing>
+        </div>
+      ) : (
+        <div className="dh-today-summary__ring">
           <span className="dh-today-summary__figure">{data.done}</span>
-          <span className="dh-today-summary__of">of {data.total}</span>
-        </ProgressRing>
-      </div>
+          <span className="dh-today-summary__of">finished today</span>
+        </div>
+      )}
 
       <ul className="dh-today-summary__legend">
         {legend.map((row) => (
@@ -575,16 +586,31 @@ export function TaskSummaryWidget({
       {/* Assist chips linking to the task views that answer each figure. They are
           links rather than filters of their own: Tasks already owns those views,
           and a second filtering vocabulary here is exactly the drift the shared
-          design system exists to prevent. */}
+          design system exists to prevent.
+          
+          The filter is `planned`, not `due`, and the distinction is load-bearing
+          rather than pedantic: these counts come from the SCHEDULED buckets — the
+          owner's "I intend to work on this that day" commitment — while `due` is
+          the deadline, and TASKS-03 keeps the two deliberately separate (a task
+          can be planned today and due next month). `planned_today` and
+          `planned_earlier` are the states that actually hold these tasks. */}
       <div className="dh-today-summary__chips">
-        <Link className="dh-pill" data-tone="accent" to="/tasks?due=today">
-          Due today
+        <Link
+          className="dh-pill"
+          data-tone="accent"
+          to="/tasks?planned=planned_today"
+        >
+          Planned today
           <span className="dh-today-summary__chip-count">
             {data.dueTodayCount}
           </span>
         </Link>
         {data.overdueCount > 0 ? (
-          <Link className="dh-pill" data-tone="danger" to="/tasks?due=overdue">
+          <Link
+            className="dh-pill"
+            data-tone="danger"
+            to="/tasks?planned=planned_earlier"
+          >
             Overdue
             <span className="dh-today-summary__chip-count">
               {data.overdueCount}
@@ -592,6 +618,13 @@ export function TaskSummaryWidget({
           </Link>
         ) : null}
       </div>
+
+      {data.countsComplete ? null : (
+        <p className="dh-today-summary__bound">
+          Showing the first pages of today&rsquo;s work, so these are at-least
+          counts.
+        </p>
+      )}
     </div>
   );
 }
@@ -614,6 +647,19 @@ export function ProductivityWidget({
 }: {
   readonly data: ProductivityWidgetData;
 }) {
+  if (data.score === null) {
+    // The planning read came back at its bound, so a proportion over it would be
+    // a real division of the wrong numbers. The card says that plainly rather
+    // than showing a score it cannot stand behind.
+    return (
+      <WidgetEmpty
+        entityType="task"
+        title="Too much open to score"
+        description="Today has more tasks than the dashboard reads in one page, so a score over them would not be honest."
+      />
+    );
+  }
+
   if (data.completedTodayCount === 0 && data.overdueCount === 0) {
     return (
       <WidgetEmpty

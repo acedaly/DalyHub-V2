@@ -113,7 +113,7 @@ export class D1AppPreferencesRepository implements AppPreferencesRepository {
                default_diary_mode,
                navigation_config, version, created_at, updated_at
              )
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
              ON CONFLICT (workspace_id, owner_id) DO UPDATE SET
                timezone = excluded.timezone,
                date_format = excluded.date_format,

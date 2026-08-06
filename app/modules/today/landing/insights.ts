@@ -157,6 +157,12 @@ export function briefFocusLine(input: InsightsInput): string {
  * that naming is deliberate rather than loose: DalyHub has no per-task started
  * flag, so the only honest thing the product can say about a task being underway
  * is that it is waiting on something. The card labels it in those words.
+ *
+ * The INBOX is deliberately excluded. It is a backlog, not today's business, and
+ * folding it into the denominator made the ring say "0 of 85 tasks finished
+ * today" on a day with one task planned — which is a true division of the wrong
+ * numbers. What the card counts is what the owner committed to today (planned),
+ * what has slipped (overdue), what is blocked (waiting) and what is finished.
  */
 export interface TaskSummary {
   /** Open and not waiting: planned for today, overdue, or still in the inbox. */
@@ -173,10 +179,7 @@ export interface TaskSummary {
 
 /** Derive the task summary from facts the loader has already read. */
 export function deriveTaskSummary(input: InsightsInput): TaskSummary {
-  const toDo = Math.max(
-    0,
-    input.plannedTodayCount + input.overdueCount + input.inboxCount,
-  );
+  const toDo = Math.max(0, input.plannedTodayCount + input.overdueCount);
   const inProgress = Math.max(0, input.waitingCount);
   const done = Math.max(0, input.completedTodayCount);
   const total = toDo + inProgress + done;

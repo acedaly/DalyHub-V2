@@ -366,7 +366,7 @@ describe("workspace export (D1)", () => {
   it("produces a snapshot that passes its own validation", () => {
     expect(validateWorkspaceSnapshot(snapshot)).toEqual([]);
     expect(() => assertValidWorkspaceSnapshot(snapshot)).not.toThrow();
-    expect(snapshot.meta.schemaVersion).toBe(1);
+    expect(snapshot.meta.schemaVersion).toBe(2);
     expect(snapshot.workspace.id).toBe(WS);
   });
 

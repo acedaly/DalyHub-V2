@@ -359,14 +359,19 @@
 /* -------------------------------------------------------------------------- */
 
 /*
- * The hero is the same card with more presence, and its presence comes from the
- * SURFACE RAMP rather than from an effect: `surface-raised` is the step above
- * `surface-card`, which every theme is required to keep at ΔL* ≥ 3 (a token test
- * enforces it), so the band separates itself from the columns beneath it in all
- * seven themes without a shadow, a gradient or a border colour of its own.
+ * The hero is the same card with more presence, and in M3 presence comes from
+ * ELEVATION rather than from climbing the surface ramp.
+ *
+ * DS-14 painted it `surface-raised`, which was the step ABOVE `surface-card` in
+ * that ramp. Under the M3 container ramp `surface-raised` is a higher-tone
+ * container, and in the light appearance a higher tone is DARKER — so the hero
+ * came out grey while the cards below it were white, which is the "a card is
+ * lighter than the page" rule broken on the product's most-visited screen. The
+ * card keeps its surface and takes elevation 2 instead: one step up from every
+ * other widget, in both appearances, with nothing to invert.
  */
 .dh-today-widget[data-variant="hero"] {
-  background: var(--md-app-color-surface-raised);
+  box-shadow: var(--md-sys-elevation-2);
 }
 
 /* In the hero the widget's own title steps back to an eyebrow so the greeting
@@ -2211,6 +2216,18 @@ a.dh-hero__stat:hover {
 /* The footnote that says what the number is made of. It is not decoration: a
  * score nobody can explain is a score nobody should trust. */
 .dh-today-score__note {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The bound note. It appears only when the planning read came back at its limit,
+ * and it is the card telling the owner what its numbers actually are rather than
+ * quietly presenting a floor as a total. */
+.dh-today-summary__bound {
+  flex: 1 1 100%;
   margin: 0;
   font-size: var(--md-sys-typescale-body-small-size);
   line-height: var(--md-sys-typescale-body-small-line-height);

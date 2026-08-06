@@ -24,6 +24,12 @@
   font-weight: var(--md-sys-typescale-label-large-weight);
   letter-spacing: var(--md-sys-typescale-label-large-tracking);
   white-space: nowrap;
+  /* A chip that is also a link is still a CHIP: its container is the affordance,
+   * so the browser's link underline would be a second one saying the same thing
+   * — and an underline through a 32px tint reads as a defect rather than as an
+   * emphasis. Stated here because `base.css` gives every bare `<a>` an underline
+   * by default, which is right everywhere except inside a container like this. */
+  text-decoration: none;
 }
 
 /* The leading glyph is M3's 18px chip icon — the one place in the system where
@@ -99,6 +105,7 @@
   font-weight: var(--md-sys-typescale-label-large-weight);
   letter-spacing: var(--md-sys-typescale-label-large-tracking);
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .dh-area-dot[data-accent="1"] {

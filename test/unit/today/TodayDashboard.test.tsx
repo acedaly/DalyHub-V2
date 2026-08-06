@@ -561,6 +561,7 @@ const LANDING: TodayLandingData = {
     completedFraction: 0.375,
     dueTodayCount: 2,
     overdueCount: 1,
+    countsComplete: true,
   },
   productivity: {
     score: 43,

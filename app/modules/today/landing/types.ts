@@ -140,6 +140,13 @@ export interface TaskSummaryWidgetData {
   readonly dueTodayCount: number;
   /** Tasks whose plan has slipped, for the "Overdue" chip. */
   readonly overdueCount: number;
+  /**
+   * Whether the counts are totals rather than floors. The planning read is
+   * bounded; when a band came back at its bound the card states the counts it
+   * has and drops the ring, because a fraction of two bounded bands is a real
+   * division of the wrong numbers.
+   */
+  readonly countsComplete: boolean;
 }
 
 /**
@@ -149,7 +156,8 @@ export interface TaskSummaryWidgetData {
  * it. The formula lives in `insights.ts` and is stated in full there.
  */
 export interface ProductivityWidgetData {
-  readonly score: number;
+  /** `null` when the bounded planning read cannot support a proportion. */
+  readonly score: number | null;
   readonly completedTodayCount: number;
   readonly overdueCount: number;
   readonly encouragement: string;
