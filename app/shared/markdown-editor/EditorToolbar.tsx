@@ -120,6 +120,15 @@ type ToolbarEntry =
   | {
       readonly kind: "control";
       readonly key: string;
+      /**
+       * Whether this control can currently take focus. The roving model has to
+       * know: a `disabled` button is not tabbable, so parking the single tab
+       * stop on one removes the entire toolbar from the Tab order — and, because
+       * the row is a horizontally scrollable region, it also leaves that region
+       * with no focusable content, which is a WCAG failure in its own right
+       * (axe `scrollable-region-focusable`).
+       */
+      readonly enabled: boolean;
       readonly render: (index: number) => ReactNode;
     };
 
@@ -132,8 +141,8 @@ export function EditorToolbar({
   history,
 }: EditorToolbarProps) {
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
-  // Roving tabindex: only the active control is a Tab stop; Arrow/Home/End move
-  // the active control.
+  // Roving tabindex: exactly one control is a Tab stop; Arrow/Home/End move it.
+  // It must always be an ENABLED control — see `ToolbarEntry.enabled`.
   const [activeIndex, setActiveIndex] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -148,6 +157,16 @@ export function EditorToolbar({
   const onKeyDownRef = useRef<
     (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => void
   >(() => {});
+
+  /**
+   * The control index that currently holds the tab stop, read by every button's
+   * `tabIndex` during render.
+   *
+   * A ref rather than the raw state, because the resolved value depends on which
+   * controls are ENABLED — and that is only known after the entry list has been
+   * built. The ref is assigned below, before any `render()` runs.
+   */
+  const activeIndexRef = useRef(0);
 
   const registerButton = useCallback(
     (index: number) => (node: HTMLButtonElement | null) => {
@@ -179,6 +198,7 @@ export function EditorToolbar({
       built.push({
         kind: "control",
         key: action.id,
+        enabled: !disabled,
         render: (index) => (
           <button
             ref={registerButton(index)}
@@ -189,7 +209,7 @@ export function EditorToolbar({
             title={`${action.label} — ${action.hint}`}
             aria-pressed={pressed}
             disabled={disabled}
-            tabIndex={index === activeIndex ? 0 : -1}
+            tabIndex={index === activeIndexRef.current ? 0 : -1}
             onKeyDown={(event) => onKeyDownRef.current(event, index)}
             onFocus={() => setActiveIndex(index)}
             // Keep the editor focused and its selection intact when a button is
@@ -209,6 +229,7 @@ export function EditorToolbar({
       built.push({
         kind: "control",
         key: "undo",
+        enabled: !disabled && history.canUndo,
         render: (index) => (
           <button
             ref={registerButton(index)}
@@ -218,7 +239,7 @@ export function EditorToolbar({
             aria-label="Undo"
             title="Undo (⌘Z / Ctrl+Z)"
             disabled={disabled || !history.canUndo}
-            tabIndex={index === activeIndex ? 0 : -1}
+            tabIndex={index === activeIndexRef.current ? 0 : -1}
             onKeyDown={(event) => onKeyDownRef.current(event, index)}
             onFocus={() => setActiveIndex(index)}
             onMouseDown={(event) => event.preventDefault()}
@@ -231,6 +252,7 @@ export function EditorToolbar({
       built.push({
         kind: "control",
         key: "redo",
+        enabled: !disabled && history.canRedo,
         render: (index) => (
           <button
             ref={registerButton(index)}
@@ -240,7 +262,7 @@ export function EditorToolbar({
             aria-label="Redo"
             title="Redo (⌘⇧Z / Ctrl+Shift+Z)"
             disabled={disabled || !history.canRedo}
-            tabIndex={index === activeIndex ? 0 : -1}
+            tabIndex={index === activeIndexRef.current ? 0 : -1}
             onKeyDown={(event) => onKeyDownRef.current(event, index)}
             onFocus={() => setActiveIndex(index)}
             onMouseDown={(event) => event.preventDefault()}
@@ -268,6 +290,7 @@ export function EditorToolbar({
       built.push({
         kind: "control",
         key: command.id,
+        enabled: !disabled,
         render: (index) => (
           <button
             ref={registerButton(index)}
@@ -278,7 +301,7 @@ export function EditorToolbar({
             title={`${command.label} — ${command.hint}`}
             aria-expanded={command.expanded}
             disabled={disabled}
-            tabIndex={index === activeIndex ? 0 : -1}
+            tabIndex={index === activeIndexRef.current ? 0 : -1}
             onKeyDown={(event) => onKeyDownRef.current(event, index)}
             onFocus={() => setActiveIndex(index)}
             onMouseDown={(event) => event.preventDefault()}
@@ -294,6 +317,7 @@ export function EditorToolbar({
     built.push({
       kind: "control",
       key: "more",
+      enabled: !disabled,
       render: (index) => (
         <button
           ref={registerButton(index)}
@@ -310,7 +334,7 @@ export function EditorToolbar({
           }
           disabled={disabled}
           aria-expanded={moreOpen}
-          tabIndex={index === activeIndex ? 0 : -1}
+          tabIndex={index === activeIndexRef.current ? 0 : -1}
           onKeyDown={(event) => onKeyDownRef.current(event, index)}
           onFocus={() => setActiveIndex(index)}
           onMouseDown={(event) => event.preventDefault()}
@@ -335,7 +359,6 @@ export function EditorToolbar({
     return built;
   }, [
     activeIds,
-    activeIndex,
     commands,
     disabled,
     history,
@@ -344,29 +367,61 @@ export function EditorToolbar({
     registerButton,
   ]);
 
-  const controlCount = entries.filter(
-    (entry) => entry.kind === "control",
-  ).length;
+  /**
+   * The controls, in render order, with their enabled state — and the roving
+   * model derived from them.
+   *
+   * Everything below navigates the ENABLED subset. Undo is disabled on a freshly
+   * mounted editor (there is nothing to undo yet), and it is the first control
+   * in the row, so a naive `activeIndex = 0` parked the toolbar's only tab stop
+   * on a button the browser will not tab to. The whole toolbar then vanished
+   * from the Tab order, and — because the row scrolls horizontally — the
+   * scrollable region was left with no focusable content at all.
+   */
+  const controls = entries.filter(
+    (entry): entry is Extract<ToolbarEntry, { kind: "control" }> =>
+      entry.kind === "control",
+  );
+  const enabledIndices = controls
+    .map((control, index) => (control.enabled ? index : -1))
+    .filter((index) => index >= 0);
+
+  // Keep the tab stop on an enabled control as the enabled SET changes — undoing
+  // the last edit disables Undo underneath the user's own focus, and the stop
+  // has to move rather than evaporate.
+  const resolvedActiveIndex =
+    enabledIndices.length === 0
+      ? -1
+      : enabledIndices.includes(activeIndex)
+        ? activeIndex
+        : (enabledIndices.find((index) => index > activeIndex) ??
+          enabledIndices[0]);
+
+  activeIndexRef.current = resolvedActiveIndex;
 
   onKeyDownRef.current = (event, index) => {
+    if (enabledIndices.length === 0) return;
+    const position = enabledIndices.indexOf(index);
+    const at = (offset: number) =>
+      enabledIndices[(offset + enabledIndices.length) % enabledIndices.length];
     switch (event.key) {
       case "ArrowRight":
       case "ArrowDown":
         event.preventDefault();
-        focusControl((index + 1) % controlCount);
+        focusControl(at(position + 1));
         break;
       case "ArrowLeft":
       case "ArrowUp":
         event.preventDefault();
-        focusControl((index - 1 + controlCount) % controlCount);
+        focusControl(at(position - 1));
         break;
       case "Home":
         event.preventDefault();
-        focusControl(0);
+        focusControl(enabledIndices[0]);
         break;
       case "End":
         event.preventDefault();
-        focusControl(controlCount - 1);
+        focusControl(enabledIndices[enabledIndices.length - 1]);
         break;
       default:
         break;
@@ -380,6 +435,16 @@ export function EditorToolbar({
       role="toolbar"
       aria-label={label}
       aria-orientation="horizontal"
+      /*
+       * The row scrolls horizontally, which makes it a scrollable REGION: WCAG
+       * (and axe's `scrollable-region-focusable`) requires such a region to be
+       * reachable by keyboard, either by containing focusable content or by
+       * being focusable itself. Normally the roving tab stop above supplies the
+       * former. When every control is disabled there is no such content, so the
+       * container itself takes the tab stop and the region stays scrollable by
+       * keyboard rather than silently becoming unreachable.
+       */
+      tabIndex={enabledIndices.length === 0 ? 0 : undefined}
     >
       {entries.map((entry) => {
         if (entry.kind === "separator") {

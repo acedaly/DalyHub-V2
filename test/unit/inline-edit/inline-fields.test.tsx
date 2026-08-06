@@ -286,3 +286,98 @@ describe("InlineDateField", () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
+
+/**
+ * DS-16 — focus after a save, and Enter inside the date popover.
+ *
+ * Both of these are cases where "restore focus" and "Enter commits", applied
+ * without qualification, do the opposite of what the user asked for.
+ */
+describe("InlineTextField — a blur-triggered save does not steal focus back", () => {
+  it("leaves focus where the user put it when they Tab away", async () => {
+    let resolveSave: (outcome: { ok: true }) => void = () => {};
+    const onSave = vi.fn(
+      () =>
+        new Promise<{ ok: true }>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    render(
+      <>
+        <InlineTextField label="Area name" value="Health" onSave={onSave} />
+        <button type="button">Somewhere else</button>
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Area name: Health" }));
+    const input = screen.getByRole("textbox", { name: "Area name" });
+    fireEvent.change(input, { target: { value: "Health & fitness" } });
+
+    // The user Tabs onward: blur saves, and they land on the next control.
+    const destination = screen.getByRole("button", { name: "Somewhere else" });
+    fireEvent.blur(input);
+    destination.focus();
+    expect(onSave).toHaveBeenCalled();
+
+    // The save lands LATER. It must not drag focus back to the field they left,
+    // which would also send their next Tab backwards.
+    resolveSave({ ok: true });
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument(),
+    );
+    expect(destination).toHaveFocus();
+  });
+
+  it("still returns focus to the value when Enter saves it", async () => {
+    render(
+      <InlineTextField
+        label="Area name"
+        value="Health"
+        onSave={async () => ({ ok: true })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Area name: Health" }));
+    const input = screen.getByRole("textbox", { name: "Area name" });
+    fireEvent.change(input, { target: { value: "Health & fitness" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^Area name:/ })).toHaveFocus(),
+    );
+  });
+});
+
+describe("InlineDateField — Enter belongs to the input, not to the buttons", () => {
+  it("does not submit the draft when Enter activates Cancel", () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineDateField label="Due date" value="2026-09-03" onSave={onSave} />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Due date: 2026-09-03" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Due date" });
+    const input = dialog.querySelector("input") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "2026-12-25" } });
+
+    // Enter on Cancel must cancel. The dialog-level shortcut previously
+    // intercepted it and persisted the draft — the opposite of the label.
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    cancel.focus();
+    fireEvent.keyDown(cancel, { key: "Enter" });
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("still commits when Enter is pressed in the date input itself", async () => {
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineDateField label="Due date" value="2026-09-03" onSave={onSave} />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Due date: 2026-09-03" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Due date" });
+    const input = dialog.querySelector("input") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "2026-12-25" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-12-25"));
+  });
+});

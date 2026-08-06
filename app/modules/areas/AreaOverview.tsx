@@ -20,6 +20,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, RecordIcon } from "~/shared/entity";
 import { HealthIndicator } from "~/shared/project-health";
 import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
+import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -339,7 +340,7 @@ export function AreaOverviewView({
             onSave={onRename}
             readOnly={archived}
             variant="heading"
-            maxLength={200}
+            maxLength={TITLE_MAX_LENGTH}
             data-testid="area-title-edit"
           />
         }

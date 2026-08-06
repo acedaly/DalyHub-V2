@@ -105,10 +105,17 @@ export function InlineTextField({
           ref={inputRef}
           onChange={(event) => field.change(event.target.value)}
           onKeyDown={onKeyDown}
-          // A save already in flight must not be re-submitted by the blur its
+          // Blur saves rather than cancels — clicking away from text you just
+          // typed is not "discard that". But it must NOT restore focus when the
+          // save lands: the user has already Tabbed or clicked somewhere else,
+          // and yanking focus back would drag them out of their destination and
+          // send the next Tab backwards.
+          //
+          // A save already in flight is also not re-submitted by the blur its
           // own disabled state causes.
           onBlur={() => {
-            if (!field.pending) field.submit();
+            if (!field.pending)
+              field.submit(undefined, { restoreFocus: false });
           }}
         />
       }

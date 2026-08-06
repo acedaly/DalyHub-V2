@@ -237,3 +237,85 @@ describe("EditorToolbar — active, history and grouping", () => {
     expect(controls().filter((b) => b.tabIndex === 0).length).toBe(1);
   });
 });
+
+/**
+ * EDIT-01 — the roving tab stop must always land on an ENABLED control.
+ *
+ * This is not a nicety. Undo is the FIRST control in the row and is disabled on
+ * a freshly mounted editor, so parking the toolbar's single tab stop at index 0
+ * put it on a button the browser will not tab to: the whole toolbar dropped out
+ * of the Tab order. And because the row scrolls horizontally, that also left a
+ * scrollable region with no focusable content — which axe reports as a serious
+ * WCAG failure (`scrollable-region-focusable`), and did, on three CI shards.
+ */
+describe("EditorToolbar — the tab stop never rests on a disabled control", () => {
+  const noHistory = { canUndo: false, canRedo: false } as const;
+
+  function renderWithHistory(history: { canUndo: boolean; canRedo: boolean }) {
+    return render(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{ ...history, onUndo: vi.fn(), onRedo: vi.fn() }}
+      />,
+    );
+  }
+
+  it("gives a freshly mounted editor a tabbable control, not a disabled Undo", () => {
+    renderWithHistory(noHistory);
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Undo" }).tabIndex).toBe(-1);
+    // Exactly one control is tabbable, and it is an enabled one.
+    const tabbable = controls().filter((button) => button.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBeEnabled();
+  });
+
+  it("leaves the scrollable toolbar with focusable content", () => {
+    // The axe rule this guards asks for either focusable content or a focusable
+    // container. The assertion is the observable property, not the mechanism.
+    const { container } = renderWithHistory(noHistory);
+    const toolbar = container.querySelector(".dh-md-toolbar") as HTMLElement;
+    const tabbable = Array.from(
+      toolbar.querySelectorAll<HTMLElement>("button:not([disabled])"),
+    ).filter((node) => node.tabIndex === 0);
+    expect(tabbable.length + (toolbar.tabIndex === 0 ? 1 : 0)).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("skips disabled controls when arrowing", () => {
+    renderWithHistory({ canUndo: false, canRedo: true });
+    const redo = screen.getByRole("button", { name: "Redo" });
+    redo.focus();
+    // Arrowing backwards from Redo must not land on the disabled Undo; it wraps
+    // to the last enabled control instead.
+    fireEvent.keyDown(redo, { key: "ArrowLeft" });
+    expect(document.activeElement).not.toBe(
+      screen.getByRole("button", { name: "Undo" }),
+    );
+    expect(document.activeElement).toBeEnabled();
+  });
+
+  it("moves the tab stop off a control that BECOMES disabled", () => {
+    // Undoing the last edit disables Undo underneath the user's own focus. The
+    // stop has to move rather than evaporate.
+    const { rerender } = renderWithHistory({ canUndo: true, canRedo: false });
+    screen.getByRole("button", { name: "Undo" }).focus();
+    expect(screen.getByRole("button", { name: "Undo" }).tabIndex).toBe(0);
+
+    rerender(
+      <EditorToolbar
+        onAction={vi.fn()}
+        history={{
+          canUndo: false,
+          canRedo: true,
+          onUndo: vi.fn(),
+          onRedo: vi.fn(),
+        }}
+      />,
+    );
+    const tabbable = controls().filter((button) => button.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBeEnabled();
+  });
+});

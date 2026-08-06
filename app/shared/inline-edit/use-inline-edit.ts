@@ -61,7 +61,19 @@ export interface UseInlineEdit<T> {
   readonly begin: () => void;
   readonly change: (draft: T) => void;
   readonly cancel: () => void;
-  readonly submit: (override?: T) => void;
+  /**
+   * Persist the draft.
+   *
+   * `restoreFocus` defaults to true — an explicit Save or an Enter press means
+   * the editor owned focus and has to hand it back. A BLUR-triggered save must
+   * pass `false`: the user has already moved on, and pulling focus back when the
+   * async save lands would drag them out of whatever they Tabbed to and send the
+   * next Tab backwards.
+   */
+  readonly submit: (
+    override?: T,
+    options?: { readonly restoreFocus?: boolean },
+  ) => void;
   /** Attach to the read affordance so focus can be returned to it. */
   readonly triggerRef: RefObject<HTMLElement | null>;
 }
@@ -127,41 +139,45 @@ export function useInlineEdit<T>({
   const draftRef = useRef<T>(value);
   draftRef.current = state.status === "view" ? value : state.draft;
 
-  const submit = useCallback((override?: T) => {
-    const draft = override !== undefined ? override : (draftRef.current as T);
-    // An unchanged value is not worth a request — and, more importantly, not
-    // worth an Activity entry claiming the record was edited.
-    if (isEqualRef.current(draft, valueRef.current)) {
-      restoreFocusRef.current = true;
-      dispatch({ type: "cancel" });
-      return;
-    }
-    if (override !== undefined) {
-      dispatch({ type: "change", draft: override });
-    }
-    attemptRef.current += 1;
-    const attempt = attemptRef.current;
-    dispatch({ type: "submit", attempt });
-    void (async () => {
-      let outcome: InlineSaveOutcome;
-      try {
-        outcome = await onSaveRef.current(draft);
-      } catch {
-        outcome = {
-          ok: false,
-          message:
-            "That couldn’t be saved. Your change is still here — try again.",
-        };
+  const submit = useCallback(
+    (override?: T, options?: { readonly restoreFocus?: boolean }) => {
+      const restoreFocus = options?.restoreFocus !== false;
+      const draft = override !== undefined ? override : (draftRef.current as T);
+      // An unchanged value is not worth a request — and, more importantly, not
+      // worth an Activity entry claiming the record was edited.
+      if (isEqualRef.current(draft, valueRef.current)) {
+        restoreFocusRef.current = restoreFocus;
+        dispatch({ type: "cancel" });
+        return;
       }
-      if (outcome.ok) {
-        restoreFocusRef.current = true;
-        dispatch({ type: "resolved", attempt });
-        onSavedRef.current?.(draft);
-      } else {
-        dispatch({ type: "rejected", attempt, message: outcome.message });
+      if (override !== undefined) {
+        dispatch({ type: "change", draft: override });
       }
-    })();
-  }, []);
+      attemptRef.current += 1;
+      const attempt = attemptRef.current;
+      dispatch({ type: "submit", attempt });
+      void (async () => {
+        let outcome: InlineSaveOutcome;
+        try {
+          outcome = await onSaveRef.current(draft);
+        } catch {
+          outcome = {
+            ok: false,
+            message:
+              "That couldn’t be saved. Your change is still here — try again.",
+          };
+        }
+        if (outcome.ok) {
+          restoreFocusRef.current = restoreFocus;
+          dispatch({ type: "resolved", attempt });
+          onSavedRef.current?.(draft);
+        } else {
+          dispatch({ type: "rejected", attempt, message: outcome.message });
+        }
+      })();
+    },
+    [],
+  );
 
   return {
     state,

@@ -25,6 +25,7 @@ import {
   type RecordAction,
   type RecordMetaItem,
 } from "~/shared/record-layout";
+import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { ProgressMeter } from "~/shared/progress";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
@@ -271,7 +272,7 @@ export function ProjectOverview({
             onSave={onRename}
             readOnly={archived}
             variant="heading"
-            maxLength={200}
+            maxLength={TITLE_MAX_LENGTH}
             data-testid="project-title-edit"
           />
         }

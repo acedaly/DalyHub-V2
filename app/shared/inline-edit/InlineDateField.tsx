@@ -90,9 +90,11 @@ export function InlineDateField({
       field.cancel();
       return;
     }
-    if (event.key === "Enter") {
-      // Enter inside a single date control is unambiguous — there is nothing
-      // else the key could mean here.
+    if (event.key === "Enter" && event.target === inputRef.current) {
+      // Enter is a commit shortcut for the DATE INPUT only. Scoped to it,
+      // because the popover's own Save/Clear/Cancel buttons activate on Enter
+      // natively — intercepting here made Cancel persist the draft and Clear
+      // close without clearing, which is the exact opposite of both labels.
       event.preventDefault();
       field.submit();
     }
