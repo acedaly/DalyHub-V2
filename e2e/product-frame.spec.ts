@@ -46,21 +46,38 @@ test.describe("PX-02 frame — desktop", () => {
     await expect(page.locator('[role="search"]')).toHaveCount(1);
   });
 
-  test("the banner states the product, with the brand mark decorative", async ({
+  test("the drawer states the product, with the brand mark decorative", async ({
     page,
   }) => {
     // BRAND-01 — the rail used to render only the workspace name, so renaming
     // the workspace renamed DalyHub in the frame. The product name is now
     // stated deliberately, and the mark beside it is decorative because that
     // name is real text.
+    //
+    // M3-01 moved the `banner` landmark from this brand block to the top app
+    // bar, which is what a top app bar is (and which fixed a real axe `region`
+    // failure on Help and About). The brand itself did NOT move: it stays at
+    // the head of the navigation drawer, as the reference design has it. So
+    // this test now names the drawer.
+    //
+    // It is deliberately scoped to the brand block rather than to the whole
+    // landmark. Scoped to the frame, `getByText("DalyHub")` also matches the
+    // top bar's "Search DalyHub…" label — which is how this assertion kept
+    // passing against a banner that had no brand in it at all.
     await page.goto("/");
-    const banner = page.getByRole("banner");
-    await expect(banner.getByText("DalyHub")).toBeVisible();
-    const mark = banner.locator(".dh-brand-mark");
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    const brand = nav.locator(".dh-sidebar__brand");
+    await expect(brand).toHaveCount(1);
+    await expect(brand.getByText("DalyHub", { exact: true })).toBeVisible();
+    const mark = brand.locator(".dh-brand-mark");
     await expect(mark).toHaveCount(1);
     await expect(mark).toHaveAttribute("aria-hidden", "true");
     // The tagline belongs on About, not in a navigation rail.
-    await expect(banner.getByText("Your life. Connected.")).toHaveCount(0);
+    await expect(brand.getByText("Your life. Connected.")).toHaveCount(0);
+
+    // The frame carries exactly one brand mark: the banner must not grow a
+    // second copy now that it is a separate landmark from the brand block.
+    await expect(page.locator(".dh-brand-mark")).toHaveCount(1);
   });
 
   test("user menu holds identity + sign out, and Escape restores focus", async ({

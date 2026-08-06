@@ -156,7 +156,15 @@ test.describe("PROJ-01 — Projects", () => {
     // mismatched route — without pinning to one specific project's presence.
     await gotoFixture(page, "/today");
     const section = page.getByRole("region", { name: "Continue working" });
-    const link = section.getByRole("link").first();
+
+    // Scoped to a RECORD link, not simply the first link in the section. The
+    // section also carries its own "View all" link to the `/projects`
+    // collection, and that one leads in DOM order — so `.first()` picked the
+    // collection and asserted it against the record pattern. The href prefix
+    // excludes it structurally (`/projects` has no trailing slash), which is
+    // what makes this independent of where the section header sits.
+    const link = section.locator('a[href^="/projects/"]').first();
+    await expect(link).toBeVisible();
     const href = await link.getAttribute("href");
     expect(href).toMatch(/^\/projects\/[^/]+$/);
     const title = (await link.textContent())?.replace(/^Open\s+/, "").trim();

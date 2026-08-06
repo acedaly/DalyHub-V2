@@ -134,6 +134,10 @@ test.describe("TODAY-05 — shortcut boundary", () => {
     // title, so the boundary is proven against that instead — the rule under
     // test ("letters reach the field, they do not fire task shortcuts") is
     // unchanged, only the field it is proven on.
+    const anytime = page.getByRole("list", { name: "Anytime tasks" });
+    const target = anytime.getByRole("link").first();
+    const targetTitle = ((await target.textContent()) ?? "").trim();
+
     await page.getByTestId("today-capture-task").click();
     const capture = page.getByLabel("Title");
     await expect(capture).toBeFocused();
@@ -145,10 +149,24 @@ test.describe("TODAY-05 — shortcut boundary", () => {
     // itself is a dialog and is SUPPOSED to be open, so the old blanket
     // "no dialog" assertion is replaced by the specific side effects that would
     // mean a shortcut had fired.)
-    await expect(page.getByText(/Task completed/i)).toHaveCount(0);
+    //
+    // Scoped to the live region, not to the whole page. A bare
+    // `getByText(/Task completed/i)` also matches Recent activity — where a
+    // completion recorded by an EARLIER test in the same shared-D1 suite run is
+    // legitimately listed — so the unscoped form asserted "nobody has ever
+    // completed a task in this workspace", which is not the rule under test.
+    await expect(
+      feedbackLive(page).filter({ hasText: /Task completed/i }),
+    ).toHaveCount(0);
     await expect(
       feedbackLive(page).filter({ hasText: /Plan updated|tasks planned/i }),
     ).toHaveCount(0);
+
+    // And the task that WOULD have been hit is still open and unplanned.
+    await page.keyboard.press("Escape");
+    await expect(
+      anytime.getByRole("link", { name: targetTitle }),
+    ).toBeVisible();
   });
 
   test("a task shortcut does not fire behind the keyboard-help Drawer", async ({
@@ -170,7 +188,12 @@ test.describe("TODAY-05 — shortcut boundary", () => {
     await page.keyboard.press("Shift+P");
 
     // The stale task was NOT completed or replanned — no such feedback appears.
-    await expect(page.getByText(/Task completed/i)).toHaveCount(0);
+    // Scoped to the live region: an unscoped page-wide text match also picks up
+    // Recent activity, which legitimately lists completions from earlier tests
+    // in the same shared-D1 suite run.
+    await expect(
+      feedbackLive(page).filter({ hasText: /Task completed/i }),
+    ).toHaveCount(0);
     await expect(
       feedbackLive(page).filter({ hasText: /Plan updated|tasks planned/i }),
     ).toHaveCount(0);
@@ -401,7 +424,13 @@ test.describe("TODAY-05 — planning by shortcut", () => {
     await page.keyboard.press("c");
     await page.keyboard.press("p");
     await page.keyboard.press("Shift+P");
-    await expect(page.getByText(/Task completed/i)).toHaveCount(0);
+    // Live region only — see the note on the shortcut-boundary tests above.
+    await expect(
+      feedbackLive(page).filter({ hasText: /Task completed/i }),
+    ).toHaveCount(0);
+    // The target task itself, asserted directly rather than only through the
+    // absence of feedback: it is still open behind the stacked help drawer.
+    await expect(completion).not.toBeChecked();
 
     // Close help → the task drawer is the top again; it was left untouched.
     await page.keyboard.press("Escape");

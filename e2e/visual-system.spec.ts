@@ -2,14 +2,24 @@
  * DS-14 / ADR-070 — shared visual-system contracts.
  *
  * These assertions stay behavioural enough for a visual system: they do not pin
- * pixels, but they do pin the hierarchy the owner asked for. In-flow surfaces are
- * card-on-tint with a full border and no raised shadow; floating command surfaces
- * keep raised elevation; Today's reference layout puts current work first at a
- * normal desktop width and preserves the phone stack.
+ * pixels, but they do pin the hierarchy the owner asked for. In-flow surfaces sit
+ * on the card plane above the page plane; floating command surfaces keep raised
+ * elevation; Today's reference layout puts current work first at a normal desktop
+ * width and preserves the phone stack.
  *
  * POLISH-02 changed HOW Today expresses that hierarchy (a full-width hero above
  * two columns, rather than two columns alone) and the first test was rewritten
  * against the new arrangement. The contract itself is unchanged.
+ *
+ * ADR-074 / M3-01 changed how a card expresses SEPARATION. It used to be a
+ * hairline border on a tinted page with no shadow; it is now the M3 elevated
+ * card — its own plane at `corner-large` with elevation 1 and no border — and
+ * the `--dh-color-surface-*` tokens these tests read were renamed to
+ * `--md-app-color-surface-*`. Both were missed when the vocabulary moved, so
+ * these two tests had been failing on `main` ever since: `getPropertyValue` on a
+ * token that no longer exists returns "", and "" === "", so every
+ * surface-separation assertion here was comparing one empty string with another.
+ * They are rewritten against the real model rather than deleted.
  */
 
 import { expect, test } from "@playwright/test";
@@ -90,7 +100,7 @@ test.describe("visual system — Today reference layout", () => {
 });
 
 test.describe("visual system — surface hierarchy", () => {
-  test("in-flow cards use card surfaces, full borders and no raised shadow", async ({
+  test("in-flow cards sit on the card plane, above the page plane", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -100,36 +110,46 @@ test.describe("visual system — surface hierarchy", () => {
       .locator('[data-widget="my-day"]')
       .evaluate((element) => {
         const style = getComputedStyle(element);
+        const root = getComputedStyle(document.documentElement);
         return {
           background: style.backgroundColor,
           borderStyle: style.borderTopStyle,
-          borderWidth: style.borderTopWidth,
           borderRadius: style.borderTopLeftRadius,
           boxShadow: style.boxShadow,
-          card: getComputedStyle(document.documentElement)
-            .getPropertyValue("--dh-color-surface-card")
-            .trim(),
-          page: getComputedStyle(document.documentElement)
-            .getPropertyValue("--dh-color-surface-page")
-            .trim(),
-          raised: getComputedStyle(document.documentElement)
-            .getPropertyValue("--dh-color-surface-raised")
-            .trim(),
+          card: root.getPropertyValue("--md-app-color-surface-card").trim(),
+          page: root.getPropertyValue("--md-app-color-surface-page").trim(),
+          raised: root.getPropertyValue("--md-app-color-surface-raised").trim(),
         };
       });
 
-    expect(widgetStyle.borderStyle).toBe("solid");
-    expect(parseFloat(widgetStyle.borderWidth)).toBeGreaterThan(0);
+    // ADR-074 replaced the bordered-card model this test used to pin. An M3
+    // card separates itself from the page by its own PLANE plus elevation, not
+    // by a hairline outline, so `border: none` here is the design, not a
+    // regression — the assertion is inverted rather than deleted so the border
+    // cannot quietly come back.
+    expect(widgetStyle.borderStyle).toBe("none");
     expect(parseFloat(widgetStyle.borderRadius)).toBeGreaterThanOrEqual(15);
-    expect(widgetStyle.boxShadow).toBe("none");
+    expect(widgetStyle.boxShadow).not.toBe("none");
+
+    // The tokens resolve at all (a renamed token silently returns "").
+    expect(widgetStyle.card).not.toBe("");
+    expect(widgetStyle.page).not.toBe("");
+    expect(widgetStyle.raised).not.toBe("");
+
+    // The separation that actually matters, and the one the neutral app-surface
+    // layer exists to guarantee: a card is never the same colour as the page it
+    // sits on. `raised` is deliberately NOT asserted to differ from `card` —
+    // in the light scheme both are pure white and elevation is carried by the
+    // shadow, which is exactly what M3 prescribes.
     expect(widgetStyle.card).not.toBe(widgetStyle.page);
-    expect(widgetStyle.raised).not.toBe(widgetStyle.card);
 
     await gotoFixture(page, "/tasks");
     const rowShadow = await page
       .locator(".dh-card-collection--list .dh-card")
       .first()
       .evaluate((element) => getComputedStyle(element).boxShadow);
+    // A row inside a collection is not a card in its own right: it must stay
+    // flat so the collection reads as one surface rather than a pile.
     expect(rowShadow).toBe("none");
   });
 
@@ -150,7 +170,7 @@ test.describe("visual system — surface hierarchy", () => {
           boxShadow: style.boxShadow,
           background: style.backgroundColor,
           raised: getComputedStyle(document.documentElement)
-            .getPropertyValue("--dh-color-surface-raised")
+            .getPropertyValue("--md-app-color-surface-raised")
             .trim(),
         };
       });
