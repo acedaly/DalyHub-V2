@@ -86,8 +86,8 @@ export function PrimaryNavigation({
                   to={item.href}
                   className={
                     current
-                      ? "dh-nav__link dh-nav__link--active"
-                      : "dh-nav__link"
+                      ? "dh-nav__link dh-nav__link--active md-state-layer"
+                      : "dh-nav__link md-state-layer"
                   }
                   aria-current={current ? "page" : undefined}
                   onClick={onNavigate}

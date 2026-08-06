@@ -48,6 +48,7 @@ import { OfflineProvider } from "~/shared/offline/OfflineProvider";
 import { useKeyboardInset } from "~/shared/viewport";
 
 import { BottomNav } from "./BottomNav";
+import { CaptureFab } from "./CaptureFab";
 import { MobileNav } from "./MobileNav";
 import { MobileTopBar } from "./MobileTopBar";
 import { MobileTopBarProvider } from "./mobile-top-bar-context";
@@ -291,6 +292,11 @@ export function AppShell({
                     {children}
                   </main>
                 </div>
+
+                {/* M3-01: the one floating action button, wired to the SAME
+              shared capture surface every other entry point opens. It clears
+              the phone navigation bar and the home indicator. */}
+                <CaptureFab />
 
                 {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
               desktop rail experience is byte-for-byte unchanged. */}

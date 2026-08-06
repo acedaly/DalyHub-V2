@@ -3,14 +3,14 @@
  *
  * Relocates the identity + settings chrome out of the header and behind an
  * avatar-triggered menu (PRODUCT_EXPERIENCE #4): the owner's name, their verified
- * email, the Theme control, a Settings link and Sign out. The header pixels return
- * to the work; identity lives where premium applications keep it.
+ * email, a Settings link and Sign out. The header pixels return to the work;
+ * identity lives where premium applications keep it.
  *
- * It REUSES the shared theme implementation unchanged — `ThemeQuickSwitch`, the
- * compact presentation of the THEME-01 registry, posting to the same action and
- * persisting to the same owner preference record (ADR-016 §5.11, ADR-061). PX-02
- * only relocates the control; it changes no theme behaviour or persistence, and the
- * full picker with descriptions stays in Settings → Appearance.
+ * M3-01 removed the theme quick-switch that used to sit here, along with the
+ * Settings → Appearance section it mirrored: DalyHub ships one generated
+ * light/dark pair and follows the operating system, so there is no choice left to
+ * offer (ADR-074 decision 5). The `theme` prop below is inert and goes with the
+ * rest of the plumbing in step 6.
  *
  * Interaction is an accessible disclosure (NOT a menu): a trigger with
  * `aria-expanded` + `aria-controls` reveals a `role="group"` panel whose controls
@@ -25,7 +25,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 
 import { displayNameFromEmail, initialsFromName } from "./identity-display";
-import { ThemeQuickSwitch } from "./ThemePicker";
 import type { ThemePreference } from "./theme";
 
 /** The Cloudflare Access application logout endpoint (ADR-016 §5.7). */
@@ -45,7 +44,7 @@ export {
 export type UserMenuProps = {
   /** The authenticated owner's verified email (safe display identity). */
   readonly email: string;
-  /** The active theme preference (drives the control's active state). */
+  /** Inert since M3-01; removed with the rest of the theme plumbing (step 6). */
   readonly theme: ThemePreference;
   /** Optional display name; derived from the email when absent. */
   readonly name?: string;
@@ -57,7 +56,7 @@ export type UserMenuProps = {
   readonly settingsHref?: string;
 };
 
-export function UserMenu({ email, theme, name, settingsHref }: UserMenuProps) {
+export function UserMenu({ email, name, settingsHref }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -107,9 +106,6 @@ export function UserMenu({ email, theme, name, settingsHref }: UserMenuProps) {
             <span className="dh-user-menu__email" title={email}>
               {email}
             </span>
-          </div>
-          <div className="dh-user-menu__section">
-            <ThemeQuickSwitch current={theme} />
           </div>
           <div className="dh-user-menu__section dh-user-menu__links">
             {settingsHref ? (

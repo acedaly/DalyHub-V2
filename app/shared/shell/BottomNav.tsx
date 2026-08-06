@@ -18,8 +18,8 @@
  *   - a labelled `navigation` landmark, distinct from the sidebar's, so a screen
  *     reader user can jump straight to it;
  *   - the active destination carries `aria-current="page"` AND is marked visually
- *     by an indicator bar, a filled icon treatment and a semibold label — never by
- *     colour alone (AGENTS.md §15);
+ *     by M3's active-indicator pill behind the glyph and a heavier label — never
+ *     by colour alone (AGENTS.md §15);
  *   - every control is a real button/link with a permanently visible text label
  *     beneath its icon (no icon-only targets) and meets the 44px minimum;
  *   - the bar sits above the home indicator via `env(safe-area-inset-bottom)` and
@@ -106,8 +106,10 @@ export function BottomNav({
                     }
                   }}
                 >
-                  <span className="dh-bottomnav__icon" aria-hidden="true">
-                    <PlusIcon />
+                  <span className="dh-bottomnav__indicator" aria-hidden="true">
+                    <span className="dh-bottomnav__icon">
+                      <PlusIcon />
+                    </span>
                   </span>
                   <span className="dh-bottomnav__label">Capture</span>
                 </button>
@@ -130,8 +132,10 @@ export function BottomNav({
                     }
                   }}
                 >
-                  <span className="dh-bottomnav__icon" aria-hidden="true">
-                    <MoreIcon />
+                  <span className="dh-bottomnav__indicator" aria-hidden="true">
+                    <span className="dh-bottomnav__icon">
+                      <MoreIcon />
+                    </span>
                   </span>
                   <span className="dh-bottomnav__label">More</span>
                 </button>
@@ -149,11 +153,14 @@ export function BottomNav({
                 aria-current={active ? "page" : undefined}
                 data-active={active ? "true" : "false"}
               >
-                {/* The indicator is a SHAPE, so the active destination is still
-                    obvious under forced colours and to a colour-blind user. */}
-                <span className="dh-bottomnav__indicator" aria-hidden="true" />
-                <span className="dh-bottomnav__icon" aria-hidden="true">
-                  <DestinationIcon item={item} />
+                {/* M3's active-indicator PILL sits behind the glyph rather than
+                    as a rule above it. It is a shape as well as a tint, so the
+                    active destination is still obvious under forced colours and
+                    to a colour-blind user. */}
+                <span className="dh-bottomnav__indicator" aria-hidden="true">
+                  <span className="dh-bottomnav__icon">
+                    <DestinationIcon item={item} />
+                  </span>
                 </span>
                 <span className="dh-bottomnav__label">{item.label}</span>
               </Link>

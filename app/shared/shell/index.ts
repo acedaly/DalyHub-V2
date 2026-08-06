@@ -24,6 +24,7 @@ export {
 export { PrimaryNavigation } from "./PrimaryNavigation";
 export { SidebarBrand } from "./SidebarBrand";
 export { SidebarSearch } from "./SidebarSearch";
+export { CaptureFab } from "./CaptureFab";
 export { UserMenu, ACCESS_LOGOUT_PATH } from "./UserMenu";
 export {
   displayNameFromEmail,

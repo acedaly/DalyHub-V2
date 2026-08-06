@@ -578,7 +578,6 @@ describe("module discovery", () => {
         "reviews.new",
         "settings.open",
         "settings.date_time",
-        "settings.appearance",
       ]);
       expect(registry.listCommands().every((c) => c.kind === "navigate")).toBe(
         true,
