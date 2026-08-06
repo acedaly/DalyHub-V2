@@ -18,7 +18,7 @@ import {
   THEME_ACTION_PATH,
 } from "~/shared/shell/ThemePicker";
 import { THEMES, THEME_IDS, type ThemePreference } from "~/shared/shell/theme";
-import { THEME_COLOR_MAPS } from "~/shared/tokens";
+import { DARK_SCHEME, LIGHT_SCHEME } from "~/shared/tokens";
 
 function renderPicker(current: ThemePreference = "system") {
   const Stub = createRoutesStub([
@@ -118,17 +118,20 @@ describe("THEME-01 theme picker", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Using Coastal");
   });
 
-  it("previews each theme in ITS OWN colours, not the active theme's", () => {
+  it("previews the appearance an option resolves to, not the active one", () => {
+    // M3-01: there is one generated light/dark pair and no palette per option
+    // (ADR-074), so a swatch now illustrates the APPEARANCE a theme id presents
+    // as. The picker itself is removed from Settings in the next step and both
+    // components are deleted with the feature.
     const { container } = renderPicker("daly-dark");
     for (const theme of THEMES) {
       const option = container.querySelector(`button[value="${theme.id}"]`);
       const preview = option?.querySelector(".dh-theme-preview");
       expect(preview, `no preview for "${theme.id}"`).not.toBeNull();
       const style = (preview as HTMLElement).getAttribute("style") ?? "";
-      // The swatch carries that theme's own background and accent, even though a
-      // different theme is currently applied.
-      expect(style).toContain(THEME_COLOR_MAPS[theme.id]["surface-page"]);
-      expect(style).toContain(THEME_COLOR_MAPS[theme.id].accent);
+      const scheme = theme.appearance === "dark" ? DARK_SCHEME : LIGHT_SCHEME;
+      expect(style).toContain(scheme["app-surface-page"]);
+      expect(style).toContain(scheme.primary);
     }
   });
 

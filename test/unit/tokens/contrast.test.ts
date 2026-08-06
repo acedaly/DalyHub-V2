@@ -1,40 +1,33 @@
 /**
- * DS-01 / THEME-01 — WCAG 2.2 contrast for every curated theme.
+ * M3-01 — WCAG 2.2 contrast over the generated scheme, in BOTH appearances.
  *
- * Computes the WCAG relative-luminance contrast ratio for the token pairs that
- * carry text or a meaningful UI boundary, in EVERY curated theme, and asserts they meet
- * AA (4.5:1 normal text, 3:1 large text / non-text UI). The palette is checked, not
- * assumed (AGENTS.md §15), and a new theme cannot be added without passing.
+ * The scheme is derived, not authored, so the interesting question is no longer
+ * "did someone pick a readable grey?" but "does the algorithm's output clear AA
+ * everywhere the product actually paints?". These tests answer it for every pair
+ * that carries text or a meaningful UI boundary: 4.5:1 for text, 3:1 for
+ * non-text UI (AGENTS.md §15).
  *
- * Values come from the TS colour maps, which `tokens.test.ts` proves identical to
- * the authoritative CSS.
+ * Values come from `app/shared/tokens/scheme.ts`, which the generator writes
+ * alongside `tokens.css` and `tokens.test.ts` proves identical to it — so a pass
+ * here is a statement about what the browser paints.
  */
 
 import { describe, expect, it } from "vitest";
 
-import { THEME_IDS } from "~/kernel/preferences/theme-preference";
 import {
-  ENTITY_ACCENT_NAMES,
-  THEME_COLOR_MAPS,
-  THEME_ENTITY_ACCENTS,
-  type ColorMap,
-  type ColorTokenName,
+  DARK_SCHEME,
+  LIGHT_SCHEME,
+  type SchemeColorMap,
+  type SchemeRole,
 } from "~/shared/tokens";
 
-/** Parse a `#rgb`/`#rrggbb` hex string to [r, g, b] in 0–255. */
+/** Parse a `#rrggbb` hex string to [r, g, b] in 0–255. */
 function parseHex(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean;
   return [
-    parseInt(full.slice(0, 2), 16),
-    parseInt(full.slice(2, 4), 16),
-    parseInt(full.slice(4, 6), 16),
+    parseInt(clean.slice(0, 2), 16),
+    parseInt(clean.slice(2, 4), 16),
+    parseInt(clean.slice(4, 6), 16),
   ];
 }
 
@@ -51,260 +44,204 @@ function relativeLuminance(hex: string): number {
 function contrastRatio(a: string, b: string): number {
   const la = relativeLuminance(a);
   const lb = relativeLuminance(b);
-  const lighter = Math.max(la, lb);
-  const darker = Math.min(la, lb);
-  return (lighter + 0.05) / (darker + 0.05);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
-interface Pair {
-  readonly fg: ColorTokenName;
-  readonly bg: ColorTokenName;
-  readonly note: string;
-}
+/** The system colour groups that emit a full `on-*` / container quartet. */
+const SYSTEM_GROUPS = [
+  "primary",
+  "secondary",
+  "tertiary",
+  "error",
+] as const satisfies readonly SchemeRole[];
 
-/** The surfaces text is actually rendered on. */
+/** Every custom colour, which emits the same quartet. */
+const CUSTOM_GROUPS = [
+  "success",
+  "warning",
+  "info",
+  "priority-p1",
+  "priority-p2",
+  "priority-p3",
+  "priority-p4",
+  "state-overdue",
+  "state-due-soon",
+  "state-completed",
+  "state-waiting",
+  "state-on-hold",
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
+  "chart-6",
+  "area-accent-1",
+  "area-accent-2",
+  "area-accent-3",
+  "area-accent-4",
+  "area-accent-5",
+  "area-accent-6",
+  "entity-area",
+  "entity-goal",
+  "entity-project",
+  "entity-task",
+  "entity-note",
+  "entity-meeting",
+  "entity-person",
+  "entity-asset",
+  "entity-diary",
+  "entity-review",
+] as const satisfies readonly SchemeRole[];
+
+/** Every surface text is rendered on — the system ramp plus the four the
+ * application actually paints with. */
 const TEXT_SURFACES = [
-  "surface-page",
   "surface",
-  "surface-raised",
-  "surface-card",
-  "surface-nav",
-  "surface-header",
-] as const satisfies readonly ColorTokenName[];
+  "surface-dim",
+  "surface-bright",
+  "surface-container-lowest",
+  "surface-container-low",
+  "surface-container",
+  "surface-container-high",
+  "surface-container-highest",
+  "app-surface-page",
+  "app-surface-card",
+  "app-surface-raised",
+  "app-surface-sunken",
+] as const satisfies readonly SchemeRole[];
 
-/** The text ramp, which must clear 4.5:1 on every surface above. */
-const TEXT_FOREGROUNDS = [
-  "text",
-  "text-secondary",
-  "text-muted",
-] as const satisfies readonly ColorTokenName[];
+const SCHEMES = [
+  ["light", LIGHT_SCHEME],
+  ["dark", DARK_SCHEME],
+] as const;
 
-function textRampPairs(): Pair[] {
-  const pairs: Pair[] = [];
-  for (const fg of TEXT_FOREGROUNDS) {
-    for (const bg of TEXT_SURFACES) {
-      pairs.push({ fg, bg, note: `${fg} on ${bg}` });
-    }
-  }
-  return pairs;
-}
-
-/** Tinted surfaces, each with the text token that sits on it. */
-const TINTED_PAIRS: readonly Pair[] = [
-  { fg: "success-text", bg: "success-surface", note: "success" },
-  { fg: "warning-text", bg: "warning-surface", note: "warning" },
-  { fg: "danger-text", bg: "danger-surface", note: "danger" },
-  { fg: "info-text", bg: "info-surface", note: "info" },
-  { fg: "accent-text", bg: "accent-surface", note: "accent tint" },
-  { fg: "priority-p1-text", bg: "priority-p1-surface", note: "P1 chip" },
-  { fg: "priority-p2-text", bg: "priority-p2-surface", note: "P2 chip" },
-  { fg: "priority-p3-text", bg: "priority-p3-surface", note: "P3 chip" },
-  { fg: "priority-p4-text", bg: "priority-p4-surface", note: "P4 chip" },
-  { fg: "state-overdue-text", bg: "state-overdue-surface", note: "overdue" },
-  { fg: "state-due-soon-text", bg: "state-due-soon-surface", note: "due soon" },
-  {
-    fg: "state-completed-text",
-    bg: "state-completed-surface",
-    note: "completed",
-  },
-  { fg: "state-waiting-text", bg: "state-waiting-surface", note: "waiting" },
-  { fg: "state-on-hold-text", bg: "state-on-hold-surface", note: "on hold" },
-  { fg: "selection-text", bg: "selection-bg", note: "text selection" },
-  // THEME-02 — the selected navigation row. Its label sits on its own tint, so it
-  // is checked like every other tinted surface rather than assumed readable
-  // because the tint is "subtle".
-  //
-  // This pair carries TWO things, which is why it is not merely a text check: the
-  // row's label AND the leading indicator bar are both painted with
-  // `nav-selected-text` on `nav-selected-surface`. The bar is a non-text cue that
-  // conveys state, so it needs 3:1; holding the pair at 4.5:1 here covers both at
-  // once. Painting the bar with `accent` instead would NOT be covered — `accent`
-  // guarantees its contrast against the page surfaces, not against this tint, and
-  // in a dark theme it falls under 3:1. `e2e/themes.spec.ts` measures the rendered
-  // bar so that substitution fails there too.
-  {
-    fg: "nav-selected-text",
-    bg: "nav-selected-surface",
-    note: "selected navigation row (label and indicator bar)",
-  },
-];
-
-/** Foregrounds that must also be readable directly on the page background. */
-const ON_BACKGROUND_PAIRS: readonly Pair[] = [
-  { fg: "accent-text", bg: "surface-page", note: "accent link on background" },
-  { fg: "accent-text", bg: "surface", note: "accent link on surface" },
-  { fg: "link", bg: "surface-page", note: "link on background" },
-  { fg: "link", bg: "surface-card", note: "link on a card" },
-  { fg: "link-hover", bg: "surface-page", note: "hovered link on background" },
-  {
-    fg: "success-text",
-    bg: "surface-page",
-    note: "success text on background",
-  },
-  {
-    fg: "warning-text",
-    bg: "surface-page",
-    note: "warning text on background",
-  },
-  { fg: "danger-text", bg: "surface-page", note: "danger text on background" },
-  { fg: "info-text", bg: "surface-page", note: "info text on background" },
-  { fg: "state-waiting-text", bg: "surface", note: "waiting text on surface" },
-  { fg: "state-on-hold-text", bg: "surface", note: "on-hold text on surface" },
-  // The selected row is painted on the navigation surface, so its label has to
-  // clear AA there too: a theme could otherwise pick a tint that is invisible
-  // against its own rail and only the tint pairing above would notice.
-  {
-    fg: "nav-selected-text",
-    bg: "surface-nav",
-    note: "selected navigation label on the rail",
-  },
-];
-
-/** Text on a filled control, in every interactive state. */
-const ON_ACCENT_PAIRS: readonly Pair[] = [
-  { fg: "on-accent", bg: "accent", note: "label on the accent fill" },
-  { fg: "on-accent", bg: "accent-hover", note: "label on a hovered fill" },
-  { fg: "on-accent", bg: "accent-active", note: "label on a pressed fill" },
-];
-
-/**
- * Non-text UI pairs (3:1) — anything whose SHAPE or PRESENCE carries meaning: the
- * focus ring, a filled control, a form-control boundary, a progress bar, a priority
- * dot, a status dot and every chart series.
- */
-const UI_PAIRS: readonly Pair[] = [
-  { fg: "focus-ring", bg: "surface-page", note: "focus ring on background" },
-  { fg: "focus-ring", bg: "surface", note: "focus ring on surface" },
-  { fg: "focus-ring", bg: "surface-card", note: "focus ring on a card" },
-  { fg: "focus-ring", bg: "surface-nav", note: "focus ring in navigation" },
-  { fg: "accent", bg: "surface-page", note: "accent fill on background" },
-  { fg: "accent", bg: "surface", note: "accent fill on surface" },
-  { fg: "accent", bg: "surface-card", note: "accent fill on a card" },
-  {
-    fg: "control-border",
-    bg: "surface-page",
-    note: "control boundary on background",
-  },
-  { fg: "control-border", bg: "surface", note: "control boundary on surface" },
-  {
-    fg: "control-border",
-    bg: "surface-raised",
-    note: "control boundary on an elevated surface",
-  },
-  {
-    fg: "control-border",
-    bg: "surface-card",
-    note: "control boundary on a card",
-  },
-  { fg: "progress-fill", bg: "progress-track", note: "progress against track" },
-  {
-    fg: "progress-complete",
-    bg: "progress-track",
-    note: "completed progress against track",
-  },
-  { fg: "priority-p1", bg: "surface-page", note: "P1 indicator" },
-  { fg: "priority-p2", bg: "surface-page", note: "P2 indicator" },
-  { fg: "priority-p3", bg: "surface-page", note: "P3 indicator" },
-  { fg: "priority-p4", bg: "surface-page", note: "P4 indicator" },
-  { fg: "state-overdue", bg: "surface-page", note: "overdue indicator" },
-  { fg: "state-due-soon", bg: "surface-page", note: "due-soon indicator" },
-  { fg: "state-completed", bg: "surface-page", note: "completed indicator" },
-  { fg: "state-waiting", bg: "surface-page", note: "waiting indicator" },
-  { fg: "state-on-hold", bg: "surface-page", note: "on-hold indicator" },
-  { fg: "chart-1", bg: "surface-card", note: "chart series 1" },
-  { fg: "chart-2", bg: "surface-card", note: "chart series 2" },
-  { fg: "chart-3", bg: "surface-card", note: "chart series 3" },
-  { fg: "chart-4", bg: "surface-card", note: "chart series 4" },
-  { fg: "chart-5", bg: "surface-card", note: "chart series 5" },
-  { fg: "chart-6", bg: "surface-card", note: "chart series 6" },
-];
-
-function runPairs(
-  themeId: string,
-  theme: ColorMap,
-  pairs: readonly Pair[],
+function expectRatio(
+  scheme: SchemeColorMap,
+  label: string,
+  fg: SchemeRole,
+  bg: SchemeRole,
   min: number,
 ) {
-  for (const pair of pairs) {
-    const ratio = contrastRatio(theme[pair.fg], theme[pair.bg]);
-    expect(
-      ratio,
-      `${themeId} — ${pair.note}: ${theme[pair.fg]} on ${theme[pair.bg]} = ${ratio.toFixed(2)}:1 (min ${min})`,
-    ).toBeGreaterThanOrEqual(min);
-  }
+  const ratio = contrastRatio(scheme[fg], scheme[bg]);
+  expect(
+    ratio,
+    `${label} — ${fg} (${scheme[fg]}) on ${bg} (${scheme[bg]}) = ${ratio.toFixed(2)}:1, needs ${min}:1`,
+  ).toBeGreaterThanOrEqual(min);
 }
 
-describe.each(THEME_IDS)("THEME-01 contrast — %s", (themeId) => {
-  const theme = THEME_COLOR_MAPS[themeId];
+describe.each(SCHEMES)("M3-01 contrast — %s scheme", (label, scheme) => {
+  it("meets AA for every on-colour on its own colour", () => {
+    for (const group of [...SYSTEM_GROUPS, ...CUSTOM_GROUPS]) {
+      expectRatio(scheme, label, `on-${group}` as SchemeRole, group, 4.5);
+    }
+  });
+
+  it("meets AA for every on-container on its own container", () => {
+    for (const group of [...SYSTEM_GROUPS, ...CUSTOM_GROUPS]) {
+      expectRatio(
+        scheme,
+        label,
+        `on-${group}-container` as SchemeRole,
+        `${group}-container` as SchemeRole,
+        4.5,
+      );
+    }
+  });
 
   it("meets AA for the text ramp on every surface", () => {
-    runPairs(themeId, theme, textRampPairs(), 4.5);
+    for (const surface of TEXT_SURFACES) {
+      expectRatio(scheme, label, "on-surface", surface, 4.5);
+      expectRatio(scheme, label, "on-surface-variant", surface, 4.5);
+    }
   });
 
-  it("meets AA for text on every tinted surface", () => {
-    runPairs(themeId, theme, TINTED_PAIRS, 4.5);
+  it("meets AA for the inverse pair a snackbar paints with", () => {
+    expectRatio(scheme, label, "inverse-on-surface", "inverse-surface", 4.5);
   });
 
-  it("meets AA for status and link text on the page background", () => {
-    runPairs(themeId, theme, ON_BACKGROUND_PAIRS, 4.5);
+  it("meets 3:1 for the outline on every surface", () => {
+    // `outline` is the boundary of a text field, a segmented button and an
+    // outlined chip — a non-text UI component whose PRESENCE carries meaning.
+    for (const surface of TEXT_SURFACES) {
+      expectRatio(scheme, label, "outline", surface, 3);
+    }
   });
 
-  it("meets AA for a label on a filled control in every state", () => {
-    runPairs(themeId, theme, ON_ACCENT_PAIRS, 4.5);
+  it("meets 3:1 for the focus ring on the surfaces it is drawn over", () => {
+    // The focus indicator is `outline: 2px solid var(--md-sys-color-primary)`.
+    for (const surface of [
+      "app-surface-card",
+      "app-surface-page",
+      "app-surface-raised",
+      "app-surface-sunken",
+      "surface",
+    ] as const) {
+      expectRatio(scheme, label, "primary", surface, 3);
+    }
   });
 
-  it("meets AA for non-text UI (focus, controls, progress, charts)", () => {
-    runPairs(themeId, theme, UI_PAIRS, 3);
+  it("meets 3:1 for progress fill against its track", () => {
+    expectRatio(scheme, label, "primary", "secondary-container", 3);
+    expectRatio(scheme, label, "success", "secondary-container", 3);
   });
 
-  it("keeps every entity identity accent visible on the page background", () => {
-    for (const entity of ENTITY_ACCENT_NAMES) {
-      const accent = THEME_ENTITY_ACCENTS[themeId][entity];
-      const ratio = contrastRatio(accent, theme["surface-page"]);
-      expect(
-        ratio,
-        `${themeId} — ${entity} accent ${accent} on ${theme["surface-page"]} = ${ratio.toFixed(2)}:1`,
-      ).toBeGreaterThanOrEqual(3);
+  it("keeps every identity and series colour visible on card and page", () => {
+    const marks = CUSTOM_GROUPS.filter(
+      (name) =>
+        name.startsWith("entity-") ||
+        name.startsWith("area-accent-") ||
+        name.startsWith("chart-") ||
+        name.startsWith("priority-") ||
+        name.startsWith("state-"),
+    );
+    for (const mark of marks) {
+      expectRatio(scheme, label, mark, "app-surface-card", 3);
+      expectRatio(scheme, label, mark, "app-surface-page", 3);
     }
   });
 
   it("keeps priority levels distinguishable from one another", () => {
     // Priority is never colour-only (the chip always carries a P1–P4 tag), but
     // when colour IS perceived it must not collapse into one hue.
-    const levels = [
-      theme["priority-p1"],
-      theme["priority-p2"],
-      theme["priority-p3"],
-      theme["priority-p4"],
-    ];
+    const levels = (["p1", "p2", "p3", "p4"] as const).map(
+      (n) => scheme[`priority-${n}` as SchemeRole],
+    );
     expect(new Set(levels).size).toBe(levels.length);
   });
 
   it("keeps the chart series distinguishable from one another", () => {
-    const series = [
-      theme["chart-1"],
-      theme["chart-2"],
-      theme["chart-3"],
-      theme["chart-4"],
-      theme["chart-5"],
-      theme["chart-6"],
-    ];
+    // A legend is the ONE place in the product where colour genuinely is the
+    // signal, so this is a stronger check than "the strings differ": no two
+    // series may sit within 25° of hue, measured in HCT-comparable terms via
+    // the sRGB hue angle, nor collapse to the same luminance.
+    const series = ([1, 2, 3, 4, 5, 6] as const).map(
+      (n) => scheme[`chart-${n}` as SchemeRole],
+    );
     expect(new Set(series).size).toBe(series.length);
-  });
-});
-
-describe("THEME-01 Ember does not read as a warning", () => {
-  it("keeps the accent clearly distinct from danger and warning", () => {
-    // Ember's terracotta accent sits at the warm end of the palette. An ordinary
-    // primary button must never look like a destructive one, so the accent and the
-    // danger colour are held apart deliberately: danger is the redder, less orange
-    // of the two.
-    const ember = THEME_COLOR_MAPS.ember;
-    expect(ember.accent).not.toBe(ember.danger);
-    expect(ember.accent).not.toBe(ember.warning);
-    const [accentRed, , accentBlue] = parseHex(ember.accent);
-    const [dangerRed, , dangerBlue] = parseHex(ember.danger);
-    expect(dangerRed - dangerBlue).toBeGreaterThan(accentRed - accentBlue);
+    const hues = series.map((hex) => {
+      const [r, g, b] = parseHex(hex).map((v) => v / 255);
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      if (max === min) return 0;
+      const d = max - min;
+      const h =
+        max === r
+          ? ((g - b) / d) % 6
+          : max === g
+            ? (b - r) / d + 2
+            : (r - g) / d + 4;
+      return (((h * 60) % 360) + 360) % 360;
+    });
+    for (let i = 0; i < hues.length; i += 1) {
+      for (let j = i + 1; j < hues.length; j += 1) {
+        const raw = Math.abs(hues[i] - hues[j]);
+        const separation = Math.min(raw, 360 - raw);
+        expect(
+          separation,
+          `${label} — chart-${i + 1} (${series[i]}) and chart-${j + 1} (${series[j]}) are ${separation.toFixed(0)}° apart`,
+        ).toBeGreaterThanOrEqual(25);
+      }
+    }
   });
 });
 

@@ -1,94 +1,80 @@
 /**
- * PX-02 / THEME-01 — entity-identity accent tokens, in every curated theme.
+ * M3-01 — the entity-identity colours.
  *
- * The entity accents (`--dh-entity-<type>-accent`) are used at identity sites (icon,
- * card edge, chip). This test enforces that each is resolved in EVERY theme (not just
- * light and dark), that the two dark blocks stay in parity, that dark actually
- * remaps rather than inheriting the light values, and that each accent meets 3:1
- * non-text contrast against its own theme's background so the glyph stays legible.
+ * Every entity type in the kernel has one identity colour, generated as an M3
+ * custom colour so it comes with a full `colour / on-colour / container /
+ * on-container` quartet rather than a lone hex. The quartet is what lets an
+ * identity render as a filled badge (a 40px rounded square with the entity's
+ * glyph in `on-container`) as readily as a dot.
  *
- * The colour VALUES are asserted against the TS mirror in `tokens.test.ts`; this file
- * is about coverage and legibility.
+ * This file is about COVERAGE and IDENTITY: one colour per entity type, no two
+ * types sharing one, and the container pair defined in both schemes. Contrast is
+ * asserted in `contrast.test.ts`, and the CSS↔TS values in `tokens.test.ts`.
  */
 
 import { describe, expect, it } from "vitest";
 
-import { THEME_IDS } from "~/kernel/preferences/theme-preference";
 import { ENTITY_TYPES } from "~/shared/entity";
-
 import {
-  darkSystemTokens,
-  effectiveThemeTokens,
-  themeTokens,
-} from "./token-css";
+  DARK_SCHEME,
+  LIGHT_SCHEME,
+  type SchemeColorMap,
+  type SchemeRole,
+} from "~/shared/tokens";
 
-function parseHex(hex: string): [number, number, number] {
-  const clean = hex.replace("#", "");
+const SCHEMES = [
+  ["light", LIGHT_SCHEME],
+  ["dark", DARK_SCHEME],
+] as const;
+
+/** The four roles every entity identity defines. */
+function quartet(type: string): readonly SchemeRole[] {
   return [
-    parseInt(clean.slice(0, 2), 16),
-    parseInt(clean.slice(2, 4), 16),
-    parseInt(clean.slice(4, 6), 16),
-  ];
+    `entity-${type}`,
+    `on-entity-${type}`,
+    `entity-${type}-container`,
+    `on-entity-${type}-container`,
+  ] as SchemeRole[];
 }
 
-function relativeLuminance(hex: string): number {
-  const channels = parseHex(hex).map((v) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-function contrastRatio(a: string, b: string): number {
-  const la = relativeLuminance(a);
-  const lb = relativeLuminance(b);
-  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-}
-
-describe("PX-02 entity accent tokens", () => {
-  it("resolves an accent for every entity type in every curated theme", () => {
-    for (const themeId of THEME_IDS) {
-      const effective = effectiveThemeTokens(themeId);
-      for (const type of ENTITY_TYPES) {
-        const token = `dh-entity-${type}-accent`;
+describe.each(SCHEMES)("M3-01 entity identity — %s scheme", (label, scheme) => {
+  it("defines the full quartet for every entity type", () => {
+    for (const type of ENTITY_TYPES) {
+      for (const role of quartet(type)) {
         expect(
-          effective.has(token),
-          `theme "${themeId}" does not resolve --${token}`,
-        ).toBe(true);
+          (scheme as SchemeColorMap)[role],
+          `${label}: --md-sys-color-${role} is missing`,
+        ).toMatch(/^#[0-9a-f]{6}$/);
       }
     }
   });
 
-  it("keeps the two dark blocks in parity for entity accents", () => {
-    const darkExplicit = themeTokens("daly-dark");
-    const darkSystem = darkSystemTokens();
-    for (const type of ENTITY_TYPES) {
-      const token = `dh-entity-${type}-accent`;
-      expect(darkSystem.get(token)).toBe(darkExplicit.get(token));
-    }
+  it("gives every entity type its own colour", () => {
+    // An activity feed shows several entity kinds at once. Each also carries a
+    // distinct glyph and a label — colour is never the only signal — but two
+    // types resolving to the same hex would still be a defect.
+    const accents = ENTITY_TYPES.map(
+      (type) => (scheme as SchemeColorMap)[`entity-${type}` as SchemeRole],
+    );
+    expect(new Set(accents).size).toBe(ENTITY_TYPES.length);
   });
 
-  it("remaps the accent between the light default and the dark theme", () => {
-    const light = effectiveThemeTokens("daly-light");
-    const dark = effectiveThemeTokens("daly-dark");
-    for (const type of ENTITY_TYPES) {
-      const token = `dh-entity-${type}-accent`;
-      expect(dark.get(token)).not.toBe(light.get(token));
-    }
+  it("gives every entity type its own container tint", () => {
+    const containers = ENTITY_TYPES.map(
+      (type) =>
+        (scheme as SchemeColorMap)[`entity-${type}-container` as SchemeRole],
+    );
+    expect(new Set(containers).size).toBe(ENTITY_TYPES.length);
   });
+});
 
-  it("meets 3:1 non-text contrast against every theme's background", () => {
-    for (const themeId of THEME_IDS) {
-      const effective = effectiveThemeTokens(themeId);
-      const background = effective.get("dh-color-surface-page")!;
-      for (const type of ENTITY_TYPES) {
-        const accent = effective.get(`dh-entity-${type}-accent`)!;
-        const ratio = contrastRatio(accent, background);
-        expect(
-          ratio,
-          `${themeId} ${type} accent ${accent} on ${background} = ${ratio.toFixed(2)}:1`,
-        ).toBeGreaterThanOrEqual(3);
-      }
+describe("M3-01 entity identity across schemes", () => {
+  it("remaps every accent between light and dark", () => {
+    for (const type of ENTITY_TYPES) {
+      const role = `entity-${type}` as SchemeRole;
+      expect(DARK_SCHEME[role], `--md-sys-color-${role}`).not.toBe(
+        LIGHT_SCHEME[role],
+      );
     }
   });
 });

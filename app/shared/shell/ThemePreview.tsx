@@ -6,19 +6,17 @@
  * sample. Settings shows one per option so the owner picks a LOOK rather than a
  * name.
  *
- * ── Why this component reads theme colours as DATA ────────────────────────────
- * Everywhere else in DalyHub, a component consumes semantic tokens and inherits
- * whichever theme is active — that is the whole point of the token layer. A preview
- * is the one genuine exception: it must paint the COASTAL palette while DALY DARK is
- * the active theme, and CSS custom properties cascade from `:root[data-theme]`, so
- * there is no way to inherit a theme you are not in.
+ * ── M3-01: this component is on its way out ───────────────────────────────────
+ * DalyHub now ships ONE generated light/dark pair and no theme feature
+ * (ADR-074), so there is no longer a palette per option to preview. The
+ * component is kept compiling for one more step — the picker is removed from the
+ * Settings UI in step 3 and both components are deleted in step 6 — and it now
+ * paints the only two schemes that exist: a dark theme id previews the dark
+ * scheme, everything else previews the light one.
  *
- * So the preview writes a handful of `--dh-preview-*` custom properties inline, read
- * from `THEME_COLOR_MAPS` (the same data a sync test pins to `tokens.css`). This is
- * NOT theme-conditional rendering: the markup and the class names are identical for
- * every theme, only the six property values differ, and no other component may do
- * this. If a preview colour ever disagrees with the stylesheet, the token sync test
- * fails.
+ * It writes a handful of `--dh-preview-*` custom properties inline because a
+ * preview must paint a scheme it is not IN, and custom properties cascade. No
+ * other component may do this.
  *
  * The swatch is `aria-hidden`: it carries no information the option's own name and
  * description do not already state in text, which keeps the picker usable when
@@ -27,24 +25,23 @@
 
 import type { CSSProperties } from "react";
 
-import { THEME_COLOR_MAPS } from "~/shared/tokens";
+import { DARK_SCHEME, LIGHT_SCHEME } from "~/shared/tokens";
 
-import { resolveThemeId, type ThemePreference } from "./theme";
+import { resolveThemeId, themeById, type ThemePreference } from "./theme";
 
-/** The colours a preview needs, as CSS custom properties for one theme. */
+/** The colours a preview needs, as CSS custom properties. */
 function previewStyle(preference: ThemePreference): CSSProperties {
-  // `system` has no palette of its own; preview the theme it resolves to in light
-  // appearance, which is what the option's description already says it does.
-  const colors = THEME_COLOR_MAPS[resolveThemeId(preference)];
+  const appearance = themeById(resolveThemeId(preference)).appearance;
+  const colors = appearance === "dark" ? DARK_SCHEME : LIGHT_SCHEME;
   return {
-    "--dh-preview-bg": colors["surface-page"],
-    "--dh-preview-card": colors["surface-card"],
-    "--dh-preview-border": colors.border,
-    "--dh-preview-accent": colors.accent,
-    "--dh-preview-text": colors.text,
-    "--dh-preview-muted": colors["text-muted"],
-    "--dh-preview-track": colors["progress-track"],
-    "--dh-preview-fill": colors["progress-fill"],
+    "--dh-preview-bg": colors["app-surface-page"],
+    "--dh-preview-card": colors["app-surface-card"],
+    "--dh-preview-border": colors["outline-variant"],
+    "--dh-preview-accent": colors.primary,
+    "--dh-preview-text": colors["on-surface"],
+    "--dh-preview-muted": colors["on-surface-variant"],
+    "--dh-preview-track": colors["secondary-container"],
+    "--dh-preview-fill": colors.primary,
   } as CSSProperties;
 }
 

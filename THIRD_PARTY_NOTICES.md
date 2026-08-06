@@ -150,12 +150,27 @@ licences are recorded for completeness.
 | `happy-dom`                 | 20.10.6         | MIT                |
 | `@playwright/test`          | 1.61.1          | Apache-2.0         |
 | `globals`                   | 17.7.0          | MIT                |
+| `@material/material-color-utilities` | 0.4.0  | Apache-2.0         |
 | `@types/*`                  | (various)       | MIT                |
 
-Apache-2.0 dependencies (`typescript`, `@playwright/test`, and `wrangler` under
-its Apache-2.0 option) are used unmodified; none ships a supplemental `NOTICE`
-file requiring additional reproduction. No copyleft or no-licence code is
-included.
+Apache-2.0 dependencies (`typescript`, `@playwright/test`, `wrangler` under its
+Apache-2.0 option, and `@material/material-color-utilities`) are used unmodified;
+none ships a supplemental `NOTICE` file requiring additional reproduction. No
+copyleft or no-licence code is included.
+
+### The Material Design 3 colour generator (M3-01)
+
+`@material/material-color-utilities` is Google's own reference implementation of
+the M3 tonal-palette algorithm. Licence verified against the installed version on
+**2026-08-06**: Apache-2.0, which is on `AGENTS.md §11`'s default-allowed list, so
+no recorded decision is required.
+
+It is a **development dependency only**. `scripts/generate-m3-scheme.mjs` runs it
+to produce `app/styles/tokens.css`'s colour blocks and `app/shared/tokens/scheme.ts`
+— both **committed** — so nothing it computes happens at runtime, in the browser or
+in the deployed Worker, and it is absent from every shipped bundle. It is used
+unmodified; DalyHub's four documented deviations (ADR-074 decision 3) are choices
+about *which* of the library's own APIs to call, not changes to its code.
 
 ### Accessibility test tooling (DS-11) — recorded MPL-2.0 decision
 

@@ -1,11 +1,12 @@
 /*
- * DS-01 — base document styles, expressed entirely in design tokens.
+ * M3-01 — base document styles, expressed entirely in design tokens.
  *
  * The minimal, un-opinionated foundation every page sits on: box-sizing, the
- * body type/colour, the focus ring, reduced-motion behaviour, and the small set
- * of generic content classes the shell pages use (`.page`, `.home`,
- * `.module-placeholder`, `.markdown-content`). No raw hex/px/duration appears
- * here — only `var(--dh-*)` tokens from tokens.css.
+ * body type/colour, the focus indicator, the shared M3 STATE LAYER, the
+ * reduced-motion behaviour, and the small set of generic content classes the
+ * shell pages use (`.page`, `.home`, `.module-placeholder`,
+ * `.markdown-content`). No raw hex/px/duration appears here — only tokens from
+ * tokens.css.
  */
 
 *,
@@ -46,13 +47,66 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Always-visible, high-contrast focus ring for keyboard users (WCAG 2.2 AA;
- * AGENTS.md §15). The token pair meets the 3:1 non-text contrast requirement in
- * both themes. */
+/*
+ * The focus indicator: M3's 2px primary outline, offset so it reads as a ring
+ * around the component rather than as part of it (WCAG 2.2 AA, AGENTS.md §15).
+ * `primary` clears 3:1 against every surface the ring is drawn over, in both
+ * schemes — asserted in `test/unit/tokens/contrast.test.ts` rather than assumed.
+ *
+ * `border-radius` is deliberately NOT set here: an outline follows the element's
+ * own corner radius, so a fully-rounded button gets a fully-rounded ring and a
+ * text field gets a 4px one, with nothing to keep in sync.
+ */
 :focus-visible {
-  outline: var(--dh-border-width-thick) solid var(--dh-color-focus-ring);
+  outline: var(--dh-border-width-thick) solid var(--md-sys-color-primary);
   outline-offset: 2px;
-  border-radius: var(--dh-radius-xs);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The M3 state layer                                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * An interactive M3 component does not swap its container colour on hover; it
+ * grows a translucent layer of its own CONTENT colour on top of whatever it is
+ * already painted with. That is why one implementation covers a filled button, a
+ * tonal button, a navigation row, a list row, a chip and a menu item alike —
+ * `currentColor` is already the right colour on every one of them.
+ *
+ * Stated ONCE, here, and applied by adding `.md-state-layer` to a component.
+ * Requirements on the host: it establishes a containing block (the class sets
+ * `position: relative` unless the component already positions itself) and it
+ * carries its own `border-radius`, which the layer inherits.
+ */
+.md-state-layer {
+  position: relative;
+}
+
+.md-state-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+.md-state-layer:hover::after {
+  opacity: var(--md-sys-state-hover-state-layer-opacity);
+}
+
+.md-state-layer:active::after {
+  opacity: var(--md-sys-state-pressed-state-layer-opacity);
+}
+
+/* A disabled component has no states at all — the M3 disabled treatment (12%
+ * container, 38% content) replaces them. */
+.md-state-layer:disabled::after,
+.md-state-layer[aria-disabled="true"]::after {
+  opacity: 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -145,9 +199,9 @@ body {
   *,
   *::before,
   *::after {
-    animation-duration: var(--dh-duration-instant) !important;
+    animation-duration: var(--md-sys-motion-duration-none) !important;
     animation-iteration-count: 1 !important;
-    transition-duration: var(--dh-duration-instant) !important;
+    transition-duration: var(--md-sys-motion-duration-none) !important;
     scroll-behavior: auto !important;
   }
 }

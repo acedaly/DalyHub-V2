@@ -1,21 +1,22 @@
 /**
- * DS-01 — the typed token registry for components and tests.
+ * M3-01 — the typed token registry for components and tests.
  *
  * `app/styles/tokens.css` holds the authoritative VALUES; this module names the
  * tokens so TypeScript can reference them safely. Components style themselves in
- * CSS (classes that consume `var(--dh-*)`); when a component genuinely needs an
- * inline token reference, it uses `cssVar(...)` here so the name is checked and
- * greppable rather than a stringly-typed literal.
+ * CSS (classes that consume `var(--md-sys-*)`); when a component genuinely needs
+ * an inline token reference, it uses `cssVar(...)` here so the name is checked
+ * and greppable rather than a stringly-typed literal.
  *
- * The exported name lists double as the contract the DS-01 tests enforce: every
- * required semantic token must exist in the stylesheet, and no consumed
- * `var(--dh-*)` may reference a token the stylesheet never defines.
+ * The exported name lists double as the contract the token tests enforce: every
+ * required token must exist in the stylesheet, and no consumed `var(--md-*)` may
+ * reference a token the stylesheet never defines. The COLOUR names are not
+ * listed here — they are generated, and `scheme.ts` is their registry.
  */
 
-import { COLOR_TOKEN_NAMES, type ColorTokenName } from "./theme-colors";
+import { SCHEME_ROLE_NAMES, type SchemeRole } from "./scheme";
 
-export type { ColorTokenName } from "./theme-colors";
-export { COLOR_TOKEN_NAMES } from "./theme-colors";
+export type { SchemeRole } from "./scheme";
+export { SCHEME_ROLE_NAMES } from "./scheme";
 
 /** Breakpoint values in pixels. Mirrors the `--dh-breakpoint-*` tokens in CSS
  * (media queries cannot read custom properties); a test keeps them in sync. */
@@ -30,36 +31,87 @@ export const BREAKPOINTS = {
 /** A breakpoint name. */
 export type BreakpointName = keyof typeof BREAKPOINTS;
 
-/** Non-colour token groups whose names DS-01 requires to exist in the stylesheet.
- * Each entry is the token name without the leading `--`. */
+/** The fifteen M3 type styles. */
+export const TYPESCALE_STYLES = [
+  "display-large",
+  "display-medium",
+  "display-small",
+  "headline-large",
+  "headline-medium",
+  "headline-small",
+  "title-large",
+  "title-medium",
+  "title-small",
+  "body-large",
+  "body-medium",
+  "body-small",
+  "label-large",
+  "label-medium",
+  "label-small",
+] as const;
+
+/** An M3 type style name. */
+export type TypescaleStyle = (typeof TYPESCALE_STYLES)[number];
+
+/** The four facets every type style defines. */
+export const TYPESCALE_FACETS = [
+  "size",
+  "line-height",
+  "weight",
+  "tracking",
+] as const;
+
+/** Non-colour token groups whose names the token tests require to exist in the
+ * stylesheet. Each entry is the token name without the leading `--`. */
 export const STRUCTURAL_TOKEN_NAMES = {
-  typography: [
-    "dh-font-sans",
-    "dh-font-serif",
-    "dh-font-mono",
-    "dh-font-size-2xs",
-    "dh-font-size-xs",
-    "dh-font-size-sm",
-    "dh-font-size-compact",
-    "dh-font-size-base",
-    "dh-font-size-md",
-    "dh-font-size-lg",
-    "dh-font-size-xl",
-    "dh-font-size-2xl",
-    "dh-font-size-3xl",
-    "dh-line-height-tight",
-    "dh-line-height-dense",
-    "dh-line-height-snug",
-    "dh-line-height-normal",
-    "dh-line-height-relaxed",
-    "dh-line-height-loose",
-    "dh-font-weight-regular",
-    "dh-font-weight-medium",
-    "dh-font-weight-semibold",
-    "dh-letter-spacing-tight",
-    "dh-letter-spacing-normal",
-    "dh-letter-spacing-wide",
-    "dh-letter-spacing-wider",
+  typeface: ["md-ref-typeface-plain", "md-ref-typeface-mono"],
+  typescale: TYPESCALE_STYLES.flatMap((style) =>
+    TYPESCALE_FACETS.map((facet) => `md-sys-typescale-${style}-${facet}`),
+  ),
+  shape: [
+    "md-sys-shape-corner-none",
+    "md-sys-shape-corner-extra-small",
+    "md-sys-shape-corner-small",
+    "md-sys-shape-corner-medium",
+    "md-sys-shape-corner-large",
+    "md-sys-shape-corner-extra-large",
+    "md-sys-shape-corner-full",
+  ],
+  elevation: [
+    "md-sys-elevation-1",
+    "md-sys-elevation-2",
+    "md-sys-elevation-3",
+    "md-sys-elevation-4",
+    "md-sys-elevation-5",
+  ],
+  state: [
+    "md-sys-state-hover-state-layer-opacity",
+    "md-sys-state-focus-state-layer-opacity",
+    "md-sys-state-pressed-state-layer-opacity",
+    "md-sys-state-dragged-state-layer-opacity",
+    "md-sys-state-disabled-container-opacity",
+    "md-sys-state-disabled-content-opacity",
+  ],
+  motion: [
+    "md-sys-motion-duration-none",
+    "md-sys-motion-duration-short1",
+    "md-sys-motion-duration-short2",
+    "md-sys-motion-duration-short3",
+    "md-sys-motion-duration-short4",
+    "md-sys-motion-duration-medium1",
+    "md-sys-motion-duration-medium2",
+    "md-sys-motion-duration-medium3",
+    "md-sys-motion-duration-medium4",
+    "md-sys-motion-duration-long1",
+    "md-sys-motion-duration-long2",
+    "md-sys-motion-duration-long3",
+    "md-sys-motion-duration-long4",
+    "md-sys-motion-easing-standard",
+    "md-sys-motion-easing-standard-decelerate",
+    "md-sys-motion-easing-standard-accelerate",
+    "md-sys-motion-easing-emphasized",
+    "md-sys-motion-easing-emphasized-decelerate",
+    "md-sys-motion-easing-emphasized-accelerate",
   ],
   spacing: [
     "dh-space-0",
@@ -80,7 +132,6 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "dh-control-height-md",
     "dh-control-height-lg",
     "dh-touch-target-min",
-    "dh-width-reading",
     "dh-width-prose",
     "dh-width-narrow",
     "dh-width-content",
@@ -88,36 +139,10 @@ export const STRUCTURAL_TOKEN_NAMES = {
     "dh-width-dashboard",
     "dh-shell-header-height",
     "dh-shell-nav-width",
+    "dh-inspector-width",
     "dh-gutter",
-  ],
-  shape: [
     "dh-border-width-thin",
     "dh-border-width-thick",
-    "dh-radius-pill",
-    "dh-radius-card",
-    "dh-radius-control",
-    "dh-radius-field",
-    "dh-radius-xs",
-    "dh-radius-sm",
-    "dh-radius-md",
-    "dh-radius-lg",
-    "dh-radius-xl",
-    "dh-radius-full",
-  ],
-  elevation: [
-    "dh-shadow-sm",
-    "dh-shadow-md",
-    "dh-shadow-lg",
-    "dh-shadow-focus",
-  ],
-  motion: [
-    "dh-duration-instant",
-    "dh-duration-fast",
-    "dh-duration-base",
-    "dh-duration-slow",
-    "dh-ease-standard",
-    "dh-ease-emphasized",
-    "dh-ease-exit",
   ],
   layout: [
     "dh-breakpoint-sm",
@@ -138,15 +163,23 @@ export const STRUCTURAL_TOKEN_NAMES = {
 } as const satisfies Record<string, readonly string[]>;
 
 /** Every required token custom-property name (colour + structural), without the
- * leading `--`. This is the full set DS-01 guarantees the stylesheet defines. */
+ * leading `--`. This is the full set the token tests guarantee the stylesheet
+ * defines. */
 export const REQUIRED_TOKEN_NAMES: readonly string[] = [
-  ...COLOR_TOKEN_NAMES.map((name) => `dh-color-${name}`),
+  ...SCHEME_ROLE_NAMES.map((role) =>
+    role.startsWith("app-")
+      ? `md-app-color-${role.slice("app-".length)}`
+      : `md-sys-color-${role}`,
+  ),
   ...Object.values(STRUCTURAL_TOKEN_NAMES).flat(),
 ];
 
-/** Build a `var(--dh-color-<name>)` reference for a semantic colour token. */
-export function colorVar(name: ColorTokenName): string {
-  return `var(--dh-color-${name})`;
+/** Build a `var(--md-sys-color-<role>)` reference for a semantic colour role.
+ * The four application surfaces live under `--md-app-color-*` instead. */
+export function colorVar(role: SchemeRole): string {
+  return role.startsWith("app-")
+    ? `var(--md-app-color-${role.slice("app-".length)})`
+    : `var(--md-sys-color-${role})`;
 }
 
 /** Build a `var(--<name>)` reference for any token custom property (the name is
