@@ -414,6 +414,12 @@ comparison is deliberate, so the `Set-Cookie` is emitted only on the renders tha
 actually need it. Both writers go through `isSecureAppearanceEnvironment`, because a
 cookie written from two places with different attributes is two cookies.
 
+**The one accepted gap.** If the very first document a new device loads is
+`/offline` itself, it paints `system`: that route reaches no loader that could know
+better, deliberately, because it is a cacheable shell and must bake in nothing
+owner-specific. In practice it is reached after using the app, by which point the
+shell has run and the cookie exists.
+
 **Resolution order in the root layout**, most authoritative first:
 
 1. the app-shell loader's value, read from the owner record;
