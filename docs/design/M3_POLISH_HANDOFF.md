@@ -24,6 +24,24 @@ This document is the *state of the work*, not the specification.
 | `b94d79d` | The reference mock-up checked in, renamed and linked from the audit and the docs index. |
 | `24471c6` | **Gate C.** The shared card family: `DashboardCard`, `MetricTile`/`MetricRow`, `RecordRow`/`RecordRowList`, `EntityCard`/`EntityCardGrid`, `Timeline`/`TimelineItem`, and `app/styles/card-family.css`. |
 | `8675bf8` | The icon-key foundation (migration, vocabulary, catalogue, resolver, tests); the card-family fixture moved to its own route; the narrow-container grid fix; a fourth pre-existing fix (`data-density` → `data-card-density`). |
+| `681d551` | **CI correction.** Four e2e contracts realigned with the approved shell — the brand assertion, two `visual-system` surface tests still reading retired `--dh-color-*` tokens, a brittle `.first()` link selector, and three page-wide "Task completed" negatives that matched Recent activity. |
+| `5ded9ff` | **Real fix.** The capture FAB overlapped the bulk-action bar on a phone and ate its trailing controls; Cancel could not be tapped. `CollectionLayout` now flags an active selection and the shell hides the FAB for its duration. |
+| `9277a2b` | Icon persistence: kernel types, repository reads/writes, `setIcon`, snapshot + vault export. |
+| `ea47d17` | 17 kernel tests for the persistence contract. **Corrected a wrong claim**: `project_details` is sparse for a new Project, not dense, so the upsert is load-bearing. |
+| `b3b366f` | Export round-trip coverage — 7 unit tests, 3 more kernel tests. |
+| `d733ba9` | Route-boundary validation (`readEntityIconField`), create/update wiring for both modules, and record loaders carrying the key only. |
+
+### First fully green CI run
+
+`b3b366f` is the first head on this branch where **all 19 checks passed** — static
+quality, unit, kernel, production build and all 14 Playwright shards. Earlier red runs
+on this branch were: three cancellations caused by pushing while a run was in flight,
+two runner-infrastructure faults (a Playwright browser download returning `403 … not
+available in your location`, and a Chromium `SIGSEGV` that struck a different spec each
+time it appeared), and the genuine failures fixed in `681d551`/`5ded9ff`.
+
+`main` itself was red across every recent run at the time, on the same shards plus the
+kernel job. That is context, not a licence: this branch's head is expected to be green.
 
 ### Four pre-existing failures found and fixed
 
@@ -45,7 +63,8 @@ their own commits so they are separable from the visual work.
 | A — audit | **Complete and approved.** |
 | B — surfaces and shell | **Complete and approved**, including the review changes. |
 | C — shared components | **Foundation complete and approved.** The five components exist, are tested and are demonstrated. **No module consumes them yet.** |
-| Icons | **Foundation only** — see §4. |
+| Icons — persistence | **Complete and tested**, form boundary through to export — see §4. |
+| Icons — picker and form integration | **Not started.** This is the immediate next step. |
 | D — entity collections | Not started. |
 | E — records and forms | Not started. |
 | F — remaining modules | Not started. |
@@ -90,10 +109,62 @@ non-ASCII as a remote-D1 statement-splitting hazard. An em-dash in a comment is 
 
 ---
 
-## 4. Icon persistence — what is NOT done
+## 4. Icon persistence — state
 
-The migration, vocabulary, catalogue and resolver exist. **Nothing reads or writes the column.**
-Every path below is outstanding:
+Persistence is **wired and tested end to end from the form boundary to the database and
+out through export.** What remains is the picker and its integration.
+
+| Path | State |
+|---|---|
+| Kernel domain types (`AreaSettings.iconKey`, `ProjectSettings.iconKey`) | **done** |
+| Repository interfaces (`setIcon`) | **done** |
+| D1 reads, with normalisation on the way OUT | **done** |
+| D1 writes / reset-to-null (upsert) | **done** |
+| Route-boundary validation (`readEntityIconField`) | **done** |
+| Create + update routes, both modules | **done** |
+| Record loaders (key only, serialisable) | **done** |
+| Snapshot types, D1 snapshot reader, vault frontmatter | **done** |
+| Round-trip preservation tests | **done** |
+| **Picker** | **not started** |
+| **Form integration** (New/Edit Area, New/Edit Project) | **not started** |
+| **e2e seed fixtures** (`e2e/seed-tasks.sql` has no `icon_key` values) | not done |
+| **Duplicate / clone flows** | not audited — confirm whether any exist |
+| Collection loaders (`listAreas`, `listProjects`) | not done — needed for Gate D |
+| Activity metadata | deliberately none; see below |
+
+### Decisions worth not re-litigating
+
+- **No snapshot schema bump.** `iconKey` is additive and optional-by-`null`, which the
+  policy in `workspace-snapshot.ts` explicitly says does not bump the version.
+  `export.spec.ts` stays at 2.
+- **No Activity event for choosing an icon.** The events in these slices mark
+  transitions that change what a record IS — archived, restored, status. A feed that
+  logs every appearance tweak buries them.
+- **Export preserves an unrecognised key verbatim; reads degrade it to `null`.** The two
+  directions disagree on purpose: a record must render, and an archive must not lose a
+  choice whose glyph was removed in one release and restored in the next. Both
+  directions are asserted in `entity-icon-round-trip.test.ts` and
+  `entity-icon-settings.test.ts`.
+- **Both detail tables are sparse for a new record.** `createArea` and `createProject`
+  write no detail row, and migration 0008's backfill only covered Projects existing at
+  the time. `setIcon` must upsert; a plain `UPDATE` affects no rows and still reports
+  success.
+- **An invalid key is refused, never stored as `null`.** Silently normalising tells the
+  owner their choice was saved and then shows a default.
+
+### The next step, exactly
+
+Build `app/shared/entity/EntityIconPicker.tsx` (one shared component — not one per
+module) over the existing `searchEntityIcons`, `entityIconOptionsByCategory` and
+`ENTITY_ICON_CATEGORIES`, then integrate it into New/Edit Area and New/Edit Project.
+Requirements are in §4's picker list below and Appendix A.3. The server side it posts to
+already exists: `iconKey` on `POST /areas/new` and `POST /projects/new`, and the
+`setIcon` / `set_icon` intents on each module's mutate route.
+
+<details>
+<summary>The original outstanding-paths table, kept for reference</summary>
+
+
 
 | Path | State | Where |
 |---|---|---|
@@ -115,8 +186,7 @@ Every path below is outstanding:
 | Clone / duplicate | not done | wherever a Project or Area is duplicated |
 | Activity metadata | not done | only where the module already records attribute changes |
 
-**Do not silently discard icon keys during export/import.** A round-trip that loses the owner's
-choice is a data-loss bug that no test currently catches.
+</details>
 
 ### Picker — not started
 
@@ -161,8 +231,9 @@ To clear it locally: re-run `node ./e2e/setup-local-db.mjs` against a reset `.wr
 Do these in order. Do not broaden the scope, and do not start the later module groups before
 Areas, Projects, Tasks and Today are complete and approved.
 
-**1. Finish Area and Project icon persistence.** Repository reads and writes; create and edit
-actions; import/export and snapshots; fixtures and tests. Every row in §4's table.
+**1. ~~Finish Area and Project icon persistence.~~ DONE** — see §4. Only the e2e seed
+fixtures and a duplicate/clone audit remain, and both are better done alongside the
+picker than before it.
 
 **2. Build the shared icon picker.** Accessible desktop dialog/popover and mobile sheet/modal;
 search and categories; keyboard selection; reset to default; integrated into create and edit for
