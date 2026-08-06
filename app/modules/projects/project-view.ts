@@ -12,12 +12,17 @@
  */
 
 import { normaliseProgress, type CardTone } from "~/shared/card";
+import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import {
   projectWorkflowStatusLabel,
   type ProjectWorkflowStatus,
 } from "~/kernel/project-settings";
 import { isProjectHealthVisible } from "~/kernel/project-health";
 import type { ProjectHealth } from "~/shared/project-health";
+// Imported from the module rather than the barrel: this file is deliberately
+// React-free, and `~/shared/project-health` re-exports two components.
+import { healthReasonText } from "~/shared/project-health/health-view";
+import type { PillTone } from "~/shared/pill";
 import {
   formatCalendarDate,
   serializeTaskWaiting,
@@ -50,6 +55,14 @@ export interface SerializedProjectListItem {
   readonly archivedAt: string | null;
   readonly area: ProjectRelation | null;
   readonly goal: ProjectRelation | null;
+  /**
+   * The resolved Area's stable colour rank, so the card can inherit the Area's
+   * accent instead of inventing a second identity system. `null` when the
+   * Project has no Area.
+   */
+  readonly areaColourRank: number | null;
+  /** The owner's chosen icon KEY, or `null` for the Project default. */
+  readonly iconKey: EntityIconKey | null;
   readonly taskTotal: number;
   readonly taskCompleted: number;
   /** The DERIVED health signal (PROJ-02) — never persisted, JSON-safe. */
@@ -102,6 +115,8 @@ export function serializeProjectListItem(
     archivedAt: item.archivedAt ? item.archivedAt.toISOString() : null,
     area: item.area,
     goal: item.goal,
+    areaColourRank: item.areaColourRank,
+    iconKey: item.iconKey,
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
     health,
@@ -245,13 +260,90 @@ export function projectProgressFromRollup(
   return projectProgress(rollup.completed, rollup.total);
 }
 
+/**
+ * The ONE status treatment on a Project entity card.
+ *
+ * The audit found "two competing status systems (state chip right, health chip
+ * inline)" on every Project row: a lifecycle pill and a health pill saying
+ * overlapping things at the same weight. A card now carries exactly one chip,
+ * chosen as the single most decision-relevant fact about the Project:
+ *
+ *   archived                       -> "Archived"
+ *   completed                      -> "Completed"
+ *   not actively worked            -> "Planned" / "On hold"
+ *   active, and health is speaking -> the health state ("Stale", "At risk", …)
+ *   active, and nothing is wrong   -> "Active"
+ *
+ * Health only ever REPLACES the workflow chip, never sits beside it, and only
+ * for a Project whose status is `active` — which is the same
+ * `isProjectHealthVisible` rule every other surface already applies. The
+ * health REASON ("no progress in 18 days") is supporting text elsewhere on the
+ * card: it explains the chip rather than restating it.
+ */
+export interface ProjectCardStatus {
+  readonly label: string;
+  /**
+   * A `PillTone`, not the wider `CardTone`: the chip is a `StatusPill`, and
+   * `HealthTone` is already a strict subset of `PillTone`, so a health state
+   * drops in with no mapping and no tone this pill cannot render.
+   */
+  readonly tone: PillTone;
+  /** True when the chip is carrying a health state rather than a lifecycle one. */
+  readonly fromHealth: boolean;
+}
+
+export function projectCardStatus(project: {
+  readonly completedAt: string | null;
+  readonly archivedAt: string | null;
+  readonly status: ProjectWorkflowStatus;
+  readonly health: ProjectHealth;
+  readonly healthVisible: boolean;
+}): ProjectCardStatus {
+  if (project.archivedAt !== null) {
+    return { label: "Archived", tone: "neutral", fromHealth: false };
+  }
+  if (project.completedAt !== null) {
+    return { label: "Completed", tone: "success", fromHealth: false };
+  }
+  // `on_track` is the absence of a signal, so promoting it would replace a
+  // useful word ("Active") with a vaguer one and gain nothing.
+  if (project.healthVisible && project.health.state !== "on_track") {
+    return {
+      label: project.health.label,
+      tone: project.health.tone,
+      fromHealth: true,
+    };
+  }
+  return {
+    label: projectWorkflowStatusLabel(project.status),
+    tone: "neutral",
+    fromHealth: false,
+  };
+}
+
 /** The display data for one project Card (pure derivation, unit-tested). */
 export interface ProjectCardData {
   readonly id: string;
   readonly title: string;
   readonly areaLabel: string | null;
   readonly goalLabel: string | null;
-  readonly state: { readonly label: string; readonly tone: CardTone };
+  /**
+   * The Area's stable colour rank, so the Project card wears its Area's accent.
+   * `null` when the Project has no Area and the card falls back to the neutral
+   * entity container.
+   */
+  readonly areaColourRank: number | null;
+  /** The owner's chosen icon KEY, or `null` for the Project default. */
+  readonly iconKey: EntityIconKey | null;
+  /** The parent context line — "DalyHub V2 · Launch the site" — or null. */
+  readonly parentLabel: string | null;
+  /** The ONE status chip. */
+  readonly status: ProjectCardStatus;
+  /**
+   * The health REASON, only when the chip is a health chip AND the reason says
+   * something the label does not. Never a second copy of the state.
+   */
+  readonly statusDetail: string | null;
   readonly progress: ProjectProgress;
   /** e.g. "Updated 21 Jul 2026", or null when it doesn't genuinely help. */
   readonly updatedLabel: string | null;
@@ -299,17 +391,50 @@ export function serializeProjectTask(
   };
 }
 
+/**
+ * The parent context line.
+ *
+ * A Project belongs to an Area either directly or through a Goal, and the
+ * repository resolves BOTH live (never a copied label). The card shows the
+ * Area first because it is the stable coordinate an owner navigates by, then
+ * the Goal where one exists — so an Area stays discoverable from every Project
+ * card without a second line.
+ */
+export function projectParentLabel(project: {
+  readonly areaLabel: string | null;
+  readonly goalLabel: string | null;
+}): string | null {
+  const parts = [project.areaLabel, project.goalLabel].filter(
+    (part): part is string => part !== null && part.length > 0,
+  );
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 /** Map a serialised project list item into its Card display data. */
 export function toProjectCardData(
   item: SerializedProjectListItem,
 ): ProjectCardData {
   const updated = formatCalendarDate(item.updatedAt.slice(0, 10));
+  const areaLabel = item.area?.title ?? null;
+  const goalLabel = item.goal?.title ?? null;
+  const status = projectCardStatus(item);
+  const primaryReason = item.health.reasons[0];
+  const reasonText = primaryReason ? healthReasonText(primaryReason) : null;
   return {
     id: item.id,
     title: item.title,
-    areaLabel: item.area?.title ?? null,
-    goalLabel: item.goal?.title ?? null,
-    state: projectStateLabel(item),
+    areaLabel,
+    goalLabel,
+    areaColourRank: item.areaColourRank,
+    iconKey: item.iconKey,
+    parentLabel: projectParentLabel({ areaLabel, goalLabel }),
+    status,
+    // Only when the chip is a health chip, and only when the reason adds
+    // something the chip's own word does not.
+    statusDetail:
+      status.fromHealth && reasonText !== null && reasonText !== status.label
+        ? reasonText
+        : null,
     progress: projectProgress(item.taskCompleted, item.taskTotal),
     updatedLabel: updated ? `Updated ${updated}` : null,
     health: item.health,

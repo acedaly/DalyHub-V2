@@ -1,19 +1,33 @@
 /**
- * PROJ-01 — the Projects collection view (presentation, no server imports).
+ * PROJ-01 / Gate D — the Projects collection, on the shared entity-card family.
+ *
+ * The audit found this surface "identical to Tasks and Areas — the same generic
+ * card list": no Project icon, an unlabelled progress bar ("1 of 2 tasks", no
+ * percentage), a run-on metadata line putting six facts at one weight, a
+ * duplicated "Updated: Updated 19 Jul 2026", and two competing status systems —
+ * a state chip on the right and a health chip inline.
+ *
+ * What replaced it:
+ *
+ *   - `EntityCard` in `EntityCardGrid` — a 3/2/1-column responsive grid.
+ *   - The owner's CHOSEN icon on the Area's accent (`AccentIcon`), so a grid of
+ *     Projects groups visually by the Area they serve without a heading.
+ *   - ONE status chip (`projectCardStatus`), never a chip plus an inline health
+ *     pill. The health REASON survives as supporting text, because it explains
+ *     the chip rather than restating it.
+ *   - Progress as a thin bar WITH its percentage, and a zero-task Project shown
+ *     as "No tasks yet" rather than an implied 0%.
  *
  * Split from the route so it can be unit-tested without the `cloudflare:workers`
- * loader (mirroring TodayDashboard). Composed ENTIRELY from the shared frame — the
- * PX-02 CollectionLayout, the ONE DS-04 Card, the shared EmptyState, the DS-03 Drawer
- * (hosting the DS-06 create form) and a restrained state segment. Each Card opens its
- * project overview through NORMAL client navigation (a real link + SPA open), never
- * an inaccessible clickable container.
+ * loader (mirroring TodayDashboard). Each card opens its project overview
+ * through NORMAL client navigation (a real router link), never an inaccessible
+ * clickable container.
  */
 
 import { useMemo } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 
-import { Card, CardCollection } from "~/shared/card";
-import type { CardMetaItem, CardProps } from "~/shared/card";
+import { EntityCard, EntityCardGrid } from "~/shared/card";
 import {
   CollectionLayout,
   useCollectionLoading,
@@ -25,11 +39,11 @@ import {
   type DrawerEntry,
   type DrawerRenderResult,
 } from "~/shared/drawer";
-import { EntityIcon } from "~/shared/entity";
+import { AccentIcon, EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import type { SelectOption } from "~/shared/forms/types";
-import { HealthIndicator } from "~/shared/project-health";
+import { StatusPill } from "~/shared/pill";
 import { SegmentedFilter } from "~/shared/segmented-filter";
 
 import { NewProjectForm } from "./NewProjectForm";
@@ -91,7 +105,6 @@ export function ProjectsCollectionView({
   state,
   failed,
 }: ProjectsCollectionViewProps) {
-  const navigate = useNavigate();
   const revalidator = useRevalidator();
 
   const renderDrawer = useMemo(() => {
@@ -120,7 +133,6 @@ export function ProjectsCollectionView({
         nextCursor={nextCursor}
         state={state}
         failed={failed}
-        onOpenProject={(id) => navigate(`/projects/${encodeURIComponent(id)}`)}
       />
     </DrawerProvider>
   );
@@ -151,59 +163,60 @@ function NewProjectFormHost({
   );
 }
 
-function toCardProps(
-  card: ProjectCardData,
-  onOpenProject: (id: string) => void,
-): CardProps {
-  const metadata: CardMetaItem[] = [];
-  // The derived health signal (PROJ-02): a restrained toned pill + the primary
-  // reason as accessible text. It is a distinct axis from the open/completed
-  // `status` pill, so both coexist without a second card component. Shown ONLY
-  // for genuinely active work (PROJ-05 §8 / ADR-037) — a Planned, On-hold,
-  // Completed or Archived project never shows an active-work health warning.
-  if (card.healthVisible) {
-    metadata.push({
-      id: "health",
-      label: "Health",
-      value: <HealthIndicator health={card.health} showReason />,
-    });
-  }
-  if (card.goalLabel) {
-    metadata.push({ id: "goal", label: "Goal", value: card.goalLabel });
-  }
-  if (!card.progress.has) {
-    metadata.push({ id: "tasks", label: "Tasks", value: "No tasks yet" });
-  }
-  if (card.updatedLabel) {
-    metadata.push({
-      id: "updated",
-      label: "Updated",
-      value: card.updatedLabel,
-    });
-  }
-
-  return {
-    id: card.id,
-    title: card.title,
-    typeLabel: "Project",
-    icon: <EntityIcon type="project" />,
-    headingLevel: 2,
-    status: card.state,
-    context: card.areaLabel ? { label: card.areaLabel } : undefined,
-    metadata,
-    progress: card.progress.has
-      ? {
-          value: card.progress.completed,
-          max: card.progress.total,
-          label: card.progress.summary,
-        }
-      : undefined,
-    density: "comfortable",
-    presentation: "list",
-    href: `/projects/${encodeURIComponent(card.id)}`,
-    onOpen: () => onOpenProject(card.id),
-    openAriaLabel: `Open ${card.title}`,
-  };
+/**
+ * One Project card.
+ *
+ * Progress is deliberately absent for a Project with no tasks: an empty bar at
+ * 0% reads as "nothing done yet" when the truth is "nothing planned yet", and
+ * the two are different facts. Where progress IS shown, the bar and the text
+ * come from the same `normaliseProgress` call inside `EntityCard`, so the
+ * visible percentage and the `aria-valuenow` can never disagree.
+ */
+function ProjectEntityCard({ card }: { readonly card: ProjectCardData }) {
+  return (
+    <EntityCard
+      data-testid="project-card"
+      icon={
+        <AccentIcon
+          entityType="project"
+          iconKey={card.iconKey}
+          colourRank={card.areaColourRank}
+        />
+      }
+      title={card.title}
+      headingLevel={2}
+      subtitle={card.parentLabel}
+      status={
+        <StatusPill tone={card.status.tone}>{card.status.label}</StatusPill>
+      }
+      progress={
+        card.progress.has
+          ? {
+              value: card.progress.completed,
+              max: card.progress.total,
+              // Compact beside the bar, complete for assistive tech — both
+              // derived from the same completed/total pair.
+              label: `${card.progress.percent}%`,
+              valueText: `${card.progress.percent}% — ${card.progress.summary} complete`,
+            }
+          : undefined
+      }
+      meta={
+        <>
+          {card.progress.has ? (
+            <span>{card.progress.summary} complete</span>
+          ) : (
+            <span>No tasks yet</span>
+          )}
+          {card.statusDetail ? <span>{card.statusDetail}</span> : null}
+          {card.updatedLabel ? <span>{card.updatedLabel}</span> : null}
+        </>
+      }
+      muted={card.status.label === "Archived"}
+      href={`/projects/${encodeURIComponent(card.id)}`}
+      openAriaLabel={`Open ${card.title}`}
+    />
+  );
 }
 
 /**
@@ -250,18 +263,28 @@ function projectId(project: SerializedProjectListItem): string {
   return project.id;
 }
 
+/**
+ * The collection count.
+ *
+ * While another page exists the loaded count is NOT the total, so it says
+ * "loaded" rather than claiming completeness. The singular is spelled out
+ * rather than left as the previous "1 projects loaded".
+ */
+export function projectsCountLabel(count: number, hasMore: boolean): string {
+  const noun = count === 1 ? "project" : "projects";
+  return hasMore ? `${count} ${noun} loaded` : `${count} ${noun}`;
+}
+
 function ProjectsCollection({
   projects,
   nextCursor,
   state,
   failed,
-  onOpenProject,
 }: {
   readonly projects: readonly SerializedProjectListItem[];
   readonly nextCursor: string | null;
   readonly state: ProjectState;
   readonly failed: boolean;
-  readonly onOpenProject: (id: string) => void;
 }) {
   const { items, hasMore, loading, loadFailed, loadMore } =
     useProjectPagination(projects, nextCursor, state);
@@ -276,11 +299,7 @@ function ProjectsCollection({
   // how many are "loaded" so far, not how many exist.
   const subtitle = failed
     ? "We couldn’t load your projects."
-    : hasMore
-      ? `${count} projects loaded`
-      : count === 1
-        ? "1 project"
-        : `${count} projects`;
+    : projectsCountLabel(count, hasMore);
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
   // (a filter, a view, a page) shows the shared skeleton instead of leaving the
@@ -292,6 +311,7 @@ function ProjectsCollection({
       title="Projects"
       subtitle={subtitle}
       entityType="project"
+      presentation="grid"
       primaryAction={
         <DrawerTrigger
           drawerKey={NEW_PROJECT_KEY}
@@ -361,14 +381,11 @@ function ProjectsCollection({
         />
       }
     >
-      <CardCollection
-        items={cards}
-        getItemId={(card) => card.id}
-        ariaLabel="Projects"
-        presentation="list"
-        density="comfortable"
-        renderCard={(card) => <Card {...toCardProps(card, onOpenProject)} />}
-      />
+      <EntityCardGrid label="Projects">
+        {cards.map((card) => (
+          <ProjectEntityCard key={card.id} card={card} />
+        ))}
+      </EntityCardGrid>
       {!failed && hasMore ? (
         <LoadMore
           loading={loading}

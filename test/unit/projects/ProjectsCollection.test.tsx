@@ -44,6 +44,8 @@ function project(
     archivedAt: null,
     area: { kind: "area", id: "a1", title: "Career" },
     goal: null,
+    areaColourRank: 0,
+    iconKey: null,
     taskTotal: 4,
     taskCompleted: 1,
     health: stubHealth({ taskTotal: 4, taskCompleted: 1 }),
@@ -225,6 +227,179 @@ describe("Projects collection", () => {
     expect(screen.queryByText(/^Health/)).not.toBeInTheDocument();
   });
 
+  it("carries ONE status treatment, never a lifecycle chip beside a health chip", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "at-risk",
+          title: "Overdue project",
+          health: stubHealth({
+            taskTotal: 4,
+            taskCompleted: 0,
+            overdueOpen: 2,
+          }),
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "Overdue project" });
+    // Exactly one pill on the card, and it is the health state — the workflow
+    // word it replaces must not also be present.
+    expect(card.querySelectorAll(".dh-pill")).toHaveLength(1);
+    expect(within(card).getByText("At risk")).toBeInTheDocument();
+    expect(within(card).queryByText("Active")).not.toBeInTheDocument();
+  });
+
+  it("keeps the workflow word when health has nothing to say", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "healthy",
+          title: "Healthy project",
+          health: stubHealth({ taskTotal: 4, taskCompleted: 2 }),
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "Healthy project" });
+    expect(card.querySelectorAll(".dh-pill")).toHaveLength(1);
+    expect(within(card).getByText("Active")).toBeInTheDocument();
+  });
+
+  it("states progress once, with the bar and the text agreeing", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "partial",
+          title: "Partial",
+          taskTotal: 4,
+          taskCompleted: 1,
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "Partial" });
+    const bar = within(card).getByRole("progressbar");
+    expect(bar).toHaveAttribute("aria-valuenow", "25");
+    // The accessible value says more than the visible "25%", and both are
+    // derived from the same completed/total pair.
+    expect(bar).toHaveAttribute(
+      "aria-valuetext",
+      "25% — 1 of 4 tasks complete",
+    );
+    expect(within(card).getByText("25%")).toBeInTheDocument();
+    expect(within(card).getByText("1 of 4 tasks complete")).toBeInTheDocument();
+  });
+
+  it("never implies 0% progress for a Project with no tasks", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "empty",
+          title: "Nothing planned",
+          taskTotal: 0,
+          taskCompleted: 0,
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "Nothing planned" });
+    expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(within(card).getByText("No tasks yet")).toBeInTheDocument();
+  });
+
+  it("shows a fully completed roll-up accurately", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "done",
+          title: "All done",
+          taskTotal: 6,
+          taskCompleted: 6,
+          completedAt: "2026-07-21T00:00:00.000Z",
+          healthVisible: false,
+          health: stubHealth({ taskTotal: 6, taskCompleted: 6 }),
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "All done" });
+    expect(within(card).getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "100",
+    );
+    expect(within(card).getByText("6 of 6 tasks complete")).toBeInTheDocument();
+  });
+
+  it("names the Area first so it stays discoverable, then the Goal", () => {
+    renderCollection({
+      projects: [
+        project({
+          id: "via-goal",
+          title: "Goal-backed",
+          area: { kind: "area", id: "a1", title: "DalyHub V2" },
+          goal: { kind: "goal", id: "g1", title: "Launch the site" },
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    const card = screen.getByRole("article", { name: "Goal-backed" });
+    expect(
+      within(card).getByText("DalyHub V2 · Launch the site"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a chosen icon on the Area's accent, and the default without one", () => {
+    const { container } = renderCollection({
+      projects: [
+        project({
+          id: "with-icon",
+          title: "Has icon",
+          iconKey: "travel",
+          areaColourRank: 2,
+        }),
+        project({
+          id: "no-icon",
+          title: "No icon",
+          iconKey: null,
+          areaColourRank: null,
+        }),
+      ],
+      nextCursor: null,
+      parentOptions: [],
+      state: "all",
+      failed: false,
+    });
+    expect(container.querySelector('[data-icon-key="travel"]')).not.toBeNull();
+    // Rank 2 -> accent 3 (0-based rank, 1-based accent).
+    expect(
+      container.querySelector('.dh-accent-icon[data-accent="3"]'),
+    ).not.toBeNull();
+    // No Area means the neutral container, never an invented colour.
+    const plain = screen
+      .getByRole("article", { name: "No icon" })
+      .querySelector(".dh-accent-icon");
+    expect(plain?.getAttribute("data-accent")).toBeNull();
+  });
+
   it("shows a genuinely-empty state when there are no projects at all", () => {
     renderCollection({
       projects: [],
@@ -374,7 +549,7 @@ describe("Projects collection", () => {
     );
 
     // While a page remains, the subtitle must NOT present the loaded count as total.
-    await screen.findByText("1 projects loaded");
+    await screen.findByText("1 project loaded");
     expect(screen.queryByText("1 project")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Load more projects" }));
